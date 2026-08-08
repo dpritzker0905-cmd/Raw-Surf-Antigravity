@@ -51,10 +51,39 @@ BLOCKING_L2_LOADERS = {
     "load_spot_ratings_l2_cached": "services.weather_pipeline.spot_ratings",
     "load_calibration_l2_cached": "services.weather_pipeline.buoy_calibration",
     "load_report_calibration_cached": "services.weather_pipeline.report_calibration",
+    # ⭐ ADDED 2026-08-07: a FOURTH loader of the identical shape (`requests.get(timeout=10)` behind
+    # a 600 s TTL), found only because the scan below was widened past `routes/weather.py`.
+    "load_grid_size_climatology_l2_cached": "services.weather_pipeline.grid_size_climatology",
 }
 
-_ROUTES_WEATHER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                               "routes", "weather.py")
+# ⭐⭐⭐ THE SCAN USED TO BE ONE FILE, AND THAT IS WHY THE CLASS CAME BACK.
+# This guard was written for `routes/weather.py` and shipped with the note that "a fix applied at the
+# site of an incident is not a fix applied to the class" — then the class recurred in
+# `grid_resolver_surf.py`, which it structurally could not see. Measured there 2026-08-07: FOUR
+# blocking calls inside one `async def apply_surf_overlay` — two `requests.get(timeout=10)` loaders
+# and two per-cell CPU loops — on the map-overlay path. ⇒ A GUARD SCOPED TO ONE FILE IS A GUARD
+# AGAINST ONE INCIDENT. Scan the tree.
+_BACKEND = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_SCAN_DIRS = [os.path.join(_BACKEND, "routes"), os.path.join(_BACKEND, "services", "weather_pipeline")]
+
+# Per-cell grid transforms: pure CPU, but a stall is proportional to DURATION, not to grid size.
+# Measured on the largest RATED frame production was observed to serve (7,081 cells): 4.27 s with a
+# co-tenant getting 0 of ~426 ticks (0%). Even the WARM 0.10 s case took 0 of ~10 — there is no
+# "small enough" frame that makes a bare call safe.
+BLOCKING_GRID_TRANSFORMS = {
+    "rating_transform_grid": "services.weather_pipeline.surf_rating",
+    "surf_transform_grid": "services.weather_pipeline.surf_transform",
+}
+
+
+def _scan_files():
+    out = []
+    for d in _SCAN_DIRS:
+        for root, _dirs, files in os.walk(d):
+            if "__pycache__" in root:
+                continue
+            out.extend(os.path.join(root, f) for f in files if f.endswith(".py"))
+    return sorted(out)
 
 
 def _async_defs(tree):
@@ -86,19 +115,40 @@ def test_the_surface_list_is_not_stale():
         + "\nRemove them from BLOCKING_L2_LOADERS and confirm every call site now awaits them.")
 
 
+def _bare_calls(names):
+    """Every place one of `names` is CALLED (not merely referenced) inside an `async def`, across
+    the whole scanned tree."""
+    offenders = []
+    for path in _scan_files():
+        try:
+            tree = ast.parse(open(path, encoding="utf-8").read())
+        except Exception:
+            continue
+        rel = os.path.relpath(path, _BACKEND).replace("\\", "/")
+        for fn in _async_defs(tree):
+            for node in ast.walk(fn):
+                if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                        and node.func.id in names):
+                    offenders.append(
+                        f"{rel}:{node.lineno} — `{ast.unparse(node)[:70]}` is called directly "
+                        f"inside `async def {fn.name}`")
+    return offenders
+
+
+def test_the_scan_actually_reaches_more_than_one_file():
+    """REFUSE rather than pass vacuously. The original guard read ONE path; if this ever collapses
+    back to a single file the class-level claim below becomes false while staying green."""
+    files = _scan_files()
+    assert len(files) > 50, f"the scan reached only {len(files)} files — it is not scanning the tree"
+    names = {os.path.basename(f) for f in files}
+    for required in ("weather.py", "grid_resolver_surf.py", "spot_ratings.py"):
+        assert required in names, f"{required} is not in the scanned set"
+
+
 def test_no_blocking_l2_loader_is_called_on_the_event_loop():
     """THE CLASS GUARD. Inside `async def`, these loaders may be REFERENCED (handed to to_thread)
     but never CALLED — a call runs the blocking socket read on the loop itself."""
-    tree = ast.parse(open(_ROUTES_WEATHER, encoding="utf-8").read())
-
-    offenders = []
-    for fn in _async_defs(tree):
-        for node in ast.walk(fn):
-            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-                    and node.func.id in BLOCKING_L2_LOADERS):
-                offenders.append(
-                    f"routes/weather.py:{node.lineno} — `{ast.unparse(node)}` is called directly "
-                    f"inside `async def {fn.name}`")
+    offenders = _bare_calls(BLOCKING_L2_LOADERS)
 
     assert not offenders, (
         "A synchronous Supabase L2 read is running on the event loop, which starves every other\n"
@@ -106,6 +156,37 @@ def test_no_blocking_l2_loader_is_called_on_the_event_loop():
         + "\n  ".join(offenders)
         + "\n\nFix: `await asyncio.to_thread(<loader>)` — the pattern already used at "
           "/buoy-calibration and /report-calibration in this same file.")
+
+
+def test_no_per_cell_grid_transform_is_called_on_the_event_loop():
+    """THE CPU HALF OF THE SAME CLASS. A blocking socket read and a blocking CPU loop starve the
+    loop identically; only the cause differs, so the ban is the same shape.
+
+    Measured 2026-08-07 on `rating_transform_grid` at 7,081 cells — the largest RATED frame
+    production was observed to serve (`/api/weather/grid?surf=true`, hemisphere bbox):
+        bare on the loop   4.27 s,  co-tenant ticks 0 of ~426  (0%)
+        await to_thread    1.27 s,  co-tenant ticks 81 of ~126 (64%)
+    ⚠️ And the WARM case (0.10 s) still took 0 of ~10 ticks. The stall is proportional to DURATION,
+    not to grid size — there is no frame small enough to make a bare call safe, which is why this
+    bans the shape rather than gating on a cell count.
+    """
+    offenders = _bare_calls(BLOCKING_GRID_TRANSFORMS)
+    assert not offenders, (
+        "A per-cell grid transform is running on the event loop, starving every other in-flight\n"
+        "request on the worker for its full duration (measured: 0 of ~426 co-tenant ticks):\n  "
+        + "\n  ".join(offenders)
+        + "\n\nFix: `await asyncio.to_thread(<transform>, ...)`. The injected fns are pure sync\n"
+          "closures over already-loaded data, so the thread is safe.")
+
+
+def test_the_grid_transform_surface_list_is_not_stale():
+    """REFUSE rather than pass vacuously — same contract as the loader list above."""
+    missing = []
+    for name, module_path in BLOCKING_GRID_TRANSFORMS.items():
+        mod = importlib.import_module(module_path)
+        if getattr(mod, name, None) is None:
+            missing.append(f"{module_path}.{name} no longer exists")
+    assert not missing, "\n".join(missing) + "\nUpdate BLOCKING_GRID_TRANSFORMS deliberately."
 
 
 def test_the_guard_can_actually_catch_the_defect():

@@ -81,7 +81,10 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
                     try:
                         from services.weather_pipeline.grid_size_climatology import (
                             load_grid_size_climatology_l2_cached, reference_for)
-                        _clim = load_grid_size_climatology_l2_cached()
+                        # ⛔ OFF THE EVENT LOOP — a `requests.get(timeout=10)` to Supabase behind a
+                        # 600 s TTL. Bare, it blocked the single worker's loop for the whole round
+                        # trip once per TTL per process. Same class as `ebc2b5b4`.
+                        _clim = await asyncio.to_thread(load_grid_size_climatology_l2_cached)
                         if _clim:
                             reference_fn = lambda _la, _ln: reference_for(_clim, _la, _ln)
                     except Exception as _rle:
@@ -94,10 +97,25 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
                 gate_fn = None
                 if os.environ.get("RATING_OBS_GATE", "0") == "1":
                     try:
-                        gate_fn = _build_observation_gate(target_dt)
+                        # ⛔ OFF THE EVENT LOOP — this reaches `load_spot_ratings_l2_cached`, another
+                        # `requests.get(timeout=10)` behind a 300 s TTL. The audit offloaded that
+                        # loader's two siblings in `routes/weather.py` and missed this caller.
+                        gate_fn = await asyncio.to_thread(_build_observation_gate, target_dt)
                     except Exception as _oge:
                         logger.warning(f"[Grid Route] observation gate unavailable (capped default): {_oge}")
-                n_t, n_masked = rating_transform_grid(
+                # ⛔⛔ OFF THE EVENT LOOP — THE ONE THE MEASUREMENT ACTUALLY CONDEMNED. This is a
+                # per-cell loop, and 99.1% of its cold cost is bathymetry lookups (measured at HEAD:
+                # 14.087 s of lookups vs 0.130 s of math over 19,600 fresh coords), not physics.
+                # Bare on the loop it stalls EVERYTHING: at 7,081 cells — the largest RATED frame
+                # production was observed to serve — a co-tenant coroutine got **0 of ~426 ticks
+                # (0%)** for 4.27 s. Offloaded, 64% of ticks survive. ⚠️ Even the WARM 0.10 s case
+                # took 0 of ~10 ticks: the stall is proportional to duration, not to grid size, so
+                # there is no "small enough" frame that makes this safe.
+                # ★ The fix is the thread, NOT vectorising the lookups: `lru_cache(maxsize=200_000)`
+                # already makes the steady state ~4.8 µs/cell (23–43× the cold path), so the
+                # remaining cost is a cold-start tax, not a hot loop.
+                n_t, n_masked = await asyncio.to_thread(
+                    rating_transform_grid,
                     product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, shore_normal_at,
                     reference_fn=reference_fn, gate_fn=gate_fn)
                 tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn),
@@ -105,7 +123,11 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
                 label = "RATING overlay"
             else:
                 from services.weather_pipeline.surf_transform import surf_transform_grid
-                n_t, n_masked = surf_transform_grid(product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km)
+                # The height-band sibling — same per-cell shape over the same cold lookups, so it
+                # gets the same thread. Fixing only the rating branch would leave the WORLD frame
+                # (15,023 cells, measured live) blocking the loop, and that is the biggest one.
+                n_t, n_masked = await asyncio.to_thread(
+                    surf_transform_grid, product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km)
                 tag = {"transformed": n_t, "masked": n_masked}
                 label = "height band"
             product.is_estimated = True

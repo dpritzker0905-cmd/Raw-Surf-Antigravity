@@ -32,6 +32,25 @@ import pytest
 from services.weather_pipeline import spot_size_climatology as SSC
 
 MAV = (37.4915, -122.5083)
+VALID_TIME = "2026-08-07T06:00:00Z"
+
+
+def _point_response():
+    """A minimal successful MARINE point — the shape `augment_with_surf` enriches."""
+    from datetime import datetime, timezone
+    from services.weather_pipeline.schemas import NormalizedPointDetail, NormalizedPointResponse
+    return NormalizedPointResponse(
+        model="EURO", provider="open-meteo", domain="marine", layer="waves",
+        run_time=datetime(2026, 8, 7, tzinfo=timezone.utc),
+        valid_time=datetime(2026, 8, 7, 6, tzinfo=timezone.utc),
+        is_forecast_authoritative=True, is_estimated=False,
+        point=NormalizedPointDetail(
+            requested_lat=MAV[0], requested_lng=MAV[1], sampled_lat=MAV[0], sampled_lng=MAV[1],
+            speed=2.0, direction=290.0, u=0.4, v=-1.5, period=13.0,
+            interpolation_method="exact_match"),
+        value_kind="wave_height", value_unit="m", display_unit_hint="ft",
+        source_variables=["wave_height"], freshness_sec=1800,
+    )
 
 
 def _blob(spots):
@@ -158,22 +177,51 @@ def test_the_index_is_memoised_against_blob_IDENTITY_not_a_timer():
 
 # ── 3. THE CONSUMER prefers spot, falls back to cell — and NEVER to the global curve ──────────
 
-def test_the_point_lane_prefers_the_spot_reference_and_falls_back_to_the_cell():
-    """Reads the SOURCE of the augment block, because the alternative is standing up the whole
-    async point pipeline to observe one precedence decision. ⚠️ A source assertion is weaker than
-    an execution one, so it pins the ORDER (`or`), which is the entire behaviour under test."""
-    import inspect
+@pytest.mark.asyncio
+async def test_the_point_lane_prefers_the_spot_reference_and_falls_back_to_the_cell(monkeypatch):
+    """⭐ REWRITTEN 2026-08-07 FROM A SOURCE ASSERTION TO AN EXECUTION ONE.
 
-    from services.weather_pipeline import point_surf_augment
-    src = inspect.getsource(point_surf_augment.augment_with_surf)
-    assert "reference_for_coordinate(lat, lng)" in src, "the spot lane is not wired"
-    i_spot = src.index("reference_for_coordinate(lat, lng)")
-    i_cell = src.index("reference_for(load_grid_size_climatology_l2_cached(), lat, lng)")
-    assert i_spot < i_cell, "the CELL reference must be the fallback, not the answer"
-    assert src[i_spot:i_cell].strip().endswith("or"), (
-        "the two must be joined by `or` — a spot miss has to reach the cell value, never None, "
-        "or a catalogued-spot miss would drop the badge to the GLOBAL 1.2 m curve, which is the "
-        "much larger defect this whole arc closed")
+    It used to `inspect.getsource` the augment block and `str.index` for
+    `reference_for(load_grid_size_climatology_l2_cached(), lat, lng)`, on the stated grounds that
+    executing the lane was too expensive. That is the `"x" in src` shape this repo has been bitten
+    by before: when the expression was legitimately restructured — to move the loader off the event
+    loop while KEEPING its short-circuit — the substring vanished and the test failed on a change
+    that altered no behaviour whatsoever. A guard that breaks on formatting is a guard on formatting.
+
+    Executing it is what the test claimed to want and is barely harder. It now pins BOTH halves of
+    the precedence AND the short-circuit, which the source scan could never see:
+      spot hit  -> that value is served AND the cell loader is never called (no round trip)
+      spot miss -> the cell value is served (never None, which would drop the badge to the GLOBAL
+                   1.2 m curve — the much larger defect this whole arc closed)
+    """
+    from services.weather_pipeline import point_surf_augment as PSA
+    from services.weather_pipeline import grid_size_climatology as GSC
+    from services.weather_pipeline import spot_size_climatology as SSC
+
+    monkeypatch.setenv("RATING_LOCAL_SIZE", "1")
+    loader_calls = []
+    monkeypatch.setattr(GSC, "load_grid_size_climatology_l2_cached",
+                        lambda *a, **k: (loader_calls.append(1), {"cells": {}})[1])
+    monkeypatch.setattr(GSC, "reference_for", lambda clim, la, ln: 2.22)
+
+    async def _no_parts(*a, **k):
+        return None
+
+    # 1. SPOT HIT — the spot value wins and the cell loader is never touched.
+    monkeypatch.setattr(SSC, "reference_for_coordinate", lambda la, ln, **k: 1.11)
+    resp = await PSA.augment_with_surf(_point_response(), "EURO", "marine", "waves",
+                                       MAV[0], MAV[1], VALID_TIME, _no_parts)
+    assert resp.reference_size_m == 1.11, "the SPOT reference must win when it exists"
+    assert loader_calls == [], (
+        "the cell climatology was loaded even though the spot reference answered — the `or` "
+        "short-circuit is gone, so every point now pays a possible 10 s round trip")
+
+    # 2. SPOT MISS — falls through to the cell, never to None.
+    monkeypatch.setattr(SSC, "reference_for_coordinate", lambda la, ln, **k: None)
+    resp = await PSA.augment_with_surf(_point_response(), "EURO", "marine", "waves",
+                                       MAV[0], MAV[1], VALID_TIME, _no_parts)
+    assert resp.reference_size_m == 2.22, "a spot miss must reach the CELL value, never None"
+    assert loader_calls == [1], "the cell loader should have run exactly once on the miss"
 
 
 def test_both_symbols_the_point_lane_imports_actually_exist():

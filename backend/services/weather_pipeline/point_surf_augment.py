@@ -17,6 +17,7 @@ service — and so the re-entrancy guard stays where it belongs: the caller pass
 `self._resolve_partitions`, which goes through `_resolve_point_internal` and therefore cannot
 recurse back into this augmentation.
 """
+import asyncio
 import logging
 import os
 
@@ -102,9 +103,21 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
                     # little climatology) falls through to the cell value, which is the behaviour
                     # this lane shipped with. That is why this can land BEFORE the precompute has
                     # written coordinates into the blob: inert until the data arrives.
-                    response.reference_size_m = (
-                        reference_for_coordinate(lat, lng)
-                        or reference_for(load_grid_size_climatology_l2_cached(), lat, lng))
+                    # ⛔ OFF THE EVENT LOOP — `load_grid_size_climatology_l2_cached` is a
+                    # `requests.get(timeout=10)` behind a 600 s TTL. This is the SINGLE INJECTION
+                    # POINT, so a bare call here froze the worker on the ratings precompute, the
+                    # spot hub AND /api/weather/point. Only the `or` branch pays it, and only on a
+                    # cache miss — which is exactly why it survived review.
+                    # ⚠️ THE SHORT-CIRCUIT IS PRESERVED DELIBERATELY. The original was
+                    # `a or reference_for(loader(), ...)`, so the loader ran ONLY when `a` was
+                    # falsy. Hoisting it above the `or` would offload it correctly and still be a
+                    # regression — it would start paying a cache-miss round trip on every point
+                    # that already had a per-coordinate reference.
+                    _ref = reference_for_coordinate(lat, lng)
+                    if not _ref:
+                        _clim = await asyncio.to_thread(load_grid_size_climatology_l2_cached)
+                        _ref = reference_for(_clim, lat, lng)
+                    response.reference_size_m = _ref
                 except Exception as _ref_err:
                     logger.debug(f"[point-surf] local size reference unavailable: {_ref_err}")
             # SPECTRAL (opt-in): transform each swell train on its own period instead of shoaling

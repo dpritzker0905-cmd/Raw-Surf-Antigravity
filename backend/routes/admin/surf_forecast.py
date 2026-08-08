@@ -12,6 +12,7 @@ One place for the operator to see the rating pipeline's truth and moderate the d
 Flags are SERVER ENV (Render / workflow env) — this endpoint reports what the serve box actually sees;
 flipping them is an env change + restart, documented per flag. Read-only besides report deletion.
 """
+import asyncio
 import logging
 import os
 from datetime import datetime, timedelta, timezone
@@ -209,7 +210,7 @@ async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
     blobs = {}
     try:
         from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached
-        obj = load_spot_ratings_l2_cached()
+        obj = await asyncio.to_thread(load_spot_ratings_l2_cached)  # off-loop: requests.get(timeout=10) behind a TTL
         frames = (obj or {}).get("frames", [])
         confirmed = sum(1 for fr in frames for s in fr.get("spots", []) if s.get("confirmed"))
         blobs["spot_ratings"] = {
@@ -230,7 +231,7 @@ async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
         blobs["spot_size_climatology"] = {"error": str(e)}
     try:
         from services.weather_pipeline.grid_size_climatology import load_grid_size_climatology_l2_cached
-        gclim = load_grid_size_climatology_l2_cached()
+        gclim = await asyncio.to_thread(load_grid_size_climatology_l2_cached)  # off-loop: requests.get(timeout=10) behind a TTL
         cells = (gclim or {}).get("cells", {})
         ready = sum(1 for rec in cells.values() if isinstance(rec, dict) and rec.get("n", 0) >= 12)
         blobs["grid_size_climatology"] = {"updated_at": (gclim or {}).get("updated_at"),
@@ -273,7 +274,7 @@ async def get_size_reference(
     try:
         from services.weather_pipeline.grid_size_climatology import (
             load_grid_size_climatology_l2_cached, reference_for)
-        clim = load_grid_size_climatology_l2_cached()
+        clim = await asyncio.to_thread(load_grid_size_climatology_l2_cached)  # off-loop: requests.get(timeout=10) behind a TTL
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"climatology unavailable: {e}")
     if not clim:
@@ -324,7 +325,7 @@ async def local_size_preview(admin: Profile = Depends(get_current_admin),
     clim = load_size_climatology_l2_cached()
     if not clim:
         raise HTTPException(status_code=503, detail="size climatology blob not present in L2")
-    obj = load_spot_ratings_l2_cached()
+    obj = await asyncio.to_thread(load_spot_ratings_l2_cached)  # off-loop: requests.get(timeout=10) behind a TTL
     frames = (obj or {}).get("frames", [])
     if not frames:
         raise HTTPException(status_code=503, detail="no precomputed spot ratings to compare against")
