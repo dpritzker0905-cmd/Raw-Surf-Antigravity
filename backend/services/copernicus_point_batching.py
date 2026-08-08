@@ -24,6 +24,12 @@ import copy
 import time
 import logging
 
+# The HEALTHY per-box rate, from this module's own recorded baseline: 107 boxes in 18.8 min
+# (2026-07-06) = 10.54 s/box. It is the discriminator between "the upstream is slow" and "the budget
+# is too small for how much work there now is" — see the abort block below, where measured
+# production runs sit at 10.0 s/box while aborting every time.
+_HEALTHY_S_PER_BOX = 10.5
+
 logger = logging.getLogger(__name__)
 
 # Must MATCH the ladder's EURO point horizon (point_resolution: point_forecast_days["EURO"]) —
@@ -170,12 +176,36 @@ async def prewarm_euro_marine_point_cache(coords, forecast_days: int = EURO_POIN
     stats["elapsed_s"] = round(time.time() - t0, 1)
     if stats.get("aborted"):
         os.environ["POINT_BATCH_DEGRADED"] = "1"
+        # ⭐⭐⭐ SAY WHICH ABORT THIS IS, because the two look identical in the log and mean opposite
+        # things. Measured over 8 consecutive production runs (2026-08-07): the budget abort fired on
+        # 7 of them, ALWAYS at ~1205 s, with `failed: 0` and a per-box time of **10.0 s p50** — versus
+        # the 10.5 s/box baseline this module's own bounds comment calls HEALTHY (107 boxes / 18.8 min,
+        # 2026-07-06). The upstream was never degraded. The BOX COUNT grew 107 → 179 (+67%) while
+        # `POINT_BATCH_PREWARM_BUDGET_S` stayed at 1200 s, so 179 boxes now need ~1790 s and the
+        # circuit breaker trips every single run on a healthy provider.
+        # ⇒ A BOUND CALIBRATED TO A WORKLOAD IS A SILENT REGRESSION WHEN THE WORKLOAD GROWS, and
+        # naming the flag `DEGRADED` made the recurrence read as an upstream problem for weeks.
+        # ⚠️ Quote POINTS, not boxes: 84 of 179 boxes remaining was only 14.7% of points unwarmed.
+        _done = stats["fetched"] + stats["failed"]
+        _s_box = (stats["elapsed_s"] / _done) if _done else None
+        _need = (_s_box * len(boxes)) if _s_box else None
+        if stats["aborted"] == "budget" and _s_box and _s_box <= _HEALTHY_S_PER_BOX * 1.5:
+            _why = ("STRUCTURAL, NOT DEGRADED — %.1fs/box vs the %.1fs healthy baseline; %d boxes "
+                    "need ~%.0fs but the budget is %.0fs. Raise POINT_BATCH_PREWARM_BUDGET_S or "
+                    "shrink the box count. Nothing upstream is wrong."
+                    % (_s_box, _HEALTHY_S_PER_BOX, len(boxes), _need, budget_s))
+        else:
+            _why = ("upstream looks genuinely slow: %s/box vs the %.1fs healthy baseline"
+                    % ("%.1fs" % _s_box if _s_box else "n/a", _HEALTHY_S_PER_BOX))
+        stats["abort_cause"] = _why
         logger.error(
             "[Copernicus Batching] pre-warm ABORTED (%s) after %.0fs — %d/%d boxes done, %d points "
-            "warm (native). POINT_BATCH_DEGRADED=1 set: remaining points go to the provider "
-            "fallback this run instead of per-point CMEMS subprocesses. %s",
-            stats["aborted"], stats["elapsed_s"], stats["fetched"] + stats["failed"], len(boxes),
-            stats["cached_points"], stats)
+            "warm (native), %.1f%% of points fall back. POINT_BATCH_DEGRADED=1 set: remaining points "
+            "go to the provider fallback this run instead of per-point CMEMS subprocesses. "
+            "CAUSE: %s. %s",
+            stats["aborted"], stats["elapsed_s"], _done, len(boxes), stats["cached_points"],
+            100.0 * (stats["points"] - stats["cached_points"]) / max(stats["points"], 1),
+            _why, stats)
     else:
         logger.info(f"[Copernicus Batching] pre-warm complete: {stats}")
     return stats

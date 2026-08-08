@@ -255,3 +255,50 @@ def test_degraded_mode_routes_cold_points_to_fallback_but_keeps_warm_points_nati
     window = src[gate - 1500:gate + 1500]
     assert "batched_point_cache_key(lat, lng, point_forecast_days) not in _point_cache" in window
     assert "raise RuntimeError" in window
+
+
+# ── THE ABORT NAMES ITS OWN CAUSE (2026-08-07) ───────────────────────────────────────────────────
+# ⛔⛔ WHY: over 8 consecutive production runs the budget abort fired on 7, ALWAYS at ~1205 s, with
+# `failed: 0` and a per-box time of 10.0 s p50 — against the 10.5 s/box baseline this module's own
+# bounds comment calls HEALTHY. The upstream was never degraded: the BOX COUNT grew 107 -> 179
+# (+67%) while POINT_BATCH_PREWARM_BUDGET_S stayed at 1200 s, so 179 boxes now need ~1790 s and the
+# breaker trips every run on a healthy provider. Naming the flag DEGRADED made that read as an
+# upstream problem. These two tests keep the log honest about which of the two it is.
+
+def _abort_with(monkeypatch, baseline_s, per_box_sleep=0.004, budget_s=0.05, n=40):
+    """Run the pre-warm to a budget abort with a KNOWN per-box rate, varying only the healthy
+    baseline. Holding the timing fixed and moving the baseline is what isolates the discriminator
+    from the clock — a wall-clock test cannot produce a real 10 s/box."""
+    import services.copernicus_point_batching as cpb
+    monkeypatch.setattr(cpb, "_HEALTHY_S_PER_BOX", baseline_s)
+    monkeypatch.setenv("POINT_BATCH_PREWARM_BUDGET_S", str(budget_s))
+
+    async def fetch(latitudes, longitudes, forecast_days, variables, valid_time):
+        time.sleep(per_box_sleep)
+        return [_fake_result(la, lo) for la, lo in zip(latitudes, longitudes)]
+
+    monkeypatch.setattr(cms, "fetch_euro_marine", fetch)
+    stats = asyncio.run(prewarm_euro_marine_point_cache(_far_apart_points(n)))
+    assert stats["aborted"] == "budget", "SETUP BROKEN: no budget abort"
+    assert stats["fetched"] > 0, "SETUP BROKEN: no box completed, so there is no rate to judge"
+    return stats
+
+
+def test_a_budget_abort_at_a_HEALTHY_rate_is_named_STRUCTURAL(_degraded_env):
+    """The production case: boxes arrive at the healthy rate, there is simply more work than budget.
+    The operator must not go hunting for an upstream fault that does not exist."""
+    stats = _abort_with(_degraded_env, baseline_s=10.5)     # observed rate << baseline
+    cause = stats.get("abort_cause", "")
+    assert "STRUCTURAL" in cause and "Nothing upstream is wrong" in cause, (
+        f"a budget abort at a healthy per-box rate was not named structural: {cause!r} — the log "
+        f"would send the next investigator after a provider fault that is not there")
+
+
+def test_a_budget_abort_at_a_SLOW_rate_is_still_named_upstream(_degraded_env):
+    """THE DISCRIMINATING CONTROL. Identical timing to the test above — only the baseline moves. If
+    both branches said 'structural' the message would be a constant, and a genuinely sick provider
+    would be waved through as a sizing problem."""
+    stats = _abort_with(_degraded_env, baseline_s=0.0001)   # observed rate >> baseline
+    cause = stats.get("abort_cause", "")
+    assert "genuinely slow" in cause and "STRUCTURAL" not in cause, (
+        f"a slow upstream was misnamed as a sizing problem: {cause!r}")
