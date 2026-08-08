@@ -84,13 +84,15 @@ def _interior_spy(monkeypatch):
     return stats
 
 
-def _run(monkeypatch, vector_flag, resolution=_RES, bbox=None):
+def _run(monkeypatch, vector_flag, resolution=_RES, bbox=None, grbs_cls=None,
+         dir_flag="1", scalar_flag="1"):
     import services.dwd_gwam_fetcher as fetcher
 
-    monkeypatch.setitem(sys.modules, "pygrib", types.SimpleNamespace(open=lambda _p: _Grbs()))
+    _cls = grbs_cls or _Grbs
+    monkeypatch.setitem(sys.modules, "pygrib", types.SimpleNamespace(open=lambda _p: _cls()))
     monkeypatch.setenv("FETCH_VECTOR_BLOCKMEAN", vector_flag)
-    monkeypatch.setenv("DWD_GWAM_DIR_BLOCKMEAN", "1")
-    monkeypatch.setenv("DWD_GWAM_SCALAR_BLOCKMEAN", "1")
+    monkeypatch.setenv("DWD_GWAM_DIR_BLOCKMEAN", dir_flag)
+    monkeypatch.setenv("DWD_GWAM_SCALAR_BLOCKMEAN", scalar_flag)
     monkeypatch.setattr(fetcher, "_pick_cycle",
                         lambda _rq, now, _mf: (now.replace(minute=0, second=0, microsecond=0),
                                                now.strftime("%Y%m%d"), "00"),
@@ -187,3 +189,112 @@ def test_the_fixture_exercises_BOTH_branches__THE_CONTROL():
     interior = _interior_mask(rs, cs, NLAT, NLON, half, True)
     assert interior.any(), f"half={half} leaves no interior row on a {NLAT}-row grid"
     assert not interior.all(), f"half={half} leaves no clamped row — delegation is never tested"
+
+
+# ── THE PRODUCTION HALVES (2026-08-07) ───────────────────────────────────────────────────────────
+# ⛔ EVERYTHING ABOVE PINS ONE RESOLUTION, `_RES = 1.0` -> half=2 — and production never uses it.
+# `dwd_gwam_fetcher`'s own lane table: global_mid half=4, pilot half=1, coarse half=20, i.e.
+# resolutions 2.0 / 0.5 / 10.0 (half = round(resolution/0.25/2)). Row O's lesson was that a guard
+# running a parameter the RUN does not derive is testing a different run; this suite derives `half`
+# correctly and then feeds it a resolution no lane ships.
+#
+# ⚠️ AND half=20 CANNOT BE ADDED TO THE FIXTURE ABOVE. `_interior_mask` clamps any row within `half`
+# of an edge, so a 12-row grid has no interior at half=20 (`r - 20 >= 0` never holds) — the exact
+# trap that made the NOAA guard cover 0.06% of its path. Hence a taller fixture here rather than a
+# parametrize bolted onto the small one: 48 rows leaves rows 20..27 interior at the widest half.
+_BIG_NLAT, _BIG_NLON = 48, 96
+_BIG_LAT = np.tile(np.linspace(85.0, -85.0, _BIG_NLAT)[:, None], (1, _BIG_NLON))
+_BIG_LON = np.tile(np.linspace(0.0, 356.25, _BIG_NLON)[None, :], (_BIG_NLAT, 1))
+
+
+class _BigMsg:
+    def __init__(self, k):
+        rng = np.random.default_rng(9000 + k)
+        a = rng.uniform(0.0, 8.0 if k % 2 else 360.0, size=(_BIG_NLAT, _BIG_NLON))
+        a[rng.uniform(size=a.shape) < 0.25] = np.nan
+        self.values = a
+
+    def latlons(self):
+        return _BIG_LAT, _BIG_LON
+
+
+class _BigGrbs:
+    def read(self):
+        return [_BigMsg(0)]
+
+    def close(self):
+        pass
+
+
+_BIG_BBOX = {"west": 0.0, "south": -60.0, "east": 120.0, "north": 60.0}
+
+
+# ⏱ THE BBOX IS SIZED PER RESOLUTION, and that is not cosmetic: a fixed 120x120 deg box at
+# 0.5 deg is 57,600 sample points and took 145 s of a 199 s suite — 73% of the runtime for no
+# extra branch coverage. Each box here still spans the latitudes that map to INTERIOR source
+# rows at its half (the assertion below fails if one does not), which is the only property
+# these cases exist to exercise.
+@pytest.mark.parametrize("resolution,expected_half,bbox", [
+    (0.5, 1, {"west": 0.0, "south": -10.0, "east": 10.0, "north": 10.0}),
+    (2.0, 4, {"west": 0.0, "south": -12.0, "east": 40.0, "north": 12.0}),
+    (10.0, 20, {"west": 0.0, "south": -20.0, "east": 120.0, "north": 20.0}),
+])
+def test_every_PRODUCTION_half_is_vectorized_AND_byte_identical(monkeypatch, resolution,
+                                                                expected_half, bbox):
+    """The three halves this lane actually ships, each proven to ENTER the vectorized branch and to
+    produce byte-identical output against the scalar oracle.
+
+    Coverage first, equality second — in that order deliberately. A shadow comparison that never
+    reaches the gather compares the scalar path against itself and reports success, which is what
+    the NOAA guard did for a full release before row O.
+    """
+    assert _half_for(resolution) == expected_half, (
+        f"the fetcher's half formula changed: resolution {resolution} now gives "
+        f"{_half_for(resolution)}, not {expected_half} — re-derive the production lane table")
+
+    with monkeypatch.context() as m:
+        stats = _interior_spy(m)
+        on = _ok(_run(m, "1", resolution=resolution, bbox=bbox, grbs_cls=_BigGrbs))
+        interior, points = stats["interior"], stats["points"]
+    with monkeypatch.context() as m:
+        off = _ok(_run(m, "0", resolution=resolution, bbox=bbox, grbs_cls=_BigGrbs))
+
+    assert points > 0, "SETUP BROKEN: the batch form was never called"
+    assert interior > 0, (
+        f"at half={expected_half} the loop entered the batch form {points} times and took the "
+        f"VECTORIZED branch ZERO times — every point was delegated, so this parametrisation proves "
+        f"nothing about the half production actually runs. Widen _BIG_NLAT (needs > 2*half rows).")
+
+    off_points, off_ok, off_failed, off_times = off
+    on_points, on_ok, on_failed, on_times = on
+    assert (off_ok, off_failed, off_times) == (on_ok, on_failed, on_times)
+    assert len(off_points) == len(on_points) and len(off_points) > 0
+    for i, (a, b) in enumerate(zip(off_points, on_points)):
+        assert a.keys() == b.keys(), f"half={expected_half} point {i}: key sets differ"
+        for k in a:
+            assert a[k] == b[k], (
+                f"half={expected_half} point {i} field {k!r} differs between the scalar and "
+                f"vectorized GWAM paths — the flag must change speed and nothing else")
+
+
+@pytest.mark.parametrize("dir_flag,scalar_flag", [("0", "1"), ("1", "0"), ("0", "0")])
+def test_the_per_variable_kill_switches_are_also_byte_identical(monkeypatch, dir_flag, scalar_flag):
+    """⛔ THE LANES THE SUITE FORCED TO "1" AND THEREFORE NEVER EXERCISED. Every test above pinned
+    BOTH `DWD_GWAM_DIR_BLOCKMEAN` and `DWD_GWAM_SCALAR_BLOCKMEAN` to 1, so the half-on combinations
+    an operator would actually reach for mid-incident were unguarded. A kill switch nobody exercises
+    is not a kill switch — and these select WHICH reductions vectorize, so a wrong branch under a
+    partial flag set is exactly the mistake this file exists to catch."""
+    kw = dict(resolution=2.0, bbox=_BIG_BBOX, grbs_cls=_BigGrbs,
+              dir_flag=dir_flag, scalar_flag=scalar_flag)
+    with monkeypatch.context() as m:
+        on_points, *_ = _ok(_run(m, "1", **kw))
+    with monkeypatch.context() as m:
+        off_points, *_ = _ok(_run(m, "0", **kw))
+
+    assert len(off_points) == len(on_points) and len(off_points) > 0
+    for i, (a, b) in enumerate(zip(off_points, on_points)):
+        assert a.keys() == b.keys(), f"DIR={dir_flag} SCALAR={scalar_flag} point {i}: key sets differ"
+        for k in a:
+            assert a[k] == b[k], (
+                f"DIR={dir_flag} SCALAR={scalar_flag} point {i} field {k!r} differs — a per-variable "
+                f"kill switch is changing the VALUES, not just which code path computes them")
