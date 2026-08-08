@@ -268,8 +268,16 @@ def wind_gate(wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, enabled=
 # "epic" to "good" at 24.7 ft and to "poor_fair" at 31 ft — the days that spot exists for.
 # So capacity is resolved in three tiers, most-trusted first (each falls through when unavailable):
 #
-#   1. `reference_size_m` — the spot's p80 good-day breaking height from `spot_size_climatology`.
-#      The intended instrument: objective, global, auto-calibrating for any spot added to the map.
+#   1. `reference_size_m` — the spot's MEDIAN (p50) surfable-day breaking height. ⚠️⚠️ THIS SAID
+#      "p80 good-day" until 2026-08-08 and OVERSIZE_START_MULT was chosen against THAT quantity;
+#      `e3aedb06` moved REF_PERCENTILE 0.80 -> 0.50 and nothing re-derived the multiplier, so the
+#      taper starts at 3.5x the TYPICAL day. ⛔ AND TIER 2 IS UNREACHABLE: coverage is 1,821/1,821,
+#      and `oversize_thresholds` returns on the reference before reading `break_depth_m`. Measured
+#      at Mavericks this reinstates the outcome this very paragraph says the tiering prevents —
+#      24.7 ft -> "good", 31 ft -> "poor_fair", verbatim. ⚠️ Reach TODAY is ZERO (`oversize` bound
+#      0 of 338 served spots, 2026-08-08T15:00Z, boreal summer): a WINTER risk, and re-deriving the
+#      multiplier is an OWNER call, not a silent fix. Full measurement + the December re-run:
+#      docs/runbooks/HANDOFF-2026-08-08-E-the-yardstick-was-being-replaced-underneath.md
 #   2. `break_depth_m` — the ETOPO nearshore depth already resolved on every point call. A wave
 #      cannot stand taller than gamma*depth, so the spot's own bathymetry bounds what it can hold.
 #      Measured over all 1,773 catalogue spots (2026-07-29) this ORDERS CORRECTLY:
