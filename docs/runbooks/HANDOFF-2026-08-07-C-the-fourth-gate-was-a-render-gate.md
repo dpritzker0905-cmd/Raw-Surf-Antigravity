@@ -1,10 +1,11 @@
 # HANDOFF — 2026-08-07 (C) · THE FOURTH GATE WAS A RENDER GATE
 
-**6 commits, `f85fdeda` → `3c25228e`+, all pushed.** Predecessor:
+**9 commits, `f85fdeda` → `bd4d67e5`+, all pushed.** Predecessor:
 `HANDOFF-2026-08-07-B-audit-10-and-the-queue-it-cleared.md`. That handoff's §6 queue is the
-spine of this session: items **0, 1, 2** and audit row **F** are closed — and in three of
-the four cases the *premise* recorded in the predecessor turned out to be wrong in a way
-that mattered.
+spine of this session: items **0, 1, 2, 4** and audit row **F** are closed — and in **four of
+the five** cases the *premise* recorded in the predecessor turned out to be wrong in a way
+that mattered (the surface named, the gate counted, the mechanism assumed, the wiring site
+prescribed).
 
 ---
 
@@ -34,6 +35,7 @@ established" because it was looking for a race that treats every lane alike.
 | 3 | `7a002e8b` | **The spot hub had the field and no consumer** | payload PRESENT on both endpoints, rendered page contains "confidence" **zero times** |
 | 4 | `15a22720` | **E2E gated on the backend being current**, not just the frontend (queue item 1) | both gate paths executed live; redeploy measured at ~2 min |
 | 5 | `3c25228e` | **The ICON/weather lane loss was a key collision inside the anti-clobber merge** (queue item 2) | reproduced through the real function with 3 discriminating controls |
+| 6 | `bd4d67e5` | **Tide η wired into the served height** (queue item 4, row H) — at the ONE site that produces it | 0 of 172 served spots move at real η; control fires at η=−6 m |
 
 ---
 
@@ -138,6 +140,35 @@ Whether any grid object was also stale is **not** claimed here.
 ★ **The fix's own WARNING log is the instrument**, and it is better than the prescribed before/after
 dump: it fires only when the defect would have occurred, and names the key and both run_times.
 
+### 5. The tide wire was in the wrong place in the queue, and a 0% result needed a control
+
+`bda6c477` shipped the tide physics and recorded that **no serving caller supplied η**, so the
+highest-reach absent nearshore term was unreachable — the same shape as the ensemble.
+
+⭐ **The value was already in hand and discarded.** `rate_one_spot:129` already calls `tide_norm_at`
+and uses only `norm` for the quality factor, dropping `height_m`. Measured live: **`RATING_TIDE` is
+ON in production** and every spot in an Iberia viewport carries a real tide
+(`{'height_m': -0.77, 'norm': 0.207, 'trend': 'falling'}`). Production computed η at the moment it
+computed surf height, served it to the client, and never fed it to the physics.
+
+★ **But not where the queue said.** The handoff prescribed wiring `rate_one_spot` / `spot_conditions`
+— **two** sites. `surf_height_m` is produced in `point_surf_augment` *"and nowhere else"*, and
+`rate_one_spot` merely **reads it off the response**. Wiring the two consumers would have created two
+η reads able to disagree about the same hour — a second forecast path by another name. One injection
+point covers ratings precompute, spot hub, buoy calibration and `/api/weather/point`.
+
+⚠️ **A 0% RESULT IS WORTHLESS WITHOUT A POSITIVE CONTROL.** At real η over 172 served spots across
+5 viewports (min −0.99, p50 −0.03, max +1.04 m), the flip moves **0 of 172**. The same harness at
+η = −6 m moves **8 of 25** (max |Δ| 75.3%); at −0.5 / −1.5 / −3.0 m, nothing. So the harness *can*
+see a change and there is none to see. The frame is boreal-summer surf at **Hs p50 0.58 m** — inside
+the audit's own *"Hs < 1.5 m → 0.00% cap-binding"* band. **This agrees with row H; it does not
+contradict it.** The wiring is provably inert at current conditions.
+
+⛔ **The fetch is gated, not just the physics** — flag off means zero I/O, not a fetch multiplied by
+nothing on every precomputed point. Flip cost is bounded: `tide_norm_at` is TTL-cached at ~11 km
+(0.1°) for 3 h with a 2,000-entry cap, `augment_with_surf` is the POINT path (not the map grid), and
+the ratings precompute already prewarms — ~1,100 spots collapse to far fewer cells.
+
 ## §3 SEEN IN A BROWSER — the item §7 recorded as never done
 
 Local dev server against the live backend, real production payload, after adding the block:
@@ -223,8 +254,12 @@ rendered **beach as dark**, silently — so `isBeach` is now read and the guard 
    did not occur and the case is still open.
 3. **Row Q, `ecmwf_opendata` half** (~53.5 s/run) — the GWAM half is done and its guard is the
    template.
-4. **Tide wiring** (row H) — feed `tide_state_at`'s `height_m` from `rate_one_spot` /
-   `spot_conditions`, then run the served delta census before flipping `SURF_TIDE_DEPTH`.
+4. ~~Tide wiring~~ — **WIRED by `bd4d67e5`** at `point_surf_augment` (not the two sites the queue
+   named; see §2.5). **What remains is the FLIP**, and it is an owner decision: `SURF_TIDE_DEPTH=1`.
+   ⚠️ **Do not flip on this session's census** — 0 of 172 was measured in boreal-summer surf
+   (Hs p50 0.58 m) where the cap never binds. **Re-run the census in a bigger sea** (the script
+   pattern: real η per spot from `/spot-ratings`, offshore Hs/Tp from `/weather/point`, geometry
+   local) and require a positive control at η = −6 m before believing any 0%.
 5. **Row P** — `rating_transform_grid` is 18.3 s at 80,089 cells cold, 100% cold bathymetry lookup.
 6. **The drawer's own confidence block has browser evidence only through the hub's twin.** The
    drawer path (map → click spot → REPORT mode) was never opened in a browser this session; the map
