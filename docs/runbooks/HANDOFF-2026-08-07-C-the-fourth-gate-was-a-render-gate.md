@@ -389,10 +389,17 @@ rendered **beach as dark**, silently — so `isBeach` is now read and the guard 
 0. ~~The E2E map-load gate~~ — **ROOT FOUND AND FIXED IN THE APP, `ed407221`** (§2.8). It was never a
    test-timing problem: the map's full-screen splash was gated on `Promise.all` of the spots fetch
    **and both photographer overlays**, so a slow decoration hid the whole map for up to 60 s.
-   ⚠️ **NOT PROVEN TO END THE FLAKE** — never reproduced deterministically. **Judge it on the flaky
-   COUNTS of the next several runs, not on one green badge** (that is the mistake §5 records me
-   making). If it persists, the next instrument is `frontend/e2e/_diag_maploader.mjs`, which ships
-   with the fix.
+   ✅ **FIRST RUN AFTER THE FIX (`ed407221`): the locator did not fire ONCE** — `grep -c
+   featured-photographers-btn` over the whole run log = **0**, against 8 of the previous 9 runs.
+   That is real evidence the root fix landed.
+   ⛔⛔ **BUT READ THE COUNTS, NOT THE BADGE — the same rule I got wrong earlier today.** That run
+   was **37 passed / 10 flaky / 0 failed**. The badge is green and the suite is *less* stable than
+   the 46/1 baseline. The 10 flaky are spread across **signup, navigation, explore, admin and spot
+   hub** — not the map gate. A docs-only commit (`46c68870`) produced 9 flaky too, so this is the
+   same broad, environmental instability, and **I have not fixed it.**
+   ⇒ **The map-load defect is closed; suite-wide E2E flakiness is a separate, still-open problem.**
+   Next instrument if it is picked up: `frontend/e2e/_diag_maploader.mjs`, which ships with the fix
+   and reports which requests never completed.
 0b. **Bilinear spread** (owner decision) — still the highest-leverage item on the ensemble
    capability. The majority sampler path refuses by design; carrying a max-over-corners bound under
    its own field name would take reach from ~15% toward complete.
