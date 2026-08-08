@@ -1,6 +1,6 @@
 # HANDOFF — 2026-08-07 (C) · THE FOURTH GATE WAS A RENDER GATE
 
-**15 commits, `f85fdeda` → `e38f8936`+, all pushed.** Predecessor:
+**19 commits, `f85fdeda` → `9445103f`, all pushed.** Predecessor:
 `HANDOFF-2026-08-07-B-audit-10-and-the-queue-it-cleared.md`. That handoff's §6 queue is the
 spine of this session: items **0, 1, 2, 4** and audit row **F** are closed — and in **four of
 the five** cases the *premise* recorded in the predecessor turned out to be wrong in a way
@@ -38,6 +38,10 @@ established" because it was looking for a race that treats every lane alike.
 | 6 | `bd4d67e5` | **Tide η wired into the served height** (queue item 4, row H) — at the ONE site that produces it | 0 of 172 served spots move at real η; control fires at η=−6 m |
 | 7 | `1399f880` | **7 blocking calls on the event loop** (row P) — and the class guard was scoped to ONE file | 0 of ~426 co-tenant ticks bare vs 64% offloaded |
 | 8 | `98c803d0` | **The "degraded" CMEMS pre-warm is a healthy upstream on an outgrown budget** | 7 of 8 runs abort at ~1205 s, `failed: 0`, 10.0 s/box vs a 10.5 s healthy baseline |
+| 9 | `ed407221` | **The map's splash was gated on `Promise.all` incl. two photographer overlays** | control renders in 163 ms; E2E locator hits 8-of-9 runs → **0** |
+| 10 | `e38f8936` | **A bare `page.goto` waits for a `load` a redirecting route never fires** | 21 of 21 detached-frame failures were Desktop Safari; **47 passed / 0 flaky** ×2 |
+| 11 | `dd5833a5` | **The fetcher-pooling staleness check was one-directional** | a pooled fetcher dropping off the list was previously undetectable |
+| 12 | `9445103f` | **The GWAM guard ran half=2 — a value production never uses** | halves 1/4/20 now covered; killing the vectorized branch fails 5 of 10 |
 
 ---
 
@@ -333,9 +337,12 @@ mechanism rather than luck:
 | `featured-photographers-btn` | 8 of 9 runs | **0** |
 | `Timeout was reached` | present | **0** |
 
-⚠️ **Still n=1, and this suite has swung 46/1 → 37/10 on a docs-only commit.** Two dominant
-signatures going to exactly zero is mechanism-level evidence; one green run is not proof the suite
-is stable. **Judge it on the counts over the next several runs** — the rule §5 records me breaking.
+✅ **n=2 — `dd5833a5` also came back 47 passed / 0 flaky / 0 failed.** Two consecutive fully clean
+runs, on a suite whose immediately-preceding history was 46/1, 37/10, 45/2 and two hard failures.
+
+⚠️ **Still early, and this suite swung 46/1 → 37/10 on a docs-only commit.** Two dominant signatures
+at exactly zero across two runs is mechanism-level evidence; it is not yet a stability claim.
+**Keep judging it on counts** — the rule §5 records me breaking once today.
 
 ## §3 SEEN IN A BROWSER — the item §7 recorded as never done
 
