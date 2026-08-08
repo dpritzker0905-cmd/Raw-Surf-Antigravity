@@ -204,10 +204,25 @@ def test_it_reaches_the_PRODUCTION_entry_point():
     assert zero == base, "water_level_m=0.0 moved the value through estimate_surf_at"
 
 
-def test_no_serving_caller_supplies_it_yet__RECORDED_NOT_ASSUMED():
-    """⚠️ HONEST STATE. The physics is in and proven; the SERVING wiring is a separate step. This
-    test records that fact by execution so nobody reads an available parameter as a live one — and
-    it will FAIL the moment someone wires it, which is exactly when this note must be re-read."""
+def test_exactly_ONE_serving_module_supplies_eta__RECORDED_NOT_ASSUMED():
+    """⚠️ HONEST STATE, UPDATED 2026-08-07 WHEN THE WIRE LANDED.
+
+    This test used to assert that NO serving module supplied η, and it did its job: it failed the
+    moment the wire went in, which is exactly when row H's served delta census had to be run.
+
+    ★ IT NOW ENFORCES THE STRONGER PROPERTY THE WIRE WAS DESIGNED AROUND: exactly ONE serving-path
+    module supplies η, and it is `point_surf_augment` — the site where `surf_height_m` is produced
+    "and nowhere else". The queue proposed wiring `rate_one_spot`/`spot_conditions` instead; that
+    would have created TWO η sources able to disagree about the same hour, which is a second
+    forecast path by another name. If this list ever grows, that is the regression.
+
+    ⚠️ THE CENSUS THAT THE OLD TEST'S FAILURE DEMANDED, run 2026-08-07 — quote the frame: over 172
+    real served spots across 5 viewports at their REAL η (min −0.99, p50 −0.03, max +1.04 m),
+    flipping `SURF_TIDE_DEPTH` on moves **0 of 172**. The frame is boreal-summer surf, Hs p50
+    0.58 m, inside the audit's own "Hs < 1.5 m → 0.00% cap-binding" band, and the positive control
+    fires at η = −6 m (8 of 25 move, max 75.3%) — which is what proves the harness could have seen
+    a change at all. **The flip remains an owner decision and must be re-priced in a bigger sea.**
+    """
     import ast
     import pathlib
     root = pathlib.Path(__file__).resolve().parent.parent / "services" / "weather_pipeline"
@@ -223,7 +238,9 @@ def test_no_serving_caller_supplies_it_yet__RECORDED_NOT_ASSUMED():
                     ("estimate_surf_at", "estimate_surf", "estimate_surf_partitioned")
                     and any(k.arg == "water_level_m" for k in node.keywords)):
                 callers.append(p.name)
-    assert set(callers) <= {"surf_point.py", "surf_transform.py"}, (
-        f"a serving-path module now supplies water_level_m ({sorted(set(callers))}). Good — but "
-        f"re-read row H first: enabling SURF_TIDE_DEPTH moves served values, and the guardrail is a "
-        f"served-height delta census, not this unit suite.")
+    # `surf_point` / `surf_transform` are the physics chain itself, not serving callers.
+    serving = sorted(set(callers) - {"surf_point.py", "surf_transform.py"})
+    assert serving == ["point_surf_augment.py"], (
+        f"expected exactly one serving-path η supplier (point_surf_augment.py, where "
+        f"`surf_height_m` is produced), got {serving}. Two suppliers means two tide reads that can "
+        f"disagree about the same hour — re-read row H before adding another.")

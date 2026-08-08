@@ -157,9 +157,31 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
                     logger.warning(
                         f"[Surf v3] period-band composition failed at ({lat},{lng}); falling back "
                         f"to the total field. surf_height_m is UNAFFECTED: {_be!r}")
+            # ── TIDE → THE DEPTH-LIMITED CAP (row H wiring) ────────────────────────────────
+            # `bda6c477` shipped the physics and recorded, in its own docstring, that NO SERVING
+            # CALLER SUPPLIED η — so the highest-reach absent nearshore term was unreachable. This
+            # is that wire.
+            # ★ IT BELONGS HERE, NOT IN `rate_one_spot`/`spot_conditions` as the queue proposed:
+            # `surf_height_m` is produced at THIS ONE SITE ("and nowhere else", see the module
+            # docstring), so wiring the two consumers instead would create two η sources that can
+            # disagree about the same hour — a second forecast path by another name.
+            # ⛔ THE FETCH IS GATED, NOT JUST THE PHYSICS. With SURF_TIDE_DEPTH off this adds ZERO
+            # I/O and the call below is byte-identical to before; `tide_norm_at` is TTL-cached by
+            # rounded lat/lng, so with it on the cost is amortised across a viewport.
+            # ⚠️ η reaches the CAP only (`surf_transform.estimate_surf`), never `depth_m` — a metre
+            # of tide against a ~139 km shelf median is noise pretending to be signal.
+            _eta = 0.0
+            if os.environ.get("SURF_TIDE_DEPTH", "0") != "0":
+                try:
+                    from services.weather_pipeline.tide import tide_norm_at
+                    _ts = await tide_norm_at(lat, lng, valid_time_str)
+                    if _ts and _ts.get("height_m") is not None:
+                        _eta = float(_ts["height_m"])
+                except Exception as _te:
+                    logger.debug(f"[Surf v3] tide resolve failed at ({lat},{lng}); η=0: {_te!r}")
             surf, regime = estimate_surf_at(lat, lng, response.point.speed, response.point.period,
                                             swell_from_deg=response.point.direction, geometry=_geo,
-                                            partitions=_parts)
+                                            partitions=_parts, water_level_m=_eta)
             # The rating half reads the SAME reconciled trains the height ran on. Carried on the
             # response so `rate_one_spot`, the hub and the sim's live lane cannot resolve a second,
             # disagreeing sea state for the same point (None when the flag is off / nothing usable).
