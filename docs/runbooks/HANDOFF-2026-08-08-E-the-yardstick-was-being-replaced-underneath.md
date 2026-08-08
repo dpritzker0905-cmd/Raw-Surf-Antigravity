@@ -110,8 +110,16 @@ references for spots the exemplars resolve near:
 | Mavericks | 1.693 m | California `>= 1.5` — clears |
 
 Sebastian Inlet's live value is **0.81 → 0.85 and rising monotonically (up=4, down=0)**, and its
-ERA5 destination is ~1.16. **Pipeline has no banked value yet**, so its post-campaign reference is
-unknown — do not predict it.
+ERA5 destination is ~1.16.
+
+**Pipeline has no banked value yet, and its neighbours do not let you guess one.** Banked North
+Shore Oahu references span nearly 2× within a few kilometres:
+
+    Gas Chambers 0.964   Log Cabins 1.740   Laniakea 1.771   Rocky Point 1.819
+
+i.e. they **straddle the 1.5 bound in both directions**. Per-spot geometry dominates over regional
+climate at this scale, so "Pipeline is on the North Shore, it will bank high" is not an inference the
+data supports. ⛔ **Do not predict Pipeline's post-campaign reference; wait for the log line.**
 
 ⇒ **Expect the census to keep failing, and expect the next failure to be Florida breaching from
 ABOVE.** That is a falsifiable prediction; if Florida crosses 1.1 while Pipeline recovers, this
