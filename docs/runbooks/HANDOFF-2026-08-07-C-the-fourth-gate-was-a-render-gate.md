@@ -1,6 +1,6 @@
 # HANDOFF — 2026-08-07 (C) · THE FOURTH GATE WAS A RENDER GATE
 
-**13 commits, `f85fdeda` → `ed407221`+, all pushed.** Predecessor:
+**15 commits, `f85fdeda` → `e38f8936`+, all pushed.** Predecessor:
 `HANDOFF-2026-08-07-B-audit-10-and-the-queue-it-cleared.md`. That handoff's §6 queue is the
 spine of this session: items **0, 1, 2, 4** and audit row **F** are closed — and in **four of
 the five** cases the *premise* recorded in the predecessor turned out to be wrong in a way
@@ -293,6 +293,36 @@ already has everything it needs** — a 3× larger stall surface than necessary.
 a deterministic reproduction. The fix narrows the surface and corrects a structurally-too-low bound.
 **Judge it on flaky counts over several runs.**
 
+### 9. The dominant E2E signature was not the map — it was one browser and one missing option
+
+Ranking failure signatures across 7 CI runs put the map locator **third**:
+
+| count | signature |
+|---|---|
+| **21** | `page.goto: Operation was cancelled; maybe frame was detached?` |
+| 15 | `element(s) not found` |
+| 14 | `Locator: [data-testid="featured-photographers-btn"]` |
+
+★★★ **And it has a perfect discriminator: 21 of 21 are `[Desktop Safari]`** — zero on Chromium or
+Firefox, across both spec files. A signature that is 100% one browser is not an app race.
+
+**Mechanism:** `page.goto` defaults to `waitUntil: 'load'`, which waits for every subresource — and
+on a route the app **redirects away from**, the original document's load event never fires at all.
+`booking-flow.spec.js:53` was a bare `page.goto('/explore')`, and `/explore` is auth-gated: the app
+immediately redirects an anonymous visitor to `/auth`. The test's own subject was breaking its own
+navigation. Reproduced locally on Desktop Safari as `page.goto: Timeout was reached` on that exact
+line; WebKit reports the interrupted navigation differently depending on where it lands.
+
+**The fix is consistency:** `weather-simulation.spec.js` already passes
+`{ waitUntil: 'domcontentloaded' }` on **all 8** of its gotos; `booking-flow.spec.js` passed it on
+**1 of 5**. Nothing is weakened — every caller asserts the landing URL and content immediately after.
+
+⚠️ **What I could not verify.** A clean local WebKit before/after was **not achievable**:
+`npx playwright install webkit` fails here with `EPERM ... webkit-2287\Playwright.exe` and the
+executable vanished mid-session, so an intermediate "7 failed vs 4 failed" reading I took is
+**untrustworthy and is not offered as evidence**. What stands: the CI attribution (21/21 Safari),
+one clean local reproduction on the exact line, and Desktop Chrome **7/7** with the fix.
+
 ## §3 SEEN IN A BROWSER — the item §7 recorded as never done
 
 Local dev server against the live backend, real production payload, after adding the block:
@@ -397,9 +427,10 @@ rendered **beach as dark**, silently — so `isBeach` is now read and the guard 
    the 46/1 baseline. The 10 flaky are spread across **signup, navigation, explore, admin and spot
    hub** — not the map gate. A docs-only commit (`46c68870`) produced 9 flaky too, so this is the
    same broad, environmental instability, and **I have not fixed it.**
-   ⇒ **The map-load defect is closed; suite-wide E2E flakiness is a separate, still-open problem.**
-   Next instrument if it is picked up: `frontend/e2e/_diag_maploader.mjs`, which ships with the fix
-   and reports which requests never completed.
+   ⇒ **The map-load defect is closed; suite-wide E2E flakiness is a separate problem** — now
+   partly attacked in `e38f8936` (§2.9). Next instrument if more is needed:
+   `frontend/e2e/_diag_maploader.mjs`, which ships with the map fix and reports which requests
+   never completed.
 0b. **Bilinear spread** (owner decision) — still the highest-leverage item on the ensemble
    capability. The majority sampler path refuses by design; carrying a max-over-corners bound under
    its own field name would take reach from ~15% toward complete.
