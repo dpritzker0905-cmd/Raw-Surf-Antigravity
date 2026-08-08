@@ -1,6 +1,6 @@
 # HANDOFF — 2026-08-07 (C) · THE FOURTH GATE WAS A RENDER GATE
 
-**9 commits, `f85fdeda` → `bd4d67e5`+, all pushed.** Predecessor:
+**11 commits, `f85fdeda` → `98c803d0`+, all pushed.** Predecessor:
 `HANDOFF-2026-08-07-B-audit-10-and-the-queue-it-cleared.md`. That handoff's §6 queue is the
 spine of this session: items **0, 1, 2, 4** and audit row **F** are closed — and in **four of
 the five** cases the *premise* recorded in the predecessor turned out to be wrong in a way
@@ -37,6 +37,7 @@ established" because it was looking for a race that treats every lane alike.
 | 5 | `3c25228e` | **The ICON/weather lane loss was a key collision inside the anti-clobber merge** (queue item 2) | reproduced through the real function with 3 discriminating controls |
 | 6 | `bd4d67e5` | **Tide η wired into the served height** (queue item 4, row H) — at the ONE site that produces it | 0 of 172 served spots move at real η; control fires at η=−6 m |
 | 7 | `1399f880` | **7 blocking calls on the event loop** (row P) — and the class guard was scoped to ONE file | 0 of ~426 co-tenant ticks bare vs 64% offloaded |
+| 8 | `98c803d0` | **The "degraded" CMEMS pre-warm is a healthy upstream on an outgrown budget** | 7 of 8 runs abort at ~1205 s, `failed: 0`, 10.0 s/box vs a 10.5 s healthy baseline |
 
 ---
 
@@ -220,6 +221,38 @@ substring* and failed on a restructure that changed no behaviour — the `"x" in
 in its own docstring. It now executes the lane and pins both precedence **and** the short-circuit,
 which the scan could never see; mutation-verified in both directions.
 
+### 7. Re-pricing a dismissed item found a bigger one — a breaker firing on a healthy provider
+
+Row Q was dismissed on per-**lane** headroom ("EURO at 27% of its kill"). Measured at the
+**workflow** level, the ingest jobs sit at **84–87% of their timeout**:
+
+| workflow | job p50 | p90 | max | kill | max % |
+|---|---|---|---|---|---|
+| core ingest | 99.0 | 138.9 | 144.3 | 165 | **87%** |
+| pilots | 95.8 | 138.8 | 162.3 | 200 | 81% |
+
+⚠️ **Measure JOBS, not RUNS.** `createdAt→updatedAt` includes queue time and overstated pilots as
+98% of kill; job-level with queue p50 0.1 min gives 81%. I nearly reported a near-miss that wasn't.
+
+Row Q's 53.5 s is **0.64%** of a p90 run. So where does 99 minutes go? **Copernicus: ~40 min of it**
+— a 1202 s global lane plus a pre-warm that aborts on budget. Over 8 consecutive runs, **7 aborted,
+always at ~1205 s, with `failed: 0` every time and a per-box rate of 10.0 s p50** — against the
+**10.5 s/box** baseline the module's own comment calls *healthy*.
+
+★★★ **The upstream was never degraded. The bound was calibrated to a workload that then grew:**
+107 boxes → **179 (+67%)** while `POINT_BATCH_PREWARM_BUDGET_S` stayed at 1200 s. At the healthy
+rate 179 boxes need **~1790 s**, so the breaker *cannot not* trip. It has been firing every run for
+weeks and reporting itself as `POINT_BATCH_DEGRADED=1`.
+
+⚠️ **Quote points, not boxes.** "84 of 179 boxes remaining" reads as 47% lost; the same run warmed
+**1,478 of 1,732 points — 14.7% exposure**, and 6.9–8.5% on a normal run. I nearly published the box
+figure.
+
+⛔ **I did not raise the budget, deliberately.** Finishing needs ~590 s more and the core ingest is
+already at 87% of its kill; trading a 6.9–14.7% native-authority gap for a higher chance of losing
+the **whole cycle** is an owner call. The commit is instrumentation only — the abort now names
+*which* abort it is, with the arithmetic, so the decision has numbers.
+
 ## §3 SEEN IN A BROWSER — the item §7 recorded as never done
 
 Local dev server against the live backend, real production payload, after adding the block:
@@ -275,11 +308,33 @@ rendered **beach as dark**, silently — so `isBeach` is now read and the guard 
   (`started_at == completed_at == 18:45:35Z`): placing it after the installs meant the Render deploy
   had already finished. That is the design working, not the gate being skipped — the same step exits
   1 when the SHA does not match, verified directly against production.
-  ⚠️ **FLAKINESS IS NOT GONE, AND THE SECOND RUN IS THE EVIDENCE.** Two runs with the gate:
-  `31208159146` → 46 passed / **1 flaky** / 0 failed (6.7 m); `3c25228e` → 45 passed / **2 flaky** /
-  0 failed (7.3 m). Both green, and the flaky count went **up**. **The gate removed the deploy race;
-  it did not make the suite deterministic.** Do not read green runs as proof the class is closed —
-  this session already recorded a predecessor over-reading exactly that from n=1.
+  ⛔⛔ **CORRECTED AT THE END OF THE SESSION — I OVER-READ "GREEN".** I reported the gate as giving
+  four consecutive green runs. The verdicts were green, but **the same test was flaking in every one
+  of them**, and it later failed outright. Measured across the last 9 completed E2E runs:
+
+  | sha | verdict | counts | hit `featured-photographers-btn`? |
+  |---|---|---|---|
+  | `98c803d0` | failure | 1 failed / 46 passed | yes |
+  | `46c68870` | **failure** | 2 failed / 9 flaky / 36 passed | yes ← **docs-only commit** |
+  | `1399f880` | success | 1 flaky / 46 passed | yes |
+  | `7c3a46af` | success | 1 flaky / 46 passed | no |
+  | `5ea30648` | failure | 1 failed / 1 flaky / 45 passed | yes |
+  | `3c25228e` | success | 2 flaky / 45 passed | yes |
+  | `2920596d` | success | 1 flaky / 46 passed | yes |
+  | `15a22720` | success | 1 flaky / 46 passed | yes |
+  | `d3fc9f8a` | failure | 1 failed / 1 flaky / 45 passed | yes |
+
+  **8 of 9 runs hit the same locator**, and `46c68870` — which changed *only a markdown file* —
+  produced 2 failed / 9 flaky. That is conclusive: the instability is environmental and
+  pre-existing, not caused by any code in this session. ⇒ ★★ **A green verdict with a flaky count
+  is not a green suite; read the counts, not the badge.**
+
+  **The actual defect**, `weather-simulation.spec.js:358`: `page.goto('/map', {waitUntil:
+  'domcontentloaded'})` then a 45 s gate on a control that only appears after the lazily-chunked map
+  route renders. The test's own comment records it was already raised 15 s → 45 s and that "raising
+  the gates to 45 s alone just moved the failure to the outer budget". **Do not raise it a third
+  time** — it needs a real load signal, not a bigger timing bound. Same class as the CMEMS budget in
+  §2.7: a bound calibrated to one measurement, outgrown by drift.
 * ⚠️ **`concurrency: cancel-in-progress: true` means ANY push cancels the E2E run in flight.**
   Several "cancelled" runs in the history are just rapid pushes, not failures. If you want the
   result, wait for it before pushing again.
@@ -291,7 +346,13 @@ rendered **beach as dark**, silently — so `isBeach` is now read and the guard 
 
 ## §6 THE QUEUE AFTER THIS SESSION
 
-0. **Bilinear spread** (owner decision) — unchanged and still the highest-leverage item on this
+0. ⛔ **THE E2E MAP-LOAD GATE — now the top engineering item.** `weather-simulation.spec.js:358`
+   times out on `featured-photographers-btn` in **8 of the last 9 runs** (sometimes flaky, sometimes
+   exhausting all 3 retries into a hard failure), including on a **docs-only** commit. It is a 45 s
+   timing gate on a lazily-chunked route, already raised once from 15 s. **Do not raise it again** —
+   replace it with a real readiness signal. Until then every E2E verdict is noise, which is worse
+   than red.
+0b. **Bilinear spread** (owner decision) — still the highest-leverage item on the ensemble
    capability. The majority sampler path refuses by design; carrying a max-over-corners bound under
    its own field name would take reach from ~15% toward complete.
 1. **The confidence thresholds are still `"calibrated": false`.** 15%/35% is legibility, not skill.
@@ -303,8 +364,13 @@ rendered **beach as dark**, silently — so `isBeach` is now read and the guard 
    pilots run that overlaps a core ingest; the WARNING line `KEPT THE NEWER REMOTE RUN` in that
    run's log is the confirmation, and its **absence** on an overlapping cycle means the collision
    did not occur and the case is still open.
-3. **Row Q, `ecmwf_opendata` half** (~53.5 s/run) — the GWAM half is done and its guard is the
-   template.
+3. ~~Row Q, `ecmwf_opendata` half~~ — **RE-PRICED AND CLOSED, not built** (§2.7). 53.5 s is **0.64%**
+   of a p90 ingest run. Its replacement is the item below.
+3b. ⛔ **OWNER DECISION — the CMEMS pre-warm budget.** `POINT_BATCH_PREWARM_BUDGET_S=1200` cannot
+   finish 179 boxes at the healthy 10.0 s/box rate (~1790 s needed), so the breaker trips every run
+   and 6.9–14.7% of points lose native authority. Raising it costs ~590 s against a core ingest
+   already at 87% of its 165-min kill. **The trade is data authority vs losing a whole cycle** —
+   `98c803d0` puts the numbers in the log every run so the call can be made on evidence.
 4. ~~Tide wiring~~ — **WIRED by `bd4d67e5`** at `point_surf_augment` (not the two sites the queue
    named; see §2.5). **What remains is the FLIP**, and it is an owner decision: `SURF_TIDE_DEPTH=1`.
    ⚠️ **Do not flip on this session's census** — 0 of 172 was measured in boreal-summer surf
