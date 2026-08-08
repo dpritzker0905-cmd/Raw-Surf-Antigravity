@@ -317,11 +317,25 @@ line; WebKit reports the interrupted navigation differently depending on where i
 `{ waitUntil: 'domcontentloaded' }` on **all 8** of its gotos; `booking-flow.spec.js` passed it on
 **1 of 5**. Nothing is weakened — every caller asserts the landing URL and content immediately after.
 
-⚠️ **What I could not verify.** A clean local WebKit before/after was **not achievable**:
+⚠️ **What I could not verify locally.** A clean local WebKit before/after was **not achievable**:
 `npx playwright install webkit` fails here with `EPERM ... webkit-2287\Playwright.exe` and the
 executable vanished mid-session, so an intermediate "7 failed vs 4 failed" reading I took is
 **untrustworthy and is not offered as evidence**. What stands: the CI attribution (21/21 Safari),
 one clean local reproduction on the exact line, and Desktop Chrome **7/7** with the fix.
+
+✅ **AND CI SETTLED IT — `e38f8936`: 47 passed, 0 flaky, 0 failed.** The first run in the observed
+history with **zero retries**. The signature counts are the stronger evidence, because they speak to
+mechanism rather than luck:
+
+| signature | before | this run |
+|---|---|---|
+| `Operation was cancelled; maybe frame was detached` | 21 across 7 runs | **0** |
+| `featured-photographers-btn` | 8 of 9 runs | **0** |
+| `Timeout was reached` | present | **0** |
+
+⚠️ **Still n=1, and this suite has swung 46/1 → 37/10 on a docs-only commit.** Two dominant
+signatures going to exactly zero is mechanism-level evidence; one green run is not proof the suite
+is stable. **Judge it on the counts over the next several runs** — the rule §5 records me breaking.
 
 ## §3 SEEN IN A BROWSER — the item §7 recorded as never done
 
