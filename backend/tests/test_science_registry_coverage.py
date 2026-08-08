@@ -89,8 +89,11 @@ GRANDFATHERED = {
     (SURF_TRANSFORM, "DEEP_RATIO"): (DEBT, "d/L0 deep-water cutoff; linear wave theory, unsourced"),
     (SURF_TRANSFORM, "SHELF_CF"): (DEBT, "shelf friction coefficient, no source recorded"),
     (SURF_TRANSFORM, "SHELF_FRICTION_CF"): (DEBT, "second friction coefficient, no source recorded"),
-    (SURF_TRANSFORM, "SHELF_KF_FLOOR"): (DEBT, "sqrt(1-0.90) per Ardhuin -- the comment names a "
-                                               "source, so this is the ripest entry to register"),
+    # ✅ SHELF_KF_FLOOR left this set on 2026-08-08 -- REGISTERED with its primary source. It was
+    # the ripest entry precisely because its comment already named one, and going to that source
+    # showed the comment's figure was wrong (90% vs the paper's 93%). The ratchet forced this
+    # deletion on its first real use: registering the constant turned the grandfather entry stale
+    # and `test_the_grandfather_set_is_shrink_only` failed until it was removed.
     (SURF_TRANSFORM, "PARTITION_MIN_QUAD_FRAC"): (DEBT, "swell-partition quadrant heuristic"),
     (SURF_TRANSFORM, "PARTITION_MAX_TP_RATIO"): (DEBT, "swell-partition period-ratio heuristic"),
     (SURF_TRANSFORM, "_CELL_KM"): (EXACT, "0.25 deg in km -- geometry, not a measurement"),
@@ -286,11 +289,13 @@ def test_the_grandfathered_debt_is_reported_not_hidden():
     # ⚠️ 32, not 31 -- `_HMIN_RIDEABLE_M` counts ONCE PER MODULE because the two copies are separate
     # constants that can drift apart (they are kept equal by a comment, not by code). Counting them
     # as one is what made this assertion fail on its first run.
+    # ✅ RATCHETED 32 -> 31 the same day: SHELF_KF_FLOOR was registered against Ardhuin et al. (2003).
     # It may SHRINK freely; a rise means new unsourced calibration entered the chain, which should be
     # a deliberate and visible decision rather than a quiet one.
-    assert len(debt) <= 32, (
-        f"unsourced-calibration debt has GROWN to {len(debt)} (was 32 on 2026-08-08): "
-        f"{debt}. Register the new constant with a real source instead of extending the ratchet.")
+    assert len(debt) <= 31, (
+        f"unsourced-calibration debt has GROWN to {len(debt)} (was 31 after SHELF_KF_FLOOR was "
+        f"registered on 2026-08-08): {debt}. Register the new constant with a real source instead "
+        f"of extending the ratchet.")
 
 
 @pytest.mark.parametrize("name", ["REF_PERCENTILE", "OVERSIZE_START_MULT", "OVERSIZE_FLOOR_MULT"])

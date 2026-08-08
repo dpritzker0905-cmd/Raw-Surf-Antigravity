@@ -294,21 +294,22 @@ _CELL_KM = 27.75          # ~0.25 deg ≈ 27.75 km
 # A spot retaining 0.4% of its swell reads FLAT forever — worse than a naive baseline, the same
 # category as the fabricated GFS zeros.
 #
-# THE BOUND IS THE DOCSTRING'S OWN CITATION. Ardhuin (2003) reports up to ~90% ENERGY loss on the
-# widest shelves; height goes as sqrt(energy), so 90% energy loss is a height retention of
-# sqrt(0.10) = 0.316. Below that the model is claiming more dissipation than the literature it cites
-# supports, on a depth sample it cannot trust. Floor it there.
+# THE BOUND IS THE DOCSTRING'S OWN CITATION. ⚠️ CORRECTED AT THE PRIMARY SOURCE 2026-08-08: Ardhuin
+# et al. (2003) report a 93% max ENERGY reduction, not ~90%, so the source-consistent floor is
+# sqrt(0.07) = 0.265 and the shipped sqrt(0.10) = 0.316 is 19.5% MORE conservative than the citation
+# requires — it can only retain height, never remove more. Moving it is an OWNER call (it lowers 30
+# of 1,386 spots by 16.3%). Provenance, evidence and the full derivation: science_registry.
 #
 # ⚠️ This can only ever RESTORE height, never remove more, so it cannot make a currently-good spot
 # worse; anything it raises is still bounded above by the depth-limited breaking cap. It binds on
 # 0.9% of spots at Tp 12 s and 2.5% at 16 s. Kill: SURF_SHELF_KF_FLOOR=0.
-SHELF_KF_FLOOR = 0.316    # = sqrt(1 - 0.90): the ~90% ENERGY-loss ceiling in Ardhuin (2003)
+SHELF_KF_FLOOR = 0.316    # = sqrt(1 - 0.90). ⚠️ Ardhuin (2003) reports 93% => 0.265; see above
 
 
 def shelf_dissipation(Tp_s, depth_m, width_km):
     """Fraction of offshore swell HEIGHT that survives crossing the shelf, lost to bottom friction. ~1.0 over a
     narrow/steep or deep shelf; << 1 over a WIDE SHALLOW shelf where swell crosses many wavelengths of shallow
-    water and bleeds energy to the bed — up to ~90% energy loss on the widest shelves (Ardhuin 2003, NC/VA
+    water and bleeds energy to the bed — up to 93% energy loss on the widest shelves (Ardhuin 2003, NC/VA
     shelf), far more on gentle/wide than steep/narrow (Kurian 1987). This is the dominant, grid-resolvable
     nearshore effect (the surf-zone shoaling jump is sub-grid at 0.25°).
 

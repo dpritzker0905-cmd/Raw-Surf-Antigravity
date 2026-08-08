@@ -92,7 +92,8 @@ _RATING_FLAGS = {
     "SURF_BREAK_DEPTH":            ("1", "Use the ETOPO nearshore break depth for the depth-limited "
                                          "cap; off = the shelf median, which bound on 0 of 395 spots",
                                     "Render env"),
-    "SURF_SHELF_KF_FLOOR":         ("1", "Floor bottom friction at Ardhuin's cited ~90% energy-loss "
+    "SURF_SHELF_KF_FLOOR":         ("1", "Floor bottom friction at a 90% energy-loss ceiling (the "
+                                         "source actually reports 93% => 0.265; see registry) "
                                          "ceiling; off = unbounded, which kept 0.4% of a wave at "
                                          "Salthill", "Render env"),
     "SURF_V3_SLOPE_GAMMA":         ("1", "Slope-aware breaker index (Weggel); off = the flat 0.78 "

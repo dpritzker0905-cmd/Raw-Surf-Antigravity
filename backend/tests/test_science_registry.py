@@ -36,6 +36,7 @@ WIRED = {
     "GAMMA_MAX_STEEP": ("services.weather_pipeline.surf_transform", "GAMMA_MAX_STEEP"),
     "H110_OVER_HS": ("services.weather_pipeline.surf_height_convention", "H110_OVER_HS"),
     "REFRACTION_KR": ("services.weather_pipeline.surf_transform", "REFRACTION_KR"),
+    "SHELF_KF_FLOOR": ("services.weather_pipeline.surf_transform", "SHELF_KF_FLOOR"),
 }
 
 

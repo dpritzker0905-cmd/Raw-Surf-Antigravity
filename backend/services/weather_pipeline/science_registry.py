@@ -76,6 +76,40 @@ def _add(c: Constant) -> None:
 # --- depth-limited breaking --------------------------------------------------------------------
 
 _add(Constant(
+    name="SHELF_KF_FLOOR",
+    value=0.316,
+    units="dimensionless (fraction of offshore swell HEIGHT retained across the shelf)",
+    what="Floor on cross-shelf bottom-friction transmission: never model more dissipation than the "
+         "cited field observations support.",
+    module="services.weather_pipeline.surf_transform",
+    source="Ardhuin, O'Reilly, Herbers & Jessen (2003), J. Phys. Oceanogr. 33(9) 1921-1939, "
+           "Swell Transformation across the Continental Shelf. Part I",
+    method="field",
+    sample="North Carolina - Virginia continental shelf, autumn 1999. Maximum reduction in wave "
+           "ENERGY of 93% near the Virginia coastline where the shelf is widest, for ONE event, in "
+           "light winds with onshore propagation and little directional spread.",
+    # Height goes as sqrt(energy), so the source's observed attenuation spans a retention of
+    # sqrt(1-0.93) = 0.265 at its maximum-loss event up to ~1.0 where swell crossed with little
+    # loss. 0.316 sits inside that. A future value below 0.265 would claim more dissipation than
+    # the source ever observed, and this range is what makes that checkable rather than arguable.
+    published_range=(0.265, 1.0),
+    status=IN_RANGE,
+    debt_reason="",
+    applies_to=(
+        "ONE SHELF, ONE SEASON, and the shipped value does NOT equal its own derivation. The live "
+        "0.316 is sqrt(1-0.90); the source reports 93%, which gives sqrt(1-0.93) = 0.265. The 90% "
+        "figure appears in no primary record -- this repo's earliest note (2026-06-28) quoted 93% "
+        "correctly and the 2026-07-29 comment that derived the constant used 90%. So the floor is "
+        "19.5% MORE conservative than the citation requires: where it binds it retains more height, "
+        "never less. Measured 2026-08-08 at Tp 16 s over the 1,386-entry shore-normal asset, the "
+        "floor binds on 38 spots (2.74%); moving it to the source-consistent 0.265 would lower 30 "
+        "of them by 16.3% and release 8 to their unfloored value. That is a calibration change and "
+        "an OWNER decision, not a silent correction. NOTE ALSO that 93% is a single-event maximum "
+        "on one shelf, not a validated global envelope -- treating it as one would repeat the "
+        "GAMMA_MAX_STEEP error in the opposite direction."),
+))
+
+_add(Constant(
     name="GAMMA",
     value=0.78,
     units="dimensionless (H_b / h_b)",

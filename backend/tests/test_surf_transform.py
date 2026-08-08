@@ -384,8 +384,15 @@ def test_nonsense_break_depth_is_ignored():
 # permanently flat, worse than a naive baseline.
 
 def test_shelf_dissipation_never_claims_more_loss_than_the_cited_literature():
-    """Ardhuin (2003): up to ~90% ENERGY loss on the widest shelves. Height ~ sqrt(energy), so the
-    floor is sqrt(0.10) = 0.316 — the docstring's own citation, not a taste knob."""
+    """Ardhuin et al. (2003): a maximum 93% ENERGY reduction on the widest shelves, so height ~
+    sqrt(energy) puts the source-consistent floor at sqrt(0.07) = 0.265.
+
+    ⚠️ THE SHIPPED VALUE IS sqrt(0.10) = 0.316, derived from a 90% figure the paper does not give
+    (verified at the primary source 2026-08-08). It is therefore 19.5% MORE conservative than the
+    citation requires — it can only retain more height, never less — so this test pins the SHIPPED
+    value, not the source-consistent one. Moving it is a calibration change and an owner decision:
+    measured, 0.265 lowers 30 of 1,386 spots by 16.3%. Provenance: science_registry.SHELF_KF_FLOOR.
+    """
     assert st.SHELF_KF_FLOOR == pytest.approx(0.316)
     # The real geometry that motivated this: 1 m 'shelf depth' over a 194 km window.
     assert st.shelf_dissipation(16.0, 1.0, 194.0) == pytest.approx(st.SHELF_KF_FLOOR)
