@@ -190,9 +190,13 @@ def main():
             return 1
         if s["p99"] is not None and s["p99"] > args.warn_p99_h:
             # Warn only: a p99 excursion is the documented "momentary blip" case.
+            # ⚠️ STDERR, because `--json` writes the report to stdout and the workflow captures it
+            # with `> freshness.json`. This instance has never fired in the retained series, so it
+            # was LATENT rather than absent — the sibling census corrupted 13 of 25 artifacts with
+            # the identical shape. Fixed together; a class, not two incidents.
             print(f"::warning::served run-age p99 is {s['p99']} h, above the {args.warn_p99_h} h "
                   f"budget, but under the {args.critical_h} h critical bound at "
-                  f"{s['over_critical_pct']}% share. Watch, do not page.")
+                  f"{s['over_critical_pct']}% share. Watch, do not page.", file=sys.stderr)
     return 0
 
 

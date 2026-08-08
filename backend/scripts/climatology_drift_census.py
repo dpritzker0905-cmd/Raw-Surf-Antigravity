@@ -235,15 +235,21 @@ def main():
                   f"spots moved >= {SPOT_MOVE_PCT}%. The yardstick every rating is graded against "
                   f"has re-shaped.", file=sys.stderr)
             return 1
+        # ⚠️ ANNOTATIONS GO TO STDERR, NOT STDOUT. `--json` writes the report to stdout and the
+        # workflow captures it with `> drift.json`, so a `::warning::` on stdout lands INSIDE the
+        # artifact and makes it invalid JSON — measured 13 of 25 retained runs, 100% concordant with
+        # "a warning fired", i.e. the series is unreadable exactly when it has something to say.
+        # The runner renders annotations from stderr too, so nothing is lost from the Actions UI.
         if report["psi"] >= PSI_WARN:
             print(f"::warning::climatology PSI {report['psi']} is above {PSI_WARN} "
-                  f"({sp['moved_share_pct']}% of spots moved >= {SPOT_MOVE_PCT}%). Watch.")
+                  f"({sp['moved_share_pct']}% of spots moved >= {SPOT_MOVE_PCT}%). Watch.",
+                  file=sys.stderr)
         # ⚠️ A PERMUTATION LEAVES PSI AT ~0. This is the only signal that would catch it.
         if sp["moved_share_pct"] >= SPOT_MOVE_SHARE_PCT and report["psi"] < PSI_WARN:
             print(f"::warning::{sp['moved_share_pct']}% of spots moved >= {SPOT_MOVE_PCT}% while PSI "
                   f"is only {report['psi']} — the DISTRIBUTION is unchanged but individual spots "
                   f"moved. That is the shape of a permutation/remapping; check the exemplars in "
-                  f"local_size_gonogo.py before trusting any aggregate.")
+                  f"local_size_gonogo.py before trusting any aggregate.", file=sys.stderr)
     return 0
 
 
