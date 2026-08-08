@@ -50,7 +50,15 @@ async function signIn(page) {
 
 test.describe('Anonymous access control', () => {
   test('explore is auth-gated and redirects an anonymous visitor to /auth', async ({ page }) => {
-    await page.goto('/explore');
+    // ⏱ `waitUntil: 'domcontentloaded'` IS LOAD-BEARING, not style. The default is `'load'`,
+    // which waits for EVERY subresource — and on a route the app redirects away from, the
+    // original document's load event never fires at all. Reproduced deterministically on
+    // Desktop Safari 2026-08-07: bare `goto('/explore')` -> `page.goto: Timeout was reached`,
+    // and in CI the same site surfaces as `Operation was cancelled; maybe frame was detached`
+    // (21 of 21 such failures across 7 runs were Desktop Safari). The sibling spec
+    // weather-simulation.spec.js already passes this on all 8 of its gotos; this file passed
+    // it on 1 of 5. Nothing is weakened — every caller asserts the landing URL and content.
+    await page.goto('/explore', { waitUntil: 'domcontentloaded' });
     // ★ Assert the LANDING, not merely that something rendered. The absence of this assertion is
     //   exactly what turned an auth redirect into a phantom "spot cards missing" failure.
     await expect(page).toHaveURL(/\/auth/, { timeout: 15000 });
@@ -61,14 +69,14 @@ test.describe('Anonymous access control', () => {
 
   test('the auth page offers both login and signup', async ({ page }) => {
     // ⚠️ /login and /signup are NOT routes — they fall through to the landing page. /auth is.
-    await page.goto('/auth');
+    await page.goto('/auth', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-testid="auth-card"]')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('[data-testid="login-tab"]')).toBeVisible();
     await expect(page.locator('[data-testid="signup-tab"]')).toBeVisible();
   });
 
   test('signup offers the three account categories', async ({ page }) => {
-    await page.goto('/auth?tab=signup');
+    await page.goto('/auth?tab=signup', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('[data-testid="auth-card"]')).toBeVisible({ timeout: 15000 });
     for (const who of ['surfer', 'photographer', 'business']) {
       await expect(page.locator(`[data-testid="category-${who}"]`)).toBeVisible();
@@ -79,7 +87,7 @@ test.describe('Anonymous access control', () => {
 test.describe('Explore', () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page);
-    await page.goto('/explore');
+    await page.goto('/explore', { waitUntil: 'domcontentloaded' });
     // ★ THE ASSERTION THE OLD SETUP LACKED. Pin that we are actually ON explore, so an auth
     //   regression fails HERE, naming itself, instead of surfacing as a missing element later.
     await expect(page).toHaveURL(/\/explore/, { timeout: 15000 });
