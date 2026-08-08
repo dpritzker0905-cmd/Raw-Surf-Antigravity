@@ -120,12 +120,22 @@ export const useMapData = (userId = null, userLocation = null) => {
 
   const loadMapData = useCallback(async (viewport = null) => {
     setLoading(true);
-    await Promise.all([
-      fetchSurfSpots(viewport),
-      fetchLivePhotographers(),
-      fetchFeaturedPhotographers()
-    ]);
-    setLoading(false);
+    // ⭐⭐ THE SPLASH SAYS "Finding surf spots near you" — SO GATE IT ON THE SPOTS, NOT ON THE
+    // PHOTOGRAPHER OVERLAYS. This was `Promise.all` of all three, so a slow `/live-photographers`
+    // or `/photographers/featured` held the ENTIRE map behind `WaveLoader` for as long as it took —
+    // up to `apiClient`'s own 60 s timeout — even though both are decorative overlays that render
+    // independently the moment their state arrives. The map had everything it needed and showed a
+    // loading screen anyway.
+    // ⚠️ Found via the E2E gate at `weather-simulation.spec.js:358`, which times out waiting for a
+    // map control while the page sits on that splash. Measured 2026-08-07: all three endpoints are
+    // 0.7-3.1 s warm and an isolated /map load reaches the controls in 1.9-3.1 s over 6 of 6 runs —
+    // so this is not about their normal cost. It is that ANY ONE of three stalling blocks the map,
+    // which makes the exposed surface three times larger than it needs to be.
+    // All three helpers swallow their own errors, so neither promise below can reject.
+    const overlays = Promise.all([fetchLivePhotographers(), fetchFeaturedPhotographers()]);
+    await fetchSurfSpots(viewport);
+    setLoading(false);   // the map is usable the moment its SPOTS exist
+    await overlays;      // still awaited, so callers keep the old completion contract
   }, [fetchSurfSpots, fetchLivePhotographers, fetchFeaturedPhotographers]);
 
   // Initial load and auto-refresh

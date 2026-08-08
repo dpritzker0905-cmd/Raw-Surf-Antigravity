@@ -354,8 +354,18 @@ test.describe('Standard Surfer Map Controls', () => {
     // right on the boundary — CI 31061734287 failed here on Mobile Safari and Desktop Firefox
     // while passing on Desktop Chrome and Safari, which is exactly what a marginal bound looks
     // like. 45 s is well inside the per-test budgets set below.
+    // ⏱ 65 s IS NOT ANOTHER GUESS — IT IS THE APP'S OWN BUDGET PLUS SLACK. `apiClient` declares
+    // `timeout: 60000` ("handles Render free-tier cold starts"), and this control only appears once
+    // `useMapData`'s gating fetch settles. At 45 s the gate sat BELOW the client's own timeout, so a
+    // request that was slow-but-eventually-served failed the test while the app was still correctly
+    // waiting for it. A bound underneath the thing it is bounding can only ever be wrong.
+    // The per-test budget here is 180 s, so 65 s still leaves room for the three cache misses below.
+    // ⚠️ THE REAL FIX IS IN THE APP, NOT HERE (`useMapData.loadMapData`): the splash used to be
+    // gated on `Promise.all` of the spots fetch AND both photographer overlays, so any one of three
+    // stalling held the map. It now clears as soon as the SPOTS arrive. This bound is the backstop,
+    // not the remedy — do not raise it again without re-reading that.
     const rightControls = page.locator('[data-testid="featured-photographers-btn"]');
-    await expect(rightControls).toBeVisible({ timeout: 45000 });
+    await expect(rightControls).toBeVisible({ timeout: 65000 });
 
     // The WebGL capability probe promised above. Asks the page exactly what the marine engine asks.
     const hasWebGL = await page.evaluate(() => {
