@@ -71,8 +71,10 @@ _HMIN_RIDEABLE_M = 0.2
 # makes size_score identical everywhere until per-spot climatology is supplied (backward compatible).
 _DEFAULT_REF_SIZE_M = 1.2
 # LOCAL-reference curve shape (USER calibration anchors, 2026-07-12: "FL 2-3 ft clean = fair; 3-4 ft+
-# = fair or fair-good; Indo 2-3 ft = poor"). The local reference (the spot's p80 good-day height)
-# anchors the curve MIDDLE, not its saturation: sg = _REF_ANCHOR_SCORE at h = ref, reaching 1.0 only at
+# = fair or fair-good; Indo 2-3 ft = poor"). The local reference (the spot's p50 TYPICAL-day height;
+# ⚠️ this said "p80 good-day" until 2026-08-08 — `e3aedb06` moved REF_PERCENTILE 0.80 -> 0.50 and
+# three separate comments kept the old description) anchors the curve MIDDLE, not its saturation:
+# sg = _REF_ANCHOR_SCORE at h = ref, reaching 1.0 only at
 # _REF_SAT_MULT × ref. Saturating AT the reference (the original design) overshot — a clean 2-3 ft FL
 # day scored ~89 'good', two notches above the user's 'fair'; anchoring at 0.6 lands it ~55 'fair' on a
 # perfect day, and drops big-wave spots' small days exactly as intended.

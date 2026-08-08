@@ -37,7 +37,25 @@ WIRED = {
     "H110_OVER_HS": ("services.weather_pipeline.surf_height_convention", "H110_OVER_HS"),
     "REFRACTION_KR": ("services.weather_pipeline.surf_transform", "REFRACTION_KR"),
     "SHELF_KF_FLOOR": ("services.weather_pipeline.surf_transform", "SHELF_KF_FLOOR"),
+    "W_WIND": ("services.weather_pipeline.surf_rating", "W_WIND"),
+    "W_PERIOD": ("services.weather_pipeline.surf_rating", "W_PERIOD"),
 }
+
+
+def test_rating_blend_weights_are_a_normalised_pair():
+    """W_WIND + W_PERIOD must be exactly 1. They are ONE degree of freedom, not two.
+
+    Measured 2026-08-08 over 3,000 conditions: scaling BOTH by 1.1 (leaving the ratio alone) moves
+    96.3% of cases at a median of 1.9 points -- MORE than rotating the split does. So the sum is the
+    more dangerous quantity of the two, and it is the one nothing was checking. Rotating the split
+    is a product decision; changing the sum is always a bug.
+    """
+    from services.weather_pipeline import surf_rating as SRT
+    assert SRT.W_WIND + SRT.W_PERIOD == pytest.approx(1.0), (
+        "the blend weights no longer sum to 1 (%r + %r) -- every score is now scaled by %.3f"
+        % (SRT.W_WIND, SRT.W_PERIOD, SRT.W_WIND + SRT.W_PERIOD))
+    assert SR.value("W_WIND") + SR.value("W_PERIOD") == pytest.approx(1.0), (
+        "the REGISTRY's copies of the pair do not sum to 1 either")
 
 
 def test_registry_is_not_empty():

@@ -100,8 +100,10 @@ GRANDFATHERED = {
     (SURF_TRANSFORM, "_MIN_CAP_DEPTH_M"): (STRUCTURAL, "floor so the depth cap cannot go <= 0"),
     # -- surf_rating: 24 constants, ZERO registered ----------------------------------------------
     (SURF_RATING, "MS_TO_KT"): (EXACT, "unit conversion"),
-    (SURF_RATING, "W_WIND"): (DEBT, "wind/period blend weight -- owner calibration, unsourced"),
-    (SURF_RATING, "W_PERIOD"): (DEBT, "wind/period blend weight -- owner calibration, unsourced"),
+    # ✅ W_WIND and W_PERIOD left this set on 2026-08-08 -- REGISTERED as a constrained pair. The
+    # JACOBIAN chose them: the highest-reach unsourced constants in the chain (87.7% of 3,000
+    # conditions under a sum-preserving rotation). Their citation was never in the code -- it was in
+    # the model's first commit message, one `git log -S` away.
     (SURF_RATING, "_HMIN_RIDEABLE_M"): (DEBT, "rideability floor; DUPLICATED in "
                                               "spot_size_climatology and kept in sync by a comment"),
     (SURF_RATING, "_DEFAULT_REF_SIZE_M"): (DEBT, "global fallback yardstick when a spot has none"),
@@ -233,17 +235,22 @@ def test_scope_is_not_derived_from_coverage():
     """And the unsafe direction, as an assertion rather than a comment.
 
     ⚠️ NAMED, NOT COUNTED. An earlier draft asserted only "at least one chain module has zero
-    registered constants". Four modules satisfy that, so dropping `surf_rating.py` -- the single
-    module a coverage-derived scope would most damagingly miss (24 unregistered, 0 registered) --
-    left the assertion green. A mutation revealed it. Pin the module that actually matters.
+    registered constants". Four modules satisfy that, so dropping `surf_rating.py` -- then the
+    single module a coverage-derived scope would most damagingly miss -- left the assertion green.
+    A mutation revealed it. Pin the module that actually matters.
+
+    ⭐ RE-POINTED 2026-08-08, BY ITS OWN INSTRUCTION. Registering W_WIND/W_PERIOD gave surf_rating
+    its first registry coverage, so this test failed with the message it was written to emit --
+    "this test's premise is stale: re-point it". `spot_size_climatology.py` is now the zero-coverage
+    module that matters most: it holds the per-spot yardstick every rating is graded against.
     """
-    assert SURF_RATING in CHAIN_MODULES, "the worst-covered module has left the scan's scope"
+    assert CLIMATOLOGY in CHAIN_MODULES, "the worst-covered module has left the scan's scope"
     registered_modules = {c.module for c in SR.all_constants().values()}
-    assert "services.weather_pipeline.surf_rating" not in registered_modules, (
-        "surf_rating now has a registered constant -- good, but this test's premise is stale: "
-        "re-point it at whichever chain module still has zero registry coverage")
+    assert "services.weather_pipeline.spot_size_climatology" not in registered_modules, (
+        "spot_size_climatology now has a registered constant -- good, but this test's premise is "
+        "stale: re-point it at whichever chain module still has zero registry coverage")
     scanned = {rel for rel, _, _, _, _ in _scan()}
-    assert SURF_RATING in scanned, "surf_rating is in CHAIN_MODULES but produced no scan hit"
+    assert CLIMATOLOGY in scanned, "the module is in CHAIN_MODULES but produced no scan hit"
 
 
 # --- the ratchet --------------------------------------------------------------------------------
@@ -289,13 +296,14 @@ def test_the_grandfathered_debt_is_reported_not_hidden():
     # ⚠️ 32, not 31 -- `_HMIN_RIDEABLE_M` counts ONCE PER MODULE because the two copies are separate
     # constants that can drift apart (they are kept equal by a comment, not by code). Counting them
     # as one is what made this assertion fail on its first run.
-    # ✅ RATCHETED 32 -> 31 the same day: SHELF_KF_FLOOR was registered against Ardhuin et al. (2003).
+    # ✅ RATCHETED 32 -> 31 -> 29 the same day: SHELF_KF_FLOOR against Ardhuin et al. (2003), then
+    # W_WIND/W_PERIOD as a DERIVED constrained pair (the Jacobian picked them: highest reach).
     # It may SHRINK freely; a rise means new unsourced calibration entered the chain, which should be
     # a deliberate and visible decision rather than a quiet one.
-    assert len(debt) <= 31, (
-        f"unsourced-calibration debt has GROWN to {len(debt)} (was 31 after SHELF_KF_FLOOR was "
-        f"registered on 2026-08-08): {debt}. Register the new constant with a real source instead "
-        f"of extending the ratchet.")
+    assert len(debt) <= 29, (
+        f"unsourced-calibration debt has GROWN to {len(debt)} (was 29 after SHELF_KF_FLOOR and the "
+        f"W_WIND/W_PERIOD pair were registered on 2026-08-08): {debt}. Register the new constant "
+        f"with a real source instead of extending the ratchet.")
 
 
 @pytest.mark.parametrize("name", ["REF_PERCENTILE", "OVERSIZE_START_MULT", "OVERSIZE_FLOOR_MULT"])

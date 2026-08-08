@@ -76,6 +76,51 @@ def _add(c: Constant) -> None:
 # --- depth-limited breaking --------------------------------------------------------------------
 
 _add(Constant(
+    name="W_WIND",
+    value=0.60,
+    units="dimensionless (weight in the wind/period quality blend, W_WIND + W_PERIOD == 1)",
+    what="How much of the non-size half of the score is carried by wind cleanliness.",
+    module="services.weather_pipeline.surf_rating",
+    source="OURS. Lineage: Espejo, Losada & Mendez (2014), Global Planet. Change 121 19-25, "
+           "a multivariable standardized surf index; the split itself is not from that paper",
+    method="owner",
+    sample="Set in the rating model's first commit 1ba30f57 (2026-06-28) and never changed since. "
+           "Jacobian measured 2026-08-08 over 3,000 conditions (h 0.3-9 m, Tp 4-18 s, wind 1-20 m/s "
+           "x 3 directions, 4 live references): the constrained rotation W_WIND 0.60+d / "
+           "W_PERIOD 0.40-d moves 87.7% of cases, median 0.8 and max 5.6 points, 8% of them across "
+           "a level boundary. The highest-reach unsourced constant in the rating chain.",
+    published_range=None,
+    status=DERIVED,
+    debt_reason="",
+    applies_to=(
+        "A CONSTRAINED PAIR, NOT TWO KNOBS. Perturbing one member alone changes the SUM, so it "
+        "measures the normalisation rather than the weighting -- measured, scaling BOTH by 1.1 "
+        "(ratio unchanged) moves 96.3% of cases at median 1.9 points, more than either rotation. "
+        "test_rating_blend_weights_are_a_normalised_pair pins the sum. THE CITATION NAMES A "
+        "LINEAGE, NOT THE NUMBER: Espejo et al. propose an expert-judgment index over a different "
+        "variable set (it also carries tides and SST), and no source consulted 2026-08-08 states a "
+        "0.60/0.40 wind-vs-period split. Hence DERIVED with no published range, rather than a "
+        "borrowed one."),
+))
+
+_add(Constant(
+    name="W_PERIOD",
+    value=0.40,
+    units="dimensionless (weight in the wind/period quality blend, W_WIND + W_PERIOD == 1)",
+    what="How much of the non-size half of the score is carried by swell period.",
+    module="services.weather_pipeline.surf_rating",
+    source="OURS. Lineage: Espejo, Losada & Mendez (2014), Global Planet. Change 121 19-25, "
+           "a multivariable standardized surf index; the split itself is not from that paper",
+    method="owner",
+    sample="The complement of W_WIND, same origin commit 1ba30f57 (2026-06-28), never changed. "
+           "See W_WIND for the measured Jacobian of the pair.",
+    published_range=None,
+    status=DERIVED,
+    debt_reason="",
+    applies_to="See W_WIND: the two are one degree of freedom, and the sum is pinned by a test.",
+))
+
+_add(Constant(
     name="SHELF_KF_FLOOR",
     value=0.316,
     units="dimensionless (fraction of offshore swell HEIGHT retained across the shelf)",
