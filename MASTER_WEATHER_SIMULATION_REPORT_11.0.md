@@ -560,6 +560,35 @@ Scores 1–5 (Cx/Risk/Ops are costs). **≤10 immediate actions.**
 > **EXECUTION RECORD (same day, 2026-08-09, commits `512b1cb6..9fe18414`):** actions **3, 4, 5, 7, 9-partial, 10** were implemented and shipped hours after this register was written — the churn-loop three-seam fix (+ the Promise-as-geojson guard from action 9), series-frame run identity + run census, build stamps on all truth/telemetry payloads, the worker-crash/fabricated-zeros cluster + both fabricated-status endpoints + the staleReason classification, the probe self-diagnosis instrumentation (action 10's artefact pull **refuted the tide hypothesis by sign** — see R11-18's resolution), and additionally action 6 (the JS-mirror refusal port, golden-verified against Python). Actions 1–2 (uptime probe; clock-watching) and 8 (executed-GL harness) remain open; the owner items remain owner-gated.
 > **Batch 2 (same day, `2e20122d..086ee773`):** R11-10(b/d/e) GPU hygiene (score-texture dispose leak, `safeDeleteTexture` accounting at teardown, state-isolation units 0–6); R11-09 wind ports (device-tier pool + `prefers-reduced-motion` damp — the accessibility-mandate gap); R11-11's rain-legend unit label; the four worst silent-excepts now log (`surf_point` asset/override reads, the frame-honesty stamp, the bucket latch); and the parity probe's gate now compares ungated-vs-ungated (its docstring made true), labels unattributed reds `FAIL (INSTRUMENT)`, and keeps prose out of the JSON artefact (the stdout contamination that broke the 08-05 artefact). Clock update: **the accuracy monitor's cron self-fired 08-09T07:57Z and passed** — the 08-10 deadline is closed.
 
+> **Batch 3 (same day, `822a0785..42242bef`) — THE SCHEDULED LANE, which none of the above covered.**
+> Batches 1–2 were verified **by HEAD SHA across the push/PR lanes**, and that is precisely the check
+> that cannot see a cron run: it fires on a SHA already passed. Enumerating latest-run-per-workflow
+> found **two standing reds nobody had looked at** — `Forecast Calibration Census` red on **6
+> consecutive runs since 08-08T09:19Z**, and `Marine Nightly` red on most days since **08-03**.
+> Both were **instrument defects, not product defects**, and both are now fixed, kill-switched and
+> live-verified on `42242bef`:
+> - **Census** — the control pair named it: last green and first red printed the *identical*
+>   `Pipeline ref=1.5 m expected >=1.5` with opposite verdicts (a zero-margin bound crossed by drift;
+>   1.48 today). Cause, verified from git objects: bounds authored `d8635716` at `REF_PERCENTILE=0.80`,
+>   `e3aedb06` moved it to 0.50 the next day, bounds never re-authored — a p80 envelope grading a p50
+>   population, ~21% too high, for ten days. **Second instance of R11's "threshold outlives the
+>   calibration of its input", which promotes it to a class.** Fix pages on the *percentile-invariant*
+>   claim (ordering, measured **6.6%** stable across p0.50–0.85 vs **27%** for the absolute quantity)
+>   and downgrades an out-of-frame absolute miss to `BOUNDS STALE` (warn, not page). Bounds frozen
+>   byte-for-byte and still page in their own frame; `CENSUS_STRICT_ABSOLUTE_BOUNDS=1` restores the
+>   old gate. Live: run `31316077890` green, margin **1.258×**, warning emitted.
+> - **Marine Nightly** — control pair from two runs on the *same commit* 13 min apart: backend asleep
+>   → 30 findings (20 transport); backend awake → **0 findings, 415 frames**. The verdict counted every
+>   console error against a "≤2 findings" budget and graded `MULT0_FRAME` (*a frame drawn with no data*)
+>   as a rendering defect. Fix = warm (preflight), classify (INSTRUMENT vs RENDER), refuse (exit 3,
+>   warn). The classifier's regex was corrected by replaying the **real retained trace**, which exposed
+>   two false negatives a fixture would not have.
+> **Still open from this batch:** the oversize multipliers remain orphaned by the same percentile move
+> (the registry says so and nothing enforces it); the census exemplar grades **one spot**, so a
+> neighbour over the same bound is invisible; the `reference_size_m` disclosure and the parity gating
+> both wait on the **15:45Z precompute** (glyph frames disclose 0/48 until then — the parity green at
+> 13:33Z is real but does *not* yet exercise the disclosure path).
+
 | # | Action | FcstAcc | User | Perf | Rel | Evid | Cx | Risk | Ops | Priority |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 1 | External uptime probe on `/api/health` + monitor endpoint | 2 | 2 | 1 | 5 | 5 | 1 | 1 | 2 | **P0** |
