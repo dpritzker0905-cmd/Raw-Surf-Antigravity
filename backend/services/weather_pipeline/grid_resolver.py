@@ -58,8 +58,12 @@ def stamp_frame_honesty(product, target_dt, ask_str: str) -> None:
                 f"[Grid Resolver] Frame substitution: serving {product.served_valid_time} "
                 f"for ask {ask_str} ({product.frame_offset_hours:+.1f}h) — {product.product_id}"
             )
-    except Exception:
-        pass
+    except Exception as _e:
+        # R11-07/R11-13 (2026-08-09): a failure HERE serves a time-substituted frame with its
+        # honesty flags silently unset — the served payload then claims the ask was the answer.
+        # Non-fatal stays (honesty stamping must never cost the frame); silence does not.
+        logger.warning(f"[Grid Resolver] frame-honesty stamp failed for "
+                       f"{getattr(product, 'product_id', '?')}: {type(_e).__name__}: {_e}")
 
 
 def _grid_cell_deg(grid) -> Optional[float]:

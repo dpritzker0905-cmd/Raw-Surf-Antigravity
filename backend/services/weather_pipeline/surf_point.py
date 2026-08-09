@@ -105,8 +105,13 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
             normal, src = _fine, ("etopo:borrowed" if borrowed else "etopo")
             logger.debug(f"[Surf] ETOPO shore normal {_fine} deg (spread {_spread} deg, "
                          f"{'borrowed ' if borrowed else ''}{match_km} km) at ({lat},{lng})")
-    except Exception:
-        pass
+    except Exception as _e:
+        # R11-07/R11-13 (2026-08-09): this except feeds the ONE FORECAST COMPOSITION height — a
+        # failing asset read silently degraded the geometry to a coarser normal source with ZERO
+        # log evidence (the silent-failure census's worst backend entry). Still non-fatal by
+        # design (the coarse fallback is the contract); now it says so once per failure.
+        logger.warning(f"[Surf] shore-normal ASSET read failed at ({lat},{lng}) — "
+                       f"falling back to coarse normal: {type(_e).__name__}: {_e}")
 
     # Hand-audited per-spot overrides are human ground truth, so they still outrank the derived
     # asset. Kill: SURF_V3_NORMAL_OVERRIDES=0.
@@ -116,8 +121,11 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
             _ov, _ov_name = shore_normal_override_at(lat, lng)
             if _ov is not None:
                 normal, src = _ov, f"override:{_ov_name}"
-        except Exception:
-            pass
+        except Exception as _e:
+            # R11-07/R11-13: a failing override lookup silently dropped HUMAN GROUND TRUTH out of
+            # the geometry chain. Non-fatal stays the contract; silence does not.
+            logger.warning(f"[Surf] shore-normal OVERRIDE lookup failed at ({lat},{lng}): "
+                           f"{type(_e).__name__}: {_e}")
 
     # Sub-grid inlet/jetty focusing. Inert unless SURF_V3_MAGNETS is on inside estimate_surf.
     try:

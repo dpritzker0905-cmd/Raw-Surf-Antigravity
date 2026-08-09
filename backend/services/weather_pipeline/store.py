@@ -238,8 +238,12 @@ def _get_supabase_storage():
             if not _bucket_created_checked:
                 try:
                     client.storage.create_bucket(WEATHER_BUCKET, options={"public": False})
-                except Exception:
-                    pass
+                except Exception as _e:
+                    # R11-07: "exists" is routine (debug); a MISSING bucket used to latch done silently.
+                    if "exist" in str(_e).lower() or "duplicate" in str(_e).lower():
+                        logger.debug(f"[Store] bucket ensure: {WEATHER_BUCKET} already present")
+                    else:
+                        logger.warning(f"[Store] create_bucket({WEATHER_BUCKET}) failed; not retried this process: {type(_e).__name__}: {_e}")
                 _bucket_created_checked = True
             _supabase_client = client
             return _supabase_client
