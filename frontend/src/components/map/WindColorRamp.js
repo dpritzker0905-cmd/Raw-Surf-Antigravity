@@ -163,6 +163,52 @@ export function resolveThemeRamp(theme) {
 }
 
 /**
+ * LEGEND, DERIVED FROM THE SHIPPED RAMP (2026-08-09, R11-11 item 2).
+ *
+ * ⛔ THE DEFECT THIS DELETES: MapWeatherControls carried a hand-maintained CSS duplicate of this
+ * table, one gradient per theme. Measured 2026-08-09, the dark one was a BYTE-EXACT copy of the
+ * legacy 8-stop 0-50 kn `DEFAULT_WIND_RAMP` — `[0,.60,.85,1.00,.85]` -> `rgba(153,217,255,0.85)`
+ * and all seven siblings — even though `DEFAULT_WIND_RAMP = DARK_WIND_RAMP` (13 Beaufort stops to
+ * 75 kn) replaced it in the Beaufort rework. Its comment claimed "Gradient matches WindColorRamp.js
+ * stops" while it had not for weeks.
+ * ★★★ THE CONSEQUENCE WAS AN INVERTED READING, not a cosmetic drift: the shipped dark ramp paints
+ * CALM as vivid magenta (0.90, 0.00, 1.00), and magenta on the stale legend sat at the far-right
+ * HURRICANE end. A user seeing magenta read the legend and concluded hurricane while looking at
+ * dead calm. A duplicate of a palette is a second source of truth, and the copy loses silently
+ * because nothing renders it side by side.
+ *
+ * Positions are VALUE-PROPORTIONAL (kn / max), because the bar is drawn with equal-width CSS stops
+ * otherwise — R11-11 item 3, the same defect one level down.
+ */
+export function windLegendGradientCSS(theme) {
+  var ramp = resolveThemeRamp(theme);
+  var max = ramp[ramp.length - 1][0] || 1;
+  var css = ramp.map(function (s) {
+    return 'rgba(' + Math.round(s[1] * 255) + ',' + Math.round(s[2] * 255) + ','
+      + Math.round(s[3] * 255) + ',' + s[4] + ') ' + ((s[0] / max) * 100).toFixed(1) + '%';
+  });
+  return 'linear-gradient(to right, ' + css.join(', ') + ')';
+}
+
+/**
+ * Tick labels at EQUAL VALUE INTERVALS, because the row that renders them is `justify-between` —
+ * equally spaced on screen. The old list was ['0','5','15','30','50+']: unequal values under equal
+ * spacing, so every interior label sat over the wrong colour, and the scale ended at 50 while the
+ * ramp runs to 75 (hurricane force was unlabelled entirely).
+ */
+export function windLegendStops(theme, count) {
+  var ramp = resolveThemeRamp(theme);
+  var max = ramp[ramp.length - 1][0] || 1;
+  var n = Math.max(2, count || 6);
+  var out = [];
+  for (var i = 0; i < n; i++) {
+    var v = Math.round((max * i) / (n - 1));
+    out.push(i === n - 1 ? v + '+' : String(v));
+  }
+  return out;
+}
+
+/**
  * Interpolate between two color stops.
  * @param {number[]} a - [speed, r, g, b, a]
  * @param {number[]} b - [speed, r, g, b, a]

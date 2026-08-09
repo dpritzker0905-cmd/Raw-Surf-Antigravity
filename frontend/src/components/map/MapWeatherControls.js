@@ -6,6 +6,7 @@ import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale 
 import { getSurfModeFlag, setSurfModeFlag } from './backendWeatherServiceClient';
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 import { getHeightUnit, setHeightUnit, M_TO_FT } from './heightUnits';
+import { windLegendGradientCSS, windLegendStops } from './WindColorRamp';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
 
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
@@ -222,15 +223,13 @@ export var MapWeatherControls = ({
       gradientCSS: 'linear-gradient(to right, rgba(120,120,120,0.8), rgba(160,160,160,0.6), rgba(200,200,200,0.4), transparent)',
       stops: ['<1km', '5km', '10km', '20km', 'Clear'],
     };
+    // DERIVED from WindColorRamp — never duplicated. The hand-maintained CSS that stood here was a
+    // byte-exact copy of the LEGACY 8-stop 0-50 kn ramp, so calm (now vivid magenta) read as
+    // hurricane on the legend. See windLegendGradientCSS for the measurement.
     config.wind = {
       label: LEGEND_LABELS.wind,
-      // Gradient matches WindColorRamp.js stops: calm/low-speed contrast -> moderate -> high-speed
-      gradientCSS: isLight
-        ? 'linear-gradient(to right, rgba(20,46,92,0.75), rgba(13,64,115,0.78), rgba(5,97,122,0.8), rgba(13,128,77,0.82), rgba(166,115,0,0.85), rgba(191,51,13,0.88), rgba(140,13,102,0.9), rgba(89,0,115,0.95))'
-        : isBeach
-        ? 'linear-gradient(to right, rgba(255,102,166,0.88), rgba(255,128,77,0.9), rgba(242,191,26,0.92), rgba(51,230,89,0.92), rgba(0,224,204,0.95), rgba(0,140,242,0.95), rgba(140,51,230,0.95), rgba(230,26,230,0.95))'
-        : 'linear-gradient(to right, rgba(153,217,255,0.85), rgba(115,230,242,0.88), rgba(51,242,230,0.9), rgba(26,250,204,0.92), rgba(102,217,115,0.92), rgba(242,184,38,0.92), rgba(242,64,46,0.95), rgba(255,204,230,0.95))',
-      stops: ['0', '5', '15', '30', '50+'],
+      gradientCSS: windLegendGradientCSS(theme),
+      stops: windLegendStops(theme),
     };
     config.radar = {
       label: LEGEND_LABELS.radar,
