@@ -50,6 +50,40 @@ SANITY_EXEMPLARS = [
     ("Indonesia (Uluwatu)", -8.8148, 115.0880, None, 1.0),
 ]
 
+# ⛔⛔ THESE BOUNDS ARE FROZEN AT THE PERCENTILE THEY WERE AUTHORED AGAINST — DO NOT WIDEN THEM.
+# Verified from git objects 2026-08-09 (never from the docstring that asserted it):
+#   d8635716 (07-29) authored the bounds above while REF_PERCENTILE = 0.80
+#   e3aedb06 (07-30) moved REF_PERCENTILE 0.80 -> 0.50 and re-authored NOTHING here
+# So an absolute metre bound written for a p80 population has been graded against a p50 one for ten
+# days. It survived on luck: Pipeline sat EXACTLY on 1.5 (green 08-08T03:53 and red 08-08T09:19 both
+# printed "ref=1.5 m" — same number, opposite verdict) until ordinary drift took it to 1.48, and the
+# census then paged every run for a 1.3% miss of a bound that is ~21% too high in this frame
+# (Pipeline at the authored p80 today: 1.81 m).
+# ★★★ THE CLASS: A THRESHOLD OUTLIVES THE CALIBRATION OF ITS INPUT. Second independent instance.
+# The answer is NOT a wider bound — a gate red every run is a gate nobody reads, and the next real
+# inversion would be invisible inside the standing red. The answer is to page on the form of the
+# claim that SURVIVES a percentile change, and to REFUSE to render an absolute verdict in a frame
+# the bounds were not written for. Measured across the census's own sweep at HEAD:
+#   pctl        0.50   0.65   0.80   0.85      spread
+#   Pipeline    1.48   1.61   1.81   1.88      27.0%   <- the absolute bound's quantity
+#   separation  1.72   1.68   1.65   1.61       6.6%   <- min(big-wave) / max(small-wave)
+# The ordering ratio is ~4x more percentile-stable, and inversion — the thing this gate exists to
+# catch — is a ratio claim, not a level claim: the blob that gives Florida 2.5 m and Pipeline 0.7 m
+# scores 0.28 here at EVERY percentile.
+SANITY_EXEMPLARS_AUTHORED_PCTL = 0.80
+
+# DERIVED PER PAIR, never chosen. Each (small-wave, big-wave) pair carries the ratio its OWN authored
+# bounds assert — `lo_big / hi_small` — and the report's scalar is the worst observed ratio divided by
+# its authored one, so >= 1.0 means every pair is at least as separated as authored.
+# ⚠️ A single min(lo)/max(hi) would have been WRONG and was caught before it ran: Uluwatu's generous
+# 1.0 floor sits BELOW Florida's 1.1 ceiling, so that form yields 0.909 and would pass a genuine
+# inversion. The authored table does not assert one global gap; it asserts one gap per pair.
+def _authored_pairs():
+    """(small_label, big_label, authored_ratio) for every ordering claim the bounds make."""
+    smalls = [(lbl, hi) for lbl, _la, _ln, hi, lo in SANITY_EXEMPLARS if hi is not None and lo is None]
+    bigs = [(lbl, lo) for lbl, _la, _ln, hi, lo in SANITY_EXEMPLARS if lo is not None and hi is None]
+    return [(s_lbl, b_lbl, b_lo / s_hi) for s_lbl, s_hi in smalls for b_lbl, b_lo in bigs]
+
 
 def _ratio(surf_h_m: Optional[float], ref: Optional[float],
            break_depth_m: Optional[float]) -> Optional[float]:
@@ -219,20 +253,41 @@ def anchor_report(reference_size_m: Optional[float]) -> Dict[str, Any]:
 
 
 def sanity_check(clim: Optional[dict], spots_by_coord: Optional[List[dict]] = None,
-                 *, reference_map_fn: Callable[[Optional[dict]], dict] = None) -> Dict[str, Any]:
+                 *, reference_map_fn: Callable[[Optional[dict]], dict] = None,
+                 operative_pctl: Optional[float] = None,
+                 strict_absolute: bool = False) -> Dict[str, Any]:
     """The rollout plan's OWN acceptance criterion: "FL spots get small refs, big-wave spots large".
 
     ★ A pure aggregate (median delta, % changed) CANNOT catch an inverted climatology — a blob that
     gave Florida 2.5 m and Pipeline 0.7 m would show a large, symmetric, entirely plausible spread.
     Only named exemplars with expected directions can, which is why the plan named them.
+
+    TWO CLAIMS, GRADED SEPARATELY (2026-08-09) — see the frozen-bounds block above.
+      ORDERING   percentile-invariant, and the thing "inverted" actually means -> pages as INVERTED.
+      ABSOLUTE   the authored metre envelope. Only meaningful in the frame it was written for; when
+                 `operative_pctl` differs from `SANITY_EXEMPLARS_AUTHORED_PCTL` a miss is reported as
+                 BOUNDS STALE, because this function cannot tell "the blob moved" from "the yardstick
+                 was re-scaled underneath the bound" — and a check that cannot tell those apart must
+                 refuse rather than assert. `strict_absolute=True` (kill switch
+                 CENSUS_STRICT_ABSOLUTE_BOUNDS=1) restores the pre-08-09 behaviour exactly.
     """
+    if operative_pctl is None:
+        try:
+            from services.weather_pipeline.spot_size_climatology import REF_PERCENTILE
+            operative_pctl = float(REF_PERCENTILE)
+        except Exception:                                    # noqa: BLE001 - frame unknown, say so
+            operative_pctl = None
     if reference_map_fn is None:
         from services.weather_pipeline.spot_size_climatology import reference_map as _rm
         reference_map_fn = _rm
     refs = reference_map_fn(clim) or {}
 
     # Match exemplars to spot ids by nearest coordinate (the climatology is keyed by spot id).
-    results, failures = [], 0
+    # ⚠️ `raw_by_label` is UNROUNDED on purpose. `reference_m` below is rounded to 2 dp for the
+    # operator, and a first pass computed the ordering ratio from that display value — up to ~0.5%
+    # of pure rounding error in the number that decides INVERTED. That is the same "identical print,
+    # opposite verdict" trap this whole change exists to close; caught by the boundary test.
+    results, failures, raw_by_label = [], 0, {}
     for label, lat, lng, hi, lo in SANITY_EXEMPLARS:
         sid, best = None, None
         for sp in spots_by_coord or []:
@@ -245,6 +300,7 @@ def sanity_check(clim: Optional[dict], spots_by_coord: Optional[List[dict]] = No
         ref = refs.get(sid) if (sid is not None and best is not None and best < 0.2) else None
         ok = None
         if ref is not None:
+            raw_by_label[label] = ref
             ok = True
             if hi is not None and ref > hi:
                 ok = False
@@ -257,10 +313,43 @@ def sanity_check(clim: Optional[dict], spots_by_coord: Optional[List[dict]] = No
                         "verdict": ("ok" if ok else "OUT OF RANGE") if ref is not None
                                    else "no reference yet"})
     resolved = [r for r in results if r["reference_m"] is not None]
+
+    # ── ORDERING: the claim that survives a percentile change ───────────────────────────────────
+    by_label = raw_by_label
+    pairs, worst = [], None
+    for s_lbl, b_lbl, authored in _authored_pairs():
+        s_ref, b_ref = by_label.get(s_lbl), by_label.get(b_lbl)
+        if not s_ref or not b_ref or authored <= 0:
+            continue
+        observed = b_ref / s_ref
+        margin = observed / authored
+        pairs.append({"small": s_lbl, "big": b_lbl, "authored_ratio": round(authored, 3),
+                      "observed_ratio": round(observed, 3), "margin": round(margin, 3)})
+        if worst is None or margin < worst["margin"]:
+            worst = pairs[-1]
+    inverted = worst is not None and worst["margin"] < 1.0
+
+    frame_matches = (operative_pctl is not None
+                     and abs(operative_pctl - SANITY_EXEMPLARS_AUTHORED_PCTL) < 1e-9)
+    absolute_binds = strict_absolute or frame_matches
+    if not resolved:
+        verdict = "NOT ENOUGH DATA"
+    elif inverted:
+        verdict = "INVERTED OR MISCALIBRATED"
+    elif failures and absolute_binds:
+        verdict = "INVERTED OR MISCALIBRATED"
+    elif failures:
+        verdict = "BOUNDS STALE"
+    else:
+        verdict = "SANE"
     return {
         "exemplars": results,
         "resolved": len(resolved),
         "failures": failures,
-        "verdict": ("SANE" if (resolved and failures == 0)
-                    else "NOT ENOUGH DATA" if not resolved else "INVERTED OR MISCALIBRATED"),
+        "verdict": verdict,
+        "ordering": {"pairs": pairs, "worst": worst, "inverted": inverted},
+        "bounds_frame": {"authored_pctl": SANITY_EXEMPLARS_AUTHORED_PCTL,
+                         "operative_pctl": operative_pctl,
+                         "binds": absolute_binds,
+                         "strict_override": bool(strict_absolute)},
     }

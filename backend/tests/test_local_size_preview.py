@@ -208,6 +208,66 @@ def test_a_local_reference_RESTORES_the_dynamic_range():
     assert len(set(glob)) == 1 and glob[0] == 1.0
 
 
+# ── A THRESHOLD OUTLIVES THE CALIBRATION OF ITS INPUT (2026-08-09) ──────────────────────────────
+# The census paged 6 consecutive runs because Pipeline read 1.48 m against a >=1.5 bound authored at
+# REF_PERCENTILE=0.80 and graded at 0.50. These pin the two claims apart so the gate can never again
+# be simultaneously wrong-framed and load-bearing.
+
+_SPOTS = [{"id": "fl", "latitude": 27.8608, "longitude": -80.4464},
+          {"id": "pipe", "latitude": 21.6650, "longitude": -158.0533}]
+
+
+def test_an_absolute_miss_in_a_FOREIGN_frame_refuses_instead_of_asserting_inversion():
+    """The real 2026-08-09 blob: ordering intact, Pipeline 1.3% under a p80-authored floor."""
+    out = LSP.sanity_check({}, _SPOTS, reference_map_fn=lambda c: {"fl": 0.86, "pipe": 1.48},
+                           operative_pctl=0.50)
+    assert out["verdict"] == "BOUNDS STALE", out
+    assert out["failures"] == 1                      # the miss is still COUNTED and still printed
+    assert out["bounds_frame"]["binds"] is False
+    assert out["ordering"]["inverted"] is False
+    assert out["ordering"]["worst"]["margin"] > 1.0
+
+
+def test_the_same_miss_PAGES_when_the_frame_matches_or_the_kill_switch_is_set():
+    """Non-widening is the whole point: in its own frame the bound is untouched and still fires."""
+    refs = lambda c: {"fl": 0.86, "pipe": 1.48}      # noqa: E731
+    assert LSP.sanity_check({}, _SPOTS, reference_map_fn=refs,
+                            operative_pctl=0.80)["verdict"] == "INVERTED OR MISCALIBRATED"
+    assert LSP.sanity_check({}, _SPOTS, reference_map_fn=refs, operative_pctl=0.50,
+                            strict_absolute=True)["verdict"] == "INVERTED OR MISCALIBRATED"
+
+
+def test_ordering_still_catches_a_real_inversion_in_ANY_frame():
+    """MUTATION CONTROL. The refusal above must not have bought silence: the blob this gate exists
+    for must fail at every percentile, including the one where the absolute bounds do not bind."""
+    for pctl in (0.50, 0.65, 0.80, None):
+        out = LSP.sanity_check({}, _SPOTS, reference_map_fn=lambda c: {"fl": 2.5, "pipe": 0.7},
+                               operative_pctl=pctl)
+        assert out["verdict"] == "INVERTED OR MISCALIBRATED", (pctl, out)
+        assert out["ordering"]["inverted"] is True
+        assert out["ordering"]["worst"]["margin"] < 1.0
+
+
+def test_the_separation_floor_is_DERIVED_from_the_authored_bounds_not_chosen():
+    """If someone edits a bound, the ordering claim must follow it — the two cannot drift apart."""
+    pairs = {(s, b): r for s, b, r in LSP._authored_pairs()}
+    assert pairs[("Florida east coast (Sebastian Inlet)", "Hawaii North Shore (Pipeline)")] == \
+        pytest.approx(1.5 / 1.1)
+    # ⚠️ The bug caught before it ran: a single min(lo)/max(hi) would be 1.0/1.1 = 0.909 — BELOW 1.0,
+    # i.e. it would pass an inversion. Per-pair ratios never produce that.
+    assert min(pairs.values()) == pytest.approx(1.0 / 1.1)
+    assert all(r > 1.0 for (s, b), r in pairs.items() if "Uluwatu" not in b)
+
+
+def test_a_flat_ordering_margin_of_exactly_one_is_not_inverted():
+    """Boundary: `< 1.0` is the inversion test, so sitting exactly on the authored ratio passes.
+    Pinned because the defect that started all this was a bound sitting EXACTLY on its value."""
+    out = LSP.sanity_check({}, _SPOTS, reference_map_fn=lambda c: {"fl": 1.0, "pipe": 1.5 / 1.1},
+                           operative_pctl=0.50)
+    assert out["ordering"]["worst"]["margin"] == pytest.approx(1.0)
+    assert out["ordering"]["inverted"] is False
+
+
 def test_no_data_is_reported_as_not_ready_never_as_sane():
     """A blob with no exemplar coverage must NOT read 'SANE' — that would greenlight a flip on
     nothing at all."""

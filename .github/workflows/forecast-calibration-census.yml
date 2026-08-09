@@ -107,8 +107,31 @@ jobs:
           set -o pipefail
           rc=0
           python3 scripts/local_size_gonogo.py 2>&1 | tee gonogo.txt | tail -40 || rc=$?
+          # ⚠️ `tail -40` CUT THE FAILING ROW OUT OF THE LOG. Measured 2026-08-09 while diagnosing
+          # this very gate: the log showed only the LAST exemplar ("ok Uluwatu") under a verdict of
+          # INVERTED, so the operator had to download the artifact to learn WHICH exemplar failed.
+          # The decision lines are cheap — always echo them, above the tail's window.
+          echo "── the lines the tail can cut ──"
+          grep -E "OUT OF RANGE|^ORDERING|^BOUNDS |^VERDICT" gonogo.txt || true
           if grep -q "VERDICT: SANE" gonogo.txt; then
             echo "exemplars: SANE"
+          elif [ "$rc" -lt 2 ] && grep -q "VERDICT: BOUNDS STALE" gonogo.txt; then
+            # `rc -lt 2` is load-bearing: the verdict prints BEFORE the product-impact section, so a
+            # crash after it would otherwise be downgraded to a warning by the grep alone. A crash
+            # outranks every calibration verdict.
+            # ⛔ NOT A PASS AND NOT A PAGE. Ordering — the percentile-invariant claim this gate exists
+            # for — holds; an absolute metre bound authored at REF_PERCENTILE=0.80 is being read in a
+            # p50 frame, so the gate REFUSES to call it an inversion. Full reasoning and the frozen
+            # bounds live in local_size_preview.SANITY_EXEMPLARS_AUTHORED_PCTL.
+            # ★ It stays a WARNING, never an error, for one reason: this workflow was red on all 6
+            #   consecutive runs from 08-08T09:19Z, and a gate that is always red cannot report the
+            #   next real inversion. Re-authoring the bounds at p50 is an OWNER decision.
+            echo "::warning::Calibration census: ORDERING INTACT, ABSOLUTE BOUNDS STALE. The"\
+                 "exemplar bounds were authored 2026-07-29 (d8635716) at REF_PERCENTILE=0.80 and"\
+                 "e3aedb06 moved it to 0.50 the next day without re-authoring them, so a p80"\
+                 "envelope is being graded against a p50 population. Owner decision: re-author at"\
+                 "the operative percentile (numbers are in the PERCENTILE SWEEP) or restore the"\
+                 "authored one. CENSUS_STRICT_ABSOLUTE_BOUNDS=1 makes these page again."
           elif [ "$rc" -ge 2 ]; then
             # The script distinguishes "I could not answer" from "the answer is no". Keep them apart:
             # a crash is an operator condition, a NO-GO is a calibration finding.
@@ -119,12 +142,14 @@ jobs:
             echo "::error::The size climatology FAILED its named exemplars — a small-wave coast is"\
                  "no longer coming out with a small reference, or a big-wave coast with a large one."\
                  "Every rating is graded against this. Do not wait for a user report."\
-                 "⚠️ BEFORE WIDENING ANY BOUND: the exemplar bounds in local_size_preview.py were"\
-                 "written 2026-07-29 against REF_PERCENTILE=0.80, which e3aedb06 lowered to 0.50 the"\
-                 "next day, AND the ERA5 deepening campaign is replacing each spot's sample"\
-                 "population one spot at a time (~139k samples vs ~72/day live), so a backfilled"\
-                 "spot STEPS then FREEZES while an un-backfilled one keeps drifting. Check which"\
-                 "the failing exemplar is before treating this as a regression."
+                 "⚠️ This is now the STRONG form: either the ORDERING claim broke (percentile-"\
+                 "invariant — a real inversion at any REF_PERCENTILE) or an absolute bound failed"\
+                 "IN ITS OWN AUTHORED FRAME. Neither is explained by the p80/p50 skew, which"\
+                 "downgrades to BOUNDS STALE above. ⛔ Do NOT widen a bound to clear it."\
+                 "⚠️ The ERA5 deepening campaign replaces each spot's sample population one spot at"\
+                 "a time (~139k samples vs ~72/day live), so a backfilled spot STEPS then FREEZES"\
+                 "while an un-backfilled one keeps drifting — check drift.json for which the"\
+                 "failing exemplar is before treating this as a code regression."
             exit 1
           fi
 

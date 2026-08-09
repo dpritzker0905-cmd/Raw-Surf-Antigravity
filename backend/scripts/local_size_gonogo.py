@@ -184,7 +184,10 @@ def main():
     print(f"active spots        : {len(spots)}")
     print()
 
-    report = sanity_check(clim, spots)
+    # ⚠️ KILL SWITCH: CENSUS_STRICT_ABSOLUTE_BOUNDS=1 makes the p80-authored metre bounds page again
+    # regardless of the operative percentile — the exact pre-2026-08-09 gate, one env var away.
+    report = sanity_check(
+        clim, spots, strict_absolute=os.getenv("CENSUS_STRICT_ABSOLUTE_BOUNDS") == "1")
     print("=" * 92)
     print("THE GO/NO-GO -- named exemplars, because an inverted blob is invisible in aggregate")
     print("=" * 92)
@@ -198,6 +201,23 @@ def main():
               f"ref={row['reference_m']} m  expected {' and '.join(bounds) or '-'}")
     print()
     print(f"resolved {report['resolved']} / failures {report['failures']}")
+
+    # ORDERING — the percentile-invariant half. Printed ALWAYS, green or red: the number that says
+    # "not inverted" is worth more when you can watch it move than when it only appears on a failure.
+    frame = report.get("bounds_frame") or {}
+    ordering = report.get("ordering") or {}
+    worst = ordering.get("worst")
+    if worst:
+        print(f"ORDERING : worst pair {worst['small'].split('(')[-1].rstrip(')')} vs "
+              f"{worst['big'].split('(')[-1].rstrip(')')} = {worst['observed_ratio']}x "
+              f"(authored {worst['authored_ratio']}x) -> margin {worst['margin']}x "
+              f"{'INVERTED' if ordering.get('inverted') else 'ok'}")
+    else:
+        print("ORDERING : no resolvable small/big pair -- ordering NOT MEASURED")
+    print(f"BOUNDS   : authored @p{frame.get('authored_pctl')} / operative "
+          f"@p{frame.get('operative_pctl')} -> absolute bounds "
+          f"{'BIND' if frame.get('binds') else 'DO NOT BIND (stale frame)'}"
+          f"{' [STRICT OVERRIDE]' if frame.get('strict_override') else ''}")
     print(f"VERDICT: {report['verdict']}")
 
     # What the owner's own anchors do at a representative local reference, for context only -- the
@@ -287,12 +307,29 @@ def main():
 
     print()
     if report["verdict"] == "SANE":
-        print("GO. Flip RATING_LOCAL_SIZE=1 in ALL THREE, together:")
-        print("   .github/workflows/precompute.yml, .github/workflows/forecast-ingest.yml, Render env")
-        print("   (test_flag_lane_parity.py fails if the lanes drift apart)")
+        # ⚠️ This once printed "GO. Flip RATING_LOCAL_SIZE=1 in all three lanes" — stale since
+        # `3263031c` (08-01) flipped it. An instrument that tells the operator to do something
+        # already done teaches them to stop reading it.
+        print("SANE. RATING_LOCAL_SIZE is already ON in all three lanes (3263031c) — this is now a")
+        print("MONITOR of the served yardstick, not a rollout gate. Nothing to do.")
         return 0
-    print("NO-GO. Do not flip. 'NOT ENOUGH DATA' means the blob is still accumulating;")
-    print("'INVERTED OR MISCALIBRATED' means an exemplar is on the wrong side of its bound.")
+    if report["verdict"] == "BOUNDS STALE":
+        f = report.get("bounds_frame") or {}
+        miss = [r for r in report["exemplars"] if r["verdict"] == "OUT OF RANGE"]
+        print("BOUNDS STALE -- ordering is intact; the absolute envelope is in the wrong frame.")
+        for r in miss:
+            b = f">={r['expected_min_m']}" if r["expected_min_m"] is not None else \
+                f"<={r['expected_max_m']}"
+            print(f"   {r['exemplar']}: {r['reference_m']} m vs {b} "
+                  f"(authored @p{f.get('authored_pctl')}, operative @p{f.get('operative_pctl')})")
+        print("OWNER DECISION, not an automatic one: either re-author these bounds at the operative")
+        print("percentile (read them off the PERCENTILE SWEEP below) or restore REF_PERCENTILE to the")
+        print("authored one. ⛔ Widening a bound to clear the red is neither, and kills the gate.")
+        print("Set CENSUS_STRICT_ABSOLUTE_BOUNDS=1 to make these page again immediately.")
+        return 0
+    print("NO-GO. 'NOT ENOUGH DATA' means the blob is still accumulating; 'INVERTED OR")
+    print("MISCALIBRATED' means the ORDERING claim failed (a small-wave coast is no longer coming")
+    print("out below a big-wave one) or an absolute bound failed IN ITS OWN FRAME.")
     return 1
 
 
