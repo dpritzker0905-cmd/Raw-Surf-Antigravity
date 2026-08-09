@@ -360,3 +360,39 @@ def test_coverage_is_absent_not_wrong_when_the_frames_do_not_carry_it():
     assert c["frames"] == 1
     assert c["models"] == [] and c["hour_offsets"] == []
     assert c["hour_span"] is None and c["valid_time_min"] is None
+
+
+# ---- a null verdict is only meaningful if the harness COULD have produced a non-null one -----
+
+def test_an_inert_candidate_is_refused_not_reported_as_quiet(monkeypatch, tmp_path, capsys):
+    """THE FALSE RESULT THIS PREVENTS. The first real run reported SURF_TIDE_DEPTH=1 as
+    "0.2% level change, median 0.0" -- which reads as SAFE TO FLIP. It was measuring nothing:
+    surf_transform guards the tide term on `if water_level_m and ...`, and the replay never
+    supplies water_level_m (surf_point says so in prose: "NO SERVING-PATH CALLER SUPPLIES IT
+    YET"). The lever could not act, so nothing moved."""
+    code, out = _run_main(monkeypatch, tmp_path, [_row(offshore=0.5)], capsys,
+                          candidate="SURF_TIDE_DEPTH=1")
+    assert code == 3, "an inert lever must REFUSE, never report a reassuring null"
+    assert "cannot exercise" in out and "INERT" in out
+    assert "0.2%" not in out
+
+
+def test_a_live_candidate_still_reports_normally(monkeypatch, tmp_path, capsys):
+    """CONTROL OF THE CONTROL: the gate must not block candidates the harness CAN exercise, or it
+    would convert every result into a refusal and look rigorous while measuring nothing."""
+    code, out = _run_main(monkeypatch, tmp_path, [_row(offshore=0.5)], capsys,
+                          candidate="SURF_REFRACTION_KR=1.0")
+    assert code == 0 and "SHADOW A/B" in out and "cannot exercise" not in out
+
+
+def test_the_control_probes_reach_the_cap_limited_regime():
+    """The tide cap binds ONLY in the saturated regime -- measured at Pipeline, water level moves
+    the breaking height 8.99 -> 12.92 m at 12 m offshore and NOTHING at 8 m or below. A control
+    built only from ordinary seas would report 'inert' for a flag that is merely rare, so the
+    probe set must span up to the cap."""
+    from scripts.science_shadow_ab import candidate_can_move
+    # A height flag moves the ordinary rows, proving the probes are live and replayable.
+    ctl = candidate_can_move({"SURF_REFRACTION_KR": "1.0"})
+    assert ctl["can_move"] is True
+    assert ctl["probes"] >= 5 and ctl["replayable"] >= 5
+    assert ctl["max_abs_delta"] > 0.25

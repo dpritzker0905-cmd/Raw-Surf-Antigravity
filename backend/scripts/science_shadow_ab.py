@@ -115,6 +115,46 @@ def _height(row):
     return h
 
 
+def candidate_can_move(candidate: Dict[str, str], cell_ref_fn=None) -> dict:
+    """POSITIVE CONTROL: can this harness exercise the candidate AT ALL?
+
+    ⛔ WHY THIS EXISTS -- I shipped a false result without it. The first real run reported
+    SURF_TIDE_DEPTH=1 as "0.2% level change, median 0.0", which reads as *safe to flip*. It was
+    measuring NOTHING: `surf_transform` guards the tide term with `if water_level_m and
+    os.environ.get("SURF_TIDE_DEPTH")...`, and the replay never supplies `water_level_m` -- exactly
+    as `surf_point` warns in prose ("NO SERVING-PATH CALLER SUPPLIES IT YET"). The flag could not
+    act, so of course nothing moved. A null result from an inert lever is not evidence of a quiet
+    lever; it is evidence of a blind harness.
+
+    The control drives the SAME `_height`/`_rate` path `replay_frames` uses -- a control that took
+    a shortcut the replay does not take would certify a capability the replay lacks -- across seas
+    from trivial to cap-limited, because a term that only binds in the saturated regime (the tide
+    cap does: measured at Pipeline, 8.99 m -> 12.92 m at +1.5 m water level, and NOTHING below
+    ~12 m offshore) is invisible on ordinary rows.
+    ⭐ The repo already knew this shape: "A 0% RESULT IS WORTHLESS WITHOUT A POSITIVE CONTROL."
+    """
+    from services.weather_pipeline.surf_point import estimate_surf_at, resolve_surf_geometry
+    from services.weather_pipeline.surf_rating import compute_surf_rating
+    lat, lng = 21.665, -158.051                       # Pipeline: steep, cap-limited at big swell
+    g = resolve_surf_geometry(lat, lng)
+    probes = []
+    for off, tp in ((0.5, 14.0), (2.0, 14.0), (8.0, 14.0), (12.0, 14.0), (12.0, 20.0)):
+        h, _r = estimate_surf_at(lat, lng, off, tp, 315.0, geometry=g)
+        sc, _l = compute_surf_rating(h, tp, 3.0, wind_from_deg=140.0,
+                                     shore_normal_deg=g.shore_normal_deg, swell_from_deg=315.0,
+                                     break_depth_m=g.break_depth_m)
+        probes.append({"spot_id": "ctl", "latitude": lat, "longitude": lng, "score": sc,
+                       "level": _l, "surf_height_m": round(h, 3), "period_s": tp,
+                       "inputs": {"offshore_hs_m": off, "swell_from_deg": 315.0, "wind_ms": 3.0,
+                                  "wind_from_deg": 140.0,
+                                  "shore_normal_deg": g.shore_normal_deg,
+                                  "break_depth_m": g.break_depth_m}})
+    rep = replay_frames([{"spots": probes}], candidate, cell_ref_fn=cell_ref_fn)
+    moved = max(abs(m["delta"]) for m in (rep["biggest_upgrades"] + rep["biggest_downgrades"]))         if rep["rows_replayable"] else 0.0
+    return {"can_move": moved > REPRODUCE_TOL, "max_abs_delta": moved,
+            "probes": len(probes), "replayable": rep["rows_replayable"]}
+
+
 def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=None) -> dict:
     """Pure-ish core (touches os.environ transiently; static assets only). Returns the report.
 
@@ -262,7 +302,20 @@ def main():
                   " unreachable. Replaying without it would silently substitute 'no reference',"
                   " which reads as band/glyph AGREEMENT that was never measured.")
             return 3
+    # THE POSITIVE CONTROL RUNS FIRST. A null verdict is only meaningful if the harness could
+    # have produced a non-null one.
+    ctl = candidate_can_move(candidate, cell_ref_fn=cell_ref_fn)
+    if not ctl["can_move"]:
+        print("REFUSED: this harness cannot exercise %s. Across %d control seas (trivial to"
+              " cap-limited) the candidate moved the score by at most %.3f points -- below the"
+              " %.2f reproduce tolerance. The lever is INERT here, usually because the replay does"
+              " not supply an input the flag is guarded on (SURF_TIDE_DEPTH needs water_level_m,"
+              " which no serving-path caller provides). A null result from an inert lever is NOT"
+              " evidence of a quiet lever."
+              % (candidate, ctl["probes"], ctl["max_abs_delta"], REPRODUCE_TOL))
+        return 3
     rep = replay_frames(frames, candidate, cell_ref_fn=cell_ref_fn)
+    rep["control"] = ctl
 
     # NOT-SAMPLED vs BROKEN -- the repo's own rule is that a check which CANNOT tell them apart
     # must refuse. This one CAN: rows with no `inputs` are outside the 5% sample (absence), while a
