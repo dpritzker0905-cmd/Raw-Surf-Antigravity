@@ -325,3 +325,38 @@ def test_rows_that_carry_inputs_and_do_not_reproduce_still_REFUSE(monkeypatch, t
 def test_a_measurable_blob_still_reports_and_exits_zero(monkeypatch, tmp_path, capsys):
     code, out = _run_main(monkeypatch, tmp_path, [_row(offshore=0.5)], capsys)
     assert code == 0 and "SHADOW A/B" in out and "NOT READY" not in out
+
+
+# ---- the verdict must carry its own SCOPE ----------------------------------------------------
+
+def _frame(model, hour, vt, rows):
+    return {"model": model, "hour_offset": hour, "valid_time": vt, "spots": rows}
+
+
+def test_the_report_discloses_what_population_it_covered():
+    """"0.2% of rows changed" is unreadable without knowing whether that is one hour or a
+    fortnight. The first real run (SURF_TIDE_DEPTH) spanned 3 models x 2 hour-offsets and the
+    report said none of it -- the same overstatement-by-omission the REFERENCE_LANE scope note
+    exists to prevent."""
+    rows = [_row(offshore=0.5)]
+    frames = [_frame(m, h, vt, rows)
+              for m in ("GFS", "EURO", "ICON")
+              for h, vt in ((0, "2026-08-09T20:00:00Z"), (3, "2026-08-09T23:00:00Z"))]
+    rep = replay_frames(frames, {"SURF_REFRACTION_KR": "1.0"})
+    c = rep["coverage"]
+    assert c["frames"] == 6
+    assert c["models"] == ["EURO", "GFS", "ICON"]
+    assert c["hour_offsets"] == [0, 3]
+    assert c["hour_span"] == 3, "the span is what tells a reader the window is narrow"
+    assert c["valid_time_min"] == "2026-08-09T20:00:00Z"
+    assert c["valid_time_max"] == "2026-08-09T23:00:00Z"
+
+
+def test_coverage_is_absent_not_wrong_when_the_frames_do_not_carry_it():
+    """Older blobs may omit model/hour_offset. Absent must read as unknown ('?'), never as a
+    confident zero-hour span -- an invented scope is worse than a missing one."""
+    rep = replay_frames(_frames([_row()]), {"SURF_REFRACTION_KR": "1.0"})
+    c = rep["coverage"]
+    assert c["frames"] == 1
+    assert c["models"] == [] and c["hour_offsets"] == []
+    assert c["hour_span"] is None and c["valid_time_min"] is None

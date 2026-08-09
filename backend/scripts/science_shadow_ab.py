@@ -128,6 +128,12 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
     env_patch = {k: v for k, v in candidate.items()
                  if k not in ("RATING_LOCAL_SIZE", "REFERENCE_LANE")}
 
+    # WHAT POPULATION THIS RESULT COVERS. Without it a reader sees "0.2% of rows changed" and
+    # cannot tell whether that is one hour or a fortnight -- and for a candidate that only binds
+    # at, say, a tidal extreme, a quiet 3-hour window is not evidence of a quiet flag. The first
+    # real run (SURF_TIDE_DEPTH, 2026-08-09) spanned 3 models x 2 hour-offsets and said none of it.
+    models, hour_offsets, valid_times = set(), set(), []
+    frames_seen = 0
     rows_seen = rows_replayable = disqualified = 0
     up = down = same = 0
     deltas: List[float] = []
@@ -136,6 +142,13 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
     saved = {k: os.environ.get(k) for k in env_patch}
 
     for fr in frames or []:
+        frames_seen += 1
+        if fr.get("model"):
+            models.add(str(fr["model"]))
+        if fr.get("hour_offset") is not None:
+            hour_offsets.add(int(fr["hour_offset"]))
+        if fr.get("valid_time"):
+            valid_times.append(str(fr["valid_time"]))
         for s in fr.get("spots") or []:
             rows_seen += 1
             if s.get("score") is None or not s.get("inputs") or s.get("surf_height_m") is None:
@@ -200,8 +213,18 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
     n = len(deltas)
     ds = sorted(deltas)
     pct = lambda q: ds[min(n - 1, int(q * n))] if n else None
+    span_h = (max(hour_offsets) - min(hour_offsets)) if hour_offsets else None
     return {
         "candidate": candidate,
+        # Coverage travels WITH the verdict, never in a separate paragraph someone can skip.
+        "coverage": {
+            "frames": frames_seen,
+            "models": sorted(models),
+            "hour_offsets": sorted(hour_offsets),
+            "hour_span": span_h,
+            "valid_time_min": min(valid_times) if valid_times else None,
+            "valid_time_max": max(valid_times) if valid_times else None,
+        },
         "rows_seen": rows_seen, "rows_replayable": rows_replayable,
         "disqualified": disqualified,
         "level_unchanged": same, "level_up": up, "level_down": down,
@@ -268,6 +291,16 @@ def main():
     print("SHADOW A/B  candidate=%s" % candidate)
     print("  rows       seen %d | replayable %d | disqualified %d"
           % (rep["rows_seen"], rep["rows_replayable"], rep["disqualified"]))
+    _c = rep["coverage"]
+    print("  COVERAGE   %d frames | models %s | hour offsets %s (span %s h) | %s .. %s"
+          % (_c["frames"], ",".join(_c["models"]) or "?", _c["hour_offsets"] or "?",
+             _c["hour_span"] if _c["hour_span"] is not None else "?",
+             _c["valid_time_min"] or "?", _c["valid_time_max"] or "?"))
+    if _c["hour_span"] is not None and _c["hour_span"] <= 6:
+        print("  ! NARROW    this is a %s h window -- a candidate that binds only in some"
+              " conditions (a tidal extreme, a big swell) can look quiet here and move plenty"
+              " elsewhere. Re-run across a wider span before concluding 'no effect'."
+              % _c["hour_span"])
     print("  LEVEL      unchanged %d  up %d  down %d  => %s%% change"
           % (rep["level_unchanged"], rep["level_up"], rep["level_down"], rep["level_change_pct"]))
     print("  delta      p10 %s  median %s  p90 %s  (min %s, max %s)"
