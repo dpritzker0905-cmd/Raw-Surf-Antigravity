@@ -283,6 +283,21 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         # config's. Absent (not null) when the global 1.2 m curve graded — absence IS the lane.
         **({"reference_size_m": round(float(reference_size_m), 4)}
            if reference_size_m is not None else {}),
+        # ★ THE RATING'S OWN INPUTS, recorded at use time (2026-08-09) — the R11-04-sibling rule
+        # ("every moving input a comparison spans needs provenance recorded at use time") applied
+        # to the whole chain. These five numbers + the persisted surf_height_m/reference_size_m +
+        # static geometry make every spot-hour REPLAYABLE offline: scripts/science_shadow_ab.py
+        # re-rates frames under a candidate flag/constant set with a per-row baseline self-check
+        # (replay must reproduce the persisted score, or the row is disqualified — the
+        # second-forecast-path defense). Absent keys = input was absent; ~60 B/spot-hour compact.
+        "inputs": {k: v for k, v in {
+            "offshore_hs_m": round(offshore_h, 3) if offshore_h is not None else None,
+            "swell_from_deg": round(swell_from, 1) if swell_from is not None else None,
+            "wind_ms": round(wind_ms, 3) if wind_ms is not None else None,
+            "wind_from_deg": round(wind_from, 1) if wind_from is not None else None,
+            "shore_normal_deg": shore_normal,
+            "break_depth_m": break_depth,
+        }.items() if v is not None},
     }
 
 

@@ -1,0 +1,74 @@
+# Science shadow A/B (2026-08-09, MASTER-AUDIT-11.0's last structural gap; HANDOFF 08-09 item 5).
+#
+# WHY: every calibration decision to date (SURF_TIDE_DEPTH, the Kr/H110 pair, RATING_LOCAL_SIZE,
+# the census bound) was argued from anchors and spot-checks because nothing could answer "what
+# would the SERVED ratings have been under the candidate config?". The precompute now persists
+# each spot-hour's rating INPUTS at use time (spot_ratings `inputs`), so any candidate flag set
+# can be replayed offline against the exact served population with SHARED inputs — the flag
+# delta is the only difference between arms. This is the pre-flip evidence instrument the
+# standing rules demand (instrument + kill-switch + live A/B): run it BEFORE any science flag
+# flip, attach the artifact to the decision.
+#
+# DISPATCH-ONLY by design: an A/B is a question someone asks, not a schedule. It never pages.
+# Exit 0 = report produced (read it; the numbers are the deliverable, green is not approval).
+# Exit 3 = REFUSED — no replayable rows (frames predate inputs persistence, or the baseline no
+#          longer reproduces because assets/code moved). Blindness is never a result.
+#
+# ⚠️ The replay imports the production rating chain from THIS checkout — run it on the SHA you
+#   intend to ship, not on a stale branch, or the self-check will disqualify honestly-drifted rows.
+name: Science Shadow A/B
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: 'Candidate flags, comma-separated FLAG=value (e.g. SURF_TIDE_DEPTH=1 or SURF_REFRACTION_KR=1.0,RATING_LOCAL_SIZE=0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: science-shadow-ab
+  cancel-in-progress: false
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # The replay imports the production chain (spot_ratings -> pydantic, geometry assets), so
+      # it needs the real backend deps — unlike the stdlib-only accuracy monitor.
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: Replay served frames under the candidate
+        working-directory: backend
+        env:
+          # Same read-only pair the census + accuracy monitor use — grants the L2 blob reader.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CANDIDATE: ${{ inputs.candidate }}
+        run: |
+          set -o pipefail
+          python3 scripts/science_shadow_ab.py \
+            --candidate "$CANDIDATE" \
+            --json shadow_ab_report.json
+
+      - name: Attach the report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shadow-ab-report
+          path: backend/shadow_ab_report.json
+          if-no-files-found: ignore
+          retention-days: 90

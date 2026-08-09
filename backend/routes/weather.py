@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends, R
 from fastapi.responses import JSONResponse
 from datetime import datetime, timedelta, timezone
 from deps.admin_auth import get_current_admin
-from typing import Optional
+from typing import Dict, Optional
 import logging
 import os
 import psutil
@@ -370,6 +370,10 @@ class SpotRatingItem(BaseModel):
     # Declared here or Pydantic silently drops it at this boundary — the wire-contract guard
     # caught exactly that within one CI run of the producer change (the 6da4c16e class, again).
     reference_size_m: Optional[float] = None
+    # THE RATING'S OWN INPUTS (2026-08-09): five numbers recorded at use time that make every
+    # spot-hour replayable offline (science_shadow_ab). Declared here for the same reason as
+    # reference_size_m above — Pydantic silently drops undeclared producer keys at this boundary.
+    inputs: Optional[Dict[str, float]] = None
     # THE SIZE AND THE QUALITY DISAGREE ABOUT THE SAME SWELL. `swell_exposure` (quality) floors at
     # 0.100 while `_height_exposure_factor` (height) floors at 0.595 — 0.354 in energy, a 3.54x
     # contradiction from ONE bearing, saturating for every Δθ >= 90°. Measured 2026-08-04 on n=1005
