@@ -10,6 +10,7 @@ import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 import '../../utils/leafletLoader'; // sets window.L (see file for why this was needed)
+import { spotMovePayload, adminErrorMessage } from './spotMovePayload';
 
 const NOAA_BUOYS = [
   // Florida
@@ -154,7 +155,9 @@ export const AdminSpotEditor = () => {
       });
       setSpots(response.data.spots || []);
     } catch (error) {
-      toast.error('Failed to load spots');
+      // A 401 here renders a perfect satellite map with ZERO pins — "no spots" is what the
+      // operator sees, "not authorised" is what happened. Say which.
+      toast.error(adminErrorMessage(error, 'Failed to load spots'));
     } finally {
       setLoading(false);
     }
@@ -321,10 +324,8 @@ export const AdminSpotEditor = () => {
         try {
           setSaving(true);
           const response = await apiClient.put(
-            `/admin/spots/${spot.id}/move`,
-            { latitude: newPos.lat, longitude: newPos.lng, override_land_warning: false }
-          );
-          
+            `/admin/spots/${spot.id}/move`, spotMovePayload(newPos));
+
           if (response.data.warning === 'land_detected') {
             setLandWarning({
               spotId: spot.id,
@@ -338,7 +339,7 @@ export const AdminSpotEditor = () => {
             fetchSpots();
           }
         } catch (error) {
-          toast.error('Failed to move spot');
+          toast.error(adminErrorMessage(error, 'Failed to move spot'));
           marker.setLatLng([spot.latitude, spot.longitude]);
         } finally {
           setSaving(false);
@@ -442,12 +443,11 @@ export const AdminSpotEditor = () => {
         setSaving(true);
         await apiClient.put(
           `/admin/spots/${landWarning.spotId}/move`,
-          { ...landWarning.coords, override_land_warning: true }
-        );
+          spotMovePayload(landWarning.coords, true));
         toast.success('Spot moved (land warning overridden)');
         fetchSpots();
       } catch (error) {
-        toast.error('Failed to move spot');
+        toast.error(adminErrorMessage(error, 'Failed to move spot'));
       } finally {
         setSaving(false);
       }
