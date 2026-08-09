@@ -178,11 +178,20 @@ async def health_check(
     if git_commit:
         version_str = f"2.0.0-stage-6f-v1-{git_commit}"
 
+    # Request telemetry (MASTER-AUDIT-11.0 §3.14): the per-route latency/status denominators.
+    # Never fatal — a telemetry failure must not cost the health check its 200.
+    try:
+        from services.request_telemetry import snapshot as _telemetry_snapshot
+        request_telemetry = _telemetry_snapshot(top=30)
+    except Exception:
+        request_telemetry = None
+
     health_data = {
         "status": "healthy",
         "version": version_str,
         "uptime": uptime,
         "uptime_seconds": round(uptime_seconds, 1),
+        "request_telemetry": request_telemetry,
         "environment": os.environ.get("RENDER", "local"),
         "runtime": _runtime_fingerprint(),
         "memory": memory,

@@ -491,6 +491,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request telemetry (2026-08-09, MASTER-AUDIT-11.0 §3.14): bounded in-process latency/status
+# histograms per route template, read back on /api/health. Starlette wraps middleware so the
+# LAST added is OUTERMOST — this add sits after GZip and CORS deliberately, so elapsed_ms
+# includes both and is the number closest to what the client felt. Kill: REQUEST_TELEMETRY=0.
+from services.request_telemetry import RequestTelemetryMiddleware
+app.add_middleware(RequestTelemetryMiddleware)
+
 # CORS ON ERROR RESPONSES (backlog ⑦, shipped 2026-07-12): unhandled exceptions bypass
 # CORSMiddleware (Starlette's ServerErrorMiddleware wraps OUTSIDE user middleware), so during
 # deploy-window / overload stress the browser reports "No 'Access-Control-Allow-Origin' header"
