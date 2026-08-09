@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { LAYER_REGISTRY } from './LayerRegistry';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { API_BASE } from '../../lib/apiClient';
+import { BUILD_VERSION } from '../../buildVersion';
 import { TruthOverlayVisualTab } from './TruthOverlayVisualTab';
 import { TruthOverlayGpuTab } from './TruthOverlayGpuTab';
 
@@ -128,7 +129,11 @@ var TruthOverlay = ({
             hint: issue.hint,
             sources: issue.sources || null,
             cols: issue.cols || null,
-            rows: issue.rows || null
+            rows: issue.rows || null,
+            // R11-03: the ONLY telemetry that leaves the device was release-anonymous — a
+            // server-side TRUTH_VIOLATION record could not distinguish a HEAD defect from a
+            // stale bundle. Rides `details` so the backend schema needs no change.
+            build: BUILD_VERSION
           }
         };
         

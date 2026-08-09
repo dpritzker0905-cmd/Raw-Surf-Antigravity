@@ -5,6 +5,7 @@
  * Designed with a circular buffer to prevent memory leaks in production.
  * Exposes real-time insights to the Admin Diagnostics Panel.
  */
+import { BUILD_VERSION } from '../../buildVersion';
 
 class WeatherTelemetryEngine {
   constructor() {
@@ -276,6 +277,9 @@ class WeatherTelemetryEngine {
       timeOffset: this.timeOffsetHours,
       fps: this.gpuStats.fps,
       memory: this.gpuStats.estimatedMemoryMb,
+      // R11-03: release identity on every event — an event without a build id cannot
+      // distinguish a HEAD defect from a stale bundle ('dev' = local un-stamped build).
+      build: BUILD_VERSION,
       payload
     };
 
