@@ -649,22 +649,32 @@ async def get_status():
     process = psutil.Process(os.getpid())
     memory_mb = round(process.memory_info().rss / (1024 * 1024), 2)
 
+    # R11-08 (2026-08-09, Report 11.0): this endpoint used to ASSERT health it never measured —
+    # provider_status hardcoded "healthy", stale_products_count hardcoded 0, last_errors
+    # hardcoded [] — so it read "healthy" during any outage. House rule: a check that cannot
+    # tell not-sampled from broken must REFUSE ("not_instrumented"), never fabricate. The
+    # measured fields (file count, disk, memory, thread count) stay measured; per-route latency
+    # and error truth live on /api/health.request_telemetry.
+    import threading
     return {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "provider_status": {
-            "open-meteo": "healthy",
-            "copernicus": "healthy"
+            "open-meteo": "not_instrumented",
+            "copernicus": "not_instrumented",
         },
         "cache_telemetry": {
             "total_grid_files": len(manifest.products),
             "disk_usage_bytes": disk_usage,
-            "stale_products_count": 0
+            "stale_products_count": None,   # not computed here; lane staleness = /api/health/data
         },
         "telemetry": {
-            "active_background_threads": 1,
+            "active_background_threads": threading.active_count(),
             "memory_usage_mb": memory_mb
         },
-        "last_errors": []
+        "last_errors": None,                # not collected here; 5xx counts = /api/health.request_telemetry
+        "note": ("provider_status/last_errors are NOT instrumented on this route and now say so; "
+                 "use /api/health (request_telemetry, 5xx per route) and /api/health/data (lane "
+                 "freshness) for measured health."),
     }
 
 

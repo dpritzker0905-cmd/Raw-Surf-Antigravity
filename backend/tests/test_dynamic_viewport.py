@@ -507,8 +507,11 @@ def test_negative_cache_stale_fallback_success(mock_weather_setup, monkeypatch):
     p2_data = response2.json()
     assert p2_data["stale"] is True
     assert p2_data["cache_hit"] == "stale_cache_hit"
-    assert p2_data["staleReason"] == "upstream_rate_limited"
-    assert p2_data["fallbackReason"] == "upstream_rate_limited"
+    # R11-07 (2026-08-09): the negative-cache-hit path no longer asserts "upstream_rate_limited"
+    # (the original failure's class is NOT retained by the cooldown entry, and most were not 429s)
+    # — it says what it actually knows: we are inside a failure cooldown window.
+    assert p2_data["staleReason"] == "upstream_cooldown"
+    assert p2_data["fallbackReason"] == "upstream_cooldown"
     assert p2_data["product_id"] == p1_id
     
     # Clean up negative cache

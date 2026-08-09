@@ -188,8 +188,11 @@ class ViewportService:
                     fallback_product.requested_bbox = bbox_str
                     fallback_product.is_dynamic_viewport_product = True
                     fallback_product.stale = True
-                    fallback_product.staleReason = "upstream_rate_limited"
-                    fallback_product.fallbackReason = "upstream_rate_limited"
+                    # R11-07 (2026-08-09): this path fires inside the failure COOLDOWN window; the
+                    # original failure's class is not retained by the negative cache, so say THAT
+                    # honestly instead of asserting rate limiting (which was often false).
+                    fallback_product.staleReason = "upstream_cooldown"
+                    fallback_product.fallbackReason = "upstream_cooldown"
                     fallback_product.partial_coverage = False
 
                     if domain.lower() != "wind":
@@ -215,8 +218,8 @@ class ViewportService:
                             "gridMode": "rectangular",
                             "renderable": len(fallback_product.grid.vectors) > 0 and any(v.speed > 0 for v in fallback_product.grid.vectors),
                             "stale": True,
-                            "staleReason": "upstream_rate_limited",
-                            "fallbackReason": "upstream_rate_limited",
+                            "staleReason": "upstream_cooldown",
+                            "fallbackReason": "upstream_cooldown",
                             "partial_coverage": False,
                             "native_recovery": "spawned" if native_recovery_spawned else "none"
                         }
@@ -518,8 +521,19 @@ class ViewportService:
             err_cls, err_str = e.__class__.__name__.lower(), str(e).lower()
             is_cancelled = isinstance(e, asyncio.CancelledError) or any(x in err_cls or x in err_str for x in ("cancel", "abort", "disconnect"))
             native_recovery_spawned = False
+            is_429 = any(x in err_str for x in ("429", "rate limit", "too many requests"))
+            # R11-07 (2026-08-09): staleReason used to hardcode "upstream_rate_limited" for EVERY
+            # failure class, so timeouts, 5xx and decode errors all read as rate limiting in the
+            # client diagnostics — chronic incident misattribution. Classify once, serve the truth.
+            if is_429:
+                stale_reason = "upstream_rate_limited"
+            elif "timeout" in err_cls or "timed out" in err_str or "timeout" in err_str:
+                stale_reason = "upstream_timeout"
+            elif any(x in err_str for x in ("500", "502", "503", "504", "bad gateway", "unavailable")):
+                stale_reason = "upstream_error"
+            else:
+                stale_reason = f"upstream_failed:{e.__class__.__name__}"
             if not is_cancelled:
-                is_429 = any(x in err_str for x in ("429", "rate limit", "too many requests"))
                 neg_ttl = 120 if is_429 else 60
                 self.NEGATIVE_CACHE[cache_key] = datetime.now(timezone.utc).timestamp() + neg_ttl
                 logger.info(f"[Dynamic Viewport] Registered negative cache key for {neg_ttl}s: {cache_key}")
@@ -542,8 +556,8 @@ class ViewportService:
                 fallback_product.requested_bbox = bbox_str
                 fallback_product.is_dynamic_viewport_product = True
                 fallback_product.stale = True
-                fallback_product.staleReason = "upstream_rate_limited"
-                fallback_product.fallbackReason = "upstream_rate_limited"
+                fallback_product.staleReason = stale_reason
+                fallback_product.fallbackReason = stale_reason
                 fallback_product.partial_coverage = False
 
                 if domain.lower() != "wind":
@@ -569,8 +583,8 @@ class ViewportService:
                         "gridMode": "rectangular",
                         "renderable": len(fallback_product.grid.vectors) > 0 and any(v.speed > 0 for v in fallback_product.grid.vectors),
                         "stale": True,
-                        "staleReason": "upstream_rate_limited",
-                        "fallbackReason": "upstream_rate_limited",
+                        "staleReason": stale_reason,
+                        "fallbackReason": stale_reason,
                         "partial_coverage": False,
                         "native_recovery": "spawned" if native_recovery_spawned else "none"
                     }

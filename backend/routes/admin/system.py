@@ -481,36 +481,47 @@ async def get_api_metrics(
     hours: int = 24,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get API performance metrics"""
-    
-    start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
-    
-    # Get metrics from SystemHealthMetric table if available
-    result = await db.execute(
-        select(SystemHealthMetric)
-        .where(and_(
-            SystemHealthMetric.metric_type == "api",
-            SystemHealthMetric.recorded_at >= start_time
-        ))
-        .order_by(SystemHealthMetric.recorded_at)
-    )
-    metrics = result.scalars().all()
-    
-    # Aggregate by endpoint if available, otherwise return summary
-    if metrics:
-        avg_response = sum(m.value for m in metrics) / len(metrics)
-        error_metrics = [m for m in metrics if m.metric_name.endswith("_error")]
-        error_rate = len(error_metrics) / len(metrics) * 100 if metrics else 0
-    else:
-        avg_response = 45  # Simulated healthy response time
-        error_rate = 0.3  # Simulated low error rate
-    
+    """Get API performance metrics.
+
+    R11-08 (2026-08-09, Report 11.0): this endpoint read `SystemHealthMetric`, a table with NO
+    writers anywhere in the backend — so the "simulated healthy" branch (45 ms / 0.3% / healthy)
+    was the ONLY branch that could ever execute, and an admin dashboard reported healthy API
+    metrics during any outage. The real numbers now exist: the request-telemetry middleware
+    (services/request_telemetry.py) has counted every request since process start. Serve those,
+    and REFUSE ("not_instrumented") when telemetry is off or empty — never fabricate.
+    """
+    from services.request_telemetry import snapshot as _telemetry_snapshot
+
+    snap = _telemetry_snapshot(top=200) or {}
+    total = snap.get("total") or {}
+    n = int(total.get("n") or 0)
+    if n <= 0:
+        return {
+            "period_hours": hours,
+            "avg_response_time_ms": None,
+            "error_rate_percent": None,
+            "total_requests": 0,
+            "status": "not_instrumented",
+            "source": "request_telemetry",
+            "note": "no requests recorded (telemetry off via REQUEST_TELEMETRY=0, or fresh process)",
+        }
+    rows = snap.get("top_routes") or []
+    sum_ms = sum((r.get("avg_ms") or 0.0) * (r.get("n") or 0) for r in rows)
+    rows_n = sum((r.get("n") or 0) for r in rows) or n
+    avg_response = sum_ms / rows_n
+    error_rate = (total.get("err_5xx") or 0) / n * 100.0
     return {
+        # `hours` is echoed for API compatibility, but the real window is process-cumulative —
+        # said out loud rather than implied (the middleware publishes started_at).
         "period_hours": hours,
+        "window": {"cumulative_since": snap.get("started_at"), "requested_hours_ignored": True},
         "avg_response_time_ms": round(avg_response, 1),
+        "p50_ms": total.get("p50_ms"),
+        "p99_ms": total.get("p99_ms"),
         "error_rate_percent": round(error_rate, 2),
-        "total_requests": len(metrics) if metrics else 0,
-        "status": "healthy" if error_rate < 1 and avg_response < 100 else "warning" if error_rate < 5 and avg_response < 500 else "critical"
+        "total_requests": n,
+        "status": "healthy" if error_rate < 1 and avg_response < 100 else "warning" if error_rate < 5 and avg_response < 500 else "critical",
+        "source": "request_telemetry",
     }
 
 
