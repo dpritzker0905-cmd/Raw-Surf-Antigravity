@@ -297,7 +297,7 @@ def test_the_cap_holds_headroom_over_the_documented_production_demand(monkeypatc
     monkeypatch.delenv("FORECAST_SKILL_COMPARE_MODELS", raising=False)
     from services.weather_pipeline.forecast_skill import (
         LEADS_H, PENDING_MAX_ENTRIES, compare_models)
-    lanes = 1 + len(compare_models("GFS")) + 1        # ours + compare models + the Open-Meteo lane
+    lanes = 1 + len(compare_models("GFS")) + 1 + 1    # ours + compares + Open-Meteo + persistence
     buoys, runs_per_day = 60, 12                      # NDBC map size; forecast-ingest 6 + precompute 6
     demand = buoys * lanes * runs_per_day * sum(h // 24 for h in LEADS_H)
     assert PENDING_MAX_ENTRIES >= demand * 1.3, (
@@ -334,3 +334,64 @@ def test_attach_to_report_distinguishes_ran_and_scored_zero_from_did_not_run():
     silent = {}
     attach_to_report(silent, None)                   # disabled/crashed: keys absent
     assert "forecast_skill" not in silent and "forecast_skill_ops" not in silent
+
+
+# ─── THE PERSISTENCE BASELINE (2026-08-09, MASTER-AUDIT-11.0 Phase 0) ────────────────────────────
+# Without it the ledger's only reference is a competitor — which says who is better, never whether
+# either beats "tomorrow = today". These pins mirror the fan-out family above: the rows must be
+# real, deduped, honest about dark buoys, and must ride the existing scoring path unchanged.
+
+def test_persistence_rows_are_one_per_buoy_lead_and_refuse_dark_buoys():
+    from services.weather_pipeline.forecast_skill import (
+        SOURCE_PERSISTENCE, persistence_rows_from_report)
+    rep = _report([
+        _entry("46012", buoy_time=NOW.isoformat(), buoy_wvht=1.4),
+        _entry("46012", buoy_time=NOW.isoformat(), buoy_wvht=1.5),   # shared buoy -> one set
+        _entry("41009"),                                             # dark buoy -> no fabrication
+        _entry("51201", buoy_time=NOW.isoformat(), buoy_wvht=0.8),
+    ])
+    rows = persistence_rows_from_report(rep, NOW)
+    assert len(rows) == 2 * 3, f"expected 2 live buoys x 3 leads, got {len(rows)}"
+    assert {r["buoy_id"] for r in rows} == {"46012", "51201"}
+    assert all(r["source"] == SOURCE_PERSISTENCE for r in rows)
+    by_buoy = {r["buoy_id"]: r["hs_m"] for r in rows}
+    assert by_buoy == {"46012": 1.4, "51201": 0.8}, (
+        "the persistence forecast must be the buoy's CURRENT observation, first entry per buoy")
+
+
+def test_a_persistence_row_scores_through_the_existing_path_unchanged():
+    """The whole design is zero new mechanism: the row must survive merge_pending and score
+    against a later observation exactly like a model row."""
+    from services.weather_pipeline.forecast_skill import persistence_rows_from_report
+    rep_now = _report([_entry("46012", buoy_time=NOW.isoformat(), buoy_wvht=1.4)])
+    rows = persistence_rows_from_report(rep_now, NOW)
+    later = NOW + timedelta(hours=24)
+    rep_later = _report([_entry("46012", buoy_time=later.isoformat(), buoy_wvht=2.0)])
+    pending = merge_pending([], rows, now=NOW)
+    still, scored = score_pending(pending, rep_later, now=later)
+    lead24 = [r for r in scored if r["lead_h"] == 24.0]
+    assert len(lead24) == 1
+    assert abs(lead24[0]["err_m"] - (1.4 - 2.0)) < 1e-9, (
+        "persistence err must be current-obs minus future-obs")
+    summary = skill_summary(scored)
+    assert any(s["source"] == "persistence" for s in summary), (
+        "persistence must appear as its own source row in the summary")
+
+
+def test_the_persistence_kill_switch_and_the_demand_it_adds(monkeypatch):
+    """The 08-03 lesson enforced on ourselves: adding this lane grew steady-state demand by
+    4,320 rows (60 buoys x 12 runs x 6 lead-days), so the headroom test's lane count was
+    incremented IN THE SAME COMMIT. This pins the kill switch that prices it back out."""
+    from services.weather_pipeline.forecast_skill import persistence_rows_from_report
+    rep = _report([_entry("46012", buoy_time=NOW.isoformat(), buoy_wvht=1.4)])
+    assert len(persistence_rows_from_report(rep, NOW)) == 3
+    monkeypatch.setenv("FORECAST_SKILL_PERSISTENCE", "0")
+    # the switch is honoured at the run_skill_ledger call site; the builder itself stays pure
+    import services.weather_pipeline.forecast_skill as FS
+    import inspect
+    src = inspect.getsource(FS.run_skill_ledger)
+    assert 'FORECAST_SKILL_PERSISTENCE' in src, (
+        "the kill switch left run_skill_ledger -- the lane can no longer be priced out")
+    assert 'persistence_rows_from_report(report' in src, (
+        "run_skill_ledger no longer builds persistence rows -- the baseline shipped and reaches "
+        "nobody, the repo's own recorded defect class")

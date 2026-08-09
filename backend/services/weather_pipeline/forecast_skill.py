@@ -48,6 +48,13 @@ OM_MARINE = "https://marine-api.open-meteo.com/v1/marine"
 
 SOURCE_OURS = "raw_surf"
 SOURCE_OM = "open_meteo_marine"
+# ⭐ THE PERSISTENCE BASELINE (2026-08-09, MASTER-AUDIT-11.0 Phase 0). "Tomorrow = today" is the
+# reference every operational centre scores against: a model that cannot beat persistence at a lead
+# is not adding value at that lead, and WITHOUT this row the ledger's only reference is a
+# competitor lane — which tells you who is better, never whether either is earning its keep.
+# Zero extra requests: the forecast IS the buoy's current observation from the report the ledger
+# already receives. Kill: FORECAST_SKILL_PERSISTENCE=0.
+SOURCE_PERSISTENCE = "persistence"
 
 # ⭐⭐⭐ SCORE EVERY MODEL WE COULD SERVE, NOT JUST THE ONE WE DO (2026-08-03).
 # The ledger scored only `BUOY_CALIBRATION_MODEL` (default GFS) — which is also `/spot-ratings`'
@@ -128,6 +135,25 @@ def rows_from_calibration_report(report, target_time: str, lead_h: float,
         seen.add(bid)
         rows.append({"source": source, "buoy_id": bid, "target_time": target_time,
                      "lead_h": round(lead_h, 1), "hs_m": hs, "tp_s": res.get("model_tp_s")})
+    return rows
+
+
+def persistence_rows_from_report(report, now: datetime, leads_h=LEADS_H) -> List[dict]:
+    """One persistence row per (buoy, lead): the forecast for now+lead is the buoy's CURRENT
+    observation. One row per distinct buoy (spots share buoys), rows without a current observation
+    are skipped — a persistence forecast from a dark buoy would be a fabrication."""
+    rows, seen = [], set()
+    for entry in (report or {}).get("spots") or []:
+        bid = entry.get("buoy_id")
+        obs = (entry.get("residual") or {}).get("buoy_wvht_m")
+        if bid is None or bid in seen or not isinstance(obs, (int, float)):
+            continue
+        seen.add(bid)
+        for lead in leads_h:
+            target = (now + timedelta(hours=lead)).strftime("%Y-%m-%dT%H:00:00Z")
+            rows.append({"source": SOURCE_PERSISTENCE, "buoy_id": bid, "target_time": target,
+                         "lead_h": float(lead), "hs_m": obs,
+                         "tp_s": (entry.get("residual") or {}).get("buoy_dpd_s")})
     return rows
 
 
@@ -375,6 +401,8 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
                 incoming.extend(rows_from_calibration_report(lead_report, target, lead, source=src))
             except Exception as e:
                 logger.warning("[forecast-skill] %s lead +%dh resolve failed (%s)", src, lead, e)
+    if os.environ.get("FORECAST_SKILL_PERSISTENCE", "1") != "0":
+        incoming.extend(persistence_rows_from_report(report, now))
     try:
         coords = await fetch_ndbc_station_coords()
         buoys = {}
