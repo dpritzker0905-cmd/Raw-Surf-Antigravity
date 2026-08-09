@@ -1,0 +1,6 @@
+{
+  "$comment": "Vercel was NEVER set up on purpose (owner, 2026-08-09) — Netlify is the frontend host and Render the backend. A stray Vercel GitHub integration has created 6,482 failed deployments (8/8 production, 6/6 preview measured 2026-08-05) and a red check on every PR since 06-27. This file tells Vercel's Git integration to stop building this project (its rootDirectory is backend/). The clean kill is one click in the owner's dashboard: Vercel > Project Settings > Git > Disconnect, or GitHub > Settings > Applications > Vercel > Uninstall — until then this silences the noise.",
+  "git": {
+    "deploymentEnabled": false
+  }
+}

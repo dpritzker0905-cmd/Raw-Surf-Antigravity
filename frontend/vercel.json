@@ -1,0 +1,6 @@
+{
+  "$comment": "Vercel was NEVER set up on purpose (owner, 2026-08-09) — Netlify is the frontend host (see netlify.toml at the repo root). This silences the stray Vercel project whose rootDirectory is frontend/ (raw-surf-antigravity-q9mo), which has failed on every push since 06-27. The clean kill is the owner uninstalling the Vercel GitHub App; until then this stops the builds.",
+  "git": {
+    "deploymentEnabled": false
+  }
+}
