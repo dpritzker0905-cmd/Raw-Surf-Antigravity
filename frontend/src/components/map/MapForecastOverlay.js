@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Lock, ChevronDown, MapPin, Check, Info, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getHeightUnit } from './heightUnits';
+import { describeLayerSubstitution } from './modelProvenance';
 import {
   sampleFromMarineGrid,
   fetchExactMarinePoint,
@@ -51,6 +52,10 @@ export const MapForecastOverlay = ({
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isLight = theme === 'light';
+  // ⚠️ This file computed only `isLight`, so BEACH rendered with dark-mode colours -- a
+  // pre-existing violation of the three-theme mandate. New elements below must not extend it,
+  // so the substitution notice branches on all three (house pattern: MapWeatherControls).
+  const isBeach = theme === 'beach';
   // ft/m display preference — the heightUnits.js house pattern, identical to MapMarkerLayers'.
   // Until 2026-08-09 this file listened for nothing: the toggle reached the legends and the marker
   // tooltip while the infobox cards beside them stayed in feet, so one screen could show the same
@@ -220,7 +225,19 @@ export const MapForecastOverlay = ({
   const sampledPressure = sampleValueFromDecodedTiles(lat, lng, 'pressure_msl', timeOffsetHours, activeModel);
   const sampledRain = sampleValueFromDecodedTiles(lat, lng, 'precipitation', timeOffsetHours, activeModel);
   const sampledCloudCover = sampleValueFromDecodedTiles(lat, lng, 'cloud_cover', timeOffsetHours, activeModel);
-  const sampledVisibility = sampleValueFromDecodedTiles(lat, lng, 'visibility', timeOffsetHours, activeModel);
+  // ⚠️ visibility is sampled from the RENDERED slot, not from `activeModel`. LayerRegistry pins
+  // fog to `ncep_gfs025` on ALL THREE models, so deriving the model from the selector matched no
+  // decoded tile on EURO/ICON and the card read '--' at every hour while a full GFS fog raster
+  // was on screen. `sampleDecodedOmValue` reads the active slot's om:// URL, which names the
+  // model actually painting -- the same pattern the two temperature layers already use.
+  // It returns a BARE number (not {value}); the compiler reads `?.value`, so wrap it.
+  const _visRaw = sampleDecodedOmValue({ variable: 'visibility', layerKey: 'fog',
+                                         lat: pointLat, lng: pointLng });
+  const sampledVisibility = _visRaw == null ? null : { value: _visRaw };
+  // WHICH MODEL IS ACTUALLY ON SCREEN. Fixing the number without this would trade 'no value'
+  // for 'a GFS value labelled ECMWF' -- and the house rule (marine variable refusal) is to
+  // refuse rather than mislabel. Absent unless the families genuinely differ.
+  const modelSubstitution = describeLayerSubstitution(activeModel, activeLayer);
 
   const liveWind = currentWeather;
   const rawWindSpeed = isLive && liveWind?.wind_speed_10m != null
@@ -722,6 +739,17 @@ export const MapForecastOverlay = ({
                   >
                     {effectiveExactPointStatus === 'estimate_pending_sources' ? 'Load missing data' : 'Compute Extended Estimate (Load GFS/ICON)'}
                   </button>
+                </div>
+              )}
+              {modelSubstitution && (
+                <div
+                  className={`pt-1.5 mt-1.5 border-t text-[9px] font-semibold flex items-center gap-1.5 ${
+                    isLight ? 'border-gray-200 text-amber-700'
+                      : isBeach ? 'border-cyan-900/50 text-amber-300'
+                        : 'border-zinc-800/20 text-amber-400'}`}
+                >
+                  <AlertTriangle className="w-3 h-3 shrink-0" aria-hidden="true" />
+                  <span>{modelSubstitution.text}</span>
                 </div>
               )}
               {heatmapStatus === 'loading' && (
