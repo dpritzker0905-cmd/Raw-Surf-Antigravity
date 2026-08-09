@@ -91,8 +91,27 @@ export function heatmapZoomOpacity(z, win) {
 // re-open the §4f band-blink. Both legs combine via min() (the dacdabac combine idiom); the wash
 // lift keys on the COMBINED fade so the trade-places invariant holds whichever leg drives.
 // Unknown coverage/zoom FAILS OPEN (leg inert — the 07-03 unknown-input lesson).
+// ⚠️⚠️ STALE CALIBRATION — MEASURED 2026-08-09, NOT YET RE-TUNED (owner call; queue E#1 sweep).
+// Everything above derives HI from "the resolver stops serving the mid tier past
+// MARINE_MID_RES_MAX_SPAN (15°)". That ceiling moved TWICE after this fade shipped:
+// 15 → 40 (2026-07-22, "TS Bertha vanishes on zoom-out") → 400 (2026-07-23, "Bertha STILL clears
+// further out", mid_res_tier.py:116-143). In the SAME week the backend flipped the other way and
+// began RATING the mid-res tier so the band "should show SOME rating at overview zooms rather than
+// vanish" (grid_resolver_surf.py:66-71). Both halves of one product decision now disagree:
+//   * spans 6→9.5°   this fade ramps the band to alpha 0, as designed for a 15° cliff;
+//   * spans 9.5→40°  the backend serves a RATED grid (ratingMode true — the skip is span ≥ 350,
+//                    grid_resolver_surf.py:72) that this fade paints at ALPHA 0. A DEAD ZONE:
+//                    quality data resolved, computed, shipped, and multiplied by zero.
+//   * spans > 40°    the frontend globalizes → served span ~360 ≥ 350 → genuinely unrated, so the
+//                    fade IS still right out here; only its ENDPOINT is wrong.
+// ⇒ The fade is no longer anticipating the handoff it was built for; it is hiding a live product
+// surface across a 4× span range. Re-tuning HI toward the 40° globalize boundary is the obvious
+// candidate, but it is a VISIBLE product change over 2° cells and needs the owner's eye plus a
+// zoomlab trace — do not flip it from a code reading alone. Sibling class:
+// "a threshold outlives the calibration of its input" (2026-08-08).
 // Levers: __RAW_RATING_SPAN_FADE_LO__ (default 6°, fade starts) / __RAW_RATING_SPAN_FADE_HI__
-// (default 9.5° ≈ the 15° request-span boundary before the frontend fetch pad) /
+// (default 9.5° — see the STALE CALIBRATION note above; this was ≈ the RETIRED 15° request-span
+// boundary before the frontend fetch pad) /
 // __RAW_BAND_COVER_FADE_ZLEAD__ (zoom lead above the wide-view boundary). Kills:
 // __RAW_RATING_ZOOM_FADE_DISABLED__ (whole fade → hard on/off) / __RAW_DISABLE_BAND_COVER_FADE__
 // (coverage leg only). Telemetry: __RAW_GPU__.ratingBandFade.

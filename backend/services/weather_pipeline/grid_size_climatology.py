@@ -8,9 +8,19 @@ height for that stretch of coast. GLOBAL-FIRST: a per-spot nearest-neighbor look
 near the 1,516 curated (US-heavy) spots; this gridded climatology calibrates ANY coast on Earth.
 
 Basis parity (critical for the band<->glyph consistency gate): same bins, same surfable-day floor, same
-p80, same clamps — the pure helpers are IMPORTED from spot_size_climatology, and samples are BREAKING
-heights from the same estimate_surf physics the band applies at serve time. Sampling cadence mirrors the
-spot blob (hour-0 of each cycle) so both references bootstrap on the same clock.
+percentile (REF_PERCENTILE, p50 since `e3aedb06` — the pure helpers are IMPORTED from
+spot_size_climatology, so the two lanes cannot drift), same clamps, and samples are BREAKING heights
+from the same estimate_surf physics the band applies at serve time. Sampling cadence mirrors the spot
+blob (hour-0 of each cycle) so both references bootstrap on the same clock.
+
+⚠️ PARITY OF STATISTIC IS NOT PARITY OF POPULATION, and the difference is the whole of queue E#1
+(owner-observed 2026-08-09: band and glyphs disagree on colour). This lane's population is a FIXED
+2.0-degree lattice cell; the spot lane's is one spot. Measured on the census E#1 artifact: Pipeline
+spot 1.484 m vs cell 2.164 m — 46% apart, same statistic, different sample. Because LATTICE_DEG never
+shrinks with zoom while the render cells do, that gap is ZOOM-INVARIANT: it is why the two surfaces
+disagree AT ALL, not why the disagreement becomes visible when you zoom in. Measure the user-visible
+half with `scripts/science_shadow_ab.py --candidate REFERENCE_LANE=cell`, which replays the served
+spot-hours through THIS reference and reports the level-change rate.
 
 Accumulation: the GFS global_mid waves ingest (pilots lane, 6x/day) folds hour-0 breaking heights of
 every COASTAL 2-degree cell into a rolling histogram blob in L2 (single-writer cron — no CAS). GFS-only,
@@ -20,7 +30,7 @@ RATING_GRID_SIZE_CLIMATOLOGY (default ON — it only writes a separate blob; not
 RATING_LOCAL_SIZE turns serving on).
 
 Serving (RATING_LOCAL_SIZE=1, wired in apply_surf_overlay): reference_for(clim, lat, lng) — exact-cell
-p80, falling back to the mean of 8-neighbor references (a fine dynamic-lane cell whose 2-degree cell
+REF_PERCENTILE (p50), falling back to the mean of 8-neighbor references (a fine dynamic-lane cell whose 2-degree cell
 center classified open-ocean still inherits its coast's reference), else None -> global 1.2 m default.
 """
 import json
@@ -114,10 +124,11 @@ def accumulate_points_into_grid_climatology(clim_obj: Optional[dict], points, *,
 
 
 def reference_for(clim_obj: Optional[dict], lat: float, lng: float, **kw) -> Optional[float]:
-    """The local size reference (m) for a coordinate: exact-cell clamped p80, else the mean of the
-    8-neighbor cell references, else None (caller falls back to the global default). Same percentile,
-    min-samples, and clamps as the per-spot reference (imported helpers) — band and glyph saturate
-    identically where they overlap."""
+    """The local size reference (m) for a coordinate: exact-cell clamped REF_PERCENTILE (p50), else
+    the mean of the 8-neighbor cell references, else None (caller falls back to the global default).
+    Same percentile, min-samples, and clamps as the per-spot reference (imported helpers) — but over a
+    2.0-degree CELL, not a spot, so band and glyph saturate identically only where the two populations
+    happen to agree. See the module docstring's E#1 note; they measured 46% apart at Pipeline."""
     if not clim_obj or not isinstance(clim_obj.get("cells"), dict):
         return None
     key = cell_key(lat, lng, float(clim_obj.get("lattice_deg") or LATTICE_DEG))

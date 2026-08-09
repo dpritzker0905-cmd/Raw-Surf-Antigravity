@@ -127,6 +127,49 @@ def test_the_environment_is_restored_even_when_the_candidate_arm_runs():
         "now silently the candidate")
 
 
+# ---- REFERENCE_LANE=cell: the owner's band-vs-glyph question (queue E#1) --------------------
+
+def test_the_cell_reference_lane_is_structural_and_injected():
+    """The band's yardstick is a 2-degree lattice cell; the glyph's is the spot. Replaying with the
+    cell reference measures how often that gap changes the COLOUR -- the user-visible quantity the
+    46% reference gap does not by itself give you."""
+    row = _row(offshore=1.2, tp=12.0, reference=1.484)      # Pipeline's measured spot_ref
+    rep = replay_frames(_frames([row]), {"REFERENCE_LANE": "cell"},
+                        cell_ref_fn=lambda lat, lng: 2.164)  # its measured cell_ref
+    assert rep["rows_replayable"] == 1 and rep["disqualified"] == 0
+    only = (rep["biggest_upgrades"] + rep["biggest_downgrades"])[0]
+    assert only["ref_now"] == 1.484 and only["ref_cand"] == 2.164, (
+        "both yardsticks must be reported on the mover row -- the E#1 question is exactly which "
+        "reference and how far apart")
+    assert only["delta"] < 0, (
+        "a LARGER reference means the same wave is a smaller fraction of a good day, so the band "
+        "must score this spot BELOW the glyph")
+
+
+def test_the_cell_lane_without_an_injected_reference_does_not_silently_agree():
+    """A missing climatology must not replay as 'no reference' -- that reads as band/glyph
+    agreement that was never measured. The core returns None-reference rows; main() REFUSES
+    before reaching here (pinned in test_the_cell_lane_refuses_without_a_climatology)."""
+    row = _row(offshore=1.2, tp=12.0, reference=1.484)
+    rep = replay_frames(_frames([row]), {"REFERENCE_LANE": "cell"}, cell_ref_fn=None)
+    only = (rep["biggest_upgrades"] + rep["biggest_downgrades"])[0]
+    assert only["ref_cand"] is None and only["delta"] != 0.0, (
+        "dropping the reference entirely must not look like agreement")
+
+
+def test_the_cell_lane_refuses_without_a_climatology(monkeypatch, tmp_path, capsys):
+    """main()'s refusal is the load-bearing half: exit 3, with the reason on stdout."""
+    import json as _json
+    from scripts import science_shadow_ab as mod
+    frames_file = tmp_path / "f.json"
+    frames_file.write_text(_json.dumps({"frames": _frames([_row()])}), encoding="utf-8")
+    monkeypatch.setattr(mod, "_cell_reference_fn", lambda: None)
+    monkeypatch.setattr(sys, "argv", ["x", "--candidate", "REFERENCE_LANE=cell",
+                                      "--frames-file", str(frames_file)])
+    assert mod.main() == 3
+    assert "REFUSED" in capsys.readouterr().out
+
+
 # ---- the producer -> replay ROUND TRIP -----------------------------------------------------
 # Everything above replays rows built by hand; this drives the REAL rate_one_spot (the reference
 # implementation the precompute persists) and proves the `inputs` it emits are sufficient AND

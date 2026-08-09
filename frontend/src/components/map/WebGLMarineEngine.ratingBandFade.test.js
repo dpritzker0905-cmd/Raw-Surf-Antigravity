@@ -169,3 +169,39 @@ describe('resolveRatingBandFade — coverage leg (band gone BEFORE the wide-view
     expect(resolveRatingBandFade(5.0, true, true, win, { coverFrac: 0.6, zoom: 6.99 }).covFade).toBeCloseTo(0.0, 5);
   });
 });
+
+// === THE DEAD ZONE (measured 2026-08-09, queue E#1 sweep) ===================================
+// This block pins a KNOWN-DEFECTIVE state deliberately, the way the census pins its two honest
+// refusals: the fade's HI (9.5°) was derived from a mid-tier ceiling of 15°, which moved to 40
+// and then 400 (mid_res_tier.py:116-143) while the backend simultaneously began RATING the
+// mid-res tier (grid_resolver_surf.py:66-71). So across viewport spans 9.5°→40° the backend
+// ships a fully rated grid that this function multiplies by zero.
+// ⛔ These assertions describe what SHIPS TODAY, not what is right. When the owner re-tunes HI,
+// this block MUST be rewritten — it is here so the re-tune is a deliberate act with a visible
+// diff, and so nobody re-derives the dead zone from scratch a third time.
+describe('resolveRatingBandFade — the 9.5°→40° DEAD ZONE (owner-gated, not yet re-tuned)', () => {
+  it('paints a RATED grid at alpha 0 across the whole 9.5-40 deg span range', () => {
+    // Every span here is one the backend rates: the rating skip is span >= 350 (backend), and the
+    // frontend only globalizes past 40 deg. isRatingPainting=true IS the backend saying "rated".
+    for (const span of [9.5, 12, 20, 30, 39.9]) {
+      const r = resolveRatingBandFade(span, true, true, {});
+      expect(r.bandMult).toBe(0.0);
+      expect(r.washStrength).toBeCloseTo(1.0, 5);   // the honest height wash is what the user sees
+    }
+  });
+
+  it('is still CORRECT past 40 deg — only the endpoint is stale, not the intent', () => {
+    // Past the frontend globalize ceiling the served span is ~360 >= 350, so the grid genuinely
+    // carries no quality signal and a zero band is the honest answer. A re-tune must not break this.
+    const r = resolveRatingBandFade(60, true, true, {});
+    expect(r.bandMult).toBe(0.0);
+  });
+
+  it('the lever can already close the dead zone without a code change (the kill-switch path)', () => {
+    // Evidence for the owner that re-tuning is a one-value experiment, not a rewrite:
+    // raising HI to the 40 deg globalize boundary restores the band across the dead zone.
+    const win = { __RAW_RATING_SPAN_FADE_HI__: 40.0 };
+    expect(resolveRatingBandFade(20, true, true, win).bandMult).toBeGreaterThan(0.3);
+    expect(resolveRatingBandFade(39.9, true, true, win).bandMult).toBeCloseTo(0.0, 2);
+  });
+});

@@ -7,9 +7,12 @@ height at which THIS spot is "fully working". This module derives that reference
 breaking-height CLIMATOLOGY, so it is objective, global, and auto-calibrates ANY spot added to the map
 (no per-spot tuning).
 
-Definition: reference = the p80 of the spot's SURFABLE-day breaking heights (samples below the ~0.2 m
-rideability floor are excluded, so flat days don't drag the "good day" size down). A small-wave spot has
-a small p80 (2 ft saturates the size gate); a big-wave spot has a large p80 (2 ft barely registers).
+Definition: reference = REF_PERCENTILE of the spot's SURFABLE-day breaking heights (samples below the
+~0.2 m rideability floor are excluded, so flat days don't drag the "good day" size down). A small-wave
+spot has a small reference (2 ft saturates the size gate); a big-wave spot has a large one (2 ft barely
+registers). ⚠️ The percentile is p50 since `e3aedb06` (2026-07-30) — read REF_PERCENTILE below, never
+this prose. It was p80 until the owner-anchor measurement at line ~36 falsified that value, and every
+"p80" in these two modules survived that commit as stale text for ten days.
 
 Storage: a compact rolling HISTOGRAM per spot in L2 (`spot_ratings/size_climatology.json`), merged each
 precompute cycle (single-writer cron — no CAS needed). Bounded size (25 bins/spot), unbounded time. Until
@@ -123,7 +126,7 @@ def percentile_from_hist(hist, p: float) -> Optional[float]:
 
 def reference_from_hist(hist, *, min_samples: int = None, percentile: float = None,
                         clamp=(REF_CLAMP_MIN_M, REF_CLAMP_MAX_M)) -> Optional[float]:
-    """The spot's reference size (m) = clamped p80 of its surfable-day heights, or None when it has too few
+    """The spot's reference size (m) = clamped REF_PERCENTILE (p50) of its surfable-day heights, or None when it has too few
     samples yet (caller falls back to the global default → no regression)."""
     min_samples = MIN_SAMPLES if min_samples is None else min_samples
     percentile = REF_PERCENTILE if percentile is None else percentile

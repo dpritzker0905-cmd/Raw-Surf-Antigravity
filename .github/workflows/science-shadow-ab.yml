@@ -58,11 +58,35 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           CANDIDATE: ${{ inputs.candidate }}
+        # Exit semantics preserved (0 report / 3 REFUSED / else crash) but the run page must
+        # explain itself: on 08-09 the first dispatch REFUSED by design and a CI monitor read
+        # the red as a code failure to fix. REFUSE stays red -- blind is never green -- the
+        # summary just says which red this is.
         run: |
           set -o pipefail
+          set +e
           python3 scripts/science_shadow_ab.py \
             --candidate "$CANDIDATE" \
-            --json shadow_ab_report.json
+            --json shadow_ab_report.json | tee replay_out.txt
+          code=$?
+          set -e
+          if [ "$code" = "3" ]; then
+            { echo "## Shadow A/B: REFUSED -- not a code failure"
+              echo
+              grep "REFUSED" replay_out.txt || true
+              echo
+              echo "No replayable rows: frames predate the inputs persistence or the baseline"
+              echo "no longer reproduces. Re-dispatch after the next precompute cycle."
+            } >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$code" = "0" ]; then
+            { echo "## Shadow A/B report -- candidate \`$CANDIDATE\`"
+              echo '```'
+              cat replay_out.txt
+              echo '```'
+              echo "Green means the replay RAN, not that the candidate is approved -- read the numbers."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $code
 
       - name: Attach the report artifact
         if: always()

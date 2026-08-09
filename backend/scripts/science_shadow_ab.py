@@ -53,6 +53,31 @@ HEIGHT_FLAGS = ("SURF_REFRACTION_KR", "SURF_HEIGHT_H110", "SURF_TIDE_DEPTH",
                 "SURF_COASTAL_FROM_SHORE_NORMAL", "SURF_COASTAL_FROM_LAND_BIT")
 
 
+def _cell_reference_fn():
+    """REFERENCE_LANE=cell -- the BAND's yardstick, for the owner's band-vs-glyph question (queue
+    E#1, observed 2026-08-09: band and glyphs disagree on colour at close zoom).
+
+    Both lanes run the SAME statistic (reference_from_hist, p50, min 12 samples, clamp 0.4-4.0 --
+    grid_size_climatology imports the helper from spot_size_climatology) over the SAME quantity
+    (breaking heights, same estimate_surf physics). They differ ONLY in POPULATION: the glyph reads
+    the spot's own histogram; the band reads a FIXED 2.0-degree lattice cell (LATTICE_DEG, sized to
+    the global_mid product), so at Pipeline the yardsticks measured 1.484 m vs 2.164 m -- 46% apart.
+    ⇒ That gap is ZOOM-INVARIANT: only the RENDER cells shrink as you zoom in, never the reference
+    lattice. So it cannot be what makes the disagreement appear at close zoom -- it is what makes
+    the two surfaces disagree AT ALL, everywhere, and the frontend merely hides it when wide.
+
+    WHAT THIS MEASURES, EXACTLY: the reference lane's contribution, holding the height fixed. The
+    real band also samples its height at the 2-degree CELL CENTRE rather than the spot, so this is
+    a LOWER BOUND on the on-screen divergence, not the whole of it. Reported as such -- an
+    instrument that overstates its own scope is how a 0% result gets trusted."""
+    from services.weather_pipeline.grid_size_climatology import (
+        load_grid_size_climatology_l2_cached, reference_for)
+    clim = load_grid_size_climatology_l2_cached()
+    if not clim or not isinstance(clim.get("cells"), dict) or not clim["cells"]:
+        return None
+    return lambda lat, lng: reference_for(clim, lat, lng)
+
+
 def _rate(surf_h, row, reference_size_m):
     """The rating half, mirrored KEYWORD-FOR-KEYWORD from rate_one_spot (the reference
     implementation). Tide/breaker/partitions replay as ABSENT -- they are flag-off in every
@@ -83,11 +108,18 @@ def _height(row):
     return h
 
 
-def replay_frames(frames: List[dict], candidate: Dict[str, str]) -> dict:
-    """Pure-ish core (touches os.environ transiently; static assets only). Returns the report."""
+def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=None) -> dict:
+    """Pure-ish core (touches os.environ transiently; static assets only). Returns the report.
+
+    `cell_ref_fn` supplies the REFERENCE_LANE=cell yardstick (injected, so the core stays testable
+    without the L2 blob); main() builds it via _cell_reference_fn and REFUSES if it is unavailable
+    -- a missing climatology must never silently replay as "no reference", which would read as a
+    band/glyph agreement that was never measured."""
     height_replay = any(k in candidate for k in HEIGHT_FLAGS)
     structural_ref_off = candidate.get("RATING_LOCAL_SIZE") == "0"
-    env_patch = {k: v for k, v in candidate.items() if k != "RATING_LOCAL_SIZE"}
+    structural_ref_cell = candidate.get("REFERENCE_LANE") == "cell"
+    env_patch = {k: v for k, v in candidate.items()
+                 if k not in ("RATING_LOCAL_SIZE", "REFERENCE_LANE")}
 
     rows_seen = rows_replayable = disqualified = 0
     up = down = same = 0
@@ -119,7 +151,12 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str]) -> dict:
             try:
                 for k, v in env_patch.items():
                     os.environ[k] = v
-                cand_ref = None if structural_ref_off else ref
+                if structural_ref_off:
+                    cand_ref = None
+                elif structural_ref_cell:
+                    cand_ref = cell_ref_fn(s["latitude"], s["longitude"]) if cell_ref_fn else None
+                else:
+                    cand_ref = ref
                 cand_h = _height(s) if height_replay else s["surf_height_m"]
                 cand_score, cand_level = _rate(cand_h, s, cand_ref)
             finally:
@@ -147,7 +184,10 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str]) -> dict:
                            "score_now": s["score"], "score_cand": round(cand_score, 1),
                            "delta": d, "level_now": s.get("level"), "level_cand": cand_level,
                            "surf_height_m": s.get("surf_height_m"),
-                           "cand_height_m": round(cand_h, 3) if cand_h is not None else None})
+                           "cand_height_m": round(cand_h, 3) if cand_h is not None else None,
+                           # Both yardsticks, so a mover row can be read without re-deriving them
+                           # (the E#1 question is exactly "which reference, and how far apart").
+                           "ref_now": ref, "ref_cand": cand_ref})
 
     movers.sort(key=lambda m: m["delta"])
     n = len(deltas)
@@ -184,7 +224,15 @@ def main():
         from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached
         doc = load_spot_ratings_l2_cached()
     frames = (doc or {}).get("frames") or []
-    rep = replay_frames(frames, candidate)
+    cell_ref_fn = None
+    if candidate.get("REFERENCE_LANE") == "cell":
+        cell_ref_fn = _cell_reference_fn()
+        if cell_ref_fn is None:
+            print("REFUSED: REFERENCE_LANE=cell needs the grid size climatology and it is empty or"
+                  " unreachable. Replaying without it would silently substitute 'no reference',"
+                  " which reads as band/glyph AGREEMENT that was never measured.")
+            return 3
+    rep = replay_frames(frames, candidate, cell_ref_fn=cell_ref_fn)
 
     if rep["rows_replayable"] == 0:
         print("REFUSED: 0 replayable rows (seen %d, disqualified %d) -- frames predate the inputs"
@@ -200,6 +248,10 @@ def main():
     print("  delta      p10 %s  median %s  p90 %s  (min %s, max %s)"
           % (rep["delta_p10"], rep["delta_median"], rep["delta_p90"],
              rep["delta_min"], rep["delta_max"]))
+    if candidate.get("REFERENCE_LANE") == "cell":
+        print("  SCOPE      band-vs-glyph REFERENCE lane only, height held fixed. The band also"
+              " samples its height at the 2-deg CELL CENTRE, so this is a LOWER BOUND on the"
+              " on-screen divergence.")
     for k, v in list(rep["level_flow"].items())[:8]:
         print("  flow       %s x%d" % (k, v))
     for r in [m for m in rep["biggest_downgrades"] if m["delta"] < 0][:4]:
