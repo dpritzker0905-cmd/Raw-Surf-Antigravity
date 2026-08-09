@@ -34,7 +34,16 @@ SKILL_SCORED_PREFIX = "calibration/skill/scored-"
 LEADS_H = (24, 48, 72)
 SCORE_JOIN_TOLERANCE_S = 90 * 60      # obs within 1.5h of the target hour scores it
 PENDING_EXPIRY_H = 96                  # unmatched past-target rows drop (buoy gap)
-PENDING_MAX_ENTRIES = 10000
+# ⭐ SIZED FROM DEMAND, ARITHMETIC SHOWN (2026-08-08) — the last number here was a guess that killed
+# the instrument. Steady-state pending = buoys x lanes x runs/day x Σ(lead_h/24)
+# = 60 x 4 x 12 x (1+2+3) = 17,280 rows (simulated at production shape: 17,280 exactly, 2.05 MB
+# compact). The old 10,000 sat UNDER demand from the 08-03 model fan-out onward, and with the old
+# keep-latest eviction that read as scored=0 in production from 08-04T12:36Z — the platform's only
+# lead-time accuracy number, dead for four days (MASTER-AUDIT-11.0 §3.1). 30,000 holds today's
+# demand plus two more compare models (6 lanes -> 25,920) and bounds the object at ~3.6 MB; if it
+# ever binds, that is itself a pathology signal, and `merge_pending`'s keep-earliest order confines
+# the damage to the farthest lead instead of zeroing all three.
+PENDING_MAX_ENTRIES = 30000
 OM_MARINE = "https://marine-api.open-meteo.com/v1/marine"
 
 SOURCE_OURS = "raw_surf"
@@ -157,15 +166,27 @@ def fetch_om_forecast_rows(buoys: Dict[str, tuple], now: datetime,
 
 
 def merge_pending(existing, incoming, now: Optional[datetime] = None,
-                  max_entries: int = PENDING_MAX_ENTRIES) -> List[dict]:
+                  max_entries: int = PENDING_MAX_ENTRIES,
+                  stats: Optional[dict] = None) -> List[dict]:
     """Append forecasts, keeping the EARLIEST row per dedupe key (the honest lead) and dropping
-    rows whose target passed more than PENDING_EXPIRY_H ago (a buoy gap nobody can score)."""
+    rows whose target passed more than PENDING_EXPIRY_H ago (a buoy gap nobody can score).
+
+    ⚠️ THE CAP EVICTS THE FURTHEST-FUTURE TARGETS FIRST (2026-08-08). It used to keep them —
+    `out[-max_entries:]` after the ascending sort — which evicts each row exactly as its target
+    hour approaches, so once demand exceeded the cap NOTHING could ever score: production logged
+    scored=0 on every run from 08-04T12:36Z (the pre-fan-out control 30839909407 was healthy).
+    Keeping the EARLIEST targets makes overflow starve only the farthest lead — measured
+    100/95.4/9.5% per lead at the old cap versus 0/0/0% — a degradation instead of an outage.
+    `stats`, when given, is filled with {kept, expired, cap_evicted} so eviction is observable
+    rather than invisible for four days again."""
     now = now or datetime.now(timezone.utc)
     horizon = now - timedelta(hours=PENDING_EXPIRY_H)
     out, seen = [], set()
+    expired = 0
     for row in list(existing or []) + list(incoming or []):
         t = _parse_iso(row.get("target_time"))
         if t is None or t < horizon:
+            expired += 1
             continue
         key = dedupe_key(row)
         if key in seen:
@@ -173,7 +194,10 @@ def merge_pending(existing, incoming, now: Optional[datetime] = None,
         seen.add(key)
         out.append(row)
     out.sort(key=lambda r: (r.get("target_time") or "", r.get("source") or "", r.get("buoy_id") or ""))
-    return out[-max_entries:]
+    kept = out[:max_entries] if max_entries else out
+    if stats is not None:
+        stats.update(kept=len(kept), expired=expired, cap_evicted=len(out) - len(kept))
+    return kept
 
 
 def score_pending(pending, report, now: Optional[datetime] = None):
@@ -363,7 +387,8 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
         logger.warning("[forecast-skill] competitor lane failed (%s)", e)
 
     pending = load_calibration_l2(SKILL_PENDING_L2_KEY) or []
-    pending = merge_pending(pending, incoming, now=now)
+    merge_stats: Dict[str, int] = {}
+    pending = merge_pending(pending, incoming, now=now, stats=merge_stats)
     still, scored = score_pending(pending, report, now=now)
     upload_calibration_l2(store, still, SKILL_PENDING_L2_KEY)
     if scored:
@@ -379,6 +404,24 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
             if fresh:
                 upload_calibration_l2(store, existing + fresh, key)
     summary = skill_summary(scored)
-    logger.info("[forecast-skill] ledgered=%d scored=%d %s", len(incoming), len(scored),
+    # ⚠️ The `ledgered=%d scored=%d` prefix is an operator surface: it is the string the Actions-log
+    # grep dated the 08-04 outage with. Append fields, never reorder it.
+    logger.info("[forecast-skill] ledgered=%d scored=%d pending=%d evicted_cap=%d %s",
+                len(incoming), len(scored), len(still), merge_stats.get("cap_evicted", 0),
                 summary if summary else "")
-    return {"ledgered": len(incoming), "scored": len(scored), "summary": summary}
+    return {"ledgered": len(incoming), "scored": len(scored),
+            "pending_kept": len(still), "pending_evicted_cap": merge_stats.get("cap_evicted", 0),
+            "summary": summary}
+
+
+def attach_to_report(report, skill) -> None:
+    """Write the skill block onto the calibration report. PRESENT-BUT-EMPTY IS DELIBERATE:
+    with the old `if skill.get("summary")` guard, scored=0 for four days (08-04 -> 08-08) was
+    byte-identical on the wire to "the ledger never ran", so the outage was only datable from CI
+    logs. `forecast_skill` keeps its existing shape (a list); `forecast_skill_ops` carries the
+    counts — `pending_evicted_cap` > 0 is the early signal the last starvation never gave."""
+    if report is None or skill is None:
+        return
+    report["forecast_skill"] = skill.get("summary") or []
+    report["forecast_skill_ops"] = {k: skill.get(k) for k in
+                                    ("ledgered", "scored", "pending_kept", "pending_evicted_cap")}

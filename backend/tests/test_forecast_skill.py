@@ -230,3 +230,107 @@ def test_the_band_table_is_not_a_second_copy():
     census = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(census)
     assert census.BANDS is OBS_BANDS, "the census redefined the bands instead of importing them"
+
+
+# ─── THE CAP MUST NOT EAT THE LEDGER (2026-08-08, MASTER-AUDIT-11.0 §3.1) ────────────────────────
+# From 08-04T12:36Z to 08-08 every production run logged scored=0 on all three leads: the 08-03
+# model fan-out pushed steady-state demand (~17,280 rows) past the old 10,000 cap, and the cap kept
+# the LATEST targets — evicting each row exactly as its target hour approached. This suite was
+# green the whole time because dedupe and expiry were pinned and eviction order was not. These are
+# the missing pins. The simulation uses the REAL merge/score functions at the production shape:
+# lanes derived from the module's own fan-out config, 60 buoys, 12 runs/day, perfect buoy truth —
+# so the ONLY loss mechanism is eviction.
+
+def _simulate_cadence(cap, runs=60, warmup=42, buoys=60):
+    from services.weather_pipeline.forecast_skill import (
+        LEADS_H, _lead_bucket, compare_models, source_for)
+    bids = ["4%04d" % i for i in range(buoys)]
+    lanes = [source_for(m, "GFS") for m in ["GFS"] + compare_models("GFS")] + [SOURCE_OM]
+    t0 = datetime(2026, 8, 1, 0, 15, tzinfo=timezone.utc)
+    pending, ledgered, scored = [], {1: 0, 2: 0, 3: 0}, {1: 0, 2: 0, 3: 0}
+    for i in range(runs):
+        now = t0 + timedelta(hours=i * 2)                      # 12 runs/day
+        inc = [{"source": lane, "buoy_id": b, "lead_h": float(lead), "hs_m": 1.5,
+                "target_time": (now + timedelta(hours=lead)).strftime("%Y-%m-%dT%H:00:00Z")}
+               for lane in lanes for lead in LEADS_H for b in bids]
+        if i >= warmup:
+            for r in inc:
+                ledgered[_lead_bucket(r["lead_h"])] += 1
+        pending = merge_pending(pending, inc, now=now, max_entries=cap)
+        truth = _report([{"buoy_id": b, "buoy_time": now.isoformat(),
+                          "residual": {"buoy_wvht_m": 1.4, "buoy_dpd_s": 11.0}} for b in bids])
+        pending, just = score_pending(pending, truth, now=now)
+        if i >= warmup:
+            for r in just:
+                scored[_lead_bucket(r["lead_h"])] += 1
+    # steady state ⇒ flux balance: scored-in-window / ledgered-in-window ≈ survival rate
+    return {b: 100.0 * scored[b] / (ledgered[b] or 1) for b in (1, 2, 3)}
+
+
+def test_every_lead_scores_through_the_shipped_cap_at_production_fanout(monkeypatch):
+    """The regression that was live for four days: at production cadence and fan-out, all three
+    lead buckets must score ~everything. Fails if the cap drops under steady-state demand OR if
+    eviction order regresses to keep-latest (which zeroes all three)."""
+    monkeypatch.delenv("FORECAST_SKILL_COMPARE_MODELS", raising=False)
+    from services.weather_pipeline.forecast_skill import PENDING_MAX_ENTRIES
+    rates = _simulate_cadence(cap=PENDING_MAX_ENTRIES)
+    assert all(rates[b] >= 99.0 for b in (1, 2, 3)), (
+        f"a lead bucket starved under the shipped cap: {rates} — either PENDING_MAX_ENTRIES "
+        f"dropped under steady-state demand or merge_pending's eviction order regressed")
+
+
+def test_an_undersized_cap_starves_the_farthest_lead_first_not_everything(monkeypatch):
+    """The graceful-degradation property that makes overflow a degradation instead of an outage:
+    with the cap forced UNDER demand (the exact 08-04 condition), the near leads keep scoring and
+    only the farthest starves. The old keep-latest order scores 0/0/0 here."""
+    monkeypatch.delenv("FORECAST_SKILL_COMPARE_MODELS", raising=False)
+    rates = _simulate_cadence(cap=10000)     # the old cap, < the ~17,280 steady-state demand
+    assert rates[1] >= 99.0, f"+24h must survive an overflowing cap, got {rates}"
+    assert rates[2] >= 60.0, f"+48h must mostly survive an overflowing cap, got {rates}"
+    assert rates[3] >= 1.0, f"+72h may starve under overflow but never to zero, got {rates}"
+
+
+def test_the_cap_holds_headroom_over_the_documented_production_demand(monkeypatch):
+    """The 08-03 fan-out tripled demand and nothing checked the cap — this does. Demand follows
+    the module's own fan-out config, so adding a compare model without re-sizing fails HERE
+    instead of as scored=0 in production four days later."""
+    monkeypatch.delenv("FORECAST_SKILL_COMPARE_MODELS", raising=False)
+    from services.weather_pipeline.forecast_skill import (
+        LEADS_H, PENDING_MAX_ENTRIES, compare_models)
+    lanes = 1 + len(compare_models("GFS")) + 1        # ours + compare models + the Open-Meteo lane
+    buoys, runs_per_day = 60, 12                      # NDBC map size; forecast-ingest 6 + precompute 6
+    demand = buoys * lanes * runs_per_day * sum(h // 24 for h in LEADS_H)
+    assert PENDING_MAX_ENTRIES >= demand * 1.3, (
+        f"PENDING_MAX_ENTRIES={PENDING_MAX_ENTRIES} has <30% headroom over steady-state demand "
+        f"{demand} ({lanes} lanes x {buoys} buoys x {runs_per_day} runs/day x 6 lead-days). "
+        f"Re-size it WITH the fan-out change, not four days after.")
+
+
+def test_merge_stats_distinguish_expiry_from_cap_eviction():
+    """The instrument: cap starvation was invisible for four days because nothing counted it."""
+    rows = [{"source": SOURCE_OURS, "buoy_id": str(i),
+             "target_time": (NOW + timedelta(hours=6 + i)).strftime("%Y-%m-%dT%H:00:00Z"),
+             "lead_h": 24.0, "hs_m": 1.0} for i in range(3)]
+    stale = {"source": SOURCE_OURS, "buoy_id": "s", "lead_h": 24.0, "hs_m": 1.0,
+             "target_time": (NOW - timedelta(hours=200)).strftime("%Y-%m-%dT%H:00:00Z")}
+    stats = {}
+    kept = merge_pending([stale] + rows, [], now=NOW, max_entries=2, stats=stats)
+    assert stats == {"kept": 2, "expired": 1, "cap_evicted": 1}
+    assert [r["buoy_id"] for r in kept] == ["0", "1"], (
+        "the cap must evict the FURTHEST-FUTURE target, not the nearest-to-scoreable")
+
+
+def test_attach_to_report_distinguishes_ran_and_scored_zero_from_did_not_run():
+    """With the old `if skill.get('summary')` caller guard, scored=0 was byte-identical on the
+    wire to 'the ledger never ran' — which is why the 08-04 outage was only datable from CI logs."""
+    from services.weather_pipeline.forecast_skill import attach_to_report
+    ran_but_zero = {"ledgered": 720, "scored": 0, "pending_kept": 17280,
+                    "pending_evicted_cap": 0, "summary": []}
+    report = {}
+    attach_to_report(report, ran_but_zero)
+    assert report["forecast_skill"] == []            # present-but-empty: ran, scored nothing
+    assert report["forecast_skill_ops"] == {"ledgered": 720, "scored": 0,
+                                            "pending_kept": 17280, "pending_evicted_cap": 0}
+    silent = {}
+    attach_to_report(silent, None)                   # disabled/crashed: keys absent
+    assert "forecast_skill" not in silent and "forecast_skill_ops" not in silent

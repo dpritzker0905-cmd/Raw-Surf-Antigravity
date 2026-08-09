@@ -672,10 +672,9 @@ def run_buoy_calibration() -> tuple:
     # recorded when made can never be scored. Kill switch FORECAST_SKILL=0. Never raises.
     if os.environ.get("FORECAST_SKILL", "1") != "0":
         try:
-            from services.weather_pipeline.forecast_skill import run_skill_ledger
+            from services.weather_pipeline.forecast_skill import attach_to_report, run_skill_ledger
             skill = asyncio.run(run_skill_ledger(store, resolver, spots, model, report))
-            if skill and skill.get("summary"):
-                report["forecast_skill"] = skill["summary"]
+            attach_to_report(report, skill)  # present-but-empty ≠ absent — see the helper
         except Exception as e:
             logger.warning("[buoy-calibration] forecast skill ledger skipped (%s); report unaffected.", e)
     upload_calibration_l2(store, report)
