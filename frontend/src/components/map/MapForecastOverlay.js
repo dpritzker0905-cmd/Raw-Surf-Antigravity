@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Lock, ChevronDown, MapPin, Check, Info, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { getHeightUnit } from './heightUnits';
 import {
   sampleFromMarineGrid,
   fetchExactMarinePoint,
@@ -50,6 +51,16 @@ export const MapForecastOverlay = ({
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isLight = theme === 'light';
+  // ft/m display preference — the heightUnits.js house pattern, identical to MapMarkerLayers'.
+  // Until 2026-08-09 this file listened for nothing: the toggle reached the legends and the marker
+  // tooltip while the infobox cards beside them stayed in feet, so one screen could show the same
+  // wave in two units. Re-reading on the event (not on mount alone) is what makes the pill live.
+  const [heightUnit, setHeightUnit] = useState(() => getHeightUnit());
+  useEffect(() => {
+    const onUnit = () => setHeightUnit(getHeightUnit());
+    window.addEventListener('rawsurf:height-unit', onUnit);
+    return () => window.removeEventListener('rawsurf:height-unit', onUnit);
+  }, []);
 
   useEffect(() => {
     setIsCollapsed(isImmersiveMode);
@@ -489,6 +500,7 @@ export const MapForecastOverlay = ({
     sampledWaterTempC,
     sampledAirTempC,
     mToFt,
+    heightUnit,
     degToCompass,
     getClampedValue,
     getBiasAdjustedLocal,

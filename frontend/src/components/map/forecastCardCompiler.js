@@ -1,6 +1,13 @@
 import { Wind, Waves, CloudRain, Snowflake, ArrowUp, Droplets, Gauge, Thermometer, Cloud, Eye } from 'lucide-react';
 import { RATING_LABEL, RATING_COLOR } from './surfRating';
 import { energyFluxKwM, energyBand, formatEnergy, isCoarseTier } from './surfEnergy';
+// ⚠️ IMPORTED, NOT INJECTED — deliberately, and this is the whole point of the 2026-08-09 fix.
+// Every height on these cards used the injected `mToFt`, which each of the five card test files
+// supplies itself at 3.28084; production's copy had drifted to 3.281 and NO test could see it.
+// A formatter that arrives as a prop is a formatter the suite can replace, so the suite grades a
+// converter it wrote rather than the one that ships. Importing the shared display formatter makes
+// the production path the only path. (`heightUnit` is still a PROP — it is state, not behaviour.)
+import { formatHeightFromMeters } from './heightUnits';
 
 export const STATUS_RENDERS = {
   ready: { color: 'text-emerald-400', text: 'Heatmap Ready (CMEMS)' },
@@ -66,12 +73,24 @@ export function compileForecastCards({
   sampledWaterTempC,
   sampledAirTempC,
   mToFt,
+  // The user's ft/m display preference, threaded from MapForecastOverlay's window-event listener
+  // (the heightUnits.js house pattern). Absent => 'ft', the pre-2026-08-09 behaviour, so any caller
+  // that has not been threaded yet keeps its current output rather than silently switching units.
+  heightUnit,
   degToCompass,
   getClampedValue,
   getBiasAdjustedLocal,
   isLoading
 }) {
   const cards = [];
+  // One place decides how a height reads, in the user's unit. `_h` returns null (never the '—'
+  // sentinel formatHeightFromMeters uses) so the existing `!= null ? … : '--'` no-data branches
+  // stay reachable and keep printing '--'; `_hWord` spells the unit for screen readers, which must
+  // never be left saying "feet" beside a card showing metres.
+  const _unit = heightUnit === 'm' ? 'm' : 'ft';
+  const _h = (m) => (m == null ? null : formatHeightFromMeters(m, _unit, { withUnit: true }));
+  const _hWord = (m) => (m == null ? null
+    : `${formatHeightFromMeters(m, _unit)} ${_unit === 'm' ? 'meters' : 'feet'}`);
 
   // GRACEFUL TIMEOUT (2026-07-08): a bare "Timeout" reads as a hard error, but the exact-point budget
   // just elapsed against a (usually cold) backend and self-heals when it warms / on the next fetch — and
@@ -272,11 +291,11 @@ export function compileForecastCards({
       displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
     } else {
-      const hFt = mToFt(waveHeight);
+      const hDisp = _h(waveHeight);
       const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
       // Provisional first paint: mark with the shared trailing ellipsis (reads "still refining")
       // instead of suppressing the instant feedback; the marker disappears when authority lands.
-      displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
+      displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
       if (wavePeriod != null) displayPeriod = `${wavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
       if (useExactPoint?.wave_peak_period != null && useExactPoint.wave_peak_period > 0) {
         displayPeak = `${useExactPoint.wave_peak_period.toFixed(1)}s`;
@@ -310,11 +329,11 @@ export function compileForecastCards({
       // legacy regime-only behavior so the row never vanishes from stale caches alone.
       const _near = useExactPoint?.surf_nearshore;
       if (_surf != null && _reg && !_hidden && _near !== false) {
-        const _surfFt = mToFt(_surf);
-        if (_surfFt != null) {
+        const _surfDisp = _h(_surf);
+        if (_surfDisp != null) {
           _surfCards.push({
-            icon: Waves, label: 'Surf', value: `${_surfFt} ft (est.)`, color: 'text-emerald-300',
-            ariaLabel: `Breaking surf height, estimated ${_surfFt} feet`,
+            icon: Waves, label: 'Surf', value: `${_surfDisp} (est.)`, color: 'text-emerald-300',
+            ariaLabel: `Breaking surf height, estimated ${_hWord(_surf)}`,
           });
         }
       }
@@ -410,9 +429,9 @@ export function compileForecastCards({
         displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       } else {
         const swell1LowEnergy = swell1Height == null || swell1Height < 0.05;
-        const hFt = mToFt(swell1Height);
+        const hDisp = _h(swell1Height);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
+        displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
         if (!swell1LowEnergy) {
           if (swell1Period != null && swell1Period > 0) displayPeriod = `${swell1Period.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
           if (useExactPoint?.swell_wave_peak_period != null && useExactPoint.swell_wave_peak_period > 0) {
@@ -516,9 +535,9 @@ export function compileForecastCards({
         displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       } else {
         const swell2LowEnergy = swell2Height == null || swell2Height < 0.10;
-        const hFt = mToFt(swell2Height);
+        const hDisp = _h(swell2Height);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
+        displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
         if (!swell2LowEnergy) {
           if (swell2Period != null && swell2Period > 0) displayPeriod = `${swell2Period.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
           if (swell2Dir != null) {
@@ -608,9 +627,9 @@ export function compileForecastCards({
         displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       } else {
         const windWaveLowEnergy = windWaveHeight == null || windWaveHeight < 0.05;
-        const hFt = mToFt(windWaveHeight);
+        const hDisp = _h(windWaveHeight);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
+        displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
         if (!windWaveLowEnergy) {
           if (windWavePeriod != null && windWavePeriod > 0) displayPeriod = `${windWavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
           if (windWaveDir != null) {

@@ -21,12 +21,18 @@ import { getCachedTideState, ensureTideState, formatTideLine, trendArrow } from 
  * 3.3 ft at 12 seconds"), unit-testable headless. Focus/hover both open the detail card, so the
  * text is keyboard-reachable too.
  */
-export function spotGlyphAriaLabel(cluster, rating, tideText) {
+export function spotGlyphAriaLabel(cluster, rating, tideText, heightUnit) {
   const name = (cluster && cluster.name) || 'Surf spot';
   if (!rating) return name;
   let label = `${name}: ${rating.label || 'rated'}`;
   if (rating.surfHeightM != null) {
-    label += `, ${(rating.surfHeightM * 3.28084).toFixed(1)} ft`;
+    // ⚠️ The VISIBLE tooltip (below) has always used formatHeightFromMeters; this accessible
+    // name did not, so in metres mode a screen-reader user heard "3.3 ft" beside a card
+    // reading "1.0 m" (and `tideText`, built by formatTideLine(heightUnit), was already
+    // unit-aware -- half this string followed the preference and half did not).
+    // Keeps the SHORT unit ("3.3 ft") this label has always spoken — the defect was that it
+    // ignored the toggle, not how it words the unit, and three a11y tests pin the exact string.
+    label += `, ${formatHeightFromMeters(rating.surfHeightM, heightUnit, { withUnit: true })}`;
     if (rating.periodS != null) label += ` at ${Math.round(rating.periodS)} seconds`;
   }
   if (tideText) label += `, tide ${tideText}`;   // plain words (tideClient.formatTideLine) — no glyphs
@@ -173,7 +179,7 @@ var MapMarkerLayers = ({
               type="button"
               className={`relative cursor-pointer rounded-full ${BUTTON_RESET} ${FOCUS_RING}`}
               style={{ position: 'relative', width: 32, height: 32 }}
-              aria-label={spotGlyphAriaLabel(cluster, rating, tideLine)}
+              aria-label={spotGlyphAriaLabel(cluster, rating, tideLine, heightUnit)}
               onMouseEnter={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}
               onMouseLeave={() => setHoveredSpotId(null)}
               onFocus={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}

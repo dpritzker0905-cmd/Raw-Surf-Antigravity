@@ -5,8 +5,15 @@
 
 import { isGridLayerSupported } from './marineControllerUtils';
 import { wrapLngRelative, getCenterLng } from './mapUtils';
+import { M_TO_FT } from './heightUnits';
 
-export var mToFt = (m) => m != null ? (m * 3.281).toFixed(1) : null;
+// ⚠️ This lane is DELIBERATELY unit-fixed: the diagnostics panel (forecastDiagnostics.js) reports
+// feet regardless of the user's display preference. The DISPLAY lane is heightUnits.js —
+// formatHeightFromMeters — which the cards, legends, tooltips and aria labels all share.
+// The constant was a drifted local copy (3.281, +0.0049% high, ~1 in 20,500) until 2026-08-09;
+// it survived because every card test injects its own converter at 3.28084, so production's value
+// was only ever exercised at m=1 and m=3 where both constants print the same string.
+export var mToFt = (m) => m != null ? (m * M_TO_FT).toFixed(1) : null;
 
 export var degToCompass = (deg) => {
   if (deg == null) return '';
