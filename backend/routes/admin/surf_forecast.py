@@ -64,12 +64,19 @@ _RATING_FLAGS = {
     # the same omission SURF_COASTAL_FROM_LAND_BIT made earlier the same day (5ee77bcd) --
     # ⇒ REGISTER A SCIENCE SWITCH IN THE COMMIT THAT ADDS IT; the guard cannot tell a new
     # flag from a forgotten one, and an unregistered flag is invisible to the admin panel.
-    "SURF_EXPOSURE_RECONCILED": ("0", "Reconcile the DUAL swell-aim floor: replace the "
-                                      "0.55+0.45*exposure quality curve with sqrt(exposure) "
-                                      "so quality and height stop reading the same swell "
-                                      "through different floors (0.100 vs 0.595). OFF by "
-                                      "default; see FINDING-2026-08-09-the-dual-floor-"
-                                      "reconciliation.md", "Render env"),
+    # ⚠️ It is the HEIGHT curve that moves, not the quality one — corrected from the first
+    # registry wording. `0.55+0.45*exposure` is surf_transform._height_exposure_factor; quality
+    # (surf_rating.swell_exposure) is untouched. Direction matters to an operator: flipping this
+    # SHRINKS off-axis heights (-46.9% at the floor, 0.0% head-on), it does not raise scores.
+    "SURF_EXPOSURE_RECONCILED": ("0", "Reconcile the DUAL swell-aim floor: replace the HEIGHT "
+                                      "curve 0.55+0.45*exposure with sqrt(exposure) so height**2 "
+                                      "== exposure and the height/quality chains stop reading one "
+                                      "swell through two floors (0.595 vs 0.100). Heights only: "
+                                      "-46.9% at the floor, unchanged head-on. OFF by default — "
+                                      "the floor stands in for the ABSENT refraction term at "
+                                      "wrap-dominated points (J-Bay would serve 5.1 ft). See "
+                                      "FINDING-2026-08-09-the-dual-floor-reconciliation.md",
+                                 "Render env"),
     "SURF_COASTAL_FROM_LAND_BIT": ("1", "Treat a fitted 463 m shoreline WITHOUT a bearing (the "
                                         "land_present asset section) as evidence of a coastline — "
                                         "the second small-island set: 14 atoll/pass spots whose "
