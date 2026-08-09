@@ -7,6 +7,7 @@ import { getSurfModeFlag, setSurfModeFlag } from './backendWeatherServiceClient'
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 import { getHeightUnit, setHeightUnit, M_TO_FT } from './heightUnits';
 import { windLegendGradientCSS, windLegendStops } from './WindColorRamp';
+import { valueTicks, evenTicks, dropCollisions, LegendTicks } from './legendTicks';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
 
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
@@ -40,17 +41,21 @@ const HEIGHT_VARIABLES = ['wave_height', 'wave', 'swell_wave_height', 'secondary
  * display unit ('ft' default — the pre-toggle live behavior; 'm' keeps meters).
  */
 function buildStops(scale, layerId, heightUnit) {
+  // Returns POSITIONED ticks ([{label, pct}]), not bare strings — see legendTicks.js for why
+  // (evenly-spaced labels sat up to 47 pp from the colour they name).
   if (!scale?.breakpoints?.length) return [];
   const isHeight = scale.unit === 'm' && HEIGHT_VARIABLES.includes(layerId);
   const toFeet = isHeight && heightUnit !== 'm';
-  return scale.breakpoints.map((bp, i) => {
+  return dropCollisions(valueTicks(scale.breakpoints, (bp, i, isLast) => {
     const val = toFeet ? bp * M_TO_FT : bp;
-    const isLast = i === scale.breakpoints.length - 1;
-    // Round nicely
     const display = val < 1 ? val.toFixed(1) : Math.round(val);
     return isLast ? `${display}+` : `${display}`;
-  });
+  }));
 }
+
+/** Hand-authored gradients carry no percentages, so CSS spaces their colours evenly and their
+ *  labels were always right; normalised so both legend kinds render through one path. */
+const evenStops = (labels) => evenTicks(labels);
 
 /**
  * Compact weather controls chip-based layer selector + integrated timeline.
@@ -216,12 +221,12 @@ export var MapWeatherControls = ({
     config.satellite = {
       label: LEGEND_LABELS.satellite,
       gradientCSS: 'linear-gradient(to right, transparent, rgba(200,200,200,0.4), rgba(180,180,180,0.6), rgba(240,240,240,0.8), white)',
-      stops: ['0%', '25%', '50%', '75%', '100%'],
+      stops: evenStops(['0%', '25%', '50%', '75%', '100%']),
     };
     config.fog = {
       label: LEGEND_LABELS.fog,
       gradientCSS: 'linear-gradient(to right, rgba(120,120,120,0.8), rgba(160,160,160,0.6), rgba(200,200,200,0.4), transparent)',
-      stops: ['<1km', '5km', '10km', '20km', 'Clear'],
+      stops: evenStops(['<1km', '5km', '10km', '20km', 'Clear']),
     };
     // DERIVED from WindColorRamp — never duplicated. The hand-maintained CSS that stood here was a
     // byte-exact copy of the LEGACY 8-stop 0-50 kn ramp, so calm (now vivid magenta) read as
@@ -229,24 +234,24 @@ export var MapWeatherControls = ({
     config.wind = {
       label: LEGEND_LABELS.wind,
       gradientCSS: windLegendGradientCSS(theme),
-      stops: windLegendStops(theme),
+      stops: evenStops(windLegendStops(theme)),
     };
     config.radar = {
       label: LEGEND_LABELS.radar,
       gradientCSS: 'linear-gradient(to right, rgba(200,200,200,0.3), rgba(96,165,250,0.6), rgba(99,102,241,0.7), rgba(147,51,234,0.85), rgba(219,39,119,0.95))',
-      stops: ['0', '.1', '.3', '.5', '2+'],
+      stops: evenStops(['0', '.1', '.3', '.5', '2+']),
     };
     // Temperature pair: tiles are colored by the OM library's registered 'temperature' scale
     // (not BASE_CUSTOM), so the legend is a static approximation of that ramp in °F.
     config.temperature = {
       label: LEGEND_LABELS.temperature,
       gradientCSS: 'linear-gradient(to right, rgba(145,80,220,0.9), rgba(64,110,235,0.9), rgba(70,190,225,0.9), rgba(90,200,110,0.9), rgba(235,205,70,0.9), rgba(235,120,50,0.9), rgba(200,40,40,0.9))',
-      stops: ['0°', '20°', '40°', '60°', '80°', '100°+'],
+      stops: evenStops(['0°', '20°', '40°', '60°', '80°', '100°+']),
     };
     config.water_temp = {
       label: LEGEND_LABELS.water_temp,
       gradientCSS: 'linear-gradient(to right, rgba(145,80,220,0.9), rgba(64,110,235,0.9), rgba(70,190,225,0.9), rgba(90,200,110,0.9), rgba(235,205,70,0.9), rgba(235,120,50,0.9))',
-      stops: ['35°', '45°', '55°', '65°', '75°', '85°+'],
+      stops: evenStops(['35°', '45°', '55°', '65°', '75°', '85°+']),
     };
 
     return config;
@@ -263,7 +268,10 @@ export var MapWeatherControls = ({
       const c = RATING_COLOR[lvl];
       return `${c} ${((i / n) * 100).toFixed(1)}%, ${c} ${(((i + 1) / n) * 100).toFixed(1)}%`;
     }).join(', ');
-    return { gradientCSS: `linear-gradient(to right, ${segs})`, stops: ['Poor', 'Fair', 'Good', 'Epic'] };
+    // Labels stay COARSE and evenly spaced: 4 words over 7 equal bands is a deliberate summary,
+    // not a value axis. Normalised through evenTicks so both legend kinds render one way.
+    return { gradientCSS: `linear-gradient(to right, ${segs})`,
+             stops: evenTicks(['Poor', 'Fair', 'Good', 'Epic']) };
   }, []);
 
   const maxForecastDays = resolveForecastWindow(userTier, activeModel, activeLayers && activeLayers[0]);
@@ -756,9 +764,7 @@ export var MapWeatherControls = ({
               <div className="mb-1.5">
                 <div className={`text-[9px] ${textMuted} mb-0.5`}>Surf Rating (coastal band)</div>
                 <div className="h-1.5 w-full rounded-full" style={{ background: surfLegend.gradientCSS }} />
-                <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5 px-0.5`}>
-                  {surfLegend.stops.map((s, i) => <span key={i}>{s}</span>)}
-                </div>
+                <LegendTicks ticks={surfLegend.stops} className={`text-[8px] ${textMuted} mt-0.5`} />
                 <div className={`flex items-center gap-1 text-[8px] ${textMuted} mt-0.5 px-0.5`}>
                   <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#2fd07a', boxShadow: '0 0 4px 1px #2fd07a' }} />
                   <span>Quality shown at each surf spot — zoom in to see</span>
@@ -767,9 +773,7 @@ export var MapWeatherControls = ({
             )}
             <div className={`text-[9px] ${textMuted} mb-0.5`}>{legendConfig[activeLayer].label}</div>
             <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS }} />
-            <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5 px-0.5`}>
-              {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
-            </div>
+            <LegendTicks ticks={legendConfig[activeLayer].stops} className={`text-[8px] ${textMuted} mt-0.5`} />
           </div>
         )}
 
@@ -817,18 +821,14 @@ export var MapWeatherControls = ({
                   <div className="mb-1.5">
                     <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1`}>Surf Rating (coastal band)</div>
                     <div className="h-1.5 w-full rounded-full" style={{ background: surfLegend.gradientCSS }} />
-                    <div className={`flex justify-between text-[9px] ${textMuted} mt-1`}>
-                      {surfLegend.stops.map((s, i) => <span key={i}>{s}</span>)}
-                    </div>
+                    <LegendTicks ticks={surfLegend.stops} className={`text-[9px] ${textMuted} mt-1`} />
                   </div>
                 )}
                 <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1 flex justify-between`}>
                   <span>{legendConfig[activeLayer].label}</span>
                 </div>
                 <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS }} />
-                <div className={`flex justify-between text-[9px] ${textMuted} mt-1`}>
-                  {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
-                </div>
+                <LegendTicks ticks={legendConfig[activeLayer].stops} className={`text-[9px] ${textMuted} mt-1`} />
               </div>
             )}
             {renderTimeline(true)}
@@ -929,18 +929,14 @@ export var MapWeatherControls = ({
                     <div className="mb-1.5">
                       <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1`}>Surf Rating (coastal band)</div>
                       <div className="h-1.5 w-full rounded-full" style={{ background: surfLegend.gradientCSS }} />
-                      <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5`}>
-                        {surfLegend.stops.map((s, i) => <span key={i}>{s}</span>)}
-                      </div>
+                      <LegendTicks ticks={surfLegend.stops} className={`text-[8px] ${textMuted} mt-0.5`} />
                     </div>
                   )}
                   <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1`}>
                     {legendConfig[activeLayer].label}
                   </div>
                   <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS }} />
-                  <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5`}>
-                    {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
-                  </div>
+                  <LegendTicks ticks={legendConfig[activeLayer].stops} className={`text-[8px] ${textMuted} mt-0.5`} />
                 </div>
               )}
               {renderTimeline(true)}
