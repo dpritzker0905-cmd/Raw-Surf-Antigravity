@@ -114,8 +114,19 @@ BEARING_RADIUS_KM = 3.0
 _BUCKET_DEG = 0.1                # spatial hash cell (~11 km) so lookup never scans all entries
 _EARTH_KM = 6371.0
 
+# ★ LAND WITHOUT A BEARING (2026-08-09, MASTER-AUDIT-11.0 §3.5). 16 served spots resolved
+# coastal=False and were published the OFFSHORE Hs as surf height — CLAUDE.md's first rule — because
+# they are atolls/passes the 0.25° mask cannot see AND the bearing fit REFUSES (measured spreads
+# 46–172° across windows: those coasts genuinely bend every direction, and the gate is right).
+# But the same fit MEASURED a 463 m-resolution shoreline at 0.08–2.11 km for 14 of them. Land-present
+# is a strictly weaker claim than a bearing, so it is carried in its own asset section
+# (`land_present`: [lat, lng, shoreline_km, break_depth_m|null]) and never manufactures a normal.
+# The bound is BEARING_RADIUS_KM — the module's own documented "coast next door" distance.
+LAND_PRESENT_MAX_KM = 3.0
+
 _lock = threading.Lock()
 _index = None                    # {(bucket_lat, bucket_lng): [(lat, lng, normal, spread), ...]}
+_land_index = None               # {(bucket_lat, bucket_lng): [(lat, lng, shoreline_km, depth), ...]}
 _meta = None
 _load_failed = False
 
@@ -126,7 +137,7 @@ def _bucket(lat: float, lng: float):
 
 def _load():
     """Build the spatial index once. Any failure is latched so we stat the disk a single time."""
-    global _index, _meta, _load_failed
+    global _index, _land_index, _meta, _load_failed
     if _index is not None or _load_failed:
         return _index
     with _lock:
@@ -142,12 +153,38 @@ def _load():
                 # older asset is still valid and simply carries no depth.
                 depth = float(row[4]) if len(row) > 4 and row[4] is not None else None
                 idx.setdefault(_bucket(lat, lng), []).append((lat, lng, normal, spread, depth))
-            _meta = {k: v for k, v in doc.items() if k != "entries"}
+            land = {}
+            for row in doc.get("land_present", []):
+                lat, lng, skm = float(row[0]), float(row[1]), float(row[2])
+                depth = float(row[3]) if len(row) > 3 and row[3] is not None else None
+                land.setdefault(_bucket(lat, lng), []).append((lat, lng, skm, depth))
+            _meta = {k: v for k, v in doc.items() if k not in ("entries", "land_present")}
+            _land_index = land
             _index = idx
         except Exception:
             _load_failed = True
             return None
     return _index
+
+
+def land_present_at(lat: float, lng: float):
+    """(shoreline_km, break_depth_m|None) from the land-present section within MATCH_RADIUS_KM,
+    or None. POSITIVE evidence of a fitted 463 m shoreline at a coordinate whose BEARING the
+    confidence gate refused — see the LAND_PRESENT_MAX_KM note above. Never returns a normal:
+    land-present promotes `coastal` only, and the caller's exposure factor stays neutral."""
+    if os.environ.get("SHORE_NORMAL_ASSET", "1") == "0":
+        return None
+    if _load() is None or not _land_index:
+        return None
+    best = None
+    blat, blng = _bucket(lat, lng)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            for e in _land_index.get((blat + dy, blng + dx), ()):
+                d = _haversine_km(lat, lng, e[0], e[1])
+                if d <= MATCH_RADIUS_KM and (best is None or d < best[0]):
+                    best = (d, e)
+    return (best[1][2], best[1][3]) if best else None
 
 
 # ── THE OVERLAY: geometry resolved AFTER the committed asset was built ──────────────────────────

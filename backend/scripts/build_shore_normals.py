@@ -54,6 +54,7 @@ from services.weather_pipeline.shore_normal_fit import (  # noqa: E402
 from services.weather_pipeline.ocean_access import (  # noqa: E402
     placement_verdict as ocean_placement_verdict,
 )
+from services.weather_pipeline.shore_normal_asset import LAND_PRESENT_MAX_KM  # noqa: E402
 
 ERDDAP = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.csv"
 # ONE fetch per spot; every shore-normal window is CROPPED from it, so enlarging the box cannot
@@ -378,7 +379,7 @@ def main():
                     _fh.flush()
                     print(f"  {i + 1}/{len(spots)}")
 
-    entries, reasons = [], {}
+    entries, land_present, reasons = [], [], {}
     for row in rows:
         ok, why = accepted(row)
         row["verdict"] = why
@@ -386,6 +387,15 @@ def main():
         if ok:
             entries.append([round(row["lat"], 5), round(row["lng"], 5),
                             row["normal"], row["spread"], row["break_depth_m"]])
+        # ⭐ LAND WITHOUT A BEARING (2026-08-09, MASTER-AUDIT-11.0 §3.5): a refused BEARING with a
+        # measured shoreline is still positive evidence of land the 0.25° mask cannot see — 16
+        # served atoll/pass spots were publishing the OFFSHORE Hs for lack of exactly this bit.
+        # Weaker claim, own section; promotes `coastal` only (see shore_normal_asset.land_present_at).
+        elif (why == "ambiguous_coastline" and row.get("shoreline_km") is not None
+                and row["shoreline_km"] <= LAND_PRESENT_MAX_KM):
+            land_present.append([round(row["lat"], 5), round(row["lng"], 5),
+                                 round(row["shoreline_km"], 3),
+                                 round(row["break_depth_m"], 1) if row.get("break_depth_m") else None])
 
     n_fetch_fail = sum(1 for r in rows if r["status"].startswith("fetch_failed"))
     print(f"\nVERDICTS ({len(rows)} spots)")
@@ -405,6 +415,8 @@ def main():
         "spots_considered": len(rows),
         "count": len(entries),
         "entries": entries,
+        "land_present_max_km": LAND_PRESENT_MAX_KM,
+        "land_present": sorted(land_present),
     }
     # ★★ REFUSE TO OVERWRITE A GOOD ASSET WITH A COLLAPSED ONE.
     # 2026-07-28 this build emitted **0 of 1820** entries because every ERDDAP fetch failed, and
@@ -418,7 +430,7 @@ def main():
     # Kill: SHORE_NORMAL_ALLOW_SHRINK=1 (for a deliberate catalogue shrink).
     ok, why = write_is_safe(len(entries), args.asset)
     if not ok:
-        print(f"\n⛔ REFUSING TO WRITE — {why}")
+        print("\nREFUSING TO WRITE -- " + str(why))  # ASCII: the fancy glyphs CRASHED cp1252 consoles, eating the reason
         return 1
 
     os.makedirs(os.path.dirname(args.asset), exist_ok=True)

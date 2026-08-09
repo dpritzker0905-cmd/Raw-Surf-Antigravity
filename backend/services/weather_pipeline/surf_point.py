@@ -179,6 +179,29 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
                      f"src={src} match_km={match_km} — the 0.25 deg mask cannot resolve this coast")
         coastal = True
 
+    # ⭐ LAND WITHOUT A BEARING (2026-08-09, MASTER-AUDIT-11.0 §3.5 — the SECOND small-island set).
+    # 16 more served spots (Maldives passes, Rangiroa, Chuuk, Kwajalein…) were publishing the
+    # OFFSHORE Hs because they are absent from the bearing asset: run for them, the fit MEASURED a
+    # 463 m shoreline at 0.08–2.11 km but REFUSED the bearing (spreads 46–172° — atoll coasts bend
+    # every direction, and forcing a normal would trade one wrong answer for another). Land-present
+    # is the weaker claim carried separately: it promotes `coastal` ONLY. `src` stays 'none' — no
+    # bearing is claimed, so the exposure factor stays neutral — and the fit's break depth (when it
+    # produced one) feeds the cap. The two census coords whose fit found NO shoreline at all
+    # (~370 m of water; mis-geocoded) are NOT in the section and correctly stay open_ocean.
+    # Kill: SURF_COASTAL_FROM_LAND_BIT=0.
+    if not coastal and os.environ.get("SURF_COASTAL_FROM_LAND_BIT", "1") != "0":
+        try:
+            from services.weather_pipeline.shore_normal_asset import land_present_at
+            _land = land_present_at(lat, lng)
+            if _land is not None:
+                coastal = True
+                if break_depth is None and _land[1] is not None:
+                    break_depth = float(_land[1])
+                logger.debug(f"[Surf] coastal promoted by LAND-PRESENT evidence at ({lat},{lng}): "
+                             f"shoreline {_land[0]} km, no bearing claimed")
+        except Exception:
+            pass
+
     return SurfGeometry(depth_m=depth, shelf_width_km=width, coastal=coastal,
                         shore_normal_deg=normal, shore_normal_src=src,
                         magnet_factor=magnet, magnet_name=magnet_name,
