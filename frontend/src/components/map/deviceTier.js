@@ -36,3 +36,12 @@ export function isWeakDevice() {
 export function getMarineParticleRes() {
   return isHandheldDevice() ? 192 : 296;
 }
+
+// Wind particle pool resolution: 384² = 147,456 desktop, 192² = 36,864 handheld. Ported 2026-08-09
+// (Report 11.0 R11-09): WebGLWindLayer still sized its pool by one-shot `window.innerWidth < 768`
+// at engine creation — the EXACT defect class this module's header documents being live-caught for
+// marine on 2026-07-02, never mirrored to wind. A desktop with a momentarily narrow window
+// (split-screen, docked devtools) got the 4× sparser pool for the engine's lifetime.
+export function getWindParticleRes() {
+  return isHandheldDevice() ? 192 : 384;
+}

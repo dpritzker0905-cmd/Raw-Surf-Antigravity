@@ -12,6 +12,7 @@
  */
 import { memo, useEffect, useRef } from 'react';
 import WebGLWindEngine from './WebGLWindEngine';
+import { getWindParticleRes } from './deviceTier';
 import { registerWindEngine, unregisterWindEngine } from '../../engine/RenderPlanDispatcher';
 
 var LAYER_ID = 'webgl-wind-particles';
@@ -219,9 +220,11 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
     const engine = new WebGLWindEngine();
     engineRef.current = engine;
 
- // v3.11.2: Increased particle density 384 = 147k desktop, 192 = 37k mobile
-    const isMobile = window.innerWidth < 768;
-    engine.particleRes = isMobile ? 192 : 384; // 36,864 or 147,456 particles
+    // R11-09 (2026-08-09): device-capability tier, NOT window width — the one-shot
+    // `window.innerWidth < 768` here was the exact marine bug deviceTier.js was built to kill
+    // (live-caught 2026-07-02), never mirrored to wind: a desktop mounted with a narrow window
+    // kept the 4× sparser pool (36,864 vs 147,456) for the engine's lifetime.
+    engine.particleRes = getWindParticleRes();
 
     const customLayer = createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRef);
 

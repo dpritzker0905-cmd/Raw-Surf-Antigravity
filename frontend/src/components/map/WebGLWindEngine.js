@@ -536,12 +536,28 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   const dataBoundsMinX = isRegionalGrid ? bounds.west : -180.0;
   const dataBoundsMaxX = isRegionalGrid ? bounds.east : 180.0;
 
+  // ACCESSIBILITY (R11-09 port, 2026-08-09): honor prefers-reduced-motion by damping particle
+  // drift to 0.15× — verbatim from the marine engine's 2026-07-03 §6.4 implementation, which was
+  // never mirrored here: 147,456 wind particles (the busiest motion surface in the app) ran at
+  // full speed for reduced-motion users, against the CLAUDE.md accessibility mandate. The
+  // heatmap (the actual data) is untouched; only decorative motion slows. Cached matchMedia;
+  // test override window.__RAW_REDUCED_MOTION__ (true = force damp, false = force off).
+  if (this._prefersReducedMotion === undefined) {
+    try {
+      this._prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia
+        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch (e) { this._prefersReducedMotion = false; }
+  }
+  const _rmOverride = (typeof window !== 'undefined' && typeof window.__RAW_REDUCED_MOTION__ === 'boolean')
+    ? window.__RAW_REDUCED_MOTION__ : null;
+  const _rmScale = (_rmOverride !== null ? _rmOverride : this._prefersReducedMotion) ? 0.15 : 1.0;
+
   // v3.23: Disable the minimum advection step clamp at high zooms (z > 6) since
   // we use tile-relative coordinates. This prevents the wind animation from
   // exploding in speed. Also, we scale the tile coordinate size to increase precision.
-  const stableSpeedScale = (z > 6.0)
+  const stableSpeedScale = ((z > 6.0)
     ? (this.speedFactor * Math.pow(0.5, z) * 0.00025)
-    : Math.max(2.5e-6, this.speedFactor * Math.pow(0.5, z) * 0.00025);
+    : Math.max(2.5e-6, this.speedFactor * Math.pow(0.5, z) * 0.00025)) * _rmScale;
 
   // v3.22: Compute camera center and tile origin for high-precision advection
   var vb = viewportBounds || [-180, -80, 180, 85];
