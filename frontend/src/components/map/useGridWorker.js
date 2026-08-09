@@ -34,6 +34,23 @@ export function createGridWorker() {
           else cb.resolve(data.result);
         }
       };
+      // R11-07 (2026-08-09): a worker CRASH (in-worker top-level throw, or a deploy race serving
+      // a dead chunk) surfaces as an 'error' event on the Worker object — which nothing listened
+      // to, so every pending parse promise leaked unresolved and the pressure lane silently froze
+      // for the rest of the session with zero console evidence past the initial crash. Reject
+      // everything pending and null the instance so the NEXT call re-creates the worker.
+      _workerInstance.onerror = _workerInstance.onmessageerror = function(err) {
+        var msg = (err && (err.message || err.type)) || 'worker crashed';
+        console.error('[GridWorker] Worker error — rejecting ' +
+                      Object.keys(_pendingCallbacks).length + ' pending parse(s), will re-create: ' + msg);
+        var pending = _pendingCallbacks;
+        _pendingCallbacks = {};
+        Object.keys(pending).forEach(function(id) {
+          try { pending[id].reject(new Error('[GridWorker] ' + msg)); } catch (e2) { /* settled */ }
+        });
+        try { _workerInstance.terminate(); } catch (e3) { /* already dead */ }
+        _workerInstance = null;
+      };
     } catch (err) {
       console.warn('[GridWorker] Worker creation failed, will parse on main thread:', err.message);
       return null;
@@ -48,6 +65,10 @@ export function createGridWorker() {
      */
     parse: function(message) {
       return new Promise(function(resolve, reject) {
+        // R11-07: after a crash the onerror handler nulls the instance; re-create on the next
+        // parse so one crash costs one frame of data, not the rest of the session.
+        if (!_workerInstance) createGridWorker();
+        if (!_workerInstance) { reject(new Error('[GridWorker] worker unavailable')); return; }
         var id = ++_messageId;
         _pendingCallbacks[id] = { resolve: resolve, reject: reject };
         _workerInstance.postMessage(Object.assign({ id: id }, message));

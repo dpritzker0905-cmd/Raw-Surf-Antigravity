@@ -64,6 +64,11 @@ function parseWindGrid(raw, uVar, vVar, timeIndex) {
   var minLat = Math.min(lats[0], lats[rows - 1]);
   var maxLat = Math.max(lats[0], lats[rows - 1]);
 
+  // R11-07 (2026-08-09): an out-of-bounds read coerced undefined -> 0 and parsed a truncated /
+  // short hourly array (partial response, timeIndex past coverage) into a plausible FLAT-CALM
+  // grid — the fabricated-zeros class (a44d5d23). Uncovered hours are an error, not calm air.
+  if (offset + rows * cols > uData.length || offset + rows * cols > vData.length) return null;
+
   var vectors = [];
   for (var r = 0; r < rows; r++) {
     var rawR = latIsDescending ? (rows - 1 - r) : r;
@@ -131,6 +136,10 @@ function parseMarineGrid(raw, heightVar, dirVar, periodVar, timeIndex) {
 
   var minLat = Math.min(lat[0], lat[rows - 1]);
   var maxLat = Math.max(lat[0], lat[rows - 1]);
+
+  // R11-07 (2026-08-09): same fabricated-zeros guard as parseWindGrid — a short heights array
+  // must refuse, not parse into a flat-calm sea.
+  if (offset + rows * cols > heights.length) return null;
 
   var vectors = [];
   for (var r = 0; r < rows; r++) {
