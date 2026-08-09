@@ -3,6 +3,7 @@ import {
   ICON_WIND_CUTOVER_H, EURO_WIND_CUTOVER_H,
   ICON_MARINE_RASTER_CUTOVER_H, EURO_MARINE_RASTER_CUTOVER_H,
   ICON_ATMOSPHERIC_CUTOVER_H, EURO_ATMOSPHERIC_CUTOVER_H,
+  closestAxisIndex,
 } from './modelHorizons';
 import maplibregl from 'maplibre-gl';
 import {
@@ -382,16 +383,11 @@ export function useOpenMeteoTileUrls({
     const model = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
     const meta = MODEL_METADATA_CACHE[model];
     if (!meta || !Array.isArray(meta.validTimes) || !meta.validTimes.length) return 0;
-    const targetMs = Date.now() + debouncedTimeOffsetHours * 3600000;
-    let closestIdx = 0;
-    let minDiff = Infinity;
-    for (let i = 0; i < meta.validTimes.length; i++) {
-      const diff = Math.abs(new Date(meta.validTimes[i]).getTime() - targetMs);
-      if (diff < minDiff) { minDiff = diff; closestIdx = i; }
-    }
-    const maxAllowedIdx = meta.validTimes.length - 1;
-    const resultIdx = Math.max(0, Math.min(maxAllowedIdx, closestIdx));
-    return isNaN(resultIdx) ? 0 : resultIdx;
+    // Selection lives in modelHorizons.closestAxisIndex — same nearest-by-|diff| search, same
+    // clamp, one copy. ⚠️ It SATURATES past the end of the axis (proven in modelHorizons.test),
+    // so this index can be a stale stand-in for an hour the model does not carry; isBeyondAxis
+    // is the discriminator when that gets disclosed.
+    return closestAxisIndex(meta.validTimes, Date.now() + debouncedTimeOffsetHours * 3600000);
   }, [activeModel, debouncedTimeOffsetHours, metadataRevision]);
   
   const activeMarineLayerRef = useRef(activeMarineLayer);
@@ -572,17 +568,7 @@ export function useOpenMeteoTileUrls({
           if (meta.variables.includes(resolvedVar)) {
             const { validTimes } = meta;
             const targetMs = Date.now() + debouncedTimeOffsetHours * 3600000;
-            let closestIdx = 0;
-            let minDiff = Infinity;
-            if (Array.isArray(validTimes) && validTimes.length) {
-              for (let i = 0; i < validTimes.length; i++) {
-                const diff = Math.abs(new Date(validTimes[i]).getTime() - targetMs);
-                if (diff < minDiff) { minDiff = diff; closestIdx = i; }
-              }
-            }
-            const maxAllowedIdx = (validTimes?.length || 1) - 1;
-            closestIdx = Math.max(0, Math.min(maxAllowedIdx, closestIdx));
-            if (isNaN(closestIdx)) closestIdx = 0;
+            const closestIdx = closestAxisIndex(validTimes, targetMs);
 
             let targetUrl = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
             if (entry.omModelGroup === 'marine' && webglMarineFailed) {

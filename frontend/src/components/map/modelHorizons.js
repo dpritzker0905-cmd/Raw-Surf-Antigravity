@@ -39,3 +39,48 @@ export const EURO_MARINE_RASTER_CUTOVER_H = 240;
  *  generic tail (pressure) which uses the same numbers for the same reason. */
 export const ICON_ATMOSPHERIC_CUTOVER_H = 168;
 export const EURO_ATMOSPHERIC_CUTOVER_H = 228;
+
+// ── THE AXIS, AND WHAT HAPPENS PAST THE END OF IT ────────────────────────────────────────────
+// Extracted from the two inline copies in useOpenMeteoTileUrls (the `closestTimeIdx` memo and the
+// per-layer resolve loop). BEHAVIOUR-IDENTICAL: same nearest-by-absolute-difference search, same
+// clamp. It lives here so the next fact can be TESTED against shipped code rather than a replica.
+//
+// ⚠️⚠️ THE TILE LANE HAS NO PAST-THE-END REFUSAL. The search minimises |t - target|, so a target
+// beyond the last valid time always selects the LAST index, and the clamp then guarantees it. Ask
+// for hour 300 on an axis that ends at 168 and you get the 168 h frame — painted while the
+// scrubber reads 300. Nothing discloses it: `modelProvenance` cannot see this because the MODEL
+// never changed, only the hour did. It is a quieter failure than the model substitution it sits
+// underneath, and the reason a cutover constant must never be raised without measuring the axis.
+
+/** The index whose valid time is nearest `targetMs`, clamped into range. Mirrors the shipped
+ *  selection exactly — including its saturation past the end of the axis. */
+export function closestAxisIndex(validTimes, targetMs) {
+  if (!Array.isArray(validTimes) || validTimes.length === 0) return 0;
+  let closest = 0;
+  let minDiff = Infinity;
+  for (let i = 0; i < validTimes.length; i++) {
+    const diff = Math.abs(new Date(validTimes[i]).getTime() - targetMs);
+    if (diff < minDiff) { minDiff = diff; closest = i; }
+  }
+  const idx = Math.max(0, Math.min(validTimes.length - 1, closest));
+  return Number.isNaN(idx) ? 0 : idx;
+}
+
+/** Is `targetMs` past the end of this axis — i.e. is the index above a STALE STAND-IN rather than
+ *  the hour that was asked for? Returns false when the axis is unknown: absence is not evidence,
+ *  and a bootstrap placeholder axis must never be read as proof that real data is missing. */
+export function isBeyondAxis(validTimes, targetMs) {
+  if (!Array.isArray(validTimes) || validTimes.length === 0) return false;
+  const last = new Date(validTimes[validTimes.length - 1]).getTime();
+  if (Number.isNaN(last)) return false;
+  return targetMs > last;
+}
+
+/** Hours of real forecast the axis still covers from `nowMs`, or null when unknown. The floor a
+ *  declared cutover should be min()'d against before it is trusted. */
+export function axisHorizonHours(validTimes, nowMs) {
+  if (!Array.isArray(validTimes) || validTimes.length === 0) return null;
+  const last = new Date(validTimes[validTimes.length - 1]).getTime();
+  if (Number.isNaN(last)) return null;
+  return Math.max(0, Math.round((last - nowMs) / 3600000));
+}
