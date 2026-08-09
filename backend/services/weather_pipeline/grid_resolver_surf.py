@@ -35,10 +35,22 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
     # u/v→0) and stamps diagnostics. `product` here is the SHARED CACHED dynamic product, so mutating it
     # corrupts the cache for the OTHER surf state — a surf=1 request would rewrite the cached grid to ratings,
     # then a surf=0 (Swell) request gets that rating grid (and vice-versa). Live-proven: fresh bbox surf=0 →
-    # wave_height, but after a surf=1 hit the same bbox surf=0 returned surf_rating. Deep-copy first so the
-    # cached base grid stays pristine and surf=0/surf=1 never cross-contaminate. (Only on surf requests.)
-    import copy as _copy
-    product = _copy.deepcopy(product)
+    # wave_height, but after a surf=1 hit the same bbox surf=0 returned surf_rating.
+    # ★ COPY WHAT THE BRANCH MUTATES (2026-08-09, was an unconditional copy.deepcopy HERE, before the
+    # skip decision below — +119 ms median per world frame in production, 100% of it before learning
+    # the frame would skip). The SKIP branch touches only diagnostics → shallow product+grid copies
+    # with a REPLACED (never mutated — store.py returns shallow model_copy()s, the dict is shared
+    # with the cache) diagnostics dict: bench 0.01 ms. The TRANSFORM branch mutates vector fields →
+    # per-vector model_copy (bench 48.9 ms vs deepcopy's 130.9 at 15,023 vectors), the pattern
+    # proven at route_helpers.filter_grid_to_bbox. Containment is pinned by
+    # tests/test_grid_surf_overlay_copies.py in BOTH branches plus the pre-copy exception path.
+    def _shallow_with_own_diagnostics(p):
+        p = p.model_copy()
+        p.grid = p.grid.model_copy()
+        p.grid.diagnostics = dict(p.grid.diagnostics or {})
+        return p
+
+    _copied = False
     try:
         from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km, shore_normal_at
         # Keep the AMBIENT field honest at global/coarse zoom (rating plan §1): a ~10° coarse frame can't
@@ -58,11 +70,14 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
         _is_mid_res = bool(product.grid.diagnostics and product.grid.diagnostics.get("mid_res_tier"))
         _mid_skip = _is_mid_res and os.environ.get("MARINE_MID_RES_RATING", "1") == "0"
         if (_b is not None and _span >= 350.0) or _mid_skip:
-            if product.grid.diagnostics is None:
-                product.grid.diagnostics = {}
+            product = _shallow_with_own_diagnostics(product)
+            _copied = True
             product.grid.diagnostics["surf_transform"] = {"skipped": "mid_res_tier" if _is_mid_res else "coarse_extent"}
             logger.info(f"[Grid Route] Surf rating skipped on {'mid-res' if _is_mid_res else 'global/coarse'} extent ({_span:.0f}°) — honest swell served for {model} {layer}.")
         else:
+            product = _shallow_with_own_diagnostics(product)
+            product.grid.vectors = [v.model_copy() for v in product.grid.vectors]
+            _copied = True
             # The "surf" toggle renders a SURF-QUALITY RATING overlay: per coastal cell compute the 0-100
             # rating (size + period + wind offshore/onshore via shore_normal) and store score/10 in the
             # height channel (the shader colours it via getRatingColor); open-ocean cells are masked. Wind
@@ -144,6 +159,11 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
         # frontend Option-A gate already renders the honest swell field when no rating grid exists.
         try:
             if product is not None and getattr(product, "grid", None) is not None:
+                if not _copied:
+                    # The failure may predate the branch copy — stamping the SHARED cached
+                    # product would poison the cache with a skip_reason, so copy first.
+                    product = _shallow_with_own_diagnostics(product)
+                    _copied = True
                 if product.grid.diagnostics is None:
                     product.grid.diagnostics = {}
                 product.grid.diagnostics["surf_skip_reason"] = f"{type(_se).__name__}: {_se}"
@@ -195,16 +215,49 @@ def _build_observation_gate(target_dt):
     return gate_fn
 
 
+def _make_nearest_sampler(vex):
+    """``(lat, lng) -> (speed_ms, from_deg)`` nearest-cell sampler over pre-extracted numpy arrays.
+
+    ★ REPLACES a per-call pure-Python O(M) scan (2026-08-09). `rating_transform_grid` calls this
+    once PER RATED CELL and the scan was 8.9x the entire warm cost of everything else in that loop
+    (MASTER-AUDIT-11.0 §3.4, two independent measurements) — the module note blaming cold
+    bathymetry was refuted by the warm control arm. Bench on this box: 569 ms -> sub-ms per
+    2,533-cell frame at M=629.
+
+    BIT-IDENTICAL to the scan it replaced: same elementwise IEEE-double ops (abs/sub/mul/add), and
+    `np.argmin` returns the FIRST minimum exactly as the strict `d < best_d` scan kept the first
+    winner — pinned by a verbatim-old differential in tests/test_grid_surf_overlay_copies.py.
+    ⚠️ NOT a local `KT_TO_MS = 0.514444` — see `surf_rating.KT_TO_MS`. The truncated inverse
+    round-trips to 0.999998882736 and lands just below the knots it started from, which flips
+    `wind_quality`'s STRICT `< 3.0` glassy branch at exactly 3.00 kt."""
+    import numpy as np
+    from services.weather_pipeline import surf_rating as SR
+    lats = np.array([v.lat for v in vex], dtype=np.float64)
+    lngs = np.array([v.lng for v in vex], dtype=np.float64)
+
+    def sampler(lat, lng):
+        if lat is None or lng is None:
+            return None
+        dlng = np.abs(lngs - lng)
+        dlng = np.where(dlng > 180, 360 - dlng, dlng)
+        dlat = lats - lat
+        i = int(np.argmin(dlat * dlat + dlng * dlng))
+        best_v = vex[i]
+        return (best_v.speed * SR.KT_TO_MS, getattr(best_v, "direction", None))
+
+    return sampler
+
+
 async def _build_wind_sampler(store, manifest, model, target_dt):
     """Return a ``(lat, lng) -> (speed_ms, from_deg) | None`` sampler over the model's wind product nearest
     ``target_dt`` (within 3h), for the surf-rating's offshore/onshore wind factor. The wind product stores
     speed in KNOTS (value_unit=kn) -> converted to m/s; ``direction`` is the meteorological FROM bearing.
     Nearest-cell by lat/lng (robust to grid ordering; the wind grid is small/coarse). None if no product."""
     try:
+        from services.weather_pipeline.manifest_view import products_for
         cands = [
-            p for p in manifest.products
-            if p.model.upper() == model.upper() and p.domain.lower() == "wind" and p.layer.lower() == "wind"
-            and abs((p.valid_time_start - target_dt).total_seconds()) <= 3 * 3600
+            p for p in products_for(manifest, model, "wind", "wind")
+            if abs((p.valid_time_start - target_dt).total_seconds()) <= 3 * 3600
         ]
         if not cands:
             return None
@@ -217,28 +270,6 @@ async def _build_wind_sampler(store, manifest, model, target_dt):
                and getattr(v, "speed", None) is not None]
         if not vex:
             return None
-        # ⚠️ NOT a local `KT_TO_MS = 0.514444` — see `surf_rating.KT_TO_MS`. The truncated inverse
-        # round-trips to 0.999998882736 and lands just below the knots it started from, which flips
-        # `wind_quality`'s STRICT `< 3.0` glassy branch at exactly 3.00 kt.
-        from services.weather_pipeline import surf_rating as SR
-
-        def sampler(lat, lng):
-            if lat is None or lng is None:
-                return None
-            best_v = None
-            best_d = None
-            for v in vex:
-                dlng = abs(v.lng - lng)
-                if dlng > 180:
-                    dlng = 360 - dlng
-                d = (v.lat - lat) ** 2 + dlng ** 2
-                if best_d is None or d < best_d:
-                    best_d = d
-                    best_v = v
-            if best_v is None:
-                return None
-            return (best_v.speed * SR.KT_TO_MS, getattr(best_v, "direction", None))
-
-        return sampler
+        return _make_nearest_sampler(vex)
     except Exception:
         return None

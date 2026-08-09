@@ -314,28 +314,25 @@ class PointResolutionService:
                 response.gridParity = True
                 return response
 
-        # 2b. Check scheduled products in the manifest
+        # 2b. Check scheduled products in the manifest — via the identity-keyed lane index
+        # (manifest_view). The old full scan was O(16,132) x 22 per hub request, on the loop.
         manifest = await asyncio.to_thread(self.store.get_manifest)
         authoritative_candidates = []
         estimated_candidates = []
 
-        for p in manifest.products:
-            if (
-                p.model.upper() == model.upper()
-                and p.domain.lower() == domain.lower()
-                and p.layer.lower() == layer.lower()
-            ):
-                # Check point containment (0.0001 snapping-tolerant margin, antimeridian aware)
-                actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
-                if is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
-                    t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start
-                    t2 = target_dt.replace(tzinfo=timezone.utc) if target_dt.tzinfo is None else target_dt
-                    diff = abs(t1.timestamp() - t2.timestamp())
-                    if diff <= 3 * 3600:
-                        if getattr(p, "is_estimated", False):
-                            estimated_candidates.append((p, diff))
-                        else:
-                            authoritative_candidates.append((p, diff))
+        from services.weather_pipeline.manifest_view import products_for
+        for p in products_for(manifest, model, domain, layer):
+            # Check point containment (0.0001 snapping-tolerant margin, antimeridian aware)
+            actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
+            if is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
+                t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start
+                t2 = target_dt.replace(tzinfo=timezone.utc) if target_dt.tzinfo is None else target_dt
+                diff = abs(t1.timestamp() - t2.timestamp())
+                if diff <= 3 * 3600:
+                    if getattr(p, "is_estimated", False):
+                        estimated_candidates.append((p, diff))
+                    else:
+                        authoritative_candidates.append((p, diff))
 
         from services.weather_pipeline.product_selection import get_bbox_area
 
@@ -697,28 +694,24 @@ class PointResolutionService:
             if product:
                 return product
 
-        # 2. Check scheduled products in the manifest
+        # 2. Check scheduled products in the manifest — same lane index as resolve_point above.
         manifest = await asyncio.to_thread(self.store.get_manifest)
         authoritative_candidates = []
         estimated_candidates = []
 
-        for p in manifest.products:
-            if (
-                p.model.upper() == model.upper()
-                and p.domain.lower() == domain.lower()
-                and p.layer.lower() == layer.lower()
-            ):
-                from services.weather_pipeline.route_helpers import is_inside_bounds, get_actual_grid_bounds
-                actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
-                if is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
-                    t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start
-                    t2 = target_dt.replace(tzinfo=timezone.utc) if target_dt.tzinfo is None else target_dt
-                    diff = abs(t1.timestamp() - t2.timestamp())
-                    if diff <= 3 * 3600:
-                        if getattr(p, "is_estimated", False):
-                            estimated_candidates.append((p, diff))
-                        else:
-                            authoritative_candidates.append((p, diff))
+        from services.weather_pipeline.manifest_view import products_for
+        from services.weather_pipeline.route_helpers import is_inside_bounds, get_actual_grid_bounds
+        for p in products_for(manifest, model, domain, layer):
+            actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
+            if is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
+                t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start
+                t2 = target_dt.replace(tzinfo=timezone.utc) if target_dt.tzinfo is None else target_dt
+                diff = abs(t1.timestamp() - t2.timestamp())
+                if diff <= 3 * 3600:
+                    if getattr(p, "is_estimated", False):
+                        estimated_candidates.append((p, diff))
+                    else:
+                        authoritative_candidates.append((p, diff))
 
         from services.weather_pipeline.product_selection import get_bbox_area
 
