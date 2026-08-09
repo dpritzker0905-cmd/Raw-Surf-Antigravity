@@ -63,8 +63,15 @@ def _cell_reference_fn():
     the spot's own histogram; the band reads a FIXED 2.0-degree lattice cell (LATTICE_DEG, sized to
     the global_mid product), so at Pipeline the yardsticks measured 1.484 m vs 2.164 m -- 46% apart.
     ⇒ That gap is ZOOM-INVARIANT: only the RENDER cells shrink as you zoom in, never the reference
-    lattice. So it cannot be what makes the disagreement appear at close zoom -- it is what makes
-    the two surfaces disagree AT ALL, everywhere, and the frontend merely hides it when wide.
+    lattice.
+
+    ⛔ THIS IS A COUNTERACTING TERM, NOT THE E#1 CAUSE (corrected 2026-08-09 by live measurement,
+    `112d2c34`). The close-zoom band reads 2.3-2.7x ABOVE the glyph, while a LARGER reference scores
+    LOWER (1.0 m/12 s: 33.5 at ref 1.481 vs 21.9 at ref 2.164). The reference gap therefore predicts
+    the band reading LOW -- the OPPOSITE sign -- so E#1's real mechanism lives in the per-cell
+    composition (cell bathymetry geometry + wind co-sampled at the CELL, vs the SPOT's geometry) and
+    is strong enough to overcome this. What this candidate is genuinely for: sizing how much of the
+    on-screen gap the reference lane CANCELS, so a per-cell fix is not credited with its effect.
 
     WHAT THIS MEASURES, EXACTLY: the reference lane's contribution, holding the height fixed. The
     real band also samples its height at the 2-degree CELL CENTRE rather than the spot, so this is

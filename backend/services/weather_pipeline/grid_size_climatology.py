@@ -13,14 +13,25 @@ spot_size_climatology, so the two lanes cannot drift), same clamps, and samples 
 from the same estimate_surf physics the band applies at serve time. Sampling cadence mirrors the spot
 blob (hour-0 of each cycle) so both references bootstrap on the same clock.
 
-⚠️ PARITY OF STATISTIC IS NOT PARITY OF POPULATION, and the difference is the whole of queue E#1
-(owner-observed 2026-08-09: band and glyphs disagree on colour). This lane's population is a FIXED
-2.0-degree lattice cell; the spot lane's is one spot. Measured on the census E#1 artifact: Pipeline
-spot 1.484 m vs cell 2.164 m — 46% apart, same statistic, different sample. Because LATTICE_DEG never
-shrinks with zoom while the render cells do, that gap is ZOOM-INVARIANT: it is why the two surfaces
-disagree AT ALL, not why the disagreement becomes visible when you zoom in. Measure the user-visible
-half with `scripts/science_shadow_ab.py --candidate REFERENCE_LANE=cell`, which replays the served
-spot-hours through THIS reference and reports the level-change rate.
+⚠️ PARITY OF STATISTIC IS NOT PARITY OF POPULATION. This lane's population is a FIXED 2.0-degree
+lattice cell; the spot lane's is one spot. Measured on the census E#1 artifact: Pipeline spot
+1.484 m vs cell 2.164 m — 46% apart, same statistic, different sample. Because LATTICE_DEG never
+shrinks with zoom while the render cells do, that gap is ZOOM-INVARIANT.
+
+⛔⛔ BUT IT IS NOT THE CAUSE OF QUEUE E#1, AND THE SIGN IS THE PROOF (corrected 2026-08-09 by
+measurement, `112d2c34`, after an earlier revision of THIS docstring claimed it was). Live, both
+lanes at one coordinate and hour, the close-zoom band reads **2.3-2.7x ABOVE** the glyph (Pipeline
+2.3 vs 6.3; Mavericks 12.5 vs 28.3; Sebastian 25.4 vs 57.3). A LARGER reference makes the same wave
+a SMALLER fraction of a good day, so this gap predicts the band reading **LOW** — verified directly:
+1.0 m/12 s scores 33.5 at ref 1.481 and 21.9 at ref 2.164. The observed sign is OPPOSITE, so the
+real mechanism is not only elsewhere, it is strong enough to OVERCOME this term.
+⇒ The divergence lives in the PER-CELL COMPOSITION: the band rates each cell with that cell's own
+bathymetry-derived geometry and co-sampled wind AT THE CELL'S COORDINATE, while the glyph uses the
+SPOT's resolved geometry. Under the ONE FORECAST COMPOSITION mandate the glyph is the reference
+implementation, so the BAND is the surface to correct.
+★ Keep this paragraph honest: a docstring in this very file spent ten days asserting a percentile
+the constant below had already changed. `scripts/science_shadow_ab.py --candidate REFERENCE_LANE=cell`
+quantifies THIS term only — a counteracting one — never quote it as the E#1 answer.
 
 Accumulation: the GFS global_mid waves ingest (pilots lane, 6x/day) folds hour-0 breaking heights of
 every COASTAL 2-degree cell into a rolling histogram blob in L2 (single-writer cron — no CAS). GFS-only,
