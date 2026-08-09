@@ -363,9 +363,16 @@ async def local_size_preview(admin: Profile = Depends(get_current_admin),
     # ⚠️ The aggregate cannot see an INVERTED climatology — a blob giving Florida 2.5 m and Pipeline
     # 0.7 m produces a perfectly plausible spread. Only the named exemplars can, so the go/no-go
     # follows the sanity verdict, never the deltas.
+    # ⚠️ RATING_LOCAL_SIZE has been ON in all three lanes since `3263031c` (2026-08-01), so this panel
+    # is a MONITOR of the served yardstick, not a rollout gate — "SAFE TO FLIP" answered a question
+    # that closed eight days ago. And BOUNDS STALE is NOT a calibration finding: the ordering claim
+    # holds and only the p80-authored absolute envelope is out of frame (see local_size_preview's
+    # frozen-bounds block). Rendering it as "DO NOT FLIP" would raise an alarm about a healthy blob.
+    _verdict = report["sanity"]["verdict"]
     report["recommendation"] = (
-        "SAFE TO FLIP" if report["sanity"]["verdict"] == "SANE"
-        else "DO NOT FLIP — " + report["sanity"]["verdict"])
+        "YARDSTICK SANE" if _verdict == "SANE"
+        else "YARDSTICK SANE — absolute exemplar bounds out of frame (advisory, not a finding)"
+        if _verdict == "BOUNDS STALE" else "INVESTIGATE — " + _verdict)
     return report
 
 
