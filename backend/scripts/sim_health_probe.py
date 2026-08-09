@@ -234,6 +234,31 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
                 # consumer cannot read a caveated number as a clean one.
                 "hour_verified": hour_verified,
             }
+            # ⭐ SELF-DIAGNOSIS ON DIVERGENCE (2026-08-09). Three sessions could not name the
+            # mechanism behind the rotating composition reds because the artefact recorded only
+            # the VERDICT — diagnosing a conditional red then requires re-running the weather,
+            # which has moved. The 08-09 artefact pull killed the leading hypothesis by SIGN
+            # alone (tide can only lower the GLYPH; both reds had the SIM lower) but could go no
+            # further: neither side's factor vector was recorded. So: on any level split, record
+            # both decompositions AT FAILURE TIME. Additive fields only; ~1 KB per diverging row,
+            # and a green run adds nothing.
+            if row["level_differs"] or row["served_level_differs"]:
+                _w = calc.get("why") or {}
+                row["glyph_limiter"] = item.get("limiter")
+                row["glyph_limiter_f"] = item.get("limiter_f")
+                row["glyph_why"] = item.get("why")
+                row["sim_limiting_factor"] = _w.get("limiting_factor")
+                row["sim_multipliers"] = {m.get("factor"): m.get("value")
+                                          for m in (_w.get("multipliers") or [])}
+                row["sim_blend"] = _w.get("blend")
+                row["sim_inputs"] = {
+                    "swell_height_m": baseline.get("swell_height_m"),
+                    "swell_period_sec": baseline.get("swell_period_sec"),
+                    "swell_direction_deg": baseline.get("swell_direction_deg"),
+                    "wind_speed_knots": baseline.get("wind_speed_knots"),
+                    "wind_direction_deg": baseline.get("wind_direction_deg"),
+                    "engine_inputs": _w.get("inputs"),
+                }
             rows.append(row)
             if verbose:
                 print(f"  {(row['spot'] or '')[:28]:30s} glyph={row['glyph_score']:6.1f} "
