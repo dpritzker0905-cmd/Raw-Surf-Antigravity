@@ -54,7 +54,18 @@ async def _run_tracked_job(job_id: str, description: str, schedule_label: str, c
         if asyncio.iscoroutinefunction(coro_func):
             await coro_func()
         else:
-            coro_func()
+            # ⛔⛔ NEVER INLINE — THIS LINE CAUSED BOTH 2026-08-09 PRODUCTION OUTAGES. `tracked()`
+            # wraps every job as a coroutine, so APScheduler's own sync-job thread-pool dispatch
+            # never fires and a sync job's blocking work ran ON the serve box's event loop. The
+            # 30-min L2 manifest restore (a sync def; a 12-16 MB Supabase read whose requests
+            # timeout is per-socket-READ, so a drip-fed body can hold it for ~20 min) blocked the
+            # loop at 05:25+90s-schedule and 13:48+schedule — the box went connection-level dark
+            # (HTTP 000 on every endpoint) for ~20 min each time and self-recovered when the read
+            # ended. Deploy-ledger + boot-time arithmetic pinned it (MASTER-AUDIT-11.0 §3.2 had
+            # priced this exact line P0 and it shipped only after the outages proved it).
+            # A worker thread also has no running loop, so a sync job that internally calls
+            # `run_until_complete` (the in-process ingest fallback) becomes legal again.
+            await asyncio.to_thread(coro_func)
     except Exception as e:
         status = "failed"
         error_message = str(e)

@@ -177,7 +177,12 @@ def start_scheduler():
         # periodic re-pull of the L2 manifest is required for continuous decoupled operation. Gated to
         # serve-only ONLY — it never runs while this box ingests locally (which would clobber fresh local
         # data with L2). restore_from_supabase is manifest-only (product grids stay lazy via load_product),
-        # so this is a light ~2.5MB pull. Interval tunable via L2_RESTORE_INTERVAL_MIN (default 30, floor 5).
+        # so the pull is manifest-only -- but NOT light: the live manifest measured 12.2 MB compact /
+        # 16.1 MB uploaded (2026-08-09; the '~2.5MB' this comment used to claim was 6.5x stale) and it
+        # is downloaded through a per-socket-read timeout, so a drip-fed body can stall for many
+        # minutes. SAFE ONLY BECAUSE the tracked() dispatcher runs sync jobs via asyncio.to_thread
+        # (scheduler/base.py -- the line that caused both 08-09 outages when it was inline).
+        # Interval tunable via L2_RESTORE_INTERVAL_MIN (default 30, floor 5).
         def _periodic_l2_restore():
             try:
                 from services.weather_pipeline.store import ProductStore
