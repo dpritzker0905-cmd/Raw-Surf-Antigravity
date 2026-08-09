@@ -349,17 +349,43 @@ def _one_residual_per_buoy(spot_residuals):
     IDENTICAL residual. Averaging per-spot would silently weight the summary by how many surf spots
     happen to cluster near a station — a dense stretch of Florida coast would outvote all of Hawaii.
     Rows without a buoy_id fall through individually so older/parital callers behave as before."""
+    return _one_per_buoy(spot_residuals, "residual")
+
+
+def _one_per_buoy(spot_residuals, key):
+    """The generalized one-buoy-one-vote dedupe behind _one_residual_per_buoy, reused by the wind
+    aggregation (2026-08-09) so the wind summary cannot be spot-density-weighted either."""
     seen, out = set(), []
     for r in spot_residuals or []:
         bid = r.get("buoy_id")
         if bid is None:
-            out.append(r.get("residual"))
+            out.append(r.get(key))
             continue
         if bid in seen:
             continue
         seen.add(bid)
-        out.append(r.get("residual"))
+        out.append(r.get(key))
     return out
+
+
+def aggregate_wind_residuals(residuals) -> dict:
+    """PURE sibling of aggregate_residuals for the WIND residual (2026-08-09, MASTER-AUDIT-11.0
+    S8#6: NDBC wind was parsed and unit-tested but scored NOWHERE -- 0 of 417 live rows carried a
+    wind error against 60 buoys whose wind was already in the payload). Bias > 0 = model runs HIGH.
+    Everything stays in KNOTS end-to-end: the wind product serves knots and compare_wind_to_model
+    consumes knots -- the recorded trap is a stray m/s conversion, pinned by test."""
+    s_abs, s_signed, d_abs = [], [], []
+    for r in residuals or []:
+        if not r:
+            continue
+        if r.get("abs_wspd_err_kt") is not None:
+            s_abs.append(r["abs_wspd_err_kt"]); s_signed.append(r["wspd_err_kt"])
+        if r.get("wdir_err_deg") is not None:
+            d_abs.append(r["wdir_err_deg"])
+    def _mean(xs):
+        return round(sum(xs) / len(xs), 3) if xs else None
+    return {"wind_mae_kt": _mean(s_abs), "wind_bias_kt": _mean(s_signed),
+            "wdir_mae_deg": _mean(d_abs), "wind_n": len(s_abs)}
 
 
 def build_calibration_report(spot_residuals) -> dict:
@@ -370,7 +396,8 @@ def build_calibration_report(spot_residuals) -> dict:
     return {
         "version": BUOY_CALIBRATION_SCHEMA_VERSION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "summary": aggregate_residuals(_one_residual_per_buoy(spot_residuals)),
+        "summary": {**aggregate_residuals(_one_residual_per_buoy(spot_residuals)),
+                    **aggregate_wind_residuals(_one_per_buoy(spot_residuals, "wind_residual"))},
         "spots": spot_residuals,
     }
 
@@ -405,6 +432,7 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
             lat, lng, at = ((station[0], station[1], "buoy") if station
                             else (spot.get("latitude"), spot.get("longitude"), "spot"))
             model_hs = model_tp = None
+            wind_kt = wind_from = None
             try:
                 marine = await resolver.resolve_point(
                     model=model, domain="marine", layer="waves",
@@ -414,13 +442,31 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
                     model_tp = marine.point.period
             except Exception as e:
                 logger.debug(f"[buoy-calibration] resolve failed for buoy {bid}: {e}")
-            _resolved[bid] = (model_hs, model_tp, at)
-        model_hs, model_tp, resolved_at = _resolved[bid]
+            # WIND residual (2026-08-09): same coordinates, same per-buoy cache, zero upstream
+            # fetches -- the wind product is already ingested and the NDBC payload already carries
+            # wspd/wdir. point.speed is KNOTS on the wind lane (value_unit=kn); pass it through
+            # UNCONVERTED -- compare_wind_to_model is knots-native and the recorded trap is a
+            # stray m/s conversion. Kill: BUOY_WIND_RESIDUAL=0.
+            if os.environ.get("BUOY_WIND_RESIDUAL", "1") != "0":
+                try:
+                    wind = await resolver.resolve_point(
+                        model=model, domain="wind", layer="wind",
+                        lat=lat, lng=lng, valid_time_str=valid_time)
+                    if isinstance(wind, NormalizedPointResponse) and wind.point is not None:
+                        wind_kt = wind.point.speed
+                        wind_from = wind.point.direction
+                except Exception as e:
+                    logger.debug(f"[buoy-calibration] wind resolve failed for buoy {bid}: {e}")
+            _resolved[bid] = (model_hs, model_tp, wind_kt, wind_from, at)
+        model_hs, model_tp, wind_kt, wind_from, resolved_at = _resolved[bid]
         residual = compare_obs_to_model(obs, model_hs, model_tp) if obs else None
+        wind_residual = (compare_wind_to_model(obs, wind_kt, wind_from)
+                         if obs and os.environ.get("BUOY_WIND_RESIDUAL", "1") != "0" else None)
         rows.append({
             "spot_id": str(spot.get("id")), "name": spot.get("name"), "buoy_id": bid,
             "buoy_time": obs.get("time") if obs else None, "resolved_at": resolved_at,
             "residual": residual,
+            "wind_residual": wind_residual,
         })
     return build_calibration_report(rows)
 

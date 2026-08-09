@@ -64,6 +64,11 @@ _RATING_FLAGS = {
                                         "the second small-island set: 14 atoll/pass spots whose "
                                         "bearing the confidence gate refused (MASTER-AUDIT-11.0 "
                                         "s3.5). Promotes coastal only; never a normal", "Render env"),
+    "BUOY_WIND_RESIDUAL": ("1", "Score the model's WIND against NDBC anemometers in the "
+                                "calibration loop (wind_mae_kt/wind_bias_kt/wdir_mae_deg in the "
+                                "report summary) — the wind was parsed and scored nowhere "
+                                "(MASTER-AUDIT-11.0 s8#6). Additive; never changes a rating",
+                           "CI calibration lane"),
     # ⚠️ DEFAULT OFF, and it is the only flag here that is off. Wiring tide into the depth-limited
     # cap is the highest-REACH absent nearshore term (MASTER-AUDIT-10.0 row H: 1.694% of served
     # spot-hours, median 45.6% height change — 19x the whole slope/gamma thread) and it is rated

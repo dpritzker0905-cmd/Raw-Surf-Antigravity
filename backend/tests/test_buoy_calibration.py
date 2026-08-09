@@ -318,7 +318,8 @@ async def test_calibrate_spots_resolves_at_the_BUOY_and_tags_the_row(monkeypatch
     ]
     rep = await bc.calibrate_spots(_R(), spots, "GFS", "2026-07-26T19:00:00Z")
 
-    assert seen == [(33.441, -77.764)], seen        # resolved AT the buoy, and only ONCE (cached)
+    # marine + wind each resolve ONCE per buoy (2026-08-09 wind wire), both AT the buoy
+    assert seen == [(33.441, -77.764)] * 2, seen
     assert all(r["resolved_at"] == "buoy" for r in rep["spots"])
     # Both per-spot rows are retained for auditability; the per-BUOY collapse of the summary is
     # proven by test_summary_weights_each_BUOY_once_not_each_spot (this fake resolver returns no
@@ -347,7 +348,7 @@ async def test_calibrate_spots_falls_back_to_the_spot_and_says_so(monkeypatch):
 
     spots = [{"id": "s1", "name": "A", "latitude": 34.9, "longitude": -76.1, "noaa_buoy_id": "41013"}]
     rep = await bc.calibrate_spots(_R(), spots, "GFS", "2026-07-26T19:00:00Z")
-    assert seen == [(34.9, -76.1)]                  # fell back to the spot
+    assert seen == [(34.9, -76.1)] * 2              # fell back to the spot (marine + wind)
     assert rep["spots"][0]["resolved_at"] == "spot"  # ...and the row SAYS so
 
 
@@ -455,3 +456,115 @@ def test_every_band_is_reported_even_when_empty():
     """A missing band must be visible as n=0, not absent — an absent band reads as 'no problem'."""
     assert len(stratified_height_bias([])) == len(HEIGHT_BANDS)
     assert all(b["n"] == 0 for b in stratified_height_bias([]))
+
+
+# ─── THE WIND RESIDUAL IS WIRED (2026-08-09, MASTER-AUDIT-11.0 S8#6) ─────────────────────────────
+# NDBC wind was parsed and unit-tested but scored NOWHERE: 0 of 417 live rows carried a wind error
+# against 60 buoys whose anemometers were already in the downloaded payload. These pin the wire:
+# per-buoy cached wind resolve, KNOTS end-to-end (the recorded trap is a stray m/s conversion),
+# one-buoy-one-vote aggregation, fail-open row shape, and the kill switch.
+
+class _FakeResolver:
+    """Serves marine and wind points; counts calls per (domain) to pin the per-buoy cache."""
+    def __init__(self, wind_kt=14.6, wind_from=310.0):
+        self.calls = {"marine": 0, "wind": 0}
+        self._wind_kt, self._wind_from = wind_kt, wind_from
+
+    async def resolve_point(self, *, model, domain, layer, lat, lng, valid_time_str):
+        from services.weather_pipeline.schemas import (
+            NormalizedPointDetail, NormalizedPointResponse)
+        self.calls[domain] += 1
+        from datetime import datetime, timezone
+        # model_construct: a fake needs the READ fields (speed/direction/period), not the full
+        # schema contract -- required-field whack-a-mole is not what this test pins.
+        if domain == "marine":
+            pt = NormalizedPointDetail.model_construct(speed=1.8, direction=280.0, period=11.0)
+        else:
+            pt = NormalizedPointDetail.model_construct(speed=self._wind_kt,
+                                                       direction=self._wind_from)
+        return NormalizedPointResponse.model_construct(point=pt, model=model,
+                                                       domain=domain, layer=layer)
+
+
+def _wind_obs_payload():
+    """A realtime2 payload whose newest row carries BOTH wind and waves, fresh."""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    stamp = f"{now.year} {now.month:02d} {now.day:02d} {now.hour:02d} {now.minute:02d}"
+    return ("#YY MM DD hh mm WDIR WSPD GST WVHT DPD APD MWD PRES ATMP WTMP DEWP VIS PTDY TIDE\n"
+            "#yr mo dy hr mn degT m/s m/s m sec sec degT hPa degC degC degC nmi hPa ft\n"
+            f"{stamp} 300 6.2 8.0 1.5 10 8.0 290 1015.0 22.0 21.0 18.0 99 +0.0 0.0\n")
+
+
+async def test_wind_residual_is_attached_knots_unconverted_and_cached_per_buoy(monkeypatch):
+    import services.weather_pipeline.buoy_calibration as BC
+    monkeypatch.delenv("BUOY_WIND_RESIDUAL", raising=False)
+
+    async def fake_fetch(bid, client=None):
+        return BC.parse_ndbc_realtime(_wind_obs_payload()) | (
+            BC.parse_ndbc_wind(_wind_obs_payload()) or {})
+
+    async def fake_coords(client=None):
+        return {"46012": (37.36, -122.88)}
+
+    monkeypatch.setattr(BC, "fetch_ndbc_latest", fake_fetch)
+    monkeypatch.setattr(BC, "fetch_ndbc_station_coords", fake_coords)
+    resolver = _FakeResolver(wind_kt=14.6, wind_from=310.0)
+    spots = [{"id": "a", "name": "A", "latitude": 37.0, "longitude": -122.9, "noaa_buoy_id": "46012"},
+             {"id": "b", "name": "B", "latitude": 37.1, "longitude": -122.8, "noaa_buoy_id": "46012"}]
+    report = await BC.calibrate_spots(resolver, spots, "GFS", "2026-08-09T12:00:00Z")
+
+    rows = report["spots"]
+    assert len(rows) == 2 and all(r["wind_residual"] is not None for r in rows)
+    wr = rows[0]["wind_residual"]
+    assert wr["model_wspd_kt"] == 14.6, (
+        "the wind product's point.speed is ALREADY knots — any conversion here is the recorded trap")
+    # obs wspd 6.2 m/s -> kt via the shared constant; err = model - obs
+    import services.weather_pipeline.surf_rating as SR
+    assert wr["wspd_err_kt"] == pytest.approx(14.6 - 6.2 * SR.MS_TO_KT, abs=0.02)
+    assert wr["wdir_err_deg"] == pytest.approx(10.0)      # 310 vs 300
+    assert resolver.calls == {"marine": 1, "wind": 1}, (
+        "two spots share one buoy — the wind resolve must ride the SAME per-buoy cache")
+    s = report["summary"]
+    assert s["wind_n"] == 1, "one buoy = one vote, not one per spot"
+    assert s["wind_mae_kt"] == pytest.approx(abs(wr["wspd_err_kt"]), abs=0.001)
+    assert s["wind_bias_kt"] == pytest.approx(wr["wspd_err_kt"], abs=0.001)
+    assert s["wdir_mae_deg"] == pytest.approx(10.0)
+
+
+async def test_wind_kill_switch_and_absence_leave_the_wave_path_byte_identical(monkeypatch):
+    import services.weather_pipeline.buoy_calibration as BC
+
+    async def fake_fetch(bid, client=None):
+        return BC.parse_ndbc_realtime(_wind_obs_payload()) | (
+            BC.parse_ndbc_wind(_wind_obs_payload()) or {})
+
+    async def fake_coords(client=None):
+        return {"46012": (37.36, -122.88)}
+
+    monkeypatch.setattr(BC, "fetch_ndbc_latest", fake_fetch)
+    monkeypatch.setattr(BC, "fetch_ndbc_station_coords", fake_coords)
+    spots = [{"id": "a", "name": "A", "latitude": 37.0, "longitude": -122.9, "noaa_buoy_id": "46012"}]
+
+    monkeypatch.setenv("BUOY_WIND_RESIDUAL", "0")
+    off = await BC.calibrate_spots(_FakeResolver(), spots, "GFS", "2026-08-09T12:00:00Z")
+    assert off["spots"][0]["wind_residual"] is None, "kill switch must disable the wind wire"
+    assert off["summary"]["wind_n"] == 0 and off["summary"]["wind_mae_kt"] is None
+
+    # wave-side summary keys must be unchanged by the wind feature, on or off
+    monkeypatch.delenv("BUOY_WIND_RESIDUAL", raising=False)
+    on = await BC.calibrate_spots(_FakeResolver(), spots, "GFS", "2026-08-09T12:00:00Z")
+    wave_keys = ("n_spots", "height_mae_m", "height_bias_m", "height_n", "height_mae_ft",
+                 "period_mae_s", "period_bias_s", "period_n")
+    assert {k: off["summary"][k] for k in wave_keys} == {k: on["summary"][k] for k in wave_keys}
+
+
+def test_wind_aggregation_skips_nones_and_counts_direction_separately():
+    from services.weather_pipeline.buoy_calibration import aggregate_wind_residuals
+    rows = [
+        {"abs_wspd_err_kt": 2.0, "wspd_err_kt": 2.0, "wdir_err_deg": 30.0},
+        {"abs_wspd_err_kt": 4.0, "wspd_err_kt": -4.0, "wdir_err_deg": None},   # no direction
+        None,                                                                   # dark buoy
+    ]
+    s = aggregate_wind_residuals(rows)
+    assert s == {"wind_mae_kt": 3.0, "wind_bias_kt": -1.0, "wdir_mae_deg": 30.0, "wind_n": 2}
