@@ -109,9 +109,12 @@ def _height(row):
     if inp.get("offshore_hs_m") is None or row.get("period_s") is None:
         return None
     g = resolve_surf_geometry(row["latitude"], row["longitude"])
+    # water_level_m carried through so SURF_TIDE_DEPTH is EXERCISABLE. Absent on rows rated before
+    # it was persisted -> passes None -> the tide guard stays false, exactly as production behaves.
     h, _regime = estimate_surf_at(row["latitude"], row["longitude"],
                                   inp["offshore_hs_m"], row["period_s"],
-                                  inp.get("swell_from_deg"), geometry=g)
+                                  inp.get("swell_from_deg"), geometry=g,
+                                  water_level_m=inp.get("water_level_m"))
     return h
 
 
@@ -146,7 +149,7 @@ def candidate_can_move(candidate: Dict[str, str], cell_ref_fn=None) -> dict:
         probes.append({"spot_id": "ctl", "latitude": lat, "longitude": lng, "score": sc,
                        "level": _l, "surf_height_m": round(h, 3), "period_s": tp,
                        "inputs": {"offshore_hs_m": off, "swell_from_deg": 315.0, "wind_ms": 3.0,
-                                  "wind_from_deg": 140.0,
+                                  "wind_from_deg": 140.0, "water_level_m": 1.5,
                                   "shore_normal_deg": g.shore_normal_deg,
                                   "break_depth_m": g.break_depth_m}})
     rep = replay_frames([{"spots": probes}], candidate, cell_ref_fn=cell_ref_fn)

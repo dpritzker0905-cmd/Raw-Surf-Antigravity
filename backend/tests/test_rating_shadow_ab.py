@@ -366,15 +366,31 @@ def test_coverage_is_absent_not_wrong_when_the_frames_do_not_carry_it():
 
 def test_an_inert_candidate_is_refused_not_reported_as_quiet(monkeypatch, tmp_path, capsys):
     """THE FALSE RESULT THIS PREVENTS. The first real run reported SURF_TIDE_DEPTH=1 as
-    "0.2% level change, median 0.0" -- which reads as SAFE TO FLIP. It was measuring nothing:
-    surf_transform guards the tide term on `if water_level_m and ...`, and the replay never
-    supplies water_level_m (surf_point says so in prose: "NO SERVING-PATH CALLER SUPPLIES IT
-    YET"). The lever could not act, so nothing moved."""
+    "0.2% level change, median 0.0" -- which reads as SAFE TO FLIP -- while measuring nothing,
+    because the replay supplied no water_level_m and the tide term is guarded on it.
+
+    ⚠️ THE PROBE HAS MOVED ON PURPOSE: SURF_TIDE_DEPTH is no longer inert (the water level is
+    persisted and replayed now, see the round-trip test below), so this uses a flag the rating
+    genuinely never reads. Using the fixed flag here would have quietly turned this into a test of
+    nothing -- the same failure it exists to catch."""
     code, out = _run_main(monkeypatch, tmp_path, [_row(offshore=0.5)], capsys,
-                          candidate="SURF_TIDE_DEPTH=1")
+                          candidate="REQUEST_TELEMETRY=1")
     assert code == 3, "an inert lever must REFUSE, never report a reassuring null"
     assert "cannot exercise" in out and "INERT" in out
-    assert "0.2%" not in out
+
+
+def test_the_tide_lever_is_now_EXERCISABLE_and_potent(monkeypatch, tmp_path, capsys):
+    """THE FIX, PINNED. Persisting water_level_m turned SURF_TIDE_DEPTH from unmeasurable into
+    measurable: the control's max |delta| went 0.00 -> 38.10 points. If someone drops the field
+    from `inputs`, or stops threading it into estimate_surf_at, the flag silently becomes inert
+    again and the harness goes back to reporting reassuring nulls for it."""
+    from scripts.science_shadow_ab import candidate_can_move
+    ctl = candidate_can_move({"SURF_TIDE_DEPTH": "1"})
+    assert ctl["can_move"] is True, (
+        "the tide lever is inert again -- water_level_m is no longer reaching estimate_surf_at")
+    assert ctl["max_abs_delta"] > 10.0, (
+        "tide moves the DEPTH-LIMITED CAP: measured 38.1 points at the cap-limited probe. A small "
+        "delta means the probes stopped reaching the saturated regime where it binds.")
 
 
 def test_a_live_candidate_still_reports_normally(monkeypatch, tmp_path, capsys):
@@ -396,3 +412,31 @@ def test_the_control_probes_reach_the_cap_limited_regime():
     assert ctl["can_move"] is True
     assert ctl["probes"] >= 5 and ctl["replayable"] >= 5
     assert ctl["max_abs_delta"] > 0.25
+
+
+def test_the_producer_persists_the_water_level_when_tide_is_resolved(monkeypatch):
+    """MUTATION-DRIVEN (2026-08-09): dropping `water_level_m` from the producer survived every
+    other test, because they run with RATING_TIDE off -- so the tide is absent either way and the
+    round-trip cannot tell a deliberate omission from a legitimately-missing input. This drives the
+    producer with tide resolution ON and a stubbed tide, which is the only way the field's absence
+    becomes observable."""
+    import asyncio
+    from services.weather_pipeline import spot_ratings as sr
+
+    async def _fake_tide(lat, lng, valid_time, client=None):
+        return {"height_m": 1.42, "norm": 0.8, "trend": "rising"}
+
+    monkeypatch.setenv("RATING_TIDE", "1")
+    monkeypatch.setenv("SPOT_RATINGS_INPUTS_SAMPLE_PCT", "100")
+    import services.weather_pipeline.tide as tide_mod
+    monkeypatch.setattr(tide_mod, "tide_norm_at", _fake_tide)
+
+    row = asyncio.run(sr.rate_one_spot(
+        _StubResolver(1.5, 14.0, 315.0, 4.0, 140.0),
+        {"id": "tide-1", "name": "Pipeline-tide", "latitude": PIPELINE[0],
+         "longitude": PIPELINE[1]},
+        "GFS", "2026-08-09T12:00"))
+    assert row.get("inputs"), "the producer stopped persisting inputs entirely"
+    assert row["inputs"].get("water_level_m") == pytest.approx(1.42, abs=0.001), (
+        "water_level_m is not being persisted -- SURF_TIDE_DEPTH becomes unmeasurable and the "
+        "shadow A/B goes back to reporting a reassuring null for it")

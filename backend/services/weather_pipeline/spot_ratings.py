@@ -296,15 +296,11 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         # generation; this records the rating config's. Absent (not null) = the global curve graded.
         **({"reference_size_m": round(float(reference_size_m), 4)}
            if reference_size_m is not None else {}),
-        # ★ THE RATING'S OWN INPUTS, recorded at use time (2026-08-09) — the R11-04 rule ("every
-        # moving input a comparison spans needs provenance recorded at use time"). These six numbers
-        # + the persisted surf_height_m/reference_size_m make a spot-hour REPLAYABLE offline:
-        # scripts/science_shadow_ab.py re-rates frames under a candidate flag set with a per-row
-        # baseline self-check (reproduce the persisted score or be disqualified).
-        # ⚠️⚠️ SAMPLED (5% default, `SPOT_RATINGS_INPUTS_SAMPLE_PCT`; 0 disables, 100 = every row):
-        # measured +137 B on a 320 B row = +42.8%, ~1.4 MB across a blob every client downloads —
-        # nearly DOUBLE the +23% that justified interning `run_time` out of this same object. AN
-        # INSTRUMENT MAY NOT TAX THE PRODUCT IT MEASURES. Rate table + why md5:
+        # ★ THE RATING'S OWN INPUTS, recorded at use time (the R11-04 provenance rule) — these
+        # make a spot-hour REPLAYABLE offline by scripts/science_shadow_ab.py.
+        # ⚠️⚠️ SAMPLED (5% default, `SPOT_RATINGS_INPUTS_SAMPLE_PCT`; 0 disables, 100 = all): at
+        # 100% it is +42.8% on a blob EVERY CLIENT DOWNLOADS. AN INSTRUMENT MAY NOT TAX THE
+        # PRODUCT IT MEASURES — rate table, why md5, and the water-level addition:
         # docs/research/FINDING-2026-08-09-an-instrument-must-not-tax-the-product.md
         **({"inputs": {k: v for k, v in {
             "offshore_hs_m": round(offshore_h, 3) if offshore_h is not None else None,
@@ -313,6 +309,11 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
             "wind_from_deg": round(wind_from, 1) if wind_from is not None else None,
             "shore_normal_deg": shore_normal,
             "break_depth_m": break_depth,
+            # ★ WATER LEVEL: resolved under RATING_TIDE for tide_fit; persisting it is what
+            # makes SURF_TIDE_DEPTH measurable offline (0.00 -> 38.10 pts). Replay-only.
+            "water_level_m": (round(float(tide_state["height_m"]), 3)
+                              if isinstance(tide_state, dict)
+                              and tide_state.get("height_m") is not None else None),
         }.items() if v is not None}} if _persist_inputs(str(spot["id"])) else {}),
     }
 
