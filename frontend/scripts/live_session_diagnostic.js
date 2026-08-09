@@ -159,6 +159,15 @@ const runProbe = async () => {
   await page.addInitScript(() => {
     window.__LSD__ = { timeOrigin: performance.timeOrigin, consoleErrors: [], renderPeak: null };
   });
+  // A/B SUPPORT: LSD_FLAGS='{"__RAW_DISABLE_SERIES_PREWARM__":true}' sets window flags BEFORE the
+  // app boots, so a suspected cause can be turned off and the same session re-measured. Without
+  // this the only way to A/B a hypothesis is to edit code between runs, which changes two things
+  // at once and makes the comparison worthless.
+  const FLAGS = process.env.LSD_FLAGS ? JSON.parse(process.env.LSD_FLAGS) : null;
+  if (FLAGS) {
+    await page.addInitScript((f) => { Object.assign(window, f); }, FLAGS);
+    log(`pre-boot flags: ${JSON.stringify(FLAGS)}`);
+  }
   // ── THE RENDER STREAM: React's OWN hook, not a library's report API ────────────────────────
   // Measured 2026-08-09 rather than assumed: the react-scan AUTO build exposes `window.reactScan`
   // as a FUNCTION with no enumerable properties (getOwnPropertyNames -> ["length","name"]) and no

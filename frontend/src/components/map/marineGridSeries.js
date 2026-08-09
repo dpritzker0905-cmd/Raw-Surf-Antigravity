@@ -646,6 +646,12 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
  */
 export function prewarmMarineSeries(model, layer, bounds, signal) {
   if (!isMarineSeriesEnabled() || !bounds) return;
+  // KILL SWITCH (2026-08-09): `window.__RAW_DISABLE_SERIES_PREWARM__ = true` disables the eager
+  // all-pages load, leaving the lazy current-page path (ensureMarineSeries) to serve the visible
+  // hour. Added to A/B the owner's three symptoms — admin-slow-after-map, animations clearing
+  // during fast gestures, and slow-to-load-after-scrub — against a single suspected cause, before
+  // changing anything. Measuring a suspected cause requires being able to turn it OFF.
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_SERIES_PREWARM__ === true) return;
   // EURO marine grid_series is backed by per-hour Copernicus fetches (~10s/hr, frequently time
   // out, and OOM the 512MB backend). Eager-loading all its pages is what overloaded Render under
   // scrub+toggle. Skip the eager prewarm for EURO — its lazy current-page load handles it. GFS &
