@@ -285,3 +285,43 @@ def test_a_sampled_blob_still_replays_and_reports_the_sample_honestly():
     del bare["inputs"]                        # a row outside the sample
     rep = replay_frames(_frames([carried, bare]), {"SURF_REFRACTION_KR": "1.0"})
     assert rep["rows_seen"] == 2 and rep["rows_replayable"] == 1 and rep["disqualified"] == 0
+
+
+# ---- NOT-SAMPLED is not BROKEN, and the exit codes must say so ------------------------------
+
+def _run_main(monkeypatch, tmp_path, rows, capsys, candidate="SURF_REFRACTION_KR=1.0"):
+    import json as _json
+    from scripts import science_shadow_ab as mod
+    f = tmp_path / "frames.json"
+    f.write_text(_json.dumps({"frames": _frames(rows)}), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["x", "--candidate", candidate, "--frames-file", str(f)])
+    code = mod.main()
+    return code, capsys.readouterr().out
+
+
+def test_no_inputs_anywhere_is_NOT_READY_and_exits_zero(monkeypatch, tmp_path, capsys):
+    """Frames that predate the inputs persistence, or a blob where no row fell in the 5% sample,
+    are ABSENCE. Nothing is wrong, nothing was measured, and it self-resolves on the next
+    precompute -- so it must not burn a red. (It cost two false CI alarms before this split.)"""
+    bare = _row()
+    del bare["inputs"]
+    code, out = _run_main(monkeypatch, tmp_path, [bare], capsys)
+    assert code == 0, "an unmeasurable-yet blob must not read as a failure"
+    assert "NOT READY" in out and "NOTHING WAS MEASURED" in out, (
+        "green must be unmistakably labelled as 'nothing to compare', never as approval")
+    assert "REFUSED" not in out
+
+
+def test_rows_that_carry_inputs_and_do_not_reproduce_still_REFUSE(monkeypatch, tmp_path, capsys):
+    """The other half of the split: a row that HAD inputs and failed the baseline self-check means
+    the replay is no longer the production chain. That stays exit 3 -- blind is never green."""
+    tampered = _row()
+    tampered["score"] = round(tampered["score"] + 9.9, 1)
+    code, out = _run_main(monkeypatch, tmp_path, [tampered], capsys)
+    assert code == 3 and "REFUSED" in out
+    assert "NOT READY" not in out
+
+
+def test_a_measurable_blob_still_reports_and_exits_zero(monkeypatch, tmp_path, capsys):
+    code, out = _run_main(monkeypatch, tmp_path, [_row(offshore=0.5)], capsys)
+    assert code == 0 and "SHADOW A/B" in out and "NOT READY" not in out

@@ -71,12 +71,21 @@ jobs:
           code=$?
           set -e
           if [ "$code" = "3" ]; then
-            { echo "## Shadow A/B: REFUSED -- not a code failure"
+            { echo "## Shadow A/B: REFUSED -- the replay no longer reproduces production"
               echo
               grep "REFUSED" replay_out.txt || true
               echo
-              echo "No replayable rows: frames predate the inputs persistence or the baseline"
-              echo "no longer reproduces. Re-dispatch after the next precompute cycle."
+              echo "Rows carried inputs and did not reproduce their persisted score. That is a"
+              echo "second forecast path or moved assets/constants -- investigate before trusting"
+              echo "any A/B result. (A blob with no inputs yet exits 0 as NOT READY instead.)"
+            } >> "$GITHUB_STEP_SUMMARY"
+          elif grep -q "^NOT READY" replay_out.txt; then
+            { echo "## Shadow A/B: NOT READY -- nothing was measured"
+              echo
+              grep "^NOT READY" replay_out.txt || true
+              echo
+              echo "Green here means the tool ran and found nothing to compare -- NOT that the"
+              echo "candidate is safe. Re-dispatch after the next precompute cycle."
             } >> "$GITHUB_STEP_SUMMARY"
           elif [ "$code" = "0" ]; then
             { echo "## Shadow A/B report -- candidate \`$CANDIDATE\`"

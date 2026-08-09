@@ -241,11 +241,29 @@ def main():
             return 3
     rep = replay_frames(frames, candidate, cell_ref_fn=cell_ref_fn)
 
-    if rep["rows_replayable"] == 0:
-        print("REFUSED: 0 replayable rows (seen %d, disqualified %d) -- frames predate the inputs"
-              " persistence, or the baseline no longer reproduces (assets/code moved). This is"
-              " blindness, not a result." % (rep["rows_seen"], rep["disqualified"]))
+    # NOT-SAMPLED vs BROKEN -- the repo's own rule is that a check which CANNOT tell them apart
+    # must refuse. This one CAN: rows with no `inputs` are outside the 5% sample (absence), while a
+    # disqualified row HAD inputs and failed to reproduce (breakage). Collapsing both into exit 3
+    # cost two false CI alarms on 2026-08-09 for a state that resolves itself on the next
+    # precompute -- and an instrument that cries wolf gets muted exactly like a guard that does.
+    if rep["rows_replayable"] == 0 and rep["disqualified"] > 0:
+        rep["verdict"] = "refused_baseline_broken"
+        print("REFUSED: %d rows carried inputs and NONE reproduced their persisted score (seen %d)."
+              " The replay is no longer the production chain -- a second forecast path, or the"
+              " assets/constants moved since these frames were rated. This is blindness, not a"
+              " result." % (rep["disqualified"], rep["rows_seen"]))
         return 3
+    if rep["rows_replayable"] == 0:
+        rep["verdict"] = "not_ready"
+        print("NOT READY: 0 of %d rows carry `inputs`, and none were broken -- these frames predate"
+              " the inputs persistence, or none of them fell in the sample"
+              " (SPOT_RATINGS_INPUTS_SAMPLE_PCT, 5%% by default). NOTHING WAS MEASURED: this is not"
+              " a result and not a failure. Re-dispatch after the next precompute cycle."
+              % rep["rows_seen"])
+        if args.json:
+            json.dump(rep, open(args.json, "w", encoding="utf-8"), indent=1)
+        return 0
+    rep["verdict"] = "measured"
 
     print("SHADOW A/B  candidate=%s" % candidate)
     print("  rows       seen %d | replayable %d | disqualified %d"
