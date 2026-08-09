@@ -440,3 +440,29 @@ def test_the_producer_persists_the_water_level_when_tide_is_resolved(monkeypatch
     assert row["inputs"].get("water_level_m") == pytest.approx(1.42, abs=0.001), (
         "water_level_m is not being persisted -- SURF_TIDE_DEPTH becomes unmeasurable and the "
         "shadow A/B goes back to reporting a reassuring null for it")
+
+
+def test_input_presence_and_the_dependency_subset_are_reported():
+    """A tide verdict averaged over rows with NO tide reads as 'quiet' -- the denominator lesson.
+    The report must say how many replayable rows carried the guarded input, and give the rate over
+    that subset."""
+    base = _row(offshore=12.0, tp=14.0)          # cap-limited: where the tide term actually binds
+    withtide = _row(offshore=12.0, tp=14.0)
+    withtide["inputs"]["water_level_m"] = 1.5
+    rep = replay_frames(_frames([base, withtide]), {"SURF_TIDE_DEPTH": "1"})
+    assert rep["inputs_present"]["offshore_hs_m"] == 2
+    assert rep["inputs_present"].get("water_level_m") == 1, "only one row carries the tide"
+    ds = rep["dep_subset"]
+    assert ds["input"] == "water_level_m"
+    assert ds["rows"] == 1, "the subset must exclude rows the flag cannot touch"
+    assert ds["max_abs_delta"] > 0.25, "the carrying row must actually move"
+
+
+def test_a_candidate_with_no_carrying_rows_is_flagged_blind():
+    rep = replay_frames(_frames([_row(offshore=12.0, tp=14.0)]), {"SURF_TIDE_DEPTH": "1"})
+    assert rep["dep_subset"]["rows"] == 0, "no row carries a water level here"
+
+
+def test_a_candidate_without_a_declared_dependency_reports_no_subset():
+    rep = replay_frames(_frames([_row(offshore=0.5)]), {"SURF_REFRACTION_KR": "1.0"})
+    assert rep["dep_subset"] is None

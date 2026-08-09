@@ -51,6 +51,11 @@ REPRODUCE_TOL = 0.25
 # the offshore inputs (+ static geometry) rather than reuse the persisted surf_height_m.
 HEIGHT_FLAGS = ("SURF_REFRACTION_KR", "SURF_HEIGHT_H110", "SURF_TIDE_DEPTH",
                 "SURF_COASTAL_FROM_SHORE_NORMAL", "SURF_COASTAL_FROM_LAND_BIT")
+# Candidates whose effect is GUARDED on an input. A row lacking that input cannot move, so
+# averaging it into the verdict dilutes a real effect toward "quiet" -- the denominator
+# lesson. When the dependency is only partly present the report says so AND reports the rate
+# over the carrying subset, which is the number that actually answers the question.
+CANDIDATE_INPUT_DEPS = {"SURF_TIDE_DEPTH": "water_level_m"}
 
 
 def _cell_reference_fn():
@@ -158,6 +163,20 @@ def candidate_can_move(candidate: Dict[str, str], cell_ref_fn=None) -> dict:
             "probes": len(probes), "replayable": rep["rows_replayable"]}
 
 
+def _dep_subset(candidate, movers):
+    """Level-change rate over ONLY the rows carrying the candidate's guarded input."""
+    dep = next((CANDIDATE_INPUT_DEPS[k] for k in candidate if k in CANDIDATE_INPUT_DEPS), None)
+    if not dep:
+        return None
+    rows = [m for m in movers if m.get("dep_present")]
+    if not rows:
+        return {"input": dep, "rows": 0, "changed": 0, "pct": None, "max_abs_delta": 0.0}
+    changed = sum(1 for m in rows if m["level_now"] != m["level_cand"])
+    return {"input": dep, "rows": len(rows), "changed": changed,
+            "pct": round(100.0 * changed / len(rows), 1),
+            "max_abs_delta": max(abs(m["delta"]) for m in rows)}
+
+
 def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=None) -> dict:
     """Pure-ish core (touches os.environ transiently; static assets only). Returns the report.
 
@@ -166,6 +185,8 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
     -- a missing climatology must never silently replay as "no reference", which would read as a
     band/glyph agreement that was never measured."""
     height_replay = any(k in candidate for k in HEIGHT_FLAGS)
+    _dep_key = next((CANDIDATE_INPUT_DEPS[k] for k in candidate
+                     if k in CANDIDATE_INPUT_DEPS), None)
     structural_ref_off = candidate.get("RATING_LOCAL_SIZE") == "0"
     structural_ref_cell = candidate.get("REFERENCE_LANE") == "cell"
     env_patch = {k: v for k, v in candidate.items()
@@ -182,6 +203,7 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
     deltas: List[float] = []
     level_flow: Dict[str, int] = {}
     movers: List[dict] = []
+    inputs_present: Dict[str, int] = {}
     saved = {k: os.environ.get(k) for k in env_patch}
 
     for fr in frames or []:
@@ -209,6 +231,8 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
                     disqualified += 1          # geometry/assets/code moved since the frame
                     continue
             rows_replayable += 1
+            for _k in (s.get("inputs") or {}):
+                inputs_present[_k] = inputs_present.get(_k, 0) + 1
 
             # CANDIDATE arm under the patched environment.
             try:
@@ -250,7 +274,9 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
                            "cand_height_m": round(cand_h, 3) if cand_h is not None else None,
                            # Both yardsticks, so a mover row can be read without re-deriving them
                            # (the E#1 question is exactly "which reference, and how far apart").
-                           "ref_now": ref, "ref_cand": cand_ref})
+                           "ref_now": ref, "ref_cand": cand_ref,
+                           "dep_present": bool(_dep_key and (s.get("inputs") or {}).get(_dep_key)
+                                               is not None)})
 
     movers.sort(key=lambda m: m["delta"])
     n = len(deltas)
@@ -275,6 +301,10 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
         "delta_p10": pct(0.10), "delta_median": pct(0.50), "delta_p90": pct(0.90),
         "delta_min": ds[0] if n else None, "delta_max": ds[-1] if n else None,
         "level_flow": dict(sorted(level_flow.items(), key=lambda kv: -kv[1])),
+        # How many REPLAYABLE rows carried each input. Without this a verdict computed over
+        # rows that mostly lack the candidate's guarded input reads as "quiet".
+        "inputs_present": dict(sorted(inputs_present.items())),
+        "dep_subset": _dep_subset(candidate, movers),
         "biggest_downgrades": movers[:6], "biggest_upgrades": movers[-6:][::-1],
     }
 
@@ -366,6 +396,25 @@ def main():
         print("  SCOPE      band-vs-glyph REFERENCE lane only, height held fixed. The band also"
               " samples its height at the 2-deg CELL CENTRE, so this is a LOWER BOUND on the"
               " on-screen divergence.")
+    _n = rep["rows_replayable"] or 1
+    _ip = rep.get("inputs_present") or {}
+    print("  INPUTS     " + " | ".join("%s %d/%d" % (k, v, rep["rows_replayable"])
+                                       for k, v in _ip.items()) if _ip else "  INPUTS     (none)")
+    _ds = rep.get("dep_subset")
+    if _ds:
+        if _ds["rows"] == 0:
+            print("  ! BLIND     this candidate is guarded on `%s` and NOT ONE replayable row"
+                  " carries it. The verdict above is arithmetic over rows the flag cannot touch."
+                  % _ds["input"])
+        else:
+            print("  DEPENDENCY  guarded on `%s`: %d/%d rows carry it (%.0f%%) -> among THOSE,"
+                  " %d changed level (%.1f%%), max |delta| %.1f"
+                  % (_ds["input"], _ds["rows"], rep["rows_replayable"],
+                     100.0 * _ds["rows"] / _n, _ds["changed"], _ds["pct"], _ds["max_abs_delta"]))
+            if _ds["rows"] < rep["rows_replayable"]:
+                print("  ! DILUTED   the headline rate averages in %d rows that CANNOT move"
+                      " (no `%s`) -- read the dependency line, not the headline."
+                      % (rep["rows_replayable"] - _ds["rows"], _ds["input"]))
     for k, v in list(rep["level_flow"].items())[:8]:
         print("  flow       %s x%d" % (k, v))
     for r in [m for m in rep["biggest_downgrades"] if m["delta"] < 0][:4]:
