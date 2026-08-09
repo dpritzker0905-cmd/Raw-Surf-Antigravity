@@ -89,6 +89,75 @@ step is the same measurement over a retained multi-day series before any edge is
 re-cut from one summer afternoon would be the overfit that `STATE-OF-THE-ART` was written to warn
 about (five Florida anchors shipped worldwide).
 
+## 3b. THE MULTI-DAY DISTRIBUTION — measured, and it says DO NOT CUT YET
+
+The §3 single-hour sample has been replaced by a proper one: **13,166 scored spot-hours**, 29
+valid_times at 6-hourly steps spanning **exactly 7.0 days**, **23 viewports (10 N + 13 S)**, 667
+requests, **0 failures**, 454 distinct spots. Variance decomposition: 55.3% between (viewport, hour)
+cells / 44.7% within, so the independent unit is nearer the cell than the spot-hour — quoted because
+a naive n=13,166 would overstate the precision.
+
+    p1 1.2 · p5 2.0 · p10 2.7 · p25 5.5 · p50 18.6 · p75 32.8 · p90 46.3 · p95 53.8 · p99 67.3
+    max 69.9   (= the RATING_OBS_GATE cap, not a physical ceiling)
+    very_poor 40.7 · poor 27.1 · poor_fair 18.2 · fair 10.2 · fair_good 3.8 · good 0.00 · epic 0.00
+
+**85.7% in the bottom three levels. Zero of 13,166 rows reached 70.** The gate is live and working:
+96 rows sit exactly on 69.9 and the largest *ungated* raw_score was 96.0 — the model does produce
+good/epic scores; the gate withholds them, as designed.
+
+### ⛔⛔ THE LEFT SPIKE IS ONE CLAMPED FACTOR, NOT WEATHER — so an edge cut would enshrine a defect
+
+The payload publishes `limiter`/`limiter_f`, so the spike was ATTRIBUTED rather than assumed
+(supplementary census n=1,816 at lead 0/48/96/162 h):
+
+- **18.9% of ALL served spot-hours are pinned at the `swell_exposure` FLOOR (limiter_f = 0.10).**
+- Within `very_poor`, `swell_exposure` is the binding factor on **70%** of rows.
+- Those floored rows score **p50 2.9** while carrying **p50 1.21 m breaking height**; 127 of them
+  (7.0% of everything scored) carry **>= 1.5 m (5 ft)** and still score p50 3.6.
+- Live instance: **Jeffreys Bay, 2026-08-09T19:00Z, ~9.6 ft, 12 s, 15 kt cross-shore,
+  geometry_readiness=full, limiter=swell_exposure, limiter_f=0.1 -> score 2.7 `very_poor`** — in
+  J-Bay's prime season.
+- **~28% of all served spot-hours are `very_poor` BECAUSE of that one floor.**
+
+⭐ **This is the KNOWN dual-floor landmine, and this is the first measurement of its REACH.**
+[[a-hard-switch-on-an-uncertain-input-2026-08-04]] already recorded the mechanism — quality
+`swell_exposure` floors at **0.100** while height `_height_exposure_factor = 0.55 + 0.45*exposure`
+floors at **0.595**, 5.95x apart, so one payload can say "9.6 ft" and "2.7 very_poor" at once — and
+its recorded instance was a single 4.3 ft spot. It is not a corner case: it is a fifth of everything
+served. ⛔ That memory's standing instruction still binds: **do not patch either floor alone — the
+height is right BY CANCELLATION, and the fix is ERA5-gated.**
+
+### The edge candidates, and why the recommended one is READY BUT GATED
+
+The edges turned out to be **load-bearing after all**, which the §3 draft got wrong: the numbers
+themselves are underived (they entered in `1ba30f57`, 2026-06-28, undocumented, and are NOT in
+`science_registry.py`) — but `backend/tests/test_owner_calibration_anchors.py` is an executable
+acceptance spec whose assertions are LEVEL-valued, so it is pinned to them. Every candidate was
+replayed in-process against it (`_BUCKETS` monkeypatched; nothing in the repo modified):
+
+| candidate | edges | anchors | "epic unreachable below 9 s" |
+|---|---|---|---|
+| current | 14/28/42/56/70/84 | **6/6** | holds |
+| A equal-population | (recomputed) | 3/6 | **BREAKS** (Tp 7 s reaches 78.7 -> epic) |
+| B / C | — | 5/6 | — |
+| D | — | 4/6 | **BREAKS** |
+| **E recut-bottom-only** | **7/22/42/56/70/84** | **6/6** | holds |
+
+**E is the only data-driven candidate that keeps the acceptance spec whole.** It cuts only the two
+edges no anchor depends on, at the 1/3 and 2/3 quantiles of the sub-42 mass (86% of served rows),
+turning 40.7/27.1/18.2 into **28.7/27.8/29.5**, and leaves 42/56/70/84 — and therefore the obs
+gate's 69.9/83.9 arithmetic — untouched.
+
+⛔ **It is NOT shipped, for two measured reasons:**
+1. **Both of E's new edges are positioned by the spike that the `swell_exposure` floor manufactures.**
+   Cut now and the scale is calibrated to a defect; fix the floor afterwards and the edges are wrong
+   again. Fix the floor FIRST, re-measure, then cut.
+2. **Lead-time drift would contaminate the cut.** p50 by lead day runs 21.5 / 20.3 / 19.9 / 19.9 /
+   17.4 / 12.6 / 16.5 / 17.6 while **p90 RISES 44.2 -> 50.2** — the distribution WIDENS with lead
+   time. Equal-population edges recomputed on day 0-1 vs day 5-7 move the 3/7 edge by **34%**, and
+   E's own bottom edges move (9.5, 24.6) -> (5.4, 18.8). A single cut has to declare which lead
+   window it is calibrated for.
+
 ## 4. WHAT "PROPER" WOULD MEAN HERE
 
 1. **Keep seven** unless the owner wants the legacy ladder; the current reference uses seven.
