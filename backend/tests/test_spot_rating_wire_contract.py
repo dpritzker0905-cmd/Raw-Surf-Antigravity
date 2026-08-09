@@ -142,16 +142,34 @@ def _producer_return_keys():
 
     from services.weather_pipeline import spot_ratings
 
+    def _spread_keys(value):
+        """Keys that `**value` contributes AT THIS LEVEL.
+
+        ⚠️ DELIBERATELY NOT `ast.walk` (fixed 2026-08-09). Walking descends into nested dict
+        VALUES and reports their inner keys as though they were top-level payload fields. The
+        moment a spread carried a nested dict — `**({"inputs": {"wind_ms": ...}} if s else {})` —
+        the guard demanded that `wind_ms`, `offshore_hs_m` … be declared on SpotRatingItem, when
+        the only key crossing the boundary is `inputs`. A guard that reports keys the producer
+        does not emit fails the same way as one that misses keys it does: it stops being read.
+        Structural recursion instead: dict → its own keys; `X if c else Y` → both branches.
+        """
+        if isinstance(value, ast.Dict):
+            return _keys_of(value)
+        if isinstance(value, ast.IfExp):
+            return _spread_keys(value.body) | _spread_keys(value.orelse)
+        raise AssertionError(
+            "SETUP BROKEN: `**%s` in rate_one_spot's return is not a dict literal or a conditional "
+            "between two dict literals, so this extractor cannot see which keys it contributes — "
+            "and an unseen key is exactly the defect this guard exists to catch. Re-derive the "
+            "extractor rather than letting it silently return a short list."
+            % type(value).__name__)
+
     def _keys_of(dict_node):
         """Constant string keys of an ast.Dict, INCLUDING those inside `**` unpacked sub-dicts."""
         found = set()
         for key, value in zip(dict_node.keys, dict_node.values):
             if key is None:
-                # `**something` — recurse into the value for any nested dict literal. Covers both
-                # `**{"f": v}` and the conditional form `**({"f": v} if v else {})`.
-                for inner in ast.walk(value):
-                    if isinstance(inner, ast.Dict):
-                        found |= _keys_of(inner)
+                found |= _spread_keys(value)
             elif isinstance(key, ast.Constant) and isinstance(key.value, str):
                 found.add(key.value)
         return found
@@ -237,3 +255,18 @@ def test_the_chokepoint_guard_actually_detects_a_dropped_key__THE_CONTROL():
         "the differential failed to flag an undeclared producer key — it is not testing the "
         "boundary it claims to test"
     )
+
+
+def test_a_nested_dict_inside_a_spread_does_not_leak_its_inner_keys():
+    """REGRESSION (2026-08-09): `**({"inputs": {...}} if sampled else {})` made the extractor
+    demand that every INNER key of `inputs` be declared on SpotRatingItem. Only `inputs` crosses
+    the boundary. A guard that reports keys the producer never emits gets muted like any other
+    false alarm -- so the false-positive direction is pinned as tightly as the false-negative one
+    (which THE_CONTROL above pins)."""
+    produced = _producer_return_keys()
+    assert "inputs" in produced, "the sampled inputs payload must still be VISIBLE to the guard"
+    for inner in ("offshore_hs_m", "swell_from_deg", "wind_ms", "wind_from_deg",
+                  "shore_normal_deg", "break_depth_m"):
+        assert inner not in produced, (
+            "%r is nested inside `inputs`; reporting it as a top-level producer key would demand a "
+            "declaration for a field that never reaches the response boundary" % inner)

@@ -63,6 +63,20 @@ def rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal) -> O
     return ", ".join(parts)
 
 
+def _persist_inputs(spot_id: str) -> bool:
+    """Does THIS spot carry its rating inputs? (see the `inputs` block below, and the FINDING doc)
+
+    ⚠️ md5, NOT hash(): PYTHONHASHSEED randomises str hashing per process and >1 worker writes this
+    blob, so hash() would give them different samples. Deterministic ⇒ stable across cycles too."""
+    pct = int(os.environ.get("SPOT_RATINGS_INPUTS_SAMPLE_PCT", "5") or 0)
+    if pct <= 0:
+        return False
+    if pct >= 100:
+        return True
+    import hashlib
+    return (int(hashlib.md5(spot_id.encode("utf-8")).hexdigest()[:8], 16) % 100) < pct
+
+
 async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None) -> dict:
     """Resolve a single spot's marine + wind point and compute its rating. `spot` is a dict with
     id/name/latitude/longitude/accuracy_flag/is_verified_peak (from the DB or Supabase REST). `resolver`
@@ -276,28 +290,30 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         "run_time": run_time,
         "wind_run_time": wind_run_time,
         # WHICH REFERENCE (2026-08-09, parity run 31311733401): the size reference is a MOVING
-        # input — each precompute folds new heights into the climatology, so a frame rated at
-        # build time can carry a different reference than the blob holds an hour later (Pedras
-        # Negras: 1.279 at build vs 2.199 at probe time = an 18.2-point "composition" red on
-        # identical model runs). run_time records the sea's generation; this records the rating
-        # config's. Absent (not null) when the global 1.2 m curve graded — absence IS the lane.
+        # input — each precompute folds new heights in, so a frame rated at build time can carry a
+        # different reference than the blob holds an hour later (Pedras Negras 1.279 vs 2.199 = an
+        # 18.2-point fake "composition" red on identical runs). `run_time` records the sea's
+        # generation; this records the rating config's. Absent (not null) = the global curve graded.
         **({"reference_size_m": round(float(reference_size_m), 4)}
            if reference_size_m is not None else {}),
-        # ★ THE RATING'S OWN INPUTS, recorded at use time (2026-08-09) — the R11-04-sibling rule
-        # ("every moving input a comparison spans needs provenance recorded at use time") applied
-        # to the whole chain. These five numbers + the persisted surf_height_m/reference_size_m +
-        # static geometry make every spot-hour REPLAYABLE offline: scripts/science_shadow_ab.py
-        # re-rates frames under a candidate flag/constant set with a per-row baseline self-check
-        # (replay must reproduce the persisted score, or the row is disqualified — the
-        # second-forecast-path defense). Absent keys = input was absent; ~60 B/spot-hour compact.
-        "inputs": {k: v for k, v in {
+        # ★ THE RATING'S OWN INPUTS, recorded at use time (2026-08-09) — the R11-04 rule ("every
+        # moving input a comparison spans needs provenance recorded at use time"). These six numbers
+        # + the persisted surf_height_m/reference_size_m make a spot-hour REPLAYABLE offline:
+        # scripts/science_shadow_ab.py re-rates frames under a candidate flag set with a per-row
+        # baseline self-check (reproduce the persisted score or be disqualified).
+        # ⚠️⚠️ SAMPLED (5% default, `SPOT_RATINGS_INPUTS_SAMPLE_PCT`; 0 disables, 100 = every row):
+        # measured +137 B on a 320 B row = +42.8%, ~1.4 MB across a blob every client downloads —
+        # nearly DOUBLE the +23% that justified interning `run_time` out of this same object. AN
+        # INSTRUMENT MAY NOT TAX THE PRODUCT IT MEASURES. Rate table + why md5:
+        # docs/research/FINDING-2026-08-09-an-instrument-must-not-tax-the-product.md
+        **({"inputs": {k: v for k, v in {
             "offshore_hs_m": round(offshore_h, 3) if offshore_h is not None else None,
             "swell_from_deg": round(swell_from, 1) if swell_from is not None else None,
             "wind_ms": round(wind_ms, 3) if wind_ms is not None else None,
             "wind_from_deg": round(wind_from, 1) if wind_from is not None else None,
             "shore_normal_deg": shore_normal,
             "break_depth_m": break_depth,
-        }.items() if v is not None},
+        }.items() if v is not None}} if _persist_inputs(str(spot["id"])) else {}),
     }
 
 

@@ -209,9 +209,13 @@ class _StubResolver:
         return r
 
 
-def test_round_trip_the_real_producer_reproduces_and_the_candidate_moves():
+def test_round_trip_the_real_producer_reproduces_and_the_candidate_moves(monkeypatch):
     import asyncio
     from services.weather_pipeline.spot_ratings import rate_one_spot
+    # This test's subject is round-trip FIDELITY, so it forces every row into the inputs sample;
+    # the sampling itself is pinned separately below. (Without this it passes or fails on whether
+    # the synthetic spot ids happen to land in the 5% -- a test that depends on an id hash.)
+    monkeypatch.setenv("SPOT_RATINGS_INPUTS_SAMPLE_PCT", "100")
     rows = []
     for hs in (0.5, 2.0):
         row = asyncio.run(rate_one_spot(
@@ -233,3 +237,51 @@ def test_round_trip_the_real_producer_reproduces_and_the_candidate_moves():
     kr = replay_frames(_frames(rows), {"SURF_REFRACTION_KR": "1.0"})
     assert kr["rows_replayable"] == 2 and kr["disqualified"] == 0
     assert kr["delta_max"] > 0, "the candidate arm cannot move a real producer row"
+
+
+# ---- the instrument must not tax the product it measures ------------------------------------
+
+def test_the_inputs_payload_is_sampled_not_universal(monkeypatch):
+    """Measured 2026-08-09: inputs cost +137 B on a 320 B row (+42.8%) -- nearly DOUBLE the +23%
+    that justified interning run_time out of the SAME blob, which every client downloads. 5% keeps
+    the cost at ~2% and still yields ~530 replayable rows per blob."""
+    import uuid
+    from services.weather_pipeline.spot_ratings import _persist_inputs
+    ids = [str(uuid.UUID(int=i)) for i in range(4000)]
+    monkeypatch.delenv("SPOT_RATINGS_INPUTS_SAMPLE_PCT", raising=False)
+    rate = 100.0 * sum(1 for i in ids if _persist_inputs(i)) / len(ids)
+    assert 3.0 < rate < 8.0, (
+        "default sample drifted to %.2f%% -- the blob cost scales with it linearly" % rate)
+
+
+def test_the_sample_is_stable_across_processes_not_hash_seeded(monkeypatch):
+    """PYTHONHASHSEED randomises str hash() per process, and TWO workers write this blob. A
+    seed-dependent sample would give them different sets, so a row's inputs would blink in and out
+    between cycles and a cross-run comparison would grade a different population each time."""
+    import hashlib
+    import uuid
+    from services.weather_pipeline.spot_ratings import _persist_inputs
+    monkeypatch.setenv("SPOT_RATINGS_INPUTS_SAMPLE_PCT", "5")
+    for i in range(200):                      # recompute the contract independently of the impl
+        sid = str(uuid.UUID(int=i))
+        expected = (int(hashlib.md5(sid.encode("utf-8")).hexdigest()[:8], 16) % 100) < 5
+        assert _persist_inputs(sid) is expected
+
+
+def test_the_sample_can_be_disabled_and_maximised(monkeypatch):
+    import uuid
+    from services.weather_pipeline.spot_ratings import _persist_inputs
+    ids = [str(uuid.UUID(int=i)) for i in range(200)]
+    monkeypatch.setenv("SPOT_RATINGS_INPUTS_SAMPLE_PCT", "0")
+    assert not any(_persist_inputs(i) for i in ids), "0 must disable the payload entirely"
+    monkeypatch.setenv("SPOT_RATINGS_INPUTS_SAMPLE_PCT", "100")
+    assert all(_persist_inputs(i) for i in ids), "100 must carry every row for a deep one-off run"
+
+
+def test_a_sampled_blob_still_replays_and_reports_the_sample_honestly():
+    """rows_seen counts the population; rows_replayable counts the sample. A report that showed
+    only the sample would read as full coverage -- the census lesson, applied to my own tool."""
+    carried, bare = _row(offshore=0.5), _row(offshore=2.0)
+    del bare["inputs"]                        # a row outside the sample
+    rep = replay_frames(_frames([carried, bare]), {"SURF_REFRACTION_KR": "1.0"})
+    assert rep["rows_seen"] == 2 and rep["rows_replayable"] == 1 and rep["disqualified"] == 0
