@@ -163,6 +163,41 @@ def candidate_can_move(candidate: Dict[str, str], cell_ref_fn=None) -> dict:
             "probes": len(probes), "replayable": rep["rows_replayable"]}
 
 
+def infer_dependencies(movers, tol=REPRODUCE_TOL):
+    """Which input is the candidate's effect CONFINED to? Discovered from the data, not declared.
+
+    ⛔ WHY THIS EXISTS. CANDIDATE_INPUT_DEPS is a hand-maintained registry with one entry, so a
+    future flag guarded on an unlisted input gets the DILUTED headline in silence -- proven: the
+    same frames report a bare "25.0% change" with no warning when the dependency is unregistered,
+    and "100.0% among rows that carry it" when it is. A registry that must be remembered is a
+    registry that will be forgotten; this needs nothing remembered.
+
+    An input qualifies when EVERY row that moved carries it and at least one row lacking it did
+    NOT move -- i.e. the movement is perfectly confined. Requires a row on BOTH sides, because a
+    key present on every row explains nothing (it cannot discriminate), and that is exactly the
+    denominator trap this whole line of work keeps hitting.
+    """
+    moved = [m for m in movers if abs(m["delta"]) > tol]
+    if not moved:
+        return []
+    keys = set()
+    for m in movers:
+        keys.update(m.get("input_keys") or ())
+    found = []
+    for k in sorted(keys):
+        with_k = [m for m in movers if k in (m.get("input_keys") or ())]
+        without_k = [m for m in movers if k not in (m.get("input_keys") or ())]
+        if not with_k or not without_k:
+            continue                      # present (or absent) everywhere: explains nothing
+        moved_with = [m for m in with_k if abs(m["delta"]) > tol]
+        moved_without = [m for m in without_k if abs(m["delta"]) > tol]
+        if moved_with and not moved_without:
+            found.append({"input": k, "rows_with": len(with_k), "rows_without": len(without_k),
+                          "moved_with": len(moved_with),
+                          "pct_of_carrying": round(100.0 * len(moved_with) / len(with_k), 1)})
+    return found
+
+
 def _dep_subset(candidate, movers):
     """Level-change rate over ONLY the rows carrying the candidate's guarded input."""
     dep = next((CANDIDATE_INPUT_DEPS[k] for k in candidate if k in CANDIDATE_INPUT_DEPS), None)
@@ -276,7 +311,10 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
                            # (the E#1 question is exactly "which reference, and how far apart").
                            "ref_now": ref, "ref_cand": cand_ref,
                            "dep_present": bool(_dep_key and (s.get("inputs") or {}).get(_dep_key)
-                                               is not None)})
+                                               is not None),
+                           # For INFERRING the dependency from the data instead of a registry.
+                           "input_keys": sorted(k for k, v in (s.get("inputs") or {}).items()
+                                                if v is not None)})
 
     movers.sort(key=lambda m: m["delta"])
     n = len(deltas)
@@ -305,6 +343,8 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
         # rows that mostly lack the candidate's guarded input reads as "quiet".
         "inputs_present": dict(sorted(inputs_present.items())),
         "dep_subset": _dep_subset(candidate, movers),
+        # Registry-free: what the DATA says the effect is confined to.
+        "inferred_deps": infer_dependencies(movers),
         "biggest_downgrades": movers[:6], "biggest_upgrades": movers[-6:][::-1],
     }
 
@@ -400,6 +440,12 @@ def main():
     _ip = rep.get("inputs_present") or {}
     print("  INPUTS     " + " | ".join("%s %d/%d" % (k, v, rep["rows_replayable"])
                                        for k, v in _ip.items()) if _ip else "  INPUTS     (none)")
+    for _inf in (rep.get("inferred_deps") or []):
+        print("  * INFERRED   every row that moved carries `%s` (%d/%d carrying rows moved,"
+              " %.0f%%), and NONE of the %d rows without it moved. The effect is CONFINED to"
+              " that input -- read the carrying-row rate, not the headline."
+              % (_inf["input"], _inf["moved_with"], _inf["rows_with"], _inf["pct_of_carrying"],
+                 _inf["rows_without"]))
     _ds = rep.get("dep_subset")
     if _ds:
         if _ds["rows"] == 0:

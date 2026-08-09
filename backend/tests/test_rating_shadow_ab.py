@@ -466,3 +466,33 @@ def test_a_candidate_with_no_carrying_rows_is_flagged_blind():
 def test_a_candidate_without_a_declared_dependency_reports_no_subset():
     rep = replay_frames(_frames([_row(offshore=0.5)]), {"SURF_REFRACTION_KR": "1.0"})
     assert rep["dep_subset"] is None
+
+
+def test_the_dependency_is_INFERRED_from_the_data_without_a_registry():
+    """The registry has one entry; a future flag guarded on an unlisted input would get the
+    diluted headline in silence (proven: same frames, 25.0% bare vs 100.0%-of-carrying when
+    registered). Inference needs nothing remembered."""
+    from scripts.science_shadow_ab import infer_dependencies
+    base = _row(offshore=12.0, tp=14.0)
+    withtide = _row(offshore=12.0, tp=14.0)
+    withtide["inputs"]["water_level_m"] = 1.5
+    rep = replay_frames(_frames([base, withtide]), {"SURF_TIDE_DEPTH": "1"})
+    inf = rep["inferred_deps"]
+    assert [d["input"] for d in inf] == ["water_level_m"], (
+        "the effect is confined to rows carrying a water level and the data says so")
+    assert inf[0]["rows_with"] == 1 and inf[0]["rows_without"] == 1
+
+    # An input present on EVERY row explains nothing -- it cannot discriminate, so it must not be
+    # reported as the dependency (the denominator trap this work keeps hitting).
+    assert "offshore_hs_m" not in [d["input"] for d in inf]
+    assert infer_dependencies([]) == []
+
+
+def test_inference_stays_silent_when_movement_is_not_confined():
+    """A height flag moves rows regardless of the tide, so nothing is confined and nothing is
+    claimed -- otherwise every run would sprout a spurious 'dependency'."""
+    base = _row(offshore=0.5)
+    withtide = _row(offshore=0.5)
+    withtide["inputs"]["water_level_m"] = 1.5
+    rep = replay_frames(_frames([base, withtide]), {"SURF_REFRACTION_KR": "1.0"})
+    assert rep["inferred_deps"] == []
