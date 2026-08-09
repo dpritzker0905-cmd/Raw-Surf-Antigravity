@@ -275,6 +275,14 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         # downloads. The live path keeps them inline (nothing to intern, one request).
         "run_time": run_time,
         "wind_run_time": wind_run_time,
+        # WHICH REFERENCE (2026-08-09, parity run 31311733401): the size reference is a MOVING
+        # input — each precompute folds new heights into the climatology, so a frame rated at
+        # build time can carry a different reference than the blob holds an hour later (Pedras
+        # Negras: 1.279 at build vs 2.199 at probe time = an 18.2-point "composition" red on
+        # identical model runs). run_time records the sea's generation; this records the rating
+        # config's. Absent (not null) when the global 1.2 m curve graded — absence IS the lane.
+        **({"reference_size_m": round(float(reference_size_m), 4)}
+           if reference_size_m is not None else {}),
     }
 
 

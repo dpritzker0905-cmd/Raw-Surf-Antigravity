@@ -154,11 +154,23 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
             # ⛔ NOT `valid_time` — that is the observation gate's join key, and this probe compares
             # `raw_score` deliberately so the gate is not part of the comparison. Conflating the two
             # is the bug this parameter split exists to prevent.
+            # ⭐ GRADE THE COMPOSITION ON THE GLYPH'S OWN REFERENCE when the row discloses it
+            # (2026-08-09, run 31311733401): the size reference is a MOVING input — the fold
+            # updates the climatology every precompute, so a served frame can carry an OLDER
+            # reference generation than this probe's fresh lookup (Pedras Negras: glyph built
+            # at ref 1.279, probe looked up 2.199 → an 18.2-point red on identical model runs
+            # and identical heights, attributed 'composition' because the ladder compares only
+            # MODEL run identity). d_score asks "is the sim's COMPOSITION correct?" — that
+            # question is only answerable on SHARED inputs, and the reference is an input.
+            # Older frames without the field keep the lookup lane (the skew stays visible in
+            # the self-diagnosis vectors either way).
+            glyph_ref = item.get("reference_size_m")
             calc = calculate_surf_rating(
                 spot, baseline["swell_height_m"], baseline["swell_period_sec"],
                 baseline["swell_direction_deg"], baseline["wind_speed_knots"],
                 baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
-                allow_reference_lookup=True)
+                allow_reference_lookup=True,
+                **({"served_reference_size_m": glyph_ref} if glyph_ref is not None else {}))
             # ⛔⛔ AND THE COMPOSITION THE TOOLS ACTUALLY PRODUCE, WHICH IS NO LONGER THIS ONE.
             # Since `5f19ac7d` every sim TOOL grades on the size curve the app SERVED — read off the
             # point response — while the call above deliberately resolves the per-SPOT reference
@@ -219,6 +231,11 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
                 "served_level_differs": item["level"] != calc_served["quality_label"],
                 "reference_lane": "served_cell" if served_ref is not None else "lookup_spot",
                 "served_reference_size_m": served_ref,
+                # The reference generation each side graded with (see the glyph_ref note above):
+                # gating_reference_lane 'glyph' = shared-input comparison; 'lookup_spot' = the
+                # row predates the reference_size_m disclosure and skew stays possible.
+                "glyph_reference_size_m": glyph_ref,
+                "gating_reference_lane": "glyph" if glyph_ref is not None else "lookup_spot",
                 "glyph_level": item["level"], "sim_level": calc["quality_label"],
                 "level_differs": item["level"] != calc["quality_label"],
                 "h_served_m": h_srv, "h_sim_m": round(h_sim, 4), "d_height_pct": dh,
