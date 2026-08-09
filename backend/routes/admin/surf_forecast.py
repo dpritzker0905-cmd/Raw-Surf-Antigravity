@@ -59,6 +59,11 @@ _RATING_FLAGS = {
     "SURF_COASTAL_FROM_SHORE_NORMAL": ("1", "Treat a fitted 463 m shore normal as evidence of a "
                                             "coastline when the 0.25 deg land mask cannot resolve "
                                             "the island (small-island surf; 18 spots)", "Render env"),
+    "SURF_COASTAL_FROM_LAND_BIT": ("1", "Treat a fitted 463 m shoreline WITHOUT a bearing (the "
+                                        "land_present asset section) as evidence of a coastline — "
+                                        "the second small-island set: 14 atoll/pass spots whose "
+                                        "bearing the confidence gate refused (MASTER-AUDIT-11.0 "
+                                        "s3.5). Promotes coastal only; never a normal", "Render env"),
     # ⚠️ DEFAULT OFF, and it is the only flag here that is off. Wiring tide into the depth-limited
     # cap is the highest-REACH absent nearshore term (MASTER-AUDIT-10.0 row H: 1.694% of served
     # spot-hours, median 45.6% height change — 19x the whole slope/gamma thread) and it is rated
