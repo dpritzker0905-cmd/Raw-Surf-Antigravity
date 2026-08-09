@@ -45,9 +45,12 @@ export function captureWebGLState(gl) {
     }
   }
 
-  // Textures state: only capture 2D units 0-3 that our overlays actually modify
+  // Textures state: capture 2D units 0-6 — the marine pass binds 4 (overlay mask), 5 and 6
+  // (ring-fill base wave/ocean textures), so the old 0-3 capture left marine textures bound
+  // into MapLibre's frame after every pass (R11-10e, 2026-08-09; the "only 0-3" comment had
+  // gone stale against the engine's actual footprint).
   state.prevTextures2D = [];
-  const maxUnits = 4;
+  const maxUnits = 7;
   for (let u = 0; u < maxUnits; u++) {
     gl.activeTexture(gl.TEXTURE0 + u);
     state.prevTextures2D.push(gl.getParameter(gl.TEXTURE_BINDING_2D));
@@ -83,8 +86,8 @@ export function restoreWebGLState(gl, state) {
     gl.viewport(state.prevViewport[0], state.prevViewport[1], state.prevViewport[2], state.prevViewport[3]);
   }
 
-  // Restore Textures (only restore 2D units 0-3 that we modify)
-  const maxUnits = Math.min(state.prevTextures2D.length, 4);
+  // Restore Textures (2D units 0-6 — must mirror the capture range above; R11-10e)
+  const maxUnits = Math.min(state.prevTextures2D.length, 7);
   for (let u = 0; u < maxUnits; u++) {
     gl.activeTexture(gl.TEXTURE0 + u);
     gl.bindTexture(gl.TEXTURE_2D, state.prevTextures2D[u]);

@@ -10,7 +10,8 @@ import {
 } from './WebGLMarineParticleShaders';
 import {
   createShader,
-  createProgram
+  createProgram,
+  safeDeleteTexture
 } from './WebGLWindUtils';
 import {
   createTexture
@@ -255,18 +256,28 @@ export function disposeEngine(engine, gl) {
   if (engine.gridUVBuffer) gl.deleteBuffer(engine.gridUVBuffer);
   if (engine.gridIndexBuffer) gl.deleteBuffer(engine.gridIndexBuffer);
   if (engine.advFBO) gl.deleteFramebuffer(engine.advFBO);
-  if (engine.particleStateA) gl.deleteTexture(engine.particleStateA);
-  if (engine.particleStateB) gl.deleteTexture(engine.particleStateB);
-  
-  if (engine._residentWaveTex) gl.deleteTexture(engine._residentWaveTex);
-  if (engine._residentChlTex) gl.deleteTexture(engine._residentChlTex);
-  if (engine._residentBathTex) gl.deleteTexture(engine._residentBathTex);
-  if (engine._cachedMaskTex) gl.deleteTexture(engine._cachedMaskTex);
-  if (engine._overlayMaskTex) gl.deleteTexture(engine._overlayMaskTex);
+  // R11-10d (2026-08-09): dispose used raw gl.deleteTexture, bypassing the ONE accounting choke
+  // safeDeleteTexture exists to be — so __RAW_GPU__.textureCount/gpuMemoryEstimate drifted upward
+  // per dispose cycle (theme/style swap, context-loss flip), the exact telemetry-drift class the
+  // choke's own header documents recurring "because the fix was applied where the bug was, not
+  // where the invariant belongs". Engine arg is null: at dispose the particle-state guard must
+  // not veto (we are the teardown), and the TEX_DIMS gate keeps uncounted textures at no-op.
+  safeDeleteTexture(gl, engine.particleStateA, null);
+  safeDeleteTexture(gl, engine.particleStateB, null);
+
+  safeDeleteTexture(gl, engine._residentWaveTex, null);
+  safeDeleteTexture(gl, engine._residentChlTex, null);
+  safeDeleteTexture(gl, engine._residentBathTex, null);
+  // R11-10b: _residentScoreTex was absent from this inventory — one grid-sized texture leaked
+  // per dispose cycle in rating mode, and a stale handle survived into the next context.
+  safeDeleteTexture(gl, engine._residentScoreTex, null);
+  safeDeleteTexture(gl, engine._cachedMaskTex, null);
+  safeDeleteTexture(gl, engine._overlayMaskTex, null);
 
   engine._residentWaveTex = null;
   engine._residentChlTex = null;
   engine._residentBathTex = null;
+  engine._residentScoreTex = null;
   engine._cachedMaskTex = null;
   engine._overlayMaskTex = null;
   engine._overlayMaskBounds = null;
