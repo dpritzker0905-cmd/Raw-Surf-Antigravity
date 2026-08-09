@@ -240,6 +240,30 @@ const CENTER = { lng: -89, lat: 24 };
           fineN: fWG && fWG.vectors ? fWG.vectors.length : null,
           fineCell: (fb && fWG && fWG.cols > 1) ? +(span(fb) / (fWG.cols - 1)).toFixed(2) : null,
           baseCovers: covers(gb), fineCovers: covers(fb),
+          // ── MARINE structural truth (2026-08-09) ───────────────────────────────────────────
+          // ⛔ Everything above reads `__WIND_ENGINE__._windData/_windFine`. Under ZB_LAYER=waves
+          // nothing populates those, so `hasAnyGrid` was false on EVERY sample, `clamp` could not
+          // fire, all 323 samples fell to `cold` — and cold does not fail. Measured 2026-08-09:
+          // a full marine storm returned "clamp samples: 0 | cold samples: 323" and PASSED.
+          // The marine layer keeps its own residency truth; sample it so waves mode has a
+          // structural signal at all.
+          // ⚠️ `__MARINE_SERVE_DIAG__.coversViewport` is a plain bounds comparison with NO
+          // global-span shortcut, so a 360°-wide world grid can report coversViewport:false
+          // (measured at z9: covers false, gridWidth 360). The wind `covers()` above guards this
+          // with `span >= 350 => true`; apply the same rule here or this detector fires on
+          // bookkeeping rather than on a clear. Same shape as the Florida-peninsula false positive
+          // that cost the zoomlab two forensic arcs.
+          // THREE-STATE, never two. `coversViewport` is null whenever the served payload carried no
+          // grid bounds, and a first pass folded that null into "does not cover" — which counted
+          // 27/27 UNKNOWN samples as a 14 s clamp window and would have shipped a false-positive
+          // storm. ⭐ "not measured" is not "broken"; the caller must be able to tell them apart.
+          marineCovers: ((window.__MARINE_SERVE_DIAG__ || {}).coversViewport === true)
+            || (((window.__MARINE_SERVE_DIAG__ || {}).gridWidth || 0) >= 350),
+          marineCoverKnown: (window.__MARINE_SERVE_DIAG__ || {}).gridWidth != null,
+          marineGridW: (window.__MARINE_SERVE_DIAG__ || {}).gridWidth ?? null,
+          marineAccepted: (window.__WEBGL_MARINE_UPLOAD_DIAG__ || {}).renderAccepted ?? null,
+          marineNonzero: (window.__WEBGL_MARINE_UPLOAD_DIAG__ || {}).nonzeroCount ?? null,
+          marineUploads: (window.__WEBGL_MARINE_UPLOAD_DIAG__ || {}).uploadCount ?? null,
         };
       }).catch(() => null);
       if (s) samples.push({ t: Date.now(), ...s });
@@ -331,12 +355,25 @@ const CENTER = { lng: -89, lat: 24 };
   // ── Analysis ──
   // STRUCTURAL over the 10 Hz samples: count clamp samples AND measure the worst DWELL — a
   // 100 ms blip during an interrupted gesture reads differently than a 2 s hole.
-  let clampSamples = 0, coldSamples = 0;
+  let clampSamples = 0, coldSamples = 0, unknownCoverage = 0;
   let worstDwellMs = 0, dwellStart = null;
   const clampWindows = [];
+  // ⚠️ WHICH SUBJECT IS UNDER TEST decides which residency counts. Reading wind residency while
+  // driving the marine layer made every sample "cold" and the run unfailable — see the sampler.
+  const MARINE_UNDER_TEST = /waves|both/.test(LAYER);
   for (const s of samples) {
-    const hasAnyGrid = !!(s.baseSpan || s.fine);
-    const uncovered = !s.baseCovers && !s.fineCovers;
+    const hasAnyGrid = MARINE_UNDER_TEST
+      ? (s.marineUploads > 0 || !!s.baseSpan || !!s.fine)
+      : !!(s.baseSpan || s.fine);
+    const uncovered = MARINE_UNDER_TEST
+      ? !(s.marineCovers || s.baseCovers || s.fineCovers)
+      : (!s.baseCovers && !s.fineCovers);
+    // ⛔ A marine sample whose serve carried no grid bounds is UNKNOWN, not uncovered. Counting the
+    // unknowns as clamps produced a 14 s phantom window (27/27 of them bounds-less) on 2026-08-09.
+    if (MARINE_UNDER_TEST && uncovered && !s.marineCoverKnown && !s.baseCovers && !s.fineCovers) {
+      unknownCoverage++;
+      continue;
+    }
     const clamp = uncovered && hasAnyGrid;
     if (clamp) {
       clampSamples++;
@@ -386,7 +423,23 @@ const CENTER = { lng: -89, lat: 24 };
     for (const s of coarseClamp.slice(0, 8)) console.log(`   t${s.t} z${s.zoom} baseCell ${s.baseCell} baseN ${s.baseN} covers b:${s.baseCovers} f:${s.fineCovers}`);
   }
   fs.writeFileSync(path.join(OUT, 'burst_state.json'), JSON.stringify({ seed: SEED, cycles: CYCLES, samples, frames: frames.map((f) => ({ n: f.n, t: f.t })) }, null, 1));
-  console.log(`\nsamples: ${samples.length} (~10 Hz) | screenshots: ${frames.length} | clamp samples: ${clampSamples} (worst dwell ${worstDwellMs} ms across ${clampWindows.length} windows) | cold samples: ${coldSamples} | persistent seams: ${persistentSeams} | coarse-overlay(A): ${coarseOverlay.length} | coarse-clip(B): ${coarseClamp.length}`);
+  console.log(`\nsamples: ${samples.length} (~10 Hz) | screenshots: ${frames.length} | clamp samples: ${clampSamples} (worst dwell ${worstDwellMs} ms across ${clampWindows.length} windows) | cold samples: ${coldSamples} | coverage-unknown: ${unknownCoverage} | persistent seams: ${persistentSeams} | coarse-overlay(A): ${coarseOverlay.length} | coarse-clip(B): ${coarseClamp.length}`);
+  // ⛔⛔ REFUSE BEFORE PASSING. If the structural sampler never once saw a resident grid for the
+  // layer under test, `clampSamples` is 0 BY CONSTRUCTION and "PASS" is a statement about nothing.
+  // Measured 2026-08-09 under ZB_LAYER=waves: 323/323 cold, clamp 0, verdict PASS — while a user
+  // was reporting the exact mid-gesture clear this probe exists to catch. Same class as the sim
+  // parity probe's FAIL (INSTRUMENT) and the zoomlab verdict's REFUSE, both shipped today.
+  const everResident = samples.some((s) => (MARINE_UNDER_TEST
+    ? (s.marineUploads > 0 || s.baseSpan || s.fine) : (s.baseSpan || s.fine)));
+  const structurallyBlind = samples.length > 0 && !everResident;
+  if (structurallyBlind) {
+    console.log(`\nZOOMBURST REFUSE — the structural sampler never observed a resident grid for `
+      + `layer "${LAYER}" across ${samples.length} samples, so "no clamp" is unfalsifiable here. `
+      + `Pixel/seam evidence still written to ${OUT}. ⚠️ A seam detector cannot see a FULLY cleared `
+      + `viewport either — a blank frame has no boundary — so neither half covers "the wash `
+      + `disappeared". Fix the sampler or the boot, then re-run; do not read this as a pass.`);
+    process.exit(3);
+  }
   const pass = clampSamples === 0 && persistentSeams === 0 && coarseOverlay.length === 0;
   console.log(pass ? 'ZOOMBURST PASS — no mid-gesture clamp, coarse overlay, or seam across the storm.'
     : 'ZOOMBURST FAIL — see windows above + burst_state.json + console_log.json + video in ' + OUT);
