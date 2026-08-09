@@ -557,6 +557,8 @@ Reliability diagram/Brier for the categorical rating first (needs no new data). 
 
 Scores 1–5 (Cx/Risk/Ops are costs). **≤10 immediate actions.**
 
+> **EXECUTION RECORD (same day, 2026-08-09, commits `512b1cb6..9fe18414`):** actions **3, 4, 5, 7, 9-partial, 10** were implemented and shipped hours after this register was written — the churn-loop three-seam fix (+ the Promise-as-geojson guard from action 9), series-frame run identity + run census, build stamps on all truth/telemetry payloads, the worker-crash/fabricated-zeros cluster + both fabricated-status endpoints + the staleReason classification, the probe self-diagnosis instrumentation (action 10's artefact pull **refuted the tide hypothesis by sign** — see R11-18's resolution), and additionally action 6 (the JS-mirror refusal port, golden-verified against Python). Actions 1–2 (uptime probe; clock-watching) and 8 (executed-GL harness) remain open; the owner items remain owner-gated.
+
 | # | Action | FcstAcc | User | Perf | Rel | Evid | Cx | Risk | Ops | Priority |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 1 | External uptime probe on `/api/health` + monitor endpoint | 2 | 2 | 1 | 5 | 5 | 1 | 1 | 2 | **P0** |
