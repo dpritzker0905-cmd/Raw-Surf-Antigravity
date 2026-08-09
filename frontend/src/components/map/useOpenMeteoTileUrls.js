@@ -1,4 +1,9 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import {
+  ICON_WIND_CUTOVER_H, EURO_WIND_CUTOVER_H,
+  ICON_MARINE_RASTER_CUTOVER_H, EURO_MARINE_RASTER_CUTOVER_H,
+  ICON_ATMOSPHERIC_CUTOVER_H, EURO_ATMOSPHERIC_CUTOVER_H,
+} from './modelHorizons';
 import maplibregl from 'maplibre-gl';
 import {
   OM_MODEL_MAP,
@@ -467,20 +472,20 @@ export function useOpenMeteoTileUrls({
           if (entry.omModel) return entry.omModel;
           if (variable === 'wind_u_component_10m') {
             const baseModel = WIND_MODEL_MAP[activeModel] || 'ncep_gfs013';
-            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > 120) {
+            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > ICON_WIND_CUTOVER_H) {
               return 'ncep_gfs013';
             }
-            if (baseModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > 228) {
+            if (baseModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > EURO_WIND_CUTOVER_H) {
               return 'ncep_gfs013';
             }
             return baseModel;
           }
           if (entry.omModelGroup === 'marine') {
             const baseModel = MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
-            if (baseModel === 'dwd_gwam' && debouncedTimeOffsetHours > 168) {
+            if (baseModel === 'dwd_gwam' && debouncedTimeOffsetHours > ICON_MARINE_RASTER_CUTOVER_H) {
               return 'ncep_gfswave025';
             }
-            if (baseModel === 'ecmwf_wam025' && debouncedTimeOffsetHours > 240) {
+            if (baseModel === 'ecmwf_wam025' && debouncedTimeOffsetHours > EURO_MARINE_RASTER_CUTOVER_H) {
               return 'ncep_gfswave025';
             }
             return baseModel;
@@ -498,18 +503,18 @@ export function useOpenMeteoTileUrls({
             if (baseModel === 'dwd_icon' && variable === 'surface_temperature') {
               return 'ncep_gfs013';
             }
-            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > 168) {
+            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > ICON_ATMOSPHERIC_CUTOVER_H) {
               return 'ncep_gfs013';
             }
-            if (baseModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > 228) {
+            if (baseModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > EURO_ATMOSPHERIC_CUTOVER_H) {
               return 'ncep_gfs013';
             }
             return baseModel;
           }
-          if (targetModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > 228) {
+          if (targetModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > EURO_ATMOSPHERIC_CUTOVER_H) {
             return 'ncep_gfs025'; // Fallback to GFS atmospheric
           }
-          if (targetModel === 'dwd_icon' && debouncedTimeOffsetHours > 168) {
+          if (targetModel === 'dwd_icon' && debouncedTimeOffsetHours > ICON_ATMOSPHERIC_CUTOVER_H) {
             return 'ncep_gfs025'; // Fallback to GFS atmospheric
           }
           return targetModel;
