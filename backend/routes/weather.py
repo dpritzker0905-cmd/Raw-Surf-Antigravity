@@ -364,6 +364,12 @@ class SpotRatingItem(BaseModel):
     # Optional so an older precomputed frame simply omits them, same contract as the fields above.
     limiter: Optional[str] = None             # e.g. 'size_gate' | 'swell_exposure' | 'wind_period_blend'
     limiter_f: Optional[float] = None         # that factor's value in [0,1] — how much it removed
+    # WHICH REFERENCE graded this row (32bd579c, the Pedras Negras reference-generation skew):
+    # the size climatology MOVES between precompute folds, so a frame's rating config has a
+    # generation just like its sea does (run_time). ABSENT = the global 1.2 m curve graded.
+    # Declared here or Pydantic silently drops it at this boundary — the wire-contract guard
+    # caught exactly that within one CI run of the producer change (the 6da4c16e class, again).
+    reference_size_m: Optional[float] = None
     # THE SIZE AND THE QUALITY DISAGREE ABOUT THE SAME SWELL. `swell_exposure` (quality) floors at
     # 0.100 while `_height_exposure_factor` (height) floors at 0.595 — 0.354 in energy, a 3.54x
     # contradiction from ONE bearing, saturating for every Δθ >= 90°. Measured 2026-08-04 on n=1005
