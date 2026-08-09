@@ -106,22 +106,40 @@ export function dominantSwellPeriod(partitions) {
   return bestTp;
 }
 
+// MIRROR OF surf_rating.py MIN_SWELL_ENERGY_SHARE (R11-02, ported 2026-08-09). Python reads
+// RATING_MIN_SWELL_ENERGY_SHARE (default "0.50"); the browser has no env and the registry lists
+// no frontend lane for it — so this is the DEFAULT, hardcoded. ⚠️ If that env knob is ever set
+// to a non-default server-side, this mirror drifts by construction: ship the effective value in
+// the payload before doing that. The refusal itself: measured 64.6-point two-sided divergence
+// at HEAD when absent (Report 11.0 R11-02); kill-switch-proven causal on 2026-08-08
+// (RATING_MIN_SWELL_ENERGY_SHARE=0 → level drift 5,501/34,035 → 0/34,035).
+export const MIN_SWELL_ENERGY_SHARE = 0.50;
+
 /** Energy-weighted swell exposure over the SWELL partitions: Σ(h²·exposure(dir)) / Σ(h²). A well-angled
  *  secondary swell lifts exposure; a shadowed dominant swell is penalized by its energy share. null when
- *  geometry/partitions unusable (caller falls back to the total-field exposure). */
+ *  geometry/partitions unusable, OR when the swell partitions carry less than MIN_SWELL_ENERGY_SHARE of
+ *  the TOTAL wave energy (windsea + dir-less trains included in the total, exactly as Python counts it) —
+ *  in every case the caller falls back to the total-field exposure. KEEP IN SYNC with
+ *  surf_rating.effective_swell_exposure. */
 export function effectiveSwellExposure(partitions, shoreNormalDeg) {
   if (shoreNormalDeg == null) return null;   // geometry unknown -> total-field path is already neutral
   let num = 0.0;
   let den = 0.0;
+  let totalE = 0.0;
   for (const p of partitions || []) {
-    if (!p || typeof p !== 'object' || p.kind === 'windsea') continue;
+    if (!p || typeof p !== 'object') continue;
     const { h, dir } = p;
-    if (h == null || dir == null || h <= 0) continue;
+    if (h == null || h <= 0) continue;
     const e = h * h;
+    totalE += e;                             // EVERY train, windsea included — this is the whole sea
+    if (p.kind === 'windsea') continue;
+    if (dir == null) continue;               // dir-less swell still DILUTES the share (Python parity)
     num += e * swellExposure(dir, shoreNormalDeg);
     den += e;
   }
   if (den <= 0.0) return null;
+  // REFUSE rather than answer from a marginal slice — mirror of surf_rating.py:474-476.
+  if (totalE > 0.0 && (den / totalE) < MIN_SWELL_ENERGY_SHARE) return null;
   return _clamp(num / den, 0.0, 1.0);
 }
 

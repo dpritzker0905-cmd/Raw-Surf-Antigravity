@@ -219,12 +219,47 @@ describe('surfRating (JS mirror of surf_rating.py)', () => {
   });
 
   test('effectiveSwellExposure is energy-weighted over swell trains only', () => {
+    // R11-02 (2026-08-09): windsea h dropped 3.0 -> 0.5, mirroring the IDENTICAL edit the Python
+    // twin made on 2026-08-03 (backend/tests/test_surf_rating.py) — at windsea 3.0 the swell share
+    // is 5/14 = 35.7%, BELOW the ported MIN_SWELL_ENERGY_SHARE gate, and this test was actively
+    // certifying the pre-refusal behavior the mirror was missing (the 64.6-point landmine).
     const parts = [{ h: 2.0, tp: 14.0, dir: 90.0, kind: 'swell' },
                    { h: 1.0, tp: 10.0, dir: 270.0, kind: 'swell' },
-                   { h: 3.0, tp: 5.0, dir: 200.0, kind: 'windsea' }];
+                   { h: 0.5, tp: 5.0, dir: 200.0, kind: 'windsea' }];
     expect(effectiveSwellExposure(parts, 270.0)).toBeCloseTo((4 * 0.1 + 1 * 1.0) / 5.0, 9); // 0.28
     expect(effectiveSwellExposure(parts, null)).toBeNull();
     expect(effectiveSwellExposure([{ h: 1.0, tp: 9.0, kind: 'swell' }], 270.0)).toBeNull(); // no dir
+  });
+
+  test('effectiveSwellExposure REFUSES below the energy-share gate (surf_rating.py parity)', () => {
+    // Windsea-dominated: swell share 5/14 = 35.7% < 0.50 -> null (caller falls back to the
+    // total-field exposure, exactly like Python at HEAD).
+    const windseaDominated = [{ h: 2.0, tp: 14.0, dir: 90.0, kind: 'swell' },
+                              { h: 1.0, tp: 10.0, dir: 270.0, kind: 'swell' },
+                              { h: 3.0, tp: 5.0, dir: 200.0, kind: 'windsea' }];
+    expect(effectiveSwellExposure(windseaDominated, 270.0)).toBeNull();
+
+    // A dir-less swell train DILUTES the share without contributing: 1.0² / (1.0² + 1.05²)
+    // = 47.6% < 0.50 -> null. This was the second divergence source: the old mirror dropped
+    // dir-less trains entirely, so the two engines disagreed on WHETHER the gate trips.
+    const dirlessDiluted = [{ h: 1.0, tp: 12.0, dir: 270.0, kind: 'swell' },
+                            { h: 1.05, tp: 11.0, dir: null, kind: 'swell' }];
+    expect(effectiveSwellExposure(dirlessDiluted, 270.0)).toBeNull();
+  });
+
+  test('effectiveSwellExposure boundary: exactly at the share the gate does NOT trip (< is the refusal)', () => {
+    // share = 1² / (1² + 1²) = 0.50 exactly -> Python's `< MIN_SWELL_ENERGY_SHARE` passes it.
+    const atBoundary = [{ h: 1.0, tp: 12.0, dir: 270.0, kind: 'swell' },
+                        { h: 1.0, tp: 5.0, dir: 200.0, kind: 'windsea' }];
+    expect(effectiveSwellExposure(atBoundary, 270.0)).toBeCloseTo(1.0, 9);
+    // just under: 0.9² swell vs 1² windsea -> 0.81/1.81 = 44.75% -> refuse
+    const justUnder = [{ h: 0.9, tp: 12.0, dir: 270.0, kind: 'swell' },
+                       { h: 1.0, tp: 5.0, dir: 200.0, kind: 'windsea' }];
+    expect(effectiveSwellExposure(justUnder, 270.0)).toBeNull();
+    // comfortably over: 1.1² vs 1² -> 54.7% -> answers from the swell slice
+    const justOver = [{ h: 1.1, tp: 12.0, dir: 270.0, kind: 'swell' },
+                      { h: 1.0, tp: 5.0, dir: 200.0, kind: 'windsea' }];
+    expect(effectiveSwellExposure(justOver, 270.0)).toBeCloseTo(1.0, 9);
   });
 
   test('seaCleanliness fraction + floor', () => {
