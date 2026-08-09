@@ -589,6 +589,36 @@ Scores 1–5 (Cx/Risk/Ops are costs). **≤10 immediate actions.**
 > both wait on the **15:45Z precompute** (glyph frames disclose 0/48 until then — the parity green at
 > 13:33Z is real but does *not* yet exercise the disclosure path).
 
+> **Batch 4 (same day, `fee36d57..6568d94b`) — readout truth, plus a USER-OBSERVED divergence.**
+> Both self-resolving clocks CLOSED and verified in production: `reference_size_m` went 0/64 → **88/88**
+> on the wire across three regions after the 16:01Z precompute, and the parity probe's next run
+> reports **glyph discloses 48/48**, `gating_reference_lane: glyph` (was the `lookup_spot` fallback),
+> worst `d_score` **16.8 → 0.1** — a 164× collapse that reproduces the d=0.0 replay control end to end
+> and confirms R11-18's reference-generation mechanism in production.
+> - **R11-11 item 2 SHIPPED** (`6568d94b`): the wind legend was a byte-exact copy of the legacy 8-stop
+>   0–50 kn ramp while the shipped ramp is 13 Beaufort stops to 75 kn — so **calm (vivid magenta) read
+>   as hurricane**, and 64–75 kn had no label. Now derived from the ramp, value-proportional, with
+>   equal-value ticks (item 3 fixed for this legend too). Beach pinned as the theme where the legend
+>   is load-bearing: its calm and hurricane ends are only 0.34 apart.
+> - ⚠️ **CORRECTION to batch 3's note:** "~16% of marine serves publish no grid bounds" was WRONG in
+>   framing. `__MARINE_SERVE_DIAG__` is written only on a cache HIT, so it is simply absent before the
+>   first serve and stale during fetch-heavy periods. Measured unknown windows across four storms:
+>   1s / 24s / 33s / 95s — startup, except when the backend was slow. Not a missing field.
+>
+> **⚠️ NEW — OWNER-OBSERVED, UNRESOLVED: the rating BAND and the spot GLYPHS disagree on colour at
+> CLOSE zoom, and agree at wider zooms that still paint the band** (owner, 2026-08-09). This is queue
+> **E#1** seen in the wild for the first time. Established: the two surfaces resolve their reference
+> from **different lanes** — the band via `reference_for(clim, lat, lng)`, a COORDINATE lookup
+> (`grid_resolver_surf.py:104`), the glyphs via the per-SPOT reference now disclosed on the wire. The
+> census's own E#1 artifact measures the gap: **Pipeline spot_ref 1.484 vs cell_ref 2.164 (46% apart)**,
+> Mavericks 1.694 vs 1.922, Kommetjie 2.469 vs 2.079 — same height, two yardsticks, two colours.
+> ⛔ **The zoom dependence is NOT yet explained by that alone** and is the discriminator to chase: a
+> coordinate lookup should get *more* faithful as cells shrink, not less, so either the close-zoom band
+> takes a different reference path or the wide-zoom agreement is an artifact of the rating-band
+> cross-fade (`resolveRatingBandFade`) blending toward the height wash. Do not "fix" either lane before
+> that is measured. The parity probe already keeps this visible as `d_score_served`, separate from the
+> shared-input `d_score` that just went to 0.1.
+
 | # | Action | FcstAcc | User | Perf | Rel | Evid | Cx | Risk | Ops | Priority |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 1 | External uptime probe on `/api/health` + monitor endpoint | 2 | 2 | 1 | 5 | 5 | 1 | 1 | 2 | **P0** |
