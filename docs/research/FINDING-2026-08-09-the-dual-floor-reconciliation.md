@@ -58,6 +58,49 @@ they cannot grade this: their own docstring says every gate is 1.0 on those anch
    reconciliation makes the height wrong in a NEW way rather than fixing it. **Audit the shore
    normals at the top floored clusters before flipping.**
 
+## ⛔⛔ THE SHORE-NORMAL AUDIT REVERSES THE CONCLUSION — DO NOT FLIP THE FLAG
+
+Audited the J-Bay cluster (the eight largest floored rows). **The shore normals are fine.**
+
+| spot | shore normal | break depth |
+|---|---|---|
+| Jeffreys Bay | 107.6 | 5.0 |
+| Supertubes | 102.9 | 9.0 |
+| Boneyards | 102.9 | 9.0 |
+| The Point | 107.2 | 3.0 |
+| Tubes | 105.9 | 14.5 |
+
+~105 deg (ESE) is a fair reading of the shoreline at Supertubes. The served sea, from the marine
+grid at the nearest ocean cell: **Hs 3.91 m, Tp 11.93 s, swell FROM 229.5 deg** — textbook Southern
+Ocean SW groundswell. Against a 105 deg normal that is **dtheta 124.5 deg, cos -0.566 -> exposure
+floored at 0.10.**
+
+★★★ **The normal is right, the sea is right, and the MODEL is wrong — J-Bay works BY REFRACTION.**
+Supertubes is the most famous right-hand point on earth precisely because SW swell **wraps around
+the Cape St Francis headland** and peels along the point. A pure cosine of geometric misalignment
+declares that shadowed. `surf_transform`'s own module docstring already names the gap:
+*"WHAT REMAINS IS REFRACTION, AND IT IS NOT THE SAME QUANTITY AS EXPOSURE. Kr is the BENDING of wave
+rays over depth contours, which focuses energy onto headlands and defocuses it into bays."*
+
+⇒ **THIS IS THE CANCELLATION, MADE CONCRETE.** Memory's "height is right BY CANCELLATION" was an
+unexplained warning; here is the mechanism at a named spot: **the height's over-generous 0.595 floor
+is standing in for the ABSENT refraction/wrapping term at wrap-dominated coasts.** Reconcile the
+floors without adding refraction and every point break gets cut ~47% — J-Bay would serve 5.1 ft on a
+3.9 m / 12 s SW swell, which is worse than the contradiction it fixes.
+
+⇒ **Both earlier readings were wrong at this class of spot.** It is not "the score is right and the
+height is wrong": on a wrap-dominated point, the SCORE is far too low (2.7 on a genuine big day) AND
+the height is right for the wrong reason. The floor is load-bearing as a crude refraction proxy.
+
+**THE REAL FIX IS A WRAPPING/REFRACTION TERM, NOT A FLOOR VALUE.** Until one exists,
+`SURF_EXPOSURE_RECONCILED` must stay OFF — and the reconciliation should ship *with* that term, in
+the same change, because each is wrong without the other.
+
+⚠️ Whoever builds it: the exposure factor cannot be fixed by widening the floor either. A flat floor
+is generous everywhere, including the straight beaches where 0.10 is already ~4x too generous at
+120 deg. Wrapping is a property of the HEADLAND GEOMETRY, so it needs the coastline shape, not a
+constant.
+
 ## What is pinned so this cannot rot
 
 `tests/test_directional_exposure_harness.py` (10 tests):
