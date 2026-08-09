@@ -79,6 +79,18 @@ export function detectClamp(mapInstance) {
 // heatmap with no global-coarse fallback. A retained REGIONAL grid at a zoomed-out viewport is
 // display-equivalent to empty → both the §2b recovery AND the blank backstop must treat it as such
 // so the GLOBAL-coarse frame gets fetched + committed. Exported for tests.
+// R11-01 (2026-08-09): the engine-empty backstop leg must stand down while the WebGL guardrail
+// has flipped marine to the raster/canvas fallback — the WebGL engine is then LEGITIMATELY empty
+// (WebGLMarineLayer unmounted, engine disposed), and re-driving it produced the unbounded ~6 s
+// churn loop (the clamp leg has a cap/budget/terminal; this leg had none, and nothing here read
+// the guardrail flag). Pure + exported so the suppression is testable without mounting the hook.
+// Kill: win.__RAW_BACKSTOP_IGNORE_GUARDRAIL__ = true restores the old always-on behavior.
+export function marineFallbackSuppressesEmptyRedrive(win) {
+  if (!win || win.__RAW_BACKSTOP_IGNORE_GUARDRAIL__ === true) return false;
+  const g = win.__WEBGL_GUARDRAIL_FALLBACK__;
+  return !!(g && g.webglMarineFailed === true);
+}
+
 export function isRetainedRegionalZoomedOut(eng, mapInstance) {
   try {
     const eg = eng && eng._waveData && eng._waveData.waveGrid;
@@ -680,7 +692,10 @@ export function useMarineScrubSettle({
       // must keep re-driving until the global (span≥340) commits. Add it to needsRefetch; self-limiting
       // (once global commits it's no longer regional → false).
       const retainedRegionalZoomedOut = isRetainedRegionalZoomedOut(eng, mapInstance);
-      const needsRefetch = (!(eng && eng._waveData) || clamp || retainedRegionalZoomedOut) && !window.__MARINE_FETCH_PENDING__ && govIdle;
+      // R11-01: the engine-empty term stands down in guardrail-fallback mode (see the exported
+      // predicate marineFallbackSuppressesEmptyRedrive above for the full story).
+      const marineFallbackActive = typeof window !== 'undefined' && marineFallbackSuppressesEmptyRedrive(window);
+      const needsRefetch = ((!(eng && eng._waveData) && !marineFallbackActive) || clamp || retainedRegionalZoomedOut) && !window.__MARINE_FETCH_PENDING__ && govIdle;
       if (!needsRefetch) { blankStreak = 0; clampNoProgress = 0; clampSig = null; return; }
       blankStreak++;
       if (blankStreak < 3) return;                   // require ~3s sustained (ignores the brief load gap)

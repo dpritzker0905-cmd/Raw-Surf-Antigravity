@@ -661,7 +661,12 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
           if (!_inside && _cbSpan < 340 && _gridSpan >= 340) {
             engine._maskSourceReady = true;
             engine._maskRetainPatchedOk = false;
-            engine.setWaveData(gl, _wg, getSharedLandGeoJSON());
+            // ⛔ Third arg MUST be null — getSharedLandGeoJSON() returns a PROMISE (even on cache
+            // hit), and a Promise here rendered an ALL-WATER world mask and poisoned later
+            // null-geojson commits (the bridge site learned this 2026-07-16; this site had not).
+            // null falls through to the engine's stored _landGeoJSON, which this layer keeps
+            // populated with the RESOLVED object (landGeoJSONRef).
+            engine.setWaveData(gl, _wg, null);
             mapInstance.triggerRepaint();
           }
         }

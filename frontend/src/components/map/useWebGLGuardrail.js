@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { WeatherTelemetry } from './WeatherTelemetry';
+import { cancelTruthChains } from './weatherTruthTracker';
 
 /**
  * useWebGLGuardrail hook monitors the map's render loop frame rate.
@@ -152,8 +153,16 @@ export function useWebGLGuardrail({
             if (hasMarine) {
               console.warn('[WebGLGuardrail] Triggering fallback override for WebGL Marine layer');
               setWebglMarineFailedRef.current(true);
+              // R11-01(c): this flip unmounts WebGLMarineLayer — every in-flight truth chain is
+              // being ABANDONED ON PURPOSE. Close them with the cancel terminal, or 30 s later
+              // the absence watchdog reports each as "died after <stage>" (the false death that
+              // misdirected the 2026-08-09 live forensics). Telemetry carries the transition.
+              try {
+                const n = cancelTruthChains('webgl_marine_fallback: guardrail tripped after 12 low-FPS windows');
+                WeatherTelemetry.emit('webgl_marine_fallback_engaged', { cancelledChains: n, fps });
+              } catch (e) { /* the flip must never fail on diagnostics */ }
             }
-            
+
             lowFpsCount = 0;
           }
         } else {

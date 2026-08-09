@@ -1,5 +1,12 @@
 // weatherTruthTracker.js
 
+// RELEASE IDENTITY (2026-08-09, Report 11.0 R11-03): every truth chain is stamped with the
+// running bundle's BUILD_VERSION. Without it a truth event read in isolation (or a
+// client-diagnostics record on the backend) cannot distinguish "HEAD defect" from "stale
+// deployment" — the exact confound that invalidated a whole live session on 2026-07-12 and
+// that marineForensics already solves for ITS ring. 'dev' means a local un-stamped build.
+import { BUILD_VERSION } from '../../buildVersion';
+
 function fnv1a_32(str) {
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) {
@@ -193,7 +200,8 @@ export function buildTruthTag(data, stageName) {
       dataHash,
       boundsHash,
       createdAt: timestamp,
-      sourceStage: stageName
+      sourceStage: stageName,
+      build: BUILD_VERSION
     };
   }
 }
@@ -402,6 +410,32 @@ export function _sweepAbsentChains(nowMs) {
     }
   }
   return fired;
+}
+
+// ── DELIBERATE-TRANSITION TERMINAL (2026-08-09, Report 11.0 R11-01/R11-15) ────────────────────
+// The 12-stage vocabulary was success-shaped: a chain abandoned by a DELIBERATE renderer
+// transition (the WebGL guardrail flipping to the raster/canvas fallback) had no terminal, so
+// 30 s later the absence watchdog reported it "died after <stage>" — a false death that polluted
+// verdict.failReasons and misdirected live forensics (observed in the 2026-08-09 Codex episode).
+// This is the cancel terminal: the transition owner calls it, each pending chain is closed as
+// CANCELLED (informational — a cancel is not a failure, so verdict.status and failReasons are
+// untouched), and the watchdog never fires for it. Ring-capped like the absent ring.
+export function cancelTruthChains(reason) {
+  const cancelled = [];
+  for (const [lane, entry] of Array.from(_pendingChains.entries())) {
+    _pendingChains.delete(lane);
+    cancelled.push({ ...entry, reason, cancelledAt: Date.now() });
+    console.log(`[WEATHER_TRUTH] Stage: chainCancelled | TraceID: ${entry.traceId} | ` +
+                `Product: ${entry.productId || "no-product"} | Status: CANCELLED | ${reason}`);
+  }
+  if (cancelled.length && typeof window !== "undefined") {
+    try {
+      const ring = (window.__WEATHER_TRUTH_CANCELLED__ = window.__WEATHER_TRUTH_CANCELLED__ || []);
+      ring.push(...cancelled);
+      while (ring.length > 20) ring.shift();
+    } catch (e) { /* diagnostics must never throw */ }
+  }
+  return cancelled.length;
 }
 
 export function _getPendingChainsForTest() {

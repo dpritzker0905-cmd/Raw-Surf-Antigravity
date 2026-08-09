@@ -229,6 +229,11 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   // Any ACCEPTED commit supersedes a stashed reject (newer data won; the stash must not resurrect).
   this._pendingDowngrade = null;
 
+  // TYPE GUARD (2026-08-09): only a real FeatureCollection may become the stored geojson. A
+  // truthy non-geojson (the classic: a PROMISE from getSharedLandGeoJSON()) used to overwrite
+  // _landGeoJSON and poison every later null-geojson commit into an ALL-WATER world mask — the
+  // exact class the bridge site fixed on 2026-07-16 and a third call site reintroduced.
+  landGeoJSON = asLandGeoJSON(landGeoJSON);
   if (landGeoJSON) {
     this._landGeoJSON = landGeoJSON;
   }
@@ -2782,6 +2787,15 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
 // deliberately BOUNDED — once per (gridKey, view). If a painter simply cannot satisfy a viewport,
 // the second pass falls back to the old behaviour instead of repainting on every throttle tick:
 // a halo is better than a churn, and an unbounded "refuse" would be a worse bug than the one fixed.
+// LAND-GEOJSON ARG GUARD (2026-08-09): setWaveData's third argument is a FeatureCollection or
+// nothing. Anything else that is truthy (a Promise, a string, a stale wrapper) must be treated as
+// "not supplied" — NOT stored — or it poisons _landGeoJSON and every later null-geojson commit
+// renders an ALL-WATER world mask (renderMaskToCanvas early-returns a white canvas on an input
+// with no .features). Pure + exported so the poison class is testable without a GL context.
+export function asLandGeoJSON(x) {
+  return (x && Array.isArray(x.features)) ? x : null;
+}
+
 export function resolveDeliveredCoverage(cachedBounds, curView, gridKey, lastForcedFor, disabled) {
   const k = (v) => (typeof v === 'number' ? v.toFixed(4) : 'x');
   const forceKey = curView
@@ -3177,6 +3191,14 @@ WebGLMarineEngine.prototype.dispose = function(gl) {
   // switches — TRUE teardown must free it here or the world-mask set leaks per map lifecycle.
   this._freeCoarseBase(gl);
   disposeEngine(this, gl);
+  // R11-01 LINCHPIN (2026-08-09): the module global was assigned once in the constructor and
+  // never cleared, so after a guardrail-triggered dispose the scrub-settle backstop read this
+  // dead engine's `_waveData === null` as "engine empty" and re-drove it every ~6 s, unbounded,
+  // for the rest of the session. Clear ONLY our own registration — a replacement engine may
+  // already have overwritten the global, and its registration must survive.
+  if (typeof window !== 'undefined' && window.__MARINE_ENGINE__ === this) {
+    window.__MARINE_ENGINE__ = null;
+  }
 };
 
 export default WebGLMarineEngine;
