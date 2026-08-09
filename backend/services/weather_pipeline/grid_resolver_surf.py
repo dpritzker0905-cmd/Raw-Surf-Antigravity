@@ -227,9 +227,11 @@ def _make_nearest_sampler(vex):
     BIT-IDENTICAL to the scan it replaced: same elementwise IEEE-double ops (abs/sub/mul/add), and
     `np.argmin` returns the FIRST minimum exactly as the strict `d < best_d` scan kept the first
     winner — pinned by a verbatim-old differential in tests/test_grid_surf_overlay_copies.py.
-    ⚠️ NOT a local `KT_TO_MS = 0.514444` — see `surf_rating.KT_TO_MS`. The truncated inverse
-    round-trips to 0.999998882736 and lands just below the knots it started from, which flips
-    `wind_quality`'s STRICT `< 3.0` glassy branch at exactly 3.00 kt."""
+    ⚠️ NOT a locally re-typed knots constant — read `surf_rating.KT_TO_MS` (the owner). A
+    six-digit truncation's round-trip lands just below the knots it started from, which flips
+    `wind_quality`'s STRICT `< 3.0` glassy branch at exactly 3.00 kt; `test_wind_unit_constant
+    _parity` scans non-comment source for any such digits, which is why this docstring names no
+    number."""
     import numpy as np
     from services.weather_pipeline import surf_rating as SR
     lats = np.array([v.lat for v in vex], dtype=np.float64)
