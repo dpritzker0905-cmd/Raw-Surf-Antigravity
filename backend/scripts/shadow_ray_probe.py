@@ -41,6 +41,23 @@ smaller than a cell are invisible; the scan is 5 deg, so shadow_deg is quantised
 measures GEOMETRY only - it says a shadow exists, not how much energy diffracts into it. That is the
 separate literature question (Penney & Price / Wiegel).
 
+⛔⛔ REFUTED 2026-08-09, THE SAME DAY, BY ITS OWN FOLLOW-UP CONTROL -- DO NOT WIRE THIS.
+The 8/8 above is real but it does not support the claim that matters. Cast the SAME ray from
+progressively further offshore along J-Bay's own normal:
+    offshore 0 km -> first land 10 km toward 229.5
+    offshore 5 km -> None (open)      20 km, 40 km -> None
+and the ray points themselves read land at 10 and 15 km, OPEN again at 20 km. The obstruction is
+J-BAY'S OWN SHORELINE running southwest from the spot, not the Cape St Francis headland ~35 km away.
+=> A ray cast FROM A COASTAL POINT measures "this bearing points along/into my own coast", which is
+   precisely what cos(dtheta) < 0 already says. The signal is REDUNDANT WITH THE COSINE.
+★★★ AND THE CONTROL MATRIX COULD NOT SEE IT: every "shadowed" control was an inland-pointing
+bearing, so the probe proved "shadowed vs open" and never proved "adds information BEYOND the
+cosine" -- the only claim it was built to support. Same shape as the curvature failure one level
+subtler: a discriminator whose controls do not separate it from the thing it must improve on.
+⚠ A workable form must cast from OFFSHORE of the spot (or skip the first ~10 km) so the local
+shoreline cannot answer, and must be validated against a control that VARIES the cosine and the
+geometry INDEPENDENTLY. The 0.25 deg mask (~28 km) may still be too coarse for a 35 km headland.
+
 Usage:  cd backend && python scripts/shadow_ray_probe.py
 """
 import math
