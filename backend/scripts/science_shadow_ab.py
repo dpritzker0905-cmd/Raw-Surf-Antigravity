@@ -39,7 +39,14 @@ from typing import Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-REPRODUCE_TOL = 0.05          # score points; the replay is the same pure fn on the same inputs
+# Score points. NOT zero because BOTH arms are quantized: compute_surf_rating rounds to 0.1, and
+# the persisted inputs are rounded on write (height 1e-3 m, wind 1e-3 ms, directions 0.1 deg) --
+# worst honest divergence is ~0.09 true (steepest measured limb ~74 pts/m x 5e-4 m, aim terms
+# ~1 pt/deg x 0.05 deg) which can straddle ONE 0.1 rounding boundary => honest |d| <= 0.2.
+# Real drift (a changed constant/asset) moves points, not tenths: 0.25 stays 4x below the
+# smallest change anyone would ship. Tightening this below the rounding grid disqualifies
+# honestly-reproducing rows as "broken" -- the not-sampled-vs-broken conflation, inverted.
+REPRODUCE_TOL = 0.25
 # Flags whose delta changes the BREAKING HEIGHT -- the replay must re-run estimate_surf_at from
 # the offshore inputs (+ static geometry) rather than reuse the persisted surf_height_m.
 HEIGHT_FLAGS = ("SURF_REFRACTION_KR", "SURF_HEIGHT_H110", "SURF_TIDE_DEPTH",

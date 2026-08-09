@@ -125,3 +125,68 @@ def test_the_environment_is_restored_even_when_the_candidate_arm_runs():
     assert os.environ.get("SURF_REFRACTION_KR") is None, (
         "the candidate env leaked out of the replay -- every later baseline in this process is "
         "now silently the candidate")
+
+
+# ---- the producer -> replay ROUND TRIP -----------------------------------------------------
+# Everything above replays rows built by hand; this drives the REAL rate_one_spot (the reference
+# implementation the precompute persists) and proves the `inputs` it emits are sufficient AND
+# correctly encoded to reproduce its own score. If someone renames a key, drops a rounding, or
+# adds a rating input without persisting it, THIS is the test that goes red.
+
+class _StubResolver:
+    """The point lane, minimally: breaking height via the production geometry chain (what
+    point_surf_augment does), wind as a plain point. Same shape as the three-surfaces suite."""
+
+    def __init__(self, hs, tp, sdir, wkt, wdir):
+        self.hs, self.tp, self.sdir, self.wkt, self.wdir = hs, tp, sdir, wkt, wdir
+
+    async def resolve_point(self, **kw):
+        from datetime import datetime, timezone
+        from services.weather_pipeline.schemas import (NormalizedPointDetail,
+                                                       NormalizedPointResponse)
+        lat, lng = kw["lat"], kw["lng"]
+        wind = kw["domain"] == "wind"
+        r = NormalizedPointResponse.model_construct(
+            model="GFS", provider="open-meteo", domain=kw["domain"],
+            layer="wind" if wind else "waves",
+            run_time=datetime(2026, 8, 9, 6, tzinfo=timezone.utc),
+            valid_time=datetime(2026, 8, 9, 12, tzinfo=timezone.utc),
+            point=NormalizedPointDetail.model_construct(
+                requested_lat=lat, requested_lng=lng, sampled_lat=lat, sampled_lng=lng,
+                speed=self.wkt if wind else self.hs,
+                period=None if wind else self.tp,
+                direction=self.wdir if wind else self.sdir,
+                interpolation_method="t"))
+        if not wind:
+            g = resolve_surf_geometry(lat, lng)
+            h, _regime = estimate_surf_at(lat, lng, self.hs, self.tp,
+                                          swell_from_deg=self.sdir, geometry=g)
+            r.surf_height_m = h
+            r.shore_normal_deg = g.shore_normal_deg
+        return r
+
+
+def test_round_trip_the_real_producer_reproduces_and_the_candidate_moves():
+    import asyncio
+    from services.weather_pipeline.spot_ratings import rate_one_spot
+    rows = []
+    for hs in (0.5, 2.0):
+        row = asyncio.run(rate_one_spot(
+            _StubResolver(hs, 14.0, 315.0, 4.0, 140.0),
+            {"id": "rt-%s" % hs, "name": "Pipeline-rt", "latitude": PIPELINE[0],
+             "longitude": PIPELINE[1]},
+            "GFS", "2026-08-09T12:00"))
+        assert row.get("score") is not None, "the stub resolver did not produce a rating"
+        assert row.get("inputs"), "rate_one_spot no longer persists its inputs"
+        assert row["inputs"].get("offshore_hs_m") == pytest.approx(hs, abs=0.001)
+        rows.append(row)
+
+    null = replay_frames(_frames(rows), {"REQUEST_TELEMETRY": "1"})
+    assert null["rows_replayable"] == 2 and null["disqualified"] == 0, (
+        "the replay cannot reproduce what the real producer persisted -- key drift, a dropped "
+        "rounding, or an unpersisted rating input")
+    assert null["delta_min"] == 0.0 and null["delta_max"] == 0.0
+
+    kr = replay_frames(_frames(rows), {"SURF_REFRACTION_KR": "1.0"})
+    assert kr["rows_replayable"] == 2 and kr["disqualified"] == 0
+    assert kr["delta_max"] > 0, "the candidate arm cannot move a real producer row"
