@@ -39,23 +39,41 @@ REGION_TIDE_STATIONS = {
     "Miami": "8723214",
 }
 
+# ★ BOUNDED + PARALLEL (2026-08-09, MASTER-AUDIT-11.0 §3.3). This route was uncapped and strictly
+# serial: 250 spot_ids produced 250 serial DB round trips + 250 serial upstream resolutions in ONE
+# unauthenticated request (measured 95.9x slower than the gather equivalent; ~0.431 s/spot live —
+# 60 ids blew past the Netlify proxy window). The bounds are /spot-ratings' own, one file away:
+# the 200-spot cap mirrors its `le=200`, and the semaphore reads the SAME env var so one number
+# governs both call sites instead of two caps that drift.
+BATCH_MAX_SPOTS = 200
+_BATCH_CONCURRENCY = int(os.environ.get("SPOT_RATINGS_CONCURRENCY", "6"))
+
+
 @router.get("/conditions/batch")
 async def get_batch_conditions(
     spot_ids: str = "",
     model: str = Query("GFS", pattern="^(GFS|ICON|EURO)$"),
     db: AsyncSession = Depends(get_db)
 ):
+    import asyncio
+
     if not spot_ids:
         return {"conditions": {}}
-    
+
     ids = [id.strip() for id in spot_ids.split(",") if id.strip()]
-    conditions = {}
-    
-    for spot_id in ids:
-        result = await db.execute(select(SurfSpot).where(SurfSpot.id == spot_id))
-        spot = result.scalar_one_or_none()
-        
-        if spot:
+    truncated = len(ids) > BATCH_MAX_SPOTS
+    if truncated:
+        logger.warning(f"/conditions/batch truncated {len(ids)} spot_ids to {BATCH_MAX_SPOTS}")
+        ids = ids[:BATCH_MAX_SPOTS]
+
+    # ONE query instead of one per id; missing ids are simply absent, exactly as before.
+    result = await db.execute(select(SurfSpot).where(SurfSpot.id.in_(ids)))
+    spots_by_id = {s.id: s for s in result.scalars().all()}
+
+    sem = asyncio.Semaphore(_BATCH_CONCURRENCY)
+
+    async def one(spot_id, spot):
+        async with sem:
             try:
                 data = await point_resolution_service.resolve_spot_conditions(
                     model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=1,
@@ -63,7 +81,7 @@ async def get_batch_conditions(
                 )
                 if data and "current_conditions" in data:
                     current = data["current_conditions"]
-                    conditions[spot_id] = {
+                    return spot_id, {
                         "wave_height_ft": current["wave_height_ft"],
                         "wave_direction": current["wave_direction"],
                         "wave_period": current["wave_period"],
@@ -73,9 +91,18 @@ async def get_batch_conditions(
                     }
             except Exception as e:
                 logger.error(f"Error fetching conditions for {spot_id} via service: {str(e)}")
-                conditions[spot_id] = {"error": str(e)}
-    
-    return {"conditions": conditions}
+                return spot_id, {"error": str(e)}
+        return spot_id, None
+
+    results = dict(await asyncio.gather(
+        *(one(sid, spots_by_id[sid]) for sid in ids if sid in spots_by_id)))
+    # Rebuild in INPUT order so the payload is byte-comparable with the serial implementation.
+    conditions = {sid: results[sid] for sid in ids if results.get(sid) is not None}
+
+    out = {"conditions": conditions}
+    if truncated:
+        out["truncated_to"] = BATCH_MAX_SPOTS   # additive key, only present when it happened
+    return out
 
 @router.get("/conditions/{spot_id}")
 async def get_spot_conditions(

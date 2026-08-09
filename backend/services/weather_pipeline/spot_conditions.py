@@ -422,8 +422,14 @@ async def resolve_spot_conditions_impl(
         # ⇒ The kill switch un-gates the three GLYPH lanes only, and that is the intended contract.
         #   Pinned by test_observation_gate_single_model_surfaces.py so this cannot be "tidied".
         from services.weather_pipeline.rating_confirmation import gate_single_model_surface
-        _gated, _glevel, _confirm, _raw = gate_single_model_surface(
-            score, lat, lng, current_dt)
+        # ⛔ OFF THE EVENT LOOP (2026-08-09) — `confirmation_for` inside performs an unconditional
+        # per-spot haversine scan AND, on a TTL miss, a blocking `requests.get(timeout=10)` L2
+        # load, inside this async def. Same class and same fix as grid_resolver_surf.py:103's
+        # `_build_observation_gate` offload. WHAT it computes is untouched — the unconditional-cap
+        # contract above stands exactly as written.
+        import asyncio as _asyncio
+        _gated, _glevel, _confirm, _raw = await _asyncio.to_thread(
+            gate_single_model_surface, score, lat, lng, current_dt)
         if _gated is not None:
             score, level = _gated, _glevel
         # Raw stays auditable: the cap changes the DISPLAYED verdict, never the physics.

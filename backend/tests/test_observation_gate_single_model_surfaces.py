@@ -196,12 +196,24 @@ def test_the_hub_and_sim_gate_UNCONDITIONALLY_and_must_not_read_the_flag(relpath
     # version GREEN. A presence check needs a needle that only the real thing produces.
     import ast
 
-    called = any(
-        isinstance(n, ast.Call)
-        and (n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", None))
-        == "gate_single_model_surface"
-        for n in ast.walk(ast.parse(src))
-    )
+    def _is_gate_call(n):
+        if not isinstance(n, ast.Call):
+            return False
+        name = (n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", None))
+        if name == "gate_single_model_surface":
+            return True
+        # ⚠️ AN OFFLOADED CALL IS STILL A CALL (2026-08-09): the hub now runs the gate via
+        # `await asyncio.to_thread(gate_single_model_surface, ...)` — the event-loop fix from
+        # MASTER-AUDIT-11.0 §3.6 (haversine scan + a blocking timeout=10 GET inside an async
+        # def). The gate is then to_thread's FIRST ARGUMENT, not an ast.Call func, and without
+        # this arm the guard would force it back onto the loop to stay green.
+        if name == "to_thread" and n.args:
+            first = n.args[0]
+            return (first.attr if isinstance(first, ast.Attribute)
+                    else getattr(first, "id", None)) == "gate_single_model_surface"
+        return False
+
+    called = any(_is_gate_call(n) for n in ast.walk(ast.parse(src)))
     assert called, (
         f"{label} imports the observation gate but no longer CALLS it — the defect in this file's "
         f"header (map 83.9 'good' vs ungated 95.9 'epic') is back."
