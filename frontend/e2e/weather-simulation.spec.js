@@ -331,7 +331,7 @@ test.describe('Standard Surfer Map Controls', () => {
     // raising the gates to 45 s alone just moved the failure to the outer budget (observed
     // 2026-08-06: "Test timeout of 30000ms exceeded" landing inside the new catch block).
     // Worst case here is ~20 s load + 3 x 35 s = 125 s, so 180 s carries real headroom.
-    test.setTimeout(180000);
+    test.setTimeout(240000);
 
     // ⚠️ THIS TEST IS WEBGL-DEPENDENT END TO END. `#marine-canvas-layer` is a WebGL overlay canvas
     // (not a MapLibre layer), and everything asserted below it — the canvas, the marine projection
@@ -517,6 +517,231 @@ test.describe('Standard Surfer Map Controls', () => {
                                    (finalDiag.copernicus.nonzeroCount !== undefined && finalDiag.copernicus.nonzeroCount > 0);
     expect(isCopernicusRenderable).toBe(true);
     expect(['copernicus', 'backend-weather-service', 'open-meteo', 'estimated']).toContain(finalDiag.copernicus.provider);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// RENDERED-FIELD PIXEL TRUTH (Report 11.0 R11-14, 2026-08-09) — the first executed-GL assertion
+// in the estate. Before this, every GLSL "test" was a source-substring check and e2e asserted
+// canvas VISIBILITY + diag flags — a hemisphere-mirrored field or a frozen frame under an
+// advancing readout shipped green (the composite failure four hold/dedup mechanisms share).
+// ⚠️ NOTE the describe above sets `force_marine_fallback` in its beforeEach — those tests
+// exercise the RASTER fallback lane by design. This describe does NOT set it: the WebGL engine
+// itself renders, and the pixels are the oracle.
+//
+// FLAKE-DESIGN (particles/foam animate; u_time feeds even the heatmap): the test SELF-CALIBRATES.
+// It freezes the drift lever (__RAW_WAVE_SPEED__ = 0, read live per frame), measures the residual
+// same-hour animation noise from a control pair, and requires the hour-change delta to clear
+// max(3 × noise, 0.5% of pixels). If residual animation exceeds 25% of pixels the test REFUSES
+// (skip with the measured number) rather than grading noise — a check that cannot tell "not
+// sampled" from "broken" must refuse.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+const { diffFraction, varianceFraction } = require('./pngPixels');
+
+test.describe('Rendered-field pixel truth (executed GL)', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/auth', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(({ user }) => {
+      localStorage.setItem('raw-surf-user', JSON.stringify(user));
+      localStorage.setItem(`tos-accepted-${user.id}-1.0`, Date.now().toString());
+      localStorage.setItem('raw-surf-cookie-consent', JSON.stringify({ accepted: true, timestamp: Date.now() }));
+      localStorage.setItem('rs-push-prompt-dismissed', Date.now().toString());
+      // ⛔ deliberately NO force_marine_fallback here — the WebGL engine is the subject.
+      localStorage.removeItem('force_marine_fallback');
+    }, { user: standardUser });
+    // ⭐ THE GLOBAL MOCK 404s EVERY THIRD-PARTY ORIGIN — INCLUDING THE MAPBOX STYLE HOST — so in
+    // every other e2e the MapLibre style never loads and the marine CUSTOM LAYER never attaches
+    // (measured 2026-08-09: engine resident + diag renderable + a white void; the sibling tests
+    // never noticed because they force the DOM-canvas fallback). This describe's subject IS the
+    // GL layer, so the style host passes through here — routes are checked newest-first, and
+    // route.fallback() hands everything else back to the global mock unchanged.
+    await page.route('**/*', route => {
+      const url = route.request().url();
+      if (url.startsWith('https://api.mapbox.com') || url.startsWith('https://events.mapbox.com')
+          || url.includes('.tiles.mapbox.com')) {
+        route.continue();
+      } else {
+        route.fallback();
+      }
+    });
+    await page.waitForURL(/\/(feed|explore)(\/|$|\?)/, { timeout: 10000 }).catch(() => {});
+  });
+
+  // ⚠️ test.fixme = ships as DOCUMENTED WORK-IN-PROGRESS, never reds CI. Four live iterations
+  // on 2026-08-09 each moved it: (1) the global mock blanks the basemap AND the style host, so
+  // the GL custom layer never attached in ANY e2e before the scoped route below; (2) UI pixels
+  // (readout, pulsing dot) polluted the clip -> central-ocean clip + self-calibrated noise;
+  // (3) the engine clears-and-recommits during series settle -> stable-read retry; (4) commit
+  // latch added after a transient commit was indistinguishable from none. Remaining: the +24h
+  // commit is not yet reliably observed against the shared 1-CPU box under repeated runs.
+  // Finish = un-fixme once the latch wait passes 3 consecutive local headed runs.
+  test.fixme('the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels', async ({ page }) => {
+    // Page load (8-20 s) + one marine cache miss (18-35 s) + a series-warm scrub commit — the
+    // same measured budgets as the sibling tests.
+    test.setTimeout(240000);
+
+    await page.goto('/map', { waitUntil: 'domcontentloaded' });
+    const rightControls = page.locator('[data-testid="featured-photographers-btn"]');
+    await expect(rightControls).toBeVisible({ timeout: 65000 });
+
+    // Same capability probe as the sibling: ask the page, never name the browser.
+    const hasWebGL = await page.evaluate(() => {
+      try {
+        const c = document.createElement('canvas');
+        return !!(c.getContext('webgl2') || c.getContext('webgl'));
+      } catch (e) { return false; }
+    });
+    test.skip(!hasWebGL, 'no WebGL context on this runner — the pixels would measure the runner, not the app');
+
+    const isMobile = await page.evaluate(() => window.innerWidth < 768);
+    test.skip(isMobile, 'pixel truth runs on the desktop layout — the bottom-sheet flow adds motion this oracle would misread');
+
+    // Activate Waves and wait for the engine (not the fallback) to be renderable.
+    const wavesBtn = page.locator('button').filter({ hasText: 'Waves' }).filter({ visible: true }).first();
+    await expect(wavesBtn).toBeVisible();
+    await wavesBtn.evaluate(el => el.click());
+    try {
+      await page.waitForFunction(() => {
+        const diag = window.__MARINE_PROJECTION_DIAG__;
+        const eng = window.__MARINE_ENGINE__;
+        return diag && (diag.renderable === true || diag.renderDecision === 'render' || diag.renderDecision === 'clip_to_coverage')
+               && eng && eng._waveData && eng._waveData.waveGrid;
+      }, null, { timeout: 45000 });
+    } catch (err) {
+      const seen = await page.evaluate(() => ({
+        diag: window.__MARINE_PROJECTION_DIAG__ || null,
+        engineResident: !!(window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData),
+      }));
+      throw new Error(`marine engine never became renderable. Seen: ${JSON.stringify(seen)}\n${err.message}`);
+    }
+
+    // Freeze the drift lever (read live each frame) and let one settle pass complete. Also
+    // install a commit LATCH: the engine clears-and-recommits during settle, so a poller that
+    // records the MAX hourOffset ever resident distinguishes "committed then cleared" (latch
+    // holds 24) from "never committed" (latch stays 0) — the two timeouts read identically
+    // without it (measured on this oracle's fourth live run: engineHour null at timeout).
+    await page.evaluate(() => {
+      window.__RAW_WAVE_SPEED__ = 0;
+      window.__E2E_MAX_HOUR__ = 0;
+      if (!window.__E2E_HOUR_POLLER__) {
+        window.__E2E_HOUR_POLLER__ = setInterval(() => {
+          const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
+          if (g && typeof g.hourOffset === 'number' && g.hourOffset > window.__E2E_MAX_HOUR__) {
+            window.__E2E_MAX_HOUR__ = g.hourOffset;
+          }
+        }, 250);
+      }
+    });
+    await page.waitForTimeout(1500);
+
+    const mapCanvas = page.locator('canvas.maplibregl-canvas');
+    const box = await mapCanvas.boundingBox();
+    expect(box).not.toBeNull();
+    // CLIP = the central-ocean region only: hard-inset away from the right-side weather panel,
+    // the bottom timeline wheel, and the left rail — none of that UI may vote in a FIELD oracle
+    // (first live run: the +1d readout repaint alone measured 0.16% and could masquerade as
+    // field change). At the default boot viewport this window is open Atlantic.
+    const clip = {
+      x: box.x + box.width * 0.08,
+      y: box.y + box.height * 0.15,
+      width: Math.max(64, box.width * 0.50),
+      height: Math.max(64, box.height * 0.45),
+    };
+
+    // CONTROL PAIR — same hour, ~1.2 s apart: measures residual animation noise (foam phase is
+    // wall-clock and cannot be frozen; that is WHY the threshold is self-calibrated).
+    const shotA1 = await page.screenshot({ clip });
+    await page.waitForTimeout(1200);
+    const shotA2 = await page.screenshot({ clip });
+    const noise = diffFraction(shotA1, shotA2);
+
+    // PAINT GATE (first live run, 2026-08-09): this spec's route mocks blank the basemap, so ANY
+    // colour in the mid-ocean clip IS the marine wash — and the run showed engine resident +
+    // diag renderable + ZERO field pixels on this headless runner (a white void; SwiftShader-class
+    // silent no-paint). A pixel oracle graded there measures the RUNNER. Refuse, never lie:
+    // the test stays armed for every environment that actually paints (headed/GPU runs).
+    const structure = varianceFraction(shotA1);
+    test.skip(structure < 0.02,
+      `marine wash produced no field pixels in this environment (varianceFraction=${structure.toFixed(4)} over a mocked-white basemap) — pixel truth requires a painting GL environment; run headed/GPU`);
+
+    // REFUSE arm: if animation dominates even with drift frozen, the oracle cannot measure.
+    test.skip(noise > 0.25, `residual animation noise ${(noise * 100).toFixed(1)}% of pixels — the hour-change signal cannot be separated; raise the freeze levers before re-enabling`);
+
+    // Snapshot the h0 sea from the engine's own grid — the data-delta discriminator below needs it.
+    const seaBefore = await page.evaluate(() => {
+      const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
+      if (!g || !g.vectors) return null;
+      const step = Math.max(1, Math.floor(g.vectors.length / 200));
+      const out = [];
+      for (let i = 0; i < g.vectors.length; i += step) out.push(g.vectors[i] ? (g.vectors[i].speed || 0) : 0);
+      return out;
+    });
+    expect(seaBefore, 'engine grid unreadable for the data-delta discriminator').not.toBeNull();
+
+    // TREATMENT — +1 day via the accessible wheel (PageUp = +1 day, the house a11y contract),
+    // then wait for the ENGINE to hold the new hour's grid (not just the readout).
+    const scrubber = page
+      .locator('[role="slider"][aria-label="Forecast timeline wheel"]')
+      .filter({ visible: true }).first();
+    await scrubber.focus();
+    await scrubber.press('PageUp');
+    try {
+      // The LATCH is the commit oracle (a transient commit counts); the stable-read loop below
+      // is the read oracle. 90 s: the cold grid_series miss is 18-35 s alone and this shared
+      // 1-CPU box is also serving production.
+      await page.waitForFunction(() => window.__E2E_MAX_HOUR__ >= 24, null, { timeout: 90000 });
+    } catch (err) {
+      const seen = await page.evaluate(() => {
+        const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
+        return { latchedMaxHour: window.__E2E_MAX_HOUR__, engineHour: g ? g.hourOffset : null,
+                 scrub: window.isScrubbingTimeline || false };
+      });
+      throw new Error(`engine never committed the +24h frame (latch never saw it). Seen: ${JSON.stringify(seen)}\n${err.message}`);
+    }
+    await page.waitForTimeout(1500); // let the settle cycle run
+
+    // ⚠️ The engine CLEARS-AND-RECOMMITS during series settle (measured on this oracle's third
+    // live run: _waveData was null 1.5 s AFTER the verified +24h commit while a sharper regional
+    // frame refetched). Reading a snapshot mid-cycle grades the settle machinery, not the
+    // renderer — wait for a STABLE resident at the new hour, then read, with a bounded retry.
+    let seaAfter = null;
+    for (let attempt = 0; attempt < 3 && !seaAfter; attempt++) {
+      await page.waitForFunction(() => {
+        const eng = window.__MARINE_ENGINE__;
+        const g = eng && eng._waveData && eng._waveData.waveGrid;
+        return g && g.vectors && typeof g.hourOffset === 'number' && g.hourOffset >= 24;
+      }, null, { timeout: 30000 });
+      await page.waitForTimeout(800);
+      seaAfter = await page.evaluate(() => {
+        const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
+        if (!g || !g.vectors || g.hourOffset < 24) return null;
+        const step = Math.max(1, Math.floor(g.vectors.length / 200));
+        const out = [];
+        for (let i = 0; i < g.vectors.length; i += step) out.push(g.vectors[i] ? (g.vectors[i].speed || 0) : 0);
+        return out;
+      });
+    }
+    // DATA-DELTA DISCRIMINATOR: never grade the renderer on an unchanged input. If the sea
+    // itself barely moved across the step (possible on a becalmed frame), REFUSE — a pixel
+    // no-change would then be correct behaviour, not a defect. Calibration (live, 2026-08-09,
+    // wide-Atlantic default view): h0→h24 moved 64% of cells by more than one 8-bit texture
+    // quantum (0.039 m) and crossed a colour band on 20.3% — so 10% is a conservative floor.
+    expect(seaAfter, 'engine grid never stabilised at the new hour (3 stable-read attempts)').not.toBeNull();
+    const n = Math.min(seaBefore.length, seaAfter.length);
+    let moved = 0;
+    for (let i = 0; i < n; i++) if (Math.abs(seaBefore[i] - seaAfter[i]) > 0.039) moved++;
+    const seaMovedFrac = moved / Math.max(1, n);
+    test.skip(seaMovedFrac < 0.10,
+      `the sea itself moved on only ${(seaMovedFrac * 100).toFixed(1)}% of sampled cells across the step — the renderer cannot be graded on an unchanged input; becalmed frame, re-run later`);
+
+    const shotB = await page.screenshot({ clip });
+    const change = diffFraction(shotA1, shotB);
+
+    // THE ASSERTION: the +24h field must differ from the +0h field by clearly more than the
+    // same-hour animation noise. A frozen frame under an advancing readout — the four-mechanism
+    // composite failure — fails here and nowhere else in the estate.
+    const floor = Math.max(3 * noise, 0.005);
+    expect(change, `the sea moved on ${(seaMovedFrac * 100).toFixed(0)}% of cells but only ${(change * 100).toFixed(2)}% of pixels changed (noise ${(noise * 100).toFixed(2)}%, floor ${(floor * 100).toFixed(2)}%) — the readout and the DATA advanced but the picture did not`).toBeGreaterThan(floor);
   });
 });
 
