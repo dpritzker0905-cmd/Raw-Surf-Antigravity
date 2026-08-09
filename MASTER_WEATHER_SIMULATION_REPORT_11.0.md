@@ -605,7 +605,38 @@ Scores 1–5 (Cx/Risk/Ops are costs). **≤10 immediate actions.**
 >   first serve and stale during fetch-heavy periods. Measured unknown windows across four storms:
 >   1s / 24s / 33s / 95s — startup, except when the backend was slow. Not a missing field.
 >
-> **⚠️ NEW — OWNER-OBSERVED, UNRESOLVED: the rating BAND and the spot GLYPHS disagree on colour at
+> **✅ MEASURED — THE BAND/GLYPH ZOOM DEPENDENCE, REPRODUCED (2026-08-09, both lanes, live prod).**
+> Sweeping bbox size at a fixed centre and reading BOTH lanes at the same coordinate and hour:
+>
+> | spot | GLYPH | BAND @ close (0.25° cells) | BAND @ wide (2.0° `mid_res_tier`) |
+> |---|---|---|---|
+> | Pipeline | 2.3 `very_poor` | 6.3 `very_poor` (2.7×) | 2.6 `very_poor` |
+> | Mavericks | 12.5 `very_poor` | **28.3 `poor`** (2.3×) | 10.5 `very_poor` |
+> | Sebastian Inlet | 25.4 `poor` | **57.3 `fair_good`** (2.3×) | 47.0 `fair` |
+>
+> **The close-zoom band systematically over-reads the glyph by 2.3–2.7× at all three spots.** Whether
+> that becomes a VISIBLE colour difference depends on whether it crosses a `_BUCKETS` boundary —
+> Mavericks straddles 14 (very_poor→poor) and is the owner's exact report; Pipeline stays inside
+> `very_poor` both ways and looks fine; Sebastian is 2–3 levels off at every zoom.
+> **Four candidate explanations KILLED by the measurement:**
+> 1. *Distance to the spot* — the wide-zoom rated cell is **0.34–0.71° away (38–79 km)** vs 0.10–0.12°
+>    (11–13 km) at close zoom. It is 3–7× FURTHER and agrees BETTER.
+> 2. *Input height* — Pipeline's raw offshore height is **1.55 m close vs 1.60 m wide (+3%)** while its
+>    band score differs **2.4×**. The inputs agree; the outputs do not.
+> 3. *The local-size flag* — `local_size: true` in the `surf_transform` tag at BOTH tiers.
+> 4. *cell_ref vs spot_ref* — a larger cell reference (Pipeline 2.164 vs 1.481) makes `size_score`
+>    **smaller**, so the reference gap predicts the band reading LOW. Observed sign is the opposite.
+> ⇒ **The divergence is in the PER-CELL COMPOSITION, not in the inputs, the flag, or the blob.** The
+> band rates each cell with that cell's own bathymetry-derived geometry (`shelf_depth_at`,
+> `is_coastal`, `shelf_width_km`, `shore_normal_at`) plus co-sampled wind, at the CELL's coordinate;
+> the glyph uses the SPOT's resolved geometry. Two different questions rendered as one answer, and the
+> grid tier decides which cell's geometry answers it. ⚠️ The exact binding sub-term is NOT yet isolated
+> (needs a per-cell geometry dump alongside the score) — do not tune either lane before it is.
+> ⭐ Instrument note: the `surf_transform` tag is nested at `grid.diagnostics.surf_transform`; reading
+> `diagnostics.value_kind` falls back to the product's top-level `value_kind`, which stays
+> `wave_height` even when the rating overlay ran. A first pass read every row as "not rated".
+>
+> **⚠️ PRIOR ENTRY (superseded above by measurement) — OWNER-OBSERVED: the rating BAND and the spot GLYPHS disagree on colour at
 > CLOSE zoom, and agree at wider zooms that still paint the band** (owner, 2026-08-09). This is queue
 > **E#1** seen in the wild for the first time. Established: the two surfaces resolve their reference
 > from **different lanes** — the band via `reference_for(clim, lat, lng)`, a COORDINATE lookup
