@@ -84,10 +84,30 @@ flag guarded on an unlisted input can no longer get the diluted headline in sile
 1. **Resolve the lane-dependent height (#1).** The decay's intent is sound; living in one lane is
    not. Decide whether the point lane is already land-aware, and whether 0.35 is calibrated or a
    guess. `nearshoreDecay.proof.test.js` holds the measurement.
-2. **Run the tide A/B for real.** The precompute at `0f944c83`+ writes water levels into the 5%
-   sample; then `gh workflow run science-shadow-ab.yml -f candidate=SURF_TIDE_DEPTH=1`. Read the
-   **DEPENDENCY** line, not the headline. ⚠️ Re-run across a wider hour span before concluding —
-   the flag binds at tidal extremes and a 3-hour window is one frame generalised.
+2. ✅ **DONE — the tide A/B ran for real (22:05Z, run 31338483734).** First trustworthy verdict
+   this instrument has produced:
+
+   ```
+   rows        seen 10638 | replayable 496 | disqualified 26
+   COVERAGE    6 frames | EURO,GFS,ICON | hour offsets [0, 3] (span 3 h) | 21:00Z .. 00:00Z
+   LEVEL       unchanged 496  up 0  down 0  => 0.0% change
+   delta       p10 -0.1  median 0.0  p90 0.1  (min -0.2, max 0.2)
+   DEPENDENCY  guarded on `water_level_m`: 486/496 rows carry it (98%) -> among THOSE,
+               0 changed level (0.0%), max |delta| 0.2
+   ```
+
+   **Why this one is believable where the first was not:** input coverage went 0% → **98%**, and
+   the positive control proves the harness can detect a **38.1-point** move — **190× larger than
+   the largest thing observed (0.2)**. The lever is live, wired, and pointed at the served
+   population, and it still moves nothing.
+   ⇒ **Flipping `SURF_TIDE_DEPTH` is user-invisible in these conditions.** It is NOT evidence of
+   no effect in general: the term binds only at the depth-limited cap (~12 m offshore at
+   Pipeline), and no such sea is in this 3-hour sample.
+   ⚠️ **AN OPEN DISCREPANCY, recorded rather than smoothed over:** the ledger puts tide reach at
+   **1.694%** of served spot-hours, which predicts **~8 binding rows in 486**. Observed: **0**
+   level changes, max 0.2 pts. Either the 1.694% is measured on a different predicate (input
+   present vs cap actually binding), or this window is unrepresentative. **Do not quote either
+   number as settled until that is reconciled.**
 3. **Owner calls #5 and #6** — one value each, evidence attached.
 4. ⛔ **Do not tune either band/glyph lane** until the per-cell composition sub-term is isolated —
    that belongs to the concurrent report-11 session.
