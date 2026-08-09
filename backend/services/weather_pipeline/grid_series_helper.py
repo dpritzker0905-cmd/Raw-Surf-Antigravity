@@ -35,6 +35,27 @@ def _frame_rating_mode(grid) -> bool:
         return bool((d.get("surf_transform") or {}).get("value_kind") == "surf_rating")
     except Exception:
         return False
+
+
+def _frame_provenance(product) -> dict:
+    """Run/upstream identity for a series frame (2026-08-09, Report 11.0 R11-04).
+
+    Series frames used to strip run_time/upstream_provider/source_dataset/estimate_basis — the
+    per-hour /grid lane serves all four, so this was a serialization gap, not missing data. Two
+    consequences it caused: (1) adjacent scrubber hours could mix MODEL RUNS with no disclosure
+    (each hour resolves independently against a manifest that legitimately holds two run
+    generations mid-cycle); (2) the frontend's model→dataset guess — FALSIFIED for EURO, measured
+    2026-08-03 — stayed the active provenance path for every series-committed frame, because
+    frameToMarineData prefers `frame.upstream_provider` and it was never present. Additive
+    fields only; None where the resolved product carries none. run_time remains the INGEST
+    wall-clock (true model-cycle identity is a separate, Phase-3 item)."""
+    rt = getattr(product, "run_time", None)
+    return {
+        "run_time": rt.strftime("%Y-%m-%dT%H:%M:%SZ") if hasattr(rt, "strftime") else rt,
+        "upstream_provider": getattr(product, "upstream_provider", None),
+        "source_dataset": getattr(product, "source_dataset", None),
+        "estimate_basis": getattr(product, "estimate_basis", None),
+    }
 # A single hour must never hang the whole series. Models with pre-built regional/global
 # products (GFS/ICON via manifest) resolve in ms; models that fall to the slow dynamic
 # path (EURO/Copernicus) can stall — so cap each hour and the whole build, and return
@@ -169,6 +190,7 @@ async def _build_euro_marine_series(viewport_service, layer: str, bbox: str, hou
             "served_valid_time": t_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "frame_offset_hours": 0.0,
             "frame_substituted": False,
+            **_frame_provenance(normalized),
         })
 
     frames.sort(key=lambda f: f["hour_offset"])
@@ -261,6 +283,7 @@ async def _build_openmeteo_marine_series(viewport_service, model: str, layer: st
             "served_valid_time": t_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "frame_offset_hours": round((t_actual - target_dt).total_seconds() / 3600.0, 2),
             "frame_substituted": abs((t_actual - target_dt).total_seconds()) > 1800,
+            **_frame_provenance(normalized),
         })
 
     frames.sort(key=lambda f: f["hour_offset"])
@@ -285,6 +308,17 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
         resolve_grid, viewport_service, model, domain, layer, bbox, hours,
         request=request, surf=surf,
     )
+    # RUN CENSUS (2026-08-09, R11-04): each hour resolves independently, so ONE response can mix
+    # model runs mid-ingest (~1-2.75 h window, 6x/day) — physically discontinuous adjacent frames.
+    # Frames now carry run_time; the census makes a mixed page detectable at a glance (client-side
+    # and in any dump) without walking every frame. Additive; absent when no frame carries a run.
+    try:
+        runs = sorted({f["run_time"] for f in resp.get("frames", []) if f.get("run_time")})
+        if runs:
+            resp["run_census"] = {"distinct_runs": len(runs), "min_run_time": runs[0],
+                                  "max_run_time": runs[-1], "mixed_runs": len(runs) > 1}
+    except Exception:
+        logger.exception("[series-run-census] census failed; serving without it")
     try:
         from services.weather_pipeline.series_vector_budget import apply_vector_budget
         return apply_vector_budget(resp)
@@ -490,6 +524,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             "served_valid_time": getattr(product, "served_valid_time", None),
             "frame_offset_hours": getattr(product, "frame_offset_hours", 0.0),
             "frame_substituted": getattr(product, "frame_substituted", False),
+            **_frame_provenance(product),
         })
 
     # Merge the EURO native fast-path frames (<=240h) with the per-hour-built estimated frames
