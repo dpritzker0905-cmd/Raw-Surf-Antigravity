@@ -148,6 +148,36 @@ def test_the_two_directional_factors_disagree_and_this_pins_by_how_much():
         "the disagreement is no longer monotone in dtheta -- the defect changed shape")
 
 
+def test_SURF_EXPOSURE_RECONCILED_closes_the_disagreement_to_exactly_one(monkeypatch):
+    """THE RECONCILIATION, and the same-commit pin the docstring above demands (2026-08-09).
+
+    `SURF_EXPOSURE_RECONCILED=1` replaces the height factor's `0.55 + 0.45*exposure` with
+    `sqrt(exposure)`, so `height_factor**2 == exposure` BY CONSTRUCTION and the two chains agree on
+    energy at EVERY angle -- 1.000, not merely closer. That is a law (H ~ sqrt(E)), not a fitted
+    constant, which is why it can be asserted exactly rather than within a tolerance.
+
+    ⛔ DEFAULT OFF, and this test does not authorise flipping it. What moves is the HEIGHT:
+    0.0% head-on, -2.6% at 45 deg, -17.5% at 75 deg, -46.9% at the floor (measured 2026-08-09).
+    Head-on being untouched is exactly why the owner anchors stay green AND why they cannot grade
+    this -- their own docstring says every gate is 1.0. The gate for turning it on is a served-reach
+    census, not a green suite."""
+    monkeypatch.setenv("SURF_EXPOSURE_RECONCILED", "1")
+    monkeypatch.setenv("SURF_V3_EXPOSURE", "1")
+    for d in DTHETAS:
+        assert energy_disagreement(d) == pytest.approx(1.0, abs=1e-9), (
+            f"reconciled mode must make the chains agree exactly at dtheta={d}")
+
+
+def test_the_reconciliation_is_OFF_by_default_so_served_heights_are_unchanged(monkeypatch):
+    """A kill switch that is on by accident is not a kill switch. Absence of the env var must give
+    the legacy value at the floor, byte for byte."""
+    monkeypatch.delenv("SURF_EXPOSURE_RECONCILED", raising=False)
+    monkeypatch.setenv("SURF_V3_EXPOSURE", "1")
+    from services.weather_pipeline.surf_transform import _height_exposure_factor
+    assert _height_exposure_factor(120.0, 0.0) == pytest.approx(0.595, abs=1e-9)
+    assert energy_disagreement(120.0) == pytest.approx(MAX_ENERGY_DISAGREEMENT, abs=DISAGREEMENT_TOL)
+
+
 # ── 3. WHICH ONE IS WRONG: the physical bracket ─────────────────────────────────────────────────
 
 @pytest.mark.parametrize("dtheta", [90.0, 100.0, 120.0, 150.0])

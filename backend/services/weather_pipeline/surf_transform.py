@@ -367,6 +367,7 @@ def _height_exposure_factor(swell_from_deg, shore_normal_deg) -> float:
         return 1.0
     align = math.cos(math.radians(swell_from_deg - shore_normal_deg))
     exposure = _clamp(0.10 + 0.90 * max(0.0, align), 0.0, 1.0)
+    if os.environ.get("SURF_EXPOSURE_RECONCILED", "0") == "1": return math.sqrt(exposure)  # noqa: E701 - OFF by default; docs/research/FINDING-2026-08-09-the-dual-floor-reconciliation.md
     return 0.55 + 0.45 * exposure
 
 
