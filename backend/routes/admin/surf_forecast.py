@@ -59,6 +59,17 @@ _RATING_FLAGS = {
     "SURF_COASTAL_FROM_SHORE_NORMAL": ("1", "Treat a fitted 463 m shore normal as evidence of a "
                                             "coastline when the 0.25 deg land mask cannot resolve "
                                             "the island (small-island surf; 18 spots)", "Render env"),
+    # 2026-08-09: registered by a SECOND session after the flag-lane guard went red across
+    # 7 consecutive SHAs. The switch shipped in da130c41 without a registry line, which is
+    # the same omission SURF_COASTAL_FROM_LAND_BIT made earlier the same day (5ee77bcd) --
+    # ⇒ REGISTER A SCIENCE SWITCH IN THE COMMIT THAT ADDS IT; the guard cannot tell a new
+    # flag from a forgotten one, and an unregistered flag is invisible to the admin panel.
+    "SURF_EXPOSURE_RECONCILED": ("0", "Reconcile the DUAL swell-aim floor: replace the "
+                                      "0.55+0.45*exposure quality curve with sqrt(exposure) "
+                                      "so quality and height stop reading the same swell "
+                                      "through different floors (0.100 vs 0.595). OFF by "
+                                      "default; see FINDING-2026-08-09-the-dual-floor-"
+                                      "reconciliation.md", "Render env"),
     "SURF_COASTAL_FROM_LAND_BIT": ("1", "Treat a fitted 463 m shoreline WITHOUT a bearing (the "
                                         "land_present asset section) as evidence of a coastline — "
                                         "the second small-island set: 14 atoll/pass spots whose "
