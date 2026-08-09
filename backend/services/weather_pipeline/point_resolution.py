@@ -33,6 +33,23 @@ from services.weather_pipeline.point_direct_fallbacks import (  # noqa: E402
 from services.weather_pipeline.point_surf_augment import augment_with_surf  # noqa: E402
 from services.weather_pipeline import wave_physics  # noqa: E402
 
+def _selection_key(pair):
+    """Candidate ranking for the point resolver's manifest selection, ONE definition for both
+    sites (resolve_point + find_cached_grid_product — they had drifted into four identical
+    lambdas). ⭐ RESOLUTION BREAKS TIME TIES (2026-08-09, MASTER-AUDIT-11.0 resolution F7): the
+    old key was (time_diff, bbox_area), and two GLOBAL products at the same hour tie on BOTH
+    terms — manifest order decided, so a 10° product could answer a point a 2° product covered.
+    55.22% of served spots depend on a global tier, and this tie-break is the gate the audit put
+    in front of any 0.25° coverage expansion. Finer resolution wins within a time tie; area stays
+    the final term. Kill: POINT_RES_TIEBREAK=0 restores (diff, area) exactly."""
+    from services.weather_pipeline.product_selection import get_bbox_area
+    p, diff = pair
+    area = get_bbox_area(p.coverage.west, p.coverage.south, p.coverage.east, p.coverage.north)
+    if os.environ.get("POINT_RES_TIEBREAK", "1") != "0":
+        return (diff, float(p.resolution), area)
+    return (diff, area)
+
+
 class PointResolutionService:
     """
     Service responsible for sampling weather points from grids or falling back
@@ -334,26 +351,12 @@ class PointResolutionService:
                     else:
                         authoritative_candidates.append((p, diff))
 
-        from services.weather_pipeline.product_selection import get_bbox_area
-
         best_auth = None
         best_est = None
         if authoritative_candidates:
-            best_auth = min(
-                authoritative_candidates,
-                key=lambda pair: (
-                    pair[1],
-                    get_bbox_area(pair[0].coverage.west, pair[0].coverage.south, pair[0].coverage.east, pair[0].coverage.north)
-                )
-            )
+            best_auth = min(authoritative_candidates, key=_selection_key)
         if estimated_candidates:
-            best_est = min(
-                estimated_candidates,
-                key=lambda pair: (
-                    pair[1],
-                    get_bbox_area(pair[0].coverage.west, pair[0].coverage.south, pair[0].coverage.east, pair[0].coverage.north)
-                )
-            )
+            best_est = min(estimated_candidates, key=_selection_key)
 
         matching_item = None
         if best_auth and best_est:
@@ -713,26 +716,12 @@ class PointResolutionService:
                     else:
                         authoritative_candidates.append((p, diff))
 
-        from services.weather_pipeline.product_selection import get_bbox_area
-
         best_auth = None
         best_est = None
         if authoritative_candidates:
-            best_auth = min(
-                authoritative_candidates,
-                key=lambda pair: (
-                    pair[1],
-                    get_bbox_area(pair[0].coverage.west, pair[0].coverage.south, pair[0].coverage.east, pair[0].coverage.north)
-                )
-            )
+            best_auth = min(authoritative_candidates, key=_selection_key)
         if estimated_candidates:
-            best_est = min(
-                estimated_candidates,
-                key=lambda pair: (
-                    pair[1],
-                    get_bbox_area(pair[0].coverage.west, pair[0].coverage.south, pair[0].coverage.east, pair[0].coverage.north)
-                )
-            )
+            best_est = min(estimated_candidates, key=_selection_key)
 
         matching_item = None
         if best_auth and best_est:
