@@ -74,7 +74,18 @@ ERDDAP = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.csv"
 # Ponce Inlet as INLAND, because the quantised nearest-deep-cell lands past the 1.5 km cutoff.)
 # The build's wall time tracks ERDDAP's mood, not this constant: the same code ran in 3 min at
 # 0.7 s/request and >40 min at 22 s/request on the same day.
-FETCH_HALF_DEG = 0.08
+# ⭐ 0.08 -> 0.25 (2026-08-09), and it costs NOTHING. Measured live, same spot, same minute:
+#     0.08 stride 1 =  1,560 cells,  59 KB -> 22.54 s
+#     0.25 stride 1 = 14,641 cells, 570 KB -> 22.53 s      9.4x the data for 0.0 s
+# consistent with the header above: ERDDAP charges per REQUEST. The fit windows are CROPPED from
+# this box (WINDOW_HALF_DEGS max ~0.045), so widening cannot move a fitted bearing; what it buys is
+# REACH for the land mask below. ±0.25° ≈ ±28 km, which contains Cape St Francis (18 km from
+# Jeffreys Bay) — the headland the 0.25° bathymetry asset does not contain at all, and the reason
+# J-Bay serves "9.6 ft / very_poor". ⚠️ NOT the wide-but-COARSE window that failed twice: that one
+# quantised to 1.85 km cells and false-flagged Pipeline/Cocoa/J-Bay/Ponce as INLAND. This is wide
+# AND fine — stride stays 1, so the ocean-access test sees exactly what it saw before.
+FETCH_HALF_DEG = 0.25
+MASK_N = 32          # 32x32 over +/-0.25 deg = ~1.7 km cells; 256 hex chars/spot
 PAGE = 1000                                  # PostgREST silently caps at 1000 AND still returns 200
 WORKERS = 6                                  # polite to NOAA; ~1516 spots lands in a few minutes
 RETRIES = 3
@@ -174,6 +185,24 @@ def measure(spot):
         out["status"] = f"fetch_failed: {e}"
         return out
     elev = np.where(np.isnan(elev), 0.0, elev)
+    # ── LAND MASK (2026-08-09): the wide box, downsampled, as a packed bitfield ──────────────────
+    # The whole point of widening the fetch. `shore_normals.json` has always DISCARDED this array
+    # after fitting a bearing, which is why no shadow/wrapping question could be answered: the
+    # estate held 463 m coastline DERIVATIVES but not the coastline. MASK_N x MASK_N over ±0.25°
+    # gives ~1.7 km cells — proven sufficient to resolve Cape St Francis (etopo15s_raster_probe.py)
+    # while costing ~MASK_N²/4 hex chars per spot. Bit set = LAND (z >= 0), row-major from the
+    # SOUTH-WEST corner, so a consumer reconstructs it as mask[row][col] with row 0 = lat0.
+    try:
+        _n = MASK_N
+        _ri = np.linspace(0, elev.shape[0] - 1, _n).astype(int)
+        _ci = np.linspace(0, elev.shape[1] - 1, _n).astype(int)
+        _sub = elev[np.ix_(_ri, _ci)] >= 0.0
+        _bits = "".join("1" if b else "0" for b in _sub.reshape(-1))
+        out["mask"] = f"{int(_bits, 2):0{_n * _n // 4}x}" if _bits else None
+        out["mask_bounds"] = [round(float(lats[0]), 5), round(float(lons[0]), 5),
+                              round(float(lats[-1]), 5), round(float(lons[-1]), 5)]
+    except Exception:
+        out["mask"] = None          # never fatal: a missing mask is a missing mask, not a bad fit
     try:
         i = int(np.argmin(np.abs(lats - lat)))
         j = int(np.argmin(np.abs(lons - lon)))
@@ -417,6 +446,14 @@ def main():
         "entries": entries,
         "land_present_max_km": LAND_PRESENT_MAX_KM,
         "land_present": sorted(land_present),
+        # THE LAND MASK the build used to throw away. entry = [lat, lng, s_lat, w_lng, n_lat, e_lng,
+        # hex] where hex is MASK_N x MASK_N bits, row-major from the SW corner, 1 = land (z >= 0).
+        # This is the raster a shadow/wrapping term needs and no shipped asset provided.
+        "mask_n": MASK_N,
+        "mask_note": (f"{MASK_N}x{MASK_N} land bitfield per spot over the +/-{FETCH_HALF_DEG} deg "
+                      "fetch box (~1.7 km cells); bit set = land (z >= 0), row-major from SW"),
+        "masks": [[round(r["lat"], 5), round(r["lng"], 5)] + r["mask_bounds"] + [r["mask"]]
+                  for r in rows if r.get("mask") and r.get("mask_bounds")],
     }
     # ★★ REFUSE TO OVERWRITE A GOOD ASSET WITH A COLLAPSED ONE.
     # 2026-07-28 this build emitted **0 of 1820** entries because every ERDDAP fetch failed, and
