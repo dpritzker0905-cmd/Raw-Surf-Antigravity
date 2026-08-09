@@ -14,7 +14,7 @@ is the newest MODEL RUN behind it, measured against the cadence that lane is act
 TIERS AND THEIR EXPECTED CADENCE (why the thresholds differ):
   global_*           forecast-ingest.yml, cron '15 */4 * * *'      -> every 4 h
   flagship regional  forecast-ingest-pilots.yml, '45 3,11,19'      -> every 8 h (FL/SoCal, every fire)
-  worldwide regional same lane, WORLDWIDE_REGIONS_PER_CYCLE=2 of 8 -> every ~4 fires ~= 32 h
+  worldwide regional same lane, WORLDWIDE_REGIONS_PER_CYCLE=3 of 12 -> every ~4 fires ~= 32 h
 A single fixed threshold cry-wolfs on the worldwide tier and goes blind on the global one.
 
   ICON/EURO marine are the exception: they use get_all_pilot_regions() (no rotation), so they hold

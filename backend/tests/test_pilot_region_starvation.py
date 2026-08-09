@@ -27,7 +27,23 @@ from services.weather_pipeline.scheduler_helpers import (
 # forecast-ingest-pilots.yml: cron '45 3,11,19 * * *'. forecast-ingest.yml runs INGEST_PILOTS=skip,
 # so this is the ONLY schedule that selects pilot regions.
 PILOT_CRON_UTC = [(3, 45), (11, 45), (19, 45)]
-PER_CYCLE = 2          # WORLDWIDE_REGIONS_PER_CYCLE in both workflows
+def _per_cycle_from_workflows() -> int:
+    """READ the divisor from the workflows instead of hand-syncing a constant: the 08-03 skill
+    outage was exactly a fan-out whose enclosing bound nobody recounted. Both setters must agree."""
+    import os as _os
+    import re as _re
+    root = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "..")
+    vals = set()
+    for wf in ("forecast-ingest-pilots.yml", "forecast-ingest.yml"):
+        text = open(_os.path.join(root, ".github", "workflows", wf), encoding="utf-8").read()
+        m = _re.search(r"WORLDWIDE_REGIONS_PER_CYCLE:\s*'(\d+)'", text)
+        assert m, f"{wf} no longer sets WORLDWIDE_REGIONS_PER_CYCLE"
+        vals.add(int(m.group(1)))
+    assert len(vals) == 1, f"the two workflows disagree on WORLDWIDE_REGIONS_PER_CYCLE: {vals}"
+    return vals.pop()
+
+
+PER_CYCLE = _per_cycle_from_workflows()
 DAYS = 30
 
 
@@ -47,6 +63,19 @@ def _ww_items():
     return list(WORLDWIDE_COASTAL_REGIONS.items())
 
 
+# ── THE 2026-07-31 INCIDENT POPULATION, FROZEN. The replay tests below are the forensic record of
+# a defect measured against the 8 regions that existed THAT day at per_cycle=2. The live list has
+# since grown (2026-08-09 expansion: us_southeast_midatlantic, azores, us_northeast,
+# france_biscay) and BOTH the legacy rotation's modular arithmetic and stale-first's
+# never-ingested-first rule change with the population — replaying an old incident against a new
+# population tests neither. History is guarded here against history's own config; the LIVE config
+# is guarded by the cadence-invariant test at the bottom of this file.
+INCIDENT_ERA_PER_CYCLE = 2
+INCIDENT_ERA_REGIONS = [(r, WORLDWIDE_COASTAL_REGIONS[r]) for r in (
+    "hawaii", "iberia_west", "uk_ireland", "east_australia",
+    "indonesia", "brazil_east", "south_africa", "mexico_centralamerica_pac")]
+
+
 @pytest.mark.parametrize("elapsed_min,starved", [
     (0,   {"hawaii", "iberia_west"}),
     (60,  {"south_africa", "mexico_centralamerica_pac"}),
@@ -58,10 +87,10 @@ def test_clock_rotation_starves_exactly_two_regions_under_the_real_cron(elapsed_
     adjacent PAIR is never selected. WHICH pair depends only on how far into the job the lane runs —
     and job duration drifts, so the starved pair moves. The +180 min case is the live failing
     instance: uk_ireland + east_australia measured at 447.5 h against a 12 h design intent."""
-    ww = _ww_items()
+    ww = INCIDENT_ERA_REGIONS
     hits = {rid: 0 for rid, _ in ww}
     for t in _fire_times(elapsed_min):
-        for rid in _select_rotating_regions(REGIONAL_CONFIGS, ww, PER_CYCLE, _cycle_index(t)):
+        for rid in _select_rotating_regions(REGIONAL_CONFIGS, ww, INCIDENT_ERA_PER_CYCLE, _cycle_index(t)):
             if rid in hits:
                 hits[rid] += 1
 
@@ -72,10 +101,10 @@ def test_clock_rotation_starves_exactly_two_regions_under_the_real_cron(elapsed_
 
 @pytest.mark.parametrize("elapsed_min", [0, 60, 120, 180, 47, 213])
 def test_stale_first_starves_nobody_at_any_job_duration(elapsed_min):
-    """THE FIX. Selection reads what was actually ingested, so no region can be skipped by a clock
-    coincidence. Bound: with 8 regions, 2 per fire, 3 fires/day, every region must be refreshed
-    within ceil(8/2)=4 fires -> at most ~32 h (one fire gap is 8 h; two consecutive same-day gaps
-    are shorter)."""
+    """THE FIX, run against the LIVE population on purpose (the replay above uses the frozen one).
+    Selection reads what was actually ingested, so no region can be skipped by a clock coincidence.
+    Bound: N regions at PER_CYCLE per fire, 3 fires/day -> every region refreshed within
+    ceil(N/PER_CYCLE) fires, which the cadence-invariant test pins at <= 4 fires = 32 h."""
     ww = _ww_items()
     last_run: dict = {}
     hits = {rid: 0 for rid, _ in ww}
@@ -107,7 +136,7 @@ def test_stale_first_picks_the_live_failing_instance_first():
     }
     last_run = {r: now - timedelta(hours=h) for r, h in measured_age_h.items()}
     picked = select_stale_first_regions(
-        REGIONAL_CONFIGS, _ww_items(), PER_CYCLE, last_run, _cycle_index(now))
+        REGIONAL_CONFIGS, INCIDENT_ERA_REGIONS, INCIDENT_ERA_PER_CYCLE, last_run, _cycle_index(now))
     assert set(picked) - set(REGIONAL_CONFIGS) == {"east_australia", "uk_ireland"}
     assert set(REGIONAL_CONFIGS).issubset(picked)      # flagship is never displaced
 
@@ -195,7 +224,9 @@ def _production_like(monkeypatch):
     from services.weather_pipeline import copernicus_validator
     monkeypatch.setattr(copernicus_validator, "is_test_environment", lambda: False)
     monkeypatch.setenv("WORLDWIDE_COASTAL", "1")
-    monkeypatch.setenv("WORLDWIDE_REGIONS_PER_CYCLE", "2")
+    # Coupled to the WORKFLOW value via PER_CYCLE (parsed at import) — a fixture that hand-syncs
+    # its own copy is how the last recount got missed.
+    monkeypatch.setenv("WORLDWIDE_REGIONS_PER_CYCLE", str(PER_CYCLE))
 
 
 class _Store:
@@ -210,19 +241,27 @@ class _Store:
 
 def test_get_pilot_regions_uses_stale_first_when_a_store_is_supplied(_production_like):
     now = datetime.now(timezone.utc)
-    products = [_P("GFS", "marine", r, now - timedelta(hours=h))
-                for r, h in {"east_australia": 447.5, "uk_ireland": 447.5, "south_africa": 21.9,
-                             "mexico_centralamerica_pac": 21.9, "indonesia": 12.1, "brazil_east": 12.1,
-                             "hawaii": 5.4, "iberia_west": 5.4}.items()]
+    ages = {"east_australia": 447.5, "uk_ireland": 447.5, "south_africa": 21.9,
+            "mexico_centralamerica_pac": 21.9, "indonesia": 12.1, "brazil_east": 12.1,
+            "hawaii": 5.4, "iberia_west": 5.4}
+    # The 2026-08-09 expansion regions get FRESH products here: never-ingested outranks stale BY
+    # DESIGN, so without these the newcomers would (correctly) displace the starved pair and this
+    # test would stop exercising the ranking it exists to pin.
+    for r in WORLDWIDE_COASTAL_REGIONS:
+        ages.setdefault(r, 3.0)
+    products = [_P("GFS", "marine", r, now - timedelta(hours=h)) for r, h in ages.items()]
     picked = get_pilot_regions(_Store(_Manifest(products)), "GFS", "marine")
-    assert set(picked) - set(REGIONAL_CONFIGS) == {"east_australia", "uk_ireland"}
+    ww_picked = set(picked) - set(REGIONAL_CONFIGS)
+    assert {"east_australia", "uk_ireland"} <= ww_picked, (
+        f"the measured starved pair must top the wired stale-first ranking, got {ww_picked}")
+    assert len(ww_picked) == PER_CYCLE
 
 
 def test_a_broken_manifest_falls_back_to_the_rotation_and_never_blocks_ingestion(_production_like):
     """A freshness heuristic must not be able to stop the pipeline it exists to keep fresh."""
     picked = get_pilot_regions(_Store(RuntimeError("L2 unreachable")), "GFS", "marine")
     assert set(REGIONAL_CONFIGS).issubset(picked)
-    assert len(set(picked) - set(REGIONAL_CONFIGS)) == 2
+    assert len(set(picked) - set(REGIONAL_CONFIGS)) == PER_CYCLE
 
 
 def test_kill_switch_restores_the_clock_rotation(_production_like, monkeypatch):
@@ -231,14 +270,14 @@ def test_kill_switch_restores_the_clock_rotation(_production_like, monkeypatch):
     store = _Store(_Manifest([_P("GFS", "marine", "uk_ireland", now - timedelta(hours=447.5))]))
     ci = _cycle_index(now)
     assert set(get_pilot_regions(store, "GFS", "marine")) == set(
-        _select_rotating_regions(REGIONAL_CONFIGS, _ww_items(), 2, ci))
+        _select_rotating_regions(REGIONAL_CONFIGS, _ww_items(), PER_CYCLE, ci))
 
 
 def test_no_store_keeps_the_legacy_signature_working(_production_like):
     """get_pilot_regions() with no arguments must still behave exactly as before (other callers)."""
     ci = _cycle_index(datetime.now(timezone.utc))
     assert set(get_pilot_regions()) == set(
-        _select_rotating_regions(REGIONAL_CONFIGS, _ww_items(), 2, ci))
+        _select_rotating_regions(REGIONAL_CONFIGS, _ww_items(), PER_CYCLE, ci))
 
 
 def test_flagship_regions_are_never_displaced_by_starving_worldwide_ones():
@@ -250,10 +289,21 @@ def test_flagship_regions_are_never_displaced_by_starving_worldwide_ones():
     assert len(picked) == len(REGIONAL_CONFIGS) + PER_CYCLE
 
 
-def test_worldwide_region_count_is_what_the_cadence_math_assumes():
-    """The 32 h bound in test_stale_first_starves_nobody assumes 8 regions at 2/fire, 3 fires/day.
-    Adding regions without revisiting WORLDWIDE_REGIONS_PER_CYCLE silently lengthens the cadence."""
-    assert len(WORLDWIDE_COASTAL_REGIONS) == 8
+def test_worldwide_count_and_per_cycle_keep_the_32h_cadence():
+    """The invariant the old `== 8` pin was standing in for, now stated as itself: with N worldwide
+    regions at PER_CYCLE per fire and 3 fires/day (8 h apart), every region refreshes within
+    ceil(N/PER_CYCLE) fires. That must stay <= 4 fires = 32 h, because the run-age census
+    thresholds (36/72 h) and the starvation bound above are calibrated to it. Adding a region
+    without raising the divisor in BOTH workflows fails HERE, at commit time — not as a paging
+    monitor three days later."""
+    import math
+    n = len(WORLDWIDE_COASTAL_REGIONS)
+    fires_to_cover = math.ceil(n / PER_CYCLE)
+    assert fires_to_cover * 8 <= 32, (
+        f"{n} regions at {PER_CYCLE}/fire = {fires_to_cover} fires = {fires_to_cover * 8} h "
+        f"worst-case refresh — the census thresholds assume <= 32 h. Raise "
+        f"WORLDWIDE_REGIONS_PER_CYCLE in both workflows with the region you just added.")
+    assert PER_CYCLE <= n, "a divisor above the region count is a config typo"
 
 
 def test_scheduler_helpers_reexports_the_same_objects_not_copies():

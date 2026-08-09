@@ -48,6 +48,24 @@ WORLDWIDE_COASTAL_REGIONS = {
     "brazil_east":               {"west": -49.0,  "south": -27.0, "east": -34.0,  "north": -3.0,  "resolution": 0.25},
     "south_africa":              {"west": 17.0,   "south": -35.0, "east": 28.0,   "north": -31.0, "resolution": 0.25},
     "mexico_centralamerica_pac": {"west": -106.0, "south": 8.0,   "east": -84.0,  "north": 21.0,  "resolution": 0.25},
+    # ── 2026-08-09 EXPANSION, PRICED BY CENSUS (MASTER-AUDIT-11.0's largest accuracy lever). The
+    # SERVED catalogue held 1,773 spots and 979 (55.2%) had NO 0.25° box — their forcing was a 2°
+    # or 10° global cell (repo's own tier delta: median 21% height change). Greedy densest-window
+    # proposals over the UNCOVERED population ranked these four clusters top; together they move
+    # 241 spots (24.6% of the uncovered mass) onto fine forcing. COST, measured not guessed:
+    # pilots runs p50 82 / p90 124 min against a 200-min budget, a rotation slot is ~5-15 min, and
+    # WORLDWIDE_REGIONS_PER_CYCLE rose 2→3 IN THE SAME COMMIT so the refresh cadence stays exactly
+    # ceil(12/3)*8 h = 32 h — the bound the run-age census thresholds and the starvation test
+    # assume. ⛔ Add a region WITHOUT raising the divisor and the cadence silently lengthens;
+    # test_worldwide_count_and_per_cycle_keep_the_32h_cadence reads the workflow env and fails.
+    # ★ The tie-break shipped first (3eeda053) so these fine tiles WIN their time ties against the
+    # covering globals instead of losing to manifest order. Shared edges below are deliberate
+    # abutments (31.0N with florida_east_coast; 37.5N between the two new US boxes; -6.0E with
+    # iberia_west) — edge-touch is legal, interior overlap is test-banned.
+    "us_southeast_midatlantic":  {"west": -82.0,  "south": 31.0,  "east": -74.4,  "north": 37.5,  "resolution": 0.25},  # 86 spots: Folly→Virginia Beach
+    "azores":                    {"west": -29.8,  "south": 36.0,  "east": -24.0,  "north": 40.1,  "resolution": 0.25},  # 57 spots
+    "us_northeast":              {"west": -76.1,  "south": 37.5,  "east": -69.0,  "north": 44.6,  "resolution": 0.25},  # 53 spots: NJ→Maine
+    "france_biscay":             {"west": -6.0,   "south": 42.5,  "east": 1.0,    "north": 48.8,  "resolution": 0.25},  # 45 spots: Anglet→Brittany
 }
 
 

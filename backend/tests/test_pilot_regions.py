@@ -47,3 +47,28 @@ def test_get_pilot_regions_flagship_only_in_test_env():
     # Under pytest is_test_environment() is True, so the pilots get flagship-only -> existing deterministic
     # ingestion tests (marine pilot, etc.) are unaffected by the worldwide rotation.
     assert set(get_pilot_regions()) == set(REGIONAL_CONFIGS)
+
+
+# ─── THE 2026-08-09 EXPANSION BOXES (census-priced; MASTER-AUDIT-11.0's largest accuracy lever) ──
+
+def test_expansion_boxes_are_well_formed_and_share_edges_without_interior_overlap():
+    """The four new regions abut existing boxes ON PURPOSE (31.0N with florida_east_coast, 37.5N
+    between the two new US boxes, -6.0E with iberia_west). Shared EDGES are legal; INTERIOR overlap
+    would double-ingest the same cells every cycle. Strict inequalities make edge-touch pass."""
+    from services.weather_pipeline.pilot_regions import (
+        REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS)
+    new = ("us_southeast_midatlantic", "azores", "us_northeast", "france_biscay")
+    boxes = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS}
+    for rid in new:
+        b = boxes[rid]
+        assert b["west"] < b["east"] and b["south"] < b["north"], rid
+        assert b["resolution"] == 0.25, rid
+        assert -180 <= b["west"] and b["east"] <= 180 and -80 <= b["south"] and b["north"] <= 85
+    items = list(boxes.items())
+    for i, (ra, a) in enumerate(items):
+        for rb, b in items[i + 1:]:
+            interior_overlap = (a["west"] < b["east"] and b["west"] < a["east"]
+                                and a["south"] < b["north"] and b["south"] < a["north"])
+            assert not interior_overlap, (
+                f"{ra} and {rb} overlap in the interior — the same cells would ingest twice "
+                f"every cycle. Abut on an edge or shrink one.")
