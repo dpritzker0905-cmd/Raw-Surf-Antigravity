@@ -181,10 +181,7 @@ export var MapWeatherControls = ({
     swell_1: `Primary Swell (${_hu})`,
     swell_2: `Secondary Swell (${_hu})`,
     wind_waves: `Wind Waves (${_hu})`,
-    // R11-11 (2026-08-09): the stops ARE the mm breakpoints from the scale object (buildStops
-    // emits them verbatim — only 'm' height scales convert), and the infobox prints mm/h. The
-    // old '(in/h)' label was a 25.4× misread for anyone who trusted it.
-    rain: 'Rain / Snow (mm/h)',
+    rain: 'Rain / Snow (mm/h)', // R11-11: stops ARE the mm breakpoints (buildStops emits them verbatim); '(in/h)' was a 25.4× misread
     radar: 'Live Radar (dBZ)',
     satellite: 'Cloud Cover (%)',
     fog: 'Visibility / Fog',

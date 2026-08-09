@@ -180,18 +180,9 @@ export function windGridsIdentical(a, b) {
   return true;
 }
 
-// WIDE-ZOOM HANDLING, round 2 (2026-07-19 late). Round 1 faded the whole overlay out at wide
-// zoom — and the user immediately caught the crime: "when you removed the grid, so went the low
-// pressure system." The fine box's INTERIOR held the only data resolving the circulation;
-// fading data to fix a frame artifact inverts the truth-first contract. The corrected split:
-//   - the fine DATA never fades (colour == speed at every zoom; a circulation must never vanish);
-//   - only the box EDGE dissolves — the feather band widens as the viewport dwarfs the box, so
-//     the rectangle reading disappears while the core keeps full truth;
-//   - only the vortex PERSISTENCE lever rides the fade (it hoards the fixed particle population
-//     into the box at wide zoom — the "no animations over Texas" depletion; arc-reading is a
-//     close-zoom concern).
-// Pure + exported for the gate tests. Kill: __RAW_DISABLE_WIND_WIDEFADE__ (fade pinned to 1,
-// feather stays narrow).
+// WIDE-ZOOM HANDLING round 2: data never fades, only the box EDGE dissolves, only vortex
+// persistence rides the fade. Full rationale: docs/architecture/RATIONALE-WebGLWindEngine.md.
+// Pure + exported for the gate tests. Kill: __RAW_DISABLE_WIND_WIDEFADE__.
 export function windFineWideFade(coverage) {
   return Math.max(0, Math.min(1, (coverage - 0.15) / 0.30));
 }
@@ -536,12 +527,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   const dataBoundsMinX = isRegionalGrid ? bounds.west : -180.0;
   const dataBoundsMaxX = isRegionalGrid ? bounds.east : 180.0;
 
-  // ACCESSIBILITY (R11-09 port, 2026-08-09): honor prefers-reduced-motion by damping particle
-  // drift to 0.15× — verbatim from the marine engine's 2026-07-03 §6.4 implementation, which was
-  // never mirrored here: 147,456 wind particles (the busiest motion surface in the app) ran at
-  // full speed for reduced-motion users, against the CLAUDE.md accessibility mandate. The
-  // heatmap (the actual data) is untouched; only decorative motion slows. Cached matchMedia;
-  // test override window.__RAW_REDUCED_MOTION__ (true = force damp, false = force off).
+  // ACCESSIBILITY (R11-09 port): 0.15× drift damp under prefers-reduced-motion — verbatim twin
+  // of WebGLMarineEngine's §6.4 block; rationale: docs/architecture/RATIONALE-WebGLWindEngine.md.
+  // Test override: window.__RAW_REDUCED_MOTION__.
   if (this._prefersReducedMotion === undefined) {
     try {
       this._prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia
@@ -639,15 +627,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_max_speed'), this._maxWindSpeed);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edge_feather_frac'), edgeFeatherFrac);
-  // BASE-PASS CUTOUT (queue #9): fade the base out exactly where the fine overlay fades in so the
-  // two semi-transparent passes crossfade instead of compounding. Skipped when the fine box
-  // crosses the antimeridian (rect wraps in base-UV space); the compound there is feathered and
-  // brief, and correctness of DATA is unaffected.
-  // SINGLE-PASS BASE+FINE (2026-07-20, the hairline-seam fix): with the fine box mapped into
-  // base-UV space below, the base pass samples BOTH textures and mixes the WIND in-shader —
-  // one draw, one alpha, so the two-pass crossfade band (and its bright hairline rectangle)
-  // cannot exist. Legacy two-pass path kept behind the kill switch AND for the vortex debug
-  // view (which paints on the overlay pass). Kill: __RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__.
+  // BASE-PASS CUTOUT + SINGLE-PASS BASE+FINE (the hairline-seam fix): one draw, one alpha —
+  // full rationale: docs/architecture/RATIONALE-WebGLWindEngine.md. Legacy two-pass kept for
+  // the kill switch + vortex debug. Kill: __RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__.
   var _vortexDebugOn = (typeof window !== 'undefined' && window.__GPU_DEBUG__ && window.__GPU_DEBUG__.mode === 'vortex');
   var heatmapSinglePass = !!(fine && !fineCrosses && !_vortexDebugOn
     && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__ === true));
