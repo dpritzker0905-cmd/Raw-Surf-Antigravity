@@ -50,6 +50,30 @@ jobs:
             echo "  gh secret set MAPBOX_PUBLIC_TOKEN --repo dpritzker0905-cmd/Raw-Surf-Antigravity"
             exit 1
           fi
+      # ⚠️ THE BATTERY GRADES THE RENDERER USING **PROD** DATA, so the prod backend being asleep is a
+      # precondition failure, not a rendering finding. Render's free tier cold-starts, and keep-warm
+      # is a GitHub cron — best-effort, measured at 4.9–5.4% of nominal delivery. Warming here is
+      # strictly better than refusing later: it converts most would-be refusals into real
+      # measurements. Control pair 2026-08-09, same commit 13 min apart: the 07:34Z scheduled run
+      # fetched into ERR_FAILED and reported 30 findings; the 07:47Z dispatch, against a woken box,
+      # reported 0 findings and 415 anim frames.
+      - name: Preflight — wake the prod backend (the data under test)
+        id: warm
+        run: |
+          API="https://raw-surf-antigravity.onrender.com/api/health"
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$API" || echo 000)
+            if [ "$CODE" = "200" ]; then
+              echo "backend awake after ${i} attempt(s)"; echo "awake=1" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            sleep 5
+          done
+          # NOT a failure: an unreachable backend is an operator/infra condition, and this job's
+          # question is about the renderer. Say so loudly and let the verdict step refuse.
+          echo "::warning::Prod backend did not answer 200 on /api/health within ~150s — the zoomlab"\
+               "battery will run against missing data and the verdict will REFUSE rather than grade."
+          echo "awake=0" >> "$GITHUB_OUTPUT"
+
       - name: Boot dev server (mock auth, prod backend data)
         working-directory: frontend
         env:
@@ -73,18 +97,45 @@ jobs:
       - name: Verdict (budgeted)
         run: |
           set +e
-          OUT=$(node frontend/scripts/zoomlab-verdict.js /tmp/zoomlab-out/trace_staircase_full.json 2>&1)
+          node frontend/scripts/zoomlab-verdict.js /tmp/zoomlab-out/trace_staircase_full.json --json \
+            > /tmp/zoomlab-out/verdict.json 2>/tmp/zoomlab-out/verdict.err
           CODE=$?
+          OUT=$(node frontend/scripts/zoomlab-verdict.js /tmp/zoomlab-out/trace_staircase_full.json 2>&1)
           echo "$OUT"
+          # ⛔ EXIT CODE 3 = REFUSE: transport errors fetching the data under test, so the optical
+          # claims are consequences of the absence rather than evidence about the renderer. Warn,
+          # never fail — a red meaning "Render was asleep" is how the only optical net in the estate
+          # became a red nobody read (most days since 08-03). The trace artifact is still uploaded.
+          # ★ ALWAYS state what was measured, on the run page itself. A refusal that only exists as a
+          # warning buried in a step log is how "green" comes to mean "never graded" — the same trap
+          # one level up from the one this refusal closes.
+          node -e '
+            const v=require("/tmp/zoomlab-out/verdict.json");
+            const l=[`### Marine nightly zoomlab: **${v.verdict}**`,"",
+              `- frames analysed: ${v.framesAnalyzed} · water samples: ${v.waterSamples}`,
+              `- render findings: ${v.renderFindings.length} · instrument (transport) findings: ${v.instrumentFindings.length}`,
+              v.observable?"- the sea under test was delivered, so the renderer WAS graded"
+                          :"- ⚠️ REFUSED: the data under test never arrived — the renderer was NOT graded this run"];
+            require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, l.join("\n")+"\n");
+          ' || true
+          if [ "$CODE" = "3" ]; then
+            echo "::warning::Marine nightly REFUSED to grade: the battery could not fetch the prod"\
+                 "data under test (transport errors), so MULT0/SETTLED_STEP findings are consequences"\
+                 "of missing data, not rendering defects. Preflight said awake=${{ steps.warm.outputs.awake }}."\
+                 "Re-run after the backend is warm to get an actual verdict."
+            exit 0
+          fi
           # BUDGET (tightened 2026-07-18 EVE-2): zoomlab now records engine-mask water ground
           # truth per column and the verdict excludes LAND columns from dead-band claims — the
           # old ≤3 allowance existed for the Florida-peninsula false positive (which spent two
           # forensic arcs mislabeled "wrapped-copy particles"). Fail on: any SETTLED_STEP, any
           # DEAD_BAND_PERSISTENT, or more than 2 findings total (short water transients ride).
-          FINDINGS=$(echo "$OUT" | grep -oP '(?<=FAIL — )\d+(?= finding)' || echo 0)
-          SETTLED=$(echo "$OUT" | grep -c 'SETTLED_STEP' || true)
-          PERSIST=$(echo "$OUT" | grep -c 'DEAD_BAND_PERSISTENT' || true)
-          echo "findings=$FINDINGS settled_steps=$SETTLED persistent=$PERSIST (budget: ≤2 findings, 0 persistent, 0 settled steps)"
+          # ⚠️ Counts come from the RENDER class only — instrument findings are reported, never
+          # budgeted. Parsed from the JSON, not from the prose: the prose is for the operator.
+          FINDINGS=$(node -e 'const v=require("/tmp/zoomlab-out/verdict.json");console.log(v.renderFindings.length)')
+          SETTLED=$(node -e 'const v=require("/tmp/zoomlab-out/verdict.json");console.log(v.renderFindings.filter(f=>f.type==="SETTLED_STEP").length)')
+          PERSIST=$(node -e 'const v=require("/tmp/zoomlab-out/verdict.json");console.log(v.renderFindings.filter(f=>f.type==="DEAD_BAND_PERSISTENT").length)')
+          echo "render findings=$FINDINGS settled_steps=$SETTLED persistent=$PERSIST (budget: ≤2 findings, 0 persistent, 0 settled steps)"
           if [ "$SETTLED" -gt 0 ] || [ "$PERSIST" -gt 0 ] || [ "${FINDINGS:-0}" -gt 2 ]; then
             echo "OVER BUDGET — failing"; exit 1
           fi

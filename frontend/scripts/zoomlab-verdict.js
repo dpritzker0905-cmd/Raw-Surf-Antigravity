@@ -123,11 +123,47 @@ function analyzeTrace(trace, opts = {}) {
     }
   }
 
-  // --- console errors ride along ---
-  for (const e of (trace.consoleErrors || [])) findings.push({ type: 'CONSOLE_ERROR', msg: String(e).slice(0, 120) });
+  // --- console errors ride along, CLASSIFIED (2026-08-09) ---
+  // ⛔ A TRANSPORT FAILURE IS NOT A RENDERING FINDING. Every console error used to become a finding
+  // against a "≤2 findings" budget, so ten failed fetches to the prod backend = 20 findings = red,
+  // whatever the renderer did. Measured control pair, SAME COMMIT 3cf5a1ce 13 minutes apart:
+  //   07:34Z scheduled  30 findings (20 of them net::ERR_FAILED / CORS on /api/weather/grid_series)
+  //   07:47Z dispatch    0 findings, 415 anim frames
+  // The renderer did not change in 13 minutes; the backend woke up. The nightly has been red on
+  // most days since 08-03 for this reason, which means the optical net nobody could trust was also
+  // the optical net nobody read.
+  // ★ A genuine JS error (TypeError, undefined is not a function) is NOT transport and stays a
+  //   RENDER finding — the refusal must never launder a real crash into "couldn't measure".
+  // ⚠️ CORRECTED BY THE REAL ARTEFACT, not by a fixture. A first pass matched only "Access to fetch"
+  // and "NetworkError", and re-running it over run 31301456177's retained trace showed TWO false
+  // negatives still counted as rendering defects: `Access to XMLHttpRequest at ...` (XHR, not fetch)
+  // and `[apiClient] Network error: Network Error` (space, different case). ★ The error a classifier
+  // has never seen is the one it misclassifies — grade it on the incident it was built for.
+  // Direction of risk is deliberate: a false NEGATIVE pages spuriously, a false POSITIVE hides a
+  // real defect behind a refusal, so these stay message-SHAPE specific rather than keyword-loose.
+  const TRANSPORT_RE = /net::ERR_|Failed to fetch|Failed to load resource|blocked by CORS|Access to \w+ at |Network ?Error|ERR_CONNECTION|ERR_NAME_NOT_RESOLVED|\b50[234]\b/i;
+  let transportErrors = 0;
+  for (const e of (trace.consoleErrors || [])) {
+    const msg = String(e).slice(0, 120);
+    const instrument = TRANSPORT_RE.test(msg);
+    if (instrument) transportErrors++;
+    findings.push({ type: 'CONSOLE_ERROR', msg, klass: instrument ? 'INSTRUMENT' : 'RENDER' });
+  }
+
+  // ★ When the data under test never arrived, the optical claims are CONSEQUENCES of that absence,
+  //   not evidence about the renderer: a frame drawn with no wave data reports mult 0 (MULT0_FRAME)
+  //   and luminance jumps when it finally lands (SETTLED_STEP). Grading them would be grading the
+  //   renderer on a sea that was never delivered. The run REFUSES instead — same split as the sim
+  //   parity probe's FAIL (INSTRUMENT) vs FAIL (COMPOSITION), d43563ca.
+  const renderFindings = findings.filter((f) => f.klass !== 'INSTRUMENT');
+  const instrumentFindings = findings.filter((f) => f.klass === 'INSTRUMENT');
+  const observable = transportErrors === 0;
 
   return {
     pass: findings.length === 0, findings, framesAnalyzed: F.length,
+    observable,
+    verdict: !observable ? 'REFUSE' : (renderFindings.length === 0 ? 'PASS' : 'FAIL'),
+    renderFindings, instrumentFindings, transportErrors,
     landExcludedBandFrames: landExcluded,
     waterSamples: Array.isArray(trace.water) ? trace.water.length : 0,
     config: cfg,
@@ -143,9 +179,19 @@ if (require.main === module) {
   const verdict = analyzeTrace(trace);
   if (process.argv.includes('--json')) console.log(JSON.stringify(verdict, null, 1));
   else {
-    console.log(`[verdict] ${verdict.pass ? 'PASS' : 'FAIL'} — ${verdict.findings.length} finding(s), ${verdict.framesAnalyzed} anim frames`
+    console.log(`[verdict] ${verdict.verdict} — ${verdict.renderFindings.length} render finding(s), `
+      + `${verdict.instrumentFindings.length} instrument finding(s), ${verdict.framesAnalyzed} anim frames`
       + (verdict.waterSamples ? `, ${verdict.waterSamples} water samples, ${verdict.landExcludedBandFrames} land band-frames excluded` : ' (no water ground truth — legacy mode)'));
+    if (!verdict.observable) {
+      console.log(`  REFUSE: ${verdict.transportErrors} transport error(s) fetching the data under `
+        + 'test — the renderer cannot be graded on a sea that was never delivered. The render '
+        + 'findings below are REPORTED, NOT PAGED, because MULT0/SETTLED_STEP are consequences of '
+        + 'the absence. Warm the backend and re-run to grade it.');
+    }
     for (const f of verdict.findings.slice(0, 20)) console.log('  ' + JSON.stringify(f));
   }
-  process.exit(verdict.pass ? 0 : 1);
+  // 0 PASS · 1 FAIL (real render findings) · 3 REFUSE (ungradeable — the caller decides, and the
+  // nightly warns rather than pages, because a red meaning "Render was asleep" trains the operator
+  // to ignore the one optical net this estate has).
+  process.exit(verdict.verdict === 'PASS' ? 0 : verdict.verdict === 'REFUSE' ? 3 : 1);
 }
