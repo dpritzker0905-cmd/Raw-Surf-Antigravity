@@ -68,6 +68,49 @@ function decodePNG(buf) {
   return { w, h, ch, data: out };
 }
 
+// ── WASH COVERAGE (2026-08-09) ──────────────────────────────────────────────────────────────
+// ⛔ THE GAP THIS CLOSES: every existing marine detector looks for an EDGE. `findSeams` wants a
+// ruler-straight boundary between washed and bare ocean; the structural detector wants a resident
+// grid that fails to cover. A viewport where the wash is simply NOT DRAWN has neither — no edge,
+// no coverage failure — so "the heatmap cleared" was invisible to the whole estate. User report
+// 2026-08-09: "animations cleared the heatmap at mid-further out zooms, then returned as I zoomed
+// even further out", against a resident 360-span grid, tileClamped:false, fade:1.
+//
+// The metric is CHROMA, not brightness: the marine wash is a saturated ramp (blues -> greens ->
+// yellows -> reds) laid over a basemap whose ocean is near-neutral. max(rgb)-min(rgb) separates
+// them without needing a water mask or a per-theme colour table.
+// ⚠️ It is used RELATIVELY (collapse vs the run's own washed baseline), never as an absolute
+// threshold — an absolute one would encode this theme, this region and this zoom, and would be a
+// bound calibrated to a workload the moment either changed.
+// ⭐ MEASURED, NOT CHOSEN. Calibrated 2026-08-09 from the run's own layer-off/layer-on control
+// pair (wash_control_off.png vs burst_030.png), fraction of crop pixels above each chroma:
+//     chroma>=   28(first guess)   50     90     150    190
+//     basemap        0.931       0.003  0.003  0.002  0.002
+//     wash on        0.995       0.933  0.932  0.880  0.000
+//     ratio          1.07        306x   329x   364x     0
+// ⛔ The first guess of 28 sat ON THE WRONG SIDE OF A CLIFF — the basemap collapses from 0.931 to
+// 0.003 between 30 and 50 — so it measured "the map has colour" and separated the two states by
+// 7%. The control caught it and REFUSED rather than reporting a number, which is the only reason
+// this was calibrated instead of shipped. 90 sits mid-plateau: clear of the basemap edge (~40)
+// and of the wash's own falloff (~150), so neither a theme tweak nor a palette change lands on it.
+const WASH_CHROMA = 90;
+function washFraction(png) {
+  const { w, ch, data } = png;
+  const x1 = Math.min(CROP.x1, w), y1 = Math.min(CROP.y1, png.h);
+  let washed = 0, total = 0;
+  for (let y = CROP.y0; y < y1; y += 2) {
+    for (let x = CROP.x0; x < x1; x += 2) {
+      const i = y * w * ch + x * ch;
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      total++;
+      // chroma AND a brightness floor: near-black pixels have unstable hue and are basemap, not wash
+      if (mx - mn > WASH_CHROMA && mx > 40) washed++;
+    }
+  }
+  return total ? washed / total : null;
+}
+
 // Straight-seam detector inside the map crop. Returns candidate x positions (vertical seams)
 // and y positions (horizontal) where the mean adjacent-line delta is an outlier sustained over
 // most of the crop — coastlines are irregular, a data-box edge is ruler-straight.
@@ -108,18 +151,34 @@ function findSeams(png) {
   return seams;
 }
 
+// ⚠️ LAZY on purpose. Requiring Playwright at module load makes this file unimportable from Jest
+// (its bundle is not transformable), and the wash metric below has to be unit-pinnable.
 let chromium;
-try { ({ chromium } = require('@playwright/test')); }
-catch (e) { ({ chromium } = require(path.join('C:/Users/dprit/Raw-Surf/frontend', 'node_modules', '@playwright', 'test'))); }
+const loadChromium = () => {
+  if (chromium) return chromium;
+  try { ({ chromium } = require('@playwright/test')); }
+  catch (e) { ({ chromium } = require(path.join('C:/Users/dprit/Raw-Surf/frontend', 'node_modules', '@playwright', 'test'))); }
+  return chromium;
+};
 
-const BASE = process.argv[2] || 'http://localhost:3009';
-const OUT = process.argv[3] || path.join(__dirname, 'wind-zoomburst-out');
-const THEME = process.argv[4] || 'dark';
-fs.mkdirSync(OUT, { recursive: true });
 const CENTER = { lng: -89, lat: 24 };
 
-(async () => {
-  const browser = await chromium.launch({ headless: true, args: ['--enable-unsafe-swiftshader'] });
+// Exported so the CALIBRATED wash metric can be unit-pinned — it is a measured constant sitting on
+// a cliff edge (see WASH_CHROMA), and an unpinned calibration is the rot this session spent its day
+// removing. The `require.main` guard keeps importing this file from driving a browser.
+// ⚠️ NOT a top-level `return` guard: Node's CommonJS wrapper allows it but Babel — which Jest uses
+// to parse this file — rejects it as "'return' outside of function". Named entry point instead.
+module.exports = { washFraction, WASH_CHROMA, CROP };
+
+const runProbe = async () => {
+  // ⚠️ argv parsing and mkdir live HERE, not at module scope. At module scope Jest's own argv wins:
+  // `process.argv[3]` became a sibling TEST FILE path and `mkdirSync` died with EEXIST before a
+  // single assertion ran. Module load must have no side effects if the module is to be importable.
+  const BASE = process.argv[2] || 'http://localhost:3009';
+  const OUT = process.argv[3] || path.join(__dirname, 'wind-zoomburst-out');
+  const THEME = process.argv[4] || 'dark';
+  fs.mkdirSync(OUT, { recursive: true });
+  const browser = await loadChromium().launch({ headless: true, args: ['--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({
     viewport: { width: 1280, height: 800 },
     recordVideo: { dir: OUT, size: { width: 1280, height: 800 } },
@@ -168,6 +227,15 @@ const CENTER = { lng: -89, lat: 24 };
     if (exp) exp.click();
     return false;
   }, wantChips[0], { timeout: 90000 }).catch(() => {});
+  // ⭐ WASH CONTROL PAIR, captured BY CONSTRUCTION rather than hoped for. The wash-coverage
+  // detector needs to know that its chroma metric actually responds to the wash being drawn; the
+  // only guaranteed off-state in a run is the moment BEFORE the layer chip is pressed. Without
+  // this the control has to borrow whatever contrast the run happens to produce — and the first
+  // attempt borrowed `washEngaged`, which turned out to be the wrong flag entirely (it gates
+  // blend-both, and `isRegionalBounds(bounds)` is one of its terms, so a world grid disengages it
+  // BY DESIGN while the heatmap keeps drawing). A control that can be absent is not a control.
+  const washOffShot = path.join(OUT, 'wash_control_off.png');
+  await page.screenshot({ path: washOffShot }).catch(() => {});
   for (const chip of wantChips) {
     await page.evaluate((name) => {
       const all = Array.from(document.querySelectorAll('button'));
@@ -260,6 +328,21 @@ const CENTER = { lng: -89, lat: 24 };
           marineCovers: ((window.__MARINE_SERVE_DIAG__ || {}).coversViewport === true)
             || (((window.__MARINE_SERVE_DIAG__ || {}).gridWidth || 0) >= 350),
           marineCoverKnown: (window.__MARINE_SERVE_DIAG__ || {}).gridWidth != null,
+          // ── THE WASH ITSELF (2026-08-09) ──────────────────────────────────────────────────
+          // `washEngaged` reaches the log only via [FORENSIC-SNAP], which emits at most once per
+          // 15 s (WebGLMarineEngine.js `_forensicSnapT`). A 320-sample storm yielded TEN snaps —
+          // useless for a mid-gesture transient. Read the same globals at 10 Hz instead.
+          // blend-both requires a SAME-MODEL coarse base (marineCoarseBridgeModelSwitch.test.js,
+          // 2026-07-15: a stale other-model base blocked its own replacement and the wash stayed
+          // dead until a world-coarse commit landed on zoom-out), so capture the base identity
+          // too — `washBase` mismatching `model` is the known silent-disengage signature.
+          washEngaged: !!((window.__RAW_GPU__ || {}).blendBoth
+            && window.__RAW_GPU__.blendBoth.engaged),
+          washBase: ((window.__RAW_GPU__ || {}).blendBoth || {}).baseModel || null,
+          washKnown: !!(window.__RAW_GPU__ || {}).blendBoth,
+          tileClamped: !!((window.__RAW_GPU__ || {}).tileCover
+            && window.__RAW_GPU__.tileCover.clamped),
+          activeModel: (window.__WEBGL_MARINE_UPLOAD_DIAG__ || {}).activeModel || null,
           marineGridW: (window.__MARINE_SERVE_DIAG__ || {}).gridWidth ?? null,
           marineAccepted: (window.__WEBGL_MARINE_UPLOAD_DIAG__ || {}).renderAccepted ?? null,
           marineNonzero: (window.__WEBGL_MARINE_UPLOAD_DIAG__ || {}).nonzeroCount ?? null,
@@ -394,11 +477,25 @@ const CENTER = { lng: -89, lat: 24 };
     for (const l of logs.slice(0, 8)) console.log(`   log: ${l}`);
   }
   // pixel seams over the screenshot stream (persistent >= 3 consecutive frames)
+  // ── decode once, reuse for seams AND wash coverage ─────────────────────────────────────────
   const seamHistory = [];
+  const washRows = [];
+  const nearestSample = (t) => samples.reduce((best, s) =>
+    (best === null || Math.abs(s.t - t) < Math.abs(best.t - t)) ? s : best, null);
   for (const f of frames) {
     let seams = { v: [], h: [] };
-    try { seams = findSeams(decodePNG(fs.readFileSync(f.file))); } catch (e) {}
+    let png = null;
+    try { png = decodePNG(fs.readFileSync(f.file)); seams = findSeams(png); } catch (e) {}
     seamHistory.push({ n: f.n, seams });
+    if (png) {
+      const s = nearestSample(f.t) || {};
+      washRows.push({
+        n: f.n, t: f.t, frac: washFraction(png), zoom: s.zoom,
+        engaged: s.washKnown ? s.washEngaged : null, base: s.washBase, model: s.activeModel,
+        resident: MARINE_UNDER_TEST ? s.marineUploads > 0 : !!(s.baseSpan || s.fine),
+        covered: !!(s.marineCovers || s.baseCovers || s.fineCovers),
+      });
+    }
   }
   let persistentSeams = 0;
   for (let i = 2; i < seamHistory.length; i++) {
@@ -422,6 +519,79 @@ const CENTER = { lng: -89, lat: 24 };
     console.log(`\nISSUE-B COARSE-CLIP-PRIMARY samples: ${coarseClamp.length}`);
     for (const s of coarseClamp.slice(0, 8)) console.log(`   t${s.t} z${s.zoom} baseCell ${s.baseCell} baseN ${s.baseN} covers b:${s.baseCovers} f:${s.fineCovers}`);
   }
+  // ── WASH-COLLAPSE DETECTION ─────────────────────────────────────────────────────────────────
+  // Only frames where a grid is RESIDENT AND COVERING are gradeable: if nothing covers the
+  // viewport there is legitimately nothing to wash, and calling that a collapse would re-run
+  // today's mistake of scoring the renderer on a sea that was never delivered.
+  const gradeable = washRows.filter((r) => r.frac !== null && r.resident && r.covered);
+  const med = (a) => { const v = [...a].sort((x, y) => x - y); return v.length ? v[Math.floor(v.length / 2)] : null; };
+  const onFracs = gradeable.filter((r) => r.engaged === true).map((r) => r.frac);
+  const offFracs = gradeable.filter((r) => r.engaged === false).map((r) => r.frac);
+  const onMed = med(onFracs), offMed = med(offFracs);
+  // ⭐ SELF-CALIBRATING CONTROL, not an absolute threshold. `washEngaged` is the engine's own claim
+  // about whether it drew the wash; chroma is the pixel evidence. If the two do NOT separate, then
+  // either the metric is blind (wrong crop/theme) or the flag does not mean what it says — and in
+  // BOTH cases this detector must refuse rather than report a number. Same discipline as the
+  // executed-GL oracle's noise control and this session's other two refusals.
+  // ⛔ THE CONTROL IS THE LAYER-OFF FRAME, NOT `washEngaged`. Measured 2026-08-09: frames with
+  // washEngaged=false scored 0.870/0.884 against an engaged range of 0.862-1.000 — no separation
+  // at all, because that flag gates BLEND-BOTH (a coarse base drawn under a REGIONAL grid), not
+  // whether the heatmap is painted. `isRegionalBounds(span < 359)` is one of its terms, so any
+  // world grid disengages it by design. Controlling on it would have made this detector refuse
+  // forever — a dead instrument dressed as a careful one.
+  let washVerdict = 'NOT MEASURED', washCollapses = [];
+  const baseline = med(gradeable.map((r) => r.frac));
+  let offControl = null;
+  try { offControl = washFraction(decodePNG(fs.readFileSync(path.join(OUT, 'wash_control_off.png')))); } catch (e) {}
+  if (!gradeable.length) {
+    washVerdict = 'NOT MEASURED (no gradeable frame: nothing resident+covering)';
+  } else if (gradeable.length < 3) {
+    washVerdict = `NOT MEASURED (only ${gradeable.length} gradeable frame(s) — no baseline)`;
+  } else if (offControl === null) {
+    washVerdict = 'REFUSE (no layer-off control frame — cannot show the metric responds to the wash)';
+  } else if (offControl >= baseline * 0.7) {
+    washVerdict = `REFUSE (control failed: layer-off chroma ${offControl.toFixed(3)} vs layer-on `
+      + `baseline ${baseline.toFixed(3)} — the metric does not track the wash here, so a collapse `
+      + `claim would be unfounded. Check CROP/theme before trusting any number below.)`;
+  } else {
+    // A collapse = a gradeable frame below 35% of the run's own layer-on baseline. Relative, so it
+    // survives a theme/region/zoom change.
+    // ⭐ THE MARGIN IS MEASURED, AND STATED, because a bound whose margin nobody wrote down is the
+    // defect this session opened with (a census bound sitting exactly on its value, flipped by
+    // drift). Observed 2026-08-09 over 52 gradeable frames: coverage holds 0.931 flat from z4 to
+    // z10, and dips to 0.52-0.62 ONLY on the z2-z4.4 leg — geometry, not a defect: at world zoom
+    // the crop carries more land and off-globe area and there is no ocean mask to normalise by.
+    // So the legitimate floor is 56% of baseline and this gate sits at 35% — a 21-point margin.
+    // ⚠️ THE COST OF HAVING NO OCEAN MASK: a PARTIAL clear at wide zoom could hide under that
+    // geometric dip. Full clears are caught everywhere; partial ones only above ~z4.
+    washCollapses = gradeable.filter((r) => r.frac < baseline * 0.35);
+    washVerdict = washCollapses.length
+      ? `COLLAPSE x${washCollapses.length} (baseline ${baseline.toFixed(3)})`
+      : `OK (baseline ${baseline.toFixed(3)}, min ${Math.min(...gradeable.map((r) => r.frac)).toFixed(3)})`;
+  }
+  console.log(`\nWASH COVERAGE: ${washVerdict}`);
+  console.log(`   control: layer-OFF ${offControl === null ? '-' : offControl.toFixed(3)}`
+    + ` vs layer-ON baseline ${baseline === null ? '-' : baseline.toFixed(3)}`
+    + ` (gradeable ${gradeable.length}/${washRows.length})`);
+  // Reported for the record only — NOT a control. See the block above for why.
+  console.log(`   blend-both (informational): engaged n=${onFracs.length} med=`
+    + `${onMed === null ? '-' : onMed.toFixed(3)} | disengaged n=${offFracs.length} med=`
+    + `${offMed === null ? '-' : offMed.toFixed(3)}  <- gates a coarse base under a REGIONAL grid, not visibility`);
+  const washDisengaged = washRows.filter((r) => r.engaged === false);
+  if (washDisengaged.length) {
+    const zs = washDisengaged.map((r) => r.zoom).filter((z) => z != null);
+    console.log(`   washEngaged FALSE on ${washDisengaged.length}/${washRows.length} frames`
+      + (zs.length ? `, z${Math.min(...zs).toFixed(2)}-${Math.max(...zs).toFixed(2)}` : ''));
+    for (const r of washDisengaged.slice(0, 6)) {
+      console.log(`     frame ${r.n} z${r.zoom} frac ${r.frac === null ? '-' : r.frac.toFixed(3)}`
+        + ` base=${r.base} model=${r.model} resident=${r.resident} covered=${r.covered}`);
+    }
+  }
+  for (const r of washCollapses.slice(0, 8)) {
+    console.log(`   COLLAPSE frame ${r.n} z${r.zoom} frac ${r.frac.toFixed(3)} `
+      + `(baseline ${baseline.toFixed(3)}) engaged=${r.engaged} base=${r.base}`);
+  }
+  fs.writeFileSync(path.join(OUT, 'wash_coverage.json'), JSON.stringify({ washVerdict, onMed, offMed, baseline, rows: washRows }, null, 1));
   fs.writeFileSync(path.join(OUT, 'burst_state.json'), JSON.stringify({ seed: SEED, cycles: CYCLES, samples, frames: frames.map((f) => ({ n: f.n, t: f.t })) }, null, 1));
   console.log(`\nsamples: ${samples.length} (~10 Hz) | screenshots: ${frames.length} | clamp samples: ${clampSamples} (worst dwell ${worstDwellMs} ms across ${clampWindows.length} windows) | cold samples: ${coldSamples} | coverage-unknown: ${unknownCoverage} | persistent seams: ${persistentSeams} | coarse-overlay(A): ${coarseOverlay.length} | coarse-clip(B): ${coarseClamp.length}`);
   // ⛔⛔ REFUSE BEFORE PASSING. If the structural sampler never once saw a resident grid for the
@@ -440,8 +610,11 @@ const CENTER = { lng: -89, lat: 24 };
       + `disappeared". Fix the sampler or the boot, then re-run; do not read this as a pass.`);
     process.exit(3);
   }
-  const pass = clampSamples === 0 && persistentSeams === 0 && coarseOverlay.length === 0;
+  const pass = clampSamples === 0 && persistentSeams === 0 && coarseOverlay.length === 0
+    && washCollapses.length === 0;
   console.log(pass ? 'ZOOMBURST PASS — no mid-gesture clamp, coarse overlay, or seam across the storm.'
     : 'ZOOMBURST FAIL — see windows above + burst_state.json + console_log.json + video in ' + OUT);
   process.exit(pass ? 0 : 1);
-})();
+};
+
+if (require.main === module) runProbe();
