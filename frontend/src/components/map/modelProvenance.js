@@ -20,6 +20,9 @@
  * the GPU is painting, so it is the only source that cannot be stale.
  */
 import { resolveDisplayedSlot } from './decodedOmSampler';
+import { isBeyondAxis, axisHorizonHours } from './modelHorizons';
+import { MODEL_METADATA_CACHE } from './LayerRegistry';
+import { LIVE_FETCHED_MODELS } from './mapUtils';
 
 /** Open-Meteo model id -> the family label the UI shows. Prefix-matched: the ids are versioned
  *  (`ncep_gfs013` / `ncep_gfs025` / `ncep_gfswave025` are all "GFS" to a user). */
@@ -74,4 +77,40 @@ export function describeLayerSubstitution(activeModel, layerKey, deps = {}) {
   const slot = resolveDisplayedSlot(map, layerKey);
   if (!slot) return null;
   return describeSubstitution(activeModel, slot.model);
+}
+
+/**
+ * Is the layer painting a STALE HOUR — a frame from earlier than the hour on the scrubber, because
+ * the model's axis ran out? (2026-08-09, the half `describeSubstitution` is structurally blind to.)
+ *
+ * The tile lane picks its frame by minimising |validTime - target| and then clamps, so a request
+ * past the end of the axis silently returns the LAST frame: ask for hour 300 on a 168 h axis and
+ * you get hour 168. Nothing above can catch it, because the MODEL never changed — only the hour
+ * did. Proven in staleHour.proof.test.js.
+ *
+ * ⛔ REFUSES ON PLACEHOLDER DATA. `MODEL_METADATA_CACHE` ships bootstrap axes (LayerRegistry seeds
+ * every model with generateDefaultTimes before anything is fetched), and reading one of those as
+ * evidence would manufacture a "stale" warning for a model whose real axis is longer — a false
+ * banner, which is the same lie as the silence, just louder. So this returns null unless the
+ * model's metadata has actually been live-fetched.
+ */
+export function describeStaleHour(omModelId, targetOffsetHours, deps = {}) {
+  if (typeof targetOffsetHours !== 'number' || !Number.isFinite(targetOffsetHours)) return null;
+  const live = deps.liveModels || LIVE_FETCHED_MODELS;
+  if (!omModelId || !live || typeof live.has !== 'function' || !live.has(omModelId)) return null;
+  const cache = deps.metadataCache || MODEL_METADATA_CACHE;
+  const validTimes = cache && cache[omModelId] && cache[omModelId].validTimes;
+  const nowMs = deps.nowMs !== undefined ? deps.nowMs : Date.now();
+  const targetMs = nowMs + targetOffsetHours * 3600000;
+  if (!isBeyondAxis(validTimes, targetMs)) return null;
+  const carries = axisHorizonHours(validTimes, nowMs);
+  if (carries == null) return null;
+  return {
+    requestedH: Math.round(targetOffsetHours),
+    carriesH: carries,
+    // Words, never colour alone — and it names the HOUR, because "stale" without a number is
+    // just anxiety. The model is right here; the time is not.
+    text: `Showing +${carries} h — the furthest this model carries (you asked for +${Math.round(targetOffsetHours)} h)`,
+    short: `+${carries} h shown`,
+  };
 }

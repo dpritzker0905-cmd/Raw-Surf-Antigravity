@@ -7,7 +7,7 @@
  * (120/168/228/240) live in four independently drifted copies and none of them is authoritative;
  * the rendered slot URL is what the GPU is painting, so it is the only thing worth asserting on.
  */
-import { familyOfOmModel, describeSubstitution, describeLayerSubstitution } from './modelProvenance';
+import { familyOfOmModel, describeSubstitution, describeLayerSubstitution, describeStaleHour } from './modelProvenance';
 
 const SLOT = (model, ti = 3) =>
   `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${ti}&variable=visibility&contours=true`;
@@ -100,5 +100,50 @@ describe('describeLayerSubstitution — reads the SLOT, not a horizon constant',
     expect(describeLayerSubstitution('EURO', 'fog', { map: { getSource: () => null } })).toBeNull();
     expect(describeLayerSubstitution('EURO', 'fog', { map: null })).toBeNull();
     expect(describeLayerSubstitution('EURO', null, { map: makeMap() })).toBeNull();
+  });
+});
+
+
+describe('describeStaleHour — the half describeSubstitution is blind to', () => {
+  const T0 = Date.parse('2026-08-09T00:00:00Z');
+  const axis = (n) => Array.from({ length: n }, (_, i) => new Date(T0 + i * 3600000).toISOString());
+  const deps = (n, live = true) => ({
+    metadataCache: { dwd_icon: { validTimes: axis(n) } },
+    liveModels: new Set(live ? ['dwd_icon'] : []),
+    nowMs: T0,
+  });
+
+  it('SILENT while the model still carries the hour', () => {
+    expect(describeStaleHour('dwd_icon', 100, deps(169))).toBeNull();
+    expect(describeStaleHour('dwd_icon', 168, deps(169))).toBeNull();   // exactly the last: real
+  });
+
+  it('SPEAKS past the axis, and names the hour it is actually showing', () => {
+    const s = describeStaleHour('dwd_icon', 300, deps(169));
+    expect(s).not.toBeNull();
+    expect(s.carriesH).toBe(168);
+    expect(s.requestedH).toBe(300);
+    expect(s.text).toMatch(/168/);
+    expect(s.text).toMatch(/300/);      // "stale" without a number is just anxiety
+  });
+
+  it('⛔ REFUSES on bootstrap placeholder axes — a false banner is not better than silence', () => {
+    // LayerRegistry seeds every model with generateDefaultTimes before anything is fetched. Reading
+    // one of those as evidence would warn "stale" about a model whose real axis is longer.
+    expect(describeStaleHour('dwd_icon', 300, deps(169, /* live */ false))).toBeNull();
+  });
+
+  it('refuses on an unknown model, absent metadata, or a non-numeric hour', () => {
+    expect(describeStaleHour('mystery', 300, deps(169))).toBeNull();
+    expect(describeStaleHour('dwd_icon', 300,
+      { metadataCache: {}, liveModels: new Set(['dwd_icon']), nowMs: T0 })).toBeNull();
+    expect(describeStaleHour('dwd_icon', NaN, deps(169))).toBeNull();
+    expect(describeStaleHour('dwd_icon', undefined, deps(169))).toBeNull();
+  });
+
+  it('carries WORDS, per the colour-alone ban', () => {
+    const s = describeStaleHour('dwd_icon', 300, deps(169));
+    expect(typeof s.text).toBe('string');
+    expect(s.short).toBe('+168 h shown');
   });
 });

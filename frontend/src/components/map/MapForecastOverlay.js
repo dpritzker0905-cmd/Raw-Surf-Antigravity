@@ -2,7 +2,8 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Lock, ChevronDown, MapPin, Check, Info, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getHeightUnit } from './heightUnits';
-import { describeLayerSubstitution } from './modelProvenance';
+import { describeLayerSubstitution, describeStaleHour } from './modelProvenance';
+import { resolveDisplayedSlot } from './decodedOmSampler';
 import {
   sampleFromMarineGrid,
   fetchExactMarinePoint,
@@ -238,6 +239,13 @@ export const MapForecastOverlay = ({
   // for 'a GFS value labelled ECMWF' -- and the house rule (marine variable refusal) is to
   // refuse rather than mislabel. Absent unless the families genuinely differ.
   const modelSubstitution = describeLayerSubstitution(activeModel, activeLayer);
+  // THE QUIETER HALF. When the model does NOT swap but its time axis runs out, the tile lane
+  // clamps to the last frame and paints it under whatever hour the scrubber says. The model
+  // substitution notice above is structurally blind to that (nothing swapped), so ask the
+  // RENDERED slot's model whether it actually carries the requested hour.
+  const _slotNow = (typeof window !== 'undefined' && (window.map || window.__MAP_INSTANCE__))
+    ? resolveDisplayedSlot(window.map || window.__MAP_INSTANCE__, activeLayer) : null;
+  const staleHour = _slotNow ? describeStaleHour(_slotNow.model, timeOffsetHours) : null;
 
   const liveWind = currentWeather;
   const rawWindSpeed = isLive && liveWind?.wind_speed_10m != null
@@ -739,6 +747,17 @@ export const MapForecastOverlay = ({
                   >
                     {effectiveExactPointStatus === 'estimate_pending_sources' ? 'Load missing data' : 'Compute Extended Estimate (Load GFS/ICON)'}
                   </button>
+                </div>
+              )}
+              {!modelSubstitution && staleHour && (
+                <div
+                  className={`pt-1.5 mt-1.5 border-t text-[9px] font-semibold flex items-center gap-1.5 ${
+                    isLight ? 'border-gray-200 text-amber-700'
+                      : isBeach ? 'border-cyan-900/50 text-amber-300'
+                        : 'border-zinc-800/20 text-amber-400'}`}
+                >
+                  <AlertTriangle className="w-3 h-3 shrink-0" aria-hidden="true" />
+                  <span>{staleHour.text}</span>
                 </div>
               )}
               {modelSubstitution && (
