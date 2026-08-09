@@ -1,0 +1,61 @@
+# Forecast ACCURACY monitor (2026-08-08, MASTER-AUDIT-11.0 SS3.7) — the first scheduled check that
+# can go red on a WRONG forecast, not merely a missing or stale one.
+#
+# WHY: 0 of 8 scheduled workflows could fail on a forecast-accuracy regression. The continuously
+# computed accuracy number (height MAE over ~60 NDBC buoys, every calibration run) had no
+# threshold and no consumer, and both permanent verification archives (residual history, skill
+# scored segments) had ZERO automated readers — this job is their first. A shipped-bad-constant
+# regression (the +25.5% H110-alone class) would have reached users silently: the one exact height
+# anchor sits in the depth-saturated regime where Kr cancels out of the number.
+#
+# WHAT PAGES (exit 1) vs REFUSES (exit 3 — blind is never green, and never conflated with breach):
+#   RED    height MAE > 0.40 m           (2x measured p50; basis n=37 runs 08-05..08-08 in-script)
+#   RED    calibration report older than 8 h (the accuracy instrument itself died)
+#   RED    skill ledger absent/evicting/scored=0 past self-expiring grace dates (5e181f69 fix)
+#   RED    residual retention added 0 rows in 48 h (every unretained day is unrecoverable)
+#   REFUSE report unreachable, or n < 30 buoy pairs (grading a handful of buoys is weather)
+# Thresholds tune via repo Actions variables (ACCURACY_*) — the script prints the measured basis
+# beside the live value on every run so a re-tune has provenance.
+#
+# ⚠️ GitHub cron is BEST-EFFORT (data-health measured 32.2% delivery; keep-warm 5.4%): this is the
+#   accuracy ANALYST, not the uptime pager. The external uptime probe remains the liveness pager;
+#   what this adds is the check nothing else performs at all.
+# ⚠️ Scheduled workflows fire from the DEFAULT branch only — `dev` here, not `main`.
+name: Forecast Accuracy Monitor
+
+on:
+  schedule:
+    # 6-hourly at :05 past 01/07/13/19 UTC — ~50 min after each forecast-ingest cycle starts
+    # (00:15/04:15/...), so the freshest calibration report is normally minutes old when graded.
+    - cron: '5 1,7,13,19 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forecast-accuracy-monitor
+  cancel-in-progress: true
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Grade forecast accuracy against buoy truth
+        working-directory: backend
+        env:
+          # Same read-only pair the calibration census already uses — grants the archive readers.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BASE: ${{ vars.HEALTH_BASE || 'https://raw-surf-antigravity.onrender.com' }}
+        run: |
+          set -o pipefail
+          python3 scripts/forecast_accuracy_monitor.py \
+            --base "$BASE" \
+            --red-mae "${{ vars.ACCURACY_RED_MAE_M || '0.40' }}" \
+            --warn-mae "${{ vars.ACCURACY_WARN_MAE_M || '0.30' }}" \
+            --min-n "${{ vars.ACCURACY_MIN_N || '30' }}" \
+            --max-report-age-h "${{ vars.ACCURACY_MAX_REPORT_AGE_H || '8' }}"

@@ -416,7 +416,7 @@ jobs:
                      tests/test_geometry_*.py tests/test_provenance_*.py \
                      tests/test_observation_gate_*.py tests/test_run_provenance.py \
                      tests/test_resolve_spot_geometry.py tests/test_simulation.py \
-                     tests/test_forecast_skill.py tests/test_forecast_skill_per_model.py tests/test_product_run_age_census.py \
+                     tests/test_forecast_skill.py tests/test_forecast_skill_per_model.py tests/test_forecast_accuracy_monitor.py tests/test_product_run_age_census.py \
                      tests/test_validate_nearshore_transform.py \
                      tests/test_calibration_census.py                      tests/test_sweep_orphaned_l2.py tests/test_map_spots_to_ndbc_buoys.py \
                      tests/test_era5_*.py 2>/dev/null \
@@ -604,7 +604,7 @@ jobs:
           "tests/test_frame_honesty.py","tests/test_data_health.py","tests/test_geometry_*.py",
           "tests/test_provenance_*.py","tests/test_observation_gate_*.py","tests/test_run_provenance.py",
           "tests/test_resolve_spot_geometry.py","tests/test_simulation.py","tests/test_forecast_skill.py","tests/test_forecast_skill_per_model.py",
-          "tests/test_product_run_age_census.py","tests/test_validate_nearshore_transform.py",
+          "tests/test_forecast_accuracy_monitor.py","tests/test_product_run_age_census.py","tests/test_validate_nearshore_transform.py",
           "tests/test_calibration_census.py","tests/test_era5_*.py",
           # ADOPTED 2026-08-05. The FIVE ERA5 campaign guards matched no lane selector and ran
           # NOWHERE — same cause as the two below: they import from `scripts.`, which the chain
