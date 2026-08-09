@@ -199,7 +199,15 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
             h_sim = calc["breaking_height_ft"] / 3.28084
             h_srv = item.get("surf_height_m")
             dh = ((h_sim - h_srv) / h_srv * 100.0) if h_srv else None
-            ds = calc["quality_rating"] - item["score"]
+            # R11-18 (2026-08-09): the comment above ("compares raw_score deliberately so the
+            # gate is not part of the comparison") was FALSE — the code compared the sim's
+            # ungated score against item["score"], the GATED served number, then neutralized
+            # after the fact via attribution. Compare raw-vs-raw when the payload carries it:
+            # a gate-only level split now fails the margin test by construction (ds ~ 0) and
+            # lands in the straddle notes instead of paging as a fake composition red.
+            # d_score_served below keeps the GATED comparison — that is the product number.
+            _glyph_ungated = item["raw_score"] if item.get("raw_score") is not None else item["score"]
+            ds = calc["quality_rating"] - _glyph_ungated
             row = {
                 "region": name, "spot": item.get("name"), "hour": hour,
                 "glyph_score": item["score"], "sim_score": calc["quality_rating"], "d_score": ds,
@@ -566,14 +574,31 @@ def main():
         straddles = [r for r in rows if r["level_differs"] and r not in real
                      and r.get("attribution") not in ("provenance_only",)]
         for r in straddles:
+            # ⚠️ stderr, NOT stdout (2026-08-09): with --json the workflow redirects stdout into
+            # parity.json, and this note used to land INSIDE the artefact — the 08-05 red run's
+            # parity.json was unparseable-as-JSON for exactly this reason (found the hard way,
+            # mid-forensics). stdout is the artefact; prose goes to stderr.
             print(f"  note: {r['spot']} differs in LEVEL on a {abs(r['d_score']):.2f}-point gap "
                   f"({r['glyph_level']} vs {r['sim_level']}) - a bucket-edge straddle, not a "
-                  f"composition divergence.")
+                  f"composition divergence.", file=sys.stderr)
         if real:
-            print(f"FAIL: {len(real)} of {len(rows)} spots differ in LEVEL between the sim and the "
-                  f"served glyph: "
-                  + ", ".join(f"{r['spot']}={r.get('attribution', 'unattributed')}" for r in real),
-                  file=sys.stderr)
+            # R11-18: an UNATTRIBUTED divergence means the +42h live-compute discriminator FAILED
+            # (shed/timeout on the 1-CPU box) — that is the instrument unable to attribute, not a
+            # measured composition break. Red either way (an unexplained divergence is not a
+            # cleared one), but say WHICH red: the run history's instrument-vs-composition
+            # decomposition is what let the 08-09 forensics kill a wrong hypothesis in one pull.
+            composition = [r for r in real if r.get("attribution") == "composition"]
+            unattributed = [r for r in real if r.get("attribution") != "composition"]
+            if composition:
+                print(f"FAIL: {len(composition)} of {len(rows)} spots differ in LEVEL between the "
+                      f"sim and the served glyph: "
+                      + ", ".join(f"{r['spot']}={r.get('attribution', 'unattributed')}" for r in composition),
+                      file=sys.stderr)
+            if unattributed:
+                print(f"FAIL (INSTRUMENT): {len(unattributed)} divergence(s) could not be attributed "
+                      f"(live-compute discriminator failed) — NOT a measured composition finding: "
+                      + ", ".join(f"{r['spot']}" for r in unattributed),
+                      file=sys.stderr)
             return 1
         if args.max_score_delta is not None and summary["d_score"]["max"] > args.max_score_delta:
             print(f"FAIL: |dScore| max {summary['d_score']['max']} exceeds "
