@@ -47,9 +47,23 @@ def _frames(rows):
     return [{"spots": rows}]
 
 
+# ⚠️ EVERY science switch these tests reason about, not just the ones they set. Found 2026-08-10:
+# the suite passed alone (29/29) and FAILED 4 tests when it ran after
+# test_tide_moves_the_breaking_cap, which does `os.environ["SURF_TIDE_DEPTH"] = flag` plus an
+# importlib.reload and leaves the flag set. With it leaked ON, the BASELINE arm is already
+# tide-aware, so the candidate matches it, nothing moves, and the "lever is exercisable"
+# assertions fail -- an order-dependent red that alone-runs can never reveal.
+# ⇒ A FIXTURE THAT CLEANS *SOME* GLOBALS IS A FIXTURE THAT PASSES IN THE ORDER YOU HAPPENED TO RUN.
+_SCIENCE_SWITCHES = (
+    "SURF_REFRACTION_KR", "SURF_HEIGHT_H110", "RATING_LOCAL_SIZE", "SURF_TIDE_DEPTH",
+    "SURF_COASTAL_FROM_SHORE_NORMAL", "SURF_COASTAL_FROM_LAND_BIT", "SURF_PARTITIONS",
+    "SURF_EXPOSURE_RECONCILED", "RATING_TIDE", "SPOT_RATINGS_INPUTS_SAMPLE_PCT",
+)
+
+
 @pytest.fixture(autouse=True)
 def clean_flags(monkeypatch):
-    for k in ("SURF_REFRACTION_KR", "SURF_HEIGHT_H110", "RATING_LOCAL_SIZE"):
+    for k in _SCIENCE_SWITCHES:
         monkeypatch.delenv(k, raising=False)
 
 

@@ -250,11 +250,16 @@ def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
             return h, regime
     # ★ TIDE, when supplied, reaches the depth-limited cap and nothing else — see the block in
     # `surf_transform.estimate_surf`. Default 0.0 and `SURF_TIDE_DEPTH` default OFF, so every
-    # existing caller is byte-identical. ⚠️ NO SERVING-PATH CALLER SUPPLIES IT YET: this is the
-    # physics half only, and the wiring (feeding `tide.tide_state_at`'s `height_m` from
-    # `rate_one_spot` / `spot_conditions`) is a separate, separately-priced step. Said plainly here
-    # so a reader cannot mistake an available parameter for a live one — this repo has shipped
-    # "wired but never executed" twice.
+    # existing caller is byte-identical WHILE THE FLAG IS OFF.
+    # ⚠️⚠️ CORRECTED 2026-08-10 — the line that stood here ("NO SERVING-PATH CALLER SUPPLIES IT
+    # YET") is FALSE and cost a real wrong answer. `point_surf_augment` IS that caller: it fetches
+    # `tide_norm_at` and threads `water_level_m=_eta` into `estimate_surf_at`. The FETCH is gated by
+    # the same flag, so with SURF_TIDE_DEPTH off nothing happens and the old sentence looked true —
+    # but flipping the flag moves SERVED point-lane heights, not just an offline replay.
+    # I read this comment as current fact and reported to the owner that the flag was unmeasurable;
+    # the harness was blind for a different reason (it supplied no η of its own). ⇒ A STALE COMMENT
+    # ON A FLAG-GATED PATH READS TRUE FOR AS LONG AS THE FLAG IS OFF. Guarded by
+    # tests/test_tide_caller_comment_is_not_stale.py.
     return estimate_surf(
         Hs_m, Tp_s, g.depth_m,
         coastal=g.coastal,
