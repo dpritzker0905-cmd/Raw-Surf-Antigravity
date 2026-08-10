@@ -403,8 +403,21 @@ jobs:
           # still reported "49 files / 707 passed" — byte-identical to the run before it. A guard
           # that runs nowhere is indistinguishable from a guard that passes, which is this repo's
           # recurring coverage class; the only reliable detector is asserting what RAN.
+          # ⬆ 2026-08-10 — THE MEMORY-SAFETY FAMILY WAS RUNNING NOWHERE. Found by census while
+          # fixing the grid_series OOM (7 oomKilled events in 15 h): of 482 backend test files,
+          # 340 are selected by NO lane, and the dark set included EVERY guard on this box's memory
+          # bounds — test_series_vector_budget (the end-stage grid_series budget),
+          # test_product_cache_vector_budget (the resident product cap) and test_health_peak_memory
+          # (the peak-RSS reporting the OOM was diagnosed WITH). The new build-time bound's own
+          # guards would have landed dark too, which is how this was noticed.
+          # ★ Same shape as the 96-file jump below: a lane cannot protect what it never selects.
+          # ⚠️ Deliberately a NAMED FAMILY, not a widening to test_iteration_*: those are ~100
+          # unrelated product-feature files, and pulling them in here would be scope, not coverage.
           FILES=$(ls tests/test_sim_*.py tests/test_rating_*.py tests/test_surf_*.py \
                      tests/test_spot_*.py tests/test_point_*.py \
+                     tests/test_series_*.py tests/test_product_cache_*.py \
+                     tests/test_cold_start_*.py tests/test_health_peak_memory.py \
+                     tests/test_dyncache_*.py tests/test_manifest_concurrent_merge.py \
                      tests/test_coarse_*.py tests/test_marine_*.py tests/test_grid_*.py \
                      tests/test_weather_*.py tests/test_wind_*.py tests/test_partition_*.py \
                      tests/test_noaa_*.py tests/test_ecmwf_euro.py tests/test_fetch_common.py \
