@@ -608,6 +608,16 @@ jobs:
           # the two jobs never double-count and the floors stay independent.
           COMPOSITION = ["tests/test_sim_*.py","tests/test_rating_*.py","tests/test_surf_*.py",
           "tests/test_spot_*.py","tests/test_point_*.py","tests/test_coarse_*.py","tests/test_marine_*.py",
+          # MIRROR OF THE SELECTOR, 2026-08-10 — the memory-safety family. This literal and the `ls`
+          # glob above are ONE list expressed twice, and `test_flag_lane_parity` pins them equal.
+          # I edited the selector alone and it caught me within the run: the seven files were then
+          # selected by composition AND still candidates for the chain lane, so both lanes would run
+          # them and the two ratchets would double-count. ★ The recorded failure was the mirror
+          # image (literal edited, selector not) — the lesson is the SAME and it is the list's
+          # duplication, not the direction: EDIT BOTH, ALWAYS, AND LET THE PARITY GUARD CONFIRM.
+          "tests/test_series_*.py","tests/test_product_cache_*.py","tests/test_cold_start_*.py",
+          "tests/test_health_peak_memory.py","tests/test_dyncache_*.py",
+          "tests/test_manifest_concurrent_merge.py",
           "tests/test_grid_*.py","tests/test_weather_*.py","tests/test_wind_*.py","tests/test_partition_*.py",
           "tests/test_noaa_*.py","tests/test_ecmwf_euro.py","tests/test_fetch_common.py",
           "tests/test_climatology_inbox.py","tests/test_flag_lane_parity.py",
