@@ -183,7 +183,7 @@ def evaluate_scored_segment(rows, now):
     first automated reader. No accuracy gate yet ON PURPOSE: the only baseline predates the 08-04
     outage, and gating fresh post-fix data against a pre-outage frame would page on the weather.
     Revisit once ~2 weeks of post-fix rows exist (after ~2026-08-22)."""
-    from services.weather_pipeline.forecast_skill import skill_summary
+    from services.weather_pipeline.forecast_skill import head_to_head, skill_summary
     if rows is None:
         return OK, ["scored segment: not readable (missing or no credentials) -- informational only"]
     week = [r for r in rows if (t := _parse_iso(r.get("target_time"))) and now - t <= timedelta(days=7)]
@@ -191,6 +191,23 @@ def evaluate_scored_segment(rows, now):
     for s in skill_summary(week):
         lines.append("  %-22s +%dh  n=%-5d mae=%.3f bias=%+.3f"
                      % (s["source"], s["lead_h"], s["n"], s["mae_m"], s["bias_m"]))
+
+    # ⛔ THE COLUMN ABOVE IS PER-SOURCE, NOT A COMPARISON. Each source is summarised over its OWN
+    # rows, so reading DOWN it compares different populations -- on 2026-08-10 that read said we
+    # lose to persistence (0.268 vs 0.206) when the paired truth was the opposite (0.183 vs 0.206);
+    # persistence had 374 rows over SEVEN target times against our 2,825 over 64. The table below
+    # is the only one of the two that supports a "we lose" sentence.
+    h2h = head_to_head(week)
+    if h2h:
+        lines.append("  -- PAIRED head-to-head (same buoy x target x lead; the comparable one) --")
+        for c in h2h:
+            skew = ""
+            if c["n_paired"] < 0.5 * max(c["n_ours_total"], c["n_theirs_total"]):
+                skew = "  [POPULATIONS DIVERGE: %d vs %d unpaired]" % (c["n_ours_total"], c["n_theirs_total"])
+            lines.append("  vs %-19s +%dh  n=%-5d ours=%.3f theirs=%.3f delta=%+.3f win=%.0f%%  %s%s"
+                         % (c["source"], c["lead_h"], c["n_paired"], c["mae_ours_m"],
+                            c["mae_theirs_m"], c["delta_m"], 100.0 * c["win_rate"],
+                            "WE LOSE" if c["we_lose"] else "we win", skew))
     return OK, lines
 
 

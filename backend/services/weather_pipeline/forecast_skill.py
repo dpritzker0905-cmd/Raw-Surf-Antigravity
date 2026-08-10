@@ -341,6 +341,58 @@ def verification_metrics(pairs) -> Optional[dict]:
     return out
 
 
+def head_to_head(scored_rows, primary: str = SOURCE_OURS) -> List[dict]:
+    """PAIRED comparison of `primary` against every other source, on the EXACT SAME
+    (buoy_id, target_time, lead-bucket) keys.
+
+    ⛔⛔ WHY THIS EXISTS — IT CAUGHT A FALSE ALARM, MINE, ON 2026-08-10. `skill_summary` groups each
+    source INDEPENDENTLY, so its MAE column compares DIFFERENT POPULATIONS. Read across that column
+    and the archive said `raw_surf` 0.268 vs `persistence` 0.206 — "we lose to the trivial
+    baseline", which was reported as a finding. It is an artifact: `raw_surf` spanned 2,825 rows
+    over 64 target times, `persistence` 374 rows over SEVEN, because `persistence_rows_from_report`
+    only emits for buoys carrying a live observation. On the identical 374 keys we WIN, 0.183 vs
+    0.206. The unpaired column had inverted the sign of the answer.
+
+    ★★★ PARITY OF STATISTIC IS NOT PARITY OF POPULATION. A per-source MAE table invites a
+    comparison it cannot support, so the comparison is computed here instead of left to the reader.
+
+    Emits `n_ours_total` / `n_theirs_total` beside `n_paired` on purpose: when those three diverge
+    the populations differ, which is exactly the condition that made the raw column misleading.
+    `win_rate` is the fraction of paired keys where our absolute error is strictly smaller — a
+    median-free view, because one storm can move an MAE and cannot move a win rate.
+    """
+    by_source: Dict[str, Dict[tuple, float]] = {}
+    for r in scored_rows or []:
+        e = r.get("err_m")
+        if not isinstance(e, (int, float)):
+            continue
+        key = (r.get("buoy_id"), r.get("target_time"), _lead_bucket(r.get("lead_h") or 0))
+        by_source.setdefault(r.get("source"), {})[key] = abs(e)
+
+    ours = by_source.get(primary) or {}
+    out = []
+    for source in sorted(k for k in by_source if k != primary):
+        theirs = by_source[source]
+        for bucket in sorted({k[2] for k in ours} | {k[2] for k in theirs}):
+            common = [k for k in ours if k[2] == bucket and k in theirs]
+            if not common:
+                continue
+            n = len(common)
+            mo = sum(ours[k] for k in common) / n
+            mt = sum(theirs[k] for k in common) / n
+            wins = sum(1 for k in common if ours[k] < theirs[k])
+            out.append({
+                "source": source, "lead_h": bucket * 24, "n_paired": n,
+                "n_ours_total": sum(1 for k in ours if k[2] == bucket),
+                "n_theirs_total": sum(1 for k in theirs if k[2] == bucket),
+                "mae_ours_m": round(mo, 4), "mae_theirs_m": round(mt, 4),
+                "delta_m": round(mo - mt, 4),
+                "win_rate": round(wins / n, 4),
+                "we_lose": mo > mt,
+            })
+    return out
+
+
 def skill_summary(scored_rows) -> List[dict]:
     """Per source x lead-bucket: n, n_buoys, bias, MAE — plus RMSE / scatter index / correlation /
     symmetric slope, and the same metrics per observed-height band.

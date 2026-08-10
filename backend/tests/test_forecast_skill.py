@@ -395,3 +395,84 @@ def test_the_persistence_kill_switch_and_the_demand_it_adds(monkeypatch):
     assert 'persistence_rows_from_report(report' in src, (
         "run_skill_ledger no longer builds persistence rows -- the baseline shipped and reaches "
         "nobody, the repo's own recorded defect class")
+
+
+# ── PAIRED head-to-head (2026-08-10): the guard on the false alarm that made it exist ──────────
+from services.weather_pipeline.forecast_skill import head_to_head  # noqa: E402
+
+
+def _scored(source, buoy, target, lead_h, err_m):
+    return {"source": source, "buoy_id": buoy, "target_time": target,
+            "lead_h": lead_h, "err_m": err_m}
+
+
+def test_head_to_head_INVERTS_the_verdict_an_unpaired_column_gives():
+    """THE REGRESSION THIS EXISTS FOR, reproduced in miniature.
+
+    On 2026-08-10 the per-source column read `raw_surf` 0.268 vs `persistence` 0.206 and that was
+    reported as "we lose to the trivial baseline". It was an artifact of unequal populations:
+    persistence only scores buoys with a live observation, so it covered 7 target times to our 64.
+    Paired on identical keys we WIN. This fixture reproduces the inversion exactly: ours is worse
+    on the UNPAIRED average and better on every SHARED key.
+    """
+    rows = []
+    # Shared keys: ours is strictly better on each one.
+    for i in range(6):
+        t = "2026-08-10T%02d:00:00Z" % i
+        rows.append(_scored("raw_surf", "B1", t, 24, 0.10))
+        rows.append(_scored("persistence", "B1", t, 24, 0.30))
+    # Ours ALSO covers hard targets the baseline never scored -- this is the whole distortion.
+    for i in range(6, 20):
+        rows.append(_scored("raw_surf", "B1", "2026-08-10T%02d:00:00Z" % i, 24, 0.90))
+
+    unpaired = {s["source"]: s["mae_m"] for s in skill_summary(rows)}
+    assert unpaired["raw_surf"] > unpaired["persistence"], (
+        "SETUP BROKEN: the unpaired column must say we lose, or this proves nothing")
+
+    h = [c for c in head_to_head(rows) if c["source"] == "persistence"][0]
+    assert h["n_paired"] == 6
+    assert h["we_lose"] is False, "paired comparison must invert the unpaired verdict"
+    assert h["mae_ours_m"] == 0.10 and h["mae_theirs_m"] == 0.30
+    assert h["win_rate"] == 1.0
+    assert h["n_ours_total"] == 20 and h["n_theirs_total"] == 6, (
+        "the unpaired totals must be published beside n_paired -- their divergence is the tell")
+
+
+def test_head_to_head_confirms_a_REAL_loss_when_the_populations_match():
+    """Known-present control. A guard that only ever flips 'lose' to 'win' would hide a real gap."""
+    rows = []
+    for i in range(10):
+        t = "2026-08-10T%02d:00:00Z" % i
+        rows.append(_scored("raw_surf", "B1", t, 24, 0.40))
+        rows.append(_scored("open_meteo_marine", "B1", t, 24, 0.20))
+    h = [c for c in head_to_head(rows) if c["source"] == "open_meteo_marine"][0]
+    assert h["n_paired"] == 10 == h["n_ours_total"] == h["n_theirs_total"]
+    assert h["we_lose"] is True and h["delta_m"] == 0.20 and h["win_rate"] == 0.0
+
+
+def test_head_to_head_compares_only_identical_buoy_target_and_lead():
+    """A key is (buoy, target, lead-bucket). Differing on ANY of the three is not a pair."""
+    rows = [
+        _scored("raw_surf", "B1", "2026-08-10T00:00:00Z", 24, 0.10),
+        _scored("other", "B2", "2026-08-10T00:00:00Z", 24, 0.90),   # different buoy
+        _scored("other", "B1", "2026-08-11T00:00:00Z", 24, 0.90),   # different target
+        _scored("other", "B1", "2026-08-10T00:00:00Z", 72, 0.90),   # different lead bucket
+    ]
+    assert head_to_head(rows) == [], "none of those three share a key with ours"
+
+
+def test_head_to_head_is_silent_rather_than_wrong_with_no_primary_rows():
+    rows = [_scored("persistence", "B1", "2026-08-10T00:00:00Z", 24, 0.3)]
+    assert head_to_head(rows) == []
+    assert head_to_head([]) == []
+
+
+def test_head_to_head_ignores_rows_with_no_error_the_same_way_the_summary_does():
+    rows = [
+        _scored("raw_surf", "B1", "2026-08-10T00:00:00Z", 24, None),
+        _scored("persistence", "B1", "2026-08-10T00:00:00Z", 24, 0.3),
+        _scored("raw_surf", "B1", "2026-08-10T01:00:00Z", 24, 0.1),
+        _scored("persistence", "B1", "2026-08-10T01:00:00Z", 24, 0.3),
+    ]
+    h = [c for c in head_to_head(rows) if c["source"] == "persistence"][0]
+    assert h["n_paired"] == 1, "an unscored row is not a pair"
