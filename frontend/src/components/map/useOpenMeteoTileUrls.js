@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { LIVE_FETCHED_MODELS } from './mapUtils';
 import {
   ICON_WIND_CUTOVER_H, EURO_WIND_CUTOVER_H,
   ICON_MARINE_RASTER_CUTOVER_H, EURO_MARINE_RASTER_CUTOVER_H,
   ICON_ATMOSPHERIC_CUTOVER_H, EURO_ATMOSPHERIC_CUTOVER_H,
-  closestAxisIndex,
+  closestAxisIndex, effectiveCutoverH,
 } from './modelHorizons';
 import maplibregl from 'maplibre-gl';
 import {
@@ -464,24 +465,42 @@ export function useOpenMeteoTileUrls({
             isActive: activeLayers.includes(k)
           }));
 
+        // ⭐ OPT-IN LIVE-AXIS FLOOR (2026-08-10, R11-11 #7), DEFAULT OFF = byte-identical.
+        // A declared cutover that OVER-reaches the model's real axis does not refuse:
+        // closestAxisIndex saturates and the lane paints the LAST AVAILABLE FRAME under whatever
+        // hour the scrubber reads, and modelProvenance cannot see it because the MODEL never
+        // changed -- only the hour did. Flooring by the live axis converts that silent TIME lie
+        // into a MODEL substitution, which IS disclosed. min() only: it pulls a cutover in, never
+        // pushes it out, so per-variable distinctions (ICON wind 120 vs atmospheric 168, from ONE
+        // metadata document) survive untouched.
+        // ⚠️ Flipping this CHANGES WHICH MODEL PAINTS past a horizon -- owner-gated:
+        // `window.__RAW_AXIS_FLOOR__ = true`. Refuses on a not-live axis (LayerRegistry's
+        // bootstrap placeholders); cutting real hours on a guess is the same error inverted.
+        const axisFloorOn = typeof window !== 'undefined'
+          && window.__RAW_AXIS_FLOOR__ === true;
+        const eff = (declaredH, omModel) => (axisFloorOn
+          ? effectiveCutoverH(declaredH, MODEL_METADATA_CACHE[omModel]?.validTimes,
+                              Date.now(), LIVE_FETCHED_MODELS.has(omModel))
+          : declaredH);
+
         const resolveModel = (entry, variable) => {
           if (entry.omModel) return entry.omModel;
           if (variable === 'wind_u_component_10m') {
             const baseModel = WIND_MODEL_MAP[activeModel] || 'ncep_gfs013';
-            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > ICON_WIND_CUTOVER_H) {
+            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > eff(ICON_WIND_CUTOVER_H, 'dwd_icon')) {
               return 'ncep_gfs013';
             }
-            if (baseModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > EURO_WIND_CUTOVER_H) {
+            if (baseModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > eff(EURO_WIND_CUTOVER_H, 'ecmwf_ifs025')) {
               return 'ncep_gfs013';
             }
             return baseModel;
           }
           if (entry.omModelGroup === 'marine') {
             const baseModel = MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
-            if (baseModel === 'dwd_gwam' && debouncedTimeOffsetHours > ICON_MARINE_RASTER_CUTOVER_H) {
+            if (baseModel === 'dwd_gwam' && debouncedTimeOffsetHours > eff(ICON_MARINE_RASTER_CUTOVER_H, 'dwd_gwam')) {
               return 'ncep_gfswave025';
             }
-            if (baseModel === 'ecmwf_wam025' && debouncedTimeOffsetHours > EURO_MARINE_RASTER_CUTOVER_H) {
+            if (baseModel === 'ecmwf_wam025' && debouncedTimeOffsetHours > eff(EURO_MARINE_RASTER_CUTOVER_H, 'ecmwf_wam025')) {
               return 'ncep_gfswave025';
             }
             return baseModel;
@@ -499,18 +518,18 @@ export function useOpenMeteoTileUrls({
             if (baseModel === 'dwd_icon' && variable === 'surface_temperature') {
               return 'ncep_gfs013';
             }
-            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > ICON_ATMOSPHERIC_CUTOVER_H) {
+            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > eff(ICON_ATMOSPHERIC_CUTOVER_H, 'dwd_icon')) {
               return 'ncep_gfs013';
             }
-            if (baseModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > EURO_ATMOSPHERIC_CUTOVER_H) {
+            if (baseModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > eff(EURO_ATMOSPHERIC_CUTOVER_H, 'ecmwf_ifs025')) {
               return 'ncep_gfs013';
             }
             return baseModel;
           }
-          if (targetModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > EURO_ATMOSPHERIC_CUTOVER_H) {
+          if (targetModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > eff(EURO_ATMOSPHERIC_CUTOVER_H, 'ecmwf_ifs025')) {
             return 'ncep_gfs025'; // Fallback to GFS atmospheric
           }
-          if (targetModel === 'dwd_icon' && debouncedTimeOffsetHours > ICON_ATMOSPHERIC_CUTOVER_H) {
+          if (targetModel === 'dwd_icon' && debouncedTimeOffsetHours > eff(ICON_ATMOSPHERIC_CUTOVER_H, 'dwd_icon')) {
             return 'ncep_gfs025'; // Fallback to GFS atmospheric
           }
           return targetModel;

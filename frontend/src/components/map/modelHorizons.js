@@ -84,3 +84,30 @@ export function axisHorizonHours(validTimes, nowMs) {
   if (Number.isNaN(last)) return null;
   return Math.max(0, Math.round((last - nowMs) / 3600000));
 }
+
+/**
+ * The cutover to actually use: the DECLARED constant, floored by what the model's axis really
+ * carries. `min()` only — it can pull a cutover IN, never push it out.
+ *
+ * ⚠️ WHY A FLOOR AND NOT A REPLACEMENT. The declared numbers are per-(model, variable-class):
+ * ICON cuts wind at 120 h and atmospheric at 168 h from ONE metadata document with ONE
+ * `valid_times` array. A model-level axis can never reproduce that distinction, so deriving the
+ * cutover purely from the axis would silently collapse the two — a product change wearing a
+ * refactor's clothes. Flooring keeps the declared distinction and only corrects it downward when
+ * the model demonstrably cannot serve that far.
+ *
+ * ⛔ REFUSES ON A NOT-LIVE AXIS. LayerRegistry seeds every model with bootstrap valid_times before
+ * anything is fetched; flooring against a placeholder would cut real forecast hours on the
+ * strength of a guess. `isLive` is the caller's LIVE_FETCHED_MODELS check.
+ *
+ * The failure it prevents: an over-reaching cutover paints the LAST AVAILABLE FRAME under a later
+ * hour (closestAxisIndex saturates, and modelProvenance cannot see it because the model never
+ * changed). Flooring converts that silent time lie into a model substitution, which IS disclosed.
+ */
+export function effectiveCutoverH(declaredH, validTimes, nowMs, isLive) {
+  if (typeof declaredH !== 'number' || !Number.isFinite(declaredH)) return declaredH;
+  if (!isLive) return declaredH;
+  const axis = axisHorizonHours(validTimes, nowMs);
+  if (axis == null) return declaredH;
+  return Math.min(declaredH, axis);
+}

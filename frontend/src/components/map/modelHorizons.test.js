@@ -13,7 +13,7 @@ import {
   ICON_WIND_CUTOVER_H, EURO_WIND_CUTOVER_H,
   ICON_MARINE_RASTER_CUTOVER_H, EURO_MARINE_RASTER_CUTOVER_H,
   ICON_ATMOSPHERIC_CUTOVER_H, EURO_ATMOSPHERIC_CUTOVER_H,
-  closestAxisIndex, isBeyondAxis, axisHorizonHours,
+  closestAxisIndex, isBeyondAxis, axisHorizonHours, effectiveCutoverH,
 } from './modelHorizons';
 
 const SRC = fs.readFileSync(path.join(__dirname, 'useOpenMeteoTileUrls.js'), 'utf8');
@@ -51,12 +51,18 @@ describe('the cutover values (change-detector: moving one is a PRODUCT change)',
 
 describe('the source scan — the literals may not come back', () => {
   it('resolveModel compares hours against NAMED constants only', () => {
-    const comparisons = RESOLVE_MODEL.match(/debouncedTimeOffsetHours\s*>\s*[A-Za-z0-9_]+/g) || [];
+    // ⚠️ WIDENED 2026-08-10 — and this guard CAUGHT the change that required it, which is exactly
+    // why it exists. The RHS may now be `eff(NAME, 'model')`, the opt-in live-axis floor. The
+    // INVARIANT is unchanged and is still the whole point: never a bare number, and every
+    // comparison must still resolve to a *_CUTOVER_H name, wrapped or not.
+    const comparisons = RESOLVE_MODEL.match(
+      /debouncedTimeOffsetHours\s*>\s*(?:eff\([^)]*\)|[A-Za-z0-9_]+)/g) || [];
     expect(comparisons.length).toBeGreaterThanOrEqual(8);   // setup: the branches still exist
     for (const c of comparisons) {
       const rhs = c.split('>')[1].trim();
       expect(rhs).not.toMatch(/^\d/);                        // a bare number is the defect returning
-      expect(rhs).toMatch(/CUTOVER_H$/);
+      expect(rhs).not.toMatch(/\b\d{2,}\b/);                 // nor a number smuggled inside eff(...)
+      expect(rhs).toMatch(/CUTOVER_H\b/);
     }
   });
 
@@ -137,5 +143,65 @@ describe('the shipped code uses THIS selector — otherwise the proof above is a
     // describing what ships and quietly become fiction.
     expect(SRC).not.toMatch(/minDiff/);
     expect(SRC.match(/closestAxisIndex\(/g) || []).toHaveLength(2);
+  });
+});
+
+
+describe('effectiveCutoverH — floors a declared cutover by the axis, never raises it', () => {
+  const T0 = Date.parse('2026-08-09T00:00:00Z');
+  const axis = (n) => Array.from({ length: n }, (_, i) => new Date(T0 + i * 3600000).toISOString());
+
+  it('a SHORT axis pulls the cutover in', () => {
+    expect(effectiveCutoverH(ICON_ATMOSPHERIC_CUTOVER_H, axis(121), T0, true)).toBe(120);
+  });
+
+  it('a LONG axis leaves the declared value alone -- min(), never max()', () => {
+    expect(effectiveCutoverH(ICON_ATMOSPHERIC_CUTOVER_H, axis(337), T0, true))
+      .toBe(ICON_ATMOSPHERIC_CUTOVER_H);
+  });
+
+  it('⛔ a NOT-LIVE axis is refused -- a bootstrap placeholder must not cut real hours', () => {
+    // LayerRegistry seeds every model before anything is fetched. Flooring against that would
+    // shorten a forecast on the strength of a guess.
+    expect(effectiveCutoverH(ICON_ATMOSPHERIC_CUTOVER_H, axis(1), T0, false))
+      .toBe(ICON_ATMOSPHERIC_CUTOVER_H);
+  });
+
+  it('an unknown or unparseable axis defers to the declared value', () => {
+    expect(effectiveCutoverH(168, [], T0, true)).toBe(168);
+    expect(effectiveCutoverH(168, null, T0, true)).toBe(168);
+    expect(effectiveCutoverH(168, ['nope'], T0, true)).toBe(168);
+  });
+
+  it('preserves the PER-VARIABLE distinction one axis cannot express', () => {
+    // ICON wind 120 vs atmospheric 168 come from the SAME metadata document. A long axis must
+    // leave both untouched, or the floor has collapsed a distinction it cannot see.
+    const long = axis(337);
+    expect(effectiveCutoverH(ICON_WIND_CUTOVER_H, long, T0, true)).toBe(ICON_WIND_CUTOVER_H);
+    expect(effectiveCutoverH(ICON_ATMOSPHERIC_CUTOVER_H, long, T0, true))
+      .toBe(ICON_ATMOSPHERIC_CUTOVER_H);
+    expect(ICON_WIND_CUTOVER_H).toBeLessThan(ICON_ATMOSPHERIC_CUTOVER_H);
+  });
+});
+
+
+describe('the live-axis floor is OPT-IN — pinned at the source, because the wiring is unreachable', () => {
+  // ⚠️ MUTATION-DRIVEN (2026-08-10). Flipping the flag's default to ON survived every other test:
+  // `effectiveCutoverH` is pure and tested directly, but the WIRING lives inside a hook that no
+  // unit test can call, so nothing observed the default. The other dark-shipped fixes each have a
+  // "default OFF is byte-identical" assertion; this one had none. A source scan is the cheapest
+  // thing that can see it, and an opt-in that silently becomes opt-out is the whole risk of
+  // shipping dark.
+  it('the flag is checked with STRICT === true, never a loose default-on form', () => {
+    expect(SRC).toMatch(/window\.__RAW_AXIS_FLOOR__\s*===\s*true/);
+    expect(SRC).not.toMatch(/__RAW_AXIS_FLOOR__\s*!==\s*false/);
+    expect(SRC).not.toMatch(/__RAW_AXIS_FLOOR__\s*\|\|/);
+  });
+
+  it('every cutover comparison routes through eff(), so the floor cannot reach only some of them', () => {
+    // A half-wired floor would change which model paints for wind but not marine -- a divergence
+    // inside one feature, which is worse than not shipping it.
+    const effSites = (RESOLVE_MODEL.match(/eff\(/g) || []).length;
+    expect(effSites).toBe(8);
   });
 });
