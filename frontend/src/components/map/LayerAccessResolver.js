@@ -132,7 +132,26 @@ export function resolveForecastWindow(user, model = 'GFS', activeLayer = null) {
       c => c.model.toUpperCase() === model.toUpperCase()
     );
     if (activeLayer) {
-      const layerLower = activeLayer.toLowerCase();
+      // ⭐ OPT-IN (2026-08-10, R11-11 #6), DEFAULT OFF = byte-identical.
+      // The frontend calls this layer `rain`; the backend capability rows call the same data
+      // `precipitation`. Matching by NAME therefore finds nothing, the domain fallback finds
+      // nothing (domains are only marine|weather|wind), and `caps` silently keeps the WHOLE
+      // model's rows -- so the max runs across every layer and ICON's marine 336 h extension
+      // becomes the cap for ICON RAIN, whose own row says 168 h. The scrubber offers 14 days of
+      // a layer that carries 7.
+      // ⚠️ FIXING IT REDUCES WHAT USERS CAN REACH (14 d -> 7 d), which is a product decision, so
+      // it stays owner-gated: set `window.__RAW_LAYER_CAP_ALIAS__ = true`.
+      // ⚠️ SCOPE, measured: this fixes `rain` ONLY. `temperature` and `water_temp` have NO
+      // capability row at all, so there is no per-layer cap to apply to them and the model-wide
+      // max is the only available answer -- an alias would be inventing a bound.
+      // Composes with the undisclosed STALE FRAME (modelHorizons/staleHour): this lets a user ASK
+      // for hours the layer lacks; the tile lane then paints the last frame under the requested
+      // hour. Pinned in LayerAccessResolver.layerKeys.test.js.
+      const CAP_LAYER_ALIAS = { rain: 'precipitation' };
+      const aliasOn = typeof window !== 'undefined'
+        && window.__RAW_LAYER_CAP_ALIAS__ === true;
+      const rawLayer = activeLayer.toLowerCase();
+      const layerLower = (aliasOn && CAP_LAYER_ALIAS[rawLayer]) || rawLayer;
       let layerCaps = caps.filter(c => c.layer.toLowerCase() === layerLower);
       if (layerCaps.length === 0) {
         layerCaps = caps.filter(c => c.domain.toLowerCase() === layerLower);

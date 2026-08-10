@@ -86,3 +86,38 @@ describe('the per-layer cap binds only when the layer NAME matches', () => {
     expect(unmatched.sort()).toEqual(['rain', 'temperature', 'water_temp']);
   });
 });
+
+
+// ── THE OPT-IN FIX (default OFF = byte-identical) ────────────────────────────────────────────
+describe('__RAW_LAYER_CAP_ALIAS__ makes the per-layer cap bind for `rain`', () => {
+  afterEach(() => { delete window.__RAW_LAYER_CAP_ALIAS__; });
+
+  it('DEFAULT OFF keeps today behaviour exactly -- rain still reaches 14 days', () => {
+    // Shipping dark: nobody loses a week of forecast until the owner decides they should.
+    expect(days('rain')).toBe(14);
+  });
+
+  it('ON, rain is capped by its OWN row (168 h = 7 days)', () => {
+    window.__RAW_LAYER_CAP_ALIAS__ = true;
+    expect(days('rain')).toBe(7);
+  });
+
+  it('ON, nothing else moves -- the alias is not a blanket re-match', () => {
+    window.__RAW_LAYER_CAP_ALIAS__ = true;
+    expect(days('fog')).toBe(7);        // already matched by name; unchanged
+    expect(days('waves')).toBe(14);     // marine keeps its longer window
+  });
+
+  it('⚠️ temperature and water_temp are UNFIXED, and deliberately so', () => {
+    // They have NO capability row, so there is no per-layer bound to apply; aliasing them would
+    // invent one. Measured, not assumed -- see the layer/domain census above.
+    window.__RAW_LAYER_CAP_ALIAS__ = true;
+    expect(days('temperature')).toBe(14);
+    expect(days('water_temp')).toBe(14);
+  });
+
+  it('only an EXACT true flips it', () => {
+    window.__RAW_LAYER_CAP_ALIAS__ = 'yes';
+    expect(days('rain')).toBe(14);
+  });
+});
