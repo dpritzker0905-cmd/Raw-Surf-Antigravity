@@ -48,6 +48,35 @@ OM_MARINE = "https://marine-api.open-meteo.com/v1/marine"
 
 SOURCE_OURS = "raw_surf"
 SOURCE_OM = "open_meteo_marine"
+# ⭐⭐⭐ THE SAME-MODEL CONTROL (2026-08-10). `SOURCE_OM` above requests the marine endpoint with NO
+# `models=` parameter, so it serves Open-Meteo's `best_match` — their best available wave model per
+# coordinate, typically MFWAM 0.08 deg or ECMWF WAM. Our primary lane is GFS (WAVEWATCH III,
+# 0.25 deg). Measured PAIRED 2026-08-10 it beat us at every lead (0.157/0.174/0.188 vs our
+# 0.221/0.258/0.263, we win ~37%) and that number CANNOT distinguish the two explanations:
+#     (a) MODEL CHOICE  — their best-of-breed beats our single GFS lane, pipeline fine
+#     (b) OUR CHAIN     — resolution / interpolation at the buoy / time alignment, a real defect
+# Those imply completely different work, so the ledger must not be asked to guess between them.
+# This lane pins `models=gfs_wave`: the SAME model as ours, fetched by someone else. Then
+#     OM-GFS ~= ours  ⇒ (a), and the question becomes which model to serve
+#     OM-GFS  > ours  ⇒ (b), and the gap is inside our chain
+# ⚠️ AND IT FIXES A DEFECT IN THE BASELINE ITSELF: `best_match` is a LABEL, not a data source.
+# Open-Meteo may change which model backs it, per coordinate and over time, and the response
+# carries no `model` field to tell us — so today's competitor row and next month's may be different
+# models under one name. A pinned lane is the only one of the two whose identity is stable enough to
+# carry a TREND. Same class as `provider:"open-meteo"` being a dispatch key, one level out.
+# Kill: FORECAST_SKILL_OM_CONTROL=0.
+# ⚠️ THE MODEL ID IS `ncep_gfswave025`, VERIFIED AGAINST THE LIVE API, NOT GUESSED. My first guess
+# was `gfs_wave` and Open-Meteo answers that with an ERROR OBJECT ("Cannot initialize MultiDomains
+# from invalid..."), which `json.load` parses happily and which has no `hourly` key — so the lane
+# would have produced ZERO ROWS FOREVER AND SAID NOTHING. That is why `_om_payload_error` below
+# exists: a wrong model name must fail LOUDLY, because a silent empty lane is indistinguishable
+# from "the control agrees with us", which is the exact conclusion this lane is here to test.
+# Live probe, same coordinate: ncep_gfswave025 / gwam / meteofrance_wave / best_match all return
+# 24 non-null hours; `gfs_wave` and `gfswave` error; `ecmwf_wam025` returns 24 NULLS (coverage).
+# ★ `ncep_gfswave025` is also the exact `source_dataset` string our own GFS lane stamps, so this is
+# demonstrably the same model, not merely a similarly-named one.
+SOURCE_OM_GFS = "open_meteo:ncep_gfswave025"
+OM_CONTROL_MODEL = "ncep_gfswave025"
 # ⭐ THE PERSISTENCE BASELINE (2026-08-09, MASTER-AUDIT-11.0 Phase 0). "Tomorrow = today" is the
 # reference every operational centre scores against: a model that cannot beat persistence at a lead
 # is not adding value at that lead, and WITHOUT this row the ledger's only reference is a
@@ -157,10 +186,31 @@ def persistence_rows_from_report(report, now: datetime, leads_h=LEADS_H) -> List
     return rows
 
 
+def _om_payload_error(payload) -> Optional[str]:
+    """The `reason` from an Open-Meteo error response, or None if the payload looks like data.
+
+    Open-Meteo signals a bad request with HTTP 200 + {"error": true, "reason": "..."} , so the
+    HTTP layer cannot catch it and `json.load` cannot either. Checks every element because the
+    multi-coordinate form returns a LIST and one bad coordinate is still a broken request.
+    """
+    for loc in (payload or []):
+        if isinstance(loc, dict) and loc.get("error"):
+            return str(loc.get("reason") or "unspecified")[:200]
+    return None
+
+
 def fetch_om_forecast_rows(buoys: Dict[str, tuple], now: datetime,
-                           leads_h=LEADS_H, timeout: int = 60) -> List[dict]:
+                           leads_h=LEADS_H, timeout: int = 60,
+                           model: Optional[str] = None,
+                           source: Optional[str] = None) -> List[dict]:
     """The competitor lane: ONE batched multi-coordinate Open-Meteo marine forecast call for every
-    mapped buoy, sliced at each lead's target hour. `buoys` maps buoy_id -> (lat, lng)."""
+    mapped buoy, sliced at each lead's target hour. `buoys` maps buoy_id -> (lat, lng).
+
+    `model=None` (the default) sends NO `models=` parameter and therefore requests Open-Meteo's
+    `best_match` — byte-identical to every call that existed before this argument did, so the
+    existing archive series keeps its meaning. `model="gfs_wave"` pins the SAME-MODEL CONTROL
+    (see SOURCE_OM_GFS); `source` then names it so the two lanes never merge into one series.
+    """
     if not buoys:
         return []
     ids = list(buoys.keys())
@@ -168,11 +218,21 @@ def fetch_om_forecast_rows(buoys: Dict[str, tuple], now: datetime,
     lngs = ",".join(f"{buoys[b][1]:.4f}" for b in ids)
     url = (f"{OM_MARINE}?latitude={lats}&longitude={lngs}"
            f"&hourly=wave_height,swell_wave_period&forecast_days=4&timezone=UTC")
+    if model:
+        url += f"&models={model}"
+    src = source or (SOURCE_OM if not model else f"open_meteo:{model}")
     req = urllib.request.Request(url, headers={"User-Agent": "raw-surf-skill"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         payload = json.load(r)
     if isinstance(payload, dict):
         payload = [payload]
+    # REFUSE RATHER THAN RETURN EMPTY. Open-Meteo answers a bad `models=` with HTTP 200 and a JSON
+    # error object, which parses fine and simply carries no `hourly` — so the loop below would emit
+    # zero rows and the lane would look "in agreement" forever. An empty competitor lane must be
+    # loud; see the OM_CONTROL_MODEL block for the guess that would have shipped exactly that.
+    err = _om_payload_error(payload)
+    if err:
+        raise ValueError(f"Open-Meteo rejected the request (model={model or 'best_match'}): {err}")
     rows = []
     for bid, loc in zip(ids, payload):
         h = (loc or {}).get("hourly") or {}
@@ -184,7 +244,17 @@ def fetch_om_forecast_rows(buoys: Dict[str, tuple], now: datetime,
             i = index.get(target)
             if i is None or i >= len(heights) or heights[i] is None:
                 continue
-            rows.append({"source": SOURCE_OM, "buoy_id": bid,
+            # ⛔ 0.0 IS A COVERAGE HOLE, NOT A FLAT SEA — and skipping it here is what makes this
+            # comparison FAIR. `rows_from_calibration_report` has always dropped `hs in (None, 0.0)`
+            # for OUR lane; the Open-Meteo lanes did not, so a null-as-zero entered the ledger as a
+            # forecast of "flat" and scored against a real observation. Found live 2026-08-10 while
+            # first exercising the control: pinned `ncep_gfswave025` returns 0.00 m at Waimea
+            # (51201) for all three leads while best_match returns 1.20/1.34/1.48 m. Left in, those
+            # rows would have made the SAME-MODEL control look far worse than our chain and
+            # produced exactly the wrong verdict — a defect manufactured by the instrument.
+            if heights[i] == 0.0:
+                continue
+            rows.append({"source": src, "buoy_id": bid,
                          "target_time": target + ":00Z", "lead_h": float(lead),
                          "hs_m": heights[i],
                          "tp_s": periods[i] if i < len(periods) else None})
@@ -463,6 +533,14 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
             if bid and bid in coords and bid not in buoys:
                 buoys[bid] = coords[bid]
         incoming.extend(fetch_om_forecast_rows(buoys, now))
+        # The SAME-MODEL CONTROL, in its OWN try so a failure here can never cost us the
+        # competitor lane that already works. One extra batched request per run, not per buoy.
+        if os.environ.get("FORECAST_SKILL_OM_CONTROL", "1") != "0":
+            try:
+                incoming.extend(fetch_om_forecast_rows(
+                    buoys, now, model=OM_CONTROL_MODEL, source=SOURCE_OM_GFS))
+            except Exception as e:
+                logger.warning("[forecast-skill] OM same-model control lane failed (%s)", e)
     except Exception as e:
         logger.warning("[forecast-skill] competitor lane failed (%s)", e)
 

@@ -476,3 +476,133 @@ def test_head_to_head_ignores_rows_with_no_error_the_same_way_the_summary_does()
     ]
     h = [c for c in head_to_head(rows) if c["source"] == "persistence"][0]
     assert h["n_paired"] == 1, "an unscored row is not a pair"
+
+
+# ── THE SAME-MODEL CONTROL LANE (2026-08-10) ──────────────────────────────────────────────────
+# The competitor lane is Open-Meteo `best_match` -- their best wave model per coordinate, against
+# our GFS. It beat us at every lead PAIRED, and that number cannot tell "their model is better"
+# from "our chain is worse". These guard the lane that separates the two.
+import pytest  # noqa: E402
+
+from services.weather_pipeline.forecast_skill import (  # noqa: E402
+    OM_CONTROL_MODEL, SOURCE_OM_GFS, _om_payload_error,
+)
+
+
+class _OMResp:
+    def __init__(self, payload):
+        self._p = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self):
+        return json.dumps(self._p).encode()
+
+
+def _om_call(payload, **kw):
+    """Run fetch_om_forecast_rows against `payload`, returning (rows, requested_url)."""
+    seen = {}
+
+    def _fake_urlopen(req, *a, **k):
+        seen["url"] = req.full_url if hasattr(req, "full_url") else str(req)
+        return _OMResp(payload)
+
+    with patch("services.weather_pipeline.forecast_skill.urllib.request.urlopen",
+               side_effect=_fake_urlopen), \
+         patch("services.weather_pipeline.forecast_skill.json.load",
+               side_effect=lambda f: payload):
+        rows = fetch_om_forecast_rows({"46012": (37.5, -122.5)}, NOW, **kw)
+    return rows, seen.get("url", "")
+
+
+def _om_good_payload():
+    times = [(NOW + timedelta(hours=k)).strftime("%Y-%m-%dT%H:00") for k in range(0, 96)]
+    return [{"hourly": {"time": times,
+                        "wave_height": [1.0 + 0.01 * k for k in range(96)],
+                        "swell_wave_period": [8.0] * 96}}]
+
+
+def test_the_default_lane_is_byte_identical_to_before_the_control_existed():
+    """BACKWARD COMPATIBILITY IS THE POINT: the archive is one continuous series. If the default
+    call started pinning a model, every historical `open_meteo_marine` row would silently change
+    meaning at today's date -- the same split a source rename would cause."""
+    rows, url = _om_call(_om_good_payload())
+    assert "models=" not in url, "the default lane must NOT pin a model (best_match)"
+    assert {r["source"] for r in rows} == {SOURCE_OM}
+
+
+def test_the_control_lane_pins_the_model_and_gets_its_own_source():
+    rows, url = _om_call(_om_good_payload(), model=OM_CONTROL_MODEL, source=SOURCE_OM_GFS)
+    assert "models=ncep_gfswave025" in url, "the control must pin GFS wave explicitly"
+    assert {r["source"] for r in rows} == {SOURCE_OM_GFS}
+    assert SOURCE_OM_GFS != SOURCE_OM, "the two lanes must never merge into one series"
+
+
+def test_the_model_id_is_the_one_our_own_gfs_lane_stamps():
+    """`ncep_gfswave025` is the `source_dataset` our direct-NOAA GFS products carry. Pinning the
+    same string is what makes this a SAME-MODEL control rather than a similarly-named one."""
+    assert OM_CONTROL_MODEL == "ncep_gfswave025"
+    assert SOURCE_OM_GFS.endswith(OM_CONTROL_MODEL)
+
+
+def test_a_rejected_model_RAISES_instead_of_returning_an_empty_lane():
+    """THE FAILURE MODE THIS EXISTS FOR. Open-Meteo answers a bad `models=` with HTTP 200 and a
+    JSON error object -- no `hourly` key. The parse succeeds, the loop finds nothing, and the lane
+    emits zero rows forever while looking healthy. An empty control lane is indistinguishable from
+    'the control agrees with us', which is the exact conclusion the lane exists to test.
+    My first guess, `gfs_wave`, produced precisely this payload against the live API.
+    """
+    bad = [{"error": True, "reason": "Data corrupted at path ''. Cannot initialize MultiDomains"}]
+    with pytest.raises(ValueError, match="Open-Meteo rejected"):
+        _om_call(bad, model="gfs_wave", source="open_meteo:gfs_wave")
+
+
+def test_one_bad_coordinate_in_a_batch_is_still_a_rejected_request():
+    """The multi-coordinate form returns a LIST; a single error element must not be averaged away."""
+    payload = _om_good_payload() + [{"error": True, "reason": "No data is available"}]
+    assert _om_payload_error(payload) == "No data is available"
+    with pytest.raises(ValueError):
+        _om_call(payload)
+
+
+def test_the_error_detector_passes_real_data_through():
+    """KNOWN-PRESENT CONTROL: a detector that flagged everything would disable both lanes."""
+    assert _om_payload_error(_om_good_payload()) is None
+    assert _om_payload_error([]) is None
+    assert _om_payload_error(None) is None
+
+
+def test_a_zero_height_is_a_coverage_hole_and_never_enters_the_ledger():
+    """SYMMETRY WITH OUR OWN LANE. `rows_from_calibration_report` has always dropped
+    `hs in (None, 0.0)`; the Open-Meteo lanes did not, so a null-as-zero scored as a forecast of
+    'flat' against a real observation -- penalising whichever lane had the coverage hole.
+
+    Measured live 2026-08-10: pinned ncep_gfswave025 returns 0.00 m at Waimea (51201) for all
+    three leads while best_match returns 1.20/1.34/1.48 m. Kept, those rows would have made the
+    SAME-MODEL control look far worse than our chain and produced the opposite verdict.
+    """
+    times = [(NOW + timedelta(hours=k)).strftime("%Y-%m-%dT%H:00") for k in range(0, 96)]
+    heights = [1.5] * 96
+    for k in (24, 48):
+        heights[k] = 0.0                       # the coverage hole
+    payload = [{"hourly": {"time": times, "wave_height": heights,
+                           "swell_wave_period": [8.0] * 96}}]
+    rows, _ = _om_call(payload)
+
+    assert {r["lead_h"] for r in rows} == {72.0}, "the two zero-height leads must be dropped"
+    assert all(r["hs_m"] != 0.0 for r in rows)
+
+
+def test_a_genuinely_small_height_is_still_kept():
+    """KNOWN-PRESENT CONTROL: only EXACTLY 0.0 is the hole marker. Dropping small-but-real seas
+    would silently delete the flat end of the distribution, which is where over-reading lives."""
+    times = [(NOW + timedelta(hours=k)).strftime("%Y-%m-%dT%H:00") for k in range(0, 96)]
+    heights = [0.02] * 96
+    payload = [{"hourly": {"time": times, "wave_height": heights,
+                           "swell_wave_period": [8.0] * 96}}]
+    rows, _ = _om_call(payload)
+    assert len(rows) == 3 and all(r["hs_m"] == 0.02 for r in rows)
