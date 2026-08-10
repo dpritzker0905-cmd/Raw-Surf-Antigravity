@@ -100,6 +100,27 @@ protect what it never selects; a guard that runs nowhere is indistinguishable fr
 ✅ Fixed: the named memory family added to the guard lane (141 files). Deliberately a **named
 family**, not a widening to `test_iteration_*` — that would be scope, not coverage.
 
+### ⛔⛔ AND THE FIRST ATTEMPT AT THAT FIX WAS ITSELF WRONG (`c7099d0a` → `6e5bf70a`)
+**The composition file list exists TWICE in `ci.yml`**: the `ls` SELECTOR the composition lane
+globs, and the `COMPOSITION = [...]` literal the CHAIN lane subtracts from its own candidates.
+`c7099d0a` edited the selector only ⇒ all seven files were selected by composition **and still
+candidates for the chain lane**, so both lanes would run them and the two ratchets double-count.
+`test_flag_lane_parity` exists for exactly this and caught it:
+
+    these files are selected by the composition lane but NOT excluded from the chain lane...
+      test_series_vector_budget.py · test_series_build_time_bound.py · test_health_peak_memory.py
+      test_product_cache_vector_budget.py · test_cold_start_series_warming.py
+      test_dyncache_prefer_fine_regional.py · test_manifest_concurrent_merge.py
+
+★★★ **THE RECORDED INSTANCE WAS THE MIRROR IMAGE** — literal edited, selector not, so the files ran
+NOWHERE. I made the opposite error and got double-counting. **Same root either way: the DUPLICATION
+is the defect; the direction only decides which symptom you get. EDIT BOTH, ALWAYS.**
+⚠️ **And it argues against my own push discipline**: `c7099d0a` was pushed while the verifying local
+run was still going, on the (correct) reasoning that CI is the authoritative environment. The
+reasoning was sound and the outcome still says wait — the guard was already running and returned
+`1 failed, 1599 passed` seventeen minutes later. **A local run that is already in flight is worth
+the wait when it covers the file you changed.**
+
 ---
 
 ## §4 WHAT THE LAST TEN COMMITS ACTUALLY SHOW
