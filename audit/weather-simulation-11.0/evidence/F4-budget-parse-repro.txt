@@ -1,0 +1,15 @@
+F4 red-team repro transcript (2026-08-09) -- marine-nightly.yml budget parse
+
+CASE A: all three vars empty (verdict.json unparseable)
+  render findings= settled_steps= persistent= (budget)
+  /usr/bin/bash: line N: [: : integer expected   (x2)
+  WITHIN BUDGET -- PASS   ; exit 0
+
+CASE B: valid JSON, field renamed, file contains 1 DEAD_BAND_PERSISTENT + 2 SETTLED_STEP
+  render findings= settled_steps= persistent= (budget)
+  /usr/bin/bash: line N: [: : integer expected   (x2)
+  WITHIN BUDGET -- PASS (exit 0)   <-- budget at :139 requires RED on all three counts
+
+CONTROL, real run 31316078935 (sha 42242bef, HEAD):
+  render findings=0 settled_steps=0 persistent=0 (budget: <=2 findings, 0 persistent, 0 settled)
+  -> the empty form IS visually distinguishable from the graded form in the step log.

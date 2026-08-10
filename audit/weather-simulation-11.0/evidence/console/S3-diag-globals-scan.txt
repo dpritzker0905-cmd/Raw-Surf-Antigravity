@@ -1,0 +1,184 @@
+production files scanned: 829
+distinct window.__X__ globals: 461
+
+WRITTEN, NEVER READ ANYWHERE (n=92):
+    __BACKEND_PRECIPITATION_SERVICE_DIAG__  <-  components\map\backendPrecipitationServiceClient.js
+    __BACKEND_PRESSURE_SERVICE_DIAG__  <-  components\map\backendPressureServiceClient.js
+    __COPERNICUS_MARINE_DIAG__  <-  components\map\forecastExactPoint.js
+    __EURO_MARINE_FORENSIC_DIAG__  <-  components\map\forecastDiagnostics.js
+    __EURO_MARINE_PROVIDER_DIAG__  <-  components\map\forecastDiagnostics.js
+    __EXTENDED_ESTIMATE_FETCH_DIAG__  <-  components\map\useMarineDataFetcherCore.js
+    __FCE_RENDER_PLAN__  <-  engine\useRenderPlanBridge.js
+    __FCE_WIND_BLOCKED__  <-  engine\RenderPlanDispatcher.js
+    __FETCH_OM_TILE__  <-  components\map\openMeteoProtocol.js
+    __GET_INIT_STATE__  <-  engine\init-sequencer.js
+    __HALO_DBG_STATS__  <-  components\map\haloDebugOverlay.js
+    __ICON_EXTENDED_ESTIMATE_DIAG__  <-  components\map\backendWeatherServiceClientHelpers.js; components\map\backendWeatherServiceClientPoint.js
+    __INIT_ENGINE__  <-  engine\engine-bootstrap.js
+    __LRCM_EXEC_TRACE__  <-  components\map\mapUtils.js
+    __MAP_RENDER_FPS__  <-  components\map\useWebGLGuardrail.js
+    __MARINE_BLANK_BACKSTOP_COUNT__  <-  components\map\useMarineScrubSettle.js
+    __MARINE_BOOTSTRAP_GRID_DIAG__  <-  engine\RenderPlanDispatcher.js
+    __MARINE_BOOT_DIAG__  <-  components\MapPage.js
+    __MARINE_BRIDGE_SEED__  <-  components\map\marineController.js
+    __MARINE_CLAMP_GIVEUP_COUNT__  <-  components\map\useMarineScrubSettle.js
+    __MARINE_CLAMP_TERMINAL_COUNT__  <-  components\map\useMarineScrubSettle.js
+    __MARINE_CLEAR_HELD__  <-  components\map\marineTransitionCoordinator.js
+    __MARINE_COMMIT_SHORT_CIRCUIT__  <-  components\map\useMarineDataFetcherHelpers.js
+    __MARINE_DEBOUNCE_FINALLY_HEAL__  <-  components\map\useMarineDataFetcherCore.js
+    __MARINE_DEBOUNCE_STRAND_HEAL__  <-  components\map\useMarineScrubSettle.js
+    __MARINE_DIR_CONFIDENCE__  <-  components\map\WebGLMarineTextureEncoder.js
+    __MARINE_DIR_DILATION__  <-  components\map\WebGLMarineTextureEncoder.js
+    __MARINE_ENGINE_EMPTY_RECOVER__  <-  components\map\useMarineScrubSettle.js
+    __MARINE_EXACT_POINT_ERROR__  <-  components\map\forecastExactPoint.js
+    __MARINE_FORECAST_VECTOR_DIFF__  <-  components\map\WebGLMarineLayerDiag.js
+    __MARINE_GPU_RESET__  <-  components\map\WebGLMarineEngine.js
+    __MARINE_GRIDMISMATCH_COUNT__  <-  components\map\useMarineScrubSettle.js
+    __MARINE_INFOBOX_DIAG__  <-  components\map\forecastDiagnostics.js
+    __MARINE_LAYER_VALUE_DIAG__  <-  components\map\forecastDiagnostics.js
+    __MARINE_LOCK_LIVE_EXTENDED__  <-  components\map\useMarineDataFetcherCore.js
+    __MARINE_MARKER_WEDGE_HEAL__  <-  components\map\useMarineScrubSettle.js
+    __MARINE_MODEL_CAPABILITY_DIAG__  <-  components\map\forecastDiagnostics.js
+    __MARINE_MOTION_PROMOTE__  <-  components\map\WebGLMarineLayer.js
+    __MARINE_NULL_ENCODE_GUARD__  <-  components\map\WebGLMarineEngine.js
+    __MARINE_PARTICLE_CARRY__  <-  components\map\WebGLMarineEngine.js
+    __MARINE_PENDING_LEASE_RELEASE__  <-  components\map\useMarineScrubSettle.js
+    __MARINE_PERIOD_DIAG__  <-  components\map\forecastDiagnostics.js
+    __MARINE_RENDER_FORENSIC_DIAG__  <-  engine\RenderPlanDispatcher.js
+    __MARINE_REQUEST_LEDGER__  <-  components\map\marineControllerUtils.js
+    __MARINE_SCRUBSETTLE_SERIESHIT__  <-  components\map\useMarineScrubSettle.js
+    __MARINE_SCRUB_DIAG__  <-  components\map\useMarineOrchestratorScrubCache.js
+    __MARINE_SCRUB_HOLD_COUNT__  <-  components\map\WebGLMarineLayer.js
+    __MARINE_SERVE_DIAG__  <-  components\map\marineController.js
+    __MARINE_STRAND_WATCHDOG__  <-  components\map\useMarineOrchestrator.js
+    __MARINE_TERMINAL_NOCOV_BYPASS_COUNT__  <-  components\map\useMarineScrubSettle.js
+    __MARINE_TERMINAL_NOCOV_RECORDED__  <-  components\map\marineControllerCache.js
+    __MARINE_TRANSITION_STATE__  <-  components\map\marineTransitionCoordinator.js
+    __MARINE_TRUTH_TRACE__  <-  engine\RenderPlanDispatcher.js
+    __MARINE_XFAM_HOLD_COUNT__  <-  components\map\marineTransitionCoordinator.js
+    __PRECIP_TILE_DIAG_DATA__  <-  components\map\openMeteoProtocol.js
+    __PRESSURE_PARITY_DIAG__  <-  components\map\MapForecastOverlayDiag.js
+    __RAW_CLASSIC_SCRUBBER__  <-  components\map\ForecastWheel.js
+    __RAW_DIR_COHERENCE_MIN__  <-  components\map\WebGLMarineEngine.js
+    __RAW_DISABLE_NULL_ENCODE_RESIDENT_GUARD__  <-  components\map\marineEngineDecisions.js
+    __RAW_DISABLE_RING_READER__  <-  components\map\marineRingReader.js
+    __RAW_DISABLE_WHEEL_DRAG_COMMIT__  <-  components\map\ForecastWheel.js
+    __RAW_DISABLE_WHEEL_RELEASE_DECAY__  <-  components\map\ForecastWheel.js
+    __RAW_FORENSIC__  <-  components\map\marineForensics.js
+    __RAW_MARINE_SWR_MAX_RETRIES__  <-  hooks\useMarineRevalidation.js
+    __RAW_MARINE_SWR_STALE_DELAYS__  <-  hooks\useMarineRevalidation.js
+    __RAW_MASK_DEACTIVATE_ABSORBED__  <-  components\map\OceanMask.js
+    __RAW_MASK_GLITCH_COUNT__  <-  components\map\WebGLMarineLayer.js
+    __RAW_MASK_PATCH_CARRY_LAST__  <-  components\map\WebGLMarineTextureEncoder.js
+    __RAW_MASK_PATCH_CARRY__  <-  components\map\WebGLMarineTextureEncoder.js
+    __RAW_MASK_REPATCH_NOOP_COUNT__  <-  components\map\WebGLMarineLayer.js
+    __RAW_MASK_RES_RETAIN_COUNT__  <-  components\map\WebGLMarineTextureEncoder.js
+    __RAW_MASK_RETAIN_COUNT__  <-  components\map\WebGLMarineTextureEncoder.js
+    __RAW_MASK_RETAIN_UPGRADE_REBUILD__  <-  components\map\WebGLMarineTextureEncoder.js
+    __RAW_MOTION_UNLOCK_ENCODE__  <-  components\map\WebGLMarineTextureEncoder.js
+    __RAW_PAN_REPLAY_DISABLED__  <-  components\map\useMarineDataFetcherHelpers.js
+    __RAW_RES_WATCH_WARN__  <-  components\map\marineResolutionWatch.js
+    __RAW_RING_REPORT__  <-  components\map\marineRingReader.js
+    __RAW_RING_TICK__  <-  components\map\marineRingReader.js
+    __RAW_TILE_BACKOFF_GATE_MODE__  <-  components\map\WebGLMarineEngine.js
+    __SIM_BIND_REASON__  <-  engine\useSimulationField.js
+    __WEATHER_FRONTEND_LEGACY_AUDIT__  <-  hooks\useOpenMeteoForecast.js; index.js
+    __WEATHER_GRID_PROJECTION_DIAG__  <-  components\map\backendWeatherServiceClientDiag.js
+    __WEATHER_TRUTH_CANCELLED__  <-  components\map\weatherTruthTracker.js
+    __WEBGL_MARINE_UPLOAD_DIAG__  <-  components\map\WebGLMarineLayer.js; components\map\WebGLMarineLayerDiag.js
+    __WEBGL_MARINE_UPLOAD_SIG_DIFF__  <-  components\map\WebGLMarineLayerDiag.js
+    __WIND_BASE_LANE__  <-  components\map\WeatherEngine.js
+    __WIND_ENGINE__  <-  components\map\WebGLWindEngine.js
+    __WIND_MODEL_PREWARM_COUNT__  <-  components\map\WeatherEngine.js
+    __WIND_SCRUB_BASE_LANE__  <-  components\map\WeatherEngine.js
+    __WIND_SEAM_REPAIRED__  <-  components\map\WebGLWindUtils.js
+    __WIND_SERIES_SETTLE_HIT__  <-  components\map\WeatherEngine.js
+    __WIND_TERMINAL_NOCOV_SKIP_COUNT__  <-  components\map\WeatherEngine.js
+
+READ ONLY INSIDE ITS OWN WRITING FILE (n=86):
+    __FCE_MARINE_BLOCKED__  <-  engine\RenderPlanDispatcher.js
+    __GFS_WAVES_SINGLE_SLICE_TRACE__  <-  components\map\WebGLMarineEngineDiagnostics.js; components\map\WebGLMarineTextureEncoder.js; components\map\backendWeatherServiceClient.js; components\map\backendWeatherServiceClientHelpers.js; components\map\backendWeatherServiceClientPoint.js; components\map\backendWeatherServiceClientTrace.js; components\map\useMarineDataFetcherHelpers.js; components\map\useMarineOrchestrator.js; components\map\useMarineOrchestratorScrubCache.js
+    __GPU_DEBUG__  <-  components\map\TruthOverlay.js; components\map\WebGLMarineEngine.js; components\map\WebGLWindEngine.js
+    __HALO_DEBUG_KEY__  <-  components\map\haloDebugOverlay.js
+    __LAND_GEOJSON_CACHE__  <-  components\map\mapUtils.js
+    __LAND_GEOJSON_HIRES_PROMISE__  <-  components\map\mapUtils.js
+    __LAND_GEOJSON_PROMISE__  <-  components\map\mapUtils.js
+    __LAYER_REGISTRY_DIAG__  <-  components\map\LayerRegistry.js
+    __MAP_DEBUG__  <-  components\map\useMapDebugTools.js
+    __MARINE_CACHE_DIAG_RESET__  <-  components\map\marineControllerCache.js
+    __MARINE_CACHE_DIAG__  <-  components\map\marineControllerCache.js
+    __MARINE_CHURN_RESET__  <-  components\map\marineTransitionCoordinator.js
+    __MARINE_CHURN__  <-  components\map\marineTransitionCoordinator.js
+    __MARINE_CLEAR_LOG__  <-  components\map\marineTransitionCoordinator.js
+    __MARINE_ESTIMATOR_DEPRECATION_DIAG__  <-  components\map\forecastDeprecationDiag.js
+    __MARINE_FIELD_NO_DOWNGRADE__  <-  engine\useSimulationField.js
+    __MARINE_FREEZE_DIAG__  <-  components\map\useMarineScrubSettle.js
+    __MARINE_INFLIGHT__  <-  components\map\marineInFlightRegistry.js
+    __MARINE_NO_DOWNGRADE__  <-  components\map\WebGLMarineEngine.js
+    __MARINE_PIPELINE_TRUTH__  <-  components\map\WebGLMarineLayer.js; components\map\useMarineOrchestratorDiag.js
+    __MARINE_PROXY_LEDGER__  <-  components\map\marineRequestGovernor.js
+    __MARINE_SHARPEN_DIAG__  <-  components\map\useMarineScrubSettle.js
+    __MARINE_STALE_DIAG__  <-  components\map\forecastDiagnostics.js
+    __MARINE_UPLOAD_SEQ_NUM__  <-  engine\RenderPlanDispatcher.js
+    __MARINE_VERBOSE__  <-  components\map\WebGLMarineEngine.js; components\map\WebGLMarineLayer.js; engine\SimulationHealthMonitor.js; engine\SimulationLoop.js
+    __MARINE_WARM_COVER_REJECT__  <-  components\map\useMarineDataFetcherHelpers.js; components\map\useMarineOrchestratorScrubCache.js
+    __MARINE_WAVES_SINGLE_SLICE_TRACE__  <-  components\map\WebGLMarineEngineDiagnostics.js
+    __MARINE_ZOOM_THRESHOLDS__  <-  components\map\marineZoomThresholds.js
+    __OM_BROADCAST_CHANNEL__  <-  components\map\openMeteoProtocol.js
+    __OM_PROTOCOL_SETTINGS__  <-  components\map\colorScales.js; components\map\openMeteoProtocol.js
+    __PRECIP_TILE_DIAG__  <-  components\map\openMeteoProtocol.js
+    __RASTER_DEBUG__  <-  components\map\mapUtils.js; components\map\openMeteoProtocol.js
+    __RASTER_PROBE__  <-  components\map\openMeteoProtocol.js
+    __RASTER_SLOT_TELEMETRY__  <-  components\map\useOpenMeteoTileUrls.js
+    __RAW_API_DEBUG__  <-  lib\apiClient.js
+    __RAW_ARBITER_SHADOW__  <-  components\map\WebGLMarineEngine.js
+    __RAW_BASEMAP_WATER_MASK__  <-  components\map\WebGLMarineEngine.js
+    __RAW_CANCEL_ZOOM_TILES_LEGACY__  <-  components\map\MapWebGL.js
+    __RAW_DISABLE_BBOX_NORM__  <-  components\map\marineBboxGeometry.js
+    __RAW_DISABLE_BLEND_BOTH__  <-  components\map\WebGLMarineEngine.js
+    __RAW_DISABLE_CLAMP_SOFTEN__  <-  components\map\WebGLMarineEngine.js
+    __RAW_DISABLE_COARSE_CREST_SUPPRESS__  <-  components\map\WebGLMarineEngine.js; components\map\marineEngineDecisions.js
+    __RAW_DISABLE_COARSE_FADE__  <-  components\map\WebGLMarineEngine.js
+    __RAW_DISABLE_DIR_DILATION__  <-  components\map\WebGLMarineTextureEncoder.js
+    __RAW_DISABLE_ENDPOINT_LAND_FADE__  <-  components\map\WebGLMarineEngine.js; components\map\WebGLMarineParticleShaders.js
+    __RAW_DISABLE_GEOFENCE_MINZOOM__  <-  components\map\MapWebGL.js
+    __RAW_DISABLE_GLOBAL_SERIES_PREWARM__  <-  components\map\marineController.js
+    __RAW_DISABLE_GLOBAL_TILE_ALIAS__  <-  components\map\marineControllerCache.js
+    __RAW_DISABLE_INLAND_WATER_GUARD__  <-  components\map\inlandWaterGuard.js
+    __RAW_DISABLE_MASK_CANVAS_CACHE__  <-  components\map\WebGLMarineMaskRenderer.js
+    __RAW_DISABLE_MASK_PATCH_CARRY__  <-  components\map\WebGLMarineTextureEncoder.js; components\map\maskSmoothing.js
+    __RAW_DISABLE_MASK_RETAIN__  <-  components\map\WebGLMarineTextureEncoder.js
+    __RAW_DISABLE_MASK_RING_UNWRAP__  <-  components\map\marineMaskProjection.js
+    __RAW_DISABLE_PINGPONG_GUARD__  <-  components\map\useMarineDataFetcherHelpers.js
+    __RAW_DISABLE_RATINGS_CDN__  <-  components\map\spotRatingsCdn.js
+    __RAW_DISABLE_WIND_GATE__  <-  components\map\surfRating.js
+    __RAW_MARINE_BUFFER_SCALE_COLORS__  <-  components\map\OceanMask.js
+    __RAW_MASK_REPATCH_LOG__  <-  components\map\WebGLMarineLayer.js
+    __RAW_OM_MODEL_WIPE_LEGACY__  <-  components\map\useModelTransition.js
+    __RAW_OM_SLOTS_ANCHOR_DISABLED__  <-  components\map\MapWebGL.js
+    __RAW_RASTER_FADE_DISABLED__  <-  components\map\MapWebGL.js
+    __RAW_RASTER_FADE_MS__  <-  components\map\MapWebGL.js
+    __RAW_RATING_FIELD_PASSTHROUGH__  <-  engine\SimulationFieldBuilder.js
+    __RAW_RATING_MOTION_UNLOCK__  <-  components\map\WebGLMarineEngine.js
+    __RAW_SCRUB_MEMO_DISABLED__  <-  components\map\MapWebGL.js
+    __RAW_SHOW_FERRY_ROUTES__  <-  components\map\OceanMask.js
+    __RAW_SLOT_FLIP_TIMEOUT_LEGACY__  <-  components\map\useOpenMeteoTileUrls.js
+    __RAW_STRATIFIED_RESEED__  <-  components\map\WebGLMarineEngine.js; components\map\WebGLMarineParticleShaders.js
+    __RAW_SURF_PROXY_LEDGER__  <-  bootstrap.js
+    __RAW_SURF_PROXY_PATCHED__  <-  bootstrap.js
+    __RAW_TELEMETRY_NO_QUOTA__  <-  components\map\WeatherTelemetry.js
+    __RAW_WIND_MODEL_PREWARM_DISABLED__  <-  components\map\WeatherEngine.js
+    __RAW_WIND_TRAIL_CLEAR_LEGACY__  <-  components\map\WebGLWindEngineInit.js
+    __SIM_HEALTH__  <-  engine\SimulationHealthMonitor.js
+    __SOURCECACHE_TRUTH__  <-  components\map\useMapDebugTools.js
+    __SPOT_RATINGS_DIAG__  <-  components\map\useSpotRatings.js
+    __SWELL2_LAST_DROP__  <-  components\map\WebGLMarineLayer.js
+    __TILE_TRUTH__  <-  components\map\openMeteoProtocol.js
+    __UNHANDLED_PROMISE_DIAG__  <-  components\map\useMarineOrchestrator.js
+    __WEATHER_LEGACY_QUARANTINE_DIAG__  <-  index.js
+    __WEATHER_TRUTH_ABSENT__  <-  components\map\weatherTruthTracker.js
+    __WEBGL_GUARDRAIL_FALLBACK__  <-  components\map\MapWebGL.js
+    __WIND_SEAM_DIAG_BY_MODEL__  <-  components\map\WebGLWindUtils.js
+    __WIND_SEAM_DIAG__  <-  components\map\WebGLWindUtils.js
+    __WIND_SERIES_DIAG__  <-  components\map\windGridSeries.js
+    __WIND_STATE_COMMITS__  <-  components\map\WeatherEngine.js

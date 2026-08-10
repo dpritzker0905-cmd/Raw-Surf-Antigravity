@@ -101,14 +101,22 @@ The one modernization the evidence *does* justify is the cheapest: **a real regr
 
 - **No video captured, no cross-browser run, 11 of 12 layers untested**, no historical-baseline
   comparison, no antimeridian or high-latitude test.
-- ✅ **CORRECTED 2026-08-09 — this brief previously said the GL CI lane was "a skip, not a pass".
-  That was WRONG.** Measured: the exact CI config with `--disable-gpu` has WebGL and paints via
-  SwiftShader, and the GL test **passes on Desktop Chrome with and without a GPU (23.0 s / 17.8 s)**.
-  The 5 CI skips are the non-Chrome projects plus a deliberate mobile exclusion. The real defect was
-  that `--reporter=html` printed only counts — no test names, no skip reasons — so the lane was
-  unreadable, not broken. ★ **A refusal you cannot read is indistinguishable from a pass.**
+- ⚠️ **No CI green has ever proven the marine field paints.** The pixel oracle
+  (`weather-simulation.spec.js:578`) **skips on all four browser projects**. But *not* because
+  runners lack a GPU — that explanation is refuted: the exact CI config under `--disable-gpu` has
+  WebGL and paints via SwiftShader, and the sibling GL test passes on Chrome with and without a GPU.
+  The oracle is declared **`test.fixme`** — documented work-in-progress with an explicit exit
+  condition. ⇒ **`channel:'chromium'` + GPU flags is the wrong fix; finishing the commit-latch is
+  the right one.** *(This bullet was wrong in two earlier drafts — first the cause, then the
+  conclusion. The measured version is above.)*
+- ⚠️ **10 flaky tests, every one on Desktop Safari (WebKit)** — 6 in booking-flow, 4 in
+  weather-simulation. `retries: 2` was silently absorbing them and the old reporter never named
+  them. A real WebKit stability problem that had no visible surface until 2026-08-09.
 - ⚠️ The binding limit on that lane is different and still stands: it grades the **deployed Netlify
   site, not your working tree**, so it can never gate a local edit.
+- ★ **A refusal you cannot read is indistinguishable from a pass.** `--reporter=html` printed only
+  `47 passed / 5 skipped`; after switching to `list`, the same suite named every test and
+  `weather-simulation` went from **0 mentions to 49** in the CI log.
 - Backend capacity **deliberately not load-tested** (the local frontend points at production).
 - The science findings were produced by a subagent and **not personally re-run** by the lead auditor.
 - `b5bbaa7d` and `f5f6a3d` exist but are **not** known-good baselines — untagged single-concern fixes

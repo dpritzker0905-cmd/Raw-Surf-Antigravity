@@ -689,6 +689,76 @@ to reproduce at every site tested. The one finding I *did* revise on evidence wa
 
 ---
 
+## SECTION 13c — THE UNREADABLE-GREEN SWEEP (2026-08-09, post-push)
+
+After the E2E reporter defect was fixed, a 16-agent sweep generalised the class across the estate:
+
+> **A refusal you cannot READ is indistinguishable from a pass.** A guard that declines to run — or
+> runs and cannot answer — and reports that decline only into a channel nobody consults returns a
+> green a reader will over-interpret. It costs CI time and buys nothing.
+
+**Red team: 12 findings attacked, 6 survived, 6 CONTRADICTED.** Packs:
+`evidence/console/S1-workflow-green-audit.md` (31 KB, all 27 workflows) ·
+`S2-refusal-and-vacuity-audit.md` · `S3-silent-failsafe-audit.md` · `S4-guard-census-audit.md`.
+
+### Five mechanisms, 15 further instances
+
+| # | Mechanism | Examples |
+|---|---|---|
+| **M1** | Verdict is a `warn`/annotation; exit code always 0 | `lighthouserc.json`, `ci.yml backend-lint`, calibration-census |
+| **M2** | An explicit REFUSE branch exits 0 beside a real PASS | `vector-blockmean-parity`, `marine-nightly`, `science-shadow-ab` |
+| **M3** | An empty population is treated as a pass | `encoding-check`, `precompute_ci`, data-health paging gate |
+| **M4** | A swallowed error (`\|\| true`, `2>/dev/null`, `continue-on-error`) turns a broken instrument green | `encoding-check`, `data-health-monitor`, `marine-nightly` |
+| **M5** | The step's NAME overstates what it asserts | `build-shore-normals` "Verify the asset against its own gate" |
+
+### Findings that survived
+
+| ID | Sev | Finding |
+|---|---|---|
+| **F1** | **High** | **`backend-lint` is a REQUIRED check on `main` that cannot fail.** `ci.yml:267-270` runs flake8's `E9,F63,F7,F82` (syntax + **undefined names**) under `continue-on-error: true`, as the job's last step ⇒ conclusion unconditionally success. **The same file, `:110-130`, documents how the missing FRONTEND equivalent let a `no-undef` live 12 days in the WebGL render path** — the frontend gap was closed, the backend twin left warn-only |
+| **F2** | Medium | **`lighthouse`, also required, has all four assertions set to `warn`** (`lighthouserc.json:12-19`) incl. `categories:accessibility`. Measured **100/100 recent runs green** — and `lighthouse.yml:8-9` cites that green as evidence the job is safe to require, **reasoning from an outcome it had made impossible.** It is the estate's only automated a11y score |
+| **F4** | Medium (PROBABLE) | `marine-nightly` prints **"WITHIN BUDGET — PASS"** and exits 0 when `verdict.json` is unreadable (`[ "" -gt 0 ]` errors, the if-chain falls through). Reproduced in bash; **no live instance found** |
+| **S2-01** | Medium | **No `-rs`/`-ra`/`addopts` anywhere in the repo** — all five pytest invocations run bare `-q`. **Every pytest skip reason is discarded**, the exact twin of the Playwright defect just fixed |
+| **S2-02** | Medium | Vacuity shapes in the test suites (asserts inside possibly-empty loops) |
+| **S3-01** | Medium | **The staleness badge exists and is gated off the default layer** — see below |
+
+**Highest-consequence single line found:** `precompute_ci.py:75-76` logs `n_spots, n_frames` and
+**never asserts them**, so a cycle that rates **zero spots** returns 0 and `precompute.yml` is green.
+The same file floors its *input* correctly at `:53-55`. **Input floored, product not.**
+
+**Also confirmed:** the Forecast Calibration Census went 6-red → 3-green **by changing the gate, not
+the data** — run `31335894359` has `conclusion=success` while its own log prints
+`VERDICT: BOUNDS STALE`. Two workflows git-push assets they never verify. **`dev` — the branch that
+redeploys the backend on every push — is not protected at all** (`404`), and
+`backend-estate-coverage`, the job with the strongest anti-vacuity gate, is the only `ci.yml` job
+**not** required.
+
+### S3-01 — it corrected this audit's own implementation packet
+
+`FIRST_IMPLEMENTATION_PACKET.md` said *"the app computes `parity:false` and never surfaces it —
+build a badge."* **Wrong.** Verified at `file:line` by the lead auditor: producer
+(`WebGLMarineLayer.js:175-189`) → mapper (`forecastDiagnostics.js:24-25`) → badge
+(`forecastCardCompiler.js:22`, *"Stale Hour Retained"*) → render (`MapForecastOverlay.js:780-787`).
+The whole feature is **built**, and blocked by `forecastDiagnostics.js:13-15`, which restricts it to
+**EURO + swell layers only** — unreachable on **`waves`**, the default and the layer the +78 h defect
+was measured on. In one sentence: **`WebGLMarineLayer.js:185` explicitly records `'waves'` as a layer
+it reports staleness for; `forecastDiagnostics.js:13` excludes `'waves'` from displaying it.**
+(The second `activeModel !== 'EURO'` at `:131` is in `writeOverlayDiagnostics` and does not gate the
+badge — `:13` is the only blocker.)
+⇒ **Mission 1b changed from "build" to "un-gate."** Packet rewritten.
+
+### What the repo already gets right
+
+The sweep's agent **refuted four of its own hypotheses** and recorded them (sim-parity *does* refuse
+on an empty comparison; `--passWithNoTests` is closed by a count floor; artifact-interpreter-parity
+cannot pass with 0 artifacts and carries a mutation control; no `paths:`-filtered job is currently
+required). **Both fixes this class needs already exist in-tree:** `ci.yml`'s count floors (assert
+what *ran*, with `if: always()`) and `artifact-interpreter-parity`'s `--mutate` control. Three files
+already use the right exit convention (0=pass, 1=fail, **2/3=NOT MEASURED and red**); four collapse
+the refusal into 0.
+
+---
+
 ## SECTION 14 — PREVIOUS REPORT DELTA
 
 | Prior claim | Status |
@@ -724,7 +794,7 @@ INSTALLED**, `zarr 3.2.1` **installed but provably unused** (no `import zarr` an
 | Decision | Finding |
 |---|---|
 | **ADOPT — Playwright 1.60 → 1.62 + `video: 'retain-on-failure'`** | The suite has **zero `video`/`screencast` configuration**; its only artifact is `screenshot: 'only-on-failure'`. The failures this project chases are **temporal** (frozen animation, stale frames) — the exact class a screenshot cannot capture. **This directly closes this audit's single largest evidence gap (B-01).** |
-| ~~REPAIR — the GL test lane is a SKIP, not a PASS~~ **⚠️ REFUTED 2026-08-09 BY MEASUREMENT** | F2 proposed `channel:'chromium'` + GPU launch args on the strength of a repo comment about *"ZERO field pixels on this headless runner"*. **I tried to implement it and the premise failed.** A 4-arm probe (`evidence/webgl/gl-lane-probe.js`) shows the **exact current CI config with `--disable-gpu` already has WebGL and paints** — `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)` — and adding `--enable-unsafe-swiftshader` or `channel:'chromium'` changes **nothing**. The real GL test then **PASSED on Desktop Chrome both with a GPU (23.0 s) and under `--disable-gpu` (17.8 s)**. ⇒ **Chrome's GL lane genuinely renders on a GPU-less runner; no config fix is warranted.** The 5 CI skips are the **non-Chrome projects** plus the deliberate `isMobile` exclusion — a correct refusal. **The actual defect was the REPORTER:** `--reporter=html` emitted only `47 passed / 5 skipped` with no test names or skip reasons, which is why this was misread twice. Fixed by `--reporter=list,html`. ★ **A refusal you cannot read is indistinguishable from a pass.** |
+| **REPAIR — the executed-GL pixel oracle does not assert in CI. TRUE — but for a completely different reason than anyone stated, and F2's remedy would NOT have fixed it.** *(claim revised twice; this is the measured version)* | **What is true:** `Rendered-field pixel truth (executed GL)` (`weather-simulation.spec.js:578`) **skips on all four projects**, so no CI green has ever proven the marine field painted. **What is false:** that it skips because runners have no GPU. It is declared **`test.fixme(...)`** — a skip by *declaration*, independent of environment. **Proof pair, same browser, same run, GPU PRESENT locally:** `:578` → `1 skipped`; sibling `:327` → **passed 20.7 s**. And the GPU premise fails independently — a 4-arm probe (`evidence/webgl/gl-lane-probe.js`) shows the **exact CI config under `--disable-gpu` already has WebGL and paints** (`ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)`); `--enable-unsafe-swiftshader` and `channel:'chromium'` change **nothing**. ⇒ **`channel:'chromium'` + GPU args is the WRONG FIX** — `test.fixme` skips regardless of flags. **The right fix is the author's own exit condition**, recorded at `:570-577`: finish the commit-latch wait, then un-fixme *("once the latch wait passes 3 consecutive local headed runs")*. Remaining blocker in their words: *"the +24h commit is not yet reliably observed against the shared 1-CPU box."* **Severity: Medium** — it is documented WIP, not a silent hole. |
 | **REPAIR — `map.triggerRepaint()` sits inside the `try` that wraps `engine.render()`** (`WebGLMarineCustomLayer.js:322-338`) | A throw in `render()` skips the repaint call and **drops the self-sustaining repaint chain — MapLibre provides no heartbeat for custom layers.** ⭐ **This is a concrete, code-level mechanism for the historical "frozen animation" symptom**, which no other lane in this audit could explain. ~1 line. |
 | **DEFER — MapLibre 6.x, and here is the hard blocker** | `@openmeteo/weather-map-layer@0.0.19` declares `maplibre-gl: ^5.20.1` as a **hard dependency, not a peer**. npm would install a **second MapLibre 5 runtime**, and for a package that injects a custom layer into the host map's GL context that means **two MapLibre runtimes sharing one canvas** — a silent-corruption class. Regression risk: **very high.** |
 
@@ -824,7 +894,8 @@ measurement.
 | # | Mission | Root cause | Symptoms removed | Risk |
 |---|---|---|---|---|
 | **1** | **Extend the composition-parity guard to cover the rating band** (+ correct the false "exactly three surfaces" assertion at `sim_rating.py:9-11`) | E1-02 | Makes the Critical E1-01 divergence **measurable and regression-locked**. Changes no number | **Very low** — test/registry only |
-| **1b** | **Surface the hour-parity flag in the UI** (parallel track, disjoint files) | F-01 | Silent stale forecast under confident labels | **Very low** — read-only UI, no physics |
+| **1b** | **UN-GATE the staleness badge that already exists** (parallel track, disjoint files) — *revised: it is not a build, it is three consumer edits. `forecastDiagnostics.js:13-15` restricts a working warning to EURO + swell layers, so it can never fire on `waves`, the default* | F-01 / S3-01 | Silent stale forecast under confident labels | **Very low** — three lines in the consumer, no physics, no new component |
+| **1c** | **Make `backend-lint` able to fail** — delete `continue-on-error: true` (`ci.yml:270`); if the current violation count is non-zero, ratchet it shrink-only like `check_eslint.js` already does | F1 | A required check on `main` that cannot go red over **undefined names** | Low — measure the count first |
 | 2 | Convert diagnostic globals to live accessors | F-02 | Every future misdiagnosis through them | Very low |
 | 3 | **Investigate** the band-vs-point divergence with the new guard in place — isolate the sub-term. **Do not tune yet** | E1-01, F-04 | The 3.04× height / 56.9-point rating divergence | Medium — gated behind Mission 1 |
 | **4** | **Move `map.triggerRepaint()` OUT of the `try` that wraps `engine.render()`** (`WebGLMarineCustomLayer.js:322-338`) | F2 §F-A4 | ⭐ **An entire "frozen animation" failure mode.** A throw in `render()` skips the repaint call and drops the self-sustaining chain — **MapLibre provides no heartbeat for custom layers**. This is the only code-level mechanism this audit found for the most-reported historical symptom | **Low — ~1 line.** Must be measured: force a throw via a kill switch, confirm the frame counter keeps advancing and the render-error counter still increments |
