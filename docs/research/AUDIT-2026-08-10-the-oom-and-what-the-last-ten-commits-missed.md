@@ -238,6 +238,42 @@ asserting the scalar. `backend-sim-composition-guards` went red: `collected 1666
 files -> 1599 passed, 1 failed`. **141 files is the widened lane from `c7099d0a`/`6e5bf70a`, and
 this is the first regression it caught — a genuine one, hours after landing.** Fixed in `c4d1c7f8`.
 
+### ✅ FIXED `00dfba86` — the trigger, not the concurrency
+
+**The cascade, measured.** Eight consecutive E2E runs cancelled, none completed, six of them CODE:
+
+    16:25Z d4ce3397 CODE cancelled     16:43Z dbc6a09b docs cancelled
+    16:31Z c4d1c7f8 CODE cancelled     16:50Z feb813b6 CODE cancelled
+    16:34Z c97db5bf docs cancelled     16:56Z 106f113e CODE cancelled
+    16:37Z 60f724d0 CODE cancelled     17:07Z 1140b3e4 CODE cancelled
+
+End-to-end coverage across that window: **zero**. Last completed run 16:01Z. And 9 of the 30 most
+recent runs (30%) fired on markdown-only commits — including `7e231c1b`, whose run is the sample's
+only genuine failure. ⇒ `paths-ignore: ['**/*.md', 'docs/**', 'audit/**']`.
+
+⛔⛔ **`cancel-in-progress: false` IS THE WRONG FIX AND IS NOW PINNED AGAINST.** This lane drives the
+LIVE DEPLOYED site, so a queued run for commit N would execute against N+3's deployment and publish
+that verdict under N's SHA — a **mislabelled** result, worse than none. Superseded runs are honestly
+obsolete. The reason now lives in the comment block directly above the setting, enforced by a test,
+because the next reader sees a 65% rate and reaches for exactly that lever.
+
+⭐⭐⭐ **AND THE CAPACITY GATE WAS DELIBERATELY NOT SHIPPED IN THE SAME COMMIT.** The identity-vs-
+capacity reading (§ above) stands, but two measurements say don't act on it yet:
+* **The problem may already be gone.** Pre-OOM-fix `/api/surf-spots` ran **26 s p50**. Measured
+  across two live deploys post-fix: **0.6–5.4 s by 2–4 min uptime**, RSS plateauing **~1.4 GB**
+  instead of 1.65–1.7. The one completed post-fix E2E run (`4cb9c3c6`) **passed**.
+* **A threshold would be flaky on that data** — 605 ms and 5,375 ms at comparable uptimes is a **9×
+  spread**, so any latency bound is a coin toss, and a gate born red gets switched off.
+⇒ **Ship the fix that restores the SIGNAL, read the now-uncancelled runs, then decide.** Shipping
+both at once confounds them and neither could be attributed. *(This is the same discipline that
+made the OOM measurement work: change one thing, and measure the control first.)*
+
+★ **A guard of mine was hollow and a mutation caught it.** The "keep the reason next to the setting"
+check was first written `"LIVE DEPLOYED" in src` — a phrase that survives anywhere in a 200-line
+file, so gutting the block left it green. **`"x" in src` is never a real needle.** Rewritten
+structurally (the phrase must sit in the comment block immediately preceding `concurrency:`) and
+verified 2/2 by direct arm: deleting the line CAUGHT, moving the block below the setting CAUGHT.
+
 ### Everything else is green
 `Forecast Ingestion` 11/11, `Forecast Accuracy Monitor`, `LOC Governance`, `Encoding Guard`,
 `Lighthouse`, `Data Health`, `Sim Parity`, `Precompute Spot Ratings`, `keep-serve-box-warm`.
