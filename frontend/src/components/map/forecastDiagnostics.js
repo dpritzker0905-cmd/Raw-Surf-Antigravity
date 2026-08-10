@@ -7,14 +7,45 @@
 
 import { isInCooldown } from './marineControllerUtils';
 
+// Layers the marine heatmap can be active on. `waves` is the DEFAULT and was missing from the
+// disclosure path entirely — see the EURO-scoped branch below.
+const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
+
 export function computeHeatmapStatus({ activeModel, activeLayer, renderMarineData }) {
   if (typeof window === 'undefined') return null;
-  
-  if (activeModel !== 'EURO' || !['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
+
+  if (!MARINE_LAYERS.includes(activeLayer)) return null;
+
+  const statusDiag = window.__MARINE_HEATMAP_STATUS__;
+
+  // ── MODEL-AGNOSTIC DEGRADATIONS ───────────────────────────────────────────────────────────────
+  // ⛔ WHY THIS BRANCH EXISTS (2026-08-09). The gate here used to be
+  //     if (activeModel !== 'EURO' || !['swell_1','swell_2','wind_waves'].includes(activeLayer)) return null;
+  // which is a PROVIDER scope applied to statuses that are not about the provider. Measured with the
+  // producer pinned to its real defect value {status:'retained_previous_hour'} and only model x layer
+  // perturbed: the SAME degraded state warned in 3 of 12 cells and was SILENT IN 9 — including
+  // GFS/waves (the default) and EURO/waves, the exact cell where a 72-hour stale render was measured
+  // showing "+78 h EURO" over hour-6 pixels for >=60 s with no indication.
+  // ★ A retained hour, a dead backend, an oversized payload and a 429 are properties of the RENDER,
+  //   not of Copernicus. Only `no_copernicus_coverage` and the `ready` text ("CMEMS") are
+  //   provider-specific, so only those stay EURO-scoped below.
+  // ⚠️ Deliberately returns null rather than falling through: the tail can yield 'ready', whose badge
+  //   reads "Heatmap Ready (CMEMS)" and would be a false provider claim on GFS/ICON.
+  const isEuroScoped = activeModel === 'EURO' && activeLayer !== 'waves';
+  if (!isEuroScoped) {
+    if (statusDiag?.status === 'retained_previous_hour_warning' || statusDiag?.status === 'retained_previous_hour') {
+      return 'retained_stale_warning';
+    }
+    if (statusDiag?.status === 'no_backend_coverage') return 'no_backend_coverage';
+    if (statusDiag?.status === 'response_too_large_prevented' || window.__MARINE_FETCH_DIAG__?.httpStatus === 413) {
+      return 'payload_too_large';
+    }
+    if (window.__MARINE_FETCH_DIAG__?.cooldownState === 'rate_limited' || isInCooldown('marine')) {
+      return 'rate_limited';
+    }
     return null;
   }
-  
-  const statusDiag = window.__MARINE_HEATMAP_STATUS__;
+  // ── EURO / COPERNICUS-SCOPED TAIL (unchanged below this line) ─────────────────────────────────
   if (statusDiag?.status === 'no_copernicus_coverage') {
     return 'no_copernicus_coverage';
   }
