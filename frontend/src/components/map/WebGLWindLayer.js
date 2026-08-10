@@ -168,8 +168,6 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
         }
 
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, worldOffsets, viewportBounds);
-        // Request continuous repainting while active
-        map.triggerRepaint();
       } catch (e) {
         errorCount++;
         lastErrorTime = Date.now();
@@ -179,6 +177,16 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
         if (errorCount === 5) {
           console.error('[WebGLWind] Too many errors, temporarily disabling GPU particles (will retry in 10s).');
         }
+      } finally {
+        // Request continuous repainting while active.
+        // ⛔ `finally`, NOT the last line of `try` — same defect and same reasoning as
+        // WebGLMarineCustomLayer.js. A throw in `engine.render()` skipped this call, and MapLibre
+        // gives a custom layer no repaint heartbeat, so the layer went unscheduled AND `errorCount`
+        // stalled below 5, disarming the retry path below.
+        // ⚠️ Found by reading, not by a live freeze: the marine twin's A/B showed a second driver
+        // (MapLibre `_render`, ~27/s) currently masks it. Defence in depth on both layers, so the
+        // pair cannot drift apart.
+        map.triggerRepaint();
       }
     },
 

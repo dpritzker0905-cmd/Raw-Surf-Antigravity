@@ -324,7 +324,6 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
         const zoom = map.getZoom();
 
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, viewportBounds, opacityMultiplier);
-        map.triggerRepaint();
       } catch (e) {
         errorCount++;
         lastErrorTime = Date.now();
@@ -335,6 +334,18 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
           console.error('[WebGLMarine] Too many errors, disabling GPU marine particles.');
           if (onErrorRef.current) onErrorRef.current();
         }
+      } finally {
+        // ⛔ `finally`, NOT the last line of `try`. MapLibre gives a custom layer no repaint
+        // heartbeat — this call IS the animation clock. When it sat inside `try` after
+        // `engine.render()`, a throw skipped it, so the layer went unscheduled AND `errorCount`
+        // stalled below 3, meaning the disable/fallback above could never fire. Two failures from
+        // one line: no animation, and no fallback either.
+        // ⚠️ MEASURED 2026-08-09, and the measurement did NOT support the scarier story: today a
+        // SECOND driver (MapLibre's own `_render`) re-triggers at ~27/s, so one injected throw did
+        // not freeze anything — paired A/B, control 23.2/s vs treated 30.3/s over 5.5 s.
+        // ⇒ This is DEFENCE IN DEPTH, not a live-freeze fix. It removes the layer's silent
+        // dependence on an unrelated driver that nothing guarantees will stay.
+        map.triggerRepaint();
       }
     },
 
