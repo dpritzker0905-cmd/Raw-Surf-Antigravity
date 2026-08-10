@@ -63,19 +63,31 @@ def record(method: str, template: str, status: int, elapsed_ms: float) -> None:
         entry["buckets"][-1] += 1
 
 
-def _percentile_ms(entry: dict, q: float) -> Optional[float]:
+def _percentile_ms(entry: dict, q: float):
+    """(value_ms, is_overflow). Value is an UPPER BOUND on the true percentile, never a sample.
+
+    ⚠️ TWO WAYS THIS MISLED A READER (2026-08-10, and the reader was the author):
+      1. OVERFLOW PRINTED max_ms AS THE PERCENTILE. A route with 5 requests, 3 of them over the
+         top bound and one at 85.8 s, reported `p50 = 85778.1` -- indistinguishable from a
+         measured 85.8 s median. All that is actually known is "p50 >= 10000". The caller now
+         gets `is_overflow` so it can say so instead of printing a number that looks measured.
+      2. A BUCKET BOUND CAN EXCEED THE OBSERVED MAX. Five 8 ms requests reported
+         `p50 = p90 = p99 = 10.0` beside `max = 8.0` -- a percentile above the maximum, which
+         reads as a bug. min() with max_ms keeps it an upper bound AND keeps it believable.
+    """
     n = entry["n"]
     if n == 0:
-        return None
+        return None, False
     target = max(1, math.ceil(q * n))
     acc = 0
     for i, count in enumerate(entry["buckets"]):
         acc += count
         if acc >= target:
             if i < len(BUCKET_BOUNDS_MS):
-                return float(BUCKET_BOUNDS_MS[i])
-            return round(entry["max_ms"], 1)          # overflow bucket: the honest representative
-    return round(entry["max_ms"], 1)
+                # Still an upper bound, just never above what was actually observed.
+                return round(min(float(BUCKET_BOUNDS_MS[i]), entry["max_ms"]), 1), False
+            return round(entry["max_ms"], 1), True
+    return round(entry["max_ms"], 1), True
 
 
 def snapshot(top: int = 30) -> dict:
@@ -88,22 +100,44 @@ def snapshot(top: int = 30) -> dict:
         total["max_ms"] = max(total["max_ms"], entry["max_ms"])
         for i, c in enumerate(entry["buckets"]):
             total["buckets"][i] += c
+    _t50, _t50_of = _percentile_ms(total, 0.50)
+    _t99, _t99_of = _percentile_ms(total, 0.99)
     rows: List[dict] = []
     ranked = sorted(_routes.items(), key=lambda kv: kv[1]["n"], reverse=True)[:max(0, top)]
     for (method, template), entry in ranked:
-        rows.append({
+        p50, p50_of = _percentile_ms(entry, 0.50)
+        p90, p90_of = _percentile_ms(entry, 0.90)
+        p99, p99_of = _percentile_ms(entry, 0.99)
+        row = {
             "route": f"{method} {template}", "n": entry["n"], "err_5xx": entry["err"],
             "avg_ms": round(entry["sum_ms"] / entry["n"], 1) if entry["n"] else None,
-            "p50_ms": _percentile_ms(entry, 0.50), "p90_ms": _percentile_ms(entry, 0.90),
-            "p99_ms": _percentile_ms(entry, 0.99), "max_ms": round(entry["max_ms"], 1),
-        })
+            "p50_ms": p50, "p90_ms": p90, "p99_ms": p99,
+            "max_ms": round(entry["max_ms"], 1),
+        }
+        # ABSENT unless true, so a clean row stays clean and the marker means something when it
+        # appears. `over_top_bucket` is the COUNT that exceeded the last bound -- the fact a reader
+        # needs to judge whether an overflow percentile represents many requests or one outlier.
+        over = entry["buckets"][-1]
+        if over:
+            row["over_%dms" % BUCKET_BOUNDS_MS[-1]] = over
+        for name, flag in (("p50", p50_of), ("p90", p90_of), ("p99", p99_of)):
+            if flag:
+                row[name + "_ge_ms"] = float(BUCKET_BOUNDS_MS[-1])
+        rows.append(row)
     return {
         "started_at": _started_at, "routes_tracked": len(_routes),
         "total": {"n": total["n"], "err_5xx": total["err"],
-                  "p50_ms": _percentile_ms(total, 0.50), "p99_ms": _percentile_ms(total, 0.99),
-                  "max_ms": round(total["max_ms"], 1)},
+                  "p50_ms": _t50, "p99_ms": _t99, "max_ms": round(total["max_ms"], 1),
+                  **({"p50_ge_ms": float(BUCKET_BOUNDS_MS[-1])} if _t50_of else {}),
+                  **({"p99_ge_ms": float(BUCKET_BOUNDS_MS[-1])} if _t99_of else {}),
+                  **({"over_%dms" % BUCKET_BOUNDS_MS[-1]: total["buckets"][-1]}
+                     if total["buckets"][-1] else {})},
         "top_routes": rows,
-        "note": "percentiles are bucket upper bounds (read high, never low); cumulative since started_at",
+        "note": ("percentiles are bucket UPPER BOUNDS, capped at the observed max (read high, "
+                 "never low, never above max_ms); CUMULATIVE since started_at, so they include "
+                 "past stalls and are NOT a current-latency reading; a `pNN_ge_ms` field means "
+                 "that percentile only landed in the overflow bucket -- the true value is >= that "
+                 "number and the printed pNN_ms is merely max_ms, not a measurement"),
     }
 
 
