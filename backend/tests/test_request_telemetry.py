@@ -98,16 +98,29 @@ def test_the_cardinality_cap_folds_overflow_instead_of_growing():
 
 
 def test_percentiles_are_bucket_upper_bounds_and_read_high_never_low():
+    """⚠️ CONTRACT CHANGED 2026-08-10, deliberately, and this test detected it.
+
+    `_percentile_ms` now returns (value, is_overflow) and CAPS the bucket bound at the observed
+    max. The old expectation here was `p(1.0) == 1000.0` -- the bucket bound -- when the largest
+    request actually seen was 900 ms. Reporting 1000.0 asserts a latency that never occurred; the
+    cap reports 900.0, which is still an UPPER BOUND on the true percentile and strictly tighter.
+    The reason it mattered: five 8 ms requests were reporting p50=p90=p99=10.0 beside max=8.0, a
+    percentile above the maximum, which reads as a bug and taints the whole payload.
+    The "read high, never low" property is unchanged and still asserted below."""
     for _ in range(99):
         record("GET", "/p", 200, 4.0)                          # bucket <=5
     record("GET", "/p", 200, 900.0)                            # bucket <=1000
     e = T._routes[("GET", "/p")]
-    assert T._percentile_ms(e, 0.50) == 5.0
-    assert T._percentile_ms(e, 0.99) == 5.0                    # 99th of 100 is still the 4 ms mass
-    assert T._percentile_ms(e, 1.0) == 1000.0                  # the tail lands in its bucket bound
+    assert T._percentile_ms(e, 0.50) == (5.0, False)           # reads HIGH: 4 ms mass -> its bound
+    assert T._percentile_ms(e, 0.99) == (5.0, False)           # 99th of 100 is still the 4 ms mass
+    assert T._percentile_ms(e, 1.0) == (900.0, False), (
+        "the tail is the bucket bound CAPPED at the observed max -- 1000.0 was never measured")
     record("GET", "/of", 200, 99999.0)                         # overflow bucket
-    assert T._percentile_ms(T._routes[("GET", "/of")], 0.5) == 99999.0, (
-        "the overflow bucket must report max_ms, not a fabricated bound")
+    value, is_overflow = T._percentile_ms(T._routes[("GET", "/of")], 0.5)
+    assert value == 99999.0, "the overflow bucket must report max_ms, not a fabricated bound"
+    assert is_overflow is True, (
+        "overflow must be FLAGGED -- an unflagged max_ms is indistinguishable from a measured "
+        "percentile, which is exactly how this payload misled a reader in production")
 
 
 def test_snapshot_totals_and_ranks_by_traffic():
