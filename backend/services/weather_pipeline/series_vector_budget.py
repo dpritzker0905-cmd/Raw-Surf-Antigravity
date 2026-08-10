@@ -64,28 +64,90 @@ def _stride_for(cols: int, rows: int, frames: int, budget: int) -> int:
     return s
 
 
+def stride_for(cols, rows, frames, budget=None) -> int:
+    """The stride this module would apply to `frames` frames of `cols` x `rows`.
+
+    PUBLIC so the BUILD can bound itself with the SAME number the end-stage bound would pick.
+    One quantity reached by two routes is the recorded "ONE QUANTITY, TWO FLOORS" defect class;
+    `test_series_build_time_bound.py` pins these two paths equal across every measured geometry.
+    Returns 1 when the budget is off, the geometry is unusable, or the series already fits.
+    """
+    b = _budget() if budget is None else budget
+    if b <= 0:
+        return 1
+    try:
+        cols, rows, frames = int(cols), int(rows), int(frames)
+    except (TypeError, ValueError):
+        return 1
+    if cols <= 0 or rows <= 0 or frames <= 0 or cols * rows * frames <= b:
+        return 1
+    return _stride_for(cols, rows, frames, b)
+
+
+def decimate_vectors(vectors, cols, rows, stride):
+    """Stride a rectangular vector grid. Returns (new_vectors, new_cols, new_rows), or None.
+
+    ⚠️⚠️ RETURNS A NEW LIST — THE CALLER MUST REBIND, AND MUST NEVER MUTATE THE INPUT IN PLACE.
+    `ProductStore.load_product` hands out `product.model_copy()` with `grid = grid.model_copy()`,
+    and BOTH are shallow (store.py:759-761) — so a resolved product's `grid.vectors` IS the list
+    object sitting in `_product_cache`. `vectors[:] = out` would decimate the CACHED product and
+    every later reader of it, on a fraction of requests, which is the worst available failure
+    shape: intermittent, silent, and wrong rather than absent. Rebinding leaves the cache intact.
+
+    Returns None (leave it alone) whenever the rectangular invariant `len(vectors) == cols * rows`
+    does not hold, so a masked/sparse product is never silently reshaped.
+    """
+    if stride is None or stride <= 1:
+        return None
+    if not isinstance(vectors, list) or not isinstance(cols, int) or not isinstance(rows, int):
+        return None
+    if cols <= 0 or rows <= 0 or len(vectors) != cols * rows:
+        return None                                   # not a full grid — this module stays out
+    kept_cols = range(0, cols, stride)
+    kept_rows = range(0, rows, stride)
+    out = [vectors[r * cols + c] for r in kept_rows for c in kept_cols]
+    assert len(out) == len(kept_cols) * len(kept_rows)  # the invariant, asserted not assumed
+    return out, len(kept_cols), len(kept_rows)
+
+
 def _decimate_frame(frame: dict, stride: int) -> bool:
     """Stride a frame's rectangular vector grid in place. Returns True if it was rewritten.
 
     Leaves the frame untouched (returning False) whenever the rectangular invariant does not hold,
     so a masked/sparse product is never silently reshaped.
     """
-    cols = frame.get("cols")
-    rows = frame.get("rows")
-    vectors = frame.get("vectors")
-    if not isinstance(cols, int) or not isinstance(rows, int) or not isinstance(vectors, list):
+    if not isinstance(frame, dict):
         return False
-    if cols <= 0 or rows <= 0 or len(vectors) != cols * rows:
-        return False                                  # not a full grid — this module stays out
-    kept_cols = list(range(0, cols, stride))
-    kept_rows = list(range(0, rows, stride))
-    out = [vectors[r * cols + c] for r in kept_rows for c in kept_cols]
-    assert len(out) == len(kept_cols) * len(kept_rows)  # the invariant, asserted not assumed
-    frame["vectors"] = out
-    frame["cols"] = len(kept_cols)
-    frame["rows"] = len(kept_rows)
+    out = decimate_vectors(frame.get("vectors"), frame.get("cols"), frame.get("rows"), stride)
+    if out is None:
+        return False
+    frame["vectors"], frame["cols"], frame["rows"] = out
     frame["decimated_stride"] = stride
     return True
+
+
+def stamp_build_time_bound(resp: dict, stride: int, frames_rewritten: int, vectors_before: int) -> dict:
+    """Stamp the bound diagnostics for a response already bounded DURING the build.
+
+    The key set must match `apply_vector_budget`'s exactly — a client must never be asked to read
+    two vocabularies for one fact. `bounded_at` is the only addition, and it is the whole point:
+    it distinguishes vectors that were NEVER ALLOCATED ('build') from vectors that were allocated
+    in full and then thrown away ('response'). Those cost the same bytes on the wire and differ by
+    ~4x in peak RSS, which is the difference between serving and OOM-killing the box.
+    """
+    if not isinstance(resp, dict) or stride <= 1:
+        return resp
+    resp["vector_budget"] = _budget()
+    resp["decimated_stride"] = stride
+    resp["decimated_frames"] = frames_rewritten
+    resp["vectors_before_bound"] = vectors_before
+    resp["bounded_at"] = "build"
+    first = next((f for f in (resp.get("frames") or [])
+                  if isinstance(f, dict) and f.get("decimated_stride")), None)
+    if first is not None:
+        resp["cols"] = first.get("cols")
+        resp["rows"] = first.get("rows")
+    return resp
 
 
 def apply_vector_budget(resp: dict) -> dict:
@@ -134,6 +196,10 @@ def apply_vector_budget(resp: dict) -> dict:
     resp["vector_budget"] = budget
     resp["decimated_stride"] = stride
     resp["decimated_frames"] = rewritten
+    resp["vectors_before_bound"] = total
+    # ⚠️ 'response' means these vectors WERE materialised in full and then discarded — the wire got
+    # smaller, peak RSS did not. Only 'build' (stamp_build_time_bound) means they never existed.
+    resp["bounded_at"] = "response"
     if rewritten:
         first = next((f for f in frames if isinstance(f, dict) and f.get("decimated_stride")), None)
         if first is not None:

@@ -18,6 +18,12 @@ from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException
 from starlette.background import BackgroundTasks
 
+from services.weather_pipeline.series_vector_budget import (
+    decimate_vectors,
+    stamp_build_time_bound,
+    stride_for,
+)
+
 logger = logging.getLogger(__name__)
 
 MAX_FRAMES = 48
@@ -56,6 +62,74 @@ def _frame_provenance(product) -> dict:
         "source_dataset": getattr(product, "source_dataset", None),
         "estimate_basis": getattr(product, "estimate_basis", None),
     }
+
+
+# ── BUILD-TIME BOUND (2026-08-10, the Render OOM root) ────────────────────────────────────────
+# MEASURED on the live box before this existed: ONE global-bbox 48h series returned 6.67 MB on the
+# wire and cost +170.3 MB RESIDENT, which 150 s of total idle did not give back — RSS is a
+# monotonic high-water mark here. The serve box idles at ~1.65-1.7 GB of a 2,048 MB cgroup cap
+# (~350 MB headroom) and the client fires THREE series pages per settle: 3 x 170 > 350 => OOM.
+# Seven oomKilled events in the 15 h before this landed.
+#
+# WHY THE EXISTING BUDGET DID NOT STOP IT: apply_vector_budget runs on the ASSEMBLED response
+# (build_grid_series, below) while asyncio.gather holds EVERY hour's full product alive at once —
+# CONCURRENCY bounds resolution, never RETENTION. The measured request materialised ~390,000
+# GridVector models (26 frames x ~15,023) and then discarded 8 in 9. That is a TRANSFER budget:
+# bounding at the END cannot lower a peak that is reached BEFORE the end.
+#
+# So decimate each hour AS IT LANDS, using the stride the end-stage bound would have picked anyway
+# (stride_for — one quantity, one expression, pinned equal in test_series_build_time_bound.py).
+# Peak retention drops from N full grids to CONCURRENCY full grids + N decimated ones.
+# ★ SCOPE, stated rather than implied: this covers the GENERIC PER-HOUR LOOP only. The EURO and
+# Open-Meteo fast paths return before it and are unchanged — they keep the end-stage bound alone.
+def _series_build_stride(product, hour_count: int) -> int:
+    """Stride for the whole series, chosen from the FIRST resolved frame's geometry.
+
+    The first hour is already built serially (it warms the regional tile), so its grid is the
+    cheapest honest sample of what the remaining hours look like. Never raises: a series whose
+    geometry cannot be read is served unbounded, exactly as it was before this existed.
+
+    ⚠️ ASYMMETRY, STATED SO IT IS NOT LATER READ AS A BUG: this counts the hours REQUESTED, while
+    the end-stage bound counts the frames that SURVIVED the deadline. When hours time out the
+    build therefore picks a slightly coarser stride than the end stage would have (measured live:
+    48 requested, 26 survived -> stride 4 here vs 3 there). That direction is the only safe one —
+    a memory bound has to be chosen before the outcome is known, and assuming fewer frames than
+    arrive is how you blow the budget. For the SAME frame count the two agree exactly, and
+    test_series_build_time_bound.py pins that.
+    """
+    try:
+        g = getattr(product, "grid", None)
+        if g is None or not getattr(g, "vectors", None):
+            return 1
+        return stride_for(g.cols, g.rows, max(1, hour_count))
+    except Exception:
+        logger.exception("[series-build-bound] stride selection failed; building unbounded")
+        return 1
+
+
+def _apply_build_stride(product, stride: int) -> bool:
+    """Decimate one resolved product's grid before the series takes a reference to it.
+
+    ⚠️ REBINDS grid.vectors — never mutates it. ProductStore.load_product hands out a SHALLOW
+    model_copy, so that list object is the one in _product_cache; an in-place stride would
+    decimate the CACHED product and every later reader of it. See decimate_vectors.
+    """
+    if stride <= 1 or product is None:
+        return False
+    try:
+        g = getattr(product, "grid", None)
+        if g is None or not getattr(g, "vectors", None):
+            return False
+        out = decimate_vectors(g.vectors, g.cols, g.rows, stride)
+        if out is None:
+            return False
+        g.vectors, g.cols, g.rows = out
+        return True
+    except Exception:
+        logger.exception("[series-build-bound] frame decimation failed; serving that frame whole")
+        return False
+
+
 # A single hour must never hang the whole series. Models with pre-built regional/global
 # products (GFS/ICON via manifest) resolve in ms; models that fall to the slow dynamic
 # path (EURO/Copernicus) can stall — so cap each hour and the whole build, and return
@@ -441,6 +515,11 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # hours at once (each hour after the first is a cheap re-slice of the cached fetch).
     sem = asyncio.Semaphore(CONCURRENCY)
     deadline = time.monotonic() + OVERALL_DEADLINE
+    # Build-time bound state (see _series_build_stride above). `stride` stays 1 until the first
+    # hour resolves and reveals the geometry; `hours` records which frames were ACTUALLY rewritten
+    # so the response stamp counts them instead of assuming; `before` accumulates what the series
+    # would have retained, so the saving is measured rather than claimed.
+    bound = {"stride": 1, "hours": set(), "before": 0}
 
     async def _build_one(h: int, warm_regional: bool = False):
         if time.monotonic() > deadline or await _client_gone():
@@ -471,6 +550,12 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                     ),
                     timeout=_t,
                 )
+            # Bound this hour BEFORE the gather can collect it — the whole point (see above).
+            _g = getattr(product, "grid", None) if product is not None else None
+            if _g is not None and getattr(_g, "vectors", None):
+                bound["before"] += len(_g.vectors)
+                if _apply_build_stride(product, bound["stride"]):
+                    bound["hours"].add(h)
             return (h, product)
         except asyncio.TimeoutError:
             logger.warning(f"[grid_series] hour +{h}h timed out after {_per_hour_timeout()}s")
@@ -489,6 +574,11 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             # First hour warms the regional viewport tile (background_tasks=None → the SWR revalidation fires)
             # so the NEXT series request for this bbox serves the precise regional grid instead of global-coarse.
             results = [await _build_one(loop_hours[0], warm_regional=True)]
+            # The first hour is home: its geometry picks the stride for every remaining hour — and
+            # for itself, since it was built before that stride could be known.
+            bound["stride"] = _series_build_stride(results[0][1], len(loop_hours))
+            if _apply_build_stride(results[0][1], bound["stride"]):
+                bound["hours"].add(results[0][0])
             if len(loop_hours) > 1:
                 results.extend(await asyncio.gather(*[_build_one(h) for h in loop_hours[1:]], return_exceptions=True))
         results = [r for r in results if isinstance(r, tuple)]
@@ -518,6 +608,9 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             "provider": getattr(product, "provider", None),
             "is_estimated": getattr(product, "is_estimated", False),
             "rating_mode": _frame_rating_mode(g),
+            # Present only on frames this build actually strided, so a client can tell a
+            # decimated frame from a natively-small one (they are otherwise identical).
+            **({"decimated_stride": bound["stride"]} if h in bound["hours"] else {}),
             # §0c SERVING HONESTY: valid_time above echoes the per-hour ask (resolve_grid's
             # contract); these carry the frame actually served — stamped by stamp_frame_honesty
             # inside the resolve_grid call this frame came from.
@@ -534,6 +627,9 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
         for pf in prebuilt_frames:
             if pf.get("hour_offset") not in have:
                 frames.append(pf)
+                # Fast-path frames are not build-bounded; count them so vectors_before_bound
+                # describes the WHOLE response rather than only the hours this loop built.
+                bound["before"] += len(pf.get("vectors") or [])
                 if shared_bounds is None and pf.get("bounds"):
                     shared_bounds, shared_cols, shared_rows = pf["bounds"], pf.get("cols", 0), pf.get("rows", 0)
 
@@ -552,6 +648,11 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # COLD-START marker (chip task_e618f9ff): an EMPTY series built while the L2 restore is in
     # flight is a warming artifact, not "no coverage" — the client retries with backoff instead
     # of abandoning the viewport to the per-hour fallback until the next gesture.
+    # Stamp what the BUILD bounded. The end-stage apply_vector_budget still runs after this
+    # (build_grid_series) and will find the response already under budget, so it no-ops — the
+    # stamp has to come from here or the diagnostic would silently vanish for bounded pages.
+    if bound["stride"] > 1:
+        stamp_build_time_bound(resp, bound["stride"], len(bound["hours"]), bound["before"])
     if not frames and _restore_in_progress():
         resp["warming"] = True
     return resp
