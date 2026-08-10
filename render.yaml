@@ -1,3 +1,24 @@
+# ⛔⛔ THIS BLUEPRINT IS **NOT APPLIED** TO THE LIVE SERVICE. VERIFIED 2026-08-10, THREE WAYS:
+#   1. it declares `RATING_TIDE: "1"` below — the live service's 27 env vars DO NOT include it
+#   2. it names `raw-surf-backend`; the live service is `Raw-Surf-Antigravity` (srv-d7fhiu7lk1mc73debje0)
+#   3. it sets `rootDir: backend`; the live service's rootDir is EMPTY
+# ⇒ Every value in this file is DOCUMENTATION, not configuration. Editing it changes nothing in
+#   production. The live service is configured in the Render dashboard / API only.
+#
+# ⚠️ WHY THAT IS NOT HARMLESS: the RATING_TIDE comment below says the serve box needs the flag so
+# its LIVE spot-ratings fallback computes the same tide factor as the precompute lanes. It does not
+# have it. So the serve-time fallback and the precomputed frames can disagree — the lane-drift class
+# `backend/tests/test_flag_lane_parity.py` exists to catch, in the one lane that file states it
+# cannot see ("Render's environment is not in git and CANNOT be checked here"). OWNER ACTION, OPEN.
+#
+# ✅ SET ON THE LIVE SERVICE 2026-08-10 VIA THE RENDER API, recorded here because an out-of-band
+# production change that lives nowhere in git is the same invisibility problem one level up:
+#     buildFilter = {"ignoredPaths": ["docs/**", "audit/**", "**/*.md"], "paths": null}
+# Reason: `autoDeploy=yes` with no filter meant a SINGLE-MARKDOWN commit redeployed production and
+# restarted the box under any in-flight E2E run (measured: `bed6c08c` live 17:28:30, `8be9dd56`
+# live 17:32:10). ⚠️ `ignoredPaths` ONLY — a `paths` whitelist inverts the failure mode, silently
+# stopping deploys for anything unlisted, and a backend that quietly stops receiving code is far
+# worse than one that deploys too often.
 services:
   - type: web
     name: raw-surf-backend
