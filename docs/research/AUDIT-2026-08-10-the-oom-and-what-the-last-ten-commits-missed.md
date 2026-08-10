@@ -274,6 +274,49 @@ file, so gutting the block left it green. **`"x" in src` is never a real needle.
 structurally (the phrase must sit in the comment block immediately preceding `concurrency:`) and
 verified 2/2 by direct arm: deleting the line CAUGHT, moving the block below the setting CAUGHT.
 
+### ✅ THE VERDICT — first uncancelled run since 16:01Z, and it settles the capacity question
+
+| | `7e231c1b` (pre-fix, failed) | `00dfba86` (post-fix) |
+|---|---|---|
+| outcome | **11 failed · 5 flaky · 32 passed** | **0 failed · 1 flaky · 46 passed** |
+| duration | 23.1 min | **6.1 min** |
+
+More tests completed in a quarter of the time (a failure burns three retries at 90 s each).
+⭐⭐⭐ **AND IT PASSED THROUGH TWO BACKEND RESTARTS.** A probe run concurrently with the E2E job
+caught uptime resetting twice mid-run — `3m5s → 56s`, then `2m55s → 40s` — against Render deploys at
+17:26:50 / 17:28:30 / 17:32:10. Throughout, `/api/surf-spots` held **0.6–4.1 s** and RSS climbed
+503 → 1,410 MB. Pre-OOM-fix a *single* restart correlated with 11 navigation-timeout failures.
+⇒ **THE CAPACITY GATE IS NOT NEEDED — the OOM fix removed the mechanism.** That is now a
+measurement, not a caution. Shipping both fixes together would have made this run unable to
+attribute either one.
+
+### ⛔ THE HOLE IN THAT FIX, AND WHAT CLOSED IT
+
+`paths-ignore` governs the **GitHub workflow**. It has no authority over **Render**, which was
+`autoDeploy=yes` with **`buildFilter: none`** — so a docs push still redeployed production and
+restarted the box under any running E2E job. Proven twice with single-markdown commits:
+`bed6c08c` → live 17:28:30, `8be9dd56` → live 17:32:10.
+
+✅ **Render build filter set 2026-08-10 via the API** (dashboard-equivalent "Ignored Paths"):
+
+    buildFilter = {"ignoredPaths": ["docs/**", "audit/**", "**/*.md"], "paths": null}
+
+⚠️ **`ignoredPaths` ONLY, deliberately — NOT a `paths` whitelist.** A whitelist inverts the failure
+mode: anything not listed silently stops deploying, and a backend that quietly stops receiving code
+is far worse than one that deploys too often. Verified after write by reading the service back, and
+`autoDeploy`/branch/plan confirmed unchanged.
+
+### ⛔⛔ `render.yaml` IS NOT APPLIED TO THIS SERVICE — and it hides a live parity gap
+Decisive test: the blueprint declares `RATING_TIDE=1`; the live service's **27 env vars do not
+include it**. It also names the service `raw-surf-backend` against a live `Raw-Surf-Antigravity`,
+and declares `rootDir: backend` where the live service's `rootDir` is **empty**. Three independent
+tells, one conclusion: **the blueprint is decorative.**
+⇒ The file's own comment says the serve box needs `RATING_TIDE=1` so its live spot-ratings fallback
+computes the same tide factor as the precompute lanes. **It does not have it**, so the serve-time
+fallback and the precomputed frames can disagree — exactly the lane-drift class
+`test_flag_lane_parity.py` exists to catch, in the one lane that file states outright it cannot see
+("Render's environment is not in git and CANNOT be checked here"). **Owner action; unresolved.**
+
 ### Everything else is green
 `Forecast Ingestion` 11/11, `Forecast Accuracy Monitor`, `LOC Governance`, `Encoding Guard`,
 `Lighthouse`, `Data Health`, `Sim Parity`, `Precompute Spot Ratings`, `keep-serve-box-warm`.
