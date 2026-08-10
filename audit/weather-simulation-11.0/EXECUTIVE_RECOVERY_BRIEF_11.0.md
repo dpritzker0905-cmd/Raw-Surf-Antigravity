@@ -101,9 +101,14 @@ The one modernization the evidence *does* justify is the cheapest: **a real regr
 
 - **No video captured, no cross-browser run, 11 of 12 layers untested**, no historical-baseline
   comparison, no antimeridian or high-latitude test.
-- ⚠️ **The CI lane that is supposed to prove GL rendering is a SKIP, not a pass** — the repo's own
-  spec records *"ZERO field pixels on this headless runner (a white void)"*. **A green run there
-  currently proves nothing.**
+- ✅ **CORRECTED 2026-08-09 — this brief previously said the GL CI lane was "a skip, not a pass".
+  That was WRONG.** Measured: the exact CI config with `--disable-gpu` has WebGL and paints via
+  SwiftShader, and the GL test **passes on Desktop Chrome with and without a GPU (23.0 s / 17.8 s)**.
+  The 5 CI skips are the non-Chrome projects plus a deliberate mobile exclusion. The real defect was
+  that `--reporter=html` printed only counts — no test names, no skip reasons — so the lane was
+  unreadable, not broken. ★ **A refusal you cannot read is indistinguishable from a pass.**
+- ⚠️ The binding limit on that lane is different and still stands: it grades the **deployed Netlify
+  site, not your working tree**, so it can never gate a local edit.
 - Backend capacity **deliberately not load-tested** (the local frontend points at production).
 - The science findings were produced by a subagent and **not personally re-run** by the lead auditor.
 - `b5bbaa7d` and `f5f6a3d` exist but are **not** known-good baselines — untagged single-concern fixes

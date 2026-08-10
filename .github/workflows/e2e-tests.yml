@@ -137,7 +137,17 @@ jobs:
         working-directory: frontend
         env:
           E2E_BASE_URL: ${{ github.event.inputs.base_url || 'https://dev--rawsurf.netlify.app' }}
-        run: npx playwright test --reporter=html
+        # ⛔ `list` FIRST, then `html`. With `--reporter=html` alone, stdout carried ONLY the
+        # aggregate ("47 passed, 5 skipped") — no test names, no skip reasons. This spec's whole
+        # design is to REFUSE rather than fake a pass (six `test.skip(cond, reason)` gates), and the
+        # aggregate threw away exactly the reason each gate emitted. The 2026-08-09 audit read that
+        # green twice and drew the WRONG conclusion twice — first "the weather spec never ran"
+        # (false: 12 tests x 4 projects reconciles), then "the GL lane is a skip, not a pass"
+        # (false: MEASURED, the GL test PASSES on Desktop Chrome both with a GPU and under
+        # --disable-gpu/SwiftShader — see audit/weather-simulation-11.0/evidence/webgl/gl-lane-probe.js).
+        # A refusal that cannot be read is indistinguishable from a pass. `list` names every test and
+        # its status on stdout; `html` keeps the artifact for traces.
+        run: npx playwright test --reporter=list,html
 
       - name: Upload test results
         if: always()
