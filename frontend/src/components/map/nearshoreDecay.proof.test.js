@@ -15,11 +15,15 @@
  * which. Worst case 1/0.35 = 2.86x on the number the product exists to report, and it bites
  * hardest at COASTAL cells, which is exactly where every surf spot is.
  *
- * ⛔ NOT FIXED HERE, DELIBERATELY. Removing the decay, or extending it to the point lane, both
- * change a displayed height on physical grounds -- which lane is RIGHT is a science question
- * (is the point lane already land-aware? is 0.35 calibrated or a guess?), and the repo's rule is
- * PRIMARY SOURCE before any calibration change. These assertions keep the divergence measured and
- * visible so it cannot widen silently while that is decided.
+ * ⚠️ THAT 2.86x IS THE DECAY ALONE AND UNDERSTATES IT. See the final block: `isPeriod` selects
+ * two different interpolations, and HEIGHT is penalised twice -- land counted as ZERO in the
+ * average, then multiplied by the decay. Measured worst case 11.43x against the same function's
+ * period treatment at the same coordinates.
+ *
+ * ⛔ STILL NOT FIXED HERE, DELIBERATELY -- changing it changes a displayed height, which is the
+ * owner's call. But it is no longer a JUDGEMENT awaiting expertise: every reading of the decay
+ * now fails on evidence (see the last test), and the principled treatment already exists ten
+ * lines above it for period.
  */
 import fs from 'fs';
 import path from 'path';
@@ -83,5 +87,72 @@ describe('the decay applies to HEIGHTS only, and only when land is adjacent', ()
     const v = withTiles(tile([0, 2, 2, 2], 'wave_period'),
                         () => sampleValueFromDecodedTiles(1, 1, 'wave_period', 0, 'GFS'));
     expect(v).not.toBeNull();
+  });
+});
+
+
+// ── WHY THIS IS DECIDABLE AFTER ALL, AND WORSE THAN 2.86x (2026-08-10) ──────────────────────
+// The handoff said this needed "a science call: is the point lane already land-aware, and is 0.35
+// calibrated?". Both are answerable from the repo. Answering them found a THIRD fact that makes
+// the first two moot -- and my first attempt at this block FAILED, which is how I found it.
+//
+// I assumed the bilinear renormalised over ocean corners for every variable. It does not. The
+// branch is `isPeriod`:
+//     period  -> land EXCLUDED, weights RENORMALISED        (the principled treatment)
+//     height  -> land counted as ZERO in the average, THEN multiplied by the decay
+// So height is penalised TWICE on the same land, by the same function, in the same call. Measured
+// at the cell centre with ocean corners at 2.0:
+//     land corners:      0        1        2        3
+//     period (renorm): 2.000    2.000    2.000    2.000
+//     height (0+decay):2.000    0.975    0.450    0.175
+//     ratio:           1.00x    2.05x    4.44x   11.43x
+// The reported divergence was 2.86x (decay alone). The real worst case is 11.43x.
+describe('height is penalised TWICE where period is not penalised at all', () => {
+  const tile = (values, variable) => ({
+    variable, model: 'ncep_gfswave025', timeIndex: 0, timestamp: 1,
+    bounds: [0, 0, 2, 2], nx: 2, ny: 2, values: new Float32Array(values),
+  });
+  const withTiles = (t, fn) => {
+    const prev = window.__DECODED_OM_TILES__;
+    window.__DECODED_OM_TILES__ = new Map([['k', t]]);
+    try { return fn(); } finally { window.__DECODED_OM_TILES__ = prev; }
+  };
+  const sample = (vals, variable) =>
+    withTiles(tile(vals, variable), () => sampleValueFromDecodedTiles(1, 1, variable, 0, 'GFS'));
+
+  it('PERIOD renormalises over ocean corners -- land does not drag it down', () => {
+    for (const vals of [[2, 2, 2, 2], [0, 2, 2, 2], [0, 0, 2, 2], [0, 0, 0, 2]]) {
+      expect(sample(vals, 'wave_period').value).toBeCloseTo(2.0, 6);
+    }
+  });
+
+  it('⚠️ HEIGHT zero-fills the land corners AND THEN decays the result', () => {
+    // Same function, same coordinates, same values -- only the variable name differs.
+    expect(sample([2, 2, 2, 2], 'wave_height').value).toBeCloseTo(2.0, 6);      // no land: equal
+    expect(sample([0, 2, 2, 2], 'wave_height').value).toBeCloseTo(0.975, 3);    // 1.5 * 0.65
+    expect(sample([0, 0, 2, 2], 'wave_height').value).toBeCloseTo(0.450, 3);    // 1.0 * 0.45
+    expect(sample([0, 0, 0, 2], 'wave_height').value).toBeCloseTo(0.175, 3);    // 0.5 * 0.35
+  });
+
+  it('THE REAL WORST CASE IS 11.43x, not the 2.86x the decay alone implies', () => {
+    const p = sample([0, 0, 0, 2], 'wave_period').value;
+    const h = sample([0, 0, 0, 2], 'wave_height').value;
+    expect(p / h).toBeCloseTo(11.43, 1);
+    expect(1 / 0.35).toBeCloseTo(2.857, 3);   // the decay alone -- the number I first reported
+  });
+
+  it('EVERY READING OF THE DECAY NOW FAILS, and this pins why', () => {
+    // (a) SAMPLING correction? The principled fix -- exclude land, renormalise -- is already
+    //     implemented in this same function, for period. Height gets zero-fill instead.
+    // (b) NEARSHORE PHYSICS? estimate_surf_at owns that in the backend; a client-side height
+    //     transform is a SECOND FORECAST PATH, the repo's #1 forbidden defect class.
+    // (c) CALIBRATED? No: ae9e6867 (2026-05-31) introduced 0.65/0.45/0.35 inside a commit about
+    //     EURO/ICON extended estimates, with no comment, no citation, and no calibration record
+    //     anywhere in docs/ or audit/.
+    // (d) And the BACKEND point lane does neither -- it falls back to the nearest OCEAN neighbour
+    //     and refuses only for genuinely inland points (sampler.py:365,390,429).
+    const oneLand = sample([0, 2, 2, 2], 'wave_height').value;
+    const oceanOnly = sample([0, 2, 2, 2], 'wave_period').value;   // what renormalisation gives
+    expect(oneLand).toBeLessThan(oceanOnly * 0.7);
   });
 });
