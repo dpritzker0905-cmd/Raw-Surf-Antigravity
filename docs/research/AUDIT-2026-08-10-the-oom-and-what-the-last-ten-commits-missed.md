@@ -181,6 +181,77 @@ different buoy/source population than the per-source table. Check before quoting
 
 ---
 
+## §5b THE GITHUB ACTIONS — MEASURED, AND THE HEADLINE IS NOT "FAILING"
+
+Owner asked for the failing Actions to be notated. Swept all workflows; here is what is actually
+true, in order of how much coverage it costs.
+
+### ⛔⛔ E2E: 65% OF RUNS NEVER FINISH. That is the finding, not the 15% that fail.
+
+40 most recent E2E runs: **26 cancelled · 11 success · 2 failure · 1 pending.**
+Failure rate among *completed* runs is 2/13 = **15%**. But **65% are CANCELLED** — superseded by a
+newer push, because the lane takes **~16-23 minutes** and pushes to `dev` arrive faster than that.
+Nine deploys fired between 13:57Z and 16:38Z today alone.
+
+★★★ **A CANCELLED RUN IS NOT A PASS, AND IT IS NOT A FAILURE — IT IS NO EVIDENCE AT ALL.** The
+E2E lane therefore has an opinion about roughly one commit in three. This is the same family as
+"a refusal you cannot read is a pass": the status field has three values and the habit reads two.
+⇒ It is also the strongest argument yet for the standing **BATCH PUSHES** rule: rapid pushes do not
+merely deploy repeatedly, they *destroy each other's only end-to-end evidence*.
+
+### The two real failures share a mechanism, and it is not a browser bug
+
+| run | failed | flaky | passed | projects with ✘ |
+|---|---:|---:|---:|---|
+| `d1b40987` 02:47Z | 5 | 1 | 41 | **16 × Desktop Chrome** |
+| `7e231c1b` 15:01Z | 11 | 5 | 32 | **33 × Desktop Safari + 6 × Desktop Firefox** |
+
+⭐⭐ **THE FAILING PROJECT ROTATES**, so "a WebKit bug" is refuted — my first read, and wrong. Both
+runs fail the same way: `page.goto: Operation was cancelled; maybe frame was detached?` and
+`Test timeout of 90000ms exceeded`. Navigation, not assertions.
+⚠️ `7e231c1b` is a **DOCS-ONLY commit** (one markdown file, +21 lines). A diff that touches no code
+cannot break a browser test ⇒ the cause is environmental by construction.
+
+### ⭐⭐⭐ THE READINESS GATE CHECKS IDENTITY, NOT CAPACITY
+
+`e2e-tests.yml:115` already waits for `/api/health` to report the commit under test — and its own
+comment says a clear "the backend never deployed" beats "15 rotating browser timeouts that look
+like flaky tests". It is the right idea and it verifies **the wrong quantity**: `/api/health`
+returns 200 with the correct SHA *the moment the process is up*, while the box then spends
+**~11 minutes** in boot prefetch reaching its RSS plateau, during which `grid_series` measured
+**20-37 s** per call. The gate answers "is this the right build?" and never "can it serve?".
+E2E then drives a live site whose API is saturated, and Playwright's 90 s navigation budget expires
+in whichever browser project happens to be mid-navigation — which is exactly the rotation observed.
+⇒ **Proposed fix (NOT applied): after the SHA matches, also require a representative endpoint to
+answer twice consecutively under a latency bound.** Cheap, and it converts a rotating browser
+timeout into an honest "the backend was not ready".
+⚠️ **STATED AS A HYPOTHESIS, NOT A FINDING.** It is consistent with both failures (each sits inside
+a deploy/boot window) but **`4cb9c3c6` passed at 16:01Z with a deploy at 16:01:50Z**, which the same
+mechanism would have predicted to fail. One counter-example out of three ⇒ the mechanism is
+*plausible and unproven*. The code reading — that the gate tests identity and not capacity — is
+true regardless of whether it explains every failure, and is worth fixing on its own merits.
+
+### CI: red for ~4 h on a stale test, and the widened lane is what caught it
+`4cb9c3c6` changed `_percentile_ms` to return `(value, is_overflow)`; all five production call
+sites were updated and the live payload is correct, but `test_request_telemetry.py` was left
+asserting the scalar. `backend-sim-composition-guards` went red: `collected 1666 tests across 141
+files -> 1599 passed, 1 failed`. **141 files is the widened lane from `c7099d0a`/`6e5bf70a`, and
+this is the first regression it caught — a genuine one, hours after landing.** Fixed in `c4d1c7f8`.
+
+### Everything else is green
+`Forecast Ingestion` 11/11, `Forecast Accuracy Monitor`, `LOC Governance`, `Encoding Guard`,
+`Lighthouse`, `Data Health`, `Sim Parity`, `Precompute Spot Ratings`, `keep-serve-box-warm`.
+⚠️ And three commits in the last ten have **ZERO runs** — absence of a run is not green.
+
+### ⛔ RETRACTED: the Mapbox 404 was not a defect
+The E2E console carried `AJAXError: Not Found (404): .../styles/v1/mapbox/navigation-day-v1`, which
+looked like a retired style breaking the light theme. **Refuted:** the token in the DEPLOYED bundle
+is byte-identical to the repo's, and `navigation-day-v1`, `navigation-night-v1`, `outdoors-v11`,
+`satellite-v9`, `satellite-streets-v11`, `streets-v12`, `light-v11`, `dark-v11` and `standard` all
+return **HTTP 200** with it. Transient. ★ My first probe used a token transcribed from a truncated
+log and returned **401 for everything** — and 401 is not 404, so that probe could not have
+discriminated. **A probe that cannot distinguish the two answers is not evidence for either.**
+
 ## §6 STILL OPEN, UNCHANGED BY THIS SESSION
 
 * ⚠️ **`BRAIN_RULES.md:200` still carries a committed 3-part JWT** (176 chars, claims
