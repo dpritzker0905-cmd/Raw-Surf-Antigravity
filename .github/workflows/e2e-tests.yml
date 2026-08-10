@@ -20,6 +20,20 @@ name: E2E Tests
 on:
   push:
     branches: [dev]
+    # ⛔⛔ A DOCS COMMIT CANNOT CHANGE WHAT THIS LANE TESTS, AND IT CAN DESTROY ANOTHER COMMIT'S
+    # ONLY EVIDENCE. Measured 2026-08-10 over the 30 most recent runs: 9 (30%) fired on commits
+    # touching nothing but markdown — including `7e231c1b`, a SINGLE-FILE markdown commit whose run
+    # is the only genuine E2E failure in the sample (11 failed / 5 flaky, all navigation timeouts).
+    # Worse than waste: `cancel-in-progress` below means a docs push KILLS the in-flight run of the
+    # code commit before it. From 16:25Z to 17:11Z, EIGHT consecutive runs were cancelled and not
+    # one completed — six of those commits were CODE, so end-to-end coverage over that window was
+    # zero. Two of the eight were docs.
+    # ★ This is a TRIGGER fix, not a concurrency fix — see the block below for why cancelling is
+    #   correct here and must stay.
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'audit/**'
   workflow_dispatch:
     inputs:
       base_url:
@@ -27,6 +41,15 @@ on:
         default: 'https://dev--rawsurf.netlify.app'
         required: false
 
+# ⭐⭐⭐ CANCELLING IS CORRECT HERE AND MUST STAY TRUE — the obvious "fix" for a 65% cancellation
+# rate is `cancel-in-progress: false`, and it would be WRONG. This lane drives the LIVE DEPLOYED
+# site (`E2E_BASE_URL`), not a build of the checked-out tree. A queued run for commit N would
+# therefore execute against the deployment of commit N+3 and report its verdict under N's SHA — a
+# mislabelled result, which is worse than no result. Superseded runs are genuinely obsolete the
+# moment a newer commit deploys, so killing them is honest.
+# ⇒ The cancellation rate is not a bug in this block. It is push cadence (9 deploys in 2h41m on
+#   2026-08-10) against a ~16-23 min lane, and the levers are the `paths-ignore` above and the
+#   standing BATCH PUSHES rule — not this setting.
 concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true

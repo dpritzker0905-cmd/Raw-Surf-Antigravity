@@ -574,3 +574,90 @@ def test_the_composition_list_guard_can_actually_FAIL():
     broken_sel = selected | {"test_a_file_the_chain_still_runs.py"}
     assert broken_sel - chain, "the run-twice check cannot fail — it is decoration"
     assert victim in selected                                  # the fixture is real, not invented
+
+
+# ── THE E2E TRIGGER CONTRACT (2026-08-10) ─────────────────────────────────────────────────────
+# Measured over the 30 most recent E2E runs: 9 (30%) fired on commits touching nothing but
+# markdown, and `cancel-in-progress` means such a push KILLS the in-flight run of the code commit
+# before it. From 16:25Z to 17:11Z eight consecutive runs were cancelled and none completed --
+# six of those commits were CODE, so end-to-end coverage over that window was ZERO.
+E2E_WORKFLOW = os.path.join(WORKFLOWS, "e2e-tests.yml")
+
+# Paths that MUST still trigger the lane. A `paths-ignore` is a silent kill switch if it widens:
+# `paths-ignore: ['**']` disables E2E forever and a presence-only check would pass.
+E2E_MUST_TRIGGER = ("frontend/src/App.js", "frontend/e2e/weather-simulation.spec.js",
+                    "backend/routes/weather.py", "package.json",
+                    ".github/workflows/e2e-tests.yml")
+
+
+def _e2e_yaml():
+    yaml = pytest.importorskip("yaml")
+    with open(E2E_WORKFLOW, encoding="utf-8") as fh:
+        return yaml.safe_load(fh)
+
+
+def _e2e_push_block():
+    # PyYAML parses a bare `on:` key as the BOOLEAN True (YAML 1.1 truthiness), which is why this
+    # looks up both -- a guard that only checked "on" would silently read None and pass vacuously.
+    doc = _e2e_yaml()
+    on = doc.get("on", doc.get(True))
+    assert isinstance(on, dict), "e2e-tests.yml `on:` did not parse as a mapping"
+    push = on.get("push")
+    assert isinstance(push, dict), "the push trigger is missing"
+    return push
+
+
+def test_e2e_does_not_run_on_documentation_only_commits():
+    """A docs commit cannot change what this lane tests, and it can destroy another commit's
+    only evidence. `7e231c1b` -- a SINGLE markdown file -- produced the only genuine E2E failure
+    in the 30-run sample (11 failed, all navigation timeouts, on a diff that touches no code)."""
+    ignore = _e2e_push_block().get("paths-ignore")
+    assert ignore, "paths-ignore is absent -- docs commits will trigger a ~20 min browser lane"
+    assert any(p.endswith("*.md") for p in ignore), "markdown must not trigger the lane"
+    assert any(p.startswith("docs/") for p in ignore)
+    assert any(p.startswith("audit/") for p in ignore)
+
+
+@pytest.mark.parametrize("path", E2E_MUST_TRIGGER)
+def test_the_ignore_list_never_swallows_a_path_that_must_still_run(path):
+    """KNOWN-PRESENT CONTROL, and the one that matters. A presence-only check on `paths-ignore`
+    would pass just as happily with `['**']`, which turns the whole lane off and reports green
+    forever -- the 'guard that runs nowhere' shape, self-inflicted via a trigger.
+    """
+    import fnmatch
+    ignore = _e2e_push_block().get("paths-ignore") or []
+    hit = [p for p in ignore if fnmatch.fnmatch(path, p) or (p.endswith("/**") and path.startswith(p[:-3] + "/"))]
+    assert not hit, f"{path} would be IGNORED by {hit} -- the lane would not run on real changes"
+
+
+def test_superseded_runs_are_still_cancelled_and_the_reason_is_recorded():
+    """⭐ THE OBVIOUS FIX FOR A 65% CANCELLATION RATE IS WRONG, so it is pinned against.
+
+    This lane drives the LIVE DEPLOYED site, not a build of the checked-out tree. With
+    `cancel-in-progress: false` a queued run for commit N would execute against the deployment of
+    commit N+3 and publish its verdict under N's SHA -- a MISLABELLED result, worse than none.
+    Superseded runs are genuinely obsolete the moment a newer commit deploys.
+    """
+    doc = _e2e_yaml()
+    conc = doc.get("concurrency") or {}
+    assert conc.get("cancel-in-progress") is True, (
+        "cancel-in-progress must stay true: this lane tests the LIVE deployment, so a superseded "
+        "run would report another commit's deployment under this commit's SHA")
+    # ⚠️ THIS ASSERTION WAS FIRST WRITTEN AS `"LIVE DEPLOYED" in src` AND A MUTATION PROVED IT
+    # HOLLOW: the phrase survives anywhere in a 200-line file, so gutting the explanation next to
+    # the setting left the guard green. `"x" in src` is never a real needle. Structural instead:
+    # the reason must sit in the comment block IMMEDIATELY ABOVE `concurrency:`, which is the only
+    # place a reader flipping that setting will actually look.
+    with open(E2E_WORKFLOW, encoding="utf-8") as fh:
+        lines = fh.read().splitlines()
+    idx = next(i for i, l in enumerate(lines) if l.startswith("concurrency:"))
+    preamble = []
+    for l in reversed(lines[:idx]):
+        if not l.lstrip().startswith("#"):
+            break
+        preamble.append(l)
+    block = "\n".join(preamble)
+    assert "LIVE DEPLOYED" in block, (
+        "the reason cancelling is correct must sit in the comment block directly above "
+        "`concurrency:` -- without it the next reader sees a 65% cancellation rate and flips it, "
+        f"and every superseded run then reports another commit's deployment. Found: {block[:200]!r}")
