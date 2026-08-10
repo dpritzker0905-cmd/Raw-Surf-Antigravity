@@ -8,7 +8,36 @@ what it controls, and WHERE TO FLIP IT. Nothing checked that column, and it had 
   * `RATING_TIDE` was listed as "Render env" while BOTH ingest lanes had set it to '1' since
     2026-07-18 and the code default is '0'. Anyone reading the table would conclude tide was off
     unless Render enabled it, when in fact every precomputed frame already had it baked in.
-    Measured divergence when that flag moves: 41.0% of levels.
+    ⚠️⚠️ THIS LINE USED TO READ "Measured divergence when that flag moves: 41.0% of levels." AND
+    THAT IS THE NUMBER WITHOUT ITS PREDICATE — off by ~115x as a blast radius. The 41.0% is
+    CONDITIONAL, and both conditions were dropped in transcription from its source
+    (`test_rating_composition_parity.py:139`, which states them in full):
+
+        41.0% = level divergence AT SPOTS THAT HAVE A USABLE best_tide BAND,
+                SWEPT across the whole tidal cycle (tide_norm 0.0-1.0),
+                hub-vs-glyph on a 6-spot x 6-size x 5-period x 3-wind grid.
+
+    The term that turns it into a blast radius is coverage, and it is tiny. RE-MEASURED against
+    production 2026-08-10, reproducing the source figures EXACTLY 11 days on:
+
+        spots                          1,776   (was 1,773)
+        carry a best_tide value           38   (was 38)
+        parse to a USABLE band            18   = 1.01%   (was 18 = 1.0%)
+
+    `all tides` (17 spots) and `incoming` (3) yield NO band, which is where the 38 -> 18 goes.
+        expected effect on an arbitrary viewport = 1.01% x 41.0% = ~0.4% OF SPOTS.
+    Confirmed live: after Render's `RATING_TIDE` was set to '1' on 2026-08-10, a 40-spot Florida
+    viewport on the live-fallback path moved 0 levels and 2 scores, with tide state going 0/40 ->
+    40/40 populated. 0.4% of 40 is 0.16 spots — 0 observed is the predicted outcome, not a
+    contradiction, and reading the bare 41.0% is what made it look like one.
+    ⚠️ An independent sweep the same day got 35.0% for the conditional term but a |dScore| median
+    of 0.9 against the source's 5.8, so it used a materially different grid (one synthetic
+    geometry, flag-on vs flag-off, rather than 6 real spots hub-vs-glyph). Treat 35.0% as
+    CORROBORATION OF MAGNITUDE, not as a reproduction — the source figure stands.
+    ★★★ A CONDITIONAL NUMBER COPIED WITHOUT ITS CONDITION BECOMES A DIFFERENT CLAIM. Carry the
+    predicate with the number, or carry neither.
+    ✅ The Render lane in this example is CLOSED (RATING_TIDE='1' on the live service, 2026-08-10);
+    the drift it documents was real, and the guards below are what keep it from recurring.
   * `RATING_LOCAL_SIZE` was listed as "Render env AND precompute.yml env" and was absent from
     precompute.yml, so the documented precondition for the rollout could not be satisfied. That
     flag then sat at 0 for 18 days while three separate audit failures traced back to it.
@@ -661,3 +690,27 @@ def test_superseded_runs_are_still_cancelled_and_the_reason_is_recorded():
         "the reason cancelling is correct must sit in the comment block directly above "
         "`concurrency:` -- without it the next reader sees a 65% cancellation rate and flips it, "
         f"and every superseded run then reports another commit's deployment. Found: {block[:200]!r}")
+
+
+def test_the_41_percent_figure_never_appears_without_its_predicate():
+    """⭐ THE REGRESSION THIS FILE ALREADY SUFFERED, pinned so it cannot recur.
+
+    `41.0%` is CONDITIONAL — level divergence at spots that have a usable `best_tide` band, swept
+    across the tidal cycle. Copied bare, it reads as a blast radius and is wrong by ~115x: real
+    coverage is 18/1776 spots (1.01%), so the expected effect is ~0.4% of spots, which is why the
+    live flip moved 0 of 40 levels. The number was stated bare here for eleven days.
+
+    Structural, not a substring check on the whole file: `"x" in src` is never a real needle (the
+    concurrency-rationale guard in this same file was rewritten for exactly that reason). Every
+    line mentioning the figure must sit within a few lines of the word that carries its condition.
+    """
+    with open(os.path.abspath(__file__), encoding="utf-8") as fh:
+        lines = fh.read().splitlines()
+    hits = [i for i, l in enumerate(lines) if "41.0%" in l and "test_the_41_percent" not in l]
+    assert hits, "SETUP BROKEN: the figure is not in this file at all, so this guard proves nothing"
+    for i in hits:
+        window = "\n".join(lines[max(0, i - 12):i + 13]).lower()
+        assert "band" in window, (
+            f"line {i+1} states 41.0% with no mention of the band condition within 12 lines. "
+            "A conditional number copied without its condition becomes a different claim -- "
+            "carry the predicate with the number, or carry neither.")
