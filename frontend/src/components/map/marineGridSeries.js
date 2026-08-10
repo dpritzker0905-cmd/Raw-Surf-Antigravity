@@ -426,6 +426,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
     const gotSlot = await acquireSeriesSlot(localController.signal);
     if (!gotSlot || localController.signal.aborted) {
       _inFlight.delete(key);
+      if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } } // ⛔ OUTSIDE the try/finally below so its removal never ran here: 10 added / 0 removed over 4 cycles. Do NOT move the acquire into the try (finally would over-release the slot). docs/runbooks/RATIONALE-2026-08-09-observability-and-duplicate-load-fixes.md
       return;
     }
     timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 45000);

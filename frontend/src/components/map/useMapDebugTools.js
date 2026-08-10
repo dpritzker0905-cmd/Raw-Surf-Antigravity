@@ -1,5 +1,28 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { getDispatcherDiagnostics } from '../../engine/RenderPlanDispatcher';
+import { getSimDiagnostics } from '../../engine/SimulationLoop';
+
+/**
+ * Publish a debug global as a LIVE ACCESSOR instead of a snapshot value.
+ *
+ * ⛔ WHY (2026-08-09). These were plain assignments of React props inside the effect below, and the
+ * effect had been deliberately decoupled from per-frame updates for performance (see the note at its
+ * top). That perf win silently froze the published diagnostics: measured, `window.__SIM_DIAGNOSTICS__`
+ * lagged the live engine by 1,414 frames (~23.6 s) and reported a healthy 60 Hz loop as STALLED —
+ * `frameIndex` delta 0 over 3 s from the global vs 180 from `getSimDiagnostics()`.
+ *
+ * It cost an audit four probes and two fabricated hypotheses ("the engine stalls", "the engine runs
+ * 7.5x fast") before the instrument itself was suspected. ★ A diagnostic that can be stale must
+ * either be live or carry its own timestamp; this one was neither. (`__DATA_DIAG__` below is a
+ * snapshot too, but it stamps `timestamp`, so a stale read is DETECTABLE — that is the difference.)
+ *
+ * Configurable so re-running the effect, or a test, can redefine it.
+ */
+function defineLive(name, read) {
+  try {
+    Object.defineProperty(window, name, { configurable: true, enumerable: true, get: read });
+  } catch (e) { /* a non-configurable prior definition is not worth failing the map over */ }
+}
 
 export function useMapDebugTools({
   mapInstance,
@@ -13,13 +36,28 @@ export function useMapDebugTools({
   fieldDiagnostics,
   simDiagnostics
 }) {
+  // React-owned values the effect below publishes. Held in refs so their accessors read the LATEST
+  // render rather than the last effect run — the props themselves have no module-level live getter.
+  const fceFieldRef = useRef(null);
+  const fceDiagRef = useRef(null);
+  const simDiagRef = useRef(null);
+  fceFieldRef.current = simulationField;
+  fceDiagRef.current = fieldDiagnostics;
+  simDiagRef.current = simDiagnostics;
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    window.__FCE_FIELD__ = simulationField;
-    window.__FCE_DIAGNOSTICS__ = fieldDiagnostics;
-    window.__SIM_DIAGNOSTICS__ = simDiagnostics;
-    window.__GPU_DISPATCHER__ = getDispatcherDiagnostics();
+    // ── LIVE, not snapshots (see defineLive above) ──────────────────────────────────────────────
+    // These two read straight from their engine modules, so they are correct no matter when the
+    // effect last ran — that is what makes the stale-by-23.6 s failure structurally impossible.
+    defineLive('__SIM_DIAGNOSTICS__', () => {
+      try { return getSimDiagnostics(); } catch (e) { return simDiagRef.current; }
+    });
+    defineLive('__GPU_DISPATCHER__', () => getDispatcherDiagnostics());
+    // These two are React-owned; the ref keeps them as fresh as the last render.
+    defineLive('__FCE_FIELD__', () => fceFieldRef.current);
+    defineLive('__FCE_DIAGNOSTICS__', () => fceDiagRef.current);
     // NOTE: __FCE_RENDER_PLAN__ / __SIM_FRAME__ / __SIM_EVOLUTION__ are now owned by
     // useRenderPlanBridge (written on each throttled sample without a React re-render).
     // This effect no longer depends on the per-frame renderPlan/simFrameIndex, so a

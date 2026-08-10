@@ -1,6 +1,6 @@
 /* eslint-disable no-empty */
 import { memo, useEffect, useRef, useState, useCallback } from 'react';
-import { findMarineInsertionLayer, getSharedLandGeoJSONHiRes } from './mapUtils';
+import { findMarineInsertionLayer, getSharedLandGeoJSON, getSharedLandGeoJSONHiRes } from './mapUtils';
 
 /**
  * OceanMask v15 — Pristine GeoJSON Land Masking & Dynamic Coastline Blending.
@@ -252,9 +252,9 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
       // 1. Try local 50m land GeoJSON (2.76 MB, served locally in ~50ms, 100% reliable)
       try {
         console.log('[OceanMask] Loading local ne_50m_land.json...');
-        const r = await fetch('/ne_50m_land.json');
-        if (!r.ok) throw new Error(`Status ${r.status}`);
-        const geojson = await r.json();
+        // SHARED loader, not a bare fetch (2.76 MB was pulled 3x/load); adds a 110m fallback. Why: docs/runbooks/RATIONALE-2026-08-09-observability-and-duplicate-load-fixes.md
+        const geojson = await getSharedLandGeoJSON();
+        if (!geojson) throw new Error('shared land geojson unavailable');
         const mask = buildLandMask(geojson);
         if (mask) {
           setMaskData(mask);

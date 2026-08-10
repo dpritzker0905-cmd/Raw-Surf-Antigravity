@@ -222,8 +222,15 @@ function simulationTick(dt, simTime) {
   if (_frameIndex % FIELD_EVOLUTION_INTERVAL === 0) {
     if (shouldEvolve) {
       evolveField(_evolvedField, dt * FIELD_EVOLUTION_INTERVAL, simTime);
+      // ⛔ INSIDE the guard (moved 2026-08-09). It used to sit outside, so it counted the ticks the
+      // field COULD have evolved on rather than the ones it did: measured on /map with the sandbox
+      // flag unset, `getSimDiagnostics().evolutionTicks` read 304 while `evolveField` had run ZERO
+      // times. A counter that advances when the work is skipped is not a diagnostic, it is a decoy.
+      // `FieldEvolutionEngine.getEvolutionDiagnostics` already ANDs this with `inSandbox`
+      // (:428-429), so it was compensating downstream for a number that lied upstream; now the
+      // number is true at the source and that AND is belt-and-braces rather than load-bearing.
+      _evolutionTicks++;
     }
-    _evolutionTicks++;
 
     // Re-bind particles to evolved field data
     if (_windParticles && _evolvedField.sources.wind && shouldEvolve) {
@@ -355,7 +362,16 @@ export function startSimulation() {
   _unsubUpdate = onSimulationUpdate(simulationTick);
   _unsubRender = onRender(renderCallback);
 
-  console.log('[SimLoop] Simulation started — RK4 particles + field evolution active');
+  // ⚠️ THE BANNER MUST NAME THE GATE. It used to read "RK4 particles + field evolution active",
+  // which is false on /map: `shouldEvolve` requires `window.__IN_SIMULATION_SANDBOX__ === true`
+  // (see simulationTick), so in the shipped map path `evolveField`, `_windParticles.update` and
+  // `_marineParticles.update` never run. An audit had to measure the flag to discover that the
+  // product is a forecast VISUALISER with GPU advection, not a running physics simulation — the
+  // console said otherwise on every boot. The on-screen crests come from WebGLMarineEngine /
+  // WebGLWindEngine advecting on the GPU, which is a DIFFERENT path from this loop's RK4 system.
+  const _evolving = typeof window !== 'undefined' && window.__IN_SIMULATION_SANDBOX__ === true;
+  console.log(`[SimLoop] Simulation loop subscribed. Field evolution + RK4 advection: ${_evolving
+    ? 'ACTIVE (sandbox)' : 'INERT — gated on __IN_SIMULATION_SANDBOX__; GPU engines drive the visible crests'}`);
 }
 
 /**
