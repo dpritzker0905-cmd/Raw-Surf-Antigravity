@@ -56,7 +56,7 @@ import inspect
 
 import pytest
 
-from services.weather_pipeline import sim_rating, spot_conditions, spot_ratings
+from services.weather_pipeline import sim_rating, spot_conditions, spot_ratings, surf_rating
 from services.weather_pipeline.shore_normal_asset import break_depth_at
 from services.weather_pipeline.surf_rating import compute_surf_rating, rating_score
 
@@ -139,9 +139,29 @@ SURFACES = {
                 "whole tidal cycle: 41.0% level divergence at spots that DO have a band."),
             "best_tide": SeeAlso("tide_norm"),
             "breaker_xi": (
-                "Inert everywhere today: `bathymetry.bed_slope_at` returns None until the finer "
-                "slope asset is bundled, so `breaker_type_quality` is a neutral 1.0 at every "
-                "surface including the reference. Wire it WITH the asset, not before."),
+                "⚠️ REWRITTEN 2026-08-09 — the previous text here was FALSE, and it is the founding "
+                "instance of this repo's own STALE BLOCKER class. It read: 'Inert everywhere today: "
+                "`bathymetry.bed_slope_at` returns None until the finer slope asset is bundled, so "
+                "`breaker_type_quality` is a neutral 1.0 at every surface. Wire it WITH the asset, "
+                "not before.' Both halves are wrong at HEAD. The 12.96 MB asset "
+                "(`etopo_slope_0p1.npy`) has been git-tracked since 2026-06-29 (`fa86fb53`), and "
+                "MEASURED 2026-08-09: `slope_available()` is True; `bed_slope_at` answers at 8 of 8 "
+                "spots (Teahupo'o 0.1563, Nazaré 0.0606, Trestles 0.0667, Pipeline 0.0301, J-Bay "
+                "0.0093, Hossegor 0.0071, Mavericks 0.0066, Cocoa Beach 0.0012 m/m); and "
+                "`breaker_type_quality` spans 0.854-1.000 at xi(2 m, 12 s) — NON-neutral at 5 of "
+                "those 8, not 'a neutral 1.0 at every surface'. "
+                "THE REAL BLOCKER IS THE FLAG AND THE SCIENCE, NOT THE ASSET. `RATING_BREAKER_TYPE` "
+                "defaults '0' (`spot_ratings.py:151`), so the reference SUPPLIES the factor but "
+                "resolves it to None; the hub does not wire it at all. And `science_registry.py:352` "
+                "records the classifier as *** CONTESTED ***: Moragues et al. (2020, JMSE) and "
+                "Díaz-Carrasco et al. (2020, Coastal Eng.) both find xi_0 is NOT a sufficient "
+                "breaker-type predictor — trustworthy only at the spilling/early-plunging end, i.e. "
+                "the mushy end, the opposite of the reef spots the factor was built for. "
+                "COST IF THE FLAG FLIPS: up to 14.6% of the quality factor (0.854 vs 1.0) at 5 of 8 "
+                "measured spots, applied ONLY at the reference surface until the hub wires it — so "
+                "flipping it without wiring the hub RE-CREATES `9b808d05`, a factor reaching some "
+                "surfaces and not others. Flipping is an OWNER decision; wiring the hub is the "
+                "prerequisite. ⛔ Do NOT re-waive this as 'the asset is missing'."),
             # The hub's marine lane samples cached grids, not `resolve_point`, so it cannot read
             # the response's trains — `_spectral_partitions` samples the SAME three layers from the
             # same local cache and reconciles them, gated on the SAME flag. A partition miss never
@@ -172,6 +192,48 @@ SURFACES = {
             "partitions": SUPPLIED,
         },
     },
+    # ── THE FOURTH SURFACE, enrolled 2026-08-09 ────────────────────────────────────────────────
+    # ⛔ IT WAS MISSING FOR THE WHOLE LIFE OF THIS FILE, and the docstring of `sim_rating` said so
+    # out loud: "There are exactly three surfaces that compose a rating". That sentence was FALSE —
+    # `rating_transform_grid` calls `compute_surf_rating` at surf_rating.py:768 and paints the
+    # result as the on-map RATING BAND. So the guard that exists to stop a factor reaching some
+    # surfaces and not others could not see the surface a user looks at MOST.
+    # ★ The class is this file's own: a registry that enumerates is only as good as its census.
+    #   `POST_STEP_SURFACES` below already listed "map rating band" — the FACTOR registry did not.
+    #   One file, two registries, four surfaces in one and three in the other, for months.
+    # ⚠️ Enrolling it does NOT make it agree with the reference, and it MUST NOT — a heatmap cell is
+    # a zone, not a spot. The point of the entry is that every divergence is now DECLARED and PRICED
+    # instead of invisible, and a new factor cannot reach the glyphs and skip the band in silence.
+    "rating_transform_grid (the on-map RATING BAND)": {
+        "module": surf_rating,
+        "function": "rating_transform_grid",   # the module also DEFINES the engine — see `_rating_call`
+        "factors": {
+            "wind_from_deg": SUPPLIED,
+            "shore_normal_deg": SUPPLIED,
+            "swell_from_deg": SUPPLIED,
+            "reference_size_m": SUPPLIED,   # same RATING_LOCAL_SIZE gate as the reference
+            "break_depth_m": (
+                "DELIBERATE, and the reason is a UNIT/QUANTITY mismatch, not a gap: the band's "
+                "`depth_fn` supplies the SHELF depth (p50 157-234 m) while `break_depth_m` means the "
+                "nearshore BREAK depth (p50 ~11 m). Feeding the shelf depth to the oversize gate "
+                "computes capacity from the wrong quantity and reads as a ~100 m ceiling — i.e. "
+                "silently inert, which is worse than absent. Stated at surf_rating.py:763-767. The "
+                "band uses the climatology reference where one exists and the absolute pair otherwise."),
+            "tide_norm": (
+                "A band cell is a ZONE, not a spot: `tide_fit` needs a per-spot `best_tide` prior and "
+                "an arbitrary coastal grid cell has no spot row to read one from. Same coverage "
+                "arithmetic as the hub's waiver — 18 of 1,773 spots (1.0%) carry a usable tide band — "
+                "and the band rates cells that are mostly not spots at all."),
+            "best_tide": SeeAlso("tide_norm"),
+            "breaker_xi": SeeAlso("breaker_xi"),
+            "partitions": (
+                "The band rates a GRID VECTOR carrying one combined sea state (`speed`/`period`/"
+                "`direction`); it never resolves a point response, so there is no partition list to "
+                "reconcile and no fetch that could produce one. Gated SURF_PARTITIONS is off at every "
+                "surface today, so this costs nothing now; if it flips, the band stays combined-sea "
+                "by construction and that divergence must be re-priced HERE rather than discovered."),
+        },
+    },
 }
 
 
@@ -180,26 +242,50 @@ def _optional_factors():
     return [p for p in inspect.signature(rating_score).parameters if p not in _REQUIRED]
 
 
-def _rating_call(module):
+def _rating_call(module, function=None):
     """The rating call a surface actually makes: the set of parameter NAMES it supplies.
 
     Positional args are resolved against the live signature, so a call that passes ten positional
     arguments counts as supplying the first ten parameters — and automatically stops counting one
-    of them the day somebody inserts a parameter earlier in the signature."""
+    of them the day somebody inserts a parameter earlier in the signature.
+    ★ Safe for both entry points: `compute_surf_rating` and `rating_score` were measured on
+    2026-08-09 to have IDENTICAL parameter lists in identical order, so one signature resolves
+    positional args for either.
+
+    `function` scopes the walk to ONE function. Required for a surface whose module also DEFINES
+    the engine: `surf_rating` contains BOTH the band's 6-positional `compute_surf_rating(...)` call
+    AND `compute_surf_rating`'s own 12-positional `rating_score(...)` call, so a whole-module walk
+    sees two legitimately different call sites and fails the agreement assert below for the wrong
+    reason. Measured 2026-08-09:
+        whole module          -> line 680 `rating_score` (12 factors) + line 768 `compute_surf_rating` (7)
+        scoped to the band    -> line 768 only
+    ⚠️ Scope ONLY where the module defines the engine. Scoping a normal surface would hide a second,
+    disagreeing call site elsewhere in it — which is the exact defect the agreement assert exists to
+    catch."""
     sig = list(inspect.signature(rating_score).parameters)
+    tree = ast.parse(inspect.getsource(module))
+    if function is not None:
+        scoped = [n for n in ast.walk(tree)
+                  if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == function]
+        assert scoped, (
+            f"{module.__name__} has no function {function!r}. The registry points at an entry point "
+            f"that no longer exists — rename the registry entry, do not delete the surface.")
+        assert len(scoped) == 1, f"{module.__name__} defines {function!r} more than once — ambiguous scope."
+        tree = scoped[0]
     found = []
-    for node in ast.walk(ast.parse(inspect.getsource(module))):
+    for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
         fn = node.func
         name = fn.attr if isinstance(fn, ast.Attribute) else getattr(fn, "id", None)
         if name in ("compute_surf_rating", "rating_score"):
             found.append(set(sig[:len(node.args)]) | {k.arg for k in node.keywords if k.arg})
-    assert found, f"{module.__name__} makes no rating call — did it stop being a rating surface?"
+    where = f"{module.__name__}" + (f".{function}" if function else "")
+    assert found, f"{where} makes no rating call — did it stop being a rating surface?"
     # A surface may legitimately have more than one call site; require every one to agree, else
     # the surface grades the same spot two ways depending on which branch ran.
     assert all(f == found[0] for f in found), \
-        f"{module.__name__} has rating calls that supply DIFFERENT factors: {found}"
+        f"{where} has rating calls that supply DIFFERENT factors: {found}"
     return found[0]
 
 
@@ -222,7 +308,7 @@ def test_every_optional_factor_has_a_declared_position(label):
 def test_the_registry_matches_what_the_code_actually_passes(label):
     """The declarations must be TRUE. A registry that drifts from the call is worse than none."""
     entry = SURFACES[label]
-    passed = _rating_call(entry["module"])
+    passed = _rating_call(entry["module"], entry.get("function"))
     for factor, position in entry["factors"].items():
         if position is SUPPLIED:
             assert factor in passed, (
@@ -243,7 +329,7 @@ def test_the_reference_surface_supplies_the_most():
     for label, entry in SURFACES.items():
         if entry["module"] is spot_ratings:
             continue
-        extra = _rating_call(entry["module"]) - ref
+        extra = _rating_call(entry["module"], entry.get("function")) - ref
         assert not extra, (
             f"{label} supplies {sorted(extra)}, which the REFERENCE implementation does not. "
             f"Add it to `spot_ratings.rate_one_spot` first — CLAUDE.md: mirror it, never "
@@ -261,9 +347,16 @@ _TPS = (6.0, 9.0, 12.0, 16.0, 20.0)
 
 
 @pytest.mark.parametrize("name,lat,lng,normal", _SPOTS)
-def test_all_three_surfaces_agree_exactly_with_flags_off(name, lat, lng, normal):
-    """PRODUCTION TODAY: every gated factor is off, so the three compositions must be identical.
-    This is the assertion that would have gone red for `9b808d05`."""
+def test_the_three_POINT_surfaces_agree_exactly_with_flags_off(name, lat, lng, normal):
+    """PRODUCTION TODAY: every gated factor is off, so the three POINT compositions must be identical.
+    This is the assertion that would have gone red for `9b808d05`.
+
+    ⚠️ The BAND is deliberately excluded here and it is not an oversight: it omits `break_depth_m`
+    by design (a heatmap cell is a zone, not a spot — see its registry waiver), so equality is the
+    WRONG assertion for it. Its divergence is pinned instead by
+    `test_the_band_diverges_from_the_glyph_and_by_how_much` below. Renamed from
+    "all_three_surfaces" on 2026-08-09 when the band was enrolled as the fourth surface: a test
+    whose NAME miscounts the surfaces is the same defect this file exists to catch."""
     bd = break_depth_at(lat, lng)
     assert bd is not None, f"{name} lost its break depth — fixture is stale"
     for h in _HS:
@@ -300,6 +393,63 @@ def test_the_waived_gaps_are_real_and_not_theoretical():
         "trusting the number in this file's header.")
     assert changed_by_tide / total > 0.3, (
         "RATING_TIDE no longer moves the level — re-measure the waiver's cost.")
+
+
+def test_the_band_diverges_from_the_glyph_and_by_how_much():
+    """The BAND's one substantive omission — `break_depth_m` — priced, and pinned in BOTH directions.
+
+    ⛔ WHY THIS EXISTS. Until 2026-08-09 the band was not in `SURFACES` at all, so the cost of the
+    single factor it drops was never measured by anything. An audit then reported the band and the
+    point chain disagreeing at the same coordinate. This test makes the rating-side contribution a
+    NUMBER that has to stay put.
+
+    MEASURED 2026-08-09 across 4 spots x 6 heights x 5 periods (n=120), wind 4.0 m/s, all bearings
+    on the shore normal, every gated flag off:
+
+        Mavericks           0 of 30 differ      (deep water — the capacity gate never binds)
+        Pipeline            0 of 30 differ
+        Lower Trestles      5 of 30 differ      max +2.20
+        Cocoa Beach Pier    5 of 30 differ      max +32.50
+        ALL: median +0.00, nonzero on 10/120, LEVEL differs on 5/120 (4.2%)
+        WORST: Cocoa Beach Pier, 6.0 m / 16.0 s -> glyph 33.9 `poor_fair` vs band 66.4 `fair_good`
+
+    ★ THE SIGN IS THE FINDING: the band reads HIGH exactly where a spot is depth-limited, because it
+    is the depth-capacity gate that it drops. A shallow beach break in 6 m of 16 s swell is closed
+    out; the glyph says so and the band calls it `fair_good`. Deep-water reefs are untouched.
+    ⚠️ SCOPE: this is the RATING-factor contribution ONLY. The band also derives its height through
+    `surf_transform.estimate_surf` rather than `resolve_surf_geometry` + `estimate_surf_at`, and that
+    is a SEPARATE divergence this test does not measure. Do not quote 32.5 as the total band-vs-point
+    gap — it is a lower bound on one contributor."""
+    total = nonzero = level_differs = 0
+    worst = 0.0
+    for _name, lat, lng, normal in _SPOTS:
+        bd = break_depth_at(lat, lng)
+        for h in _HS:
+            for tp in _TPS:
+                glyph = compute_surf_rating(h, tp, 4.0, normal, normal, normal,
+                                            None, None, None, None, break_depth_m=bd)
+                band = compute_surf_rating(h, tp, 4.0, normal, normal, normal,
+                                           reference_size_m=None)      # the band's actual call shape
+                d = band[0] - glyph[0]
+                total += 1
+                nonzero += abs(d) > 1e-9
+                level_differs += band[1] != glyph[1]
+                worst = max(worst, abs(d))
+
+    assert nonzero > 0, (
+        "The band no longer diverges from the glyph anywhere. Either `break_depth_m` stopped "
+        "mattering — in which case DELETE the waiver and mark it SUPPLIED — or the band quietly "
+        "started passing it. Both are good news; neither may go unrecorded.")
+    assert level_differs > 0, "The omission no longer changes a LEVEL — re-measure and re-price the waiver."
+    # ⛔ A CEILING, not a ratchet to widen. If this trips, the band got WORSE and somebody must say
+    # why — do not raise the number to make it pass. 45 leaves ~38% headroom over the measured 32.5.
+    assert worst < 45.0, (
+        f"The band-vs-glyph gap grew to {worst:.1f} points (was 32.5 on 2026-08-09). Something "
+        f"changed the capacity gate or the band's call. Re-measure before touching this bound.")
+    assert worst > 20.0, (
+        f"The band-vs-glyph gap collapsed to {worst:.1f} points (was 32.5). If the band was fixed, "
+        f"say so and re-pin; a silently shrinking gap means the fixture stopped exercising the "
+        f"depth-limited case that makes this test meaningful.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════

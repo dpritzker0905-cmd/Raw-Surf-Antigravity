@@ -6,11 +6,23 @@ Nothing about the physics changed in the move; the functions are byte-equivalent
 
 ★ WHY IT LIVES HERE, next to `spot_ratings` and `spot_conditions`, and not in the MCP server file:
 CLAUDE.md's ONE FORECAST COMPOSITION rule names `spot_ratings.rate_one_spot` as the reference
-implementation that every surface must mirror. There are exactly three surfaces that compose a
-rating — the map glyphs / precompute (`spot_ratings`), the spot hub (`spot_conditions`) and the sim
-(this module). Keeping them siblings is what lets `tests/test_rating_composition_parity.py`
-enumerate all three and fail when a new engine input reaches some of them and not others. That has
-now happened twice:
+implementation that every surface must mirror. There are FOUR surfaces that compose a rating — the
+map glyphs / precompute (`spot_ratings`), the spot hub (`spot_conditions`), the sim (this module),
+and the on-map RATING BAND (`surf_rating.rating_transform_grid`, which calls `compute_surf_rating`
+at surf_rating.py:768 and paints the score straight into the heatmap channel).
+
+⚠️⚠️ THIS SENTENCE SAID "exactly three" UNTIL 2026-08-09, AND THE BAND WAS NOT IN THE FACTOR
+REGISTRY. The count was not a typo — `tests/test_rating_composition_parity.py` enumerated the same
+three, so the guard whose entire purpose is "no engine input reaches some surfaces and not others"
+was structurally unable to see the surface a user looks at most. Enrolling it did not make it agree
+(a heatmap cell is a zone, not a spot, and it deliberately omits `break_depth_m`, tide and
+partitions — each now waived WITH its reason in that file); it made every divergence declared and
+priced instead of invisible. ★ The lesson is this repo's own: a registry that enumerates is only as
+good as its census, and the SAME file already listed four surfaces in its `POST_STEP_SURFACES`
+registry while listing three here.
+
+Keeping them siblings is what lets that test enumerate them all and fail when a new engine input
+reaches some of them and not others. That has now happened twice:
 
     `902f47a9`  the hub served the OFFSHORE height as the surf height (wrong by up to 92.7%)
     `9b808d05`  the hub's 10 POSITIONAL args stopped one short of `break_depth_m`, so it opted out

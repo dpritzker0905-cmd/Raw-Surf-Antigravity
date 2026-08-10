@@ -538,7 +538,7 @@ def breaker_type_quality(xi):
     """Breaker-TYPE quality factor [0.82..1.0] from the Iribarren number ξ0 (surf_transform.iribarren).
     PLUNGING waves (hollow, powerful — ξ0 ~0.5..3.3) are the prized type → 1.0; SPILLING (mushy, ξ0<0.5) and
     SURGING/closeout (ξ0>3.3) score lower. Bounded + gentle (breaker type REFINES, never dominates). Neutral
-    1.0 when ξ0 is unknown — so this is a no-op until a finer slope asset feeds a real Iribarren."""
+    1.0 when ξ0 is unknown. ⚠️ NOT a no-op since 2026-06-29: the finer slope asset ships and feeds a real ξ0 (0.854-1.000 measured); only RATING_BREAKER_TYPE="0" gates it."""
     if xi is None:
         return 1.0
     if xi < 0.5:                                  # spilling: ramps 0.85 (ξ→0) up to 1.0 at the plunging edge

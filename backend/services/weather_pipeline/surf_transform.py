@@ -155,8 +155,8 @@ def iribarren(slope, Hs_m, Tp_s):
     """Deep-water Iribarren (surf-similarity) number ξ0 = tan(β) / sqrt(H0/L0), L0 = gTp²/2π. Governs the
     BREAKER TYPE (Battjes 1974): the relative steepness of the BEACH (slope) vs the swell. Returns None if any
     input is missing/non-physical. `slope` is the bed slope (rise/run, m/m). NOTE: needs a true nearshore beach
-    slope to be quantitative — the bundled 0.25° ETOPO is too coarse (shelf-scale), which is why the
-    breaker-type rating factor only activates with a finer slope asset (build_bathymetry_asset.py --slope)."""
+    slope to be quantitative — the 0.25° ETOPO depth grid is too coarse (shelf-scale), so the factor reads the
+    FINER 0.1° asset. ⚠️ It SHIPPED 2026-06-29 and answers 8/8 spots; RATING_BREAKER_TYPE="0" + CONTESTED science (science_registry.py:352) gate the factor, NOT missing data."""
     if slope is None or Hs_m is None or Tp_s is None or slope <= 0 or Hs_m <= 0 or Tp_s <= 0:
         return None
     L0 = G * Tp_s * Tp_s / (2.0 * math.pi)

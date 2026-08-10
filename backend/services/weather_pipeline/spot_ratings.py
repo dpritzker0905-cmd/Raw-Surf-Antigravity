@@ -146,7 +146,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         except Exception as e:
             logger.debug(f"[spot-ratings] tide resolve failed for {spot.get('id')}: {e}")
     # Breaker TYPE (Iribarren): bed slope + swell steepness → plunging/spilling/surging quality. Gated
-    # RATING_BREAKER_TYPE (default off) AND neutral unless the FINER slope asset is bundled (bed_slope_at→None).
+    # RATING_BREAKER_TYPE (default "0"). ⚠️ 2026-08-09 dropped a FALSE "slope asset unbundled" clause — it ships since `fa86fb53`; only the flag + CONTESTED science gate it. Waiver: parity test.
     breaker_xi = None
     if os.environ.get("RATING_BREAKER_TYPE", "0") == "1":
         try:
