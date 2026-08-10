@@ -103,11 +103,19 @@ flag guarded on an unlisted input can no longer get the diluted headline in sile
    ⇒ **Flipping `SURF_TIDE_DEPTH` is user-invisible in these conditions.** It is NOT evidence of
    no effect in general: the term binds only at the depth-limited cap (~12 m offshore at
    Pipeline), and no such sea is in this 3-hour sample.
-   ⚠️ **AN OPEN DISCREPANCY, recorded rather than smoothed over:** the ledger puts tide reach at
-   **1.694%** of served spot-hours, which predicts **~8 binding rows in 486**. Observed: **0**
-   level changes, max 0.2 pts. Either the 1.694% is measured on a different predicate (input
-   present vs cap actually binding), or this window is unrepresentative. **Do not quote either
-   number as settled until that is reconciled.**
+   ✅ **THE DISCREPANCY IS RECONCILED (2026-08-10) — it was never a conflict.** I flagged that the
+   ledger's **1.694%** predicted ~8 binding rows in 486 while the A/B observed 0.
+   `test_tide_moves_the_breaking_cap`'s own docstring states the predicate: 1.694% is the share of
+   227,088 spot-hours moved by a **uniform −1.5 m STRESS OFFSET**, and it explicitly says *"Quote
+   the frame"*. The A/B used the **real persisted water levels** over a 3-hour window. Two
+   different questions; both answers stand. The term is documented as sharply selective
+   (`dFt/dη = 0.000` wherever the wave is not cap-limited), so a real-tide null over a few hundred
+   rows is exactly what it predicts. **Neither number was wrong — the comparison was.**
+   ⚠️ **AND A STALE COMMENT MADE ME WRONG:** `surf_point.py` said "NO SERVING-PATH CALLER SUPPLIES
+   IT YET" about `water_level_m`. `point_surf_augment` IS that caller (flag-gated), so flipping
+   `SURF_TIDE_DEPTH` moves **served point-lane heights**, not just an offline replay. Corrected +
+   guarded (`d4ce3397`). ⇒ **A stale comment on a flag-gated path reads true for as long as the
+   flag is off** — the day it flips is the day the claim matters.
 3. **Owner calls #5 and #6** — one value each, evidence attached.
 4. ⛔ **Do not tune either band/glyph lane** until the per-cell composition sub-term is isolated —
    that belongs to the concurrent report-11 session.
