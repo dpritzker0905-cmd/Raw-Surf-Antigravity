@@ -156,3 +156,52 @@ describe('height is penalised TWICE where period is not penalised at all', () =>
     expect(oneLand).toBeLessThan(oceanOnly * 0.7);
   });
 });
+
+
+// ── THE OPT-IN FIX (default OFF = byte-identical) ────────────────────────────────────────────
+describe('__RAW_NEARSHORE_RENORM__ routes height through the treatment period already gets', () => {
+  const tile = (values, variable) => ({
+    variable, model: 'ncep_gfswave025', timeIndex: 0, timestamp: 1,
+    bounds: [0, 0, 2, 2], nx: 2, ny: 2, values: new Float32Array(values),
+  });
+  const sample = (vals, variable) => {
+    const prev = window.__DECODED_OM_TILES__;
+    window.__DECODED_OM_TILES__ = new Map([['k', tile(vals, variable)]]);
+    try { return sampleValueFromDecodedTiles(1, 1, variable, 0, 'GFS'); }
+    finally { window.__DECODED_OM_TILES__ = prev; }
+  };
+  afterEach(() => { delete window.__RAW_NEARSHORE_RENORM__; });
+
+  it('DEFAULT OFF is byte-identical -- the twice-penalised numbers are unchanged', () => {
+    // The whole point of shipping this dark: users see exactly what they saw before.
+    expect(sample([0, 2, 2, 2], 'wave_height').value).toBeCloseTo(0.975, 3);
+    expect(sample([0, 0, 2, 2], 'wave_height').value).toBeCloseTo(0.450, 3);
+    expect(sample([0, 0, 0, 2], 'wave_height').value).toBeCloseTo(0.175, 3);
+  });
+
+  it('ON, height matches PERIOD exactly -- one treatment, not two', () => {
+    window.__RAW_NEARSHORE_RENORM__ = true;
+    for (const vals of [[2, 2, 2, 2], [0, 2, 2, 2], [0, 0, 2, 2], [0, 0, 0, 2]]) {
+      expect(sample(vals, 'wave_height').value)
+        .toBeCloseTo(sample(vals, 'wave_period').value, 6);
+    }
+  });
+
+  it('ON, the 11.43x worst case collapses to 1.00x', () => {
+    window.__RAW_NEARSHORE_RENORM__ = true;
+    const h = sample([0, 0, 0, 2], 'wave_height').value;
+    const p = sample([0, 0, 0, 2], 'wave_period').value;
+    expect(p / h).toBeCloseTo(1.0, 6);
+    expect(h).toBeCloseTo(2.0, 6);           // the ocean-only truth
+  });
+
+  it('only an EXACT true flips it -- a truthy string must not silently change a height', () => {
+    window.__RAW_NEARSHORE_RENORM__ = 'yes';
+    expect(sample([0, 0, 0, 2], 'wave_height').value).toBeCloseTo(0.175, 3);
+  });
+
+  it('the flag does not disturb period, which was already correct', () => {
+    window.__RAW_NEARSHORE_RENORM__ = true;
+    expect(sample([0, 0, 0, 2], 'wave_period').value).toBeCloseTo(2.0, 6);
+  });
+});

@@ -183,9 +183,28 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
   const raw11 = bestTile.values[idx11];
   
   const isPeriod = targetVariable.includes('period');
-  
+  const isHeightVar = targetVariable.includes('height')
+    && (targetVariable.includes('wave') || targetVariable.includes('swell'));
+
+  // ⭐ OPT-IN FIX (2026-08-10, R11-11 item 5), DEFAULT OFF = byte-identical to before.
+  // Measured at the cell centre, ocean corners 2.0 m, land corners 0..3:
+  //     period (renormalised): 2.000  2.000  2.000  2.000
+  //     height (0-fill+decay): 2.000  0.975  0.450  0.175   -> up to 11.43x LOWER
+  // The SAME function treats PERIOD correctly (exclude land, renormalise the weights) and HEIGHT
+  // twice-penalised: land counted as ZERO in the average, then multiplied by an uncalibrated
+  // 0.65/0.45/0.35. Both readings of that decay fail -- the sampling correction already exists
+  // for period right below, and nearshore PHYSICS belongs to the backend's estimate_surf_at (a
+  // client-side height transform is a second forecast path, which CLAUDE.md forbids). The
+  // constants have no calibration record: ae9e6867 introduced them inside an unrelated EURO/ICON
+  // extended-estimate commit.
+  // ⚠️ Flipping this CHANGES A DISPLAYED HEIGHT, so it stays owner-gated. Set
+  // `window.__RAW_NEARSHORE_RENORM__ = true` to route height through the SAME renormalisation
+  // period already uses and skip the decay. Pinned both ways in nearshoreDecay.proof.test.js.
+  const nearshoreRenorm = typeof window !== 'undefined'
+    && window.__RAW_NEARSHORE_RENORM__ === true;
+
   let value;
-  if (isPeriod) {
+  if (isPeriod || (isHeightVar && nearshoreRenorm)) {
     let weightSum = 0;
     let weightedVal = 0;
     
@@ -227,8 +246,10 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
             v11 * dx * dy;
   }
 
-  const isWaveHeightVar = targetVariable.includes('height') && (targetVariable.includes('wave') || targetVariable.includes('swell'));
-  if (isWaveHeightVar && value > 0) {
+  const isWaveHeightVar = isHeightVar;
+  // The decay is the SECOND half of the double penalty; the opt-in skips it because the
+  // renormalisation above already removed the contamination it was aimed at.
+  if (isWaveHeightVar && value > 0 && !nearshoreRenorm) {
     let landCount = 0;
     if (raw00 == null || isNaN(raw00) || raw00 === 0) landCount++;
     if (raw10 == null || isNaN(raw10) || raw10 === 0) landCount++;
