@@ -523,7 +523,21 @@ jobs:
           # ★ THAT READING IS ALSO THE CONTROL ON THIS COMMIT'S REFACTOR: it is the last run of the
           # OLD `ls` glob, and `--lane guards`, which replaced it, selects the same 148. The swap is
           # collection-neutral, measured on both sides rather than asserted.
-          MIN_FILES, MIN_PASSED = 148, 1676
+          # ⬆ MIN_PASSED 1676→1685 on 2026-08-11, from the FIRST POST-MERGE run — which also settled
+          # the control above: `--lane guards` collected exactly 148 files, so the swap off the `ls`
+          # glob is confirmed collection-neutral IN CI and not merely on a workstation.
+          # ⚠️ AND THIS ENTRY RECORDS MY OWN BREACH OF THE RULE ONE LANE BELOW. `9857a325` added 9
+          # tests to test_flag_lane_parity.py — a file THIS lane collects — without moving this floor
+          # in the same commit, which is precisely what the chain lane's capitalised instruction
+          # forbids, committed in the change that shipped the mechanism for catching it. The new
+          # staleness gate did NOT redden it (lag 15 against a budget of 25), and that leniency is
+          # why this entry exists: a floor 15 low is 15 tests that can vanish in silence, and a
+          # budget wide enough to be useful is also wide enough to let a small lag sit.
+          # From the gate's OWN run on origin/dev @ 9857a325 (run 31514754043): "collected 1758
+          # tests across 148 files -> 1691 passed, 67 skipped, 0 failed, 0 errors". The +9 over the
+          # prior 1749 is fully attributed — test_flag_lane_parity 23→32, test_sim_mcp_shim unchanged
+          # at 5 — so this is bookkeeping, not new coverage. 1685 restores the customary 6 below.
+          MIN_FILES, MIN_PASSED = 148, 1685
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -855,15 +869,19 @@ jobs:
           #   removes them. The file is 9 tests, 7 passed / 2 skipped locally, so this lane drops by
           #   7-9 — and gains 8 from tests/test_ci_floor_staleness.py, which the complement claims.
           #   Net expectation: 331 - (7..9) + 8 = 330-332.
-          # ★ 320 IS DELIBERATELY LOOSER THAN THE USUAL TWO-BELOW, and the looseness is the point.
-          #   330-332 rests on TWO stacked estimates (how the file's 2 conditional tests behave on
-          #   the runner, and that all 8 new tests pass there). A floor of 328 would sit one off a
-          #   bound I have not observed, and a floor ABOVE achievable fails the lane with zero test
-          #   failures — the recorded 250-over-244. The new staleness gate tolerates this lag (12
-          #   against a budget of 25), so being loose here costs nothing and cannot hide.
-          # ★ STILL PROVISIONAL: 330-332 is derived, not observed. Read this lane's next green run
-          #   and set the floor two below what it actually reports.
-          MIN_PASSED = 320
+          # ⬆ 320→328 on 2026-08-11 — the provisional floor RESOLVED against its first post-merge
+          #   reading, which is exactly what the entry it replaces instructed. From the gate's OWN
+          #   run on origin/dev @ 9857a325 (run 31514754043): "estate: 253 files selected, 251
+          #   produced results, 330 passed, 0 silent." 328 is the customary two below.
+          # ★★ THE DERIVATION HELD, AND ITS UNCERTAINTY RESOLVED THE OPPOSITE WAY FROM LOCAL.
+          #   331 - 9 + 8 = 330 means ALL NINE of test_health_peak_memory's tests passed on the
+          #   runner — including the 2 that SKIP on a workstation. 320 was shipped as the lower
+          #   bound of a 330-332 range precisely because that split was unknown; a point estimate
+          #   taken from the local 7-passed/2-skipped reading would have put this floor at 332, TWO
+          #   ABOVE achievable, failing the lane with zero test failures (the 250-over-244 shape).
+          #   ⇒ WHEN A PREDICTION HAS A LOCAL BRANCH AND A CI BRANCH, SHIP THE LOWER BOUND AND
+          #     RESOLVE IT FROM THE GATE. This pair of entries is the worked example.
+          MIN_PASSED = 328
 
           try:
               root = ET.parse('estate.xml').getroot()
