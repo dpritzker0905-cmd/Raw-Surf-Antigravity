@@ -23,8 +23,11 @@ Upgraded from 11.1's *ON TRACK WITH CORRECTIONS*. Three things changed the pictu
    matched-load result independently.
 3. **The forecast chain is still bit-identical** across everything both sessions shipped.
 
-One item moves *up* the risk table and is now the single largest open exposure: **the height flip
-changes the default map display by a median 3× with no accuracy validation.**
+One item moved *up* the risk table as the single largest open exposure — **the height flip changes
+the default map display by a median 3× with no accuracy validation** — and then **Mission 1 closed
+it in the same session**: measured against the buoy-scored point lane at 130 real spots, ON is
+closer by ~645× (0.0004 m vs 0.2579 m). §4 is superseded; see
+`MISSION_1_HEIGHT_FLIP_VALIDATION.md`.
 
 ## 1.1 What is now proven that was not at 11.1
 
@@ -123,7 +126,15 @@ defect of 11.1, and the reason T-CAP-01/02 are downgraded to corroborating rathe
 
 ---
 
-# SECTION 4 — THE HEIGHT FLIP: THE LARGEST OPEN EXPOSURE
+# SECTION 4 — THE HEIGHT FLIP ~~: THE LARGEST OPEN EXPOSURE~~ → **RESOLVED**
+
+> ⚠️ **THIS SECTION IS SUPERSEDED, AND KEPT AS WRITTEN.** It correctly identified the flip as the
+> largest open exposure *on the evidence available when it was written*. **Mission 1 then ran the
+> test this section specifies and the flip CLEARED it** — ON reproduces the buoy-scored lane to
+> ~0.4 mm (0.0004 m mean vs 0.2579 m OFF, 130 real spots). Verdict: **keep the flip**, Gate B → PASS.
+> Full result: `MISSION_1_HEIGHT_FLIP_VALIDATION.md`. The analysis below stands; only its
+> *unvalidated* status changed.
+
 
 `679da3d9` flips `__RAW_NEARSHORE_RENORM__` **ON by default**
 (`window.__RAW_NEARSHORE_RENORM__ !== false`).
@@ -151,11 +162,11 @@ nothing selected the decayed tile value is shown **directly**.
 0.202 m at +24 h, paired). The tile lane is not. **Compare the tile sampler against the point lane
 at the same coordinates** — if ON brings them into agreement, the tile lane inherits the point
 lane's validation and the flip is corroborated by the one lane that is checked against buoys. If ON
-pushes them apart, the flip is wrong. **Neither session has run this test.** It is Mission 1 below.
+pushes them apart, the flip is wrong. ~~Neither session has run this test.~~ **Mission 1 ran it. ON wins by ~645×.**
 
-*(11.2 could not run it within budget: the renorm lives inside `sampleValueFromDecodedTiles`, which
-reads `window.__DECODED_OM_TILES__`, so it needs their tile harness plus a point-lane fetch. Stated
-rather than skipped.)*
+*(11.2 initially deferred this for budget. **It was then run** — a jest harness over a real
+25×29 production grid, 130 spots, with an orientation control that had to pass first. Result in
+§4-resolved above.)*
 
 ---
 
@@ -236,7 +247,7 @@ exist, so no CI green has ever proven the marine field paints.
 
 # SECTION 9 — NEXT THREE MISSIONS
 
-### Mission 1 — Validate the height flip against the lane that IS scored
+### ~~Mission 1~~ — ✅ **DONE, same session.** Validate the height flip against the lane that IS scored
 **Why first:** it is the only open item that changes a number on the default screen, by a median 3×,
 with no observational check. Everything else is infrastructure.
 **Do:** run the tile sampler (ON and OFF) and `/api/weather/point` at the same coordinates across
