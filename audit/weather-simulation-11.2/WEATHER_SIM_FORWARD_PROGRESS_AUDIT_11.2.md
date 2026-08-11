@@ -102,6 +102,24 @@ RSS never returning. Pinning it at 128 KB disables that.
 +156.7 MB and a closed OOM are both true: the delta was arena high-water that glibc refused to
 return, not a leak. 11.1 measured the symptom correctly and named the wrong remedy.
 
+### ⚠️ AMENDED — this attribution was ONE INTERVENTION SHORT
+
+`712e3bac` (concurrent session, after 11.2 was written) fixed a **second** memory ratchet this audit
+never saw: `periodic_l2_restore` re-parsed a 20,007-entry manifest **every 30 minutes** —
+`json.loads` (~17 MB) + `model_validate` (~93 MB) while the old cached manifest was still
+referenced — and writing it back rewrote mtime, busting `get_manifest`'s mtime-keyed cache so the
+next reader re-parsed too. Measured: **RSS +74.8 then +76.6 MB across two consecutive 25-min windows
+with `disk_product_count` FLAT at 618.** Their fix hashes the downloaded bytes and skips the cycle
+when unchanged; both branches verified in production (`UNCHANGED → skipped, cost ~0`;
+`CHANGED 20007→19989 → +65 MB with disk flat at 933`).
+
+**So the memory arc had FOUR interventions, not three:** `0d9149b7` (build-time bound),
+`PREFETCH_*`, `MALLOC_TRIM_THRESHOLD_`, and now the manifest re-parse skip. §2's Window A still
+isolates `0d9149b7` correctly — the manifest fix postdates the whole clean window — but **any
+capacity figure quoted from this audit is now one fix behind**, and the 48 h OOM re-read should be
+read against the post-`712e3bac` box, not this one.
+⏳ Their open clock: the ratchet's **long-run rate** is one skip and one parse observed, not a day's.
+
 ---
 
 # SECTION 3 — MY OWN 11.1 METHODOLOGY, TESTED AGAINST THEIR CRITIQUE
@@ -226,6 +244,24 @@ measurement apparatus around it is where the defects concentrate.
 | `forecast_confidence` in the six sim tools | zero | unchanged |
 | R11-13 integrity chain (checksums) | zero | unchanged |
 
+### ⛔ AND ONE THING THAT MOVED THE WRONG WAY — a P1 I shipped
+
+`d68f6f2d` (my load-time stride) introduced a live production regression that this audit's own
+blast-radius testing did not catch: `series_stride` reaches `_load_kw` as a FastAPI **`Query`
+object** when `get_grid` is called programmatically as the injected resolver, and `Query(None)` is
+truthy, so `(series_stride or 0) > 1` raised `TypeError`. **98 occurrences in 13 minutes**; the
+route caught it, so each was a grid request that returned nothing rather than a 500.
+
+Found by the **concurrent session's production log review**, not by any suite. Fixed in `ec2be9ea`
+(normalise at the route call site + `_load_kw` coerces and fails open), test-first (5 failed → 13
+passed), mutation 2/2.
+
+> ★★★ **A TEST DOUBLE THAT DOES NOT REPRODUCE THE PRODUCTION *DEFAULT* IS NOT A DOUBLE.** My wiring
+> test injects `async def resolve_grid(..., series_stride=None)`. A plain function's default IS
+> None; the production resolver's is a `Query`. 421 tests across 12 globs, a 6-arm mutation battery
+> and the full 143-file composition lane all used the same wrong default. **The signature matched
+> and the value did not.**
+
 ---
 
 # SECTION 8 — GATES
@@ -277,3 +313,58 @@ printed, logged or committed. The credential at `BRAIN_RULES.md:200` is referenc
 ⚠️ **A concurrent session worked this tree throughout both 11.1 and 11.2**, pushing 4 commits and
 triggering 6 deploys during the measurement windows. Every live figure here carries the SHA and
 timestamp it was taken at.
+
+---
+
+# SECTION 11 — RECONCILIATION WITH THE CONCURRENT SESSION'S 08-11 HANDOFF
+
+Added after `HANDOFF-2026-08-11-the-memory-arc-closed-and-three-attributions-i-got-wrong.md` landed.
+Two sessions worked this tree in parallel; this section states where the two records agree, where
+each is stale, and what neither caught.
+
+## 11.1 Independent agreement — four results, two routes each
+
+| result | theirs | mine |
+|---|---|---|
+| OOM root cause + "a budget after assembly is a transfer budget" | §1 | 11.1 §2 |
+| `MALLOC_TRIM` at matched load | 590→1,445.3 MB / 554→784.0 / 582→794.8 | **618→789.1** (third series) |
+| height flip A/B ratio | 93 spots, p50 3.00× / **max 10.68×** | 130 spots, p50 2.92× / **max 10.68×** |
+| "losing to persistence" is a pairing artifact | 0.186 vs 0.203, n 64 vs **7** | 0.181 vs 0.199, different window |
+
+**Convergent refutation from independent routes is the strongest form in this record.** The
+height-flip max agreeing to the decimal across different spot sets and hours is the single best
+cross-check either session produced.
+
+## 11.2 Where THEIR handoff is now stale
+
+| their claim | correction |
+|---|---|
+| §4 / §7 — *"Not proven: accuracy — no buoy validates this sampler"* | **Superseded by Mission 1**, run after they wrote it: 130 spots vs the buoy-scored point lane, **0.0004 m ON vs 0.2579 m OFF**. The flip is validated. Their §7 "height accuracy unvalidated" should be struck. |
+| §6 — *"the composition list exists **TWICE**"* | It exists **THREE** times. `backend/scripts/ci_test_lanes.py` holds a stale 41-pattern copy missing the six memory-safety globs, so `--assert-partition` reports OK about a lane split CI does not execute. Filed as its own task. |
+
+## 11.3 Where THIS audit was stale
+
+| my claim | correction |
+|---|---|
+| §2 — the memory arc had three interventions | **Four.** `712e3bac`'s manifest re-parse skip postdates 11.2; see the amendment in §2. |
+| §7 — the open-items table | **Incomplete.** It omitted a P1 I had myself shipped; added in §7. |
+
+## 11.4 What NEITHER session's testing caught
+
+The `series_stride` `Query`-object P1 was found by **reading production logs** — not by 421 tests
+across 12 globs, not by a 6-arm mutation battery, not by the full 143-file composition lane, and not
+by CI, all of which were green.
+
+> ★★★ Across this window the two sessions logged **four wrong attributions, six instrument failures,
+> and one production regression.** Every instrument failure was caught by a precondition or a
+> control. **The regression was caught by neither — it was caught by the box.**
+> That is the argument for the two items still at the top of the queue: the **external uptime probe**
+> (P0 in Report 11.0's own table, open across three audits) and the **pixel oracle**. A suite that
+> is green while production degrades is the exact condition both of those exist to end.
+
+## 11.5 Net effect on the verdict
+
+**Unchanged: ON TRACK.** The P1 was found, attributed, fixed test-first and mutation-proven inside
+the same window it appeared in — which is the loop working, not failing. Gate D stays
+**CONDITIONAL** and is now doubly justified: the pixel oracle still does not exist, *and* a shipped
+regression proved the existing suites can be green through one.
