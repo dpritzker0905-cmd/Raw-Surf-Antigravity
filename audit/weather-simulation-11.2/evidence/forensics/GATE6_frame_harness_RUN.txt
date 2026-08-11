@@ -1,0 +1,39 @@
+### RUN 2026-08-11, host RTX 3060 Laptop, Playwright 1.60.0 chromium-1223
+### cmd: HEADED=1 node GATE6_frame_harness.js https://dev--rawsurf.netlify.app/map 8
+
+launch mode: HEADED
+=== 1. CAPABILITY ===
+{
+ "webgl": true,
+ "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+ "vendor": "Google Inc. (NVIDIA)",
+ "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Laptop GPU (0x00002520) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "dpr": 1,
+ "hidden": false,
+ "visibility": "visible"
+}
+
+=== 2. POSITIVE CONTROL — dose-response ladder (8s per arm) ===
+  inject   0ms every 5th frame -> {"frames":240,"p50":33.3,"p95":33.5,"p99":33.5,"max":33.6,"over50ms":0,"over100ms":0}
+  inject 100ms every 5th frame -> {"frames":172,"p50":33.4,"p95":100,"p99":100.1,"max":100.2,"over50ms":34,"over100ms":9}
+  inject 300ms every 5th frame -> {"frames":95,"p50":33.4,"p95":300,"p99":300.1,"max":300.1,"over50ms":19,"over100ms":19}
+
+--- CONTROL VERDICT ---
+  frames observed (>= 40)        : 240  => PASS
+  p95 rises monotonically with dose      : 33.5 -> 100 -> 300  => PASS
+  p95 registers >=60% of injected stall   : 100/100, 300/300  => PASS
+  NEGATIVE control: idle reports no jank : over50ms=0  => PASS
+
+✅ HARNESS CERTIFIED — it resolves frames and detects injected jank.
+
+=== 3. TARGET: https://dev--rawsurf.netlify.app/map ===
+target readiness : {"url":"https://dev--rawsurf.netlify.app/map","hasMap":true,"canvases":1,"customLayers":["webgl-marine-particles","webgl-wind-particles"],"bodyText":"Skip to main content Raw Surf Your Role 🏄 Surfer Home Notifications Explore Map Create Messages Profile Settings Admin ","gpu":{"textureCount":2,"textureUploadCount":2},"parity":null,"marineDiag":{"active":null,"vectorCount":0}}
+weather sim active: NO (marine vectorCount=0)  <- Gate 6 asks about the ACTIVE sim
+  ⚠️  Frames below are the map AT REST. A registered custom layer with zero vectors
+      draws nothing, so this is NOT a measurement of the weather simulation and
+      must not be cited for Gate 6. Activate a weather layer, confirm vectorCount>0,
+      then re-run. Reported anyway as a documented FLOOR, clearly labelled.
+target capability: {"webgl":true,"version":"WebGL 2.0 (OpenGL ES 3.0 Chromium)","vendor":"Google Inc. (NVIDIA)","renderer":"ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Laptop GPU (0x00002520) Direct3D11 vs_5_0 ps_5_0, D3D11)","dpr":1,"hidden":false,"visibility":"visible"}
+target frames    : {"frames":240,"p50":33.3,"p95":33.6,"p99":33.7,"max":33.7,"over50ms":0,"over100ms":0}
+
+⚠️  Interpret against the CONTROL above, and against the renderer in section 1.
