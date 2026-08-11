@@ -5,7 +5,13 @@ bounds. Nothing below is a finding; these are the limits on the findings.
 
 ---
 
-## G-01 · Whether `oomKilled` events have actually stopped — **BLOCKS the capacity verdict's severity**
+## G-01 · Whether `oomKilled` events have actually stopped — ⚠️ **SUPERSEDED: CLOSED at the end of this file**
+
+> ⛔ **THE TEXT IMMEDIATELY BELOW IS THE ORIGINAL, AND ITS PREMISE WAS WRONG.** It says no Render
+> credential was available. One was: `RENDER_API_KEY` sits in `backend/.env`, gitignored. I recorded
+> the gap as owner-gated **without grepping for the key** — the "absence is a claim, grep first"
+> rule, violated in the very document whose job is to bound what I did not check. Kept verbatim
+> rather than rewritten, because the error is the point. **Read the CLOSED section at the bottom.**
 
 **What is missing:** the Render service events feed (`/v1/services/{id}/events`), which the
 2026-08-10 audit used to count *7 OOM kills in 15 h*.
@@ -179,3 +185,50 @@ the unit-level guards for those scenarios.
 
 **What it bounds:** "no stale response can overwrite current state" is carried forward from Report
 11.0's source verification plus green unit tests, not from a live race reproduction.
+
+---
+
+## G-01 — **CLOSED 2026-08-11T00:50Z.** The Render events API was reachable after all.
+
+`RENDER_API_KEY` is present in `backend/.env` (gitignored, never committed). Read-only GET,
+1,200 events paginated, 2026-08-02T19:14Z → 2026-08-11T00:39Z. Key value never printed or logged.
+
+### The data
+
+**26 `oomKilled` events** (`reason: {evicted:false, oomKilled:{memoryLimit:"2Gi"}}`), spanning
+2026-08-02T20:26Z → **2026-08-10T13:09:19Z**.
+
+| window | oomKilled |
+|---|---:|
+| all time on record | **26** |
+| the 15 h before `0d9149b7` (13:57:42Z) | **6** |
+| **since `0d9149b7`** (10.9 h) | **0** |
+| since the load-time stride `d68f6f2d` (0.7 h) | 0 |
+
+**The newest OOM is 48 minutes BEFORE the `0d9149b7` fix landed. There has not been one since.**
+
+### ⚠️ AND IT DOES NOT YET DISCRIMINATE — the calibration that stops this being a false victory
+
+Pre-fix inter-OOM gaps (hours), largest first: **44.6, 31.3, 27.6, 27.6, 16.3, 10.1, 6.0, 5.5 …**
+median **1.3 h**, mean 7.4 h. **5 of 25 pre-fix gaps (20 %) were ≥ 10.9 h.**
+
+> A 10.9 h clean window sits comfortably inside the pre-fix distribution. It is **8× the median
+> gap** — genuinely encouraging — but one in five pre-fix gaps was at least this long, so it cannot
+> yet separate "fixed" from "quiet". **A clean run past 44.6 h would exceed every pre-fix gap and
+> settle it.**
+
+### What this corrects, and what it does not
+
+**Corrected:** any reading of this audit that implies OOM kills are *continuing*. They are not —
+zero in 10.9 h, and the commit title `"the OOM fix does not close the OOM"` is **too strong**. The
+`0d9149b7` fix is doing more operationally than its per-request metric suggested, which is
+consistent with the mutation arm that measured its retention bound at ~12×.
+
+**Unchanged and still measured:** the per-request resident cost is **+156.7 / +201.6 / +812.8 MB**
+across three replicates against verified-flat plateaus, not the recorded `+0.0 MB`; the size-scaling
+control (small bbox +5.7 MB vs global +812.8 MB) attributes it to the request; and the
+saturated-baseline mechanism that produced `+0.0` is real. A high per-request delta and zero OOMs
+are both true: the delta is arena high-water that plateaus, not a quantity that compounds per page.
+
+**GATE E stays FAILED — on the gap length, not on a belief that the box is still dying.** Re-read
+the counter at the 48 h mark (2026-08-11T13:57Z) and again at 72 h. If both are clean, close it.
