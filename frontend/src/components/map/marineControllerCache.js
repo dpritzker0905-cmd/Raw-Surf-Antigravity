@@ -151,7 +151,10 @@ export function _isAllVarModel(model) {
   return true;
 }
 
-export function _cacheMarineResult(model, hourOffset, data, layer, silent = false) {
+// `requestTileId` (2026-08-11, T-2' step 3) — the tile id the CALLER asked for, i.e.
+// `clampViewportBbox(viewport).selectedTileId`. Optional and defaulted, so any call site that does
+// not pass it keeps today's behaviour byte-for-byte. See the REQUEST-KEY ALIAS note below.
+export function _cacheMarineResult(model, hourOffset, data, layer, silent = false, requestTileId = null) {
   if (!data) return;
   // Do not cache empty / non-renderable grids. An HTTP-200 response carrying zero
   // vectors is typically a *transient* absence of data — e.g. a far-hour slice of a
@@ -208,6 +211,27 @@ export function _cacheMarineResult(model, hourOffset, data, layer, silent = fals
   const _aliasOff = typeof window !== 'undefined' && window.__RAW_DISABLE_GLOBAL_TILE_ALIAS__ === true;
   if (!_aliasOff && _aw >= 340 && tileId !== GLOBAL_LOOKUP_TILE_ID) {
     _perModelHourCache.set(`${model || 'GFS'}_${layerPart}_${GLOBAL_LOOKUP_TILE_ID}_${hourOffset}`, entry);
+  }
+
+  // ⛔ REQUEST-KEY ALIAS (T-2' step 3, 2026-08-11) — the world alias above fixes ONE case; the
+  // desync is general. MEASURED live on the activation hot path (audit 11.2,
+  // T2PRIME_STEP3_MISS_RATE_MEASUREMENT.md): **19 exact-key checks, 0 hits — a 100% miss rate**,
+  // with all 10 cache-resolved lookups served by the O(N) containment scan. The world alias
+  // rescued 0 of those 19, because none of the traffic was world-width.
+  // WHY: this function keys off `data.tile_id` — the SERVED tile. Every reader keys off
+  // `clampViewportBbox(viewport).selectedTileId` — the REQUESTED tile. For a viewport product the
+  // backend returns its own snapped bbox, so the two strings are structurally different:
+  //     read : GFS_waves_viewport_-82.25_26.75_-79.00_30.00_0   (requested, clamp-snapped)
+  //     write: GFS_waves_viewport_-80.00_24.00_-76.00_28.00_0   (served)
+  // They can never be equal, so the O(1) index is dead weight and the cache degrades to a scan.
+  // ★ Mirror the SAME entry object under the key the readers actually use. Additive: the
+  //   response-derived key above is still written, so nothing that reads it today changes.
+  // ★ NOT a correctness fix — the containment scan is already deterministic (tightest-containing,
+  //   516a7200), so a scan-resolved lookup returns the right grid. This is the O(N) -> O(1) half.
+  // Kill: window.__RAW_DISABLE_REQUEST_TILE_ALIAS__ = true.
+  const _reqAliasOff = typeof window !== 'undefined' && window.__RAW_DISABLE_REQUEST_TILE_ALIAS__ === true;
+  if (!_reqAliasOff && requestTileId && requestTileId !== tileId) {
+    _perModelHourCache.set(`${model || 'GFS'}_${layerPart}_${requestTileId}_${hourOffset}`, entry);
   }
 
   if (!silent && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
