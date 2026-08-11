@@ -58,3 +58,21 @@ export function servedResolutionNotice(resolutionDeg, resolutionSource) {
 
   return { label, title, km, deg };
 }
+
+
+/**
+ * The legend row itself, so each of MapWeatherControls' THREE layouts costs one line instead of
+ * five. That file is grandfathered over the 800-LOC ratchet and may only SHRINK — putting the
+ * markup here is what keeps this feature from growing it.
+ *
+ * Renders nothing when there is nothing worth saying. Text label + title, never colour alone
+ * (CLAUDE.md accessibility mandate); colour comes from the caller's theme-aware class.
+ */
+export function ServedResolutionRow({ notice, className = '', size = '8' }) {
+  if (!notice) return null;
+  return (
+    <div className={`text-[${size}px] ${className} mt-0.5 px-0.5`} title={notice.title}>
+      {notice.label}
+    </div>
+  );
+}

@@ -1,3 +1,4 @@
+import React from 'react';
 /**
  * T-1 item 3b — surface grid COARSENESS in the legend (the user-facing surface).
  *
@@ -97,5 +98,31 @@ describe('servedResolutionNotice', () => {
     for (const deg of [0.05, 0.1, 0.25, 0.4, 0.5]) {
       expect(servedResolutionNotice(deg, 'derived_from_served_grid')).toBeNull();
     }
+  });
+});
+
+// ── the opt-in seam: LegendTicks renders the row for the LAYER key only ─────────────────────
+describe('LegendTicks resolution opt-in', () => {
+  const { render, screen } = require('@testing-library/react');
+  const { LegendTicks } = require('./legendTicks');
+  const ticks = [{ label: '1', pct: 0 }, { label: '2', pct: 100 }];
+
+  beforeEach(() => { window.__MARINE_PROJECTION_DIAG__ = { resolution: 15.455, resolutionSource: 'derived_from_served_grid' }; });
+  afterEach(() => { delete window.__MARINE_PROJECTION_DIAG__; });
+
+  test('shows the coarseness row when opted IN', () => {
+    render(<LegendTicks ticks={ticks} showResolution />);
+    expect(screen.getByText(/km grid/)).toBeInTheDocument();
+  });
+
+  test('stays SILENT when not opted in — the surf-rating key must not double-show it', () => {
+    render(<LegendTicks ticks={ticks} />);
+    expect(screen.queryByText(/km grid/)).toBeNull();
+  });
+
+  test('silent on a native grid even when opted in', () => {
+    window.__MARINE_PROJECTION_DIAG__ = { resolution: 0.25, resolutionSource: 'derived_from_served_grid' };
+    render(<LegendTicks ticks={ticks} showResolution />);
+    expect(screen.queryByText(/km grid/)).toBeNull();
   });
 });

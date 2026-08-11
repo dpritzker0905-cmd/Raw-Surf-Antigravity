@@ -1,3 +1,4 @@
+import { servedResolutionNotice, ServedResolutionRow } from './servedResolutionNotice';
 import React from 'react';
 
 /**
@@ -76,9 +77,18 @@ export function tickTransform(pct) {
  *  positions; `justify-between` here is what put rain's "6" 47 pp from its own colour.
  *  `pct` is measured on the SAME axis as the bar above it, so the container must be the bar's
  *  width with no horizontal padding, or every tick inherits the padding as an offset. */
-export function LegendTicks({ ticks, className }) {
+// `showResolution` is OPT-IN and belongs here rather than at the three call sites: every layout
+// renders LegendTicks directly under its gradient, so this is the one seam that reaches the
+// desktop panel, the collapsed mobile float and the expanded mobile sheet at once — and it keeps
+// MapWeatherControls (grandfathered over the 800-LOC ratchet, shrink-only) from growing at all.
+// Opt-in because the surf-RATING band renders its own LegendTicks; the grid coarseness belongs to
+// the data layer's key, not to the rating key, and showing it twice would be noise.
+export function LegendTicks({ ticks, className, showResolution = false }) {
   if (!Array.isArray(ticks) || ticks.length === 0) return null;
+  const d = (showResolution && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) || null;
+  const notice = d ? servedResolutionNotice(d.resolution, d.resolutionSource) : null;
   return (
+    <>
     <div className={`relative w-full ${className || ''}`} style={{ height: '0.85rem' }}>
       {ticks.map((t, i) => (
         <span
@@ -90,5 +100,7 @@ export function LegendTicks({ ticks, className }) {
         </span>
       ))}
     </div>
+    <ServedResolutionRow notice={notice} className={className} />
+    </>
   );
 }
