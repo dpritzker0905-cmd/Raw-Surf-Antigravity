@@ -5,6 +5,7 @@ import { API_BASE } from '../../lib/apiClient';
 import { BUILD_VERSION } from '../../buildVersion';
 import { TruthOverlayVisualTab } from './TruthOverlayVisualTab';
 import { TruthOverlayGpuTab } from './TruthOverlayGpuTab';
+import { resolveTruthVerdict } from './truthVerdict';
 
 // PROD GATE (2026-07-19). This HUD was mounted UNCONDITIONALLY by MapWebGL — a 360px dark
 // diagnostics panel fixed bottom-left over the live map for EVERY production user (nearly
@@ -260,9 +261,13 @@ var TruthOverlay = ({
   // Only a genuine refusal earns the amber badge. NOT_APPLICABLE (no point selected) is the normal
   // resting state — it is qualified on the green row instead, so the row never implies that
   // heatmap-vs-infobox parity was actually verified when it could not have been.
-  const parityUnverified = __parity?.status === 'UNSAMPLED';
-  const parityUnverifiedWhy = (__parity?.unsampledReasons || []).join(' · ');
-  const parityNotApplicable = __parity?.status === 'NOT_APPLICABLE';
+  // ⛔ The branch set below used to be computed inline here, and named only UNSAMPLED and
+  // NOT_APPLICABLE — so MISMATCH (a REAL disagreement) and a missing instrument both fell through
+  // to green. `resolveTruthVerdict` is now the single decision, exhaustive over the status set.
+  const __verdict = resolveTruthVerdict(truthIssues, __parity, typeof window !== 'undefined' ? window : {});
+  const parityUnverified = __verdict.kind === 'unverified';
+  const parityUnverifiedWhy = (__verdict.parityReasons || []).join(' · ');
+  const parityNotApplicable = __verdict.notApplicable;
   // ★ Two DIFFERENT absences, and conflating them would just relabel the same lie:
   //   - nothing rendered at all            => NO DATA
   //   - something rendered, provenance lost => UNVERIFIED SOURCE (never "authoritative")
@@ -339,10 +344,13 @@ var TruthOverlay = ({
             width: '8px',
             height: '8px',
             borderRadius: '50%',
-            background: truthIssues?.length > 0 ? '#ef4444' : (isTransitioning ? '#fbbf24' : '#10b981'),
-            boxShadow: truthIssues?.length > 0 
-              ? '0 0 12px #ef4444, 0 0 4px #ef4444' 
-              : (isTransitioning ? '0 0 12px #fbbf24, 0 0 4px #fbbf24' : '0 0 12px #10b981, 0 0 4px #10b981'),
+            // Same verdict as the Truth Violations row — the header dot must not read green while
+            // the row below it says NOT VERIFIED or reports a parity mismatch.
+            background: __verdict.kind === 'violations' ? '#ef4444'
+              : (__verdict.kind === 'unverified' || isTransitioning) ? '#fbbf24' : '#10b981',
+            boxShadow: __verdict.kind === 'violations'
+              ? '0 0 12px #ef4444, 0 0 4px #ef4444'
+              : (__verdict.kind === 'unverified' || isTransitioning) ? '0 0 12px #fbbf24, 0 0 4px #fbbf24' : '0 0 12px #10b981, 0 0 4px #10b981',
             animation: 'pulse 1.5s infinite ease-in-out'
           }} />
           <span style={{
@@ -498,48 +506,13 @@ var TruthOverlay = ({
                   Truth Violations
                 </div>
 
-                {truthIssues?.length === 0 ? (
-                  parityUnverified ? (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '6px',
-                      background: 'rgba(251, 191, 36, 0.06)',
-                      border: '1px solid rgba(251, 191, 36, 0.16)',
-                      borderRadius: '8px',
-                      padding: '6px 10px',
-                      color: '#fde68a'
-                    }}>
-                      <span style={{ fontSize: '12px', color: '#fbbf24', fontWeight: 'bold' }}>?</span>
-                      <span>
-                        NOT VERIFIED — source parity unsampled
-                        {parityUnverifiedWhy ? ` (${parityUnverifiedWhy})` : ''}
-                      </span>
-                    </div>
-                  ) : (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      background: 'rgba(16, 185, 129, 0.06)',
-                      border: '1px solid rgba(16, 185, 129, 0.12)',
-                      borderRadius: '8px',
-                      padding: '6px 10px',
-                      color: '#a7f3d0'
-                    }}>
-                      <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>✓</span>
-                      <span>
-                        No Causal Layer Violations Detected
-                        {parityNotApplicable && (
-                          <span style={{ color: '#94a3b8' }}> · source parity n/a (no point selected)</span>
-                        )}
-                      </span>
-                    </div>
-                  )
-                ) : (
+                {/* ⛔ This used to branch on `truthIssues.length` alone, so a parity MISMATCH —
+                    found by a DIFFERENT validator, and therefore leaving this list empty — rendered
+                    the green ✓. The branch is now the verdict itself, which is exhaustive. */}
+                {__verdict.kind === 'violations' ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    {truthIssues.map((v, i) => (
-                      <div 
+                    {__verdict.issues.map((v, i) => (
+                      <div
                         key={i}
                         style={{
                           background: 'rgba(239, 68, 68, 0.06)',
@@ -555,6 +528,59 @@ var TruthOverlay = ({
                         <div style={{ lineHeight: 1.2, fontSize: '10px' }}>{v.hint}</div>
                       </div>
                     ))}
+                    {(__verdict.parityReasons || []).map((reason, i) => (
+                      <div
+                        key={`parity-${i}`}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.06)',
+                          border: '1px solid rgba(239, 68, 68, 0.18)',
+                          borderRadius: '8px',
+                          padding: '6px 10px',
+                          color: '#fca5a5'
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: '9px', textTransform: 'uppercase', marginBottom: '2px' }}>
+                          ⚠️ source-parity-mismatch
+                        </div>
+                        <div style={{ lineHeight: 1.2, fontSize: '10px' }}>{reason}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : parityUnverified ? (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '6px',
+                    background: 'rgba(251, 191, 36, 0.06)',
+                    border: '1px solid rgba(251, 191, 36, 0.16)',
+                    borderRadius: '8px',
+                    padding: '6px 10px',
+                    color: '#fde68a'
+                  }}>
+                    <span style={{ fontSize: '12px', color: '#fbbf24', fontWeight: 'bold' }}>?</span>
+                    <span>
+                      NOT VERIFIED — source parity not established
+                      {parityUnverifiedWhy ? ` (${parityUnverifiedWhy})` : ''}
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'rgba(16, 185, 129, 0.06)',
+                    border: '1px solid rgba(16, 185, 129, 0.12)',
+                    borderRadius: '8px',
+                    padding: '6px 10px',
+                    color: '#a7f3d0'
+                  }}>
+                    <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>✓</span>
+                    <span>
+                      No Causal Layer Violations Detected
+                      {parityNotApplicable && (
+                        <span style={{ color: '#94a3b8' }}> · source parity n/a (no point selected)</span>
+                      )}
+                    </span>
                   </div>
                 )}
               </div>
