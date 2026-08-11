@@ -7,7 +7,18 @@ composition lane **873 passed / 64 skipped**, every commit pushed, all four flag
 
 ---
 
-## ⭐ WHAT YOU CAN TURN ON (all default OFF = byte-identical today)
+## ⚠️ STATUS CORRECTION (2026-08-11): ONE OF THESE IS NOW LIVE
+
+`__RAW_NEARSHORE_RENORM__` was **flipped ON by the owner** in `679da3d9` ("the tile lane is the
+DEFAULT display"). The heading below said *all* four default OFF — that is **stale for that one**.
+It now defaults ON, with `= false` as the documented revert, and the pre-fix assertions were kept
+under `[kill-switch state]` blocks rather than deleted — correctly, because they are the evidence
+for *why* the flag exists and they pin the revert path.
+⚠️ What the flip does NOT change: the backend point lane was already correct (nearest-ocean
+fallback, `sampler.py:365/390/429`). The flag makes the two lanes **agree**; it does not alter
+point-lane numbers.
+
+## ⭐ WHAT YOU CAN TURN ON (the remaining three default OFF = byte-identical)
 
 | flag | fixes | measured effect when ON |
 |---|---|---|
