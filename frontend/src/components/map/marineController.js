@@ -42,6 +42,7 @@ import {
 import { extractMarineAtOffset } from './marineControllerExtractor';
 
 import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
+import { publishServeDiag } from './marineServeDiag';
 
 // GLOBAL-COARSE grid prewarm (2026-07-04, the "heatmap clears 3-5s on FIRST zoom-out" root, traced):
 // on zoom-out past z7 the display gate rejects the regional grid (op 0) and the GLOBAL-coarse grid
@@ -593,27 +594,11 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
     }
   }
 
-  // Serve-coverage diagnostic: which cache path served, and does the served grid COVER the viewport?
-  // coversViewport:false at a regional viewport is the heatmap-CLAMP signature (a sub-viewport grid).
-  if (hitData && typeof window !== 'undefined' && bounds) {
-    try {
-      const g = hitData.grid;
-      const gb = g && g.bounds;
-      let covers = null, gw = null;
-      if (gb && gb.west !== undefined) {
-        gw = (gb.east < gb.west) ? (gb.east + 360 - gb.west) : (gb.east - gb.west);
-        covers = gb.west <= bounds.west + 1e-6 && gb.east >= bounds.east - 1e-6 &&
-                 gb.south <= bounds.south + 1e-6 && gb.north >= bounds.north - 1e-6;
-      }
-      window.__MARINE_SERVE_DIAG__ = {
-        cacheSource, model: wanted, layer: wantedLayer, hour: wantedHour,
-        gridWidth: gw, coversViewport: covers,
-        gridBounds: gb && gb.west !== undefined ? { w: gb.west, s: gb.south, e: gb.east, n: gb.north } : null,
-        viewport: { w: bounds.west, s: bounds.south, e: bounds.east, n: bounds.north },
-        ts: Date.now()
-      };
-    } catch (e) { /* diag must not break the serve */ }
-  }
+  // Serve-coverage diagnostic (extracted to marineServeDiag.js — pure instrumentation, and its
+  // known limits are documented there: written only on a cache HIT, and `coversViewport` has no
+  // global-span shortcut, so `gridWidth == null` means NOT MEASURED, never "does not cover").
+  publishServeDiag(hitData, bounds,
+    { cacheSource, model: wanted, layer: wantedLayer, hour: wantedHour });
 
   return hitData;
 }

@@ -368,3 +368,96 @@ by CI, all of which were green.
 the same window it appeared in — which is the loop working, not failing. Gate D stays
 **CONDITIONAL** and is now doubly justified: the pixel oracle still does not exist, *and* a shipped
 regression proved the existing suites can be green through one.
+
+
+---
+
+# SECTION 12 — RECONCILIATION WITH THE 11.2 CERTIFICATION (`1b662aed`)
+
+The concurrent session ran a **certification** against `e015d90b` and returned **NOT CERTIFIED**,
+into this same directory. See `README-START-HERE.md` for the directory index.
+
+## 12.1 The verdicts are not in conflict
+
+Mine answers *"is the derivative right?"*; theirs answers *"is the level shippable?"* **A project can
+be on track and not certifiable.** Both are correct, and the halves barely overlap: I audited the
+backend (capacity, OOM attribution, science chain, forecast accuracy) against **production**; they
+audited the frontend (truth layer, provenance, state) under **failure injection** against a local
+backend.
+
+## 12.2 THEIR GATE 5 BOUNDS MY MISSION 1 - the one that changes my conclusion
+
+> *"Product selection is non-deterministic and changes the forecast. Same model, layer, valid time
+> and coordinate; the answer depends on which grid the client happened to select."* - toggling one
+> layer off and on moved a fixed coordinate from **0.64 m / 6.8 s to 0.44 m / 3.1 s and back**
+> (DF-01, MM-04).
+
+Mission 1 injected **one** grid directly into `sampleValueFromDecodedTiles` and compared the output
+against the point lane at the same coordinates. That design deliberately held the grid fixed so the
+*flag* was the only variable - and on that basis the result stands: **given a grid, ON reproduces
+the scored lane to 0.4 mm and OFF does not.**
+
+**But it says nothing about which grid the client hands the sampler**, and their finding is that
+this is non-deterministic. So:
+
+| claim | status after reconciliation |
+|---|---|
+| ON is the right treatment of a given grid | **PROVEN** - unchanged |
+| the value a user sees is stable | **REFUTED by their DF-01/MM-04** |
+| the value a user sees is correct | **NOT PROVEN** - my measurement is downstream of a non-deterministic input |
+
+> *** A DOWNSTREAM VALIDATION CANNOT CERTIFY A NON-DETERMINISTIC INPUT.*** Mission 1 is a correct
+> answer to the question it asked, and their finding shows the question was one layer too low.
+> **Keeping the flip remains right** - it is strictly better than the alternative on the same input
+> - but "the height on screen is validated" would be an overclaim, and section 4's resolution should
+> be read with this bound attached.
+
+## 12.3 Where their record is stale, and where it is sharper than mine
+
+**Stale (their own set disagrees with itself):** `EXECUTIVE_CERTIFICATION_BRIEF.md` and
+`DO_NOT_ADVANCE_ITEMS.md` both say Gates 2 and 6 were *not tested and must not be recorded as
+passing*; their own `RELEASE_GATE_MATRIX.csv` records **both as CONDITIONAL PASS with measurements**,
+and Gate 2's original CRITICAL as **refuted by their own control** (the blank antimeridian was a
+settle-time artifact - blank at 10 s, painted by 20 s). The CSV is newest and is the one to trust.
+*(My report had the identical failure mode two hours earlier - section 11.3. Two sessions, same day,
+same class: the summary was not updated when the measurement landed.)*
+
+**Sharper than mine - Gate 7.** `__MARINE_SOURCE_PARITY__` returns `match: true` while
+`heatmap.vectorCount` is 0 and the infobox is `idle` and has never sampled, with a sibling
+instrument reporting `parity: false` and the live grid holding 629 vectors. That is my Gate D
+concern with a named, reproducible instance - **a guard that cannot see its own blindness.** My
+Gate D CONDITIONAL is now doubly justified: the pixel oracle does not exist, *and* the guard that
+does exist passes vacuously.
+
+**Independent convergence worth recording:** they retracted their FPS readings (5/13/18/31) because
+an unfocused pane throttled RAF to **1 frame in 5 s**. That is the *same* instrument limit I hit and
+recorded in 11.1 as gap G-02 (`visibilityState: hidden`, 0 rAF ticks in 1.5 s). **Two sessions, two
+harnesses, same trap, both caught it, both withdrew the numbers.**
+
+## 12.4 Capacity - complementary, not conflicting
+
+My Gate E PASS rests on **production**: 26 oomKilled events all pre-fix, RSS 39-58 % of cap, the
+attribution window isolated. Their Gate 6 CONDITIONAL PASS rests on a **local** soak: no leak on any
+tracked resource, but transfer is spiky - one cycle **+8.79 MB** (they name it "the global
+`grid_series` signature"), a mobile resize **+26.05 MB**, and **79 requests / 39.24 MB in ~3 min** of
+ordinary interaction.
+
+**Their axis is transfer; mine was resident.** Their spike is on the same endpoint my load-time
+stride bounds, and it is a *client-side request-volume* problem my work does not touch. Neither
+result contradicts the other, and their instruction that Gate 6 "must not be recorded as passing"
+is right **for their evidence** - it does not erase a production measurement taken by a different
+pass, and my section 2 numbers carry their own SHA and timestamp.
+
+## 12.5 What this changes in the queue
+
+**Their T-1 outranks every mission in my section 9.** A truth layer that reports `AUTHORITATIVE
+NATIVE` for a null product under total network failure is a worse defect than an unproven capacity
+fix or an unread OOM counter, because it makes every other number unfalsifiable - including the
+ones this audit certified. Their T-2 (deterministic product selection) is the prerequisite for any
+future height-accuracy claim, per 12.2.
+
+**Revised order:** T-1 -> T-2 -> T-3 -> *then* my section 9 items (48 h OOM re-read, pixel oracle,
+production verification of the stride).
+
+**Verdict unchanged: ON TRACK** - with the correction that section 4's "validated" carries the 12.2
+bound, and that Gate B's PASS is a statement about the *chain*, not about the *value a user sees*.
