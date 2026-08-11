@@ -135,6 +135,26 @@ export function recordMarineCacheLookup(reason, detail) {
   if (diag.log.length > 60) diag.log.pop();
 }
 
+// ⛔ TWO POPULATIONS, ONE COUNTER (2026-08-11, audit 11.2 / T-2' step 3).
+// Two different functions ask the per-model-hour cache two different questions:
+//   - `isContainedInMarineCache`  — the PREDICATE: "do we already have this, can we skip fetching?"
+//   - `getModelSafeMarine`        — the SELECTOR:  "which entry do we actually serve?"
+// Only the predicate is instrumented today, which is why the measured 100% exact-key miss rate
+// (T2PRIME_STEP3_MISS_RATE_MEASUREMENT.md) is an INFERENCE about the selector rather than a
+// measurement of it.
+// ★ The trap: `recordMarineCacheLookup` tallies by REASON ALONE (`diag.counts[reason]++`). If the
+//   selector emitted 'hit' / 'exact_key_absent', its counts would MERGE into the predicate's
+//   buckets and neither population could be attributed afterwards — the instrumentation would
+//   destroy the very measurement it was added to make. A counter that cannot tell two populations
+//   apart is the same defect class as a gate that cannot tell "not sampled" from "agrees".
+// ★ So the selector gets its own namespace, enforced here rather than trusted to call sites: the
+//   prefix cannot be forgotten, misspelled, or double-applied.
+export const SELECTOR_LOOKUP_PREFIX = 'sel_';
+export function recordSelectorLookup(reason, detail) {
+  const bare = String(reason == null ? 'unknown' : reason).replace(/^sel_/, '');
+  recordMarineCacheLookup(`${SELECTOR_LOOKUP_PREFIX}${bare}`, { ...(detail || {}), source: 'getModelSafeMarine' });
+}
+
 export function estimateRequestCost(type, model, pointCount, hourlyVarCount, forecastDays) {
   if (type === 'tiles') return 50000;
   const timeBytes = forecastDays * 24 * 25;
