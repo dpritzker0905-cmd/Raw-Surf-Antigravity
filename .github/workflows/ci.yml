@@ -395,47 +395,32 @@ jobs:
         working-directory: backend
         run: |
           set -o pipefail
-          # ⚠️ `tests/test_point_*.py` WAS MISSING FROM THIS GLOB UNTIL 2026-08-01, and three files
-          # were affected — two of them long-standing. The point lane is where `surf_height_m` and
-          # the local size reference are PRODUCED (`point_surf_augment` is the single injection
-          # point), so its guards belong in a composition suite by any reading.
-          # ★ CAUGHT BY COMPARING COUNTS, NOT BY A RED. A new 12-test guard landed and the gate
-          # still reported "49 files / 707 passed" — byte-identical to the run before it. A guard
-          # that runs nowhere is indistinguishable from a guard that passes, which is this repo's
-          # recurring coverage class; the only reliable detector is asserting what RAN.
-          # ⬆ 2026-08-10 — THE MEMORY-SAFETY FAMILY WAS RUNNING NOWHERE. Found by census while
-          # fixing the grid_series OOM (7 oomKilled events in 15 h): of 482 backend test files,
-          # 340 are selected by NO lane, and the dark set included EVERY guard on this box's memory
-          # bounds — test_series_vector_budget (the end-stage grid_series budget),
-          # test_product_cache_vector_budget (the resident product cap) and test_health_peak_memory
-          # (the peak-RSS reporting the OOM was diagnosed WITH). The new build-time bound's own
-          # guards would have landed dark too, which is how this was noticed.
-          # ★ Same shape as the 96-file jump below: a lane cannot protect what it never selects.
-          # ⚠️ Deliberately a NAMED FAMILY, not a widening to test_iteration_*: those are ~100
-          # unrelated product-feature files, and pulling them in here would be scope, not coverage.
-          FILES=$(ls tests/test_sim_*.py tests/test_rating_*.py tests/test_surf_*.py \
-                     tests/test_spot_*.py tests/test_point_*.py \
-                     tests/test_series_*.py tests/test_product_cache_*.py \
-                     tests/test_cold_start_*.py tests/test_health_peak_memory.py \
-                     tests/test_dyncache_*.py tests/test_manifest_*.py \
-                     tests/test_coarse_*.py tests/test_marine_*.py tests/test_grid_*.py \
-                     tests/test_weather_*.py tests/test_wind_*.py tests/test_partition_*.py \
-                     tests/test_noaa_*.py tests/test_ecmwf_euro.py tests/test_fetch_common.py \
-                     tests/test_climatology_inbox.py tests/test_flag_lane_parity.py \
-                     tests/test_owner_calibration_anchors.py tests/test_parity_unification.py \
-                     tests/test_local_size_preview.py tests/test_enclosed_sea_height_survival.py \
-                     tests/test_gfs_fill_masked_waves.py tests/test_dominant_swell_anim.py \
-                     tests/test_frame_honesty.py tests/test_data_health.py \
-                     tests/test_geometry_*.py tests/test_provenance_*.py \
-                     tests/test_observation_gate_*.py tests/test_run_provenance.py \
-                     tests/test_resolve_spot_geometry.py tests/test_simulation.py \
-                     tests/test_forecast_skill.py tests/test_forecast_skill_per_model.py tests/test_forecast_accuracy_monitor.py tests/test_height_anchors.py tests/test_request_telemetry.py tests/test_product_run_age_census.py \
-                     tests/test_validate_nearshore_transform.py \
-                     tests/test_calibration_census.py                      tests/test_sweep_orphaned_l2.py tests/test_map_spots_to_ndbc_buoys.py \
-                     tests/test_era5_*.py 2>/dev/null \
-                 | sort -u \
-                 | grep -vE 'test_(weather_sim_mcp|weather_sim_mcp_server_startup)\.py$')
-          echo "$FILES" | sed 's/^/  guard: /'
+          # ⭐ THE FILE LIST IS NOT HERE. It is `COMPOSITION` in backend/scripts/ci_test_lanes.py,
+          # which ALL THREE lanes read: this one selects it, the chain lane subtracts it, the estate
+          # lane is its complement. That file carries the rationale for every pattern in it.
+          #
+          # ⛔⛔ DO NOT INLINE A GLOB HERE, NOT EVEN TO ADD ONE PATTERN. This step carried its own
+          # `ls` copy until 2026-08-11 and the chain step below carried a second, so the repo ran
+          # THREE lists while `test_flag_lane_parity.py` pinned only the ci.yml pair. That pair
+          # therefore stayed honest and the script's tuple silently fell six patterns behind when
+          # the memory-safety family was adopted on 2026-08-10 — after which
+          # tests/test_health_peak_memory.py ran in THIS lane AND the estate lane, while
+          # `--assert-partition` printed "partition OK". The guard whose model feeds the estate
+          # executor was the copy that went stale.
+          # ⇒ `test_flag_lane_parity.py` now fails if any lane stops delegating or a copy returns.
+          #
+          # ⚠️ The two fastmcp modules are excluded by the script (FASTMCP_EXCLUDED), not by a grep
+          # here — and not by pytest's --ignore, which is silently overridden for paths passed
+          # explicitly on the command line. That override is how a first attempt at this "excluded"
+          # four modules that in fact still collected and still ran.
+          python scripts/ci_test_lanes.py --lane guards > /tmp/guard_files.txt
+          # ⛔ AN EMPTY SELECTOR MUST REFUSE, NEVER FALL THROUGH. `pytest $FILES` with FILES unset
+          # collects the WHOLE tests/ tree — which would sail past the MIN_FILES floor below on the
+          # wrong suite entirely, reporting the broadest possible green for zero selection. A check
+          # that cannot tell "selected nothing" from "selected everything" is not a check.
+          test -s /tmp/guard_files.txt || { echo "::error::--lane guards selected NO files"; exit 1; }
+          sed 's/^/  guard: /' /tmp/guard_files.txt
+          FILES=$(tr '\n' ' ' < /tmp/guard_files.txt)
           python -m pytest $FILES -q --junitxml=guards.xml
 
       # Shrink-only ratchet on COVERAGE, run even when pytest already failed so a collapse in what
@@ -521,7 +506,24 @@ jobs:
           # work that closed it.
           # From the gate's OWN run on origin/dev @ 904f50cf: "collected 1282 tests across 107 files
           # -> 1216 passed, 66 skipped, 0 failed, 0 errors". Read from the gate, never a checkout.
-          MIN_FILES, MIN_PASSED = 110, 1235
+          # ⬆⬆ 110→148 / 1235→1676 on 2026-08-11, and this is the LARGEST STALENESS this floor has
+          # carried: 38 files and 447 tests. NOT new coverage — the lane had been selecting 148 files
+          # since the memory-safety family was adopted on 2026-08-10, so for that whole period
+          # THIRTY-EIGHT files could have stopped being collected with this gate still green. The
+          # floor was measuring nothing that had happened in a week.
+          # ⚠️ AND THE PROSE HAD FALLEN OUT OF STEP EXACTLY AS THIS BLOCK WARNS. The 110/1235 it
+          # replaces arrived with NO entry explaining it — every other value here cites the run it
+          # came from, that one cited nothing, so there was no way to tell whether it was current or
+          # stale without reading the gate. A number without its reading is not a ratchet, it is a
+          # guess that happens to be green. Same shape the estate block records at "275 sits two
+          # below 277" written above `MIN_PASSED = 285`.
+          # From the gate's OWN run on origin/dev @ 1b447f44 (run 31509178910): "collected 1749
+          # tests across 148 files -> 1682 passed, 67 skipped, 0 failed, 0 errors". 1676 sits the
+          # customary 6 below the observed pass count; MIN_FILES is EXACT, as this block requires.
+          # ★ THAT READING IS ALSO THE CONTROL ON THIS COMMIT'S REFACTOR: it is the last run of the
+          # OLD `ls` glob, and `--lane guards`, which replaced it, selects the same 148. The swap is
+          # collection-neutral, measured on both sides rather than asserted.
+          MIN_FILES, MIN_PASSED = 148, 1676
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -602,80 +604,24 @@ jobs:
         working-directory: backend
         run: |
           set -o pipefail
-          python - > /tmp/chain_files.txt <<'PY'
-          import fnmatch, os, re, subprocess
-          # The composition suite's own glob, verbatim — anything it already runs is excluded here so
-          # the two jobs never double-count and the floors stay independent.
-          COMPOSITION = ["tests/test_sim_*.py","tests/test_rating_*.py","tests/test_surf_*.py",
-          "tests/test_spot_*.py","tests/test_point_*.py","tests/test_coarse_*.py","tests/test_marine_*.py",
-          # MIRROR OF THE SELECTOR, 2026-08-10 — the memory-safety family. This literal and the `ls`
-          # glob above are ONE list expressed twice, and `test_flag_lane_parity` pins them equal.
-          # I edited the selector alone and it caught me within the run: the seven files were then
-          # selected by composition AND still candidates for the chain lane, so both lanes would run
-          # them and the two ratchets would double-count. ★ The recorded failure was the mirror
-          # image (literal edited, selector not) — the lesson is the SAME and it is the list's
-          # duplication, not the direction: EDIT BOTH, ALWAYS, AND LET THE PARITY GUARD CONFIRM.
-          "tests/test_series_*.py","tests/test_product_cache_*.py","tests/test_cold_start_*.py",
-          "tests/test_health_peak_memory.py","tests/test_dyncache_*.py",
-          "tests/test_manifest_*.py",
-          "tests/test_grid_*.py","tests/test_weather_*.py","tests/test_wind_*.py","tests/test_partition_*.py",
-          "tests/test_noaa_*.py","tests/test_ecmwf_euro.py","tests/test_fetch_common.py",
-          "tests/test_climatology_inbox.py","tests/test_flag_lane_parity.py",
-          "tests/test_owner_calibration_anchors.py","tests/test_parity_unification.py",
-          "tests/test_local_size_preview.py","tests/test_enclosed_sea_height_survival.py",
-          "tests/test_gfs_fill_masked_waves.py","tests/test_dominant_swell_anim.py",
-          "tests/test_frame_honesty.py","tests/test_data_health.py","tests/test_geometry_*.py",
-          "tests/test_provenance_*.py","tests/test_observation_gate_*.py","tests/test_run_provenance.py",
-          "tests/test_resolve_spot_geometry.py","tests/test_simulation.py","tests/test_forecast_skill.py","tests/test_forecast_skill_per_model.py",
-          "tests/test_forecast_accuracy_monitor.py","tests/test_height_anchors.py","tests/test_request_telemetry.py","tests/test_product_run_age_census.py","tests/test_validate_nearshore_transform.py",
-          "tests/test_calibration_census.py","tests/test_era5_*.py",
-          # ADOPTED 2026-08-05. The FIVE ERA5 campaign guards matched no lane selector and ran
-          # NOWHERE — same cause as the two below: they import from `scripts.`, which the chain
-          # lane's `services.<mod>` regex cannot see, and no composition pattern covered the name.
-          #   test_era5_campaign_instance_guard.py  11 · test_era5_liveness_reaper.py     13
-          #   test_era5_interrupt_shield.py          8 · test_era5_peer_from_marker.py     8
-          #   test_era5_scope_selection.py           6                          TOTAL 46 defs / 63 tests
-          # These guard the campaign that is the CRITICAL PATH for the size reference, the level
-          # ladder and the empirical exposure work — and every one of its recorded failure modes
-          # (self-blocking instance guard, wedged-not-dead process, Ctrl-C from another session,
-          # resume-scope drift) is covered by exactly these files. Measured 2026-08-05: 63 passed
-          # in 2.2 s, so they are cheap as well as load-bearing.
-          # ⚠️ The pattern is added to BOTH this list and the `ls` glob above; they must stay in
-          # sync or the two lanes double-count.
-          # ADOPTED 2026-08-02 (audit v6 §12.2). Both matched NO lane selector and ran NOWHERE — they
-          # import from `scripts.`, which the chain lane's `services.<mod>` regex cannot see, and no
-          # composition pattern covered their names.
-          #   test_sweep_orphaned_l2.py      5 tests over `is_orphan`, the predicate
-          #     `l2-orphan-sweep.yml:46` runs as `sweep_orphaned_l2.py --delete --yes` against
-          #     PRODUCTION L2 storage. An unguarded DELETION predicate was the most dangerous
-          #     orphan of the 245 enumerated.
-          #   test_map_spots_to_ndbc_buoys.py 9 tests over NDBC WVHT-in-metres parsing and the
-          #     nearest-buoy haversine — the observation side of the obs gate.
-          "tests/test_sweep_orphaned_l2.py","tests/test_map_spots_to_ndbc_buoys.py"]
-          tracked = [f for f in subprocess.run(["git","ls-files","tests/"], capture_output=True,
-                     text=True).stdout.split()
-                     if f.endswith(".py") and os.path.basename(f).startswith("test_")]
-          taken = {f for f in tracked for p in COMPOSITION if fnmatch.fnmatch(f, p)}
-          # ⚠️ THE SELECTOR WAS BLIND TO AN IMPORT FORM, not to a module (2026-08-02). It only ever
-          # matched `services.<mod>` — the DOTTED form — so a test written
-          # `from services import dwd_icon_wind_fetcher` was invisible and ran in NO lane. Measured:
-          # 3 tracked files import that way; 2 are genuinely forecast-chain
-          # (`test_icon_wind_multi_bbox_fetch.py`, whose own docstring says a mis-association would
-          # "produce plausible wind at the wrong place, which no smoke test would notice", and
-          # `test_ecmwf_period_bands_decode.py`), and `test_private_media.py` is media and stays out
-          # BY MODULE NAME rather than by accident.
-          # ★ The module pattern is now written ONCE and used by both forms. Two copies is how the
-          # composition glob came to miss 45 of its own files, and how a sibling test file was
-          # adopted only because it happened to also import `services.weather_pipeline`.
-          _CHAIN_MOD = r'(?:weather_pipeline[\w.]*|\w*fetcher\w*|_fetch_common|\w*_service)'
-          IMPORTS = re.compile(r'(?:from|import)\s+services\.' + _CHAIN_MOD
-                               + r'|from\s+services\s+import\s+' + _CHAIN_MOD)
-          out = [f for f in sorted(set(tracked) - taken)
-                 if IMPORTS.search(open(f, encoding="utf-8", errors="ignore").read())]
-          print("\n".join(out))
-          PY
+          # ⭐ SAME SINGLE SOURCE as the composition lane above. `--lane chain` is "tracked test
+          # files that import the forecast chain, MINUS everything COMPOSITION already claims" —
+          # and that subtraction is exactly why the two lanes must not each own a list. The
+          # exclusion set and the selector are the SAME SET; expressed twice, they diverge.
+          #
+          # ⛔⛔ THIS STEP HELD AN INLINE `COMPOSITION = [...]` LITERAL UNTIL 2026-08-11 — a 47-entry
+          # mirror of the composition lane's `ls` glob, maintained by hand, with its own comment
+          # instructing the next reader to "EDIT BOTH, ALWAYS". The pair was pinned equal and did
+          # stay equal; what nobody pinned was scripts/ci_test_lanes.py, which had been the declared
+          # single source since 2026-08-06 while both copies here outlived it.
+          # ★ ADDING A SINGLE SOURCE IS NOT THE SAME ACT AS RETIRING THE COPIES.
+          # See ci_test_lanes.py's COMPOSITION block for the measured cost, and the composition lane
+          # above for why nothing may be inlined back.
+          python scripts/ci_test_lanes.py --lane chain > /tmp/chain_files.txt
+          # Same refusal as the composition lane: empty selection would run the whole tests/ tree.
+          test -s /tmp/chain_files.txt || { echo "::error::--lane chain selected NO files"; exit 1; }
+          sed 's/^/  chain: /' /tmp/chain_files.txt
           FILES=$(tr '\n' ' ' < /tmp/chain_files.txt)
-          echo "$FILES" | tr ' ' '\n' | sed '/^$/d' | sed 's/^/  chain: /'
           python -m pytest $FILES -q --junitxml=chain.xml
 
       - name: "🔍 Assert the forecast-chain guards actually ran"
@@ -717,7 +663,24 @@ jobs:
           # green if both of them stopped being collected"), recurring at 7x the size.
           # ⇒ RAISE THIS IN THE SAME COMMIT THAT ADDS THE FILES. A floor that lags is a floor that
           # is not measuring anything.
-          MIN_FILES, MIN_PASSED = 82, 697
+          # ⬆ 82→85 / 697→780 on 2026-08-11, and the note directly above is the one that dates it:
+          # "RAISE THIS IN THE SAME COMMIT THAT ADDS THE FILES." It was not. Three files and 89
+          # tests accumulated since 2026-08-06 with the floor untouched, so this lane repeated its
+          # own recorded failure for a third time — 2 files in 2026-08-02, 15 in 2026-08-06, 3 now.
+          # ★ A RULE WRITTEN IN THE COMMENT ABOVE THE NUMBER DOES NOT ENFORCE ITSELF. All three
+          # lanes were found stale in one sweep on 2026-08-11 (composition by 38 files, this by 3,
+          # estate 36 tests below achievable), which says the discipline is the wrong mechanism:
+          # nothing FAILS when a floor lags, so it lags. ⇒ The durable fix is a check that compares
+          # each floor to its lane's last green reading — not another instruction to remember.
+          # From the gate's OWN run on origin/dev @ 1b447f44 (run 31509178910): "collected 786 tests
+          # across 85 files -> 786 passed, 0 skipped, 0 failed, 0 errors".
+          # ⚠️ 780 is 6 below observed, matching this block's 2026-08-02 entries (498/504, 509/515)
+          # rather than the 2-below of its 2026-08-06 one. MIN_FILES is EXACT, so a whole file
+          # vanishing is red regardless; MIN_PASSED only has to catch tests disappearing from files
+          # this lane still collects, and 6 leaves room for ordinary churn without pinning the gate.
+          # ★ CONTROL ON THIS COMMIT: 85 is also what `--lane chain` selects after the inline
+          # COMPOSITION literal was retired — this lane's file set did not move, only its owner.
+          MIN_FILES, MIN_PASSED = 85, 780
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -875,7 +838,32 @@ jobs:
           # ★ A file COUNT floor is deliberately absent: the per-file "silent" check below is
           #   strictly stronger, and the estate is a COMPLEMENT, so moving a file into another lane
           #   legitimately shrinks it and must not be red.
-          MIN_PASSED = 295
+          # ⬆ 295→320 on 2026-08-11. A RAISE, despite this lane LOSING a file — because the 297 the
+          #   prose above describes was long stale. The gate's OWN run on origin/dev @ 1b447f44
+          #   (run 31509178910) reads: "estate: 253 files selected, 251 produced results, 331
+          #   passed, 0 silent." So the floor sat 36 below achievable and would have absorbed a
+          #   mass-skip of an entire module without a word.
+          # ⚠️ I FIRST SET THIS TO 286 BY PREDICTION (295 minus the 9 tests moving out) and it was
+          #   wrong by 34 — in the SAFE direction, which is exactly what makes it insidious: a floor
+          #   too low never goes red, so nothing would ever have corrected it. Predicting from a
+          #   stale number inherits the staleness. READ THE GATE; this block's own 250-over-244
+          #   entry is the same lesson from the opposite side.
+          # THE SUBTRACTION, from the real reading: `tests/test_health_peak_memory.py` was dealt to
+          #   THIS lane by the complement while ALSO being matched by the composition lane's `ls`
+          #   glob — it ran in BOTH, so 331 includes passes this lane had no business owning.
+          #   Returning the memory-safety family to COMPOSITION (where the 2026-08-10 census put it)
+          #   removes them. The file is 9 tests, 7 passed / 2 skipped locally, so this lane drops by
+          #   7-9 — and gains 8 from tests/test_ci_floor_staleness.py, which the complement claims.
+          #   Net expectation: 331 - (7..9) + 8 = 330-332.
+          # ★ 320 IS DELIBERATELY LOOSER THAN THE USUAL TWO-BELOW, and the looseness is the point.
+          #   330-332 rests on TWO stacked estimates (how the file's 2 conditional tests behave on
+          #   the runner, and that all 8 new tests pass there). A floor of 328 would sit one off a
+          #   bound I have not observed, and a floor ABOVE achievable fails the lane with zero test
+          #   failures — the recorded 250-over-244. The new staleness gate tolerates this lag (12
+          #   against a budget of 25), so being loose here costs nothing and cannot hide.
+          # ★ STILL PROVISIONAL: 330-332 is derived, not observed. Read this lane's next green run
+          #   and set the floor two below what it actually reports.
+          MIN_PASSED = 320
 
           try:
               root = ET.parse('estate.xml').getroot()
@@ -921,3 +909,56 @@ jobs:
           print(f"estate: {len(selected)} files selected, {len(mods)} produced results, "
                 f"{passed} passed, 0 silent.")
           PY
+
+  # ⛔⛔ THE RATCHETS ABOVE DO NOT WATCH THEMSELVES, AND ON 2026-08-11 NONE OF THEM WAS CURRENT.
+  # Measured in one sweep against each lane's own green run on origin/dev @ 1b447f44 (31509178910):
+  #     composition  floor 110 / 1235   read 148 files / 1682 passed   stale by 38 files, 447 tests
+  #     chain        floor  82 /  697   read  85 files /  786 passed   stale by  3 files,  89 tests
+  #     estate       floor        295   read           331 passed      stale by         36 tests
+  # For the week the composition floor sat at 110, THIRTY-EIGHT files could have stopped being
+  # collected with that gate still green — the exact silence the floor exists to break.
+  #
+  # ★★★ THE RULE WAS ALREADY WRITTEN DOWN AND DID NOT WORK. The chain lane says, in capitals
+  # directly above its own stale number, "RAISE THIS IN THE SAME COMMIT THAT ADDS THE FILES. A floor
+  # that lags is a floor that is not measuring anything." It lagged three times anyway (2 files, then
+  # 15, then 3), and the composition floor arrived with no citation at all while every other value in
+  # its block names the run it came from. NOTHING FAILED WHEN A FLOOR LAGGED, SO IT LAGGED.
+  # ⇒ A fourth instruction to remember would be the same mechanism a fourth time. This is the one
+  #   that does not depend on anyone remembering.
+  #
+  # ⚠️ IT IS ONE-SIDED ON PURPOSE — it fails only when a floor sits BELOW the last reading. A floor
+  # ABOVE it is the correct state immediately after a legitimate raise, because the rule is to raise
+  # in the same commit that adds the files. A two-sided check would redden the very behaviour this
+  # is meant to enforce. See scripts/ci_floor_staleness.py for the budgets and their derivation.
+  #
+  # ⚠️ Reads the LAST GREEN run, not this one: a lane cannot grade its own floor without passing
+  # first. That costs one commit of lag — a file added in B is caught when B is green and C runs —
+  # which turns "stale for a week" into "stale for one commit".
+  # ⚠️ `permissions:` is declared HERE and nowhere else in this file, and job-level permissions
+  # REPLACE the default set rather than adding to it, so `contents: read` is listed too or checkout
+  # loses its token. `actions: read` is the one that matters: reading ANOTHER run's logs is not
+  # covered by the default contents-only grant, and without it this job refuses (it does not pass).
+  backend-floor-staleness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # No pip install: the script is stdlib + the `gh` CLI, which is preinstalled on the runner.
+      # ⛔ `--branch dev` is PINNED and not derived from the current ref. The lanes accumulate their
+      # green history on dev (every push there is also the backend deploy), so a run triggered from
+      # main or from a PR must still read dev's history — deriving the branch would make this job
+      # refuse on every branch that has no CI history of its own, which is most of them.
+      - name: "🔍 Are the ratchet floors still current, or has CI outgrown them?"
+        working-directory: backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/ci_floor_staleness.py --branch dev

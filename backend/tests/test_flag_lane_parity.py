@@ -503,106 +503,177 @@ def test_every_workflow_lane_the_registry_names_is_a_lane_this_suite_reads():
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════
-# THE COMPOSITION FILE LIST IS DUPLICATED ACROSS TWO LANES, AND ONLY ONE OF THEM SELECTS
+# THE COMPOSITION FILE LIST HAD THREE COPIES, AND THE GUARD HERE ONLY EVER COMPARED TWO
 # ══════════════════════════════════════════════════════════════════════════════════════════════
-# ci.yml:383   FILES=$(ls tests/test_sim_*.py ...)          the composition lane's ACTUAL SELECTOR
-# ci.yml:~500  COMPOSITION = ["tests/test_sim_*.py", ...]   the CHAIN lane's EXCLUSION list, so the
-#                                                           chain does not re-run composition's files
+# Until 2026-08-11 the pattern list lived in ci.yml TWICE (the guards lane's `ls` glob, the chain
+# lane's inline literal) and in scripts/ci_test_lanes.py once. The test that stood here pinned the
+# ci.yml PAIR equal, and it worked — which is precisely why the third copy was invisible: the pair
+# learned the memory-safety family on 2026-08-10 (`c7099d0a`/`6e5bf70a`) while the script's tuple
+# stayed at 41 patterns against their 47, and this suite stayed green.
 #
-# They must describe the same set, and nothing checked that. On 2026-08-02 two orphaned forecast
-# guards were adopted by editing only the Python literal — which told the chain lane to keep
-# excluding files the composition lane had never heard of. The count did not move, the ratchet went
-# red, and the fix was a second edit to the `ls` glob.
+# ★★★ THE THIRD COPY WAS NOT A DESCRIPTION — IT WAS AN EXECUTOR. `--lane estate` is the COMPLEMENT
+# computed from that tuple and ci.yml runs its output verbatim, so a missing pattern deals a real
+# file into a real lane. `tests/test_health_peak_memory.py` ran in BOTH lanes while
+# `--assert-partition` printed "partition OK". ⇒ A GUARD WHOSE MODEL FEEDS AN EXECUTOR IS NOT A
+# MODEL: its errors are not mis-descriptions.
 #
-# ★ The failure mode is worse than a wrong number. A pattern present in the EXCLUSION list and absent
-# from the SELECTOR produces a file that runs in NEITHER lane — silently, with every gate green. That
-# is this repo's most-recorded defect class, and here it is a data structure that invites it.
+# The fix DELETED ci.yml's two copies (equivalence measured first, both diffs empty) rather than
+# adding a third comparison. Full account: ci_test_lanes.py's COMPOSITION block.
+# What these tests guard is therefore no longer "do the copies agree" — they cannot — but "HAS A
+# COPY COME BACK", the only way this class can now recur.
 # Recorded sibling: a duplicated constant only diverges on a boundary (seven copies of the knots pair).
 
 _CI_YML = os.path.join(WORKFLOWS, "ci.yml")
-# Deliberate, documented, and NOT a defect: these need a `dev.db` GitHub Actions does not have
-# (ci.yml's own note at the composition ratchet). They are named here so the exclusion stays VISIBLE
-# and cannot quietly grow — anything else dropping out of both lanes fails this test.
-_COMPOSITION_EXEMPT = {"test_weather_sim_mcp.py", "test_weather_sim_mcp_server_startup.py"}
+_LANE_SCRIPT = "scripts/ci_test_lanes.py"
+_LANE_SRC = os.path.join(REPO, "backend", "scripts", "ci_test_lanes.py")
+
+# Every lane ci.yml runs, and the name it must ask the single source for. `estate` already consumed
+# the script before this change; `guards` and `chain` are what the fix moved over.
+_CI_LANES = ("guards", "chain", "estate")
+
+# The two forms the deleted copies actually took. A regression most likely arrives as one of these —
+# someone inlining "just this once" to add a pattern without opening the script.
+_COPY_FORMS = (
+    (r"FILES=\$\(ls\s+tests/", "a shell `ls` glob of composition test patterns"),
+    (r"COMPOSITION\s*=\s*[\[\(]", "an inline COMPOSITION literal"),
+)
+
+# ⚠️ THE BACKSTOP IS A COUNT, NOT A BLACKLIST, because a third form nobody predicted is exactly how
+# three copies came to exist in the first place. Measured 2026-08-11: every wildcard test pattern on
+# a non-comment line of ci.yml (41 tokens) belonged to one of the two deleted lists and NONE to
+# anything else — so zero is the honest floor, and any reappearance is a list being rebuilt.
+_GLOB_TOKEN = re.compile(r"tests/test_[A-Za-z0-9_]*\*[A-Za-z0-9_]*\.py")
+
+# The memory-safety family adopted 2026-08-10 — the guards on this box's memory bounds, which the
+# script's tuple then failed to learn. Why each pattern is in the set: ci_test_lanes.py's COMPOSITION.
+# ⚠️ A KNOWN-PRESENT CONTROL, deliberately a SUBSET assertion: it cannot diverge in the harmful
+# direction an equality between two copies can, and naming the six is what makes a future NARROWING
+# of the tuple red instead of silent. Same shape as `E2E_MUST_TRIGGER` above.
+# ⛔ Do NOT widen this to `test_iteration_*` — ~100 unrelated product-feature files, i.e. scope.
+_MEMORY_SAFETY_FAMILY = (
+    "tests/test_series_*.py", "tests/test_product_cache_*.py", "tests/test_cold_start_*.py",
+    "tests/test_health_peak_memory.py", "tests/test_dyncache_*.py", "tests/test_manifest_*.py",
+)
 
 
-def _composition_selector_patterns(text):
-    """The `ls` glob the composition lane actually runs, plus its grep -vE exclusion."""
-    m = re.search(r"FILES=\$\(ls\s+(.*?)\s+2>/dev/null", text, re.S)
-    assert m, "ci.yml's composition `ls` glob no longer parses — the guard is blind, fix the regex"
-    pats = [t for t in m.group(1).split() if t.startswith("tests/")]
-    ex = re.search(r"grep -vE '([^']+)'", text)
-    return pats, (ex.group(1) if ex else None)
+def _script_composition():
+    """`COMPOSITION` from ci_test_lanes.py, PARSED not imported — the reason the registry above is
+    parsed (a literal should be verified as a literal), plus one specific here: importing it and
+    calling a lane shells out to `git ls-files`, whose result depends on the cwd pytest ran from."""
+    with open(_LANE_SRC, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "COMPOSITION" for t in node.targets):
+            return list(ast.literal_eval(node.value))
+    raise AssertionError(f"COMPOSITION not found in {_LANE_SRC}")
 
 
-def _chain_exclusion_patterns(text):
-    """The COMPOSITION literal the chain lane subtracts from its own candidate set."""
-    m = re.search(r"COMPOSITION = \[(.*?)\]\n", text, re.S)
-    assert m, "ci.yml's COMPOSITION literal no longer parses — the guard is blind, fix the regex"
-    return re.findall(r'"([^"]+)"', m.group(1))
+def _lanes_not_delegated(text):
+    """Lane names ci.yml does NOT source from the single-source script."""
+    return [lane for lane in _CI_LANES
+            if not re.search(rf"{re.escape(_LANE_SCRIPT)}\s+--lane\s+{lane}\b", text)]
 
 
-def _resolve(patterns):
-    import glob as _glob
-    base = os.path.join(REPO, "backend")
-    out = set()
-    for p in patterns:
-        out |= {os.path.basename(f) for f in _glob.glob(os.path.join(base, p))}
-    return out
+def _ci_yml_code_lines(text):
+    """ci.yml with comments stripped — both YAML `#` and the shell `#` inside `run:` blocks."""
+    return [l.split("#", 1)[0] for l in text.split("\n")]
 
 
-def test_the_two_composition_file_lists_resolve_to_the_same_set():
-    text = open(_CI_YML, encoding="utf-8").read()
-    sel_pats, excl = _composition_selector_patterns(text)
-    chain_pats = _chain_exclusion_patterns(text)
+def _copies_found(text):
+    """Evidence that a second copy of the file list has reappeared in ci.yml.
 
-    selected = _resolve(sel_pats)
-    if excl:
-        rx = re.compile(excl)
-        selected = {f for f in selected if not rx.search(f)}
-    excluded_from_chain = _resolve(chain_pats)
-
-    # Setup assertion: a guard over empty sets proves nothing.
-    assert len(selected) > 50 and len(excluded_from_chain) > 50, (
-        f"resolved too few files (selector {len(selected)}, chain {len(excluded_from_chain)}) — "
-        "the patterns did not match, so this test would pass vacuously")
-
-    runs_nowhere = (excluded_from_chain - selected) - _COMPOSITION_EXEMPT
-    assert runs_nowhere == set(), (
-        "these test files are EXCLUDED from the chain lane and NOT SELECTED by the composition lane, "
-        "so they run in NEITHER and every gate stays green:\n  " + "\n  ".join(sorted(runs_nowhere))
-        + "\n\nFix by adding them to ci.yml's composition `ls` glob (the SELECTOR at :383), not only "
-          "to the COMPOSITION literal — editing the literal alone is what caused this.")
-
-    twice = selected - excluded_from_chain
-    assert twice == set(), (
-        "these files are selected by the composition lane but NOT excluded from the chain lane, so "
-        "both lanes run them and the two ratchets double-count:\n  " + "\n  ".join(sorted(twice)))
-
-
-def test_the_composition_list_guard_can_actually_FAIL():
-    """NEGATIVE CONTROL, both directions — without it the test above passes on a broken parser.
-
-    The two real mutations are simulated on the parsed sets rather than on disk: a pattern added to
-    the chain literal only (the 2026-08-02 mistake), and one added to the selector only.
+    ⚠️ COMMENTS ARE STRIPPED FIRST, and that is load-bearing. ci.yml's prose now QUOTES both deleted
+    literals verbatim to warn against reinstating them, so a check over raw text flags the warning
+    as the offence — the first version of this guard went red on the very comment describing the fix.
+    ★ Only what CI EXECUTES can be a copy. Same family as the recorded `"x" in src` lesson: a guard
+    keyed on a substring rather than on a fact reads prose as code.
     """
+    code = "\n".join(_ci_yml_code_lines(text))
+    found = [why for rx, why in _COPY_FORMS if re.search(rx, code)]
+    globs = sorted({m.group(0) for m in _GLOB_TOKEN.finditer(code)})
+    if globs:
+        found.append(f"{len(globs)} wildcard test pattern(s) on non-comment lines, "
+                     f"e.g. {globs[:6]}")
+    return found
+
+
+@pytest.mark.parametrize("lane", _CI_LANES)
+def test_every_ci_lane_selects_its_files_from_the_single_source(lane):
+    """A lane that builds its own file list is a second copy, and a second copy is this repo's
+    most-recorded defect class. The failure is asymmetric and silent both ways: a pattern in an
+    exclusion list but not a selector makes a file run NOWHERE; a pattern in a selector but not in
+    the model that computes the complement makes it run TWICE."""
     text = open(_CI_YML, encoding="utf-8").read()
-    sel_pats, excl = _composition_selector_patterns(text)
-    chain_pats = _chain_exclusion_patterns(text)
-    rx = re.compile(excl) if excl else None
-    selected = {f for f in _resolve(sel_pats) if not (rx and rx.search(f))}
-    chain = _resolve(chain_pats)
-    assert selected and chain                                  # setup landed
+    assert lane not in _lanes_not_delegated(text), (
+        f"ci.yml's {lane} lane does not run `{_LANE_SCRIPT} --lane {lane}`, so it is selecting "
+        f"files from a list of its own. That list will diverge from scripts/ci_test_lanes.py — and "
+        f"because `--lane estate` is THE COMPLEMENT of that script's model, the divergence does not "
+        f"just mis-report the partition, it runs real files in two lanes or in none.")
 
-    # (a) the real mistake: adopted into the chain literal only -> the file runs NOWHERE
-    victim = sorted(selected)[0]
-    broken_chain = chain | {"test_a_file_the_selector_never_sees.py"}
-    assert (broken_chain - selected) - _COMPOSITION_EXEMPT, "the runs-nowhere check cannot fail — it is decoration"
 
-    # (b) the inverse: selected but not excluded -> BOTH lanes run it, ratchets double-count
-    broken_sel = selected | {"test_a_file_the_chain_still_runs.py"}
-    assert broken_sel - chain, "the run-twice check cannot fail — it is decoration"
-    assert victim in selected                                  # the fixture is real, not invented
+def test_ci_yml_carries_no_second_copy_of_the_composition_list():
+    """The positive check above says each lane ASKS the script. This one says nothing else in the
+    file still ANSWERS — a delegating lane sitting beside a leftover literal is how a stale copy
+    goes on looking authoritative."""
+    found = _copies_found(open(_CI_YML, encoding="utf-8").read())
+    assert not found, (
+        "ci.yml has grown a second copy of the composition file list:\n  " + "\n  ".join(found)
+        + f"\n\nAdd the pattern to COMPOSITION in {_LANE_SCRIPT} instead — it is the single source "
+          f"all three lanes read. Three copies of this list is what let the memory-safety family "
+          f"run in two lanes at once with `--assert-partition` reporting OK.")
+
+
+@pytest.mark.parametrize("pattern", _MEMORY_SAFETY_FAMILY)
+def test_the_memory_safety_family_is_still_claimed_by_the_composition_lane(pattern):
+    """KNOWN-PRESENT CONTROL. These guards ran in NO lane until 2026-08-10 and in TWO until
+    2026-08-11, both times with every gate green — a lane cannot protect what it never selects, and
+    a partition guard cannot report what its own model never had. Without this, deleting the six
+    patterns leaves the suite green AND `--assert-partition` happy: the files are simply dealt to
+    the estate lane, away from the memory ratchets that exist for them."""
+    composition = _script_composition()
+    assert len(composition) > 40, (
+        f"COMPOSITION parsed to only {len(composition)} patterns — the parse is broken, so this "
+        f"guard would pass vacuously on an empty list")
+    assert pattern in composition, (
+        f"{pattern} is not in COMPOSITION in {_LANE_SCRIPT}, so the memory-safety guards it names "
+        f"are no longer claimed by the composition lane — the OOM bounds stop being guarded where "
+        f"the ratchets watch.")
+
+
+def test_the_single_source_guards_can_actually_FAIL():
+    """NEGATIVE CONTROL, one mutation per mechanism — without it the checks above pass just as
+    happily on a regex that stopped matching, which is how a guard becomes decoration.
+
+    Mutations run against the parsed text rather than on disk, the same way the previous control
+    here simulated its two mistakes on the parsed sets.
+    """
+    real = open(_CI_YML, encoding="utf-8").read()
+    assert not _lanes_not_delegated(real) and not _copies_found(real)          # setup landed
+
+    # (a) a lane goes back to building its own list — the regression the fix exists to prevent
+    for lane in _CI_LANES:
+        gutted = real.replace(f"{_LANE_SCRIPT} --lane {lane}", "ls tests/*.py")
+        assert lane in _lanes_not_delegated(gutted), (
+            f"the delegation check cannot see the {lane} lane go inline — it is decoration")
+
+    # (b) each recorded copy form, reintroduced as EXECUTABLE lines
+    for snippet in ('\n          COMPOSITION = ["tests/test_sim_*.py"]\n',
+                    "\n          FILES=$(ls tests/test_sim_*.py 2>/dev/null)\n"):
+        assert _copies_found(real + snippet), (
+            f"the copy-form check cannot see {snippet.strip()!r} — it is decoration")
+
+    # (c) a form NEITHER pattern names, caught only by the wildcard backstop. This is the one that
+    # matters: the two forms above are the copies we already know about.
+    assert _copies_found(real + '\n          MY_OWN_LIST="tests/test_sim_*.py"\n'), (
+        "the wildcard backstop cannot see an unpredicted list form — it is decoration, and an "
+        "unpredicted form is exactly how the third copy arrived")
+
+    # (d) and the inverse control the red above earned: the SAME text inside a comment is NOT a
+    # copy. Without this, the guard drifts back to reading prose as code and the next person to
+    # document the deleted literals turns the lane red for writing a warning.
+    assert not _copies_found(real + '\n          # COMPOSITION = ["tests/test_sim_*.py"] <- deleted\n'), (
+        "a commented-out literal is being reported as a live copy — the guard is matching prose")
 
 
 # ── THE E2E TRIGGER CONTRACT (2026-08-10) ─────────────────────────────────────────────────────

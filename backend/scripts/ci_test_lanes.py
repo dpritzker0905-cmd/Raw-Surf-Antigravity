@@ -15,6 +15,13 @@ record what the second copy cost:
 The same lesson applied to the lists themselves and had not been taken. Adding a third lane meant
 a third copy, so the patterns moved here instead and every lane now reads the same definition.
 
+⚠️ AND FOR FIVE DAYS THAT SENTENCE WAS ASPIRATIONAL. This file was added on 2026-08-06 while ci.yml
+KEPT both of its copies, so the repo ran three lists, not one — and `test_flag_lane_parity.py`
+pinned only ci.yml's pair, which is why the pair stayed honest and this file went stale. On
+2026-08-11 the two ci.yml copies were deleted and all three lanes were pointed here. See the
+COMPOSITION block below for what the divergence actually cost.
+★ ADDING A SINGLE SOURCE IS NOT THE SAME ACT AS RETIRING THE COPIES. Only the second one works.
+
 THE DEFECT THIS CLOSES
 ----------------------
 Selection was the defect. Both lanes pick files by pattern, and anything neither names runs
@@ -35,7 +42,10 @@ The sim lane used a shell `ls`, which reads the FILESYSTEM. `ci.yml` records tha
 times in one session: a floor was calibrated at 41/565 because the working tree held a concurrent
 session's UNTRACKED file, making the gate unmeetable by anything that ships. Tracked-only is
 immune to that, and in CI's fresh checkout the two are identical (verified 2026-08-06: 0 untracked
-and 0 deleted test files, `ls` and `git ls-files` both return 122 for the guards globs).
+and 0 deleted test files, `ls` and `git ls-files` both return 122 for the guards globs; re-verified
+2026-08-11 when the `ls` glob was retired, both returning the same 148).
+⇒ Retiring `ls` closed that hazard for the guards lane as a side effect: a shared working tree can
+no longer inflate what CI selects.
 
 USAGE
 -----
@@ -52,12 +62,54 @@ import subprocess
 import sys
 
 # ---------------------------------------------------------------------------------------------
-# ONE definition of the composition set. Both the sim lane and the forecast-chain lane consume it.
-# Adding a pattern here widens BOTH, and narrows `estate` by exactly the files it claims.
+# ⭐ THE ONLY definition of the composition set. All three ci.yml lanes consume it — the guards lane
+# via `--lane guards`, the chain lane via `--lane chain` (which subtracts this set from its own
+# candidates), the estate lane via `--lane estate` (the COMPLEMENT). Adding a pattern here widens
+# the guards lane and narrows the other two by exactly the files it claims.
+#
+# ⛔⛔ IT WAS NOT ALWAYS THE ONLY ONE, AND THAT COST A DOUBLE-RUN. Until 2026-08-11 ci.yml carried
+# its own two copies — a shell `ls` glob for the guards lane and an inline Python `COMPOSITION`
+# literal for the chain lane — and `tests/test_flag_lane_parity.py` pinned THOSE TWO equal. So when
+# `c7099d0a`/`6e5bf70a` adopted the memory-safety family on 2026-08-10, both ci.yml copies learned
+# it, the parity guard stayed green, and THIS tuple silently stayed at 41 patterns against their 47.
+#
+# ★★★ THE PART THAT MAKES IT MORE THAN A STALE COMMENT: this tuple is not a description of the
+# lanes, it IS one of them. `estate_lane` is the complement computed from exactly these patterns,
+# and ci.yml runs its output verbatim. Measured at HEAD 2026-08-11 before the fix:
+# `tests/test_health_peak_memory.py` (9 tests) was emitted by `--lane estate` AND matched by the
+# composition `ls` glob, so it RAN IN BOTH LANES — while `--assert-partition` printed
+# "partition OK: every tracked backend test file is claimed by exactly one lane". The double-count
+# `c7099d0a` caused and `6e5bf70a` fixed had recurred inside the instrument built to detect it.
+# ⇒ A GUARD WHOSE MODEL FEEDS AN EXECUTOR IS NOT A MODEL. Its errors are not mis-descriptions.
+#
+# The fix DELETED ci.yml's two copies rather than adding a third comparison. Equivalence was
+# MEASURED before the swap, never assumed: the `ls` glob and `--lane guards` both resolved to the
+# same 148 files, ci.yml's inline chain heredoc and `--lane chain` both to the same 85, diffs empty.
+# `test_flag_lane_parity.py` now guards that no copy comes back, and pins the family below by name.
 # ---------------------------------------------------------------------------------------------
 COMPOSITION = (
     "tests/test_sim_*.py", "tests/test_rating_*.py", "tests/test_surf_*.py",
-    "tests/test_spot_*.py", "tests/test_point_*.py", "tests/test_coarse_*.py",
+    "tests/test_spot_*.py",
+    # ⚠️ `tests/test_point_*.py` WAS MISSING UNTIL 2026-08-01 and three files were affected, two of
+    # them long-standing. The point lane is where `surf_height_m` and the local size reference are
+    # PRODUCED (`point_surf_augment` is the single injection point), so its guards belong in a
+    # composition suite by any reading.
+    # ★ CAUGHT BY COMPARING COUNTS, NOT BY A RED. A new 12-test guard landed and the gate still
+    # reported "49 files / 707 passed" — byte-identical to the run before it. A guard that runs
+    # nowhere is indistinguishable from a guard that passes.
+    "tests/test_point_*.py",
+    # ⬆ THE MEMORY-SAFETY FAMILY, 2026-08-10. Found by census while fixing the grid_series OOM
+    # (7 oomKilled events in 15 h): of 482 backend test files, 340 were selected by NO lane, and the
+    # dark set included EVERY guard on this box's memory bounds — test_series_vector_budget (the
+    # end-stage grid_series budget), test_product_cache_vector_budget (the resident product cap) and
+    # test_health_peak_memory (the peak-RSS reporting the OOM was diagnosed WITH). The new
+    # build-time bound's own guards would have landed dark too, which is how this was noticed.
+    # ★ A lane cannot protect what it never selects.
+    # ⛔ Deliberately a NAMED FAMILY, never a widening to `test_iteration_*`: those are ~100
+    #   unrelated product-feature files, and pulling them in here would be scope, not coverage.
+    "tests/test_series_*.py", "tests/test_product_cache_*.py", "tests/test_cold_start_*.py",
+    "tests/test_health_peak_memory.py", "tests/test_dyncache_*.py", "tests/test_manifest_*.py",
+    "tests/test_coarse_*.py",
     "tests/test_marine_*.py", "tests/test_grid_*.py", "tests/test_weather_*.py",
     "tests/test_wind_*.py", "tests/test_partition_*.py", "tests/test_noaa_*.py",
     "tests/test_ecmwf_euro.py", "tests/test_fetch_common.py", "tests/test_climatology_inbox.py",
@@ -72,7 +124,24 @@ COMPOSITION = (
     "tests/test_forecast_accuracy_monitor.py", "tests/test_height_anchors.py",
     "tests/test_request_telemetry.py",
     "tests/test_product_run_age_census.py", "tests/test_validate_nearshore_transform.py",
-    "tests/test_calibration_census.py", "tests/test_era5_*.py",
+    "tests/test_calibration_census.py",
+    # ADOPTED 2026-08-05. The FIVE ERA5 campaign guards matched no lane selector and ran NOWHERE —
+    # same cause as the two below: they import from `scripts.`, which the chain lane's
+    # `services.<mod>` regex cannot see, and no composition pattern covered the name.
+    #   test_era5_campaign_instance_guard.py 11 · test_era5_liveness_reaper.py 13
+    #   test_era5_interrupt_shield.py         8 · test_era5_peer_from_marker.py 8
+    #   test_era5_scope_selection.py          6                    TOTAL 46 defs / 63 tests
+    # These guard the campaign that is the CRITICAL PATH for the size reference, the level ladder
+    # and the empirical exposure work — and every one of its recorded failure modes (self-blocking
+    # instance guard, wedged-not-dead process, Ctrl-C from another session, resume-scope drift) is
+    # covered by exactly these files. Measured 2026-08-05: 63 passed in 2.2 s, cheap AND load-bearing.
+    "tests/test_era5_*.py",
+    # ADOPTED 2026-08-02 (audit v6 §12.2). Both matched NO lane selector and ran NOWHERE.
+    #   test_sweep_orphaned_l2.py       5 tests over `is_orphan`, the predicate
+    #     `l2-orphan-sweep.yml:46` runs as `sweep_orphaned_l2.py --delete --yes` against PRODUCTION
+    #     L2 storage. An unguarded DELETION predicate was the most dangerous of the 245 orphans.
+    #   test_map_spots_to_ndbc_buoys.py 9 tests over NDBC WVHT-in-metres parsing and the
+    #     nearest-buoy haversine — the observation side of the obs gate.
     "tests/test_sweep_orphaned_l2.py", "tests/test_map_spots_to_ndbc_buoys.py",
 )
 
@@ -131,6 +200,16 @@ ESTATE_QUARANTINE = {
 
 # Written ONCE and used by both import forms — `from services.<mod>` and `from services import
 # <mod>`. A second copy is what made the chain lane blind to the bare form until 2026-08-02.
+#
+# ⚠️ THE SELECTOR WAS BLIND TO AN IMPORT FORM, NOT TO A MODULE (2026-08-02). It only ever matched
+# `services.<mod>` — the DOTTED form — so a test written `from services import
+# dwd_icon_wind_fetcher` was invisible and ran in NO lane. Measured: 3 tracked files import that
+# way; 2 are genuinely forecast-chain (`test_icon_wind_multi_bbox_fetch.py`, whose own docstring
+# says a mis-association would "produce plausible wind at the wrong place, which no smoke test
+# would notice", and `test_ecmwf_period_bands_decode.py`), and `test_private_media.py` is media and
+# stays out BY MODULE NAME rather than by accident.
+# ★ Two copies is how the composition glob came to miss 45 of its own files, and how a sibling test
+# file was adopted only because it happened to also import `services.weather_pipeline`.
 _CHAIN_MOD = r"(?:weather_pipeline[\w.]*|\w*fetcher\w*|_fetch_common|\w*_service)"
 CHAIN_IMPORTS = re.compile(
     r"(?:from|import)\s+services\." + _CHAIN_MOD

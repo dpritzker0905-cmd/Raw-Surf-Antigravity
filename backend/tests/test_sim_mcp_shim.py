@@ -22,6 +22,7 @@ the two halves that make the stand-in safe rather than merely convenient:
      answer no tools. That would be "a swallowed throw is a feature that silently turns itself off",
      applied to a whole process.
 """
+import ast
 import importlib
 import os
 
@@ -111,17 +112,57 @@ def test_the_sim_module_imports_under_the_standin(monkeypatch):
     importlib.reload(weather_sim_mcp)          # leave the session on whatever is really installed
 
 
+# The five modules the stand-in freed. Any of them reappearing in an exclusion means the shim's
+# coverage half has been quietly given back.
+_FREED = ["sim_forecast_lane", "sim_spots_identity", "sim_whatif_baseline",
+          "rating_partitions_composition", "sim_whatif_size_curve_and_io_budget"]
+
+_BACKEND = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_LANE_SRC = os.path.join(_BACKEND, "scripts", "ci_test_lanes.py")
+_CI_YML = os.path.normpath(os.path.join(_BACKEND, "..", ".github", "workflows", "ci.yml"))
+
+
 def test_ci_does_not_still_exclude_what_the_shim_freed():
-    """⭐ THE COVERAGE HALF. Making the modules importable buys nothing while `ci.yml` still greps
-    them out by name — an exclusion outliving its reason is invisible, and 'excluded' and 'passing'
-    look identical in a summary line. This asserts the workflow actually stopped dropping them."""
-    ci = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                      "..", ".github", "workflows", "ci.yml")
-    with open(os.path.normpath(ci), "r", encoding="utf-8") as fh:
-        text = fh.read()
-    freed = ["sim_forecast_lane", "sim_spots_identity", "sim_whatif_baseline",
-             "rating_partitions_composition", "sim_whatif_size_curve_and_io_budget"]
-    still = [n for n in freed if f"{n}|" in text or f"|{n}" in text or f"({n})" in text]
+    """⭐ THE COVERAGE HALF. Making the modules importable buys nothing while CI still drops them by
+    name — an exclusion outliving its reason is invisible, and 'excluded' and 'passing' look
+    identical in a summary line.
+
+    ⚠️⚠️ THIS TEST READ ONLY `ci.yml` UNTIL 2026-08-11, AND THAT WOULD HAVE SILENTLY DISARMED IT.
+    The exclusion used to be a `grep -vE` inside the composition lane's `ls` glob; when both ci.yml
+    file-list copies were retired in favour of `scripts/ci_test_lanes.py`, the exclusion moved to
+    `FASTMCP_EXCLUDED` in that script — so a check pointed at ci.yml would have gone on passing
+    while someone re-excluded any of these five, because the file it inspects no longer holds an
+    exclusion list at all.
+    ★ WHEN A MECHANISM MOVES, ITS GUARD DOES NOT FOLLOW BY ITSELF. A guard that cannot fail reports
+    the same green as one that passes — the defect class this whole file exists to illustrate,
+    arriving via a refactor rather than via a bug. Both locations are now read.
+    """
+    with open(_LANE_SRC, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    excluded = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "FASTMCP_EXCLUDED" for t in node.targets):
+            excluded = list(ast.literal_eval(node.value))
+    assert excluded is not None, (
+        f"FASTMCP_EXCLUDED not found in {_LANE_SRC} — this guard is blind, fix the parse rather "
+        f"than deleting it")
+    # SETUP CONTROL: the two genuinely-excluded modules must still be there, or an empty list would
+    # satisfy every assertion below and this test would pass by having nothing to look at.
+    assert any("weather_sim_mcp" in f for f in excluded), (
+        f"FASTMCP_EXCLUDED no longer names the two live-server modules ({excluded}) — the parse "
+        f"landed on the wrong literal, so the check below proves nothing")
+
+    still = sorted(n for n in _FREED if any(n in f for f in excluded))
     assert not still, (
-        f"ci.yml still excludes {still} from the guard suite, but sim_mcp_shim makes them "
-        f"importable without fastmcp. Remove them from the grep -vE pattern.")
+        f"{_LANE_SRC} still excludes {still} from the guard lane, but sim_mcp_shim makes them "
+        f"importable without fastmcp. Remove them from FASTMCP_EXCLUDED.")
+
+    # BACKSTOP: a `grep -vE` alternation coming back to ci.yml would exclude them a second way.
+    with open(_CI_YML, encoding="utf-8") as fh:
+        text = fh.read()
+    regrepped = sorted(n for n in _FREED
+                       if f"{n}|" in text or f"|{n}" in text or f"({n})" in text)
+    assert not regrepped, (
+        f"ci.yml has grown an exclusion alternation naming {regrepped}. The lane's file list is "
+        f"`scripts/ci_test_lanes.py --lane guards`; exclude by name there, visibly, or not at all.")
