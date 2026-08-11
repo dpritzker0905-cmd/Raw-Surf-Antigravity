@@ -1,0 +1,10 @@
+BLIND FINDINGS LOCK RECORD
+==========================
+file       : BLIND_RUNTIME_AND_ARCHITECTURE_FINDINGS.md
+sha256     : 69DCAF8DBF82058AA0A1722AE3F2A73D6F5D61A20B362C70ACE9FB8CE8073715
+bytes      : 19135
+locked_at  : 2026-08-10T23:24:57-04:00
+commit     : e015d90b06bc45189a1c7407854762a1b8c79a63
+branch     : dev
+tree_state : DIRTY
+note       : Locked BEFORE reading Report 11.0 / 11.1 / Codex / memory / handoffs / commit log.

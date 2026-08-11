@@ -1,0 +1,13 @@
+test_id,relation,fixed_inputs,varied_input,expected,observed,result,evidence
+MM-01,Unit display invariance,"GFS/waves/hour0, coord (26.0,-78.0)",ft -> m -> ft,underlying physical value unchanged,"height/period/direction/productId/vectorCount bit-identical across all 3 states",PASS,runtime round-trip battery
+MM-02,View invariance - sampled value,"GFS/waves/hour0, centre (26.0,-78.0)",zoom 9 -> 6 -> 11 -> 9,same value within interpolation tolerance,"0.44 m at all four steps, distDeg 0.000",PASS,zoom battery
+MM-03,View invariance - product identity,"GFS/waves/hour0, same centre",zoom 9 -> 6 -> 11 -> 9,same product serves the same coordinate,"zoom 11 selected gfs_marine_waves_global_coarse (629 pts) while zoom 9 used viewport product (81 pts) - zooming IN selected the COARSER product",FAIL,zoom battery
+MM-04,Layer round-trip invariance,"GFS/waves/hour0, coord (26.0,-78.0), no other change",Waves OFF -> ON x3,identical field and value on every ON,"ON#1 0.64 m / 6.8 s ; ON#2 0.44 m / 3.1 s ; ON#3 0.64 m / 6.8 s",FAIL,lifecycle battery
+MM-05,Model round-trip invariance,"waves/hour0, same centre",GFS -> EURO -> GFS,restored GFS state equals original,"EURO never rendered (12 s); ended with projection diag activeModel=EURO, product=GFS, provider=gfs_estimated_fallback, UI=GFS",FAIL,round-trip battery
+MM-06,Temporal hour parity,"GFS/waves",hour 0 only,requested hour equals rendered hour,"__MARINE_RENDER_HOUR_PARITY__ = {parity:true, reason:parity_match} throughout",PASS (hour 0 only),runtime
+MM-07,Resource invariance across layer cycles,"GFS/waves",OFF/ON x3,resource counts must not grow permanently,"progNet constant 13; bufNet 222/222/260/222/260; texNet 32/32/37/29/37; canvases 4<->2; ON#2 identical to ON#3",PASS,lifecycle battery
+MM-08,Mount-cycle invariance,/map route,/map -> /feed -> /map,same output; no permanent resource growth,"BLOCKED - 401 on route change clears raw-surf-user and hard-redirects to /auth (dev-mock session artifact)",BLOCKED,lifecycle attempt 1
+MM-09,Cache invariance,"GFS/waves/hour0",cold vs warm,forecast output equivalent for the same run,"NOT RUN",BLOCKED,-
+MM-10,Browser differential invariance,"GFS/waves/hour0",Chromium vs Firefox vs WebKit,scientifically equivalent values,"NOT RUN - Chromium only",BLOCKED,-
+MM-11,DPR / viewport-size invariance,"GFS/waves/hour0",DPR 1 vs 2; mobile viewport,sampled value unchanged,"NOT RUN",BLOCKED,-
+MM-12,Bearing / pitch invariance,"GFS/waves/hour0",bearing and pitch rotation,sampled value unchanged,"NOT RUN - bearing 0 pitch 0 throughout",BLOCKED,-

@@ -1,0 +1,13 @@
+test_id,failure_injected,method,action_under_failure,detected,user_informed,stale_retained,stale_shown_as_current,retry_bounded,work_cancelled,resources_cleaned,user_could_recover,console_revealed_cause,result,certification_consequence
+FR-01,Total rejection of every /api/weather/* request,"window.fetch override rejecting with TypeError('AUDIT-INJECTED failure')",click Swell layer (new layer request),NO,NO,YES,"YES - HUD read 'Model/Layer: GFS / swell_1, Render Mode: Marine, Raster Source: LOADED, Provider: NOAA, Source: ncep_gfswave025, Class: AUTHORITATIVE NATIVE' while __MARINE_PROJECTION_DIAG__.productId was null",no retry observed,not observable,"YES - texNet 37 / bufNet 260 / progNet 13 unchanged from healthy state",NO,NO,FAIL,"Gate 3, Gate 5 and Gate 7 fail on this scenario alone"
+FR-02,Network restored after FR-01,remove fetch override; wait 9 s,none (passive),n/a,NO,YES,YES,no retry,n/a,YES,NO,NO,FAIL,"No self-healing; state byte-identical 9 s after recovery"
+FR-03,Session expiry during route change,dev-mock token 401 on social endpoints,navigate /map -> /feed,YES (by the auth layer),YES (redirect to /auth),n/a,n/a,n/a,n/a,"map torn down",YES (re-auth),YES (401s logged),TEST-RIG ARTIFACT,"Not a weather defect; BLOCKED the route-remount test"
+FR-04,Slow responses,-,-,-,-,-,-,-,-,-,-,-,NOT RUN,-
+FR-05,Out-of-order responses,-,-,-,-,-,-,-,-,-,-,-,NOT RUN,-
+FR-06,Cancelled requests,-,-,-,-,-,-,-,-,-,-,-,NOT RUN,-
+FR-07,Partial data / invalid dimensions,-,-,-,-,-,-,-,-,-,-,-,NOT RUN,-
+FR-08,NaN / Infinity in field,-,-,-,-,-,-,-,-,-,-,-,NOT RUN,-
+FR-09,WebGL context loss,-,-,-,-,-,-,-,-,-,-,-,NOT RUN,-
+FR-10,Offline then online,-,-,-,-,-,-,-,-,-,-,-,NOT RUN,-
+FR-11,Model switch during loading,-,-,-,-,-,-,-,-,-,-,-,NOT RUN,-
+FR-12,Resize during loading,-,-,-,-,-,-,-,-,-,-,-,NOT RUN,-

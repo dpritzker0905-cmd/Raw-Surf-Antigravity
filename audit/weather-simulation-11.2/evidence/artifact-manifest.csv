@@ -1,0 +1,31 @@
+artifact,status,path,commit,branch,browser,backend,notes
+WEATHER_SIM_CERTIFICATION_REPORT_11.2.md,PRODUCED,audit/weather-simulation-11.2/,e015d90b,dev,Chromium,local 127.0.0.1:8000,Required final report
+EXECUTIVE_CERTIFICATION_BRIEF.md,PRODUCED,audit/weather-simulation-11.2/,e015d90b,dev,Chromium,local,-
+BLIND_RUNTIME_AND_ARCHITECTURE_FINDINGS.md,PRODUCED + LOCKED,audit/weather-simulation-11.2/,e015d90b,dev,Chromium,local,SHA-256 69DCAF8DBF82058AA0A1722AE3F2A73D6F5D61A20B362C70ACE9FB8CE8073715
+BLIND_FINDINGS_LOCK.txt,PRODUCED,audit/weather-simulation-11.2/,e015d90b,dev,-,-,Hash + timestamp record
+BLIND_FINDINGS_RECONCILIATION.md,PRODUCED,audit/weather-simulation-11.2/,e015d90b,dev,-,local + one prod GET,Includes refutation of my own BF-03
+METAMORPHIC_TEST_MATRIX.csv,PRODUCED,audit/weather-simulation-11.2/,e015d90b,dev,Chromium,local,12 relations; 4 PASS 3 FAIL 5 BLOCKED
+DIFFERENTIAL_TEST_MATRIX.csv,PRODUCED,audit/weather-simulation-11.2/,e015d90b,dev,Chromium,local + prod,12 comparisons; 5 executed
+FAILURE_RECOVERY_MATRIX.csv,PRODUCED,audit/weather-simulation-11.2/,e015d90b,dev,Chromium,local,3 executed 9 NOT RUN
+RELEASE_GATE_MATRIX.csv,PRODUCED,audit/weather-simulation-11.2/,e015d90b,dev,-,-,1 PASS 5 FAIL 2 BLOCKED
+RECENT_COMMIT_CERTIFICATION_LEDGER.csv,PRODUCED,audit/weather-simulation-11.2/,e015d90b,dev,-,-,10 commits since 79abe4ed
+AUTHORIZED_NEXT_PHASE_PACKET.md,PRODUCED,audit/weather-simulation-11.2/,e015d90b,dev,-,-,Missions T-1/T-2/T-3
+DO_NOT_ADVANCE_ITEMS.md,PRODUCED,audit/weather-simulation-11.2/,e015d90b,dev,-,-,-
+UNCERTAINTY_AND_EVIDENCE_GAPS.md,PRODUCED,audit/weather-simulation-11.2/,e015d90b,dev,-,-,G-01..G-15
+B01-served-resolution-matrix.md,PRODUCED,evidence/scientific-validation/,e015d90b,dev,-,local,Superseded in part by production check - see reconciliation
+AUDITSESSION-marine_global.json,PRODUCED,evidence/forensics/,e015d90b,dev,-,local,Pre-restore copy of a tracked file the local backend rewrote
+AUDITSESSION-wind_global.json,PRODUCED,evidence/forensics/,e015d90b,dev,-,local,Pre-restore copy of a tracked file the local backend rewrote
+STATE_MACHINE_MODEL.md,NOT PRODUCED,-,-,-,-,-,Narrative coverage only in report section 5; see G-12
+STATE_TRANSITION_MATRIX.csv,NOT PRODUCED,-,-,-,-,-,See G-12
+SCIENTIFIC_CONFORMANCE_MATRIX.csv,NOT PRODUCED,-,-,-,-,-,Narrative coverage only in report section 9; see G-12
+CAPACITY_CERTIFICATION.md,NOT PRODUCED,-,-,-,-,-,Capacity was NOT measured; see G-03
+ARCHITECTURE_CONFORMANCE_MATRIX.csv,NOT PRODUCED,-,-,-,-,-,Narrative coverage only in report section 12; see G-12
+CURRENT_VS_PRIOR_FINDINGS_LEDGER.csv,NOT PRODUCED,-,-,-,-,-,Superseded by BLIND_FINDINGS_RECONCILIATION.md
+evidence/recordings,NOT PRODUCED,-,-,-,-,-,No video captured therefore none reviewed; see G-04
+evidence/playwright-traces,NOT PRODUCED,-,-,-,-,-,See G-04
+evidence/react-scan,NOT PRODUCED,-,-,-,-,-,See G-04
+evidence/react-profiler,NOT PRODUCED,-,-,-,-,-,See G-04
+evidence/devtools-performance,NOT PRODUCED,-,-,-,-,-,See G-04
+evidence/memory,EMPTY,-,-,-,-,-,No heap snapshots taken; see G-03
+evidence/webgl,EMPTY,-,-,-,-,-,No frame capture; see G-04
+evidence/synthetic-fields,NOT PRODUCED,-,-,-,-,-,No canonical field injection; see G-08

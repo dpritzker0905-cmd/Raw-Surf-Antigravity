@@ -1,0 +1,11 @@
+hash,date,subject,files,kind,runtime_system_affected,architecture_authority_affected,state_transition_affected,new_test,evidence_added,regression_surface,certification_status,note
+679da3d9,2026-08-10 20:21,feat(height): flip the nearshore renorm ON -- owner decision and the tile lane is the DEFAULT display,2,CODE,nearshore height / spot-rating chain,none observed,none,unknown,claimed in commit,"spot height and rating values; DEFAULT display path",Unvalidated,"Default-changing flag flip. This audit exercised the MAP BAND, not the spot-height chain, so I neither confirm nor contradict it. A later commit (9a252550) claims validation to 0.4 mm against a buoy-scored lane; not independently re-run here."
+6f9295a0,2026-08-10 20:42,docs(audit): post-deploy verification is INCONCLUSIVE,2,DOCS,none,none,none,no,yes,none,Neutral,Audit artifact only
+43846f98,2026-08-10 20:58,docs(handoff): the OOM closed end to end,2,DOCS,none,none,none,no,yes,none,Neutral,Handoff only
+c2e83b07,2026-08-10 21:00,docs(audit): G-01 CLOSED -- 26 OOM kills all before the fix,1,DOCS,none,none,none,no,yes,none,Neutral,Audit artifact only
+6d5d6c48,2026-08-10 21:09,docs(audit): Forward-Progress Audit 11.2 -- ON TRACK,4,DOCS,none,none,none,no,yes,none,Neutral,"The FORWARD-PROGRESS 11.2, distinct from this CERTIFICATION 11.2"
+712e3bac,2026-08-10 22:06,fix(memory): skip the manifest re-parse when the bytes are unchanged,4,CODE,backend memory / manifest parsing,none observed,none,unknown,claimed in commit,backend RSS behaviour,Unvalidated,No memory profiling was performed by this audit
+9a252550,2026-08-10 22:14,docs(audit): Mission 1 -- the height flip is VALIDATED,5,DOCS,none,none,none,no,yes,none,Neutral,Validation claim for 679da3d9; not independently re-run
+30b969bc,2026-08-10 22:14,docs(audit): reconcile 11.2 with its own Mission 1 result,1,DOCS,none,none,none,no,yes,none,Neutral,Self-correction of the forward-progress 11.2
+700568ce,2026-08-10 22:22,docs(handoff): the OOM attributed the flip validated,1,DOCS,none,none,none,no,yes,none,Neutral,Handoff only
+e015d90b,2026-08-10 22:45,docs(handoff): the memory arc closed with attribution,1,DOCS,none,none,none,no,yes,none,Neutral,HEAD; the audited commit
