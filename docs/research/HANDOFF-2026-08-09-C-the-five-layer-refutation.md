@@ -144,3 +144,33 @@ The wrapping workflow's literature agent **refuted the premise I gave it**:
 5. **The perf trio** (admin-slow, scrub lag, pan/zoom clearing) — the *code* findings stand on source
    reads; the attribution does not. Instrument the four suspected paths with **counters** (counts
    spread 34% where timings spread 91%).
+
+---
+
+## §8 CONTEXT CLOSE — what is in flight, and one live breakage to look at first
+
+**⚠️ FLAGGED TO THE SIBLING SESSION, uncommitted in the shared tree at close:**
+`frontend/src/components/map/MapWeatherControls.js` will throw at render.
+- line 140 `}, [activeLayer, activeModel, timeOffsetHours, surfMode]);`
+- line 186 `const activeLayer = activeLayers[0] || null;` — **declared AFTER its use** ⇒ temporal
+  dead zone `ReferenceError`
+- `timeOffsetHours` appears ONLY at line 140 — never defined in that scope
+There is **no `MapWeatherControls` test** (0 matches), so only rendering the map catches it. Fix is
+to move the `useMemo` below line 186 and use the real prop name (`currentTimeOffset`).
+
+**IN FLIGHT — cut 2 (`marineGlobalPrewarm.js`).** Dispatched to a fresh-context workflow
+(`wf_e24ae4a9-943`) with the complete spec from `3af1ef12`: one builder, then two adversarial
+agents (behaviour + mutation). At close it had returned **0 of 3 agents** and the module did not
+exist, so **nothing was committed** — correct, because an unfinished refactor of the live marine
+fetch path is worse than none.
+- results land in that run's `journal.jsonl`, one `{"type":"result"}` line per agent
+- ⭐ **read the MUTATION result before the green suite.** If stubbing `prewarmGlobalMarineGrid`
+  does not kill `marineController.globalSeriesPrewarm.test.js`, the series warm is not wired to
+  anything observable and the move is unsafe no matter what else passes. That test's own header
+  records the precedent: it "shipped 2026-07-04 against a cache that was never warmed".
+- the seam (`registerPrewarmDeps`) is the new failure surface: a prewarm that silently becomes a
+  no-op passes every test that is not specifically watching for it.
+
+**STATE AT CLOSE:** branch green on the last verified SHA; cut 1 landed (853 → 776); nothing wired;
+`SURF_EXPOSURE_RECONCILED` OFF and registered; `marineGridSeries.js` sitting at exactly **800/800**,
+so the next edit to it needs its own relocation regardless of cut 2.
