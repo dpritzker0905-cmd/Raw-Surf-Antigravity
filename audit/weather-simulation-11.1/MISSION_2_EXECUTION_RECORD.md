@@ -136,9 +136,10 @@ and the ratio lands at **1.30×**.
 
 ## 7. What is NOT proven
 
-- **No production measurement of the change.** The +210.9 MB figure is pre-change. This has not
-  been deployed, and the audit rule stands: *a fix recorded in a handoff is not a fix applied.*
-  The T-CAP-01 protocol must be re-run on a settled box **with headroom** after deploy.
+- **No production measurement of the change.** The +210.9 MB figure is pre-change.
+  ⚠️ *Written before the push; superseded by §8 — it IS now deployed, and the measurement was
+  attempted and came back **inconclusive**. The rule still stands: a fix recorded in a handoff is
+  not a fix applied.*
 - **The dynamic-viewport lane is untouched** and still materialises everything it serves.
 - **`PREFETCH_CONCURRENCY` / `MALLOC_*` remain unset** on the live box — owner action, 7 days open,
   and still the multiplier on whatever transient survives.
@@ -146,3 +147,68 @@ and the ratio lands at **1.30×**.
   authoritative.
 
 **Nothing is committed or pushed** — every push to `dev` is a production deploy.
+
+---
+
+## 8. POST-DEPLOY VERIFICATION (2026-08-11 ~00:50Z) — **INCONCLUSIVE, not positive**
+
+Pushed `d68f6f2d..79abe4ed`; deployed and live (box runs `679da3d9`, which contains both commits).
+
+### CI on `79abe4ed` — green
+`CI` **success** (composition + chain + estate + frontend, partition assertion, coverage floors) ·
+`Encoding Guard` success · `LOC Governance Check` success · `Lighthouse CI` success ·
+**`E2E Tests` CANCELLED** — a concurrent push landed 6 min later and destroyed the run. *A cancelled
+run is not a pass and not a failure; it is no evidence at all.* The backend change has **no
+browser-lane evidence under its own SHA** — the exact cascade this audit documented, now applied to
+my own commit.
+
+### No regression — verified
+`/grid` at the global bbox returns a full **181×83** grid with `run_time` present. The 48-hour
+series returns **48 frames**, `run_census {distinct_runs: 1, mixed_runs: false}`, no `_error`, no
+`warming`. *(An earlier 0-frame reading was transient — it landed while the 00:39:44Z ingest was
+replacing products.)*
+
+### The saving could NOT be measured, and this is why
+
+| request | cols×rows | cells/frame | `vectors_total` | bound engaged? |
+|---|---|---:|---:|---|
+| global bbox, 48 h | 25×12 | 300 | 14,400 | **no** |
+| regional bbox (−100,20,−60,45), 48 h | 21×13 | 273 | 13,104 | **no** |
+
+Both sit far under the 80,000-vector budget, so `stride_for` returns 1, **no stride is ever
+requested, and the new code path never runs.** `vectors_before_bound` is absent because nothing
+needed bounding — not because the fix reduced it.
+
+> ⛔ **THE TRAP THIS NARROWLY AVOIDED.** Pre-change this request reported `vectors_before_bound
+> 525,805`; now it reports none. Read carelessly that is a 100 % improvement. It is nothing of the
+> kind — **the request no longer resolves to the same product.** Pre-change it served the 181×83
+> mid tier strided to 46×21 (966 cells); it now serves a ~300-cell coarse tier. Quoting the drop as
+> a result would be the same error as the original `+0.0 MB`: a number that changed for a reason
+> other than the one being claimed.
+
+### Why it is NOT attributable to the change
+Hour 0 always resolves with **no stride** (`bound["stride"]` is 1 until its geometry sets it, and
+`_load_kw` returns `{}` for 1/None), so hour 0's path is byte-identical to pre-change. All 48
+frames returned 25×12 **including hour 0**. Product selection (`select_best_candidate`,
+`split_mid_candidates`, `try_serve_mid_res_tier`) is untouched. Both tiers are registered
+(`global_tile 2.0°` ×115 and `10.0°` ×129), so this is tier selection or product freshness, not the
+stride.
+
+### What would actually verify it
+A series request that resolves to the **181×83 mid tier** at >1,666 cells/frame — i.e. exceeding
+the budget so `stride_for` returns >1. Then `vectors_before_bound` must land near **60,425**
+(hour 0 full + 47 strided) instead of ~525,805, and the RSS delta must be read on a box **at least
+50 MB below its own `peak_rss_mb`** (this box plateaued 13.2 MB below its peak, so `T-CAP-04`
+correctly **withheld** the RSS number rather than report one that could not have shown).
+
+**GATE E (capacity) REMAINS FAILED.** The change is deployed, CI-green, regression-free and inert
+at present traffic. Its benefit is unproven in production.
+
+### Instrument failures in this session — four, all caught, none silent
+Pydantic v2 builds nested models in Rust so a `GridVector.__init__` counter read **0** (a perfect
+false positive, caught by a `SETUP BROKEN` assertion) · `ProductStore(cache_dir=str)` raised
+`TypeError` so 8 tests ERRORed rather than failed · `git show <sha> -- backend/...` run from inside
+`backend/` matched nothing and **exited 0**, which read as "no test added" · and `T-CAP-04` crashed
+on an emoji (`cp1252`) at the exact line where it was about to refuse.
+★ **The instruments failed more often than the code under test — which is what Audit 11.1 concluded
+about everyone else's.**
