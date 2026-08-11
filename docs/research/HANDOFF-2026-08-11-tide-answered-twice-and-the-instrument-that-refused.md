@@ -63,9 +63,12 @@ decayed — the double penalty measured at **11.43×** worst case. `= false` rev
 
 ## ⚠️ OPEN
 
-- **LOC RED RIGHT NOW**: `MapWeatherControls.js` **957 → 982 (+25)**, grandfathered = may only
-  shrink. Not mine (my last touch took it 957 → 952). House fix: relocate rationale to docs, or
-  move a helper to the module its logic already lives in.
+- ~~**LOC RED RIGHT NOW**: `MapWeatherControls.js` 957 → 982~~ — ⚠️ **RETRACTED, I WAS WRONG.**
+  CI LOC Governance is **green**; the file is **952 committed** (under its 957 baseline). The 982
+  was my **local working tree**, carrying the concurrent session's **uncommitted** +29 for an
+  in-flight feature (`servedResolutionNotice`, still untracked). I quoted a local `wc -l` as the
+  shipped state without running `git status` first — the same local-vs-production error this very
+  document catalogues, made inside it. Nothing to fix; it becomes theirs when they commit.
 - **Radar legend units** (#9) — needs the RainViewer **scheme-7 palette spec**, absent from this
   repo. I refused to invent dBZ thresholds; fabricated numbers read as measured ones.
 - **Serving latency** — `/api/health` p90 16 s, RSS 70–73% of a 2 GiB cap, **stable, not leaking**.
