@@ -84,7 +84,19 @@ Items that must not proceed until the named gate passes. This file exists to sto
   running.** But **127/130 (98%) exceed the declared `freshness_sec: 1800`**, and only ICON
   `global_coarse` sits inside it. By F-STALE's own discriminator that is **sawtooth, not monotonic
   growth ⇒ the DECLARATION is wrong, not the pipeline.** The original 4.5 h / 9× reading does not
-  replicate; it was one sample. ⚠️ Caveat: refreshes are **batched** into ~5 distinct `run_time`s,
-  so effective n ≈ 5, not 130 — two more samples ~60 min apart pin the true cadence. That is
-  ~2 hours of work, not the 24 h the original note projected.
-  ⭐ **A cross-sectional sample over many products can substitute for a longitudinal sample of one.**
+  replicate; it was one sample.
+  ✅ **SETTLED 2026-08-11 — cadence is ~8 h, declared 0.5 h, off by ~16×.** Two independent readings
+  of the retained ingest history agree (last-5-ingest gaps p50 **7.97 h**; distinct `run_time`s in
+  the last 24 h p50 **3** ⇒ 24/3 = **8.00 h**), with a positive control: a 0.5 h cadence would leave
+  ~48 per triple in that window. Full write-up and the re-runnable sampler:
+  `STALE_FRESHNESS_FINDING.md` + `evidence/forensics/F-STALE_cadence_sample.js`.
+  ⚠️ Cadence is **not uniform** — recent-gap p90 is **16.1 h ≈ 2×8 h**, so cycles get skipped. Any
+  new budget must choose between nominal (~9 h) and worst-case (~18 h). **Owner decision.**
+  ⛔ **The "two more samples ~60 min apart" advice previously written here was WRONG** and is
+  retracted: S1→S2 were 43 min apart and **nothing refreshed**, which on an 8 h cadence reads as
+  pure monotonic growth — this finding's own signature for *"the pipeline has stopped."*
+  ★ **A sampling interval shorter than the process you are measuring cannot tell "slow" from
+  "stopped."** Establish the period before choosing the interval.
+  ⭐ **A cross-sectional sample over many products can substitute for a longitudinal sample of one** —
+  and better still, the system was already retaining the history the longitudinal sample would have
+  had to wait a day to collect.
