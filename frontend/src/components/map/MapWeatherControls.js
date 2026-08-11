@@ -8,6 +8,7 @@ import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 import { getHeightUnit, setHeightUnit, M_TO_FT } from './heightUnits';
 import { windLegendGradientCSS, windLegendStops } from './WindColorRamp';
 import { valueTicks, evenTicks, dropCollisions, LegendTicks } from './legendTicks';
+import { servedResolutionNotice } from './servedResolutionNotice';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
 
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
@@ -123,6 +124,19 @@ export var MapWeatherControls = ({
   const textMuted = isLight ? 'text-gray-500' : 'text-gray-400';
   const btnHover = isLight ? 'hover:bg-gray-200' : 'hover:bg-zinc-700';
   const chipBg = isLight ? 'bg-gray-100 border-gray-200' : 'bg-zinc-800 border-zinc-700';
+
+  // ── T-1 item 3b: how coarse is the grid under these colours? ────────────────────────────────
+  // The HUD's seven-valued `Class` row (516a7200) says this already — behind `?diag=1`, which a
+  // surfer never opens. The legend is always on screen. Measured on production: a regional tile is
+  // 0.25 deg/cell (~28 km, silent) and the global-coarse tier is 15.455 deg/cell (~1,700 km).
+  // Read from the projection diagnostic, which already derives the value and discloses its source
+  // (`backend` | `derived_from_served_grid` | `unknown`) — the backend's own `resolution` field is
+  // still null in production (R11-10). Keyed on the same values that drive a legend re-render, so
+  // it cannot go stale behind a layer or model change.
+  const resolutionNotice = useMemo(() => {
+    const d = (typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) || null;
+    return servedResolutionNotice(d?.resolution, d?.resolutionSource);
+  }, [activeLayer, activeModel, currentTimeOffset, surfMode]);
   const chipActive = 'bg-cyan-500/20 border-cyan-500 ring-1 ring-cyan-500/30';
   const trackBg = isLight ? '#e5e7eb' : '#3f3f46';
 
@@ -774,6 +788,11 @@ export var MapWeatherControls = ({
             <div className={`text-[9px] ${textMuted} mb-0.5`}>{legendConfig[activeLayer].label}</div>
             <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS }} />
             <LegendTicks ticks={legendConfig[activeLayer].stops} className={`text-[8px] ${textMuted} mt-0.5`} />
+            {resolutionNotice && (
+              <div className={`text-[8px] ${textMuted} mt-0.5 px-0.5`} title={resolutionNotice.title}>
+                {resolutionNotice.label}
+              </div>
+            )}
           </div>
         )}
 
@@ -829,6 +848,11 @@ export var MapWeatherControls = ({
                 </div>
                 <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS }} />
                 <LegendTicks ticks={legendConfig[activeLayer].stops} className={`text-[9px] ${textMuted} mt-1`} />
+                {resolutionNotice && (
+                  <div className={`text-[9px] ${textMuted} mt-1 px-0.5`} title={resolutionNotice.title}>
+                    {resolutionNotice.label}
+                  </div>
+                )}
               </div>
             )}
             {renderTimeline(true)}
@@ -937,6 +961,11 @@ export var MapWeatherControls = ({
                   </div>
                   <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS }} />
                   <LegendTicks ticks={legendConfig[activeLayer].stops} className={`text-[8px] ${textMuted} mt-0.5`} />
+                  {resolutionNotice && (
+                    <div className={`text-[8px] ${textMuted} mt-0.5 px-0.5`} title={resolutionNotice.title}>
+                      {resolutionNotice.label}
+                    </div>
+                  )}
                 </div>
               )}
               {renderTimeline(true)}
