@@ -37,8 +37,11 @@ changes the default map display by a median 3× with no accuracy validation.**
 
 ## 1.2 The three highest risks now
 
-1. **The height flip is unvalidated** — median **3.00×**, max **10.68×**, on the **default** map
-   state, with no buoy scoring that sampler (§4). Consistency proven; accuracy not.
+1. ~~**The height flip is unvalidated**~~ — ✅ **RESOLVED by Mission 1, same session.** Measured
+   against the buoy-scored point lane at 130 real spots: **|tile − point| mean 0.0004 m with the
+   flag ON vs 0.2579 m OFF** — ON is closer by ~645×, and reproduces the scored lane to ~0.4 mm
+   because the two are now the same computation. **Keep the flip.** See
+   `MISSION_1_HEIGHT_FLIP_VALIDATION.md`. *(Risk #1 is now #2 below.)*
 2. **A live credential is still committed** at `BRAIN_RULES.md:200` — measured present at HEAD.
    Unchanged across 11.0, 11.1 and now 11.2. **The oldest unactioned P1 in the lineage.**
 3. **No CI green has ever proven the marine field paints** — the pixel oracle is still
@@ -219,14 +222,15 @@ measurement apparatus around it is where the defects concentrate.
 | gate | 11.1 | 11.2 | why |
 |---|---|---|---|
 | A Baseline truth | PASS | **PASS** | tree clean, CI green, deploy = HEAD |
-| B Correctness | CONDITIONAL | **CONDITIONAL** | chain bit-identical; **the height flip is unvalidated** |
+| B Correctness | CONDITIONAL | **PASS** ⬆ | chain bit-identical; **the height flip is now validated against the scored lane** (Mission 1) |
 | C Lifecycle | CONDITIONAL | **CONDITIONAL** | unchanged; R11-01 still unexercised under a trip |
 | D Regression protection | **FAIL** | **CONDITIONAL PASS** | the capacity oracle now exists and is mutation-proven (6/6); the pixel oracle still does not |
 | E Capacity | **FAIL** | **PASS** | 39.2 % of cap at higher load, zero OOMs, attribution isolated |
 | F Upgrade readiness | HOLD | **CONDITIONAL** | E and D cleared enough to unblock the next phase, once B's height question is answered |
 
-**Gate E passes. Gate D improves to conditional. Gate B is now the binding one — and it binds on a
-number users read.**
+**Gate E passes. Gate D improves to conditional. Gate B was the binding gate and Mission 1 cleared
+it the same session.** The remaining binding constraint is **D** — the pixel oracle still does not
+exist, so no CI green has ever proven the marine field paints.
 
 ---
 
