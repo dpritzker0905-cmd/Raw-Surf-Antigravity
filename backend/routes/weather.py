@@ -133,11 +133,16 @@ async def get_grid(
     """
     from services.weather_pipeline.grid_resolver import resolve_grid
     try:
+        # ⛔ ROOT OF THE 2026-08-11 P1: this route is ALSO called as a plain callable (the resolver
+        # injected into build_grid_series). FastAPI resolves `Query(None)` to None only on the HTTP
+        # path; called directly, the parameter is the Query OBJECT itself. Normalise here so a
+        # Query never enters the resolver, and `_load_kw` fails open as the second line of defence.
+        _stride = series_stride if isinstance(series_stride, int) else None
         product = await resolve_grid(
             store, viewport_service,
             model=model, domain=domain, layer=layer, valid_time=valid_time,
             bbox=bbox, surf=surf, background_tasks=background_tasks, request=request,
-            series_stride=series_stride
+            series_stride=_stride
         )
         # ROOT FIX (2026-07-23): the 10° coarse EURO/ICON `waves` tier masks enclosed seas (Gulf) →
         # wrong colors on zoom-out. Fill those holes from the SERVED GFS coarse (valid Gulf) at serve

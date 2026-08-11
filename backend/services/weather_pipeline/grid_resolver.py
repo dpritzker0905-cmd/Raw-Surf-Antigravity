@@ -89,8 +89,23 @@ def _load_kw(series_stride) -> dict:
     None — breaks every existing test double whose `load_product(self, filename)` takes two
     positional arguments. Two mid-res-tier tests failed exactly that way before this existed. A
     store that never receives the kwarg cannot behave differently because of it.
+
+    ⛔⛔ AND IT MUST FAIL OPEN ON ANYTHING THAT IS NOT A USABLE INT — a live P1, 98 occurrences in
+    13 minutes. `routes/weather.py` declares `series_stride: Optional[int] = Query(None, ...)`, and
+    `get_grid` is BOTH a FastAPI route and the plain callable the series builder injects. Called
+    programmatically nothing resolves the default, so this received a `Query` OBJECT — which is
+    truthy, so `(series_stride or 0)` returned it and `Query > 1` raised
+    `TypeError: '>' not supported between instances of 'Query' and 'int'`, taking down every
+    affected grid resolve.
+    ★ A stride we cannot read means SERVE THE FULL GRID. That is always correct — merely more
+    expensive — whereas raising loses the frame entirely and forwarding garbage would serve a wrong
+    one. Pinned by `test_series_stride_query_leak.py`.
     """
-    return {"stride": series_stride} if (series_stride or 0) > 1 else {}
+    try:
+        s = int(series_stride)
+    except (TypeError, ValueError):
+        return {}
+    return {"stride": s} if s > 1 else {}
 
 
 async def resolve_grid(
