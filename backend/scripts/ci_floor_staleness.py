@@ -82,15 +82,31 @@ CI_YML = os.path.join(REPO_ROOT, ".github", "workflows", "ci.yml")
 #   so adding a test file to a lane reddens this check until the floor moves -- which is the stated
 #   rule, now with a consequence.
 #
-# PASSED = 25 -- chosen from the three measured failures rather than picked for feel. It catches all
-#   of them (447, 89, 36) and tolerates ordinary churn: a new guard file of a dozen tests does not
-#   redden anything, a lane quietly shedding a module's worth of coverage does.
-#   ⚠️ This is the one number here that is a judgement rather than a measurement. Widening it is a
-#   deliberate act that must appear in a diff -- 36 is the smallest real staleness on record, so any
-#   value at or above 36 would have let the estate case through.
+# PASSED is PER LANE, and each lane's budget IS THAT LANE'S OWN STATED MARGIN -- the number its
+#   ci.yml block says the floor should sit below the reading (6 for guards and chain, 2 for estate).
+#   A correctly maintained floor therefore sits exactly ON the boundary, and any drift past it is a
+#   floor that was not moved when the lane grew.
+#
+#   ⚠️⚠️ THIS WAS TIGHTENED FROM A SINGLE GLOBAL 25 ON 2026-08-11, AND THE REASON IS THIS CHECK'S
+#   OWN FIRST MISS. The commit that shipped it (`9857a325`) added 9 tests to a composition-lane file
+#   without moving that lane's floor -- the exact "raise it in the same commit" breach this exists
+#   to stop -- and produced a lag of 15 that 25 waved through. A budget derived only from the LARGE
+#   historical failures (447, 89, 36) is blind to the small ones, and the small ones are what
+#   actually happen: nobody forgets to raise a floor by 447.
+#   ⇒ A THRESHOLD SET FROM THE FAILURES YOU ALREADY SUFFERED IS CALIBRATED TO THE PAST. The 15-lag
+#     was not in that sample because it had not happened yet.
+#
+#   ⚠️ THE COST IS REAL AND WAS ACCEPTED DELIBERATELY (owner decision, 2026-08-11): adding even one
+#   test to a lane now reddens this check on the NEXT commit until that lane's floor is moved. That
+#   is the stated rule with a consequence rather than a comment, and the error message names the
+#   exact value to set. If this proves too costly in practice the lever is here, in one place, and
+#   widening it is a deliberate act visible in a diff -- but it must never go at or above 36, the
+#   smallest staleness this repo has actually shipped.
 # ---------------------------------------------------------------------------------------------
 FILES_BUDGET = 0
-PASSED_BUDGET = 25
+
+# The smallest staleness on record. No lane's budget may reach it, or that failure walks through.
+SMALLEST_SHIPPED_STALENESS = 36
 
 # Each lane: the ci.yml job that runs it, the junit filename that anchors its floor assignment, and
 # the regex for the line the lane PRINTS. Anchoring the floor on the junit name rather than on line
@@ -102,12 +118,16 @@ LANES = {
         # collected 1749 tests across 148 files -> 1682 passed, 67 skipped, 0 failed, 0 errors
         "observed": re.compile(r"collected \d+ tests across (\d+) files -> (\d+) passed"),
         "has_files_floor": True,
+        # ci.yml sets this lane's floor 6 below the reading, every entry since 2026-08-01.
+        "passed_budget": 6,
     },
     "chain": {
         "job": "backend-forecast-chain-guards",
         "anchor": "chain.xml",
         "observed": re.compile(r"collected \d+ tests across (\d+) files -> (\d+) passed"),
         "has_files_floor": True,
+        # Same 6-below convention (498/504, 509/515, 780/786).
+        "passed_budget": 6,
     },
     "estate": {
         "job": "backend-estate-coverage",
@@ -118,6 +138,8 @@ LANES = {
         # absent on purpose. Only the pass count is a floor, so only the pass count can be stale.
         "observed": re.compile(r"estate: \d+ files selected, \d+ produced results, (\d+) passed"),
         "has_files_floor": False,
+        # This lane's own words: "295 sits two below the observed 297", and 328 below 330.
+        "passed_budget": 2,
     },
 }
 
@@ -231,18 +253,19 @@ def observed(run_id, lane):
 
 # ---------------------------------------------------------------------------------------------
 def evaluate(floors, readings):
-    """[(lane, kind, floor, observed, lag)] for every floor that has fallen behind."""
+    """[(lane, kind, floor, observed, lag, budget)] for every floor that has fallen behind."""
     stale = []
-    for lane in LANES:
+    for lane, spec in LANES.items():
         obs_files, obs_passed = readings[lane]
         floor = floors[lane]
         if floor["files"] is not None and obs_files is not None:
             lag = obs_files - floor["files"]
             if lag > FILES_BUDGET:
-                stale.append((lane, "MIN_FILES", floor["files"], obs_files, lag))
+                stale.append((lane, "MIN_FILES", floor["files"], obs_files, lag, FILES_BUDGET))
+        budget = spec["passed_budget"]
         lag = obs_passed - floor["passed"]
-        if lag > PASSED_BUDGET:
-            stale.append((lane, "MIN_PASSED", floor["passed"], obs_passed, lag))
+        if lag > budget:
+            stale.append((lane, "MIN_PASSED", floor["passed"], obs_passed, lag, budget))
     return stale
 
 
@@ -277,12 +300,14 @@ def main():
         print(f"({len(stale)} stale floor(s); --report always exits 0)")
         return 0
     if stale:
-        for lane, kind, floor, obs, lag in stale:
-            budget = FILES_BUDGET if kind == "MIN_FILES" else PASSED_BUDGET
+        for lane, kind, floor, obs, lag, budget in stale:
+            # The value to set is spelled out, because "raise the floor" without a number is how a
+            # red turns into a guess. MIN_FILES is exact; MIN_PASSED sits at this lane's own margin.
+            target = obs if kind == "MIN_FILES" else obs - budget
             print(f"::error::{lane} {kind} is {lag} below what CI last observed "
-                  f"({floor} vs {obs}, budget {budget}). Raise it to {obs if kind == 'MIN_FILES' else obs - 6} "
-                  f"in this commit and cite run {run_id} -- a floor below the reading cannot detect "
-                  f"anything shrinking back to it.")
+                  f"({floor} vs {obs}, budget {budget}). Set it to {target} in this commit and cite "
+                  f"run {run_id} -- a floor below the reading cannot detect anything shrinking back "
+                  f"to it.")
         return 1
     print("every floor is current against the last green run.")
     return 0

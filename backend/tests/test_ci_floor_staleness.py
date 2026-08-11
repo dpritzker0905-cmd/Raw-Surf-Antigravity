@@ -94,14 +94,65 @@ def test_it_would_have_caught_all_three_recorded_staleness_failures():
                      ("chain", "MIN_FILES"), ("chain", "MIN_PASSED"),
                      ("estate", "MIN_PASSED")):
         assert expected in caught, (
-            f"{expected[0]} {expected[1]} would NOT be caught with the current budgets "
-            f"(files {S.FILES_BUDGET}, passed {S.PASSED_BUDGET}) — a budget has been widened past a "
-            f"staleness this repo actually shipped")
-    # ...and the current floors against the same readings must be CLEAN, or the check is simply
-    # always-red and the assertions above prove nothing about its discrimination.
+            f"{expected[0]} {expected[1]} would NOT be caught with the current budgets — one has "
+            f"been widened past a staleness this repo actually shipped")
+
+
+def test_it_would_have_caught_the_small_lag_the_first_budget_waved_through():
+    """⭐ THE MISS THAT TIGHTENED THE BUDGETS, pinned so it cannot return.
+
+    `9857a325` -- the commit that SHIPPED this check -- added 9 tests to test_flag_lane_parity.py, a
+    file the composition lane collects, without moving that lane's floor. Its next reading was
+    1691 against a floor of 1676: a lag of 15, which the original global budget of 25 waved through.
+    ★ A THRESHOLD DERIVED FROM THE FAILURES ALREADY SUFFERED IS CALIBRATED TO THE PAST. 447, 89 and
+    36 were the sample; 15 was not in it, because it had not happened yet. Nobody forgets to raise a
+    floor by 447 -- the small lags are the ones that actually occur.
+    """
+    readings = {"guards": (148, 1691), "chain": (85, 786), "estate": (None, 330)}
+    as_shipped = {"guards": {"files": 148, "passed": 1676},
+                  "chain": {"files": 85, "passed": 780},
+                  "estate": {"files": None, "passed": 320}}
+    caught = {(lane, kind) for lane, kind, *_ in S.evaluate(as_shipped, readings)}
+    assert ("guards", "MIN_PASSED") in caught, (
+        "the 15-test lag from 9857a325 is not caught — PASSED budgets have been widened back past "
+        "the miss that motivated tightening them")
+    # ⚠️ AND SO IS ESTATE, at a lag of 10 against its budget of 2 — which I did NOT expect when
+    # writing this fixture and which the first run of it corrected. 320 was shipped deliberately
+    # loose against an unobserved bound, so under the old global 25 it read as fine; under this
+    # lane's own stated margin it reads as what it was, a floor 10 below the reading. BOTH floors I
+    # under-set are caught, not one.
+    # ★ A DELIBERATE LOOSENESS AND AN ACCIDENTAL LAG ARE INDISTINGUISHABLE TO A RATCHET. That is an
+    #   argument for resolving provisional floors promptly, not for a budget wide enough to hide
+    #   them both.
+    assert ("estate", "MIN_PASSED") in caught, (
+        "the provisional estate floor at 320 is not caught against a 330 reading — the estate "
+        "budget has been widened past its own stated two-below convention")
+    # The discriminator: chain was CORRECT at that reading (780 is exactly 6 below 786) and must
+    # NOT be flagged, or this proves only that the check has become uniformly red.
+    assert ("chain", "MIN_PASSED") not in caught, (
+        f"chain was correctly set at 780/786 and was flagged anyway: {sorted(caught)}")
+
+
+def test_no_lane_budget_reaches_the_smallest_staleness_on_record():
+    """A budget at or above 36 lets the estate failure walk through. The bound is asserted rather
+    than trusted to the comment beside it, because that is the one thing a future widening will not
+    read."""
+    for lane, spec in S.LANES.items():
+        assert spec["passed_budget"] < S.SMALLEST_SHIPPED_STALENESS, (
+            f"{lane} passed_budget is {spec['passed_budget']}, at or above the smallest staleness "
+            f"this repo has shipped ({S.SMALLEST_SHIPPED_STALENESS}) — that failure would now pass")
+        assert spec["passed_budget"] > 0, f"{lane} budget of 0 reddens on any churn at all"
+
+
+def test_the_current_floors_are_clean_against_the_reading_they_were_set_from():
+    """The counterweight to every assertion above: tightening a budget until everything is red
+    proves nothing. These are the post-merge readings the floors in ci.yml were actually set from
+    (run 31514754043 @ 9857a325), and against them the check must be silent."""
+    readings = {"guards": (148, 1691), "chain": (85, 786), "estate": (None, 330)}
     assert S.evaluate(S.read_floors(), readings) == [], (
         "the floors now in ci.yml are flagged against the readings they were set from — either a "
-        "floor was lowered or a budget was tightened below the margin the lanes actually use")
+        "floor was lowered, or a budget was tightened below the margin the lanes actually use, "
+        "which makes this check red on a correctly maintained repo")
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
@@ -136,15 +187,46 @@ def test_each_lane_summary_regex_matches_the_line_that_lane_really_prints(lane):
 
 def test_the_budgets_are_documented_where_they_are_defined():
     """A budget is a judgement, and an undocumented judgement is indistinguishable from an accident.
-    `PASSED_BUDGET` in particular was derived from the three measured failures rather than chosen,
-    and the next person to widen it needs that derivation in front of them."""
+    The per-lane budgets mirror each lane's own stated margin in ci.yml, and the next person to
+    widen one needs that derivation — and the 15-lag miss that produced it — in front of them."""
     src = open(os.path.join(BACKEND, "scripts", "ci_floor_staleness.py"), encoding="utf-8").read()
-    block = src[src.index("FILES_BUDGET = "):] if "FILES_BUDGET = " in src else ""
-    assert block, "FILES_BUDGET is gone — the check has no staleness threshold left"
+    assert "FILES_BUDGET = " in src, "FILES_BUDGET is gone — no file-staleness threshold is left"
     preamble = src[:src.index("FILES_BUDGET = ")]
     assert "36" in preamble, (
         "the rationale above the budgets no longer cites 36, the smallest staleness on record — "
-        "without it there is nothing telling the next reader why PASSED_BUDGET must stay below it")
+        "without it nothing tells the next reader why a budget must stay below it")
+    assert "15" in preamble, (
+        "the rationale no longer records the 15-test lag that the original global budget of 25 "
+        "waved through — that miss is the entire reason these budgets are per-lane and tight")
     assert re.search(r"FILES_BUDGET\s*=\s*0\b", src), (
         "FILES_BUDGET is no longer 0. ci.yml's own comment calls MIN_FILES 'the exact module count'; "
         "any non-zero budget here makes that word false in the direction nothing else checks")
+
+
+# The reading each floor in ci.yml was SET FROM. Two are observed, one is not, and the distinction
+# matters enough to be marked rather than blurred:
+#   guards/chain  observed, run 31516884924 @ 7d6fb087
+#   estate        PROJECTED by the commit that tightened these budgets — that change took
+#                 test_ci_floor_staleness.py from 8 to 14 tests and this lane owns it, so
+#                 330 - 8 + 14 = 336. The next green run replaces this with an observation.
+# ⚠️ A floor LEADING its last reading is the correct post-raise state (see the one-sided test
+# above), so this table is "what the floor was set from", never "the latest reading".
+_FLOOR_SET_FROM = {"guards": 1691, "chain": 786, "estate": 336}
+
+
+@pytest.mark.parametrize("lane", sorted(S.LANES))
+def test_each_lane_budget_matches_the_margin_that_lane_actually_uses(lane):
+    """⭐ THE BUDGET AND THE FLOOR ARE A PAIR, and this keeps them one fact rather than two.
+
+    A budget is only meaningful as "this lane's stated margin": set it below the margin ci.yml
+    actually maintains and the check is red on a correct repo; set it above and drift hides under
+    it. Pinning the pair means neither can be edited alone — which is how this test earned its
+    keep immediately, catching the estate floor moving 328 -> 334 without its entry here.
+    """
+    floor = S.read_floors()[lane]["passed"]
+    margin = _FLOOR_SET_FROM[lane] - floor
+    assert S.LANES[lane]["passed_budget"] == margin, (
+        f"{lane} carries a budget of {S.LANES[lane]['passed_budget']} while its floor sits {margin} "
+        f"below the reading it was set from ({floor} vs {_FLOOR_SET_FROM[lane]}). A budget under "
+        f"the margin reddens a correct repo; one over it is slack that drift will occupy. If the "
+        f"floor moved, move its entry in _FLOOR_SET_FROM with it.")

@@ -881,7 +881,18 @@ jobs:
           #   ABOVE achievable, failing the lane with zero test failures (the 250-over-244 shape).
           #   ⇒ WHEN A PREDICTION HAS A LOCAL BRANCH AND A CI BRANCH, SHIP THE LOWER BOUND AND
           #     RESOLVE IT FROM THE GATE. This pair of entries is the worked example.
-          MIN_PASSED = 328
+          # ⬆ 328→334 IN THE SAME COMMIT THAT CAUSES IT, which is the whole point. Tightening the
+          #   staleness budgets took tests/test_ci_floor_staleness.py from 8 to 14, and that file
+          #   lives in THIS lane (the complement claims it). 330 - 8 + 14 = 336; 334 is two below.
+          # ★ AND THE LOOSE-FLOOR ESCAPE IS NOW CLOSED, DELIBERATELY. 320 was shipped slack against
+          #   an unobserved bound and the old global budget of 25 hid it; with this lane's budget at
+          #   its own stated 2, a floor set loose is flagged on the next commit exactly like a floor
+          #   forgotten. So this number must be PREDICTED EXACTLY rather than shipped low —
+          #   the tightening bought enforcement and spent the ability to hedge.
+          # ⚠️ 336 is therefore a prediction, and the 14 tests are pure file-parsing (no network, no
+          #   DB, no fastmcp), so the local count should hold on the runner. If this lane comes back
+          #   red, THIS is the cause and 334 is the one line to correct — not the lane.
+          MIN_PASSED = 334
 
           try:
               root = ET.parse('estate.xml').getroot()
