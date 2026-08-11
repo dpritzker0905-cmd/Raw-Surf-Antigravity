@@ -57,7 +57,15 @@ describe('the nearshore decay exists in exactly one lane', () => {
   });
 });
 
-describe('the decay applies to HEIGHTS only, and only when land is adjacent', () => {
+describe('[kill-switch state] the decay applies to HEIGHTS only, and only when land is adjacent', () => {
+  // ⚠️ THESE BLOCKS DOCUMENT THE PRE-FIX BEHAVIOUR, WHICH IS NO LONGER THE DEFAULT.
+  // The owner flipped __RAW_NEARSHORE_RENORM__ on 2026-08-10, so the decay now only applies
+  // behind the kill switch. The assertions below are UNCHANGED -- same constants, same ratios --
+  // they simply state which state they describe. That keeps the evidence for WHY the flag exists
+  // and keeps the revert path pinned; deleting them would have thrown away the proof.
+  beforeEach(() => { window.__RAW_NEARSHORE_RENORM__ = false; });
+  afterEach(() => { delete window.__RAW_NEARSHORE_RENORM__; });
+
   // 2x2 grid, bounds [w,s,e,n] = [0,0,2,2]; row 0 = SOUTH. A 0 cell reads as land.
   const tile = (values, variable) => ({
     variable, model: 'ncep_gfswave025', timeIndex: 0, timestamp: 1,
@@ -107,7 +115,15 @@ describe('the decay applies to HEIGHTS only, and only when land is adjacent', ()
 //     height (0+decay):2.000    0.975    0.450    0.175
 //     ratio:           1.00x    2.05x    4.44x   11.43x
 // The reported divergence was 2.86x (decay alone). The real worst case is 11.43x.
-describe('height is penalised TWICE where period is not penalised at all', () => {
+describe('[kill-switch state] height is penalised TWICE where period is not penalised at all', () => {
+  // ⚠️ THESE BLOCKS DOCUMENT THE PRE-FIX BEHAVIOUR, WHICH IS NO LONGER THE DEFAULT.
+  // The owner flipped __RAW_NEARSHORE_RENORM__ on 2026-08-10, so the decay now only applies
+  // behind the kill switch. The assertions below are UNCHANGED -- same constants, same ratios --
+  // they simply state which state they describe. That keeps the evidence for WHY the flag exists
+  // and keeps the revert path pinned; deleting them would have thrown away the proof.
+  beforeEach(() => { window.__RAW_NEARSHORE_RENORM__ = false; });
+  afterEach(() => { delete window.__RAW_NEARSHORE_RENORM__; });
+
   const tile = (values, variable) => ({
     variable, model: 'ncep_gfswave025', timeIndex: 0, timestamp: 1,
     bounds: [0, 0, 2, 2], nx: 2, ny: 2, values: new Float32Array(values),
@@ -172,36 +188,46 @@ describe('__RAW_NEARSHORE_RENORM__ routes height through the treatment period al
   };
   afterEach(() => { delete window.__RAW_NEARSHORE_RENORM__; });
 
-  it('DEFAULT OFF is byte-identical -- the twice-penalised numbers are unchanged', () => {
-    // The whole point of shipping this dark: users see exactly what they saw before.
-    expect(sample([0, 2, 2, 2], 'wave_height').value).toBeCloseTo(0.975, 3);
-    expect(sample([0, 0, 2, 2], 'wave_height').value).toBeCloseTo(0.450, 3);
-    expect(sample([0, 0, 0, 2], 'wave_height').value).toBeCloseTo(0.175, 3);
-  });
-
-  it('ON, height matches PERIOD exactly -- one treatment, not two', () => {
-    window.__RAW_NEARSHORE_RENORM__ = true;
+  // ⚠️ INVERTED 2026-08-10 WHEN THE OWNER FLIPPED THE DEFAULT. These previously pinned the
+  // twice-penalised numbers as the DEFAULT ("shipping dark: users see exactly what they saw
+  // before"). Nothing is weakened: the SAME three constants are still pinned, now behind the kill
+  // switch, so the old behaviour stays exactly reproducible and a silent regression to it is still
+  // caught. Flipping a default without moving its guard is how a revert path quietly rots.
+  it('DEFAULT ON -- height matches PERIOD exactly, one treatment and not two', () => {
     for (const vals of [[2, 2, 2, 2], [0, 2, 2, 2], [0, 0, 2, 2], [0, 0, 0, 2]]) {
       expect(sample(vals, 'wave_height').value)
         .toBeCloseTo(sample(vals, 'wave_period').value, 6);
     }
   });
 
-  it('ON, the 11.43x worst case collapses to 1.00x', () => {
-    window.__RAW_NEARSHORE_RENORM__ = true;
+  it('DEFAULT ON -- the 11.43x worst case collapses to 1.00x at the ocean-only truth', () => {
     const h = sample([0, 0, 0, 2], 'wave_height').value;
     const p = sample([0, 0, 0, 2], 'wave_period').value;
     expect(p / h).toBeCloseTo(1.0, 6);
-    expect(h).toBeCloseTo(2.0, 6);           // the ocean-only truth
+    expect(h).toBeCloseTo(2.0, 6);
   });
 
-  it('only an EXACT true flips it -- a truthy string must not silently change a height', () => {
-    window.__RAW_NEARSHORE_RENORM__ = 'yes';
+  it('KILL SWITCH false restores the twice-penalised numbers EXACTLY', () => {
+    // The revert path is what makes flipping a default safe, so it is pinned to the same three
+    // constants the old default asserted: 0.975 / 0.450 / 0.175.
+    window.__RAW_NEARSHORE_RENORM__ = false;
+    expect(sample([0, 2, 2, 2], 'wave_height').value).toBeCloseTo(0.975, 3);
+    expect(sample([0, 0, 2, 2], 'wave_height').value).toBeCloseTo(0.450, 3);
     expect(sample([0, 0, 0, 2], 'wave_height').value).toBeCloseTo(0.175, 3);
   });
 
-  it('the flag does not disturb period, which was already correct', () => {
-    window.__RAW_NEARSHORE_RENORM__ = true;
+  it('only an EXACT false reverts it -- no other falsy value may change a height', () => {
+    // Mirror of the old "only an EXACT true flips it" guard, now on the revert side. 0, '', null,
+    // undefined and the STRING 'false' must every one leave the new default in place.
+    for (const falsy of [0, '', null, undefined, 'false']) {
+      window.__RAW_NEARSHORE_RENORM__ = falsy;
+      expect(sample([0, 0, 0, 2], 'wave_height').value).toBeCloseTo(2.0, 6);
+    }
+  });
+
+  it('the flag does not disturb period, which was already correct, in EITHER state', () => {
+    expect(sample([0, 0, 0, 2], 'wave_period').value).toBeCloseTo(2.0, 6);
+    window.__RAW_NEARSHORE_RENORM__ = false;
     expect(sample([0, 0, 0, 2], 'wave_period').value).toBeCloseTo(2.0, 6);
   });
 });

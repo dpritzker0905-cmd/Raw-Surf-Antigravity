@@ -200,8 +200,30 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
   // ⚠️ Flipping this CHANGES A DISPLAYED HEIGHT, so it stays owner-gated. Set
   // `window.__RAW_NEARSHORE_RENORM__ = true` to route height through the SAME renormalisation
   // period already uses and skip the decay. Pinned both ways in nearshoreDecay.proof.test.js.
-  const nearshoreRenorm = typeof window !== 'undefined'
-    && window.__RAW_NEARSHORE_RENORM__ === true;
+  // ✅ FLIPPED ON BY OWNER DECISION 2026-08-10. Height now takes the SAME renormalisation period
+  // has always had, and the decay no longer applies. Kill switch:
+  // `window.__RAW_NEARSHORE_RENORM__ = false` restores the twice-penalised behaviour EXACTLY.
+  //
+  // WHY THIS IS NOT A COSMETIC DEFAULT FLIP — measured on real production data before shipping.
+  // A live GFS marine grid for the Florida bbox (13x21, 110/273 cells = 40% land), sampled at the
+  // 93 real surf spots inside it, through THIS function:
+  //     heights that move : 80/93 (86%)
+  //     ratio ON/OFF      : min 1.68x   p50 3.00x   p90 4.52x   max 10.68x
+  //     ON == the period lane's own sample at 80 of 80 movers
+  // The real-data worst case (10.68x) independently corroborates the synthetic 11.43x.
+  //
+  // ⚠️ AND THIS IS NOT A TRANSIENT-ONLY PATH, which is why the flip matters. MapForecastOverlay
+  // prefers the exact-point lane ONLY when `isExactPointAuthority`, which requires
+  // `selectedSpot || longPressLocation` (MapForecastOverlay.js:154). The overlay renders whenever
+  // ANY layer is active (MapPage.js:585 — its second clause is tautological), so in the DEFAULT
+  // map state (layer on, nothing selected) `blockFallbacks` is false, `sampledWaves` IS computed,
+  // and :291-292 displays this value DIRECTLY with no point lane in front of it.
+  // ⛔ PROVEN vs NOT PROVEN: the A/B proves INTERNAL CONSISTENCY (height treated as period is) and
+  // removes a client-side height transform CLAUDE.md forbids as a second forecast path. It does
+  // NOT prove the result is closer to truth — no buoy validates this sampler, and the skill ledger
+  // scores the BACKEND point lane, not this one. Revert is one flag.
+  const nearshoreRenorm = typeof window === 'undefined'
+    || window.__RAW_NEARSHORE_RENORM__ !== false;
 
   let value;
   if (isPeriod || (isHeightVar && nearshoreRenorm)) {
