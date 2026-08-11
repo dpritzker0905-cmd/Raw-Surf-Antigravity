@@ -67,7 +67,15 @@ export function updateDeprecationDiag(params) {
   if (gridProductId && pointProductId) {
     gridPointParity = (gridProductId === pointProductId) ? "parity_pass" : "mismatch";
   } else if (window.__MARINE_SOURCE_PARITY__) {
-    gridPointParity = window.__MARINE_SOURCE_PARITY__.match ? "parity_pass" : "mismatch";
+    // 2026-08-11 (audit 11.2 / RC-02): the source-parity gate is now three-valued. Its
+    // `match` used to be true whenever nothing was comparable, so this line reported
+    // "parity_pass" for an unsampled heatmap. Carry the refusal through instead of
+    // laundering it into a pass.
+    const sp = window.__MARINE_SOURCE_PARITY__;
+    gridPointParity = sp.status === 'UNSAMPLED' ? "unsampled"
+      : sp.status === 'NOT_APPLICABLE' ? "not_applicable"   // no point selected: nothing to compare
+      : (sp.status === 'MATCH' || sp.match) ? "parity_pass"
+      : "mismatch";
   } else {
     gridPointParity = prev.gridPointParity || null;
   }

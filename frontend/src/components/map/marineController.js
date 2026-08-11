@@ -396,6 +396,35 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
     if (!hitData) {
       // Fallback search: check if any cached entry in _perModelHourCache contains these bounds
       const disableGlobalSkip = typeof window !== 'undefined' && window.__RAW_DISABLE_SAFECACHE_GLOBAL_SKIP__ === true;
+
+      // ⛔ INSERTION ORDER DECIDED THE FIELD (audit 11.2 / T-2′ step 3, 2026-08-11).
+      // This scan used `break` on the FIRST containing entry. `_perModelHourCache` is a Map, so
+      // iteration is INSERTION order — when two entries both contain the viewport and both pass
+      // every predicate (prefix, TTL, non-stale, vectors>0, DEBT-CACHE-03 world-skip, containment
+      // AND the full signature check), the one cached EARLIER won. That makes the served EXTENT a
+      // function of interaction history rather than of the request.
+      // Measured on the live layer OFF→ON battery: a byte-identical productId served at 289 and
+      // then 15,023 vectors, band value 0.5152 → 0.5954 m (+15.6%).
+      // ★ Every candidate here is already deemed servable by the predicates above, so choosing
+      //   among them is safe — and the TIGHTEST containing grid is both deterministic and the
+      //   finest data available for this viewport. Ties break on key for total ordering.
+      // Kill: __RAW_DISABLE_TIGHTEST_CONTAINED__ = true restores the first-wins behaviour, so the
+      // two legs can be A/B'd under identical cache state (same shape as the two neighbouring
+      // fixes in this function: __RAW_DISABLE_SAFECACHE_GLOBAL_SKIP__, __RAW_DISABLE_GLOBAL_TILE_ALIAS__).
+      // ★ MIRRORS the series cache, which already solved this exact question
+      //   (marineGridSeries.js:713-754: "pick the SMALLEST containing bbox so the served frame is
+      //   the highest resolution available", with global-width entries held as a last resort).
+      //   Two caches answering the same question must not use two policies — that asymmetry is
+      //   what made the global prewarm harmless in one cache and hazardous in the other.
+      //   Deviation, deliberate: the reference computes area from a RAW `east - west`, which is
+      //   wrong across the antimeridian; this uses the wrapped width it already computes for the
+      //   global check, so a date-line-crossing bbox is measured correctly.
+      const _tightestOff = typeof window !== 'undefined' && window.__RAW_DISABLE_TIGHTEST_CONTAINED__ === true;
+      const _areaOf = (b) => {
+        const w = (b.east < b.west) ? (b.east + 360) - b.west : (b.east - b.west);
+        return Math.max(1e-4, w) * Math.max(1e-4, Math.abs(b.north - b.south));
+      };
+      let _bestEntry = null, _bestKey = null, _bestArea = Infinity, _bestWidth = Infinity, _candidates = 0;
       for (const [key, entry] of _perModelHourCache.entries()) {
         if (key.startsWith(`${wanted}_${layerPart}_`) && key.endsWith(`_${wantedHour}`) && Date.now() - entry.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
           const g = entry.data?.grid;
@@ -429,18 +458,51 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
                     sig.cols === (g.cols || 0) &&
                     sig.rows === (g.rows || 0) &&
                     sig.vectorsLength === (g.vectors?.length || 0)) {
+                  if (_tightestOff) {
+                    hitData = entry.data;
+                    cacheSource = 'per_model_hour_cache_contained';
+                    break;
+                  }
+                  _candidates++;
+                  const _a = _areaOf(g.bounds);
+                  if (_a < _bestArea || (_a === _bestArea && (_bestKey === null || key < _bestKey))) {
+                    _bestArea = _a; _bestEntry = entry; _bestKey = key;
+                    _bestWidth = (ge < gw) ? (ge + 360 - gw) : (ge - gw);
+                  }
+                }
+              } else if (!isBackendActive) {
+                if (_tightestOff) {
                   hitData = entry.data;
                   cacheSource = 'per_model_hour_cache_contained';
                   break;
                 }
-              } else if (!isBackendActive) {
-                hitData = entry.data;
-                cacheSource = 'per_model_hour_cache_contained';
-                break;
+                _candidates++;
+                const _a2 = _areaOf(g.bounds);
+                if (_a2 < _bestArea || (_a2 === _bestArea && (_bestKey === null || key < _bestKey))) {
+                  _bestArea = _a2; _bestEntry = entry; _bestKey = key;
+                  _bestWidth = (ge < gw) ? (ge + 360 - gw) : (ge - gw);
+                }
               }
             }
           }
         }
+      }
+
+      // Commit the TIGHTEST containing candidate (deterministic regardless of insertion order).
+      if (!hitData && _bestEntry) {
+        hitData = _bestEntry.data;
+        cacheSource = 'per_model_hour_cache_contained';
+      }
+      // Proof surface: how many entries were servable, and which extent actually won.
+      if (typeof window !== 'undefined' && _candidates > 0) {
+        window.__MARINE_CONTAINED_PICK__ = {
+          model: wanted, layer: wantedLayer, hour: wantedHour,
+          candidates: _candidates,
+          chosenKey: _bestKey,
+          chosenWidthDeg: _bestWidth === Infinity ? null : Math.round(_bestWidth * 1000) / 1000,
+          mode: _tightestOff ? 'legacy_first_wins' : 'tightest',
+          at: new Date().toISOString()
+        };
       }
     }
   } else {

@@ -230,6 +230,55 @@ var TruthOverlay = ({
   // Grid details for provenance display
   const isEstimated = marineData?.grid?.isEstimated || marineData?.grid?.is_estimated;
   const gridProvider = marineData?.grid?.provider || marineData?.grid?.__gridProvider || 'unknown';
+
+  // ⛔ ONE-BIT AUTHORITY (fixed 2026-08-11, certification audit 11.2 / RC-01).
+  // The Class row rendered `isEstimated ? 'ESTIMATED FALLBACK' : 'AUTHORITATIVE NATIVE'` — a binary
+  // on one flag. `marineData?.grid?.isEstimated` yields `undefined` when there is NO grid at all,
+  // and `undefined` is falsy, so the ABSENCE of data took the most confident branch. Measured live
+  // on production at e015d90b with every /api/weather/* request rejected: productId null, nothing
+  // ever fetched, badge green "AUTHORITATIVE NATIVE", HUD reporting zero truth violations. The same
+  // green badge was shown for a 10 deg resample of a 0.25 deg native dataset (ncep_gfswave025) and
+  // during a cross-model `gfs_estimated_fallback`.
+  // ★ "NATIVE" is a claim about RESOLUTION. It cannot be derived from a boolean, and the absent
+  //   case must never be the confident case.
+  const __projDiag = typeof window !== 'undefined' ? window.__MARINE_PROJECTION_DIAG__ : null;
+  const __windData = typeof window !== 'undefined' ? window.__MARINE_WIND_DATA__ : null;
+  const __countOf = (o) => (Array.isArray(o?.vectors) ? o.vectors.length : null);
+  // Prefer the grid this overlay was handed; fall back to the live field the engine is drawing.
+  const gridVectorCount = __countOf(marineData?.grid) ?? __countOf(__windData);
+  const productIdForClass = marineData?.grid?.productId || __projDiag?.productId || null;
+  const resolutionDeg = marineData?.grid?.resolution ?? __projDiag?.resolution ?? null;
+  const isSubstituted = /fallback|blend|estimated/.test(String(gridProvider).toLowerCase());
+
+  // ⛔ "NO VIOLATIONS DETECTED" WAS NOT A RESULT (fixed 2026-08-11, audit 11.2 / RC-02).
+  // The green ✓ below rendered whenever `truthIssues` was empty — but the parity gate that is
+  // supposed to POPULATE it returned `match: true` whenever nothing was comparable, so an empty
+  // list meant "nothing was checked" just as often as "everything passed". Measured on production
+  // during a total data-load failure: parity UNSAMPLED, productId null, HUD still green ✓.
+  // ★ "I detected no violations" and "I could not look" must not share a pixel.
+  const __parity = typeof window !== 'undefined' ? window.__MARINE_SOURCE_PARITY__ : null;
+  // Only a genuine refusal earns the amber badge. NOT_APPLICABLE (no point selected) is the normal
+  // resting state — it is qualified on the green row instead, so the row never implies that
+  // heatmap-vs-infobox parity was actually verified when it could not have been.
+  const parityUnverified = __parity?.status === 'UNSAMPLED';
+  const parityUnverifiedWhy = (__parity?.unsampledReasons || []).join(' · ');
+  const parityNotApplicable = __parity?.status === 'NOT_APPLICABLE';
+  // ★ Two DIFFERENT absences, and conflating them would just relabel the same lie:
+  //   - nothing rendered at all            => NO DATA
+  //   - something rendered, provenance lost => UNVERIFIED SOURCE (never "authoritative")
+  const provenanceClass = (!gridVectorCount)
+    ? { label: 'NO DATA', color: '#ef4444' }
+    : !productIdForClass
+      ? { label: 'UNVERIFIED SOURCE', color: '#fbbf24' }
+      : isEstimated
+        ? { label: 'ESTIMATED FALLBACK', color: '#fbbf24' }
+        : isSubstituted
+          ? { label: 'SUBSTITUTED SOURCE', color: '#fbbf24' }
+          : resolutionDeg == null
+            ? { label: 'RESOLUTION UNKNOWN', color: '#fbbf24' }
+            : resolutionDeg > 0.5
+              ? { label: `COARSE ${resolutionDeg}° GRID`, color: '#fbbf24' }
+              : { label: 'AUTHORITATIVE NATIVE', color: '#10b981' };
   // Map the data's source_dataset to its basic origin name so the HUD shows where the data ACTUALLY came
   // from (NOAA / DWD / Copernicus / ECMWF) instead of the 'open-meteo' capabilities-contract channel key.
   const __basicSourceName = (sd) => {
@@ -411,11 +460,11 @@ var TruthOverlay = ({
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#94a3b8' }}>Class:</span>
-                  <span style={{ 
-                    fontWeight: 700, 
-                    color: isEstimated ? '#fbbf24' : '#10b981' 
+                  <span style={{
+                    fontWeight: 700,
+                    color: provenanceClass.color
                   }}>
-                    {isEstimated ? 'ESTIMATED FALLBACK' : 'AUTHORITATIVE NATIVE'}
+                    {provenanceClass.label}
                   </span>
                 </div>
                 
@@ -450,19 +499,43 @@ var TruthOverlay = ({
                 </div>
 
                 {truthIssues?.length === 0 ? (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: 'rgba(16, 185, 129, 0.06)',
-                    border: '1px solid rgba(16, 185, 129, 0.12)',
-                    borderRadius: '8px',
-                    padding: '6px 10px',
-                    color: '#a7f3d0'
-                  }}>
-                    <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>✓</span>
-                    <span>No Causal Layer Violations Detected</span>
-                  </div>
+                  parityUnverified ? (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '6px',
+                      background: 'rgba(251, 191, 36, 0.06)',
+                      border: '1px solid rgba(251, 191, 36, 0.16)',
+                      borderRadius: '8px',
+                      padding: '6px 10px',
+                      color: '#fde68a'
+                    }}>
+                      <span style={{ fontSize: '12px', color: '#fbbf24', fontWeight: 'bold' }}>?</span>
+                      <span>
+                        NOT VERIFIED — source parity unsampled
+                        {parityUnverifiedWhy ? ` (${parityUnverifiedWhy})` : ''}
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      background: 'rgba(16, 185, 129, 0.06)',
+                      border: '1px solid rgba(16, 185, 129, 0.12)',
+                      borderRadius: '8px',
+                      padding: '6px 10px',
+                      color: '#a7f3d0'
+                    }}>
+                      <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 'bold' }}>✓</span>
+                      <span>
+                        No Causal Layer Violations Detected
+                        {parityNotApplicable && (
+                          <span style={{ color: '#94a3b8' }}> · source parity n/a (no point selected)</span>
+                        )}
+                      </span>
+                    </div>
+                  )
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                     {truthIssues.map((v, i) => (
