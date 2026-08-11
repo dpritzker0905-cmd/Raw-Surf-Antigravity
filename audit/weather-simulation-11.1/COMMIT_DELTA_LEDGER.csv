@@ -1,0 +1,106 @@
+hash,full_sha,date_utc,subject,files_changed,code_files,test_files_touched,related_R11,docs_only,test_added
+3cf5a1ce,3cf5a1cec7bafff7448c282ff4288db5511d95fb,2026-08-09 01:43:20,chore(deploy): redeploy trigger -- serve box dark ~50 min after the c9a0e9fc deploy window,0,0,0,-,YES,no
+512b1cb6,512b1cb66e65b05ae9de3734c54984d2197bb055,2026-08-09 06:09:29,"docs(audit): Master Weather Simulation Report 11.0 -- Codex verified, invariants audited, the register that drove this session",1,0,0,-,YES,no
+0013020c,0013020c839b7ef30e9e91cdc826381fb85d2f6b,2026-08-09 06:09:29,feat(parity-probe): a red run now records BOTH sides' factor vectors -- the verdict alone cost three sessions,1,1,0,-,no,no
+843f6e59,843f6e598bf491f01eddcf186ae9d34ef4bc26b1,2026-08-09 06:10:00,"fix(render): close the marine fallback churn loop at its three seams -- and the Promise-as-geojson poison (R11-01, R11-10a)",8,8,3,R11-01; R11-10,no,YES
+f1db2900,f1db290001876b605db9dd238824e2f8a82d7a01,2026-08-09 06:10:00,feat(telemetry): release identity on every truth/telemetry payload (R11-03),2,2,0,R11-03,no,no
+7312412b,7312412b36b7bc69c98e266d7bf0ef50510ef875,2026-08-09 06:10:17,"feat(series): run identity + upstream provenance on every grid_series frame, and a run census per response (R11-04)",2,2,1,R11-04,no,YES
+47d249bb,47d249bb0b73b638bcb3f6ba8aef1221b42a57d7,2026-08-09 06:10:18,"fix(worker): a crashed grid worker now rejects, recovers, and can no longer parse truncation into flat calm (R11-07)",2,2,0,R11-07,no,no
+926d6b22,926d6b22afd81a10c085d60a069f2fa232f932c0,2026-08-09 06:10:39,"fix(observability): measure or refuse -- no more fabricated health, no more everything-is-rate-limited (R11-07/R11-08)",5,5,2,R11-08,no,YES
+9fe18414,9fe1841474b3fd5f8c17ea32e6a5a82c6d151851,2026-08-09 06:10:40,fix(rating-mirror): port the MIN_SWELL_ENERGY_SHARE refusal the JS mirror was missing -- 64.6 points on the day partitions flip (R11-02),2,2,1,R11-02,no,YES
+e22c3692,e22c3692d10330089a1b5aa50a7d2c27e0e7cec7,2026-08-09 06:11:50,docs(audit): stamp the same-day execution record into the action register,1,0,0,-,YES,no
+2e20122d,2e20122d042d2dda88a449bf6c06ab2c15cef4af,2026-08-09 07:34:10,"fix(gpu): dispose stops lying to the telemetry, frees the score texture, and state isolation covers the units marine actually binds (R11-10 b/d/e)",2,2,0,R11-10,no,no
+13b772bf,13b772bf44d04c07d1397743a3b8a28b019f8ec5,2026-08-09 07:34:11,fix(wind): port marine's device-tier pool sizing and reduced-motion damp -- two shipped invariants that never crossed the engine boundary (R11-09),4,4,1,R11-09,no,YES
+4a36ede7,4a36ede7a2eac9d75922319a59de35eec967ecd4,2026-08-09 07:34:34,fix(legend): the rain legend stops ARE millimetres -- stop labeling them inches (R11-11),1,1,0,R11-11,no,no
+d8b8d35c,d8b8d35c7b2f2be61453f5510cb240efa8737d12,2026-08-09 07:35:09,fix(pipeline): the four worst silent excepts now say what they swallowed (R11-07/R11-13),3,3,0,R11-07,no,no
+086ee773,086ee7736303cc1de4c0a5ce7f704447dc7330b1,2026-08-09 07:35:10,"fix(parity-probe): compare ungated-vs-ungated as the docstring always claimed, split instrument reds from composition reds, and stop printing prose into the JSO",1,1,0,-,no,no
+adbdb246,adbdb24615065f38e5382e1c15fb02d06ffd7b8a,2026-08-09 07:36:22,docs(audit): batch-2 execution record + the closed monitor-cron clock,1,0,0,-,YES,no
+8301b78e,8301b78e0c345e30be3697e77b90eab3598149b2,2026-08-09 07:43:15,"fix(loc): shrink the two ratchet regressions from 086ee773 -- rationale relocated to docs, never deleted",3,2,0,-,no,no
+32bd579c,32bd579cd3a159c2300aa5228a8786d45fa7f699,2026-08-09 08:03:39,"fix(parity): the rotating composition reds were an unrecorded INPUT GENERATION -- disclose the glyph's reference, gate on shared inputs (R11-18 CLOSED)",3,3,1,-,no,YES
+1b85a52b,1b85a52be3b01124fcd7ac71736e406fb0243fa0,2026-08-09 08:05:18,"docs(audit): R11-18 mechanism SOLVED -- reference-generation skew, confirmed by the probe's first self-diagnosing red",1,0,0,R11-18,YES,no
+bd75343b,bd75343b1c232d07ca8a9725799c88dcb294f134,2026-08-09 08:18:30,fix(wire): declare reference_size_m on SpotRatingItem -- the disclosure must survive serialisation (R11-18 follow-up),1,1,0,R11-18,no,no
+ece2c36a,ece2c36ab1be351c4e65e446336fb2f94bc00b84,2026-08-09 08:57:23,feat(e2e): the executed-GL pixel oracle (fixme until 3 headed greens) + handoff 2026-08-09-B,3,2,2,R11-14,no,YES
+822a0785,822a078565f658ebe5a8c9dad6e6e205e265060a,2026-08-09 09:22:24,fix(census): the calibration gate was paging on a p80 bound read in a p50 frame -- page on the claim that survives the percentile,4,4,1,-,no,YES
+42242bef,42242befbc3660456d075836b7df114ddd7b98e8,2026-08-09 09:28:55,"fix(nightly): the marine optical net was grading the renderer on a sea that was never delivered -- warm, classify, refuse",3,3,1,-,no,YES
+7553bfef,7553bfef0c2aeed3fba5bb4dc0758e94391571a7,2026-08-09 09:40:29,docs(audit): batch-3 execution record -- the scheduled lane that a by-SHA verification cannot see,1,0,0,-,YES,no
+589472dc,589472dcf942a1187bfed738233a20fa8866a425,2026-08-09 09:44:00,fix(admin): the size-preview panel stopped answering a question that closed on 08-01,1,1,0,-,no,no
+38af7db1,38af7db1ac57ecd1d2445ca3bba8a117d1e8439d,2026-08-09 10:09:54,"chore(deploy): redeploy trigger #2 -- second connection-level outage today (~14:05Z), same signature as 05:27Z",0,0,0,-,YES,no
+03bf6bc7,03bf6bc7ac6be13cd3d5e3afd4de565a11d1a023,2026-08-09 10:16:12,"fix(probe): the marine zoom-burst probe could not fail -- give it marine structure, refuse when blind, and never call UNKNOWN uncovered",1,1,0,-,no,no
+11fcebdf,11fcebdf9e3c3a8dc1bf2c211af09c8312790c5e,2026-08-09 12:56:41,feat(calibration): the wind residual is finally scored -- NDBC anemometers were parsed and graded nowhere,3,3,1,-,no,YES
+fee36d57,fee36d579db95dd70f8397a0945e28d2ad91f27f,2026-08-09 13:04:13,feat(probe): a wash-coverage detector for the defect class that has no edge -- and washEngaged:false closed as benign,2,2,1,-,no,YES
+dbc3c7e9,dbc3c7e9c6db42684cca8eb296f0c2e67e4e5e3b,2026-08-09 13:15:56,fix(scheduler): sync jobs off the event loop -- the line that caused both 08-09 production outages,3,3,1,R11-13,no,YES
+6568d94b,6568d94bc48c35fbffc20f10573fd4be53c153d6,2026-08-09 13:31:20,fix(legend): the wind legend described a ramp we stopped shipping -- calm read as hurricane (R11-11 item 2),3,3,1,R11-11,no,YES
+b4e9aa76,b4e9aa76fd5937370c45e56744a58fc6a1b474d8,2026-08-09 13:32:19,"docs(audit): batch-4 record -- both clocks closed, legend truth shipped, and the owner's band-vs-glyph divergence queued with evidence",1,0,0,R11-11,YES,no
+44cc2ddd,44cc2ddd0852635a23b552f64637aa6b0a89db2f,2026-08-09 13:38:34,feat(science): the shadow A/B -- every flag flip to date was a gamble because nothing could replay the served population,5,5,1,-,no,YES
+c30df231,c30df2312e820d18b640834fbefc4a787aad224e,2026-08-09 13:44:04,"test(science): shadow A/B round-trip -- the REAL producer must reproduce through the replay, and the tolerance must sit above the rounding grid",2,2,1,-,no,YES
+df7a3d73,df7a3d73a52ffcfaab593d47fa47530d670c4344,2026-08-09 14:08:00,feat(E#1): give the owner's band-vs-glyph question a measurable -- and find a rated grid painted at alpha zero,7,7,2,-,no,YES
+25fcb183,25fcb183657a1bd3f11ac1fe7be7946ce537035b,2026-08-09 14:17:59,docs(loc): relocate the dead-zone rationale to docs -- the ratchet caught my own comment at 803/800,2,1,0,-,no,no
+112d2c34,112d2c3463345a4bff0d2325ea2165bfb822cb18,2026-08-09 14:25:41,"science(E#1): the band over-reads the glyph 2.3-2.7x at close zoom -- measured both lanes, killed four explanations",2,1,0,-,no,no
+5e920a5d,5e920a5dc18fb8dae474ea3460cd4b1655b572d0,2026-08-09 14:28:11,fix(infobox): the ft/m toggle now reaches the cards -- and the drifted constant that hid behind five test mocks is gone,5,5,1,R11-11,no,YES
+fa0ec8b1,fa0ec8b1265b07198d05ccc2fd9db8948f5732ba,2026-08-09 14:31:08,fix(E#1): retract my own reference-gap explanation -- the SIGN refutes it,2,2,0,-,no,no
+f40232a2,f40232a28c3d80aa8097d9a03933e160c49f7e1a,2026-08-09 14:39:38,"docs(science): is the rating scale proper -- seven is right, the top is empty BY DESIGN, and the bucket edges are the unanchored part",1,0,0,-,YES,no
+b114a9a4,b114a9a4d326d133d20fda23cb5a1ca0b3f6654c,2026-08-09 14:50:21,fix(payload): sample the shadow-A/B inputs -- I nearly doubled a blob every client downloads,4,3,2,-,no,YES
+d35c466e,d35c466e17cbd4672e50578929185b3c62ea8c24,2026-08-09 14:54:20,fix(shadow-ab): NOT-SAMPLED is not BROKEN -- my own refusal was crying wolf,3,3,1,-,no,YES
+363f1cd2,363f1cd2b2d90dd061e7f45afe5947be671c79d0,2026-08-09 15:05:14,"fix(infobox): fog read ""--"" on EURO/ICON while a full GFS raster was on screen (R11-11 item 4)",3,3,1,R11-11,no,YES
+e8f04cc1,e8f04cc107860ba411433f96e9b23b058a66fb58,2026-08-09 15:13:38,fix(admin): the map editor could never move a land-flagged spot -- the override body sent lat/lng to a model requiring latitude/longitude,3,3,1,-,no,YES
+5a502dfb,5a502dfb5de9285e4c15670e1af18d47a9bed339,2026-08-09 15:29:01,fix(legend): the numbers sat up to 47 points away from the colours they name (R11-11 item 3),3,3,1,R11-11,no,YES
+8b20f2c3,8b20f2c31e93342a503bfaeb845a05b0183c8ffc,2026-08-09 15:37:52,"refactor(horizons): name the eight cross-fall cutovers -- values unchanged, drift now impossible",3,3,1,-,no,YES
+1738f8fc,1738f8fc1715ed95edc6b8c6fdc161d611fea071,2026-08-09 15:38:10,"feat(diag): a live session harness -- video + console + React commits + engine state, joined per second on ONE clock",2,2,0,-,no,no
+a71b45d3,a71b45d357bf32cc1e360103bc17c3a9d3d8a2cc,2026-08-09 15:46:42,"fix(horizons): prove the undisclosed stale frame, and give the fix its discriminator",3,3,1,-,no,YES
+ecac97fc,ecac97fce7b39b87ee96f9ca1692f81709dbb874,2026-08-09 16:00:32,"science(perf): the prewarm is NOT the cause -- the A/B refutes it, and the harness's noise floor exceeds every effect it measured",2,2,0,-,no,no
+f0c29ebb,f0c29ebb04bae1d456db533e0d647edabcaa5943,2026-08-09 16:01:49,fix(infobox): disclose the STALE HOUR -- the half the model-substitution notice cannot see,4,4,2,R11-11,no,YES
+f9066b8d,f9066b8d76705d536d307d5dfa5040a976e31830,2026-08-09 16:04:09,"fix(loc): marineGridSeries 802 -> 799 -- rationale relocated to docs, and the truncation that hid the red",2,1,0,-,no,no
+e7d8545c,e7d8545cabf238a96cc5989db5aab238fe0a4b40,2026-08-09 16:08:22,"science(rating): the multi-day distribution -- 13,166 spot-hours, and it says DO NOT re-cut the edges yet",1,0,0,-,YES,no
+09c64d05,09c64d050287c2dbc169a2192e4fdeef1b0f2ebd,2026-08-09 16:17:41,test(access): prove the per-layer forecast cap is INOPERATIVE for three layers -- no behaviour changed,1,1,1,-,no,YES
+da130c41,da130c412b91a3ccaea0dd7d0b21e8ebceeb1a54,2026-08-09 16:21:15,science(exposure): reconcile the dual floor behind a kill switch -- and the symptom points the wrong way,3,2,1,R11-13,no,YES
+ab547597,ab547597082ef58ca9bc8eacff18a698cf8e1072,2026-08-09 16:25:48,"science(exposure): the shore-normal audit REVERSES the conclusion -- J-Bay works by refraction, and the floor is standing in for it",1,0,0,-,YES,no
+668548be,668548be8b136e5ea8874a092f68b72fd069dfa8,2026-08-09 16:36:59,test(radar): pin the three-way unit mismatch -- and REFUSE to invent the numbers that would hide it,1,1,1,R11-11,no,YES
+40866137,4086613745ea1610a0a301948b571df3a1014038,2026-08-09 16:44:29,"docs(handoff): the instrument session -- what shipped, four owner decisions, and five things I got wrong",1,0,0,-,YES,no
+2067a799,2067a7990a80a33b08e29b3ec791f38751b2b92c,2026-08-09 16:45:40,"science(wrapping): the geometry signal is a land-mask RAY CAST, not shore-normal curvature -- 8/8 controls, both directions",1,1,0,-,no,no
+a3b21c71,a3b21c710d9304a4c291eadb921ea5cf389a6355,2026-08-09 16:48:53,"science(wrapping): REFUTED my own ray cast -- it measures the spot's OWN shoreline, so it is redundant with the cosine. NOT wired.",1,1,0,-,no,no
+d0ea7f4d,d0ea7f4d25b349cf02f671a4f919c4850d98bc7c,2026-08-09 16:50:53,"science(wrapping): PROVEN a data-resolution problem, not an algorithm problem -- Cape St Francis is not in the bathymetry asset",0,0,0,-,YES,no
+20ffd7bb,20ffd7bb59707e314d531ab0c47f5848256f7dce,2026-08-09 16:51:18,fix(shadow-ab): the verdict must carry its own SCOPE -- the first real run reported none,2,2,1,-,no,YES
+2c314ad6,2c314ad67df79b3d3fa56510e387074e6b34efff,2026-08-09 16:53:17,"science(wrapping): the finer asset EXISTS but is a per-spot table, not a raster -- so it cannot be ray-cast either",0,0,0,-,YES,no
+79d0c322,79d0c3229c3ba18e44b195ec5167082e547e66f8,2026-08-09 16:56:43,fix(shadow-ab): RETRACT the tide result -- the harness could not exercise the flag it declared quiet,2,2,1,-,no,YES
+fd152d6a,fd152d6a6216922fa4974eeaa6b2e8b1b4543c15,2026-08-09 16:57:25,"science(wrapping): PROVEN -- a 15s raster ingest resolves Cape St Francis, which the shipped 0.25 deg asset does not contain",1,1,0,-,no,no
+0f944c83,0f944c83dc21dd1e948e10dd3efc4567bb4db6a4,2026-08-09 17:05:36,feat(shadow-ab): make the tide question ANSWERABLE -- 0.00 -> 38.10 points of measurable effect,3,3,1,-,no,YES
+656a4570,656a4570042449f6a592c9c9c41432cbc8f85047,2026-08-09 17:21:13,science(wrapping): the land mask is FREE -- widening the existing single fetch to +/-0.25 deg costs 0.0 s and contains the cape,0,0,0,-,YES,no
+5ab14fa5,5ab14fa58916a6995d5964304bbb1973c63670d2,2026-08-09 17:23:34,"fix(shadow-ab): a verdict averaged over rows the flag CANNOT touch reads as ""quiet""",2,2,1,-,no,YES
+6ce0b2e2,6ce0b2e224d5c533404564f1373d0f6026893237,2026-08-09 17:27:47,feat(asset): build_shore_normals now EMITS the land mask it always threw away -- the cape is in it,1,1,0,-,no,no
+588cc850,588cc85062cb34d4dd9b2443ff0e6b7c9095262a,2026-08-09 17:32:58,fix(guard): register SURF_EXPOSURE_RECONCILED -- 7 consecutive SHAs were red on one missing line,1,1,0,R11-13,no,no
+04d06d38,04d06d382a6da19c0d82b290cdbf225c37245e14,2026-08-09 17:35:52,"science(asset): the widened fetch moves NOTHING -- 40/40 entries byte-identical. Full rebuild NOT run, and here is why.",0,0,0,-,YES,no
+a1971972,a197197205a70a2cc48038bb3bd884532a5ac2c3,2026-08-09 17:39:32,"feat(wrapping): land the wave_wrapping module UNVALIDATED-BY-ME, and correct the flag registry wording",3,3,1,-,no,YES
+867230c4,867230c432c9462ce67560518e05458fbc04370a,2026-08-09 17:42:34,fix(shadow-ab): INFER the guarded input from the data -- a registry that must be remembered will be forgotten,2,2,1,-,no,YES
+dde0421f,dde0421f3b0ab7bc9a41ce713d1cef32776dd372,2026-08-09 17:44:28,"docs(handoff): 2026-08-09-C -- the five-layer refutation, verified before writing",1,0,0,-,YES,no
+b20dba2a,b20dba2ae819a931dca51a4f8685a3068efb2c83,2026-08-09 17:48:29,test(height): the displayed wave height depends on WHICH LANE answered -- up to 2.86x (R11-11 #5),1,1,1,-,no,YES
+3d3ccdc2,3d3ccdc26c120dfb79be2ee5c8e83c25fae1b187,2026-08-09 17:52:13,"docs(handoff): Jacobian audit -- ranked by effect on the user's number, including the times I was wrong",1,0,0,-,YES,no
+9f4f8570,9f4f85708e765741d51ac2812de5a36373ac514b,2026-08-09 18:07:30,docs(handoff): the tide A/B produced its first TRUSTWORTHY verdict -- and one open discrepancy,1,0,0,-,YES,no
+578e9a1c,578e9a1c1b46bf41e4fc9ebd180af5fdccd4c546,2026-08-09 20:49:18,fix(parity): enrol the map RATING BAND as the FOURTH composition surface -- the guard could not see the surface users look at most,5,5,1,-,no,YES
+1073f36f,1073f36f3c34639cdbb11f5418c958337331f2ab,2026-08-09 20:49:37,fix(render): move `map.triggerRepaint()` into `finally` on BOTH custom layers -- a throw in render() disarmed the animation clock AND the fallback,2,2,0,R11-01,no,no
+90e9782c,90e9782c78e53ca7a35d7c103e41034840000c83,2026-08-09 20:50:45,"docs(audit): Master Weather Simulation Report 11.0 -- 37 artifacts, and six suspicions killed",37,0,3,-,YES,YES
+0bf6278e,0bf6278ebdf63d21e65ef5fabb54a688033275d1,2026-08-09 21:08:52,"fix(observability): the published diagnostics were snapshots that lied, and a counter that advanced when the work was skipped",5,4,0,R11-08; R11-15,no,no
+edf91af9,edf91af920b707f238b925634b29705c63cc55d2,2026-08-09 21:44:06,"fix(ci): make the E2E lane READABLE -- and retract the ""GL lane is a skip"" finding, which measurement refuted",4,1,0,R11-14,no,no
+8f1fcf41,8f1fcf41d4fd73f8e7544ee3c1ebc41b2246453d,2026-08-09 22:32:50,"docs(audit): fold in the unreadable-green sweep -- and REWRITE the first implementation packet, which specified building something that already exists",13,0,0,-,YES,no
+d1b40987,d1b409870029db0292490c486c0d0a662a01ddf2,2026-08-09 22:47:40,fix(disclosure): un-gate the staleness warning that already existed -- it fired in 3 of 12 model x layer cells for a defect that occurs in all 12,2,2,0,-,no,no
+19889a25,19889a2573fd9b547c7be3eabaef4885acfb5fac,2026-08-09 23:43:49,"docs(handoff): the audit that audited itself -- 64 findings against my own seven commits, and the E2E lane is red",17,0,1,R11-14,YES,YES
+e32342a7,e32342a72f74b66dbd855a987c710e34a4cf1f7c,2026-08-10 00:04:16,docs(audit): lessons-learned research -- and it caught my own memory corrections being incomplete,4,0,0,-,YES,no
+0d9149b7,0d9149b7920c5eb80ab817918b0eecc6eea0155c,2026-08-10 09:57:42,"fix(oom): bound the grid_series BUILD, not just the response -- the wire was 6.67 MB and the cost was 170 MB",3,3,1,-,no,YES
+c7099d0a,c7099d0a8ebb046435b53a6a70b770e1d7cae86d,2026-08-10 10:29:47,fix(ci): the memory-safety guards were running nowhere -- and the OOM fix's own guards would have landed dark,2,1,0,-,no,no
+6e5bf70a,6e5bf70ae7c08742a9d7dacb3bfa241333063412,2026-08-10 10:44:30,fix(ci): mirror the memory family into the chain lane's COMPOSITION literal -- the list exists TWICE,1,1,0,R11-02,no,no
+7e231c1b,7e231c1bebaa2eb10e4b14eb732a6598cfe17988,2026-08-10 10:45:48,docs(audit): record the composition-list double-edit -- the guard caught my own CI fix,1,0,0,-,YES,no
+4cb9c3c6,4cb9c3c603943d842463e13c19430038a681f06d,2026-08-10 12:01:42,fix(telemetry): stop printing a BOUND as though it were a measurement -- it fooled its own author,2,2,1,-,no,YES
+d4ce3397,d4ce3397820d2116587294e452fa0e038238ad06,2026-08-10 12:24:57,fix(tide): correct a stale comment that cost a wrong answer -- and my own order-dependent tests,3,3,2,-,no,YES
+c4d1c7f8,c4d1c7f85d34a0d8628afe8f9f002389b0b77a8a,2026-08-10 12:31:21,"fix(ci): my telemetry change broke a test I never ran -- update the contract, don't weaken it",1,1,1,-,no,YES
+c97db5bf,c97db5bfbce770b15adccaecbf99e47f592eeac9,2026-08-10 12:34:12,"docs(handoff): close my own open discrepancy -- the comparison was wrong, not either number",1,0,0,-,YES,no
+60f724d0,60f724d0cc9cdf414a8cbf47b7a2872f682a670c,2026-08-10 12:37:31,fix(skill): publish the PAIRED head-to-head -- the per-source column inverted the sign of its own answer,3,3,1,-,no,YES
+dbc6a09b,dbc6a09b4b32b8c0cce1be95d953f0e0b6889f43,2026-08-10 12:43:41,"docs(audit): notate the Actions state -- 65% of E2E runs are CANCELLED, which is worse than failing",1,0,0,R11-14,YES,no
+feb813b6,feb813b6dadd74ba17959cea1e99e36fd514d920,2026-08-10 12:50:07,"test(height): the lane divergence is 11.43x, not 2.86x -- my own failing proof found the rest",1,1,1,-,no,YES
+106f113e,106f113ec29a7aaccf836db44c1852843b456684,2026-08-10 12:55:58,"feat(height): ship the 11.43x fix DARK -- default off is byte-identical, one flag reveals it",2,2,1,-,no,YES
+1140b3e4,1140b3e4e0161abfdf3f335339590ccdf2fef48f,2026-08-10 13:07:24,feat(skill): pin a SAME-MODEL Open-Meteo control -- the competitor gap cannot say WHY it exists,2,2,1,-,no,YES
+874ad925,874ad9254ac07f2c6075a349b7ec37332f19c9b4,2026-08-10 13:11:21,"feat(access): ship the per-layer cap fix DARK -- default off, and it fixes ONE layer, not three",2,2,1,-,no,YES
+37654183,37654183b037bea1713fd202a45f2a073f7683e4,2026-08-10 13:19:00,feat(horizons): ship the live-axis floor DARK -- turns a silent TIME lie into a disclosed one,3,3,1,-,no,YES
+00dfba86,00dfba86724aef9b6d2cbd52517ddf9e21b6af26,2026-08-10 13:26:31,fix(e2e): stop docs commits triggering -- and killing -- the browser lane,2,2,1,R11-14,no,YES
+bed6c08c,bed6c08ca5cbcd81b690d570eef2dcf58953cc48,2026-08-10 13:28:22,docs(audit): record the E2E cascade fix -- and this commit is its own live test,1,0,0,R11-14,YES,no
+8be9dd56,8be9dd56d4ae9ef0315e62a7247c0d9e27c28cbc,2026-08-10 13:32:02,"docs(handoff): four fixes shipped dark, and an audit of the eleven times I was wrong",1,0,0,-,YES,no
+8b3a0efb,8b3a0efbb13e21ebbb6bb14d2d96bb22ad25ea05,2026-08-10 17:32:21,"docs(audit): the E2E verdict, the Render build filter, and render.yaml being decorative",1,0,0,R11-14,YES,no
+518485cf,518485cf3615241937f082c12692bc75df063cd9,2026-08-10 17:34:58,"docs(render): mark the blueprint as NOT APPLIED, and record the build filter set out of band",1,1,0,-,no,no

@@ -1,0 +1,17 @@
+=== T-TEST-02: backend composition guard lane (CI's exact file list) ===
+FILE COUNT: 141
+
+routes\surf_data\surfboards.py:124
+  C:\Users\dprit\Raw-Surf\backend\routes\surf_data\surfboards.py:124: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SurfboardResponse(BaseModel):
+
+tests/test_parity_unification.py::test_point_resolution_service_resolve_spot_conditions
+  C:\Users\dprit\Raw-Surf\backend\services\weather_pipeline\point_resolution.py:429: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    wind_resp = await build_wind_direct_point_response(self.provider, model, lat, lng, target_dt)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+ENVIRONMENT IS NOT THE DECLARED ONE: python 3.14 != declared 3.12; 28 of 46 pins differ; 7 declared packages absent; not in a virtualenv
+  => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
+1620 passed, 66 skipped, 4 warnings in 1550.80s (0:25:50)
