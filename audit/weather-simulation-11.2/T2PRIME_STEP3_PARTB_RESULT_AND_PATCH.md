@@ -34,7 +34,73 @@ costs nothing but the typing.
 > (b) enough lookups for a meaningful denominator, (c) cold and warm arms taken back to back in one
 > page session. Until then, treat the direction as established and the magnitude as unmeasured.
 
-## Result — as observed (see the correction above before quoting these)
+---
+
+# ✅ MAGNITUDE — MEASURED (controlled A/B, closes the open item above)
+
+The earlier runs were confounded (cold vs warm conflates the fix with cache population). The right
+control is the **kill switch**, with cache warmth held equal in both arms.
+
+**Protocol, identical in both arms, single page session per arm, local backend:**
+1. Fresh page (empty cache). Set the arm's flag.
+2. Activate Waves and **confirm activation** by polling until `__MARINE_WIND_DATA__.vectors > 0`
+   — both arms confirmed at **629 vectors**. (The absence of this check is what silently voided
+   the previous attempt.)
+3. **POPULATE:** 2 cycles, counters ignored — both arms reach a warm cache identically.
+4. **MEASURE:** reset counters, then 3 identical cycles.
+   A cycle = z9→z6→z9→pan→Wind→Waves.
+
+`ARM OFF` = `__RAW_DISABLE_REQUEST_TILE_ALIAS__ = true` (pre-fix write behaviour; the older
+world-only alias stays on, as it was before this work). `ARM ON` = shipped default.
+
+## Raw counts
+
+| counter | ARM OFF | ARM ON |
+|---|---|---|
+| `exact_key_absent` (predicate) | **16** | **0** |
+| `hit` (predicate) | **0** | **4** |
+| `stale` (predicate) | 0 | **12** |
+| `hit_fallback` (predicate, O(N) scan) | **9** | **0** |
+| `bounds_not_contained` | 7 | 0 |
+| `sel_hit` | 4 | **7** |
+| `sel_exact_key_absent` | 7 | **1** |
+| `sel_bounds_not_contained` | 7 | 1 |
+
+## The magnitude
+
+**Predicate — exact-key PRESENCE went 0/16 → 16/16.**
+This is the headline, and the ratios hide it. In ARM OFF the key was **absent 16 of 16 times**. In
+ARM ON `exact_key_absent` is **0**: the key was *found* on all 16 checks — 4 served as hits and 12
+were found-but-stale. The alias did not improve a hit rate; it took the lookup from *structurally
+impossible* to *always present*.
+
+**The O(N) containment scan was eliminated: `hit_fallback` 9 → 0.** Every lookup that previously
+needed a linear scan over the cache now resolves on the index. That is the O(N)→O(1) claim,
+measured.
+
+**Selector hit rate 36.4% → 87.5%** (4/11 → 7/8). Total selector checks also fell 11 → 8, because
+misses no longer cascade into repeat lookups.
+
+## A finding the A/B surfaced on its own
+
+**`stale: 12` in ARM ON is new information, not a regression.** Those 12 entries were always stale;
+ARM OFF simply never found them (`exact_key_absent`) and silently fell through to the scan, which
+served *different* entries. Finding the key exposes staleness that missing the key concealed.
+Whether a 5-minute `SERIES_TTL_MS` is right for this path is a **separate, now-visible question** —
+it is not caused by this change and is not addressed by it.
+
+## Honest limits
+
+- **One run per arm**, n = 16 predicate checks each. The effect (0/16 vs 16/16 presence, 9 vs 0
+  scans) is far outside plausible noise, but the *hit-rate* percentages rest on small counts and
+  should not be quoted to a decimal.
+- **Local backend**, one viewport family (Florida east coast), one model (GFS), hours = 0.
+- Not swept: other regions, EURO/ICON paths, or non-zero forecast hours.
+- Both arms retain the pre-existing world alias, so this isolates *the request-key alias only*.
+
+---
+
+## Result — the earlier, confounded observations (kept for the audit trail)
 
 Battery: activate Waves at z9 Cocoa Beach, then 3 cycles of z9→z6→z9 / pan / Waves↔Wind.
 Local backend. Counters reset immediately before activation.
