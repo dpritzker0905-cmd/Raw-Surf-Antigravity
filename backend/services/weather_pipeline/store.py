@@ -252,6 +252,16 @@ def _get_supabase_storage():
         return None
 
 
+# LOAD-TIME STRIDE (2026-08-10): the two helpers `load_product` uses to bound a read BEFORE
+# `model_validate` turns cells into models. They live with the rest of the bounding logic in
+# series_vector_budget (one module owns the stride); rationale + the four guarded hazards:
+#   docs/research/DESIGN-2026-08-10-the-grid-series-load-time-stride.md
+from services.weather_pipeline.series_vector_budget import (   # noqa: E402
+    effective_load_stride as _effective_load_stride,
+    stride_raw_grid_dicts as _stride_raw_grid_dicts,
+)
+
+
 class ProductStore:
     """
     Manages atomic persistent storage of prepared weather products on disk
@@ -649,121 +659,15 @@ class ProductStore:
         from services.weather_pipeline.store_helpers import save_products_batch_helper
         return save_products_batch_helper(self, products_to_save)
 
-    def load_product(self, filename: str) -> Optional[NormalizedProduct]:
-        """Loads and returns a stored grid product by filename."""
-        import time
-
-        # 1. Check in-memory product cache
-        now = time.time()
-        with ProductStore._product_cache_lock:
-            if filename in ProductStore._product_cache:
-                cached_product, cached_time = ProductStore._product_cache[filename]
-                if now - cached_time < ProductStore._PRODUCT_CACHE_TTL:
-                    logger.debug(f"[Product Store] Memory cache HIT for {filename}")
-                    # Shallow copy product and grid container to avoid deep-copying vector list
-                    cloned = cached_product.model_copy()
-                    if cloned.grid is not None:
-                        cloned.grid = cloned.grid.model_copy()
-                    return cloned
-                else:
-                    ProductStore._product_cache.pop(filename, None)
-                    ProductStore._product_cache_vectors.pop(filename, None)
-
-        filepath = self.cache_dir / filename
-        if not filepath.exists():
-            with ProductStore._l2_negative_cache_lock:
-                if filename in ProductStore._l2_negative_cache:
-                    fail_time = ProductStore._l2_negative_cache[filename]
-                    if now - fail_time < ProductStore._L2_NEGATIVE_CACHE_TTL:
-                        logger.debug(f"[Product Store] L2 negative cache HIT for {filename}. Skipping Supabase download.")
-                        return None
-
-            with ProductStore._download_locks_lock:
-                if filename not in ProductStore._download_locks:
-                    ProductStore._download_locks[filename] = threading.Lock()
-                lock = ProductStore._download_locks[filename]
-            
-            with lock:
-                if not filepath.exists():
-                    with ProductStore._l2_negative_cache_lock:
-                        if filename in ProductStore._l2_negative_cache:
-                            fail_time = ProductStore._l2_negative_cache[filename]
-                            if now - fail_time < ProductStore._L2_NEGATIVE_CACHE_TTL:
-                                return None
-
-                    logger.info(f"[Product Store] L1 miss for {filename}. Attempting dynamic download from L2...")
-                    sb = _get_supabase_storage()
-                    if sb:
-                        try:
-                            product_bytes = sb.storage.from_(WEATHER_BUCKET).download(filename)
-                            if product_bytes:
-                                temp_filepath = filepath.with_suffix(".tmp")
-                                temp_filepath.write_bytes(product_bytes)
-                                temp_filepath.rename(filepath)
-                                logger.info(f"[Product Store] Dynamically restored {filename} from L2 to L1")
-                        except Exception as e:
-                            logger.warning(f"[Product Store] Dynamic L2 download failed for {filename}: {e}")
-                            with ProductStore._l2_negative_cache_lock:
-                                ProductStore._l2_negative_cache[filename] = time.time()
-            
-            # Re-check filepath existence after download attempt
-            if not filepath.exists():
-                logger.warning(f"[Product Store] Stored product path not found: {filename}")
-                return None
-        
-        try:
-            with open(filepath, "r") as f:
-                data = json.load(f)
-                product = NormalizedProduct.model_validate(data)
-                
-                # Apply backward compatibility mapping for older products
-                is_florida = (
-                    abs(product.coverage.west - (-85.0)) < 0.1 and
-                    abs(product.coverage.south - 24.0) < 0.1 and
-                    abs(product.coverage.east - (-79.0)) < 0.1 and
-                    abs(product.coverage.north - 31.0) < 0.1
-                )
-                if is_florida:
-                    if not product.region_id:
-                        product.region_id = "florida_east_coast"
-                    if not product.tile_id:
-                        product.tile_id = "florida_east_coast"
-                    if not product.coverage_mode:
-                        product.coverage_mode = "regional_tile"
-                if not product.coverage_mode:
-                    if filename and "global_coarse" in filename:
-                        product.coverage_mode = "global_tile"
-                    else:
-                        cov = product.coverage
-                        span = (cov.east - cov.west) if cov.west <= cov.east else (180.0 - cov.west) + (cov.east + 180.0)
-                        product.coverage_mode = "global_tile" if span >= 350.0 else "regional_tile"
-                if not product.product_id:
-                    product.product_id = filename
-                
-                # Cache the product before returning a deepcopy. Evict LRU until BOTH the count
-                # limit and the vector budget hold (insertion order == LRU here; big mid products
-                # displace many small ones instead of silently multiplying resident memory ~25×).
-                with ProductStore._product_cache_lock:
-                    nvec = len(product.grid.vectors) if (product.grid and product.grid.vectors) else 0
-                    while ProductStore._product_cache and (
-                        len(ProductStore._product_cache) >= ProductStore._PRODUCT_CACHE_LIMIT
-                        or sum(ProductStore._product_cache_vectors.values()) + nvec
-                            > ProductStore._PRODUCT_CACHE_VECTOR_BUDGET
-                    ):
-                        oldest_key = next(iter(ProductStore._product_cache.keys()))
-                        ProductStore._product_cache.pop(oldest_key, None)
-                        ProductStore._product_cache_vectors.pop(oldest_key, None)
-                    ProductStore._product_cache[filename] = (product, time.time())
-                    ProductStore._product_cache_vectors[filename] = nvec
-
-                cloned = product.model_copy()
-                if cloned.grid is not None:
-                    cloned.grid = cloned.grid.model_copy()
-                return cloned
-        except Exception as e:
-            logger.error(f"[Product Store] Stored product load and parse failed for {filename}: {e}")
-            return None
-
+    def load_product(self, filename: str, stride: Optional[int] = None) -> Optional[NormalizedProduct]:
+        """Loads a stored grid product. `stride` (>1) decimates BEFORE `model_validate` so the
+        discarded cells are never modelled; None keeps all 36 call sites byte-identical.
+        Body extracted to store_helpers (this file sat at the 800-LOC ratchet limit) — same
+        pattern as save_product_helper above. Rationale + the four guarded hazards:
+        docs/research/DESIGN-2026-08-10-the-grid-series-load-time-stride.md
+        """
+        from services.weather_pipeline.store_helpers import load_product_helper
+        return load_product_helper(self, filename, stride)
 
     def prune_old_products(self, before_time: datetime):
         """Cleans up old JSON product files that fall before the cutoff date."""

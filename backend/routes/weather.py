@@ -111,6 +111,14 @@ async def get_grid(
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),
     bbox: Optional[str] = Query(None, description="west,south,east,north boundary filter"),
     surf: bool = Query(False, description="Option-2: return the bathymetry SURF-transformed grid (nearshore breaking height)"),
+    # INTERNAL, and deliberately hidden from the schema. grid_series injects this route as its
+    # per-hour resolver, and once its first hour reveals the geometry it knows the stride every
+    # remaining hour will be decimated by anyway — so it says so here and the discarded cells are
+    # never built into GridVector models. `include_in_schema=False` keeps it out of the public
+    # contract; a client that guesses the name can only ask for a COARSER grid, never a wrong one.
+    # Omitted (None) => byte-identical to the pre-2026-08-10 behaviour, which is what every other
+    # caller of this route gets.
+    series_stride: Optional[int] = Query(None, include_in_schema=False, ge=1, le=64),
     background_tasks: BackgroundTasks = None,
     request: Request = None
 ):
@@ -128,7 +136,8 @@ async def get_grid(
         product = await resolve_grid(
             store, viewport_service,
             model=model, domain=domain, layer=layer, valid_time=valid_time,
-            bbox=bbox, surf=surf, background_tasks=background_tasks, request=request
+            bbox=bbox, surf=surf, background_tasks=background_tasks, request=request,
+            series_stride=series_stride
         )
         # ROOT FIX (2026-07-23): the 10° coarse EURO/ICON `waves` tier masks enclosed seas (Gulf) →
         # wrong colors on zoom-out. Fill those holes from the SERVED GFS coarse (valid Gulf) at serve

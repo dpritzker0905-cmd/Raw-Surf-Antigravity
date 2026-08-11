@@ -506,3 +506,151 @@ def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
     ProductStore._restore_errors = errors
     logger.info(f"[Product Store] L2 restore complete: manifest loaded, {restored} products available on demand")
     return restored, errors
+
+
+# Names `load_product_helper` needs from the store module. Imported INSIDE the function to keep
+# the store <-> store_helpers pair free of an import cycle (store_helpers is imported lazily by
+# store's delegators for exactly that reason).
+def load_product_helper(store, filename: str, stride: Optional[int] = None) -> Optional[NormalizedProduct]:
+    """Loads and returns a stored grid product by filename.
+
+    ``stride`` (>1) decimates the grid BEFORE `model_validate`, so the discarded cells are
+    never turned into `GridVector` models. Default None keeps all 36 existing call sites
+    byte-identical. Measured: a cold global series constructs ~525k vectors for ~210 MB
+    resident; the warm repeat constructs almost nothing and costs +2.0 MB.
+
+    ⚠️⚠️ A strided product must NEVER land under the full grid's cache key — `_product_cache`
+    hands out SHALLOW copies to the point lane, spot ratings and the gulf fill, so a decimated
+    entry there would be silently wrong for every later reader. Hence `filename#sN`.
+
+    Kill switch: SERIES_LOAD_STRIDE=0. Full rationale + the four guarded hazards:
+    docs/research/DESIGN-2026-08-10-the-grid-series-load-time-stride.md
+    """
+    import time
+    import threading
+    from services.weather_pipeline.store import (
+        ProductStore, WEATHER_BUCKET, _get_supabase_storage,
+        _effective_load_stride, _stride_raw_grid_dicts,
+    )
+
+    stride = _effective_load_stride(stride)
+    # Strided reads get their OWN cache identity. See the warning above — this one line is what
+    # keeps a decimated grid out of every other consumer's hands.
+    cache_key = filename if stride <= 1 else f"{filename}#s{stride}"
+
+    # 1. Check in-memory product cache
+    now = time.time()
+    with ProductStore._product_cache_lock:
+        if cache_key in ProductStore._product_cache:
+            cached_product, cached_time = ProductStore._product_cache[cache_key]
+            if now - cached_time < ProductStore._PRODUCT_CACHE_TTL:
+                logger.debug(f"[Product Store] Memory cache HIT for {cache_key}")
+                # Shallow copy product and grid container to avoid deep-copying vector list
+                cloned = cached_product.model_copy()
+                if cloned.grid is not None:
+                    cloned.grid = cloned.grid.model_copy()
+                return cloned
+            else:
+                ProductStore._product_cache.pop(cache_key, None)
+                ProductStore._product_cache_vectors.pop(cache_key, None)
+
+    filepath = store.cache_dir / filename
+    if not filepath.exists():
+        with ProductStore._l2_negative_cache_lock:
+            if filename in ProductStore._l2_negative_cache:
+                fail_time = ProductStore._l2_negative_cache[filename]
+                if now - fail_time < ProductStore._L2_NEGATIVE_CACHE_TTL:
+                    logger.debug(f"[Product Store] L2 negative cache HIT for {filename}. Skipping Supabase download.")
+                    return None
+
+        with ProductStore._download_locks_lock:
+            if filename not in ProductStore._download_locks:
+                ProductStore._download_locks[filename] = threading.Lock()
+            lock = ProductStore._download_locks[filename]
+        
+        with lock:
+            if not filepath.exists():
+                with ProductStore._l2_negative_cache_lock:
+                    if filename in ProductStore._l2_negative_cache:
+                        fail_time = ProductStore._l2_negative_cache[filename]
+                        if now - fail_time < ProductStore._L2_NEGATIVE_CACHE_TTL:
+                            return None
+
+                logger.info(f"[Product Store] L1 miss for {filename}. Attempting dynamic download from L2...")
+                sb = _get_supabase_storage()
+                if sb:
+                    try:
+                        product_bytes = sb.storage.from_(WEATHER_BUCKET).download(filename)
+                        if product_bytes:
+                            temp_filepath = filepath.with_suffix(".tmp")
+                            temp_filepath.write_bytes(product_bytes)
+                            temp_filepath.rename(filepath)
+                            logger.info(f"[Product Store] Dynamically restored {filename} from L2 to L1")
+                    except Exception as e:
+                        logger.warning(f"[Product Store] Dynamic L2 download failed for {filename}: {e}")
+                        with ProductStore._l2_negative_cache_lock:
+                            ProductStore._l2_negative_cache[filename] = time.time()
+        
+        # Re-check filepath existence after download attempt
+        if not filepath.exists():
+            logger.warning(f"[Product Store] Stored product path not found: {filename}")
+            return None
+    
+    try:
+        with open(filepath, "r") as f:
+            data = json.load(f)
+            # ── THE CONSTRUCTION SEAM (2026-08-10) ────────────────────────────────────────
+            # `model_validate` below is where a product's cells become GridVector models —
+            # ~420 B of resident growth each, measured. Striding the RAW DICTS first means the
+            # discarded cells are never modelled. Doing it after this line would shrink the
+            # document and leave the cost, which is the defect this exists to remove.
+            _stride_raw_grid_dicts(data, stride)
+            product = NormalizedProduct.model_validate(data)
+
+            # Apply backward compatibility mapping for older products
+            is_florida = (
+                abs(product.coverage.west - (-85.0)) < 0.1 and
+                abs(product.coverage.south - 24.0) < 0.1 and
+                abs(product.coverage.east - (-79.0)) < 0.1 and
+                abs(product.coverage.north - 31.0) < 0.1
+            )
+            if is_florida:
+                if not product.region_id:
+                    product.region_id = "florida_east_coast"
+                if not product.tile_id:
+                    product.tile_id = "florida_east_coast"
+                if not product.coverage_mode:
+                    product.coverage_mode = "regional_tile"
+            if not product.coverage_mode:
+                if filename and "global_coarse" in filename:
+                    product.coverage_mode = "global_tile"
+                else:
+                    cov = product.coverage
+                    span = (cov.east - cov.west) if cov.west <= cov.east else (180.0 - cov.west) + (cov.east + 180.0)
+                    product.coverage_mode = "global_tile" if span >= 350.0 else "regional_tile"
+            if not product.product_id:
+                product.product_id = filename
+            
+            # Cache the product before returning a deepcopy. Evict LRU until BOTH the count
+            # limit and the vector budget hold (insertion order == LRU here; big mid products
+            # displace many small ones instead of silently multiplying resident memory ~25×).
+            with ProductStore._product_cache_lock:
+                nvec = len(product.grid.vectors) if (product.grid and product.grid.vectors) else 0
+                while ProductStore._product_cache and (
+                    len(ProductStore._product_cache) >= ProductStore._PRODUCT_CACHE_LIMIT
+                    or sum(ProductStore._product_cache_vectors.values()) + nvec
+                        > ProductStore._PRODUCT_CACHE_VECTOR_BUDGET
+                ):
+                    oldest_key = next(iter(ProductStore._product_cache.keys()))
+                    ProductStore._product_cache.pop(oldest_key, None)
+                    ProductStore._product_cache_vectors.pop(oldest_key, None)
+                ProductStore._product_cache[cache_key] = (product, time.time())
+                ProductStore._product_cache_vectors[cache_key] = nvec
+
+            cloned = product.model_copy()
+            if cloned.grid is not None:
+                cloned.grid = cloned.grid.model_copy()
+            return cloned
+    except Exception as e:
+        logger.error(f"[Product Store] Stored product load and parse failed for {filename}: {e}")
+        return None

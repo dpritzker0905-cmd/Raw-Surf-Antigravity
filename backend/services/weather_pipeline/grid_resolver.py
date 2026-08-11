@@ -81,6 +81,18 @@ def _grid_cell_deg(grid) -> Optional[float]:
         return None
 
 
+
+def _load_kw(series_stride) -> dict:
+    """`{"stride": n}` only when a stride is actually wanted, else `{}`.
+
+    ⚠️ ADDITIVE BY CONSTRUCTION, and that is the point. Passing `stride` unconditionally — even as
+    None — breaks every existing test double whose `load_product(self, filename)` takes two
+    positional arguments. Two mid-res-tier tests failed exactly that way before this existed. A
+    store that never receives the kwarg cannot behave differently because of it.
+    """
+    return {"stride": series_stride} if (series_stride or 0) > 1 else {}
+
+
 async def resolve_grid(
     store,
     viewport_service,
@@ -93,11 +105,18 @@ async def resolve_grid(
     surf: bool = False,
     background_tasks=None,
     request=None,
+    series_stride: Optional[int] = None,
 ):
     """
     Resolves a compact normalized coordinate grid ready for WebGL rendering, enforcing dynamic
     bounding-box coordinate filtering to conserve bandwidth. `store` and `viewport_service`
     are injected so the route handler and grid_series share one resolver.
+
+    ``series_stride`` (>1) is passed through to `store.load_product` so a caller that is going to
+    decimate the grid ANYWAY — grid_series, which already strides every hour as it lands — never
+    pays to build the cells it will discard. Default None means every other caller, including the
+    single-hour `/grid` route, resolves exactly as before. Only the DURABLE-PRODUCT lanes honour
+    it; the dynamic-viewport fast path is untouched (see the note at Step 1&2).
     """
     # Disconnect detection: under timeline scrubbing / model toggling the client aborts
     # obsolete requests. Bail before any heavy work so we don't pile up zombie handlers that
@@ -214,7 +233,7 @@ async def resolve_grid(
     # Step 3: Durable manifest full coverage
     if not product:
         if use_manifest_product and matching_manifest_item:
-            candidate_product = await asyncio.to_thread(store.load_product, matching_manifest_item.filename)
+            candidate_product = await asyncio.to_thread(store.load_product, matching_manifest_item.filename, **_load_kw(series_stride))
             if candidate_product and not _is_oversized_grid(candidate_product):
                 product = candidate_product
                 if product.grid:
@@ -253,7 +272,7 @@ async def resolve_grid(
         file_exists = await asyncio.to_thread(file_path.exists)
         if file_exists:
             logger.info(f"[Grid Route] Serving conformed manifest item {manifest_preview_item.filename} as instant SWR preview")
-            candidate_product = await asyncio.to_thread(store.load_product, manifest_preview_item.filename)
+            candidate_product = await asyncio.to_thread(store.load_product, manifest_preview_item.filename, **_load_kw(series_stride))
             if candidate_product and not _is_oversized_grid(candidate_product):
                 product = candidate_product
                 if product.grid:
@@ -507,7 +526,7 @@ async def resolve_grid(
 
                 if overlap_manifest_item:
                     logger.info(f"[Grid Route] Fallback: Serving overlapping regional manifest product '{overlap_manifest_item.filename}' as regional_partial")
-                    candidate_product = await asyncio.to_thread(store.load_product, overlap_manifest_item.filename)
+                    candidate_product = await asyncio.to_thread(store.load_product, overlap_manifest_item.filename, **_load_kw(series_stride))
                     if candidate_product and not _is_oversized_grid(candidate_product):
                         product = candidate_product
                         if not product or not product.grid:

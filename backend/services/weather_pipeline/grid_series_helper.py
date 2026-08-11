@@ -107,6 +107,47 @@ def _series_build_stride(product, hour_count: int) -> int:
         return 1
 
 
+def _load_stride_of(grid) -> int:
+    """The stride the RESOLVER already applied to this grid, or 1 if it applied none.
+
+    Read from `grid.diagnostics['load_stride']`, stamped by `store._stride_raw_grid_dicts`. Never
+    raises and never guesses: an unstamped grid is treated as unstrided, which is the safe
+    direction — the worst case is the pre-2026-08-10 behaviour of striding it here instead.
+    """
+    try:
+        d = getattr(grid, "diagnostics", None)
+        v = int(d.get("load_stride")) if isinstance(d, dict) else 1
+        return v if v > 1 else 1
+    except (TypeError, ValueError, AttributeError):
+        return 1
+
+
+def _resolver_takes_series_stride(resolve_grid) -> bool:
+    """True when the injected resolver accepts `series_stride`.
+
+    The series lane is handed its resolver by the caller (`build_grid_series(get_grid, ...)`), and
+    the test suite injects plain coroutines with the OLD signature. Probing instead of assuming is
+    what keeps this additive: an unknown resolver is called exactly as it was before.
+    ⚠️ `inspect.signature` is not free at 48 hours x N requests, so the answer is memoised per
+    function object.
+    """
+    try:
+        cached = getattr(resolve_grid, "_takes_series_stride", None)
+        if cached is not None:
+            return cached
+        import inspect
+        params = inspect.signature(resolve_grid).parameters
+        ok = "series_stride" in params or any(
+            p.kind is inspect.Parameter.VAR_KEYWORD for p in params.values())
+        try:
+            resolve_grid._takes_series_stride = ok      # memoise on the function object
+        except (AttributeError, TypeError):
+            pass                                        # builtins / bound methods: probe each time
+        return ok
+    except (TypeError, ValueError):
+        return False       # unintrospectable callable -> call it the old way
+
+
 def _apply_build_stride(product, stride: int) -> bool:
     """Decimate one resolved product's grid before the series takes a reference to it.
 
@@ -543,10 +584,25 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                 # Per-hour timeout so a slow/stalled model (EURO dynamic) can't hang the whole
                 # series; cold budget while the L2 restore is in flight (see PER_HOUR_TIMEOUT_COLD).
                 _t = _per_hour_timeout()
+                # ── LOAD-TIME BOUND (2026-08-10) ──────────────────────────────────────────────
+                # By the time hour 0 has resolved, `bound["stride"]` is known — and every
+                # remaining hour is going to be strided by exactly that number a few lines below.
+                # Telling the resolver up front means the discarded cells are never built into
+                # GridVector models at all. `_apply_build_stride` still runs on whatever comes
+                # back: a product that arrived pre-strided is already at the target geometry and
+                # the second pass is a no-op, so the two paths cannot disagree about cell
+                # selection (both go through `decimate_vectors`).
+                # ⚠️ Hour 0 CANNOT use this — its geometry is what CHOOSES the stride. It is the
+                # one full grid the series still pays for, by construction.
+                # Only forwarded when the injected resolver accepts it, so a test double or any
+                # other caller with the old signature keeps working unchanged.
+                _kw = {}
+                if bound["stride"] > 1 and _resolver_takes_series_stride(resolve_grid):
+                    _kw["series_stride"] = bound["stride"]
                 product = await asyncio.wait_for(
                     resolve_grid(
                         model=model, domain=domain, layer=layer,
-                        valid_time=vt_str, bbox=bbox, surf=surf, background_tasks=bg
+                        valid_time=vt_str, bbox=bbox, surf=surf, background_tasks=bg, **_kw
                     ),
                     timeout=_t,
                 )
@@ -554,7 +610,19 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             _g = getattr(product, "grid", None) if product is not None else None
             if _g is not None and getattr(_g, "vectors", None):
                 bound["before"] += len(_g.vectors)
-                if _apply_build_stride(product, bound["stride"]):
+                # ⚠️ A grid that arrived ALREADY strided must not be strided twice. The resolver
+                # stamps `diagnostics.load_stride` when it honoured the hint; keying off that
+                # rather than off geometry is deliberate, because cols/rows cannot distinguish
+                # "already decimated by 4" from "natively this small". Getting this wrong is not
+                # subtle — it served stride^2 (966 cells -> 72) and the wiring test caught it.
+                # ⚠️ `bound["stride"] > 1` is load-bearing, not defensive. Without it an UNBOUNDED
+                # series (stride 1, an unstamped grid -> _load_stride_of 1) takes the first branch
+                # and stamps `decimated_stride: 1` on every frame of a viewport that was never
+                # decimated at all — a HIT advertising itself as bounded.
+                # `test_a_small_viewport_is_never_decimated` caught exactly that.
+                if bound["stride"] > 1 and _load_stride_of(_g) == bound["stride"]:
+                    bound["hours"].add(h)          # already at target geometry; stamp, don't redo
+                elif _apply_build_stride(product, bound["stride"]):
                     bound["hours"].add(h)
             return (h, product)
         except asyncio.TimeoutError:

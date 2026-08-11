@@ -236,3 +236,56 @@ def apply_vector_budget(resp: dict) -> dict:
 #   a diagnostic that answers when it cannot know is worse than none, which is the whole reason this
 #   function is a comment instead of code.
 # ★ `vectors_total` / `decimated_stride` below are unaffected: they are MEASURED, not inferred.
+
+
+# ── LOAD-TIME STRIDE (2026-08-10, the grid_series cold-path cost) ─────────────────────────────
+# Rationale, measurements and the four guarded hazards:
+#   docs/research/DESIGN-2026-08-10-the-grid-series-load-time-stride.md
+# One line: grid_series bounds RETENTION but not ALLOCATION, and a cold global series constructs
+# ~525k GridVectors for ~210 MB resident. These helpers let a caller that will stride the grid
+# ANYWAY say so before `model_validate`, so the discarded cells are never modelled.
+def effective_load_stride(stride) -> int:
+    """Normalise a requested stride to an int >= 1, honouring the SERIES_LOAD_STRIDE=0 kill switch.
+
+    Fails OPEN (returns 1) on anything unparseable: a load-time bound must serve the FULL grid when
+    in doubt, because failing closed would silently serve a coarser forecast.
+    """
+    try:
+        if int(os.environ.get("SERIES_LOAD_STRIDE", "1")) == 0:
+            return 1
+    except (TypeError, ValueError):
+        pass
+    try:
+        s = int(stride)
+    except (TypeError, ValueError):
+        return 1
+    return s if s > 1 else 1
+
+
+def stride_raw_grid_dicts(data, stride: int) -> bool:
+    """Decimate `data['grid']['vectors']` in the PARSED-JSON dicts, before any model exists.
+
+    Cell selection is delegated to `decimate_vectors` so the load-time and build-time strides are
+    ONE expression picking ONE set of cells (the ONE QUANTITY, TWO FLOORS class). Refuses on
+    anything that is not a full rectangular grid: this may make a product smaller, never wrong.
+    """
+    if stride <= 1 or not isinstance(data, dict):
+        return False
+    grid = data.get("grid")
+    if not isinstance(grid, dict):
+        return False
+    out = decimate_vectors(grid.get("vectors"), grid.get("cols"), grid.get("rows"), stride)
+    if out is None:
+        return False
+    grid["vectors"], grid["cols"], grid["rows"] = out
+    # ⚠️ STAMP IT, because the caller CANNOT tell by looking. grid_series applies its own stride to
+    # every hour as it lands; without this marker it re-strides an already-strided grid and the
+    # frame comes back stride^2 too coarse (measured: 966 cells -> 72, a 13.9x materialisation
+    # ratio that looked like the fix had failed). The consumer keys off this, never off geometry —
+    # geometry cannot distinguish "already strided by 4" from "natively this small".
+    diag = grid.get("diagnostics")
+    if not isinstance(diag, dict):
+        diag = {}
+        grid["diagnostics"] = diag
+    diag["load_stride"] = stride
+    return True
