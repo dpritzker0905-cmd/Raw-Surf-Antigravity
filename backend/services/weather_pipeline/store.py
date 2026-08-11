@@ -287,6 +287,12 @@ class ProductStore:
     _cached_manifest: Optional[PipelineManifest] = None
     _cached_manifest_mtime: float = 0.0
     _manifest_lock = threading.RLock()
+    # IDENTITY of the last manifest bytes that were successfully parsed and written (2026-08-11).
+    # `restore_from_supabase` skips its ~200 MB parse/serialise/write cycle when the downloaded
+    # bytes hash to this. `_pending_` is promoted to `_last_` ONLY after the write succeeds, so a
+    # failed restore cannot poison the skip. See store_helpers for the measurement that motivated it.
+    _last_manifest_sha: Optional[str] = None
+    _pending_manifest_sha: Optional[str] = None
     
     # In-memory product cache to speed up scrubbing and avoid duplicate Pydantic parses
     _product_cache: Dict[str, Tuple[NormalizedProduct, float]] = {}

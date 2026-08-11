@@ -399,6 +399,44 @@ def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
         if manifest_bytes is None:
             manifest_bytes = sb.storage.from_(WEATHER_BUCKET).download("manifest.json")
         if manifest_bytes:
+            # ⭐⭐⭐ IDENTITY SKIP (2026-08-11, the RSS ratchet). MEASURED on the live box: RSS grew
+            # +74.8 MB then +76.6 MB across two consecutive 25-min windows while
+            # `disk_product_count` sat FLAT at 618 — so it was not traffic. The periodic restore
+            # fired at 01:11:21 and 01:41:23 (interval[0:30:00]), exactly one per window, and each
+            # re-parses a 20,007-entry manifest: json.loads (~17 MB dict) + model_validate (~93 MB
+            # model) + model_dump_json (a full re-serialisation) while the OLD cached manifest is
+            # still referenced. ~200 MB transient, ~75 MB of it never returned.
+            #
+            # And it is almost always for NOTHING: the manifest is written by the ingest workflow,
+            # which runs every ~3-4 h, against a restore that runs every 30 min — so roughly 7 of
+            # every 8 restores re-parse a BYTE-IDENTICAL file. Hash the downloaded bytes and skip
+            # the whole parse/serialise/write cycle when they have not changed.
+            #
+            # ★ THE HASH IS OF THE DOWNLOADED BYTES, i.e. the INPUT. Everything below transforms
+            # that input deterministically (fixture merge, is_test_fixture filter, ICON horizon
+            # purge), so identical input => identical result, and skipping is sound.
+            # ⚠️ ONE EDGE, STATED: the ICON purge takes `now_utc`, but its cutoff is RUN-relative
+            # by deliberate design (see its comment below — wall-clock was the "blank day" bug), so
+            # it is time-invariant for a fixed input. The ONLY time-dependent case is a product
+            # with no run_time, which falls back to wall-clock; skipping can leave such a product
+            # in place one cycle longer. That is the lenient direction the purge itself prefers
+            # ("never deletes legitimately fetched data").
+            # Kill: MANIFEST_RESTORE_SKIP_UNCHANGED=0 restores the unconditional re-parse.
+            if os.environ.get("MANIFEST_RESTORE_SKIP_UNCHANGED", "1") != "0":
+                import hashlib
+                digest = hashlib.sha256(manifest_bytes).hexdigest()
+                if (digest == getattr(ProductStore, "_last_manifest_sha", None)
+                        and ProductStore._cached_manifest is not None
+                        and store.manifest_path.exists()):
+                    ProductStore._last_restore_time = datetime.now(timezone.utc).isoformat()
+                    ProductStore._restore_errors = errors
+                    logger.info(
+                        "[Product Store] L2 restore: manifest UNCHANGED (sha %s) — skipped the "
+                        "re-parse of %d entries. %d products remain available on demand.",
+                        digest[:12], len(ProductStore._cached_manifest.products),
+                        ProductStore._restored_count)
+                    return ProductStore._restored_count, errors
+                ProductStore._pending_manifest_sha = digest
             manifest_data = json.loads(manifest_bytes.decode("utf-8"))
             logger.info(f"[Product Store] Downloaded manifest from L2 ({len(manifest_data.get('products', []))} entries)")
     except Exception as e:
@@ -493,6 +531,13 @@ def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
         with ProductStore._manifest_lock:
             ProductStore._cached_manifest = manifest
             ProductStore._cached_manifest_mtime = current_mtime
+        # Only commit the identity hash once the parse+write actually SUCCEEDED. Committing it
+        # earlier would let a failed restore poison the skip: the next cycle would match the hash,
+        # skip, and leave the box on a manifest that was never loaded.
+        _pending = getattr(ProductStore, "_pending_manifest_sha", None)
+        if _pending:
+            ProductStore._last_manifest_sha = _pending
+            ProductStore._pending_manifest_sha = None
         logger.info(f"[Product Store] Manifest restored to disk with {len(manifest.products)} entries")
         # All registered products are considered restored (available on demand)
         restored = len(manifest.products)

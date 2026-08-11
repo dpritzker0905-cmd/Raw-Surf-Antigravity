@@ -417,7 +417,7 @@ jobs:
                      tests/test_spot_*.py tests/test_point_*.py \
                      tests/test_series_*.py tests/test_product_cache_*.py \
                      tests/test_cold_start_*.py tests/test_health_peak_memory.py \
-                     tests/test_dyncache_*.py tests/test_manifest_concurrent_merge.py \
+                     tests/test_dyncache_*.py tests/test_manifest_*.py \
                      tests/test_coarse_*.py tests/test_marine_*.py tests/test_grid_*.py \
                      tests/test_weather_*.py tests/test_wind_*.py tests/test_partition_*.py \
                      tests/test_noaa_*.py tests/test_ecmwf_euro.py tests/test_fetch_common.py \
@@ -617,7 +617,7 @@ jobs:
           # duplication, not the direction: EDIT BOTH, ALWAYS, AND LET THE PARITY GUARD CONFIRM.
           "tests/test_series_*.py","tests/test_product_cache_*.py","tests/test_cold_start_*.py",
           "tests/test_health_peak_memory.py","tests/test_dyncache_*.py",
-          "tests/test_manifest_concurrent_merge.py",
+          "tests/test_manifest_*.py",
           "tests/test_grid_*.py","tests/test_weather_*.py","tests/test_wind_*.py","tests/test_partition_*.py",
           "tests/test_noaa_*.py","tests/test_ecmwf_euro.py","tests/test_fetch_common.py",
           "tests/test_climatology_inbox.py","tests/test_flag_lane_parity.py",
