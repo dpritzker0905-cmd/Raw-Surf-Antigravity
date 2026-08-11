@@ -331,6 +331,95 @@ return **HTTP 200** with it. Transient. ★ My first probe used a token transcri
 log and returned **401 for everything** — and 401 is not 404, so that probe could not have
 discriminated. **A probe that cannot distinguish the two answers is not evidence for either.**
 
+## §5c THE CONFIG HALF OF THE OOM — CLOSED, AND THE FIRST NUMBER I'D DEFEND
+
+§1 fixed the CODE (the build-time bound). The 2026-08-03 handoff's CONFIG prescription had never
+been applied (§2). Both Render knobs are now set, **one at a time**, each with its own measurement,
+because changing two allocator variables together makes neither attributable.
+
+### `PREFETCH_MAX=120` + `PREFETCH_CONCURRENCY=2`
+Verified by the prefetcher's OWN LOG, not inferred from RSS:
+
+    before   Capping warm set 3826 -> 400 ... conc=5     Warm-on-boot complete: 400 ok  (~26 s)
+    after    Capping warm set 3826 -> 120 ... conc=2     Warm-on-boot complete: 120 ok  (10 s)
+
+⛔⛔ **AND THE −62% I FIRST REPORTED FOR IT IS RETRACTED.** 1,634.9 → 623.9 MB was a **quiet box at
+8 minutes** against a **busy box at 23 minutes**. The knob caps what BOOTS; it does nothing about
+what TRAFFIC loads, and traffic is what sets the plateau — the same process later reached 1,445 MB
+once E2E drove `disk_product_count` to 549. ★★★ **MATCH THE LOAD, NOT THE CLOCK: `uptime` is not a
+control when the quantity climbs with product count.**
+
+### `MALLOC_TRIM_THRESHOLD_=131072` — measured at MATCHED `disk_product_count`
+glibc's trim threshold auto-RAISES as a program frees large blocks, which is why RSS never came
+back. Pinning it at the documented 128 KB disables that. Driven deliberately to the comparison
+point rather than waiting for the box to look good while idle:
+
+| | disk | RSS | % of 2,048 |
+|---|---:|---:|---:|
+| pre-trim | 590 | **1,445.3 MB** | 71.2% |
+| post-trim (probe) | 554 | **784.0 MB** | 38.3% |
+| post-trim (loader, independent series) | 582 | **794.8 MB** | 38.8% |
+
+**≈ −650 MB at the same product count**, confirmed by two independently collected series.
+⭐ **THE MECHANISM IS VISIBLE**: RSS repeatedly sits BELOW peak mid-flight (752.5 vs 768.3 · 766.3
+vs 778.9). Before this knob, **150 s of total idle returned exactly zero bytes**.
+⭐ Load curve flattens: 770 → 794 MB across 105 further requests and 167 further products — the
+stretch that previously added ~650 MB.
+
+### Latency: the concern I raised and then withdrew
+The loader's own `grid` requests read p50 965 / p90 3,385 / max 18,686 ms and I called the cost
+"real". **Withdrawn.** Those were COLD product fetches — they *were* the loading work. A probe
+running concurrently sampled the WARM path throughout the same window:
+
+    spot-ratings under load: 308 459 859 381 1411 1218 355 396 261 807 383 342 ms  (median ~385)
+    pre-trim IDLE baseline : 268 305 357 ms
+
+No clear regression, under heavier load than the baseline ever saw. ⚠️ The tail is not settled;
+this is "nothing supports a regression", not "proven equal".
+
+### Where the OOM stands
+
+| | session start | now |
+|---|---:|---:|
+| RSS at ~580 products | 1,445 MB | **795 MB** |
+| headroom | 603 MB | **1,253 MB** |
+| per-request cost (global series) | +170.3 MB | **+0.0 MB** |
+| oomKilled | 7 in 15 h | **0 since the fix** |
+
+⛔ `MALLOC_ARENA_MAX` deliberately LEFT UNSET — there is no longer a memory problem to justify
+moving another allocator variable. Both knobs revert with one env var each.
+⚠️ **A RENDER ENV VAR IS INERT UNTIL A DEPLOY.** `PUT /env-vars/{KEY}` returns 200, the read-back
+shows the new value, and the RUNNING PROCESS KEEPS THE OLD ONE. Verify against the process
+(`/api/health`, or the code's own log line), never against the config.
+
+## §5d THE 11.43x HEIGHT FLAG — FLIPPED ON, AND WHY MY FIRST VERDICT WAS WRONG
+
+`106f113e` shipped `__RAW_NEARSHORE_RENORM__` dark. Owner flipped it (`679da3d9`); kill switch
+`= false` restores the old behaviour exactly, pinned to the same three constants.
+
+**Measured on real production data**, a live GFS grid for Florida (13x21, 110/273 cells = 40% land)
+at the 93 real spots inside it, through the shipped sampler: **80/93 (86%) move**, ratio ON/OFF
+**min 1.68x · p50 3.00x · p90 4.52x · max 10.68x**, and **ON == the period lane's own sample at
+80/80 movers**. The real-data worst case independently corroborates the synthetic 11.43x.
+
+⛔⛔ **I FIRST CONCLUDED THE OPPOSITE AND RECOMMENDED AGAINST FLIPPING.** A census of 141 spots x 3
+models = **423 point resolutions** found the exact-point lane answering **100%** of the time, so I
+reported the tile lane as structurally unreachable. That measured whether the point ENDPOINT can
+answer — not whether the point lane is the AUTHORITY:
+
+    MapForecastOverlay.js:154  isExactPointAuthority = ... && isUserExplicitSelection && ...
+                               isUserExplicitSelection = !!(selectedSpot || longPressLocation)
+    MapPage.js:585             overlay renders when activeLayers.length > 0
+                               (its second clause is TAUTOLOGICAL and adds nothing)
+    MapForecastOverlay.js:291  : (activeLayer === 'waves' && sampledWaves) ? sampledWaves.value
+
+⇒ in the DEFAULT map state — layer on, nothing selected — the decayed tile value is displayed
+**directly**, no point lane in front of it. ★★★ **A NETWORK CENSUS CANNOT ANSWER A QUESTION WHOSE
+GATE IS CLIENT RENDER STATE. Only the call site could — and only because the grep was run.**
+⛔ **PROVEN vs NOT**: this proves INTERNAL CONSISTENCY and removes a client-side height transform
+CLAUDE.md forbids. It does NOT prove the result is closer to truth — no buoy validates this
+sampler, and the skill ledger scores the BACKEND point lane. Revert is one flag.
+
 ## §6 STILL OPEN, UNCHANGED BY THIS SESSION
 
 * ⚠️ **`BRAIN_RULES.md:200` still carries a committed 3-part JWT** (176 chars, claims
