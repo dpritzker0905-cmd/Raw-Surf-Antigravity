@@ -8,7 +8,33 @@ committing both would publish work that session called *"cut 2 still in flight"*
 auto-deploying branch. The patch below makes the code reproducible in about a minute, so holding
 costs nothing but the typing.
 
-## Result — the acceptance bar was HALF met
+> ## ⛔ CORRECTION (same session) — "predicate unchanged at 100%" is WRONG as a general claim
+>
+> A later run on a **warm** cache recorded `hit: 9` on the predicate, with the hitting keys being
+> **request-derived viewport keys** — the exact keys that exist only because of the alias:
+> ```
+> GFS_waves_viewport_-83.00_26.00_-79.00_30.00_0
+> GFS_waves_viewport_-89.00_21.00_-73.00_36.00_0
+> ```
+> So the predicate **does** benefit from the fix. The 100% figures below were taken on a cache that
+> had not yet been populated with matching keys — a **cold-cache artifact**, not evidence the fix
+> failed to reach that path.
+>
+> **This is the third time in this audit that a single-condition measurement produced a false
+> defect**: the antimeridian "blank" was a readiness artifact, the `-SimpleMatch` grep was a search
+> that structurally could not match, and this was a cold cache. ⭐ *Before calling a zero a defect,
+> establish that the thing could have been non-zero.*
+>
+> **What is NOT established:** the magnitude. A controlled cold-vs-warm A/B was attempted and came
+> out **underpowered** (3 exact-key checks per arm — the layer activation did not complete), so it
+> is reported as inconclusive rather than dressed up. The numbers below stand as *what was observed
+> in those runs*, not as the steady-state behaviour of either path.
+>
+> **Required to close this properly:** a controlled battery with (a) confirmed layer activation,
+> (b) enough lookups for a meaningful denominator, (c) cold and warm arms taken back to back in one
+> page session. Until then, treat the direction as established and the magnitude as unmeasured.
+
+## Result — as observed (see the correction above before quoting these)
 
 Battery: activate Waves at z9 Cocoa Beach, then 3 cycles of z9→z6→z9 / pan / Waves↔Wind.
 Local backend. Counters reset immediately before activation.
