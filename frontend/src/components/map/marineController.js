@@ -36,7 +36,8 @@ import {
   createFallbackSafeZeroGrid,
   recordTerminalNoCoverage,
   hasTimeCoverage,
-  isContainedInMarineCache
+  isContainedInMarineCache,
+  recordSelectorLookup
 } from './marineControllerCache';
 
 import { extractMarineAtOffset } from './marineControllerExtractor';
@@ -233,6 +234,15 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
       }
     }
 
+    // SELECTOR TELEMETRY (T-2' step 3, 2026-08-11). The predicate (isContainedInMarineCache) was
+    // the only instrumented lookup, so the measured exact-key miss rate was an INFERENCE about this
+    // function rather than a measurement of it. `recordSelectorLookup` namespaces every reason
+    // under `sel_` so these tallies can never merge into the predicate's buckets and make both
+    // unattributable — see marineControllerCache.selectorTelemetry.test.js.
+    recordSelectorLookup(hitData ? 'hit' : 'exact_key_absent', {
+      lookupKey: `${wanted}_${layerPart}_${tileId}_${wantedHour}`, tileId, model: wanted, layer: wantedLayer, hourOffset: wantedHour
+    });
+
     if (!hitData) {
       // Fallback search: check if any cached entry in _perModelHourCache contains these bounds
       const disableGlobalSkip = typeof window !== 'undefined' && window.__RAW_DISABLE_SAFECACHE_GLOBAL_SKIP__ === true;
@@ -314,6 +324,10 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
         hitData = _bestEntry.data;
         cacheSource = 'per_model_hour_cache_contained';
       }
+      // Which path actually served this lookup — the O(N) scan, or nothing at all.
+      recordSelectorLookup(hitData ? 'hit_fallback' : 'bounds_not_contained', {
+        lookupKey: `${wanted}_${layerPart}_${tileId}_${wantedHour}`, tileId, candidates: _candidates
+      });
       // Proof surface: how many entries were servable, and which extent actually won.
       if (typeof window !== 'undefined' && _candidates > 0) {
         window.__MARINE_CONTAINED_PICK__ = {
@@ -597,7 +611,11 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   if (getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
     try {
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer);
-      _cacheMarineResult('GFS', hourOffset, result, activeLayer);
+      // T-2' step 3 part B: pass the REQUEST-derived tile so the entry is reachable by the key
+      // every reader constructs. `clampRes` is function-scoped here; the `tileId` computed inside
+      // the !forceFetch block above is NOT in scope. Measured before this: 19 exact-key checks,
+      // 0 hits (100% miss) — see T2PRIME_STEP3_MISS_RATE_MEASUREMENT.md.
+      _cacheMarineResult('GFS', hourOffset, result, activeLayer, false, clampRes.selectedTileId || 'outside');
       prewarmSiblingMarineSeries('GFS', hourOffset, bounds, activeLayer, signal);
       prewarmGlobalMarineGrid('GFS', hourOffset, bounds, activeLayer);
       return result;
@@ -614,7 +632,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   if (getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves')) {
     try {
       const result = await fetchBackendCopernicusGrid(bounds, hourOffset, signal, snappedBounds, "controller", activeLayer);
-      _cacheMarineResult('EURO', hourOffset, result, activeLayer);
+      _cacheMarineResult('EURO', hourOffset, result, activeLayer, false, clampRes.selectedTileId || 'outside');
       // Wash-base warm (2026-07-15): EURO was the only redirect path with NO global prewarm, so a
       // switch INTO EURO at a regional zoom left blend-both's base on the previous model (wash off —
       // same disease as the ICON report). Sibling-series prewarm stays deliberately absent for EURO
@@ -632,7 +650,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   if (getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
     try {
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer, 'ICON');
-      _cacheMarineResult('ICON', hourOffset, result, activeLayer);
+      _cacheMarineResult('ICON', hourOffset, result, activeLayer, false, clampRes.selectedTileId || 'outside');
       prewarmSiblingMarineSeries('ICON', hourOffset, bounds, activeLayer, signal);
       prewarmGlobalMarineGrid('ICON', hourOffset, bounds, activeLayer);
       return result;
