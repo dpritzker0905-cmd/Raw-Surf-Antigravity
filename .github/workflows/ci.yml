@@ -537,7 +537,15 @@ jobs:
           # tests across 148 files -> 1691 passed, 67 skipped, 0 failed, 0 errors". The +9 over the
           # prior 1749 is fully attributed — test_flag_lane_parity 23→32, test_sim_mcp_shim unchanged
           # at 5 — so this is bookkeeping, not new coverage. 1685 restores the customary 6 below.
-          MIN_FILES, MIN_PASSED = 148, 1685
+          # ⬆ MIN_FILES 148→149 IN THE SAME COMMIT THAT CAUSES IT. test_flag_lane_parity.py reached
+          # 787 of the 800-LOC cap and was split; its CI-lane guards moved to
+          # tests/test_ci_lane_single_source.py, which is NAMED in COMPOSITION so the 11 tests stay
+          # in THIS lane. So the split is a FILE change, not a test change: 148→149 files, and
+          # MIN_PASSED stays 1685 because the lane still collects the same 1691.
+          # ★ A SPLIT IS A LANE CHANGE. Had the new file not been named in COMPOSITION it would have
+          #   fallen to the estate complement, taking 11 tests with it and putting this lane at 1680
+          #   against a floor of 1685 — red, from a refactor that moved no logic at all.
+          MIN_FILES, MIN_PASSED = 149, 1685
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

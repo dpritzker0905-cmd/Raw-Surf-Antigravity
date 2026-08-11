@@ -113,7 +113,18 @@ COMPOSITION = (
     "tests/test_marine_*.py", "tests/test_grid_*.py", "tests/test_weather_*.py",
     "tests/test_wind_*.py", "tests/test_partition_*.py", "tests/test_noaa_*.py",
     "tests/test_ecmwf_euro.py", "tests/test_fetch_common.py", "tests/test_climatology_inbox.py",
-    "tests/test_flag_lane_parity.py", "tests/test_owner_calibration_anchors.py",
+    "tests/test_flag_lane_parity.py",
+    # ⚠️ NAMED BY FULL FILENAME, and it must stay named. Split out of test_flag_lane_parity.py on
+    # 2026-08-11 when that file reached 787 of the 800-LOC cap. No glob here matches `test_ci_*`, so
+    # WITHOUT this line the split would have moved 11 tests out of the guards lane into the estate
+    # complement — dropping this lane from 1691 passed to 1680 against a floor of 1685, i.e. RED.
+    # ★ SPLITTING A TEST FILE IS A LANE CHANGE in this repo; the two are one act and the floors
+    #   notice. With this entry the split is a FILE-count change (148 -> 149) and no test moves.
+    # ⛔ These guards police THIS FILE — that all three lanes delegate to it, and that no copy of the
+    #   list comes back. Letting them drift into the estate lane would put the guard on the
+    #   composition lane outside the composition lane.
+    "tests/test_ci_lane_single_source.py",
+    "tests/test_owner_calibration_anchors.py",
     "tests/test_parity_unification.py", "tests/test_local_size_preview.py",
     "tests/test_enclosed_sea_height_survival.py", "tests/test_gfs_fill_masked_waves.py",
     "tests/test_dominant_swell_anim.py", "tests/test_frame_honesty.py",
