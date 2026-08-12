@@ -1,0 +1,66 @@
+### repeat profile: 3 runs against https://dev--rawsurf.netlify.app/map
+### deployed BUILD_VERSION: BUILD_VERSION = '34d76000'
+
+--- run 1/3 ---
+    WORKLOAD  delta : textures +9  uploads +17  vectors 289
+    === CPU profile: 31923 ms wall, 51108 samples ===
+      1859.4ms   5.8%  getImageData                 (native):-1:-1
+      1291.3ms   4.0%  getParameter                 (native):-1:-1
+       526.9ms   1.7%  getImageData                 (native):-1:-1
+       495.9ms   1.6%  getImageData                 (native):-1:-1
+       323.6ms   1.0%  getImageData                 (native):-1:-1
+       311.6ms   1.0%  drawImage                    (native):-1:-1
+       246.2ms   0.8%  drawImage                    (native):-1:-1
+       198.2ms   0.6%  getImageData                 (native):-1:-1
+       193.6ms   0.6%  getImageData                 (native):-1:-1
+       148.5ms   0.5%  getImageData                 (native):-1:-1
+      getParameter       1291.9ms   4.05%  (2 frame(s))
+      getImageData       4154.3ms  13.01%  (16 frame(s))
+      drawImage          1222.0ms   3.83%  (24 frame(s))
+          50.3ms  getImageData               (native)
+          16.4ms  drawImage                  (native)
+         100.0ms  getImageData               (native)
+          34.2ms  drawImage                  (native)
+--- run 2/3 ---
+    WORKLOAD  delta : textures +9  uploads +17  vectors 289
+    === CPU profile: 30760 ms wall, 58852 samples ===
+      1152.7ms   3.7%  getImageData                 (native):-1:-1
+       960.3ms   3.1%  getParameter                 (native):-1:-1
+       344.9ms   1.1%  getImageData                 (native):-1:-1
+       310.8ms   1.0%  getImageData                 (native):-1:-1
+       189.4ms   0.6%  getImageData                 (native):-1:-1
+       162.6ms   0.5%  getImageData                 (native):-1:-1
+       144.0ms   0.5%  drawImage                    (native):-1:-1
+       143.8ms   0.5%  getImageData                 (native):-1:-1
+       135.1ms   0.4%  getImageData                 (native):-1:-1
+        88.1ms   0.3%  getImageData                 (native):-1:-1
+      getParameter        960.3ms   3.12%  (1 frame(s))
+      getImageData       2753.0ms   8.95%  (16 frame(s))
+      drawImage           569.1ms   1.85%  (25 frame(s))
+         108.3ms  getImageData               (native)
+          54.8ms  drawImage                  (native)
+         173.0ms  getImageData               (native)
+           8.2ms  drawImage                  (native)
+--- run 3/3 ---
+    WORKLOAD  delta : textures +9  uploads +17  vectors 289
+    === CPU profile: 31801 ms wall, 59883 samples ===
+      1368.2ms   4.3%  getImageData                 (native):-1:-1
+      1108.1ms   3.5%  getParameter                 (native):-1:-1
+       428.9ms   1.3%  getImageData                 (native):-1:-1
+       362.8ms   1.1%  getImageData                 (native):-1:-1
+       183.7ms   0.6%  getImageData                 (native):-1:-1
+       163.8ms   0.5%  getImageData                 (native):-1:-1
+       162.1ms   0.5%  getImageData                 (native):-1:-1
+       161.8ms   0.5%  getImageData                 (native):-1:-1
+       150.5ms   0.5%  drawImage                    (native):-1:-1
+      getParameter       1108.6ms   3.49%  (2 frame(s))
+      getImageData       3155.6ms   9.92%  (16 frame(s))
+      drawImage           599.9ms   1.89%  (26 frame(s))
+          95.5ms  getImageData               (native)
+          46.4ms  drawImage                  (native)
+         109.3ms  getImageData               (native)
+          13.1ms  drawImage                  (native)
+
+### Compare the getParameter column across runs, and against the pre-change range.
+### Pre-change (286a4e6b, 2 runs): 1411.2 ms / 4.50%  and  1519.1 ms / 4.92%
+### A change is only real if the post-change RANGE clears the pre-change RANGE.
