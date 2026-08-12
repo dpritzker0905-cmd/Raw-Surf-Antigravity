@@ -1,0 +1,55 @@
+### RUN 2026-08-11, RTX 3060 Laptop, headed, deploy 23743f63, LAYER=Waves, 30s from activation
+
+profiling 30s from the moment Waves was activated (aria-pressed=true)
+
+=== CPU profile: 30810 ms wall, 58296 samples ===
+Top self-time frames (ms, % of profiled wall):
+
+ 17412.6ms  56.5%  (idle)                       (native):-1:-1
+  1591.9ms   5.2%  getImageData                 (native):-1:-1
+  1436.6ms   4.7%  getParameter                 (native):-1:-1
+  1047.7ms   3.4%  (program)                    (native):-1:-1
+   456.0ms   1.5%  getImageData                 (native):-1:-1
+   364.0ms   1.2%  getImageData                 (native):-1:-1
+   281.8ms   0.9%  readSVarint                  ../node_modules/maplibre-gl/node_modules/pbf/index.js:116 (readSVarint)
+   233.3ms   0.8%  (anonymous)                  components/map/marineMaskShelter.js:21 (water)
+   212.8ms   0.7%  (anonymous)                  components/map/inlandWaterGuard.js:26 (water)
+   209.9ms   0.7%  (garbage collector)          (native):-1:-1
+   208.8ms   0.7%  s                            components/map/marineMaskShelter.js:27 (d)
+   163.4ms   0.5%  drawImage                    (native):-1:-1
+   156.6ms   0.5%  getImageData                 (native):-1:-1
+   154.9ms   0.5%  loadGeometry                 ../node_modules/maplibre-gl/node_modules/@mapbox/vector-tile/index.js:40 (loadGeometry)
+   154.1ms   0.5%  getImageData                 (native):-1:-1
+   142.1ms   0.5%  checkFramebufferStatus       (native):-1:-1
+   133.1ms   0.4%  getImageData                 (native):-1:-1
+   119.9ms   0.4%  s                            components/map/marineMaskProjection.js:123 (l)
+   119.5ms   0.4%  Ja                           components/map/marineMaskShelter.js:193 (canvas)
+   100.0ms   0.3%  getImageData                 (native):-1:-1
+    99.4ms   0.3%  drawImage                    (native):-1:-1
+    96.0ms   0.3%  (anonymous)                  posthog-recorder.js?v=1.415.6:0:112977
+
+=== WORST 250ms WINDOWS (ranked by blocked time) ===
+
+--- t+250ms after activation: busy 436ms (87% of the window) ---
+     386.2ms  (program)                  (native)
+      10.0ms  getBoundingClientRect      (native)
+       2.3ms  ti                         ../node_modules/react-dom/cjs/react-dom-client.production.js:4334 (current)
+       1.2ms  query                      (native)
+       1.2ms  (anonymous)                components/map/useMarineOrchestrator.js:512
+       1.2ms  setItem                    (native)
+
+--- t+6000ms after activation: busy 250ms (100% of the window) ---
+     101.0ms  getImageData               (native)
+      22.1ms  readSVarint                ../node_modules/maplibre-gl/node_modules/pbf/index.js:116 (readSVarint)
+      17.8ms  drawImage                  (native)
+      12.4ms  loadGeometry               ../node_modules/maplibre-gl/node_modules/@mapbox/vector-tile/index.js:40 (loadGeometry)
+      10.0ms  (anonymous)                components/map/marineMaskShelter.js:21 (water)
+       8.6ms  (anonymous)                components/map/inlandWaterGuard.js:26 (water)
+
+--- t+4000ms after activation: busy 250ms (100% of the window) ---
+     114.8ms  drawImage                  (native)
+      16.1ms  readSVarint                ../node_modules/maplibre-gl/node_modules/pbf/index.js:116 (readSVarint)
+      14.7ms  (anonymous)                components/map/inlandWaterGuard.js:26 (water)
+      13.9ms  (anonymous)                components/map/marineMaskShelter.js:21 (water)
+      13.6ms  s                          components/map/marineMaskShelter.js:27 (d)
+      11.9ms  Ja                         components/map/marineMaskShelter.js:193 (canvas)

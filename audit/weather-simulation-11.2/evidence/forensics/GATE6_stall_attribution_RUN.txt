@@ -1,0 +1,62 @@
+### RUN 2026-08-11, RTX 3060 Laptop, headed, deploy 23743f63, LAYER=Waves, 60s watch
+
+target: https://dev--rawsurf.netlify.app/map   layer: Waves   watch: 60s   headless=false
+LoAF supported: true | pre-activation entries: 22
+gpu before activation: {"textureCount":2,"textureUploadCount":2,"backendGrid":0,"waveData":false}
+clicked Waves at t=21319ms, aria-pressed=true
+gpu after : {"textureCount":21,"textureUploadCount":41,"encodeDupCount":1,"backendGrid":621,"waveData":true}
+
+=== LoAF entries after activation: 57 (of 79 total) ===
+=== longtask entries: 56 ===
+
+--- frame 1519ms  (t+3917ms after activation) ---
+    blocking=1456ms  scriptTotal=1503ms  renderPhase=698ms  scripts=2
+        807ms  event-listener  MessagePort.onmessage
+             fn=_  src=main.a4ced6ed.js@443721
+        696ms  user-callback  FrameRequestCallback
+             fn=(anonymous)  src=3989.8f5818a9.chunk.js@509723
+--- frame 1194ms  (t+6955ms after activation) ---
+    blocking=1128ms  scriptTotal=1190ms  renderPhase=235ms  scripts=3
+        942ms  event-listener  MessagePort.onmessage
+             fn=_  src=main.a4ced6ed.js@443721
+        234ms  user-callback  FrameRequestCallback
+             fn=(anonymous)  src=3989.8f5818a9.chunk.js@509723
+         14ms  user-callback  TimerHandler:setInterval
+             fn=(anonymous)  src=152.6abafa77.chunk.js@745153
+--- frame 1078ms  (t+8186ms after activation) ---
+    blocking=1027ms  scriptTotal=1076ms  renderPhase=228ms  scripts=2
+        849ms  event-listener  MessagePort.onmessage
+             fn=_  src=main.a4ced6ed.js@443721
+        227ms  user-callback  FrameRequestCallback
+             fn=(anonymous)  src=3989.8f5818a9.chunk.js@509723
+--- frame 614ms  (t+147ms after activation) ---
+    blocking=529ms  scriptTotal=568ms  renderPhase=515ms  scripts=3
+        487ms  user-callback  FrameRequestCallback
+             fn=t  src=152.6abafa77.chunk.js@595731
+         54ms  event-listener  DIV#root.onclick
+             fn=bh  src=main.a4ced6ed.js@410883  forcedStyleAndLayout=13ms
+         27ms  user-callback  FrameRequestCallback
+             fn=(anonymous)  src=3989.8f5818a9.chunk.js@509723
+--- frame 539ms  (t+51383ms after activation) ---
+    blocking=460ms  scriptTotal=514ms  renderPhase=8ms  scripts=3
+        501ms  event-listener  MessagePort.onmessage
+             fn=_  src=main.a4ced6ed.js@443721
+          7ms  user-callback  FrameRequestCallback
+             fn=(anonymous)  src=3989.8f5818a9.chunk.js@509723
+          6ms  user-callback  TimerHandler:setTimeout
+             fn=(anonymous)  src=152.6abafa77.chunk.js@726254
+--- frame 414ms  (t+2460ms after activation) ---
+    blocking=324ms  scriptTotal=366ms  renderPhase=5ms  scripts=1
+        366ms  resolve-promise  Response.text.then
+             fn=(anonymous)  src=posthog-recorder.js?v=1.415.6@116571
+--- frame 382ms  (t+14887ms after activation) ---
+    blocking=308ms  scriptTotal=356ms  renderPhase=358ms  scripts=1
+        356ms  user-callback  FrameRequestCallback
+             fn=(anonymous)  src=3989.8f5818a9.chunk.js@509723
+--- frame 351ms  (t+52553ms after activation) ---
+    blocking=280ms  scriptTotal=324ms  renderPhase=325ms  scripts=1
+        324ms  user-callback  FrameRequestCallback
+             fn=(anonymous)  src=3989.8f5818a9.chunk.js@509723
+
+long-frame duration distribution (ms): n=57 p50=244 p90=382 p99=1194 max=1519
+frames with NO script attribution: 0/57  (a high share here means the stall is not JS)
