@@ -905,7 +905,21 @@ jobs:
           # ⚠️ 336 is therefore a prediction, and the 14 tests are pure file-parsing (no network, no
           #   DB, no fastmcp), so the local count should hold on the runner. If this lane comes back
           #   red, THIS is the cause and 334 is the one line to correct — not the lane.
-          MIN_PASSED = 334
+          # ⬆ 334→347 (2026-08-12, WS-CAN-0025). `tests/test_uptime_probe.py` added 13 tests and the
+          #   complement claims it: 336 + 13 = 349, and 347 is the customary two below.
+          # ★ THIS ONE IS MEASURED, NOT PREDICTED — the distinction the entries above were written
+          #   to teach. The gate's OWN run on f8825291 (run 31649898143) reports verbatim:
+          #   "estate: 254 files selected, 252 produced results, 349 passed, 0 silent."
+          #   The probe's tests are stdlib-only and monkeypatch their one network call, so there is
+          #   no local/CI branch to resolve here — but the reading was taken rather than assumed.
+          # ⚠️ WHY THIS LANDS ONE COMMIT LATE, AND WHY THAT IS NOT A MISS. The staleness gate grades
+          #   the floor against the LAST OBSERVED reading, and that observation cannot exist until
+          #   the growing commit has run. So `f8825291` was green on this lane (it produced the 349)
+          #   while the gate still compared 334 against the stale 336. The debt then reddens the
+          #   NEXT commit, which is usually innocent — `55f2c068`, docs-only, ate exactly that for
+          #   the guards lane. ⇒ A GREEN CI ON THE COMMIT THAT ADDS TESTS DOES NOT MEAN THE FLOORS
+          #   ARE CURRENT. Read the staleness table, not the job's colour.
+          MIN_PASSED = 347
 
           try:
               root = ET.parse('estate.xml').getroot()
