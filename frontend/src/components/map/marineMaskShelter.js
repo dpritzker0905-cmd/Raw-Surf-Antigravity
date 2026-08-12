@@ -248,8 +248,49 @@ function _shelterCacheStat(kind) {
   c.size = _shelterCache.size;
 }
 
+// --- settle debounce (DEFAULT OFF) ---------------------------------------------------------
+// Measured 2026-08-12: panning generates ~28 NEW distinct classifier inputs in 20 s — viewports the
+// user never sees settle — and the verdict cache cannot help with genuinely new input (21% hit rate
+// while moving vs 88% static). Deferring classification during motion is the only lever left.
+//
+// ⛔ THIS IS NOT BEHAVIOUR-PRESERVING, which is why it is off by default. The cache was safe because
+// a hit is provably identical to a miss. There is no such argument here: a deferred call leaves the
+// mask UN-SUPPRESSED for that frame, so sheltered water animates during the pan — the "heatmap on
+// Canal Grande" shape that was a live user report. It self-corrects on the next non-deferred call.
+//
+// ★ THE RISK THAT MATTERS IS NOT THE TRANSIENT, IT IS A DEFERRAL THAT IS NEVER FOLLOWED. This
+//   function cannot re-drive the pipeline — it has no handle on it. If motion stops and no further
+//   call arrives, the mask stays un-suppressed indefinitely. `pendingDeferrals` exists so that
+//   question is MEASURABLE rather than assumed: it rises on every deferral and resets to 0 on every
+//   real classification. If it is non-zero at rest, the mask is stuck and this must not ship.
+// Enable: `__RAW_MASK_SETTLE_DEBOUNCE_MS__ = 250` (a positive number). Absent/0 = today's behaviour.
+let _lastShelterWorkAt = 0;
+
+function _shelterSettleGate(nPx, mPerPx) {
+  const ms = typeof window !== 'undefined' ? Number(window.__RAW_MASK_SETTLE_DEBOUNCE_MS__) || 0 : 0;
+  const now = Date.now();
+  if (ms <= 0) { _lastShelterWorkAt = now; _shelterSettleDone(); return null; }   // default path, untouched
+  const since = now - _lastShelterWorkAt;
+  if (since >= ms) { _lastShelterWorkAt = now; _shelterSettleDone(); return null; }   // settled: work
+  if (typeof window !== 'undefined') {
+    const g = window.__RAW_GPU__ || (window.__RAW_GPU__ = {});
+    const c = g.shelterCache || (g.shelterCache = { hit: 0, miss: 0 });
+    c.deferred = (c.deferred || 0) + 1;
+    c.pendingDeferrals = (c.pendingDeferrals || 0) + 1;
+    c.maxPendingDeferrals = Math.max(c.maxPendingDeferrals || 0, c.pendingDeferrals);
+  }
+  return { applied: false, deferred: true, sinceMs: since, nPx, mPerPx: Math.round(mPerPx) };
+}
+
+function _shelterSettleDone() {
+  if (typeof window === 'undefined') return;
+  const g = window.__RAW_GPU__ || (window.__RAW_GPU__ = {});
+  const c = g.shelterCache || (g.shelterCache = { hit: 0, miss: 0 });
+  c.pendingDeferrals = 0;   // a real classification clears the backlog
+}
+
 /** Test seam: the cache is module state and would otherwise leak between cases. */
-export function _resetShelterCache() { _shelterCache.clear(); }
+export function _resetShelterCache() { _shelterCache.clear(); _lastShelterWorkAt = 0; }
 
 // Canvas wrapper: downsample the finished mask, classify, and repaint enclosed water to 0.25.
 // Close-zoom tiers only (<10° span) — coarser masks can't resolve entrance widths anyway.
@@ -286,6 +327,10 @@ export function suppressShelteredWater(canvas, bounds, opts) {
   const mPerPx = (spanLon * 111320 * Math.abs(Math.cos(latMid * Math.PI / 180))) / dsW;
   const nPx = Math.max(1, Math.round((gapM / 2) / Math.max(1e-6, mPerPx)));
   if (nPx > 48) return false;   // extreme zoom-in: entrances resolve wider than the analysis radius
+  // Placed AFTER the cheap guards (so a refusal is never counted as a deferral) and BEFORE the
+  // downsample, so a deferral saves the whole 46.7 ms rather than the cache's 28 ms.
+  const _deferred = _shelterSettleGate(nPx, mPerPx);
+  if (_deferred) return _deferred;
   const ds = document.createElement('canvas');
   ds.width = dsW; ds.height = dsH;
   const dctx = ds.getContext('2d', { willReadFrequently: true });
