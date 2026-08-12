@@ -14,6 +14,23 @@
 #   RED    skill ledger absent/evicting/scored=0 past self-expiring grace dates (5e181f69 fix)
 #   RED    residual retention added 0 rows in 48 h (every unretained day is unrecoverable)
 #   REFUSE report unreachable, or n < 30 buoy pairs (grading a handful of buoys is weather)
+#
+# WS-CAN-0026 (2026-08-12) — THE PAIRED SKILL GATE. Until today this job computed the paired
+# head-to-head table, printed it, and graded NOTHING: run 31606511901 printed "WE LOSE" eight
+# times and exited 0, including against the persistence baseline. Audit 11.1 named the corrective
+# action on 08-10 and it was still unstarted on 08-12. Now:
+#   RED    we lose to `persistence` on BOTH MAE and win rate at a lead — the definitional skill
+#          floor ("tomorrow = today"). Requiring both statistics to agree is what rejects the
+#          one-storm artifact without inflating the margin until today's data passes.
+#   WARN   a public reference (Open-Meteo) is ahead — a STANDING product condition since 08-10,
+#          not an incident. Gating on the level would ship a permanently-red workflow, and
+#          Report 11.0 named that failure mode: it trains red-blindness.
+#   RED    that reference gap WIDENS past 0.10 m (~1.24× the worst ever recorded, +0.081 m).
+#   REFUSE no gradeable persistence comparison at all — the floor unmeasured is blindness.
+#   never  our own raw_surf:EURO / :ICON lanes — model selection is an owner decision, not a page.
+# ⏳ Self-expiring, like the ops/scored graces: WARN-only until ACCURACY_PAIRED_GRACE (default
+#   2026-08-22, this script's own stated revisit date), RED after. The date arms it, not a person.
+# 🔌 Kill switch: repo variable ACCURACY_PAIRED_GATE=0 restores the pre-08-12 behaviour exactly.
 # Thresholds tune via repo Actions variables (ACCURACY_*) — the script prints the measured basis
 # beside the live value on every run so a re-tune has provenance.
 #
@@ -51,6 +68,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           BASE: ${{ vars.HEALTH_BASE || 'https://raw-surf-antigravity.onrender.com' }}
+          # WS-CAN-0026 kill switch. Read inside default_cfg(), so it also covers a manual run.
+          ACCURACY_PAIRED_GATE: ${{ vars.ACCURACY_PAIRED_GATE || '1' }}
         run: |
           set -o pipefail
           python3 scripts/forecast_accuracy_monitor.py \
@@ -58,4 +77,8 @@ jobs:
             --red-mae "${{ vars.ACCURACY_RED_MAE_M || '0.40' }}" \
             --warn-mae "${{ vars.ACCURACY_WARN_MAE_M || '0.30' }}" \
             --min-n "${{ vars.ACCURACY_MIN_N || '30' }}" \
-            --max-report-age-h "${{ vars.ACCURACY_MAX_REPORT_AGE_H || '8' }}"
+            --max-report-age-h "${{ vars.ACCURACY_MAX_REPORT_AGE_H || '8' }}" \
+            --paired-grace "${{ vars.ACCURACY_PAIRED_GRACE || '2026-08-22T00:00:00Z' }}" \
+            --paired-min-n "${{ vars.ACCURACY_PAIRED_MIN_N || '200' }}" \
+            --paired-persistence-margin "${{ vars.ACCURACY_PAIRED_PERSISTENCE_MARGIN_M || '0.0' }}" \
+            --paired-reference-margin "${{ vars.ACCURACY_PAIRED_REFERENCE_MARGIN_M || '0.10' }}"
