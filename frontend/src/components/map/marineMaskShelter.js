@@ -191,6 +191,20 @@ export function applyCachedShelteredVerdict(canvas, bounds) {
 // opts.gapM overrides the channel gap (the NARROW-WATER pass reuses this whole pipeline at
 // canal scale); opts.stash=false keeps a non-basin verdict out of the basin cache.
 export function suppressShelteredWater(canvas, bounds, opts) {
+  // ⭐ CALL COUNTER (instrument-first, 2026-08-12 — NO behaviour change). Per-call cost is MEASURED
+  // at 46.7 ms (GATE6_mask_percall_bench_RUN.txt), but the CPU profile attributes 1394-1486 ms to
+  // this function, which is ~30 calls, not the 2 that a neighbouring counter implied. That counter
+  // — `__RAW_MASK_REPATCH_LOG__` — turned out to be written at the LAYER RE-PATCH site and never
+  // counted this function at all.
+  // ★ Count the thing you are asking about, at the thing you are asking about. A counter answers
+  //   the question its author had, not the question you are asking.
+  // `calls` counts every entry; `workCalls` counts the ones that survive the guards and actually
+  // downsample+classify. The gap between them is refusals, which are nearly free — conflating the
+  // two would misattribute the cost.
+  if (typeof window !== 'undefined') {
+    const _g = window.__RAW_GPU__ || (window.__RAW_GPU__ = {});
+    _g.shelteredCalls = (_g.shelteredCalls || 0) + 1;
+  }
   if (!canvas || !bounds || typeof document === 'undefined') return false;
   const spanLon = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
   if (spanLon >= 10 || spanLon <= 0) return false;
@@ -211,6 +225,11 @@ export function suppressShelteredWater(canvas, bounds, opts) {
   ds.width = dsW; ds.height = dsH;
   const dctx = ds.getContext('2d', { willReadFrequently: true });
   if (!dctx) return false;
+  // Past every guard: this call pays the ~46.7 ms.
+  if (typeof window !== 'undefined') {
+    const _g = window.__RAW_GPU__ || (window.__RAW_GPU__ = {});
+    _g.shelteredWorkCalls = (_g.shelteredWorkCalls || 0) + 1;
+  }
   // Smoothing ON (2026-07-04, the Canal Grande mottle): nearest-sampling a sub-ds-pixel canal
   // (60 m canal vs 76 m/px ds) hits it only ~1 cell in 3 — the classifier sees a broken run and
   // the missed stretches re-open as wash at deep zoom. Area-averaging makes any cell that is

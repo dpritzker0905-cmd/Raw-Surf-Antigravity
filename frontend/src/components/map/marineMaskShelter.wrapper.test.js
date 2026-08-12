@@ -239,4 +239,40 @@ describe('suppressShelteredWater — canvas wrapper', () => {
     const { ds } = run(NARROW);
     expect(ds.log.getImageData[0].gw).toBe(W);
   });
+
+  // ---- the call counters, pinned because an unverified instrument is what got us here ----
+  // `__RAW_MASK_REPATCH_LOG__` was trusted as a proxy for this function's call count and was
+  // written somewhere else entirely. These counters exist to answer that question at the function
+  // itself, so they get the same treatment as any other instrument: a test that fails if they lie.
+
+  describe('__RAW_GPU__ call counters', () => {
+    beforeEach(() => { window.__RAW_GPU__ = {}; });
+
+    it('counts EVERY entry, including ones the guards refuse', () => {
+      run(NARROW);                                                        // works
+      suppressShelteredWater(null, BOUNDS);                               // refused: no canvas
+      run(NARROW, undefined, { west: -80, east: -70, south: 27, north: 29 }); // refused: span >= 10
+      expect(window.__RAW_GPU__.shelteredCalls).toBe(3);
+    });
+
+    it('counts WORK separately from entries — refusals are nearly free and must not be conflated', () => {
+      run(NARROW);
+      suppressShelteredWater(null, BOUNDS);
+      run(NARROW, undefined, { west: -80, east: -70, south: 27, north: 29 });
+      expect(window.__RAW_GPU__.shelteredCalls).toBe(3);
+      expect(window.__RAW_GPU__.shelteredWorkCalls).toBe(1);
+    });
+
+    it('a refusal increments entries but NEVER work', () => {
+      suppressShelteredWater(null, BOUNDS);
+      expect(window.__RAW_GPU__.shelteredCalls).toBe(1);
+      expect(window.__RAW_GPU__.shelteredWorkCalls).toBeUndefined();
+    });
+
+    it('creates __RAW_GPU__ when absent rather than throwing', () => {
+      delete window.__RAW_GPU__;
+      expect(() => run(NARROW)).not.toThrow();
+      expect(window.__RAW_GPU__.shelteredCalls).toBe(1);
+    });
+  });
 });
