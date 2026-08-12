@@ -4,19 +4,20 @@
 (re-drive fix). Verified at `91c561cf`.
 **Status of the feature:** default OFF, author-flagged **DO NOT PROMOTE**.
 
+> ⚠️ A correction was applied to this document on 2026-08-12. An earlier version claimed a live
+> starvation defect at zoom ≥ 9. **That claim was refuted by measurement and has been corrected in
+> place.** The full correction record is in §7 — the error is preserved there rather than in the
+> reader's path.
+
 ---
 
 ## Headline
 
-> ### The guardrail is STRONG (8 of 9 mutants caught, including the safety counter).
-> ### But the gate is PASS-AGNOSTIC, and at zoom ≥ 9 that starves the second analysis pass on every refresh.
+> ### The guardrail is STRONG — 8 of 9 mutants caught, including the safety counter.
+> ### The gate is pass-agnostic, but that property is LATENT: measured, it never fires.
 
-The author's own safety metric would catch this — `pendingDeferrals` sits at ≥ 1 at rest — which is
-exactly what the counter was built for. It appears not to have been measured at a zoom where the
-second pass runs.
-
-**This is a finding against the feature, not against the decision.** The feature is already
-default-OFF and already flagged DO NOT PROMOTE. This adds a specific, reproducible reason.
+The author's DO-NOT-PROMOTE call stands, on their own stated grounds. This audit found no
+additional reason to withhold it, and one candidate reason that measurement eliminated.
 
 ---
 
@@ -32,7 +33,7 @@ So the property is not output-identity. It is:
 > **Every deferral is eventually followed by a real classification.**
 > Operationalised as: `pendingDeferrals` returns to **0 at rest**.
 
-That single number is what gates promotion. It is therefore the number an audit must attack hardest.
+That single number gates promotion. It is therefore the number an audit must attack hardest.
 
 ## 2. Mutation results — 9 mutations, 8 caught
 
@@ -52,15 +53,13 @@ green 54/54 baseline before each run, file restored byte-for-byte after each.
 | D9 | `_resetShelterCache` stops resetting `_lastShelterWorkAt` | **CAUGHT** (5) |
 
 **D6 is the one that mattered** and it is caught. A mutation that makes the promotion metric always
-report healthy fails two tests. Contrast the verdict cache, where the equivalent content-level
-mutations all survived on first audit — the author's test-writing measurably improved between the
-two features, and their own commit says why ("that third mutant initially PASSED 50/50 because my
-refusal test exercised only two of the four guards — widened to all four").
+report healthy fails two tests. Contrast the verdict cache, where every content-level mutation
+survived on first audit — the author's test-writing measurably improved between the two features.
 
 **D5 is a genuine but negligible survivor:** it requires `since` to be *exactly* the interval, and
 its worst effect is delaying one call by one cycle. Worth a boundary test; not a safety issue.
 
-## 3. ⚠️ THE FINDING — one global timestamp, two analysis passes
+## 3. The gate is pass-agnostic — a LATENT property that does not fire
 
 `suppressShelteredWater` serves **two different passes**:
 
@@ -70,83 +69,112 @@ its worst effect is delaying one call by one cycle. Worth a boundary test; not a
 | NARROW-WATER (Canal Grande fix) | 120 m | crisp overlay | `else` |
 
 The gate keys on a **single module-global `_lastShelterWorkAt`** with no notion of which pass is
-asking. So the first pass to run consumes the settle slot and the second is deferred.
+asking. Forced into the right order, the first pass consumes the settle slot and the second defers.
 
-### Proven deterministically
+### The property is real (unit level)
 
 `evidence/mutated-repair/AUDIT_settle_pass_agnostic.probe.test.js` — **4/4 pass**:
 
 | Probe | Result |
 |---|---|
 | CONTROL — debounce OFF, both passes back to back | both `applied: true` |
-| debounce ON — basin then narrow | basin `applied`, narrow **`{applied:false, deferred:true}`** |
-| backlog at rest | **`pendingDeferrals === 1`** — it survives, nothing re-drives it |
+| debounce ON, basin then narrow | basin `applied`, narrow **`{applied:false, deferred:true}`** |
+| at rest | **`pendingDeferrals === 1`** |
 | a *second* settle marker before the narrow call | narrow runs, backlog returns to 0 |
 
-### Proven reachable, by code path
+The probe **forces** that ordering by calling the two passes directly.
 
-Not hypothetical. In `WebGLMarineEngine.js`, one synchronous `try` block of the base mask refresh:
+### It does not fire in the product (measured)
 
-```
-2462   overlayBasemapWaterOnMask(canvas, bounds, …)         →  pass 1  (sets _lastShelterWorkAt)
- …     texture upload …
-2501   if (_z2 >= _mzOverlayZ2) this.refreshViewportOverlayMask(gl, mapInstance);
-2603     └─ overlayBasemapWaterOnMask(crisp canvas, …)      →  pass 2  (DEFERRED)
-```
+Live at `localhost:3007` against the **DEV Render backend**, GFS waves, Cocoa Beach; 10 pans then a
+4 s rest — the author's own at-rest window:
 
-Line 2501 is a **plain call, not a `return`** — the code comment says "**ALSO** paint the crisp
-viewport overlay". Both passes therefore run microseconds apart, inside any debounce window, with no
-settle marker between them.
+| arm | zoom | debounce | **`pendingDeferrals` at rest** | deferred | maxPending | narrow pass |
+|---|---|---|---|---|---|---|
+| control | 10 | OFF | **0** | 0 | 0 | — |
+| test | 10 | 1000 ms | **0** | 7 | 1 | — |
+| below threshold | 7 | 1000 ms | **0** | 1 | 1 | — |
+| control | 12 | OFF | **0** | 0 | 0 | `applied`, frac 0.0184 |
+| test | 12 | 1000 ms | **0** | **0** | 0 | `applied`, frac **0.0184** |
+| test | 14 | 1000 ms | **0** | **0** | 0 | `applied`, frac 0.0002 |
 
-Threshold: `MIDZOOM_OVERLAY_CARVE_MIN_Z = 9`. **At zoom ≥ 9** — a normal regional/coastal surf view;
-the earlier Gate E session sat at exactly zoom 9 — the second pass is deferred on every refresh.
+**Every configuration converges.** At z12/z14 the debounce defers nothing at all, and the narrow
+pass output is identical to its control.
 
-### Consequence
+### Why it cannot fire — the two regimes are disjoint
 
-With the debounce enabled at zoom ≥ 9, the crisp overlay's sheltered analysis never runs, and
-`pendingDeferrals` never returns to 0 at rest. That is precisely the "deferral never followed"
-condition the author defined as **must not ship**.
+Branch engagement, measured by the shape the renderer writes (flat = basin branch,
+`{basin, narrow}` = crisp branch):
 
-### Why the author's measurement did not show it
+| zoom | 7 | 9 | 10 | 12 | 14 |
+|---|---|---|---|---|---|
+| branch | BASIN | BASIN | BASIN | **CRISP** | **CRISP** |
 
-Their reported figure is `pendingDeferrals at rest OFF 0 / ON 0` after 20 s of panning. That is
-consistent with measuring below z9, where only one pass runs per refresh. The metric is sound; the
-**operating point** it was sampled at did not exercise the second pass.
-★ *A safety metric only certifies the states you sampled it in.*
+- Where the debounce actually fires (z ≈ 10, 7 deferrals), **one** classifier call runs per refresh
+  — there is no second pass to starve.
+- Where two calls could co-occur (z ≥ 12), the refresh rate is low enough that the gate never
+  engages: `deferred: 0`.
+- The crisp branch's "basin" half is `applyCachedShelteredVerdict` — a cache lookup reporting
+  `fromCache: true` — **not** a `suppressShelteredWater` call, so it never consumes the settle slot.
 
-## 4. Suggested fix direction (not implemented)
+★ **A design property is not a defect until the conditions that trigger it co-occur. Here they are
+structurally disjoint.**
 
-The gate needs to distinguish passes — key `_lastShelterWorkAt` by pass identity (`gapM`, or an
-explicit `opts.pass` tag) rather than one global. `markMaskViewportSettled()` would then clear all
-pass slots. One map, not one timestamp.
+## 4. If it ever becomes reachable
 
-Whatever the fix, the **regression test is already written**: probes 2 and 3 above must flip from
-"narrow deferred / backlog 1" to "narrow runs / backlog 0".
+The disjointness is incidental, not enforced. Anything that raises the deep-zoom refresh rate, or
+moves the crisp-branch threshold below the rate at which the gate engages, would make this live.
 
-## 5. What was NOT verified — live confirmation is BLOCKED
+Fix direction, should that happen: key `_lastShelterWorkAt` by pass identity (`gapM`, or an explicit
+`opts.pass`) rather than one global; `markMaskViewportSettled()` clears all slots. One map, not one
+timestamp. **The regression test already exists** — probes 2 and 3 above must flip to "narrow runs /
+backlog 0".
 
-The browser half did not run. The dev server started and the Waves layer activated, but the Browser
-pane was **not displayed**, so the page reported `document.visibilityState === "hidden"`, the map
-never composited, and `shelteredCalls` stayed absent — the mask cannot be observed in a hidden tab.
-Fronting the tab did not change it; displaying the pane is a UI action outside this session.
+## 5. Live verification — PERFORMED
 
-Outstanding, and needed to convert this from *proven-in-code* to *proven-in-product*:
+Rig: `localhost:3007` dev build, **DEV Render backend `raw-surf-antigravity.onrender.com`**, GFS
+waves, page confirmed `visibilityState: "visible"` and compositing.
 
-1. Enable `__RAW_MASK_SETTLE_DEBOUNCE_MS__ = 1000` at **zoom ≥ 9** and read `pendingDeferrals` 4 s
-   after motion stops. **Prediction: non-zero.** If it reads 0, this finding is refuted and I want
-   to know that.
-2. Visual check at a canal-rich coast (Venice) with the debounce on: does wash animate in confined
-   channels that are correctly suppressed with it off?
-3. Re-measure the CPU saving at z ≥ 9 — the quoted ~27% was measured in the single-pass regime.
+Covered: `pendingDeferrals` at rest across z7/z10/z12/z14 with the debounce on and off; deferral
+counts under motion; branch engagement by zoom; narrow-pass output equivalence at z12/z14.
+
+**Not covered:** a visual check at a canal-rich coast (Venice) with the debounce on; and a
+re-measure of the author's ~27% CPU saving, which was taken before this audit and is unaffected by
+anything here.
 
 ## 6. Verdict
 
-> ### SETTLE DEBOUNCE — NOT PROMOTABLE (unchanged), with a specific new reason
+> ### SETTLE DEBOUNCE — NOT PROMOTABLE (unchanged), on the author's grounds alone
 >
 > - Guardrail quality: **strong** — 8/9 mutants caught, safety counter protected.
 > - Default-OFF path: **verified untouched** (D1 fails 12 tests).
 > - Deferral cost model: **verified** (D7 — a deferral does no canvas work).
-> - Convergence: **broken at zoom ≥ 9** by a pass-agnostic gate — deterministic proof plus a code
->   path, live confirmation outstanding.
+> - Convergence: **verified live** — `pendingDeferrals` returns to 0 at rest in all six arms.
+> - Pass-agnostic gate: **latent, does not fire**; regression test banked in case it ever does.
 >
-> The author's DO-NOT-PROMOTE call was right, and remains right for one more reason than they knew.
+> The reason to withhold remains the author's own: it is not behaviour-preserving, and a deferral
+> leaves the mask un-suppressed for that frame. This audit adds no further reason.
+
+## 7. Correction record
+
+An earlier version of this document (commit `76bcbab3`, pushed) claimed the pass-agnostic gate
+starved the crisp overlay **on every refresh at zoom ≥ 9**, leaving `pendingDeferrals` non-zero at
+rest — the author's own must-not-ship condition — and suggested their at-rest reading of 0 came from
+an unrepresentative operating point.
+
+**That claim was wrong on two counts, both mine:**
+
+1. **Wrong threshold.** `MIDZOOM_OVERLAY_CARVE_MIN_Z = 9` gates when the overlay refresh is
+   *called*; the crisp *branch* is selected by the canvas's own 0.5° span test and engages at
+   **z ≥ 12**. The test arm ran at z10 — inside the single-pass regime, where there is nothing to
+   starve. I tested the wrong regime.
+2. **The regimes are disjoint** (§3), so the ordering the probe forces is one the engine does not
+   produce.
+
+**The author's measurement was correct. Mine was taken at the wrong zoom.** The claim is withdrawn;
+the mutation results and the unit-level property are unaffected.
+
+⛔ **The process error was the ordering, not the mistake.** I stated the reading that would falsify
+the finding, then committed and pushed it *before* running that reading — because the browser was
+unavailable at the time. Being blocked on a tool is a reason to hold a finding, not to publish it
+with a caveat.
