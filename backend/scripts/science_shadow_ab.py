@@ -232,6 +232,7 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
     # at, say, a tidal extreme, a quiet 3-hour window is not evidence of a quiet flag. The first
     # real run (SURF_TIDE_DEPTH, 2026-08-09) spanned 3 models x 2 hour-offsets and said none of it.
     models, hour_offsets, valid_times = set(), set(), []
+    served_frames = set()
     frames_seen = 0
     rows_seen = rows_replayable = disqualified = 0
     up = down = same = 0
@@ -249,6 +250,13 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
             hour_offsets.add(int(fr["hour_offset"]))
         if fr.get("valid_time"):
             valid_times.append(str(fr["valid_time"]))
+        # ⭐ THE FRAME A REQUEST ASKED FOR IS NOT THE FRAME IT WAS SERVED. Measured 2026-08-12:
+        # twelve hourly requests to /api/weather/spot-ratings returned THREE distinct
+        # served_valid_times -- 01:00Z answered eight of them. The span read "12 h" and was
+        # perfectly correct; the COVERAGE was three-eighths of that. A frame with no
+        # served_valid_time (source=live) is its own distinct frame, keyed by valid_time, since
+        # nothing else distinguishes it.
+        served_frames.add(str(fr.get("served_valid_time") or fr.get("valid_time") or frames_seen))
         for s in fr.get("spots") or []:
             rows_seen += 1
             if s.get("score") is None or not s.get("inputs") or s.get("surf_height_m") is None:
@@ -326,6 +334,7 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
         # Coverage travels WITH the verdict, never in a separate paragraph someone can skip.
         "coverage": {
             "frames": frames_seen,
+            "distinct_served_frames": len(served_frames),
             "models": sorted(models),
             "hour_offsets": sorted(hour_offsets),
             "hour_span": span_h,
@@ -431,6 +440,16 @@ def main():
     # record. It surfaced on 2026-08-12 replaying a single production frame from
     # /api/weather/spot-ratings, which carries `valid_time` but no `hour_offset`: the narrowest
     # sample this harness has ever run drew the quietest coverage line it has ever printed.
+    # ⭐⭐ THIS OUTRANKS BOTH SPAN WARNINGS BELOW, so it prints first: a span is a property of what
+    # was ASKED FOR, and this is a property of what came BACK. A 12 h span built from 3 distinct
+    # served frames is a 3-frame sample wearing a 12-frame label, and neither span branch can see
+    # it -- the span was measured correctly.
+    _dsf = _c.get("distinct_served_frames")
+    if _dsf is not None and _c["frames"] > 1 and _dsf < _c["frames"]:
+        print("  ! REPEATED FRAMES  %d frames resolved to only %d distinct served frame(s). The"
+              " upstream answered several requested hours with the SAME precompute, so this sample"
+              " is narrower than its span suggests. Weight the verdict by %d, not %d."
+              % (_c["frames"], _dsf, _dsf, _c["frames"]))
     if _c["hour_span"] is None:
         print("  ! SPAN UNKNOWN  no frame carried `hour_offset`, so the window this sample spans is"
               " UNMEASURED -- it may be a single hour. Treat a null verdict as UNSUPPORTED, not as"

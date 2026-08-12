@@ -551,3 +551,38 @@ def test_a_measured_narrow_span_still_warns_NARROW_and_not_span_unknown(monkeypa
     out = capsys.readouterr().out
     assert "NARROW" in out and "SPAN UNKNOWN" not in out
     assert "3 h window" in out, "the warning must quote the span it actually measured"
+
+
+# ---- REPEATED FRAMES: what came BACK, not what was asked for -------------------------------
+# Measured 2026-08-12: twelve hourly requests to /api/weather/spot-ratings resolved to FIVE
+# distinct served frames (01:00Z answered eight of them). The span read "12 h" and was correct;
+# the coverage was not. Neither span branch can see this, which is why it is its own check.
+
+def test_repeated_served_frames_are_disclosed(monkeypatch, tmp_path, capsys):
+    import json as _json
+    from scripts import science_shadow_ab as mod
+    fr = [{"spots": [_row()], "hour_offset": h, "served_valid_time": "2026-08-13T01:00:00Z"}
+          for h in range(4)]
+    f = tmp_path / "frames.json"
+    f.write_text(_json.dumps({"frames": fr}), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["x", "--candidate", "SURF_REFRACTION_KR=1.0",
+                                      "--frames-file", str(f)])
+    mod.main()
+    out = capsys.readouterr().out
+    assert "REPEATED FRAMES" in out
+    assert "only 1 distinct" in out, "four requests on one precompute is a ONE-frame sample"
+    assert "Weight the verdict by 1, not 4" in out
+
+
+def test_genuinely_distinct_frames_do_not_warn(monkeypatch, tmp_path, capsys):
+    """The control. A warning that fires on a GOOD sample trains readers to ignore it."""
+    import json as _json
+    from scripts import science_shadow_ab as mod
+    fr = [{"spots": [_row()], "hour_offset": h,
+           "served_valid_time": "2026-08-13T%02d:00:00Z" % h} for h in range(4)]
+    f = tmp_path / "frames.json"
+    f.write_text(_json.dumps({"frames": fr}), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["x", "--candidate", "SURF_REFRACTION_KR=1.0",
+                                      "--frames-file", str(f)])
+    mod.main()
+    assert "REPEATED FRAMES" not in capsys.readouterr().out
