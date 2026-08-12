@@ -10,9 +10,22 @@ export function captureWebGLState(gl) {
 
   const state = {};
 
+  // ⛔ BOOLEAN CAPS USE `isEnabled`, NOT `getParameter`. Measured 2026-08-12 against the live
+  // MapLibre context on deploy `286a4e6b` (GATE6_getParameter_microbench.js, median of 3
+  // randomised-order passes, agreement control confirming identical return values):
+  //     BLEND        getParameter 75.05us  vs  isEnabled 0.10us    750x
+  //     SCISSOR_TEST getParameter 68.85us  vs  isEnabled 0.05us   1377x
+  //     CULL_FACE    getParameter 65.00us  vs  isEnabled 0.05us   1300x
+  // Same answer, three orders of magnitude apart. This function runs once per render PER ENGINE and
+  // there are two engines, so at 60 fps these three reads alone cost ~25 ms/s.
+  // ★ The cost is per-ENUM, not per-position — SCISSOR_TEST measured 60.9us even when read FIRST,
+  //   while DEPTH_TEST held 0.1us at positions 7, 8 and 12. That control is why this is a fix and
+  //   not a superstition.
+  // Pinned by WebGLStateIsolation.capReads.test.js, which asserts the cheap CALL is the one taken —
+  // a behavioural test cannot see this, because both calls return the same value.
   state.prevProg = gl.getParameter(gl.CURRENT_PROGRAM);
   state.prevFBO = gl.getParameter(gl.FRAMEBUFFER_BINDING);
-  state.prevBlend = gl.getParameter(gl.BLEND);
+  state.prevBlend = gl.isEnabled(gl.BLEND);
   state.prevActiveTex = gl.getParameter(gl.ACTIVE_TEXTURE);
   state.prevArrayBuffer = gl.getParameter(gl.ARRAY_BUFFER_BINDING);
   state.prevElementArrayBuffer = gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING);
@@ -25,14 +38,21 @@ export function captureWebGLState(gl) {
   state.prevBlendEqRGB = gl.getParameter(gl.BLEND_EQUATION_RGB);
   state.prevBlendEqAlpha = gl.getParameter(gl.BLEND_EQUATION_ALPHA);
 
-  state.prevDepthTest = gl.getParameter(gl.DEPTH_TEST);
+  state.prevDepthTest = gl.isEnabled(gl.DEPTH_TEST);
+  // ⚠️ DEPTH_WRITEMASK and COLOR_WRITEMASK have NO isEnabled equivalent — they are values, not
+  // capabilities — so they stay on the expensive path (64.2us and 66.9us). Together with the six
+  // BLEND_* value reads that is ~499us per capture still unaddressed. The measured fix for those is
+  // MapLibre's own state shadow (`map.painter.context.{colorMask,depthMask,blendFunc,blendEquation}
+  // .current`), which was probed on the live context and matched the driver exactly on every one.
+  // It needs the map context plumbed into both engines' render paths, so it is deliberately NOT in
+  // this change — see GATE6_getParameter_microbench.js.
   state.prevDepthWriteMask = gl.getParameter(gl.DEPTH_WRITEMASK);
-  state.prevStencilTest = gl.getParameter(gl.STENCIL_TEST);
-  state.prevScissorTest = gl.getParameter(gl.SCISSOR_TEST);
+  state.prevStencilTest = gl.isEnabled(gl.STENCIL_TEST);
+  state.prevScissorTest = gl.isEnabled(gl.SCISSOR_TEST);
   state.prevColorMask = gl.getParameter(gl.COLOR_WRITEMASK);
-  
+
   // Cull face parameter is used in Marine Engine
-  state.prevCullFace = gl.getParameter(gl.CULL_FACE);
+  state.prevCullFace = gl.isEnabled(gl.CULL_FACE);
   
   const isWebGL2 = !!gl.bindVertexArray;
   state.isWebGL2 = isWebGL2;
