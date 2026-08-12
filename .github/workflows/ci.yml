@@ -550,7 +550,14 @@ jobs:
           # budget of 6 — a floor beneath the observation cannot detect anything shrinking back
           # to it, which is the whole point of having one. The gap is coverage ADDED (the
           # shadow-A/B, provenance, horizon and telemetry suites), not a lane collecting less.
-          MIN_FILES, MIN_PASSED = 149, 1695
+          # ⬆ MIN_PASSED 1695→1699 on 2026-08-12. Run 31651640516 (d4c4f5d3) observed 1703
+          # and the script prescribed 1697, but that would redden on the VERY NEXT RUN: 70fa7144
+          # adds 2 more tests to test_rating_shadow_ab.py (31→33), which this lane owns, so the
+          # next reading is 1705 and 1705-1697=8 exceeds the budget of 6. The prescription is
+          # computed from the last GREEN run and cannot see tests already committed but not yet
+          # run. 1705-6=1699 is the floor that survives both readings (lag 4 now, 6 next, and
+          # the comparison is strict `>`).
+          MIN_FILES, MIN_PASSED = 149, 1699
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

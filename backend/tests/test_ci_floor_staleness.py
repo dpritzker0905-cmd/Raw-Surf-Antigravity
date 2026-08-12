@@ -219,7 +219,12 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # above), so this table is "what the floor was set from", never "the latest reading".
 #   estate        observed, run 31650551547 @ de5b4557 — 349, replacing the PROJECTED 336 above.
 #                 Raised alongside the ci.yml floor 334 -> 347 (e88be1af). 349 - 347 = 2 = budget.
-_FLOOR_SET_FROM = {"guards": 1701, "chain": 786, "estate": 349}
+#   guards        PROJECTED, not observed: run 31651640516 read 1703, and 70fa7144 adds 2 tests
+#                 to test_rating_shadow_ab.py that this lane owns, so 1703 + 2 = 1705. Same
+#                 form as the estate projection above. The next green run replaces it with an
+#                 observation -- and if 1705 is wrong, THAT run says so, which is the point of
+#                 showing the arithmetic instead of citing a number that has not happened.
+_FLOOR_SET_FROM = {"guards": 1705, "chain": 786, "estate": 349}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
