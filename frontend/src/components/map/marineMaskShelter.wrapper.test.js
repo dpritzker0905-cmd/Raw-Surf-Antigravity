@@ -1,4 +1,4 @@
-import { suppressShelteredWater, _resetShelterCache } from './marineMaskShelter';
+import { suppressShelteredWater, _resetShelterCache, markMaskViewportSettled } from './marineMaskShelter';
 
 /**
  * `suppressShelteredWater` — the CANVAS WRAPPER around classifySheltered.
@@ -555,6 +555,28 @@ describe('suppressShelteredWater — canvas wrapper', () => {
       run(NARROW);
       expect(window.__RAW_GPU__.shelterCache.pendingDeferrals).toBe(0);
       expect(window.__RAW_GPU__.shelterCache.maxPendingDeferrals).toBe(3);   // high-water kept
+    });
+
+    it('★ markMaskViewportSettled OUTRANKS the interval — the settle signal is not itself debounced', () => {
+      // The failure this fixes: idle/moveend fire within a second of the last gesture, so the
+      // settle call landed INSIDE the window and was deferred like the motion calls it was meant to
+      // close. A debounce that debounces its own settle signal never converges.
+      window.__RAW_MASK_SETTLE_DEBOUNCE_MS__ = 1000;
+      run(NARROW);
+      clock += 100;
+      expect(run(NARROW).result.deferred).toBe(true);
+      expect(window.__RAW_GPU__.shelterCache.pendingDeferrals).toBe(1);
+      clock += 100;                       // still well inside the 1000 ms window
+      markMaskViewportSettled();          // what the layer calls on idle/zoomend/moveend
+      expect(run(NARROW).result.applied).toBe(true);
+      expect(window.__RAW_GPU__.shelterCache.pendingDeferrals).toBe(0);
+    });
+
+    it('markMaskViewportSettled is harmless when the debounce is off', () => {
+      delete window.__RAW_MASK_SETTLE_DEBOUNCE_MS__;
+      markMaskViewportSettled();
+      expect(run(NARROW).result.applied).toBe(true);
+      expect(window.__RAW_GPU__.shelterCache.deferred).toBeUndefined();
     });
 
     it('a GUARD REFUSAL is never counted as a deferral — ALL FOUR guards', () => {

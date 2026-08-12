@@ -16,6 +16,7 @@ import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from '
 import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive, shouldHoldFrameThroughSwitch, noteMarineRenderableCommit } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
 import { recordResolutionSample } from './marineResolutionWatch';
+import { markMaskViewportSettled } from './marineMaskShelter';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
@@ -679,6 +680,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     // ran exactly where it was needed. The narrow path (base-mask repaint, span-dependent cost)
     // keeps z≥6 (aligned with the commit-time sites).
     const refresh = () => {
+      markMaskViewportSettled();   // settle marker for the mask-shelter debounce (default-off)
       if (!activeRef.current) return;
       let z;
       try { z = mapInstance.getZoom(); } catch (e) { return; }
@@ -722,12 +724,10 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
         }
       }
     };
-    // idle fires after moveend AND after tile loads settle — the water tiles we sample from are
-    // guaranteed queryable there. moveend added too (2026-07-04): during a zoom-out sequence idle
-    // can lag seconds behind each gesture, leaving the viewport OVERLAY mask pinned to the old
-    // (smaller) view — land showed the world wash "for a while". The 700 ms throttle above keeps
-    // repaint cost sane; a moveend that races tile parsing just paints the best truth available
-    // and the following idle repaints it right.
+    // idle fires after moveend AND after tile loads settle; moveend added 2026-07-04 because idle
+    // can lag seconds behind each gesture during zoom-out. Full rationale (and why the 700 ms
+    // throttle is safe here) moved to GATE6_mask_settle_debounce_DO_NOT_PROMOTE.md for the LOC
+    // ratchet — rationale relocated, not deleted.
     mapInstance.on('idle', refresh);
     mapInstance.on('zoomend', refresh);
     mapInstance.on('moveend', refresh);

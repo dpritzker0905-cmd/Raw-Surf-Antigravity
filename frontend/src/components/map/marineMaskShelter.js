@@ -289,6 +289,23 @@ function _shelterSettleDone() {
   c.pendingDeferrals = 0;   // a real classification clears the backlog
 }
 
+/**
+ * The layer-level RE-DRIVE, and the reason the debounce could not ship without it.
+ *
+ * Measured 2026-08-12: with the debounce at 1000 ms, `pendingDeferrals` sat at 2 AT REST — a
+ * deferral was never followed and the mask stayed un-suppressed. The cause was NOT a missing
+ * re-drive: `WebGLMarineLayer` already re-drives on `idle`, `zoomend` and `moveend`. **The gate
+ * defeated it.** Those events fire within a second of the last gesture, so the settle call landed
+ * inside the debounce window and was deferred exactly like the motion calls it was meant to close.
+ *
+ * ★ A debounce that also debounces its own settle signal can never converge. The settle must be
+ *   privileged over the interval, not subject to it.
+ *
+ * So the layer marks the viewport settled and the NEXT call is treated as settled regardless of how
+ * recently work happened. Cheap, and a no-op when the debounce is off (that path always works).
+ */
+export function markMaskViewportSettled() { _lastShelterWorkAt = 0; }
+
 /** Test seam: the cache is module state and would otherwise leak between cases. */
 export function _resetShelterCache() { _shelterCache.clear(); _lastShelterWorkAt = 0; }
 
