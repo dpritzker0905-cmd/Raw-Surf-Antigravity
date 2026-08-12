@@ -135,3 +135,41 @@ only reason I did not clobber a fix they landed four minutes later. Do not rely 
    read the **DEPENDENCY** line, never the headline.
 2. **The three dark flags** — each byte-identical until flipped, each with a measured magnitude.
 3. **Radar legend** — needs the external scheme-7 palette spec before anything can be written.
+
+
+---
+
+## ▶ ADDENDUM 2026-08-12 — THE THIRD SAMPLE RAN, AND IT RETIRES THE TIDE-PHASE HYPOTHESIS
+
+The blocker above ("a third sample during a large swell -- that is a clock, not a task") was
+**false**, and executing it rather than reading it took one API call. Production carried 3 spots
+>= 3.0 m breaking and a 5.01 m tide spread at the time of writing.
+
+| sample | window | replayable | moved | max abs delta | levels |
+|---|---|---|---|---|---|
+| 1 | 08-09, 3 h | 486 | 0 | 0.2 | 0 |
+| 2 | 08-11, 5 h | 496 | 8 | 3.2 | 1 |
+| **3** | **08-12, 12 h span, tide swing 2.4-3.1 m** | **123** | **0** | **0.2** | **0** |
+
+Sample 3 is 12 production frames from `/api/weather/spot-ratings`, **0 disqualified** -- the
+replay reproduced production's own persisted score on every row, which is the control that makes
+a null mean anything.
+
+⭐ **THE TIDE-PHASE EXPLANATION IS NOW TESTED AND DEAD.** Samples 1 and 2 were both narrow
+windows, so the obvious reading of their disagreement was "different tide phase". Sample 3 covers
+a 2.4-3.1 m tidal swing *explicitly* and moves nothing. Whatever produced sample 2's 8 rows, it
+was not tide phase. **The open question narrows from two dimensions (phase x swell size) to one:
+SWELL SIZE.** The 5% sample tops out around 1.93 m breaking while the estate reaches 3.66 m.
+
+⚠️ **A MEASURED SPAN IS NOT MEASURED COVERAGE.** The 12 frames requested 12 distinct hours but
+resolved to **3 distinct served frames** (`served_valid_time` 22:00Z x1, 01:00Z x8, live x3;
+sources `precomputed` 5 / `precomputed_stale` 4 / `live` 3). The harness would have printed
+"span 12 h" with no warning -- and the SPAN UNKNOWN fix committed the same day would not have
+caught it either, because the span was perfectly well measured. It was the *coverage* that was
+three-eighths of what it looked like. Counting distinct served frames is the missing check.
+
+★ The reason the sample is still worth something is an accident worth knowing: **tide is evaluated
+at the REQUESTED hour while the wave field stays a stale precomputed frame**, so a row can carry
+waves from 01:00Z and a tide from 09:00Z. That makes the sample a near-controlled experiment
+(swell held constant, tide swinging) -- but it also means a served row is not internally
+time-consistent, which nothing currently discloses.
