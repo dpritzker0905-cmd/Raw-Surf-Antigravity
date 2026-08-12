@@ -1,0 +1,107 @@
+[
+  {
+    "id": "D1",
+    "what": "debounce becomes DEFAULT-ON (absent flag treated as 250 ms)",
+    "risk": "the feature could become default by accident",
+    "failed": 12,
+    "passed": 42,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › __RAW_GPU__.shelteredInputs (redundancy instrument) › IDENTICAL inputs count as one distinct key and a repeat",
+      "suppressShelteredWater — canvas wrapper › __RAW_GPU__.shelteredInputs (redundancy instrument) › DIFFERENT geometry yields a different key — the hash actually discriminates",
+      "suppressShelteredWater — canvas wrapper › __RAW_GPU__.shelteredInputs (redundancy instrument) › a different nPx is a different key even on identical pixels",
+      "suppressShelteredWater — canvas wrapper › verdict cache › ★ a HIT produces byte-identical stamped pixels to the MISS before it"
+    ]
+  },
+  {
+    "id": "D2",
+    "what": "pendingDeferrals is NEVER reset by a real classification",
+    "risk": "a healthy map would look stuck",
+    "failed": 2,
+    "passed": 52,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › settle debounce › ★ pendingDeferrals rises while deferring and RESETS on the next real classification",
+      "suppressShelteredWater — canvas wrapper › settle debounce › ★ markMaskViewportSettled OUTRANKS the interval — the settle signal is not itself debounced"
+    ]
+  },
+  {
+    "id": "D3",
+    "what": "gate moved BEFORE the cheap guards (a refusal counts as a deferral)",
+    "risk": "refusals inflate the deferral count and mask a real backlog",
+    "failed": 1,
+    "passed": 53,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › settle debounce › a GUARD REFUSAL is never counted as a deferral — ALL FOUR guards"
+    ]
+  },
+  {
+    "id": "D4",
+    "what": "markMaskViewportSettled becomes a NO-OP",
+    "risk": "the settle signal is itself debounced -> can never converge (the 84c3fd60 bug)",
+    "failed": 1,
+    "passed": 53,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › settle debounce › ★ markMaskViewportSettled OUTRANKS the interval — the settle signal is not itself debounced"
+    ]
+  },
+  {
+    "id": "D5",
+    "what": "boundary flipped: `since >= ms` becomes `since > ms`",
+    "risk": "off-by-one at the exact interval",
+    "failed": 0,
+    "passed": 54,
+    "verdict": "SURVIVED",
+    "failingNames": []
+  },
+  {
+    "id": "D6",
+    "what": "a DEFERRAL also clears pendingDeferrals (safety counter always reads 0)",
+    "risk": "⭐ THE SAFETY METRIC ALWAYS SAYS HEALTHY — this is the number the promotion gate reads",
+    "failed": 2,
+    "passed": 52,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › settle debounce › ★ pendingDeferrals rises while deferring and RESETS on the next real classification",
+      "suppressShelteredWater — canvas wrapper › settle debounce › ★ markMaskViewportSettled OUTRANKS the interval — the settle signal is not itself debounced"
+    ]
+  },
+  {
+    "id": "D7",
+    "what": "gate moved AFTER the downsample+readback (a deferral still pays canvas cost)",
+    "risk": "the entire CPU win evaporates while the feature still looks enabled",
+    "failed": 1,
+    "passed": 53,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › settle debounce › ★ a deferral does NO canvas work at all — that is the whole point and the whole risk"
+    ]
+  },
+  {
+    "id": "D8",
+    "what": "maxPendingDeferrals never rises (peak backlog invisible)",
+    "risk": "the \"max 3 during motion\" evidence could not be observed",
+    "failed": 1,
+    "passed": 53,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › settle debounce › ★ pendingDeferrals rises while deferring and RESETS on the next real classification"
+    ]
+  },
+  {
+    "id": "D9",
+    "what": "_resetShelterCache no longer resets _lastShelterWorkAt",
+    "risk": "settle state leaks between tests -> case order decides the result",
+    "failed": 5,
+    "passed": 49,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › settle debounce › DEFERS a call that arrives inside the settle window",
+      "suppressShelteredWater — canvas wrapper › settle debounce › RESUMES work once the settle interval has passed",
+      "suppressShelteredWater — canvas wrapper › settle debounce › ★ pendingDeferrals rises while deferring and RESETS on the next real classification",
+      "suppressShelteredWater — canvas wrapper › settle debounce › ★ markMaskViewportSettled OUTRANKS the interval — the settle signal is not itself debounced"
+    ]
+  }
+]
