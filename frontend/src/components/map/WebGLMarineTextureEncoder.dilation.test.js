@@ -6,7 +6,7 @@
  * beside every coastline. dilateDirectionField fills DIRECTION (unit u,v) from the nearest
  * direction-bearing cell into every zero-direction texel; height/period/mask are untouched.
  */
-import { dilateDirectionField, encodeMarineTexture } from './WebGLMarineTextureEncoder';
+import { dilateDirectionField, _encodeMarineTexture } from './WebGLMarineTextureEncoder';
 
 const mag = (u, v) => Math.sqrt(u * u + v * v);
 
@@ -145,7 +145,10 @@ describe('encodeMarineTexture wiring', () => {
     // arrives as {direction: 0, u: 0, v: 0} — synthesizing from that stamped a phantom due-south
     // vector on every landmass (a coastline-wide fake direction seam). The synthesis must be gated
     // on isOcean, and isOcean must consult the v.waves sub-record's is_valid for the waves layer.
-    const src = encodeMarineTexture.toString();
+    // The encode body moved inside a `withTextureState` scope (2026-08-11, gl.getParameter
+    // batching), so `encodeMarineTexture` is now a thin wrapper. Read the body directly — same
+    // adaptation this suite already made for the WebGLMarineFieldMath extraction.
+    const src = _encodeMarineTexture.toString();
     expect(src).toContain('waveSub.is_valid === false');
     expect(src).toMatch(/direction !== undefined && isOcean/);
     // The validity decision must come BEFORE the synthesis so the gate can use it.
@@ -153,7 +156,10 @@ describe('encodeMarineTexture wiring', () => {
   });
 
   it('runs the dilation after extrapolation, behind the __RAW_DISABLE_DIR_DILATION__ kill switch', () => {
-    const src = encodeMarineTexture.toString();
+    // The encode body moved inside a `withTextureState` scope (2026-08-11, gl.getParameter
+    // batching), so `encodeMarineTexture` is now a thin wrapper. Read the body directly — same
+    // adaptation this suite already made for the WebGLMarineFieldMath extraction.
+    const src = _encodeMarineTexture.toString();
     expect(src).toContain('__RAW_DISABLE_DIR_DILATION__');
     expect(src).toContain('__MARINE_DIR_DILATION__');
     // These are imported from WebGLMarineFieldMath (extracted for LOC compliance), so the Babel CJS

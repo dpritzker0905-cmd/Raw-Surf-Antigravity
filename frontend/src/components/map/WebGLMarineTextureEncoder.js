@@ -15,8 +15,7 @@ import {
   createProgram,
   unbindTexture,
   bindTexture,
-  safeDeleteTexture,
-  noteTextureCreated
+  safeDeleteTexture
 } from './WebGLWindUtils';
 
 export {
@@ -32,56 +31,36 @@ export {
 export { scaleUnitDirByConfidence, extrapolateOceanData, dilateDirectionField } from './WebGLMarineFieldMath';
 
 // --- Texture Lifecycle Utilities ---
-
-export function updateTexture(gl, tex, data, width, height) {
-  const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
-  const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
-  gl.bindTexture(gl.TEXTURE_2D, prevTex);
-  if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-    window.__RAW_GPU__.textureUploadCount++;
-  }
-}
-
-export function createTexture(gl, filter, data, width, height) {
-  const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
-  const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
-  const tex = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
-  
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-  
-  if (data instanceof Uint8Array) {
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-  } else {
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-  }
-  
-  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
-  gl.bindTexture(gl.TEXTURE_2D, prevTex);
-  if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-    window.__RAW_GPU__.textureCount++;
-    window.__RAW_GPU__.textureUploadCount++;
-    window.__RAW_GPU__.gpuMemoryEstimate += width * height * 4;
-  }
-  // Record the size so `safeDeleteTexture` subtracts exactly what this added — the 07-05 drift was
-  // a hardcoded 1024x512 subtracted against tiers up to 4096x2048.
-  noteTextureCreated(tex, width, height);
-  return tex;
-}
-
+// Moved to WebGLMarineTextureState.js on 2026-08-11 for the 800-LOC ratchet (this file was at 799
+// and the getParameter batching took it to 832). Re-exported here so every existing importer and
+// unit test that pulls these from THIS module keeps resolving them — the same move this file
+// already made for WebGLMarineFieldMath above.
+export { withTextureState, createTexture, updateTexture } from './WebGLMarineTextureState';
+import { withTextureState, createTexture, updateTexture } from './WebGLMarineTextureState';
 
 // --- Land Mask Rendering imported from WebGLMarineMaskRenderer ---
 // --- The Ocean GPU Grid Texture Compressor ---
 
 export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
+  // ⭐ THE WHOLE ENCODE IS ONE STATE SCOPE. This function creates up to FIVE textures per commit
+  // (wave, chlorophyll, bathymetry, mask, score); each used to open with its own pair of
+  // `gl.getParameter` round trips to the GPU process. One pair now covers the batch — measured at
+  // 1465.9 ms / 4.6% of a 30 s profile on deploy `23743f63`. Semantics are unchanged: only our own
+  // code runs between these texture ops, so no external observer can see the intermediate states,
+  // and `withTextureState` restores in a `finally`.
+  // Static telemetry props below (`encodeMarineTexture._lastSig` etc.) still resolve to THIS
+  // exported function, so the encode-dup counters are untouched.
+  return withTextureState(gl, () => _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts));
+}
+
+// Exported ONLY so the source-text wiring assertions in WebGLMarineTextureEncoder.dilation.test.js
+// can still see the encode body after it moved inside the state scope. Those tests check the
+// presence AND ORDER of guards by reading `.toString()`; they had already been adapted once for the
+// WebGLMarineFieldMath extraction (see their own note about "the import indirection").
+// ⚠️ A source-text assertion is a weak needle — it also fires on a comment reflow and cannot fail on
+// a behavioural regression. Preserved here rather than deleted, but it is not real coverage of the
+// guards it names; behavioural tests for those live in this module's other suites.
+export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
   // standalone (BLEND BOTH coarse-base capture): create FRESH, independently-owned textures and never touch the
   // engine's resident wave/chl/bath set or its cached land mask. Required because the resident textures are
   // reused/realloc'd in place on every commit — a naive "retain the old coarse textures" would hand back a
