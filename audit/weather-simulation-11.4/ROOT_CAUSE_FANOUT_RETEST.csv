@@ -1,0 +1,8 @@
+symptom,pre_repair,repaired,mutated_repair,models,layers,locations,verdict
+Redundant classifier recompute on unchanged input (static viewport),"0% hit, 23/23 miss (control arm)","88% hit, 21/24",M1/M5 restore 0% hit,n/a - render path,Waves marine mask,not location-specific,Eliminated
+Redundant classifier recompute while panning,"0% hit, 31/31 miss","21% hit, 8/38",M1/M5 restore 0% hit,n/a,Waves marine mask,not location-specific,Reduced
+Sustained mask cost ~51 ms/s idle,~54 ms/s (measured pre-repair),~53% lower static (author A/B),returns,n/a,Waves marine mask,not location-specific,Reduced
+Panning mask cost ~96 ms/s,~96 ms/s,~85 ms/s,returns,n/a,Waves marine mask,not location-specific,Unchanged - explicitly out of scope per governing doc
+Morphological close correctness (Canal Grande mottle),correct,"correct - cached mask is POST-close, verified by corrected oracle",M2 leaks pre-close mask UNDETECTED,n/a,Waves marine mask,Venice-class basins,Eliminated in code / NOT PROTECTED by tests
+getImageData readback cost (4.5 ms) and downsample (11.7 ms),paid every call,still paid every call - by design,unchanged,n/a,Waves marine mask,not location-specific,Unchanged - author states a hit cannot elide these
+Hit-path mask corruption,n/a (no hit path existed),none - verified correct,"M8/M9/M10 corrupt silently, 32/32 still green",n/a,Waves marine mask,not location-specific,New unprotected surface

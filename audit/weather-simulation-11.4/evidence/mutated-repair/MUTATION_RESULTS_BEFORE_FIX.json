@@ -1,0 +1,80 @@
+[
+  {
+    "id": "M1",
+    "what": "cache never STORES (set becomes a no-op) — every call recomputes",
+    "kills": "the redundancy elimination itself",
+    "failed": 1,
+    "passed": 31,
+    "suiteError": false,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › verdict cache › ★ a HIT produces byte-identical stamped pixels to the MISS before it"
+    ]
+  },
+  {
+    "id": "M2",
+    "what": "cache stores the PRE-CLOSE mask (close applied after the store)",
+    "kills": "the POST-close correctness property — a hit would leak a raw mask",
+    "failed": 0,
+    "passed": 32,
+    "suiteError": false,
+    "verdict": "SURVIVED",
+    "failingNames": []
+  },
+  {
+    "id": "M3",
+    "what": "drop nPx from the cache key",
+    "kills": "key completeness — same pixels at a different gap would collide",
+    "failed": 1,
+    "passed": 31,
+    "suiteError": false,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › __RAW_GPU__.shelteredInputs (redundancy instrument) › a different nPx is a different key even on identical pixels"
+    ]
+  },
+  {
+    "id": "M4",
+    "what": "drop the downsample dimensions from the cache key",
+    "kills": "key completeness — a differently-shaped mask could collide",
+    "failed": 0,
+    "passed": 32,
+    "suiteError": false,
+    "verdict": "SURVIVED",
+    "failingNames": []
+  },
+  {
+    "id": "M5",
+    "what": "kill switch ignored (cache always on)",
+    "kills": "the documented rollback lever",
+    "failed": 1,
+    "passed": 31,
+    "suiteError": false,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › verdict cache › the kill switch restores the pre-cache path — every call a miss"
+    ]
+  },
+  {
+    "id": "M6",
+    "what": "LRU eviction removed (unbounded cache growth)",
+    "kills": "the memory bound — 512 KB per entry, unbounded",
+    "failed": 1,
+    "passed": 31,
+    "suiteError": false,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › verdict cache › evicts least-recently-used beyond the cap, and the evicted key recomputes correctly"
+    ]
+  },
+  {
+    "id": "M7",
+    "what": "hash only the FIRST 1000 pixels instead of the whole field",
+    "kills": "key sensitivity — distant changes become invisible to the key",
+    "failed": 0,
+    "passed": 32,
+    "suiteError": false,
+    "verdict": "SURVIVED",
+    "failingNames": []
+  }
+]

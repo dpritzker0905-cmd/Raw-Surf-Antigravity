@@ -1,0 +1,10 @@
+quantity,pre_repair,repaired,outcome,evidence
+Nearshore breaking surf height,untouched,untouched,Equivalent,"No file in the ONE FORECAST COMPOSITION chain appears in the diff (surf_point/estimate_surf_at/surf_rating/spot_ratings/sim_rating all absent)"
+Surf quality 0-100 rating,untouched,untouched,Equivalent,as above
+Wave height / period / direction fields,untouched,untouched,Equivalent,"Diff touches only frontend/src/components/map/marineMaskShelter.{js,wrapper.test.js} plus one audit doc"
+Primary / secondary swell / wind wave partitions,untouched,untouched,Equivalent,as above
+Wind speed / direction,untouched,untouched,Equivalent,as above
+Model identity / run / forecast hour,untouched,untouched,Equivalent,"Cache key is (pixel hash, nPx, dims) - contains no model or time identity, and the cached artefact is a render mask, not a field value"
+Units / direction convention / interpolation,untouched,untouched,Equivalent,as above
+Sheltered-water render mask (the artefact actually cached),post-close mask,"post-close mask, byte-identical on a hit",Equivalent,"AUDIT_hit_equivalence.probe.test.js 4/4 PASS on e6033e2b; non-vacuity guard included"
+Cursor / infobox / legend values,untouched,untouched,Equivalent,No consumer of these reads the shelter mask

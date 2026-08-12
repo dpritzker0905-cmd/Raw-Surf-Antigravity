@@ -1,0 +1,12 @@
+input,output,expected_relationship,observed,classification,evidence
+cache hit vs miss,stamped mask pixels,No Expected Coupling (must be identical),identical,Expected Weak Coupling confirmed absent,AUDIT_hit_equivalence.probe.test.js 4/4
+cache hit vs miss,returned verdict fields,No Expected Coupling,identical,confirmed absent,probe test 2
+cache hit vs miss,classifier invocations,Expected Coupling,hit skips classifier + close (~28ms of 46.7ms),Expected Coupling,GATE6_mask_cache_SHIPPED.md
+nPx (via gapM),cache key,Expected Coupling,key includes nPx; M3 CAUGHT,Expected Coupling,mutation M3
+downsample dimensions,cache key,Expected Coupling,"present in key but UNPINNED - M4 survives",Unexpected Coupling Persists (untested),mutation M4
+pixels far from index 0,cache key,Expected Coupling,"full-field hash in code but UNPINNED - M7 survives",Unexpected Coupling Persists (untested),mutation M7
+kill switch flag,hit rate,Expected Coupling,0% hit with switch on (control arm),Expected Coupling,GATE6_mask_cache_SHIPPED.md
+distinct inputs beyond cap 4,eviction,Expected Coupling,LRU evicts; M6 CAUGHT,Expected Coupling,mutation M6
+panning,hit rate,Expected Coupling (negative),96% redundancy collapses to 21% realized hit,Expected Coupling,GATE6_mask_cache_SHIPPED.md
+zoom / pan / DPR / resize,projection and rendering,No Expected Coupling,NOT MEASURED,Unable to Measure,no browser journey run
+remount,cache residency,Expected Weak Coupling,NOT MEASURED (module state survives remount by design),Unable to Measure,no lifecycle test run

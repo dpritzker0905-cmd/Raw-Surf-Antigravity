@@ -1,0 +1,15 @@
+invariant,relevant,status,evidence
+One forecast-time authority,not touched,PASS by non-interaction,No time or model identity enters the cache key or the changed code
+One model authority,not touched,PASS by non-interaction,as above
+One layer authority,not touched,PASS by non-interaction,as above
+One field-composition authority,not touched,PASS by non-interaction,ONE FORECAST COMPOSITION chain absent from diff
+One animation owner per active layer,not touched,PASS by non-interaction,No RAF/animation code added or modified
+No unintended RAF duplication,not touched,PASS by non-interaction,No RAF in the diff
+Explicit worker lifecycle,not touched,PASS by non-interaction,No worker in the diff
+Explicit GPU-resource lifecycle,not touched,PASS by non-interaction,No GL resource in the diff
+No stale response replacing current state,ADJACENT,NOT MEASURED,"The cache is a NEW state holder keyed on content, not on request identity. Content-keying makes a stale-response win structurally unlikely, but no runtime test was run."
+Bounded memory,DIRECTLY TOUCHED,PASS,"cap 4 x 512 KB ~ 2 MB; LRU pinned by test (M6 CAUGHT); verified by inspection"
+Cache keys include required identity,DIRECTLY TOUCHED,CONDITIONAL,"Key = content hash + nPx + dims. Content-keying subsumes model/time identity for this artefact. Dimension and full-field sensitivity are UNPINNED (M4, M7 survive)."
+Hidden layer stops expensive work,not touched,PASS by non-interaction,No change to activation guards
+Remount returns to an equivalent clean state,ADJACENT,NOT MEASURED,"Cache is module state and is NOT cleared on unmount. Bounded at 2 MB so it cannot grow across remounts, but no remount test was run."
+Teardown succeeds,ADJACENT,NOT MEASURED,No lifecycle test run in this audit

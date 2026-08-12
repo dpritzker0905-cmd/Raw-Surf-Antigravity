@@ -1,0 +1,29 @@
+[
+  {
+    "id": "M8",
+    "what": "a HIT returns an ALL-OPEN (all-zero) mask — the stamp would paint nothing",
+    "kills": "any assertion that a hit renders the same pixels as a miss",
+    "failed": 0,
+    "passed": 32,
+    "verdict": "SURVIVED",
+    "failingNames": []
+  },
+  {
+    "id": "M9",
+    "what": "a HIT returns an ALL-SHELTERED mask — the stamp would grey the entire tile",
+    "kills": "any assertion that a hit renders the same pixels as a miss",
+    "failed": 0,
+    "passed": 32,
+    "verdict": "SURVIVED",
+    "failingNames": []
+  },
+  {
+    "id": "M10",
+    "what": "a HIT returns a mask with EVERY BYTE FLIPPED",
+    "kills": "any assertion that a hit renders the same pixels as a miss",
+    "failed": 0,
+    "passed": 32,
+    "verdict": "SURVIVED",
+    "failingNames": []
+  }
+]

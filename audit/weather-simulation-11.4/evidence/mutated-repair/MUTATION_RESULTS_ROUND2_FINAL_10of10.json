@@ -1,0 +1,38 @@
+[
+  {
+    "id": "M8",
+    "what": "a HIT returns an ALL-OPEN (all-zero) mask — the stamp would paint nothing",
+    "kills": "any assertion that a hit renders the same pixels as a miss",
+    "failed": 2,
+    "passed": 39,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › verdict cache › ★ a HIT produces byte-identical stamped pixels to the MISS before it",
+      "suppressShelteredWater — canvas wrapper › verdict cache › the cached mask is POST-close — a hit must not skip the close and leak a raw mask"
+    ]
+  },
+  {
+    "id": "M9",
+    "what": "a HIT returns an ALL-SHELTERED mask — the stamp would grey the entire tile",
+    "kills": "any assertion that a hit renders the same pixels as a miss",
+    "failed": 2,
+    "passed": 39,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › verdict cache › ★ a HIT produces byte-identical stamped pixels to the MISS before it",
+      "suppressShelteredWater — canvas wrapper › verdict cache › the cached mask is POST-close — a hit must not skip the close and leak a raw mask"
+    ]
+  },
+  {
+    "id": "M10",
+    "what": "a HIT returns a mask with EVERY BYTE FLIPPED",
+    "kills": "any assertion that a hit renders the same pixels as a miss",
+    "failed": 2,
+    "passed": 39,
+    "verdict": "CAUGHT",
+    "failingNames": [
+      "suppressShelteredWater — canvas wrapper › verdict cache › ★ a HIT produces byte-identical stamped pixels to the MISS before it",
+      "suppressShelteredWater — canvas wrapper › verdict cache › the cached mask is POST-close — a hit must not skip the close and leak a raw mask"
+    ]
+  }
+]
