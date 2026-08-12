@@ -6,7 +6,22 @@
 
 import { computeGridContentHash } from './marineGridHash';
 
-// Initialize defaults at module load so diagnostics are never null
+// Initialize defaults at module load so diagnostics are never null.
+//
+// ⛔ THIS DEFAULT MUST DECLARE ONLY WHAT `updateWebGLMarineLayerDiag` ACTUALLY WRITES.
+// The live write REPLACES this object wholesale (it does not merge), so any key declared here that
+// the write does not provide is `0`/`null` before the first write and `undefined` forever after —
+// while the real value sits under a different name. Measured 2026-08-11 on production build
+// `23743f63`: a reader polling `.vectorCount` saw 0 for 60 s while the grid served 15,023 vectors,
+// because the written names are `backendGridVectorCount` / `webglSourceVectorCount` and
+// `.vectorCount` existed only in this list. Eleven such phantom keys were removed
+// (validTime, productId, provider, bounds, vectorCount, nonzeroCount, uploadCount, uploadReason,
+// renderDecision, coverage_status, staleClearStatus) — none was read by any production consumer;
+// they existed only to mislead whoever opened the object in a console.
+// ★ This is the orphaned-read defect (`516a7200`) in schema form: the earlier one was a NAME
+//   nothing wrote, this was a WHOLE FIELD SET nothing wrote.
+// `WebGLMarineLayerDiag.schema.test.js` pins default keys === written keys. Add a field to one and
+// the test tells you to add it to the other.
 if (typeof window !== 'undefined') {
   window.__WebGLMarineLayer_DIAG__ = window.__WebGLMarineLayer_DIAG__ || {
     status: 'not_initialized',
@@ -21,17 +36,6 @@ if (typeof window !== 'undefined') {
     lastUploadedGridSignature: 'none',
     waveDataPresent: false,
     timeOffsetHours: null,
-    validTime: null,
-    productId: null,
-    provider: null,
-    bounds: null,
-    vectorCount: 0,
-    nonzeroCount: 0,
-    uploadCount: 0,
-    uploadReason: 'none',
-    renderDecision: 'not_initialized',
-    coverage_status: 'not_initialized',
-    staleClearStatus: 'none',
     lastUploadClearRejectionReason: 'none',
     infoboxHeatmapParity: false,
     timestamp: null
@@ -118,6 +122,11 @@ export function updateWebGLMarineLayerDiag(engine, activeModel, activeLayers, ti
   const lastUploadedGridSignature = lastSig.uploadSig || 'none';
 
   const diag = {
+    // The write now declares its own status instead of letting the default's 'not_initialized'
+    // simply vanish. `isDiagUninitialised` still discriminates on `timestamp` (see its note in
+    // forecastDiagnostics.js) — this makes the object honest to a human reading it in a console,
+    // which is the only kind of reader this whole object exists for.
+    status: 'active',
     activeModel: heatmapModel,
     activeMarineLayer: heatmapLayer,
     renderedProvider: heatmapProvider,
