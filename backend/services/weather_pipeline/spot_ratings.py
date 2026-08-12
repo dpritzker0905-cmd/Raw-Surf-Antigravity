@@ -63,15 +63,28 @@ def rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal) -> O
     return ", ".join(parts)
 
 
-def _persist_inputs(spot_id: str) -> bool:
+def _persist_inputs(spot_id: str, surf_height_m=None) -> bool:
     """Does THIS spot carry its rating inputs? (see the `inputs` block below, and the FINDING doc)
 
     ⚠️ md5, NOT hash(): PYTHONHASHSEED randomises str hashing per process and >1 worker writes this
-    blob, so hash() would give them different samples. Deterministic ⇒ stable across cycles too."""
+    blob, so hash() would give them different samples. Deterministic ⇒ stable across cycles too.
+
+    ⭐ Big surf is sampled UNCONDITIONALLY on top of the uniform draw: the estate reaches 3.66 m
+    while a 5% uniform sample topped out at 1.93 m, so the tail — the only regime the depth cap
+    binds in — was never observable. ⚠️ The sample is therefore non-representative ON PURPOSE:
+    "N% of rows moved" is no longer a population rate, and a replay wanting one must stratify.
+    Measurements, cost (~+0.6% blob) and the disclosure this owes readers:
+    docs/research/FINDING-2026-08-12-the-uniform-sample-is-blind-to-the-tail.md"""
     pct = int(os.environ.get("SPOT_RATINGS_INPUTS_SAMPLE_PCT", "5") or 0)
-    if pct <= 0:
-        return False
     if pct >= 100:
+        return True
+    if pct <= 0:
+        return False  # a full opt-out must still ship nothing, or the kill switch stops killing
+    try:
+        tail_m = float(os.environ.get("SPOT_RATINGS_INPUTS_TAIL_M", "2.5"))
+    except (TypeError, ValueError):
+        tail_m = 2.5
+    if tail_m > 0 and isinstance(surf_height_m, (int, float)) and surf_height_m >= tail_m:
         return True
     import hashlib
     return (int(hashlib.md5(spot_id.encode("utf-8")).hexdigest()[:8], 16) % 100) < pct
@@ -314,7 +327,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
             "water_level_m": (round(float(tide_state["height_m"]), 3)
                               if isinstance(tide_state, dict)
                               and tide_state.get("height_m") is not None else None),
-        }.items() if v is not None}} if _persist_inputs(str(spot["id"])) else {}),
+        }.items() if v is not None}} if _persist_inputs(str(spot["id"]), surf_h) else {}),
     }
 
 
@@ -337,25 +350,8 @@ def _iso_z(dt) -> Optional[str]:
         return None
 
 
-# ── run provenance, INTERNED ─────────────────────────────────────────────────────────────────────
-# `run_time`/`wind_run_time` answer "which forecast", and they vary PER SPOT: the point resolver
-# serves regional products on independent ingest cadences, so within one (model, valid_time) frame
-# the marine run ranged over 17 hours across four spots when measured.
-#
-# ⚠️ BUT THEY ARE NOT PER-SPOT DATA — they are per-PRODUCT data, and a frame holds ~20 products for
-# ~900 spots. That object is fetched off the CDN by EVERY client on EVERY map load
-# (`spotRatingsCdn.js`: one download per 5-minute bucket serves every pan/zoom/model-switch/scrub),
-# so the encoding is a bandwidth decision, not a style one. Measured on a realistic 900-spot frame
-# with 20 distinct products:
-#
-#     baseline (no run fields)   259,882 bytes
-#     raw ISO pair per spot      338,201 bytes   +30.1%   (+87 bytes/spot)
-#     INTERNED                   268,800 bytes    +3.4%   (+10 bytes/spot)
-#
-# Across the object (3 models x 2 frames) that is +459 KB against +52 KB of client bandwidth for a
-# diagnostic field. So the frame carries the distinct pairs ONCE and each spot carries a small
-# integer into them; the endpoint expands it back on read, so the API stays legible and nothing
-# downstream has to know the encoding.
+# Run provenance (INTERNED): rationale relocated verbatim under the 800-LOC limit to
+# docs/research/FINDING-2026-08-12-the-uniform-sample-is-blind-to-the-tail.md
 def intern_frame_runs(frame: dict) -> dict:
     """PURE-ish: move each spot's (run_time, wind_run_time) into `frame['runs']` + a `run` index.
 
