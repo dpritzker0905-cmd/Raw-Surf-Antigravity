@@ -545,7 +545,12 @@ jobs:
           # ★ A SPLIT IS A LANE CHANGE. Had the new file not been named in COMPOSITION it would have
           #   fallen to the estate complement, taking 11 tests with it and putting this lane at 1680
           #   against a floor of 1685 — red, from a refactor that moved no logic at all.
-          MIN_FILES, MIN_PASSED = 149, 1685
+          # ⬆ MIN_PASSED 1685→1695 on 2026-08-12, cited run 31637900295 (3bc776d9), which
+          # observed 1701. The staleness guard flagged the floor 16 below the reading against a
+          # budget of 6 — a floor beneath the observation cannot detect anything shrinking back
+          # to it, which is the whole point of having one. The gap is coverage ADDED (the
+          # shadow-A/B, provenance, horizon and telemetry suites), not a lane collecting less.
+          MIN_FILES, MIN_PASSED = 149, 1695
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
