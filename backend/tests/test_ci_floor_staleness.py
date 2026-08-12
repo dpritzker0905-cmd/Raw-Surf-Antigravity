@@ -205,13 +205,19 @@ def test_the_budgets_are_documented_where_they_are_defined():
 
 # The reading each floor in ci.yml was SET FROM. Two are observed, one is not, and the distinction
 # matters enough to be marked rather than blurred:
-#   guards/chain  observed, run 31516884924 @ 7d6fb087
+#   guards        observed, run 31637900295 @ 3bc776d9 — 1701. Moved here from 1691 in the SAME
+#                 commit that raised the ci.yml floor 1685 -> 1695, because the two are one fact.
+#                 ⭐ THE FLOOR AND ITS PROVENANCE ARE A PAIR AND I EDITED ONLY ONE: the staleness
+#                 script prescribed "set it to 1695 and cite run 31637900295", I put the citation
+#                 in a ci.yml COMMENT, and the citation's MACHINE-READABLE home is this table. A
+#                 fix written where only a human can read it does not survive the next gate.
+#   chain         observed, run 31516884924 @ 7d6fb087
 #   estate        PROJECTED by the commit that tightened these budgets — that change took
 #                 test_ci_floor_staleness.py from 8 to 14 tests and this lane owns it, so
 #                 330 - 8 + 14 = 336. The next green run replaces this with an observation.
 # ⚠️ A floor LEADING its last reading is the correct post-raise state (see the one-sided test
 # above), so this table is "what the floor was set from", never "the latest reading".
-_FLOOR_SET_FROM = {"guards": 1691, "chain": 786, "estate": 336}
+_FLOOR_SET_FROM = {"guards": 1701, "chain": 786, "estate": 336}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
