@@ -510,3 +510,44 @@ def test_inference_stays_silent_when_movement_is_not_confined():
     withtide["inputs"]["water_level_m"] = 1.5
     rep = replay_frames(_frames([base, withtide]), {"SURF_REFRACTION_KR": "1.0"})
     assert rep["inferred_deps"] == []
+
+
+# ---- COVERAGE: an UNMEASURED window must warn LOUDER than a measured narrow one -------------
+# Found 2026-08-12 by replaying a single production frame from /api/weather/spot-ratings, which
+# carries `valid_time` but no `hour_offset`. The guard was
+# `if hour_span is not None and hour_span <= 6`, so span=None fell out of BOTH branches and the
+# narrowest sample this harness has ever run printed the QUIETEST coverage line it has ever
+# printed. Absence encoded as success. Note `_frames()` above emits no hour_offset either, so
+# every test in this file had always taken that silent path -- which is why nothing caught it.
+
+def _frames_at(offsets, rows):
+    return [{"spots": rows, "hour_offset": h} for h in offsets]
+
+
+def test_an_unknown_span_warns_that_the_verdict_is_unsupported(monkeypatch, tmp_path, capsys):
+    import json as _json
+    from scripts import science_shadow_ab as mod
+    f = tmp_path / "frames.json"
+    f.write_text(_json.dumps({"frames": _frames([_row()])}), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["x", "--candidate", "SURF_REFRACTION_KR=1.0",
+                                      "--frames-file", str(f)])
+    mod.main()
+    out = capsys.readouterr().out
+    assert "SPAN UNKNOWN" in out, "a frame with no hour_offset must say the window is unmeasured"
+    assert "UNSUPPORTED" in out, "the null verdict must be named unsupported, not 'no effect'"
+
+
+def test_a_measured_narrow_span_still_warns_NARROW_and_not_span_unknown(monkeypatch, tmp_path,
+                                                                       capsys):
+    """The elif must survive the branch added above it -- a fix that silences the case it was
+    meant to strengthen is worse than the bug."""
+    import json as _json
+    from scripts import science_shadow_ab as mod
+    f = tmp_path / "frames.json"
+    f.write_text(_json.dumps({"frames": _frames_at([0, 3], [_row()])}), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["x", "--candidate", "SURF_REFRACTION_KR=1.0",
+                                      "--frames-file", str(f)])
+    mod.main()
+    out = capsys.readouterr().out
+    assert "NARROW" in out and "SPAN UNKNOWN" not in out
+    assert "3 h window" in out, "the warning must quote the span it actually measured"

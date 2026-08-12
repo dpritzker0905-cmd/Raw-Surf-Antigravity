@@ -422,7 +422,21 @@ def main():
           % (_c["frames"], ",".join(_c["models"]) or "?", _c["hour_offsets"] or "?",
              _c["hour_span"] if _c["hour_span"] is not None else "?",
              _c["valid_time_min"] or "?", _c["valid_time_max"] or "?"))
-    if _c["hour_span"] is not None and _c["hour_span"] <= 6:
+    # ⭐ THE UNKNOWN SPAN WARNS LOUDER THAN THE NARROW ONE, because it is strictly worse: a 3 h
+    # window is at least a MEASURED 3 h, while a missing `hour_offset` means the window was never
+    # established and may be a single hour. The original guard read
+    # `if hour_span is not None and hour_span <= 6`, so the unknown case fell out of BOTH branches
+    # and printed nothing at all -- absence encoded as success, the same shape as the `undefined =>
+    # falsy => "AUTHORITATIVE NATIVE"` and `mismatches.length === 0 => pass` defects already on
+    # record. It surfaced on 2026-08-12 replaying a single production frame from
+    # /api/weather/spot-ratings, which carries `valid_time` but no `hour_offset`: the narrowest
+    # sample this harness has ever run drew the quietest coverage line it has ever printed.
+    if _c["hour_span"] is None:
+        print("  ! SPAN UNKNOWN  no frame carried `hour_offset`, so the window this sample spans is"
+              " UNMEASURED -- it may be a single hour. Treat a null verdict as UNSUPPORTED, not as"
+              " 'no effect': this is strictly weaker evidence than the NARROW case below, which at"
+              " least knows how wide it is.")
+    elif _c["hour_span"] <= 6:
         print("  ! NARROW    this is a %s h window -- a candidate that binds only in some"
               " conditions (a tidal extreme, a big swell) can look quiet here and move plenty"
               " elsewhere. Re-run across a wider span before concluding 'no effect'."
