@@ -304,10 +304,21 @@ def main():
             # The value to set is spelled out, because "raise the floor" without a number is how a
             # red turns into a guess. MIN_FILES is exact; MIN_PASSED sits at this lane's own margin.
             target = obs if kind == "MIN_FILES" else obs - budget
+            # ⭐⭐ NAME BOTH EDIT SITES. "cite run N" was ambiguous, and all THREE commits that have
+            # ever acted on this message satisfied it in prose and left the machine-readable half
+            # stale, reddening test_each_lane_budget_matches_the_margin_that_lane_actually_uses:
+            #   328 -> 334 (recorded in that test's own docstring), 1685 -> 1695, 334 -> 347.
+            # A prescription that names one of two required edits has a 100% miss rate here, which
+            # is a property of the instruction, not of three separate authors.
+            second = "backend/tests/test_ci_floor_staleness.py"
             print(f"::error::{lane} {kind} is {lag} below what CI last observed "
                   f"({floor} vs {obs}, budget {budget}). Set it to {target} in this commit and cite "
                   f"run {run_id} -- a floor below the reading cannot detect anything shrinking back "
-                  f"to it.")
+                  f"to it. TWO EDITS ARE REQUIRED: also set _FLOOR_SET_FROM[\"{lane}\"] = {obs} "
+                  f"in {second}, because that table is where the citation is PARSED. With it at "
+                  f"{obs} the margin {obs} - {target} = {budget} matches the declared budget; leave "
+                  f"it at its OLD value and the margin is wrong, reddening the paired test on the "
+                  f"very next run.")
         return 1
     print("every floor is current against the last green run.")
     return 0

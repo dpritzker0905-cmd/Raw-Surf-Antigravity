@@ -217,7 +217,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #                 330 - 8 + 14 = 336. The next green run replaces this with an observation.
 # ⚠️ A floor LEADING its last reading is the correct post-raise state (see the one-sided test
 # above), so this table is "what the floor was set from", never "the latest reading".
-_FLOOR_SET_FROM = {"guards": 1701, "chain": 786, "estate": 336}
+#   estate        observed, run 31650551547 @ de5b4557 — 349, replacing the PROJECTED 336 above.
+#                 Raised alongside the ci.yml floor 334 -> 347 (e88be1af). 349 - 347 = 2 = budget.
+_FLOOR_SET_FROM = {"guards": 1701, "chain": 786, "estate": 349}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
