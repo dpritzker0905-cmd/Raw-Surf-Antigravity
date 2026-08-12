@@ -1,0 +1,13 @@
+### RUN 2026-08-12, RTX 3060 Laptop, headed Chromium, real canvas, extracted classifySheltered
+
+positive control PASSED (narrow=54 suppressed, wide=0)
+dims: source 4096x2048 -> downsample 1024x512   reps=12   sheltered px=0
+
+  draw (downsample)            8.0 ms   25%   range 3.2-11.9
+  read (getImageData)          3.1 ms   10%   range 2.6-5.0
+  classify (JS)               19.6 ms   60%   range 15.1-37.4
+  stamp (back to source)       1.7 ms    5%   range 1.1-3.1
+  TOTAL per call              32.4 ms
+
+★ Medians of 12 reps. Compare against the ~1.4 s per call I had been quoting
+  by DIVISION — if these disagree, the division was wrong, not this.

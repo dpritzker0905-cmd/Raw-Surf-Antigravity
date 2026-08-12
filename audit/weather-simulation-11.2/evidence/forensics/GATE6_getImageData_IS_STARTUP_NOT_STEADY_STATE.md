@@ -70,3 +70,51 @@ non-deterministic product-selection logic in RC-03) does not apply to mask class
 4. ⛔ **Do not touch the `gapM` defaults or the smoothing flag.** Both carry recorded live-defect
    provenance (1000 m seals every Venice inlet at ~900 m; smoothing ON fixed the Canal Grande
    mottle). Those are calibration, not performance.
+
+---
+
+# ⛔ CORRECTION 2026-08-12 — two of the numbers above are wrong, and one counter was the wrong counter
+
+## 1. "~1.4 s per call" was wrong by ~30x
+
+Measured directly (`GATE6_mask_percall_bench.js`, real canvas, real extracted `classifySheltered`,
+positive control passing, medians of 12 reps at production dimensions 4096x2048 -> 1024x512):
+
+| stage | median | share |
+|---|---|---|
+| classify (JS) | **28.0 ms** | 60% |
+| draw (downsample) | 11.7 ms | 25% |
+| read (`getImageData`) | **4.5 ms** | 10% |
+| stamp back | 2.5 ms | 5% |
+| **TOTAL per call** | **46.7 ms** | |
+
+The ~1.4 s figure came from dividing a 30 s profile total by two observed calls. **Do not optimise
+against a quantity obtained by division.**
+
+## 2. `getImageData` is the WRONG TARGET inside this call
+
+It is 10% of the call — the second *smallest* stage. The JS classifier is 60%. Every sentence above
+that frames the mask work as a "readback" problem is misdirected: within `suppressShelteredWater`
+the cost is the chamfer/flood/BFS, not the pixel read.
+
+## 3. ⛔ "Zero mask repaints in steady state" is VOID — wrong counter
+
+`__RAW_MASK_REPATCH_LOG__` is written in `WebGLMarineLayer.js:495`, at the **layer re-patch** site,
+whose own comment reads *"every recommit re-encodes the mask patch-less in setWaveData, then
+re-patches here"*. It does not count `suppressShelteredWater` calls. I read a counter and assumed it
+counted the thing I cared about, without checking its write site — the fifth time in this session.
+★ **GREP THE WRITE SITE BEFORE TRUSTING A COUNTER.** A counter answers the question its author had,
+not the question you are asking.
+
+The **windowed profile** evidence for front-loading still stands on its own (worst blocked windows
+at t+4000, t+6000 and t+10750 ms; largest LoAF frames at t+3917 and t+4718 ms). The counter half of
+that argument is gone. Treat "startup, not steady state" as SUPPORTED BUT NOT ESTABLISHED.
+
+## 4. The open discrepancy, stated rather than smoothed over
+
+The CPU profile attributes **1394–1486 ms** to `marineMaskShelter.js:193`. At 46.7 ms per call that
+is **~30 calls**, not the 2 I inferred. So either the function runs far more often than believed, or
+production dimensions/`nPx` differ materially from this bench. **Call frequency is now the
+unmeasured quantity** — and it must be measured at the function, not at a neighbouring counter.
+
+★ Next step is NOT an optimisation. It is a call counter on `suppressShelteredWater` itself.
