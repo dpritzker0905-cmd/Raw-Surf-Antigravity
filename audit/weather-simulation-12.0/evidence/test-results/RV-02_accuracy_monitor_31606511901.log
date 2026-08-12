@@ -1,0 +1,185 @@
+grade	UNKNOWN STEP	﻿2026-08-12T14:23:32.3886490Z Current runner version: '2.336.0'
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3913562Z ##[group]Runner Image Provisioner
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3914556Z Hosted Compute Agent
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3915226Z Version: 20260707.563
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3916007Z Commit: 02667638d2b423fbc733a8e32a88b44996a3ba6e
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3917145Z Build Date: 2026-07-07T19:33:50Z
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3918192Z Worker ID: {e2d9dab7-48de-4774-addd-e2fcd0ec98ab}
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3919036Z Azure Region: eastus
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3919667Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3921790Z ##[group]Operating System
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3922525Z Ubuntu
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3923207Z 24.04.4
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3923798Z LTS
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3924394Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3925078Z ##[group]Runner Image
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3925764Z Image: ubuntu-24.04
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3926497Z Version: 20260720.247.2
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3928273Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260720.247/images/ubuntu/Ubuntu2404-Readme.md
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3930340Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260720.247
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3931586Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3932954Z ##[group]GITHUB_TOKEN Permissions
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3935153Z Contents: read
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3935964Z Metadata: read
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3936610Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3939240Z Secret source: Actions
+grade	UNKNOWN STEP	2026-08-12T14:23:32.3940732Z Prepare workflow directory
+grade	UNKNOWN STEP	2026-08-12T14:23:32.4280913Z Prepare all required actions
+grade	UNKNOWN STEP	2026-08-12T14:23:32.4329685Z Getting action download info
+grade	UNKNOWN STEP	2026-08-12T14:23:32.6279517Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+grade	UNKNOWN STEP	2026-08-12T14:23:32.9778161Z Complete job name: grade
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0726292Z ##[group]Run actions/checkout@v5
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0727555Z with:
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0728151Z   repository: dpritzker0905-cmd/Raw-Surf-Antigravity
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0733514Z   token: ***
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0734037Z   ssh-strict: true
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0734580Z   ssh-user: git
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0735100Z   persist-credentials: true
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0735680Z   clean: true
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0736191Z   sparse-checkout-cone-mode: true
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0736961Z   fetch-depth: 1
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0737505Z   fetch-tags: false
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0738048Z   show-progress: true
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0738576Z   lfs: false
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0739158Z   submodules: false
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0739699Z   set-safe-directory: true
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0740296Z   allow-unsafe-pr-checkout: false
+grade	UNKNOWN STEP	2026-08-12T14:23:33.0741320Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:33.1820685Z Syncing repository: dpritzker0905-cmd/Raw-Surf-Antigravity
+grade	UNKNOWN STEP	2026-08-12T14:23:33.1823584Z ##[group]Getting Git version info
+grade	UNKNOWN STEP	2026-08-12T14:23:33.1824657Z Working directory is '/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity'
+grade	UNKNOWN STEP	2026-08-12T14:23:33.1826580Z [command]/usr/bin/git version
+grade	UNKNOWN STEP	2026-08-12T14:23:33.1910104Z git version 2.54.0
+grade	UNKNOWN STEP	2026-08-12T14:23:33.1938522Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:33.1958755Z Temporarily overriding HOME='/home/runner/work/_temp/521c3af9-d893-489a-963e-887916d6e23d' before making global git config changes
+grade	UNKNOWN STEP	2026-08-12T14:23:33.1961658Z Adding repository directory to the temporary git global config as a safe directory
+grade	UNKNOWN STEP	2026-08-12T14:23:33.1968133Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2031654Z Deleting the contents of '/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity'
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2035795Z ##[group]Initializing the repository
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2042909Z [command]/usr/bin/git init /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2164902Z hint: Using 'master' as the name for the initial branch. This default branch name
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2167606Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2170162Z hint: to use in all of your new repositories, which will suppress this warning,
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2172411Z hint: call:
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2173408Z hint:
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2174602Z hint: 	git config --global init.defaultBranch <name>
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2175756Z hint:
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2177434Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2178905Z hint: 'development'. The just-created branch can be renamed via this command:
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2179932Z hint:
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2180488Z hint: 	git branch -m <name>
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2181140Z hint:
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2181999Z hint: Disable this message with "git config set advice.defaultBranchName false"
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2183678Z Initialized empty Git repository in /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/.git/
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2187699Z [command]/usr/bin/git remote add origin https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2247999Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2249927Z ##[group]Disabling automatic garbage collection
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2252311Z [command]/usr/bin/git config --local gc.auto 0
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2288836Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2289950Z ##[group]Setting up auth
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2297732Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2339314Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2745700Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+grade	UNKNOWN STEP	2026-08-12T14:23:33.2786177Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+grade	UNKNOWN STEP	2026-08-12T14:23:33.3028353Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+grade	UNKNOWN STEP	2026-08-12T14:23:33.3068841Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+grade	UNKNOWN STEP	2026-08-12T14:23:33.3307549Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+grade	UNKNOWN STEP	2026-08-12T14:23:33.3348575Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:33.3349764Z ##[group]Fetching the repository
+grade	UNKNOWN STEP	2026-08-12T14:23:33.3359004Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +3df5a15053ec1926f7ffb63e60b936549404af07:refs/remotes/origin/dev
+grade	UNKNOWN STEP	2026-08-12T14:23:39.8380842Z From https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity
+grade	UNKNOWN STEP	2026-08-12T14:23:39.8383906Z  * [new ref]         3df5a15053ec1926f7ffb63e60b936549404af07 -> origin/dev
+grade	UNKNOWN STEP	2026-08-12T14:23:39.8402219Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:39.8406463Z ##[group]Determining the checkout info
+grade	UNKNOWN STEP	2026-08-12T14:23:39.8409426Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:39.8416587Z [command]/usr/bin/git sparse-checkout disable
+grade	UNKNOWN STEP	2026-08-12T14:23:39.8499813Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+grade	UNKNOWN STEP	2026-08-12T14:23:39.8549422Z ##[group]Checking out the ref
+grade	UNKNOWN STEP	2026-08-12T14:23:39.8554762Z [command]/usr/bin/git checkout --progress --force -B dev refs/remotes/origin/dev
+grade	UNKNOWN STEP	2026-08-12T14:23:40.8883781Z Updating files:  85% (3040/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.8905378Z Updating files:  86% (3055/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.8923903Z Updating files:  87% (3091/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.8945550Z Updating files:  88% (3126/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.8966796Z Updating files:  89% (3162/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.8989490Z Updating files:  90% (3197/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9010435Z Updating files:  91% (3233/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9031648Z Updating files:  92% (3268/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9054408Z Updating files:  93% (3304/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9071632Z Updating files:  94% (3339/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9086509Z Updating files:  95% (3375/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9103743Z Updating files:  96% (3410/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9120645Z Updating files:  97% (3446/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9136982Z Updating files:  98% (3481/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9295776Z Updating files:  99% (3517/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9297837Z Updating files: 100% (3552/3552)
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9299281Z Updating files: 100% (3552/3552), done.
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9340169Z Switched to a new branch 'dev'
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9343635Z branch 'dev' set up to track 'origin/dev'.
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9458634Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9513164Z [command]/usr/bin/git log -1 --format=%H
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9542398Z 3df5a15053ec1926f7ffb63e60b936549404af07
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9860842Z ##[group]Run set -o pipefail
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9862099Z ^[[36;1mset -o pipefail^[[0m
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9863434Z ^[[36;1mpython3 scripts/forecast_accuracy_monitor.py \^[[0m
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9864936Z ^[[36;1m  --base "$BASE" \^[[0m
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9866074Z ^[[36;1m  --red-mae "0.40" \^[[0m
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9867470Z ^[[36;1m  --warn-mae "0.30" \^[[0m
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9868632Z ^[[36;1m  --min-n "30" \^[[0m
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9869779Z ^[[36;1m  --max-report-age-h "8"^[[0m
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9922268Z shell: /usr/bin/bash -e {0}
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9923524Z env:
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9925164Z   SUPABASE_URL: ***
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9932738Z   SUPABASE_SERVICE_ROLE_KEY: ***
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9934213Z   BASE: https://raw-surf-antigravity.onrender.com
+grade	UNKNOWN STEP	2026-08-12T14:23:40.9935639Z ##[endgroup]
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0899415Z report generated_at=2026-08-12T13:11:49.076849+00:00 (age 1.2 h)
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0901618Z height MAE 0.176 m over n=60 buoys (bias -0.035 m) | warn 0.30 red 0.40 [basis: n=37 runs 08-05..08-08, p50 0.198 max 0.269]
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0903159Z skill ledger: ledgered=1044 scored=919 pending=25640 evicted_cap=0
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0904431Z residual history: 7591 rows this month, 1090 in trailing 48h, span 08-01T00:03Z -> 08-12T05:30Z
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0905689Z scored archive: 34841 rows this month, 25598 with targets in trailing 7d
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0907151Z   open_meteo:ncep_gfswave025 +24h  n=427   mae=0.198 bias=+0.013
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0908189Z   open_meteo_marine      +24h  n=1770  mae=0.143 bias=+0.040
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0909073Z   open_meteo_marine      +48h  n=1796  mae=0.150 bias=+0.056
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0909956Z   open_meteo_marine      +72h  n=1678  mae=0.151 bias=+0.058
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0910831Z   persistence            +24h  n=1790  mae=0.176 bias=+0.063
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0911687Z   persistence            +48h  n=1036  mae=0.239 bias=+0.139
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0912570Z   persistence            +72h  n=371   mae=0.278 bias=+0.178
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0913458Z   raw_surf               +24h  n=1918  mae=0.184 bias=+0.004
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0914208Z   raw_surf               +48h  n=1870  mae=0.201 bias=+0.015
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0914928Z   raw_surf               +72h  n=1728  mae=0.215 bias=+0.018
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0915668Z   raw_surf:EURO          +24h  n=1963  mae=0.168 bias=+0.066
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0916391Z   raw_surf:EURO          +48h  n=1916  mae=0.196 bias=+0.109
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0917527Z   raw_surf:EURO          +72h  n=1728  mae=0.204 bias=+0.122
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0918250Z   raw_surf:ICON          +24h  n=1963  mae=0.313 bias=+0.155
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0918967Z   raw_surf:ICON          +48h  n=1916  mae=0.344 bias=+0.215
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0919685Z   raw_surf:ICON          +72h  n=1728  mae=0.390 bias=+0.242
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0920607Z   -- PAIRED head-to-head (same buoy x target x lead; the comparable one) --
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0922007Z   vs open_meteo:ncep_gfswave025 +24h  n=427   ours=0.199 theirs=0.198 delta=+0.002 win=45%  WE LOSE  [POPULATIONS DIVERGE: 1918 vs 427 unpaired]
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0923424Z   vs open_meteo_marine   +24h  n=1770  ours=0.181 theirs=0.143 delta=+0.038 win=41%  WE LOSE
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0924381Z   vs open_meteo_marine   +48h  n=1796  ours=0.202 theirs=0.150 delta=+0.051 win=39%  WE LOSE
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0925339Z   vs open_meteo_marine   +72h  n=1678  ours=0.215 theirs=0.151 delta=+0.063 win=38%  WE LOSE
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0926966Z   vs persistence         +24h  n=1790  ours=0.183 theirs=0.176 delta=+0.007 win=46%  WE LOSE
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0927939Z   vs persistence         +48h  n=1036  ours=0.188 theirs=0.239 delta=-0.051 win=60%  we win
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0929101Z   vs persistence         +72h  n=371   ours=0.227 theirs=0.278 delta=-0.051 win=63%  we win  [POPULATIONS DIVERGE: 1728 vs 371 unpaired]
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0930302Z   vs raw_surf:EURO       +24h  n=1918  ours=0.184 theirs=0.168 delta=+0.016 win=43%  WE LOSE
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0931551Z   vs raw_surf:EURO       +48h  n=1870  ours=0.201 theirs=0.198 delta=+0.003 win=46%  WE LOSE
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0932461Z   vs raw_surf:EURO       +72h  n=1728  ours=0.215 theirs=0.204 delta=+0.012 win=47%  WE LOSE
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0933363Z   vs raw_surf:ICON       +24h  n=1918  ours=0.184 theirs=0.314 delta=-0.130 win=70%  we win
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0934258Z   vs raw_surf:ICON       +48h  n=1870  ours=0.201 theirs=0.345 delta=-0.144 win=67%  we win
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0935141Z   vs raw_surf:ICON       +72h  n=1728  ours=0.215 theirs=0.390 delta=-0.175 win=71%  we win
+grade	UNKNOWN STEP	2026-08-12T14:23:43.0935844Z verdict: OK
+grade	UNKNOWN STEP	2026-08-12T14:23:43.1194922Z Post job cleanup.
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2073674Z [command]/usr/bin/git version
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2117115Z git version 2.54.0
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2193313Z Temporarily overriding HOME='/home/runner/work/_temp/25bf9042-d6ba-416c-ae9d-40c77f833366' before making global git config changes
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2195209Z Adding repository directory to the temporary git global config as a safe directory
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2198520Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2237554Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2284039Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2535856Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2569372Z http.https://github.com/.extraheader
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2608020Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2714823Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2906254Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+grade	UNKNOWN STEP	2026-08-12T14:23:43.2946057Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+grade	UNKNOWN STEP	2026-08-12T14:23:43.3365360Z Cleaning up orphan processes

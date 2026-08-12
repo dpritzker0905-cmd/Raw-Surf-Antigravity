@@ -1,0 +1,48 @@
+Audit,Required Action,Claimed Complete,Evidence Located,Evidence Quality,Actual Status,Notes
+11.0 (audit/weather-simulation-11.0),Read prior master + Codex audit in full,Yes,Yes,Strong,Completed with Strong Evidence,Source register S2.1 names both; Codex verification ledger S4 quotes 9 findings with file:line
+11.0 (audit/weather-simulation-11.0),Independently verify every Codex finding,Yes,Yes,Strong,Completed with Strong Evidence,S4 gives 9 verdicts incl. 3 severity corrections and 1 refutation (_cached_live_forecast never existed)
+11.0 (audit/weather-simulation-11.0),Live runtime validation of deployed artifact,Yes,Yes,Moderate,Completed with Partial Evidence,Health SHA + SW BUILD_VERSION verified live; no persisted capture of the session
+11.0 (audit/weather-simulation-11.0),Reproduce the F-01 low-FPS trigger at runtime,No (disclosed),No,None,Not Completed,S2.4 discloses it; deterministic repro path (force_marine_fallback) never exercised
+11.0 (audit/weather-simulation-11.0),Capture screen recordings,No (disclosed),No,None,Not Completed,Report: 'Recordings reviewed: ZERO. No video capture tool was available in this pane'
+11.0 (audit/weather-simulation-11.0),Run React Scan / React Profiler,No,No,None,Not Completed,"evidence/react-scan/ contains ONE file, F2-state-of-the-art-2026.md, a 70 KB research note. Directory name asserts a tool that was not run"
+11.0 (audit/weather-simulation-11.0),Run Playwright,No (disclosed),No,None,Not Completed,Report S: 'Playwright: config only ... not run'
+11.0 (audit/weather-simulation-11.0),Capture console + network evidence,Yes,Partial,Weak,Completed with Partial Evidence,evidence/console/ holds 20 analysis .md files; zero raw console dumps except S3-diag-globals-scan.txt
+11.0 (audit/weather-simulation-11.0),Build a Software Jacobian matrix,Yes,Yes,Strong,Completed with Strong Evidence,SOFTWARE_JACOBIAN_MATRIX.csv present
+11.0 (audit/weather-simulation-11.0),Account for 100 commits,Yes,Yes,Strong,Completed with Strong Evidence,"COMMIT_REVIEW_LEDGER.csv, 93 KB, 'All 100 commits accounted for'"
+11.0 (audit/weather-simulation-11.0),Produce a next implementation packet,Yes,Yes,Strong,Completed with Strong Evidence,FIRST_IMPLEMENTATION_PACKET.md; later REWRITTEN (8f1fcf41) because it specified building something that already existed
+11.0 (audit/weather-simulation-11.0),Capture heap snapshots / performance traces,No,No,None,Not Completed,Zero .heapsnapshot/.cpuprofile in any audit directory
+11.0 (repo-root MASTER_WEATHER_SIMULATION_REPORT_11.0.md),"Orchestrated independent verification (16 read-only agents, refute-first)",Yes,Yes,Strong,Completed with Strong Evidence,"S2.2 names two workflows, 11 + 9 agents, each required to cite file+symbol+line+quote"
+11.0 (repo-root MASTER_WEATHER_SIMULATION_REPORT_11.0.md),Live F-01 protocol run in browser,Yes,Partial,Moderate,Claimed Complete but Unverified,No persisted artifact; the report itself marks the trigger unreproduced
+11.0 (repo-root MASTER_WEATHER_SIMULATION_REPORT_11.0.md),Re-execute backend Python tests,No (disclosed),No,None,Not Completed,S2.4: 'not re-executed in this environment; CI green at HEAD is the execution evidence'
+11.0 (repo-root MASTER_WEATHER_SIMULATION_REPORT_11.0.md),Read production Render environment variables,No (disclosed),No,None,Blocked,"S2.4: standing owner-gated gap, unchanged since the prior master"
+11.0 (repo-root MASTER_WEATHER_SIMULATION_REPORT_11.0.md),Audit the production (frozen) frontend artifact,No (disclosed),No,None,Not Completed,All frontend claims are against the dev artifact
+11.1,Review every commit since the 11.0 baseline,Yes (103),Yes,Strong,Completed with Strong Evidence,"COMMIT_DELTA_LEDGER.csv, 1 row per commit"
+11.1,Re-run every previously failing / high-risk check,Yes,Yes,Strong,Completed with Strong Evidence,"TEST_LADDER_REGRESSION_RESULTS.csv; full frontend suite rerun 209 suites / 1,949 tests green"
+11.1,Capture video of the runtime journey,No (disclosed),No,None,Not Completed,'Videos reviewed: 0 ... no video taken in a hidden tab could support a claim' (G-02)
+11.1,Run the 13-location projection sweep,No (disclosed),No,None,Not Completed,S: 'The 13-location projection sweep was not run'
+11.1,React Scan / React Profiler / heap snapshot,No,No,None,Not Completed,No artifacts of any kind
+11.1,Produce the next implementation packet,Yes,Yes,Strong,Completed with Strong Evidence,NEXT_IMPLEMENTATION_PACKET.md + MISSION_2_REFUTATION_AND_CORRECTED_PACKET.md
+11.1,Software Jacobian delta,Yes,Yes,Strong,Completed with Strong Evidence,SOFTWARE_JACOBIAN_DELTA.csv
+11.1,Controlled memory probes / capacity delta,Yes,Yes,Strong,Completed with Strong Evidence,SYSTEM_CAPACITY_DELTA.md; 3 controlled probes
+11.2 certification,"Blind runtime audit BEFORE reading prior reports, hash-locked",Yes,Yes,Strong,Completed with Strong Evidence,"BLIND_FINDINGS_LOCK.txt SHA-256 69DCAF8D...073715, locked 23:24:57 before reconciliation. Methodologically the strongest single procedure in the program"
+11.2 certification,Failure injection against the live app,Yes,Yes,Strong,Completed with Strong Evidence,All /api/weather/* rejected; reproduced on production as well as locally
+11.2 certification,Reconcile blind findings against 11.0/11.1/Codex/memory,Yes,Yes,Strong,Completed with Strong Evidence,BLIND_FINDINGS_RECONCILIATION.md
+11.2 certification,Projection certification incl. antimeridian + high latitude,Yes,Yes,Strong,Completed with Strong Evidence,GATE2_PROJECTION_CERTIFICATION.md; the audit PUBLISHED a CRITICAL antimeridian defect and then REFUTED IT ITSELF
+11.2 certification,Capacity certification,Partial (disclosed),Partial,Moderate,Partially Completed,Production load testing deliberately not run (prohibited by its own scope)
+11.2 certification,Cross-browser runs,No (disclosed),No,None,Not Completed,'Cross-browser: NOT RUN - Chromium only'
+11.2 certification,Heap snapshots / performance traces / mobile viewport,No (disclosed),No,None,Not Completed,"S: 'no mobile-viewport runs, no heap snapshots, no performance traces were produced'"
+11.2 certification,Frame-rate measurement,Attempted then RETRACTED,Yes (retraction),Strong,Completed with Strong Evidence,"All FPS readings retracted: RAF delivers 1 frame / 5 s in an unfocused pane. A negative result, correctly published"
+11.2 certification,Recordings,No,No,None,Not Completed,Zero media artifacts
+11.2 certification,Produce the authorized next-phase packet,Yes,Yes,Strong,Completed with Strong Evidence,AUTHORIZED_NEXT_PHASE_PACKET.md + DO_NOT_ADVANCE_ITEMS.md
+11.2 forward-progress,Review the 11-commit window since 11.1,Yes,Yes,Strong,Completed with Strong Evidence,Distinct report at 6d5d6c48; NUMBER COLLIDES with the certification audit
+11.2 forward-progress,Runtime revalidation,Partial,Partial,Moderate,Partially Completed,Render API + deploy events read; no browser session
+11.3 (PHANTOM),Root-Cause Closure Audit; Authorized Execution Mission; Repair Rehearsal Plan and Results; Experimental Patch; Regression Guardrail Specification,Never claimed,No,None,Not Completed,"Prompt AUTHORED in session 33778014 (declares WEATHER_SIM_ROOT_CAUSE_CLOSURE_AUDIT_11.3.md) and explicitly ADVISED AGAINST in the same session: 'don't run 11.3, and don't run the 11.4 I wrote you'. No report, no directory, no evidence exists. Audit 11.4 was nevertheless commissioned to run AFTER it"
+11.4,Verify the repair against the Audit 11.3 mission,No,No,None,Unable to Determine,Judged against the Gate 6 measurement series instead; unverifiable requirements correctly marked Unable to Verify rather than passed
+11.4,Prove the defect reproduces pre-repair,Yes,Yes,Strong,Completed with Strong Evidence,Structural + 0% kill-switch control arm
+11.4,Prove the repair eliminates it,Yes,Yes,Strong,Completed with Strong Evidence,"Independent corrected oracle, 88% static hit vs 0% control"
+11.4,Prove mutation reintroduces it,Yes,Yes,Strong,Completed with Strong Evidence,"10 mutants across 2 rounds. NOTE: the FINAL run recorded 10/10 CAUGHT and was committed in the audit's own publication commit, but Gate C was published as FAIL"
+11.4,Full map component test surface,Yes,Yes,Strong,Completed with Strong Evidence,1351/1351 across 129 suites
+11.4,Live browser runs / recordings / traces,No (disclosed),No,None,Not Completed,"'Live browser runs: 0', 'Recordings reviewed: 0'; Gate E published as BLOCKED"
+11.4,Lifecycle burn-in,No (disclosed),No,None,Not Completed,'burn-in not run'
+11.4,Reconcile the gate matrix with the audit's own final evidence,Implicitly,Refuted,Strong,Not Completed,"Gate C row, Executive Gate Decision and AUTHORIZED_NEXT_GATE_PACKET all say 6 of 10 mutants survive; MUTATION_RESULTS_FINAL_10of10.json in the same commit says 10/10 caught. Independently re-verified at HEAD by this audit (RV-04): M8 and M9 both CAUGHT"
+11.4,Produce the next authorized gate packet,Yes,Yes,Strong,Completed with Strong Evidence,"AUTHORIZED_NEXT_GATE_PACKET.md - but its Stage 1/2 mission was already complete at ecfc1077, 22 minutes before publication"

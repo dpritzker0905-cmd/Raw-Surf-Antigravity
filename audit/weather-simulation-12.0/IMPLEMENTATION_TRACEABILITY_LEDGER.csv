@@ -1,0 +1,22 @@
+Canonical ID,Claimed Implementation,Commit(s),Diff Reachable At HEAD,Active Runtime Path,Competing Path,Tests Introduced,Later Weakened Or Reverted,Verification Method Used By This Audit,Result
+WS-CAN-0001,Churn-loop three-seam fix,512b1cb6..9fe18414,Yes,Yes - dispose nulls the global under an identity guard,None,Mounted integration test specified,No,Static grep at HEAD for all three seams,CONFIRMED PRESENT
+WS-CAN-0002,JS-mirror refusal port,512b1cb6..9fe18414,"Yes - surfRating.js:109-116,142",Yes - MapForecastOverlay consumer wiring,Python surf_rating.py:444 (the reference),Goldens claimed,No,Static read of both sides + flag default,"CONFIRMED PRESENT; SURF_PARTITIONS still ""0"""
+WS-CAN-0003,Build stamps,512b1cb6..9fe18414,Yes,Yes,None,-,No,Static grep,CONFIRMED PRESENT
+WS-CAN-0004,Series-frame run identity + run census,512b1cb6..9fe18414,"Yes - grid_series_helper.py:58-63,428-434",Yes,None,Frame test specified,No,Static read,CONFIRMED PRESENT
+WS-CAN-0005,(never claimed),-,No,n/a,n/a,-,n/a,PRODUCTION GET /api/weather/point,REFUTED AS FIXED - run_time 12:59Z on an 18Z product
+WS-CAN-0008,Worker onerror,512b1cb6..9fe18414,"Yes - useGridWorker.js:42,68",Yes,None,-,No,Static grep,CONFIRMED PRESENT (reply-ordering test still absent)
+WS-CAN-0009,(never claimed),-,No,n/a,n/a,-,n/a,Static grep of the route,STILL OPEN - 9 sites
+WS-CAN-0010,Status-endpoint honesty,512b1cb6..9fe18414,Partly,2 of 3 surfaces,system.py:208 placeholder is the third,-,No,Static read of all three surfaces,"PARTIAL - placeholder live at :208, consumed at :272"
+WS-CAN-0013,GPU hygiene b/d/e,2e20122d..086ee773,Receipted,Presumed,-,Existing tests,No,Receipt read only,ACCEPTED ON RECEIPT - not independently re-verified
+WS-CAN-0014,(consumer half only),post-11.2,Consumer yes (backendWeatherServiceClientDiag.js:203-210 with resolutionSource),Yes,Producer absent,-,No,PRODUCTION GET /api/weather/point,PRODUCER STILL NULL IN PRODUCTION
+WS-CAN-0015,Rain label; wind legend from ramp,2e20122d..086ee773; 6568d94b,Yes,Yes,Legacy 8-stop CSS duplicate retired,GLSL-parsing ramp test,No,Static read of heightUnits/MapWeatherControls,2 of 7 CONFIRMED; 5 open
+WS-CAN-0018,Executed-GL pixel oracle,ece2c36a,Yes - e2e/weather-simulation.spec.js:541-578,NO - test.fixme,-,The oracle itself,Shipped fixme from birth,Grep for test.fixme( (the pattern a naive test( grep misses),IMPLEMENTED BUT UNREACHABLE BY CI
+WS-CAN-0022,(never claimed),-,No,n/a,n/a,-,n/a,Static grep for cancelAnimationFrame,"STILL OPEN - 2 RAF calls, 0 cancels"
+WS-CAN-0023,reference_size_m disclosure + glyph-referenced gating,32bd579c; fee36d57..6568d94b,Yes,Yes,-,Parity probe,No,PRODUCTION point payload + live workflow state,CONFIRMED - reference_size_m 1.789 on the wire; monitor green
+WS-CAN-0025,(never claimed),-,No,n/a,n/a,-,n/a,Workflow inventory + live /api/health latency,STILL OPEN; and /api/health p99 is 15.7 s
+WS-CAN-0026,(never claimed),-,No,n/a,n/a,-,n/a,LIVE workflow run 31606511901 full log,STILL OPEN - verdict OK while 8 of 12 paired rows read WE LOSE
+WS-CAN-0027,(never claimed),-,No,n/a,n/a,-,n/a,Read playwright.config.js + census of all audit evidence dirs,STILL OPEN - no video key; 0 media artifacts program-wide
+WS-CAN-0031,Harness fix,ecfc1077,Yes - wrapper.test.js:159-162,Yes,-,The corrected assertions,No,ISOLATED WORKTREE MUTATION: M8 and M9 both applied at HEAD,"CAUGHT - Gate C REFUTED, guardrail holds"
+WS-CAN-0034,Provenance class multi-state,post-11.2,Yes - TruthOverlay.js:274-286,Yes,-,-,No,Static read,CONFIRMED - 7 states
+WS-CAN-0035,Parity REFUSE third state + orphaned-read repair,post-11.2,"Yes - forecastDiagnostics.js:48,288-354",Yes,-,forecastDiagnostics.truthLayer.test.js,No,Static read of write site AND read site,CONFIRMED both halves
+WS-CAN-0039,(owner-gated),-,n/a,n/a,n/a,-,n/a,LIVE service-worker.js on both Netlify sites,"PRODUCTION FRONTEND = 3bd38a83, 84 days behind HEAD"

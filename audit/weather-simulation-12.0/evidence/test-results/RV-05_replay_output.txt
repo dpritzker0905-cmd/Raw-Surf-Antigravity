@@ -1,0 +1,38 @@
+================================================================================================
+RV-05  WS-CAN-0026 replay -- what the paired gate WOULD have returned
+================================================================================================
+
+### 2026-08-10  run 31426692621 (Audit 11.1's own numbers)
+
+  as of 2026-08-12 -> OK         TODAY (pre-arm, grace to 08-22)
+      [warn]  PUBLIC REFERENCE ahead at +24h -- `open_meteo_marine` beats us by +0.050 m on n=790 (win rate 39%). Standing product condition, deliberately not a page:
+      [warn]  PUBLIC REFERENCE ahead at +48h -- `open_meteo_marine` beats us by +0.079 m on n=799 (win rate 36%). Standing product condition, deliberately not a page:
+      [warn]  PUBLIC REFERENCE ahead at +72h -- `open_meteo_marine` beats us by +0.081 m on n=714 (win rate 37%). Standing product condition, deliberately not a page:
+
+  as of 2026-08-25 -> OK         AFTER 08-22 (armed)
+      [warn]  PUBLIC REFERENCE ahead at +24h -- `open_meteo_marine` beats us by +0.050 m on n=790 (win rate 39%). Standing product condition, deliberately not a page:
+      [warn]  PUBLIC REFERENCE ahead at +48h -- `open_meteo_marine` beats us by +0.079 m on n=799 (win rate 36%). Standing product condition, deliberately not a page:
+      [warn]  PUBLIC REFERENCE ahead at +72h -- `open_meteo_marine` beats us by +0.081 m on n=714 (win rate 37%). Standing product condition, deliberately not a page:
+
+### 2026-08-12  run 31606511901 (live, this audit's RV-02)
+
+  as of 2026-08-12 -> OK         TODAY (pre-arm, grace to 08-22)
+        (skill floor +72h not gradeable: POPULATIONS DIVERGE (371 paired vs 1728/371 totals))
+      [warn]  SKILL FLOOR BREACHED at +24h -- we lose to `persistence` on n=1790 paired keys: MAE 0.183 vs 0.176 (delta +0.007 m) AND win rate 46% < 50%. Both statist
+      [warn]  PUBLIC REFERENCE ahead at +24h -- `open_meteo_marine` beats us by +0.038 m on n=1770 (win rate 41%). Standing product condition, deliberately not a page
+      [warn]  PUBLIC REFERENCE ahead at +48h -- `open_meteo_marine` beats us by +0.052 m on n=1796 (win rate 39%). Standing product condition, deliberately not a page
+      [warn]  PUBLIC REFERENCE ahead at +72h -- `open_meteo_marine` beats us by +0.064 m on n=1678 (win rate 38%). Standing product condition, deliberately not a page
+
+  as of 2026-08-25 -> RED        AFTER 08-22 (armed)
+        (skill floor +72h not gradeable: POPULATIONS DIVERGE (371 paired vs 1728/371 totals))
+      [ERROR] SKILL FLOOR BREACHED at +24h -- we lose to `persistence` on n=1790 paired keys: MAE 0.183 vs 0.176 (delta +0.007 m) AND win rate 46% < 50%. Both statist
+      [warn]  PUBLIC REFERENCE ahead at +24h -- `open_meteo_marine` beats us by +0.038 m on n=1770 (win rate 41%). Standing product condition, deliberately not a page
+      [warn]  PUBLIC REFERENCE ahead at +48h -- `open_meteo_marine` beats us by +0.052 m on n=1796 (win rate 39%). Standing product condition, deliberately not a page
+      [warn]  PUBLIC REFERENCE ahead at +72h -- `open_meteo_marine` beats us by +0.064 m on n=1678 (win rate 38%). Standing product condition, deliberately not a page
+
+================================================================================================
+CONTROLS
+================================================================================================
+  kill switch ACCURACY_PAIRED_GATE=0, armed date, 08-12 data -> OK
+  POSITIVE CONTROL (we beat both, armed)                       -> OK
+  no persistence row at all (armed)                            -> REFUSED
