@@ -46,12 +46,30 @@ const LAYER = process.env.LAYER || 'Waves';
   await page.goto(TARGET, { waitUntil: 'domcontentloaded', timeout: 90000 });
   await page.waitForTimeout(20000);
 
+  // ⛔ WORKLOAD CONTROL. A getParameter total is only comparable across runs if the same amount of
+  // texture work happened. Fewer textures created — a cold backend serving no field, say — would
+  // lower the total for a reason that has nothing to do with any optimisation. Report the counters
+  // so the denominator is visible instead of assumed.
+  const counters = () => page.evaluate(() => {
+    const g = window.__RAW_GPU__ || {};
+    const d = window.__WebGLMarineLayer_DIAG__ || {};
+    return { textureCount: g.textureCount, textureUploadCount: g.textureUploadCount,
+      encodeDupCount: g.encodeDupCount, vectors: d.backendGridVectorCount, waveData: d.waveDataPresent };
+  });
+  const before = await counters();
+
   await cdp.send('Profiler.start');
   const btn = page.locator('button', { hasText: new RegExp(`^${LAYER}$`) }).first();
   await btn.click();
   console.log(`profiling ${SECS}s from the moment ${LAYER} was activated (aria-pressed=${await btn.getAttribute('aria-pressed')})`);
   await page.waitForTimeout(SECS * 1000);
   const { profile } = await cdp.send('Profiler.stop');
+  const after = await counters();
+  console.log(`\nWORKLOAD  before: ${JSON.stringify(before)}`);
+  console.log(`WORKLOAD  after : ${JSON.stringify(after)}`);
+  console.log(`WORKLOAD  delta : textures +${(after.textureCount || 0) - (before.textureCount || 0)}`
+    + `  uploads +${(after.textureUploadCount || 0) - (before.textureUploadCount || 0)}`
+    + `  vectors ${after.vectors}`);
   await browser.close();
 
   // ---- aggregate SELF time per node -------------------------------------
@@ -96,6 +114,37 @@ const LAYER = process.env.LAYER || 'Waves';
     const orig = await resolve(r.url, r.line, r.col);
     const where = orig || `${(r.url || '(native)').split('/').pop()}:${r.line}:${r.col}`;
     console.log(`${ms.padStart(8)}ms ${pctv.padStart(5)}%  ${r.fn.padEnd(28)} ${where}`);
+  }
+
+  // ---- NAMED TOTALS: rank is not a measurement ----------------------------------------
+  // ⛔ A top-N list answers "what is biggest", NOT "did X change". Between two runs a cost can drop
+  // out of the top 22 because it shrank, because the workload shrank, OR because the sampler started
+  // attributing it to the JS caller instead of the native frame — and those look identical in a
+  // ranked list. Sum the ones under investigation explicitly, every run, at whatever rank.
+  const NAMED = ['getParameter', 'getImageData', 'drawImage', 'texImage2D', 'texSubImage2D', 'readPixels'];
+  console.log('\n=== NAMED NATIVE TOTALS (reported at any rank, so runs are comparable) ===');
+  for (const name of NAMED) {
+    const us = rows.filter((r) => r.fn === name).reduce((s, r) => s + r.us, 0);
+    const n = rows.filter((r) => r.fn === name).length;
+    console.log(`  ${name.padEnd(16)} ${(us / 1000).toFixed(1).padStart(8)}ms  ${((us / total) * 100).toFixed(2).padStart(5)}%  (${n} frame(s))`);
+  }
+  // The JS wrappers that CALL those natives — if a native total falls while its caller rises, the
+  // work moved in the attribution, it did not go away.
+  // ⛔ THE FIRST VERSION OF THIS BLOCK MATCHED ON `r.url`, WHICH IS THE BUNDLE PATH
+  // (`main.a4ced6ed.js`), NOT the original source. It matched nothing, printed nothing, and looked
+  // like "no JS callers found" instead of "this filter cannot work". Resolve first, then match.
+  // ★ A filter that can only ever return empty is not a measurement — and it fails silently.
+  const CALLERS = ['WebGLStateIsolation', 'WebGLMarineTextureState', 'marineMaskShelter',
+    'inlandWaterGuard', 'WebGLMarineMaskRenderer', 'WebGLWindUtils'];
+  const callerTotals = new Map(CALLERS.map((c) => [c, 0]));
+  for (const r of rows.slice(0, 80)) {
+    const orig = await resolve(r.url, r.line, r.col);
+    if (!orig) continue;
+    for (const c of CALLERS) if (orig.includes(c)) callerTotals.set(c, callerTotals.get(c) + r.us);
+  }
+  console.log('  -- JS callers of the above (resolved through source maps, top 80 frames) --');
+  for (const [c, us] of [...callerTotals].sort((a, b) => b[1] - a[1])) {
+    if (us > 0) console.log(`  ${c.padEnd(24)} ${(us / 1000).toFixed(1).padStart(8)}ms  ${((us / total) * 100).toFixed(2).padStart(5)}%`);
   }
 
   // ---- WINDOWED: what ran during the WORST stall, not just across the whole run ----------
