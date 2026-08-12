@@ -47,3 +47,47 @@ merely-truthy value (`1`) does not enable it. An instrument must not tax the pro
 Also pinned: identical inputs collapse to one distinct key, different geometry produces different
 keys (the hash discriminates), and a different `nPx` on identical pixels is a different key.
 A redundancy counter that could not tell two inputs apart would report 100% and be believed.
+
+---
+
+# ⚠️ THE MOVING CASE — 96% static vs 32% panning, measured as a within-run control
+
+Same session, same bundle, same backend, same product; 20 s per phase, the only difference being
+whether the map moves. A within-run control because comparing two separate runs would confound the
+difference with everything else that varies between runs.
+
+```
+A: STATIC viewport     calls=23   new-distinct= 1   repeats=22   redundancy=96%
+B: PANNING + zooming   calls=41   new-distinct=28   repeats=13   redundancy=32%
+                       (20 pan operations issued)
+```
+
+## Panning is worse on BOTH axes
+
+| | calls / 20 s | redundancy | cost | after a perfect cache |
+|---|---|---|---|---|
+| static | 23 | **96%** | ~54 ms/s | **~2 ms/s** |
+| panning | **41** | **32%** | **~96 ms/s** | ~65 ms/s |
+
+Motion nearly **doubles the call rate** *and* collapses the hit rate. ★ **The cache helps most
+exactly where it matters least.** Idle drops 27x; panning — when the user is most sensitive to
+frame time — drops only 1.5x, and the residual ~65 ms/s is worse than the static case was before
+any cache at all.
+
+## What this changes
+
+**Still do the cache.** It is cheap, safe against the existing 37-test suite, and removes 96% of
+idle work — and an idle or slowly-changing map is plausibly the dominant mode for a forecast reader.
+⛔ **But it does not solve the moving case, and the moving case is the expensive one.** Do not ship
+the cache and call the mask problem closed.
+
+The panning residual needs a different lever, and the measurement points at which:
+- **28 new distinct inputs in 20 s of motion** means the classifier is re-deciding a genuinely new
+  viewport roughly every 0.7 s. Classifying every intermediate frame of a continuous gesture is work
+  the user never sees settle. **Debouncing classification to viewport-settle** — the pattern
+  `useMarineScrubSettle.js` already establishes elsewhere in this codebase — would remove most of
+  those 28 without touching the algorithm.
+- Only after that is the chamfer/flood itself worth attacking.
+
+⚠️ Both figures are single 20 s phases on one machine. The static number moved 88% -> 96% between
+two runs, so treat these as ~90s and ~30s, not as three significant figures.
