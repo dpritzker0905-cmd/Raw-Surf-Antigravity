@@ -64,3 +64,52 @@ Optimise the classifier, not the readback. Candidates in order: reuse the downsa
 of `document.createElement` per call; skip re-classification when the canvas signature and bounds
 are unchanged between calls (37 calls in 30 s on a static viewport suggests substantial repeat
 work); then the chamfer itself. The two mask suites (32 tests, 6 mutation arms) are the net.
+
+---
+
+# ✅ VERIFIED ON PRODUCTION 2026-08-12 — deploy `7c967da1`
+
+Same probe, same viewport, same served product (vectors 289), against
+`https://dev--rawsurf.netlify.app/map` with the counter live in the deployed bundle. Real click this
+time — the class-less overlay that forced `element.click()` locally is not present on the deploy.
+
+```
+before activation      calls=ABSENT work=ABSENT   vectors=0
+t+5s                   calls=     8 work=     8   vectors=289
+t+15s                  calls=    18 work=    18
+t+30s                  calls=    33 work=    33
+
+burst  (0-5s)   : +8   (1.6 /s)
+settle (5-15s)  : +10  (1.0 /s)
+steady (15-30s) : +15  (1.0 /s)
+```
+
+## Four measurements, one number
+
+| source | 30 s total |
+|---|---|
+| production counter × per-call (33 × 46.7 ms) | **1.54 s** |
+| local build counter × per-call (37 × 46.7 ms) | 1.73 s |
+| CPU profile self-time at `marineMaskShelter.js:193` | 1.39–1.49 s |
+
+Production sits between the other two, all within ~11%. ★ **The local-vs-deployed caveat I flagged
+is now closed — it did not matter.** Every earlier mask number in this session collapsed under
+scrutiny; this one has held across four independent readings and two bundles.
+
+**Confirmed cost: ~1.1 calls/s × 46.7 ms ≈ 51 ms/s ≈ 5.1% of wall, sustained.** `calls == workCalls`
+at 33/33 — no call is refused by the guards, every entry pays in full. The classifier is 60% of
+each call, so the chamfer/flood/BFS is **~31 ms/s continuous**.
+
+And the shape is confirmed too: steady state (1.0 /s) matches settling (1.0 /s) and is within a
+factor of 1.6 of the activation burst. **Continuous, not front-loaded**, on production as locally.
+
+## ⚠️ My probe's first run reported the counter MISSING, and it was wrong
+
+It checked for `shelteredCalls` *before activation*, found `ABSENT`, and concluded the deploy did
+not carry the counter. But the counter is created by the first call, and no call happens until a
+layer is on — absence there is the expected state.
+
+★ **Absence must be judged AFTER the thing that creates the value.** I added the ABSENT-vs-ZERO
+distinction earlier this session precisely to stop absence being read as a measurement, then
+applied it at the wrong point and read it as a deployment failure. The distinction is necessary but
+not sufficient: *where* you test for absence decides what the answer means.
