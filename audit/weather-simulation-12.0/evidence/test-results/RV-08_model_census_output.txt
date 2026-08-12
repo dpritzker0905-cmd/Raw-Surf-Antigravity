@@ -1,0 +1,90 @@
+====================================================================================================
+RV-08  DEFAULT-MODEL CENSUS -- raw_surf (GFS, served) vs raw_surf:EURO
+====================================================================================================
+runs read: 17   with a paired table: 10   window: 2026-08-09 01:14 .. 2026-08-12 20:40
+(the paired table only exists from 60f724d0, 2026-08-10 12:37 -- earlier runs are
+ per-source only and cannot support a comparison; they are excluded, not counted as ties)
+
+====================================================================================================
+PART 1 -- STABILITY: the trailing-7d paired delta, run by run
+====================================================================================================
+
+  +24h   (delta = ours - EURO; POSITIVE means EURO is better)
+  run                     n      ours      EURO    delta    win%
+  2026-08-10 19:57      658     0.185     0.172   +0.013     47%
+  2026-08-11 03:08      894     0.179     0.167   +0.012     46%
+  2026-08-11 08:13     1067     0.182     0.169   +0.013     45%
+  2026-08-11 14:23     1210     0.181     0.169   +0.013     44%
+  2026-08-11 20:03     1390     0.177     0.167   +0.010     44%
+  2026-08-12 03:28     1567     0.178     0.166   +0.011     43%
+  2026-08-12 08:36     1743     0.181     0.167   +0.014     44%
+  2026-08-12 14:23     1918     0.184     0.168   +0.016     43%
+  2026-08-12 20:03     2092     0.184     0.166   +0.018     43%
+  2026-08-12 20:40     2092     0.184     0.166   +0.018     43%
+  ---> EURO better in 10 of 10 runs | delta min +0.010 max +0.018 mean +0.014
+
+  +48h   (delta = ours - EURO; POSITIVE means EURO is better)
+  run                     n      ours      EURO    delta    win%
+  2026-08-10 19:57      657     0.231     0.191   +0.040     43%
+  2026-08-11 03:08      834     0.217     0.190   +0.027     44%
+  2026-08-11 08:13     1007     0.215     0.197   +0.018     45%
+  2026-08-11 14:23     1125     0.210     0.197   +0.013     45%
+  2026-08-11 20:03     1283     0.204     0.198   +0.006     46%
+  2026-08-12 03:28     1519     0.198     0.199   -0.001     47%
+  2026-08-12 08:36     1695     0.199     0.200   -0.000     46%
+  2026-08-12 14:23     1870     0.201     0.198   +0.003     46%
+  2026-08-12 20:03     2044     0.201     0.195   +0.006     46%
+  2026-08-12 20:40     2044     0.201     0.195   +0.006     46%
+  ---> EURO better in 8 of 10 runs | delta min -0.001 max +0.040 mean +0.012
+
+  +72h   (delta = ours - EURO; POSITIVE means EURO is better)
+  run                     n      ours      EURO    delta    win%
+  2026-08-10 19:57      554     0.225     0.194   +0.031     45%
+  2026-08-11 03:08      731     0.212     0.194   +0.018     46%
+  2026-08-11 08:13      904     0.210     0.201   +0.010     47%
+  2026-08-11 14:23     1022     0.212     0.200   +0.012     46%
+  2026-08-11 20:03     1180     0.214     0.201   +0.013     47%
+  2026-08-12 03:28     1357     0.212     0.202   +0.010     47%
+  2026-08-12 08:36     1585     0.215     0.204   +0.011     47%
+  2026-08-12 14:23     1728     0.215     0.204   +0.012     47%
+  2026-08-12 20:03     1882     0.215     0.202   +0.014     47%
+  2026-08-12 20:40     1882     0.215     0.202   +0.014     47%
+  ---> EURO better in 10 of 10 runs | delta min +0.010 max +0.031 mean +0.014
+
+====================================================================================================
+PART 2 -- CONTROLS: the same statistic for lanes whose answer we already know
+====================================================================================================
+  raw_surf:ICON        +24h  n_runs=10  delta mean -0.136  [they beat us in 0 of 10]   we should WIN (ICON is the weak lane)
+  open_meteo_marine    +24h  n_runs=10  delta mean +0.038  [they beat us in 10 of 10]   we should LOSE (known since 08-10)
+  persistence          +24h  n_runs=10  delta mean -0.003  [they beat us in 4 of 10]   the skill floor
+
+====================================================================================================
+PART 3 -- SHAPE: where the difference lives (live calibration report)
+====================================================================================================
+  snapshot generated_at 2026-08-12T18:48:27   (n~34 per cell -- SHAPE only, never stability)
+
+  lead   | raw_surf (GFS, SERVED)           | raw_surf:EURO                   
+         |      mae     bias      si   corr |      mae     bias      si   corr
+  +24   |    0.178   -0.038   0.244  0.934 |    0.130   +0.044   0.205  0.952
+  +48   |    0.181   +0.015   0.269  0.920 |    0.131   +0.090   0.188  0.957
+  +72   |    0.184   +0.010   0.300  0.924 |    0.152   +0.106   0.218  0.943
+
+  OBSERVED-HEIGHT BANDS (the tail question -- MAE alone hides it)
+
+   +24h  band                 n |  GFS mae  GFS bias | EURO mae EURO bias | winner
+        flat <0.5m           6 |    0.102    +0.005 |    0.067    -0.014 | EURO
+        small 0.5-1.5m      24 |    0.182    -0.078 |    0.122    +0.052 | EURO
+        rideable 1.5-3m      4 |    0.267    +0.139 |    0.270    +0.085 | GFS
+        big 3m+              - | NOT SAMPLED in this snapshot
+
+   +48h  band                 n |  GFS mae  GFS bias | EURO mae EURO bias | winner
+        flat <0.5m           6 |    0.087    +0.073 |    0.077    +0.050 | EURO
+        small 0.5-1.5m      24 |    0.177    -0.031 |    0.117    +0.100 | EURO
+        rideable 1.5-3m      4 |    0.344    +0.201 |    0.295    +0.086 | EURO
+        big 3m+              - | NOT SAMPLED in this snapshot
+
+   +72h  band                 n |  GFS mae  GFS bias | EURO mae EURO bias | winner
+        flat <0.5m           5 |    0.053    +0.017 |    0.093    +0.035 | GFS
+        small 0.5-1.5m      24 |    0.160    -0.045 |    0.142    +0.120 | EURO
+        rideable 1.5-3m      4 |    0.494    +0.332 |    0.289    +0.113 | EURO
+        big 3m+              - | NOT SAMPLED in this snapshot

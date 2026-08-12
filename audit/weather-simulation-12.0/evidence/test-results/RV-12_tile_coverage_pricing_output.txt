@@ -1,0 +1,56 @@
+==================================================================================================
+RV-12  TILE-COVERAGE PRICING
+==================================================================================================
+catalogue: 1773 spots with coordinates | 14 regions, 3 per fire, 3 fires/day
+
+COVERED    1041 spots (58.7%)
+UNCOVERED   732 spots (41.3%)  <- served from the coarse global grid
+
+--- demand actually served by each existing region ---
+  region                         spots     deg^2     cells spots/1k cells
+  ww:iberia_west                   204      40.0       640        318.8
+  core:florida_east_coast          130      42.0       672        193.5
+  ww:uk_ireland                    107     120.0      1920         55.7
+  ww:us_southeast_midatlantic       91      49.4       790        115.1
+  ww:mexico_centralamerica_pac      83     286.0      4576         18.1
+  core:us_west_coast_socal          72      80.0      1280         56.2
+  ww:indonesia                      68     286.0      4576         14.9
+  ww:azores                         57      23.8       380        149.8
+  ww:us_northeast                   54      50.4       807         67.0
+  ww:hawaii                         45      35.0       560         80.4
+  ww:france_biscay                  45      44.1       706         63.8
+  ww:east_australia                 41      78.0      1248         32.9
+  ww:brazil_east                    24     360.0      5760          4.2
+  ww:south_africa                   20      44.0       704         28.4
+
+--- WHERE THE UNCOVERED DEMAND IS (5deg x 5deg bins, top 15) ---
+  bin (S,W)            spots     cells example spot                 country/region
+  +15,-70                 24       400 Aguadilla - Gas Chambers     Puerto Rico
+  +30,-20                 23       400 BANDA D'ALÉM                 Portugal
+  +30,-10                 22       400 Agadir Beach                 Souss-Massa
+  +5,-85                  22       400 Bocas del Toro - Bluff Beach Bocas del Toro
+  +5,+80                  20       400 Arugam Bay - Baby Point      Eastern Province
+  +30,-90                 20       400 Casino Beach                 Florida
+  -30,-50                 19       400 Armação                      Santa Catarina
+  +0,+70                  17       400 Beacons                      Maldives
+  +15,-65                 13       400 Apple Bay                    Tortola
+  -35,-75                 13       400 Cahuil                       O'Higgins
+  -20,+175                13       400 Cloudbreak                   Western
+  -15,-175                12       400 Aganoa                       Upolu
+  +5,+95                  12       400 Ao Mae Khao Beach            Thailand
+  +25,-100                12       400 Bryan Beach                  Texas
+  +20,+120                12       400 Changbin                     Taitung County
+  ---> top 15 bins hold 254 of 732 uncovered spots (34.7%)
+
+==================================================================================================
+THE PRICE: closing the top-N uncovered bins as new 5deg regions
+==================================================================================================
+  existing estate: 2 core (every fire) + 12 worldwide (3/fire, 32 h), 22667 cells total
+
+    new    spots  cum cover     cells     regions per_cycle cadence h
+    new   closed     of all     added       total    needed (<=32 required)
+      3       69      62.6%      1200          15         4 32
+      5      111      65.0%      2000          17         5 32
+      8      167      68.1%      3200          20         5 32
+     10      193      69.6%      4000          22         6 32
+     15      254      73.0%      6000          27         7 32

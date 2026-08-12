@@ -1,0 +1,26 @@
+probe at valid_time 2026-08-12T21:00:00Z over 60 buoys, GFS + EURO
+
+================================================================================================
+THE GFS LANE, GROUPED BY WHAT THE **EURO** LANE SERVED AT THE SAME SITE
+================================================================================================
+EURO provider at the site   sites | what the GFS lane served there
+copernicus                     20 | provider {'open-meteo': 3, 'noaa': 17} | GFS is_estimated 0/20 | coverage {'coarse_gap_direct_point': 3, 'inside_global_coarse': 17}
+ecmwf                          34 | provider {'noaa': 34} | GFS is_estimated 0/34 | coverage {'inside_global_coarse': 15, 'inside_regional_tile': 19}
+gfs_estimated_fallback          6 | provider {'noaa': 5, 'open-meteo': 1} | GFS is_estimated 0/6 | coverage {'inside_global_coarse': 5, 'inside_served_bbox': 1}
+
+================================================================================================
+THE DISCRIMINATOR: is the GFS lane serving an ESTIMATED product where EURO leaves ecmwf?
+================================================================================================
+  EURO routed AWAY from ecmwf    n=26 | GFS is_estimated 0 | GFS resolution null 26 | GFS stale 0
+  EURO served by ecmwf           n=34 | GFS is_estimated 0 | GFS resolution null 34 | GFS stale 0
+
+  sample of 8 sites where EURO left ecmwf:
+  buoy     EURO provider          GFS estim?   GFS provider           GFS coverage
+  42035    copernicus             False        open-meteo             coarse_gap_direct_point
+  46022    copernicus             False        noaa                   inside_global_coarse
+  46050    copernicus             False        noaa                   inside_global_coarse
+  45029    copernicus             False        noaa                   inside_global_coarse
+  45186    gfs_estimated_fallback False        noaa                   inside_global_coarse
+  44063    gfs_estimated_fallback False        noaa                   inside_global_coarse
+  45135    copernicus             False        noaa                   inside_global_coarse
+  45147    copernicus             False        noaa                   inside_global_coarse
