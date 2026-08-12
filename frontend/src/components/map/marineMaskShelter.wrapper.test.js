@@ -275,4 +275,50 @@ describe('suppressShelteredWater — canvas wrapper', () => {
       expect(window.__RAW_GPU__.shelteredCalls).toBe(1);
     });
   });
+
+  // ---- input-redundancy instrument ----
+  // Measures how much of the classifier's work is re-deciding unchanged input. It hashes 500k+
+  // bytes per call, so "off by default" is a correctness property of the instrument itself, not a
+  // preference: an instrument must not tax the product.
+
+  describe('__RAW_GPU__.shelteredInputs (redundancy instrument)', () => {
+    beforeEach(() => { window.__RAW_GPU__ = {}; });
+    afterEach(() => { delete window.__RAW_MASK_INPUT_HASH__; });
+
+    it('is OFF by default — no hashing, no bucket', () => {
+      run(NARROW);
+      expect(window.__RAW_GPU__.shelteredInputs).toBeUndefined();
+    });
+
+    it('stays off when the flag is merely truthy-adjacent, not exactly true', () => {
+      window.__RAW_MASK_INPUT_HASH__ = 1;
+      run(NARROW);
+      expect(window.__RAW_GPU__.shelteredInputs).toBeUndefined();
+    });
+
+    it('IDENTICAL inputs count as one distinct key and a repeat', () => {
+      window.__RAW_MASK_INPUT_HASH__ = true;
+      run(NARROW); run(NARROW); run(NARROW);
+      const m = window.__RAW_GPU__.shelteredInputs;
+      expect(m.total).toBe(3);
+      expect(m.distinct).toBe(1);
+      expect(m.repeats).toBe(2);
+    });
+
+    it('DIFFERENT geometry yields a different key — the hash actually discriminates', () => {
+      window.__RAW_MASK_INPUT_HASH__ = true;
+      run(NARROW); run(WIDE);
+      const m = window.__RAW_GPU__.shelteredInputs;
+      expect(m.total).toBe(2);
+      expect(m.distinct).toBe(2);
+      expect(m.repeats).toBe(0);
+    });
+
+    it('a different nPx is a different key even on identical pixels', () => {
+      window.__RAW_MASK_INPUT_HASH__ = true;
+      run(NARROW, { gapM: 1000 });   // nPx 1
+      run(NARROW, { gapM: 4000 });   // nPx 4
+      expect(window.__RAW_GPU__.shelteredInputs.distinct).toBe(2);
+    });
+  });
 });

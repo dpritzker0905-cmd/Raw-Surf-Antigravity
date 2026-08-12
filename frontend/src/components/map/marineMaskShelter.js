@@ -243,6 +243,26 @@ export function suppressShelteredWater(canvas, bounds, opts) {
   const size = dsW * dsH;
   const water = new Uint8Array(size);
   for (let i = 0; i < size; i++) water[i] = px[i * 4] >= 128 ? 1 : 0;
+  // ⭐ INPUT-REDUNDANCY INSTRUMENT (2026-08-12) — OFF unless `__RAW_MASK_INPUT_HASH__ === true`.
+  // Frequency is measured at ~1.1 calls/s sustained on a STATIC viewport, which suggests the
+  // classifier is re-deciding unchanged input. Before writing a cache, measure how much of the work
+  // is actually redundant — "most of it, surely" is the kind of unmeasured assumption that has been
+  // wrong five times in this session.
+  // The key is the classifier's COMPLETE input: `classifySheltered` is pure, so identical
+  // (water, nPx, dims) means identical output by definition. That is also exactly the cache key a
+  // real implementation would need, so measuring it prices the fix at the same time.
+  // ⚠️ It hashes 500k+ bytes per call (~5% of the 46.7 ms), so it must never be on by default —
+  // an instrument must not tax the product.
+  if (typeof window !== 'undefined' && window.__RAW_MASK_INPUT_HASH__ === true) {
+    let _h = 0x811c9dc5;
+    for (let i = 0; i < size; i++) { _h ^= water[i]; _h = Math.imul(_h, 0x01000193); }
+    const _key = `${(_h >>> 0).toString(36)}:${nPx}:${dsW}x${dsH}`;
+    const _g = window.__RAW_GPU__ || (window.__RAW_GPU__ = {});
+    const _m = _g.shelteredInputs || (_g.shelteredInputs = { total: 0, distinct: 0, repeats: 0, keys: {} });
+    _m.total++;
+    if (_m.keys[_key] === undefined) { _m.keys[_key] = 0; _m.distinct++; } else { _m.repeats++; }
+    _m.keys[_key]++;
+  }
   const doStash = !opts || opts.stash !== false;
   const { sheltered, count } = classifySheltered(water, dsW, dsH, nPx);
   if (!count) {
