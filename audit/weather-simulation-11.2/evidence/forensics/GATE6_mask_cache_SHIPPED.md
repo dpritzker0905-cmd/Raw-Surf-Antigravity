@@ -56,3 +56,41 @@ the part that could ship a bug.
 Panning remains **~85 ms/s** after the cache — worse than static was before it. That needs the
 debounce-to-settle lever, not a bigger cache: 28 new distinct inputs in 20 s of motion is the
 classifier re-deciding viewports the user never sees settle.
+
+---
+
+# ⛔ MY CACHE PROOF WAS A TAUTOLOGY — caught by audit 11.4, not by me
+
+The headline test, *"a HIT produces byte-identical stamped pixels to the MISS before it"*, compared
+one canvas **with itself**.
+
+`created` accumulates across `run()` calls but is reset per TEST, so `return { ds: created[0] }`
+handed back the FIRST run's downsample canvas for every later run in the same test. Both sides of my
+pixel comparison were the same object. Audit 11.4 found it and fixed it to `created[before]` —
+capture the index THIS call will write to.
+
+**A verdict cache returning an all-zero, an all-one, or a fully INVERTED mask on every hit passed
+all 32 tests.** That is not a weak assertion. It is an assertion that cannot fail — the exact defect
+class this entire session was about, shipped by the person cataloguing it.
+
+## The code was right; the proof was not
+
+Re-run against the FIXED harness, the same three corruptions now fail 2 tests each:
+
+| mutant | broken harness | fixed harness |
+|---|---|---|
+| hit returns all-zero mask | **passed 32/32** | fails 2 |
+| hit returns inverted mask | **passed 32/32** | fails 2 |
+| hit returns all-one mask | **passed 32/32** | fails 2 |
+
+And the shipped cache still passes 43/43 with a harness that can now fail. **The cache in
+`e6033e2b` is correct** — that is now established rather than assumed.
+
+## The lesson is narrower and worse than "test your tests"
+
+Every mutation arm I ran on this cache (drop `nPx`, blind lookup, ignored kill switch) DID fail
+tests — so mutation testing did not save me. Those three mutants happened to break paths the
+tautological assertion did not cover, which made the harness look sound.
+★ **A mutation arm proves the mutant is caught. It says nothing about the assertions it did not
+touch.** Coverage of mutants is not coverage of assertions, and a fixture that returns the wrong
+object will pass every mutant that does not depend on that object.

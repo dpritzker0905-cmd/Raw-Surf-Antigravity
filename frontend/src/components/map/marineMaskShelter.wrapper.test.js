@@ -116,11 +116,18 @@ describe('suppressShelteredWater — canvas wrapper', () => {
   });
   afterEach(() => { jest.restoreAllMocks(); delete window.__RAW_SHELTERED_GAP_M__; });
 
+  // ⚠️ `created` ACCUMULATES across run() calls — it is reset per TEST, not per run. Returning
+  // `created[0]` therefore handed back the FIRST run's downsample canvas for every later run in the
+  // same test, so any hit-vs-miss pixel comparison compared one canvas with ITSELF. That is not a
+  // weak assertion, it is a tautology: audit 11.4 showed a verdict cache returning an all-zero, an
+  // all-one, or a fully INVERTED mask on every hit passed all 32 tests (mutants M2/M8/M9/M10).
+  // ★ Capture the index THIS call will write to, so the canvas returned is the one it stamped.
   const run = (rows, opts, bounds = BOUNDS, srcW = W, srcH = H) => {
     created.__rows = rows;
+    const before = created.length;
     const src = recordingCanvas(srcW, srcH, rows);
     const result = suppressShelteredWater(src.canvas, bounds, opts);
-    return { result, src, ds: created[0] };
+    return { result, src, ds: created[before] };
   };
 
   // ---- guards: the boundaries an optimisation is most likely to "tidy" ----
