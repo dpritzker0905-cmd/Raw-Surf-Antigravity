@@ -1,4 +1,4 @@
-import { suppressShelteredWater } from './marineMaskShelter';
+import { suppressShelteredWater, _resetShelterCache } from './marineMaskShelter';
 
 /**
  * `suppressShelteredWater` — the CANVAS WRAPPER around classifySheltered.
@@ -101,6 +101,9 @@ describe('suppressShelteredWater — canvas wrapper', () => {
   let origCreateElement;
 
   beforeEach(() => {
+    // The verdict cache is MODULE state. Without this, case N's entries answer case N+1 and a
+    // broken cache would be hidden by whichever test happened to run first.
+    _resetShelterCache();
     created = [];
     origCreateElement = document.createElement.bind(document);
     jest.spyOn(document, 'createElement').mockImplementation((tag) => {
@@ -319,6 +322,67 @@ describe('suppressShelteredWater — canvas wrapper', () => {
       run(NARROW, { gapM: 1000 });   // nPx 1
       run(NARROW, { gapM: 4000 });   // nPx 4
       expect(window.__RAW_GPU__.shelteredInputs.distinct).toBe(2);
+    });
+  });
+
+  // ---- the verdict cache ----
+  // ★ The correctness property is not "it is fast", it is "a HIT is indistinguishable from a MISS".
+  //   Everything else about the cache is an optimisation detail; this is the part that can ship a bug.
+
+  describe('verdict cache', () => {
+    beforeEach(() => { window.__RAW_GPU__ = {}; });
+    afterEach(() => { delete window.__RAW_DISABLE_SHELTER_CACHE__; });
+
+    it('★ a HIT produces byte-identical stamped pixels to the MISS before it', () => {
+      const first = run(NARROW);
+      const missPixels = Uint8ClampedArray.from(first.ds.imageData().data);
+      const second = run(NARROW);
+      const hitPixels = second.ds.imageData().data;
+      expect(window.__RAW_GPU__.shelterCache).toEqual(expect.objectContaining({ miss: 1, hit: 1 }));
+      expect(Array.from(hitPixels)).toEqual(Array.from(missPixels));
+    });
+
+    it('★ a HIT returns the same verdict fields as the MISS', () => {
+      const a = run(NARROW).result;
+      const b = run(NARROW).result;
+      expect(b).toEqual(a);
+    });
+
+    it('the cached mask is POST-close — a hit must not skip the close and leak a raw mask', () => {
+      // Close is idempotent on a closed mask, so miss-then-hit and miss-then-miss must agree.
+      const miss1 = Uint8ClampedArray.from(run(NARROW).ds.imageData().data);
+      const hit = Uint8ClampedArray.from(run(NARROW).ds.imageData().data);
+      _resetShelterCache();
+      const miss2 = Uint8ClampedArray.from(run(NARROW).ds.imageData().data);
+      expect(Array.from(hit)).toEqual(Array.from(miss2));
+      expect(Array.from(miss1)).toEqual(Array.from(miss2));
+    });
+
+    it('different inputs do NOT collide — WIDE must not be served the NARROW verdict', () => {
+      const narrow = run(NARROW).result;
+      const wide = run(WIDE).result;
+      expect(narrow.shelteredFrac).toBeGreaterThan(0);
+      expect(wide.shelteredFrac).toBe(0);
+      expect(window.__RAW_GPU__.shelterCache.hit).toBe(0);
+    });
+
+    it('the kill switch restores the pre-cache path — every call a miss', () => {
+      window.__RAW_DISABLE_SHELTER_CACHE__ = true;
+      const a = run(NARROW).result;
+      const b = run(NARROW).result;
+      expect(b).toEqual(a);
+      expect(window.__RAW_GPU__.shelterCache).toEqual(expect.objectContaining({ hit: 0, miss: 2 }));
+    });
+
+    it('evicts least-recently-used beyond the cap, and the evicted key recomputes correctly', () => {
+      const fixtures = [NARROW, WIDE];
+      // 5 distinct keys through a cap of 4: vary nPx via gapM so the pixels can stay the same.
+      [1000, 2000, 3000, 4000, 5000].forEach((gapM) => run(fixtures[0], { gapM }));
+      expect(window.__RAW_GPU__.shelterCache.size).toBeLessThanOrEqual(4);
+      // The first key was evicted, so it recomputes — and must still be correct.
+      const again = run(NARROW, { gapM: 1000 }).result;
+      expect(again.nPx).toBe(1);
+      expect(again.shelteredFrac).toBeGreaterThan(0);
     });
   });
 });

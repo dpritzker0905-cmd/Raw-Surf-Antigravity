@@ -186,6 +186,71 @@ export function applyCachedShelteredVerdict(canvas, bounds) {
   }
 }
 
+// MORPHOLOGICAL CLOSE (dilate+erode by 1, 4-neighbour): a sub-pixel canal (Canal Grande is
+// ~60 m vs 76 m/px ds) samples as a BROKEN run — the gap pixels read as land, never classify,
+// and re-open as mottled wash blocks at deep zoom (live 2026-07-04). Closing bridges 1-2 px
+// gaps without moving the outer sheltered boundary (dilate-then-erode is identity on solid
+// blobs). Bridged pixels can lie on ds-land — harmless: 0.25 sits below every render threshold
+// and the crisp-canvas darken path min()s against true land anyway.
+// Extracted from suppressShelteredWater 2026-08-12 so the verdict CACHE can store the POST-close
+// mask and a hit skips this too. Mutates `sheltered` in place, exactly as the inline block did.
+export function _closeShelteredMask(sheltered, dsW, dsH) {
+  const size = dsW * dsH;
+  const dil = new Uint8Array(size);
+  for (let y = 0; y < dsH; y++) {
+    for (let x = 0; x < dsW; x++) {
+      const i = y * dsW + x;
+      if (!sheltered[i]) continue;
+      dil[i] = 1;
+      if (x > 0) dil[i - 1] = 1;
+      if (x < dsW - 1) dil[i + 1] = 1;
+      if (y > 0) dil[i - dsW] = 1;
+      if (y < dsH - 1) dil[i + dsW] = 1;
+    }
+  }
+  for (let y = 0; y < dsH; y++) {
+    for (let x = 0; x < dsW; x++) {
+      const i = y * dsW + x;
+      if (!dil[i]) { sheltered[i] = 0; continue; }
+      sheltered[i] = ((x === 0 || dil[i - 1]) && (x === dsW - 1 || dil[i + 1]) &&
+                      (y === 0 || dil[i - dsW]) && (y === dsH - 1 || dil[i + dsW])) ? 1 : 0;
+    }
+  }
+}
+
+// --- verdict cache -----------------------------------------------------------------------
+// Small LRU. Each entry holds a Uint8Array of dsW*dsH — 512 KB at the 1024x512 cap — so the cap is
+// deliberately tiny: 4 entries is ~2 MB, and the measured working set on a static viewport was ONE
+// distinct input in 20 s (4 across 30 s including transients).
+const _SHELTER_CACHE_CAP = 4;
+const _shelterCache = new Map();   // key -> { sheltered, count }
+
+function _shelterCacheGet(key) {
+  const v = _shelterCache.get(key);
+  if (v === undefined) return null;
+  _shelterCache.delete(key);        // re-insert = most-recently-used
+  _shelterCache.set(key, v);
+  return v;
+}
+
+function _shelterCacheSet(key, sheltered, count) {
+  _shelterCache.set(key, { sheltered, count });
+  while (_shelterCache.size > _SHELTER_CACHE_CAP) {
+    _shelterCache.delete(_shelterCache.keys().next().value);   // evict least-recently-used
+  }
+}
+
+function _shelterCacheStat(kind) {
+  if (typeof window === 'undefined') return;
+  const g = window.__RAW_GPU__ || (window.__RAW_GPU__ = {});
+  const c = g.shelterCache || (g.shelterCache = { hit: 0, miss: 0 });
+  c[kind]++;
+  c.size = _shelterCache.size;
+}
+
+/** Test seam: the cache is module state and would otherwise leak between cases. */
+export function _resetShelterCache() { _shelterCache.clear(); }
+
 // Canvas wrapper: downsample the finished mask, classify, and repaint enclosed water to 0.25.
 // Close-zoom tiers only (<10° span) — coarser masks can't resolve entrance widths anyway.
 // opts.gapM overrides the channel gap (the NARROW-WATER pass reuses this whole pipeline at
@@ -253,51 +318,59 @@ export function suppressShelteredWater(canvas, bounds, opts) {
   // real implementation would need, so measuring it prices the fix at the same time.
   // ⚠️ It hashes 500k+ bytes per call (~5% of the 46.7 ms), so it must never be on by default —
   // an instrument must not tax the product.
-  if (typeof window !== 'undefined' && window.__RAW_MASK_INPUT_HASH__ === true) {
+  // ⭐ VERDICT CACHE. `classifySheltered` is pure, so identical (water, nPx, dims) gives an
+  // identical verdict by definition — measured 96% redundant on a static viewport, 32% while
+  // panning (GATE6_mask_input_redundancy_MEASURED.md).
+  //
+  // ⚠️ WHAT A HIT ACTUALLY SAVES, because I over-claimed this once: NOT the whole 46.7 ms call.
+  // The downsample (11.7 ms) and the readback (4.5 ms) must still happen to produce the pixels the
+  // key is computed FROM, and the stamp-back still has to paint. A hit skips the classifier
+  // (28 ms) and the morphological close — roughly 60% of a call, not 100%. Eliding the whole call
+  // would need a content signature from upstream of the readback, which this does not attempt.
+  //
+  // Cost of the key: one FNV-1a pass over ~500k bytes, ~2.3 ms, paid on EVERY call including
+  // misses. Worth it at both measured hit rates (96% -> ~+24.6 ms/call, 32% -> ~+6.7 ms/call), but
+  // it is a real tax and the kill switch below restores the pre-cache path exactly.
+  // Kill: `__RAW_DISABLE_SHELTER_CACHE__ = true`.
+  const _cacheOn = !(typeof window !== 'undefined' && window.__RAW_DISABLE_SHELTER_CACHE__ === true);
+  let _key = null;
+  if (_cacheOn) {
     let _h = 0x811c9dc5;
     for (let i = 0; i < size; i++) { _h ^= water[i]; _h = Math.imul(_h, 0x01000193); }
-    const _key = `${(_h >>> 0).toString(36)}:${nPx}:${dsW}x${dsH}`;
-    const _g = window.__RAW_GPU__ || (window.__RAW_GPU__ = {});
-    const _m = _g.shelteredInputs || (_g.shelteredInputs = { total: 0, distinct: 0, repeats: 0, keys: {} });
-    _m.total++;
-    if (_m.keys[_key] === undefined) { _m.keys[_key] = 0; _m.distinct++; } else { _m.repeats++; }
-    _m.keys[_key]++;
+    _key = `${(_h >>> 0).toString(36)}:${nPx}:${dsW}x${dsH}`;
+    // Redundancy stats stay behind their own flag — they are diagnostics, not the cache.
+    if (typeof window !== 'undefined' && window.__RAW_MASK_INPUT_HASH__ === true) {
+      const _g = window.__RAW_GPU__ || (window.__RAW_GPU__ = {});
+      const _m = _g.shelteredInputs || (_g.shelteredInputs = { total: 0, distinct: 0, repeats: 0, keys: {} });
+      _m.total++;
+      if (_m.keys[_key] === undefined) { _m.keys[_key] = 0; _m.distinct++; } else { _m.repeats++; }
+      _m.keys[_key]++;
+    }
   }
   const doStash = !opts || opts.stash !== false;
-  const { sheltered, count } = classifySheltered(water, dsW, dsH, nPx);
+
+  let sheltered, count;
+  const _hit = _key !== null ? _shelterCacheGet(_key) : null;
+  if (_hit) {
+    // The cached mask is POST-close, so a hit skips the close too. Nothing downstream mutates
+    // `sheltered` — the stamp loop only reads it — so the stored array is handed out directly.
+    sheltered = _hit.sheltered;
+    count = _hit.count;
+    _shelterCacheStat('hit');
+  } else {
+    const _r = classifySheltered(water, dsW, dsH, nPx);
+    sheltered = _r.sheltered;
+    count = _r.count;
+    if (count) _closeShelteredMask(sheltered, dsW, dsH);
+    if (_key !== null) _shelterCacheSet(_key, sheltered, count);
+    _shelterCacheStat('miss');
+  }
+
   if (!count) {
     // Stash the ALL-OPEN verdict too: a crisp canvas inside this region must prefer "nothing
     // sheltered here" over a coarser stale entry that might still contain it.
     if (doStash) stashBasinVerdict({ bounds: { ...bounds }, mPerPx: Math.round(mPerPx), ds: null, dsW, dsH, count: 0 });
     return { applied: true, shelteredFrac: 0, nPx, mPerPx: Math.round(mPerPx) };
-  }
-  // MORPHOLOGICAL CLOSE (dilate+erode by 1, 4-neighbour): a sub-pixel canal (Canal Grande is
-  // ~60 m vs 76 m/px ds) samples as a BROKEN run — the gap pixels read as land, never classify,
-  // and re-open as mottled wash blocks at deep zoom (live 2026-07-04). Closing bridges 1-2 px
-  // gaps without moving the outer sheltered boundary (dilate-then-erode is identity on solid
-  // blobs). Bridged pixels can lie on ds-land — harmless: 0.25 sits below every render threshold
-  // and the crisp-canvas darken path min()s against true land anyway.
-  {
-    const dil = new Uint8Array(size);
-    for (let y = 0; y < dsH; y++) {
-      for (let x = 0; x < dsW; x++) {
-        const i = y * dsW + x;
-        if (!sheltered[i]) continue;
-        dil[i] = 1;
-        if (x > 0) dil[i - 1] = 1;
-        if (x < dsW - 1) dil[i + 1] = 1;
-        if (y > 0) dil[i - dsW] = 1;
-        if (y < dsH - 1) dil[i + dsW] = 1;
-      }
-    }
-    for (let y = 0; y < dsH; y++) {
-      for (let x = 0; x < dsW; x++) {
-        const i = y * dsW + x;
-        if (!dil[i]) { sheltered[i] = 0; continue; }
-        sheltered[i] = ((x === 0 || dil[i - 1]) && (x === dsW - 1 || dil[i + 1]) &&
-                        (y === 0 || dil[i - dsW]) && (y === dsH - 1 || dil[i + dsW])) ? 1 : 0;
-      }
-    }
   }
   // Paint enclosed water 0.25 (64) and stamp back at full resolution, hard-edged.
   for (let i = 0; i < size; i++) {
