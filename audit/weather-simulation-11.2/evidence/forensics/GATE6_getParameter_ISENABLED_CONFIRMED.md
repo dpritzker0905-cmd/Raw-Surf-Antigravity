@@ -41,8 +41,44 @@ work until determinism is settled.
 
 The failing hook is `page.goto('/auth', { waitUntil: 'domcontentloaded' })` timing out at 90 s —
 the auth page, which loads no WebGL, no MapLibre, and none of the changed files. The other failures
-are `booking-flow.spec.js` (auth gating, spot cards, nav). A `domcontentloaded` timeout means the
-site was not serving.
-★ **Every push to `dev` redeploys both Netlify and Render AND starts an E2E run against those same
-live deployments — the suite races its own deploy.** That is a structural CI defect, not a code
-defect, and it will keep producing red runs that look like regressions.
+are `booking-flow.spec.js` (auth gating, spot cards, nav). That part stands.
+
+### ⛔ RETRACTED: "the suite races its own deploy"
+
+**This claim was published here and is WRONG.** The original text asserted a structural CI race —
+that a push starts E2E and the deploys simultaneously. It does not. `e2e-tests.yml` already gates on
+BOTH deployments, added 2026-08-07/08-10 with the rationale written into the file. The failing run's
+own log proves the gates worked:
+
+```
+02:11:52  deployed build 286a4e6b matches the commit under test
+02:13:11  Wait for the Render backend to serve THIS commit   (passed in ~2 s)
+02:13:13  Running 52 tests using 1 worker
+```
+
+★ **I proposed fixing something the file already warns against fixing.** `e2e-tests.yml` contains
+explicit notes that raising timeouts "COULD NOT FIX THIS and twice did not", and that
+`cancel-in-progress: true` is correct and must stay. Reading the workflow BEFORE diagnosing it would
+have cost one minute.
+
+### The likely cause was me
+
+Timing, from the run log against this session's own commands:
+
+| time | event |
+|---|---|
+| 02:13–02:14 | Mobile Safari passing |
+| 02:17:59 | this session's cadence sample — a 15.7 MB catalog fetch off the Render box |
+| 02:20–02:45 | this session's CPU profiles and micro-benchmarks — repeated `/map` loads, marine grid fetches, 30 s headed sessions |
+| 02:22–02:33 | Desktop Firefox failing, 90 s `page.goto` timeouts |
+| 02:35–02:38 | Desktop Safari failing |
+
+E2E drives the **live shared deployment** on a **1-CPU Render box**. Profiling that same deployment
+concurrently is load-testing the thing under test. ⚠️ Timing-consistent and mechanistically
+plausible; **not proven** — no per-request attribution was collected.
+
+★ **OPERATIONAL RULE: do not run browser harnesses or profilers against `dev--rawsurf.netlify.app`
+or the Render backend while an E2E run is in flight.** Check with
+`gh run list --workflow="E2E Tests" --limit 1` first. The suite cannot distinguish your load from a
+regression, and a red run costs the next session an hour of misdiagnosis — as it nearly cost this
+one, twice: first blaming the code, then blaming the CI.
