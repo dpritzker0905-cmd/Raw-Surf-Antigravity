@@ -10,7 +10,7 @@
     },
     {
       "name": "backend",
-      "runtimeExecutable": "python",
+      "runtimeExecutable": "C:/Users/dprit/AppData/Local/Python/pythoncore-3.14-64/python.exe",
       "runtimeArgs": ["backend/server.py"],
       "port": 8000
     },
