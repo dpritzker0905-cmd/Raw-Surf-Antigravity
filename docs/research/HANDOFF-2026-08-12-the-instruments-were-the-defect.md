@@ -94,87 +94,17 @@ none of them** — and in the SPAN UNKNOWN case the suite *could not*: its own h
 
 ## ⚠️ OPEN, AND WHOSE
 
-- ⚠️⚠️ **NEW, USER-FACING: SPOT RATINGS BEYOND NEAR-TERM RETURN 503 FOR BOTH MODELS.**
-  Measured 2026-08-13T04Z, bbox `-30,30,40,70`, limit 200:
-  | | +1 h | +48 h | +120 h |
-  |---|---|---|---|
-  | EURO | **200** | `000` (timed out at 100 s) | **503** |
-  | GFS | **200** | **503** | **503** |
-  Body: *"ratings live path at capacity; precomputed lane refreshing — retry shortly"* — it
-  REFUSES rather than serving a stale or fabricated frame, which is the right failure. But the
-  near-term precompute is the only thing served; past it, requests fall to a saturated live
-  path. **Not model-specific — it tracks LEAD TIME.**
-  ⚠️ ONE bbox, ONE moment, and the message says *refreshing* — this may be a refresh window, not
-  a standing horizon gap. I am NOT calling it an outage; telling them apart needs a repeat at
-  another hour, and retrying against a service that just reported saturation is noise, not
-  measurement. ▶ **Owner: compare with the scrubber's advertised horizon (7–14 d found earlier
-  this session). If the UI offers days the ratings lane cannot serve, that gap is user-visible
-  — and that is the question worth answering, not whether one 503 was transient.**
-
-- **Sample 2's outlier** — mine, unexplained, no third hypothesis. Do not paper over it.
-- ⭐⭐ **CHASED, AND IT IS A PRODUCT FINDING: 47% OF SAMPLED ROWS HAVE DEGRADED GEOMETRY, AND
-  THEY ARE SYSTEMATICALLY THE BIG WAVES.** Measured over 128 rows of `frames_s6.json`, the
-  separation is total — no overlap:
-  | | n | `geometry_readiness` | height p50 | max |
-  |---|---|---|---|---|
-  | has `break_depth_m` | 68 | `full` (all) | 0.99 m | 1.93 m |
-  | missing | 60 | `degraded` (all) | **2.96 m** | **3.81 m** |
-  `break_depth_m is None` **iff** `geometry_readiness == 'degraded'` — 128/128, so the field is a
-  free diagnostic for degraded geometry. ⛔ **The waves users care most about are the ones
-  served with the worst geometry.** That is a data-quality question for the owner, not a
-  measurement artefact.
-  ⚠️ **I HYPOTHESISED THIS EXPLAINED THE TIDE NULL AND IT DOES NOT.** The obvious story — tail
-  rows lack the depth input the tide term acts through, so they cannot respond — was TESTED by
-  splitting the replay on `geometry_readiness`: `full` 68 rows max |delta| 0.2, `degraded` 60
-  rows max |delta| 0.2. **Identical.** Degraded rows are not inert. ★ I nearly published this
-  as the headline resolution of the tide question; the split took one run and refuted it.
-  ✅ **ANSWERED: IT IS GEOGRAPHIC, AND THE HEIGHT LINK IS LARGELY CONFOUNDING.** Degraded rate
-  by region (22 unique spots, one global `/spot-ratings` viewport — quote the n):
-  | region | n | degraded | h_p50 |
-  |---|---|---|---|
-  | N. America | 6 | **17%** | 0.45 |
-  | Europe/Med | 6 | **17%** | 1.54 |
-  | Asia/SE-Asia | 5 | **80%** | 3.00 |
-  | Africa/Indian | 2 | **100%** | 3.02 |
-  | Pacific | 2 | **100%** | 3.81 |
-  ⇒ **A COVERAGE GAP IN THE PER-SPOT GEOMETRY ASSETS OUTSIDE EUROPE/N. AMERICA** (`FULL` needs a
-  per-spot ETOPO normal AND a nearshore break depth; `DEGRADED` is a coarse 0.25° normal
-  and/or no break depth). The tall-wave correlation is mostly those regions HAVING the big
-  surf, not height causing degradation.
-  ⚠️ **n is small (regions of 2–6) and within-region strata are too thin to separate cleanly** —
-  Asia/SE-Asia still shows degraded 2.95 m vs full 1.39 m, so a residual height effect is not
-  excluded. The BETWEEN-region signal (17% vs 80–100%) is what carries this, and it is strong.
-  ⛔⛔ **BEST MEASUREMENT — 1,052 unique spots across SIX REGIONAL viewports** (the global
-  bbox was itself biased: it gave Europe+N.America 62% of its sample vs 38% here):
-  | region | n | degraded | blind |
-  |---|---|---|---|
-  | Europe/Med | 200 | **20%** | 0 |
-  | N.America | 200 | **34%** | 0 |
-  | Pacific | 145 | **48%** | 7 |
-  | S.America | 200 | **49%** | 1 |
-  | Africa/Indian | 107 | **56%** | 1 |
-  | Asia/SE-Asia | 200 | **64%** | 8 |
-  | **total** | **1052** | **44.0%** | **17 (1.6%)** |
-  ⭐⭐ **MY TWO EARLIER FIGURES WERE WRONG IN OPPOSITE DIRECTIONS, EACH FROM ITS OWN SAMPLING
-  FRAME:** 47% (the `inputs` subset I biased toward big waves — too HIGH) and 34.7% (one
-  global viewport that over-sampled well-covered regions — too LOW). ★ Two biased frames
-  disagreeing in SIGN is the cheapest available evidence that neither is the population.
-  ⚠️ **44.0% IS STILL NOT A CENSUS.** Four of six regions hit the endpoint's `limit=200` cap
-  exactly, so they are truncated samples; Pacific (145) and Africa/Indian (107) are complete
-  for their bbox. The true global rate depends on real per-region spot counts, which this
-  endpoint cannot give. **Quote it as 44% of 1,052 sampled spots, never as 'the estate'.**
-  ⇒ **Roughly two in five served spots run on coarse geometry, and 17 have NO shore normal.**
-  ⛔⛔ **AND BLIND GEOMETRY IS NOT DISCLOSED TO THE USER.** Those 17 have no shore normal, so the
-  directional gate is entirely absent — swell direction and wind orientation CANNOT affect
-  their rating. What the payload says about them:
-  - **15 of 17 report `confidence: medium`** — identical to 550 of 572 FULL-geometry spots.
-  - `forecast_confidence` is `None` on **every** row in all three classes (1052/1052).
-  - `why` reads *"~5.9 ft surf, 10s period, 12kt wind"*; a full-geometry spot says *"12kt
-    **offshore** wind"*. `rating_why` emits that word only when `shore_normal` exists.
-  ⇒ **The whole disclosure is a MISSING WORD in a sentence.** ⭐ Absence encoded as success, on
-  the user-facing surface this time — the fifth instance of that shape recorded today.
-  ⚠️ **NOT CLAIMED:** blind spots skew to better levels (15/17 fair-or-better vs 51%
-  very_poor among full). Nearly all 17 are Maldives, which genuinely has quality waves —
-  confounded by geography, the same trap I fell into twice today. It needs a within-region
-  comparison before it means anything.
-  ▶ Owner call: extending geometry asset coverage is a product decision, not a measurement.
+- ⛔ **RETRACTED IN PART — "user-facing 503" WAS MY CURL, NOT THE PRODUCT.** `useSpotRatings.js`
+  carries an explicit `status: 'skipped_beyond_bound'` path — *"beyond precompute bound —
+  endpoint SKIPPED, grid fallback covers"*. Past the bound the client never calls the endpoint,
+  so users do not see the 503 at all. ★ **I measured the API and called the result a USER
+  experience without checking whether the client makes that call.**
+  ⚠️ **What IS real, and sharper: scrubbing past the bound silently SWITCHES LANES.** The
+  fallback is the raster BAND, and band vs glyph are on record as disagreeing 2.3–2.7× at
+  close zoom (queue E#1). So the number on screen changes its source mid-scrub, with no
+  disclosure. Whether that produces a visible jump needs a runtime measurement at the bound —
+  **not attempted, and E#1 belongs to the concurrent session: do NOT tune either lane.**
+  ▶ The original raw-API observation, kept because it is still true of the API: at 2026-08-13T04Z,
+  bbox `-30,30,40,70`, +48 h and +120 h returned 503 for GFS and EURO alike (+1 h returned 200).
+  The body — *"live path at capacity; precomputed lane refreshing"* — REFUSES rather than
+  serving a stale frame, which is the right failure.
