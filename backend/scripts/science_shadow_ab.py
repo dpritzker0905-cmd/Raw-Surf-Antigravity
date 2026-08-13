@@ -212,6 +212,16 @@ def _dep_subset(candidate, movers):
             "max_abs_delta": max(abs(m["delta"]) for m in rows)}
 
 
+def _note(bucket, s, why, got, expected, cap=8):
+    """Record WHICH row was disqualified. A count cannot be investigated -- see
+    docs/research/FINDING-2026-08-12-the-disqualified-row-is-an-INTERACTION.md."""
+    if len(bucket) < cap:
+        d = None if got is None or expected is None else round(abs(got - expected), 3)
+        bucket.append({"name": s.get("name"), "spot_id": s.get("spot_id"), "why": why,
+                       "got": got, "expected": expected, "delta": d,
+                       "surf_height_m": s.get("surf_height_m")})
+
+
 def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=None) -> dict:
     """Pure-ish core (touches os.environ transiently; static assets only). Returns the report.
 
@@ -235,6 +245,10 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
     served_frames = set()
     frames_seen = 0
     rows_seen = rows_replayable = disqualified = 0
+    # ⭐ WHICH row, not just how many. A count told me 1 row failed and nothing else; locating it
+    # cost ~14 bisection runs and produced a WRONG published conclusion on the way. Capped so a
+    # systemic break cannot turn the report into a data dump.
+    disq_rows = []
     up = down = same = 0
     deltas: List[float] = []
     level_flow: Dict[str, int] = {}
@@ -267,11 +281,13 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
             base_score, base_level = _rate(s["surf_height_m"], s, ref)
             if base_score is None or abs(base_score - s["score"]) > REPRODUCE_TOL:
                 disqualified += 1
+                _note(disq_rows, s, "baseline", base_score, s["score"])
                 continue
             if height_replay:
                 h_check = _height(s)
                 if h_check is None or abs(h_check - s["surf_height_m"]) > 0.005:
                     disqualified += 1          # geometry/assets/code moved since the frame
+                    _note(disq_rows, s, "height", h_check, s["surf_height_m"])
                     continue
             rows_replayable += 1
             for _k in (s.get("inputs") or {}):
@@ -297,6 +313,7 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
                         os.environ[k] = v
             if cand_score is None:
                 disqualified += 1
+                _note(disq_rows, s, "candidate", None, s["score"])
                 continue
 
             d = round(cand_score - s["score"], 1)
@@ -342,7 +359,7 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
             "valid_time_max": max(valid_times) if valid_times else None,
         },
         "rows_seen": rows_seen, "rows_replayable": rows_replayable,
-        "disqualified": disqualified,
+        "disqualified": disqualified, "disqualified_rows": disq_rows,
         "level_unchanged": same, "level_up": up, "level_down": down,
         "level_change_pct": round(100.0 * (up + down) / n, 1) if n else None,
         "delta_p10": pct(0.10), "delta_median": pct(0.50), "delta_p90": pct(0.90),
