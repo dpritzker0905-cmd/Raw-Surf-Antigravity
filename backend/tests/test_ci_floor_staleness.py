@@ -231,7 +231,10 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #                 test_measure_or_refuse_last_two_surfaces.py, which the estate COMPLEMENT owns,
 #                 so 353 + 7 = 360. Stacked on an unobserved projection -- if 353 was wrong the
 #                 next green run falsifies both, which is why the arithmetic is shown.
-_FLOOR_SET_FROM = {"guards": 1707, "chain": 786, "estate": 360}
+#   guards        PROJECTED AGAIN (2026-08-13, WS-CAN-0014): +5 tests in
+#                 test_point_resolution_is_stamped.py, which the COMPOSITION patterns claim for the
+#                 guards lane (checked with --lane guards, not inferred), so 1707 + 5 = 1712.
+_FLOOR_SET_FROM = {"guards": 1712, "chain": 786, "estate": 360}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

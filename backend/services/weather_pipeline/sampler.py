@@ -7,6 +7,41 @@ from services.weather_pipeline.schemas import (
 
 logger = logging.getLogger(__name__)
 
+
+def deduce_grid_resolution(grid) -> float:
+    """Grid spacing in degrees, or 0.0 when it cannot be deduced.
+
+    THE canonical definition (WS-CAN-0014, 2026-08-13). It previously lived as a staticmethod on
+    PointResolutionService, which now delegates here, so the quantity has ONE producer rather than
+    a copy per consumer.
+    """
+    if not grid or not grid.vectors:
+        return 0.0
+    lats = sorted(set(v.lat for v in grid.vectors))
+    if len(lats) > 1:
+        return round(lats[1] - lats[0], 4)
+    lons = sorted(set(v.lng for v in grid.vectors))
+    return round(lons[1] - lons[0], 4) if len(lons) > 1 else 0.0
+
+
+def resolution_or_none(grid):
+    """The value as it must appear ON THE WIRE: a real spacing, or None.
+
+    ⛔ WS-CAN-0014. `resolution` was declared on NormalizedPointResponse and NEVER populated —
+    measured live 2026-08-13, `null` at four geographies including two `inside_regional_tile`
+    responses where the spacing is known. The consumer half was built anyway:
+    backendWeatherServiceClientDiag.js:203-210 derives it from served grid bounds and labels it
+    `resolutionSource`, which is a good fallback and a bad permanent contract, and TruthOverlay's
+    `COARSE n GRID` / `RESOLUTION UNKNOWN` provenance states depend on that derivation.
+
+    ★ 0.0 is deduce_grid_resolution's "could not tell", NOT a 0-degree grid. It must reach the wire
+    as None — the same measure-or-refuse rule as WS-CAN-0010/0063: never emit a number nobody
+    measured.
+    """
+    res = deduce_grid_resolution(grid)
+    return res if res and res > 0 else None
+
+
 class PointSampler:
     """
     Samples point forecasts from NormalizedProduct grid files
@@ -95,6 +130,7 @@ class PointSampler:
                 interpolation_method="out_of_bounds_fallback"
             )
             return NormalizedPointResponse(
+                resolution=resolution_or_none(product.grid),
                 model=product.model,
                 provider=product.provider,
                 domain=product.domain,
@@ -500,6 +536,7 @@ class PointSampler:
             interpolation_method="unavailable"
         )
         return NormalizedPointResponse(
+            resolution=resolution_or_none(product.grid),
             model=product.model,
             provider=product.provider,
             domain=product.domain,
@@ -533,6 +570,7 @@ class PointSampler:
         warnings: List[str]
     ) -> NormalizedPointResponse:
         return NormalizedPointResponse(
+            resolution=resolution_or_none(product.grid),
             model=product.model,
             provider=product.provider,
             domain=product.domain,

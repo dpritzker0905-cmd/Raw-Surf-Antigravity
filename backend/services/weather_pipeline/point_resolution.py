@@ -84,11 +84,10 @@ class PointResolutionService:
 
     @staticmethod
     def deduce_grid_resolution(grid) -> float:
-        if not grid or not grid.vectors: return 0.0
-        lats = sorted(list(set(v.lat for v in grid.vectors)))
-        if len(lats) > 1: return round(lats[1] - lats[0], 4)
-        lons = sorted(list(set(v.lng for v in grid.vectors)))
-        return round(lons[1] - lons[0], 4) if len(lons) > 1 else 0.0
+        # WS-CAN-0014: delegates to THE definition in sampler.py. This was a second copy of the
+        # same arithmetic; the value now has one producer, and the sampler stamps it on the wire.
+        from services.weather_pipeline.sampler import deduce_grid_resolution as _deduce
+        return _deduce(grid)
 
     # The partition layers this model publishes alongside the total `waves` field, with the `kind`
     # `surf_rating`'s partition-aware factors expect.

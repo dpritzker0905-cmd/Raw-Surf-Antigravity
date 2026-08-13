@@ -563,7 +563,12 @@ jobs:
           # 2 tests to test_rating_shadow_ab.py, which this lane owns, so the next reading is
           # 1707 and 1707-1699=8 would exceed the budget of 6. 1707-6=1701 clears both the
           # current reading (lag 4) and the next (lag 6, and the comparison is strict `>`).
-          MIN_FILES, MIN_PASSED = 149, 1701
+          # ⬆ MIN_FILES 149→150, MIN_PASSED 1701→1706 on 2026-08-13 (WS-CAN-0014). This commit adds
+          # test_point_resolution_is_stamped.py — 5 tests — which the COMPOSITION patterns claim for
+          # THIS lane, not the estate complement (verified with `ci_test_lanes.py --lane guards`,
+          # not assumed from the filename). 1707 (projected) + 5 = 1712, and 1712 - 6 (this lane's
+          # budget) = 1706. The file count is raised with it so a deletion still reddens the lane.
+          MIN_FILES, MIN_PASSED = 150, 1706
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
