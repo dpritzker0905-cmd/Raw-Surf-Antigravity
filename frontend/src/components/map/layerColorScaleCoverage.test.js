@@ -66,6 +66,20 @@ describe('every raster layer variable has a colour scale', () => {
     expect(missing).toEqual([]);
   });
 
+  test('MARINE layers too — they render as raster when WebGL fails', () => {
+    // ⭐ THE FALLBACK PATH IS THE DANGEROUS ONE. MapWebGL renders a marine layer through the
+    // raster/colour-scale path when `webglMarineFailed`, so an unscaled marine variable would
+    // blank ONLY on devices where WebGL is unavailable — a blank that most people never see and
+    // nobody can reproduce on request. All four resolve today (verified against the live merged
+    // scales on dev live); this keeps it that way for whatever marine layer is added next.
+    const scales = buildScales();
+    const missing = Object.entries(LAYER_REGISTRY)
+      .filter(([, e]) => e && e.omVariable && e.type === 'marine')
+      .filter(([, e]) => !resolves(scales, e.omVariable))
+      .map(([k, e]) => `${k} -> ${e.omVariable}`);
+    expect(missing).toEqual([]);
+  });
+
   test('water_temp specifically — the regression that motivated this file', () => {
     const scales = buildScales();
     expect(LAYER_REGISTRY.water_temp.omVariable).toBe('surface_temperature');
