@@ -21,6 +21,16 @@ defect it prevents -- especially in a shared working tree, where it would block 
 unrelated work. Exit 0 on any internal failure, exit 1 ONLY on a confident detection.
 Override: `git push --no-verify`, or RAW_SKIP_FLOOR_CHECK=1.
 
+⛔⛔ IF YOU ARE HERE TO MAKE THIS HOOK SHAREABLE, READ THIS FIRST. The obvious move is
+`git config core.hooksPath .githooks` with the hook tracked in the repo. That would SILENTLY
+DISABLE THE EXISTING PRE-COMMIT LOC GUARD. Measured 2026-08-13: `core.hooksPath` REPLACES
+`.git/hooks` wholesale (`git -c core.hooksPath=/tmp/hp rev-parse --git-path hooks` resolves to
+/tmp/hp, not .git/hooks), and `.git/hooks/pre-commit` here is the 800-LOC file-size check --
+untracked, an installed copy of `scripts/pre_commit_loc_check.py`. It caught a real breach
+today (spot_ratings.py at 813 against a hard 800). A disabled hook prints nothing, so the
+loss would be invisible until something over 800 LOC shipped.
+★ MOVE BOTH HOOKS INTO `.githooks/` IN THE SAME COMMIT AS THE hooksPath CHANGE, OR NEITHER.
+
 Usage:  python scripts/check_floor_before_push.py [<git-range>]     (default: @{u}..HEAD)
 """
 import os
