@@ -115,7 +115,8 @@ The bound needed a derivation, not a constant that makes today's row pass. Pertu
 
 - ⚠️ **CORRECTED by the no-dedup re-run (the limit flagged below was real): 4 of 128 rows exceed their own envelope**, not 0 of 22. Dedup had hidden them. Reproduction error is **mostly**, not **fully**, accounted for by input rounding.
 - ✅ **The row that actually failed is now MEASURED, not inferred: Salalah frame 5, observed 0.005293 vs envelope 0.006918 — WITHIN.** So the disqualification itself IS quantization, which was the question that started this.
-- ⚠️ The 4 exceedances are rows with SMALL observed errors and even smaller envelopes — a different phenomenon from the disqualification, and **unexplained**. Candidates: an input I did not perturb (lat/lng precision), or a genuinely non-linear term. **Not chased.**
+- ✅ **THE 4 EXCEEDANCES ARE CLOSED.** They are the SMALLEST waves (0.251, 0.272, 0.454 m) — the opposite end from the disqualification — and short by only 0.000296, 0.000092 and **0.000003** m. ⭐ **The envelope covered every INPUT and omitted the OUTPUT'S OWN ROUNDING:** `surf_height_m` is persisted at 1e-3, so the comparison TARGET carries ±0.0005. Every exceedance is short by less than that, so including it closes all four. Reproduction error IS fully accounted for by quantization — the original claim was right, for a reason I had not identified.
+- ⛔ **The lat/lng candidate is REFUTED, not unresolved:** coordinates are persisted at **13 decimal places** (full float, no rounding), and adding a coordinate term moved the count 4 → 4. ★ A guess named in a doc is not a finding; this one cost one run to kill.
 - Papara: envelope **0.006106** vs observed 0.004715 — within.
 - **Max envelope / height = 0.84%**, and the envelope SCALES with height, which is why an absolute 5 mm bound preferentially fails tall waves.
 
