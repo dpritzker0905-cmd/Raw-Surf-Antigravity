@@ -113,7 +113,9 @@ Over 0.005: **1**. Over 0.004: **5**. Over 0.003: **17**. Over 0.001: **79 of 12
 
 The bound needed a derivation, not a constant that makes today's row pass. Perturbing EVERY persisted input by its own rounding half-quantum (`offshore_hs_m` +-0.0005 m, `swell_from_deg`, `shore_normal_deg`, `break_depth_m` +-0.05, `period_s` +-0.05 s) and summing the single-input effects gives the honest quantization envelope:
 
-- **0 of 22 rows have an observed error EXCEEDING their own envelope.** Reproduction error is fully accounted for by input rounding. There is no residual drift to explain.
+- ⚠️ **CORRECTED by the no-dedup re-run (the limit flagged below was real): 4 of 128 rows exceed their own envelope**, not 0 of 22. Dedup had hidden them. Reproduction error is **mostly**, not **fully**, accounted for by input rounding.
+- ✅ **The row that actually failed is now MEASURED, not inferred: Salalah frame 5, observed 0.005293 vs envelope 0.006918 — WITHIN.** So the disqualification itself IS quantization, which was the question that started this.
+- ⚠️ The 4 exceedances are rows with SMALL observed errors and even smaller envelopes — a different phenomenon from the disqualification, and **unexplained**. Candidates: an input I did not perturb (lat/lng precision), or a genuinely non-linear term. **Not chased.**
 - Papara: envelope **0.006106** vs observed 0.004715 — within.
 - **Max envelope / height = 0.84%**, and the envelope SCALES with height, which is why an absolute 5 mm bound preferentially fails tall waves.
 
