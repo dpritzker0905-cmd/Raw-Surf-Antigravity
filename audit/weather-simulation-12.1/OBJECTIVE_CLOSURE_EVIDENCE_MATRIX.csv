@@ -1,0 +1,41 @@
+Objective ID,Closure Standard Item,Intended Outcome Explicit,All Required Tasks Closed,Active Code Implements It,Active Runtime Uses It,No Bypass Invalidates It,Tests Exist,Current Runtime Evidence,Scientific Meaning Preserved,Perf/Lifecycle Acceptable,No Unresolved Critical Contradicts,Rollback Understood,Reproducible By Another Engineer,CERTIFICATE
+WS-OBJ-201,One forecast composition,YES,YES (0002 + 0023),YES - surf_point -> estimate_surf_at -> surf_rating,YES,YES - exactly one write site point_surf_augment.py:204,YES - AST guard over three rating surfaces + sim control,YES - LV-06 live payload,YES,n/a,YES,n/a - no flag,YES - one GET reproduces it,ISSUED
+WS-OBJ-501,Accuracy gate grades the paired comparison,YES,NO - 0054 still deferred to 08-22,YES - forecast_accuracy_monitor.py,YES - scheduled run 31710210215,YES - kill switch ACCURACY_PAIRED_GATE=0 is explicit and off,YES - 10 tests all red before the change,YES - LV-03,YES - RV-05 control: 56 of 57 keys byte-identical,n/a,YES,YES - one env var,YES - gh run view --log,ISSUED (objective closed; 0054's arming clock is a separate task)
+WS-OBJ-705,CI and E2E lane integrity,YES,YES (0059 + 0065),YES - extOf path-based extension check,YES - 5 consecutive completed green runs,YES - blast radius is one extension,YES - 52 tests collected and run,YES - LV-02,n/a,YES,YES,YES - revert one helper,YES - gh run list + log,ISSUED
+WS-OBJ-505,Instrument delivery is measured,YES,NO - not scheduled off GitHub,YES - uptime_probe.py 231 LOC,NO - nothing runs it on a schedule,YES,YES - 13 tests incl. a mutation-verified regression test,YES - RV-13 live 3-way discrimination,n/a,YES,YES,YES,YES,NOT ISSUED - operational but not deployed
+WS-OBJ-102,Projection and global correctness,YES,NO - 0028 never started,YES,YES,YES,PARTIAL - no canonical-field test,YES - LV-05 antimeridian + high latitude,YES,YES,YES - 11.2 self-refuted its own false positive,n/a,YES,NOT ISSUED - row reversal and UV flip unverified in both directions
+WS-OBJ-303,Bounded memory,PARTIAL,n/a - no tasks,n/a,n/a,n/a,NO,PARTIAL - two short windows only,n/a,UNKNOWN,n/a,n/a,NO - traffic differed,NOT ISSUED - needs a sustained-load measurement
+WS-OBJ-001,Reliable visualization,YES,NO - 0061 open,PARTIAL,PARTIAL,NO - the zoom floor blanks every om:// layer,PARTIAL - class guard exists for scales,PARTIAL,n/a,n/a,NO - WS-CAN-0061 open,n/a,YES,NOT ISSUED
+WS-OBJ-002,Scientific trust,YES,NO - 0005/0014/0029/0062 open,PARTIAL,YES,NO - client derives resolution,PARTIAL,YES - LV-05 LV-06,YES for the values; NO for their self-description,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-003,Bounded runtime,YES,NO,PARTIAL,YES,NO - one route at ~1 min p50,PARTIAL,YES - LV-01 LV-07,n/a,NO,NO,n/a,YES,NOT ISSUED
+WS-OBJ-004,Single-authority architecture,YES,NO - 6 open 0 post-12.0 commits,PARTIAL,YES,NO - 3 duplicates 2 bypasses,PARTIAL,PARTIAL,n/a,n/a,NO,NO - no dual path has an exit condition,YES,NOT ISSUED
+WS-OBJ-005,Objective forecast validation,YES,NO - 0057/0058 open,YES,YES,YES,YES,YES,YES,n/a,NO - the lane loses at +24h,YES,YES,NOT ISSUED at L1 (its blocking L2 WS-OBJ-501 is certified)
+WS-OBJ-006,Nearshore differentiation,YES,NO,PARTIAL,YES,NO - coverage binding,PARTIAL,PARTIAL,YES,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-007,Program truth,YES,NO - 0021/0055/0056 open,PARTIAL,YES,NO - post-12.0 findings had no IDs,n/a,YES - CF-02,n/a,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-101,Every layer paints,YES,NO - 0061 open,PARTIAL - 0060 shipped,PARTIAL,NO,YES - mutation-proven class guard,YES,n/a,n/a,NO,YES,YES,NOT ISSUED - one value away
+WS-OBJ-103,Failure detection and recovery,YES,NO,PARTIAL - disclosure only,PARTIAL,YES,NO,NO - failure injection never re-run,n/a,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-104,Release delivery,YES,NO,n/a,NO - prod frozen 85 days,n/a,n/a,YES - SV-BUILD,n/a,n/a,NO,YES,YES,NOT ISSUED - owner-gated
+WS-OBJ-202,Model-run truth,YES,NO,PARTIAL,PARTIAL,NO - run_time is the ingest clock,NO,YES - LV-05,NO,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-203,Resolution disclosure,YES,NO,NO - producer absent,NO,NO - client derives it,NO,YES - LV-05,NO,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-204,Readout truth,YES,NO - 5 of 7 open,PARTIAL,PARTIAL,YES,PARTIAL,NO,PARTIAL,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-205,Deterministic selection,YES,NO,NO,NO,NO,NO,NO - not re-measured since 11.2,NO,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-206,One composition per hour,YES,NO,NO,NO - two live compositions,NO,NO,NO,NO,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-207,Geometry disclosure,YES,NO,NO,NO,YES,NO,YES - LV-06,PARTIAL - values right disclosure absent,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-301,Bounded lifecycle,YES,NO - 0022 open,PARTIAL,YES,NO - one RAF has no cancel path,PARTIAL,YES - LV-04,n/a,NO,NO,n/a,YES,NOT ISSUED
+WS-OBJ-302,Bounded latency,YES,NO,NO,NO,NO,NO,YES - LV-01 LV-07,n/a,NO,NO,n/a,YES,NOT ISSUED
+WS-OBJ-304,Pipeline integrity,YES,NO,NO - absent,NO,NO,NO,NO,n/a,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-401,One authority per responsibility,YES,NO,PARTIAL,YES,NO,PARTIAL,PARTIAL,n/a,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-402,Exit dual-path migrations,YES,NO,PARTIAL,YES,NO,PARTIAL,NO,n/a,n/a,NO,NO - no exit conditions written,YES,NOT ISSUED
+WS-OBJ-502,Regression protection that can fail,YES,NO - 0018/0019/0028 open,PARTIAL,YES,NO - test.fixme cannot red CI,PARTIAL,YES - LV-02 shows 5 skipped,n/a,YES,NO,YES,YES,NOT ISSUED
+WS-OBJ-503,Runtime evidence capture,YES,NO,NO - no video key,NO,YES - blocker cleared,n/a,YES - LV-08,n/a,YES,YES,YES,YES,NOT ISSUED - READY NOW
+WS-OBJ-504,Client-to-server transport,YES,NO,NO,PARTIAL - one throttled POST,NO - its fps field fabricates,NO,YES - LV-04,NO,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-506,Measure-or-refuse,YES,NO - 2 sites open,PARTIAL - 2 of 3 backend surfaces,YES,NO,NO,YES - LV-04,NO,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-601,Coverage expansion,YES,NO,NO,NO,YES,YES - cadence test exists,YES - RV-12 LV-05,YES,UNKNOWN - cadence risk,YES,YES,YES,NOT ISSUED
+WS-OBJ-602,Nearshore physics,YES,NO,PARTIAL,YES,YES,PARTIAL,PARTIAL,YES,YES,NO,YES,YES,NOT ISSUED
+WS-OBJ-603,Model selection,YES,NO,n/a,YES - GFS default,YES,YES - the census VOID control,YES - RV-08..11 LV-03,YES,n/a,NO - tail unsampled,YES,YES,NOT ISSUED - correctly held open
+WS-OBJ-604,AI correction,YES,NO,NO,NO,n/a,NO,YES - LV-03 denies the premise,n/a,n/a,NO,n/a,YES,NOT ISSUED - blocked at the premise
+WS-OBJ-605,GPU/data modernization,YES,n/a - rejected,NO,NO,n/a,NO,NO,n/a,NO - unmeasurable,NO,n/a,YES,NOT ISSUED - rejected/deferred
+WS-OBJ-701,Canonical register,YES,NO,PARTIAL,YES,NO - six findings had no IDs,n/a,YES - CF-02,n/a,n/a,NO,n/a,YES,NOT ISSUED
+WS-OBJ-702,One gate taxonomy,YES,NO,NO,NO,n/a,n/a,NO,n/a,n/a,NO,n/a,YES,NOT ISSUED - 12.1 performs the mapping
+WS-OBJ-703,Credential hygiene,YES,NO,NO,NO,n/a,n/a,NO,n/a,n/a,NO,n/a,YES,NOT ISSUED - owner-gated
+WS-OBJ-704,Worktree hygiene,YES,NO,NO,NO,n/a,n/a,YES - 7 registered,n/a,n/a,NO,YES,YES,NOT ISSUED

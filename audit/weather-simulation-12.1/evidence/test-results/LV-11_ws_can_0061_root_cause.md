@@ -106,6 +106,45 @@ that cannot distinguish "not sampled" from "broken."
 check that the destination is above anything that would cover it. **A layer-ordering operation with
 no post-condition is how five of these shipped.**
 
+## FIX IMPLEMENTED — Option 3 (owner-selected, 2026-08-13)
+
+**Dynamic target + loud refusal.** New pure module `frontend/src/components/map/waterTempAnchor.js`
+(90 LOC): `findOccludingWaterFill(order, fillIdx, getLayer)` and `planAnchorMoves(...)` decide
+whether a legal destination exists **before** anything moves. `MapWebGL.js` calls it and, on refusal,
+emits one `console.error` naming the occluder and leaves the slots where they are.
+
+| Check | Result |
+|---|---|
+| New tests | **10/10 pass** (`waterTempAnchor.test.js`) |
+| Mutation-proven | ⛔ guard neutered to pre-fix behaviour ⇒ **2 tests fail**, incl. the defect reproduction; restored ⇒ 10/10 |
+| Full map surface | **133 suites / 1390 tests pass** |
+| LOC ratchet | `MapWebGL.js` **1097 → 1096** (grandfathered shrink-only; it SHRANK). `[OK] No new violations` |
+| eslint | 5 errors on the touched file — **identical count on HEAD, 0 added** |
+
+The fixture is the **real measured stack**, not invented: slots 3/4/5, `ocean-mask-fill` 6, `water`
+11, `water-shadow` 17. `ocean-mask-*` is excluded from occluder detection on purpose — including it
+would make the guard refuse on every tick and reintroduce the land bleed `0dcfc4ee` fixed.
+
+### ⚠️ The behaviour change this ships, stated plainly
+
+Refusing the move leaves the slots **above** `ocean-mask-fill`, so:
+
+- ✅ the field becomes **visible over ocean** — the reported defect is gone
+- ⚠️ **land skin temperatures become visible again** — the exact defect `0dcfc4ee` was written to fix
+
+That is the trade Option 3 makes: a visible field with land bleed instead of an invisible one, plus
+a console error that names the real problem. **It is a mitigation, not the cure.** The cure is fix
+option 1 or 2 — move the mask family above the basemap water fills, or give water_temp its own
+GPU-side land clipping — and the refusal log is what should drive that.
+
+### NOT yet verified
+
+**No browser verification of the runtime behaviour.** The change is frontend-only and
+`dev--rawsurf.netlify.app` serves it only after a push; this audit has pushed nothing. The
+visible-over-ocean and land-bleed outcomes above are **predicted from the layer indices, not
+observed.** Owner verification required after deploy: water temp should paint over ocean at every
+zoom, one `ANCHOR REFUSED` line should appear in the console, and land should show skin temps.
+
 ## Register
 
 **WS-CAN-0061** — retitle to *"water_temp anchor re-assert buries the field beneath the basemap

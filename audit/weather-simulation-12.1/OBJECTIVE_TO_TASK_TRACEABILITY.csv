@@ -1,0 +1,41 @@
+Objective ID,Canonical Tasks,Tasks Closed,Tasks Open,Implementation Commits,Active Files / Symbols,Tests,Runtime Evidence,Traceability Finding
+WS-OBJ-001,"0012,0013,0033,0036,0060,0061",2 (0060 shipped+guarded; 0013 historically),4,"0f13fa7d,2dd8f1ff,6bef6eda,82005e35,ba7f1c18,f314f418",colorScales.js; openMeteoProtocol.js; WebGLWindEngine.js,layerColorScaleCoverage.test.js (mutation-proven),"z2.99: 45 entered / 20 decoded; z2.00: 24 entered / 0 decoded",OBJECTIVE HAD NO TASKS BEFORE 12.1. Two user-visible defects lived outside the register for the whole program
+WS-OBJ-002,"0002,0004,0005,0014,0015,0023,0024,0029,0034,0035,0062",4 (0002/0004/0023/0034/0035 - five),6,"512b1cb6..9fe18414, 32bd579c, fee36d57..6568d94b, post-11.2",surf_point; grid_series_helper.py; TruthOverlay.js; forecastDiagnostics.js,AST guard across three rating surfaces,"LV-05, LV-06","SPLIT OBJECTIVE: the composition is closed, its self-description is not. Do not read partial status as partial composition"
+WS-OBJ-003,"0008,0011,0022,0032,0037,0050,0064",1 (0008 partial),6,512b1cb6..9fe18414 (0008 only),useGridWorker.js; WeatherTelemetry.js; marineMaskShelter.js,reply-ordering test still specified and unconfirmed,"LV-01, LV-04, LV-07",TASK SET EXPANDED without a scope decision - 0064 was in 12.0's own evidence and unregistered
+WS-OBJ-004,"0007,0016,0022,0033,0043,0056",0,6,none since 12.0,backendWeatherServiceClient.js:272; arbiterDecide; WeatherTelemetry.js:397,none specific,-,OBJECTIVE WITH MANY TASKS AND NO RUNTIME PROOF - and zero post-12.0 commits. The least-advanced objective in the program
+WS-OBJ-005,"0026,0054,0057,0058",1 (0026),3,"2ac9631f, 55f2c068, 4c45afc2",backend/scripts/forecast_accuracy_monitor.py,"10 new tests T1..T7, 22/22 monitor, 35/35 forecast_skill",LV-03,ALL ENGINEERING COMPLETE ON THE BLOCKING TASK. Only an owner threshold decision remains
+WS-OBJ-006,"0024,0048,0049,0051,0053,0058",0,6,18 post-12.0 commits on 0053 alone,science_registry.py; surf_point; pilot_regions,test_rating_shadow_ab.py,tide samples 1-6,LARGEST WORK STREAM SINCE 12.0 AND ZERO OBJECTIVE CLOSURE. 18 commits produced knowledge (a harness proven able to see a 38.1-pt move) but no closure - correctly so; it is an owner decision
+WS-OBJ-007,"0021,0038,0055,0056,0059,0065",2 (0059 certified; 0065 shipped),4,11 commits on 0065; af0be9df + 06b6334a on 0059,check_floor_before_push.py; weather-simulation.spec.js,"test_check_floor_before_push.py, test_ci_floor_staleness.py","LV-02, CF-02",OBJECTIVE OPENED AND CLOSED A TASK INSIDE ONE CYCLE (0059) - the first time the program has done this
+WS-OBJ-101,"0060,0061",1,1,6 commits,colorScales.js; openMeteoProtocol.js,layerColorScaleCoverage.test.js,z-controlled trace,ONE TASK FROM CLOSURE. 0061 needs one value read
+WS-OBJ-102,"0028,0013",0,2,none since 12.0,per-vertex Web Mercator transform,none for canonical fields,LV-05,BLOCKED ONLY BY MISSING VERIFICATION - the render path is believed correct and has never been tested in both directions
+WS-OBJ-103,"0036,0009",0,2,none since 12.0,TruthOverlay provenanceClass; conditions.py,none,LV-07,TWO TASKS ONE FILE - 0009 and 0064 both live in conditions.py
+WS-OBJ-104,0039,0,1,none - owner-gated,Netlify production site,n/a,SV-BUILD,SINGLE-POINT BLOCKER. Blocks the VALUE of every frontend objective without blocking their engineering
+WS-OBJ-201,"0002,0023",2,0,"512b1cb6..9fe18414, 32bd579c",surf_point -> estimate_surf_at -> surf_rating; point_surf_augment.py:204,AST guard; sim control 12 m -> 29.5 ft,LV-06,ALL TASKS COMPLETE - CERTIFICATE ISSUED
+WS-OBJ-202,"0004,0005,0016,0029",1 (0004),3,512b1cb6..9fe18414,grid_series_helper.py; store_helpers.py:81-86,none for cycle identity,LV-05,HALF-SHIPPED BY CONSTRUCTION - serialization landed and cycle identity was never started
+WS-OBJ-203,"0014,0034",1 (0034),1,post-11.2,point_resolution.py:86/279; backendWeatherServiceClientDiag.js:203-210,none,LV-05,THE CONSUMER WAS FIXED AND THE PRODUCER NEVER WAS - 0034 depends on 0014's absence being papered over
+WS-OBJ-204,0015,0,1,"2e20122d..086ee773, 6568d94b",heightUnits.js; MapWeatherControls.js,none,-,2 of 7 sub-items shipped. TASK SHOULD BE SPLIT so the closed items can close
+WS-OBJ-205,0033,0,1,none,marine fetch ladder,none,not re-measured since 11.2,SINGLE-POINT BLOCKER for WS-OBJ-601/602 nearshore validation
+WS-OBJ-206,0007,0,1,none,backendWeatherServiceClient.js:272,none,-,ONE TASK ONE FILE ONE LINE - and it violates the project's binding mandate
+WS-OBJ-207,0062,0,1,6 post-12.0 commits (diagnosis only),spot_ratings.py confidence,none,LV-06,DIAGNOSED SIX TIMES POST-12.0 AND NEVER OPENED AS A TASK until 12.1
+WS-OBJ-301,"0008,0013,0022,0001",2 (0001 verified; 0008 partial),2,512b1cb6..9fe18414; 2e20122d..086ee773,WeatherTelemetry.js:397-399,none for the RAF cancel,LV-04,ONE LINE FROM CLOSURE ON THE VIOLATION - add a cancel path
+WS-OBJ-302,"0064,0009",0,2,none,conditions.py,none,"LV-01, LV-07",BOTH TASKS ONE FILE - scope them together
+WS-OBJ-303,-,0,0,none,Render cgroup,none,LV-01,OBJECTIVE WITH NO TASKS. Deliberate: it needs a measurement before it needs a task
+WS-OBJ-304,0017,0,1,none,_fetch_message_bytes; store.py,none,-,LARGE TASK NEVER DECOMPOSED - start with byte-count validation
+WS-OBJ-401,"0016,0022,0033",0,3,none,see convergence map,none,LV-04,-
+WS-OBJ-402,"0007,0032,0043",0,3,none,arbiterDecide; _shelterSettleGate; ICON blend,3000-fixture differential test (arbiter),-,NO DUAL PATH HAS AN EXIT CONDITION. This is 12.0's own governance rule unapplied to 12.0's own architecture
+WS-OBJ-501,"0026,0054",1,1,2ac9631f,forecast_accuracy_monitor.py,"10 new tests, all red before the change",LV-03,CERTIFICATE ISSUED
+WS-OBJ-502,"0018,0019,0028,0031,0045,0059",3 (0031/0045/0059),3,"ecfc1077, 29ff21ab, af0be9df",marineMaskShelter.wrapper.test.js; weather-simulation.spec.js,"54/54 map suite; 52 e2e collected",LV-02,HALF THE OBJECTIVE CLOSED IN ONE CYCLE. The fixme slot is the remaining half
+WS-OBJ-503,"0027,0037",0,2,none,playwright.config.js,n/a,LV-08,BLOCKED ONLY BY MISSING VERIFICATION AND THE BLOCKER JUST CLEARED
+WS-OBJ-504,"0020,0063",0,2,none,TruthOverlay.js:141 and :126,none,LV-04,NEW DEPENDENCY DISCOVERED: 0063 must precede 0020
+WS-OBJ-505,0025,0,1,f8825291,backend/scripts/uptime_probe.py,13 tests incl. a mutation-verified regression test,RV-13,ENGINEERING COMPLETE - OWNER ACTION ONLY
+WS-OBJ-506,"0010,0063",0,2,512b1cb6..9fe18414 (2 of 3 surfaces),routes/admin/system.py:208; TruthOverlay.js:126,none,LV-04,TASK SET SHOULD GROW BY ONE AND THEN CLOSE AS A SET
+WS-OBJ-601,0058,0,1,none,pilot_regions; both ingest workflows,test_worldwide_count_and_per_cycle,"RV-12, LV-05",PRICED BUT NOT STARTED. Gate on one runtime measurement first
+WS-OBJ-602,"0053,0024",0,2,18 commits,science_registry; grid_resolver_surf.py:104,test_rating_shadow_ab.py,tide samples,-
+WS-OBJ-603,0057,0,1,"55f2c068, 4c45afc2",BUOY_CALIBRATION_MODEL,model_skill_census.py control,"RV-08..RV-11, LV-03",CORRECTLY HELD OPEN - a calendar dependency (needs a storm) not an engineering one
+WS-OBJ-604,"0049,0051",0,2,none,-,none,LV-03,BLOCKED AT THE PREMISE
+WS-OBJ-605,"0046,0047,0050",0,3,none,-,none,-,REJECTED (0046/0047) AND DEFERRED (0050). Do not reopen without new evidence
+WS-OBJ-701,"0038,0056",0,2,"06b6334a, 31dc8086",CANONICAL_TASK_REGISTER.csv,n/a,CF-02,-
+WS-OBJ-702,0056,0,1,none,two incompatible gate matrices,n/a,-,12.1 performs the mapping
+WS-OBJ-703,0021,0,1,none,BRAIN_RULES.md,n/a,-,OWNER ONLY
+WS-OBJ-704,0055,0,1,none,git worktree list,n/a,7 worktrees,OWNER/SESSION-OWNER ONLY
+WS-OBJ-705,"0059,0065",2,0,"af0be9df, 06b6334a + 11 floor commits",weather-simulation.spec.js:95-117; check_floor_before_push.py,"test_check_floor_before_push.py; 52 e2e collected",LV-02,ALL TASKS COMPLETE - CERTIFICATE ISSUED

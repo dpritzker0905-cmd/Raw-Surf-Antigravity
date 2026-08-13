@@ -1,0 +1,41 @@
+Objective ID,Title,Reliable Baseline Requirement,SOTA Core Requirement,Advanced Differentiation Requirement,Current State,Evidence,Remaining Gap,Canonical Tasks Remaining,Dependencies,Gate,Engineering Uncertainty,Current Decision
+WS-OBJ-201,One forecast composition,REQUIRED,REQUIRED,foundation,CERTIFIED COMPLETE,LV-06,none,-,-,Gate 1,none,PRESERVE
+WS-OBJ-501,Accuracy gate grades the right quantity,not required,REQUIRED,prerequisite,CERTIFIED COMPLETE,LV-03,owner threshold value only,WS-CAN-0054 (arming),owner decision by 08-22,Gate 1,none,OWNER DECISION
+WS-OBJ-705,CI and E2E lane integrity,not required,REQUIRED,-,CERTIFIED COMPLETE,LV-02,none,-,-,Gate 3,none,PRESERVE
+WS-OBJ-503,Runtime evidence capture,not required,REQUIRED,-,READY NOW - blocker cleared,LV-08,one config key + a version bump,WS-CAN-0027,WS-CAN-0059 (DISCHARGED),Gate 3,Very Low,CLOSE NOW - authorized mission
+WS-OBJ-101,Every activated layer paints,REQUIRED,REQUIRED,-,ONE VALUE FROM CLOSURE,handoff z-trace,read blockedDetail and fix one side of the comparison,WS-CAN-0061,-,Gate 3,Low,CLOSE NOW
+WS-OBJ-506,Measure-or-refuse on every status surface,REQUIRED,REQUIRED,-,PARTIAL - 2 of 4 surfaces,LV-04,two sites: system.py:208 and TruthOverlay.js:126,"WS-CAN-0010, WS-CAN-0063",-,Gate 1,Very Low,CLOSE NOW
+WS-OBJ-203,Resolution disclosure,REQUIRED,REQUIRED,-,NOT STARTED - producer absent,LV-05,stamp the deduced value on every point path,WS-CAN-0014,-,Gate 1,Low,CLOSE NOW
+WS-OBJ-202,Model-run truth,REQUIRED,REQUIRED,-,HALF SHIPPED,LV-05,thread cycle_dt; add ingested_at; key L1 by run,WS-CAN-0005,-,Gate 1,Medium,NEXT
+WS-OBJ-301,Bounded lifecycle,REQUIRED,REQUIRED,-,ONE VIOLATION,LV-04,add a cancel path to one RAF loop,WS-CAN-0022,-,Gate 2,Very Low,NEXT
+WS-OBJ-207,Geometry-quality disclosure,REQUIRED,REQUIRED,-,DIAGNOSED NOT STARTED,LV-06,make confidence a function of geometry_readiness,WS-CAN-0062,-,Gate 1,Low,NEXT
+WS-OBJ-302,Bounded latency,not required,REQUIRED,-,NOT STARTED,LV-07,one route at ~1 min p50,"WS-CAN-0064, WS-CAN-0009",-,Gate 5,Medium,NEXT
+WS-OBJ-206,One composition per forecast hour,REQUIRED,REQUIRED,-,NOT STARTED,12.0 §7,serve the bake through the per-hour lane,WS-CAN-0007,-,Gate 1,Medium,LATER
+WS-OBJ-103,Failure detection and recovery,REQUIRED,REQUIRED,-,DISCLOSURE ONLY,-,re-run 11.2 failure injection at HEAD,"WS-CAN-0036, WS-CAN-0009",-,Gate 2,Low,LATER
+WS-OBJ-102,Projection and global correctness,REQUIRED,REQUIRED,-,OPERATIONAL UNCERTIFIED,LV-05,synthetic canonical fields through the real render path,WS-CAN-0028,WS-CAN-0027,Gate 3,Medium,LATER (after 0027)
+WS-OBJ-502,Regression protection that can fail,not required,REQUIRED,-,HALF CLOSED THIS CYCLE,LV-02,complete or delete the test.fixme block,"WS-CAN-0018, WS-CAN-0019",WS-CAN-0027,Gate 3,Medium,LATER
+WS-OBJ-205,Deterministic product selection,REQUIRED,REQUIRED,PREREQUISITE,NOT STARTED,11.2 RC-03,make selection deterministic and disclose the tier,WS-CAN-0033,-,Gate 1,Medium,LATER
+WS-OBJ-504,Client-to-server transport,not required,REQUIRED,-,NOT STARTED + a new prerequisite,LV-04,fix 0063 then build the uplink,"WS-CAN-0063, WS-CAN-0020",WS-CAN-0063 first,Gate 4,Medium,LATER
+WS-OBJ-204,Readout and legend truth,REQUIRED,REQUIRED,-,2 of 7 shipped,-,five items chiefly cross-fall sampling and ft/m threading,WS-CAN-0015,-,Gate 1,Low,LATER
+WS-OBJ-304,Pipeline data integrity,not required,REQUIRED,-,ABSENT,12.0,byte-count/Range validation then the chain,WS-CAN-0017,-,Gate 1,Medium,LATER
+WS-OBJ-401,One authority per responsibility,not required,REQUIRED,-,PARTIAL,convergence map,"3 accidental duplicates, 2 bypasses","WS-CAN-0016, 0022, 0033",-,Gate 2,Medium,LATER
+WS-OBJ-402,Exit every dual-path migration,not required,REQUIRED,-,NO EXIT CONDITIONS EXIST,convergence map,write a dated arm-or-delete condition per path,"WS-CAN-0007, 0032, 0043",-,Gate 4,Low,LATER - governance not engineering
+WS-OBJ-303,Bounded memory,not required,REQUIRED,-,UNKNOWN - two short windows,LV-01,a sustained-load peak-RSS measurement,-,-,Gate 5,Low,VERIFY NOW
+WS-OBJ-505,Instrument delivery is measured,not required,REQUIRED,-,BUILT NOT DEPLOYED,RV-13,one heartbeat URL and a non-GitHub scheduler,WS-CAN-0025,OWNER,Gate 0,none,OWNER DECISION
+WS-OBJ-104,Release delivery,REQUIRED,REQUIRED,REQUIRED,FROZEN 85 DAYS,SV-BUILD,one owner decision,WS-CAN-0039,OWNER,Gate 0,none,OWNER DECISION
+WS-OBJ-703,Credential hygiene,not required,REQUIRED,-,NOT STARTED,-,rotate provider-side and move to env,WS-CAN-0021,OWNER,Gate 0,none,OWNER DECISION
+WS-OBJ-704,Worktree hygiene,not required,supporting,-,WORSE - 7 registered,git worktree list,prune five orphans deliberately,WS-CAN-0055,session owners,Gate 0,none,OWNER DECISION
+WS-OBJ-701,Canonical register with persistent IDs,not required,supporting,-,PARTIAL,CF-02,adopt the 12.1 register,"WS-CAN-0038, 0056",-,Gate 0,none,CLOSE NOW - this audit does it
+WS-OBJ-702,One release-gate taxonomy,not required,supporting,-,NOT STARTED,-,map both historical matrices once,WS-CAN-0056,-,Gate 0,Low,CLOSE NOW - this audit does it
+WS-OBJ-601,Input coverage expansion,not required,not required,REQUIRED,PRICED NOT STARTED,"RV-12, LV-05",+3 to +5 regions after one runtime measurement,WS-CAN-0058,cadence measurement,Gate 1,Medium,NEXT
+WS-OBJ-602,Nearshore physics completion,not required,not required,REQUIRED,PARTIAL,tide samples 1-6,tide owner decision; band/glyph sub-term,"WS-CAN-0053, 0024",WS-CAN-0033,Gate 7,High,DEFER
+WS-OBJ-603,Model selection,not required,not required,OPTIONAL,HELD OPEN CORRECTLY,"RV-08..11, LV-03",a pooled census spanning days with a storm,WS-CAN-0057,calendar,Gate 1,High,DO NOT FLIP
+WS-OBJ-604,AI-assisted correction,not required,not required,RESEARCH,BLOCKED AT THE PREMISE,LV-03,a validated baseline,"WS-CAN-0049, 0051",WS-OBJ-501 + a sustained win,Gate 8,Very High,DO NOT START
+WS-OBJ-605,GPU and data modernization,not required,not required,RESEARCH,REJECTED / DEFERRED,12.0 §15,a measured bottleneck,"WS-CAN-0046, 0047, 0050",WS-CAN-0037,Gate 6,Very High,DO NOT START
+WS-OBJ-001,Reliable visualization (L1),REQUIRED,REQUIRED,-,PARTIAL,-,rolls up 101/102/103/104,see children,-,-,-,see children
+WS-OBJ-002,Scientific trust (L1),REQUIRED,REQUIRED,-,PARTIAL,-,rolls up 201-207,see children,-,-,-,see children
+WS-OBJ-003,Bounded runtime (L1),not required,REQUIRED,-,PARTIAL,-,rolls up 301-304,see children,-,-,-,see children
+WS-OBJ-004,Single-authority architecture (L1),not required,REQUIRED,-,PARTIAL,-,rolls up 401-402,see children,-,-,-,see children
+WS-OBJ-005,Objective validation (L1),not required,REQUIRED,prerequisite,PARTIAL,-,rolls up 501-506,see children,-,-,-,see children
+WS-OBJ-006,Nearshore differentiation (L1),NOT REQUIRED,NOT REQUIRED,REQUIRED,PARTIAL,-,rolls up 601-605,see children,-,-,-,see children
+WS-OBJ-007,Program truth (L1),not required,supporting,-,PARTIAL,-,rolls up 701-705,see children,-,-,-,see children
