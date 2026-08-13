@@ -21,11 +21,11 @@ environmental reasons documented below.
 moved nothing. **Sample 4 is the first observation of the depth-limited regime ever taken** and
 shows the same smallness.
 
-⚠️ **SAMPLE 2 IS NOW UNEXPLAINED BY EITHER HYPOTHESIS.** Phase is dead (3), size is not supported
-(4). I do not have a third explanation and did not invent one. **Five of six** samples say the term
+⚠️ **SAMPLE 2 IS NOW UNEXPLAINED BY EITHER HYPOTHESIS.** Phase is dead (3), size is not supported by 4, 5 OR 6
+. I do not have a third explanation and did not invent one. **Five of six** samples say the term
 is user-invisible; the outlier survived both stories I had for it.
 
-✅ **SAMPLE 5 IS DONE (see the table).** The trigger below fired within the hour and the sample ran on PRECOMPUTED tail rows to 3.71 m: 17 replayable, 0 disqualified, 0 level changes, max |delta| **0.1**. ⭐ **The clock ended itself because it named the observation that ends it** — unlike the false blocker it replaced. ⚠️ Sample 2 now stands ALONE against four nulls, two of which cover the depth-limited regime that was its last available explanation. Every hypothesis proposed for it has been tested and failed. I am NOT calling it noise: 8 rows moving 3.2 points is a real observation from a real instrument, and "outlier explained by something unmeasured" is not distinguishable from "outlier that was always noise" on the evidence I have. What changed is the BURDEN. ▶ **Original next step, now satisfied: sample 5, once the precompute writes tail rows.** Unlike the false blocker I wrote
+✅ **SAMPLE 5 IS DONE (see the table).** The trigger below fired within the hour and the sample ran on PRECOMPUTED tail rows to 3.71 m: 17 replayable, 0 disqualified, 0 level changes, max |delta| **0.1**. ⭐ **The clock ended itself because it named the observation that ends it** — unlike the false blocker it replaced. ⚠️ Sample 2 now stands ALONE against 1 nulls, THREE of which cover the depth-limited regime that was its last available explanation. Every hypothesis proposed for it has been tested and failed. I am NOT calling it noise: 8 rows moving 3.2 points is a real observation from a real instrument, and "outlier explained by something unmeasured" is not distinguishable from "outlier that was always noise" on the evidence I have. What changed is the BURDEN. ▶ **Original next step, now satisfied: sample 5, once the precompute writes tail rows.** Unlike the false blocker I wrote
 yesterday, this clock names the observation that ends it:
 **`rows >= 2.5 m carrying inputs > 0` on a `source: precomputed` frame.**
 Then `--frames-file` a production frame and read the **DEPENDENCY** line, never the headline.
@@ -95,7 +95,8 @@ none of them** — and in the SPAN UNKNOWN case the suite *could not*: its own h
 ## ⚠️ OPEN, AND WHOSE
 
 - **Sample 2's outlier** — mine, unexplained, no third hypothesis. Do not paper over it.
-- **`break_depth_m` present on only 9 of 15 sampled rows** — noticed, not chased.
+- **`break_depth_m` missing on a minority of sampled rows** (9 of 15 in sample 4; 99 of 123 in
+  sample 3) — noticed, not chased. Quote the sample, not a bare ratio.
 - ⭐ **A REFUSAL YOU CANNOT ATTRIBUTE CANNOT BE INVESTIGATED** — sample 6 disqualified 1 row, and
   both the printed report and the `--json` artifact record ONLY the count (`disqualified: 1`).
   No spot_id, no name, no reproduce delta. The baseline self-check is the instrument's defence
