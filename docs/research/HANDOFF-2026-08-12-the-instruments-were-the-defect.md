@@ -103,8 +103,8 @@ none of them** — and in the SPAN UNKNOWN case the suite *could not*: its own h
   against a second forecast path: when it fires, it is the single most interesting row in the
   sample, and it is the one row you cannot look at. ⚠️ New corner on a known class — this
   refusal is CORRECT, fires as designed and reports honestly; it is simply unactionable, so it
-  degrades into a number readers learn to skip. **Fix: collect (spot_id, name, persisted,
-  reproduced, delta) for the first N disqualified rows and emit them alongside the count.**
+  degrades into a number readers learn to skip. **✅ FIXED `a2fd5756`: the report now names (spot_id, name, persisted,
+  reproduced, delta, why) for the first 8, across all three branches. It paid for itself on its FIRST run — reframing `disqualified: 1` from "second forecast path" to "missed a tight bound by 0.3 mm". Root cause then measured and fixed (`f196d9c0`).**
   ★ I found this by chasing my own flagged lead and hitting a wall in my own instrument —
   which is the fourth time this session the instrument, not the code, was the defect.
 - **A served row is not internally time-consistent** — tide is evaluated at the REQUESTED hour

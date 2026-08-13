@@ -107,7 +107,7 @@ Over 0.005: **1**. Over 0.004: **5**. Over 0.003: **17**. Over 0.001: **79 of 12
 
 ⚠️ **This will get WORSE as intended.** Tail sampling exists to put more big waves in the sample, so an absolute bound means the false-disqualification rate GROWS with the change that made the tail observable. ★ A guard whose false-alarm rate rises with your coverage will be switched off exactly when coverage finally arrives.
 
-▶ **Fix (not written):** make the height check RELATIVE, or mixed — e.g. `abs(dh) > max(0.005, 0.002 * h)`. ⚠️ Derive it and write the derivation down: `REPRODUCE_TOL` carries a careful quantization argument for the SCORE grid, and the height bound carries none. **Do not widen it to whatever makes today's row pass** — that is the census-bound mistake this repo already has on record.
+✅ **FIX SHIPPED `f196d9c0`, PINNED BY TESTS `4d338d30`:** the height check is now RELATIVE — `abs(dh) > max(0.005, 0.002 * h)`. ⚠️ Derive it and write the derivation down: `REPRODUCE_TOL` carries a careful quantization argument for the SCORE grid, and the height bound carries none. **Not widened to whatever makes today's row pass** — the coefficient came from the measured envelope (max 0.84%), which is the census-bound discipline this repo has on record. **Verified both ways:** before 1 disqualified / after 0; mutation +0.5% and +0.9% correctly ignored, **+1.5% and +5.0% still caught**. The regression pair asserts its fixture lands ABOVE the old flat bound — without that, it would pass against the very regression it guards.
 
 ## ⭐⭐⭐ THE DERIVATION — measured, not fitted
 
