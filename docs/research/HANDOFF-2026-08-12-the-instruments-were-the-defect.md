@@ -95,58 +95,20 @@ none of them** — and in the SPAN UNKNOWN case the suite *could not*: its own h
 ## ⚠️ OPEN, AND WHOSE
 
 - **Sample 2's outlier** — mine, unexplained, no third hypothesis. Do not paper over it.
-- **`break_depth_m` missing on a minority of sampled rows** (9 of 15 in sample 4; 99 of 123 in
-  sample 3) — noticed, not chased. Quote the sample, not a bare ratio.
-- ⭐ **A REFUSAL YOU CANNOT ATTRIBUTE CANNOT BE INVESTIGATED** — sample 6 disqualified 1 row, and
-  both the printed report and the `--json` artifact record ONLY the count (`disqualified: 1`).
-  No spot_id, no name, no reproduce delta. The baseline self-check is the instrument's defence
-  against a second forecast path: when it fires, it is the single most interesting row in the
-  sample, and it is the one row you cannot look at. ⚠️ New corner on a known class — this
-  refusal is CORRECT, fires as designed and reports honestly; it is simply unactionable, so it
-  degrades into a number readers learn to skip. **✅ FIXED `a2fd5756`: the report now names (spot_id, name, persisted,
-  reproduced, delta, why) for the first 8, across all three branches. It paid for itself on its FIRST run — reframing `disqualified: 1` from "second forecast path" to "missed a tight bound by 0.3 mm". Root cause then measured and fixed (`f196d9c0`).**
-  ★ I found this by chasing my own flagged lead and hitting a wall in my own instrument —
-  which is the fourth time this session the instrument, not the code, was the defect.
-- **A served row is not internally time-consistent** — tide is evaluated at the REQUESTED hour
-  while the wave field can be a stale precompute (waves 01:00Z + tide 09:00Z in one row). That
-  accident is what made sample 3 near-controlled. Nothing discloses it. **Serving-path, owner call.**
-- **`spot_ratings.py` is at 796 of a HARD 800** (not grandfathered). The next rationale added there
-  breaches it. Relocation works — the file is simply out of room.
-- **`e2e` red — environmental, not ours.** 36× `page.goto: Operation was cancelled`, 13× 90 s
-  timeouts, 12× 404, 12× 401, Mapbox failures, and a broken `/* mocked */` JSON fixture. Nothing
-  touching `spot_ratings` or the inputs payload. ⚠️ I mis-attributed an e2e red once this week
-  (called it a deploy race when the backend had been up 10–20 min), so this reads the SIGNATURE.
-- **The band/glyph per-cell composition** — the concurrent session's. Do not tune either lane.
-
-## ✅ SAMPLE 6 — THE ONE THIS SECTION USED TO ASK FOR
-
-**Done.** 14 h span, 5 distinct served frames, **44 tail rows**, 127 replayable: **0 moved, max
-|delta| 0.2**. Every prior null was spanless (4, 5), tail-less (1, 3) or both. This one has BOTH
-and agrees with them. ⭐ **Sample 2 is now outvoted by a sample that dominates it on the two axes
-it could have differed on.**
-
-⚠️ **1 row disqualified — the first non-zero in six samples.** The baseline self-check refused a
-row that did not reproduce its persisted score, and excluded it rather than replaying it
-silently. 127 of 128 reproduced. That is the instrument being honest, not broken, but the row
-is worth someone's attention.
-
-⭐⭐ **THE FLAG NOW HAS THE EVIDENCE A "SAFE TO FLIP" VERDICT REQUIRES — which it demonstrably
-did NOT have on 08-09 when I claimed exactly that from an inert harness.** The difference is not
-the conclusion, which is the same; it is that the harness now proves it can see a 38.1-point
-move, and 127 rows across a real span with 44 tail rows still show nothing above 0.2. ★ The same
-answer from a harness that cannot move the lever and from one that can are not the same result.
-**Flipping it is an owner decision — and it is the first time it is a DECISION rather than a
-guess.**
-
-## ▶ IF YOU DO ONE THING
-
-**Decide `SURF_TIDE_DEPTH`, or chase the disqualified row.** The measurement work is done; what
-remains is a judgement I should not make alone. ⚠️ This section has now rotted TWICE in one
-session — it asked for sample 5, then sample 6, and both ran within the hour. If it looks stale
-when you read it, it probably is: check the table above before acting on this paragraph.
-
-⚠️ **The previous version of this section said "run sample 5 when the precompute has tail
-rows" — and sample 5 ran within the hour of that line being written.** ★ **A handoff's
-NEXT-STEP section is the fastest-rotting part of the document:** written at the moment of
-LEAST remaining context, read after the MOST elapsed time. Mine rotted into the most damaging
-form available — confident, specific instructions to redo finished work.
+- ⭐⭐ **CHASED, AND IT IS A PRODUCT FINDING: 47% OF SAMPLED ROWS HAVE DEGRADED GEOMETRY, AND
+  THEY ARE SYSTEMATICALLY THE BIG WAVES.** Measured over 128 rows of `frames_s6.json`, the
+  separation is total — no overlap:
+  | | n | `geometry_readiness` | height p50 | max |
+  |---|---|---|---|---|
+  | has `break_depth_m` | 68 | `full` (all) | 0.99 m | 1.93 m |
+  | missing | 60 | `degraded` (all) | **2.96 m** | **3.81 m** |
+  `break_depth_m is None` **iff** `geometry_readiness == 'degraded'` — 128/128, so the field is a
+  free diagnostic for degraded geometry. ⛔ **The waves users care most about are the ones
+  served with the worst geometry.** That is a data-quality question for the owner, not a
+  measurement artefact.
+  ⚠️ **I HYPOTHESISED THIS EXPLAINED THE TIDE NULL AND IT DOES NOT.** The obvious story — tail
+  rows lack the depth input the tide term acts through, so they cannot respond — was TESTED by
+  splitting the replay on `geometry_readiness`: `full` 68 rows max |delta| 0.2, `degraded` 60
+  rows max |delta| 0.2. **Identical.** Degraded rows are not inert. ★ I nearly published this
+  as the headline resolution of the tide question; the split took one run and refuted it.
+  ▶ Still open: WHY 47% degrade, and whether it correlates with coastline complexity.
