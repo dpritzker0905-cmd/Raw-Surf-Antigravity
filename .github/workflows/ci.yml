@@ -557,7 +557,13 @@ jobs:
           # computed from the last GREEN run and cannot see tests already committed but not yet
           # run. 1705-6=1699 is the floor that survives both readings (lag 4 now, 6 next, and
           # the comparison is strict `>`).
-          MIN_FILES, MIN_PASSED = 149, 1699
+          # ⬆ MIN_PASSED 1699→1701 on 2026-08-13, RAISED BEFORE CI ASKED. Run 31664846960
+          # (5ad5afa6) observed 1705 -- which CONFIRMS the 1705 projected in the previous raise
+          # (1703+2, arithmetic shown so it could be falsified; it was not). 4d338d30 then added
+          # 2 tests to test_rating_shadow_ab.py, which this lane owns, so the next reading is
+          # 1707 and 1707-1699=8 would exceed the budget of 6. 1707-6=1701 clears both the
+          # current reading (lag 4) and the next (lag 6, and the comparison is strict `>`).
+          MIN_FILES, MIN_PASSED = 149, 1701
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

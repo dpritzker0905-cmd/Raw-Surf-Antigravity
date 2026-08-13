@@ -224,7 +224,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #                 form as the estate projection above. The next green run replaces it with an
 #                 observation -- and if 1705 is wrong, THAT run says so, which is the point of
 #                 showing the arithmetic instead of citing a number that has not happened.
-_FLOOR_SET_FROM = {"guards": 1705, "chain": 786, "estate": 349}
+#   guards        PROJECTED again: run 31664846960 read 1705 (confirming the LAST projection
+#                 exactly), and 4d338d30 adds 2 tests this lane owns, so 1705 + 2 = 1707.
+_FLOOR_SET_FROM = {"guards": 1707, "chain": 786, "estate": 349}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
