@@ -94,6 +94,23 @@ none of them** — and in the SPAN UNKNOWN case the suite *could not*: its own h
 
 ## ⚠️ OPEN, AND WHOSE
 
+- ⚠️⚠️ **NEW, USER-FACING: SPOT RATINGS BEYOND NEAR-TERM RETURN 503 FOR BOTH MODELS.**
+  Measured 2026-08-13T04Z, bbox `-30,30,40,70`, limit 200:
+  | | +1 h | +48 h | +120 h |
+  |---|---|---|---|
+  | EURO | **200** | `000` (timed out at 100 s) | **503** |
+  | GFS | **200** | **503** | **503** |
+  Body: *"ratings live path at capacity; precomputed lane refreshing — retry shortly"* — it
+  REFUSES rather than serving a stale or fabricated frame, which is the right failure. But the
+  near-term precompute is the only thing served; past it, requests fall to a saturated live
+  path. **Not model-specific — it tracks LEAD TIME.**
+  ⚠️ ONE bbox, ONE moment, and the message says *refreshing* — this may be a refresh window, not
+  a standing horizon gap. I am NOT calling it an outage; telling them apart needs a repeat at
+  another hour, and retrying against a service that just reported saturation is noise, not
+  measurement. ▶ **Owner: compare with the scrubber's advertised horizon (7–14 d found earlier
+  this session). If the UI offers days the ratings lane cannot serve, that gap is user-visible
+  — and that is the question worth answering, not whether one 503 was transient.**
+
 - **Sample 2's outlier** — mine, unexplained, no third hypothesis. Do not paper over it.
 - ⭐⭐ **CHASED, AND IT IS A PRODUCT FINDING: 47% OF SAMPLED ROWS HAVE DEGRADED GEOMETRY, AND
   THEY ARE SYSTEMATICALLY THE BIG WAVES.** Measured over 128 rows of `frames_s6.json`, the
