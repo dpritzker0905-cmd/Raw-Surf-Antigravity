@@ -167,3 +167,43 @@ half-applied edits today.
 Read `window.__OM_URL_TRACE__.blockedDetail` at the zoom floor and fix whichever side of the
 comparison is wrong. It is the last unknown in a bug that blanks **every** weather raster layer at
 the two farthest-out zooms, and the instrument to answer it is already deployed.
+
+
+---
+
+## ⚠️ ONE BOUNDED OBSERVATION FOR THE OCCLUSION OWNER — `water-shadow` (unverified)
+
+Static audit of the anchor class after their fixes, offered as a lead, **not a finding** — this is
+their area and I have no live measurement.
+
+**What the code says:**
+- `findMarineInsertionLayer` returns `'ocean-mask-fill'` whenever the mask exists, so the marine
+  layer **also** sits below the mask — the same position that occluded water_temp.
+- Marine has always rendered anyway because `configureWaterTransparency` drops basemap `water` to
+  **`fill-opacity: 0.25`** when marine is active. `d21b7cd9` extended that to water_temp
+  (`!!activeMarineLayer || waterTempActiveForWater`) — the marine-heatmap pattern.
+- ⚠️ **`configureWaterTransparency` touches `water` ONLY.** `water-shadow` appears in `map/*.js`
+  exclusively in comments and tests — no `setPaintProperty` anywhere — yet `waterTempAnchor.js`'s
+  own header lists it as an occluder:
+  `water-shadow ........ 17   fill, opaque, basemap composite   ← covers the field`
+
+⇒ **By the fix's own occluder list, one of the two named occluders is not addressed by the
+transparency half.** The `planAnchorMoves` refusal *does* account for it (it scans every water fill
+above the mask), so the guard is sound; the question is only whether the field is still tinted or
+covered by layer 17 at the zoom where the bug appeared.
+
+▶ **One live check settles it** (needs a logged-in map at the zoom floor, which I did not have):
+```js
+const m = window.__MAP__; const ids = m.getStyle().layers.map(l=>l.id);
+JSON.stringify({ field: ids.indexOf('water_temp-slot-1-layer'),
+                 water: ids.indexOf('water'), shadow: ids.indexOf('water-shadow'),
+                 waterOpacity:  m.getPaintProperty('water','fill-opacity'),
+                 shadowOpacity: m.getPaintProperty('water-shadow','fill-opacity') })
+```
+If `shadowOpacity` is 1 and its index is above the field, it occludes and wants the same treatment.
+If it is already low, or `water-shadow` is a thin coastal edge rather than an ocean fill, this is a
+non-issue — **which is exactly why I am not claiming it is broken.**
+
+★ I reached this by asking "where else does this class live?" instead of stopping at the fix — the
+question I failed to ask all day, when the class was already recorded five times in the owner's
+ledger and I never opened it.
