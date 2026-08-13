@@ -586,3 +586,40 @@ def test_genuinely_distinct_frames_do_not_warn(monkeypatch, tmp_path, capsys):
                                       "--frames-file", str(f)])
     mod.main()
     assert "REPEATED FRAMES" not in capsys.readouterr().out
+
+
+# ---- the height self-check is RELATIVE, and must stay that way ------------------------------
+# A flat 0.005 m bound disqualified the tallest sampled wave (2.629 m) by 0.3 mm on 2026-08-12,
+# the day tail sampling first put big waves in the sample. The quantization envelope SCALES with
+# height (measured p50 0.25%, p90 0.57%, max 0.84% over 128 served rows), so the bound must too.
+# See docs/research/FINDING-2026-08-12-the-disqualified-row-is-an-INTERACTION.md.
+
+def _tall_row_with_drift(pct):
+    """A tall row whose persisted height is off by pct% -- simulating replay/persist drift."""
+    r = _row(offshore=4.0)
+    r["surf_height_m"] = round(r["surf_height_m"] * (1 + pct / 100.0), 3)
+    return r
+
+
+def test_the_height_tolerance_scales_with_height_and_is_not_flat():
+    from scripts.science_shadow_ab import replay_frames
+    inside = _tall_row_with_drift(0.9)
+    # ⭐ THE ASSERTION THAT GIVES THIS TEST ITS TEETH: the drift must EXCEED the old flat bound,
+    # or a reverted 0.005 would pass it too and this test would prove nothing.
+    base_h = _row(offshore=4.0)["surf_height_m"]
+    assert abs(inside["surf_height_m"] - base_h) > 0.005, (
+        "the 0.9%% drift is only %.4f m -- below the old flat bound, so this test cannot "
+        "distinguish relative from absolute" % abs(inside["surf_height_m"] - base_h))
+    rep = replay_frames(_frames([inside]), {"SURF_TIDE_DEPTH": "1"})
+    assert rep["disqualified"] == 0, (
+        "a 0.9%% height drift on a tall wave is INSIDE the measured quantization envelope "
+        "(max 0.84%%) and must not disqualify -- the bound has gone flat again")
+
+
+def test_real_height_drift_is_still_caught():
+    """The other half. A loosened guard that stops catching is a deletion, not a fix."""
+    from scripts.science_shadow_ab import replay_frames
+    rep = replay_frames(_frames([_tall_row_with_drift(5.0)]), {"SURF_TIDE_DEPTH": "1"})
+    assert rep["disqualified"] == 1, "a 5% height drift must still disqualify"
+    assert rep["disqualified_rows"], "and it must NAME the row -- a count cannot be investigated"
+    assert rep["disqualified_rows"][0]["why"] == "height"
