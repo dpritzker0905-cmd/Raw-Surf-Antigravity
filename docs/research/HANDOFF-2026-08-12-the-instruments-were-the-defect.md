@@ -6,7 +6,7 @@ environmental reasons documented below.
 
 ---
 
-## ⭐ THE HEADLINE — `SURF_TIDE_DEPTH`, four samples, and one honest gap
+## ⭐ THE HEADLINE — `SURF_TIDE_DEPTH`, FIVE samples, and one honest gap
 
 | # | window | replayable | moved | max abs delta | tail rows |
 |---|---|---|---|---|---|
@@ -21,7 +21,7 @@ moved nothing. **Sample 4 is the first observation of the depth-limited regime e
 shows the same smallness.
 
 ⚠️ **SAMPLE 2 IS NOW UNEXPLAINED BY EITHER HYPOTHESIS.** Phase is dead (3), size is not supported
-(4). I do not have a third explanation and did not invent one. Three of four samples say the term
+(4). I do not have a third explanation and did not invent one. **Four of five** samples say the term
 is user-invisible; the outlier survived both stories I had for it.
 
 ✅ **SAMPLE 5 IS DONE (see the table).** The trigger below fired within the hour and the sample ran on PRECOMPUTED tail rows to 3.71 m: 17 replayable, 0 disqualified, 0 level changes, max |delta| **0.1**. ⭐ **The clock ended itself because it named the observation that ends it** — unlike the false blocker it replaced. ⚠️ Sample 2 now stands ALONE against four nulls, two of which cover the depth-limited regime that was its last available explanation. Every hypothesis proposed for it has been tested and failed. I am NOT calling it noise: 8 rows moving 3.2 points is a real observation from a real instrument, and "outlier explained by something unmeasured" is not distinguishable from "outlier that was always noise" on the evidence I have. What changed is the BURDEN. ▶ **Original next step, now satisfied: sample 5, once the precompute writes tail rows.** Unlike the false blocker I wrote
@@ -108,6 +108,13 @@ none of them** — and in the SPAN UNKNOWN case the suite *could not*: its own h
 
 ## ▶ IF YOU DO ONE THING
 
-Run sample 5 when the precompute has tail rows. It is the first time the depth-limited regime will
-be observable with a real n and a real span, and it is the only remaining way to either explain
-sample 2 or retire it.
+**GIVE SAMPLE 2 A SPAN.** Samples 4 and 5 are the CLEANEST by composition and the WEAKEST by
+span — both single frames, both correctly flagged `! SPAN UNKNOWN`. Four nulls at n=15-486 across
+three span classes is not one wide, tail-bearing sample. Tail rows are now sampled, so build
+frames with REAL `hour_offset`s across a tidal cycle and the question resolves either way.
+
+⚠️ **The previous version of this section said "run sample 5 when the precompute has tail
+rows" — and sample 5 ran within the hour of that line being written.** ★ **A handoff's
+NEXT-STEP section is the fastest-rotting part of the document:** written at the moment of
+LEAST remaining context, read after the MOST elapsed time. Mine rotted into the most damaging
+form available — confident, specific instructions to redo finished work.
