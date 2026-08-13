@@ -111,4 +111,20 @@ none of them** — and in the SPAN UNKNOWN case the suite *could not*: its own h
   splitting the replay on `geometry_readiness`: `full` 68 rows max |delta| 0.2, `degraded` 60
   rows max |delta| 0.2. **Identical.** Degraded rows are not inert. ★ I nearly published this
   as the headline resolution of the tide question; the split took one run and refuted it.
-  ▶ Still open: WHY 47% degrade, and whether it correlates with coastline complexity.
+  ✅ **ANSWERED: IT IS GEOGRAPHIC, AND THE HEIGHT LINK IS LARGELY CONFOUNDING.** Degraded rate
+  by region (22 unique spots, one global `/spot-ratings` viewport — quote the n):
+  | region | n | degraded | h_p50 |
+  |---|---|---|---|
+  | N. America | 6 | **17%** | 0.45 |
+  | Europe/Med | 6 | **17%** | 1.54 |
+  | Asia/SE-Asia | 5 | **80%** | 3.00 |
+  | Africa/Indian | 2 | **100%** | 3.02 |
+  | Pacific | 2 | **100%** | 3.81 |
+  ⇒ **A COVERAGE GAP IN THE PER-SPOT GEOMETRY ASSETS OUTSIDE EUROPE/N. AMERICA** (`FULL` needs a
+  per-spot ETOPO normal AND a nearshore break depth; `DEGRADED` is a coarse 0.25° normal
+  and/or no break depth). The tall-wave correlation is mostly those regions HAVING the big
+  surf, not height causing degradation.
+  ⚠️ **n is small (regions of 2–6) and within-region strata are too thin to separate cleanly** —
+  Asia/SE-Asia still shows degraded 2.95 m vs full 1.39 m, so a residual height effect is not
+  excluded. The BETWEEN-region signal (17% vs 80–100%) is what carries this, and it is strong.
+  ▶ Owner call: extending geometry asset coverage is a product decision, not a measurement.
