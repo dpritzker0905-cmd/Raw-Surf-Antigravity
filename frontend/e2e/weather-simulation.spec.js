@@ -71,6 +71,34 @@ test.beforeEach(async ({ page }) => {
     'https://[::1]',
   ];
 
+  // ⛔⛔ EXTENSION, NOT SUBSTRING (2026-08-13, WS-CAN-0059). This branched on
+  // `url.includes('.js')`, and **`.json` CONTAINS `.js`** — so every `.json` off an allowed origin
+  // was answered with `/* mocked */` under `application/javascript`, and any `.json()` /
+  // `JSON.parse` on it raised `Unexpected token '/', "/* mocked */" is not valid JSON`.
+  // MEASURED, run 31652826600: 16 failed / 1 flaky / 31 passed, with that string 14x — and the
+  // failures were BROWSER-CONFINED (Desktop Safari 24 artifacts, Firefox 10, **Chrome 0, mobile
+  // 0**), which is what ruled out an application regression. The 36 `frame was detached`
+  // cancellations and 13 ninety-second `page.goto` timeouts were CONSEQUENCES of the page tearing
+  // down mid-navigation; read the causation backwards from the timeouts, never forwards.
+  // ⚠️ WHY TIGHTENING THIS IS SAFE: the `resourceType()` clause in each branch is the real net —
+  // it catches `.mjs`, extensionless and hash-named scripts whatever the URL looks like. The URL
+  // test is belt-and-braces on top of it, so making it exact removes false positives without
+  // narrowing what genuinely gets mocked.
+  // ⚠️ WHAT THIS DOES NOT CLAIM: it does not explain why Chrome passed with the identical handler
+  // installed. This is a confirmed defect with an UNCONFIRMED SHARE OF THE BLAME — see
+  // `audit/weather-simulation-12.0/evidence/test-results/RV-14_e2e_failure_mechanism.md`. Do not
+  // read one green run as proof the lane is fixed: the historical rate is 6 pass / 28 fail over 34
+  // runs, so a single green sits inside the existing noise.
+  // Path only, so `?query` and `#fragment` cannot smuggle an extension in. No `new URL` — this
+  // file lints under a Node config with no DOM globals, and a bare regex keeps the helper free of
+  // both the `no-undef` and the empty-catch it would otherwise need.
+  const extOf = (u) => {
+    const path = String(u).split(/[?#]/)[0];
+    const dot = path.lastIndexOf('.');
+    const slash = path.lastIndexOf('/');
+    return dot > slash ? path.slice(dot).toLowerCase() : '';
+  };
+
   await page.route('**/*', route => {
     const url = route.request().url();
     if (
@@ -79,13 +107,14 @@ test.beforeEach(async ({ page }) => {
       url.startsWith('blob:')
     ) {
       route.continue();
-    } else if (url.includes('.js') || route.request().resourceType() === 'script') {
+    } else if (['.js', '.mjs', '.cjs'].includes(extOf(url))
+               || route.request().resourceType() === 'script') {
       route.fulfill({
         status: 200,
         contentType: 'application/javascript',
         body: '/* mocked */'
       });
-    } else if (url.includes('.css') || route.request().resourceType() === 'stylesheet') {
+    } else if (extOf(url) === '.css' || route.request().resourceType() === 'stylesheet') {
       route.fulfill({
         status: 200,
         contentType: 'text/css',
