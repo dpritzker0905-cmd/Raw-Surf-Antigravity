@@ -6,7 +6,38 @@ For a fresh context. Supersedes the 08-12 handoff's status lines; that document'
 
 ---
 
-## ⭐ START HERE — THE ONE LIVE THREAD
+## ✅ CLOSED 2026-08-13 (after this handoff was written) — READ THIS BEFORE THE SECTION BELOW
+
+**The zoom-floor blank is ROOT-CAUSED AND FIXED by the concurrent session, and my `model_lock`
+hypothesis is REFUTED.** Their register entry `40b47946`, from an owner-driven live bisect:
+
+> at an ocean pixel, z2, GFS fixed, **water_temp sits at layer idx 5 while the basemap's `water`
+> (11) and `water-shadow` (17) render ABOVE it. The field decodes and paints and is then covered
+> by the basemap ocean.**
+
+Mechanism: `moveLayer(id,'ocean-mask-fill')` puts the slot at index 6, but the constraint is
+**unsatisfiable as arranged** — it must be above basemap water (11) and below `ocean-mask-fill` (6).
+⭐⭐ **"It presents as zoom-related ONLY because `styledata` fires on zoom** and slot rotation
+re-mounts the slots where they paint, then the re-assert pushes them back down."
+Fixes: `e88b0f68`, `f3fe2c85`. Deployed at `172f66aa`. **FIFTH occurrence of one class** in their
+ledger (07-11 lakes · 07-11 coast buffer · 07-11 green landuse · 07-17 inland repaints · 08-13
+basemap water): weather fields anchored below basemap fills.
+
+⛔ **WHAT I GOT WRONG, AND IT IS THE SAME TRAP A FIFTH TIME.** My z2-vs-z2.99 discriminator was a
+REAL measurement (24 entered / 0 decoded vs 45 / 20) and `model_lock` genuinely blocked on the
+build then deployed — `06bf431f` fixed a real one-sided normalisation (`getParentModel(folder)`
+compared against a raw `lock`). **But zoom was a SYMPTOM, not the variable.** I had documented
+"I measured a transient and called it a state" four times in this very document and then did it
+again, one layer down: I treated a zoom-correlated reading as a zoom-caused mechanism.
+★ **A CORRELATION WITH ZOOM IN THIS UI IS NEARLY WORTHLESS** — `styledata` fires on zoom, so
+anything re-mounted or re-asserted on style events will track zoom without being caused by it.
+
+⇒ The section below is kept for the METHOD (the entry-point probe, the controlled discriminator)
+and for the audit. **Its "next action" is spent — do not chase `blockedDetail`.**
+
+---
+
+## ⭐ (SUPERSEDED) THE ONE LIVE THREAD
 
 **Every `om://` raster layer renders blank at the map's zoom floor (z2–z3; `minZoom` is 2 on dev
 live).** The owner reported it as "fog isn't activating at the two farthest out zooms". It is
