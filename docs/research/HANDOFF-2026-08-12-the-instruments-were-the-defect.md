@@ -96,6 +96,16 @@ none of them** — and in the SPAN UNKNOWN case the suite *could not*: its own h
 
 - **Sample 2's outlier** — mine, unexplained, no third hypothesis. Do not paper over it.
 - **`break_depth_m` present on only 9 of 15 sampled rows** — noticed, not chased.
+- ⭐ **A REFUSAL YOU CANNOT ATTRIBUTE CANNOT BE INVESTIGATED** — sample 6 disqualified 1 row, and
+  both the printed report and the `--json` artifact record ONLY the count (`disqualified: 1`).
+  No spot_id, no name, no reproduce delta. The baseline self-check is the instrument's defence
+  against a second forecast path: when it fires, it is the single most interesting row in the
+  sample, and it is the one row you cannot look at. ⚠️ New corner on a known class — this
+  refusal is CORRECT, fires as designed and reports honestly; it is simply unactionable, so it
+  degrades into a number readers learn to skip. **Fix: collect (spot_id, name, persisted,
+  reproduced, delta) for the first N disqualified rows and emit them alongside the count.**
+  ★ I found this by chasing my own flagged lead and hitting a wall in my own instrument —
+  which is the fourth time this session the instrument, not the code, was the defect.
 - **A served row is not internally time-consistent** — tide is evaluated at the REQUESTED hour
   while the wave field can be a stale precompute (waves 01:00Z + tide 09:00Z in one row). That
   accident is what made sample 3 near-controlled. Nothing discloses it. **Serving-path, owner call.**
