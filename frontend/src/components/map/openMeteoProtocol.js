@@ -51,9 +51,9 @@ const isModelMatch = (folder, lock) => {
     return true;
   }
   
-  const parent = getParentModel(folder);
+  const parent = getParentModel(folder), lockParent = getParentModel(lock);
   const l = lock.toLowerCase();
-  return parent.toLowerCase() === l || f.includes(l) || l.includes(f);
+  return (parent && parent === lockParent) || parent.toLowerCase() === l || f.includes(l) || l.includes(f);
 };
 
 // Global Concurrency Semaphore to serialize tile decoding requests to 1 parallel worker
