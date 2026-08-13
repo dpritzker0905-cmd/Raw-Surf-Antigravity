@@ -109,6 +109,18 @@ Over 0.005: **1**. Over 0.004: **5**. Over 0.003: **17**. Over 0.001: **79 of 12
 
 ▶ **Fix (not written):** make the height check RELATIVE, or mixed — e.g. `abs(dh) > max(0.005, 0.002 * h)`. ⚠️ Derive it and write the derivation down: `REPRODUCE_TOL` carries a careful quantization argument for the SCORE grid, and the height bound carries none. **Do not widen it to whatever makes today's row pass** — that is the census-bound mistake this repo already has on record.
 
+## ⭐⭐⭐ THE DERIVATION — measured, not fitted
+
+The bound needed a derivation, not a constant that makes today's row pass. Perturbing EVERY persisted input by its own rounding half-quantum (`offshore_hs_m` +-0.0005 m, `swell_from_deg`, `shore_normal_deg`, `break_depth_m` +-0.05, `period_s` +-0.05 s) and summing the single-input effects gives the honest quantization envelope:
+
+- **0 of 22 rows have an observed error EXCEEDING their own envelope.** Reproduction error is fully accounted for by input rounding. There is no residual drift to explain.
+- Papara: envelope **0.006106** vs observed 0.004715 — within.
+- **Max envelope / height = 0.84%**, and the envelope SCALES with height, which is why an absolute 5 mm bound preferentially fails tall waves.
+
+⇒ **DERIVED FIX:** the height check must scale. `abs(dh) > max(0.005, 0.010 * h)` covers the measured 0.84% envelope with modest headroom, and the 0.005 floor preserves today's behaviour for small waves. **This is derived from the persisted rounding grids, the same way `REPRODUCE_TOL` was derived for the score grid — not fitted to the failing row.**
+
+⚠️ **TWO HONEST LIMITS ON THIS RESULT.** (1) The envelope run DEDUPED BY SPOT NAME, so the 'Salalah' row it measured is from frame 0, not the frame-5 row that actually failed; that row's envelope is inferred from a sibling (0.006843 > its 0.005293 observed), **not measured directly**. (2) The sum-of-single-effects is a LINEAR worst case; real combined error is typically smaller, so the envelope is generous by construction. Neither weakens 'the bound must scale'; both matter if anyone tunes the 0.010 coefficient. **Re-measure without dedup before pinning it.**
+
 ## The method still holds
 
 A count-only oracle DID localise one row out of 1,600 in ~14 runs, and the whole-set control
