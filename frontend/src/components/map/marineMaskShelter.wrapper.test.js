@@ -375,12 +375,35 @@ describe('suppressShelteredWater — canvas wrapper', () => {
       delete window.__RAW_MASK_INPUT_HASH__;
     });
 
+    // ⛔ NON-VACUITY (WS-CAN-0045 — audit 11.4's packet, stage 3, the last of its stages left open).
+    //   `toEqual` on two buffers passes just as happily when BOTH are empty, so a byte-identity
+    //   assertion survives a cache that stamps NOTHING AT ALL. That is the same shape as the
+    //   tautology 11.4 caught one layer down — an assertion that cannot fail — and it is why the
+    //   packet asked for this explicitly rather than trusting the fixture.
+    //   The stamp encodes sheltered as alpha 255 and open as alpha 0 (marineMaskShelter.js:438-440),
+    //   so a mask doing real work must contain BOTH. Asserting on an object rather than two bare
+    //   booleans makes the failure name which phase was missing instead of just "false !== true".
+    // ⚠️ NARROW's shelteredFrac > 0 is asserted in a SIBLING test, which is not protection: fixtures
+    //   drift, and a sibling passing tells this assertion nothing. The guard has to live here.
+    const expectBothPhases = (px, label) => {
+      let sheltered = 0, open = 0;
+      for (let i = 3; i < px.length; i += 4) {
+        if (px[i] === 255) sheltered++;
+        else if (px[i] === 0) open++;
+      }
+      expect({ label, hasSheltered: sheltered > 0, hasOpen: open > 0 })
+        .toEqual({ label, hasSheltered: true, hasOpen: true });
+    };
+
     it('★ a HIT produces byte-identical stamped pixels to the MISS before it', () => {
       const first = run(NARROW);
       const missPixels = Uint8ClampedArray.from(first.ds.imageData().data);
       const second = run(NARROW);
       const hitPixels = second.ds.imageData().data;
       expect(window.__RAW_GPU__.shelterCache).toEqual(expect.objectContaining({ miss: 1, hit: 1 }));
+      // Both buffers must be doing real work BEFORE their equality means anything.
+      expectBothPhases(missPixels, 'MISS');
+      expectBothPhases(hitPixels, 'HIT');
       expect(Array.from(hitPixels)).toEqual(Array.from(missPixels));
     });
 
@@ -396,6 +419,10 @@ describe('suppressShelteredWater — canvas wrapper', () => {
       const hit = Uint8ClampedArray.from(run(NARROW).ds.imageData().data);
       _resetShelterCache();
       const miss2 = Uint8ClampedArray.from(run(NARROW).ds.imageData().data);
+      // Same vacuity exposure as the assertion above — three blank buffers agree perfectly.
+      expectBothPhases(miss1, 'MISS-1');
+      expectBothPhases(hit, 'HIT');
+      expectBothPhases(miss2, 'MISS-2');
       expect(Array.from(hit)).toEqual(Array.from(miss2));
       expect(Array.from(miss1)).toEqual(Array.from(miss2));
     });
