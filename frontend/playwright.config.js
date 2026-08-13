@@ -34,6 +34,15 @@ module.exports = defineConfig({
     baseURL: process.env.E2E_BASE_URL || 'https://dev--rawsurf.netlify.app',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // WS-CAN-0027 (2026-08-13). Named by 11.0 as "this audit's single largest evidence gap", then by
+    // 11.1, 11.2, 11.4 and 12.0 — five audits disclosed producing zero recordings and none wrote the
+    // key. `git log -S video` on this file returns NOTHING: it had never existed. The cause was not
+    // negligence: an agent browser pane does not composite frames, so screenshots/video/RAF-FPS are
+    // all unavailable there — Playwright's own browser is the only surface that can produce them.
+    // retain-on-failure, not 'on': recording every pass costs runtime on a lane that only just
+    // reached 5 consecutive greens after 6-pass/28-fail, and a passing test has nothing to show.
+    // Reaches CI via reporter:'html' -> playwright-report/ -> upload-artifact (e2e.yml:177).
+    video: 'retain-on-failure',
   },
   projects: [
     {
