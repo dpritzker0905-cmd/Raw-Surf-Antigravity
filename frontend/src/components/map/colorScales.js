@@ -168,6 +168,34 @@ export var BASE_CUSTOM_COLOR_SCALES = {
 };
 
 export var CUSTOM_COLOR_SCALES = {};
+
+/**
+ * Give `surface_temperature` the sea-surface colour scale.
+ *
+ * ⛔ THE WATER-TEMP HEATMAP RENDERED NOTHING ON EVERY MODEL BECAUSE OF THIS. Measured on dev
+ * live 2026-08-13: the layer requests `variable=surface_temperature` (LayerRegistry chose it
+ * because `sea_surface_temperature` is not hosted on the tile CDN -- the library ships only a
+ * colour-scale alias for it). Tiles arrived and decoded correctly -- 4,718,592 values spanning
+ * -53.95 to +38.75 degC with 31.6% NaN over land -- and then colourisation looked up a scale
+ * named `surface_temperature`, found none among the 49 registered, and emitted transparent
+ * tiles. Every upstream signal read healthy: isSourceLoaded true, areTilesLoaded true, correct
+ * z/x/y coverage at z9, z5 and z2. Nothing reported a failure, because nothing HAD failed --
+ * the pipeline did exactly what it was told with a key that did not exist.
+ *
+ * ★ A LOOKUP MISS THAT RETURNS 'NOTHING TO DRAW' IS INDISTINGUISHABLE FROM 'NOTHING TO SHOW'.
+ * The values were real; only the name was wrong. Six other explanations were investigated and
+ * refuted first (model capability, ocean mask, cache-buster, cache misses, source bounds, tile
+ * enumeration) because none of the healthy-looking signals pointed here.
+ *
+ * Aliased rather than copied: one scale, so the two can never drift apart. Guarded so it is a
+ * no-op if the library ever ships its own `surface_temperature`, or renames the SST scale.
+ */
+export function aliasSurfaceTemperature(scales) {
+  if (scales && !scales.surface_temperature && scales.sea_surface_temperature) {
+    scales.surface_temperature = scales.sea_surface_temperature;
+  }
+  return scales;
+}
 Object.keys(BASE_CUSTOM_COLOR_SCALES).forEach(function(key) {
   CUSTOM_COLOR_SCALES[key] = smoothColorScale(BASE_CUSTOM_COLOR_SCALES[key], 80);
 });

@@ -1,4 +1,4 @@
-import { CUSTOM_COLOR_SCALES } from './colorScales';
+import { CUSTOM_COLOR_SCALES, aliasSurfaceTemperature } from './colorScales';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { traceOmUrl } from './omUrlTrace';
 
@@ -292,15 +292,13 @@ function oceanFillLandCells(values, landMask, nx, ny) {
   for (let i = 0; i < state.length; i++) { if (state[i] === 1) values[i] = NaN; }
 }
 
-// Coastal outlier QC (2026-07-11, "deep hot red spot off Marsh Harbour"): even the dilated NE
-// mask misses cells the MODEL's own landmask treats as land (thin cays/shores absent from NE
-// 50m) — those render raw land-skin temps (probed: 47.3°C in Bahamas water at midday). Standard
-// SST coastal QC: within 2 cells of the mask coastline, a cell deviating more than 3°C from the
-// local water median (9×9 window sampled at stride 2 ≈ ±4 cells of context; median is robust to
-// the contaminated minority) is reclassified as land-contaminated and ocean-filled. Symmetric
-// threshold: daytime land runs hot, nighttime land runs cold. Real fronts survive: per-cell
-// deviation from a ±50km median stays under ~2-3°C even at the Gulf Stream wall, and Bahamas
-// banks warmth (~+1.5-2°C) is below threshold. Kill: globalThis.__RAW_WT_COASTAL_QC_DISABLED__.
+// Coastal outlier QC (2026-07-11, "deep hot red spot off Marsh Harbour"): the dilated NE mask
+// misses cells the MODEL's landmask calls land (thin cays absent from NE 50m), which render raw
+// land-skin temps (probed: 47.3°C in Bahamas water at midday). Standard SST coastal QC: within 2
+// cells of the coastline, a cell >3°C from the local water median (9×9 at stride 2 ≈ ±4 cells;
+// median resists the contaminated minority) is ocean-filled. Symmetric — land runs hot by day,
+// cold by night. Real fronts survive: deviation from a ±50km median stays ~2-3°C even at the Gulf
+// Stream wall, Bahamas banks ~+1.5-2°C. Kill: globalThis.__RAW_WT_COASTAL_QC_DISABLED__.
 function coastalOutlierQC(values, landMask, nx, ny) {
   const augmented = Uint8Array.from(landMask);
   // ring = non-land cells within Chebyshev distance 2 of land (stamped from land cells)
@@ -513,8 +511,10 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
   }
 
   import('@openmeteo/weather-map-layer').then(({ omProtocol, defaultOmProtocolSettings, GridFactory }) => {
-    // Forceful mutation to guarantee custom scales are used in all instances
+    // Forceful mutation so custom scales win everywhere; then alias surface_temperature ->
+    // the library's sea_surface_temperature (colorScales.aliasSurfaceTemperature says why).
     Object.assign(defaultOmProtocolSettings.colorScales, CUSTOM_COLOR_SCALES);
+    aliasSurfaceTemperature(defaultOmProtocolSettings.colorScales);
 
     const settings = {
       ...defaultOmProtocolSettings,
