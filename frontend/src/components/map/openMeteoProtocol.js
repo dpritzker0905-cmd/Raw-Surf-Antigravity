@@ -1,5 +1,6 @@
 import { CUSTOM_COLOR_SCALES } from './colorScales';
 import { WeatherTelemetry } from './WeatherTelemetry';
+import { traceOmUrl } from './omUrlTrace';
 
 // F4: per-tile / per-frame console output is GATED. With console capture / React Scan / PostHog
 // active, an unconditional console.log per decoded tile materially amplifies tile-heavy
@@ -716,6 +717,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
     if (maplibregl?.addProtocol) {
       try {
         maplibregl.addProtocol('om', (params, abortController) => {
+          traceOmUrl(params && params.url);   // no-op unless __OM_URL_TRACE__ is armed
           const hasWindow = typeof window !== 'undefined';
           const currentSettings = (hasWindow && window.__OM_PROTOCOL_SETTINGS__) || settings;
           const debug = (hasWindow && window.__RASTER_DEBUG__) || {};
@@ -744,11 +746,9 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             variable = urlObj.searchParams.get('variable') || "";
           } catch (err) { /* ignore parse errors */ }
 
-          // [RASTER PROBE] (gated behind the existing __RASTER_DEBUG__ flag; OFF in prod → zero cost)
-          // Decisive diagnostic for "precip clears above z10": captures the tile zooms MapLibre
-          // ACTUALLY requests. If maxZ stays ≤10 while the map is at z13 → overzoom is working
-          // (clearing is a decode/render issue, not maxzoom). If maxZ >10 → maxzoom:10 isn't
-          // taking effect and overzoom is NOT happening. Read window.__RASTER_PROBE__ after a repro.
+          // [RASTER PROBE] (__RASTER_DEBUG__; OFF in prod → zero cost) captures the tile ZOOMS
+          // MapLibre requests: maxZ ≤10 at map z13 → overzoom works (clearing is decode/render);
+          // maxZ >10 → maxzoom:10 is not taking. Sibling: omUrlTrace.js records the full z/x/y.
           if (hasWindow && window.__RASTER_DEBUG__ && urlObj) {
             try {
               const segs = urlObj.pathname.split('/').filter(Boolean);
