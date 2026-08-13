@@ -932,7 +932,12 @@ jobs:
           #   NEXT commit, which is usually innocent — `55f2c068`, docs-only, ate exactly that for
           #   the guards lane. ⇒ A GREEN CI ON THE COMMIT THAT ADDS TESTS DOES NOT MEAN THE FLOORS
           #   ARE CURRENT. Read the staleness table, not the job's colour.
-          MIN_PASSED = 347
+          # ⬆ estate MIN_PASSED 347→351 on 2026-08-13, and THE PRE-PUSH HOOK IS WHY. It
+          # caught this commit's own 4 new tests (test_check_floor_before_push.py, which falls
+          # to the estate COMPLEMENT, not guards) before the push -- the 5th instance of this
+          # trap and the first not discovered by a red build. Run 31664846960 observed 349, so
+          # 349 + 4 = 353 next, and 353 - 2 (this lane's budget) = 351.
+          MIN_PASSED = 351
 
           try:
               root = ET.parse('estate.xml').getroot()

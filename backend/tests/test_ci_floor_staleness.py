@@ -226,7 +226,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #                 showing the arithmetic instead of citing a number that has not happened.
 #   guards        PROJECTED again: run 31664846960 read 1705 (confirming the LAST projection
 #                 exactly), and 4d338d30 adds 2 tests this lane owns, so 1705 + 2 = 1707.
-_FLOOR_SET_FROM = {"guards": 1707, "chain": 786, "estate": 349}
+#   estate        PROJECTED: run 31664846960 read 349, +4 tests in this commit = 353.
+_FLOOR_SET_FROM = {"guards": 1707, "chain": 786, "estate": 353}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
