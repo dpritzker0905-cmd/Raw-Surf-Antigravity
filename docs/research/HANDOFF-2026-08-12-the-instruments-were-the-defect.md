@@ -127,4 +127,23 @@ none of them** — and in the SPAN UNKNOWN case the suite *could not*: its own h
   ⚠️ **n is small (regions of 2–6) and within-region strata are too thin to separate cleanly** —
   Asia/SE-Asia still shows degraded 2.95 m vs full 1.39 m, so a residual height effect is not
   excluded. The BETWEEN-region signal (17% vs 80–100%) is what carries this, and it is strong.
+  ⛔ **NUMBERS CORRECTED AT 11x THE SAMPLE (245 unique spots, every row — `geometry_readiness`
+  is on EVERY spot, not only the 5% carrying `inputs`):**
+  | | n=22 (biased) | **n=245** |
+  |---|---|---|
+  | degraded estate-wide | 47% | **34.7%** |
+  | Pacific | 100% (n=2) | **35%** (n=20) |
+  | Africa/Indian | 100% (n=2) | **47%** (n=17) |
+  | Asia/SE-Asia | 80% (n=5) | **72%** (n=32) |
+  | Europe / N.America | 17% / 17% | **20% / 24%** |
+  ★ **AND A CATEGORY THE SMALL SAMPLE NEVER SHOWED: 2 spots are `blind`** — no shore normal at
+  all, strictly worse than degraded. Rare states need n to appear.
+  ⭐⭐ **WHY I WAS WRONG: I ESTIMATED A POPULATION RATE FROM THE `inputs` SUBSET, WHICH I HAD
+  DELIBERATELY BIASED TOWARD BIG WAVES THAT MORNING** (`b5632fc7`). Big waves are
+  disproportionately degraded, so the bias inflated 34.7% into 47%. The finding doc for that
+  very change says *"N% of rows can no longer be read as a population rate"*. I wrote the
+  warning and walked into it inside 24 hours. ★ **A SAMPLE YOU BIASED ON PURPOSE STAYS
+  BIASED FOR EVERY QUESTION YOU LATER ASK OF IT, INCLUDING ONES IT WAS NOT BUILT FOR.**
+  The direction still holds — coverage is thin outside Europe/N. America — but the magnitudes
+  were small-n artefacts, and 100% at n=2 should never have been written down as a rate.
   ▶ Owner call: extending geometry asset coverage is a product decision, not a measurement.
