@@ -64,4 +64,36 @@ export function traceOmUrl(url) {
   } catch (e) { /* an instrument must never break the protocol */ }
 }
 
+/**
+ * Record WHICH early-return branch rejected a tile, and why.
+ *
+ * ⛔ THE BUG THIS EXISTS FOR (2026-08-13, owner: "fog isn't activating at the two farthest out
+ * zooms"). At the map's zoom floor (minZoom 2 on dev live) the protocol callback is ENTERED but
+ * exits before decoding. Measured, same layer, one zoom notch apart, settled view, cache cleared:
+ *     z2.99  water temp -> 45 trace entries, 20 reached the decode counter, tiles decoded
+ *     z2.00  water temp -> 24 trace entries,  0 reached the decode counter, 0 decoded
+ * It is NOT fog-specific -- every om:// raster layer is blank at the floor.
+ *
+ * ★ `traceOmUrl` (top of the callback) and `TILE_TRUTH.protocolCalls` (further in) DISAGREEING is
+ * the whole signal. Without a probe at the entry, "24 entered / 0 decoded" is indistinguishable
+ * from "nothing was requested" -- and I concluded the latter twice before this instrument existed.
+ *
+ * Returns undefined always, so it can be folded into an existing return expression
+ * (`return traceOmBlock(...) || fallback(...)`) without adding a line to a file at its LOC ceiling.
+ */
+export function traceOmBlock(reason, detail) {
+  if (typeof window === 'undefined') return undefined;
+  const t = window.__OM_URL_TRACE__;
+  if (!t) return undefined;
+  try {
+    t.blocked = t.blocked || {};
+    t.blocked[reason] = (t.blocked[reason] || 0) + 1;
+    if (detail !== undefined && !t.blockedDetail) t.blockedDetail = {};
+    if (detail !== undefined && !t.blockedDetail[reason]) {
+      t.blockedDetail[reason] = String(detail).slice(0, 120);
+    }
+  } catch (e) { /* an instrument must never break the protocol */ }
+  return undefined;
+}
+
 export default traceOmUrl;

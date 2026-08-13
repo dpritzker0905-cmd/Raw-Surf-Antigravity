@@ -1,6 +1,6 @@
 import { CUSTOM_COLOR_SCALES, aliasSurfaceTemperature } from './colorScales';
 import { WeatherTelemetry } from './WeatherTelemetry';
-import { traceOmUrl } from './omUrlTrace';
+import { traceOmUrl, traceOmBlock } from './omUrlTrace';
 
 // F4: per-tile / per-frame console output is GATED. With console capture / React Scan / PostHog
 // active, an unconditional console.log per decoded tile materially amplifies tile-heavy
@@ -810,20 +810,20 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           if (params.url) {
             for (const runPattern of MISSING_OM_RUNS) {
               if (params.url.includes(runPattern)) {
-                return getSafeWorkerFallbackResponse(params.url, params.type);
+                return traceOmBlock('missing_run', runPattern) || getSafeWorkerFallbackResponse(params.url, params.type);
               }
             }
           }
 
           // Intercept local transparent-tile requests seamlessly without causing Data URI fetch exceptions
           if (params.url && params.url.includes('transparent-tile')) {
-            return getSafeWorkerFallbackResponse(params.url, params.type || 'image');
+            return traceOmBlock('transparent_sentinel') || getSafeWorkerFallbackResponse(params.url, params.type || 'image');
           }
 
           // Zero-Latency Match Lock Fast-Path
           const matchResult = isModelMatch(requestedModelFolder, activeModelLock);
           if (!matchResult) {
-            return getSafeWorkerFallbackResponse(params.url, params.type);
+            return traceOmBlock('model_lock', requestedModelFolder + '|' + activeModelLock) || getSafeWorkerFallbackResponse(params.url, params.type);
           }
 
           // Marine identification: Let it run through the WASM decoder so our postReadCallback can cache
