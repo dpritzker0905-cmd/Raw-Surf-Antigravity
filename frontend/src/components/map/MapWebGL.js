@@ -56,6 +56,7 @@ import { useWebGLGuardrail } from './useWebGLGuardrail';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import LongPressMarker from './LongPressMarker';
 import './scrubPerfProbe';   // installs window.__SCRUB_PROBE__ (dev scrub/animation re-render harness, backlog #1)
+import { planAnchorMoves } from './waterTempAnchor';
 
 const MapWebGL = ({
   effectiveLocation,
@@ -185,31 +186,29 @@ const MapWebGL = ({
     };
   }, [mapInstance]);
 
-  // WATER-TEMP ANCHOR RE-ASSERT (2026-07-11, live regression "intermittently displaying over land"):
-  // the slot <Layer beforeId> only anchors at MOUNT time. Toggling water_temp on mounts its slots
-  // while ocean-mask-fill doesn't exist yet (mask activation runs in parallel, marineBeforeId falls
-  // back), and the fill then mounts BELOW the already-mounted slots (#17 time-of-add class) — land
-  // skin temps stay visible until a lucky re-mount. Deterministic order = re-assert on styledata:
-  // any water_temp slot ABOVE the fill is moved back below it. Loop-safe by construction: only
-  // strictly-above slots move (one corrective pass, then every styledata tick no-ops), and order is
-  // read from map.style._order (getStyle().layers omits custom layers — documented landmine).
-  // Kill: __RAW_WATER_TEMP_ANCHOR_REASSERT_DISABLED__.
+  // WATER-TEMP ANCHOR RE-ASSERT (2026-07-11 `0dcfc4ee`, "intermittently displaying over land"): slot
+  // <Layer beforeId> anchors only at MOUNT, so a slot mounted before ocean-mask-fill exists sits
+  // ABOVE it and land skin temps show. Re-assert on styledata, loop-safe (only strictly-above slots
+  // move); order from map.style._order — getStyle().layers omits custom layers.
+  // ⛔ POST-CONDITION 2026-08-13 (WS-CAN-0061): the move never checked its DESTINATION — measured
+  // live, slots 3/4/5 vs `water` 11 / `water-shadow` 17, basemap ocean over the field at EVERY zoom.
+  // Derivation + refusal: waterTempAnchor.js. Kills __RAW_WATER_TEMP_ANCHOR_REASSERT_DISABLED__ /
+  // __RAW_WATER_TEMP_OCCLUSION_GUARD_DISABLED__.
   useEffect(() => {
     if (!mapInstance) return;
+    let refused = false;
     const reassert = () => {
-      if (typeof window !== 'undefined' && window.__RAW_WATER_TEMP_ANCHOR_REASSERT_DISABLED__ === true) return;
+      const win = typeof window !== 'undefined' ? window : {};
+      if (win.__RAW_WATER_TEMP_ANCHOR_REASSERT_DISABLED__ === true) return;
       try {
         const order = mapInstance.style && mapInstance.style._order;
-        if (!Array.isArray(order)) return;
-        const fillIdx = order.indexOf('ocean-mask-fill');
+        const fillIdx = Array.isArray(order) ? order.indexOf('ocean-mask-fill') : -1;
         if (fillIdx === -1) return;
-        for (let s = 0; s < 3; s++) {
-          const lid = `water_temp-slot-${s}-layer`;
-          const idx = order.indexOf(lid);
-          if (idx > fillIdx) {
-            mapInstance.moveLayer(lid, 'ocean-mask-fill');
-            console.log(`[WaterTemp] Re-asserted ${lid} below ocean-mask-fill (was above, idx ${idx} > ${fillIdx})`);
-          }
+        const plan = planAnchorMoves(order, fillIdx, (id) => mapInstance.getLayer(id), { guardDisabled: win.__RAW_WATER_TEMP_OCCLUSION_GUARD_DISABLED__ === true });
+        if (plan.refuse) { if (!refused) { refused = true; console.error(`[WaterTemp] ANCHOR REFUSED (WS-CAN-0061): '${plan.occluder}' is an opaque basemap water fill ABOVE ocean-mask-fill — no position is both below the mask and above the ocean. Slots left in place; fix the stack order, not this guard.`); } return; }
+        for (const mv of plan.moves) {
+          mapInstance.moveLayer(mv.id, 'ocean-mask-fill');
+          console.log(`[WaterTemp] Re-asserted ${mv.id} below ocean-mask-fill (was above, ${mv.from} > ${fillIdx})`);
         }
       } catch (e) { /* style mid-load — the next styledata retries */ }
     };
