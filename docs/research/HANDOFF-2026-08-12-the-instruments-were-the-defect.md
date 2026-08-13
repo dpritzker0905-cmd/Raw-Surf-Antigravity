@@ -108,3 +108,55 @@ none of them** — and in the SPAN UNKNOWN case the suite *could not*: its own h
   bbox `-30,30,40,70`, +48 h and +120 h returned 503 for GFS and EURO alike (+1 h returned 200).
   The body — *"live path at capacity; precomputed lane refreshing"* — REFUSES rather than
   serving a stale frame, which is the right failure.
+
+
+---
+
+## ▶ ADDENDUM 2026-08-13 — WATER TEMP WAS BLANK ON EVERY MODEL: A MISSING COLOUR-SCALE KEY
+
+Owner-reported, owner-confirmed fixed (`0f13fa7d`). Root cause, measured end to end:
+
+| stage | reading |
+|---|---|
+| requests | correct z/x/y at z9, z5, z2 (dev live) — nothing missing |
+| source | `isSourceLoaded: true`, `areTilesLoaded: true` |
+| decode | **4,718,592 values, −53.95…+38.75 °C**, 31.6% NaN over land — REAL DATA |
+| colourise | **no `surface_temperature` among the 49 registered scales** |
+| render | transparent tiles, blank ocean |
+
+`LayerRegistry` points the layer at `surface_temperature` because `sea_surface_temperature` is not
+hosted on the tile CDN — **and the colour scale kept the old name. The data moved; the key did
+not.** Fixed by `aliasSurfaceTemperature()` in `colorScales.js` (aliased not copied, guarded both
+ways), called once at the merge point. 5 tests, mutation kills 1. `openMeteoProtocol.js` held at
+its grandfathered **943** by condensing the coastal-QC comment 9→7 with every fact retained.
+
+⭐⭐ **A LOOKUP MISS THAT RETURNS "NOTHING TO DRAW" IS INDISTINGUISHABLE FROM "NOTHING TO SHOW".**
+Nothing logged a failure because nothing HAD failed. ⇒ **Blank render + green upstream ⇒ diff the
+NAME KEYS (variable / scale / palette / layer id) first.** Seconds of work; I reached it after
+SEVEN refuted hypotheses (model capability · ocean mask · cache-buster · cache misses · source
+bounds · tile enumeration · RAF cancel-starvation).
+
+⚠️ **TWO OF THOSE SEVEN I PUBLISHED BEFORE TESTING, BOTH FROM SAMPLING A MOVING TARGET.** A tile
+trace read *during* a zoom shows a partial set — that produced "only x=0 is requested" and then
+"only y=3 is requested", each with arithmetic against the current centre. Held still, the same view
+requested all six tiles it should. **Hold the view, clear the trace, toggle the layer to fetch.**
+
+### ✅ Shipped alongside
+- **`omUrlTrace.js`** (`82005e35`) — records the z/x/y the `om` protocol is actually asked for; the
+  only non-second-hand vantage point (`__RASTER_PROBE__` never fires there, fetches are off-thread
+  so they miss the network log, `getStyle()` reports `tiles: []` for sources that ARE serving).
+- **`launch.json` backend interpreter** (`7b74ae96`) — pointed at the broken Windows python, so the
+  local backend could never start and the local map never had data.
+
+### ⚠️ FOG — NOT REPRODUCED, DO NOT ASSUME IT IS THE SAME BUG
+Owner reports fog blank at global zoom (blank, **not** faint). On a clean dev-live page it measures
+**healthy at z9, z5.33 and z2**: real URL, `visibility` on `ncep_gfs025`, **5.79% of cells under
+1 km**, decode clean, opacity 0.4 at z2. `visibility` HAS a colour scale, so it is not the
+water-temp mode. The RAF-starvation theory was measured and **refuted** (556 scheduled / 556 fired
+/ 6 cancelled; toggling 30 ms apart did not blank it).
+★ The one blank I saw followed heavy console manipulation and did **not** survive a clean reload —
+**console residue is a confound; re-test on a fresh page before reporting.**
+▶ **The decisive capture must be taken WHILE IT IS BLANK, before reloading:** read the `fog-slot-*`
+source URLs. `om://transparent-tile` while the button is pressed ⇒ layer-state desync (the URL
+resolve is gated on a **cancellable** `requestAnimationFrame` — latent fragility, not proven
+cause). Real URLs ⇒ the failure is downstream in decode/render.
