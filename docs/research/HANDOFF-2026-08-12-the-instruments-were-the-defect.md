@@ -14,6 +14,7 @@ environmental reasons documented below.
 | 2 | 08-11, 5 h | 496 | **8** | **3.2** | none |
 | 3 | 08-12, 12 h span / **5 distinct served frames** | 123 | 0 | 0.2 | none |
 | 4 | 08-12, 1 live frame | 15 | 0 | 0.2 | **4, to 3.22 m** |
+| **5** | 08-12, 1 **precomputed** frame | 17 | 0 | **0.1** | **7, to 3.71 m** |
 
 **Sample 3 retired the tide-PHASE hypothesis** — it covered a measured 2.4–3.1 m tidal swing and
 moved nothing. **Sample 4 is the first observation of the depth-limited regime ever taken** and
@@ -23,7 +24,7 @@ shows the same smallness.
 (4). I do not have a third explanation and did not invent one. Three of four samples say the term
 is user-invisible; the outlier survived both stories I had for it.
 
-▶ **NEXT: sample 5, once the precompute writes tail rows.** Unlike the false blocker I wrote
+✅ **SAMPLE 5 IS DONE (see the table).** The trigger below fired within the hour and the sample ran on PRECOMPUTED tail rows to 3.71 m: 17 replayable, 0 disqualified, 0 level changes, max |delta| **0.1**. ⭐ **The clock ended itself because it named the observation that ends it** — unlike the false blocker it replaced. ⚠️ Sample 2 now stands ALONE against four nulls, two of which cover the depth-limited regime that was its last available explanation. Every hypothesis proposed for it has been tested and failed. I am NOT calling it noise: 8 rows moving 3.2 points is a real observation from a real instrument, and "outlier explained by something unmeasured" is not distinguishable from "outlier that was always noise" on the evidence I have. What changed is the BURDEN. ▶ **Original next step, now satisfied: sample 5, once the precompute writes tail rows.** Unlike the false blocker I wrote
 yesterday, this clock names the observation that ends it:
 **`rows >= 2.5 m carrying inputs > 0` on a `source: precomputed` frame.**
 Then `--frames-file` a production frame and read the **DEPENDENCY** line, never the headline.
