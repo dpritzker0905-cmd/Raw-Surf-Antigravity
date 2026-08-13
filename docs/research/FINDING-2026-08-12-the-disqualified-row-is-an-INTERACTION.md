@@ -66,6 +66,29 @@ in exactly the regime the tide work cares about — or it is coincidence at n=1.
 distinguish them.** Cheapest discriminator: re-run and see whether it recurs, and whether it stays
 on a tail row.
 
+⛔ **THAT DISCRIMINATOR WAS RUN AND TESTED NOTHING.** A fresh precomputed frame
+(2026-08-13T03:00Z) reported **0 disqualified / 17 replayable** — but `Salalah - Mughsail` had
+dropped to **2.486 m**, just under the 2.5 m `SPOT_RATINGS_INPUTS_TAIL_M` threshold, so it
+carried no `inputs` and was **not in the sample at all**. The green reading says nothing about
+the row it was meant to test.
+
+⭐⭐ **A THRESHOLD-BASED SAMPLE LETS THE SUBJECT LEAVE THE EXPERIMENT.** Salalah sat at 2.629 m
+— barely above the line — so ordinary swell decay removed it from observation between one run
+and the next. **A re-run that silently loses its subject reads as REASSURING**, which is worse
+than a failure: the count went to zero for a reason unrelated to the question. ★ Any "re-run and
+see if it recurs" over a filtered sample must FIRST assert the subject is still in it.
+
+▶ **To actually test Salalah:** lower `SPOT_RATINGS_INPUTS_TAIL_M` below its current height, or
+replay the banked frame (`frames_s6.json`, frame 5) against a rebuilt chain. Both are cheap.
+
+⚠️ **The instrument named a second explanation I have not excluded:** *"or the assets/constants
+moved since these frames were rated."* Checked: **no science constant changed on 2026-08-12**
+(`science_registry.py`, `surf_rating.py`, `surf_point.py` — no commits that day). One row failing
+of 128 argues against systematic drift, but a per-SPOT geometry change would look exactly like
+this — see `4d82a13c` ("land without a bearing — 14 atoll spots stop serving the offshore
+height") for the shape. **Not dated, not excluded.** A second forecast path and a moved asset
+are still both live, and the REFUSED text says so explicitly.
+
 ## The method still holds
 
 A count-only oracle DID localise one row out of 1,600 in ~14 runs, and the whole-set control
