@@ -290,8 +290,9 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         "geometry_readiness": geometry_readiness,
         # ★ A THIRD, ORTHOGONAL CONFIDENCE — and deliberately not a term in `score`.
         # `confidence` grades the PIN, `geometry_readiness` grades the INPUTS, this grades the
-        # FORECAST: how much the ensemble members disagree about the sea. ABSENT (not null) on every
-        # deterministic product, which is all of them until ECMWF_WAVE_ENSEMBLE is on.
+        # FORECAST: how much the ensemble members disagree about the sea. ABSENT (not null) on
+        # DETERMINISTIC products -- GFS and ICON, measured 0/200 each. PRESENT on EURO: 69/200
+        # spots carried it 2026-08-13, basis `ecmwf_waef_member_spread`, `calibrated: false`.
         # ⛔ It does NOT move the rating. Uncertainty is not quality — a high-spread 6 ft is the same
         # wave as a low-spread 6 ft, forecast less confidently, and folding it into the 0-100 would
         # make a groomed swell score lower merely for being five days out. Same verdict the repo
