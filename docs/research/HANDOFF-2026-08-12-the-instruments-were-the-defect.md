@@ -147,4 +147,17 @@ none of them** — and in the SPAN UNKNOWN case the suite *could not*: its own h
   for their bbox. The true global rate depends on real per-region spot counts, which this
   endpoint cannot give. **Quote it as 44% of 1,052 sampled spots, never as 'the estate'.**
   ⇒ **Roughly two in five served spots run on coarse geometry, and 17 have NO shore normal.**
+  ⛔⛔ **AND BLIND GEOMETRY IS NOT DISCLOSED TO THE USER.** Those 17 have no shore normal, so the
+  directional gate is entirely absent — swell direction and wind orientation CANNOT affect
+  their rating. What the payload says about them:
+  - **15 of 17 report `confidence: medium`** — identical to 550 of 572 FULL-geometry spots.
+  - `forecast_confidence` is `None` on **every** row in all three classes (1052/1052).
+  - `why` reads *"~5.9 ft surf, 10s period, 12kt wind"*; a full-geometry spot says *"12kt
+    **offshore** wind"*. `rating_why` emits that word only when `shore_normal` exists.
+  ⇒ **The whole disclosure is a MISSING WORD in a sentence.** ⭐ Absence encoded as success, on
+  the user-facing surface this time — the fifth instance of that shape recorded today.
+  ⚠️ **NOT CLAIMED:** blind spots skew to better levels (15/17 fair-or-better vs 51%
+  very_poor among full). Nearly all 17 are Maldives, which genuinely has quality waves —
+  confounded by geography, the same trap I fell into twice today. It needs a within-region
+  comparison before it means anything.
   ▶ Owner call: extending geometry asset coverage is a product decision, not a measurement.
