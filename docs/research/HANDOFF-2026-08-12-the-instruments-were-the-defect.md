@@ -160,3 +160,47 @@ water-temp mode. The RAF-starvation theory was measured and **refuted** (556 sch
 source URLs. `om://transparent-tile` while the button is pressed ⇒ layer-state desync (the URL
 resolve is gated on a **cancellable** `requestAnimationFrame` — latent fragility, not proven
 cause). Real URLs ⇒ the failure is downstream in decode/render.
+
+
+---
+
+## ▶ ADDENDUM 2026-08-13 (later) — THE ZOOM FLOOR BLANKS **EVERY** om:// RASTER LAYER
+
+Owner: *"fog isn't activating at the two farthest out zooms"*. `minZoom` is **2** on dev live, so
+that is z2–z3 — the one regime I had never rendered in. That single detail unlocked it after eight
+refuted hypotheses.
+
+**Controlled: same layer, settled view, cache cleared, one zoom notch apart.**
+
+| zoom | trace entries (callback ENTERED) | reached `TILE_TRUTH.protocolCalls` | decoded |
+|---|---|---|---|
+| 2.99 | 45 | **20** | yes |
+| **2.00** | **24** | **0** | **0** |
+
+⭐⭐ **THE CALLBACK IS ENTERED AND EXITS EARLY.** `traceOmUrl` sits at the top of the om protocol
+callback; `TILE_TRUTH.protocolCalls` increments further in. **Them disagreeing 24-to-0 IS the
+finding** — and it is only visible because an entry-point probe exists. Without it, "24 entered /
+0 decoded" reads as "nothing was requested", which is exactly what I concluded twice earlier.
+
+⭐ **NOT FOG-SPECIFIC — water temp blanks at the floor too.** Every `om://` raster layer is affected;
+the owner simply noticed it on fog. (Distinct from the water-temp colour-scale bug, which was real,
+separate, and is fixed.)
+
+### Probes deployed (`ba7f1c18`) — read one number to name the branch
+`traceOmBlock` now instruments the THREE early returns between entry and decode:
+`missing_run` (MISSING_OM_RUNS) · `transparent_sentinel` · `model_lock` (`isModelMatch`, which also
+records `requestedFolder|activeLock`). At the zoom floor:
+
+```js
+window.__OM_URL_TRACE__ = { n:0, x:{}, y:{}, z:{}, recent:[], unmatched:0 };
+// toggle a weather layer, then:
+JSON.stringify({ entered: window.__OM_URL_TRACE__.n,
+                 blocked: window.__OM_URL_TRACE__.blocked,
+                 detail:  window.__OM_URL_TRACE__.blockedDetail })
+```
+
+⚠️ **`model_lock` is a HUNCH, not a finding** — it would explain zoom dependence if the resolved
+model folder differs at low zoom, but eight hypotheses have already died here and the probe costs
+one deploy to answer properly. **Read the branch; do not assume it.**
+★ LOC-neutral: each probe folds into the existing return (`traceOmBlock(...) || fallback(...)`,
+always undefined) because `openMeteoProtocol.js` is grandfathered shrink-only at **943**.
