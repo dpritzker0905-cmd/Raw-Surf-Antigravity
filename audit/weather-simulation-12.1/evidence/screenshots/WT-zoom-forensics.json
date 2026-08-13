@@ -1,0 +1,179 @@
+[
+ {
+  "zoom": 8,
+  "slots": [
+   3,
+   4,
+   5
+  ],
+  "maskFill": 6,
+  "water": 9,
+  "waterShadow": -1,
+  "oceanPixel": {
+   "pt": [
+    45,
+    400
+   ],
+   "layers": [
+    "water"
+   ]
+  },
+  "landPixel": null
+ },
+ {
+  "zoom": 7,
+  "slots": [
+   3,
+   4,
+   5
+  ],
+  "maskFill": 6,
+  "water": 9,
+  "waterShadow": -1,
+  "oceanPixel": {
+   "pt": [
+    45,
+    400
+   ],
+   "layers": [
+    "water"
+   ]
+  },
+  "landPixel": null
+ },
+ {
+  "zoom": 6,
+  "slots": [
+   3,
+   4,
+   5
+  ],
+  "maskFill": 6,
+  "water": 9,
+  "waterShadow": -1,
+  "oceanPixel": {
+   "pt": [
+    45,
+    400
+   ],
+   "layers": [
+    "water"
+   ]
+  },
+  "landPixel": null
+ },
+ {
+  "zoom": 5,
+  "slots": [
+   3,
+   4,
+   5
+  ],
+  "maskFill": 6,
+  "water": 9,
+  "waterShadow": -1,
+  "oceanPixel": {
+   "pt": [
+    45,
+    400
+   ],
+   "layers": [
+    "water"
+   ]
+  },
+  "landPixel": null
+ },
+ {
+  "zoom": 4,
+  "slots": [
+   3,
+   4,
+   5
+  ],
+  "maskFill": 6,
+  "water": 9,
+  "waterShadow": -1,
+  "oceanPixel": {
+   "pt": [
+    90,
+    400
+   ],
+   "layers": [
+    "water",
+    "landcover"
+   ]
+  },
+  "landPixel": {
+   "pt": [
+    45,
+    400
+   ],
+   "layers": [
+    "landcover",
+    "ocean-mask-fill"
+   ]
+  }
+ },
+ {
+  "zoom": 3,
+  "slots": [
+   3,
+   4,
+   5
+  ],
+  "maskFill": 6,
+  "water": 9,
+  "waterShadow": -1,
+  "oceanPixel": {
+   "pt": [
+    45,
+    400
+   ],
+   "layers": [
+    "water"
+   ]
+  },
+  "landPixel": {
+   "pt": [
+    90,
+    400
+   ],
+   "layers": [
+    "state-label",
+    "landcover",
+    "ocean-mask-fill"
+   ]
+  }
+ },
+ {
+  "zoom": 2,
+  "slots": [
+   3,
+   4,
+   5
+  ],
+  "maskFill": 6,
+  "water": 9,
+  "waterShadow": -1,
+  "oceanPixel": {
+   "pt": [
+    45,
+    400
+   ],
+   "layers": [
+    "water-point-label",
+    "water"
+   ]
+  },
+  "landPixel": {
+   "pt": [
+    315,
+    400
+   ],
+   "layers": [
+    "landcover",
+    "ocean-mask-fill"
+   ]
+  }
+ }
+]

@@ -1,4 +1,101 @@
-import { findOccludingWaterFill, planAnchorMoves } from './waterTempAnchor';
+import { findOccludingWaterFill, planAnchorMoves, findMaskInsertionPoint } from './waterTempAnchor';
+
+/**
+ * Mapbox Streets ordering, the shape that produced the live defect: `landcover` precedes `water`,
+ * so the pre-fix rule (first structural layer anywhere) anchored the mask BELOW the basemap ocean.
+ * Measured live in beach theme: ocean-mask-fill 6, water 11 (WS-CAN-0061 / LV-11).
+ */
+const STREETS = [
+  { id: 'background', type: 'background' },
+  { id: 'landcover', type: 'fill' },          // ← the pre-fix anchor, BELOW water
+  { id: 'national-park', type: 'fill' },
+  { id: 'landuse', type: 'fill' },
+  { id: 'waterway', type: 'line', 'source-layer': 'waterway' },
+  { id: 'water', type: 'fill', 'source-layer': 'water' },        // basemap ocean
+  { id: 'water-shadow', type: 'fill', 'source-layer': 'water' }, // highest water fill
+  { id: 'hillshade', type: 'fill' },
+  { id: 'building', type: 'fill' },           // ← the correct anchor: first structural ABOVE water
+  { id: 'road', type: 'line' },
+  { id: 'poi-label', type: 'symbol' },
+];
+
+describe('findMaskInsertionPoint — the mask must sit above the basemap ocean', () => {
+  test('REPRODUCES THE FIX: anchors above the highest water fill, not at landcover', () => {
+    expect(findMaskInsertionPoint(STREETS)).toBe('building');
+    // and the anchor is genuinely above BOTH water fills
+    const ids = STREETS.map((l) => l.id);
+    expect(ids.indexOf('building')).toBeGreaterThan(ids.indexOf('water'));
+    expect(ids.indexOf('building')).toBeGreaterThan(ids.indexOf('water-shadow'));
+  });
+
+  test('a symbol layer qualifies when no structural fill sits above the water', () => {
+    const s = STREETS.filter((l) => !['hillshade', 'building', 'road'].includes(l.id));
+    expect(findMaskInsertionPoint(s)).toBe('poi-label');
+  });
+
+  test('FALLS BACK to the pre-fix anchor when nothing structural is above the water', () => {
+    const s = [
+      { id: 'background', type: 'background' },
+      { id: 'landcover', type: 'fill' },
+      { id: 'water', type: 'fill', 'source-layer': 'water' },
+    ];
+    expect(findMaskInsertionPoint(s)).toBe('landcover');   // exactly the old behaviour
+  });
+
+  test('the mask family never counts as the water fill it must sit above', () => {
+    const s = [
+      { id: 'background', type: 'background' },
+      { id: 'ocean-mask-inland-water', type: 'fill', 'source-layer': 'water' },
+      { id: 'landcover', type: 'fill' },
+      { id: 'water', type: 'fill', 'source-layer': 'water' },
+      { id: 'building', type: 'fill' },
+    ];
+    expect(findMaskInsertionPoint(s)).toBe('building');
+  });
+
+  test('`waterway` is a line and must not raise the anchor past it', () => {
+    const s = [
+      { id: 'background', type: 'background' },
+      { id: 'waterway', type: 'line', 'source-layer': 'waterway' },
+      { id: 'landuse', type: 'fill' },
+      { id: 'water', type: 'fill', 'source-layer': 'water' },
+      { id: 'poi-label', type: 'symbol' },
+    ];
+    expect(findMaskInsertionPoint(s)).toBe('poi-label');   // above `water`, not at `landuse`
+  });
+
+  test('camelCase sourceLayer is accepted as well as the kebab wire key', () => {
+    const s = [
+      { id: 'landcover', type: 'fill' },
+      { id: 'hydro', type: 'fill', sourceLayer: 'water' },
+      { id: 'building', type: 'fill' },
+    ];
+    expect(findMaskInsertionPoint(s)).toBe('building');
+  });
+
+  test('degenerate inputs never throw', () => {
+    expect(findMaskInsertionPoint(null)).toBeNull();
+    expect(findMaskInsertionPoint([])).toBeNull();
+    expect(findMaskInsertionPoint([{ id: 'background', type: 'background' }])).toBeNull();
+  });
+
+  test('AND THE TWO FIXES COMPOSE: once the mask is above the water, the re-assert stops refusing', () => {
+    // the post-Option-1 stack: mask raised, slots mounted below it
+    const fixed = [
+      'background', 'landcover', 'water', 'water-shadow',
+      'water_temp-slot-0-layer', 'water_temp-slot-1-layer', 'water_temp-slot-2-layer',
+      'ocean-mask-fill', 'building', 'poi-label',
+    ];
+    const types = { water: { type: 'fill', sourceLayer: 'water' },
+      'water-shadow': { type: 'fill', sourceLayer: 'water' }, building: { type: 'fill' },
+      'poi-label': { type: 'symbol' }, landcover: { type: 'fill' }, background: { type: 'background' },
+      'ocean-mask-fill': { type: 'fill' } };
+    const gl = (id) => types[id] || (/^water_temp-slot-/.test(id) ? { type: 'raster' } : null);
+    const plan = planAnchorMoves(fixed, fixed.indexOf('ocean-mask-fill'), gl);
+    expect(plan.refuse).toBe(false);          // no occluder above the fill any more
+    expect(plan.moves).toEqual([]);           // slots already below it
+  });
+});
 
 /**
  * The fixture is the REAL measured stack from `dev--rawsurf.netlify.app/map`, z2, model GFS held

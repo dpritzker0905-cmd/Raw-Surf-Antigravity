@@ -1,6 +1,7 @@
 /* eslint-disable no-empty */
 import { memo, useEffect, useRef, useState, useCallback } from 'react';
 import { findMarineInsertionLayer, getSharedLandGeoJSON, getSharedLandGeoJSONHiRes } from './mapUtils';
+import { findMaskInsertionPoint } from './waterTempAnchor';
 
 /**
  * OceanMask v15 — Pristine GeoJSON Land Masking & Dynamic Coastline Blending.
@@ -158,27 +159,16 @@ const repositionLanduse = (mapInstance) => {
   }
 };
 
+// ⛔ WS-CAN-0061 (2026-08-13): this used to return the first structural layer in the style, which in
+// Mapbox Streets is `landcover` -- BELOW `water`. The mask therefore sat under the basemap ocean
+// (measured: ocean-mask-fill 6, water 11) and so did everything anchored beneath it: the water_temp
+// slots (3/4/5) and the marine layer via mapUtils.findMarineInsertionLayer. Proven on film -- during
+// a wheel zoom the basemap tiles are absent, `water` draws nothing and the field shows; on settle
+// the tiles land and it is erased. Rule + fallback live in waterTempAnchor.findMaskInsertionPoint.
 const findInsertionPoint = (mapInstance) => {
   try {
-    const style = mapInstance.getStyle();
-    if (!style?.layers) return null;
-
-    for (const layer of style.layers) {
-      const id = layer.id;
-      // Skip our own layers and custom layers
-      if (id.startsWith('ocean-mask-') || id.endsWith('-layer') || id.endsWith('-source')) continue;
-      if (id === 'background' || id === 'water' || id === 'water-depth' || id === 'wetland') continue;
-
-      // Insert BEFORE the first landuse, park, POI, or structural layer
-      if (id.includes('landuse') || id.includes('park') || id.includes('landcover') ||
-          id.includes('national') || id.includes('land-structure') ||
-          id.includes('building') || id.includes('poi') ||
-          layer.type === 'symbol') {
-        return id;
-      }
-    }
-  } catch (e) {}
-  return null;
+    return findMaskInsertionPoint(mapInstance.getStyle()?.layers) || null;
+  } catch (e) { return null; }
 };
 
 const findRoadInsertionPoint = (mapInstance) => {

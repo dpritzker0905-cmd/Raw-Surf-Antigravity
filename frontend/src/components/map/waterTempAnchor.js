@@ -65,6 +65,58 @@ export function findOccludingWaterFill(order, fillIdx, getLayer) {
   return null;
 }
 
+// A layer's vector source-layer, whichever shape it arrives in: `getStyle().layers` uses the
+// kebab wire key, `map.getLayer()` returns the camelCase runtime property.
+const srcLayerOf = (l) => (l && (l.sourceLayer || l['source-layer'])) || null;
+
+// The structural bands the mask has always inserted before (landuse/parks/POIs/labels).
+const STRUCTURAL = /landuse|park|landcover|national|land-structure|building|poi/;
+const NEVER_ANCHOR = (id) => !id || id.startsWith('ocean-mask-') || id.endsWith('-layer')
+  || id.endsWith('-source') || id === 'background' || id === 'water' || id === 'water-depth'
+  || id === 'wetland';
+
+/**
+ * Where the OceanMask family should be inserted.
+ *
+ * ⛔ WS-CAN-0061 (2026-08-13). The original rule returned the first structural layer in the style.
+ * In Mapbox Streets `landcover` precedes `water`, so the mask landed BELOW the basemap ocean --
+ * measured live: ocean-mask-fill 6, water 11. Everything anchored "below the mask" (the water_temp
+ * slots at 3/4/5, and the marine layer via mapUtils.findMarineInsertionLayer) was therefore also
+ * below the basemap ocean.
+ *
+ * PROVEN ON FILM, not inferred: during a wheel zoom the basemap's vector tiles have not arrived, so
+ * `water` draws nothing and the field is fully visible; ~6 s after the map settles the tiles land,
+ * `water` paints its opaque fill, and the field vanishes. Two frames of one gesture, beach theme:
+ * evidence/recordings/TR-12-z2.00.jpg (correct) vs TR-99-settled.jpg (erased).
+ * The earlier `queryRenderedFeatures` "proof" was worthless -- that API never returns raster layers.
+ *
+ * So: anchor above the highest basemap water fill, keeping the original structural rule otherwise.
+ * FALLS BACK to the pre-fix anchor when no structural layer exists above the water fills, so a
+ * style this rule cannot parse behaves exactly as it did before rather than floating the mask to
+ * the top of the stack (which would bury the labels).
+ *
+ * @param {Array<{id:string,type:string}>} layers  style layers, bottom-first
+ * @returns {string|null} the layer id to insert BEFORE, or null to append
+ */
+export function findMaskInsertionPoint(layers) {
+  if (!Array.isArray(layers)) return null;
+  let waterIdx = -1;
+  for (let i = 0; i < layers.length; i++) {
+    const l = layers[i], id = (l && l.id) || '';
+    if (!l || l.type !== 'fill' || id.startsWith('ocean-mask-')) continue;
+    if (srcLayerOf(l) === 'water' || WATER_FILL_ID.test(id)) waterIdx = i;
+  }
+  const firstStructuralAfter = (start) => {
+    for (let i = start; i < layers.length; i++) {
+      const l = layers[i], id = (l && l.id) || '';
+      if (NEVER_ANCHOR(id)) continue;
+      if (STRUCTURAL.test(id) || (l && l.type === 'symbol')) return id;
+    }
+    return null;
+  };
+  return firstStructuralAfter(waterIdx + 1) || firstStructuralAfter(0);
+}
+
 /**
  * Decide what the re-assert should do. Returns the moves to perform, or a refusal.
  *

@@ -1,0 +1,3 @@
+# 45 MB of webm across three runs. The frames + forensics JSON carry the proof and the
+# harness (zoomcap.js / transientcap.js) reproduces the video on demand. See LV-12 section 5.
+*.webm

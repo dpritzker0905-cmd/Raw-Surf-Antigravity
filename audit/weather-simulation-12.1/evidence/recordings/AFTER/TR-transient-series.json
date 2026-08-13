@@ -1,0 +1,791 @@
+{
+ "series": [
+  {
+   "z": 6,
+   "tilesLoaded": true,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 20,
+   "i": 0,
+   "t": 1786651065974
+  },
+  {
+   "z": 5.666,
+   "tilesLoaded": false,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 25,
+   "i": 1,
+   "t": 1786651068059
+  },
+  {
+   "z": 5.332,
+   "tilesLoaded": false,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 29,
+   "i": 2,
+   "t": 1786651069194
+  },
+  {
+   "z": 4.998,
+   "tilesLoaded": false,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 31,
+   "i": 3,
+   "t": 1786651069714
+  },
+  {
+   "z": 4.664,
+   "tilesLoaded": false,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 44,
+   "i": 4,
+   "t": 1786651072914
+  },
+  {
+   "z": 4.33,
+   "tilesLoaded": false,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 48,
+   "i": 5,
+   "t": 1786651073769
+  },
+  {
+   "z": 3.996,
+   "tilesLoaded": false,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 52,
+   "i": 6,
+   "t": 1786651074690
+  },
+  {
+   "z": 3.662,
+   "tilesLoaded": false,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 57,
+   "i": 7,
+   "t": 1786651076491
+  },
+  {
+   "z": 3.328,
+   "tilesLoaded": false,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 62,
+   "i": 8,
+   "t": 1786651077387
+  },
+  {
+   "z": 2.994,
+   "tilesLoaded": false,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 68,
+   "i": 9,
+   "t": 1786651078205
+  },
+  {
+   "z": 2.66,
+   "tilesLoaded": true,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 86,
+   "i": 10,
+   "t": 1786651081038
+  },
+  {
+   "z": 2.326,
+   "tilesLoaded": false,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 86,
+   "i": 11,
+   "t": 1786651081762
+  },
+  {
+   "z": 2,
+   "tilesLoaded": false,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 92,
+   "i": 12,
+   "t": 1786651082952
+  },
+  {
+   "z": 2,
+   "tilesLoaded": true,
+   "slots": [
+    19,
+    20,
+    21
+   ],
+   "maskFill": 22,
+   "water": 6,
+   "slotVis": [
+    "visible",
+    "visible",
+    "visible"
+   ],
+   "slotOpa": [
+    0,
+    [
+     "interpolate",
+     [
+      "linear"
+     ],
+     [
+      "zoom"
+     ],
+     2,
+     0.45,
+     5,
+     0.52,
+     8,
+     0.58,
+     12,
+     0.62,
+     12.5,
+     0.62,
+     13.5,
+     0.35,
+     15,
+     0.12
+    ],
+    0
+   ],
+   "atOceanPixel": [
+    "water-shadow",
+    "water"
+   ],
+   "wtVisibleHere": false,
+   "protocolCalls": 104,
+   "i": "SETTLED"
+  }
+ ],
+ "pageLog": [
+  {
+   "t": 1786651027721,
+   "msg": "[OceanMask] State Changed: {active: false, propActive: false, activeMarineLayer: undefined, theme: beach}"
+  },
+  {
+   "t": 1786651028713,
+   "msg": "[OceanMask] Loading local ne_50m_land.json..."
+  },
+  {
+   "t": 1786651029033,
+   "msg": "[RenderContract] STYLE_LOADING READY"
+  },
+  {
+   "t": 1786651029695,
+   "msg": "[TRANSITION] [Raster Queue Transition] Processing layer 'rain' from slot undefined to 0."
+  },
+  {
+   "t": 1786651029695,
+   "msg": "[TRANSITION] [Raster Queue Transition] Processing layer 'satellite' from slot undefined to 0."
+  },
+  {
+   "t": 1786651029695,
+   "msg": "[TRANSITION] [Raster Queue Transition] Processing layer 'pressure' from slot undefined to 0."
+  },
+  {
+   "t": 1786651029695,
+   "msg": "[TRANSITION] [Raster Queue Transition] Processing layer 'temperature' from slot undefined to 0."
+  },
+  {
+   "t": 1786651029695,
+   "msg": "[TRANSITION] [Raster Queue Transition] Processing layer 'water_temp' from slot undefined to 0."
+  },
+  {
+   "t": 1786651029695,
+   "msg": "[TRANSITION] [Raster Queue Transition] Processing layer 'fog' from slot undefined to 0."
+  },
+  {
+   "t": 1786651029827,
+   "msg": "[OceanMask] Loaded local 50m land: 1420 land features"
+  },
+  {
+   "t": 1786651035008,
+   "msg": "[OceanMask] Deactivating: hiding layers"
+  },
+  {
+   "t": 1786651035008,
+   "msg": "[TRANSITION] Style load safety fallback triggered"
+  },
+  {
+   "t": 1786651035037,
+   "msg": "[TRANSITION] Transition finished, activeModel: GFS"
+  },
+  {
+   "t": 1786651035210,
+   "msg": "[OceanMask] State Changed: {active: true, propActive: true, activeMarineLayer: undefined, theme: beach}"
+  },
+  {
+   "t": 1786651035321,
+   "msg": "[OceanMask] syncLayers running: {active: true, activeMarineLayer: undefined, theme: beach}"
+  },
+  {
+   "t": 1786651054681,
+   "msg": "[OceanMask] Land fill upgraded to 10m polygons for close zoom (10 features)."
+  },
+  {
+   "t": 1786651055099,
+   "msg": "[TRANSITION] [Raster Queue Transition] Processing layer 'water_temp' from slot 0 to 1."
+  },
+  {
+   "t": 1786651055099,
+   "msg": "[OceanMask] syncLayers running: {active: true, activeMarineLayer: undefined, theme: beach}"
+  }
+ ]
+}
