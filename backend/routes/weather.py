@@ -723,7 +723,11 @@ async def post_client_diagnostics(report: ClientDiagnosticReport):
         log_msg = (
             f"[CLIENT-DIAGNOSTIC] Type: {report.event_type} | "
             f"Model: {report.model or 'N/A'} | Layer: {report.layer or 'N/A'} | "
-            f"TimeOffset: {report.timeOffset or 0}h | FPS: {report.fps or 60} | "
+            # WS-CAN-0063: `report.fps or 60` turned BOTH a measured 0 (frozen render) and an absent
+            # field into a healthy 60 — the server half of the client's `|| 60`. fps is
+            # Optional[float]; None means unmeasured and must say so, 0 means frozen and must survive.
+            f"TimeOffset: {report.timeOffset or 0}h | "
+            f"FPS: {report.fps if report.fps is not None else 'unmeasured'} | "
             f"Memory: {report.memory or 0}MB | Correlation: {report.correlationId or 'none'}{details_str}"
         )
         

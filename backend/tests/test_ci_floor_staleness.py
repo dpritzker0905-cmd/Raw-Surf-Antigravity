@@ -227,7 +227,11 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #   guards        PROJECTED again: run 31664846960 read 1705 (confirming the LAST projection
 #                 exactly), and 4d338d30 adds 2 tests this lane owns, so 1705 + 2 = 1707.
 #   estate        PROJECTED: run 31664846960 read 349, +4 tests in this commit = 353.
-_FLOOR_SET_FROM = {"guards": 1707, "chain": 786, "estate": 353}
+#   estate        PROJECTED AGAIN (2026-08-13, WS-CAN-0010/0063): +7 tests in
+#                 test_measure_or_refuse_last_two_surfaces.py, which the estate COMPLEMENT owns,
+#                 so 353 + 7 = 360. Stacked on an unobserved projection -- if 353 was wrong the
+#                 next green run falsifies both, which is why the arithmetic is shown.
+_FLOOR_SET_FROM = {"guards": 1707, "chain": 786, "estate": 360}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

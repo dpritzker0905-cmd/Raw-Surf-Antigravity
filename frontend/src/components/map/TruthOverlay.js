@@ -123,7 +123,13 @@ var TruthOverlay = ({
           model: activeModel,
           layer: activeLayers?.[0] || 'none',
           timeOffset: timeOffsetHours,
-          fps: typeof window !== 'undefined' ? window.__WEATHER_TELEMETRY__?.gpuStats?.fps || 60 : 60,
+          // WS-CAN-0063 (2026-08-13): this was `?.fps || 60`. gpuStats.fps is Math.round(frames*1000
+          // /elapsed) — it is 0 when the render is FROZEN, the single most important reading — and
+          // `0 || 60` is 60. So a frozen render, an absent telemetry module and a healthy 60 all
+          // left the device as the same number, on the ONLY client→server transport in the system.
+          // `??` keeps a measured 0; null means unmeasured. Schema already allows null; the server
+          // half of the same bug (`report.fps or 60`) is fixed in routes/weather.py.
+          fps: typeof window !== 'undefined' ? (window.__WEATHER_TELEMETRY__?.gpuStats?.fps ?? null) : null,
           memory: typeof window !== 'undefined' ? Math.round((window.__RAW_GPU__?.gpuMemoryEstimate || 0) / (1024 * 1024)) : 0,
           correlationId: issue.correlationId || 'none',
           details: {

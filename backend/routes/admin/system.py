@@ -140,6 +140,28 @@ async def _get_app_storage_metrics(db: AsyncSession) -> dict:
 
 
 # --- SYSTEM HEALTH OVERVIEW ---
+def measured_error_rate_percent():
+    """R11-08 / WS-CAN-0010 (2026-08-13) — the THIRD and last fabricated status surface.
+
+    `/admin/system/health` carried `error_rate = 0.5  # Placeholder` (invented at 9857405a,
+    2026-05-02) and fed it straight into a user-visible health verdict, so this endpoint reported a
+    healthy API during any outage. Its two siblings were repaired at 512b1cb6..9fe18414
+    (`/api/weather/status` refuses with a pointer; admin api-metrics reads request_telemetry).
+
+    Same contract as api-metrics at :486 — MEASURE or REFUSE, never fabricate. Returns the 5xx rate
+    as a percentage, or **None** when telemetry is off (`REQUEST_TELEMETRY=0`) or the process is
+    fresh. None is a refusal and callers must not collapse it into a health verdict: an unmeasured
+    error rate is not a healthy one.
+    """
+    try:
+        from services.request_telemetry import snapshot as _snapshot
+        total = (_snapshot(top=1) or {}).get("total") or {}
+        n = int(total.get("n") or 0)
+        return ((total.get("err_5xx") or 0) / n * 100.0) if n > 0 else None
+    except Exception:
+        return None
+
+
 @router.get("/admin/system/health")
 async def get_system_health(
     admin: Profile = Depends(get_current_admin),
@@ -203,9 +225,7 @@ async def get_system_health(
         db_latency_ms = None
         db_status = "error"
     
-    # Get recent API error rate (from logs or metrics table if tracked)
-    # For now, simulate based on available data
-    error_rate = 0.5  # Placeholder
+    error_rate = measured_error_rate_percent()
     
     # Overall health score
     health_components = []
@@ -269,8 +289,12 @@ async def get_system_health(
             "size_gb": storage_metrics["database_gb"]
         },
         "api": {
-            "error_rate_percent": error_rate,
-            "status": "healthy" if error_rate < 1 else "warning" if error_rate < 5 else "critical"
+            # `None` is the refusal, and it must NOT collapse into a health verdict: an unmeasured
+            # error rate is not a healthy one. Mirrors the api-metrics contract at :486.
+            "error_rate_percent": round(error_rate, 2) if error_rate is not None else None,
+            "source": "request_telemetry",
+            "status": ("not_instrumented" if error_rate is None
+                       else "healthy" if error_rate < 1 else "warning" if error_rate < 5 else "critical")
         },
         "unacknowledged_alerts": alerts_count.scalar() or 0
     }

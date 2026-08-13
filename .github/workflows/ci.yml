@@ -937,7 +937,12 @@ jobs:
           # to the estate COMPLEMENT, not guards) before the push -- the 5th instance of this
           # trap and the first not discovered by a red build. Run 31664846960 observed 349, so
           # 349 + 4 = 353 next, and 353 - 2 (this lane's budget) = 351.
-          MIN_PASSED = 351
+          # ⬆ estate MIN_PASSED 351→358 on 2026-08-13 (WS-CAN-0010/0063). This commit adds
+          # test_measure_or_refuse_last_two_surfaces.py — 7 tests — which falls to the estate
+          # COMPLEMENT, so the projection stacks on the previous one: 353 (itself projected, not
+          # yet observed) + 7 = 360, and 360 - 2 = 358. Arithmetic shown so the next green run can
+          # falsify it; if 353 was wrong, that run says so and both numbers move together.
+          MIN_PASSED = 358
 
           try:
               root = ET.parse('estate.xml').getroot()
