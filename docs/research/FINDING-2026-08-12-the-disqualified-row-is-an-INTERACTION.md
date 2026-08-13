@@ -89,6 +89,26 @@ this — see `4d82a13c` ("land without a bearing — 14 atoll spots stop serving
 height") for the shape. **Not dated, not excluded.** A second forecast path and a moved asset
 are still both live, and the REFUSED text says so explicitly.
 
+## ⭐⭐ RESOLVED BY MEASUREMENT — an ABSOLUTE bound meeting a HEIGHT-SCALED error
+
+Height reproduction error across all 128 rows of `frames_s6.json` (bound is `> 0.005 m`):
+
+| p50 | p90 | p99 | max |
+|---|---|---|---|
+| 0.001332 | 0.003318 | **0.004715** | **0.005293** (Salalah) |
+
+Over 0.005: **1**. Over 0.004: **5**. Over 0.003: **17**. Over 0.001: **79 of 128**.
+
+⭐ **Salalah is not broken — it is the top of a smooth, continuous distribution.** The p99 is already 0.004715. The bound sits INSIDE the natural error spread, so which row disqualifies is decided by a hair.
+
+⭐⭐ **THE ERROR SCALES WITH HEIGHT AND THE BOUND DOES NOT.** The five largest errors are the two tallest waves: Salalah 2.629 m (0.005293 = **0.20%**) and Papara 3.813 m (0.004715 = **0.12%**). An ABSOLUTE 5 mm tolerance therefore disqualifies TALL waves preferentially, whatever the chain is doing.
+
+⇒ **The causal chain, complete and measured:** `b5632fc7` put big waves into the sample for the first time → height reproduction error scales with height → the bound is absolute → the first disqualification in six samples appeared immediately, on the tallest sampled row. **Not a second forecast path. A mis-specified tolerance meeting a newly-observable regime.**
+
+⚠️ **This will get WORSE as intended.** Tail sampling exists to put more big waves in the sample, so an absolute bound means the false-disqualification rate GROWS with the change that made the tail observable. ★ A guard whose false-alarm rate rises with your coverage will be switched off exactly when coverage finally arrives.
+
+▶ **Fix (not written):** make the height check RELATIVE, or mixed — e.g. `abs(dh) > max(0.005, 0.002 * h)`. ⚠️ Derive it and write the derivation down: `REPRODUCE_TOL` carries a careful quantization argument for the SCORE grid, and the height bound carries none. **Do not widen it to whatever makes today's row pass** — that is the census-bound mistake this repo already has on record.
+
 ## The method still holds
 
 A count-only oracle DID localise one row out of 1,600 in ~14 runs, and the whole-set control
