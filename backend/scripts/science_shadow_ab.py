@@ -285,7 +285,19 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
                 continue
             if height_replay:
                 h_check = _height(s)
-                if h_check is None or abs(h_check - s["surf_height_m"]) > 0.005:
+                # ⭐ RELATIVE, because the quantization envelope SCALES with height while a
+                # flat bound does not. Measured 2026-08-12 over 128 served rows by perturbing
+                # every persisted input by its own rounding half-quantum, PLUS the +-0.0005
+                # that surf_height_m carries as a 1e-3-rounded comparison TARGET:
+                #   envelope/height  p50 0.25%  p90 0.57%  max 0.84%
+                # 1.0% clears the measured max with headroom; the 0.005 floor keeps small
+                # waves exactly as strict as before. DERIVED from the grids, not fitted to a
+                # failing row -- see docs/research/FINDING-2026-08-12-the-disqualified-row-
+                # is-an-INTERACTION.md. A flat 0.005 disqualified the TALLEST sampled wave
+                # (2.629 m, off by 0.3 mm) the day tail sampling first put big waves in the
+                # sample -- a false-alarm rate that GROWS with coverage.
+                _tol_h = max(0.005, 0.010 * abs(s["surf_height_m"]))
+                if h_check is None or abs(h_check - s["surf_height_m"]) > _tol_h:
                     disqualified += 1          # geometry/assets/code moved since the frame
                     _note(disq_rows, s, "height", h_check, s["surf_height_m"])
                     continue
