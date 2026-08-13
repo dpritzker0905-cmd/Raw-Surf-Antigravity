@@ -6,7 +6,7 @@ environmental reasons documented below.
 
 ---
 
-## ⭐ THE HEADLINE — `SURF_TIDE_DEPTH`, FIVE samples, and one honest gap
+## ⭐ THE HEADLINE — `SURF_TIDE_DEPTH`, SIX samples — and the flag now has evidence, not a guess
 
 | # | window | replayable | moved | max abs delta | tail rows |
 |---|---|---|---|---|---|
@@ -15,13 +15,14 @@ environmental reasons documented below.
 | 3 | 08-12, 12 h span / **5 distinct served frames** | 123 | 0 | 0.2 | none |
 | 4 | 08-12, 1 live frame | 15 | 0 | 0.2 | **4, to 3.22 m** |
 | **5** | 08-12, 1 **precomputed** frame | 17 | 0 | **0.1** | **7, to 3.71 m** |
+| **6** | 08-12, **14 h span / 5 served frames** | **127** (1 disq.) | **0** | 0.2 | **44** |
 
 **Sample 3 retired the tide-PHASE hypothesis** — it covered a measured 2.4–3.1 m tidal swing and
 moved nothing. **Sample 4 is the first observation of the depth-limited regime ever taken** and
 shows the same smallness.
 
 ⚠️ **SAMPLE 2 IS NOW UNEXPLAINED BY EITHER HYPOTHESIS.** Phase is dead (3), size is not supported
-(4). I do not have a third explanation and did not invent one. **Four of five** samples say the term
+(4). I do not have a third explanation and did not invent one. **Five of six** samples say the term
 is user-invisible; the outlier survived both stories I had for it.
 
 ✅ **SAMPLE 5 IS DONE (see the table).** The trigger below fired within the hour and the sample ran on PRECOMPUTED tail rows to 3.71 m: 17 replayable, 0 disqualified, 0 level changes, max |delta| **0.1**. ⭐ **The clock ended itself because it named the observation that ends it** — unlike the false blocker it replaced. ⚠️ Sample 2 now stands ALONE against four nulls, two of which cover the depth-limited regime that was its last available explanation. Every hypothesis proposed for it has been tested and failed. I am NOT calling it noise: 8 rows moving 3.2 points is a real observation from a real instrument, and "outlier explained by something unmeasured" is not distinguishable from "outlier that was always noise" on the evidence I have. What changed is the BURDEN. ▶ **Original next step, now satisfied: sample 5, once the precompute writes tail rows.** Unlike the false blocker I wrote
@@ -106,12 +107,32 @@ none of them** — and in the SPAN UNKNOWN case the suite *could not*: its own h
   (called it a deploy race when the backend had been up 10–20 min), so this reads the SIGNATURE.
 - **The band/glyph per-cell composition** — the concurrent session's. Do not tune either lane.
 
+## ✅ SAMPLE 6 — THE ONE THIS SECTION USED TO ASK FOR
+
+**Done.** 14 h span, 5 distinct served frames, **44 tail rows**, 127 replayable: **0 moved, max
+|delta| 0.2**. Every prior null was spanless (4, 5), tail-less (1, 3) or both. This one has BOTH
+and agrees with them. ⭐ **Sample 2 is now outvoted by a sample that dominates it on the two axes
+it could have differed on.**
+
+⚠️ **1 row disqualified — the first non-zero in six samples.** The baseline self-check refused a
+row that did not reproduce its persisted score, and excluded it rather than replaying it
+silently. 127 of 128 reproduced. That is the instrument being honest, not broken, but the row
+is worth someone's attention.
+
+⭐⭐ **THE FLAG NOW HAS THE EVIDENCE A "SAFE TO FLIP" VERDICT REQUIRES — which it demonstrably
+did NOT have on 08-09 when I claimed exactly that from an inert harness.** The difference is not
+the conclusion, which is the same; it is that the harness now proves it can see a 38.1-point
+move, and 127 rows across a real span with 44 tail rows still show nothing above 0.2. ★ The same
+answer from a harness that cannot move the lever and from one that can are not the same result.
+**Flipping it is an owner decision — and it is the first time it is a DECISION rather than a
+guess.**
+
 ## ▶ IF YOU DO ONE THING
 
-**GIVE SAMPLE 2 A SPAN.** Samples 4 and 5 are the CLEANEST by composition and the WEAKEST by
-span — both single frames, both correctly flagged `! SPAN UNKNOWN`. Four nulls at n=15-486 across
-three span classes is not one wide, tail-bearing sample. Tail rows are now sampled, so build
-frames with REAL `hour_offset`s across a tidal cycle and the question resolves either way.
+**Decide `SURF_TIDE_DEPTH`, or chase the disqualified row.** The measurement work is done; what
+remains is a judgement I should not make alone. ⚠️ This section has now rotted TWICE in one
+session — it asked for sample 5, then sample 6, and both ran within the hour. If it looks stale
+when you read it, it probably is: check the table above before acting on this paragraph.
 
 ⚠️ **The previous version of this section said "run sample 5 when the precompute has tail
 rows" — and sample 5 ran within the hour of that line being written.** ★ **A handoff's
