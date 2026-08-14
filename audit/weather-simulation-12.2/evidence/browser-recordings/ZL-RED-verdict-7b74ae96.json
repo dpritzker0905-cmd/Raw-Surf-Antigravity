@@ -1,0 +1,205 @@
+{
+ "pass": false,
+ "findings": [
+  {
+   "type": "MULT0_FRAME",
+   "t": 323755
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 325120
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 326338
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 327440
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 328259
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 329181
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 329869
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 330849
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 331587
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 332357
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 333259
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 334127
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 335072
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 335862
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 336594
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 337665
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 338600
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 339264
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 339963
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 340839
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 341698
+  },
+  {
+   "type": "SETTLED_STEP",
+   "t": 342591,
+   "z": 4.805,
+   "dL": -18.1
+  }
+ ],
+ "framesAnalyzed": 387,
+ "observable": true,
+ "verdict": "FAIL",
+ "renderFindings": [
+  {
+   "type": "MULT0_FRAME",
+   "t": 323755
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 325120
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 326338
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 327440
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 328259
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 329181
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 329869
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 330849
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 331587
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 332357
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 333259
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 334127
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 335072
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 335862
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 336594
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 337665
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 338600
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 339264
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 339963
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 340839
+  },
+  {
+   "type": "MULT0_FRAME",
+   "t": 341698
+  },
+  {
+   "type": "SETTLED_STEP",
+   "t": 342591,
+   "z": 4.805,
+   "dL": -18.1
+  }
+ ],
+ "instrumentFindings": [],
+ "transportErrors": 0,
+ "landExcludedBandFrames": 9,
+ "waterSamples": 156,
+ "config": {
+  "quietFrac": 0.18,
+  "activeMin": 4,
+  "minWidth": 2,
+  "edgeCols": 3,
+  "persistFrames": 6,
+  "transientFrames": 3,
+  "maxSettledStep": 16,
+  "landWaterMin": 0.35,
+  "waterMaxAgeMs": 4500
+ }
+}

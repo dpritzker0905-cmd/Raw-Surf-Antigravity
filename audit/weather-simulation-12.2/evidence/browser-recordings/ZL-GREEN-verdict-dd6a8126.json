@@ -1,0 +1,57 @@
+{
+ "pass": false,
+ "findings": [
+  {
+   "type": "DEAD_BAND_TRANSIENT",
+   "cols": [
+    13,
+    15
+   ],
+   "xFrac": [
+    0.33,
+    0.4
+   ],
+   "t": [
+    303826,
+    307106
+   ],
+   "frames": 4
+  }
+ ],
+ "framesAnalyzed": 434,
+ "observable": true,
+ "verdict": "FAIL",
+ "renderFindings": [
+  {
+   "type": "DEAD_BAND_TRANSIENT",
+   "cols": [
+    13,
+    15
+   ],
+   "xFrac": [
+    0.33,
+    0.4
+   ],
+   "t": [
+    303826,
+    307106
+   ],
+   "frames": 4
+  }
+ ],
+ "instrumentFindings": [],
+ "transportErrors": 0,
+ "landExcludedBandFrames": 31,
+ "waterSamples": 166,
+ "config": {
+  "quietFrac": 0.18,
+  "activeMin": 4,
+  "minWidth": 2,
+  "edgeCols": 3,
+  "persistFrames": 6,
+  "transientFrames": 3,
+  "maxSettledStep": 16,
+  "landWaterMin": 0.35,
+  "waterMaxAgeMs": 4500
+ }
+}

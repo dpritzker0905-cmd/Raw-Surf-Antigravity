@@ -21,12 +21,17 @@ in direct violation of a binding mandate, with `rating`/`rating_level` unread in
 guard passes because its census names the other file.
 → `NEXT_AUTHORIZED_EXECUTION_MISSION.md` · `evidence/runtime-paths/LV12-2-07`
 
-### 2. `WS-CAN-0067` — read the standing red, then register the optical harness
+### 2. `WS-CAN-0067` — ~~read the standing red~~ ✅ DONE, then **register the optical harness** ← still open
 
-`marine-nightly.yml` has failed **18 of 37 runs** and is red at HEAD with **22 graded** render
-findings (`0 instrument findings` = the renderer *was* graded). It has **zero** presence in either
-canonical register. Two actions, in order: **read the artifact** (it expires 2026-08-27), then give
-the harness a register row so it cannot be lost a third time.
+**The reading is done (2026-08-14).** The red was real and graded: 21 contiguous `MULT0_FRAME` plus a
+`SETTLED_STEP` of −18.1 — **an 18-second blank ocean across a z6.14→z4.81 zoom-out**, on film, while
+the HUD reported `Raster Source: LOADED` and `No Causal Layer Violations Detected`. It has since
+**cleared** (post-fix nightly: 1 finding, both budget-serious classes at zero).
+→ `evidence/browser-recordings/LV12-2-09`
+
+**What remains is the half that matters longer:** the harness still has **zero** presence in either
+canonical register, on a lane that has failed **18 of 38** runs. It just caught a user-visible blank
+that the truth layer declared clean. Give it a register row so it cannot be lost a third time.
 → `evidence/runtime-paths/LV12-2-01`
 
 ### 3. Reopen `WS-OBJ-705` as PARTIAL — `flaky` is the fourth disguise a green wears
@@ -55,14 +60,18 @@ is the cheapest quadrant in the program and none of it is on the current critica
 
 | # | Action | Closes / corrects | Cost | ⏰ |
 |---|---|---|---|---|
-| V1 | `gh run download 31680258907` — read the zoomlab verdict + **watch the `.webm`**; compare against the 2026-08-14T06:30Z run (post-`f3fe2c85`) | Whether the WS-CAN-0061 fix cleared the render findings; **the first time anyone in this program watches this app render** | minutes | **expires 2026-08-27** |
+| ~~V1~~ | ~~read the zoomlab red + video~~ | ✅ **CLOSED 2026-08-14** — `evidence/browser-recordings/LV12-2-09`. The red was REAL and GRADED: 21 contiguous `MULT0_FRAME` + 1 `SETTLED_STEP` (dL −18.1) — **an 18-second BLANK OCEAN across a z6.14→z4.81 zoom-out**, with `mult`/`hm` both 0 while `drawCalls` stayed at 6. Caught on film. **It has since CLEARED**: the post-fix nightly reads 1 finding, both budget-serious classes at zero. ⚠️ causation NOT isolated (n=1 each side, different sea state). ⚠️ NEW: the HUD read `Raster Source: LOADED` and `No Causal Layer Violations` throughout the blank | done | — |
 | ~~V2~~ | ~~the WebKit weather-test failure video + trace~~ | ✅ **CLOSED 2026-08-14** — see `evidence/browser-device-tests/LV12-2-08`. Answer: **timeout budget**, and the "weather" framing was wrong: all 11 flaky fail on the *first navigation*, before any weather assertion. A WebKit redirect race in `beforeEach`, not a product defect. **Do not revert the video key.** Two corrections fell out: this audit's video-overhead lead is refuted, and the retained `.webm` are **blank** (0.96 s of white, 0.00% variance) — the **trace** did the diagnosis | done | — |
 | V3 | Read `window.__MAP_RENDER_FPS__` from a compositing harness **on hardware GL**; publish the distribution | **Rescopes `WS-CAN-0037`** from "build a frame harness" (est. half a day) to "read the one that exists". ⚠️ record the WebGL renderer string beside the figure — this audit's own chromium probe fell back to SwiftShader | ~1 h | — |
 | V4 | One deliberate sustained-load run, recording `peak_rss_mb` **and** the cgroup limit | **Closes WS-OBJ-303** on the `ru_maxrss` instrument, which is genuinely good. Three short uncontrolled windows are not an envelope | ~1 h | — |
 | V5 | Take the full 27-workflow census, with a disposition for `marine-nightly` (red) and `python-upgrade-readiness` (**never executed**, 6 × `continue-on-error: true`) | Closes the gap that let a red stand unseen for a day | ~30 min | — |
 
-⚠️ **V1 has a stop condition.** If the 06:30Z run is also red, that is a live optical regression in
-the weather renderer and it outranks the authorised mission.
+✅ **V1's stop condition did not trigger.** It read: *"if the next scheduled run is also red, that is a
+live optical regression and it outranks the authorised mission."* The 2026-08-14T07:57Z run came back
+**within budget** — 1 transient finding, zero `SETTLED_STEP`, zero `DEAD_BAND_PERSISTENT`. No
+escalation. ⚠️ But **one green is not a trend on a lane that has failed 18 of 38 runs**: read the next
+two before treating the class as settled, and note the attribution to any single commit is **not
+isolated** (n=1 either side, and the nightly grades live production sea state).
 
 ---
 

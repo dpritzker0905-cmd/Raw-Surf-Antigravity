@@ -5,7 +5,19 @@ substitute for looking; each row states what was already checked and the exact m
 
 ---
 
-## K1 — Did the WS-CAN-0061 fix clear the 22 optical render findings?
+## ~~K1~~ — ✅ ANSWERED 2026-08-14: the red has cleared (attribution NOT isolated)
+
+> **22 findings → 1.** Post-fix nightly `dd6a8126` reads a single `DEAD_BAND_TRANSIENT`; zero
+> `MULT0_FRAME`, zero `SETTLED_STEP`. The red was genuine and graded (`observable: true`,
+> `instrumentFindings: 0`) and is on film — an 18-second blank ocean across a zoom-out.
+> ⚠️ **Causation is NOT isolated**: n=1 either side, several commits between, and the nightly grades
+> live production sea state which differs run to run. And it is probably **not** WS-CAN-0061 — that
+> was `water_temp`; zoomlab grades the **marine** field. Full record:
+> `evidence/browser-recordings/LV12-2-09`. **One green is not a trend on a lane failing ~47%.**
+
+<details><summary>original question</summary>
+
+### K1 — Did the WS-CAN-0061 fix clear the 22 optical render findings?
 
 | | |
 |---|---|
@@ -17,6 +29,8 @@ substitute for looking; each row states what was already checked and the exact m
 | **Blocks a finish line?** | **Yes if still red** — Finish Line A |
 | **Owner** | Next engineering session |
 | **Closes when** | Two consecutive post-fix runs are read and their findings enumerated by type |
+
+</details>
 
 ## K2 — Is the WebKit E2E flake a timeout budget or a real defect?
 
