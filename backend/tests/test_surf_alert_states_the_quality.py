@@ -97,37 +97,167 @@ def test_the_helper_is_PURE_and_needs_no_database__THE_CONTROL():
     assert a == b
 
 
-def test_the_route_uses_the_helper_rather_than_rebuilding_the_string():
-    """A pure helper nobody calls is the disease this repo keeps curing. Assert the ROUTE calls it,
-    and that the old literal is gone from the module entirely."""
-    import ast
+# ── the census ──────────────────────────────────────────────────────────────────────────────────
+#
+# ⛔⛔ THIS SECTION IS THE FIX FOR THE SECOND DEFECT, AND IT IS THE MORE IMPORTANT ONE.
+#
+# The original guard opened ONE HARD-CODED PATH:
+#
+#     src = open(os.path.join(backend_dir, "routes/surf_data/alerts.py"))
+#
+# and `routes/surf_data/alerts.py` is a MANUAL `POST /alerts/check` that nothing schedules. The job
+# that actually fires is `scheduler/surf_alerts.py`, registered in `scheduler/__init__.py:43-45` on
+# `IntervalTrigger(minutes=15)` and confirmed live in `/api/health`:
+#
+#     {"id": "check_surf_alerts", "trigger": "interval[0:15:00]"}
+#
+# So this file was green for ~8 days while the LIVE path sent
+# `"Waves are {h}ft - perfect conditions!"` on height alone. The assertions were never the weak
+# part. **AN EXPLICIT FILE LIST IN A GUARD IS THE BUG** — this repo's own recorded class,
+# "THE CENSUS IS THE DEFECT, NOT THE ASSERTION".
+#
+# ⇒ The census below DISCOVERS its subjects by walking the tree for anything that emits a surf
+#   alert. A fourth emitter added tomorrow is graded automatically, with no edit here.
 
-    src = open(os.path.join(backend_dir, "routes/surf_data/alerts.py"), encoding="utf-8").read()
-    tree = ast.parse(src)
+def _iter_backend_sources():
+    """Every .py under backend/, minus caches, vendored trees and the test suite itself."""
+    import os as _os
+    skip = {"__pycache__", ".pytest_cache", "node_modules", "scratch", "alembic", "migrations",
+            "tests"}
+    for dp, dn, fn in _os.walk(backend_dir):
+        dn[:] = [d for d in dn if d not in skip]
+        for f in fn:
+            if f.endswith(".py"):
+                yield _os.path.join(dp, f)
 
-    # ⚠️ CHECK LIVE STRING LITERALS, NOT THE RAW SOURCE. A first version asserted
-    # `"perfect conditions" not in src` and went red on THIS FIX's own comments, which quote the old
-    # string to explain what was removed. That is the "an audit read its own comment as evidence"
-    # class, inverted: a guard tripping on the documentation of the thing it guards. Docstrings are
-    # excluded for the same reason — the record of a defect must not read as the defect.
+
+def _surf_alert_emitters():
+    """DISCOVER every surf-alert emission. Returns {relpath: (tree, [emitting Call nodes])}.
+
+    An emitter is a call to `Notification(type="surf_alert")` or to `send_push_notification` whose
+    `data` dict carries `type: "surf_alert"`. Both are structural, so a renamed variable or a
+    reformatted string cannot hide a site from this census.
+
+    ⚠️ THE CALL NODES ARE RETURNED, NOT JUST THE MODULE, and that distinction is load-bearing. The
+    first version of this census returned modules and then asked "does this MODULE build a body
+    inline?" — which red-flagged `routes/notifications/push_payloads.py` for the thirteen f-string
+    bodies belonging to its OTHER notification types (mention, booking reminder, gallery purchase…)
+    and would have demanded a booking reminder be composed by `surf_alert_body`. Caught by running
+    the guard against the unmodified tree before touching any behaviour, which is the only reason
+    it was caught at all.
+    """
+    import ast as _ast
+    import os as _os
+
+    found = {}
+    for path in _iter_backend_sources():
+        try:
+            tree = _ast.parse(open(path, encoding="utf-8").read())
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        calls = []
+        for n in _ast.walk(tree):
+            if not isinstance(n, _ast.Call):
+                continue
+            name = (n.func.attr if isinstance(n.func, _ast.Attribute)
+                    else getattr(n.func, "id", None))
+            kw = {k.arg: k.value for k in n.keywords if k.arg}
+            hit = False
+            if name == "Notification":
+                t = kw.get("type")
+                hit = isinstance(t, _ast.Constant) and t.value == "surf_alert"
+            elif name == "send_push_notification":
+                d = kw.get("data")
+                if isinstance(d, _ast.Dict):
+                    hit = any(
+                        isinstance(k2, _ast.Constant) and k2.value == "type"
+                        and isinstance(v2, _ast.Constant) and v2.value == "surf_alert"
+                        for k2, v2 in zip(d.keys, d.values)
+                    )
+            if hit:
+                calls.append(n)
+        if calls:
+            found[_os.path.relpath(path, backend_dir).replace(os.sep, "/")] = (tree, calls)
+    return found
+
+
+def _live_string_constants(tree):
+    """String literals that are NOT docstrings.
+
+    ⚠️ CHECK LIVE LITERALS, NOT THE RAW SOURCE. A first version of this guard asserted
+    `"perfect conditions" not in src` and went red on the FIX's own comments, which quote the old
+    string to explain what was removed — a guard tripping on the documentation of the thing it
+    guards. Docstrings are excluded for the same reason: the record of a defect must not read as
+    the defect.
+    """
+    import ast as _ast
     docstrings = {
         node.body[0].value
-        for node in ast.walk(tree)
-        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
-        and node.body and isinstance(node.body[0], ast.Expr)
-        and isinstance(node.body[0].value, ast.Constant)
+        for node in _ast.walk(tree)
+        if isinstance(node, (_ast.Module, _ast.FunctionDef, _ast.AsyncFunctionDef, _ast.ClassDef))
+        and node.body and isinstance(node.body[0], _ast.Expr)
+        and isinstance(node.body[0].value, _ast.Constant)
         and isinstance(node.body[0].value.value, str)
     }
-    live = [n for n in ast.walk(tree)
-            if isinstance(n, ast.Constant) and isinstance(n.value, str) and n not in docstrings]
-    offenders = [n.value[:70] for n in live if "perfect condition" in n.value.lower()]
+    return [n for n in _ast.walk(tree)
+            if isinstance(n, _ast.Constant) and isinstance(n.value, str) and n not in docstrings]
+
+
+def test_the_census_DISCOVERS_the_emitters_and_finds_the_scheduled_one__THE_CONTROL():
+    """Without this control the census could be silently matching nothing and every assertion below
+    would pass vacuously — which is precisely how the hard-coded version failed."""
+    emitters = _surf_alert_emitters()
+    assert "scheduler/surf_alerts.py" in emitters, (
+        "the census did not find the SCHEDULED alert job — it is registered in "
+        "scheduler/__init__.py:43-45 on IntervalTrigger(minutes=15) and is the path that actually "
+        f"fires. Census returned: {sorted(emitters)}"
+    )
+    assert "routes/surf_data/alerts.py" in emitters, sorted(emitters)
+    assert len(emitters) >= 2, sorted(emitters)
+
+
+def test_NO_surf_alert_emitter_claims_perfection():
+    """The literal regression, applied to every discovered emitter rather than to one named file."""
+    offenders = {}
+    for rel, (tree, _calls) in _surf_alert_emitters().items():
+        bad = [n.value[:70] for n in _live_string_constants(tree)
+               if "perfect condition" in n.value.lower()]
+        if bad:
+            offenders[rel] = bad
     assert not offenders, (
-        f"a LIVE string literal in alerts.py still claims perfection: {offenders}"
+        f"a LIVE string literal still claims perfection on height alone: {offenders}"
     )
-    called = any(
-        isinstance(n, ast.Call)
-        and (n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", None))
-        == "surf_alert_body"
-        for n in ast.walk(ast.parse(src))
+
+
+def test_every_surf_alert_that_BUILDS_a_body_uses_the_shared_composer():
+    """A surf-alert emission may PASS a body through (a transport wrapper) or BUILD one inline. If
+    it builds one, it must build it with `surf_alert_body`.
+
+    ⚠️ SCOPED TO THE SURF-ALERT CALL ITSELF, not to the module — see `_surf_alert_emitters`.
+
+    This is what exempts `routes/notifications/push_payloads.py:notify_surf_alert_triggered`: it
+    passes `message=alert_summary`, a plain name supplied by its caller, so it composes nothing.
+    It is exempt BY STRUCTURE, not by being named in an exception list — the same discipline this
+    whole section exists to enforce. (It also has zero production callers at the time of writing;
+    11 of the 18 `notify_*` functions in that module are in the same state.)
+    """
+    import ast as _ast
+
+    offenders = {}
+    for rel, (tree, calls) in _surf_alert_emitters().items():
+        inline = [k.arg for c in calls for k in c.keywords
+                  if k.arg in ("body", "message") and isinstance(k.value, _ast.JoinedStr)]
+        if not inline:
+            continue                                   # transport wrapper — nothing to compose
+        calls_composer = any(
+            isinstance(n, _ast.Call)
+            and (n.func.attr if isinstance(n.func, _ast.Attribute)
+                 else getattr(n.func, "id", None)) == "surf_alert_body"
+            for n in _ast.walk(tree)
+        )
+        if not calls_composer:
+            offenders[rel] = inline
+    assert not offenders, (
+        "these modules build a surf-alert body inline instead of calling surf_alert_body — the "
+        f"quality is in the same dict they already fetched: {offenders}"
     )
-    assert called, "alerts.py defines surf_alert_body but never CALLS it"

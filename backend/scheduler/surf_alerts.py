@@ -27,6 +27,10 @@ async def check_surf_alerts_task():
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from models import SurfAlert, Notification, PushSubscription
+    # ONE authority for the alert sentence, shared with the manual POST /alerts/check path.
+    # Function-level to avoid a scheduler->routes import at module load; the same pattern
+    # scheduler/bookings.py:25,115,196 and scheduler/gamification.py:11 already use.
+    from routes.surf_data.alerts import surf_alert_body
     
     logger.info("[Scheduler] Running surf alert check...")
     
@@ -71,7 +75,38 @@ async def check_surf_alerts_task():
                     
                     current_cond = conditions_data["current_conditions"]
                     wave_height_ft = current_cond.get("wave_height_ft", 0.0)
-                    
+                    wave_period = current_cond.get("wave_period") or 0
+
+                    # ⛔⛔ THIS JOB SENT "perfect conditions!" ON HEIGHT ALONE FOR ~8 DAYS.
+                    # `resolve_spot_conditions` runs the mandated chain and writes `rating` /
+                    # `rating_level` into `current_conditions` (spot_conditions.py:438-439) — the
+                    # very dict fetched three lines above. This loop read `wave_height_ft` and
+                    # nothing else, then asserted the day was perfect.
+                    # ⇒ CLAUDE.md, verbatim: "A size without a quality is also incomplete: a
+                    #   blown-out 6 ft and a groomed 6 ft must not render identically." They rendered
+                    #   IDENTICALLY here, and the mandate names alerts explicitly.
+                    #
+                    # ⚠️ WHY THIS FILE AND NOT `routes/surf_data/alerts.py`, WHICH WAS ALREADY FIXED:
+                    #   that one is a MANUAL `POST /alerts/check` that nothing schedules. THIS file
+                    #   is what `scheduler/__init__.py:43-45` registers on IntervalTrigger(minutes=15)
+                    #   and what `/api/health` reports live as
+                    #   {"id": "check_surf_alerts", "trigger": "interval[0:15:00]"}.
+                    #   The repaired path was the one nobody called. The guard was green because its
+                    #   census named one hard-coded file — see the census section of
+                    #   tests/test_surf_alert_states_the_quality.py.
+                    #
+                    # ★ The composer is SHARED, not reimplemented. Two jobs, one authority for the
+                    #   sentence. (Consolidating the two JOBS was considered and rejected inside this
+                    #   mission's scope: this one groups alerts by spot to cut provider calls and the
+                    #   route does not, so merging them is a refactor with its own risk.)
+                    # ⚠️ WHEN THE ALERT FIRES IS DELIBERATELY UNCHANGED — still the user's height
+                    #   bounds. Adding a quality floor would silently drop alerts they asked for;
+                    #   that is a product decision needing a column on the alert. Only the CLAIM
+                    #   is fixed.
+                    rating = current_cond.get("rating")
+                    rating_level = current_cond.get("rating_level")
+                    body = surf_alert_body(wave_height_ft, wave_period, rating, rating_level)
+
                     # Check each alert for this spot
                     for alert in spot_alerts_list:
                         matches = True
@@ -87,31 +122,42 @@ async def check_surf_alerts_task():
                             alert.last_triggered = datetime.now(timezone.utc)
                             
                             # Create in-app notification
+                            # ⚠️ THE TITLE IS PART OF THE SAME CLAIM. "is firing!" asserts quality
+                            # from size exactly as the body did, and a push reading
+                            # "🌊 Cocoa Beach is firing!" over "conditions very poor (8/100)" is
+                            # worse than either alone. Aligned with the route's neutral form.
+                            title = f"🌊 {spot.name} — {wave_height_ft:.1f}ft"
                             notification = Notification(
                                 user_id=alert.user_id,
                                 type="surf_alert",
-                                title=f"🌊 {spot.name} is firing!",
-                                body=f"Waves are {wave_height_ft:.1f}ft - perfect conditions!",
+                                title=title,
+                                body=body,
                                 data=json.dumps({
                                     "spot_id": spot.id,
                                     "spot_name": spot.name,
                                     "wave_height_ft": round(wave_height_ft, 1),
+                                    "wave_period": wave_period,
+                                    # Carried so a client can colour or filter on quality without a
+                                    # second request — same reason the glyph payload carries `level`.
+                                    "rating": rating,
+                                    "rating_level": rating_level,
                                     "alert_id": alert.id,
                                     "type": "surf_alert"
                                 })
                             )
                             db.add(notification)
-                            
+
                             # Send push notification if enabled
                             if alert.notify_push:
                                 await send_push_notification(
                                     db,
                                     alert.user_id,
-                                    title=f"🌊 {spot.name} is firing!",
-                                    body=f"Waves are {wave_height_ft:.1f}ft - Go get some!",
+                                    title=title,
+                                    body=body,
                                     data={
                                         "type": "surf_alert",
-                                        "spot_id": spot.id
+                                        "spot_id": spot.id,
+                                        "alert_id": alert.id
                                     }
                                 )
                             

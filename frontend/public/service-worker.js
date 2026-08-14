@@ -283,7 +283,16 @@ self.addEventListener('notificationclick', (event) => {
   
   // Route based on notification type
   if (data.type === 'surf_alert') {
-    targetUrl = `/map?spot=${data.spot_id}`;
+    // ⛔ THIS SENT `/map?spot=${data.spot_id}` AND NOTHING READ THAT PARAMETER. `MapPage.js` and all
+    // of `components/map/` contain zero useSearchParams / location.search / URLSearchParams —
+    // positive control: 19 files elsewhere in src DO use useSearchParams. So tapping the push
+    // landed the user on a generic map at whatever viewport they left, while the SAME notification
+    // arriving in-app went to `/alerts?alert_id=` (utils/notificationDeepLinks.js:210-214). One
+    // notification, two destinations, and the push's one was inert.
+    // ⇒ Aligned with the in-app rule, which IS consumed: SurfAlerts.js:90 reads
+    //   `searchParams.get('alert_id')`. Same fallback, so an older payload without alert_id still
+    //   lands somewhere real rather than on a dead query string.
+    targetUrl = data.alert_id ? `/alerts?alert_id=${data.alert_id}` : '/alerts';
   } else if (data.type === 'new_message') {
     targetUrl = `/messages`;
   } else if (data.type === 'session_join') {
