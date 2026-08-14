@@ -239,7 +239,10 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #                 claims (151 -> 152 files). A full local lane run read exactly `1730 passed`, which
 #                 also equals the projection 1720 + 10 — the first time in three raises that the two
 #                 agreed, so the projection habit is still not a substitute for running it.
-_FLOOR_SET_FROM = {"guards": 1730, "chain": 786, "estate": 360}
+#   guards        MEASURED AGAIN (2026-08-14, the spot_ratings.py split): +11 tests in
+#                 test_spot_rating_module_seam.py -> 1741 observed. chain re-measured at 786
+#                 (unchanged) and estate at 372 in the same sweep; neither floor moved.
+_FLOOR_SET_FROM = {"guards": 1741, "chain": 786, "estate": 360}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

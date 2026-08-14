@@ -43,7 +43,7 @@ def l2(monkeypatch):
     """Install a fake precomputed L2 object; returns a setter."""
     box = {}
     monkeypatch.setattr(
-        "services.weather_pipeline.spot_ratings.load_spot_ratings_l2_cached",
+        "services.weather_pipeline.spot_ratings_precompute.load_spot_ratings_l2_cached",
         lambda *a, **k: box.get("obj"))
     return lambda obj: box.__setitem__("obj", obj)
 
@@ -113,7 +113,7 @@ def test_an_unreadable_l2_object_never_breaks_a_rating(monkeypatch):
     def boom(*a, **k):
         raise RuntimeError("L2 unreachable")
     monkeypatch.setattr(
-        "services.weather_pipeline.spot_ratings.load_spot_ratings_l2_cached", boom)
+        "services.weather_pipeline.spot_ratings_precompute.load_spot_ratings_l2_cached", boom)
     gated, level, confirm, raw = gate_single_model_surface(95.9, MOSS_LAT, MOSS_LNG, NOW)
     assert gated == CAP_UNCONFIRMED and confirm is None and raw == 95.9
 
@@ -237,7 +237,10 @@ def test_the_three_GLYPH_lanes_still_DO_read_the_flag__THE_CONTROL():
     import os
 
     backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    for relpath in ("services/weather_pipeline/spot_ratings.py",
+    # SPLIT 2026-08-14: RATING_OBS_GATE is read by the precompute lane, which moved out of
+    # spot_ratings.py. Repointed in the same commit, or this CONTROL would assert on a file that
+    # no longer reads the flag and go red for the wrong reason.
+    for relpath in ("services/weather_pipeline/spot_ratings_precompute.py",
                     "routes/weather.py",
                     "services/weather_pipeline/grid_resolver_surf.py"):
         src = open(os.path.join(backend_dir, relpath), encoding="utf-8").read()

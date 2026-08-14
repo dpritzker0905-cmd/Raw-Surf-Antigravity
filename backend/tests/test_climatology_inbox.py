@@ -67,7 +67,10 @@ def test_self_erase_guard_skips_accumulation_when_base_unreadable():
     re-enacts the production erasure: a None base + merge_frames == a from-scratch blob."""
     import re
     from pathlib import Path
-    src = Path(sc.__file__).resolve().parent / "spot_ratings.py"
+    # SPLIT 2026-08-14: the RATING_SIZE_CLIMATOLOGY writer moved to the precompute lane with the
+    # rest of `run_spot_ratings_precompute`. Repointed in the same commit — a path-reading guard
+    # left behind grades a file that no longer contains the block it names.
+    src = Path(sc.__file__).resolve().parent / "spot_ratings_precompute.py"
     text = src.read_text(encoding="utf-8")
     block = text[text.index("RATING_SIZE_CLIMATOLOGY"):]
     # The guard's shape: a second load attempt, then a skip path that never calls merge/upload.

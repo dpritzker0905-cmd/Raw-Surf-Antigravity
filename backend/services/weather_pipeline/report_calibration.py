@@ -249,8 +249,9 @@ def run_report_calibration() -> tuple:
     (n_archived, n_matched). Model via REPORT_CALIBRATION_MODEL (default GFS)."""
     import asyncio
     from services.weather_pipeline.store import ProductStore
-    from services.weather_pipeline.spot_ratings import (
-        fetch_active_spots_via_rest, _make_point_resolver, _top_of_hour_utc, rate_one_spot)
+    from services.weather_pipeline.spot_ratings import rate_one_spot
+    from services.weather_pipeline.spot_ratings_precompute import (
+        fetch_active_spots_via_rest, _make_point_resolver, _top_of_hour_utc)
 
     model = os.environ.get("REPORT_CALIBRATION_MODEL", "GFS").strip().upper()
     valid_time = _top_of_hour_utc().strftime("%Y-%m-%dT%H:00:00Z")

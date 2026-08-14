@@ -1,0 +1,3 @@
+guards EXIT=1 :: FAILED tests/test_run_provenance.py::test_select_precomputed_hands_the_endpoint_expanded_runs
+chain EXIT=0 ::   => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
+estate EXIT=0 ::   => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose

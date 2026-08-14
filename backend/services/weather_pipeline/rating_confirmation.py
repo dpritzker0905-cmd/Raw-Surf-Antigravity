@@ -84,7 +84,7 @@ def confirmation_for(lat, lng, valid_time, max_km: float = 2.0):
     ratings lane uses to call two coordinates the same break.
     """
     try:
-        from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached
+        from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached
         obj = load_spot_ratings_l2_cached()
         frames = (obj or {}).get("frames") or []
         if not frames:

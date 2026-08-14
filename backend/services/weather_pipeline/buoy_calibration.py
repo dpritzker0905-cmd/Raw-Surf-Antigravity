@@ -681,7 +681,7 @@ def run_buoy_calibration() -> tuple:
     upload the report to L2. Returns (n_spots, height_mae_m). Model via BUOY_CALIBRATION_MODEL (default GFS)."""
     import asyncio
     from services.weather_pipeline.store import ProductStore
-    from services.weather_pipeline.spot_ratings import _make_point_resolver, _top_of_hour_utc
+    from services.weather_pipeline.spot_ratings_precompute import _make_point_resolver, _top_of_hour_utc
     spots = fetch_buoy_spots_via_rest()
     if not spots:
         logger.warning("[buoy-calibration] no buoy-tagged spots from REST — nothing to do.")

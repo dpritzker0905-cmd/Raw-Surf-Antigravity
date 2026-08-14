@@ -598,7 +598,14 @@ jobs:
           # because the mission's new `RATING_GEOMETRY_CAVEAT` kill switch had not been declared in
           # `_RATING_FLAGS`. 155 targeted tests were green at that moment. That guard is the ONLY thing
           # that catches an undeclared switch — do not narrow it.
-          MIN_FILES, MIN_PASSED = 152, 1724
+          # RAISED AGAIN 2026-08-14 (Program 13.0 Mission 2, the spot_ratings.py split): +1 file,
+          # +11 tests — `tests/test_spot_rating_module_seam.py`, which pins the one-way dependency
+          # between the rating reference and its precompute lane. MEASURED at `1741 passed,
+          # 66 skipped, 1 xfailed` in 27:05; 1741 - 6 = 1735.
+          # ⚠️ The FIRST run of this lane after the split came back `8 failed, 1732 passed`, all in
+          # `test_run_provenance.py` — it reaches precompute symbols as `sr.intern_frame_runs(...)`,
+          # a form my import census was blind to. chain (786) and estate (372) were clean throughout.
+          MIN_FILES, MIN_PASSED = 153, 1735
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

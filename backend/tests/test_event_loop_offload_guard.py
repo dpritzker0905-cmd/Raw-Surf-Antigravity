@@ -48,7 +48,10 @@ os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 # (standing rule 27); a stale surface list is how the sim's disclosure guard stayed green while
 # missing 2 of 5 consumers.
 BLOCKING_L2_LOADERS = {
-    "load_spot_ratings_l2_cached": "services.weather_pipeline.spot_ratings",
+    # SPLIT 2026-08-14 (Program 13.0 Mission 2): the precompute + L2 persistence lane moved out of
+    # `spot_ratings.py`, which had hit the 800-LOC ceiling. Updated DELIBERATELY, as this guard's own
+    # message demands — the loader still exists and is still blocking, it just lives one module over.
+    "load_spot_ratings_l2_cached": "services.weather_pipeline.spot_ratings_precompute",
     "load_calibration_l2_cached": "services.weather_pipeline.buoy_calibration",
     "load_report_calibration_cached": "services.weather_pipeline.report_calibration",
     # ⭐ ADDED 2026-08-07: a FOURTH loader of the identical shape (`requests.get(timeout=10)` behind
@@ -232,7 +235,8 @@ async def test_spot_ratings_l2_read_does_not_starve_the_event_loop(monkeypatch):
     handler returns immediately after the read — isolating the read as the only thing under test.
     """
     import routes.weather as rw
-    from services.weather_pipeline import spot_ratings as sr
+    # SPLIT 2026-08-14: select_precomputed_laddered moved to the precompute lane.
+    from services.weather_pipeline import spot_ratings_precompute as sr
 
     BLOCK_S = 0.5
 

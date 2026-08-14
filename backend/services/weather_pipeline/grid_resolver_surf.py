@@ -181,7 +181,7 @@ def _build_observation_gate(target_dt):
     confirmed spots), so the per-cell nearest scan is cheap. Returns a callable, or a cap-everything
     callable when no blob/frames exist (honest default — good/epic need evidence)."""
     from services.weather_pipeline.rating_confirmation import observation_gate
-    from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached, _parse_dt
+    from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached, _parse_dt
 
     RADIUS_DEG = 0.35
     confirmed = []                                     # (lat, lng, level)

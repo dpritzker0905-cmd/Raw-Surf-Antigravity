@@ -129,7 +129,9 @@ def _ratings_obj(frame_ages_h):
 
 
 def _with_ratings(monkeypatch, obj):
-    from services.weather_pipeline import spot_ratings as sr
+    # SPLIT 2026-08-14: the L2 loader moved to the precompute lane, and `data_health` imports it
+    # from THERE — so the patch has to land on that module or it patches nothing.
+    from services.weather_pipeline import spot_ratings_precompute as sr
     from services.weather_pipeline import copernicus_validator as cv
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.setattr(cv, "is_test_environment", lambda: False)   # simulate the real serve box

@@ -1,5 +1,87 @@
 # MISSION HISTORY — Program 13.0
 
+*(newest first)*
+
+---
+
+## Mission 2 — Split the rating reference implementation off its precompute lane
+
+| | |
+|---|---|
+| **Date** | 2026-08-14 |
+| **Objective** | WS-OBJ-401 (one authority per responsibility) — **enabler, no new WS-CAN ID** |
+| **Baseline** | `70ae3623` on `dev` |
+| **Result** | **Verified Complete** |
+| **Gate effect** | none directly — it **unblocks** every future edit to the mandated reference |
+
+`spot_ratings.py` closed Mission 1 at exactly **800/800 LOC**. It is the file CLAUDE.md names as the
+ONE FORECAST COMPOSITION reference, so the next repair to the rating chain was blocked behind a
+refactor. Split: **800 → 351** lines, with the precompute + Supabase-L2 lane in
+`spot_ratings_precompute.py` (498).
+
+**No behaviour change.** `precompute.rate_one_spot is spot_ratings.rate_one_spot` — asserted, not
+assumed. No forecast quantity, constant, flag default or wire field moved.
+
+### The forensics decided the design (full write-up in `docs/research/FINDING-2026-08-14-splitting-the-rating-reference-implementation.md`)
+
+1. **Ten test files read `spot_ratings.py` BY PATH as a source string** ⇒ this fixed the *direction*:
+   the half most guards grade keeps the filename. Splitting the other way was the same line count and
+   a far larger blast radius.
+2. **An AST census found exactly two cross-half edges** — so the seam was measured, not guessed.
+   `_iso_z` stayed (nothing in the lane uses it); `precompute → rate_one_spot` is the only edge kept.
+3. **Four science switches moved with the lane** ⇒ the new module had to join
+   `test_flag_lane_parity._RATING_SURFACES` in the same commit, or all four would have gone invisible
+   to the admin panel and every lane guard while the suite stayed green.
+
+### Two defects this mission found in the tests themselves
+
+**① A test that patched something the patch could no longer reach — and passed anyway.**
+`test_spot_ratings.py` patched `sr.rate_one_spot`, then called `precompute_spot_ratings`, which now
+binds that name **at import time** in the lane module. The patch reached nothing. It still passed,
+because the real `rate_one_spot` swallows resolver failures and every assertion was *structural*.
+Fixed twice over: patch the lane, **and** assert `score == 55.0`, a value only the fake produces.
+★ **A test that patches something must assert something only the patch can cause.**
+
+**② My own consumer census had a blind spot.** I enumerated by `from … import <names>` lines, which
+is blind to `import spot_ratings as sr` + `sr.intern_frame_runs(...)`.
+`test_run_provenance.py` used that form **13 times** and went red only 25 minutes into the full lane.
+⇒ **enumerate by the SYMBOL SET, not the import line.** That sweep is now a standing instrument
+(`test_nothing_reaches_a_MOVED_symbol_through_the_reference_module`), and it is AST-based because the
+first draft matched `sr.intern_frame_runs` **inside its own docstring** and failed on a clean tree —
+comments are not AST nodes, but docstrings are.
+
+**③ And the guard I wrote to catch ② was itself defective, twice.**
+Its first draft used a regex and matched `sr.intern_frame_runs` **inside its own docstring** — red on
+a clean tree. Its second shelled out to `git grep` and died with
+`OSError: [WinError 6] The handle is invalid`, but **only when run after certain other tests**, which
+had left a std handle pytest could no longer duplicate; in isolation it passed.
+⇒ **a guard that spawns a process can fail for reasons having nothing to do with the code it grades**,
+and "passes in isolation" is not "passes". It now walks the tree with `os.walk` and analyses AST
+attribute nodes: no subprocess, no prose matching, order-independent, and still mutation-proven.
+
+### Guards updated deliberately, never weakened
+
+`test_climatology_inbox` · `test_observation_gate_single_model_surfaces` ·
+`test_flag_lane_parity._RATING_SURFACES` · `test_event_loop_offload_guard.BLOCKING_L2_LOADERS` ·
+`test_data_health` · `test_rating_confirmation` · `test_run_provenance`.
+**Three of them caught the refactor themselves** — that is why this was a safe change and not a
+hopeful one.
+
+### Verification
+
+- New seam guard: 11 tests, **mutation-proven** (reintroducing one stale reference turns it red).
+- **chain lane: 786 passed, 0 failed. estate lane: 372 passed, 0 failed.**
+- guards lane: see `CURRENT_EXECUTION_STATE.json` (first run caught the 8 `test_run_provenance`
+  failures; re-run clean after the fix).
+
+### Known limitations
+
+1. `spot_ratings_precompute.py` starts life at **498 lines** — headroom, but not unlimited.
+2. The split is a **file boundary, not a behavioural decomposition**. `rate_one_spot` is still a
+   ~240-line function; nothing about its internal structure improved.
+3. estate reports **2,864 skipped**. Not this mission's doing, and not investigated — but a lane that
+   skips 88% of what it collects is worth someone's attention (the `-rs` gap already on record).
+
 ---
 
 ## Mission 1 — Geometry-quality disclosure

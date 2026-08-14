@@ -402,7 +402,7 @@ def main():
     if args.frames_file:
         doc = json.load(open(args.frames_file, encoding="utf-8"))
     else:
-        from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached
+        from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached
         doc = load_spot_ratings_l2_cached()
     frames = (doc or {}).get("frames") or []
     cell_ref_fn = None

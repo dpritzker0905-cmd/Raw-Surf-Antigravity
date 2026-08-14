@@ -29,8 +29,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from database import get_db
 from models.spots import SurfSpot
-from services.weather_pipeline.spot_ratings import (
-    rate_one_spot, load_spot_ratings_l2_cached, select_precomputed,
+from services.weather_pipeline.spot_ratings import rate_one_spot
+# The precompute/L2 lane split out of spot_ratings.py 2026-08-14; `rate_one_spot` above is still
+# THE reference implementation and is imported from its original module.
+from services.weather_pipeline.spot_ratings_precompute import (
+    load_spot_ratings_l2_cached, select_precomputed,
 )
 
 logger = logging.getLogger(__name__)
@@ -484,7 +487,7 @@ async def get_spot_ratings(
     # bound live remains the truth path. Kill: SPOT_RATINGS_STALE_TOLERANCE_S=0.
     pre, pre_source, pre_served = None, "precomputed", None
     try:
-        from services.weather_pipeline.spot_ratings import select_precomputed_laddered
+        from services.weather_pipeline.spot_ratings_precompute import select_precomputed_laddered
         # ⛔ OFF THE EVENT LOOP (2026-08-06, MASTER-AUDIT-9.0 §5.1). This loader is a synchronous
         # `requests.get(timeout=10)` to Supabase Storage behind a 300 s TTL, so calling it bare here
         # ran a blocking socket read on the loop: measured against this handler, **0 of ~50 possible

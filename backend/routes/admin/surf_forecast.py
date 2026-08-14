@@ -252,7 +252,7 @@ async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
 
     blobs = {}
     try:
-        from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached
+        from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached
         obj = await asyncio.to_thread(load_spot_ratings_l2_cached)  # off-loop: requests.get(timeout=10) behind a TTL
         frames = (obj or {}).get("frames", [])
         confirmed = sum(1 for fr in frames for s in fr.get("spots", []) if s.get("confirmed"))
@@ -362,7 +362,7 @@ async def local_size_preview(admin: Profile = Depends(get_current_admin),
     """
     from services.weather_pipeline.local_size_preview import (
         anchor_report, preview_impact, sanity_check)
-    from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached
+    from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached
     from services.weather_pipeline.spot_size_climatology import load_size_climatology_l2_cached
 
     clim = load_size_climatology_l2_cached()

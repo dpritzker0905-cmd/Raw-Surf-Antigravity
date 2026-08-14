@@ -71,7 +71,7 @@ def main() -> int:
 
     if os.environ.get("SPOT_RATINGS_PRECOMPUTE", "0") == "1":
         try:
-            from services.weather_pipeline.spot_ratings import run_spot_ratings_precompute
+            from services.weather_pipeline.spot_ratings_precompute import run_spot_ratings_precompute
             n_spots, n_frames = run_spot_ratings_precompute()
             logger.info("Spot-ratings precompute complete: %d spots × %d frames → L2.", n_spots, n_frames)
         except Exception as e:

@@ -137,6 +137,8 @@ def test_apply_gate_is_idempotent_across_checkpoint_reapplication():
 # ─────────────────────────── band gate + wiring guards ───────────────────────────
 def test_build_observation_gate_nearest_confirmed_spot(monkeypatch):
     from services.weather_pipeline import spot_ratings as sr
+    # SPLIT 2026-08-14: the precompute + L2 lane lives in its own module now.
+    from services.weather_pipeline import spot_ratings_precompute as pc
     from services.weather_pipeline import grid_resolver_surf as grs
     target = datetime(2026, 7, 12, 18, 0, 0, tzinfo=timezone.utc)
     blob = {"frames": [
@@ -145,7 +147,7 @@ def test_build_observation_gate_nearest_confirmed_spot(monkeypatch):
         {"model": "GFS", "valid_time": "2026-07-12T06:00:00Z",   # 12 h away — out of the ±3 h window
          "spots": [{"spot_id": "s2", "latitude": -10.0, "longitude": 100.0, "confirmed": "epic"}]},
     ]}
-    monkeypatch.setattr(sr, "load_spot_ratings_l2_cached", lambda ttl=300.0: blob)
+    monkeypatch.setattr(pc, "load_spot_ratings_l2_cached", lambda ttl=300.0: blob)
     gate = grs._build_observation_gate(target)
     assert gate(28.6, -80.4, 95.0) == 95.0                    # near the confirmed spot: uncapped
     assert gate(35.0, -75.0, 95.0) == CAP_UNCONFIRMED          # far away: capped
@@ -172,7 +174,7 @@ def test_wiring_sites_are_gated():
     """All three serve surfaces consult RATING_OBS_GATE (default OFF) — a silent unwire regresses the
     Surfline hybrid; a default flip must be an explicit commit."""
     import inspect
-    from services.weather_pipeline.spot_ratings import run_spot_ratings_precompute
+    from services.weather_pipeline.spot_ratings_precompute import run_spot_ratings_precompute
     src = inspect.getsource(run_spot_ratings_precompute)
     assert 'os.environ.get("RATING_OBS_GATE", "0") == "1"' in src and "apply_gate_to_frames" in src
     # The live compute moved into _compute_live_ratings (2026-07-13 load-shed extraction) — the

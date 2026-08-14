@@ -12,43 +12,37 @@
       "handling": "PRESERVED. Never staged, never committed. Verify they remain unstaged after any commit."
     }
   },
-  "current_mission": {
-    "id": "Mission 1",
-    "objective": "WS-OBJ-207",
-    "tasks": ["WS-CAN-0062"],
-    "supporting": ["WS-OBJ-401", "WS-OBJ-502"],
-    "status": "Verified Complete",
-    "commit": "d8c866bd5f028bef32cfec3e0f436a81cd333bbc",
-    "gate": "Gate 1",
-    "gate_effect": "one objective closed; Gate 1 remains OPEN"
-  },
   "authorized_mission_from_audit_12_2": {
     "id": "WS-CAN-0066",
     "status": "ALREADY COMPLETE at a1b5aac3 before this program began",
     "consequence": "critical path re-derived per program rule 10; position 2 (the provenance visit) selected and found to be three separately-gated parts"
   },
   "verification": {
-    "focused_guard": "backend/tests/test_spot_rating_geometry_disclosure.py",
-    "known_bad_tree": "4 failed / 6 passed",
-    "repaired_tree": "10 passed",
-    "repair_disabled_mutation": "2 failed / 8 passed (RATING_GEOMETRY_CAVEAT=0)",
-    "guards_lane": {
-      "files": 152,
-      "result": "1730 passed, 0 failed, 66 skipped, 1 xfailed",
-      "duration_sec": 1548,
-      "first_run_before_registry_fix": "1 failed, 1729 passed"
+    "lanes": {
+      "guards": "1741 passed, 0 failed (153 files, 27:05)",
+      "chain": "786 passed, 0 failed (13:26)",
+      "estate": "372 passed, 0 failed, 2864 skipped (2:14)"
     },
-    "contract_suites": "145 passed (wire contract, parity, provenance envelope, shadow AB, hub parity, readiness)",
-    "browser": "verified against the local repaired backend with both the CDN lane and the prod-backend lane overridden",
-    "live_production_before_state": "n=87, 8 distinct why-strings shared across full AND degraded geometry",
-    "environment_caveat": "local python 3.14 vs declared 3.12; 28 of 46 pins differ. CI remains the authority."
+    "first_guards_run_after_split": "8 failed, 1732 passed — ALL in test_run_provenance.py, which reaches precompute symbols as `sr.<name>`; a form the import census was blind to",
+    "seam_guard": "11 tests, mutation-proven (reintroducing one stale reference turns it red)",
+    "behaviour": "precompute.rate_one_spot IS spot_ratings.rate_one_spot — asserted, not assumed",
+    "environment_caveat": "local python 3.14 vs declared 3.12; CI remains the authority."
   },
   "ci_floor": {
     "lane": "guards",
-    "min_files": {"was": 151, "now": 152},
-    "min_passed": {"was": 1714, "now": 1724},
-    "floor_set_from": {"was": 1720, "now": 1730},
-    "note": "BOTH edits made — ci.yml AND test_ci_floor_staleness.py::_FLOOR_SET_FROM. A test pins the pair."
+    "min_files": {
+      "was": 152,
+      "now": 153
+    },
+    "min_passed": {
+      "was": 1724,
+      "now": 1735
+    },
+    "floor_set_from": {
+      "was": 1730,
+      "now": 1741
+    },
+    "note": "BOTH edits made. chain (786) and estate (372) re-measured in the same sweep; neither floor moved."
   },
   "release_state": {
     "pushed": false,
@@ -76,9 +70,35 @@
     }
   ],
   "next_recommended_mission": {
-    "id": "WS-CAN-0064 (expanded) + WS-CAN-0009",
-    "objective": "WS-OBJ-302",
-    "why": "critical-path position 4 and the highest-priority genuinely unblocked item; the 10s breach population is two routes (conditions/batch 11/11, grid_series 4/22), same file, one visit",
-    "alternative": "WS-CAN-0022 (WS-OBJ-301, bounded lifecycle) — also unblocked"
+    "id": "WS-CAN-0064 (expanded, two routes) + WS-CAN-0009",
+    "objective": "WS-OBJ-302 — bounded latency",
+    "why": "critical-path position 4 and the highest-priority genuinely unblocked item; conditions/batch 11/11 over 10s, grid_series 4/22, same file, one visit",
+    "now_unblocked_by": "Mission 2 — the rating reference has headroom again"
+  },
+  "mission_1": {
+    "id": "Mission 1 — geometry-quality disclosure",
+    "objective": "WS-OBJ-207",
+    "tasks": [
+      "WS-CAN-0062"
+    ],
+    "supporting": [
+      "WS-OBJ-401",
+      "WS-OBJ-502"
+    ],
+    "status": "Verified Complete",
+    "commit": "d8c866bd5f028bef32cfec3e0f436a81cd333bbc",
+    "gate": "Gate 1",
+    "gate_effect": "one objective closed; Gate 1 remains OPEN"
+  },
+  "current_mission": {
+    "id": "Mission 2 — split the rating reference implementation",
+    "objective": "WS-OBJ-401",
+    "tasks": [
+      "(enabler — no new WS-CAN ID; see MISSION_HISTORY.md)"
+    ],
+    "status": "Verified Complete",
+    "commit": "SEE_MISSION_HISTORY",
+    "gate": "none directly — unblocks every future edit to the mandated reference",
+    "result": "spot_ratings.py 800 -> 351 LOC; precompute lane -> spot_ratings_precompute.py (498)"
   }
 }

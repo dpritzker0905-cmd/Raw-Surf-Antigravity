@@ -32,6 +32,9 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 from services.weather_pipeline import spot_ratings as sr                 # noqa: E402
+# SPLIT 2026-08-14: run-provenance interning + frame selection are the PRECOMPUTE lane, which
+# moved out of spot_ratings.py at the 800-LOC ceiling. `sr` is kept for the rating reference.
+from services.weather_pipeline import spot_ratings_precompute as pc      # noqa: E402
 
 M1, M2 = "2026-07-31T14:08:04.315721Z", "2026-07-30T21:40:53.747305Z"
 W1, W2 = "2026-07-31T14:37:09.478313Z", "2026-07-31T08:10:33.597693Z"
@@ -52,8 +55,8 @@ def _frame(spots, model="GFS", vt="2026-07-31T15:00:00Z"):
 
 def test_interning_round_trips_every_spots_runs():
     frame = _frame([_spot("a", 26.0, -80.0), _spot("b", 21.6, -158.0, run=M2, wind_run=W2)])
-    sr.intern_frame_runs(frame)
-    got = {s["spot_id"]: s for s in sr.expand_frame_runs(frame["spots"], frame)}
+    pc.intern_frame_runs(frame)
+    got = {s["spot_id"]: s for s in pc.expand_frame_runs(frame["spots"], frame)}
     assert (got["a"]["run_time"], got["a"]["wind_run_time"]) == (M1, W1)
     assert (got["b"]["run_time"], got["b"]["wind_run_time"]) == (M2, W2)
 
@@ -64,7 +67,7 @@ def test_interning_stores_each_distinct_pair_ONCE_which_is_the_whole_point():
     spots = [_spot(f"s{i}", 26.0 + i * 0.01, -80.0) for i in range(50)]
     spots += [_spot(f"t{i}", 21.6 + i * 0.01, -158.0, run=M2, wind_run=W2) for i in range(50)]
     frame = _frame(spots)
-    sr.intern_frame_runs(frame)
+    pc.intern_frame_runs(frame)
     assert len(frame["runs"]) == 2, "two distinct products must intern to two rows, not 100"
     assert all("run_time" not in s and "wind_run_time" not in s for s in frame["spots"])
     assert all(isinstance(s["run"], int) for s in frame["spots"])
@@ -74,15 +77,15 @@ def test_interning_is_idempotent_because_the_precompute_re_uploads_at_every_chec
     """The precompute merge-uploads after EVERY model, so an already-encoded frame comes back
     through. Double-encoding would index into a table of indices."""
     frame = _frame([_spot("a", 26.0, -80.0)])
-    sr.intern_frame_runs(frame)
+    pc.intern_frame_runs(frame)
     before = (list(frame["runs"]), dict(frame["spots"][0]))
-    sr.intern_frame_runs(frame)
+    pc.intern_frame_runs(frame)
     assert (frame["runs"], frame["spots"][0]) == before
 
 
 def test_a_frame_with_no_run_information_gains_no_table():
     frame = _frame([_spot("a", 26.0, -80.0, run=None, wind_run=None)])
-    sr.intern_frame_runs(frame)
+    pc.intern_frame_runs(frame)
     assert "runs" not in frame
     assert "run" not in frame["spots"][0]
 
@@ -91,9 +94,9 @@ def test_expansion_does_NOT_mutate_the_frame_because_the_L2_object_is_process_wi
     """⚠️ `select_precomputed` reads the TTL-cached L2 object shared by every later request. Writing
     into it is the one-writer violation this repo has already paid for once."""
     frame = _frame([_spot("a", 26.0, -80.0)])
-    sr.intern_frame_runs(frame)
+    pc.intern_frame_runs(frame)
     snapshot = {k: (list(v) if isinstance(v, list) else v) for k, v in frame["spots"][0].items()}
-    out = sr.expand_frame_runs(frame["spots"], frame)
+    out = pc.expand_frame_runs(frame["spots"], frame)
     assert out[0]["run_time"] == M1
     assert frame["spots"][0] == snapshot, "the cached frame was edited in place"
     assert "run_time" not in frame["spots"][0]
@@ -102,9 +105,9 @@ def test_expansion_does_NOT_mutate_the_frame_because_the_L2_object_is_process_wi
 def test_an_out_of_range_index_expands_to_None_rather_than_raising():
     """A truncated or version-skewed object must cost the field, never the response."""
     frame = _frame([_spot("a", 26.0, -80.0)])
-    sr.intern_frame_runs(frame)
+    pc.intern_frame_runs(frame)
     frame["spots"][0]["run"] = 99
-    assert sr.expand_frame_runs(frame["spots"], frame)[0]["run_time"] is None
+    assert pc.expand_frame_runs(frame["spots"], frame)[0]["run_time"] is None
 
 
 # ── backward compatibility: frames written before this field ────────────────────────────────────
@@ -112,7 +115,7 @@ def test_an_out_of_range_index_expands_to_None_rather_than_raising():
 def test_an_OLD_frame_without_runs_passes_through_untouched_and_uncopied():
     old = {"model": "GFS", "valid_time": "t", "spots": [
         {"spot_id": "a", "latitude": 26.0, "longitude": -80.0, "score": 50.0, "level": "fair"}]}
-    out = sr.expand_frame_runs(old["spots"], old)
+    out = pc.expand_frame_runs(old["spots"], old)
     assert out is old["spots"], "no table -> no work at all"
 
 
@@ -132,10 +135,10 @@ def test_a_NEW_spot_dict_carries_both_runs_into_the_endpoint_model():
 
 def test_select_precomputed_hands_the_endpoint_expanded_runs():
     """End to end through the real selector: interned on write, expanded on read."""
-    frame = sr.intern_frame_runs(_frame([_spot("in", 26.0, -80.0),
+    frame = pc.intern_frame_runs(_frame([_spot("in", 26.0, -80.0),
                                          _spot("far", 40.0, -80.0, run=M2, wind_run=W2)]))
     obj = {"version": sr.SPOT_RATINGS_SCHEMA_VERSION, "frames": [frame]}
-    sel = sr.select_precomputed(obj, (-82, 24, -79, 28), "GFS", "2026-07-31T15:00:00Z")
+    sel = pc.select_precomputed(obj, (-82, 24, -79, 28), "GFS", "2026-07-31T15:00:00Z")
     assert [s["spot_id"] for s in sel] == ["in"]
     assert sel[0]["run_time"] == M1 and sel[0]["wind_run_time"] == W1
     assert "run" not in sel[0], "the wire index must not leak into the API payload"

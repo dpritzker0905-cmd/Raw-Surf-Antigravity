@@ -11,9 +11,13 @@ import asyncio
 from datetime import datetime, timezone
 
 from services.weather_pipeline import spot_ratings as sr
+# SPLIT 2026-08-14: the precompute + L2 lane lives in its own module now.
+from services.weather_pipeline import spot_ratings_precompute as pc
 from services.weather_pipeline.spot_ratings import (
-    spot_confidence, rating_why, select_precomputed, _lng_in, build_l2_object, SPOT_RATINGS_L2_KEY,
-    precompute_spot_ratings,
+    spot_confidence, rating_why, SPOT_RATINGS_L2_KEY,
+)
+from services.weather_pipeline.spot_ratings_precompute import (
+    select_precomputed, _lng_in, build_l2_object, precompute_spot_ratings,
 )
 from routes.weather import SpotRatingItem, SpotRatingsResponse
 
@@ -107,7 +111,7 @@ def _ladder_frame():
 
 
 def test_ladder_fresh_frame_serves_precomputed():
-    from services.weather_pipeline.spot_ratings import select_precomputed_laddered
+    from services.weather_pipeline.spot_ratings_precompute import select_precomputed_laddered
     sel, src, served = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
                                            "2026-06-28T21:40:00Z")
     assert src == "precomputed" and [s["spot_id"] for s in sel] == ["in"]
@@ -117,7 +121,7 @@ def test_ladder_fresh_frame_serves_precomputed():
 def test_ladder_stale_frame_serves_labeled_stale_not_live():
     # 5h from the only frame: fresh (±2h) misses, stale bound (6h default) catches it — the box
     # must NOT fall off the live cliff for a merely-stale lane (the 07-13 melt class).
-    from services.weather_pipeline.spot_ratings import select_precomputed_laddered
+    from services.weather_pipeline.spot_ratings_precompute import select_precomputed_laddered
     sel, src, served = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
                                            "2026-06-29T02:00:00Z")
     assert src == "precomputed_stale" and [s["spot_id"] for s in sel] == ["in"]
@@ -128,7 +132,7 @@ def test_ladder_stale_frame_serves_labeled_stale_not_live():
 
 def test_ladder_beyond_stale_bound_falls_to_live():
     # 8h out: beyond the 6h stale bound → (None, 'live') — live stays the truth path.
-    from services.weather_pipeline.spot_ratings import select_precomputed_laddered
+    from services.weather_pipeline.spot_ratings_precompute import select_precomputed_laddered
     sel, src, served = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
                                            "2026-06-29T05:00:00Z")
     assert sel is None and src == "live" and served is None
@@ -136,7 +140,7 @@ def test_ladder_beyond_stale_bound_falls_to_live():
 
 def test_ladder_stale_kill_switch(monkeypatch):
     # SPOT_RATINGS_STALE_TOLERANCE_S=0 disables the stale rung entirely (pre-ladder behavior).
-    from services.weather_pipeline.spot_ratings import select_precomputed_laddered
+    from services.weather_pipeline.spot_ratings_precompute import select_precomputed_laddered
     monkeypatch.setenv("SPOT_RATINGS_STALE_TOLERANCE_S", "0")
     sel, src, served = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
                                            "2026-06-29T02:00:00Z")
@@ -145,7 +149,7 @@ def test_ladder_stale_kill_switch(monkeypatch):
 
 # ── checkpoint merge-upload (melt round 4, 2026-07-13) ──
 def test_merge_model_frames_replaces_only_recomputed_models():
-    from services.weather_pipeline.spot_ratings import merge_model_frames
+    from services.weather_pipeline.spot_ratings_precompute import merge_model_frames
     prev = [{"model": "GFS", "valid_time": "t0", "spots": [{"score": 10}]},
             {"model": "EURO", "valid_time": "t0", "spots": [{"score": 20}]},
             {"model": "ICON", "valid_time": "t0", "spots": [{"score": 30}]}]
@@ -160,7 +164,7 @@ def test_merge_model_frames_replaces_only_recomputed_models():
 
 
 def test_merge_model_frames_empty_prev_and_frames_coverage():
-    from services.weather_pipeline.spot_ratings import merge_model_frames, frames_coverage
+    from services.weather_pipeline.spot_ratings_precompute import merge_model_frames, frames_coverage
     fresh = [{"model": "GFS", "valid_time": "t1", "spots": [{"score": 55}, {"score": None}]}]
     assert merge_model_frames(None, fresh, {"GFS"}) == fresh
     assert merge_model_frames([], fresh, {"GFS"}) == fresh
@@ -208,7 +212,7 @@ def test_upload_writes_the_single_rls_exposed_key():
     # EXACTLY 'spot_ratings/latest.json'. Renaming the key silently breaks the frontend CDN lane —
     # this test turns that silent break loud.
     store = _MirrorStore()
-    sr.upload_spot_ratings_l2(store, {"version": 1, "frames": []})
+    pc.upload_spot_ratings_l2(store, {"version": 1, "frames": []})
     assert [f for f, _ in store.uploads] == ["spot_ratings/latest.json"]
     assert SPOT_RATINGS_L2_KEY == "spot_ratings/latest.json"
 
@@ -217,7 +221,7 @@ def test_l2_read_is_cache_busted():
     # 2026-07-14: the object uploads mutated in place under max-age 3600 — an un-busted read could
     # serve an hour-stale edge copy, undoing checkpoint merge-uploads. Pin the busting param.
     import inspect
-    src = inspect.getsource(sr.load_spot_ratings_l2)
+    src = inspect.getsource(pc.load_spot_ratings_l2)
     assert "?cb=" in src and "no-cache" in src
 
 
@@ -238,13 +242,20 @@ def test_precompute_round_trips_through_select(monkeypatch):
             "surf_height_m": 1.0, "period_s": 12.0, "why": "x",
         }
 
-    monkeypatch.setattr(sr, "rate_one_spot", fake_rate)
+    # ⚠️ PATCH THE LANE, NOT THE REFERENCE. `precompute_spot_ratings` lives in
+    # spot_ratings_precompute and binds `rate_one_spot` AT IMPORT TIME, so patching it on
+    # `spot_ratings` reaches nothing. Caught 2026-08-14 during the split: this test kept PASSING
+    # with the patch dead, because the real rate_one_spot swallows resolver failures and every
+    # assertion below was structural. The `score`/`why` assertions now prove the fake ran.
+    monkeypatch.setattr(pc, "rate_one_spot", fake_rate)
     base = datetime(2026, 6, 28, 21, 0, 0, tzinfo=timezone.utc)
     obj = asyncio.run(precompute_spot_ratings(None, spots, ["GFS"], [0], base_dt=base))
 
     assert obj["version"] == 1 and len(obj["frames"]) == 1
     fr = obj["frames"][0]
     assert fr["model"] == "GFS" and fr["valid_time"] == "2026-06-28T21:00:00Z" and len(fr["spots"]) == 2
+    # THE FAKE ACTUALLY RAN — without this the whole test passes on an unpatched real call.
+    assert {s["score"] for s in fr["spots"]} == {55.0}, "the patched rate_one_spot was not used"
 
     # The endpoint reads it back: 20-min-off request still hits (tolerant), filtered to the FL bbox (a in, b out).
     sel = select_precomputed(obj, (-82, 24, -79, 28), "GFS", "2026-06-28T21:20:00Z")
@@ -287,7 +298,7 @@ def test_fetch_active_spots_paginates_past_the_postgrest_cap(monkeypatch):
     fake, calls = _mk_fake_requests([page1, page2])
     monkeypatch.setitem(sys.modules, "requests", fake)
 
-    out = sr.fetch_active_spots_via_rest()
+    out = pc.fetch_active_spots_via_rest()
     assert len(out) == 1516
     assert len(calls["urls"]) == 2
     assert "offset=0" in calls["urls"][0] and "order=id" in calls["urls"][0]
@@ -300,7 +311,7 @@ def test_fetch_active_spots_short_first_page_stops(monkeypatch):
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "k")
     fake, calls = _mk_fake_requests([[{"id": 1}, {"id": 2}]])
     monkeypatch.setitem(sys.modules, "requests", fake)
-    out = sr.fetch_active_spots_via_rest()
+    out = pc.fetch_active_spots_via_rest()
     assert [s["id"] for s in out] == [1, 2]
     assert len(calls["urls"]) == 1
 
@@ -312,7 +323,7 @@ def test_fetch_active_spots_respects_hard_limit(monkeypatch):
     full = [[{"id": i} for i in range(1000)] for _ in range(9)]   # server would keep serving forever
     fake, calls = _mk_fake_requests(full)
     monkeypatch.setitem(sys.modules, "requests", fake)
-    out = sr.fetch_active_spots_via_rest(limit=2500)
+    out = pc.fetch_active_spots_via_rest(limit=2500)
     assert len(out) == 2500
     assert len(calls["urls"]) == 3                                # 1000 + 1000 + 500
     assert "limit=500" in calls["urls"][2]

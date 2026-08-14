@@ -378,6 +378,11 @@ GUARDED_LANES = set(INGEST_LANES) | {MONITOR_LANE, PILOT_LANE}
 # hardcoded list would go stale exactly the way the registry did.
 _RATING_SURFACES = (
     "services/weather_pipeline/spot_ratings.py",
+    # SPLIT 2026-08-14: the precompute lane left spot_ratings.py carrying FOUR science switches
+    # (RATING_LOCAL_SIZE, RATING_TIDE, RATING_OBS_GATE, RATING_SIZE_CLIMATOLOGY). Added in the
+    # SAME commit as the split — a flag that leaves the scanned set goes dark, and the >=27
+    # coverage floor below is exactly what catches that.
+    "services/weather_pipeline/spot_ratings_precompute.py",
     "services/weather_pipeline/spot_conditions.py",
     "services/weather_pipeline/sim_rating.py",
     "services/weather_pipeline/grid_resolver_surf.py",

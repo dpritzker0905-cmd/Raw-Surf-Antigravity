@@ -156,7 +156,7 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
     # rating request falls onto the 7-22s live path, the melt precursor. Guarded: a read failure
     # reports the lane as critical/unreadable but never breaks the report.
     try:
-        from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached, _parse_dt
+        from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached, _parse_dt
         from services.weather_pipeline.copernicus_validator import is_test_environment
         if is_test_environment() or not os.environ.get("SUPABASE_URL"):
             raise _RatingsLaneUnconfigured()   # hermetic tests / local without L2 → lane absent, not critical
