@@ -1,0 +1,64 @@
+=== BYTE-IDENTICAL why STRINGS SPANNING DIFFERENT GEOMETRY (live prod, 2026-08-14T18:00Z) ===
+  why = '~1.5 ft surf, 9s period, 7kt onshore wind, falling tide'
+      Pepper Park                         geometry=full      confidence=high
+      Vero Beach Pier                     geometry=full      confidence=medium
+      Tracking Station - Vero Beach       geometry=full      confidence=medium
+      South Beach Park - Vero             geometry=degraded  confidence=medium
+      Riomar Point                        geometry=degraded  confidence=medium
+      Fort Pierce Inlet - South Jetty     geometry=full      confidence=medium
+      Conn Beach                          geometry=degraded  confidence=medium
+      Round Island Park                   geometry=full      confidence=high
+      Fort Pierce Inlet - North Jetty     geometry=full      confidence=high
+
+  why = '~1.5 ft surf, 9s period, 7kt onshore wind'
+      Jetty Park                          geometry=full      confidence=medium
+      Cape Canaveral                      geometry=full      confidence=medium
+      Vero Beach                          geometry=degraded  confidence=medium
+      Shepard Park                        geometry=full      confidence=medium
+      Cocoa Beach Pier                    geometry=full      confidence=medium
+      Fort Pierce Inlet                   geometry=full      confidence=medium
+      Cherie Down Park                    geometry=full      confidence=medium
+
+  why = '~1.4 ft surf, 7s period, 9kt onshore wind, falling tide'
+      St. Augustine Inlet - North Jetty   geometry=full      confidence=medium
+      Crescent Beach                      geometry=full      confidence=medium
+      Butler Beach                        geometry=full      confidence=medium
+      Daytona Beach - Sunglow Pier        geometry=degraded  confidence=medium
+      Ormond Beach                        geometry=degraded  confidence=medium
+
+  why = '~1.3 ft surf, 7s period, 7kt onshore wind'
+      Jacksonville Beach Pier             geometry=full      confidence=medium
+      Neptune Beach                       geometry=degraded  confidence=medium
+      Atlantic Beach                      geometry=full      confidence=medium
+
+  why = '~1.8 ft surf, 7s period, 8kt onshore wind, falling tide'
+      Ponce Inlet - North Jetty           geometry=full      confidence=medium
+      Ponce Inlet - South Jetty           geometry=degraded  confidence=medium
+      New Smyrna Beach - Inlet            geometry=degraded  confidence=medium
+
+  why = '~1.5 ft surf, 8s period, 8kt onshore wind'
+      Kennedy Space Center                geometry=degraded  confidence=medium
+      Cape Canaveral Air Force Station    geometry=degraded  confidence=low
+      Pump House                          geometry=full      confidence=medium
+      Playalinda Beach                    geometry=full      confidence=medium
+      Jupiter Inlet                       geometry=full      confidence=medium
+
+  why = '~1.4 ft surf, 9s period, 7kt onshore wind'
+      Pelican Beach Park                  geometry=full      confidence=high
+      Melbourne Beach                     geometry=degraded  confidence=high
+      Paradise Beach                      geometry=degraded  confidence=medium
+      Indialantic                         geometry=full      confidence=medium
+
+  why = '~1.5 ft surf, 9s period, 8kt onshore wind, falling tide'
+      Bathtub Reef Beach                  geometry=degraded  confidence=medium
+      St. Lucie Inlet                     geometry=full      confidence=medium
+
+8 distinct why-strings are shared across BOTH full and degraded geometry.
+
+=== AFTER (replaying the shipped caveat over the SAME live payload) ===
+  Ponce Inlet                      | ~1.7 ft surf, 7s period, 8kt onshore wind, coarse shore detail
+  Stuart Beach                     | ~1.5 ft surf, 9s period, 8kt onshore wind, coarse shore detail
+  South Beach Park - Vero          | ~1.5 ft surf, 9s period, 7kt onshore wind, falling tide, coarse shore detail
+  Kennedy Space Center             | ~1.5 ft surf, 8s period, 8kt onshore wind, coarse shore detail
+  Cape Canaveral Air Force Station | ~1.5 ft surf, 8s period, 8kt onshore wind, coarse shore detail
+  ... 19 of 87 live spots gain a disclosure; 68 are unchanged.

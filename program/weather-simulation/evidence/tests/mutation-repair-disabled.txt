@@ -1,0 +1,54 @@
+FF........                                                               [100%]
+================================== FAILURES ===================================
+__________ test_a_spot_the_forecast_could_not_orient_says_so[blind] ___________
+
+readiness = 'blind'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("readiness", ["blind", "degraded"])
+    async def test_a_spot_the_forecast_could_not_orient_says_so(readiness):
+        """THE MISSION. A spot whose shore orientation is coarse or absent must disclose it on the
+        surface a user reads. Known-bad: `why` reads "~3.9 ft surf, 13s period, 8kt offshore wind" —
+        byte-identical to a full-geometry spot — while `confidence` reads "high" off the verified pin."""
+        d = await _rate(readiness)
+        assert d["geometry_readiness"] == readiness, "fixture did not reach the payload"
+        why = d["why"] or ""
+        assert why, "nothing to qualify — the fixture stopped producing a rating"
+        full = (await _rate("full"))["why"] or ""
+>       assert why != full, (
+            f"a {readiness!r}-geometry spot and a full-geometry spot produced BYTE-IDENTICAL user-facing "
+            f"text ({why!r}). The forecast could not tell which way this beach faces, and the readout "
+            f"does not say so.")
+E       AssertionError: a 'blind'-geometry spot and a full-geometry spot produced BYTE-IDENTICAL user-facing text ('~3.9 ft surf, 13s period, 4kt offshore wind'). The forecast could not tell which way this beach faces, and the readout does not say so.
+E       assert '~3.9 ft surf, 13s period, 4kt offshore wind' != '~3.9 ft surf, 13s period, 4kt offshore wind'
+
+tests\test_spot_rating_geometry_disclosure.py:111: AssertionError
+_________ test_a_spot_the_forecast_could_not_orient_says_so[degraded] _________
+
+readiness = 'degraded'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("readiness", ["blind", "degraded"])
+    async def test_a_spot_the_forecast_could_not_orient_says_so(readiness):
+        """THE MISSION. A spot whose shore orientation is coarse or absent must disclose it on the
+        surface a user reads. Known-bad: `why` reads "~3.9 ft surf, 13s period, 8kt offshore wind" —
+        byte-identical to a full-geometry spot — while `confidence` reads "high" off the verified pin."""
+        d = await _rate(readiness)
+        assert d["geometry_readiness"] == readiness, "fixture did not reach the payload"
+        why = d["why"] or ""
+        assert why, "nothing to qualify — the fixture stopped producing a rating"
+        full = (await _rate("full"))["why"] or ""
+>       assert why != full, (
+            f"a {readiness!r}-geometry spot and a full-geometry spot produced BYTE-IDENTICAL user-facing "
+            f"text ({why!r}). The forecast could not tell which way this beach faces, and the readout "
+            f"does not say so.")
+E       AssertionError: a 'degraded'-geometry spot and a full-geometry spot produced BYTE-IDENTICAL user-facing text ('~3.9 ft surf, 13s period, 4kt offshore wind'). The forecast could not tell which way this beach faces, and the readout does not say so.
+E       assert '~3.9 ft surf, 13s period, 4kt offshore wind' != '~3.9 ft surf, 13s period, 4kt offshore wind'
+
+tests\test_spot_rating_geometry_disclosure.py:111: AssertionError
+ENVIRONMENT IS NOT THE DECLARED ONE: python 3.14 != declared 3.12; 28 of 46 pins differ; 7 declared packages absent; not in a virtualenv
+  => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
+=========================== short test summary info ===========================
+FAILED tests/test_spot_rating_geometry_disclosure.py::test_a_spot_the_forecast_could_not_orient_says_so[blind]
+FAILED tests/test_spot_rating_geometry_disclosure.py::test_a_spot_the_forecast_could_not_orient_says_so[degraded]
+2 failed, 8 passed in 2.26s

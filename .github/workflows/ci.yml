@@ -585,7 +585,20 @@ jobs:
           # collected moved 1779 → 1787, exactly +8, so the skip/xfail shift is an environment
           # artifact and does NOT move the pass count. (That box reports python 3.14 against a
           # declared 3.12; CI remains the authority and will confirm or falsify 1720.)
-          MIN_FILES, MIN_PASSED = 151, 1714
+          # RAISED 2026-08-14 (WS-CAN-0062 / WS-OBJ-207, Program 13.0 Mission 1): +1 file, +10 tests.
+          # `tests/test_spot_rating_geometry_disclosure.py` matches the COMPOSITION pattern
+          # `tests/test_spot_*.py`, so it lands in THIS lane — checked with `--lane guards` (151 -> 152),
+          # not inferred from the name.
+          # ⭐ MEASURED, NOT PROJECTED, and the two readings agree for once: 1720 + 10 = 1730, and a full
+          # local lane run reported exactly `1730 passed, 66 skipped, 1 xfailed` in 25:47. 1730 - 6
+          # (this lane's budget) = 1724. The +10 has no def-count discrepancy — unlike the 08-13 raise,
+          # nothing was replaced, so the pre-push hook's added-`def test_` count is the net for once.
+          # ⚠️ The FIRST run of this lane came back `1 failed, 1729 passed`: the failure was
+          # `test_flag_lane_parity::test_every_science_switch_a_rating_surface_reads_is_declared_in_the_registry`,
+          # because the mission's new `RATING_GEOMETRY_CAVEAT` kill switch had not been declared in
+          # `_RATING_FLAGS`. 155 targeted tests were green at that moment. That guard is the ONLY thing
+          # that catches an undeclared switch — do not narrow it.
+          MIN_FILES, MIN_PASSED = 152, 1724
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

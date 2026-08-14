@@ -1,0 +1,17 @@
+top-level keys: ['model', 'valid_time', 'count', 'source', 'served_valid_time', 'frame_offset_hours', 'spots']
+n = 87
+geometry_readiness: {'full': 68, 'degraded': 19}
+confidence        : {'medium': 66, 'high': 20, 'low': 1}
+
+--- LIVE PRODUCTION, degraded/blind spots: what the user is told ---
+  Ponce Inlet                      | degraded | medium | ~1.7 ft surf, 7s period, 8kt onshore wind
+  Stuart Beach                     | degraded | medium | ~1.5 ft surf, 9s period, 8kt onshore wind
+  South Beach Park - Vero          | degraded | medium | ~1.5 ft surf, 9s period, 7kt onshore wind, falling tide
+  Kennedy Space Center             | degraded | medium | ~1.5 ft surf, 8s period, 8kt onshore wind
+  Cape Canaveral Air Force Station | degraded | low    | ~1.5 ft surf, 8s period, 8kt onshore wind
+  Riomar Point                     | degraded | medium | ~1.5 ft surf, 9s period, 7kt onshore wind, falling tide
+
+--- FULL-geometry controls from the SAME response ---
+  Deerfield Beach                  | full     | medium | ~1.1 ft surf, 3s period, 7kt onshore wind
+  Pepper Park                      | full     | high   | ~1.5 ft surf, 9s period, 7kt onshore wind, falling tide
+  Pompano Beach Pier               | full     | medium | ~1.1 ft surf, 3s period, 7kt onshore wind

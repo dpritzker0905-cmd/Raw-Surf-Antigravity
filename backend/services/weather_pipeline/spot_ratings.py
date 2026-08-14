@@ -240,24 +240,27 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     why = rating_why(level, surf_h, why_period, wind_ms, wind_from, shore_normal)
     if why and tide_state and best_tide:
         why += f", {tide_state.get('trend', '')} tide".rstrip()
-    # ⛔⛔ THE SIZE AND THE QUALITY DISAGREE ABOUT THE SAME SWELL (MASTER-AUDIT-2.0 §2). "How much of
-    # this swell reaches this break" is computed TWICE from the SAME bearing: the quality chain's
-    # `swell_exposure` floors at 0.100, the height chain's `_height_exposure_factor` at 0.595. In
-    # ENERGY terms that is 0.100 vs 0.595^2 = 0.354 — a 3.54x contradiction inside ONE payload, and
-    # it saturates for every Δθ >= 90° because past there BOTH factors are flat on their floors.
-    # Measured live 2026-08-04 on n=1005 served spots: 15.4% sit on the exposure floor (a LOWER
-    # bound — `limiter` is an argmin, so a spot floored on exposure but limited by something lower
-    # is invisible to that count). Fafa Island served 6.2 ft "very_poor" on FULL geometry.
-    # ⚠️ THIS DISCLOSES, IT DOES NOT CORRECT. The height is the likelier overestimate (spectral flux
-    # at Δθ=100° is 0.013, so 0.354 is ~27x generous), but it is currently right BY CANCELLATION
-    # against a second error — flipping this floor alone moves every head-on spot too. The
-    # reconciliation is gated on the ERA5 record; until then the honest move is to SAY SO rather
-    # than serve a contradiction silently, which is what `dd972351` did for the sim payload.
-    # ⇒ THIS IS THAT SAME DISCLOSURE, ON THE SURFACE USERS ACTUALLY READ. It shipped to `sim_rating`
-    # only, and the sim is an MCP tool — the map glyphs, which every user sees, carried nothing.
-    # ABSENT UNLESS IT BINDS (>= 1.5x, i.e. Δθ >= 75.73°), mirroring `model_agreement` and
-    # `display_adjustment`: a caveat on every spot is a caveat nobody reads.
-    # Kill: RATING_DIRECTIONAL_CONFLICT=0.
+    # ★ WHAT THE FORECAST WAS ALLOWED TO KNOW (WS-CAN-0062 / WS-OBJ-207). A VERIFIED pin on BLIND
+    # geometry rendered `high conf` beside a `why` BYTE-IDENTICAL to a fully-surveyed spot's — live,
+    # n=87: EIGHT `why` strings shared across full AND degraded. ⛔ THE FIX IS NOT TO MAKE
+    # `confidence` READ THIS: the two are deliberately orthogonal (see `geometry_readiness` below)
+    # and redefining a served field's meaning is the one-quantity-two-meanings class that has
+    # WS-CAN-0005 blocked. ABSENT unless it binds — `full` and UNGRADED (None) add nothing, an
+    # unassessed spot is not full. Kill: RATING_GEOMETRY_CAVEAT=0 (restores the old string byte-wise).
+    # docs/research/FINDING-2026-08-14-the-rating-said-high-conf-on-geometry-it-could-not-resolve.md
+    if why and os.environ.get("RATING_GEOMETRY_CAVEAT", "1") != "0":
+        try:
+            from services.weather_pipeline.spot_geometry_readiness import caveat as _geom_caveat
+            _gc = _geom_caveat(geometry_readiness)
+            why = f"{why}, {_gc}" if _gc else why
+        except Exception as e:  # a caveat must never break the rating it qualifies
+            logger.debug(f"[spot-ratings] geometry caveat failed for {spot.get('id')}: {e}")
+    # ⛔⛔ THE SIZE AND THE QUALITY DISAGREE ABOUT THE SAME SWELL (MASTER-AUDIT-2.0 §2) — the SAME
+    # bearing reduced twice, floors 0.100 (quality) vs 0.595 (height) = 3.54x in energy. ⚠️ DISCLOSES,
+    # DOES NOT CORRECT: the height is the likelier overestimate but is right BY CANCELLATION, so the
+    # reconciliation is gated on the ERA5 record. ABSENT unless it binds (>= 1.5x, Δθ >= 75.73°).
+    # Kill: RATING_DIRECTIONAL_CONFLICT=0. ⭐ FULL DERIVATION + the live 2026-08-04 n=1005 measurement
+    # live on `schemas.py`'s `directional_conflict` — a verbatim 2nd copy, EXTRACTED not deleted.
     _conflict = None
     if os.environ.get("RATING_DIRECTIONAL_CONFLICT", "1") != "0":
         try:

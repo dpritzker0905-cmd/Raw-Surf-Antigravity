@@ -1,0 +1,83 @@
+FF......FF                                                               [100%]
+================================== FAILURES ===================================
+__________ test_a_spot_the_forecast_could_not_orient_says_so[blind] ___________
+
+readiness = 'blind'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("readiness", ["blind", "degraded"])
+    async def test_a_spot_the_forecast_could_not_orient_says_so(readiness):
+        """THE MISSION. A spot whose shore orientation is coarse or absent must disclose it on the
+        surface a user reads. Known-bad: `why` reads "~3.9 ft surf, 13s period, 8kt offshore wind" —
+        byte-identical to a full-geometry spot — while `confidence` reads "high" off the verified pin."""
+        d = await _rate(readiness)
+        assert d["geometry_readiness"] == readiness, "fixture did not reach the payload"
+        why = d["why"] or ""
+        assert why, "nothing to qualify — the fixture stopped producing a rating"
+        full = (await _rate("full"))["why"] or ""
+>       assert why != full, (
+            f"a {readiness!r}-geometry spot and a full-geometry spot produced BYTE-IDENTICAL user-facing "
+            f"text ({why!r}). The forecast could not tell which way this beach faces, and the readout "
+            f"does not say so.")
+E       AssertionError: a 'blind'-geometry spot and a full-geometry spot produced BYTE-IDENTICAL user-facing text ('~3.9 ft surf, 13s period, 4kt offshore wind'). The forecast could not tell which way this beach faces, and the readout does not say so.
+E       assert '~3.9 ft surf, 13s period, 4kt offshore wind' != '~3.9 ft surf, 13s period, 4kt offshore wind'
+
+tests\test_spot_rating_geometry_disclosure.py:111: AssertionError
+_________ test_a_spot_the_forecast_could_not_orient_says_so[degraded] _________
+
+readiness = 'degraded'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("readiness", ["blind", "degraded"])
+    async def test_a_spot_the_forecast_could_not_orient_says_so(readiness):
+        """THE MISSION. A spot whose shore orientation is coarse or absent must disclose it on the
+        surface a user reads. Known-bad: `why` reads "~3.9 ft surf, 13s period, 8kt offshore wind" —
+        byte-identical to a full-geometry spot — while `confidence` reads "high" off the verified pin."""
+        d = await _rate(readiness)
+        assert d["geometry_readiness"] == readiness, "fixture did not reach the payload"
+        why = d["why"] or ""
+        assert why, "nothing to qualify — the fixture stopped producing a rating"
+        full = (await _rate("full"))["why"] or ""
+>       assert why != full, (
+            f"a {readiness!r}-geometry spot and a full-geometry spot produced BYTE-IDENTICAL user-facing "
+            f"text ({why!r}). The forecast could not tell which way this beach faces, and the readout "
+            f"does not say so.")
+E       AssertionError: a 'degraded'-geometry spot and a full-geometry spot produced BYTE-IDENTICAL user-facing text ('~3.9 ft surf, 13s period, 4kt offshore wind'). The forecast could not tell which way this beach faces, and the readout does not say so.
+E       assert '~3.9 ft surf, 13s period, 4kt offshore wind' != '~3.9 ft surf, 13s period, 4kt offshore wind'
+
+tests\test_spot_rating_geometry_disclosure.py:111: AssertionError
+_________________ test_the_readiness_vocabulary_has_ONE_owner _________________
+
+    def test_the_readiness_vocabulary_has_ONE_owner():
+        """`spot_geometry_readiness` already owns `full`/`degraded`/`blind` and their prose
+        (`summarize`). A second module inventing its own phrasing is how two surfaces come to describe
+        the same verdict differently (WS-OBJ-401)."""
+        from services.weather_pipeline import spot_geometry_readiness as sgr
+>       assert hasattr(sgr, "caveat"), (
+            "the caveat phrasing does not live beside `summarize` in the module that owns the verdict "
+            "vocabulary")
+E       AssertionError: the caveat phrasing does not live beside `summarize` in the module that owns the verdict vocabulary
+E       assert False
+E        +  where False = hasattr(<module 'services.weather_pipeline.spot_geometry_readiness' from 'C:\\Users\\dprit\\Raw-Surf\\backend\\services\\weather_pipeline\\spot_geometry_readiness.py'>, 'caveat')
+
+tests\test_spot_rating_geometry_disclosure.py:204: AssertionError
+____________ test_the_caveat_is_compact_enough_for_the_glyph_popup ____________
+
+    def test_the_caveat_is_compact_enough_for_the_glyph_popup():
+        """`why` renders in a 9px popup line at `MapMarkerLayers.js:280`. A paragraph there is a
+        regression even if it is true — `summarize()` is the ADMIN-panel sentence, not this."""
+        from services.weather_pipeline import spot_geometry_readiness as sgr
+        for v in (sgr.BLIND, sgr.DEGRADED):
+>           assert len(sgr.caveat(v)) <= 40, f"{v}: {sgr.caveat(v)!r} is too long for the popup line"
+                       ^^^^^^^^^^
+E           AttributeError: module 'services.weather_pipeline.spot_geometry_readiness' has no attribute 'caveat'
+
+tests\test_spot_rating_geometry_disclosure.py:222: AttributeError
+ENVIRONMENT IS NOT THE DECLARED ONE: python 3.14 != declared 3.12; 28 of 46 pins differ; 7 declared packages absent; not in a virtualenv
+  => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
+=========================== short test summary info ===========================
+FAILED tests/test_spot_rating_geometry_disclosure.py::test_a_spot_the_forecast_could_not_orient_says_so[blind]
+FAILED tests/test_spot_rating_geometry_disclosure.py::test_a_spot_the_forecast_could_not_orient_says_so[degraded]
+FAILED tests/test_spot_rating_geometry_disclosure.py::test_the_readiness_vocabulary_has_ONE_owner
+FAILED tests/test_spot_rating_geometry_disclosure.py::test_the_caveat_is_compact_enough_for_the_glyph_popup
+4 failed, 6 passed in 2.68s

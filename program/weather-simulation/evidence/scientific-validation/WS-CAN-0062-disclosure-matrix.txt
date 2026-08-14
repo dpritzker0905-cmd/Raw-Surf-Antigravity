@@ -1,0 +1,8 @@
+verdict     | confidence | score | level      | why
+----------------------------------------------------------------------------------------------------
+full        | high       |  93.4 | epic       | ~3.9 ft surf, 13s period, 4kt offshore wind
+degraded    | high       |  93.4 | epic       | ~3.9 ft surf, 13s period, 4kt offshore wind, coarse shore detail
+blind       | high       |  93.4 | epic       | ~3.9 ft surf, 13s period, 4kt offshore wind, shore direction unknown
+None        | high       |  93.4 | epic       | ~3.9 ft surf, 13s period, 4kt offshore wind
+
+KILL SWITCH RATING_GEOMETRY_CAVEAT=0, blind -> '~3.9 ft surf, 13s period, 4kt offshore wind'

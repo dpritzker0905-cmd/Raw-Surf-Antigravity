@@ -155,6 +155,38 @@ def summarize(assessment: dict) -> str:
     return "Degraded geometry: " + "; ".join(bits) + "."
 
 
+def caveat(verdict) -> Optional[str]:
+    """The COMPACT form of `summarize`, for the one-line `why` a user reads on a map glyph
+    (`MapMarkerLayers.js:280`, a 9 px line) — never the admin-panel sentence above.
+
+    WHY THIS EXISTS (WS-CAN-0062 / WS-OBJ-207). `rate_one_spot` serves three orthogonal
+    confidences and only one of them reaches a rendered surface: `confidence`, which grades the PIN
+    and cannot see the forecast's inputs. So a verified pin on BLIND geometry rendered `high conf`
+    and a `why` string byte-identical to a fully-surveyed spot's — while, per this module's own
+    header, inheriting the coarse bearing changes the RATING LEVEL on 45.8% of evaluations.
+
+    ★ ABSENT (None) UNLESS IT BINDS, mirroring `directional_conflict` and `forecast_confidence`:
+    `FULL` has nothing to disclose, and an UNGRADED spot (`None` — an older precomputed frame, or a
+    resolve that failed) is NOT full. Stamping either verdict onto a spot nobody graded would
+    fabricate a measurement, which is the WS-OBJ-506 shape. An unknown string refuses too.
+
+    ⚠️ KEYED ON THE VERDICT ALONE, because a rating payload carries the verdict and not the
+    assessment dict. So the wording has to stay true for every sub-case `DEGRADED` covers — a
+    coarse 0.25 deg normal, a missing break depth, OR a non-coastal classification. That is why it
+    says "detail" and not "angle": two of the three degraded causes are not about the angle.
+
+    ⛔ This DISCLOSES, it does not correct, and it must never become a term in the score. A coarsely
+    surveyed break is not a worse wave; it is the same wave, known less precisely. Folding it into
+    the 0-100 would penalise a spot for our own survey coverage — the same verdict this repo already
+    reached for `forecast_confidence` and `RATING_LOCAL_SIZE`.
+    """
+    if verdict == BLIND:
+        return "shore direction unknown"
+    if verdict == DEGRADED:
+        return "coarse shore detail"
+    return None
+
+
 def readiness_counts(assessments) -> dict:
     """Aggregate for a catalogue-wide health view."""
     out = {FULL: 0, DEGRADED: 0, BLIND: 0, "actionable": 0, "total": 0}

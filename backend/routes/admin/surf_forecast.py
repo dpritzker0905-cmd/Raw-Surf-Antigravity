@@ -47,6 +47,20 @@ _RATING_FLAGS = {
                                          "the quality chain disagree about the same swell (>=3.54x "
                                          "past 75.7 deg off-normal) — disclosure only, never changes "
                                          "a score", "Render env"),
+    # DISCLOSURE, third of the class (WS-CAN-0062 / WS-OBJ-207, 2026-08-14). ⚠️ AND THE PARITY GUARD
+    # CAUGHT ME EXACTLY AS THE NOTE ABOVE PREDICTED — I added the switch, ran the focused suite and
+    # the four surrounding contract suites (155 tests, all green), and only the full guards lane went
+    # red. The note above is dated 2026-08-04; this is the same omission ten days later, so the
+    # lesson is a property of the workflow, not of one author: A NEW `os.environ.get` IN A RATING
+    # SURFACE IS A REGISTRY EDIT, and no targeted test run will tell you.
+    # Pulling this restores the pre-fix string byte-for-byte (verified) — a verified pin on BLIND
+    # geometry goes back to reading identically to a fully-surveyed spot. It changes no score:
+    # `test_the_score_and_level_are_IDENTICAL_across_every_verdict` pins that structurally.
+    "RATING_GEOMETRY_CAVEAT":     ("1", "Append the geometry-readiness caveat to a spot rating's "
+                                        "`why` (\"coarse shore detail\" / \"shore direction "
+                                        "unknown\") when the forecast ran on degraded or blind "
+                                        "geometry — disclosure only, never changes a score",
+                                        "Render env"),
     # ⭐ GEOMETRY, and it DOES move served values — unlike the two disclosure flags above. Declared in
     # the same commit that added it, because this suite is the only thing that catches an omission
     # (it caught this one). `is_coastal` asks a 0.25 deg (~28 km) land mask whether ANY land sits

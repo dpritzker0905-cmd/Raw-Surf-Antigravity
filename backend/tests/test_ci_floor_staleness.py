@@ -234,7 +234,12 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #   guards        PROJECTED AGAIN (2026-08-13, WS-CAN-0014): +5 tests in
 #                 test_point_resolution_is_stamped.py, which the COMPOSITION patterns claim for the
 #                 guards lane (checked with --lane guards, not inferred), so 1707 + 5 = 1712.
-_FLOOR_SET_FROM = {"guards": 1720, "chain": 786, "estate": 360}
+#   guards        MEASURED, not projected (2026-08-14, WS-CAN-0062): +10 tests in
+#                 test_spot_rating_geometry_disclosure.py, which `--lane guards` confirms this lane
+#                 claims (151 -> 152 files). A full local lane run read exactly `1730 passed`, which
+#                 also equals the projection 1720 + 10 — the first time in three raises that the two
+#                 agreed, so the projection habit is still not a substitute for running it.
+_FLOOR_SET_FROM = {"guards": 1730, "chain": 786, "estate": 360}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
