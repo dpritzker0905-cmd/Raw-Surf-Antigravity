@@ -100,7 +100,30 @@ qualifying failure. **Nobody has downloaded it.**
 This is the cheapest high-value action available in the program right now: the artifact exists, it
 expires 2026-08-27, and it answers a question no static analysis can.
 
-## 5. A hypothesis with a mechanism, explicitly NOT a verified outcome
+## 5. ⛔ REFUTED 2026-08-14 — this section's hypothesis is dead
+
+**Read `LV12-2-08` instead. The lead below was tested and is wrong**, on two independent grounds:
+
+1. **The error is not a timeout of the kind recording overhead produces.** All 11 flaky results fail
+   on the *first navigation* with `page.goto: Operation was cancelled; maybe frame was detached?`.
+   The only recorded timeout is a `waitForURL` that the test **deliberately catches**.
+2. **The signature predates the video key by 17 hours.** `git log -S "frame was detached"` →
+   `af0be9df`, 2026-08-12 23:37. `git log -S "retain-on-failure"` → `181b7ba7`, 2026-08-13 16:38.
+
+The real cause is a **WebKit redirect race in the test harness** — the `/auth → /feed` redirect is
+still in flight when the next navigation starts, because the tolerant 10 s settle written to prevent
+exactly that is too short on WebKit. **No weather defect. No revert.**
+
+⚠️ **And §4 of this file oversells the video.** All 11 retained `.webm` are 1,924 bytes — 0.96 s of a
+pure white page, 24 identical frames, 0.00% variance — because the failure happens before first
+paint. The video captured nothing; **the trace diagnosed it.** See `LV12-2-08` §"the video is BLANK".
+
+The section is kept unedited below because a refuted lead that quietly disappears teaches nothing,
+and because it was correctly labelled as a lead when written.
+
+---
+
+## 5 (original, refuted). A hypothesis with a mechanism, explicitly NOT a verified outcome
 
 The three runs before the video key landed had **0** flaky. Two of the three after had **12** and
 **5**.

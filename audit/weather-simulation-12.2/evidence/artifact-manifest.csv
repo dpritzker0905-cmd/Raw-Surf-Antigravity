@@ -3,8 +3,9 @@ evidence/.gitignore,evidence,758,8ca302e94a205890,
 evidence/ALREADY_COVERED_LEDGER.csv,evidence,97422,1d35dcedddee6fda,Apparent concerns each area sweep positively identified as already covered by an existing row
 evidence/VERIFIED_CLAIM_LEDGER.csv,evidence,671432,c16035075b390787,"THE COMPLETE RECORD - every candidate gap with its adversarial verdict, including all refutations"
 evidence/artifact-manifest-covered.csv,evidence,97422,1d35dcedddee6fda,
-evidence/artifact-manifest.csv,evidence,22306,e043fb22db305c3e,
-evidence/browser-device-tests/LV12-2-05_every_e2e_flake_is_webkit_and_the_video_already_exists.md,evidence,6208,7b10c5de3712fde8,
+evidence/artifact-manifest.csv,evidence,22307,084008458eb20121,
+evidence/browser-device-tests/LV12-2-05_every_e2e_flake_is_webkit_and_the_video_already_exists.md,evidence,7632,2cd39b54c96521ba,
+evidence/browser-device-tests/LV12-2-08_V2_CLOSED_the_webkit_flake_is_a_redirect_race_and_the_video_is_blank.md,evidence,7214,3a5b097f41694ba3,
 evidence/browser-device-tests/coverage-chromium-desktop.json,evidence,38968,350c60a66b2591fd,
 evidence/browser-device-tests/coverage-chromium-mobile.json,evidence,37836,5934757300d0abc6,
 evidence/browser-device-tests/coverage-firefox-desktop.json,evidence,35655,ca8ff27a86d36b3a,
@@ -198,7 +199,7 @@ OBJECTIVE_AND_TASK_COVERAGE_DELTA.csv,report,7080,90e850f413405f47,"Every 12.1 o
 OBSERVABILITY_AND_INCIDENT_READINESS.md,report,9873,39506d516210dc9b,Signal-by-signal census; the three instruments that produce correctly and are read by nobody
 OBSERVABILITY_FINDINGS.csv,report,48797,444c93c0ddff319f,Confirmed observability findings
 OPEN_KNOWN_UNKNOWNS.md,report,10438,42fc99fe425fa2bf,"8 material uncertainties that survived investigation, plus what is deliberately NOT listed"
-PATH_FORWARD_12.2.md,report,9400,47bdf97ae1b51ac7,CLOSE NOW / CONTINUE / VERIFY IN PARALLEL / NEXT / LATER / RESEARCH / DEFER / REJECT / PRESERVE
+PATH_FORWARD_12.2.md,report,9646,30abfe8ee21a72df,CLOSE NOW / CONTINUE / VERIFY IN PARALLEL / NEXT / LATER / RESEARCH / DEFER / REJECT / PRESERVE
 PERFORMANCE_CAPACITY_AND_COST_GAPS.md,report,9296,9f33700abce377f6,"Live telemetry, memory, latency, storage, cost exposure - no invented monetary figure"
 PERFORMANCE_CAPACITY_FINDINGS.csv,report,54805,2ce19b0167fd0bac,Confirmed performance findings
 PRODUCT_AND_USER_COVERAGE_MATRIX.csv,report,76551,051dd1289daef739,"Confirmed product, UX and accessibility findings"
