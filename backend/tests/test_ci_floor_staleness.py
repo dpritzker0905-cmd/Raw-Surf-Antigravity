@@ -234,7 +234,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #   guards        PROJECTED AGAIN (2026-08-13, WS-CAN-0014): +5 tests in
 #                 test_point_resolution_is_stamped.py, which the COMPOSITION patterns claim for the
 #                 guards lane (checked with --lane guards, not inferred), so 1707 + 5 = 1712.
-_FLOOR_SET_FROM = {"guards": 1712, "chain": 786, "estate": 360}
+_FLOOR_SET_FROM = {"guards": 1720, "chain": 786, "estate": 360}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

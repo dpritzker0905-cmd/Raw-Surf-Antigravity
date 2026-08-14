@@ -568,7 +568,24 @@ jobs:
           # THIS lane, not the estate complement (verified with `ci_test_lanes.py --lane guards`,
           # not assumed from the filename). 1707 (projected) + 5 = 1712, and 1712 - 6 (this lane's
           # budget) = 1706. The file count is raised with it so a deletion still reddens the lane.
-          MIN_FILES, MIN_PASSED = 150, 1706
+          # ⬆ MIN_FILES 150→151, MIN_PASSED 1706→1714 on 2026-08-14 (WS-CAN-0066). This commit adds
+          # test_surf_alert_scheduled_states_the_quality.py — 6 tests — and rewrites the census in
+          # test_surf_alert_states_the_quality.py from 7 tests to 9. Verified with
+          # `ci_test_lanes.py --lane guards` that the NEW file is claimed by this lane and not the
+          # estate complement: it is named test_surf_alert_scheduled_* precisely so it matches the
+          # COMPOSITION pattern `tests/test_surf_*.py` — under its first name, test_scheduled_*, it
+          # fell to the estate lane, away from the sibling it belongs beside.
+          # ⚠️ THE DELTA IS +8 COLLECTED, NOT THE +9 THE PRE-PUSH HOOK PRINTS. The hook counts ADDED
+          # `+def test_` lines; the census rewrite REPLACED one test with three, so 9 added defs are
+          # 8 net. Both readings are recorded because the discrepancy is the interesting part and a
+          # future raise will hit it again. Confirmed by running the lane, not by arithmetic alone:
+          # 1712 (last green, run 31754614229) + 8 = 1720 observed locally, and 1720 - 6 (this
+          # lane's budget) = 1714.
+          # ⚠️ The local run also read 66 skipped + 1 xfailed against CI's 67 skipped: total
+          # collected moved 1779 → 1787, exactly +8, so the skip/xfail shift is an environment
+          # artifact and does NOT move the pass count. (That box reports python 3.14 against a
+          # declared 3.12; CI remains the authority and will confirm or falsify 1720.)
+          MIN_FILES, MIN_PASSED = 151, 1714
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
