@@ -90,15 +90,23 @@
     "gate": "Gate 1",
     "gate_effect": "one objective closed; Gate 1 remains OPEN"
   },
-  "current_mission": {
+  "mission_2": {
     "id": "Mission 2 — split the rating reference implementation",
     "objective": "WS-OBJ-401",
     "tasks": [
       "(enabler — no new WS-CAN ID; see MISSION_HISTORY.md)"
     ],
     "status": "Verified Complete",
-    "commit": "SEE_MISSION_HISTORY",
+    "commit": "3afaf8b1",
     "gate": "none directly — unblocks every future edit to the mandated reference",
     "result": "spot_ratings.py 800 -> 351 LOC; precompute lane -> spot_ratings_precompute.py (498)"
+  },
+  "current_mission": {
+    "id": "Mission 3 — latency forensics (WS-CAN-0064 / WS-OBJ-302)",
+    "status": "DIAGNOSED — Blocked on an owner/admin read",
+    "finding": "production /api/conditions/batch is linear at 0.380 s/spot (n=2..87), crossing 10s at n~26; declared concurrency 6 gives zero speedup, but the same code path parallelises 7.28x locally => environmental, not algorithmic",
+    "blocker": "the live value of SPOT_RATINGS_CONCURRENCY on Render, readable only at admin-gated /admin/surf-forecast/status",
+    "warning": "that one env var drives TWO route semaphores (conditions/batch AND /spot-ratings) — any change is a two-surface change on a 1-CPU box",
+    "evidence": "program/weather-simulation/evidence/performance/WS-CAN-0064-latency-forensics.md"
   }
 }
