@@ -1,0 +1,34 @@
+[firefox-desktop] GFS Wind: changed=74.812% variance=95.227% aria=false
+[firefox-desktop] GFS Waves: changed=24.639% variance=98.332% aria=false
+[firefox-desktop] GFS Swell: changed=73.203% variance=99.837% aria=false
+[firefox-desktop] GFS Swell 2: changed=72.628% variance=99.82% aria=false
+[firefox-desktop] GFS Wind Waves: changed=68.241% variance=99.306% aria=false
+[firefox-desktop] GFS Precip: changed=17.699% variance=99.361% aria=false
+[firefox-desktop] GFS Radar: changed=5.318% variance=99.933% aria=false
+[firefox-desktop] GFS Satellite: changed=80.121% variance=98.283% aria=false
+[firefox-desktop] GFS Fog: changed=4.196% variance=99.938% aria=false
+[firefox-desktop] GFS Pressure: changed=63.77% variance=73.423% aria=false
+[firefox-desktop] GFS Air Temp: changed=75.595% variance=83.367% aria=false
+[firefox-desktop] GFS Water Temp: changed=71.301% variance=99.973% aria=false
+[firefox-desktop] EURO Wind: changed=70.881% variance=96.31% aria=false
+[firefox-desktop] EURO Waves: changed=68.281% variance=99.837% aria=false
+[firefox-desktop] EURO Swell: changed=68.27% variance=99.798% aria=false
+[firefox-desktop] EURO Swell 2: changed=68.253% variance=99.7% aria=false
+[firefox-desktop] EURO Wind Waves: changed=68.218% variance=99.599% aria=false
+[firefox-desktop] EURO Precip: changed=23.547% variance=99.773% aria=false
+[firefox-desktop] EURO Radar: changed=5.296% variance=99.915% aria=false
+[firefox-desktop] EURO Satellite: changed=78.262% variance=98.549% aria=false
+[firefox-desktop] EURO Fog: changed=4.298% variance=99.94% aria=false
+[firefox-desktop] EURO Pressure: changed=60.533% variance=68.803% aria=false
+[firefox-desktop] EURO Air Temp: changed=75.326% variance=88.764% aria=false
+[firefox-desktop] EURO Water Temp: changed=69.32% variance=99.974% aria=false
+[firefox-desktop] geo Cocoa Beach FL: variance=93.278% layers=143
+[firefox-desktop] geo New York coast: variance=96.63% layers=143
+[firefox-desktop] geo Portugal: variance=92.735% layers=143
+[firefox-desktop] geo Morocco: variance=94.09% layers=143
+[firefox-desktop] geo El Salvador: variance=97.052% layers=143
+[firefox-desktop] geo Open Pacific: variance=98.365% layers=143
+[firefox-desktop] geo Antimeridian: variance=94.833% layers=143
+[firefox-desktop] geo High latitude N: variance=95.047% layers=143
+
+[firefox-desktop] written -> coverage-firefox-desktop.json

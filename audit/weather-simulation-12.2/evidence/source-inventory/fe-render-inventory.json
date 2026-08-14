@@ -1,0 +1,2417 @@
+[
+ {
+  "file": "frontend/src/components/map/BoostSelector.js",
+  "loc": 58,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/index.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/BoundedPointCache.js",
+  "loc": 42,
+  "importers": 5,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/backendCopernicusServiceClient.js",
+   "components/map/backendPrecipitationServiceClient.js",
+   "components/map/backendPressureServiceClient.js",
+   "components/map/backendWeatherServiceClient.js",
+   "components/map/backendWindServiceClient.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/CanvasAnimationCoordinator.js",
+  "loc": 213,
+  "importers": 3,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/GPUMarineLayer.js",
+   "components/map/MapWebGL.js",
+   "components/map/WindParticleOverlay.js"
+  ],
+  "flags": {
+   "RAF": 3,
+   "cancelRAF": 1,
+   "dispose": 3
+  }
+ },
+ {
+  "file": "frontend/src/components/map/DispatchTrackingPanel.js",
+  "loc": 56,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/MapPage.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/FeaturedPhotographersPanel.js",
+  "loc": 100,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/MapPage.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/ForecastWheel.js",
+  "loc": 356,
+  "importers": 1,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/MapWeatherControls.js"
+  ],
+  "flags": {
+   "getContext": 1,
+   "RAF": 4,
+   "cancelRAF": 4
+  }
+ },
+ {
+  "file": "frontend/src/components/map/GPUMarineLayer.js",
+  "loc": 574,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {
+   "getContext": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/GridParserWorker.js",
+  "loc": 749,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/IPLocationBanner.js",
+  "loc": 58,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/MapPage.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/LayerAccessResolver.js",
+  "loc": 179,
+  "importers": 5,
+  "test_importers": 4,
+  "importer_list": [
+   "components/map/MapWeatherControls.js",
+   "components/map/MapWebGL.js",
+   "components/map/useModelTransition.js",
+   "components/map/useOpenMeteoTileUrls.js",
+   "hooks/useWeatherState.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/LayerRegistry.js",
+  "loc": 428,
+  "importers": 9,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/backendPrecipitationServiceClient.js",
+   "components/map/MapWebGL.js",
+   "components/map/modelProvenance.js",
+   "components/map/TruthOverlay.js",
+   "components/map/useModelTransition.js",
+   "components/map/useOpenMeteoTileUrls.js",
+   "components/map/useTemporalPreloader.js",
+   "engine/engine-bootstrap.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/LongPressMarker.js",
+  "loc": 43,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/MapErrorBoundary.js",
+  "loc": 51,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "components/MapPage.js",
+   "components/map/index.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/MapFilterTabs.js",
+  "loc": 164,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "components/MapPage.js",
+   "components/map/index.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/MapForecastOverlay.js",
+  "loc": 801,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/MapPage.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/MapForecastOverlayDiag.js",
+  "loc": 226,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapForecastOverlay.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/MapHeader.js",
+  "loc": 30,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "components/MapPage.js",
+   "components/map/index.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/MapMarkerLayers.js",
+  "loc": 410,
+  "importers": 1,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/MapPageModals.js",
+  "loc": 138,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/MapPage.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/MapRightControls.js",
+  "loc": 121,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/MapPage.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/MapWeatherControls.js",
+  "loc": 954,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/MapPage.js"
+  ],
+  "flags": {
+   "RAF": 1,
+   "cancelRAF": 3
+  }
+ },
+ {
+  "file": "frontend/src/components/map/MapWebGL.js",
+  "loc": 1097,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/MapPage.js"
+  ],
+  "flags": {
+   "addLayer": 3,
+   "addSource": 2,
+   "getContext": 1,
+   "RAF": 2,
+   "cancelRAF": 2,
+   "setInterval": 2,
+   "clearInterval": 2
+  }
+ },
+ {
+  "file": "frontend/src/components/map/MarineAnimTuner.js",
+  "loc": 202,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {
+   "setInterval": 1,
+   "clearInterval": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/NearestSpotCard.js",
+  "loc": 79,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/MapPage.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/OceanMask.js",
+  "loc": 896,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {
+   "addLayer": 5,
+   "addSource": 1,
+   "RAF": 4,
+   "cancelRAF": 7
+  }
+ },
+ {
+  "file": "frontend/src/components/map/PhotographerBottomSheet.js",
+  "loc": 94,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/MapPage.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/RequestProButton.js",
+  "loc": 45,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/MapPage.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/RequestProConfirmStep.js",
+  "loc": 157,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/RequestProModal.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/RequestProCrewPanel.js",
+  "loc": 294,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/RequestProModal.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/RequestProModal.js",
+  "loc": 646,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/index.js",
+   "components/map/MapPageModals.js"
+  ],
+  "flags": {
+   "onRemove": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/TruthOverlay.js",
+  "loc": 716,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {
+   "setInterval": 1,
+   "clearInterval": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/TruthOverlayGpuTab.js",
+  "loc": 131,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/TruthOverlay.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/TruthOverlayVisualTab.js",
+  "loc": 176,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/TruthOverlay.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/WeatherEngine.js",
+  "loc": 1117,
+  "importers": 1,
+  "test_importers": 4,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/WeatherTelemetry.js",
+  "loc": 551,
+  "importers": 6,
+  "test_importers": 2,
+  "importer_list": [
+   "admin/advanced/WeatherDiagnostics.tsx",
+   "components/map/MapWebGL.js",
+   "components/map/openMeteoProtocol.js",
+   "components/map/TruthOverlay.js",
+   "components/map/useOpenMeteoTileUrls.js",
+   "components/map/useWebGLGuardrail.js"
+  ],
+  "flags": {
+   "RAF": 2
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineCustomLayer.js",
+  "loc": 359,
+  "importers": 1,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/WebGLMarineLayer.js"
+  ],
+  "flags": {
+   "customType": 1,
+   "onAdd": 1,
+   "onRemove": 1,
+   "dispose": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineEngine.js",
+  "loc": 3205,
+  "importers": 3,
+  "test_importers": 26,
+  "importer_list": [
+   "components/map/marineCommitGate.js",
+   "components/map/WebGLMarineLayer.js",
+   "engine/useSimulationField.js"
+  ],
+  "flags": {
+   "createTexture": 1,
+   "createFB": 1,
+   "deleteFB": 1,
+   "draw": 5,
+   "dispose": 3
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineEngineDiagnostics.js",
+  "loc": 249,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/WebGLMarineEngine.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineEngineInit.js",
+  "loc": 291,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/WebGLMarineEngine.js"
+  ],
+  "flags": {
+   "createTexture": 1,
+   "deleteTexture": 2,
+   "createFB": 1,
+   "deleteFB": 1,
+   "createBuf": 4,
+   "deleteBuf": 4,
+   "createProgram": 3,
+   "deleteProgram": 1,
+   "shader": 6,
+   "dispose": 4
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineFieldMath.js",
+  "loc": 275,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/WebGLMarineGeoData.js",
+   "components/map/WebGLMarineTextureEncoder.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineGeoData.js",
+  "loc": 230,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/WebGLMarineTextureEncoder.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineLayer.js",
+  "loc": 1222,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {
+   "addLayer": 1,
+   "dispose": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineLayerDiag.js",
+  "loc": 273,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/WebGLMarineLayer.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineMaskRenderer.js",
+  "loc": 724,
+  "importers": 3,
+  "test_importers": 5,
+  "importer_list": [
+   "components/map/WebGLMarineEngine.js",
+   "components/map/WebGLMarineLayer.js",
+   "components/map/WebGLMarineTextureEncoder.js"
+  ],
+  "flags": {
+   "getContext": 7,
+   "newCanvas": 4
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineParticleShaders.js",
+  "loc": 979,
+  "importers": 1,
+  "test_importers": 4,
+  "importer_list": [
+   "components/map/WebGLMarineEngineInit.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineShaders.js",
+  "loc": 587,
+  "importers": 1,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/WebGLMarineEngineInit.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineTextureEncoder.js",
+  "loc": 779,
+  "importers": 2,
+  "test_importers": 5,
+  "importer_list": [
+   "components/map/WebGLMarineEngine.js",
+   "components/map/WebGLMarineEngineInit.js"
+  ],
+  "flags": {
+   "createTexture": 11,
+   "deleteTexture": 2
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WebGLMarineTextureState.js",
+  "loc": 87,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/WebGLMarineTextureEncoder.js"
+  ],
+  "flags": {
+   "createTexture": 3
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WebGLStateIsolation.js",
+  "loc": 162,
+  "importers": 2,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/WebGLMarineEngine.js",
+   "components/map/WebGLWindEngine.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/WebGLWindEngine.js",
+  "loc": 1094,
+  "importers": 2,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/WeatherEngine.js",
+   "components/map/WebGLWindLayer.js"
+  ],
+  "flags": {
+   "createTexture": 2,
+   "deleteTexture": 12,
+   "deleteFB": 2,
+   "deleteProgram": 1,
+   "draw": 7,
+   "dispose": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WebGLWindEngineInit.js",
+  "loc": 221,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/WebGLWindEngine.js"
+  ],
+  "flags": {
+   "deleteTexture": 9,
+   "createFB": 1,
+   "deleteFB": 3,
+   "createBuf": 4,
+   "deleteBuf": 4,
+   "createProgram": 5,
+   "deleteProgram": 1,
+   "shader": 10
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WebGLWindLayer.js",
+  "loc": 471,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {
+   "addLayer": 1,
+   "customType": 1,
+   "onAdd": 1,
+   "onRemove": 1,
+   "deleteTexture": 1,
+   "dispose": 2
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WebGLWindShaders.js",
+  "loc": 1030,
+  "importers": 1,
+  "test_importers": 10,
+  "importer_list": [
+   "components/map/WebGLWindEngineInit.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/WebGLWindUtils.js",
+  "loc": 296,
+  "importers": 6,
+  "test_importers": 3,
+  "importer_list": [
+   "components/map/WebGLMarineEngine.js",
+   "components/map/WebGLMarineEngineInit.js",
+   "components/map/WebGLMarineTextureEncoder.js",
+   "components/map/WebGLMarineTextureState.js",
+   "components/map/WebGLWindEngine.js",
+   "components/map/WebGLWindEngineInit.js"
+  ],
+  "flags": {
+   "createTexture": 5,
+   "deleteTexture": 1,
+   "createFB": 1,
+   "createProgram": 2
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WindColorRamp.js",
+  "loc": 320,
+  "importers": 3,
+  "test_importers": 3,
+  "importer_list": [
+   "components/map/MapWeatherControls.js",
+   "components/map/WebGLWindEngine.js",
+   "components/map/WindParticleOverlay.js"
+  ],
+  "flags": {
+   "createTexture": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/WindParticleOverlay.js",
+  "loc": 518,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {
+   "getContext": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/backendCopernicusServiceClient.js",
+  "loc": 768,
+  "importers": 3,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/backendWeatherServiceClient.js",
+   "components/map/marineController.js",
+   "components/map/marineGlobalPrewarm.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/backendPrecipitationServiceClient.js",
+  "loc": 289,
+  "importers": 2,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/forecastExactPoint.js",
+   "components/map/MapForecastOverlay.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/backendPressureServiceClient.js",
+  "loc": 235,
+  "importers": 3,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/forecastExactPoint.js",
+   "components/map/MapForecastOverlay.js",
+   "components/map/MapForecastOverlayDiag.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/backendWeatherServiceClient.js",
+  "loc": 698,
+  "importers": 23,
+  "test_importers": 11,
+  "importer_list": [
+   "components/map/backendCopernicusServiceClient.js",
+   "components/map/backendPrecipitationServiceClient.js",
+   "components/map/backendPressureServiceClient.js",
+   "components/map/backendWeatherServiceClientDiag.js",
+   "components/map/backendWeatherServiceClientPoint.js",
+   "components/map/backendWindServiceClient.js",
+   "components/map/forecastDeprecationDiag.js",
+   "components/map/forecastExactPoint.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/backendWeatherServiceClientCoverage.js",
+  "loc": 639,
+  "importers": 3,
+  "test_importers": 8,
+  "importer_list": [
+   "components/map/backendWeatherServiceClient.js",
+   "components/map/backendWeatherServiceClientDiag.js",
+   "components/map/WeatherEngine.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/backendWeatherServiceClientDiag.js",
+  "loc": 593,
+  "importers": 3,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/backendWeatherServiceClient.js",
+   "components/map/backendWeatherServiceClientHelpers.js",
+   "components/map/backendWeatherServiceClientPoint.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/backendWeatherServiceClientHelpers.js",
+  "loc": 794,
+  "importers": 2,
+  "test_importers": 3,
+  "importer_list": [
+   "components/map/backendWeatherServiceClient.js",
+   "components/map/backendWeatherServiceClientPoint.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/backendWeatherServiceClientPoint.js",
+  "loc": 695,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/backendWeatherServiceClient.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/backendWeatherServiceClientTrace.js",
+  "loc": 169,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/backendWeatherServiceClient.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/backendWindServiceClient.js",
+  "loc": 631,
+  "importers": 3,
+  "test_importers": 3,
+  "importer_list": [
+   "components/map/backendWeatherServiceClient.js",
+   "components/map/forecastExactPoint.js",
+   "components/map/windController.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/colorScales.js",
+  "loc": 436,
+  "importers": 2,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/mapUtils.js",
+   "components/map/openMeteoProtocol.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/copernicusGridFetcher.js",
+  "loc": 606,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/useMarineDataFetcher.js",
+   "components/map/useMarineDataFetcherCore.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/copernicusGridHelpers.js",
+  "loc": 125,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/copernicusGridFetcher.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/decodedOmSampler.js",
+  "loc": 72,
+  "importers": 2,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/MapForecastOverlay.js",
+   "components/map/modelProvenance.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/deviceTier.js",
+  "loc": 48,
+  "importers": 5,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/GPUMarineLayer.js",
+   "components/map/marineControllerUtils.js",
+   "components/map/marineTransitionCoordinator.js",
+   "components/map/WebGLMarineLayer.js",
+   "components/map/WebGLWindLayer.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/forecastCardCompiler.js",
+  "loc": 718,
+  "importers": 1,
+  "test_importers": 7,
+  "importer_list": [
+   "components/map/MapForecastOverlay.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/forecastDeprecationDiag.js",
+  "loc": 211,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/forecastExactPoint.js",
+   "components/map/forecastSamplers.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/forecastDiagnostics.js",
+  "loc": 384,
+  "importers": 2,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/forecastSamplers.js",
+   "components/map/MapForecastOverlay.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/forecastExactPoint.js",
+  "loc": 618,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/forecastSamplers.js"
+  ],
+  "flags": {
+   "setInterval": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/forecastHelpers.js",
+  "loc": 485,
+  "importers": 2,
+  "test_importers": 3,
+  "importer_list": [
+   "components/map/forecastExactPoint.js",
+   "components/map/forecastSamplers.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/forecastSamplers.js",
+  "loc": 486,
+  "importers": 4,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/MapForecastOverlay.js",
+   "components/map/useMarineDataFetcher.js",
+   "components/map/useMarineDataFetcherCore.js",
+   "hooks/useExactPointFetch.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/haloDebugOverlay.js",
+  "loc": 153,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/WebGLMarineEngine.js"
+  ],
+  "flags": {
+   "getContext": 1,
+   "newCanvas": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/heightUnits.js",
+  "loc": 42,
+  "importers": 6,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/forecastCardCompiler.js",
+   "components/map/forecastHelpers.js",
+   "components/map/MapForecastOverlay.js",
+   "components/map/MapMarkerLayers.js",
+   "components/map/MapWeatherControls.js",
+   "components/map/tideClient.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/index.js",
+  "loc": 11,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/Bookings.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/inlandWaterGuard.js",
+  "loc": 177,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/WebGLMarineMaskRenderer.js"
+  ],
+  "flags": {
+   "getContext": 3,
+   "newCanvas": 2
+  }
+ },
+ {
+  "file": "frontend/src/components/map/legendTicks.js",
+  "loc": 107,
+  "importers": 1,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/MapWeatherControls.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/mapUtils.js",
+  "loc": 575,
+  "importers": 20,
+  "test_importers": 3,
+  "importer_list": [
+   "components/MapPage.js",
+   "components/map/forecastHelpers.js",
+   "components/map/GPUMarineLayer.js",
+   "components/map/index.js",
+   "components/map/MapPageModals.js",
+   "components/map/MapWeatherControls.js",
+   "components/map/MapWebGL.js",
+   "components/map/marineMaskProjection.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineBboxGeometry.js",
+  "loc": 116,
+  "importers": 2,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/marineGridSeries.js",
+   "components/map/windGridSeries.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineCommitArbiter.js",
+  "loc": 208,
+  "importers": 2,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/marineCommitGate.js",
+   "components/map/WebGLMarineEngine.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineCommitGate.js",
+  "loc": 213,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/WebGLMarineEngine.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineCommitShortCircuit.js",
+  "loc": 105,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/useMarineDataFetcherHelpers.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineController.js",
+  "loc": 677,
+  "importers": 9,
+  "test_importers": 8,
+  "importer_list": [
+   "components/map/useMapObservability.js",
+   "components/map/useMarineDataFetcher.js",
+   "components/map/useMarineDataFetcherCore.js",
+   "components/map/useMarineOrchestrator.js",
+   "components/map/useMarineOrchestratorScrubCache.js",
+   "components/map/usePressureEngine.js",
+   "components/map/WeatherEngine.js",
+   "components/map/WebGLMarineLayer.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineControllerCache.js",
+  "loc": 561,
+  "importers": 5,
+  "test_importers": 10,
+  "importer_list": [
+   "components/map/marineController.js",
+   "components/map/useMarineOrchestrator.js",
+   "components/map/useMarineScrubSettle.js",
+   "components/map/WeatherEngine.js",
+   "components/map/windController.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineControllerExtractor.js",
+  "loc": 138,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/marineController.js",
+   "components/map/marineControllerCache.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineControllerPressure.js",
+  "loc": 271,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/marineController.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineControllerUtils.js",
+  "loc": 372,
+  "importers": 22,
+  "test_importers": 4,
+  "importer_list": [
+   "components/map/backendCopernicusServiceClient.js",
+   "components/map/backendWeatherServiceClient.js",
+   "components/map/backendWeatherServiceClientHelpers.js",
+   "components/map/copernicusGridFetcher.js",
+   "components/map/forecastDiagnostics.js",
+   "components/map/forecastExactPoint.js",
+   "components/map/forecastHelpers.js",
+   "components/map/MapForecastOverlay.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineEngineDecisions.js",
+  "loc": 792,
+  "importers": 2,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/marineCommitGate.js",
+   "components/map/WebGLMarineEngine.js"
+  ],
+  "flags": {
+   "dispose": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/marineForensics.js",
+  "loc": 121,
+  "importers": 7,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/marineEngineDecisions.js",
+   "components/map/marineSharpenTrace.js",
+   "components/map/useMarineDataFetcher.js",
+   "components/map/useMarineDataFetcherCore.js",
+   "components/map/useMarineDataFetcherHelpers.js",
+   "components/map/WebGLMarineEngine.js",
+   "components/map/WebGLMarineTextureEncoder.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineGlobalPrewarm.js",
+  "loc": 169,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/marineController.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineGridHash.js",
+  "loc": 35,
+  "importers": 5,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/useMarineOrchestrator.js",
+   "components/map/useMarineOrchestratorDiag.js",
+   "components/map/useMarineOrchestratorScrubCache.js",
+   "components/map/WebGLMarineLayerDiag.js",
+   "engine/useSimulationField.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineGridSeries.js",
+  "loc": 801,
+  "importers": 7,
+  "test_importers": 13,
+  "importer_list": [
+   "components/map/marineController.js",
+   "components/map/marineGlobalPrewarm.js",
+   "components/map/useMarineDataFetcherCore.js",
+   "components/map/useMarineDataFetcherHelpers.js",
+   "components/map/useMarineOrchestrator.js",
+   "components/map/useMarineOrchestratorScrubCache.js",
+   "components/map/useMarineScrubSettle.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineInFlightRegistry.js",
+  "loc": 300,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/useMarineDataFetcher.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineMaskProjection.js",
+  "loc": 155,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/marineMaskShelter.js",
+   "components/map/WebGLMarineMaskRenderer.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineMaskShelter.js",
+  "loc": 452,
+  "importers": 2,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/WebGLMarineLayer.js",
+   "components/map/WebGLMarineMaskRenderer.js"
+  ],
+  "flags": {
+   "getContext": 3,
+   "newCanvas": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/marineRequestGovernor.js",
+  "loc": 360,
+  "importers": 4,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/copernicusGridFetcher.js",
+   "components/map/forecastExactPoint.js",
+   "components/map/marineControllerPressure.js",
+   "hooks/useOpenMeteoForecast.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineResolutionWatch.js",
+  "loc": 89,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/WebGLMarineLayer.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineRingReader.js",
+  "loc": 367,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/useMarineDataFetcherCore.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineScrubHold.js",
+  "loc": 66,
+  "importers": 2,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/marineCommitShortCircuit.js",
+   "components/map/WebGLMarineLayer.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineServeDiag.js",
+  "loc": 58,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/marineController.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineSharpenTrace.js",
+  "loc": 267,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/WebGLMarineEngine.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineTransitionCoordinator.js",
+  "loc": 362,
+  "importers": 10,
+  "test_importers": 8,
+  "importer_list": [
+   "components/map/GPUMarineLayer.js",
+   "components/map/MapForecastOverlay.js",
+   "components/map/useMarineDataFetcher.js",
+   "components/map/useMarineDataFetcherCore.js",
+   "components/map/useMarineOrchestrator.js",
+   "components/map/useMarineWindData.js",
+   "components/map/WebGLMarineCustomLayer.js",
+   "components/map/WebGLMarineEngineInit.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineWarmCoverage.js",
+  "loc": 46,
+  "importers": 3,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/marineGridSeries.js",
+   "components/map/useMarineDataFetcherHelpers.js",
+   "components/map/useMarineOrchestratorScrubCache.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/marineZoomThresholds.js",
+  "loc": 29,
+  "importers": 10,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/marineCommitGate.js",
+   "components/map/marineEngineDecisions.js",
+   "components/map/marineSharpenTrace.js",
+   "components/map/useMarineDataFetcherHelpers.js",
+   "components/map/useMarineOrchestrator.js",
+   "components/map/useMarineOrchestratorScrubCache.js",
+   "components/map/useMarineScrubSettle.js",
+   "components/map/WebGLMarineCustomLayer.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/maskCoastSDF.js",
+  "loc": 171,
+  "importers": 2,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/WebGLMarineEngine.js",
+   "components/map/WebGLMarineTextureEncoder.js"
+  ],
+  "flags": {
+   "getContext": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/maskFloodProbe.js",
+  "loc": 260,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/WebGLMarineEngine.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/maskSmoothing.js",
+  "loc": 115,
+  "importers": 2,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/WebGLMarineLayer.js",
+   "components/map/WebGLMarineTextureEncoder.js"
+  ],
+  "flags": {
+   "getContext": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/modelHorizons.js",
+  "loc": 114,
+  "importers": 2,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/modelProvenance.js",
+   "components/map/useOpenMeteoTileUrls.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/modelProvenance.js",
+  "loc": 117,
+  "importers": 1,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/MapForecastOverlay.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/omUrlTrace.js",
+  "loc": 100,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/openMeteoProtocol.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/openMeteoProtocol.js",
+  "loc": 944,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/mapUtils.js"
+  ],
+  "flags": {
+   "addProtocol": 1,
+   "getContext": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/radarAdvection.js",
+  "loc": 326,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/radarTileRecolor.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/radarForecastSources.js",
+  "loc": 360,
+  "importers": 2,
+  "test_importers": 3,
+  "importer_list": [
+   "components/map/MapWebGL.js",
+   "hooks/useWeatherState.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/radarTileRecolor.js",
+  "loc": 594,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "hooks/useWeatherState.js"
+  ],
+  "flags": {
+   "addProtocol": 4,
+   "getContext": 5,
+   "newCanvas": 4
+  }
+ },
+ {
+  "file": "frontend/src/components/map/scrubPerfProbe.js",
+  "loc": 141,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {
+   "RAF": 3
+  }
+ },
+ {
+  "file": "frontend/src/components/map/servedResolutionNotice.js",
+  "loc": 79,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/legendTicks.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/spotRatingsCdn.js",
+  "loc": 173,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/useSpotRatings.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/spotRatingsClient.js",
+  "loc": 72,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/useSpotRatings.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/surfEnergy.js",
+  "loc": 119,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/forecastCardCompiler.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/surfRating.js",
+  "loc": 367,
+  "importers": 5,
+  "test_importers": 5,
+  "importer_list": [
+   "components/map/forecastCardCompiler.js",
+   "components/map/MapForecastOverlay.js",
+   "components/map/MapWeatherControls.js",
+   "components/map/spotRatingsClient.js",
+   "components/map/useSpotRatings.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/tideClient.js",
+  "loc": 123,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/MapMarkerLayers.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/truthVerdict.js",
+  "loc": 57,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/TruthOverlay.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useGridWorker.js",
+  "loc": 148,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/GridParserWorker.js",
+   "components/map/usePressureEngine.js"
+  ],
+  "flags": {
+   "newWorker": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/useLayerTruthDiff.js",
+  "loc": 230,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useMapDebugTools.js",
+  "loc": 184,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useMapInitialization.js",
+  "loc": 154,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useMapLongPress.js",
+  "loc": 74,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useMapObservability.js",
+  "loc": 145,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useMapRenderContract.js",
+  "loc": 173,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useMapViewState.js",
+  "loc": 64,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useMarineDataFetcher.js",
+  "loc": 294,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/useMarineOrchestrator.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useMarineDataFetcherCore.js",
+  "loc": 960,
+  "importers": 1,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/useMarineDataFetcher.js"
+  ],
+  "flags": {
+   "RAF": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/useMarineDataFetcherHelpers.js",
+  "loc": 647,
+  "importers": 5,
+  "test_importers": 5,
+  "importer_list": [
+   "components/map/forecastSamplers.js",
+   "components/map/useMarineDataFetcher.js",
+   "components/map/useMarineDataFetcherCore.js",
+   "components/map/useMarineOrchestrator.js",
+   "components/map/useMarineOrchestratorScrubCache.js"
+  ],
+  "flags": {
+   "RAF": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/useMarineOrchestrator.js",
+  "loc": 909,
+  "importers": 1,
+  "test_importers": 3,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useMarineOrchestratorDiag.js",
+  "loc": 50,
+  "importers": 5,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/useMarineDataFetcher.js",
+   "components/map/useMarineDataFetcherCore.js",
+   "components/map/useMarineOrchestrator.js",
+   "components/map/useMarineOrchestratorScrubCache.js",
+   "components/map/useMarineScrubSettle.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useMarineOrchestratorScrubCache.js",
+  "loc": 352,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/useMarineOrchestrator.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useMarineScrubSettle.js",
+  "loc": 786,
+  "importers": 1,
+  "test_importers": 4,
+  "importer_list": [
+   "components/map/useMarineOrchestrator.js"
+  ],
+  "flags": {
+   "setInterval": 2,
+   "clearInterval": 2
+  }
+ },
+ {
+  "file": "frontend/src/components/map/useMarineWindData.js",
+  "loc": 507,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useModelTransition.js",
+  "loc": 299,
+  "importers": 1,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/useOpenMeteoTileUrls.js"
+  ],
+  "flags": {
+   "RAF": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/useOpenMeteoTileUrls.js",
+  "loc": 768,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {
+   "RAF": 2,
+   "cancelRAF": 2,
+   "setInterval": 1,
+   "clearInterval": 2
+  }
+ },
+ {
+  "file": "frontend/src/components/map/usePressureEngine.js",
+  "loc": 81,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useRasterTransactions.js",
+  "loc": 212,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {
+   "RAF": 3
+  }
+ },
+ {
+  "file": "frontend/src/components/map/useSatelliteBackgroundSync.js",
+  "loc": 28,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useSpotClusteringData.js",
+  "loc": 39,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useSpotRatings.js",
+  "loc": 371,
+  "importers": 1,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useTemporalPreloader.js",
+  "loc": 162,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/useWebGLGuardrail.js",
+  "loc": 211,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/waterTempAnchor.js",
+  "loc": 143,
+  "importers": 2,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/MapWebGL.js",
+   "components/map/OceanMask.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/weatherProductIdentity.js",
+  "loc": 133,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/forecastDeprecationDiag.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/weatherTruthTracker.js",
+  "loc": 444,
+  "importers": 15,
+  "test_importers": 14,
+  "importer_list": [
+   "components/map/backendWeatherServiceClient.js",
+   "components/map/backendWeatherServiceClientHelpers.js",
+   "components/map/backendWeatherServiceClientPoint.js",
+   "components/map/backendWindServiceClient.js",
+   "components/map/MapForecastOverlay.js",
+   "components/map/marineController.js",
+   "components/map/marineControllerCache.js",
+   "components/map/marineGridSeries.js"
+  ],
+  "flags": {
+   "setInterval": 1
+  }
+ },
+ {
+  "file": "frontend/src/components/map/windController.js",
+  "loc": 469,
+  "importers": 1,
+  "test_importers": 4,
+  "importer_list": [
+   "components/map/marineController.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/components/map/windGridSeries.js",
+  "loc": 295,
+  "importers": 1,
+  "test_importers": 5,
+  "importer_list": [
+   "components/map/WeatherEngine.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/FieldCompositionEngine.js",
+  "loc": 251,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "engine/SimulationLoop.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/FieldEvolutionEngine.js",
+  "loc": 571,
+  "importers": 2,
+  "test_importers": 1,
+  "importer_list": [
+   "engine/engine-bootstrap.js",
+   "engine/SimulationLoop.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/FieldInterpolator.js",
+  "loc": 149,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/IndustryPluginRuntime.js",
+  "loc": 200,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/PerformanceBudget.js",
+  "loc": 187,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "engine/SimulationLoop.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/RenderPlanDispatcher.js",
+  "loc": 778,
+  "importers": 5,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/useMapDebugTools.js",
+   "components/map/WebGLMarineCustomLayer.js",
+   "components/map/WebGLMarineLayer.js",
+   "components/map/WebGLWindLayer.js",
+   "engine/engine-bootstrap.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/SimulationField.js",
+  "loc": 184,
+  "importers": 8,
+  "test_importers": 3,
+  "importer_list": [
+   "engine/FieldCompositionEngine.js",
+   "engine/FieldEvolutionEngine.js",
+   "engine/FieldInterpolator.js",
+   "engine/RenderPlanDispatcher.js",
+   "engine/SimulationFieldBuilder.js",
+   "engine/SimulationLoop.js",
+   "engine/useRenderPlanBridge.js",
+   "engine/useSimulationField.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/SimulationFieldBuilder.js",
+  "loc": 379,
+  "importers": 1,
+  "test_importers": 3,
+  "importer_list": [
+   "engine/useSimulationField.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/SimulationHealthMonitor.js",
+  "loc": 301,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "engine/engine-bootstrap.js",
+   "engine/SimulationLoop.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/SimulationLoop.js",
+  "loc": 408,
+  "importers": 5,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/useMapDebugTools.js",
+   "engine/engine-bootstrap.js",
+   "engine/RenderPlanDispatcher.js",
+   "engine/SimulationHealthMonitor.js",
+   "engine/useRenderPlanBridge.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/data/forecast-pipeline.js",
+  "loc": 171,
+  "importers": 1,
+  "test_importers": 3,
+  "importer_list": [
+   "components/map/WeatherEngine.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/data/forecast-provider.js",
+  "loc": 257,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "engine/data/forecast-pipeline.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/data/model-normalizers.js",
+  "loc": 258,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/data/session-intel-service.js",
+  "loc": 209,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "engine/queries/spot-hub-query.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/engine-bootstrap.js",
+  "loc": 113,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/gpu-texture-manager.js",
+  "loc": 232,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "engine/engine-bootstrap.js"
+  ],
+  "flags": {
+   "createTexture": 1,
+   "deleteTexture": 4,
+   "createFB": 1,
+   "deleteFB": 3
+  }
+ },
+ {
+  "file": "frontend/src/engine/init-sequencer.js",
+  "loc": 101,
+  "importers": 4,
+  "test_importers": 0,
+  "importer_list": [
+   "components/map/MapWebGL.js",
+   "components/map/useMapInitialization.js",
+   "engine/engine-bootstrap.js",
+   "engine/render-orchestrator.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/layer-plugins/marine-layers.js",
+  "loc": 312,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/layer-plugins/rain-layer.js",
+  "loc": 109,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/layer-plugins/weather-layers.js",
+  "loc": 307,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/layer-renderers/webgl-layer.js",
+  "loc": 95,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {
+   "dispose": 1
+  }
+ },
+ {
+  "file": "frontend/src/engine/particle-system.js",
+  "loc": 303,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "engine/FieldEvolutionEngine.js",
+   "engine/SimulationLoop.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/queries/spot-hub-query.js",
+  "loc": 192,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/render-orchestrator.js",
+  "loc": 187,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "engine/engine-bootstrap.js",
+   "engine/SimulationLoop.js"
+  ],
+  "flags": {
+   "RAF": 3,
+   "cancelRAF": 1
+  }
+ },
+ {
+  "file": "frontend/src/engine/render-pipeline.js",
+  "loc": 117,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/sessions/surf-intelligence.js",
+  "loc": 331,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/surf-intelligence-fusion.js",
+  "loc": 312,
+  "importers": 1,
+  "test_importers": 0,
+  "importer_list": [
+   "engine/queries/spot-hub-query.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/tile-streaming-system.js",
+  "loc": 259,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/useRenderPlanBridge.js",
+  "loc": 141,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/useSimulationField.js",
+  "loc": 267,
+  "importers": 1,
+  "test_importers": 2,
+  "importer_list": [
+   "components/map/MapWebGL.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/engine/workers/forecast-decode-worker.js",
+  "loc": 153,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/utils/HairFilterEngine.js",
+  "loc": 698,
+  "importers": 4,
+  "test_importers": 0,
+  "importer_list": [
+   "components/HairFilterPicker.js",
+   "components/WebcamCaptureModal.js",
+   "components/live/BroadcasterControls.js",
+   "components/messages/InCallView.js"
+  ],
+  "flags": {
+   "getContext": 2,
+   "RAF": 1,
+   "cancelRAF": 1,
+   "newCanvas": 1,
+   "dispose": 1
+  }
+ },
+ {
+  "file": "frontend/src/utils/WebGLFilterEngine.js",
+  "loc": 325,
+  "importers": 3,
+  "test_importers": 0,
+  "importer_list": [
+   "components/WebcamCaptureModal.js",
+   "components/WebGLBroadcastController.js",
+   "components/messages/InCallView.js"
+  ],
+  "flags": {
+   "getContext": 1,
+   "RAF": 1,
+   "cancelRAF": 1,
+   "createTexture": 1,
+   "createBuf": 2,
+   "createProgram": 1,
+   "shader": 6,
+   "draw": 1
+  }
+ },
+ {
+  "file": "frontend/src/utils/audioUnlock.js",
+  "loc": 226,
+  "importers": 4,
+  "test_importers": 0,
+  "importer_list": [
+   "App.js",
+   "components/messages/IncomingCallModal.js",
+   "components/messages/OutgoingCallModal.js",
+   "hooks/useWebRTCCall.js"
+  ],
+  "flags": {
+   "setInterval": 2,
+   "clearInterval": 2
+  }
+ },
+ {
+  "file": "frontend/src/utils/countryFlags.js",
+  "loc": 108,
+  "importers": 3,
+  "test_importers": 0,
+  "importer_list": [
+   "components/Explore.js",
+   "components/explore/BrowseMode.js",
+   "components/explore/ExploreConditionsTab.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/utils/errors.js",
+  "loc": 32,
+  "importers": 9,
+  "test_importers": 0,
+  "importer_list": [
+   "components/gallery/FindMeModal.js",
+   "components/gallery/GalleryItemModal.js",
+   "components/map/mapUtils.js",
+   "hooks/useGalleryActions.js",
+   "hooks/useGalleryDistributionActions.js",
+   "hooks/useGalleryFolderActions.js",
+   "hooks/useGalleryGromActions.js",
+   "hooks/useGoLiveFlow.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/utils/followStatusGate.js",
+  "loc": 15,
+  "importers": 1,
+  "test_importers": 1,
+  "importer_list": [
+   "components/Profile.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/utils/formatTime.js",
+  "loc": 124,
+  "importers": 21,
+  "test_importers": 0,
+  "importer_list": [
+   "components/CrewChat.js",
+   "components/GoldPassSlotCard.js",
+   "components/LiveStatusHUD.js",
+   "components/MapLiveIndicator.js",
+   "components/NotificationsDrawer.js",
+   "components/NotificationsPage.js",
+   "components/PhotographerSessionDashboard.js",
+   "components/PostCard.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/utils/gromPurchase.js",
+  "loc": 71,
+  "importers": 4,
+  "test_importers": 0,
+  "importer_list": [
+   "components/Credits.js",
+   "components/GearHub.js",
+   "components/TaggedPhotoModal.js",
+   "components/gallery/GalleryItemModal.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/utils/leafletLoader.js",
+  "loc": 20,
+  "importers": 4,
+  "test_importers": 0,
+  "importer_list": [
+   "components/LocationPicker.js",
+   "components/UnifiedSpotDrawer.js",
+   "components/admin/AdminSpotEditor.js",
+   "components/admin/AdminSpotsPanel.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/utils/logger.js",
+  "loc": 48,
+  "importers": 223,
+  "test_importers": 4,
+  "importer_list": [
+   "components/AdminCompetitionVerification.js",
+   "components/AIProposedMatches.js",
+   "components/Auth.js",
+   "components/BookingPaymentSuccess.js",
+   "components/Bookings.js",
+   "components/BookingSelfieModal.js",
+   "components/BottomNav.js",
+   "components/ConditionsModal.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/utils/media.js",
+  "loc": 182,
+  "importers": 137,
+  "test_importers": 1,
+  "importer_list": [
+   "components/AIProposedMatches.js",
+   "components/CrewChat.js",
+   "components/CrewLeaderboard.js",
+   "components/CrewPaymentModal.js",
+   "components/CrewPaymentPage.js",
+   "components/ExploreSpotCard.js",
+   "components/FollowersModal.js",
+   "components/GalleryGrid.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/utils/notificationDeepLinks.js",
+  "loc": 335,
+  "importers": 2,
+  "test_importers": 0,
+  "importer_list": [
+   "components/NotificationsDrawer.js",
+   "components/NotificationsPage.js"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/utils/offlineGallery.js",
+  "loc": 156,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/utils/themeTokens.js",
+  "loc": 70,
+  "importers": 24,
+  "test_importers": 2,
+  "importer_list": [
+   "admin/AdminApp.tsx",
+   "admin/advanced/BookingLifecycleInspector.tsx",
+   "admin/advanced/DecisionWorkbench.tsx",
+   "admin/advanced/EventGraphExplorer.tsx",
+   "admin/advanced/EventReplayEngine.tsx",
+   "admin/advanced/LiveSystemMap.tsx",
+   "admin/advanced/RootCauseAnalyzer.tsx",
+   "admin/advanced/SimulationEngine.tsx"
+  ],
+  "flags": {}
+ },
+ {
+  "file": "frontend/src/utils/tileCache.js",
+  "loc": 199,
+  "importers": 0,
+  "test_importers": 0,
+  "importer_list": [],
+  "flags": {}
+ }
+]

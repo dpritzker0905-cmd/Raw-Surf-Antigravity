@@ -1,0 +1,1014 @@
+{
+ "browser": "firefox",
+ "device": "desktop",
+ "viewport": {
+  "width": 1280,
+  "height": 800
+ },
+ "base": "https://dev--rawsurf.netlify.app",
+ "startedAt": "2026-08-14T02:16:04.818Z",
+ "boot": {
+  "domToSettleMs": 16643,
+  "mapFound": true
+ },
+ "capabilities": {
+  "webgl": true,
+  "version": "WebGL 2.0",
+  "webgl2": true,
+  "vendor": "Google Inc. (NVIDIA)",
+  "renderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0), or similar",
+  "maxTexture": 16384,
+  "dpr": 1,
+  "webgpu": true,
+  "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0",
+  "touchPoints": 0
+ },
+ "models": {
+  "GFS": {
+   "pick": {
+    "found": true,
+    "locked": false
+   },
+   "rows": [
+    {
+     "layer": "Wind",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 74.812,
+     "variancePct": 95.227,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\GFS-Wind.png"
+    },
+    {
+     "layer": "Waves",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 24.639,
+     "variancePct": 98.332,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\GFS-Waves.png"
+    },
+    {
+     "layer": "Swell",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 73.203,
+     "variancePct": 99.837,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\GFS-Swell.png"
+    },
+    {
+     "layer": "Swell 2",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 72.628,
+     "variancePct": 99.82,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\GFS-Swell_2.png"
+    },
+    {
+     "layer": "Wind Waves",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 68.241,
+     "variancePct": 99.306,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\GFS-Wind_Waves.png"
+    },
+    {
+     "layer": "Precip",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 17.699,
+     "variancePct": 99.361,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\GFS-Precip.png"
+    },
+    {
+     "layer": "Radar",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 5.318,
+     "variancePct": 99.933,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": false,
+     "shot": "shots-firefox-desktop\\GFS-Radar.png"
+    },
+    {
+     "layer": "Satellite",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 80.121,
+     "variancePct": 98.283,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": false,
+     "shot": "shots-firefox-desktop\\GFS-Satellite.png"
+    },
+    {
+     "layer": "Fog",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 4.196,
+     "variancePct": 99.938,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": false,
+     "shot": "shots-firefox-desktop\\GFS-Fog.png"
+    },
+    {
+     "layer": "Pressure",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 63.77,
+     "variancePct": 73.423,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\GFS-Pressure.png"
+    },
+    {
+     "layer": "Air Temp",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 75.595,
+     "variancePct": 83.367,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\GFS-Air_Temp.png"
+    },
+    {
+     "layer": "Water Temp",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 71.301,
+     "variancePct": 99.973,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\GFS-Water_Temp.png"
+    }
+   ]
+  },
+  "EURO": {
+   "pick": {
+    "found": true,
+    "locked": false
+   },
+   "rows": [
+    {
+     "layer": "Wind",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 70.881,
+     "variancePct": 96.31,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\EURO-Wind.png"
+    },
+    {
+     "layer": "Waves",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 68.281,
+     "variancePct": 99.837,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\EURO-Waves.png"
+    },
+    {
+     "layer": "Swell",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 68.27,
+     "variancePct": 99.798,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\EURO-Swell.png"
+    },
+    {
+     "layer": "Swell 2",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 68.253,
+     "variancePct": 99.7,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\EURO-Swell_2.png"
+    },
+    {
+     "layer": "Wind Waves",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 68.218,
+     "variancePct": 99.599,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\EURO-Wind_Waves.png"
+    },
+    {
+     "layer": "Precip",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 23.547,
+     "variancePct": 99.773,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\EURO-Precip.png"
+    },
+    {
+     "layer": "Radar",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 5.296,
+     "variancePct": 99.915,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": false,
+     "shot": "shots-firefox-desktop\\EURO-Radar.png"
+    },
+    {
+     "layer": "Satellite",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 78.262,
+     "variancePct": 98.549,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": false,
+     "shot": "shots-firefox-desktop\\EURO-Satellite.png"
+    },
+    {
+     "layer": "Fog",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 4.298,
+     "variancePct": 99.94,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": false,
+     "shot": "shots-firefox-desktop\\EURO-Fog.png"
+    },
+    {
+     "layer": "Pressure",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 60.533,
+     "variancePct": 68.803,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\EURO-Pressure.png"
+    },
+    {
+     "layer": "Air Temp",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 75.326,
+     "variancePct": 88.764,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\EURO-Air_Temp.png"
+    },
+    {
+     "layer": "Water Temp",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 69.32,
+     "variancePct": 99.974,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-firefox-desktop\\EURO-Water_Temp.png"
+    }
+   ]
+  }
+ },
+ "a11y": {
+  "totalButtons": 54,
+  "layerButtonsFound": [
+   "Precip",
+   "Radar",
+   "Satellite",
+   "Wind",
+   "Waves",
+   "Swell",
+   "Swell 2",
+   "Wind Waves",
+   "Fog",
+   "Pressure",
+   "Air Temp",
+   "Water Temp"
+  ],
+  "layerButtonsWithAriaPressed": 12,
+  "layerButtonsWithAriaLabel": 0,
+  "iconOnlyButtonsNoLabel": 1,
+  "nonButtonRoleButtons": 10,
+  "minTouchTargetPx": 30.5
+ },
+ "consoleErrors": [
+  {
+   "type": "warning",
+   "text": "[JavaScript Warning: \"Loading failed for the <script> with source “https://dev--rawsurf.netlify.app/static/js/2488.e123072c.chunk.js”.\" {file: \"https://dev--rawsurf.netlify.app/auth\" line: 1}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"downloadable font: download failed (font-family: \"Inter\" style:normal weight:600 stretch:100 src index:0): status=2152398850 source: https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0I5nvwU.woff2\"]"
+  },
+  {
+   "type": "warning",
+   "text": "[JavaScript Warning: \"Loading failed for the <script> with source “https://us-assets.i.posthog.com/static/array.js”.\" {file: \"https://dev--rawsurf.netlify.app/auth\" line: 1}]"
+  },
+  {
+   "type": "error",
+   "text": "[ERROR] [Push] Service worker registration failed: JSHandle@object"
+  },
+  {
+   "type": "error",
+   "text": "[ERROR] [Push] Service worker registration failed: JSHandle@object"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[WebRTC] Signaling WS error: JSHandle@object"
+  },
+  {
+   "type": "error",
+   "text": "[ERROR] Failed to fetch fresh avatar: Error"
+  },
+  {
+   "type": "error",
+   "text": "[ERROR] Failed to fetch bookings: Error"
+  },
+  {
+   "type": "error",
+   "text": "Failed to refresh user: Error"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Cookie “__cf_bm” has been rejected for invalid domain.\" {file: \"https://jnfbxcvcbtndtsvscppt.supabase.co/realtime/v1/websocket?apikey=<REDACTED>&vsn=2.0.0\" line: 0}]"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLMarine-Forensic] Failed to add layer: Style is not done loading."
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLWind] Failed to add layer: Style is not done loading."
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[WebRTC] Signaling WS error: JSHandle@object"
+  },
+  {
+   "type": "warning",
+   "text": "[JavaScript Warning: \"WEBGL_debug_renderer_info is deprecated in Firefox and will be removed. Please use RENDERER.\" {file: \"debugger eval code line 302 > eval\" line: 5}]"
+  },
+  {
+   "type": "warning",
+   "text": "[JavaScript Warning: \"Window.fullScreen attribute is deprecated and will be removed in the future.\" {file: \"debugger eval code line 302 > eval\" line: 4}]"
+  },
+  {
+   "type": "warning",
+   "text": "[JavaScript Warning: \"InstallTrigger is deprecated and will be removed in the future.\" {file: \"debugger eval code line 302 > eval\" line: 4}]"
+  },
+  {
+   "type": "warning",
+   "text": "[JavaScript Warning: \"onmozfullscreenchange is deprecated.\" {file: \"debugger eval code line 302 > eval\" line: 4}]"
+  },
+  {
+   "type": "warning",
+   "text": "[JavaScript Warning: \"onmozfullscreenerror is deprecated.\" {file: \"debugger eval code line 302 > eval\" line: 4}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[WebRTC] Signaling WS error: JSHandle@object"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[WebRTC] Signaling unreachable — retrying silently (backoff caps at 30s)."
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[JavaScript Warning: \"Media resource data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA= could not be decoded.\" {file: \"https://dev--rawsurf.netlify.app/map\" line: 0}]"
+  },
+  {
+   "type": "warning",
+   "text": "[JavaScript Warning: \"Media resource data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA= could not be decoded, error: Error Code: NS_ERROR_DOM_MEDIA_METADATA_ERR (0x806e0006)\" {file: \"https://dev--rawsurf.netlify.app/map\" line: 0}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[JavaScript Warning: \"WebGL warning: drawArraysInstanced: Tex image TEXTURE_2D level 0 is incurring lazy initialization.\"]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 8 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 8 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 18 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 18 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 16 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebRTC] Signaling WS connection timeout (8s) — forcing close"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"The connection to wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id was interrupted while the page was loading.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[WebRTC] Signaling WS connection timeout (8s) — forcing close"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"The connection to wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id was interrupted while the page was loading.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[WebRTC] Signaling WS connection timeout (8s) — forcing close"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"The connection to wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id was interrupted while the page was loading.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[WEATHER_TRUTH] ABSENT: wind|wind chain 45a66d37 (euro_wind_wind_global_mid_20260814T030000Z.json) died after orchestratorCommit (30s silent, no terminal stage)"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[WEATHER_TRUTH] ABSENT: wind|wind chain 45a66d37 (euro_wind_wind_global_mid_20260814T030000Z.json) died after orchestratorCommit (40s silent, no terminal stage)"
+  },
+  {
+   "type": "warning",
+   "text": "[WebRTC] Signaling WS connection timeout (8s) — forcing close"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"The connection to wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id was interrupted while the page was loading.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[WebRTC] Signaling WS connection timeout (8s) — forcing close"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"The connection to wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id was interrupted while the page was loading.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[Backend Weather Service] Wind grid fetch error: The operation was aborted. . Falling back cleanly."
+  },
+  {
+   "type": "warning",
+   "text": "[Backend Weather Service] Wind grid redirect failed: The operation was aborted. ."
+  },
+  {
+   "type": "warning",
+   "text": "[Fallback] Backend wind redirects failed for model=EURO, hour=0. Returning conformed safe zero grid."
+  },
+  {
+   "type": "warning",
+   "text": "[WebRTC] Signaling WS connection timeout (8s) — forcing close"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"The connection to wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id was interrupted while the page was loading.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[PopupSystem][WARN] clipping detected - falling back to global projection mode"
+  },
+  {
+   "type": "warning",
+   "text": "[WebRTC] Signaling WS connection timeout (8s) — forcing close"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"The connection to wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id was interrupted while the page was loading.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[PopupSystem][WARN] clipping detected - falling back to global projection mode"
+  },
+  {
+   "type": "warning",
+   "text": "[PopupSystem][WARN] clipping detected - falling back to global projection mode"
+  },
+  {
+   "type": "error",
+   "text": "[Backend Weather Service] Wind grid fetch error: The operation was aborted. . Falling back cleanly."
+  },
+  {
+   "type": "warning",
+   "text": "[Backend Weather Service] Wind grid redirect failed: The operation was aborted. ."
+  },
+  {
+   "type": "warning",
+   "text": "[Fallback] Backend wind redirects failed for model=EURO, hour=0. Returning conformed safe zero grid."
+  },
+  {
+   "type": "warning",
+   "text": "[WebRTC] Signaling WS connection timeout (8s) — forcing close"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"The connection to wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id was interrupted while the page was loading.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[WEATHER_TRUTH] ABSENT: wind|wind chain e60e115c (euro_wind_wind_global_mid_20260814T030000Z.json) died after orchestratorCommit (33s silent, no terminal stage)"
+  },
+  {
+   "type": "warning",
+   "text": "[PopupSystem][WARN] clipping detected - falling back to global projection mode"
+  },
+  {
+   "type": "warning",
+   "text": "[WebRTC] Signaling WS connection timeout (8s) — forcing close"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"The connection to wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id was interrupted while the page was loading.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "warning",
+   "text": "[WEATHER_TRUTH] ABSENT: wind|wind chain 777f6be8 (euro_wind_wind_global_mid_20260814T030000Z.json) died after cacheRead (36s silent, no terminal stage)"
+  },
+  {
+   "type": "warning",
+   "text": "[PopupSystem][WARN] clipping detected - falling back to global projection mode"
+  },
+  {
+   "type": "warning",
+   "text": "[PopupSystem][WARN] clipping detected - falling back to global projection mode"
+  },
+  {
+   "type": "warning",
+   "text": "[WebRTC] Signaling WS connection timeout (8s) — forcing close"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"The connection to wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id was interrupted while the page was loading.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  },
+  {
+   "type": "error",
+   "text": "[JavaScript Error: \"Firefox can’t establish a connection to the server at wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id.\" {file: \"https://dev--rawsurf.netlify.app/static/js/main.e474455a.js\" line: 2}]"
+  }
+ ],
+ "pageErrors": [],
+ "netFail": [
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/site-access",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://dev--rawsurf.netlify.app/static/js/2488.e123072c.chunk.js",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7W0I5nvwU.woff2",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://us-assets.i.posthog.com/static/array.js",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://dev--rawsurf.netlify.app/logo.svg",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=wind&layer=wind&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,5",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=wind&layer=wind&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=144,147,150,153,156,159,162,165,168,171,174,177,180,18",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=waves&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=waves&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,5",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=waves&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=144,147,150,153,156,159,162,165,168,171,174,177,180",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=swell_1&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=swell_1&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=144,147,150,153,156,159,162,165,168,171,174,177,1",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=swell_2&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=swell_2&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=EURO&domain=wind&layer=wind&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=EURO&domain=wind&layer=wind&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=144,147,150,153,156,159,162,165,168,171,174,177,180,1",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=EURO&domain=marine&layer=waves&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=EURO&domain=marine&layer=swell_1&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45",
+   "err": "NS_BINDING_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=EURO&domain=marine&layer=swell_2&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93",
+   "err": "NS_BINDING_ABORTED"
+  }
+ ],
+ "geography": [
+  {
+   "name": "Cocoa Beach FL",
+   "c": [
+    -80.6,
+    28.35
+   ],
+   "z": 8,
+   "variancePct": 93.278,
+   "decodeError": null,
+   "zoom": 8,
+   "center": [
+    -80.6,
+    28.35
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-firefox-desktop\\geo-Cocoa_Beach_FL.png"
+  },
+  {
+   "name": "New York coast",
+   "c": [
+    -73.5,
+    40.4
+   ],
+   "z": 7,
+   "variancePct": 96.63,
+   "decodeError": null,
+   "zoom": 7,
+   "center": [
+    -73.5,
+    40.4
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-firefox-desktop\\geo-New_York_coast.png"
+  },
+  {
+   "name": "Portugal",
+   "c": [
+    -9.4,
+    38.7
+   ],
+   "z": 7,
+   "variancePct": 92.735,
+   "decodeError": null,
+   "zoom": 7,
+   "center": [
+    -9.4,
+    38.7
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-firefox-desktop\\geo-Portugal.png"
+  },
+  {
+   "name": "Morocco",
+   "c": [
+    -9.8,
+    31.4
+   ],
+   "z": 7,
+   "variancePct": 94.09,
+   "decodeError": null,
+   "zoom": 7,
+   "center": [
+    -9.8,
+    31.4
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-firefox-desktop\\geo-Morocco.png"
+  },
+  {
+   "name": "El Salvador",
+   "c": [
+    -89.3,
+    13.4
+   ],
+   "z": 7,
+   "variancePct": 97.052,
+   "decodeError": null,
+   "zoom": 7,
+   "center": [
+    -89.3,
+    13.4
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-firefox-desktop\\geo-El_Salvador.png"
+  },
+  {
+   "name": "Open Pacific",
+   "c": [
+    -140,
+    10
+   ],
+   "z": 4,
+   "variancePct": 98.365,
+   "decodeError": null,
+   "zoom": 4,
+   "center": [
+    -140,
+    10
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-firefox-desktop\\geo-Open_Pacific.png"
+  },
+  {
+   "name": "Antimeridian",
+   "c": [
+    179.6,
+    -17.6
+   ],
+   "z": 5,
+   "variancePct": 94.833,
+   "decodeError": null,
+   "zoom": 5,
+   "center": [
+    179.6,
+    -17.6
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-firefox-desktop\\geo-Antimeridian.png"
+  },
+  {
+   "name": "High latitude N",
+   "c": [
+    -20,
+    68
+   ],
+   "z": 4,
+   "variancePct": 95.047,
+   "decodeError": null,
+   "zoom": 4,
+   "center": [
+    -20,
+    68
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-firefox-desktop\\geo-High_latitude_N.png"
+  }
+ ],
+ "finishedAt": "2026-08-14T02:35:42.409Z"
+}

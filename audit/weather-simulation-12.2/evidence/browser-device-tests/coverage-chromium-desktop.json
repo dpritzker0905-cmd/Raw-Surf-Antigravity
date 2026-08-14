@@ -1,0 +1,1258 @@
+{
+ "browser": "chromium",
+ "device": "desktop",
+ "viewport": {
+  "width": 1280,
+  "height": 800
+ },
+ "base": "https://dev--rawsurf.netlify.app",
+ "startedAt": "2026-08-14T00:39:56.733Z",
+ "boot": {
+  "domToSettleMs": 16271,
+  "mapFound": true
+ },
+ "capabilities": {
+  "webgl": true,
+  "version": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+  "webgl2": true,
+  "vendor": "Google Inc. (Google)",
+  "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "maxTexture": 8192,
+  "dpr": 1,
+  "webgpu": true,
+  "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/148.0.7778.96 Safari/537",
+  "touchPoints": 0
+ },
+ "models": {
+  "GFS": {
+   "pick": {
+    "found": true,
+    "locked": false
+   },
+   "rows": [
+    {
+     "layer": "Wind",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 74.778,
+     "variancePct": 95.713,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\GFS-Wind.png"
+    },
+    {
+     "layer": "Waves",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 68.125,
+     "variancePct": 99.707,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\GFS-Waves.png"
+    },
+    {
+     "layer": "Swell",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 69.014,
+     "variancePct": 99.098,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\GFS-Swell.png"
+    },
+    {
+     "layer": "Swell 2",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 68.782,
+     "variancePct": 98.13,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\GFS-Swell_2.png"
+    },
+    {
+     "layer": "Wind Waves",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 67.23,
+     "variancePct": 97.555,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\GFS-Wind_Waves.png"
+    },
+    {
+     "layer": "Precip",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 15.265,
+     "variancePct": 99.159,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\GFS-Precip.png"
+    },
+    {
+     "layer": "Radar",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 10.922,
+     "variancePct": 99.918,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": false,
+     "shot": "shots-chromium-desktop\\GFS-Radar.png"
+    },
+    {
+     "layer": "Satellite",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 75.343,
+     "variancePct": 98.581,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": false,
+     "shot": "shots-chromium-desktop\\GFS-Satellite.png"
+    },
+    {
+     "layer": "Fog",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 4.134,
+     "variancePct": 99.936,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": false,
+     "shot": "shots-chromium-desktop\\GFS-Fog.png"
+    },
+    {
+     "layer": "Pressure",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 55.807,
+     "variancePct": 79.392,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\GFS-Pressure.png"
+    },
+    {
+     "layer": "Air Temp",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 75.791,
+     "variancePct": 99.79,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\GFS-Air_Temp.png"
+    },
+    {
+     "layer": "Water Temp",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 68.56,
+     "variancePct": 89.967,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\GFS-Water_Temp.png"
+    }
+   ]
+  },
+  "EURO": {
+   "pick": {
+    "found": true,
+    "locked": false
+   },
+   "rows": [
+    {
+     "layer": "Wind",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 75.268,
+     "variancePct": 96.432,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\EURO-Wind.png"
+    },
+    {
+     "layer": "Waves",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 67.044,
+     "variancePct": 99.746,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\EURO-Waves.png"
+    },
+    {
+     "layer": "Swell",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 67.024,
+     "variancePct": 99.949,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\EURO-Swell.png"
+    },
+    {
+     "layer": "Swell 2",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 72.559,
+     "variancePct": 99.943,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\EURO-Swell_2.png"
+    },
+    {
+     "layer": "Wind Waves",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 72.457,
+     "variancePct": 95.892,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\EURO-Wind_Waves.png"
+    },
+    {
+     "layer": "Precip",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 26.976,
+     "variancePct": 97.908,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\EURO-Precip.png"
+    },
+    {
+     "layer": "Radar",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 10.635,
+     "variancePct": 99.934,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": false,
+     "shot": "shots-chromium-desktop\\EURO-Radar.png"
+    },
+    {
+     "layer": "Satellite",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 75.318,
+     "variancePct": 98.312,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": false,
+     "shot": "shots-chromium-desktop\\EURO-Satellite.png"
+    },
+    {
+     "layer": "Fog",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 9.519,
+     "variancePct": 99.924,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": false,
+     "shot": "shots-chromium-desktop\\EURO-Fog.png"
+    },
+    {
+     "layer": "Pressure",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 57.334,
+     "variancePct": 75.546,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\EURO-Pressure.png"
+    },
+    {
+     "layer": "Air Temp",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 76.708,
+     "variancePct": 88.683,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\EURO-Air_Temp.png"
+    },
+    {
+     "layer": "Water Temp",
+     "found": true,
+     "ariaPressedBefore": "false",
+     "ariaPressedAfter": "false",
+     "disabled": false,
+     "changedPct": 74.156,
+     "variancePct": 99.953,
+     "decodeError": null,
+     "paints": true,
+     "legendUnitVisible": true,
+     "shot": "shots-chromium-desktop\\EURO-Water_Temp.png"
+    }
+   ]
+  }
+ },
+ "a11y": {
+  "totalButtons": 54,
+  "layerButtonsFound": [
+   "Precip",
+   "Radar",
+   "Satellite",
+   "Wind",
+   "Waves",
+   "Swell",
+   "Swell 2",
+   "Wind Waves",
+   "Fog",
+   "Pressure",
+   "Air Temp",
+   "Water Temp"
+  ],
+  "layerButtonsWithAriaPressed": 12,
+  "layerButtonsWithAriaLabel": 0,
+  "iconOnlyButtonsNoLabel": 1,
+  "nonButtonRoleButtons": 10,
+  "minTouchTargetPx": 30.5
+ },
+ "consoleErrors": [
+  {
+   "type": "error",
+   "text": "Failed to load resource: the server responded with a status of 404 ()"
+  },
+  {
+   "type": "error",
+   "text": "Failed to load resource: the server responded with a status of 404 ()"
+  },
+  {
+   "type": "error",
+   "text": "[ERROR] Failed to fetch bookings: AxiosError: Request failed with status code 404\n    at Fe (https://dev--rawsurf.netlify.app/static/js/main.e474455a.js:2:132571)\n    at XMLHttpRequest.v (https://dev--rawsurf.netlify.app/static/js/main.e474455a.js:2:138226)"
+  },
+  {
+   "type": "error",
+   "text": "Failed to load resource: the server responded with a status of 404 ()"
+  },
+  {
+   "type": "error",
+   "text": "[ERROR] Failed to fetch fresh avatar: AxiosError: Request failed with status code 404\n    at Fe (https://dev--rawsurf.netlify.app/static/js/main.e474455a.js:2:132571)\n    at XMLHttpRequest.v (https://dev--rawsurf.netlify.app/static/js/main.e474455a.js:2:138226)"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "error",
+   "text": "[WebRTC] Signaling WS error: Event"
+  },
+  {
+   "type": "error",
+   "text": "Failed to load resource: the server responded with a status of 404 ()"
+  },
+  {
+   "type": "error",
+   "text": "Failed to refresh user: AxiosError: Request failed with status code 404\n    at Fe (https://dev--rawsurf.netlify.app/static/js/main.e474455a.js:2:132571)\n    at XMLHttpRequest.v (https://dev--rawsurf.netlify.app/static/js/main.e474455a.js:2:138226)"
+  },
+  {
+   "type": "warning",
+   "text": "[.WebGL-0x5e3c03df9000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLMarine-Forensic] Failed to add layer: Style is not done loading."
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLWind] Failed to add layer: Style is not done loading."
+  },
+  {
+   "type": "warning",
+   "text": "[.WebGL-0x5e3c03df9000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  },
+  {
+   "type": "warning",
+   "text": "[.WebGL-0x5e3c03df9000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "warning",
+   "text": "[.WebGL-0x5e3c03df9000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+  },
+  {
+   "type": "error",
+   "text": "[WebRTC] Signaling WS error: Event"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "error",
+   "text": "[WebRTC] Signaling WS error: Event"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "warning",
+   "text": "[WebRTC] Signaling unreachable — retrying silently (backoff caps at 30s)."
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "error",
+   "text": "[WebGLGuardrail] Frame rate consistently below 20 FPS (3 FPS) for 12 consecutive seconds. Triggering local rendering fallback overrides."
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Triggering fallback override for WebGL Marine layer"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "error",
+   "text": "[WebGLGuardrail] Frame rate consistently below 20 FPS (3 FPS) for 12 consecutive seconds. Triggering local rendering fallback overrides."
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Triggering fallback override for WebGL Marine layer"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 1 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "error",
+   "text": "[WebGLGuardrail] Frame rate consistently below 20 FPS (3 FPS) for 12 consecutive seconds. Triggering local rendering fallback overrides."
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Triggering fallback override for WebGL Marine layer"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "error",
+   "text": "[WebGLGuardrail] Frame rate consistently below 20 FPS (3 FPS) for 12 consecutive seconds. Triggering local rendering fallback overrides."
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Triggering fallback override for WebGL Marine layer"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 1 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "error",
+   "text": "[WebGLGuardrail] Frame rate consistently below 20 FPS (3 FPS) for 12 consecutive seconds. Triggering local rendering fallback overrides."
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Triggering fallback override for WebGL Marine layer"
+  },
+  {
+   "type": "error",
+   "text": "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error during WebSocket handshake: Unexpected response code: 403"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 2 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  },
+  {
+   "type": "warning",
+   "text": "[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: 3 FPS"
+  }
+ ],
+ "pageErrors": [],
+ "netFail": [
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/health",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://us-assets.i.posthog.com/array/phc_xAvL2Iq4tFmANRE7kzbKwaSqp1HJjN7x48s3vr0CMjs/config.js",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/site-access",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=wind&layer=wind&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,5",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=wind&layer=wind&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=144,147,150,153,156,159,162,165,168,171,174,177,180,18",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/2026/08/13/1800Z/2026-08-14T0100.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=waves&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=288,291,294,297,300,303,306,309,312,315,318,321,324",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=swell_1&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=swell_1&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=144,147,150,153,156,159,162,165,168,171,174,177,1",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=swell_2&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=swell_2&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=144,147,150,153,156,159,162,165,168,171,174,177,1",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=wind_waves&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/2026/08/13/1800Z/2026-08-14T0100.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=wind_waves&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=144,147,150,153,156,159,162,165,168,171,174,17",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=GFS&domain=marine&layer=wind_waves&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=288,291,294,297,300,303,306,309,312,315,318,32",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013/2026/08/13/1800Z/2026-08-14T0100.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013/2026/08/13/1800Z/2026-08-14T0000.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013/2026/08/13/1800Z/2026-08-14T0100.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013/2026/08/13/1800Z/2026-08-14T0000.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs025/2026/08/13/1800Z/2026-08-14T0000.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs025/2026/08/13/1800Z/2026-08-14T0100.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs025/2026/08/13/1800Z/2026-08-14T0100.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs025/2026/08/13/1800Z/2026-08-14T0000.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013/2026/08/13/1800Z/2026-08-14T0000.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013/2026/08/13/1800Z/2026-08-14T0100.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013/2026/08/13/1800Z/2026-08-14T0100.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013/2026/08/13/1800Z/2026-08-14T0000.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=EURO&domain=wind&layer=wind&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=EURO&domain=wind&layer=wind&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=144,147,150,153,156,159,162,165,168,171,174,177,180,1",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ecmwf_wam025/2026/08/13/1200Z/2026-08-14T0000.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=EURO&domain=marine&layer=swell_2&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://raw-surf-antigravity.onrender.com/api/weather/grid_series?model=EURO&domain=marine&layer=wind_waves&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ecmwf_ifs025/2026/08/13/1200Z/2026-08-14T0000.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ecmwf_ifs025/2026/08/13/1200Z/2026-08-14T0300.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ecmwf_ifs025/2026/08/13/1200Z/2026-08-14T0000.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ecmwf_ifs025/2026/08/13/1200Z/2026-08-14T0300.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ecmwf_ifs025/2026/08/13/1200Z/2026-08-14T0000.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ecmwf_ifs025/2026/08/13/1200Z/2026-08-14T0300.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ecmwf_ifs025/2026/08/13/1200Z/2026-08-14T0000.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://map-tiles.open-meteo.com/data_spatial/ecmwf_ifs025/2026/08/13/1200Z/2026-08-14T0300.om",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://b.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/8/69/106.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://b.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/8/70/107.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://b.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/8/69/106.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://a.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/8/71/107.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://a.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/8/70/106.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://a.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/8/69/107.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://a.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/8/70/106.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://a.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/8/69/107.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://b.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/8/70/107.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://b.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/7/38/47.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://a.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/7/37/49.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://b.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/7/36/47.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://a.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/7/38/48.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://b.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/7/36/49.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://b.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/7/37/48.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://a.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/7/36/48.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://a.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/7/37/47.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://a.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/7/60/48.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://b.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/7/60/49.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  },
+  {
+   "url": "https://a.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/7/61/49.vector.pbf?access_token=<REDACTED-MAPBOX-PUBLIC-TOKEN>",
+   "err": "net::ERR_ABORTED"
+  }
+ ],
+ "geography": [
+  {
+   "name": "Cocoa Beach FL",
+   "c": [
+    -80.6,
+    28.35
+   ],
+   "z": 8,
+   "variancePct": 95.797,
+   "decodeError": null,
+   "zoom": 8,
+   "center": [
+    -80.6,
+    28.35
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-chromium-desktop\\geo-Cocoa_Beach_FL.png"
+  },
+  {
+   "name": "New York coast",
+   "c": [
+    -73.5,
+    40.4
+   ],
+   "z": 7,
+   "variancePct": 95.566,
+   "decodeError": null,
+   "zoom": 7,
+   "center": [
+    -73.5,
+    40.4
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-chromium-desktop\\geo-New_York_coast.png"
+  },
+  {
+   "name": "Portugal",
+   "c": [
+    -9.4,
+    38.7
+   ],
+   "z": 7,
+   "variancePct": 92.735,
+   "decodeError": null,
+   "zoom": 7,
+   "center": [
+    -9.4,
+    38.7
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-chromium-desktop\\geo-Portugal.png"
+  },
+  {
+   "name": "Morocco",
+   "c": [
+    -9.8,
+    31.4
+   ],
+   "z": 7,
+   "variancePct": 96.218,
+   "decodeError": null,
+   "zoom": 7,
+   "center": [
+    -9.8,
+    31.4
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-chromium-desktop\\geo-Morocco.png"
+  },
+  {
+   "name": "El Salvador",
+   "c": [
+    -89.3,
+    13.4
+   ],
+   "z": 7,
+   "variancePct": 92.414,
+   "decodeError": null,
+   "zoom": 7,
+   "center": [
+    -89.3,
+    13.4
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-chromium-desktop\\geo-El_Salvador.png"
+  },
+  {
+   "name": "Open Pacific",
+   "c": [
+    -140,
+    10
+   ],
+   "z": 4,
+   "variancePct": 98.074,
+   "decodeError": null,
+   "zoom": 4,
+   "center": [
+    -140,
+    10
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-chromium-desktop\\geo-Open_Pacific.png"
+  },
+  {
+   "name": "Antimeridian",
+   "c": [
+    179.6,
+    -17.6
+   ],
+   "z": 5,
+   "variancePct": 94.838,
+   "decodeError": null,
+   "zoom": 5,
+   "center": [
+    179.6,
+    -17.6
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-chromium-desktop\\geo-Antimeridian.png"
+  },
+  {
+   "name": "High latitude N",
+   "c": [
+    -20,
+    68
+   ],
+   "z": 4,
+   "variancePct": 94.985,
+   "decodeError": null,
+   "zoom": 4,
+   "center": [
+    -20,
+    68
+   ],
+   "styleLoaded": true,
+   "layerCount": 143,
+   "sourceCount": 24,
+   "shot": "shots-chromium-desktop\\geo-High_latitude_N.png"
+  }
+ ],
+ "finishedAt": "2026-08-14T01:16:07.366Z"
+}

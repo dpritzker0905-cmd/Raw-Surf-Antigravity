@@ -1,0 +1,34 @@
+[chromium-desktop] GFS Wind: changed=74.778% variance=95.713% aria=false
+[chromium-desktop] GFS Waves: changed=68.125% variance=99.707% aria=false
+[chromium-desktop] GFS Swell: changed=69.014% variance=99.098% aria=false
+[chromium-desktop] GFS Swell 2: changed=68.782% variance=98.13% aria=false
+[chromium-desktop] GFS Wind Waves: changed=67.23% variance=97.555% aria=false
+[chromium-desktop] GFS Precip: changed=15.265% variance=99.159% aria=false
+[chromium-desktop] GFS Radar: changed=10.922% variance=99.918% aria=false
+[chromium-desktop] GFS Satellite: changed=75.343% variance=98.581% aria=false
+[chromium-desktop] GFS Fog: changed=4.134% variance=99.936% aria=false
+[chromium-desktop] GFS Pressure: changed=55.807% variance=79.392% aria=false
+[chromium-desktop] GFS Air Temp: changed=75.791% variance=99.79% aria=false
+[chromium-desktop] GFS Water Temp: changed=68.56% variance=89.967% aria=false
+[chromium-desktop] EURO Wind: changed=75.268% variance=96.432% aria=false
+[chromium-desktop] EURO Waves: changed=67.044% variance=99.746% aria=false
+[chromium-desktop] EURO Swell: changed=67.024% variance=99.949% aria=false
+[chromium-desktop] EURO Swell 2: changed=72.559% variance=99.943% aria=false
+[chromium-desktop] EURO Wind Waves: changed=72.457% variance=95.892% aria=false
+[chromium-desktop] EURO Precip: changed=26.976% variance=97.908% aria=false
+[chromium-desktop] EURO Radar: changed=10.635% variance=99.934% aria=false
+[chromium-desktop] EURO Satellite: changed=75.318% variance=98.312% aria=false
+[chromium-desktop] EURO Fog: changed=9.519% variance=99.924% aria=false
+[chromium-desktop] EURO Pressure: changed=57.334% variance=75.546% aria=false
+[chromium-desktop] EURO Air Temp: changed=76.708% variance=88.683% aria=false
+[chromium-desktop] EURO Water Temp: changed=74.156% variance=99.953% aria=false
+[chromium-desktop] geo Cocoa Beach FL: variance=95.797% layers=143
+[chromium-desktop] geo New York coast: variance=95.566% layers=143
+[chromium-desktop] geo Portugal: variance=92.735% layers=143
+[chromium-desktop] geo Morocco: variance=96.218% layers=143
+[chromium-desktop] geo El Salvador: variance=92.414% layers=143
+[chromium-desktop] geo Open Pacific: variance=98.074% layers=143
+[chromium-desktop] geo Antimeridian: variance=94.838% layers=143
+[chromium-desktop] geo High latitude N: variance=94.985% layers=143
+
+[chromium-desktop] written -> coverage-chromium-desktop.json

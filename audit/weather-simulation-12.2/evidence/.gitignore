@@ -1,0 +1,11 @@
+# 421 MB of .webm across three coverage runs (chromium desktop/mobile, firefox desktop).
+# Same policy as Audit 12.1's evidence/.gitignore, and the same reasoning: the PNG frames and
+# coverage-*.json carry the proof, and browser-device-tests/covercap.js reproduces the video on
+# demand in ~8 minutes per configuration.
+#
+# What the video showed, recorded here so its deletion is not a loss of a claim:
+#   - the harness COMPOSITES (which the agent browser pane does not - 12.1 LV-08)
+#   - a scripted jumpTo camera sweep, not a real gesture, under SwiftShader software GL
+# It is therefore strictly weaker evidence than marine-nightly's zoomlab .webm, which drives
+# trusted wheel/drag input at full-rate rAF and is retained in CI until 2026-08-27.
+*.webm

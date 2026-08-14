@@ -1,0 +1,40 @@
+AUDIT 12.2 EVIDENCE -- size-label ladder, Python authority vs JS mirror
+HEAD 791fdf78 (dev). Read-only verification; no source modified.
+
+AUTHORITY  backend/services/conditions_labels.py:55-60  <10 Overhead / <15 Double Overhead / else Triple Overhead+
+MIRROR     frontend/src/components/SpotConditions.js:701-711  <8 Overhead / <10 Double Overhead / else Triple Overhead+
+
+EXECUTED both ladders over 0.0-20.0 ft, step 0.1 (201 samples):
+  DISAGREE on 70 of 201 samples (34.8%); contiguous band 8.0 ft -> 14.9 ft
+  8.0 ft   payload=Overhead          SpotConditions.js=Double Overhead
+ 10.4 ft   payload=Double Overhead   SpotConditions.js=Triple Overhead+
+ 14.0 ft   payload=Double Overhead   SpotConditions.js=Triple Overhead+
+  POSITIVE CONTROL (must agree, and does): 0.5 Flat / 3.3 Waist High / 5.9 Head High / 7.9 Overhead
+
+DISCARDED AUTHORITATIVE FIELD
+  produced backend/services/weather_pipeline/spot_conditions.py:371  "label": get_conditions_label(current_wave_height_ft)
+  serialised backend/routes/surf_data/conditions.py:89 (batch) and :153 (single)
+  fetched   SpotConditions.js:144  apiClient.get(`/conditions/${spotId}`)   -> conditions.current.label IS present
+  ignored   SpotConditions.js:219 (compact view) and :256 (full view) both call getConditionsLabel(wave_height_ft)
+
+CROSS-SCREEN DISAGREEMENT (same spot, same payload field)
+  Explore card  ExploreSpotCard.js:274  renders conditions.label          (BACKEND, correct)
+  Spot drawer   SpotConditions.js:256   renders local ladder              (STALE)
+  useExploreData.js:32 maps conditions_label from data.label
+
+REACHABILITY: Active-reachable.
+  SpotConditions.js:95 `export const SpotConditions` (named export resolves the named import)
+  MapPage.js:652 -> UnifiedSpotDrawer.js:588 -> spot-drawer/SpotReportContent.js:82 -> <SpotConditions/>
+
+HISTORY: git log -S "waveHeightFt < 8" -> only b8aa692f (initial commit). The JS ladder never
+received the 2026-07-26 backend correction. Not a recent regression; a mirror that never moved.
+
+CENSUS (git grep -n 'Ankle High' -- '*.py' '*.js' '*.jsx' '*.ts' '*.tsx'):
+  1 Python authority (conditions_labels.py) | 1 JS ladder (SpotConditions.js:703)
+  4 JS colour maps: ExploreSpotCard.js:19, SpotConditions.js:52, SpotHub.js:45, SpotHubConditionsTab.js:12
+  conditions_labels.py's own docstring names only SpotHubConditionsTab.js -- it undercounts its consumers 4:1.
+
+REGISTER ABSENCE (grep -ril over audit/weather-simulation-12.1 + 12.0):
+  needles -> 0 files each: conditions_label, conditions_labels, SpotConditions, getConditionsLabel,
+             "Overhead", "Head High", "size label", "size ladder", SpotHubConditionsTab, ExploreSpotCard, SpotHub
+  positive controls -> surfRating.js 7 files, surf_rating 12, heightUnits.js 4, spot_conditions 2 (technique works)
