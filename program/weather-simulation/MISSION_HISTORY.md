@@ -11,7 +11,7 @@
 | **Canonical task** | WS-CAN-0062 |
 | **Supporting** | WS-OBJ-401, WS-OBJ-502 |
 | **Baseline** | `1f4e5149` on `dev` |
-| **Commit** | see `CURRENT_EXECUTION_STATE.json` |
+| **Commit** | `d8c866bd` |
 | **Result** | **Verified Complete** |
 | **Gate effect** | Gate 1 — one objective closed; gate remains OPEN |
 
@@ -56,8 +56,8 @@ exempted, or narrowed** — its coverage floor (`>= 27` visible flags) is shrink
 **Objective:** *"A degraded or blind geometry spot says so."*
 **Canonical Tasks:** WS-CAN-0062
 
-**Implementation Commits:** `fix(weather): [WS-OBJ-207 / WS-CAN-0062]` — see
-`CURRENT_EXECUTION_STATE.json` for the SHA.
+**Implementation Commits:** `d8c866bd` — *fix(ratings): [WS-OBJ-207 / WS-CAN-0062] a verified pin on
+BLIND geometry read "high conf" and said nothing*.
 
 **Active Runtime Path:**
 `GET /api/weather/spot-ratings` → `spot_ratings.rate_one_spot` (live lane) **and** the cron

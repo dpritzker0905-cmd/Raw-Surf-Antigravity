@@ -7,7 +7,7 @@
 | **Date** | 2026-08-14 |
 | **Branch** | `dev` |
 | **Baseline** | `1f4e5149` |
-| **End commit** | *filled at commit — see `CURRENT_EXECUTION_STATE.json`* |
+| **End commit** | `d8c866bd` (ahead 1, **not pushed**) |
 | **Mission** | **WS-OBJ-207 / WS-CAN-0062 — geometry-quality disclosure** |
 | **Result** | **Verified Complete** |
 | **Pushed / merged / deployed?** | ⛔ **NO.** Not authorized. Nothing left this machine. |
@@ -48,7 +48,7 @@ rejection.
 
 ---
 
-## 2. Three things that will cost you an hour each if you don't know them
+## 2. Four things that will cost you an hour each if you don't know them
 
 1. **`BLOCKERS_AND_DECISIONS.md` D-3 — local browser verification of a backend change is a TRAP.**
    `useSpotRatings.js:299` hits the Supabase **CDN** first (production precompute), and the local
@@ -63,9 +63,16 @@ rejection.
    lane** caught it (`test_flag_lane_parity`). The registry's own comment records the same omission
    on 2026-08-04 by someone else. Declare it in `routes/admin/surf_forecast.py` **in the same
    commit**. Full note in `MISSION_HISTORY.md`.
-3. **The full guards lane takes ~1–2 h on this box**, and `-q` output is block-buffered, so it looks
-   hung when it isn't. Stop the dev servers first — they compete for CPU. Do not trust arithmetic for
-   the floor; run the lane.
+3. **⛔ `spot_ratings.py` NOW SITS AT EXACTLY 800 LOC — THE CEILING. You have ZERO headroom.**
+   It was 797 at baseline (3 lines). The pre-commit ratchet blocked this mission at 821 and was
+   right. The remedy is the repo's own: **move rationale to `docs/research/`, never delete it.** Two
+   extractions were made — the new block's measurements, and a directional-conflict comment that was
+   a *verbatim second copy* of `schemas.py`'s field docs (verified before compressing). Your next
+   edit to this file must budget an extraction first.
+4. **The full guards lane takes ~26 min on this box** (152 files, 1730 tests), and `-q` output is
+   block-buffered, so it looks hung when it isn't — do not conclude it has stalled from a static
+   byte count. Stop the dev servers first; they compete for CPU. Do not trust arithmetic for the
+   floor; run the lane.
 
 ---
 

@@ -18,7 +18,7 @@
     "tasks": ["WS-CAN-0062"],
     "supporting": ["WS-OBJ-401", "WS-OBJ-502"],
     "status": "Verified Complete",
-    "commit": "SEE_MISSION_HISTORY",
+    "commit": "d8c866bd5f028bef32cfec3e0f436a81cd333bbc",
     "gate": "Gate 1",
     "gate_effect": "one objective closed; Gate 1 remains OPEN"
   },
