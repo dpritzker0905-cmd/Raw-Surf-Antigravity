@@ -138,7 +138,27 @@ against my own rule *never take a number from a docstring, measure it*.
 **What actually survives:** `388 passed, floor 396` and `0 silent` (this run, real) · **7 backend
 test files ADDED, none deleted or renamed in 24h** (`git log --diff-filter=ADR`, real).
 Additions with no deletions makes "tests left the lane" LESS likely, not more.
-▶ **STILL UNDETERMINED.** The honest discriminator is this run's own pytest summary line
+✅ **MEASURED 2026-08-15 — IT IS NEITHER OPTION THE ERROR OFFERS.** I finally extracted the
+run's own pytest summary (the line with NO `[36;1m` script-echo prefix):
+| | floor commit `a6e4339a` | now | source |
+|---|---|---|---|
+| estate passed | 398 | **388** | run logs |
+| estate skipped | 2864 | **2865** | run logs |
+| collected | 3262 | **3253 (−9)** | derived |
+| `def test_` in backend/tests | 5444 | **5446 (+2)** | `git grep -c` |
+| estate files | 258 | **258** | `--lane estate` |
+| lane definition changed | **2026-08-11**, BEFORE the floor was set | | `git log` |
+**Definitions went UP by 2; files did not move; lanes did not change; 9 fewer tests collect.**
+⇒ **NOT deletion and NOT mass-skip** — the error names both and it is neither. Nine test
+CASES vanished with no test FUNCTION vanishing.
+▶ **INFERENCE (not measured):** collection is data-driven somewhere — a `parametrize` list nine
+shorter, or an environment-gated collection. **I did not identify the parametrized source.**
+★ If that is right, the floor is pinned to a NON-DETERMINISTIC count and will drift again
+whatever anyone sets it to — which would make lowering it a temporary silence, not a fix.
+⚠️ The separate reason not to lower estate alone (guards over-raised at 1735 vs 1720; estate
+is a COMPLEMENT) still stands.
+
+~~STILL UNDETERMINED (superseded)~~: The honest discriminator is this run's own pytest summary line
 (passed/skipped for the estate invocation) compared against a GREEN run's — neither of which
 I extracted. Do not act on the floor until one of those is read.
 
