@@ -769,7 +769,13 @@ jobs:
           # ⬆ 780→784 on 2026-08-15: +4 tests appended to test_report_calibration.py (the
           # WS-CAN-0073 route-refusal pins; same file, so MIN_FILES holds at 85). Last green
           # 31864807822 observed 786; 786 + 4 = 790; 790 - 6 = 784.
-          MIN_FILES, MIN_PASSED = 85, 784
+          # ⬆ 784→793 on 2026-08-15 (third): CI READ 799 — the SELECTOR routed the new
+          # test_config_env.py (9 tests) HERE, not to estate as the author predicted; estate took
+          # only test_startup_config_hardening.py (+3 → 416). LANE MEMBERSHIP IS THE SELECTOR'S
+          # DECISION, NOT THE AUTHOR'S INTENT: run `ci_test_lanes.py --lane <x>` on the TRACKED
+          # file before predicting a count (an untracked file is invisible to it, which is exactly
+          # how this prediction went wrong). 799 - 6 = 793. MIN_FILES 85 → 86 (+1 file).
+          MIN_FILES, MIN_PASSED = 86, 793
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

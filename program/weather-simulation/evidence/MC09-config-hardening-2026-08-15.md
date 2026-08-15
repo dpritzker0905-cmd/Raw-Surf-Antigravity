@@ -61,6 +61,15 @@ re-export; `surf_rating.py` 796→797.
   (+12 runtime tests, both new files land in estate), `MIN_PASSED` 411 → 423; guards/chain floors
   unchanged (no new files, no count change).
 
+**⚠️ CORRECTED AFTER THE PUSH — the paragraph above mis-routed one file.** CI's selector put
+`test_config_env.py` in the **chain** lane (its 9 tests → chain 790 → **799**); estate took only
+the hardening file (+3 → **416**). The local lane run had appended both files to estate BY GUESS
+(untracked files are invisible to the selector, so the guess never got checked against it) — the
++12-estate prediction failed CI's estate gate, the concurrent session corrected estate to
+416/414 (`ce66f6f4`), and chain's pair moved to 799/793 in the follow-up. The rule this buys:
+**lane membership is the selector's decision, not the author's intent — track the file, run the
+selector, then predict.**
+
 ## Limitations
 
 - 108 call-time numeric parses remain (many already guarded by local try/except); this slice
