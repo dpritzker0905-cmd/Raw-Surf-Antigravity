@@ -112,3 +112,49 @@ and a real pointer click at that coordinate did not toggle it. Collapsing the tu
 whether it is present in a production build was **not** checked. Do not open a task before
 establishing that. If it *is* production-reachable, it is a click-blocking overlay on a primary
 control and belongs with the frontend findings gated behind `WS-CAN-0039`.
+
+
+---
+
+## L-2 — DECISION NEEDED (owner of the CI floors): `backend-estate-coverage` 388 vs 396
+
+**Date** 2026-08-15 · Measured by the other session · **not touched, deliberately** — this is your
+lane and `c1566c8b` landed mid-diagnosis. Raised here per the 12.1 rule that an audit updates the
+register rather than authoring a report.
+
+`::error::Estate coverage: only 388 passed, floor is 396 — mass-skip or deletion`
+Fired **5 times**. **It is neither option the message names.**
+
+| | floor commit `a6e4339a` | now | source |
+|---|---|---|---|
+| estate passed | 398 | **388** | run logs |
+| estate skipped | 2864 | **2865** | run logs |
+| collected | 3262 | **3253 (−9)** | derived |
+| `def test_` in `backend/tests` | 5444 | **5446 (+2)** | `git grep -c` |
+| estate files | 258 | **258** | `--lane estate` |
+| lane definition last changed | **2026-08-11** — before the floor was set | | `git log` |
+
+**Definitions went UP by 2. Files did not move. Lanes did not change. Nine fewer tests collect,
+with zero failures.** Nine test CASES vanished without any test FUNCTION vanishing.
+
+**Ruled out by measurement:** deletion · mass-skip · file movement · lane redefinition ·
+the three non-literal `parametrize` sources in the lane (`POOLED_FETCHERS`, `DISCLOSING_SURFACES`,
+`_MEMORY_SAFETY_FAMILY` — all literal tuples, they cannot shrink).
+
+**INFERENCE, not measured:** collection is data- or environment-driven somewhere. The parametrized
+source was **not identified**; local reproduction is not possible from the other session's machine
+(`check_env_parity` reports python 3.14 vs the declared 3.12 and 28 of 46 pins differing).
+
+### Why it was not simply lowered
+1. ⚠️ **`guards` is over-raised too** (`MIN_PASSED 1735 vs 1720 observed`). Two lanes above their
+   observations at once looks systematic. Estate is a **COMPLEMENT** — tests moving INTO guards
+   should have RAISED the guards reading; it fell instead.
+2. ⚠️ **If the inference holds, the count is non-deterministic** and the floor will drift again at
+   whatever value is set — lowering would be a temporary silence, not a fix.
+3. ★ **No guard catches an over-raise.** `ci_floor_staleness.py` is deliberately one-sided (pinned
+   by `test_the_check_is_one_sided`), the lane asserts only after the raise ships, and
+   `check_floor_before_push.py` fires only when tests are **ADDED**. Three guards, one uncovered
+   direction — worth its own entry regardless of how this instance resolves.
+
+**Decision needed:** lower to 386 and accept the silence, or find the 9 cases first. The other
+session has no way to identify them without a CI-equivalent environment.
