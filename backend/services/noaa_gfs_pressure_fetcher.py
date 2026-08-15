@@ -111,13 +111,17 @@ def _fetch_message_bytes(requests, url, start, end):
         if got != want:
             msg = (f"range GET {rng} -> HTTP {r.status_code} returned {got} bytes, expected {want}"
                    f" (a server that ignores Range answers 200 with the whole file)")
-            # ⭐ KILL SWITCH — see the note in noaa_gfs_wave_fetcher. Verified against live NOAA
-            # 2026-08-14, but production egresses through Render and a range-rewriting proxy would
-            # stop every ingest cycle. GRIB_RANGE_STRICT=0 degrades this to a log without a deploy.
+            # ⭐ KILL SWITCH — see the full note in noaa_gfs_wave_fetcher. 2026-08-15 (MC-05): the
+            # hatch EXTRACTS a provable whole-file slice (200 + over-length + GRIB magic at the
+            # .idx boundary) and REFUSES everything else — it never accepts a wrong-length body.
             if os.environ.get("GRIB_RANGE_STRICT", "1") == "0":
-                sys.stderr.write(f"[range-integrity DISABLED] {msg}\n")
-            else:
-                raise RuntimeError(msg)
+                if (r.status_code == 200 and got > want and start + want <= got
+                        and r.content[start:start + 4] == b"GRIB"):
+                    sys.stderr.write(f"[range-integrity EXTRACT] {msg} -- whole-file proven; "
+                                     f"slicing the requested {want} bytes at {start}\n")
+                    return r.content[start:start + want]
+                sys.stderr.write(f"[range-integrity UNPROVABLE] {msg} -- refusing\n")
+            raise RuntimeError(msg)
     return r.content
 
 

@@ -269,12 +269,24 @@ def _fetch_message_bytes(requests, url, start, end):
             # Content-Range confirmed. But that was a DIRECT fetch, and production egresses through
             # Render, which cannot be tested from a dev box. If a proxy ever rewrote ranges this
             # check would stop EVERY ingest cycle and the whole forecast estate would go stale
-            # behind it. GRIB_RANGE_STRICT=0 degrades it to a loud stderr line with NO deploy —
-            # seconds to recover instead of revert-and-redeploy.
+            # behind it.
+            # 2026-08-15 (Master Codex MC-05): the hatch EXTRACTS, it never accepts. The proxy
+            # case it exists for is PROVABLE — a server that ignored `Range` answers 200 with the
+            # WHOLE file, which CONTAINS the bytes we asked for, and every request starts on an
+            # .idx message boundary so the slice must open with the GRIB magic. Prove it and
+            # slice; anything unprovable still raises even with the switch thrown, because feeding
+            # a wrong-length body to a POSITIONAL GRIB parser is corruption, and an escape hatch
+            # that keeps ingest alive on corrupt bytes is worse than an outage.
             if os.environ.get("GRIB_RANGE_STRICT", "1") == "0":
-                sys.stderr.write(f"[range-integrity DISABLED] {msg}\n")
-            else:
-                raise RuntimeError(msg)
+                if (r.status_code == 200 and got > want and start + want <= got
+                        and r.content[start:start + 4] == b"GRIB"):
+                    sys.stderr.write(f"[range-integrity EXTRACT] {msg} -- whole-file response "
+                                     f"proven (GRIB magic at byte {start}); slicing the requested "
+                                     f"{want} bytes\n")
+                    return r.content[start:start + want]
+                sys.stderr.write(f"[range-integrity UNPROVABLE] {msg} -- switch is thrown but no "
+                                 f"safe slice can be proven; refusing\n")
+            raise RuntimeError(msg)
     return r.content
 
 

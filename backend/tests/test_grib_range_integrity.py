@@ -109,6 +109,95 @@ def test_an_OPEN_ENDED_range_is_still_allowed(name):
     assert m._fetch_message_bytes(fake, "http://x/f.grb2", 10, None) == body
 
 
+# ── the escape hatch must EXTRACT or REFUSE, never accept (2026-08-15, Master Codex MC-05) ──────
+# GRIB_RANGE_STRICT=0 exists for ONE scenario: a proxy on the egress path that rewrites/ignores
+# `Range`. That scenario is PROVABLE — the server answers 200 with the WHOLE file, which CONTAINS
+# the bytes we asked for, and every request starts on an .idx message boundary so the slice must
+# begin with the GRIB magic. The hatch therefore extracts the requested slice when it can prove it,
+# and still RAISES when it cannot — an escape hatch that keeps ingest alive on corrupt bytes is
+# worse than an outage, because the corruption maps the wrong message to the wrong variable.
+
+def _whole_file(sizes=(100, 156, 144)):
+    """A fake GRIB file: messages at known offsets, each opening with the GRIB magic."""
+    body = b""
+    offsets = []
+    for i, size in enumerate(sizes):
+        offsets.append(len(body))
+        body += b"GRIB" + bytes([65 + i]) * (size - 4)
+    return body, offsets, list(sizes)
+
+
+@pytest.mark.parametrize("name", FETCHERS)
+def test_the_escape_hatch_EXTRACTS_a_provable_whole_file_slice(name, monkeypatch):
+    """The proxy case the switch exists for: 200 + the whole file. The hatch must hand the caller
+    EXACTLY the requested bytes — same as if the server had honoured the Range."""
+    monkeypatch.setenv("GRIB_RANGE_STRICT", "0")
+    m = _mod(name)
+    body, offs, sizes = _whole_file()
+    start, want = offs[1], sizes[1]
+    fake = _FakeRequests(200, body)
+    out = m._fetch_message_bytes(fake, "http://x/f.grb2", start, start + want - 1)
+    assert out == body[start:start + want], "hatch did not slice the requested range"
+    assert len(out) == want and out.startswith(b"GRIB")
+
+
+@pytest.mark.parametrize("name", FETCHERS)
+def test_the_escape_hatch_REFUSES_a_short_response(name, monkeypatch):
+    """A short body proves nothing — it cannot contain the requested slice. Pre-2026-08-15 the
+    hatch logged and RETURNED it anyway, which is the exact 'log and continue' MC-05 forbids."""
+    monkeypatch.setenv("GRIB_RANGE_STRICT", "0")
+    m = _mod(name)
+    fake = _FakeRequests(206, b"GRIB" + b"x" * 6)      # 10 bytes for a 100-byte range
+    with pytest.raises(Exception):
+        m._fetch_message_bytes(fake, "http://x/f.grb2", 0, 99)
+
+
+@pytest.mark.parametrize("name", FETCHERS)
+def test_the_escape_hatch_REFUSES_when_the_slice_is_not_a_message_boundary(name, monkeypatch):
+    """Over-long 200 whose bytes at the requested offset are NOT a GRIB message start: either the
+    response is a different file than the .idx described, or the idx is stale. No proof, no slice."""
+    monkeypatch.setenv("GRIB_RANGE_STRICT", "0")
+    m = _mod(name)
+    body, offs, sizes = _whole_file()
+    start = offs[1] + 10                                # mid-message — no magic here
+    fake = _FakeRequests(200, body)
+    with pytest.raises(Exception):
+        m._fetch_message_bytes(fake, "http://x/f.grb2", start, start + sizes[1] - 1)
+
+
+@pytest.mark.parametrize("name", FETCHERS)
+def test_the_escape_hatch_REFUSES_an_over_long_206(name, monkeypatch):
+    """206 with the wrong length is a PROTOCOL VIOLATION, not the ignore-Range proxy: a server that
+    claims partial content and miscounts it proves nothing about where our slice begins."""
+    monkeypatch.setenv("GRIB_RANGE_STRICT", "0")
+    m = _mod(name)
+    body, offs, sizes = _whole_file()
+    fake = _FakeRequests(206, body)                     # whole file under a 206 label
+    with pytest.raises(Exception):
+        m._fetch_message_bytes(fake, "http://x/f.grb2", offs[1], offs[1] + sizes[1] - 1)
+
+
+@pytest.mark.parametrize("name", FETCHERS)
+def test_strict_default_still_raises_on_a_whole_file__THE_CONTROL(name, monkeypatch):
+    """Extraction lives ONLY behind the thrown switch. The default posture stays fail-closed."""
+    monkeypatch.delenv("GRIB_RANGE_STRICT", raising=False)
+    m = _mod(name)
+    body, offs, sizes = _whole_file()
+    fake = _FakeRequests(200, body)
+    with pytest.raises(Exception):
+        m._fetch_message_bytes(fake, "http://x/f.grb2", offs[1], offs[1] + sizes[1] - 1)
+
+
+@pytest.mark.parametrize("name", FETCHERS)
+def test_the_escape_hatch_leaves_correct_responses_untouched__THE_CONTROL(name, monkeypatch):
+    """The hatch must not tax the healthy path: an honoured Range passes through byte-identically."""
+    monkeypatch.setenv("GRIB_RANGE_STRICT", "0")
+    m = _mod(name)
+    body = b"GRIB" + b"y" * 96
+    fake = _FakeRequests(206, body)
+    assert m._fetch_message_bytes(fake, "http://x/f.grb2", 0, 99) == body
+
+
 # ── the one-sided comparison ────────────────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("name", FETCHERS)
