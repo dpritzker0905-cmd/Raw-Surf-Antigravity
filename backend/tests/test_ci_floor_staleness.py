@@ -242,9 +242,14 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #   guards        MEASURED AGAIN (2026-08-14, the spot_ratings.py split): +11 tests in
 #                 test_spot_rating_module_seam.py -> 1741 observed. chain re-measured at 786
 #                 (unchanged) and estate at 372 in the same sweep; neither floor moved.
-#   estate        MEASURED (2026-08-14, WS-CAN-0009): +10 tests in test_conditions_status_honesty.py
-#                 -> 382 observed, floor 380 with this lane's budget of 2.
-_FLOOR_SET_FROM = {"guards": 1741, "chain": 786, "estate": 398}
+#   estate        ⚠️⚠️ SET THIS ONE FROM THE CI READING, NEVER A LOCAL RUN (corrected 2026-08-15).
+#                 A local run of this lane is structurally ~10 HIGHER than CI's:
+#                 test_trevec_index_gc.py opens with a module-level importorskip on pyarrow+lance,
+#                 which a dev box has and CI never installs (pinned in NEITHER requirements file),
+#                 so its TEN tests are not collected there and ONE skip stands in their place.
+#                 Measured signature: local 400 passed/2864 skipped vs CI 388/2865, same 258 files.
+#                 Two raises on 2026-08-14 were set from local readings and reddened this lane.
+_FLOOR_SET_FROM = {"guards": 1741, "chain": 786, "estate": 388}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
