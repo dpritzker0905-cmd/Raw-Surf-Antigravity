@@ -988,7 +988,10 @@ jobs:
           # test_conditions_status_honesty.py, which the estate COMPLEMENT claims (checked with
           # `--lane estate`, 256→257 files, not inferred). MEASURED at `382 passed, 2864 skipped`
           # in 2:31 — the projection 372 + 10 agreed for once. 382 - 2 (this lane's budget) = 380.
-          MIN_PASSED = 380
+          # ⬆ estate MIN_PASSED 380→396 on 2026-08-14 (WS-CAN-0017). +16 tests in
+          # test_grib_range_integrity.py (estate complement, checked with `--lane estate`,
+          # 257→258 files). MEASURED at `398 passed, 2864 skipped` in 3:29; 398 - 2 = 396.
+          MIN_PASSED = 396
 
           try:
               root = ET.parse('estate.xml').getroot()

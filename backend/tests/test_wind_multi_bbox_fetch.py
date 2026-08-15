@@ -89,6 +89,16 @@ IDX_TEXT = (
 )
 
 
+def _range_len(headers, default=8):
+    """Bytes implied by a `bytes=a-b` Range header (inclusive), else `default`."""
+    rng = (headers or {}).get("Range", "") if headers else ""
+    if rng.startswith("bytes=") and "-" in rng:
+        a, _, b = rng[6:].partition("-")
+        if a.isdigit() and b.isdigit():
+            return int(b) - int(a) + 1
+    return default
+
+
 class _FakeRequests:
     """Counts range GETs so the COST assertion can be made directly."""
 
@@ -106,7 +116,11 @@ class _FakeRequests:
             self.idx_gets += 1
             return _Resp(IDX_TEXT)
         self.range_gets += 1
-        return _Resp(b"\x00" * 16)
+        # WS-CAN-0017: honour the Range handed to us. This used to answer a `bytes=a-b` request
+        # with a fixed 16 bytes — a response no real server gives, and exactly the shape the new
+        # length check rejects. A fixture that cannot occur disarms the guard downstream, so the
+        # FIXTURE is fixed, never the guard.
+        return _Resp(b"\x00" * _range_len(headers, 16))
 
 
 def _install(monkeypatch, req, fail_steps=()):

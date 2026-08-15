@@ -41,6 +41,22 @@ _IDX_KEYS = [
 ]
 
 
+def _range_len(headers, default=8):
+    """Bytes implied by a `bytes=a-b` Range header (inclusive), else `default`.
+
+    WS-CAN-0017: the double must honour the Range it is handed. It used to answer a
+    `bytes=0-999` request with a fixed 8 bytes — a response no real server gives, and exactly the
+    shape the new length check in `_fetch_message_bytes` exists to reject. A fixture that cannot
+    occur disarms the guard downstream, so the FIXTURE is fixed, never the guard.
+    """
+    rng = (headers or {}).get("Range", "") if headers else ""
+    if rng.startswith("bytes=") and "-" in rng:
+        a, _, b = rng[6:].partition("-")
+        if a.isdigit() and b.isdigit():
+            return int(b) - int(a) + 1
+    return default
+
+
 def _idx_text():
     """A .idx sidecar carrying all 12 wave messages, in the layout _parse_idx expects
     (parts[1]=start, parts[3]=var, parts[4]=level)."""
@@ -90,7 +106,8 @@ def noaa_env(monkeypatch, tmp_path):
             state["steps"] += 1
             state["t"] += state["per_step"]          # each forecast hour costs `per_step` seconds
             return types.SimpleNamespace(text=_idx_text(), status_code=200)
-        return types.SimpleNamespace(status_code=206, content=b"\x00" * 8)
+        return types.SimpleNamespace(status_code=206,
+                                     content=b"\x00" * _range_len(kw.get("headers")))
 
     monkeypatch.setattr(fetcher.requests if hasattr(fetcher, "requests") else __import__("requests"),
                         "get", _get)

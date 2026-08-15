@@ -46,6 +46,20 @@ _IDX_KEYS = [("HTSGW", "surface"), ("PERPW", "surface"), ("DIRPW", "surface"), (
              ("SWDIR", "1 in sequence"), ("SWDIR", "2 in sequence")]
 
 
+# WS-CAN-0017: the double must honour the Range it is handed. It used to answer a
+# `bytes=0-999` request with 8 bytes — a response no real server gives, and exactly the
+# shape the new length check exists to reject. A fixture that cannot occur disarms the
+# guard downstream, so the fixture is fixed, never the guard.
+def _range_len(headers, default=8):
+    """Bytes implied by a `bytes=a-b` Range header (inclusive), else `default`."""
+    rng = (headers or {}).get("Range", "") if headers else ""
+    if rng.startswith("bytes=") and "-" in rng:
+        a, _, b = rng[6:].partition("-")
+        if a.isdigit() and b.isdigit():
+            return int(b) - int(a) + 1
+    return default
+
+
 def _idx_text():
     return "\n".join(f"{i + 1}:{i * 1000}:d=2026080200:{v}:{lv}:anl:"
                      for i, (v, lv) in enumerate(_IDX_KEYS))
@@ -94,7 +108,8 @@ def broken_upstream(monkeypatch):
                 if state["n"] > ok_steps:
                     raise RuntimeError("HTTP 503 from upstream")
                 return types.SimpleNamespace(text=_idx_text(), status_code=200)
-            return types.SimpleNamespace(status_code=206, content=b"\x00" * 8)
+            return types.SimpleNamespace(status_code=206,
+                                         content=b"\x00" * _range_len(kw.get("headers")))
 
         monkeypatch.setattr(__import__("requests"), "get", _get)
         monkeypatch.setattr(fetcher, "requests", __import__("requests"), raising=False)

@@ -99,6 +99,21 @@ def _fetch_message_bytes(requests, url, start, end):
     r = requests.get(url, headers={"Range": rng}, timeout=HTTP_TIMEOUT)
     if r.status_code not in (200, 206):
         raise RuntimeError(f"range GET {rng} -> HTTP {r.status_code}")
+    # WS-CAN-0017: THE BYTES MUST BE THE BYTES WE ASKED FOR.
+    # ⚠️ The dangerous case is NOT truncation — that decodes to too few GRIB messages and the
+    # count check catches it. It is OVER-fetch: a server that IGNORES `Range` answers 200 with the
+    # WHOLE FILE, which was accepted here. Concatenating whole files yields MORE messages than
+    # expected, and every caller reads its variables POSITIONALLY (`msgs[0]` is U and `msgs[1]` is
+    # V in the wind lane), so the wrong message silently becomes the wrong variable.
+    # `end is None` means an open-ended `bytes=<start>-`, whose length nobody stated — validating a
+    # length that was never requested would break those callers, so it is deliberately exempt.
+    if end is not None:
+        want = end - start + 1
+        got = len(r.content)
+        if got != want:
+            raise RuntimeError(
+                f"range GET {rng} -> HTTP {r.status_code} returned {got} bytes, expected {want}"
+                f" (a server that ignores Range answers 200 with the whole file)")
     return r.content
 
 
@@ -169,7 +184,10 @@ def fetch_global_coarse(payload):
 
             grbs = pygrib.open(str(out))
             msgs = grbs.read()  # concatenation order: [UGRD, VGRD]
-            if len(msgs) < 2:
+            # WS-CAN-0017: `!=`, NOT `<` — msgs[0] is U and msgs[1] is V immediately below, so
+            # an extra message does not mean "spare data", it means the vectors may be the wrong
+            # fields and every wind direction derived from them is wrong.
+            if len(msgs) != 2:
                 raise RuntimeError(f"decoded {len(msgs)} msgs, expected 2")
 
             if idx_by is None:

@@ -67,6 +67,20 @@ class _Grbs:
         pass
 
 
+# WS-CAN-0017: the double must honour the Range it is handed. It used to answer a
+# `bytes=0-999` request with 8 bytes — a response no real server gives, and exactly the
+# shape the new length check exists to reject. A fixture that cannot occur disarms the
+# guard downstream, so the fixture is fixed, never the guard.
+def _range_len(headers, default=8):
+    """Bytes implied by a `bytes=a-b` Range header (inclusive), else `default`."""
+    rng = (headers or {}).get("Range", "") if headers else ""
+    if rng.startswith("bytes=") and "-" in rng:
+        a, _, b = rng[6:].partition("-")
+        if a.isdigit() and b.isdigit():
+            return int(b) - int(a) + 1
+    return default
+
+
 class _Resp:
     def __init__(self, text=b"", status=200):
         self._t = text
@@ -100,7 +114,7 @@ class _FakeRequests:
             self.idx_gets += 1
             return _Resp(IDX_TEXT)
         self.range_gets += 1
-        return _Resp(b"\x00" * 8)
+        return _Resp(b"\x00" * _range_len(headers, 8))
 
 
 class _FrozenDatetime(datetime):

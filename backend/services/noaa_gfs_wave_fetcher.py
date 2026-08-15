@@ -250,6 +250,21 @@ def _fetch_message_bytes(requests, url, start, end):
     r = requests.get(url, headers={"Range": rng}, timeout=HTTP_TIMEOUT)
     if r.status_code not in (200, 206):
         raise RuntimeError(f"range GET {rng} -> HTTP {r.status_code}")
+    # WS-CAN-0017: THE BYTES MUST BE THE BYTES WE ASKED FOR.
+    # ⚠️ The dangerous case is NOT truncation — that decodes to too few GRIB messages and the
+    # count check catches it. It is OVER-fetch: a server that IGNORES `Range` answers 200 with the
+    # WHOLE FILE, which was accepted here. Concatenating whole files yields MORE messages than
+    # expected, and every caller reads its variables POSITIONALLY (`msgs[0]` is U and `msgs[1]` is
+    # V in the wind lane), so the wrong message silently becomes the wrong variable.
+    # `end is None` means an open-ended `bytes=<start>-`, whose length nobody stated — validating a
+    # length that was never requested would break those callers, so it is deliberately exempt.
+    if end is not None:
+        want = end - start + 1
+        got = len(r.content)
+        if got != want:
+            raise RuntimeError(
+                f"range GET {rng} -> HTTP {r.status_code} returned {got} bytes, expected {want}"
+                f" (a server that ignores Range answers 200 with the whole file)")
     return r.content
 
 
@@ -377,8 +392,12 @@ def fetch_global_coarse(payload):
 
             grbs = pygrib.open(str(out))
             msgs = grbs.read()  # in concatenation order == OM_ORDER
-            if len(msgs) < len(OM_ORDER):
-                raise RuntimeError(f"decoded {len(msgs)} msgs, expected {len(OM_ORDER)}")
+            # WS-CAN-0017: `!=`, NOT `<`. The variables below are read POSITIONALLY
+            # (`msgs[mi]` per OM_ORDER), so this depends on "exactly these messages", not "at
+            # least this many". A `<` accepted N+k — the signature of a Range request answered
+            # with a whole file — and then silently mapped the wrong message to each variable.
+            if len(msgs) != len(OM_ORDER):
+                raise RuntimeError(f"decoded {len(msgs)} msgs, expected exactly {len(OM_ORDER)}")
 
             if idx_by is None:
                 # One nearest-neighbour map per region, built ONCE off the first decoded message —

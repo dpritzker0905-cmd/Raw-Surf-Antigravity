@@ -85,6 +85,7 @@ tests/test_google_calendar.py
 tests/test_google_maps.py
 tests/test_gps_autocentering_iter148.py
 tests/test_gps_features.py
+tests/test_grib_range_integrity.py
 tests/test_grom_hq_iter114.py
 tests/test_grom_hq_manage_iter107.py
 tests/test_grom_hq_role_permissions_iter109.py

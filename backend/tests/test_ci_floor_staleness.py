@@ -244,7 +244,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #                 (unchanged) and estate at 372 in the same sweep; neither floor moved.
 #   estate        MEASURED (2026-08-14, WS-CAN-0009): +10 tests in test_conditions_status_honesty.py
 #                 -> 382 observed, floor 380 with this lane's budget of 2.
-_FLOOR_SET_FROM = {"guards": 1741, "chain": 786, "estate": 382}
+_FLOOR_SET_FROM = {"guards": 1741, "chain": 786, "estate": 398}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
