@@ -77,7 +77,16 @@ def fetcher(monkeypatch):
     def _get(url, **kw):
         if url.endswith(".idx"):
             return types.SimpleNamespace(text=idx, status_code=200)
-        return types.SimpleNamespace(status_code=206, content=b"\x00" * 8)
+        # WS-CAN-0017: honour the Range handed to us. A fixed 8 bytes for a `bytes=0-999` request
+        # is a response no real server gives, and it is exactly what `_fetch_message_bytes` now
+        # rejects. Fix the fixture, never the guard.
+        rng = (kw.get("headers") or {}).get("Range", "")
+        n = 8
+        if rng.startswith("bytes=") and "-" in rng:
+            a, _, b = rng[6:].partition("-")
+            if a.isdigit() and b.isdigit():
+                n = int(b) - int(a) + 1
+        return types.SimpleNamespace(status_code=206, content=b"\x00" * n)
 
     monkeypatch.setattr(__import__("requests"), "get", _get)
     return f

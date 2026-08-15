@@ -138,7 +138,14 @@ def _run(monkeypatch, vector_flag, part_conf="1", resolution=30.0, bbox=None):
     def _get(url, **kw):
         if url.endswith(".idx"):
             return types.SimpleNamespace(text=_idx_text(), status_code=200)
-        return types.SimpleNamespace(status_code=206, content=b"\x00" * 8)
+        # WS-CAN-0017: honour the Range handed to us — see the note in test_grib_range_integrity.
+        rng = (kw.get("headers") or {}).get("Range", "")
+        n = 8
+        if rng.startswith("bytes=") and "-" in rng:
+            a, _, b = rng[6:].partition("-")
+            if a.isdigit() and b.isdigit():
+                n = int(b) - int(a) + 1
+        return types.SimpleNamespace(status_code=206, content=b"\x00" * n)
 
     monkeypatch.setattr(__import__("requests"), "get", _get)
     payload = {"bbox": bbox or {"west": -180.0, "south": -80.0, "east": 180.0, "north": 85.0},

@@ -151,3 +151,47 @@ def test_the_ast_scan_can_actually_find_a_len_msgs_compare__THE_CONTROL():
     assert seen >= 2, (
         f"the scan found only {seen} `len(msgs)` comparisons across the three fetchers — the "
         "variable was renamed and the guard above is grading nothing")
+
+
+# ── the fixture census ──────────────────────────────────────────────────────────────────────────
+
+def test_no_test_double_answers_a_RANGE_request_with_a_FIXED_body():
+    """⭐ THIS GUARD EXISTS BECAUSE MY CENSUS MISSED TWO FILES, TWICE.
+
+    Adding the length check broke test doubles that answered a `bytes=0-999` request with a fixed
+    8 or 16 bytes. I grepped for one spelling, fixed four files, and shipped — then the full guards
+    lane found a FIFTH (`test_noaa_multi_resolution.py`) and a sixth
+    (`test_vector_blockmean_loop_shadow.py`) that my pattern had not matched.
+
+    ⇒ ENUMERATE BY THE PROPERTY, NOT BY THE SPELLING. A double that returns a body whose length is
+    independent of the Range it was handed is modelling a server that cannot exist, and it disarms
+    `_fetch_message_bytes` for every test that uses it. This scans for the PROPERTY.
+    """
+    import glob
+    import re
+
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    offenders = []
+    for path in glob.glob(os.path.join(tests_dir, "test_*.py")):
+        src = open(path, encoding="utf-8").read()
+        # only files that stub a partial-content response at all
+        if "206" not in src:
+            continue
+        for m in re.finditer(r'content=b"\x00" \* (\d+)|_Resp\(b"\x00" \* (\d+)\)', src):
+            line = src[:m.start()].count("\n") + 1
+            offenders.append(f"{os.path.basename(path)}:{line}: {m.group(0)}")
+    assert not offenders, (
+        "these doubles answer a Range request with a FIXED-length body, which no real server does "
+        "and which `_fetch_message_bytes` now rejects:\n  " + "\n  ".join(offenders)
+        + "\n\nDerive the length from the Range header instead (see _range_len in the fetcher suites).")
+
+
+def test_the_fixture_census_actually_reaches_the_test_tree__THE_CONTROL():
+    """REFUSE rather than pass vacuously: if the glob stops matching, the scan above grades nothing."""
+    import glob
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
+    files = glob.glob(os.path.join(tests_dir, "test_*.py"))
+    assert len(files) > 100, f"the census reached only {len(files)} test files — it is not scanning"
+    with_206 = [f for f in files if "206" in open(f, encoding="utf-8").read()]
+    assert len(with_206) >= 3, (
+        f"only {len(with_206)} files stub a 206 at all — the census has gone blind to the class")
