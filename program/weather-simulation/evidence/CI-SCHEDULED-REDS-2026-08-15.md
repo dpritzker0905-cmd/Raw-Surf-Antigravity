@@ -434,9 +434,49 @@ errors and a refused WebSocket handshake against the prod backend throughout att
 failure passed on both Safari targets in the same run. ⇒ environmental, and the *runtime ratio* is
 the piece of evidence worth keeping — it survives a re-run, whereas the verdict does not.
 
-⚠️ **What the green re-run erased, and nobody is counting:** **12 of 47** tests (25.5%) needed a retry
-in attempt 1. A suite riding that hard on retries is one bad runner away from red, and the record of
-it now exists only in an attempt nobody queries.
+### ⚠️ CORRECTION TO THE LINE ABOVE — the flake load is CHRONIC, not a property of the bad attempt
+
+I first wrote that attempt 1's **12 of 47** retries were what the green re-run erased, framed as a
+newly-surfaced signal. **A census of the last 10 E2E runs shows 12 is not a record — it is the top of
+an established range, and it has already occurred in a run that passed on its FIRST attempt.**
+
+| created (UTC) | att | conclusion | flaky | passed | wall |
+|---|---|---|---|---|---|
+| 08-15 16:12 | **2** | success | 0 | 47 | 9.8m |
+| 08-15 16:12 | *1* | *failure* | **12** | 34 (+1 failed) | **21.8m** |
+| 08-15 04:35 | 1 | success | **5** | 42 | 10.3m |
+| 08-15 04:29 | 1 | cancelled | — | — | — |
+| 08-15 04:11 | 1 | success | 0 | 47 | 10.9m |
+| 08-15 03:43 | 1 | success | **7** | 40 | 11.0m |
+| 08-14 04:52 | 1 | success | **11** | 36 | 12.1m |
+| 08-13 22:55 | 1 | success | **5** | 42 | 6.9m |
+| 08-13 21:06 | 1 | success | 0 | 47 | 9.9m |
+| 08-13 20:38 | 1 | success | **12** | 35 | 9.0m |
+| 08-13 20:05 | 1 | success | 0 | 47 | 7.1m |
+
+⇒ **6 of 9 completed runs carry flaky tests, 5–12 of 47 (10.6%–25.5%), and every one reports
+`success`.** The retry budget is load-bearing across the whole suite, not on one bad night.
+
+✅ **AND THE POPULATION STRENGTHENS THE ENVIRONMENTAL VERDICT.** The earlier claim rested on a
+pairwise 21.8 vs 9.8 min. Against the full population the normal range is **6.9–12.1 min**, so
+attempt 1 at **21.8 min** is **1.8× the slowest normal run** — an outlier against nine observations,
+not against one.
+
+▶ **The census as a COMMAND, because a number in prose decays and the enumeration does not:**
+
+```bash
+for id in $(gh run list --workflow "E2E Tests" --limit 10 --json databaseId --jq '.[].databaseId'); do
+  gh api repos/{owner}/{repo}/actions/runs/$id --jq '"\(.created_at[0:16]) att=\(.run_attempt) \(.conclusion)"'
+  gh run view $id --log | grep -oE "Z +[0-9]+ (failed|flaky|skipped|passed)( \([0-9.]+m\))?$" | sed -E 's/^Z +//'
+done
+```
+
+⛔ **Anchor on the CONTENT, never on the step name.** Two regexes failed first: one loose enough to
+capture a stray `5734 failed` from unrelated output, then one anchored on `Run E2E tests\t…` which
+returned `<none>` for **6 of 8** runs — because `gh run view --log` renders that field as
+**`UNKNOWN STEP`** on some runs. A positive control on a single `<none>` run found the summary line
+present all along. ★ **Neither regex was a census; one over-counted and one silently under-counted,
+and only the control told them apart.**
 
 ---
 
