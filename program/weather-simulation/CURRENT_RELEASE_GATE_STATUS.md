@@ -41,3 +41,25 @@ marker / L1 run component, and cache rotation) are owner-facing by the register'
 
 Second: **`WS-CAN-0039`** (unfreeze production frontend) — owner-gated, and it converts a growing
 stack of delivered-but-unseen frontend work, now including Mission 1's rendered half, into user value.
+
+---
+
+## Addendum 2026-08-15 — Master Codex remediation batch (no gate claimed passed)
+
+Master Codex Audit 1.0 (external, OneDrive) was revalidated finding-by-finding at `c1566c8b`; all
+ten reproduce (one live on production). Four repairs landed this batch — none closes a gate, and
+the served forecast is unchanged until the owner acts:
+
+| item | state | gate effect |
+|---|---|---|
+| **WS-CAN-0072** cap seam (MC-01 = the 11.0 §3.8 seam) | repaired **DARK** — `SURF_CAP_SEAM_MONOTONE` default OFF; 0/48 probe jumps armed; census attached | Gate 1 unchanged; **owner flip required** (D-4) |
+| **WS-CAN-0017** range integrity (MC-05 residual) | `GRIB_RANGE_STRICT=0` now extracts-or-refuses; log-and-continue is gone | strengthens WS-OBJ-304; checksum half still open |
+| **WS-CAN-0073** calibration refusal (MC-03) | live `available:true` at 60000/0/0 now refuses with a reason | measure-or-refuse; the OUTCOME LOOP itself (observations) remains unbuilt |
+| **WS-CAN-0074** diagnostics ingress (MC-07) | bounded: 422 at the door, rotation, no `str(e)` | sink separation + auth model remain |
+
+Registry truth fix in passing: `_RATING_FLAGS` said `SURF_HEIGHT_H110` default `"0"` — stale since
+2026-08-05 — so the admin panel misreported the live statistic. Corrected, test-pinned.
+
+**Still the bottleneck, unchanged by this batch:** WS-CAN-0005's staged plan (owner), the
+`SPOT_RATINGS_CONCURRENCY` admin read, WS-CAN-0021 credential rotation (owner/security),
+WS-CAN-0039 (frontend freeze), and now the WS-CAN-0072 flip. Floors deliberately not raised (D-5).

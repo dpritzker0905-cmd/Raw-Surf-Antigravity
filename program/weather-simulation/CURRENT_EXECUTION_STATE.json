@@ -108,5 +108,21 @@
     "blocker": "the live value of SPOT_RATINGS_CONCURRENCY on Render, readable only at admin-gated /admin/surf-forecast/status",
     "warning": "that one env var drives TWO route semaphores (conditions/batch AND /spot-ratings) — any change is a two-surface change on a 1-CPU box",
     "evidence": "program/weather-simulation/evidence/performance/WS-CAN-0064-latency-forensics.md"
+  },
+  "codex_remediation_2026_08_15": {
+    "source": "Master Codex Audit 1.0 (external, OneDrive); every finding revalidated at c1566c8b before repair",
+    "missions": [
+      {"id": "WS-CAN-0072", "finding": "MC-01 cap seam (= 11.0 §3.8, WS-CAN-0052 blocker)",
+       "status": "Implemented DARK — SURF_CAP_SEAM_MONOTONE default OFF; probe 38/48 jump traces -> 0/48 armed; 47 tests, mutations M1-M4",
+       "owner_gate": "flip in ALL THREE lanes together with the band census reviewed (D-4)"},
+      {"id": "WS-CAN-0017 (MC-05 residual)", "status": "Closed for the escape hatch — GRIB_RANGE_STRICT=0 extracts-or-refuses, never accepts; 36 tests"},
+      {"id": "WS-CAN-0073", "finding": "MC-03 empty calibration available:true (reproduced LIVE)",
+       "status": "Closed — refuses at n_matched=0 with a reason; REPORT_CAL_MIN_MATCHED owner-tunable"},
+      {"id": "WS-CAN-0074", "finding": "MC-07 unbounded diagnostics ingress + str(e) leak",
+       "status": "Closed for bounding — 422 at the door, 5MB rotation, generic 500; sink separation and auth model remain"}
+    ],
+    "registry_truth_fix": "SURF_HEIGHT_H110 default in _RATING_FLAGS corrected '0' -> '1' (stale since 2026-08-05), test-pinned",
+    "floors": "NOT raised — D-5: floors come from CI's origin/dev reading, which requires an authorized push first",
+    "release_state": {"pushed": false, "authorization": "none; program rule 7", "note": "commits are local on top of the other session's pushed b292e243/aa305291"}
   }
 }

@@ -2,6 +2,35 @@
 
 **Written so a fresh session can continue WITHOUT rereading the 12+ audits.**
 
+---
+
+## ⬆ 2026-08-15 LATER — Master Codex remediation batch (SECOND session; committed, NOT pushed)
+
+The external **Master Codex Audit 1.0** (`C:\Users\dprit\OneDrive\Documents\New project\`) was
+revalidated at `c1566c8b` — all ten findings reproduce (MC-03 live on production) — and four
+repairs landed as local commits on top of the other session's pushed work:
+
+- **WS-CAN-0072** — the cap seam (MC-01 = the 11.0 §3.8 seam, WS-CAN-0052's blocker) repaired
+  **DARK**: `publish_surf_height` converts-then-compares behind `SURF_CAP_SEAM_MONOTONE`
+  (default OFF, registry-declared). Audit probe 38/48 negative-jump traces → **0/48** armed;
+  47 tests, M1–M4 mutations; `surf_transform.py` 800→795. ⛔ **The flip is the owner's, three
+  lanes together — read D-4.** Evidence: `evidence/scientific-validation/MC01-capseam-evidence.md`.
+- **WS-CAN-0017** — `GRIB_RANGE_STRICT=0` now **extracts-or-refuses** (provable ignore-Range 200 →
+  exact slice, GRIB magic checked; anything else raises). 36 tests in the file.
+- **WS-CAN-0073** — `/report-calibration` refuses at `n_matched=0` with a reason (was
+  `available:true` at 60000/0/0, reproduced live).
+- **WS-CAN-0074** — `/client-diagnostics` bounded (422 at the door, 5 MB rotation, no `str(e)`).
+- Registry truth: `SURF_HEIGHT_H110` default in `_RATING_FLAGS` corrected `"0"`→`"1"` (stale since
+  08-05; the admin panel misreported the live statistic), test-pinned.
+
+⛔ **Floors deliberately NOT raised** — D-5: they are set from CI's origin/dev reading, which
+cannot exist before an authorized push. After that push: pair-edit per lane from the CI numbers.
+⛔ **Nothing pushed by this session** (rule 7). The owner-decision queue gained one item:
+flip `SURF_CAP_SEAM_MONOTONE` (with the census) — see the addendum in
+`CURRENT_RELEASE_GATE_STATUS.md`.
+
+---
+
 | | |
 |---|---|
 | **Date** | 2026-08-15 |

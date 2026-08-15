@@ -207,3 +207,45 @@ sourced from CI — but the residual is real and is recorded rather than rounded
 
 ⇒ **The other half of L-2 (the Calibration Census exiting 1 instead of 2 on a 503) is untouched and
 still open.** It is not mine and the one-line fix is already named in that entry.
+
+---
+
+## D-4 — The cap-seam repair ships DARK; the default flip is the owner's, with the census in hand
+
+**Date** 2026-08-15 · **Task** WS-CAN-0072 (Master Codex MC-01 = the 11.0 §3.8 cap seam)
+
+The repair (`SURF_CAP_SEAM_MONOTONE`) is implemented, property-tested (47 tests, mutation matrix
+M1–M4), and proven on the audit's own probe (38/48 negative-jump traces → 0/48). It ships with the
+flag **default OFF — byte-identical legacy** — although the audit grades the defect P0, because:
+
+1. **The 11.0 disposition for this exact seam** was "flag + winter-frame census + owner sign-off",
+   and nothing measured since weakens it: the changed values live only on big-wave frames.
+2. **Every push to `dev` is a production deploy**, so a default-ON commit IS the release action —
+   which program rule 7 reserves for separate authorization.
+3. **The flip is a three-lane act**: precomputed frames bake heights, so Render env +
+   forecast-ingest.yml + precompute.yml must move together or frames disagree (the RATING_TIDE
+   class). A code-default flip alone cannot ship it correctly anyway.
+
+**What the owner reviews before flipping:** the band census
+(`evidence/scientific-validation/mc01-capseam-census.json`): served heights change ONLY inside the
+over-ceiling band (corrections up to −21.26%, the theoretical bound), ratings in the band move
+median +0.2 with 70/409 sampled cells crossing a bucket. Production reach is bounded by the cap's
+0.145%-of-spot-hours bind rate.
+
+**Reopen trigger:** owner flips the flag → run the real-spot winter-frame census + re-baseline the
+sim control table in CLAUDE.md (its `8 m → 30.6 ft` row is an over-ceiling artifact and becomes
+29.5 ft under the repair).
+
+## D-5 — Lane floors NOT raised in the 2026-08-15 batch, deliberately
+
+**Date** 2026-08-15 · applies to guards (+47 tests), chain (+4), estate (+25)
+
+`ci.yml`'s own convention (twice bitten, L-2 just re-proved it): **floors are measured from CI's
+reading on origin/dev, never from a local run or a shared working tree.** This batch is not pushed
+(rule 7), so no CI reading containing it can exist yet. Raising floors from local arithmetic would
+repeat the exact 5fcdd817 mistake in the same week it was corrected.
+
+**The mechanical step owed after an authorized push:** read the three lanes' pass counts from the
+CI run on origin/dev, then make the PAIR of edits per lane (ci.yml `MIN_PASSED` = reading − budget
+[6/6/2]; `_FLOOR_SET_FROM` = the reading) in one commit. Until then the floors are merely
+conservative, which a shrink-only floor is allowed to be.
