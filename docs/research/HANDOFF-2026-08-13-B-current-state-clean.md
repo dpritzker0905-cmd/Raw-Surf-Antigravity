@@ -127,7 +127,22 @@ count is a truncation tell"*). The **failure** form was not guarded.
 ⚠️ **388 vs 396 does not say WHICH** — tests removed/moved (lower the floor) or tests skipping
 (floor right, collection wrong). The message names both; the fixes are opposite.
 ▶ Discriminator: `git log -S "def test_"` on the estate lane's files vs the run's skip count.
-✅ **DISCRIMINATOR RESOLVED 2026-08-14 (re-fired, identical 388 vs 396).** The run log carries
+⛔ **RETRACTED — I READ CI.YML COMMENTS AS RUN OUTPUT.** I claimed the discriminator was
+resolved ("identical 2864 skips ⇒ 10 tests LEFT the lane"). Both figures — `398 passed,
+2864 skipped` and `382 passed, 2864 skipped` — are **COMMENT LINES in `ci.yml` (989, 993)**,
+the author's record of past measurements. The matching 2864 is one comment quoting a number
+and another quoting the same number, **not two observations agreeing.**
+★ Sixth mis-identification this session, and the second where a COMMENT was read as a READING —
+against my own rule *never take a number from a docstring, measure it*.
+
+**What actually survives:** `388 passed, floor 396` and `0 silent` (this run, real) · **7 backend
+test files ADDED, none deleted or renamed in 24h** (`git log --diff-filter=ADR`, real).
+Additions with no deletions makes "tests left the lane" LESS likely, not more.
+▶ **STILL UNDETERMINED.** The honest discriminator is this run's own pytest summary line
+(passed/skipped for the estate invocation) compared against a GREEN run's — neither of which
+I extracted. Do not act on the floor until one of those is read.
+
+~~DISCRIMINATOR RESOLVED (superseded)~~: The run log carries
 the floor's own derivation and the current reading:
   `398 passed, 2864 skipped` in 3:29; 398 - 2 = 396.   ← how the floor was set
   `388 passed, floor is 396`                            ← now
