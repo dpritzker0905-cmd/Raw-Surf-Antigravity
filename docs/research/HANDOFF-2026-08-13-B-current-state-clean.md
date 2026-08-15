@@ -127,6 +127,17 @@ count is a truncation tell"*). The **failure** form was not guarded.
 ⚠️ **388 vs 396 does not say WHICH** — tests removed/moved (lower the floor) or tests skipping
 (floor right, collection wrong). The message names both; the fixes are opposite.
 ▶ Discriminator: `git log -S "def test_"` on the estate lane's files vs the run's skip count.
+✅ **DISCRIMINATOR RESOLVED 2026-08-14 (re-fired, identical 388 vs 396).** The run log carries
+the floor's own derivation and the current reading:
+  `398 passed, 2864 skipped` in 3:29; 398 - 2 = 396.   ← how the floor was set
+  `388 passed, floor is 396`                            ← now
+**The skip count is IDENTICAL (2864) in both.** ⇒ the 398→388 drop is **NOT new skips** —
+**10 tests left the lane**. That is the removed/moved branch: the floor should come down,
+the collection is not broken. Also `0 silent`, so no selected file failed to report.
+⚠️ **BUT DO NOT LOWER ESTATE ALONE.** `guards` is over-raised too (`MIN_PASSED 1735 vs
+1720 observed`). Two lanes above their observations at once looks systematic — and estate
+is a **COMPLEMENT**, so tests moving INTO guards should have RAISED guards' reading, not
+lowered it. Reconcile both lanes together, or a genuine loss gets masked by a floor cut.
 
 ★ **`Precompute Spot Ratings` self-heals** — failed 08:47Z (1m40s), the next scheduled run
 succeeded 12:26Z (45m57s, full). **A single failed cron here is not a signal; check the next run.**
