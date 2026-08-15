@@ -262,9 +262,19 @@ def _fetch_message_bytes(requests, url, start, end):
         want = end - start + 1
         got = len(r.content)
         if got != want:
-            raise RuntimeError(
-                f"range GET {rng} -> HTTP {r.status_code} returned {got} bytes, expected {want}"
-                f" (a server that ignores Range answers 200 with the whole file)")
+            msg = (f"range GET {rng} -> HTTP {r.status_code} returned {got} bytes, expected {want}"
+                   f" (a server that ignores Range answers 200 with the whole file)")
+            # ⭐ KILL SWITCH, house convention — every other risky switch in this repo has one.
+            # VERIFIED against live NOAA 2026-08-14: requested bytes=0-706045, got exactly 706046,
+            # Content-Range confirmed. But that was a DIRECT fetch, and production egresses through
+            # Render, which cannot be tested from a dev box. If a proxy ever rewrote ranges this
+            # check would stop EVERY ingest cycle and the whole forecast estate would go stale
+            # behind it. GRIB_RANGE_STRICT=0 degrades it to a loud stderr line with NO deploy —
+            # seconds to recover instead of revert-and-redeploy.
+            if os.environ.get("GRIB_RANGE_STRICT", "1") == "0":
+                sys.stderr.write(f"[range-integrity DISABLED] {msg}\n")
+            else:
+                raise RuntimeError(msg)
     return r.content
 
 

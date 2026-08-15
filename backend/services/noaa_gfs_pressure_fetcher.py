@@ -109,9 +109,15 @@ def _fetch_message_bytes(requests, url, start, end):
         want = end - start + 1
         got = len(r.content)
         if got != want:
-            raise RuntimeError(
-                f"range GET {rng} -> HTTP {r.status_code} returned {got} bytes, expected {want}"
-                f" (a server that ignores Range answers 200 with the whole file)")
+            msg = (f"range GET {rng} -> HTTP {r.status_code} returned {got} bytes, expected {want}"
+                   f" (a server that ignores Range answers 200 with the whole file)")
+            # ⭐ KILL SWITCH — see the note in noaa_gfs_wave_fetcher. Verified against live NOAA
+            # 2026-08-14, but production egresses through Render and a range-rewriting proxy would
+            # stop every ingest cycle. GRIB_RANGE_STRICT=0 degrades this to a log without a deploy.
+            if os.environ.get("GRIB_RANGE_STRICT", "1") == "0":
+                sys.stderr.write(f"[range-integrity DISABLED] {msg}\n")
+            else:
+                raise RuntimeError(msg)
     return r.content
 
 
