@@ -48,7 +48,8 @@ _COL = {"WDIR": 5, "WSPD": 6, "GST": 7, "WVHT": 8, "DPD": 9, "APD": 10, "MWD": 1
 #     CLOSED (returns None) rather than returning a stale reading with a timestamp nobody reads.
 # This is the repo's recorded "one <selector> serving two quantities" class — cf. MATCH_RADIUS_KM
 # governing both the shore normal and the break depth.
-WIND_OBS_MAX_AGE_MIN = float(os.environ.get("BUOY_WIND_OBS_MAX_AGE_MIN", "90"))
+from services.weather_pipeline.config_env import env_float
+WIND_OBS_MAX_AGE_MIN = env_float("BUOY_WIND_OBS_MAX_AGE_MIN", 90.0, lo=0.0)
 
 
 def _num(tok) -> Optional[float]:

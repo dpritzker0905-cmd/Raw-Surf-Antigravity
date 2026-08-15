@@ -53,7 +53,8 @@ logger = logging.getLogger(__name__)
 
 # Bounded by default: a sweep that quietly tried 1,773 spots at ~22 s each would run for hours and
 # hammer a public NOAA endpoint. The caller raises it deliberately.
-MAX_PER_RUN = int(os.environ.get("GEOMETRY_RESOLVE_MAX", "50"))
+from services.weather_pipeline.config_env import env_int
+MAX_PER_RUN = env_int("GEOMETRY_RESOLVE_MAX", 50, lo=1)
 
 
 def _gate():

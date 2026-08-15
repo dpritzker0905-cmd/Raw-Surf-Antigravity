@@ -441,7 +441,8 @@ def dominant_swell_period(partitions):
 # ⚠️ PRE-FLIP GATE for queue #5. SURF_PARTITIONS is OFF, so this does not run in production today.
 # ⇒ FULL EVIDENCE, both control bands and the before/after A/B: tests/test_partition_exposure_energy_share.py
 # Kill switch: RATING_MIN_SWELL_ENERGY_SHARE=0 restores the pre-2026-08-03 behaviour exactly.
-MIN_SWELL_ENERGY_SHARE = float(os.environ.get("RATING_MIN_SWELL_ENERGY_SHARE", "0.50"))
+from services.weather_pipeline.config_env import env_float
+MIN_SWELL_ENERGY_SHARE = env_float("RATING_MIN_SWELL_ENERGY_SHARE", 0.50, lo=0.0, hi=1.0)
 
 
 def effective_swell_exposure(partitions, shore_normal_deg):

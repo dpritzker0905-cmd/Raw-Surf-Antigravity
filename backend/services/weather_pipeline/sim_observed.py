@@ -44,12 +44,13 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger("weather_sim_mcp")
 
 APP_BASE = os.environ.get("RAW_SURF_BASE_URL", "https://raw-surf-antigravity.onrender.com")
-TIMEOUT_S = float(os.environ.get("SIM_OBSERVED_TIMEOUT_S", "8"))
-CACHE_MAX = int(os.environ.get("SIM_OBSERVED_CACHE_MAX", "256"))
-CACHE_TTL_S = float(os.environ.get("SIM_OBSERVED_CACHE_TTL_S", "900"))
+from services.weather_pipeline.config_env import env_float, env_int
+TIMEOUT_S = env_float("SIM_OBSERVED_TIMEOUT_S", 8.0, lo=0.5)
+CACHE_MAX = env_int("SIM_OBSERVED_CACHE_MAX", 256, lo=1)
+CACHE_TTL_S = env_float("SIM_OBSERVED_CACHE_TTL_S", 900.0, lo=0.0)
 # The bbox half-width around the spot. Small enough that the nearest rated row is this spot and not
 # a neighbour 20 km up the coast; large enough to survive the precompute's own coordinate rounding.
-BBOX_PAD_DEG = float(os.environ.get("SIM_OBSERVED_BBOX_PAD", "0.02"))
+BBOX_PAD_DEG = env_float("SIM_OBSERVED_BBOX_PAD", 0.02, lo=0.0)
 
 _cache: Dict[Any, Any] = {}
 

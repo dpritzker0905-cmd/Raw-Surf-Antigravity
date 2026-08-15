@@ -719,6 +719,11 @@ def get_snapped_bbox(bbox_str: str, model: str) -> str:
 
 
 
+# re-export for route modules sitting against the 800-LOC ratchet: one import line there covers
+# both route support and config reads (MC-09).
+from services.weather_pipeline.config_env import env_int  # noqa: F401
+
+
 # ── the bounded diagnostics log (MC-07, 2026-08-15) ─────────────────────────────────────────────
 # One rotation at the cap keeps total disk at ~2x DIAG_LOG_MAX_BYTES whatever an anonymous client
 # sends to POST /client-diagnostics. Lives here rather than in routes/weather.py both because file

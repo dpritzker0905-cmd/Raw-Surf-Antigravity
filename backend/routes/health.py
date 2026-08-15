@@ -144,6 +144,17 @@ async def health_check(
     except Exception as e:            # an instrument must never break the thing it observes
         logger.warning(f"[health] memory probe failed: {e}")
 
+    # ── the configuration fingerprint (MC-09, 2026-08-15) ────────────────────────────────────────
+    # A redacted identity for the resolved flag registry: hash + counts, never values. Two boxes
+    # or two moments can be told apart during an incident without a flag crossing the wire. Same
+    # never-break-the-instrument posture as the memory probe above.
+    config_fp = {"config_fingerprint": None, "flags_declared": None, "flags_non_default": None}
+    try:
+        from services.weather_pipeline.config_env import compute_config_fingerprint
+        config_fp = compute_config_fingerprint()
+    except Exception as e:
+        logger.warning(f"[health] config fingerprint failed: {e}")
+
     # Process Uptime
     try:
         p = psutil.Process(os.getpid())
@@ -194,6 +205,7 @@ async def health_check(
         "request_telemetry": request_telemetry,
         "environment": os.environ.get("RENDER", "local"),
         "runtime": _runtime_fingerprint(),
+        "config": config_fp,
         "memory": memory,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "copernicus_credentials_present": bool(copernicus_user and copernicus_password),

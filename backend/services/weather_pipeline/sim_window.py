@@ -29,8 +29,9 @@ from services.weather_pipeline.sim_rating import calculate_surf_rating
 
 # 24 frames x 2 requests = 48 worst-case round trips. At the measured 0.42 s per frame warm-server
 # cold-cache, that is ~10 s — inside a client budget, and the far tail is bounded by the breaker.
-MAX_FRAMES = int(os.environ.get("SIM_WINDOW_MAX_FRAMES", "24"))
-MAX_HOURS_AHEAD = int(os.environ.get("SIM_WINDOW_MAX_HOURS", "168"))   # the app serves ~7 days
+from services.weather_pipeline.config_env import env_int
+MAX_FRAMES = env_int("SIM_WINDOW_MAX_FRAMES", 24, lo=1)
+MAX_HOURS_AHEAD = env_int("SIM_WINDOW_MAX_HOURS", 168, lo=1)   # the app serves ~7 days
 
 
 def plan_hours(hours_ahead: int, step_hours: int, now: Optional[datetime] = None) -> List[str]:
