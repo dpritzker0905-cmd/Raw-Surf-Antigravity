@@ -50,8 +50,9 @@ from services.weather_pipeline.spot_geometry_readiness import assess_geometry
 
 # 12 spots x 2 requests = 24 worst-case round trips, the same shape of budget `sim_window.MAX_FRAMES`
 # bounds for hours. Warm-cache re-scans are free (`sim_forecast` holds a FIFO+TTL cache).
-MAX_SPOTS = int(os.environ.get("SIM_COMPARE_MAX_SPOTS", "12"))
-MAX_RADIUS_KM = float(os.environ.get("SIM_COMPARE_MAX_RADIUS_KM", "300"))
+from services.weather_pipeline.config_env import env_float, env_int
+MAX_SPOTS = env_int("SIM_COMPARE_MAX_SPOTS", 12, lo=1)
+MAX_RADIUS_KM = env_float("SIM_COMPARE_MAX_RADIUS_KM", 300.0, lo=1.0)
 
 # ★ THE RESOLVING POWER OF THE RANKING, in rating points. A coarse 0.25° bearing is a median 22.3°
 # off the measured one, and the Jacobian of the rating puts 22.3° of shore-normal error at ~6.0

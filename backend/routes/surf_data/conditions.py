@@ -45,8 +45,12 @@ REGION_TIDE_STATIONS = {
 # 60 ids blew past the Netlify proxy window). The bounds are /spot-ratings' own, one file away:
 # the 200-spot cap mirrors its `le=200`, and the semaphore reads the SAME env var so one number
 # governs both call sites instead of two caps that drift.
+from services.weather_pipeline.config_env import env_int
+
 BATCH_MAX_SPOTS = 200
-_BATCH_CONCURRENCY = int(os.environ.get("SPOT_RATINGS_CONCURRENCY", "6"))
+# lo=1: Semaphore(0) is a request that never returns, not a setting (MC-08's deadlock input;
+# weather.py's twin clamped this SAME var while this site did not — MC-09 makes them one policy).
+_BATCH_CONCURRENCY = env_int("SPOT_RATINGS_CONCURRENCY", 6, lo=1, hi=64)
 
 
 @router.get("/conditions/batch")

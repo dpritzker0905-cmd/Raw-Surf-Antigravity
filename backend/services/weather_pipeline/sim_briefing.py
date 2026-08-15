@@ -30,7 +30,8 @@ SUMMARY_REFERENCE = ("Mavericks", "Montara State Beach", "Pacifica State Beach")
 
 # Staged overrides are exempt from this budget: their vector is already in memory and costs no
 # network at all.
-SUMMARY_MAX = int(os.environ.get("SIM_SUMMARY_MAX", "3"))
+from services.weather_pipeline.config_env import env_int
+SUMMARY_MAX = env_int("SIM_SUMMARY_MAX", 3, lo=1)
 
 
 def summary_line(label: str, spot: Dict[str, Any], baseline: Dict[str, float], source: str,

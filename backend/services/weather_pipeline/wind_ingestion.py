@@ -71,8 +71,9 @@ def _slice_hours_after(results, after_dt, align_step_h=None):
 # call processes fewer points and completes — marine succeeds at 500pts×8d×12vars, so 200pts×14d×3vars
 # is a lighter call. Both env-tunable: drop WIND_GLOBAL_FORECAST_DAYS or raise WIND_GLOBAL_BATCH_SIZE
 # if needed. ICON wind global already uses 5 days (its native horizon) and is unchanged.
-_WIND_GLOBAL_FORECAST_DAYS = int(os.environ.get("WIND_GLOBAL_FORECAST_DAYS", "14"))
-_WIND_GLOBAL_BATCH_SIZE = int(os.environ.get("WIND_GLOBAL_BATCH_SIZE", "200"))
+from services.weather_pipeline.config_env import env_int
+_WIND_GLOBAL_FORECAST_DAYS = env_int("WIND_GLOBAL_FORECAST_DAYS", 14, lo=1, hi=16)
+_WIND_GLOBAL_BATCH_SIZE = env_int("WIND_GLOBAL_BATCH_SIZE", 200, lo=1)
 
 
 async def ingest_gfs_wind_pilot_impl(scheduler) -> bool:

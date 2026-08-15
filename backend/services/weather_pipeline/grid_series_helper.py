@@ -187,7 +187,8 @@ PER_HOUR_TIMEOUT = 10.0
 # nothing. The frontend's smaller heavy-class pages (16 frames) keep typical builds ~8s so this
 # deadline rarely binds — it is the backstop for contended/cold days.
 NETLIFY_PROXY_WINDOW_S = 26.0
-OVERALL_DEADLINE = float(os.environ.get("GRID_SERIES_DEADLINE_S", "20"))
+from services.weather_pipeline.config_env import env_float
+OVERALL_DEADLINE = env_float("GRID_SERIES_DEADLINE_S", 20.0, lo=1.0)
 # COLD-START budget (2026-07-06, chip task_e618f9ff): during the post-deploy L2 restore, product
 # loads block on Supabase downloads and the 10s cap expired EVERY hour — the first mid-tier series
 # after a restart returned frame_count:0 and the client treated it as no-coverage until the next

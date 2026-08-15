@@ -61,12 +61,13 @@ MODEL = os.environ.get("SIM_FORECAST_MODEL", "GFS")
 # Render instance that cold-starts in ~50 s, so "slow" is a NORMAL state here, not an exceptional
 # one. 8 s is longer than a warm request needs (0.5-1.1 s measured) and short enough that two of
 # them still fit inside any sane client budget.
-TIMEOUT_S = float(os.environ.get("SIM_FORECAST_TIMEOUT_S", "8"))
+from services.weather_pipeline.config_env import env_float, env_int
+TIMEOUT_S = env_float("SIM_FORECAST_TIMEOUT_S", 8.0, lo=0.5)
 
 # After a failure, stop dialling for a while. Without this every tool call re-pays the full timeout
 # — the same pile-up the 429 circuit breaker was added for on 2026-07-24. `get_weather_forecast`
 # makes TWO requests, so an unbreakered outage costs double.
-DOWN_COOLDOWN_S = float(os.environ.get("SIM_FORECAST_COOLDOWN_S", "60"))
+DOWN_COOLDOWN_S = env_float("SIM_FORECAST_COOLDOWN_S", 60.0, lo=0.0)
 _down_until = 0.0
 
 
@@ -100,14 +101,14 @@ def _mark_up() -> None:
 # refresh position; saying so because a comment in this repo once claimed LRU for a FIFO and cost a
 # session to disprove). Fetching a series forward in time therefore evicts the past hours first,
 # which is exactly the right order. ~1 KB an entry, so the default cap is well under a megabyte.
-_FORECAST_CACHE_MAX = int(os.environ.get("SIM_FORECAST_CACHE_MAX", "256"))
+_FORECAST_CACHE_MAX = env_int("SIM_FORECAST_CACHE_MAX", 256, lo=1)
 # ⚠️ A TTL IS NOW LOAD-BEARING AND WAS NOT BEFORE. Wiping every other hour on each store gave
 # freshness by accident: nothing could outlive the hour it was fetched in. Holding many hours means
 # an entry for a FUTURE hour would otherwise survive the next ingest and serve a forecast from a
 # superseded model run — the provenance block would even stamp it with the old `run_time`, which is
 # worse than a miss because it looks authoritative. Core ingest is every 4 h; an hour is well inside
 # that and a forecast does not meaningfully move within one.
-_FORECAST_CACHE_TTL_S = float(os.environ.get("SIM_FORECAST_CACHE_TTL_S", "3600"))
+_FORECAST_CACHE_TTL_S = env_float("SIM_FORECAST_CACHE_TTL_S", 3600.0, lo=0.0)
 
 # ⛔⛔ A FAILURE IS NOT AN ANSWER, AND IT MUST NOT LIVE AS LONG AS ONE (2026-08-03).
 # `fetch_live_forecast` builds `(None, {"reason": ...})` when a leg is missing and memoizes it like
@@ -123,7 +124,7 @@ _FORECAST_CACHE_TTL_S = float(os.environ.get("SIM_FORECAST_CACHE_TTL_S", "3600")
 # NEGATIVE TTL rather than "never cache a failure": the cache is still what stops a 12-spot scan
 # re-paying an 8 s timeout twelve times, and the breaker is not a reliable substitute for it.
 # Kill: SIM_FORECAST_NEG_TTL_S=3600 restores the pre-2026-08-03 behaviour exactly.
-NEGATIVE_CACHE_TTL_S = float(os.environ.get("SIM_FORECAST_NEG_TTL_S", str(DOWN_COOLDOWN_S)))
+NEGATIVE_CACHE_TTL_S = env_float("SIM_FORECAST_NEG_TTL_S", DOWN_COOLDOWN_S, lo=0.0)
 _FORECAST_CACHE: "OrderedDict[Any, Any]" = OrderedDict()
 
 

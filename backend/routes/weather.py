@@ -18,7 +18,7 @@ from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoPro
 
 # Import extracted helpers/services
 from services.weather_pipeline.route_helpers import (
-    filter_grid_to_bbox, compute_truth_tag, get_snapped_bbox, append_diagnostic_line
+    filter_grid_to_bbox, compute_truth_tag, get_snapped_bbox, append_diagnostic_line, env_int
 )
 from services.weather_pipeline.viewport_service import ViewportService
 from services.weather_pipeline.point_resolution import PointResolutionService
@@ -323,7 +323,7 @@ async def get_point(
 # sampling — the first call per domain warms the viewport tile, the rest hit cache), so it is NOT N network
 # fetches. Concurrency is bounded for the 1-CPU serve box. The cron precompute → L2 path (increment 3) will
 # later serve these with zero serve-box compute; this live path is the fallback. Kill switch SPOT_RATINGS_V2=0.
-_SPOT_RATINGS_CONCURRENCY = int(os.environ.get("SPOT_RATINGS_CONCURRENCY", "6"))
+_SPOT_RATINGS_CONCURRENCY = env_int("SPOT_RATINGS_CONCURRENCY", 6, lo=1, hi=64)
 
 
 class SpotRatingItem(BaseModel):
