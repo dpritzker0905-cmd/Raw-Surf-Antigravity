@@ -40,7 +40,7 @@ Pure ``math`` only — no I/O, no network, no numpy dependency — so it runs in
 import math
 import os
 
-from services.weather_pipeline.surf_height_convention import to_surf_convention
+from services.weather_pipeline.surf_height_convention import publish_surf_height
 
 G = 9.81            # gravitational acceleration (m/s^2)
 GAMMA = 0.78        # reference depth-limited breaking index (solitary-wave / McCowan limit); used when the
@@ -515,17 +515,12 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
         H *= _kr
     if magnet_factor and magnet_factor != 1.0 and _v3("SURF_V3_MAGNETS"):
         H *= float(magnet_factor)                  # per-spot wave-magnet focusing (surf_magnets.py)
-    if H >= cap:
-        # ⚠️ NOT converted below: `cap` is breaker_index(Tp)*depth, a γ·d INDIVIDUAL-WAVE criterion,
-        # i.e. already a maximum-wave statistic. See surf_height_convention.
-        return float(cap), 'breaking'              # depth-limited on a shallow shelf cell
-    _regime = 'shelf' if H <= Hs_m else 'shoaling'
-    # ★ THE STATISTIC. Everything above is a linear amplitude ratio on Hs, so H is a SIGNIFICANT
-    # breaking height — while `conditions_labels` maps it onto a FACE ladder and `size_score` grades
-    # it as if it were the published H1/10 surf standard. This is the single point where every
-    # caller (estimate_surf_at, estimate_surf_partitioned, rating_transform_grid) passes, so the
-    # convention cannot end up applied on one surface and not another. Default OFF, byte-identical.
-    return float(to_surf_convention(H, _regime)), _regime
+    # ★ THE STATISTIC + THE CAP resolve together at ONE shared point (`publish_surf_height`), so
+    # neither the H1/10 convention nor the cap-seam repair can apply on one surface and not
+    # another. γ·d stays UNconverted (already a maximum-wave statistic — rationale lives with the
+    # helper); SURF_CAP_SEAM_MONOTONE converts BEFORE comparing so a rising sea cannot DROP the
+    # published height at the regime edge (11.0 §3.8 / MC-01). Default OFF = byte-identical legacy.
+    return publish_surf_height(H, cap, 'shelf' if H <= Hs_m else 'shoaling')
 
 
 def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_width_km: float = 0.0,

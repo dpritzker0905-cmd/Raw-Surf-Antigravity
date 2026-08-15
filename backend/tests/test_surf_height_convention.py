@@ -112,13 +112,25 @@ def test_a_depth_capped_break_is_not_inflated_past_its_cap(monkeypatch):
 
 def test_the_conversion_is_at_the_single_shared_function():
     """Property 3, structurally. Every surf-height caller reaches `estimate_surf`; asserting the
-    call site is IN that function is what stops the spot hub and the map band from disagreeing —
-    the defect class that made the hub wrong by 93%."""
+    chain of custody — estimate_surf returns THROUGH `publish_surf_height`, which is where the ONE
+    `to_surf_convention` call lives — is what stops the spot hub and the map band from disagreeing,
+    the defect class that made the hub wrong by 93%. (2026-08-15: the conversion+cap decision moved
+    INTO surf_height_convention.publish_surf_height so the statistic module owns how its statistic
+    saturates — the cap-seam repair. The funnel is unchanged: one call site, inside estimate_surf's
+    single return.)"""
     import inspect
     from services.weather_pipeline import surf_transform
     src = inspect.getsource(surf_transform.estimate_surf)
-    assert "to_surf_convention" in src, (
-        "the convention has moved out of estimate_surf — every caller must share it")
+    assert "publish_surf_height" in src, (
+        "estimate_surf no longer returns through publish_surf_height — every caller must share "
+        "the one conversion+cap point")
+    helper_src = inspect.getsource(SHC.publish_surf_height)
+    assert "to_surf_convention" in helper_src, (
+        "publish_surf_height no longer applies the convention — the chain of custody broke")
+    # and the transform must not have grown a SECOND direct conversion call behind the funnel
+    module_src = inspect.getsource(surf_transform)
+    assert "to_surf_convention" not in module_src, (
+        "surf_transform calls to_surf_convention directly again — two conversion sites")
 
 
 def test_the_DEFAULT_is_on_and_its_partner_is_on_with_it(monkeypatch):

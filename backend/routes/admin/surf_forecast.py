@@ -168,12 +168,17 @@ _RATING_FLAGS = {
     #   * BY INDIRECTION — `surf_transform._v3(flag)` reads the env through a VARIABLE, so a scan
     #     matching `os.environ.get("LITERAL")` could not see four switches inside a file it was
     #     already walking.
-    # ⚠️ SURF_HEIGHT_H110 is the one to read twice. The repo's own record: flipping it ALONE makes
-    # the served height +25.5% too high, because it and the Kr assumption are two errors that
-    # currently cancel. BOTH OR NEITHER.
-    "SURF_HEIGHT_H110":            ("0", "Report H1/10 (the surfer's 'wave face') instead of Hs. "
-                                         "⚠️ NEVER FLIP ALONE — +25.5% too high on its own; it "
-                                         "cancels against the missing refraction Kr", "Render env"),
+    # ⚠️ SURF_HEIGHT_H110 is the one to read twice. DEFAULT FLIPPED TO ON 2026-08-05, shipped as a
+    # PAIR with SURF_REFRACTION_KR=0.797 (the two errors that used to cancel are now both applied).
+    # ⛔ THIS ROW SAID default "0" FOR TEN DAYS AFTER THE CODE FLIPPED (found 2026-08-15) — so this
+    # panel, the ONE instrument that can read Render, reported the height convention OFF whenever
+    # the env did not set it. The default column must equal the CODE default
+    # (surf_height_convention.enabled), and test_surf_cap_seam_monotone.py now pins the two equal.
+    "SURF_HEIGHT_H110":            ("1", "Report H1/10 (the surfer's 'wave face') instead of Hs — "
+                                         "DEFAULT ON since 2026-08-05 as a PAIR with "
+                                         "SURF_REFRACTION_KR=0.797. ⚠️ NEVER move either alone: "
+                                         "OFF alone = −21.3% low; Kr=1.0 while this is on = +25.5% "
+                                         "high", "Render env"),
     "SURF_V3_NORMAL_OVERRIDES":    ("1", "Hand-audited per-spot shore normals — HUMAN GROUND TRUTH, "
                                          "outranks the derived ETOPO asset. Off = those spots fall "
                                          "back to the fit", "Render env"),
@@ -237,6 +242,20 @@ _RATING_FLAGS = {
                                              "SURF_HEIGHT_H110 — setting this to 1.0 while H110 is "
                                              "on reinstates that +25.5%",
                                     "Render env"),
+    # ── 2026-08-15: THE CAP-SEAM REPAIR (11.0 §3.8 / Master Codex MC-01) — dark until flipped. ──
+    # Legacy compares the PRE-conversion height to the γ·d cap and converts only the unsaturated
+    # branch, so the published height climbs to 1.27×cap then FALLS onto cap as offshore Hs rises
+    # 0.01 m (largest probe drop −21.3%: 8.2294 m → 6.4800 m). The repair saturates the H1/10
+    # statistic in its own space: min(converted, cap). Binds only where the depth cap binds
+    # (0.145% of served spot-hours, n=227,088) — big-wave frames.
+    "SURF_CAP_SEAM_MONOTONE":      ("0", "Cap-seam repair: saturate the published H1/10 statistic "
+                                         "in its own space — min(converted, γ·d) — so a rising "
+                                         "offshore sea can never DROP the published surf height at "
+                                         "the breaking-regime edge. OFF = legacy seam, "
+                                         "byte-identical. ⚠️ FLIP ALL LANES TOGETHER (precomputed "
+                                         "frames bake heights) after the band census is "
+                                         "owner-reviewed",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml env"),
 }
 
 

@@ -91,6 +91,46 @@ def to_surf_convention(height_m, regime):
     return h * H110_OVER_HS
 
 
+def cap_seam_monotone_enabled() -> bool:
+    """SURF_CAP_SEAM_MONOTONE — the cap-seam repair (2026-08-15). DEFAULT OFF: ships dark; the
+    flip is an owner decision with the band census in hand (11.0 §3.8's own disposition for this
+    seam). Kill: SURF_CAP_SEAM_MONOTONE=0. Declared in `_RATING_FLAGS` in the same commit."""
+    return os.environ.get("SURF_CAP_SEAM_MONOTONE", "0") == "1"
+
+
+def publish_surf_height(H, cap, unsaturated_regime):
+    """THE single point where the depth-limited cap meets the published statistic. Every caller
+    (`estimate_surf_at`, `estimate_surf_partitioned`, `rating_transform_grid`) reaches this through
+    `estimate_surf`'s one return, so neither the convention nor the seam repair can apply on one
+    surface and not another (ONE FORECAST COMPOSITION).
+
+    WHY THE CAP IS NOT CONVERTED (rationale moved verbatim from `estimate_surf`, 2026-08-15):
+    `cap` is breaker_index(Tp)·depth — a γ·d INDIVIDUAL-WAVE criterion, i.e. already a
+    maximum-wave statistic; multiplying it by the H1/10 factor would double-count (see the module
+    header: inside saturated surf the Rayleigh ratio compresses, Goda 2010).
+
+    LEGACY (flag off — byte-identical to the pre-2026-08-15 code, THE CAP SEAM INCLUDED): the
+    saturation test compares the PRE-conversion height against the cap, then converts only the
+    unsaturated branch — so the published value climbs to 1.27·cap and falls onto cap as the
+    offshore sea rises 0.01 m (11.0 §3.8 / Master Codex MC-01: −21.3% steps, 38 of 48 probe
+    traces; largest 8.2294 m → 6.4800 m at Hs 9.40 → 9.41 m).
+
+    REPAIR (`SURF_CAP_SEAM_MONOTONE=1`): saturate in the published statistic's OWN space —
+    publish min(converted, cap). Monotone and continuous in Hs by construction; never exceeds the
+    ceiling; `'breaking'` exactly when the ceiling binds; deep saturation (the 29.50-ft-class
+    anchors) unmoved; identical to legacy everywhere legacy respected the ceiling; a no-op while
+    `SURF_HEIGHT_H110=0` (no conversion, no seam). Pinned by
+    `tests/test_surf_cap_seam_monotone.py`."""
+    if cap_seam_monotone_enabled():
+        h_pub = float(to_surf_convention(H, unsaturated_regime))
+        if h_pub >= cap:
+            return float(cap), "breaking"
+        return h_pub, unsaturated_regime
+    if H >= cap:
+        return float(cap), "breaking"
+    return float(to_surf_convention(H, unsaturated_regime)), unsaturated_regime
+
+
 def describe() -> dict:
     """What convention is live — for provenance payloads, so a height says what statistic it is."""
     on = enabled()
@@ -101,4 +141,7 @@ def describe() -> dict:
                        "mean of the highest third (significant) — NOT the surf-forecast standard"),
         "factor_applied": H110_OVER_HS if on else 1.0,
         "standard_reference": "UHSLC Oahu Surf Climatology; Caldwell 2007, J. Coastal Research 23(5)",
+        # how the statistic saturates at the depth-limited cap (the seam repair's state) — so a
+        # height can also say WHICH cap semantics produced it.
+        "cap_seam": "monotone" if cap_seam_monotone_enabled() else "legacy",
     }
