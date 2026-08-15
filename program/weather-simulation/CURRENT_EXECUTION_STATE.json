@@ -122,6 +122,13 @@
        "status": "Closed for bounding — 422 at the door, 5MB rotation, generic 500; sink separation and auth model remain"}
     ],
     "registry_truth_fix": "SURF_HEIGHT_H110 default in _RATING_FLAGS corrected '0' -> '1' (stale since 2026-08-05), test-pinned",
+    "mission_2_mc09": {
+      "id": "WS-CAN-0075",
+      "status": "Implemented and Active (committed locally; push pending owner authorization)",
+      "census": "130 numeric env parses; 22 module-level import-time crashers across 13 files; conditions.py:73 Semaphore had no floor while weather.py:563 clamped the same var",
+      "repair": "config_env.env_int/env_float (typo->default loudly, range->clamp loudly, NaN=typo) at all 22 sites; sha256/12 config fingerprint + counts on /api/health",
+      "verification": "red-first 12 tests; AST class guard with positive control; mutations M1 (both layers) + M2 caught; targeted sweep 117 passed incl. rating-core boundary pins; full lanes recorded in evidence/MC09-config-hardening-2026-08-15.md"
+    },
     "floors": "NOT raised — D-5: floors come from CI's origin/dev reading, which requires an authorized push first",
     "release_state": {"pushed": false, "authorization": "none; program rule 7", "note": "commits are local on top of the other session's pushed b292e243/aa305291"}
   }

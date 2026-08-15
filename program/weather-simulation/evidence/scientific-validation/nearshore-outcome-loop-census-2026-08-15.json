@@ -1,0 +1,152 @@
+{
+  "stations": {
+    "archived_ids": 192,
+    "usable_meta": 135,
+    "nearshore_le30m": 53,
+    "mid_30_80m": 25,
+    "deep_gt80m": 57
+  },
+  "nearshore_depths_m": [
+    9.8,
+    10.0,
+    10.6,
+    12.5,
+    12.8,
+    13.2,
+    14.0,
+    14.9,
+    15.0,
+    15.2,
+    15.6,
+    16.8,
+    16.8,
+    16.8,
+    17.0,
+    17.0,
+    17.0,
+    17.0,
+    17.7,
+    18.0,
+    18.1,
+    18.3,
+    18.5,
+    19.8,
+    19.8,
+    20.0,
+    20.0,
+    20.0,
+    20.1,
+    20.1,
+    20.2,
+    20.4,
+    20.4,
+    20.5,
+    21.0,
+    21.0,
+    22.0,
+    22.2,
+    22.7,
+    23.2,
+    23.3,
+    23.5,
+    24.4,
+    25.0,
+    25.0,
+    25.0,
+    25.0,
+    25.6,
+    26.8,
+    27.4,
+    27.4,
+    28.9,
+    30.0
+  ],
+  "spots_total": 1773,
+  "spots_within_km_of_nearshore_station": {
+    "10": 35,
+    "25": 168,
+    "50": 267
+  },
+  "closest_20_pairs": [
+    {
+      "spot": "Okaloosa Pier",
+      "km": 1.7
+    },
+    {
+      "spot": "La Jolla Shores",
+      "km": 1.9
+    },
+    {
+      "spot": "Blacks Beach",
+      "km": 1.9
+    },
+    {
+      "spot": "Steamer Lane",
+      "km": 2.0
+    },
+    {
+      "spot": "Cowell's Beach",
+      "km": 2.7
+    },
+    {
+      "spot": "Hollywood Beach",
+      "km": 2.7
+    },
+    {
+      "spot": "Okaloosa Island",
+      "km": 3.0
+    },
+    {
+      "spot": "Swamis",
+      "km": 3.2
+    },
+    {
+      "spot": "Cardiff Reef",
+      "km": 3.3
+    },
+    {
+      "spot": "Oceanside Pier",
+      "km": 3.3
+    },
+    {
+      "spot": "Huntington Beach Pier",
+      "km": 3.8
+    },
+    {
+      "spot": "Topanga",
+      "km": 4.3
+    },
+    {
+      "spot": "Duck",
+      "km": 4.9
+    },
+    {
+      "spot": "Windansea",
+      "km": 5.2
+    },
+    {
+      "spot": "Moss Landing",
+      "km": 5.4
+    },
+    {
+      "spot": "Jetty Park",
+      "km": 5.5
+    },
+    {
+      "spot": "Cape Canaveral",
+      "km": 5.8
+    },
+    {
+      "spot": "Pleasure Point",
+      "km": 5.8
+    },
+    {
+      "spot": "Sunset State Beach",
+      "km": 6.0
+    },
+    {
+      "spot": "Cherie Down Park",
+      "km": 6.1
+    }
+  ]
+}
