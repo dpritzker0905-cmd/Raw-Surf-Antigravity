@@ -158,3 +158,52 @@ source was **not identified**; local reproduction is not possible from the other
 
 **Decision needed:** lower to 386 and accept the silence, or find the 9 cases first. The other
 session has no way to identify them without a CI-equivalent environment.
+
+### ✅ L-2 ANSWERED AND CLOSED — 2026-08-15, by the floor's owner
+
+**The mechanism the entry above could not identify: a module-level `importorskip` on packages CI
+never installs.**
+
+`backend/tests/test_trevec_index_gc.py` opens with
+
+```python
+pa    = pytest.importorskip("pyarrow", reason="pylance/pyarrow not installed")
+lance = pytest.importorskip("lance",   reason="pylance not installed")
+```
+
+Both are installed on a dev box — trevec is local code-index tooling — and are pinned in **neither**
+`requirements.txt` nor `requirements-dev.txt` (verified by grep, 0 hits in each). On CI the imports
+fail, the module is skipped **at collection**, and its **ten** test cases never materialise while
+**one** skip is recorded in their place.
+
+That is exactly the signature the entry above measured and could not place:
+
+> *"Nine test CASES vanished without any test FUNCTION vanishing."*
+
+The `def test_` count cannot move, because the functions are still in the file — they are simply
+never collected. It is neither a deletion nor a mass-skip, which is why both were correctly ruled
+out; the third option, *environment-driven collection*, was inferred and is now **measured**.
+
+| | |
+|---|---|
+| local | 400 passed / 2864 skipped |
+| CI | 388 passed / 2865 skipped |
+| files, both sides | 258 |
+
+**Resolution shipped (`5fcdd817`):** estate `MIN_PASSED` 396 → **386** (CI's 388 − this lane's budget
+of 2) and `_FLOOR_SET_FROM["estate"]` → **388**. CI green on all 11 jobs.
+
+**The rule, recorded at both edit sites so it cannot repeat:**
+
+> ★ **Set the estate floor from the CI reading, never a local one.** A local run of this lane is
+> structurally ~10 higher. `ci.yml`'s own comment history already quotes CI output lines — that was
+> the convention, and I broke it twice in one day.
+
+`guards` and `chain` carry no local-only `importorskip`, which is why only `estate` reddened.
+
+⚠️ **Not fully accounted for:** the trevec module explains **ten** of a **twelve**-case gap between my
+local 400 and CI's 388. Two cases remain unexplained. The floor is correct regardless — it is now
+sourced from CI — but the residual is real and is recorded rather than rounded away.
+
+⇒ **The other half of L-2 (the Calibration Census exiting 1 instead of 2 on a 503) is untouched and
+still open.** It is not mine and the one-line fix is already named in that entry.
