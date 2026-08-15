@@ -93,3 +93,70 @@ the others being the HUD's false `Raster Source: LOADED` through an 18-second bl
 often the coarse fallback serves a close-zoom coordinate".** The backend half — stamping the tier and
 its resolution on the point response — is unblocked, reaches production today, and is the same
 additive-disclosure pattern that closed WS-OBJ-207. The client half is gated behind `WS-CAN-0039`.
+
+---
+
+# PART 2 — the backend half was ALREADY DONE, and guarded. No code was written.
+
+Mission 4 opened to "stamp the tier on the point response". **The first forensic step killed it.**
+
+## The disclosure already exists
+
+Full point responses at one coordinate, tier passed explicitly, diffed field by field:
+
+| field | `global_coarse` | regional (florida) |
+|---|---|---|
+| `product_id` | `gfs_marine_waves_global_coarse_…` | `gfs_marine_waves_florida_east_coast_…` |
+| **`resolution`** | **10.0** | **0.25** |
+| `surf_height_m` | **0.9258** | **0.4661** |
+| `run_time` | 2026-08-14T05:54:07Z | 2026-08-14T05:40:34Z |
+
+Both halves of the register's Remaining Work — *"make selection deterministic; disclose the tier"* —
+are satisfied on the backend:
+
+1. **Deterministic**: selection is viewport-invariant (Part 1 — 240× span, 3 coordinates, positive control).
+2. **Disclosed**: `product_id` **and** `resolution` are stamped on every point response, a **40×**
+   difference between tiers, shipped by **WS-CAN-0014 at `172f66aa`**.
+
+## And the disclosed number is MEASURED, not asserted
+
+`sampler.deduce_grid_resolution` derives it from the served grid itself — `lats[1] - lats[0]` over the
+actual vectors — with one producer. So `10.0` measures a real 10° cell. **Not** a measure-or-refuse violation.
+
+## And it is already guarded
+
+`tests/test_point_resolution_is_stamped.py`, 5 tests passing, including
+`test_a_coarse_grid_is_distinguishable_from_a_tiled_one`:
+
+```python
+assert resolution_or_none(_grid(10.0)) == pytest.approx(10.0)
+assert resolution_or_none(_grid(0.25)) != resolution_or_none(_grid(10.0))
+```
+
+⇒ **Nothing to build. Nothing to guard. The work is done.**
+
+## What remains, and where it lives
+
+Entirely client-side, therefore gated by `WS-CAN-0039`:
+
+1. The **client** passes `grid_product_id` — it chooses the tier, and under the documented 429
+   cooldown it may reuse a covering world grid at close zoom.
+2. **Nothing renders `resolution`.** Per `sampler.resolution_or_none`'s own docstring the frontend
+   *re-derives* its own value from served grid bounds (`backendWeatherServiceClientDiag.js:203-210`)
+   instead of reading the stamped one.
+
+Both are the shape `geometry_readiness` had before WS-CAN-0062: **on the wire, unread.**
+
+## Disposition
+
+**WS-CAN-0033 backend half → COMPLETE on evidence, no code.** A Critical leaves the Gate 1 board.
+The client half should be re-filed against the frontend block rather than left on Gate 1 implying
+backend work.
+
+⚠️ Governance rule 16 — what this does **not** establish: I never reproduced the flip itself. The
+2.4× tier disagreement and the ~2× `surf_height_m` gap are measured and real, so if the cooldown
+fallback fires at close zoom the user sees roughly double the surf. **How often that happens is
+unmeasured**, and measuring it needs the client.
+
+★ Third time this session the answer was *"it already exists and nobody read it"* — after the
+`/api/health` telemetry and the `geometryReadiness` mapping.
