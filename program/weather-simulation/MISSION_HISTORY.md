@@ -234,3 +234,44 @@ then under-disclose); or the frontend unfreezing, at which point rendering `geom
 explicitly becomes worth revisiting.
 
 **Closure Date:** 2026-08-14
+
+---
+
+# CLOSURE CERTIFICATE — WS-OBJ-201 (RE-ISSUED)
+
+**Objective:** One forecast composition — *"one chain, one write site, AST-guarded"*
+**Canonical Tasks:** WS-CAN-0002, WS-CAN-0023 (both Implemented and Active) · scope-reopened and
+re-closed by **WS-CAN-0066** (`a1b5aac3`)
+**Closure Date:** 2026-08-14 (Gate 1 truth pass)
+
+**Why re-issued rather than newly certified.** The prior certificate was not wrong — its
+serving-chain evidence (LV-06) stands. Its **scope** was wrong: it never enumerated the notification
+consumer, and `WS-CAN-0066` then found the scheduled surf alert composing a push from height alone,
+on a surface `CLAUDE.md`'s mandate names explicitly. Audit 12.2 required the certificate be re-issued
+with the consumer list attached. This is that re-issue.
+
+**Criterion measured, not read:**
+- Live production payload, n=87: `surf_height_m` **87/87**, `score` **87/87**, `level` **87/87**,
+  `reference_size_m` **87/87**.
+- `test_rating_composition_parity.py` is AST-based (11 tests) and enforces that no surface may supply
+  a factor the reference does not.
+
+**Consumers now enumerated** (the thing the old certificate lacked):
+`/api/weather/spot-ratings` live lane · the cron precompute → Supabase L2 → CDN · the map glyphs ·
+the spot hub (`spot_conditions.py`) · **the scheduled surf alert** (`scheduler/surf_alerts.py`) ·
+the in-app alert route (`routes/surf_data/alerts.py`).
+
+**Regression guardrails:** `test_rating_composition_parity.py` (no second factor source),
+`test_spot_rating_wire_contract.py` (no undeclared key), `test_surf_alert_states_the_quality.py`
+(census-discovered, not hard-coded), `test_spot_rating_module_seam.py` (the reference and its
+precompute lane stay one implementation across a file boundary).
+
+**Known limitations — what this does NOT establish:**
+1. The consumer list is the one **known today**. `WS-CAN-0066` exists precisely because a consumer
+   was missing from the last list; the guard that now discovers alert emitters by walking the tree is
+   the structural answer, but no equivalent census exists for *rating* consumers.
+2. Frontend consumers were not re-measured — the production bundle is frozen (`WS-CAN-0039`).
+3. `reference_size_m` presence was measured on one bbox at one hour, not across the estate.
+
+**Reopen trigger:** any new surface that renders a surf height or quality without going through
+`rate_one_spot`; or a rating consumer found outside the list above.
