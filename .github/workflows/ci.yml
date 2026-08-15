@@ -1019,7 +1019,11 @@ jobs:
           # WS-CAN-0074). CI-anchored per the rule five lines up: last green 31864807822 observed
           # 388; 388 + 25 = 413; 413 - 2 = 411. (Local read 425 = 413 + this lane's structural
           # ~10-12 local-high bias, consistent with the L-2 decomposition.)
-          MIN_PASSED = 411
+          # ⬆ 411→423 on 2026-08-15 (same day, second batch): +12 tests (+9 test_config_env.py,
+          # +3 test_startup_config_hardening.py — WS-CAN-0075's contract + class guard, both new
+          # files land in this lane). CI-anchored: last green observed 413; 413 + 12 = 425;
+          # 425 - 2 = 423.
+          MIN_PASSED = 423
 
           try:
               root = ET.parse('estate.xml').getroot()
