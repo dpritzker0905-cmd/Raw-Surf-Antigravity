@@ -94,3 +94,39 @@ half-applied edits today.
 ★ And the miss that cost the most: **I spent the day in the tile-fetch pipeline for a bug that lived
 in paint order, one array-index read away — while the class was already recorded five times in the
 owner's ledger and I never opened it.** Check the defect index for the DOMAIN, not just for guards.
+
+
+---
+
+## ⚠️ ADDENDUM 2026-08-14 — TWO LIVE CI ITEMS, BOTH DIAGNOSED, NEITHER MINE, NEITHER FIXED
+
+Both are in the concurrent session's active lanes (`c1566c8b` landed while I was reading them), so
+they are **located and handed over** rather than edited. ★ Touching a floor or an exit-code contract
+someone may be mid-raise on is exactly how the 08-12 provenance collisions happened.
+
+### 1. `Forecast Calibration Census` pages a CALIBRATION BREACH on an upstream 503
+Run 31788912652: `surf_spots (offset 0): HTTP 503 …` then
+`::error::The size climatology FAILED its named exemplars … Every rating is graded against this.`
+**Nothing was fetched.** Mechanism, exact:
+- `local_size_gonogo.py::_get_json` → `raise SystemExit(f"…HTTP {code}…")` on non-200.
+  **`SystemExit` with a STRING exits with code 1** — the NO-GO code.
+- `forecast-calibration-census.yml` already branches `rc >= 2` → *"the go/no-go script itself failed
+  — this is NOT a calibration verdict"*; the `else` branch is the exemplar page.
+⇒ **Both sides are individually correct; the exit code does not carry the distinction.**
+▶ **One-line fix:** make that non-200 path exit **2**. No new machinery — the crash branch exists.
+★ The same file's docstring already guards the sibling TRUNCATION form (*"a round number in a row
+count is a truncation tell"*). The **failure** form was not guarded.
+
+### 2. `backend-estate-coverage` — a floor OVER-raise nothing catches
+`only 388 passed, floor is 396 — mass-skip or deletion`.
+- `ci_floor_staleness.py` is **deliberately one-sided** (a floor above the reading is correct right
+  after a raise) → reports "every floor is current" at 396 vs 360.
+- The lane's own assertion fires only **after** the raise ships.
+- `check_floor_before_push.py` fires only when tests are **ADDED** without a floor move.
+⇒ **Three guards, one uncovered direction: nobody catches an over-raise when it is made.**
+⚠️ **388 vs 396 does not say WHICH** — tests removed/moved (lower the floor) or tests skipping
+(floor right, collection wrong). The message names both; the fixes are opposite.
+▶ Discriminator: `git log -S "def test_"` on the estate lane's files vs the run's skip count.
+
+★ **`Precompute Spot Ratings` self-heals** — failed 08:47Z (1m40s), the next scheduled run
+succeeded 12:26Z (45m57s, full). **A single failed cron here is not a signal; check the next run.**
