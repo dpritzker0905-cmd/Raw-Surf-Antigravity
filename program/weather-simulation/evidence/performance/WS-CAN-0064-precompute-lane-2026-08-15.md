@@ -38,13 +38,24 @@
   the new test file lands in **chain** → 799+8 = 807 / MIN 801, edited as the pair.
 - Full lanes: recorded below when the run lands.
 
-## The honest deployment caveat
+## The live measurement (embargo lifted 2026-08-15 ~23:5xZ)
 
-Production frames will lack the two new fields until the **next precompute cycle** regenerates
-the blob. Until then the lane serves all-live (the correct fallback, disclosed in
-`conditions_source`), and the p50 stays where it was. **The latency claim may only be made from a
-post-cycle production measurement** — planned: time `/conditions/batch` with ~30 ids before and
-after the first post-deploy precompute, and record both numbers here.
+The first post-deploy precompute cycle regenerated the frames with the two fields, and the
+30-spot production measurement (3 consecutive runs, read-only GETs):
+
+    run 1: 0.40 s   n=30  precomputed=30  live=0  source=precomputed
+    run 2: 0.59 s   n=30  precomputed=30  live=0  source=precomputed
+    run 3: 0.56 s   n=30  precomputed=30  live=0  source=precomputed
+
+Against the measured BEFORE — 0.380 s/spot linear (≈11.4 s for the same 30-spot request; audited
+p50 52–59 s at larger n, 11/11 sampled calls over 10 s) — that is **~22× at n=30**, and the
+shape changed from linear-in-n to ~flat: the request costs a frame lookup, not thirty
+resolutions. The route that crossed its 10-second budget at 26 spots now answers 30 in half a
+second on the same 1-CPU box.
+
+Caveat kept honest: these three runs sample one warm moment; the fresh→stale→live ladder means a
+missed precompute cron degrades to bounded-stale frames before any live cliff (the same posture
+that carried `/spot-ratings` through the melt history).
 
 ## Lane results (final tree; local 3.14 interpreter)
 
