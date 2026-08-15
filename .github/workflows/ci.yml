@@ -605,7 +605,11 @@ jobs:
           # ⚠️ The FIRST run of this lane after the split came back `8 failed, 1732 passed`, all in
           # `test_run_provenance.py` — it reaches precompute symbols as `sr.intern_frame_runs(...)`,
           # a form my import census was blind to. chain (786) and estate (372) were clean throughout.
-          MIN_FILES, MIN_PASSED = 153, 1735
+          # ⬆ 153→154 / 1735→1782 on 2026-08-15: +1 file (test_surf_cap_seam_monotone.py, the
+          # WS-CAN-0072 cap-seam property lane) = +47 tests. CI-anchored per the estate lesson:
+          # last green run 31864807822 observed 1741; 1741 + 47 = 1788; 1788 - 6 = 1782. The
+          # pre-push hook blocked the batch until this pair moved — as designed (5th catch).
+          MIN_FILES, MIN_PASSED = 154, 1782
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -762,7 +766,10 @@ jobs:
           # this lane still collects, and 6 leaves room for ordinary churn without pinning the gate.
           # ★ CONTROL ON THIS COMMIT: 85 is also what `--lane chain` selects after the inline
           # COMPOSITION literal was retired — this lane's file set did not move, only its owner.
-          MIN_FILES, MIN_PASSED = 85, 780
+          # ⬆ 780→784 on 2026-08-15: +4 tests appended to test_report_calibration.py (the
+          # WS-CAN-0073 route-refusal pins; same file, so MIN_FILES holds at 85). Last green
+          # 31864807822 observed 786; 786 + 4 = 790; 790 - 6 = 784.
+          MIN_FILES, MIN_PASSED = 85, 784
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1007,7 +1014,12 @@ jobs:
           #   results, 349 passed, 0 silent") — that was the convention and I broke it twice in one
           #   day. The guards and chain lanes do not carry this bias (no local-only importorskip),
           #   which is why only estate went red.
-          MIN_PASSED = 386
+          # ⬆ 386→411 on 2026-08-15: +25 tests (+18 in test_grib_range_integrity.py, the
+          # WS-CAN-0017 extract-or-refuse hatch; +7 in the new test_client_diagnostics_bounds.py,
+          # WS-CAN-0074). CI-anchored per the rule five lines up: last green 31864807822 observed
+          # 388; 388 + 25 = 413; 413 - 2 = 411. (Local read 425 = 413 + this lane's structural
+          # ~10-12 local-high bias, consistent with the L-2 decomposition.)
+          MIN_PASSED = 411
 
           try:
               root = ET.parse('estate.xml').getroot()

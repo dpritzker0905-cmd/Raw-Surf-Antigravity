@@ -249,3 +249,14 @@ repeat the exact 5fcdd817 mistake in the same week it was corrected.
 CI run on origin/dev, then make the PAIR of edits per lane (ci.yml `MIN_PASSED` = reading − budget
 [6/6/2]; `_FLOOR_SET_FROM` = the reading) in one commit. Until then the floors are merely
 conservative, which a shrink-only floor is allowed to be.
+
+**⚠️ CORRECTED AT PUSH TIME, 2026-08-15 (this entry's mechanism was wrong — recorded, not
+rewritten):** "wait for CI's reading" is not how the convention resolves the chicken-and-egg. The
+staleness lane compares CI's *observed* count against `MIN_PASSED` + budget, so pushing new tests
+with old floors goes red on the FIRST run — and `check_floor_before_push` **blocked the push**
+saying exactly that (its 5th catch). The actual convention, from the hook's own instruction:
+**new `_FLOOR_SET_FROM` = the LAST GREEN CI reading + the exact runtime tests you added** (a
+CI-anchored arithmetic, never a local count), edited as the pair BEFORE the push. Applied:
+guards 1741+47=1788/1782 · chain 786+4=790/784 · estate 388+25=413/411 (local 425 = 413 + the
+lane's structural local-high bias, consistent with L-2). What stands from the original entry:
+never set a floor from a local reading.
