@@ -170,9 +170,17 @@ The last three nightlies:
 reading stepping −21.2 is the WS-CAN-0061 family: the field is present during the gesture and the
 settle is where it changes.
 
-⚠️ Not investigated further here — it belongs to the marine/zoomlab lane and needs the recording
-(`zoomlab-nightly-31871169312`, 59.8 MB, 14-day retention). ★ **Download it before it expires**; the
-08-13 recording is already gone, which is why the two bursts can only be compared as counters.
+⚠️ Not investigated further here — it belongs to the marine/zoomlab lane and needs the recordings.
+✅ **BOTH failing recordings are still retained, verified via the artifacts API** — so the two bursts
+can be compared as FRAMES, not just as counters:
+
+| artifact | size | expires |
+|---|---|---|
+| `zoomlab-nightly-31680258907` (08-13, 22 findings) | 59.6 MB | **2026-08-27** |
+| `zoomlab-nightly-31871169312` (08-15, 7 findings) | 59.8 MB | **2026-08-29** |
+
+★ **Pull both before those dates** — an intermittent defect with two retained recordings and one
+clean run between them is about as good a starting position as this class ever gets.
 
 ---
 
