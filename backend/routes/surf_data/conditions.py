@@ -90,8 +90,15 @@ async def get_batch_conditions(
                         "updated_at": current["updated_at"]
                     }
             except Exception as e:
+                # WS-CAN-0009: the exception is LOGGED, never returned — `str(e)` on a wire any
+                # client can reach leaks internal paths, driver text and upstream URLs.
+                # ⚠️ THE ENTRY STAYS. I first omitted the spot, and
+                # `test_response_shape_and_input_order_match_the_serial_implementation` caught it:
+                # a failed spot is deliberately KEPT in `conditions`, in input order, because this
+                # is a PARTIAL-SUCCESS surface and "this one failed" is a real answer about it.
+                # Omitting it would have made failure indistinguishable from an unknown id.
                 logger.error(f"Error fetching conditions for {spot_id} via service: {str(e)}")
-                return spot_id, {"error": str(e)}
+                return spot_id, {"error": "Unable to fetch conditions"}
         return spot_id, None
 
     results = dict(await asyncio.gather(
@@ -100,6 +107,16 @@ async def get_batch_conditions(
     conditions = {sid: results[sid] for sid in ids if results.get(sid) is not None}
 
     out = {"conditions": conditions}
+    # ⛔ NEVER raise here: this is a PARTIAL-SUCCESS surface serving up to 200 spots, and one
+    # upstream failure must not fail the other 199. The per-spot entry already says which failed;
+    # this lifts it to the top level so a caller can branch on it WITHOUT type-sniffing every value.
+    # ⚠️ RESIDUAL, and it is client-side: `useExploreData.js:32` spreads each entry into the UI
+    # state map, so an error entry still becomes `wave_height_ft: undefined` — blank data rather
+    # than a stated failure. Fixing that needs the frontend, which is frozen (WS-CAN-0039).
+    # Additive and only when it happened, exactly like `truncated_to` below.
+    _failed = [sid for sid, v in conditions.items() if isinstance(v, dict) and "error" in v]
+    if _failed:
+        out["failed"] = _failed
     if truncated:
         out["truncated_to"] = BATCH_MAX_SPOTS   # additive key, only present when it happened
     return out
@@ -169,11 +186,17 @@ async def get_spot_conditions(
                 "forecast": forecast
             }
         else:
-            return {"error": "Unable to fetch conditions", "spot_id": spot_id}
-            
+            raise HTTPException(status_code=502, detail="Unable to fetch conditions")
+
+    except HTTPException:
+        raise                      # 404 spot-not-found and the 502 above are already honest
     except Exception as e:
-        logger.error(f"Error fetching conditions: {str(e)}")
-        return {"error": str(e), "spot_id": spot_id}
+        # WS-CAN-0009: a failed request must not answer 200. ⚠️ 502, NOT 503 — `apiClient.js`
+        # toasts 503 globally ("Service temporarily unavailable"), so a single spot failing
+        # behind the explore feed would interrupt the user; 502 falls through to the
+        # caller's own catch. The exception is logged, never returned (it leaked `str(e)`).
+        logger.error(f"Error fetching conditions for {spot_id}: {str(e)}")
+        raise HTTPException(status_code=502, detail="Unable to fetch conditions")
 
 
 @router.get("/conditions/forecast/{spot_id}")
@@ -209,11 +232,15 @@ async def get_spot_forecast(
                 "updated_at": datetime.now(timezone.utc).isoformat()
             }
         else:
-            return {"error": "Unable to fetch forecast", "spot_id": spot_id, "forecast": []}
+            raise HTTPException(status_code=502, detail="Unable to fetch forecast")
             
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error fetching forecast: {str(e)}")
-        return {"error": str(e), "spot_id": spot_id, "forecast": []}
+        # WS-CAN-0009: 502, NOT 503 — apiClient.js toasts 503 globally; 502 falls through to the
+        # caller's own catch. The exception is logged, never returned.
+        logger.error(f"Error fetching forecast for {spot_id}: {str(e)}")
+        raise HTTPException(status_code=502, detail="Unable to fetch forecast")
 
 @router.get("/tides/{spot_id}")
 async def get_spot_tides(spot_id: str, db: AsyncSession = Depends(get_db)):
@@ -270,9 +297,11 @@ async def get_spot_tides(spot_id: str, db: AsyncSession = Depends(get_db)):
             return {"error": "Tide data unavailable for this location", "spot_id": spot_id,
                     "source": "global"}
         except Exception as e:
+            # ⛔ This is the FAILURE twin of the absence path above, and it used to answer with the
+            # SAME sentence — "unavailable for this location" asserts something about the WORLD.
+            # A lookup that threw knows nothing about the location. Absence stays 200; this does not.
             logger.error(f"[tides] global tide lookup failed for {spot_id}: {e}")
-            return {"error": "Tide data unavailable for this location", "spot_id": spot_id,
-                    "source": "global"}
+            raise HTTPException(status_code=502, detail="Unable to fetch tide data")
 
     station_id = REGION_TIDE_STATIONS.get(spot.region, "8721604")
 
@@ -324,8 +353,12 @@ async def get_spot_tides(spot_id: str, db: AsyncSession = Depends(get_db)):
                     "current_status": current_status
                 }
             else:
-                return {"error": "Unable to fetch tide data", "spot_id": spot_id}
+                raise HTTPException(status_code=502, detail="Unable to fetch tide data")
                 
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error fetching tides: {str(e)}")
-        return {"error": str(e), "spot_id": spot_id}
+        # WS-CAN-0009: 502, NOT 503 — apiClient.js toasts 503 globally; 502 falls through to the
+        # caller's own catch. The exception is logged, never returned.
+        logger.error(f"Error fetching tides for {spot_id}: {str(e)}")
+        raise HTTPException(status_code=502, detail="Unable to fetch tide data")

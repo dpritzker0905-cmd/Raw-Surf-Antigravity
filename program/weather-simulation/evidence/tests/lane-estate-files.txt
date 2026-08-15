@@ -36,6 +36,7 @@ tests/test_comments.py
 tests/test_competition_verification_iter64.py
 tests/test_compliance_endpoints_iter249.py
 tests/test_conditions_route_wire_contract.py
+tests/test_conditions_status_honesty.py
 tests/test_create_flow_ad_center_iter144.py
 tests/test_credit_refund_redundancy.py
 tests/test_credit_subscription_payment_iter139.py

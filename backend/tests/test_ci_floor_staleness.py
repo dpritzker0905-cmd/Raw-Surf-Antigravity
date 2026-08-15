@@ -242,7 +242,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #   guards        MEASURED AGAIN (2026-08-14, the spot_ratings.py split): +11 tests in
 #                 test_spot_rating_module_seam.py -> 1741 observed. chain re-measured at 786
 #                 (unchanged) and estate at 372 in the same sweep; neither floor moved.
-_FLOOR_SET_FROM = {"guards": 1741, "chain": 786, "estate": 360}
+#   estate        MEASURED (2026-08-14, WS-CAN-0009): +10 tests in test_conditions_status_honesty.py
+#                 -> 382 observed, floor 380 with this lane's budget of 2.
+_FLOOR_SET_FROM = {"guards": 1741, "chain": 786, "estate": 382}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

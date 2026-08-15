@@ -103,8 +103,18 @@ async def test_response_shape_and_input_order_match_the_serial_implementation(mo
     assert set(out["conditions"]["s1"].keys()) == {
         "wave_height_ft", "wave_direction", "wave_period", "swell_height_ft", "label",
         "updated_at"}, "the per-spot whitelist changed — that is a wire-contract change"
-    assert out["conditions"]["bad"] == {"error": "upstream died"}, (
-        "per-id error entries are part of the serial contract")
+    # ⚠️ CONTRACT CHANGED 2026-08-14 (WS-CAN-0009), deliberately and under an authorized task.
+    # This previously asserted `== {"error": "upstream died"}` — i.e. it PINNED THE EXCEPTION TEXT
+    # ON THE WIRE as a contract, which is exactly the leak WS-CAN-0009 exists to remove (`str(e)`
+    # reaches any client and carries internal paths, driver messages and upstream URLs).
+    # What this test protects is unchanged and still asserted above: input ORDER and per-spot SHAPE
+    # parity with the serial implementation. The per-id error ENTRY is still part of that contract —
+    # a failed spot is still present, in order — only its message is now generic.
+    # ⇒ this assertion is STRENGTHENED, not relaxed: it now also proves the text is gone.
+    assert out["conditions"]["bad"] == {"error": "Unable to fetch conditions"}, (
+        "per-id error entries are part of the serial contract, with a GENERIC message")
+    assert "upstream died" not in str(out), (
+        "the raw exception text reached the response body again — WS-CAN-0009 regressed")
     empty = await C.get_batch_conditions(spot_ids="", model="GFS", db=_DB())
     assert empty == {"conditions": {}}
 

@@ -984,7 +984,11 @@ jobs:
           # COMPLEMENT, so the projection stacks on the previous one: 353 (itself projected, not
           # yet observed) + 7 = 360, and 360 - 2 = 358. Arithmetic shown so the next green run can
           # falsify it; if 353 was wrong, that run says so and both numbers move together.
-          MIN_PASSED = 358
+          # ⬆ estate MIN_PASSED 358→380 on 2026-08-14 (WS-CAN-0009). +10 tests in
+          # test_conditions_status_honesty.py, which the estate COMPLEMENT claims (checked with
+          # `--lane estate`, 256→257 files, not inferred). MEASURED at `382 passed, 2864 skipped`
+          # in 2:31 — the projection 372 + 10 agreed for once. 382 - 2 (this lane's budget) = 380.
+          MIN_PASSED = 380
 
           try:
               root = ET.parse('estate.xml').getroot()

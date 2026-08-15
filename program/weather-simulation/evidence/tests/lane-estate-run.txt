@@ -3,64 +3,56 @@ ssssssssssssssssssssssssss.....sssssssssssssssssssssssssssssssssssssssss [  4%]
 ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [  6%]
 ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [  8%]
 ssssssssssssssssssss.....sssssssssssss....................ssssssssssssss [ 11%]
-sssssssssssssssssssssssssssssssssssssssssss...ssssssssssssssssssssssssss [ 13%]
+sssssssssssssssssssssssssssssssssssssssssss.............ssssssssssssssss [ 13%]
 ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 15%]
 ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 17%]
-ssssssssssssssssssssssssssssssssssssssssssssss.......................... [ 20%]
-..sssssssssssssssssssssssssssssssssssssssssssssssssssssssss............. [ 22%]
-.........sssssssssssssssssssssssssssssss.....ssssssssssssss............. [ 24%]
-....sssssssssssssssssssssssssssssssssss................Warning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-.......ssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-ssssss [ 26%]
-sssssssssssssssssssssssssssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-sssssssssssssssssssssssssssssssssssssss [ 28%]
-sssssssss...Warning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssss................ [ 19%]
+............sssssssssssssssssssssssssssssssssssssssssssssssssssssssss... [ 22%]
+...................sssssssssssssssssssssssssssssss.....ssssssssssssss... [ 24%]
+..............sssssssssssssssssssssssssssssssssss....................... [ 26%]
+sssssssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
 Warning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-.............sssssssssssssssssssssssssssssssssssssssssssssss [ 31%]
-ssssssss.........sssssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-ssssssssssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-ssssssssssssssssssssssssssss [ 33%]
-sssssssssssss...........ssssssssssssssssssssssssssssssssssssssssssssssss [ 35%]
-ssssssssssssssssssssssssssssssssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
 Warning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-ssssssssssssssssssssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-ssssssss [ 37%]
-ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 40%]
+ssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
+ssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
+sssssssssssssssssssssssssssssssssssssssssssssss [ 28%]
+sssssssssssssssssss................sssssssssssssssssssssssssssssssssssss [ 31%]
+ssssssssssssssssss.........ssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
+sssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
+Warning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
+sssssssssssssssssssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
+sssssssssssssss [ 33%]
+sssssssssssssssssssssss...........ssssssssssssssssssssssssssssssssssssss [ 35%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 37%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 39%]
 ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 42%]
-ssssssssssssssssssssssssssssssssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-ssssssssssssssssssssssssssssssssss [ 44%]
-ssssssssssssssssssssssssssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-Warning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-ssssssssssssssssssssssssssssssssssssssss [ 46%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 44%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 46%]
 ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 48%]
 ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 51%]
-ssssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 53%]
-sssssssssssssssssssssssssssssssssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-ssssssssssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-sssssssssssssssss [ 55%]
-sWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 57%]
-ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 60%]
-ssssssssssssssssss.ssssssssssssssss.............ssssssssssssssssssssssss [ 62%]
-sssssssssssssssssssssssssssssssssssssssssssssss........sssssssssssssssss [ 64%]
-sssssssssssssssssssssssssssssssssssssssssssssssssssssss.......ssssssssss [ 66%]
-ssssssssssssssssssssssssssssssssssssssssssssssss..........ssssssssssssss [ 68%]
-ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 71%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 53%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 55%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 57%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 59%]
+ssssssssssssssssssssssssssss.ssssssssssssssss.............ssssssssssssss [ 62%]
+sssssssssssssssssssssssssssssssssssssssssssssssssssssssss........sssssss [ 64%]
+sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss....... [ 66%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssss..........ssss [ 68%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 70%]
 ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 73%]
-ssssssssssssssssssssssssssssssssssssssssss.............sssssssssssssssss [ 75%]
-ssssssssssss............ssssssssssssssssssssssssssssssssssssssssss...... [ 77%]
-..............ssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 80%]
-sssssssssssssssssssssssssssssss....sssssssssssssssssssssssssssssssssssss [ 82%]
-ssssssss...........sssssssssssssssssssssssssssssssssssssssssssssssssssss [ 84%]
-sssssssssssssssssss...sssssssssssssssssssssssssssssssss........sssssssss [ 86%]
-ssssssssssssssssss...sssssssssssssssssssssssssssssssssssssssssssssssssss [ 88%]
-sssssssssssssssss..........sssssssssssssssssssssssssssssssssssssssssssss [ 91%]
-sssssssssssssssssssssssssssssssssssssssssssssssss....ssssssssWarning: WebSocket broadcast webhook failed: [WinError 10061] No connection could be made because the target machine actively refused it
-sssssssssss [ 93%]
-ssssssss.................................sssssss.............sssssssssss [ 95%]
+ssssssssssssssssssssssssssssssssssssssssssssssssssss.............sssssss [ 75%]
+ssssssssssssssssssssss............ssssssssssssssssssssssssssssssssssssss [ 77%]
+ssss....................ssssssssssssssssssssssssssssssssssssssssssssssss [ 79%]
+sssssssssssssssssssssssssssssssssssssssss....sssssssssssssssssssssssssss [ 82%]
+ssssssssssssssssss...........sssssssssssssssssssssssssssssssssssssssssss [ 84%]
+sssssssssssssssssssssssssssss...sssssssssssssssssssssssssssssssss....... [ 86%]
+.sssssssssssssssssssssssssss...sssssssssssssssssssssssssssssssssssssssss [ 88%]
+sssssssssssssssssssssssssss..........sssssssssssssssssssssssssssssssssss [ 90%]
+sssssssssssssssssssssssssssssssssssssssssssssssssssssssssss....sssssssss [ 93%]
+ssssssssssssssssss.................................sssssss.............s [ 95%]
 ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 97%]
-ssssssss.......sssssssssssssss.........................sssssssssssss     [100%]
+ssssssssssssssssss.......sssssssssssssss.........................sssssss [ 99%]
+ssssss                                                                   [100%]
 ============================== warnings summary ===============================
 routes\profiles\username.py:44
   C:\Users\dprit\Raw-Surf\backend\routes\profiles\username.py:44: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
@@ -84,4 +76,4 @@ tests/test_scheduler_dispatch_offload.py::test_a_raising_sync_job_is_contained_n
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 ENVIRONMENT IS NOT THE DECLARED ONE: python 3.14 != declared 3.12; 28 of 46 pins differ; 7 declared packages absent; not in a virtualenv
   => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
-372 passed, 2864 skipped, 7 warnings in 134.91s (0:02:14)
+382 passed, 2864 skipped, 7 warnings in 151.38s (0:02:31)
