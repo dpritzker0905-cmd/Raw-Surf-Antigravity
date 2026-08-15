@@ -325,11 +325,59 @@ motion veto → 1 · default the flag on → 1 · step instead of ramp → 2 · 
 suite **95 files / 991 tests green**, including `marineCoarseBridgeModelSwitch.test.js`. ESLint gate:
 no rule over baseline (the one error in the touched file is pre-existing, `catch(e) {}` at HEAD:133).
 
-⚠️ **A unit test is not a pixel.** The remaining step is the live A/B the flag exists for: run the
-zoomlab staircase with `__RAW_COARSE_BRIDGE_GRACE__` on and confirm the MULT0 frames disappear and no
-SETTLED_STEP replaces them. ★ **The test file drove SPARSE frames first — copying the nightly's
-~1 Hz SAMPLER cadence instead of the render cadence — and 7 of 11 tests failed against correct code.
-A test that models the instrument is testing a different system.**
+★ **The test file drove SPARSE frames first — copying the nightly's ~1 Hz SAMPLER cadence instead of
+the render cadence — and 7 of 11 tests failed against correct code. A test that models the instrument
+is testing a different system.**
+
+### ✅ LIVE A/B — four staircase runs on one machine against the prod backend
+
+`frontend-verify` (port 3009) + `node scripts/zoomlab.js staircase_full`, the nightly's own
+invocation. ~5 min per run.
+
+⚠️ **THE NATURAL BLANK DOES NOT REPRODUCE LOCALLY, and the reason is itself a confirmation.** In the
+unforced control `covF` bottomed at **0.6009** — clearing the 0.6 lever by **0.0009**, the same
+knife-edge as the 08-14 green nightly's 0.607. Residents arrived promptly (8×8 → 24×20 → 48×40 →
+360×162), because the trigger is *grid-arrival latency* and a dev machine does not have it. **A
+fourth dataset now brackets that lever from above.** So the hold was FORCED by raising
+`__RAW_DOWNGRADE_COVER_FRAC__` to 1.0 (`ZL_FLAGS` sets it `true`; the gate reads it through
+`Number()`), which demands total coverage and engages the bridge at every wide step.
+
+| run | cover lever | grace | verdict | MULT0 frames | heatmap hidden |
+|---|---|---|---|---|---|
+| control | 0.6 natural | off | **PASS 0** | 0 | 0.0 s |
+| **C** | 0.6 natural | **ON** | **PASS 0** | 0 | 0.0 s |
+| A | forced 1.0 | off | FAIL 94 | 93 | **46.0 s** (12.8%) |
+| **B** | forced 1.0 | **ON** | FAIL 54 | 53 | **21.9 s** (7.2%) |
+
+**Hidden time −52.4% · MULT0 frames −43% · no new finding type** (both runs: `MULT0_FRAME` +
+one `SETTLED_STEP`, nothing else). **C proves the flag is inert when the bridge never engages** — the
+case that matters for flipping it.
+
+**At the one long hold, z=4.690 — this is the whole result in six lines:**
+
+```
+A (grace off)   ...  10,443 ms contiguous hidden, covF 0.963, L 193.7
+                     then covF 1.0 -> L 176.5      SETTLED_STEP dL -17.2
+
+B (grace on)    t=250001  mult=1  hm=0.684  L=185.8   <- field VISIBLE through the wait
+                t=251108  mult=0  hm=0      L=193.3   <- a single 404 ms blip
+                t=251512  mult=1  hm=0.684  L=176.5   <- covering grid lands
+```
+
+The **10.4-second** hold at that zoom is gone, replaced by a visible field. B's surviving
+`SETTLED_STEP` is a different, much smaller event: a **404 ms** hidden run that was never eligible
+for a 4,000 ms grace — a sub-second transient is not the defect, and shortening the grace to catch it
+would buy flicker.
+
+⚠️ **HONEST LIMITS OF THIS A/B, stated so nobody over-reads it:**
+- **The ramp was never observed live.** Both runs show **0 frames with `0 < mult < 1`** — the trace
+  samples at ~420 ms and the ramp is 350 ms, so it falls between samples every time. The ramp shape
+  is pinned by unit tests only.
+- **B still FAILS the budget**, and that is an artifact of the forcing: at lever 1.0 the bridge
+  engages on nearly every wide step, most of them dwelling under the grace. It is not evidence the
+  fix is incomplete for the real defect.
+- The forced lever is not the production configuration; it exercises the mechanism, it does not
+  reproduce the arrival race.
 
 ### Artifacts (both retained — verified via the artifacts API)
 
