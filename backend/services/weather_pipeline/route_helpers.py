@@ -717,3 +717,31 @@ def get_snapped_bbox(bbox_str: str, model: str) -> str:
     return f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
 
 
+
+
+# ── the bounded diagnostics log (MC-07, 2026-08-15) ─────────────────────────────────────────────
+# One rotation at the cap keeps total disk at ~2x DIAG_LOG_MAX_BYTES whatever an anonymous client
+# sends to POST /client-diagnostics. Lives here rather than in routes/weather.py both because file
+# IO is route support, not routing, and because that module sits against the 800-LOC ratchet.
+DIAG_LOG_MAX_BYTES = 5_000_000
+
+
+def append_diagnostic_line(log_path, line: str, max_bytes: int = None) -> None:
+    """Append ONE sanitized record to the diagnostics log, rotating once at the byte cap.
+
+    Client-controlled newlines become literal \\n/\\r so a payload cannot forge extra records; at
+    the cap the live file becomes `<name>.1` (the previous `.1` is discarded), so the pair is
+    bounded at ~2x the cap. Rotation failure is best-effort (the append still happens) — losing a
+    rotation must never lose the diagnostic that triggered it."""
+    import os
+    from pathlib import Path
+    log_path = Path(log_path)
+    cap = DIAG_LOG_MAX_BYTES if max_bytes is None else int(max_bytes)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        if log_path.exists() and log_path.stat().st_size >= cap:
+            os.replace(log_path, log_path.parent / (log_path.name + ".1"))
+    except OSError:
+        pass
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(line.replace("\r", "\\r").replace("\n", "\\n") + "\n")

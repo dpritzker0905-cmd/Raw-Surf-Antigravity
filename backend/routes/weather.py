@@ -18,7 +18,7 @@ from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoPro
 
 # Import extracted helpers/services
 from services.weather_pipeline.route_helpers import (
-    filter_grid_to_bbox, compute_truth_tag, get_snapped_bbox
+    filter_grid_to_bbox, compute_truth_tag, get_snapped_bbox, append_diagnostic_line
 )
 from services.weather_pipeline.viewport_service import ViewportService
 from services.weather_pipeline.point_resolution import PointResolutionService
@@ -646,7 +646,23 @@ async def get_report_calibration():
     from services.weather_pipeline.report_calibration import load_report_calibration_cached
     report = await asyncio.to_thread(load_report_calibration_cached)
     if not report:
-        return {"available": False, "summary": None, "residuals": []}
+        return {"available": False, "reason": "no report generated yet", "summary": None,
+                "residuals": []}
+    # MEASURE-OR-REFUSE (2026-08-15, Master Codex MC-03): "available" used to mean "an L2 file
+    # exists" — live production served available:true with n_archive=60000, n_reports=0,
+    # n_matched=0 and every metric null. An instrument with no matched outcomes must say so on the
+    # wire; the evidence counters stay readable so the refusal explains itself. The threshold
+    # defaults to 1 (refuse only at zero); the owner can raise it to demand a real sample.
+    try:
+        min_matched = max(1, int(os.environ.get("REPORT_CAL_MIN_MATCHED", "1")))
+    except (TypeError, ValueError):
+        min_matched = 1
+    n_matched = int((report.get("summary") or {}).get("n_matched") or 0)
+    if n_matched < min_matched:
+        return {"available": False,
+                "reason": (f"no usable calibration evidence: n_matched={n_matched}, "
+                           f"n_reports={report.get('n_reports', 0)} (min {min_matched})"),
+                **report}
     return {"available": True, **report}
 
 
@@ -720,6 +736,8 @@ async def post_client_diagnostics(report: ClientDiagnosticReport):
     """
     POST /api/weather/client-diagnostics
     Receives and logs real-time client-side warnings, errors, and truth violations.
+    Ingress bounds (schema max-lengths, 4 KB details, log rotation, no exception text in the 500)
+    are MC-07; see ClientDiagnosticReport and append_diagnostic_line.
     """
     try:
         details_str = f" | Details: {report.details}" if report.details else ""
@@ -733,29 +751,27 @@ async def post_client_diagnostics(report: ClientDiagnosticReport):
             f"FPS: {report.fps if report.fps is not None else 'unmeasured'} | "
             f"Memory: {report.memory or 0}MB | Correlation: {report.correlationId or 'none'}{details_str}"
         )
-        
+        # one record per report, whatever the payload contains (MC-07)
+        log_msg = log_msg.replace("\r", "\\r").replace("\n", "\\n")
+
         # Log via python logger
         if "error" in report.event_type.lower() or "violation" in report.event_type.lower() or "fail" in report.event_type.lower():
             logger.error(log_msg)
         else:
             logger.warning(log_msg)
-            
-        # Also append to diagnostics.log
+
+        # Also append to diagnostics.log (bounded — rotation at DIAG_LOG_MAX_BYTES)
         from pathlib import Path
         log_path = Path(__file__).parent.parent / "diagnostics.log"
         formatted_time = report.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") if report.timestamp else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        
-        def write_diagnostic_log():
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(log_path, "a", encoding="utf-8") as f:
-                f.write(f"[{formatted_time}] {log_msg}\n")
-                
-        await asyncio.to_thread(write_diagnostic_log)
-            
+        await asyncio.to_thread(append_diagnostic_line, log_path, f"[{formatted_time}] {log_msg}")
+
         return {"status": "success", "message": "Diagnostic report logged successfully"}
     except Exception as e:
         logger.error(f"Failed to log client diagnostic: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to save diagnostic: {str(e)}")
+        # the exception is for the SERVER log; an anonymous caller gets no internals (MC-07,
+        # the WS-CAN-0009 pattern)
+        raise HTTPException(status_code=500, detail="Failed to save diagnostic report")
 
 
 @router.get("/diagnostics-log")

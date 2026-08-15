@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, model_serializer
+from pydantic import BaseModel, Field, field_validator, model_serializer
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
@@ -326,14 +326,31 @@ class PipelineManifest(BaseModel):
 
 
 class ClientDiagnosticReport(BaseModel):
+    # BOUNDED INGRESS (2026-08-15, Master Codex MC-07): this schema fronts an UNAUTHENTICATED
+    # public POST that appends to a durable local log. Unbounded strings + an arbitrary dict meant
+    # any client could grow the log without limit; the bounds below turn an oversized payload into
+    # a 422 at the door instead of a durable line. Limits are generous multiples of what the one
+    # real sender (TruthOverlay.js) emits. `fps` stays Optional[float] with NO default — 0 means
+    # frozen and None means unmeasured (WS-CAN-0063); do not "tidy" either into 60.
     timestamp: datetime
-    event_type: str
-    model: Optional[str] = None
-    layer: Optional[str] = None
+    event_type: str = Field(max_length=120)
+    model: Optional[str] = Field(None, max_length=60)
+    layer: Optional[str] = Field(None, max_length=60)
     timeOffset: Optional[float] = None
     fps: Optional[float] = None
     memory: Optional[float] = None
-    correlationId: Optional[str] = None
+    correlationId: Optional[str] = Field(None, max_length=120)
     details: Optional[Dict[str, Any]] = None
+
+    @field_validator("details")
+    @classmethod
+    def _details_bounded(cls, v):
+        if v is None:
+            return v
+        import json
+        size = len(json.dumps(v, default=str))
+        if size > 4096:
+            raise ValueError(f"details too large: {size} bytes serialized (max 4096)")
+        return v
 
 

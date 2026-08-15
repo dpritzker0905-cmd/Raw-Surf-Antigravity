@@ -103,3 +103,56 @@ def test_prune_archive_age_and_cap():
     assert len(pruned) == 5
     capped = rc.prune_archive(recent, now=now, max_entries=2)
     assert len(capped) == 2                                  # keeps the 2 most recent
+
+
+# ── the route's availability claim (2026-08-15, Master Codex MC-03) ─────────────────────────────
+# Live production evidence 2026-08-15T03:17Z: {"available": true, "n_archive": 60000,
+# "n_reports": 0, "summary": {"n_matched": 0, ...all null}} — the archive at its cap, ZERO matched
+# observations, and the route still said AVAILABLE. Availability meant "an L2 file exists", not
+# "there is usable evidence". Measure-or-refuse (the WS-CAN-0010 pattern): an instrument with no
+# matched outcomes must SAY SO on the wire, while keeping the evidence counters readable.
+
+def _route_with(monkeypatch, report):
+    import asyncio
+    import routes.weather as rw
+    monkeypatch.setattr(rc, "load_report_calibration_cached", lambda: report)
+    return asyncio.run(rw.get_report_calibration())
+
+
+def _report(n_matched, n_reports=0):
+    return {"version": 1, "generated_at": "2026-08-15T00:00:00Z", "model": "GFS",
+            "n_reports": n_reports, "n_archive": 60000,
+            "summary": {"n_matched": n_matched, "star_mae": None, "star_bias": None, "star_n": 0,
+                        "height_mae_m": None, "height_bias_m": None, "height_n": 0,
+                        "height_mae_ft": None},
+            "residuals": []}
+
+
+def test_an_empty_calibration_report_is_NOT_available(monkeypatch):
+    """THE DEFECT: 60,000 predictions, 0 reports, 0 matches — and 'available: true'."""
+    out = _route_with(monkeypatch, _report(n_matched=0))
+    assert out["available"] is False, "zero matched observations must not read as available"
+    assert "n_matched=0" in out.get("reason", ""), "the refusal must say WHY"
+    assert out["n_archive"] == 60000, "refusing must not hide the evidence counters"
+
+
+def test_a_matched_report_IS_available__THE_CONTROL(monkeypatch):
+    """Without this the guard above passes on a route that refuses everything."""
+    out = _route_with(monkeypatch, _report(n_matched=3, n_reports=5))
+    assert out["available"] is True
+    assert out["summary"]["n_matched"] == 3
+
+
+def test_no_report_at_all_stays_unavailable__THE_CONTROL(monkeypatch):
+    out = _route_with(monkeypatch, None)
+    assert out["available"] is False
+
+
+def test_the_minimum_matched_threshold_is_tunable(monkeypatch):
+    """REPORT_CAL_MIN_MATCHED (default 1 = refuse only at zero): the owner can demand a real
+    sample before the instrument may call itself available."""
+    monkeypatch.setenv("REPORT_CAL_MIN_MATCHED", "5")
+    out = _route_with(monkeypatch, _report(n_matched=3))
+    assert out["available"] is False and "min 5" in out.get("reason", "")
+    out = _route_with(monkeypatch, _report(n_matched=5))
+    assert out["available"] is True
