@@ -1023,7 +1023,19 @@ jobs:
           # +3 test_startup_config_hardening.py — WS-CAN-0075's contract + class guard, both new
           # files land in this lane). CI-anchored: last green observed 413; 413 + 12 = 425;
           # 425 - 2 = 423.
-          MIN_PASSED = 423
+          # ⛔ 423→414, SAME DAY: that raise was a PREDICTION, not a reading, and it reddened both
+          # lanes. "413 + 12" assumed all twelve new tests land here; CI read **416**, i.e. **+3** —
+          # nine of them are selected by another lane (estate is a COMPLEMENT). ⚠️ And 425 is the
+          # number four lines up that this file itself labels the LOCAL read — the exact quantity
+          # the rule above forbids. THIS value is CI's own output, identical on both lanes of
+          # `be6a705a`: runs 31900011802 (push) and 31900014330 (PR) each printed
+          # `416 passed, 2865 skipped` and each failed `only 416 passed, floor is 423`.
+          # 416 - 2 = 414.
+          # ★ THIRD estate over-raise, and the staleness checker still cannot see one: it is
+          # deliberately one-sided, so at 423-vs-413 it printed "every floor is current" (verified
+          # by running it at HEAD, exit 0). Only the lane itself fails, and only after the raise
+          # ships. See register L-2.
+          MIN_PASSED = 414
 
           try:
               root = ET.parse('estate.xml').getroot()
