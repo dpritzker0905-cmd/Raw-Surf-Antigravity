@@ -17,6 +17,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from routes.surf_data import conditions as C                    # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def _live_path_only(monkeypatch):
+    """This file pins the LIVE path's bounds (one IN-query, bounded concurrency). The frame-first
+    lane (WS-CAN-0064) has its own suite — and without this pin, a NEIGHBOUR test's warmed blob
+    cache can let the frame path answer the 250-id request this file exists to bound (observed:
+    green alone, red in the full lane)."""
+    monkeypatch.setenv("CONDITIONS_BATCH_PRECOMPUTED", "0")
+
+
 class _Spot:
     def __init__(self, sid):
         self.id, self.latitude, self.longitude = sid, 30.0, -80.0

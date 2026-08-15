@@ -265,8 +265,13 @@ def test_a_nested_dict_inside_a_spread_does_not_leak_its_inner_keys():
     (which THE_CONTROL above pins)."""
     produced = _producer_return_keys()
     assert "inputs" in produced, "the sampled inputs payload must still be VISIBLE to the guard"
-    for inner in ("offshore_hs_m", "swell_from_deg", "wind_ms", "wind_from_deg",
-                  "shore_normal_deg", "break_depth_m"):
+    # ⚠️ 2026-08-15: offshore_hs_m and swell_from_deg GRADUATED to always-on top-level product
+    # fields (WS-CAN-0064 — the batch lane serves from them), so they now legitimately appear in
+    # BOTH places and left this exemplar list. The guard's intent is unchanged and still pinned by
+    # the keys below: the extractor must never FABRICATE a top-level demand from a key that exists
+    # only inside the nested dict.
+    for inner in ("wind_ms", "wind_from_deg", "shore_normal_deg", "break_depth_m",
+                  "water_level_m"):
         assert inner not in produced, (
             "%r is nested inside `inputs`; reporting it as a top-level producer key would demand a "
             "declaration for a field that never reaches the response boundary" % inner)

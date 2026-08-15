@@ -226,6 +226,13 @@ _RATING_FLAGS = {
                                       "Render env"),
     "RATING_BREAKER_TYPE":         ("0", "Iribarren breaker-type factor in spot ratings", "Render env"),
     "SPOT_RATINGS_V2":             ("1", "Spot-ratings endpoint (glyphs) master switch", "Render env"),
+    # 2026-08-15 (WS-CAN-0064): /conditions/batch answers from the precomputed frames per spot
+    # (same ladder as /spot-ratings), live fallback for anything a frame cannot answer. The
+    # repair for the route production measured at 0.380 s/spot linear, p50 52-59 s.
+    "CONDITIONS_BATCH_PRECOMPUTED": ("1", "Serve /conditions/batch from the precomputed rating "
+                                          "frames (fresh→stale ladder, per-spot live fallback). "
+                                          "0 = the pre-2026-08-15 all-live path, byte-identical",
+                                     "Render env"),
     "SURF_REGIONAL_PREFER":        ("1", "Surf regional-tile preference for the coastal band", "Render env"),
     "EURO_MARINE_MID_RES_INGEST":  ("1", "EURO mid-tier ingest (ECMWF wave stream) — the EURO band's data", "pilots workflow env"),
     "EURO_MARINE_MID_ECMWF":       ("1", "EURO mid source: ECMWF free wave stream (0 = legacy CMEMS)", "pilots workflow env"),

@@ -775,7 +775,10 @@ jobs:
           # DECISION, NOT THE AUTHOR'S INTENT: run `ci_test_lanes.py --lane <x>` on the TRACKED
           # file before predicting a count (an untracked file is invisible to it, which is exactly
           # how this prediction went wrong). 799 - 6 = 793. MIN_FILES 85 → 86 (+1 file).
-          MIN_FILES, MIN_PASSED = 86, 793
+          # ⬆ 793→801 on 2026-08-15 (fourth): +8 tests, test_conditions_batch_precompute.py —
+          # SELECTOR-VERIFIED into this lane before predicting (the rule the third raise bought).
+          # 799 + 8 = 807; 807 - 6 = 801. MIN_FILES 86 → 87.
+          MIN_FILES, MIN_PASSED = 87, 801
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
