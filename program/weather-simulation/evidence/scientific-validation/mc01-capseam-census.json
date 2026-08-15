@@ -1,0 +1,91 @@
+{
+  "flag": "SURF_CAP_SEAM_MONOTONE",
+  "sweep": {
+    "traces": 48,
+    "steps_per_trace": 1191,
+    "hs_range_m": [
+      0.1,
+      12.0
+    ],
+    "step_m": 0.01
+  },
+  "seam_scan": {
+    "legacy_negative_jumps": 38,
+    "legacy_traces_with_jump": 38,
+    "legacy_largest": [
+      {
+        "trace": [
+          "steep_shelf",
+          10.0,
+          45.0
+        ],
+        "hs": [
+          9.4,
+          9.41
+        ],
+        "out": [
+          8.2294,
+          6.48
+        ],
+        "drop_m": 1.7494
+      },
+      {
+        "trace": [
+          "steep_shelf",
+          18.0,
+          45.0
+        ],
+        "hs": [
+          7.13,
+          7.14
+        ],
+        "out": [
+          8.2287,
+          6.48
+        ],
+        "drop_m": 1.7487
+      },
+      {
+        "trace": [
+          "steep_shelf",
+          18.0,
+          90.0
+        ],
+        "hs": [
+          11.65,
+          11.66
+        ],
+        "out": [
+          8.2277,
+          6.48
+        ],
+        "drop_m": 1.7477
+      }
+    ],
+    "fixed_negative_jumps": 0,
+    "fixed_traces_with_jump": 0
+  },
+  "band": {
+    "cells_in_band": 7356,
+    "cells_total": 57168,
+    "fraction_of_sweep": 0.12867,
+    "traces_touched": 46,
+    "correction_rel": {
+      "min": 0.0001,
+      "median": 0.1092,
+      "max": 0.2126
+    },
+    "note": "correction_rel = (legacy - fixed)/legacy inside the band; max is bounded by 1 - 1/1.27 = 0.2126 by construction"
+  },
+  "rating_migration_in_band": {
+    "sampled": 409,
+    "score_delta": {
+      "min": -3.4,
+      "median": 0.2,
+      "max": 14.5
+    },
+    "bucket_crossings": 70,
+    "caveat": "probe rating conventions (reference_size_m=1.2); production supplies per-spot references -- indicative, not served values"
+  },
+  "production_reach_context": "depth-limited cap binds 0.145% of served spot-hours (n=227,088, 2026-08-07); the band is the sub-neighbourhood of that where legacy overshoots the cap"
+}

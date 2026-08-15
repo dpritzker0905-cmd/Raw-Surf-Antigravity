@@ -1,0 +1,668 @@
+{
+  "rating": {
+    "bucket_counts": {
+      "epic": 56,
+      "fair": 284,
+      "fair_good": 112,
+      "good": 104,
+      "poor": 796,
+      "poor_fair": 444,
+      "very_poor": 5884
+    },
+    "cases": 7680,
+    "large_jump_fraction": 0.0018,
+    "largest_jumps": [
+      {
+        "base_level": "very_poor",
+        "base_score": 10.0,
+        "case": {
+          "break_depth_m": 5.0,
+          "height_m": 4.0,
+          "period_s": 16.0,
+          "reference_size_m": 1.2,
+          "shore_normal_deg": 0.0,
+          "swell_from_deg": 90.0,
+          "wind_from_deg": 0.0,
+          "wind_ms": 1.0
+        },
+        "delta_score": 23.3,
+        "perturbation": "shore_normal_plus_15deg"
+      },
+      {
+        "base_level": "very_poor",
+        "base_score": 10.0,
+        "case": {
+          "break_depth_m": 5.0,
+          "height_m": 4.0,
+          "period_s": 16.0,
+          "reference_size_m": 1.2,
+          "shore_normal_deg": 0.0,
+          "swell_from_deg": 90.0,
+          "wind_from_deg": 90.0,
+          "wind_ms": 1.0
+        },
+        "delta_score": 23.3,
+        "perturbation": "shore_normal_plus_15deg"
+      },
+      {
+        "base_level": "very_poor",
+        "base_score": 10.0,
+        "case": {
+          "break_depth_m": 5.0,
+          "height_m": 4.0,
+          "period_s": 16.0,
+          "reference_size_m": 1.2,
+          "shore_normal_deg": 0.0,
+          "swell_from_deg": 90.0,
+          "wind_from_deg": 180.0,
+          "wind_ms": 1.0
+        },
+        "delta_score": 23.3,
+        "perturbation": "shore_normal_plus_15deg"
+      },
+      {
+        "base_level": "very_poor",
+        "base_score": 10.0,
+        "case": {
+          "break_depth_m": 5.0,
+          "height_m": 4.0,
+          "period_s": 16.0,
+          "reference_size_m": 1.2,
+          "shore_normal_deg": 0.0,
+          "swell_from_deg": 90.0,
+          "wind_from_deg": 270.0,
+          "wind_ms": 1.0
+        },
+        "delta_score": 23.3,
+        "perturbation": "shore_normal_plus_15deg"
+      },
+      {
+        "base_level": "very_poor",
+        "base_score": 10.0,
+        "case": {
+          "break_depth_m": 5.0,
+          "height_m": 4.0,
+          "period_s": 16.0,
+          "reference_size_m": 1.2,
+          "shore_normal_deg": 90.0,
+          "swell_from_deg": 180.0,
+          "wind_from_deg": 90.0,
+          "wind_ms": 1.0
+        },
+        "delta_score": 23.3,
+        "perturbation": "shore_normal_plus_15deg"
+      },
+      {
+        "base_level": "very_poor",
+        "base_score": 10.0,
+        "case": {
+          "break_depth_m": 5.0,
+          "height_m": 4.0,
+          "period_s": 16.0,
+          "reference_size_m": 1.2,
+          "shore_normal_deg": 90.0,
+          "swell_from_deg": 180.0,
+          "wind_from_deg": 180.0,
+          "wind_ms": 1.0
+        },
+        "delta_score": 23.3,
+        "perturbation": "shore_normal_plus_15deg"
+      },
+      {
+        "base_level": "very_poor",
+        "base_score": 10.0,
+        "case": {
+          "break_depth_m": 5.0,
+          "height_m": 4.0,
+          "period_s": 16.0,
+          "reference_size_m": 1.2,
+          "shore_normal_deg": 90.0,
+          "swell_from_deg": 180.0,
+          "wind_from_deg": 270.0,
+          "wind_ms": 1.0
+        },
+        "delta_score": 23.3,
+        "perturbation": "shore_normal_plus_15deg"
+      },
+      {
+        "base_level": "very_poor",
+        "base_score": 10.0,
+        "case": {
+          "break_depth_m": 5.0,
+          "height_m": 4.0,
+          "period_s": 16.0,
+          "reference_size_m": 1.2,
+          "shore_normal_deg": 90.0,
+          "swell_from_deg": 180.0,
+          "wind_from_deg": 0.0,
+          "wind_ms": 1.0
+        },
+        "delta_score": 23.3,
+        "perturbation": "shore_normal_plus_15deg"
+      }
+    ],
+    "local_derivatives": {
+      "height_m": {
+        "active_fraction": 0.7635,
+        "max_abs": 60.0,
+        "median_abs": 3.0,
+        "p90_abs": 28.0,
+        "p99_abs": 55.0
+      },
+      "period_s": {
+        "active_fraction": 0.5578,
+        "max_abs": 14.4,
+        "median_abs": 0.2,
+        "p90_abs": 2.0,
+        "p99_abs": 9.6
+      },
+      "shore_normal_deg": {
+        "active_fraction": 0.5271,
+        "max_abs": 1.35,
+        "median_abs": 0.025,
+        "p90_abs": 0.425,
+        "p99_abs": 1.075
+      },
+      "swell_from_deg": {
+        "active_fraction": 0.4547,
+        "max_abs": 1.35,
+        "median_abs": 0.0,
+        "p90_abs": 0.3775,
+        "p99_abs": 1.0
+      },
+      "wind_from_deg": {
+        "active_fraction": 0.1708,
+        "max_abs": 0.425,
+        "median_abs": 0.0,
+        "p90_abs": 0.025,
+        "p99_abs": 0.3
+      },
+      "wind_ms": {
+        "active_fraction": 0.3719,
+        "max_abs": 9.6,
+        "median_abs": 0.0,
+        "p90_abs": 1.4,
+        "p99_abs": 7.4
+      }
+    },
+    "practical_perturbations": {
+      "height_plus_10pct": {
+        "active_fraction": 0.9458,
+        "level_crossing_fraction": 0.0427,
+        "max_abs": 6.0,
+        "median_abs": 0.4,
+        "p90_abs": 2.6,
+        "p99_abs": 4.9
+      },
+      "period_plus_1s": {
+        "active_fraction": 0.6271,
+        "level_crossing_fraction": 0.0437,
+        "max_abs": 14.3,
+        "median_abs": 0.1,
+        "p90_abs": 2.1,
+        "p99_abs": 9.7
+      },
+      "shore_normal_plus_15deg": {
+        "active_fraction": 0.7547,
+        "level_crossing_fraction": 0.1323,
+        "max_abs": 23.3,
+        "median_abs": 0.5,
+        "p90_abs": 8.0,
+        "p99_abs": 18.3
+      },
+      "swell_dir_plus_15deg": {
+        "active_fraction": 0.4724,
+        "level_crossing_fraction": 0.0943,
+        "max_abs": 21.7,
+        "median_abs": 0.0,
+        "p90_abs": 5.6,
+        "p99_abs": 15.9
+      },
+      "wind_dir_plus_15deg": {
+        "active_fraction": 0.4964,
+        "level_crossing_fraction": 0.0208,
+        "max_abs": 10.6,
+        "median_abs": 0.0,
+        "p90_abs": 0.8,
+        "p99_abs": 6.4
+      },
+      "wind_plus_2ms": {
+        "active_fraction": 0.6771,
+        "level_crossing_fraction": 0.0802,
+        "max_abs": 20.2,
+        "median_abs": 0.3,
+        "p90_abs": 4.6,
+        "p99_abs": 12.7
+      }
+    },
+    "zero_score_fraction": 0.0161
+  },
+  "transform": {
+    "open_ocean": {
+      "cap_bound_fraction": 0.0,
+      "dheight_dDirection": {
+        "active_fraction": 0.0,
+        "max_abs": 0.0,
+        "median_abs": 0.0,
+        "p90_abs": 0.0,
+        "p99_abs": 0.0
+      },
+      "dheight_dHs": {
+        "active_fraction": 1.0,
+        "max_abs": 1.0,
+        "median_abs": 1.0,
+        "p90_abs": 1.0,
+        "p99_abs": 1.0
+      },
+      "dheight_dTp": {
+        "active_fraction": 0.0,
+        "max_abs": 0.0,
+        "median_abs": 0.0,
+        "p90_abs": 0.0,
+        "p99_abs": 0.0
+      },
+      "identity_fraction": 1.0,
+      "largest_height_derivatives": [
+        {
+          "dheight_dDirection": 0.0,
+          "dheight_dHs": 1.0000000000000142,
+          "dheight_dTp": 0.0,
+          "geometry": "open_ocean",
+          "input_hs": 8.0,
+          "output_height": 8.0,
+          "regime": "open_ocean"
+        },
+        {
+          "dheight_dDirection": 0.0,
+          "dheight_dHs": 1.0000000000000142,
+          "dheight_dTp": 0.0,
+          "geometry": "open_ocean",
+          "input_hs": 8.0,
+          "output_height": 8.0,
+          "regime": "open_ocean"
+        },
+        {
+          "dheight_dDirection": 0.0,
+          "dheight_dHs": 1.0000000000000142,
+          "dheight_dTp": 0.0,
+          "geometry": "open_ocean",
+          "input_hs": 8.0,
+          "output_height": 8.0,
+          "regime": "open_ocean"
+        },
+        {
+          "dheight_dDirection": 0.0,
+          "dheight_dHs": 1.0000000000000142,
+          "dheight_dTp": 0.0,
+          "geometry": "open_ocean",
+          "input_hs": 8.0,
+          "output_height": 8.0,
+          "regime": "open_ocean"
+        }
+      ],
+      "regime_counts": {
+        "open_ocean": 80
+      },
+      "samples": 80
+    },
+    "regime_seam_scan": {
+      "largest_negative_jumps": [
+        {
+          "direction_offset_deg": 45.0,
+          "drop_m": 1.7494,
+          "geometry": "steep_shelf",
+          "hs_after": 9.41,
+          "hs_before": 9.4,
+          "output_after": 6.48,
+          "output_before": 8.2294,
+          "period_s": 10.0,
+          "regime_after": "breaking",
+          "regime_before": "shelf"
+        },
+        {
+          "direction_offset_deg": 45.0,
+          "drop_m": 1.7487,
+          "geometry": "steep_shelf",
+          "hs_after": 7.14,
+          "hs_before": 7.13,
+          "output_after": 6.48,
+          "output_before": 8.2287,
+          "period_s": 18.0,
+          "regime_after": "breaking",
+          "regime_before": "shelf"
+        },
+        {
+          "direction_offset_deg": 90.0,
+          "drop_m": 1.7477,
+          "geometry": "steep_shelf",
+          "hs_after": 11.66,
+          "hs_before": 11.65,
+          "output_after": 6.48,
+          "output_before": 8.2277,
+          "period_s": 18.0,
+          "regime_after": "breaking",
+          "regime_before": "shelf"
+        },
+        {
+          "direction_offset_deg": 135.0,
+          "drop_m": 1.7477,
+          "geometry": "steep_shelf",
+          "hs_after": 11.66,
+          "hs_before": 11.65,
+          "output_after": 6.48,
+          "output_before": 8.2277,
+          "period_s": 18.0,
+          "regime_after": "breaking",
+          "regime_before": "shelf"
+        },
+        {
+          "direction_offset_deg": 45.0,
+          "drop_m": 1.7455,
+          "geometry": "steep_shelf",
+          "hs_after": 8.01,
+          "hs_before": 8.0,
+          "output_after": 6.48,
+          "output_before": 8.2255,
+          "period_s": 14.0,
+          "regime_after": "breaking",
+          "regime_before": "shelf"
+        },
+        {
+          "direction_offset_deg": 0.0,
+          "drop_m": 1.7437,
+          "geometry": "steep_shelf",
+          "hs_after": 6.84,
+          "hs_before": 6.83,
+          "output_after": 6.48,
+          "output_before": 8.2237,
+          "period_s": 14.0,
+          "regime_after": "breaking",
+          "regime_before": "shelf"
+        },
+        {
+          "direction_offset_deg": 0.0,
+          "drop_m": 1.7432,
+          "geometry": "steep_shelf",
+          "hs_after": 8.03,
+          "hs_before": 8.02,
+          "output_after": 6.48,
+          "output_before": 8.2232,
+          "period_s": 10.0,
+          "regime_after": "breaking",
+          "regime_before": "shelf"
+        },
+        {
+          "direction_offset_deg": 0.0,
+          "drop_m": 1.739,
+          "geometry": "steep_shelf",
+          "hs_after": 6.09,
+          "hs_before": 6.08,
+          "output_after": 6.48,
+          "output_before": 8.219,
+          "period_s": 18.0,
+          "regime_after": "breaking",
+          "regime_before": "shoaling"
+        },
+        {
+          "direction_offset_deg": 45.0,
+          "drop_m": 1.5853,
+          "geometry": "steep_shelf",
+          "hs_after": 10.73,
+          "hs_before": 10.72,
+          "output_after": 5.8745,
+          "output_before": 7.4598,
+          "period_s": 6.0,
+          "regime_after": "breaking",
+          "regime_before": "shelf"
+        },
+        {
+          "direction_offset_deg": 0.0,
+          "drop_m": 1.5822,
+          "geometry": "steep_shelf",
+          "hs_after": 9.16,
+          "hs_before": 9.15,
+          "output_after": 5.8745,
+          "output_before": 7.4567,
+          "period_s": 6.0,
+          "regime_after": "breaking",
+          "regime_before": "shelf"
+        },
+        {
+          "direction_offset_deg": 0.0,
+          "drop_m": 1.0923,
+          "geometry": "unknown_bearing",
+          "hs_after": 3.71,
+          "hs_before": 3.7,
+          "output_after": 4.05,
+          "output_before": 5.1423,
+          "period_s": 18.0,
+          "regime_after": "breaking",
+          "regime_before": "shoaling"
+        },
+        {
+          "direction_offset_deg": 45.0,
+          "drop_m": 1.0923,
+          "geometry": "unknown_bearing",
+          "hs_after": 3.71,
+          "hs_before": 3.7,
+          "output_after": 4.05,
+          "output_before": 5.1423,
+          "period_s": 18.0,
+          "regime_after": "breaking",
+          "regime_before": "shoaling"
+        }
+      ],
+      "negative_jump_count": 38,
+      "step_m": 0.01,
+      "traces": 48,
+      "traces_with_negative_jump": 38
+    },
+    "steep_shelf": {
+      "cap_bound_fraction": 0.0,
+      "dheight_dDirection": {
+        "active_fraction": 0.4625,
+        "max_abs": 0.0475,
+        "median_abs": 0.0,
+        "p90_abs": 0.0158,
+        "p99_abs": 0.0429
+      },
+      "dheight_dHs": {
+        "active_fraction": 0.9625,
+        "max_abs": 34.911,
+        "median_abs": 0.8337,
+        "p90_abs": 1.4084,
+        "p99_abs": 34.6146
+      },
+      "dheight_dTp": {
+        "active_fraction": 0.9625,
+        "max_abs": 6.9822,
+        "median_abs": 0.0653,
+        "p90_abs": 0.2263,
+        "p99_abs": 6.9229
+      },
+      "identity_fraction": 0.0,
+      "largest_height_derivatives": [
+        {
+          "dheight_dDirection": -0.04745117877354055,
+          "dheight_dHs": -34.91098279967893,
+          "dheight_dTp": -6.982196559935787,
+          "geometry": "steep_shelf",
+          "input_hs": 8.0,
+          "output_height": 8.225549139983947,
+          "regime": "shelf"
+        },
+        {
+          "dheight_dDirection": -0.001012369214588027,
+          "dheight_dHs": -34.53578089734229,
+          "dheight_dTp": -6.907156179468458,
+          "geometry": "steep_shelf",
+          "input_hs": 8.0,
+          "output_height": 8.206789044867115,
+          "regime": "shelf"
+        },
+        {
+          "dheight_dDirection": -0.00012252633402370927,
+          "dheight_dHs": 1.9865238122297102,
+          "dheight_dTp": -0.0024532629150386676,
+          "geometry": "steep_shelf",
+          "input_hs": 0.5,
+          "output_height": 0.9932619061148562,
+          "regime": "shoaling"
+        },
+        {
+          "dheight_dDirection": -0.0001237633463654353,
+          "dheight_dHs": 1.8547185323042914,
+          "dheight_dTp": -0.002465902667498021,
+          "geometry": "steep_shelf",
+          "input_hs": 0.5,
+          "output_height": 1.0032897686654811,
+          "regime": "shoaling"
+        }
+      ],
+      "regime_counts": {
+        "breaking": 3,
+        "shelf": 55,
+        "shoaling": 22
+      },
+      "samples": 80
+    },
+    "unknown_bearing": {
+      "cap_bound_fraction": 0.0,
+      "dheight_dDirection": {
+        "active_fraction": 0.0,
+        "max_abs": 0.0,
+        "median_abs": 0.0,
+        "p90_abs": 0.0,
+        "p99_abs": 0.0
+      },
+      "dheight_dHs": {
+        "active_fraction": 0.75,
+        "max_abs": 21.1022,
+        "median_abs": 1.1059,
+        "p90_abs": 1.8236,
+        "p99_abs": 21.1022
+      },
+      "dheight_dTp": {
+        "active_fraction": 0.85,
+        "max_abs": 0.2476,
+        "median_abs": 0.0472,
+        "p90_abs": 0.1424,
+        "p99_abs": 0.2476
+      },
+      "identity_fraction": 0.0,
+      "largest_height_derivatives": [
+        {
+          "dheight_dDirection": 0.0,
+          "dheight_dHs": -21.102208555055135,
+          "dheight_dTp": 0.10350936144808642,
+          "geometry": "unknown_bearing",
+          "input_hs": 4.0,
+          "output_height": 5.1051104277527575,
+          "regime": "shoaling"
+        },
+        {
+          "dheight_dDirection": 0.0,
+          "dheight_dHs": -21.102208555055135,
+          "dheight_dTp": 0.10350936144808642,
+          "geometry": "unknown_bearing",
+          "input_hs": 4.0,
+          "output_height": 5.1051104277527575,
+          "regime": "shoaling"
+        },
+        {
+          "dheight_dDirection": 0.0,
+          "dheight_dHs": -21.102208555055135,
+          "dheight_dTp": 0.10350936144808642,
+          "geometry": "unknown_bearing",
+          "input_hs": 4.0,
+          "output_height": 5.1051104277527575,
+          "regime": "shoaling"
+        },
+        {
+          "dheight_dDirection": 0.0,
+          "dheight_dHs": -21.102208555055135,
+          "dheight_dTp": 0.10350936144808642,
+          "geometry": "unknown_bearing",
+          "input_hs": 4.0,
+          "output_height": 5.1051104277527575,
+          "regime": "shoaling"
+        }
+      ],
+      "regime_counts": {
+        "breaking": 20,
+        "shelf": 16,
+        "shoaling": 44
+      },
+      "samples": 80
+    },
+    "wide_shelf": {
+      "cap_bound_fraction": 0.0,
+      "dheight_dDirection": {
+        "active_fraction": 0.4125,
+        "max_abs": 0.022,
+        "median_abs": 0.0,
+        "p90_abs": 0.0074,
+        "p99_abs": 0.0212
+      },
+      "dheight_dHs": {
+        "active_fraction": 0.8875,
+        "max_abs": 1.0254,
+        "median_abs": 0.457,
+        "p90_abs": 0.7689,
+        "p99_abs": 0.9293
+      },
+      "dheight_dTp": {
+        "active_fraction": 0.825,
+        "max_abs": 0.17,
+        "median_abs": 0.0403,
+        "p90_abs": 0.108,
+        "p99_abs": 0.1361
+      },
+      "identity_fraction": 0.0,
+      "largest_height_derivatives": [
+        {
+          "dheight_dDirection": -7.982304093079318e-05,
+          "dheight_dHs": 1.025378372254926,
+          "dheight_dTp": -0.013315977773396437,
+          "geometry": "wide_shelf",
+          "input_hs": 0.5,
+          "output_height": 0.6470869011025742,
+          "regime": "shoaling"
+        },
+        {
+          "dheight_dDirection": -0.0032900844093897152,
+          "dheight_dHs": 0.9037461916145917,
+          "dheight_dTp": -0.011736413138758284,
+          "geometry": "wide_shelf",
+          "input_hs": 0.5,
+          "output_height": 0.5703283181496124,
+          "regime": "shelf"
+        },
+        {
+          "dheight_dDirection": -0.00013897998649270438,
+          "dheight_dHs": 0.896896140601493,
+          "dheight_dTp": -0.023184463902938823,
+          "geometry": "wide_shelf",
+          "input_hs": 1.0,
+          "output_height": 1.1266437325127787,
+          "regime": "shelf"
+        },
+        {
+          "dheight_dDirection": -6.907099785169457e-05,
+          "dheight_dHs": 0.8872614538521617,
+          "dheight_dTp": -0.040310350919634974,
+          "geometry": "wide_shelf",
+          "input_hs": 0.5,
+          "output_height": 0.5599252726370381,
+          "regime": "shelf"
+        }
+      ],
+      "regime_counts": {
+        "breaking": 9,
+        "shelf": 70,
+        "shoaling": 1
+      },
+      "samples": 80
+    }
+  }
+}
