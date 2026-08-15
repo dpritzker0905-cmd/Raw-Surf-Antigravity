@@ -392,6 +392,54 @@ hold (22 findings vs 7). **Pull it before 08-27.**
 
 ---
 
+---
+
+## 4. ⛔⛔⛔ ADDENDUM — A RE-RUN ERASES THE FAILURE FROM EVERY DEFAULT VIEW
+
+A monitor reported `e2e` failed on PR #8. Every default view said otherwise:
+
+- `gh pr checks 8` → **32 checks, 0 non-success**
+- `gh run list --workflow "E2E Tests" --limit 10` → **no failure**
+- the last failing CI job in the whole recent window was `backend-estate-coverage`, **13 h earlier**
+
+**The monitor was right and all three queries were blind.** Run 31894859386 (E2E Tests @ `834b1cfe`):
+
+```
+run_attempt = 2   conclusion = success        <- what gh run list / gh pr checks report
+attempts/1        conclusion = FAILURE        <- the only place it survives
+```
+
+⇒ ★★★ **A RE-RUN OVERWRITES THE RUN'S TOP-LEVEL CONCLUSION.** `gh run list`, `gh pr checks` and any
+flake census built on them **cannot see that a run ever failed**. It is readable only at
+`/actions/runs/<id>/attempts/<n>`. ⚠️ "No failing runs in the last 60" is **not** evidence that
+nothing failed.
+⭐ **Census, so the concern is bounded rather than inflated:** of the last **40** runs, exactly **one**
+has `run_attempt > 1`. Masking is rare here — and it hid precisely the event under investigation.
+★ Sibling of the recorded *65% of E2E runs are cancelled, and a cancelled run is no evidence*: same
+family, opposite direction — a cancel leaves no verdict, a re-run **replaces** one.
+
+### The failure was real, and "environmental" is CONFIRMED — by a control, not by the retry
+
+The concurrent session classified it environmental and re-ran it (`ef72e56f`, `8454e09a`). Checked
+independently rather than accepted, because "it passed on retry" is not evidence — a retry passing is
+what a retry is for. **The runtime is the discriminator. Same commit, 40 minutes apart:**
+
+| | failed | flaky | passed | wall |
+|---|---|---|---|---|
+| attempt 1 | **1** (`[Desktop Firefox]` surfer-lockout redirect) | **12** | 34 | **21.8 min** |
+| attempt 2 | 0 | **0** | **47** | **9.8 min** |
+
+**2.2× the wall time and 12 retries on identical code**, with the page console carrying 401s, network
+errors and a refused WebSocket handshake against the prod backend throughout attempt 1. The one hard
+failure passed on both Safari targets in the same run. ⇒ environmental, and the *runtime ratio* is
+the piece of evidence worth keeping — it survives a re-run, whereas the verdict does not.
+
+⚠️ **What the green re-run erased, and nobody is counting:** **12 of 47** tests (25.5%) needed a retry
+in attempt 1. A suite riding that hard on retries is one bad runner away from red, and the record of
+it now exists only in an attempt nobody queries.
+
+---
+
 ## What was NOT done, and why
 
 Nothing was edited. Each red is a true statement by a gate that is working, and each resolution is an
