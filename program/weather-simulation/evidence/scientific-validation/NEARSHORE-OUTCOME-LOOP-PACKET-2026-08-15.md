@@ -1,6 +1,18 @@
-# Mission packet — the nearshore outcome loop (proposed WS-CAN-0076)
+# Mission packet — the nearshore outcome loop (WS-CAN-0076)
 
-**Date** 2026-08-15 · **Status** PACKET (design + measured feasibility; build not started)
+**Date** 2026-08-15 · **Status** CORE BUILT + FIRST LIVE MATCH (`da730a9b`); run-loop/cron = the
+registered remaining work.
+
+**⚠️ LIVE-SUBSET CORRECTION (measured after the packet)**: the census counted ARCHIVED stations;
+the realtime catalogue carries 78, and the pair table's live intersection is **7 stations / 17
+spot links right now** (CA + FL + NC, incl. 433p1 Duck FRF) — still ≈400+ matchable spot-hours
+per day, the audit's 1,000 in ~2.5 days, but the denominator is 7/20, not 20/20. The lane
+tolerates per-station outages by design (one dead buoy costs one buoy, counted in the report).
+
+**THE FIRST MATCHED OBSERVATION** (end to end, live): Blacks ↔ 153p1 — model 0.573 m vs
+instrument 0.940 m (−39.0%) on a 16.2 s swell 67° off-normal at a canyon-focusing site: the
+chain works, and its first datum points at exactly the directional site-specific transfer the
+2026-07-29 Kr study concluded a scalar cannot express.
 **Source** Master Codex Audit 1.0 MC-03/Phase-2 ("observations from nearshore buoys where
 available"; "accrue at least 1,000 matched nearshore spot-hours") — the deepest measured gap:
 60,000 archived predictions, zero matched observations of the served nearshore quantity.
