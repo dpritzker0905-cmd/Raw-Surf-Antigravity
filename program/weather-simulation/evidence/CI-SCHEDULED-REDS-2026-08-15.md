@@ -170,17 +170,100 @@ The last three nightlies:
 reading stepping −21.2 is the WS-CAN-0061 family: the field is present during the gesture and the
 settle is where it changes.
 
-⚠️ Not investigated further here — it belongs to the marine/zoomlab lane and needs the recordings.
-✅ **BOTH failing recordings are still retained, verified via the artifacts API** — so the two bursts
-can be compared as FRAMES, not just as counters:
+### ✅ ROOT-CAUSED — it is a FETCH-ARRIVAL RACE AGAINST THE ZOOM, not a renderer defect
+
+Traces pulled for the red (08-15) and the **green control** (08-14) and compared frame by frame.
+Both nights run the identical staircase and hold the **identical 8.00 × 8.00° regional resident**
+down to z=6.323 at **covF 0.843**. They differ only in *when a wider grid arrives*:
+
+| | 08-14 GREEN | 08-15 RED |
+|---|---|---|
+| wider grid arrives at | z **6.323** (28.00 × 24.00°) | z **5.523** (32.00 × 32.00°) |
+| coverage while held | never below **0.843** in this band | **0.462**, then **0.360** |
+| heatmap opacity | 1.0 throughout | **0.0 for 5 frames** |
+
+`__RAW_DOWNGRADE_COVER_FRAC__` defaults to **0.6**. Red's resident fell below it two zoom steps
+before a replacement landed, so the layer applied its coarse-bridge hold (opacity mult → 0), and the
+engine's mid-frame realign (`WebGLMarineEngine.js:756`) **cannot rescue it** — that path requires the
+resident to have *changed this frame* AND to cover ≥ 0.6. Neither was true, so the hold stood:
+
+```
+t=335253  z=5.703  covF=0.462  mult=0  hm=0.00  L=193.7  <- hold engages
+t=337261  z=5.523  covF=0.360  mult=0  hm=0.00  L=195.9  <- zoom has STOPPED
+t=339189  z=5.523  covF=0.360  mult=0  hm=0.00  L=195.9
+t=340127  z=5.523  covF=1.000  mult=1  hm=0.70  L=174.7  <- 32x32 grid lands; -21.2 = the SETTLED_STEP
+```
+
+**4,874 ms with the field's heatmap at zero — 2,866 ms of it with the zoom not moving.**
+
+⚠️ **Not a bare basemap: the under-wash held** (`wE` 0.516 → 0.504, `blend` engaged throughout), which
+is the design working. What the viewer loses is the heatmap: **speckle −43% (32.8 → 18.8), L +9.2**,
+then a −21.2 snap-back. That is the owner's own report — *"I think I see it for a second as I zoom
+out quickly"*, *"it clears there"* — and it is a **second, independent cause** from the layer-order
+blank the concurrent session fixed on 08-13.
+
+⇒ **The "intermittency" is not renderer flakiness.** It is whether a covering grid happened to be
+resident when the staircase crossed z≈6.3→5.5. Same code both nights.
+
+### The 08-13 trace confirms it a third time — and it is FOUR TIMES WORSE than its counter implied
+
+| night | heatmap at zero | of which zoom already stopped | covering grid that ended it |
+|---|---|---|---|
+| 08-13 | **18,836 ms** | 3,327 ms | 44.00 × 36.00° |
+| 08-15 | 4,874 ms | 2,866 ms | 32.00 × 32.00° |
+| 08-14 | **0 ms** | — | 28.00 × 24.00°, arrived early |
+
+**⭐ THE LEVER IS BRACKETED BY MEASUREMENT, NOT BY READING THE DEFAULT.** Across all three runs:
+
+```
+mult == 0  observed at covF   0.075 .. 0.479
+mult == 1  observed at covF   0.607 .. 1.000
+                              ^^^^^^^^^^^^^^ __RAW_DOWNGRADE_COVER_FRAC__ = 0.6 sits in the gap
+```
+
+⚠️ **And 08-13 shows an aggravating second behaviour the other two do not:** at t=323755, *at constant
+zoom 6.144*, the resident **SHRANK** from `8.00 × 8.00°` to `7.17 × 5.02°` — coverage 0.745 → 0.479 —
+and that swap is what *started* the hold. The engine then held that smaller grid through **five**
+further zoom steps (covF decaying 0.479 → 0.203 → 0.158 → 0.123 → 0.096 → 0.075) before a covering
+one arrived. This is the "viewport GREW, mask SHRANK" shape already recorded at
+`marineEngineDecisions.js:760` and in `mask-no-shrink-halo.test.js`.
+
+⇒ **Duration is set by arrival latency of a covering grid, and a shrinking resident can start the
+hold on its own.** The nightly's finding COUNT tracks neither: 22 findings vs 7 understates a 4×
+difference in how long the field was gone.
+
+### ⛔ REFUTED EN ROUTE — this is NOT the known band-fade dead zone
+
+The MULT0 frames sit at span **14.58** and **16.51**, inside the recorded 9.5–40° dead zone, which
+makes `__RAW_RATING_SPAN_FADE_HI__` the obvious suspect. It is wrong:
+
+- the GREEN run has **58 frames with span in [9, 42]** and `mult=1` in **every one**;
+- the RED run itself has **span 16.511 with mult=0 (covF 0.360) and mult=1 (covF 1.000)** — same
+  span, same zoom z=5.523, opposite outcome;
+- `band` (`ratingBandFade.bandMult`) reads **1.0 across the whole burst**.
+
+★★★ **The trace's `mult` is `__RAW_GPU__.opacity.mult`, NOT `ratingBandFade.bandMult`** — two
+different multipliers, one letter apart in the trace. Reading the field name as the familiar one
+would have pinned this on an owner-gated span constant and closed the investigation on the wrong
+lever. **A within-run control (same span, both outcomes) is what killed it.**
+
+### Where it could be fixed — owner's call, all three are behaviour changes
+
+1. let a sub-covering regional keep painting **inside its own bounds** during the hold instead of
+   going to zero;
+2. widen the realign to accept a resident below 0.6 when nothing better exists (show something);
+3. request the wider grid one zoom step **earlier**, so arrival leads the coverage cliff.
+
+### Artifacts (both retained — verified via the artifacts API)
 
 | artifact | size | expires |
 |---|---|---|
 | `zoomlab-nightly-31680258907` (08-13, 22 findings) | 59.6 MB | **2026-08-27** |
 | `zoomlab-nightly-31871169312` (08-15, 7 findings) | 59.8 MB | **2026-08-29** |
+| `zoomlab-nightly-31781976971` (08-14, GREEN control) | 50.3 MB | 2026-08-28 |
 
-★ **Pull both before those dates** — an intermittent defect with two retained recordings and one
-clean run between them is about as good a starting position as this class ever gets.
+★ The 08-13 trace is still unread here — it should show the same coverage collapse over a longer
+hold (22 findings vs 7). **Pull it before 08-27.**
 
 ---
 
