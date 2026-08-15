@@ -249,7 +249,12 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #                 so its TEN tests are not collected there and ONE skip stands in their place.
 #                 Measured signature: local 400 passed/2864 skipped vs CI 388/2865, same 258 files.
 #                 Two raises on 2026-08-14 were set from local readings and reddened this lane.
-_FLOOR_SET_FROM = {"guards": 1788, "chain": 790, "estate": 425}
+#                 ⛔ estate 425→416 on 2026-08-15: 425 was a PREDICTION (413 + 12 new tests) and
+#                 it happened to equal this lane's documented LOCAL read — the exact quantity the
+#                 rule above forbids. CI observed 416 on BOTH lanes of `be6a705a` (runs
+#                 31900011802 / 31900014330, `416 passed, 2865 skipped`), so only 3 of the 12 land
+#                 here. Set from the reading, never from arithmetic on the last one.
+_FLOOR_SET_FROM = {"guards": 1788, "chain": 790, "estate": 416}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
