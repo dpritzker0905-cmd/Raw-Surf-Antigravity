@@ -1,6 +1,7 @@
 import { registerMarineEngine } from '../../engine/RenderPlanDispatcher';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { shouldHoldClearOnDeactivate, noteMarineActive } from './marineTransitionCoordinator';
+import { resolveCoarseBridgeGrace } from './marineCoarseBridgeGrace';
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -172,6 +173,11 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       // COARSE-BASE BRIDGE flag — reset every frame; set true only in the regional-rejected-zoomed-out
       // branch below when a retained coarse base exists (bridges the z<7 zoom-out clear).
       if (engine) engine.__coarseBridgeActive = false;
+      // COARSE-BRIDGE GRACE clock — the SAME per-frame idiom: keep the previous episode in a local
+      // and clear the field, so "state present" in the branch below means "the bridge held on the
+      // previous frame" EXACTLY. That is what lets the grace carry no wall-clock staleness rule.
+      const _bgPrev = engine ? engine.__coarseBridgeGrace : null;
+      if (engine) engine.__coarseBridgeGrace = null;
       const map = mapRef.current;
       if (!map) return;
 
@@ -284,8 +290,28 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
               const hasCoarseBridge = !!(engine._coarseBaseData && engine._coarseBaseData.u_waveTexture) &&
                 (typeof window === 'undefined' || window.__RAW_DISABLE_COARSE_BRIDGE__ !== true);
               if (isViewportZoomedOut && isGridRegional && hasCoarseBridge) {
-                opacityMultiplier = 0.0;
+                // COARSE-BRIDGE GRACE (2026-08-15) — the bridge above is the only fade-to-zero in
+                // this family with NO time bound, and the nightly measured it holding 18.8 s. See
+                // `marineCoarseBridgeGrace.js` for the traces, and for why this is neither
+                // `b21cf29d` nor the FROM-hidden ease. DEFAULT OFF ⇒ this stays exactly `0.0`.
+                // ⛔ NOT `isZoomingOrMoving` — that folds in `__MARINE_FETCH_PENDING__`/
+                // `__MARINE_TRANSITIONING__`, which are true for the WHOLE wait this grace exists to
+                // bound, so the reveal could never fire. The b21cf29d lesson is about MAP MOTION (a
+                // rectangle sliding under the cursor), not about a fetch being in flight.
+                const _bgMoving = map.isZooming() || map.isMoving()
+                  || (typeof window !== 'undefined' && !!window.isScrubbingTimeline);
+                const _bg = resolveCoarseBridgeGrace(_bgPrev,
+                  { bridgeActive: true, moving: _bgMoving },
+                  (typeof performance !== 'undefined') ? performance.now() : Date.now(),
+                  typeof window !== 'undefined' ? window : undefined);
+                engine.__coarseBridgeGrace = _bg.state;
+                opacityMultiplier = _bg.mult;
                 engine.__coarseBridgeActive = true;
+                if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+                  window.__RAW_GPU__.coarseBridgeGrace = _bg.state
+                    ? { held: Math.round(_bg.state.held), revealing: _bg.state.revealing,
+                        mult: +_bg.mult.toFixed(3) } : null;
+                }
               } else if (!isZoomingOrMoving) {
                 this._wasActive = false;
                 return;

@@ -247,12 +247,89 @@ different multipliers, one letter apart in the trace. Reading the field name as 
 would have pinned this on an owner-gated span constant and closed the investigation on the wrong
 lever. **A within-run control (same span, both outcomes) is what killed it.**
 
-### Where it could be fixed — owner's call, all three are behaviour changes
+### ⛔⛔⛔ TWO OF THE THREE OBVIOUS FIXES ARE RE-TREADS OF REVERTED WORK
 
-1. let a sub-covering regional keep painting **inside its own bounds** during the hold instead of
-   going to zero;
-2. widen the realign to accept a resident below 0.6 when nothing better exists (show something);
-3. request the wider grid one zoom step **earlier**, so arrival leads the coverage cliff.
+Before writing anything I read what each candidate would undo. Two of them have already been tried
+and rejected **with measurements**:
+
+| candidate | already tried | what happened |
+|---|---|---|
+| paint the sub-covering regional during the hold | **`b21cf29d` (2026-07-16, a REVERT)** | *"the 0.6-0.8 band rendered a partial regional over a blank/damped background mid-gesture (the **motion rectangle**)"* |
+| ease the arriving grid in instead of snapping | **the FROM-hidden snap, 2026-07-17** | easing up from hm 0 measured **ΔL 1.9 → +48.3** — the ease made it *worse*, so `applySharpenOpacityEase` snaps whenever `ease.from <= 0.01` |
+
+⇒ **The −21.2 SETTLED_STEP is not a bug in the repaint. It is the designed snap**, chosen because the
+alternative measured 25× worse. And the hold is not an oversight either — `WebGLMarineCustomLayer.js:286`
+is the deliberate **coarse-base bridge** (`e3fb61b4`, 2026-07-04): hide the non-covering regional so
+there is no clamped rectangle, show the coarse wash underneath, *"until the real global commits"*.
+
+★★★ **THE BLANK IS THE RESIDUE OF THREE INDIVIDUALLY-CORRECT DECISIONS.** Hide the regional (07-04) ·
+don't paint it partially (07-16 revert) · don't ease up from hidden (07-17). Each is right. Together
+they guarantee that whenever a covering grid is slow, **the heatmap is hidden for the entire wait and
+then snaps back** — and the wait is network latency, which none of the three bounds.
+
+### ✅ THE ACTUAL GAP — the bridge is the ONLY fade-to-zero here with NO time bound
+
+Every sibling mechanism in this family is bounded, and the cold veil states the reason in its own
+comment — citing the coarse bridge's own commit date:
+
+> *"BOUNDED by design (the **2026-06-29/07-04 lesson** — every unbounded fade-to-zero here read as a
+> 'blank heatmap' bug): a grace timer reveals the coarse anyway if no adequate commit lands."*
+
+| mechanism | bound |
+|---|---|
+| cold-activation coarse veil | `__RAW_COLD_VEIL_GRACE_MS__` (4000) + a 350 ms lift ramp |
+| sharpen-commit opacity ease | `__RAW_SHARPEN_OPACITY_EASE_MS__` (600) |
+| rating grace | `__RAW_RATING_GRACE_MS__` |
+| **coarse-base bridge** | **none — grep for a timer on it returns zero lines** |
+
+⇒ **The lesson is dated to the bridge's own commit, was applied to a sibling, and never to the bridge
+itself.** 18.8 s of hidden heatmap is precisely the *"blank heatmap bug"* that sentence names.
+
+▶ **The fix that contradicts neither revert: give the bridge the grace timer its siblings have.** It
+is not `b21cf29d` — that painted the partial regional *immediately, mid-gesture*, which is what made
+a motion rectangle; a grace only acts after the view has been waiting (measured **2.9–3.3 s after the
+zoom stopped**, when there is no motion). It is not the FROM-hidden ease either — a bounded reveal
+can use the cold veil's own 350 ms lift ramp rather than the sharpen ease that measured +48.3.
+
+### ✅ IMPLEMENTED, DARK — `marineCoarseBridgeGrace.js`
+
+Default **OFF** (`__RAW_COARSE_BRIDGE_GRACE__` unset ⇒ `mult 0` ⇒ byte-identical to the line it
+replaces), per the D-4 pattern: every push to `dev` is a production deploy, so a default-ON commit
+would *be* the release action. Levers: `_MS` (4000, the cold veil's own grace) · `_RAMP_MS` (350, its
+lift) · `_CEIL` (1.0). Telemetry: `__RAW_GPU__.coarseBridgeGrace`. Modelled on the replays:
+
+| | held | visible under the grace |
+|---|---|---|
+| 08-13 | 18,836 ms | **~14.5 s** |
+| 08-15 | 4,874 ms | ~0.5 s |
+
+Three design choices worth the reader's time, each forced by something measured:
+
+1. **The motion gate is `map.isZooming() \|\| map.isMoving()`, NOT the local `isZoomingOrMoving`** —
+   that variable folds in `__MARINE_FETCH_PENDING__`/`__MARINE_TRANSITIONING__`, which are true for
+   the *whole wait this grace exists to bound*. Using it would have made the reveal unreachable: a
+   guard that cannot reach its subject. The `b21cf29d` lesson is about map MOTION, not fetches.
+2. **Episode identity comes from the caller, not a staleness timer.** A wall-clock "gap ⇒ new
+   episode" rule was written first and removed: it assumes a repaint cadence, so a viewport that
+   stopped repainting would reset the clock forever. The caller now clears
+   `engine.__coarseBridgeGrace` each frame using the **same per-frame idiom already there** for
+   `__coarseBridgeActive` (line 175), so "state present" means "the bridge held last frame" exactly.
+3. **The reveal ceiling is 1.0 on purpose** — the engine's TINY-TILE VIVIDNESS PARITY fade
+   (`4da586aa`, 2026-07-19) already pulls a sub-viewport regional to a peer of the wash, but it is
+   gated `blendEngaged && heatmapOpacity > 0`, so the bridge's own zero disables the very mechanism
+   built for this hazard. Handing back non-zero is what lets it run. (`blend` measured **true on
+   every frame of both red bursts**.)
+
+**Verification:** 10 tests, all passing; **5/5 mutations killed** (drop the grace → 6 fail · drop the
+motion veto → 1 · default the flag on → 1 · step instead of ramp → 2 · sticky state → 1). Full marine
+suite **95 files / 991 tests green**, including `marineCoarseBridgeModelSwitch.test.js`. ESLint gate:
+no rule over baseline (the one error in the touched file is pre-existing, `catch(e) {}` at HEAD:133).
+
+⚠️ **A unit test is not a pixel.** The remaining step is the live A/B the flag exists for: run the
+zoomlab staircase with `__RAW_COARSE_BRIDGE_GRACE__` on and confirm the MULT0 frames disappear and no
+SETTLED_STEP replaces them. ★ **The test file drove SPARSE frames first — copying the nightly's
+~1 Hz SAMPLER cadence instead of the render cadence — and 7 of 11 tests failed against correct code.
+A test that models the instrument is testing a different system.**
 
 ### Artifacts (both retained — verified via the artifacts API)
 
