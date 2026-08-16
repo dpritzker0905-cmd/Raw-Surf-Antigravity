@@ -1,7 +1,7 @@
 /* eslint-disable no-empty */
 import { memo, useEffect, useRef, useState, useCallback } from 'react';
 import { findMarineInsertionLayer, getSharedLandGeoJSON, getSharedLandGeoJSONHiRes } from './mapUtils';
-import { findMaskInsertionPoint } from './waterTempAnchor';
+import { findMaskInsertionPoint, planMaskFamilyOrder } from './waterTempAnchor';
 
 /**
  * OceanMask v15 — Pristine GeoJSON Land Masking & Dynamic Coastline Blending.
@@ -626,6 +626,15 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
         // 7. Force slot-based active marine raster layers BELOW MASK_BUFFER
         const marineLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
         safeMoveLayersBatch(mapInstance, marineLayers, MASK_BUFFER);
+
+        // 7b. FAMILY ORDER AUTHORITY (2026-08-15, "rivers/lakes/parks covered + coastal halo"): three independent anchor rules left the family order MOUNT-TIMING dependent, and WS-CAN-0061 made the 07-17 pin unsatisfiable — lakes/rivers landed UNDER the land fill. planMaskFamilyOrder (waterTempAnchor.js) is the single idempotent post-condition; it reads style._order because getStyle() OMITS the custom field layer. Kill: __RAW_DISABLE_MASK_FAMILY_ORDER__.
+        if (typeof window === 'undefined' || window.__RAW_DISABLE_MASK_FAMILY_ORDER__ !== true) {
+          try {
+            const plan = planMaskFamilyOrder(mapInstance.style._order, (id) => mapInstance.getLayer(id));
+            for (const mv of plan.moves) { try { mapInstance.moveLayer(mv.id, mv.before); } catch (e) {} }
+            if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.maskFamilyOrder = { moved: plan.moves.length, ceiling: plan.ceiling };
+          } catch (e) {}
+        }
 
         // 8. INLAND-WATER vs water_temp (2026-07-11, live-hit): mapbox-streets v8 water has NO
         // `class` property AT ANY ZOOM, so this layer's NOT-ocean filter unavoidably repaints ALL

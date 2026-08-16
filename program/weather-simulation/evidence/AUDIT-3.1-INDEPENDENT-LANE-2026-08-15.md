@@ -166,6 +166,77 @@ after world residency):
 Evidence: `shaderlab-2026-08-15/halo-isolate/` and `halo-isolate-world/` (report JSON with base64
 rect pixels + per-leg PNGs + per-leg renderer state).
 
+## THE WASH REPAIR (same session, after owner authorization to fix forward) — the attributed top face is closed at the policy level
+
+`resolveWashOverlayMode` (marineCoverageContract.js) ends `_drawCoarseBasePass`'s UNCONDITIONAL
+overlay REPLACE (in place since 2026-07-04): when the wash's OWN mask is the dense (≥4096-wide)
+global — the mask that already carves every continent — the overlay now **min-combines**, so the
+padded ring's water-flood loses to the base over land while crisp overlay truth still wins inside
+its truth box. The legacy 1024 world mask keeps REPLACE (its 39 km softness is why REPLACE existed).
+This is the SAME policy the main pass adopted on 2026-07-15 (`computeWideOverlayMode`
+baseGlobalDense), now applied to the second of the two passes that draw this shader — the asymmetry
+the step-1 isolation matrix named as the halo's top remaining face.
+
+- **Jacobian proof in pixels (S5 trio, real compiled shader):** base mask LAND + flooded overlay
+  WATER — REPLACE paints the land pixel (the halo face, measured); min-combine discards it; and an
+  overlay that says LAND still carves under min (min only ever removes wash). One variable
+  (`u_overlayReplace`) perturbed; the outcome flips exactly and only with it.
+- **Pure proofs:** 8 new tests (dense→min, legacy→REPLACE, unknown-fails-to-REPLACE,
+  regional-span never earns min, kill switch, telemetry write, antimeridian span, and the negative
+  control flipping ONLY `dims.w`). The mirrored policy's own suite
+  (`WebGLMarineEngine.denseBaseOverlay.test.js`) still green — **87/87 across 6 suites**.
+- Engine at exactly **3207/3207** (net-0); kill switch `__RAW_DISABLE_WASH_NO_REPLACE__` is
+  deliberately independent of the main pass's `__RAW_DISABLE_DENSE_BASE_NO_REPLACE__` so each
+  pass's contribution stays separable in an A/B. Telemetry: `__RAW_GPU__.washOverlayMode`; zoomlab
+  traces now also record `ovlOn` (the overlay's BINDING truth — the `ovl` reason string can read
+  `coverage_gap` while no overlay is bound, a trap this session hit) and `wOm`.
+
+## THE OWNER'S VISIBLE REGRESSION, ROOT-CAUSED AND FIXED — the mask-family stack order
+
+Owner live clue on the dev deploy: *"rivers and lakes and parks, and buildings and nonhighway roads
+are covered up, and there is a halo around coastal areas."* Forensics:
+
+1. **`getStyle().layers` OMITS custom layers** — the first probe found zero custom layers and
+   misread the stack; `map.style._order` is the only truthful order (the field is
+   `webgl-marine-particles`, a custom layer).
+2. **Measured true order (Cocoa z12.5, Waves):** `water(3) < inland-water(4) < inland-waterway(5)
+   < FIELD(6) < buffer(7) < … < fill(11) < landuse(12)` — the inland repaints (whose only job is
+   lakes/rivers visible OVER the land fill) sat UNDER the field and UNDER the fill; the opaque
+   ne_50m land fill covered lakes, wide rivers (water-fill polygons) and park fills; `MASK_BUFFER`
+   rode above the colorful field as the visible coastal band. **Two probes of the same build gave
+   two different permutations** — mount-timing dependent.
+3. **Root:** THREE independent anchor rules positioned the family — `findMaskInsertionPoint`
+   (WS-CAN-0061, 08-13) for fill/buffer, the marine layer's own below-buffer assert, and the
+   2026-07-17 ORDER PIN for the inland repaints. 0061 raising the fill above `water` made the
+   pin's "below the field but above the fill" clause **unsatisfiable** — the same
+   constraint-collision shape `waterTempAnchor.js` documented for the slots, now hitting the
+   family itself. The timeline matches the regression exactly: 0061 shipped 08-13; the owner
+   reported the halo 08-15 "on dev AND main identically".
+
+**Fix:** `planMaskFamilyOrder` (waterTempAnchor.js) — ONE idempotent post-condition:
+`water < FILL < (landuse) < INLAND_WATER < INLAND_WATERWAY < FIELD < BUFFER < LINE < basemap
+detail`, the unique arrangement satisfying every documented constraint simultaneously (0061,
+the 07-17 pin, the v15 diagram intent, below-buffer, and the water_temp slot band — whose
+"unsatisfiable as arranged" refusal becomes satisfiable). Pairwise moves only (a member moves only
+when above its successor or below the water floor), so `repositionLanduse`'s legal interleave
+survives and the planner reaches a zero-move fixpoint — no styledata churn. Reads `style._order`.
+Kill: `__RAW_DISABLE_MASK_FAMILY_ORDER__`. Telemetry: `__RAW_GPU__.maskFamilyOrder`.
+
+**Proof:** 8 new tests on the measured broken permutation (repair, fixpoint, interleave
+preservation, floor hoist, fail-open) — 25/25 in the anchor suite; live: two independent loads now
+produce the IDENTICAL canonical stack with `moved:0` at settle; before/after screenshots
+`layer-order-z12.5-cocoa.png` vs `layer-order-FIXED-z12.5-cocoa.png`.
+
+## The wash-fix ladder + the reason-string correction
+
+634 frames, full z2–14: `wOm=0` everywhere (the wash never REPLACEs on the dense base — the S5-proven
+fix live), state machine 502 covered / 43 safe_degraded / 7 retry / **82 `unknown` — the frames the
+pre-fix code reported as a FROZEN false `safe_degraded`** (the `__mb` staleness fix reporting
+honestly). And decisive: **all 133 `coverage_gap` frames had `ovlOn:false`** — the "REPLACE mode"
+reason string never had an overlay actually bound in any ladder this program has run. Historical
+`coverage_gap` counts (98/713 etc.) measured a would-be mode, not flood exposure; `ovlOn` is the
+exposure truth going forward.
+
 ## Evidence-language corrections (A3.1-04)
 
 - "`shouldRejectMaskShrink` is HOLDING (0 events / 1,096 frames)" must be read as **"the 07-31 signature

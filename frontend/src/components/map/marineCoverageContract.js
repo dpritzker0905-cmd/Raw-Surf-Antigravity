@@ -66,6 +66,36 @@ export function resolveCoverageTerminalState(delivered, win) {
   return { state: 'safe_degraded', action: 'clip', maskClip: true, reason: 'retry_exhausted' };
 }
 
+// === WASH OVERLAY MODE (2026-08-15, step-1 attribution: the WASH is the strip's painter) ===
+// `_drawCoarseBasePass` has REPLACEd its own mask with the viewport overlay UNCONDITIONALLY since
+// 2026-07-04 ("the 39 km base is too coarse to trust near a coast"). The MAIN pass retired that
+// assumption on 2026-07-15 (computeWideOverlayMode): a DENSE (≥4096-wide) global base mask carves
+// every continent correctly, and a basin overlay's 50%-padded ring is water-FLOODED past its truth
+// box (live GPU probe: overlay=255 over Ohio where base=0) — under REPLACE the flood overrides the
+// correct base and paints land. The wash kept unconditional REPLACE — the asymmetry the step-1
+// isolation matrix flagged as the halo's top remaining face. This resolver applies the SAME
+// dense-base policy to the wash's OWN mask: min-combine when it is the dense global (the overlay
+// then only ever REMOVES wash — flood ring loses to the base, crisp island truth still wins
+// inside); REPLACE only for the legacy coarse mask, where the old rationale still holds.
+// ⚠️ The 4096/340 thresholds MIRROR computeWideOverlayMode's baseGlobalDense clause
+// (WebGLMarineEngine.js) — importing it here would cycle engine↔contract, so the two literals must
+// move together. Unknown dims/span fail to legacy REPLACE (never guess a min-combine).
+// Kill: __RAW_DISABLE_WASH_NO_REPLACE__ (restores unconditional REPLACE — the wash-only A/B leg,
+// deliberately independent of the main pass's __RAW_DISABLE_DENSE_BASE_NO_REPLACE__).
+// Telemetry: __RAW_GPU__.washOverlayMode.
+export function resolveWashOverlayMode(base, win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  const dims = base && base.__maskCanvasDims;
+  const b = base && base.bounds;
+  const span = b && typeof b.east === 'number' && typeof b.west === 'number'
+    ? ((b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west) : 0;
+  const dense = !!(dims && typeof dims.w === 'number' && dims.w >= 4096 && span >= 340)
+    && w.__RAW_DISABLE_WASH_NO_REPLACE__ !== true;
+  const out = { replace: !dense, baseGlobalDense: dense };
+  if (w.__RAW_GPU__) w.__RAW_GPU__.washOverlayMode = out;
+  return out;
+}
+
 // Sets u_dataMaskGate (legacy, kill-switch controlled) and u_maskClipEnabled (terminal clip) on a
 // heatmap program with CACHED locations, and records the applied values + location-activity per
 // pass. `pass` is 'resident' (main + rating band) or 'coarse' (_drawCoarseBasePass — always

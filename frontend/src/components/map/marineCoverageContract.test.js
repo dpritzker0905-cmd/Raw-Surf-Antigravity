@@ -1,4 +1,4 @@
-import { resolveCoverageTerminalState, setHeatmapGateUniforms } from './marineCoverageContract';
+import { resolveCoverageTerminalState, setHeatmapGateUniforms, resolveWashOverlayMode } from './marineCoverageContract';
 import { resolveDeliveredCoverage } from './WebGLMarineEngine';
 
 // A3.1-02 — the missing SAFE TERMINAL ACTION after the one-repaint budget is exhausted.
@@ -150,5 +150,56 @@ describe('setHeatmapGateUniforms — cached locations, null-location safety, tel
     setHeatmapGateUniforms(gl, prog, 'resident', null, true, {});
     setHeatmapGateUniforms(gl, prog, 'resident', null, true, {});
     expect(queries).toBe(2); // one per uniform, first call only
+  });
+});
+
+// The wash's overlay mode (step-1 attribution repair): REPLACE was unconditional in
+// _drawCoarseBasePass since 2026-07-04; a padded overlay ring's water-flood then overrode the
+// wash's own DENSE global mask over land. These tests pin the dense-base policy mirror.
+describe('resolveWashOverlayMode — the wash stops REPLACING over a dense global mask', () => {
+  const DENSE = { __maskCanvasDims: { w: 4096, h: 2048 }, bounds: { west: -180, south: -85, east: 180, north: 85 } };
+  const LEGACY = { __maskCanvasDims: { w: 1024, h: 512 }, bounds: { west: -180, south: -85, east: 180, north: 85 } };
+  const W = {};
+
+  it('dense global base mask -> min-combine (the flood ring loses to the base)', () => {
+    expect(resolveWashOverlayMode(DENSE, W)).toEqual({ replace: false, baseGlobalDense: true });
+  });
+
+  it('legacy 1024 world mask -> REPLACE (the 07-04 rationale still holds there)', () => {
+    expect(resolveWashOverlayMode(LEGACY, W)).toEqual({ replace: true, baseGlobalDense: false });
+  });
+
+  it('missing dims or bounds fail to legacy REPLACE — never guess a min-combine', () => {
+    expect(resolveWashOverlayMode({ bounds: DENSE.bounds }, W).replace).toBe(true);
+    expect(resolveWashOverlayMode({ __maskCanvasDims: { w: 4096 } }, W).replace).toBe(true);
+    expect(resolveWashOverlayMode(null, W).replace).toBe(true);
+  });
+
+  it('a regional-span base never earns min-combine (only a true global base carries the dense world mask)', () => {
+    const regional = { __maskCanvasDims: { w: 4096, h: 2048 }, bounds: { west: -90, south: 20, east: -60, north: 40 } };
+    expect(resolveWashOverlayMode(regional, W).replace).toBe(true);
+  });
+
+  it('the kill switch restores unconditional REPLACE even for a dense base (the A/B leg)', () => {
+    expect(resolveWashOverlayMode(DENSE, { __RAW_DISABLE_WASH_NO_REPLACE__: true }).replace).toBe(true);
+  });
+
+  // NEGATIVE CONTROL — flipping ONLY the mask width flips the mode, nothing else.
+  it('flipping ONLY dims.w flips the mode', () => {
+    const a = resolveWashOverlayMode(DENSE, W);
+    const b = resolveWashOverlayMode({ ...DENSE, __maskCanvasDims: { w: 2048, h: 1024 } }, W);
+    expect(a.replace).toBe(false);
+    expect(b.replace).toBe(true);
+  });
+
+  it('writes its verdict to telemetry when __RAW_GPU__ exists', () => {
+    const w = { __RAW_GPU__: {} };
+    resolveWashOverlayMode(DENSE, w);
+    expect(w.__RAW_GPU__.washOverlayMode).toEqual({ replace: false, baseGlobalDense: true });
+  });
+
+  it('antimeridian-wrapped world bounds still count as global span', () => {
+    const wrapped = { __maskCanvasDims: { w: 4096, h: 2048 }, bounds: { west: 10, south: -85, east: 9.5, north: 85 } };
+    expect(resolveWashOverlayMode(wrapped, W).replace).toBe(false);
   });
 });

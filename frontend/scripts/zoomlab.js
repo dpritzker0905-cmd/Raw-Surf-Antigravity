@@ -263,6 +263,11 @@ async function main() {
           rf: g.crestRingFill && g.crestRingFill.enabled,
           blend: g.blendBoth && g.blendBoth.engaged,
           ovl: g.overlayMask && g.overlayMask.reason,
+          // ⚠️ `ovl` (reason) can read coverage_gap/world_grid while NO overlay is BOUND (the
+          // reason ternary reports the mode that WOULD apply; `on` is the binding truth) —
+          // 2026-08-15: a captured coverage_gap state had _overlayMaskBounds null. Record both.
+          ovlOn: !!(g.overlayMask && g.overlayMask.on),
+          wOm: g.washOverlayMode ? (g.washOverlayMode.replace ? 1 : 0) : null,
           // Audit 3.1 gate/terminal telemetry (marineCoverageContract.js): [gateValue, clipValue,
           // terminal] for the resident pass + the delivered-coverage verdict driving it.
           gate: g.heatmapGate && g.heatmapGate.resident

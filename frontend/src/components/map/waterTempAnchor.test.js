@@ -1,4 +1,4 @@
-import { findOccludingWaterFill, planAnchorMoves, findMaskInsertionPoint } from './waterTempAnchor';
+import { findOccludingWaterFill, planAnchorMoves, findMaskInsertionPoint, planMaskFamilyOrder, MASK_FAMILY_CHAIN } from './waterTempAnchor';
 
 /**
  * Mapbox Streets ordering, the shape that produced the live defect: `landcover` precedes `water`,
@@ -218,5 +218,102 @@ describe('waterTempAnchor — the post-condition 0dcfc4ee never had', () => {
     expect(planAnchorMoves(null, -1, getLayer)).toEqual({ refuse: false, occluder: null, moves: [] });
     const throwing = () => { throw new Error('style mid-load'); };
     expect(findOccludingWaterFill(LIVE_ORDER, 6, throwing)).toBeNull();
+  });
+});
+
+// ── planMaskFamilyOrder (2026-08-15) ────────────────────────────────────────────────────────────
+// Owner-reported "rivers/lakes/parks covered + coastal halo". The fixture is the MEASURED live
+// permutation (map.style._order, Cocoa z12.5, Waves active): inland repaints BELOW the field, the
+// land fill floated ABOVE the buffer, lakes/parks/wide rivers under the opaque fill. The planner
+// must restore  water < fill < (landuse) < inland-water < inland-waterway < field < buffer < line
+// with pairwise moves only, and be a FIXPOINT on a canonical stack.
+const FAMILY_TYPE = {
+  water: { type: 'fill', sourceLayer: 'water' },
+  'ocean-mask-inland-water': { type: 'fill', sourceLayer: 'water' },
+  'ocean-mask-fill': { type: 'fill' },
+  landuse: { type: 'fill' },
+  'national-park': { type: 'fill' },
+  building: { type: 'fill' },
+  'webgl-marine-particles': { type: 'custom' },
+};
+const resolveType = (id) => FAMILY_TYPE[id] || { type: id.includes('label') ? 'symbol' : 'line' };
+
+// MapLibre moveLayer semantics: remove, then insert before the target.
+const applyMoves = (order, moves) => {
+  const w = order.slice();
+  for (const m of moves) {
+    w.splice(w.indexOf(m.id), 1);
+    w.splice(w.indexOf(m.before), 0, m.id);
+  }
+  return w;
+};
+
+const LIVE_BROKEN = [
+  'background', 'landcover', 'national-park', 'water',
+  'ocean-mask-inland-water', 'ocean-mask-inland-waterway', 'webgl-marine-particles',
+  'ocean-mask-buffer', 'pitch-outline', 'waterway', 'esri-satellite-layer',
+  'water_temp-slot-0-layer', 'water_temp-slot-1-layer', 'water_temp-slot-2-layer',
+  'ocean-mask-fill', 'landuse', 'ocean-mask-line', 'building', 'road', 'poi-label',
+];
+
+describe('planMaskFamilyOrder — one idempotent authority for the mask-family stack', () => {
+  test('REPAIRS THE MEASURED LIVE PERMUTATION: family canonical, above water, below detail', () => {
+    const { moves, ceiling } = planMaskFamilyOrder(LIVE_BROKEN, resolveType);
+    expect(moves.length).toBeGreaterThan(0);
+    const fixed = applyMoves(LIVE_BROKEN, moves);
+    const i = (id) => fixed.indexOf(id);
+    expect(i('water')).toBeLessThan(i('ocean-mask-fill'));
+    expect(i('ocean-mask-fill')).toBeLessThan(i('ocean-mask-inland-water'));
+    expect(i('ocean-mask-inland-water')).toBeLessThan(i('ocean-mask-inland-waterway'));
+    expect(i('ocean-mask-inland-waterway')).toBeLessThan(i('webgl-marine-particles'));
+    expect(i('webgl-marine-particles')).toBeLessThan(i('ocean-mask-buffer'));
+    expect(i('ocean-mask-buffer')).toBeLessThan(i('ocean-mask-line'));
+    expect(i('ocean-mask-line')).toBeLessThan(i(ceiling));
+    for (const detail of ['waterway', 'building', 'road', 'poi-label']) {
+      expect(i('ocean-mask-line')).toBeLessThan(i(detail));
+    }
+  });
+
+  test('FIXPOINT: re-planning the repaired stack yields zero moves (no styledata churn loop)', () => {
+    const { moves } = planMaskFamilyOrder(LIVE_BROKEN, resolveType);
+    const fixed = applyMoves(LIVE_BROKEN, moves);
+    expect(planMaskFamilyOrder(fixed, resolveType).moves).toEqual([]);
+  });
+
+  test('PRESERVES the repositionLanduse interleave: landuse between fill and inland-water is legal', () => {
+    const base = planMaskFamilyOrder(LIVE_BROKEN, resolveType);
+    const fixed = applyMoves(LIVE_BROKEN, base.moves);
+    const w = fixed.slice();
+    w.splice(w.indexOf('landuse'), 1);
+    w.splice(w.indexOf('ocean-mask-inland-water'), 0, 'landuse');
+    expect(planMaskFamilyOrder(w, resolveType).moves).toEqual([]);   // no fight, stable fixpoint
+  });
+
+  test('missing field layer (marine not mounted yet): plans the styled members only', () => {
+    const noField = LIVE_BROKEN.filter((id) => id !== 'webgl-marine-particles');
+    const { moves } = planMaskFamilyOrder(noField, resolveType);
+    const fixed = applyMoves(noField, moves);
+    const i = (id) => fixed.indexOf(id);
+    expect(i('ocean-mask-fill')).toBeLessThan(i('ocean-mask-inland-water'));
+    expect(i('ocean-mask-buffer')).toBeLessThan(i('ocean-mask-line'));
+    expect(moves.some((m) => m.id === 'webgl-marine-particles')).toBe(false);
+  });
+
+  test('no basemap water fill: fails open with zero moves', () => {
+    const s = ['background', 'landcover', 'ocean-mask-fill', 'road'];
+    expect(planMaskFamilyOrder(s, resolveType).moves).toEqual([]);
+  });
+
+  test('a family member stranded BELOW the water floor is hoisted above it', () => {
+    const s = ['background', 'ocean-mask-fill', 'water', 'landuse', 'building'];
+    const { moves } = planMaskFamilyOrder(s, resolveType);
+    const fixed = applyMoves(s, moves);
+    expect(fixed.indexOf('ocean-mask-fill')).toBeGreaterThan(fixed.indexOf('water'));
+    expect(fixed.indexOf('ocean-mask-fill')).toBeLessThan(fixed.indexOf('landuse'));
+  });
+
+  test('exports the chain in canonical bottom-first order', () => {
+    expect(MASK_FAMILY_CHAIN[0]).toBe('ocean-mask-fill');
+    expect(MASK_FAMILY_CHAIN[MASK_FAMILY_CHAIN.length - 1]).toBe('ocean-mask-line');
   });
 });

@@ -1,0 +1,1161 @@
+{
+  "scenarios": [
+    {
+      "id": "S1_gate_on_equal_bounds",
+      "title": "data==mask==delivered box; gate ON",
+      "camera": {
+        "window": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        },
+        "dpr": 1,
+        "viewport": [
+          512,
+          512
+        ]
+      },
+      "bounds": {
+        "wave": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        },
+        "mask": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        },
+        "overlay": null
+      },
+      "heatmap": {
+        "gate_location_active": true,
+        "gate_value": 1,
+        "mask_clip": 0,
+        "pass": "lab"
+      },
+      "overlay": {
+        "on": false
+      },
+      "probes": [
+        {
+          "label": "interior control",
+          "lng": -80.5,
+          "lat": 28.3,
+          "px": 214,
+          "pyTop": 274,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        },
+        {
+          "label": "epsilon-inside east",
+          "lng": -79.20729999999999,
+          "lat": 28.3,
+          "px": 428,
+          "pyTop": 274,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        },
+        {
+          "label": "epsilon-outside east (beyond the quad)",
+          "lng": -79.1673,
+          "lat": 28.3,
+          "px": 435,
+          "pyTop": 274,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "alpha": 0,
+          "painted": false,
+          "expect": false
+        },
+        {
+          "label": "epsilon-outside west",
+          "lng": -81.5701,
+          "lat": 28.3,
+          "px": 36,
+          "pyTop": 274,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "alpha": 0,
+          "painted": false,
+          "expect": false
+        },
+        {
+          "label": "epsilon-outside north",
+          "lng": -80.5,
+          "lat": 29.6186,
+          "px": 214,
+          "pyTop": 36,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "alpha": 0,
+          "painted": false,
+          "expect": false
+        },
+        {
+          "label": "epsilon-outside south",
+          "lng": -80.5,
+          "lat": 26.9052,
+          "px": 214,
+          "pyTop": 523,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "alpha": 0,
+          "painted": false,
+          "expect": false
+        }
+      ],
+      "png": "S1_gate_on_equal_bounds.png",
+      "diff": {
+        "count": 0,
+        "total": 262144,
+        "bbox": null
+      }
+    },
+    {
+      "id": "S2_mask_short_strip",
+      "title": "regional data covers view, mask short on east (live z8.03 geometry); gate ON",
+      "camera": {
+        "window": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        },
+        "dpr": 1,
+        "viewport": [
+          512,
+          512
+        ]
+      },
+      "bounds": {
+        "wave": {
+          "west": -83,
+          "south": 26,
+          "east": -78,
+          "north": 30
+        },
+        "mask": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        },
+        "overlay": null
+      },
+      "heatmap": {
+        "gate_location_active": true,
+        "gate_value": 1,
+        "mask_clip": 0,
+        "pass": "lab"
+      },
+      "overlay": {
+        "on": false
+      },
+      "probes": [
+        {
+          "label": "interior control (in mask)",
+          "lng": -80.5,
+          "lat": 28.3,
+          "px": 214,
+          "pyTop": 274,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        },
+        {
+          "label": "HALO STRIP (in data, out of mask) — gate cannot blank this",
+          "lng": -79.12215,
+          "lat": 28.3,
+          "px": 443,
+          "pyTop": 274,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        },
+        {
+          "label": "halo strip north",
+          "lng": -79.12215,
+          "lat": 29.371,
+          "px": 443,
+          "pyTop": 81,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        }
+      ],
+      "png": "S2_mask_short_strip.png",
+      "diff": {
+        "count": 0,
+        "total": 262144,
+        "bbox": null
+      }
+    },
+    {
+      "id": "S2c_mask_short_strip_clip",
+      "title": "same geometry with u_maskClipEnabled=1 (SAFE_DEGRADED terminal action)",
+      "camera": {
+        "window": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        },
+        "dpr": 1,
+        "viewport": [
+          512,
+          512
+        ]
+      },
+      "bounds": {
+        "wave": {
+          "west": -83,
+          "south": 26,
+          "east": -78,
+          "north": 30
+        },
+        "mask": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        },
+        "overlay": null
+      },
+      "heatmap": {
+        "gate_location_active": true,
+        "gate_value": 1,
+        "mask_clip": 1,
+        "pass": "lab"
+      },
+      "overlay": {
+        "on": false
+      },
+      "probes": [
+        {
+          "label": "interior control (in mask)",
+          "lng": -80.5,
+          "lat": 28.3,
+          "px": 214,
+          "pyTop": 274,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        },
+        {
+          "label": "halo strip — clip blanks it",
+          "lng": -79.12215,
+          "lat": 28.3,
+          "px": 443,
+          "pyTop": 274,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "alpha": 0,
+          "painted": false,
+          "expect": false
+        },
+        {
+          "label": "halo strip north — clip blanks it",
+          "lng": -79.12215,
+          "lat": 29.371,
+          "px": 443,
+          "pyTop": 81,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "alpha": 0,
+          "painted": false,
+          "expect": false
+        }
+      ],
+      "png": "S2c_mask_short_strip_clip.png"
+    },
+    {
+      "id": "S2d_clip_vs_overlay_truth",
+      "title": "clip ON + water overlay covering the strip: overlay truth renders, clip holds beyond it",
+      "camera": {
+        "window": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        },
+        "dpr": 1,
+        "viewport": [
+          512,
+          512
+        ]
+      },
+      "bounds": {
+        "wave": {
+          "west": -83,
+          "south": 26,
+          "east": -78,
+          "north": 30
+        },
+        "mask": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        },
+        "overlay": {
+          "west": -79.23729999999999,
+          "south": 27.318,
+          "east": -78.857,
+          "north": 29.471
+        }
+      },
+      "heatmap": {
+        "gate_location_active": true,
+        "gate_value": 1,
+        "mask_clip": 1,
+        "pass": "lab"
+      },
+      "overlay": {
+        "on": true,
+        "replace": true,
+        "tex": "water",
+        "bounds": {
+          "west": -79.23729999999999,
+          "south": 27.318,
+          "east": -78.857,
+          "north": 29.471
+        }
+      },
+      "probes": [
+        {
+          "label": "strip under water overlay — overlay truth wins",
+          "lng": -79.12215,
+          "lat": 28.3,
+          "px": 443,
+          "pyTop": 274,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        },
+        {
+          "label": "out-of-mask beyond overlay north — clip holds",
+          "lng": -79.12215,
+          "lat": 29.7,
+          "px": 443,
+          "pyTop": 22,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "alpha": 0,
+          "painted": false,
+          "expect": false
+        },
+        {
+          "label": "interior control",
+          "lng": -80.5,
+          "lat": 28.3,
+          "px": 214,
+          "pyTop": 274,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        }
+      ],
+      "png": "S2d_clip_vs_overlay_truth.png"
+    },
+    {
+      "id": "S3_world_data_short_mask",
+      "title": "world data grid + short mask: clamp paints beyond mask truth; gate inert",
+      "camera": {
+        "window": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        },
+        "dpr": 1,
+        "viewport": [
+          512,
+          512
+        ]
+      },
+      "bounds": {
+        "wave": {
+          "west": -180,
+          "south": -70,
+          "east": 180,
+          "north": 70
+        },
+        "mask": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        },
+        "overlay": null
+      },
+      "heatmap": {
+        "gate_location_active": true,
+        "gate_value": 1,
+        "mask_clip": 0,
+        "pass": "lab"
+      },
+      "overlay": {
+        "on": false
+      },
+      "probes": [
+        {
+          "label": "strip beyond mask (world data) — paints from edge clamp",
+          "lng": -79.12215,
+          "lat": 28.3,
+          "px": 443,
+          "pyTop": 274,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        },
+        {
+          "label": "far beyond mask — still paints",
+          "lng": -78.807,
+          "lat": 28.3,
+          "px": 495,
+          "pyTop": 274,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        }
+      ],
+      "png": "S3_world_data_short_mask.png",
+      "diff": {
+        "count": 0,
+        "total": 262144,
+        "bbox": null
+      }
+    },
+    {
+      "id": "S3b_overlay_land_carves",
+      "title": "same + LAND overlay REPLACE inside its bounds: the only working defense here",
+      "camera": {
+        "window": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        },
+        "dpr": 1,
+        "viewport": [
+          512,
+          512
+        ]
+      },
+      "bounds": {
+        "wave": {
+          "west": -180,
+          "south": -70,
+          "east": 180,
+          "north": 70
+        },
+        "mask": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        },
+        "overlay": {
+          "west": -79.1873,
+          "south": 27.318,
+          "east": -78.757,
+          "north": 29.471
+        }
+      },
+      "heatmap": {
+        "gate_location_active": true,
+        "gate_value": 1,
+        "mask_clip": 0,
+        "pass": "lab"
+      },
+      "overlay": {
+        "on": true,
+        "replace": true,
+        "tex": "land",
+        "bounds": {
+          "west": -79.1873,
+          "south": 27.318,
+          "east": -78.757,
+          "north": 29.471
+        }
+      },
+      "probes": [
+        {
+          "label": "strip under LAND overlay — discarded",
+          "lng": -79.12215,
+          "lat": 28.3,
+          "px": 443,
+          "pyTop": 274,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "alpha": 0,
+          "painted": false,
+          "expect": false
+        },
+        {
+          "label": "interior (outside overlay) — unchanged",
+          "lng": -80.5,
+          "lat": 28.3,
+          "px": 214,
+          "pyTop": 274,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        }
+      ],
+      "png": "S3b_overlay_land_carves.png"
+    },
+    {
+      "id": "S5_wash_replace_flood",
+      "title": "base mask LAND + water overlay REPLACE: the flood paints land",
+      "camera": {
+        "window": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        },
+        "dpr": 1,
+        "viewport": [
+          512,
+          512
+        ]
+      },
+      "bounds": {
+        "wave": {
+          "west": -180,
+          "south": -70,
+          "east": 180,
+          "north": 70
+        },
+        "mask": {
+          "west": -180,
+          "south": -70,
+          "east": 180,
+          "north": 70
+        },
+        "overlay": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        }
+      },
+      "heatmap": {
+        "gate_location_active": true,
+        "gate_value": 1,
+        "mask_clip": 0,
+        "pass": "lab"
+      },
+      "overlay": {
+        "on": true,
+        "replace": true,
+        "tex": "water",
+        "bounds": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        }
+      },
+      "probes": [
+        {
+          "label": "land pixel under water-flooded overlay — REPLACE paints it",
+          "lng": -80.5,
+          "lat": 28.3,
+          "px": 214,
+          "pyTop": 274,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        }
+      ],
+      "png": "S5_wash_replace_flood.png"
+    },
+    {
+      "id": "S5b_wash_min_combines",
+      "title": "same geometry, min-combine: the base mask wins over the flood",
+      "camera": {
+        "window": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        },
+        "dpr": 1,
+        "viewport": [
+          512,
+          512
+        ]
+      },
+      "bounds": {
+        "wave": {
+          "west": -180,
+          "south": -70,
+          "east": 180,
+          "north": 70
+        },
+        "mask": {
+          "west": -180,
+          "south": -70,
+          "east": 180,
+          "north": 70
+        },
+        "overlay": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        }
+      },
+      "heatmap": {
+        "gate_location_active": true,
+        "gate_value": 1,
+        "mask_clip": 0,
+        "pass": "lab"
+      },
+      "overlay": {
+        "on": true,
+        "replace": false,
+        "tex": "water",
+        "bounds": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        }
+      },
+      "probes": [
+        {
+          "label": "land pixel — min(base=land, overlay=water) discards",
+          "lng": -80.5,
+          "lat": 28.3,
+          "px": 214,
+          "pyTop": 274,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "alpha": 0,
+          "painted": false,
+          "expect": false
+        }
+      ],
+      "png": "S5b_wash_min_combines.png"
+    },
+    {
+      "id": "S5c_min_only_removes",
+      "title": "water base + LAND overlay min-combine: crisp carve preserved",
+      "camera": {
+        "window": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        },
+        "dpr": 1,
+        "viewport": [
+          512,
+          512
+        ]
+      },
+      "bounds": {
+        "wave": {
+          "west": -180,
+          "south": -70,
+          "east": 180,
+          "north": 70
+        },
+        "mask": {
+          "west": -180,
+          "south": -70,
+          "east": 180,
+          "north": 70
+        },
+        "overlay": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        }
+      },
+      "heatmap": {
+        "gate_location_active": true,
+        "gate_value": 1,
+        "mask_clip": 0,
+        "pass": "lab"
+      },
+      "overlay": {
+        "on": true,
+        "replace": false,
+        "tex": "land",
+        "bounds": {
+          "west": -81.79299999999999,
+          "south": 26.968,
+          "east": -78.70700000000001,
+          "north": 29.821
+        }
+      },
+      "probes": [
+        {
+          "label": "overlay land truth carves under min-combine",
+          "lng": -80.5,
+          "lat": 28.3,
+          "px": 214,
+          "pyTop": 274,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "alpha": 0,
+          "painted": false,
+          "expect": false
+        }
+      ],
+      "png": "S5c_min_only_removes.png"
+    },
+    {
+      "id": "S6_antimeridian",
+      "title": "antimeridian-crossing data+mask box; gate ON",
+      "bounds": {
+        "wave": {
+          "west": 170,
+          "south": -20,
+          "east": -170,
+          "north": 20
+        },
+        "mask": {
+          "west": 170,
+          "south": -20,
+          "east": -170,
+          "north": 20
+        }
+      },
+      "heatmap": {
+        "gate_location_active": true,
+        "gate_value": 1,
+        "pass": "lab"
+      },
+      "probes": [
+        {
+          "label": "inside west of seam",
+          "lng": 175,
+          "lat": 0,
+          "px": 149,
+          "pyTop": 256,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        },
+        {
+          "label": "inside east of seam (lng -175, wrapped copy)",
+          "lng": 185,
+          "lat": 0,
+          "px": 362,
+          "pyTop": 256,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        },
+        {
+          "label": "epsilon-outside east (lng -169)",
+          "lng": 191,
+          "lat": 0,
+          "px": 490,
+          "pyTop": 256,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "alpha": 0,
+          "painted": false,
+          "expect": false
+        }
+      ],
+      "png": "S6_antimeridian.png"
+    },
+    {
+      "id": "S7_exact_fit_boundary",
+      "title": "data==mask==window exactly; gate ON vs OFF (edge-row semantics)",
+      "camera": {
+        "window": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        },
+        "dpr": 1,
+        "viewport": [
+          512,
+          512
+        ]
+      },
+      "bounds": {
+        "wave": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        },
+        "mask": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        },
+        "overlay": null
+      },
+      "heatmap": {
+        "gate_location_active": true,
+        "gate_value": 1,
+        "mask_clip": 0,
+        "pass": "lab"
+      },
+      "overlay": {
+        "on": false
+      },
+      "probes": [
+        {
+          "label": "center",
+          "lng": -80.36869999999999,
+          "lat": 28.2619,
+          "px": 256,
+          "pyTop": 257,
+          "rgba": [
+            205,
+            23,
+            157,
+            204
+          ],
+          "alpha": 204,
+          "painted": true,
+          "expect": true
+        }
+      ],
+      "png": "S7_exact_fit_boundary.png",
+      "diff": {
+        "count": 0,
+        "total": 262144,
+        "bbox": null
+      }
+    }
+  ],
+  "advect": [
+    {
+      "id": "P1_control_in_bounds",
+      "title": "particle inside data AND mask (water) — survives",
+      "particle": {
+        "lng": -79.12215,
+        "lat": 28.3
+      },
+      "bounds": {
+        "data": {
+          "west": -83,
+          "south": 26,
+          "east": -78,
+          "north": 30
+        },
+        "mask": {
+          "west": -83,
+          "south": 26,
+          "east": -78,
+          "north": 30
+        }
+      },
+      "maskTex": "water",
+      "next": [
+        0.50062,
+        0.50001
+      ],
+      "predicted": [
+        0.50062,
+        0.5
+      ],
+      "survived": true,
+      "expect": true
+    },
+    {
+      "id": "P2_mask_only_short_water_edge",
+      "title": "MASK-ONLY SHORTFALL: in data, outside mask; edge texel water — the clamp keeps it alive",
+      "particle": {
+        "lng": -79.12215,
+        "lat": 28.3
+      },
+      "bounds": {
+        "data": {
+          "west": -83,
+          "south": 26,
+          "east": -78,
+          "north": 30
+        },
+        "mask": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        }
+      },
+      "maskTex": "water",
+      "next": [
+        0.50062,
+        0.50001
+      ],
+      "predicted": [
+        0.50062,
+        0.5
+      ],
+      "survived": true,
+      "expect": true
+    },
+    {
+      "id": "P3_mask_only_short_land_edge",
+      "title": "same shortfall, edge texel LAND — the clamp kills it (content-dependent, i.e. untruthful)",
+      "particle": {
+        "lng": -79.12215,
+        "lat": 28.3
+      },
+      "bounds": {
+        "data": {
+          "west": -83,
+          "south": 26,
+          "east": -78,
+          "north": 30
+        },
+        "mask": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        }
+      },
+      "maskTex": "land",
+      "next": [
+        0.57813,
+        0.43359
+      ],
+      "predicted": [
+        0.50062,
+        0.5
+      ],
+      "survived": false,
+      "expect": false
+    },
+    {
+      "id": "P4_data_short_oob",
+      "title": "particle outside DATA (ring-fill off) — isOob drops it",
+      "particle": {
+        "lng": -79.12215,
+        "lat": 28.3
+      },
+      "bounds": {
+        "data": {
+          "west": -81.5501,
+          "south": 26.9252,
+          "east": -79.1873,
+          "north": 29.5986
+        },
+        "mask": {
+          "west": -83,
+          "south": 26,
+          "east": -78,
+          "north": 30
+        }
+      },
+      "maskTex": "water",
+      "next": [
+        0.57813,
+        0.43359
+      ],
+      "predicted": [
+        0.50062,
+        0.5
+      ],
+      "survived": false,
+      "expect": false
+    }
+  ],
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "heatmap": {
+    "compiled": true,
+    "linked": true,
+    "vsLog": "",
+    "fsLog": "",
+    "activeUniformCount": 36,
+    "gateLocationActive": true,
+    "clipLocationActive": true,
+    "activeUniforms": [
+      "u_matrix",
+      "u_dataBounds_min",
+      "u_dataBounds_max",
+      "u_lng_offset",
+      "u_opacity",
+      "u_maskEdgeSharp",
+      "u_debug_mode",
+      "u_theme",
+      "u_edgeFeatherEnabled",
+      "u_edgeFeatherWidth",
+      "u_is_estimated",
+      "u_surfMode",
+      "u_time",
+      "u_heightAlphaEnabled",
+      "u_heightAlphaLo",
+      "u_heightAlphaHi",
+      "u_overlayMaskEnabled",
+      "u_overlayReplace",
+      "u_dataMaskGate",
+      "u_maskClipEnabled",
+      "u_coastSDFEnabled",
+      "u_overlaySDFEnabled",
+      "u_coastErode",
+      "u_coastAA",
+      "u_maskBounds_min",
+      "u_maskBounds_max",
+      "u_ribbonRadiusDeg",
+      "u_ribbonFloor",
+      "u_bandInlandGate",
+      "u_overlayBounds_min",
+      "u_overlayBounds_max",
+      "u_waveTexture",
+      "u_chlorophyllTexture",
+      "u_bathymetryTexture",
+      "u_oceanMaskTexture",
+      "u_overlayMaskTexture"
+    ]
+  },
+  "advectProgram": {
+    "compiled": true,
+    "linked": true,
+    "vsLog": "",
+    "fsLog": ""
+  },
+  "artifact_sha": "ffb8656c28d27f8433c822665d9acf93b64d6467",
+  "generated_at": "2026-08-16T02:19:19.434Z"
+}

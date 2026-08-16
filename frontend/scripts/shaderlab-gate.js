@@ -361,6 +361,32 @@ function runLab(cfg) {
     ]);
   }
 
+  // S5 — THE WASH FLOOD, measured (step-1 attribution repair): the wash's base mask says LAND at
+  // the probe (a dense global mask carving a continent) while the padded overlay ring says WATER
+  // (the live-probed Ohio flood). Under REPLACE the flood wins and the wash paints land; under
+  // min-combine the base wins. Control: an overlay that says LAND always carves, either mode —
+  // min() only ever REMOVES wash.
+  {
+    scenario('S5_wash_replace_flood', 'base mask LAND + water overlay REPLACE: the flood paints land', {
+      window: winView, data: WR, mask: WR, gate: true, maskTex: 'land',
+      overlay: { on: true, replace: true, tex: 'water', bounds: winView },
+    }, [
+      { lng: interiorLng, lat: midLat, label: 'land pixel under water-flooded overlay — REPLACE paints it', expect: true },
+    ]);
+    scenario('S5b_wash_min_combines', 'same geometry, min-combine: the base mask wins over the flood', {
+      window: winView, data: WR, mask: WR, gate: true, maskTex: 'land',
+      overlay: { on: true, replace: false, tex: 'water', bounds: winView },
+    }, [
+      { lng: interiorLng, lat: midLat, label: 'land pixel — min(base=land, overlay=water) discards', expect: false },
+    ]);
+    scenario('S5c_min_only_removes', 'water base + LAND overlay min-combine: crisp carve preserved', {
+      window: winView, data: WR, mask: WR, gate: true, maskTex: 'water',
+      overlay: { on: true, replace: false, tex: 'land', bounds: winView },
+    }, [
+      { lng: interiorLng, lat: midLat, label: 'overlay land truth carves under min-combine', expect: false },
+    ]);
+  }
+
   // (S4 retired 2026-08-15: it tried to demonstrate gate-vs-overlay ordering on the gate's own
   // blanked pixels — but the gate blanks NO rasterized pixel (S1/S7 diff=0), so no such geometry
   // exists; its first probe also sat sub-pixel from the quad edge (a placement artifact, not a
