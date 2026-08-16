@@ -208,6 +208,33 @@ export function planMaskFamilyOrder(order, getLayer) {
 }
 
 /**
+ * === COAST-BUFFER ENABLEMENT (2026-08-16, LAYER_ORDER_PROOF_LOG.json#LOP-0001) ===
+ *
+ * ⛔ `ocean-mask-buffer` IS the marine coastal halo. Attributed live on the authenticated dev alias
+ * and owner-confirmed: it paints near-black `rgba(16,29,43,.9)` while the basemap water it was
+ * designed to blend into composites to a MEDIUM SLATE (`water` hsl(197,15%,43%) @ 0.25 over the
+ * `land` background hsl(214,17%,31%)). It therefore DARKENS whatever it sits above. At z1-z9.5
+ * (worst z4-8.5) a 10-60px stroke with round joins self-overlaps on convoluted coastlines and the
+ * 0.9-alpha overlaps compound into faceted dark blobs over land (Cape Canaveral, Merritt Island).
+ * The `line-opacity` ramp to 0 by z9.5 is the ONLY reason close zoom ever looked clean.
+ *
+ * ⛔ REORDERING IS NOT THE FIX. Moving it below the marine field clears the band over water and
+ * then lands the near-black line above `ocean-mask-fill`, darkening coastal land instead. Measured
+ * and rejected (leg C in the proof log). The symptom moves; it does not clear.
+ *
+ * ⇒ The buffer is OPT-IN ONLY. It must NOT be enabled merely because a marine layer is active.
+ * Pure so the invariant is unit-testable without a rendered map, which is what every previous
+ * coast-buffer fix lacked.
+ *
+ * @param {*} _activeMarineLayer  deliberately ignored - kept so the call site reads honestly
+ * @param {*} forceFlag           window.__RAW_WATER_TEMP_COAST_BUFFER__
+ * @returns {boolean}
+ */
+export function resolveCoastBufferOn(_activeMarineLayer, forceFlag) {
+  return forceFlag === true;
+}
+
+/**
  * Decide what the re-assert should do. Returns the moves to perform, or a refusal.
  *
  * @returns {{refuse: boolean, occluder: string|null, moves: Array<{id: string, from: number}>}}

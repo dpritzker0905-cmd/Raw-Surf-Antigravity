@@ -1,7 +1,7 @@
 /* eslint-disable no-empty */
 import { memo, useEffect, useRef, useState, useCallback } from 'react';
 import { findMarineInsertionLayer, getSharedLandGeoJSON, getSharedLandGeoJSONHiRes } from './mapUtils';
-import { findMaskInsertionPoint, planMaskFamilyOrder } from './waterTempAnchor';
+import { findMaskInsertionPoint, planMaskFamilyOrder, resolveCoastBufferOn } from './waterTempAnchor';
 
 /**
  * OceanMask v15 — Pristine GeoJSON Land Masking & Dynamic Coastline Blending.
@@ -653,15 +653,15 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
           }
         }
 
-        // 9. COAST BUFFER vs water_temp (2026-07-11, user: "halo band from land coastal areas and
-        // islands bleeding through the heatmap"): MASK_BUFFER is a 16-60px ocean-COLORED blurred
-        // line offset into the ocean, built to blend the MARINE heatmap's coastline (its color
-        // matches the wave palette's zero). water_temp slots render ABOVE it at 0.45-0.62 opacity,
-        // so under a temperature palette the band ghosts through as a dark coastal halo. Same
-        // session-type gate as the lakes repaint (#8): buffer only while a marine layer is active.
-        // Force-on: __RAW_WATER_TEMP_COAST_BUFFER__ = true.
-        const bufferOn = !!stateRef.current.activeMarineLayer ||
-          (typeof window !== 'undefined' && window.__RAW_WATER_TEMP_COAST_BUFFER__ === true);
+        // 9. COAST BUFFER — a 16-60px blurred line offset into the ocean (07-05 recolour, 07-11 gate).
+        // ⛔ 2026-08-16 — THE MARINE COASTAL HALO IS THIS LAYER (attributed live, owner-confirmed).
+        // Its color is near-black rgba(16,29,43,.9) while the water it must blend into composites to
+        // a MEDIUM SLATE, so it darkens whatever it sits above; at z1-z9.5 (worst z4-8.5) a 10-60px
+        // stroke self-overlaps on convoluted coasts into faceted dark blobs over land. Reordering it
+        // only moves the darkening onto coastal land. NOW OFF BY DEFAULT — it is opt-in only.
+        // Proof + zoom ladder: program/weather-simulation/LAYER_ORDER_PROOF_LOG.json#LOP-0001.
+        const bufferOn = resolveCoastBufferOn(stateRef.current.activeMarineLayer,
+          typeof window !== 'undefined' ? window.__RAW_WATER_TEMP_COAST_BUFFER__ : undefined);
         if (mapInstance.getLayer(MASK_BUFFER)) {
           try { mapInstance.setLayoutProperty(MASK_BUFFER, 'visibility', bufferOn ? 'visible' : 'none'); } catch (e) {}
         }

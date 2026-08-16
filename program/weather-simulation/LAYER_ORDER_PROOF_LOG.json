@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "purpose": "Append-only log of PROVEN map layer order / paint corrections. Owner mandate 2026-08-16: 'setup proper ordering logs when we prove a correction ... we need this to always work'. A correction that is not in this log does not exist. Every entry carries a machine-checkable invariant that a test enforces, so a proven fix cannot silently regress.",
+  "rules": [
+    "APPEND ONLY. Never edit or delete a past entry. To overturn one, add a new entry and set the old entry's `refuted_by` to the new id.",
+    "An entry may only be added after a PAIRED experiment: the symptom must be shown PRESENT with the lever in its stock state and ABSENT with one single variable changed, at every zoom in the ladder. A one-way observation is not proof.",
+    "Every entry MUST name an `invariant` that a test asserts, and `enforced_by` MUST point at that test. An entry with no enforcement is a story, not a proof.",
+    "Verify the lever TOOK EFFECT before reading its result. A silently reverted lever reports 'no effect' identically to one that has none (see LOP-0001 `traps`).",
+    "Single-zoom results are inadmissible for any zoom-interpolated property. Run the ladder."
+  ],
+  "entries": [
+    {
+      "id": "LOP-0001",
+      "date": "2026-08-16",
+      "title": "The marine coastal halo is `ocean-mask-buffer`; it must be OFF by default",
+      "status": "PROVEN",
+      "refuted_by": null,
+      "symptom": "A dark band hugging every coastline between the land and the marine field, plus faceted dark blobs over coastal land at Cape Canaveral / Merritt Island. Worse when zooming out; absent at close zoom.",
+      "surface": {
+        "url": "https://dev--rawsurf.netlify.app/map",
+        "frontend_build": "7becd023",
+        "authenticated": true,
+        "renderer": "real browser GPU (not SwiftShader)"
+      },
+      "scene": {
+        "center": [-80.2, 28.33],
+        "control_center": [-80.62, 28.42],
+        "theme": "dark",
+        "model": "GFS",
+        "layer": "waves",
+        "settled": true,
+        "style_layer_count": 145
+      },
+      "painter": {
+        "layer_id": "ocean-mask-buffer",
+        "type": "line",
+        "source": "ocean-mask-source",
+        "line_color": "rgba(16, 29, 43, 0.90)",
+        "line_width_px": "10 (z1) -> 60 (z9) -> 2 (z14)",
+        "line_offset_px": "5 (z1) -> 30 (z9) -> 0 (z14), outward into the ocean",
+        "line_opacity": "1.0 until z8.5, ramping to 0.0 by z9.5",
+        "line_join": "round"
+      },
+      "mechanism": "The buffer paints near-black while the basemap water it was designed to blend into composites to a MEDIUM SLATE (`water` fill hsl(197,15%,43%) at opacity 0.25 over the `land` background hsl(214,17%,31%)). It therefore darkens whatever it sits above. On a convoluted coastline a 60px stroke with round joins self-overlaps, and at 0.9 alpha the overlaps compound into faceted dark polygons over land. The `line-opacity` ramp is the ONLY thing that makes close zoom look clean.",
+      "experiment": {
+        "method": "paired A/B at a fixed scene, one variable, order toggled in place, re-verified after settle at every stop",
+        "legs": [
+          { "leg": "A", "change": "baseline", "halo": "PRESENT" },
+          { "leg": "B", "change": "line-opacity -> 0", "halo": "ABSENT" },
+          { "leg": "A'", "change": "line-opacity restored", "halo": "PRESENT (non-vacuity control)" },
+          { "leg": "C", "change": "full opacity, layer moved BELOW webgl-marine-particles", "halo": "band ABSENT over water, but darkening APPEARS OVER COASTAL LAND - REJECTED as the fix" }
+        ],
+        "zoom_ladder": [
+          { "zoom": 2, "stock": "halo PRESENT", "fixed": "absent" },
+          { "zoom": 4, "stock": "halo SEVERE - whole Gulf, Atlantic seaboard, Cuba, Hispaniola, Central America", "fixed": "absent" },
+          { "zoom": 6, "stock": "halo PRESENT", "fixed": "absent" },
+          { "zoom": 7.5, "stock": "halo PRESENT", "fixed": "absent" },
+          { "zoom": 9.2, "stock": "faceted dark blobs over Cape Canaveral / Merritt Island", "fixed": "absent" },
+          { "zoom": ">9.5", "stock": "absent by construction (line-opacity expression is 0)", "fixed": "absent" }
+        ],
+        "coverage_regimes_observed": ["unknown", "safe_degraded", "covered"],
+        "coverage_independence": "The halo appeared in every opaque regime, so the defect is independent of the coverage state machine."
+      },
+      "rejected_hypotheses": [
+        { "hypothesis": "stack order - move the buffer below the marine field", "why_rejected": "clears the band over water but lands the near-black line above ocean-mask-fill, darkening coastal land. The symptom moves rather than clearing. Owner caught this." },
+        { "hypothesis": "planMaskFamilyOrder (7becd023) is the cause", "why_rejected": "it made an ordering relationship deterministic, but the halo reproduces with the planner ON and vanishes with the buffer's opacity alone at the stock order. Real bug, wrong bug." },
+        { "hypothesis": "SAFE_DEGRADED mask clip (aa026f7f)", "why_rejected": "measured ENGAGED AND CORRECT in the very frames showing the halo; does not govern a style layer" },
+        { "hypothesis": "wash REPLACE / min-combine (7becd023 half 2)", "why_rejected": "washOverlayMode replace:false throughout; does not govern a style layer" },
+        { "hypothesis": "u_dataMaskGate (25fd7c18, 2026-07-21)", "why_rejected": "measured PIXEL-INERT on 2026-08-15 by aa026f7f" }
+      ],
+      "traps": [
+        {
+          "trap": "setLayoutProperty('ocean-mask-buffer','visibility','none') is SILENTLY REVERTED",
+          "detail": "OceanMask.js re-asserts visibility on every sync tick while a marine layer is active. Measured: set to 'none', read back 'visible' 2.5s later. This leg would have shown no pixel change and CLEARED the actual culprit.",
+          "use_instead": "line-opacity (paint properties are not re-asserted)"
+        },
+        {
+          "trap": "single-zoom verification",
+          "detail": "Every buffer property is zoom-interpolated. A close-zoom check passes because line-opacity ramps to 0 above z9.5, not because the defect is absent."
+        },
+        {
+          "trap": "getStyle().layers omits custom layers",
+          "detail": "webgl-marine-particles is a custom layer and does not appear in getStyle().layers. Read map.style._order for the true order."
+        }
+      ],
+      "fix": {
+        "authority_surface": "frontend/src/components/map/OceanMask.js",
+        "change": "`bufferOn` no longer defaults to true whenever a marine layer is active; ocean-mask-buffer is now OPT-IN only via window.__RAW_WATER_TEMP_COAST_BUFFER__ === true",
+        "loc_delta": 0,
+        "escape_hatch": "__RAW_WATER_TEMP_COAST_BUFFER__ = true restores the previous behaviour"
+      },
+      "invariant": {
+        "id": "INV-buffer-opt-in",
+        "statement": "ocean-mask-buffer must not be enabled merely because a marine layer is active. Its enablement must depend ONLY on the explicit __RAW_WATER_TEMP_COAST_BUFFER__ opt-in.",
+        "checkable": "resolveCoastBufferOn(activeMarineLayer, flag) === flag, for every activeMarineLayer value"
+      },
+      "enforced_by": "frontend/src/components/map/OceanMask.coastBuffer.test.js",
+      "evidence": [
+        "program/weather-simulation/evidence/HALO-ATTRIBUTED-ocean-mask-buffer-2026-08-16.md",
+        "program/weather-simulation/evidence/HALO-COMMIT-ARCHAEOLOGY-2026-08-16.md"
+      ],
+      "ledger_rows": ["C4-P0-01", "C4-P0-03", "C4-P0-04", "C4-P0-06", "C4-MR-06"],
+      "confirmed_by_owner": true
+    }
+  ]
+}
