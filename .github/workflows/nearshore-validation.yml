@@ -1,0 +1,121 @@
+# Nearshore outcome loop runner (WS-CAN-0076 / AV-09, Audit 4.0 lane, 2026-08-16).
+# ⚠️ Scheduled workflows fire from the DEFAULT branch only — that is `dev` here, not `main`.
+# ⚠️ ARMED-OFF BY DEFAULT: the cron fires but the run no-ops unless the repo variable
+#    NEARSHORE_VAL_ENABLED = '1' (packet constraint #5 — cost was measured before scheduling:
+#    ~2.5 s CDIP probe + 17 point calls ≈ 6 s wall warm; Render cold start dominates).
+#    workflow_dispatch always runs (it IS the manual arm).
+# Exit contract (scripts/run_nearshore_validation.py): 0 GRADED · 1 REFUSED (a verdict — the
+# report says why; exits 0 here so an accrual lane cannot train red-blindness) · 2 INFRA (red).
+name: Nearshore Validation (WS-CAN-0076)
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # Hourly is the accrual rate the packet assumes; GitHub cron is BEST-EFFORT (measured
+    # delivery 5-32% on sibling lanes) — the report series is append-only, gaps are fine.
+    - cron: '20 * * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nearshore-validation
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Arm gate (scheduled runs no-op until NEARSHORE_VAL_ENABLED=1)
+        if: github.event_name == 'schedule' && vars.NEARSHORE_VAL_ENABLED != '1'
+        run: |
+          echo "::notice::nearshore-validation is ARMED OFF (set repo variable NEARSHORE_VAL_ENABLED=1 to arm the cron; workflow_dispatch always runs)."
+          echo "ARMED_OFF=1" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v5
+        if: env.ARMED_OFF != '1'
+
+      - uses: actions/setup-python@v6
+        if: env.ARMED_OFF != '1'
+        with:
+          # 3.12 TO MATCH PRODUCTION — see artifact-interpreter-parity before any move.
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        if: env.ARMED_OFF != '1'
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      # marine-nightly.yml pattern: Render free tier cold-starts; grading a sleeping backend
+      # reports a refusal that means "the box was asleep" (the recorded 30-vs-0 control pair).
+      - name: Preflight — wake the prod backend (the MODEL side under test)
+        if: env.ARMED_OFF != '1'
+        id: warm
+        run: |
+          for i in $(seq 1 30); do
+            CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+              "https://raw-surf-antigravity.onrender.com/api/health" || echo 000)
+            [ "$CODE" = "200" ] && { echo "awake=1" >> "$GITHUB_OUTPUT"; exit 0; }
+            sleep 5
+          done
+          echo "::warning::prod backend never answered /api/health — the runner will exit 2 (INFRA), not grade."
+          echo "awake=0" >> "$GITHUB_OUTPUT"
+
+      - name: Run the nearshore outcome loop
+        if: env.ARMED_OFF != '1'
+        working-directory: backend
+        env:
+          NEARSHORE_VAL_MIN_MATCHED: ${{ vars.NEARSHORE_VAL_MIN_MATCHED || '1' }}
+          NEARSHORE_VAL_MAX_STATIONS: ${{ vars.NEARSHORE_VAL_MAX_STATIONS || '20' }}
+          # ⛔ deliberately NO SURF_* here: the runner must read the serving path's own defaults;
+          # a flag set only in this lane would grade a transform nobody serves (test_flag_lane_parity
+          # does not cover this workflow — do not make it need to).
+        run: |
+          # ⚠️ `|| rc=$?` IS LOAD-BEARING (forecast-calibration-census.yml lesson): under bash -e
+          # + pipefail a non-zero pipeline aborts the step and every branch below is dead code.
+          set -o pipefail
+          rc=0
+          python3 scripts/run_nearshore_validation.py --json nearshore_report.json \
+            2>&1 | tee nearshore.txt | tail -40 || rc=$?
+          echo "── decision lines (tail-proof) ──"
+          grep -E "^VERDICT|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
+          if [ "$rc" -ge 2 ]; then
+            echo "::error::INFRA, NOT A VERDICT (exit $rc): pair table, CDIP THREDDS, or the prod point API could not answer. Nothing was graded. preflight awake=${{ steps.warm.outputs.awake }}"
+            exit 2
+          elif [ "$rc" -eq 1 ]; then
+            echo "::warning::REFUSED — available:false; nearshore_report.json carries the counters and reason."
+            exit 0
+          fi
+          echo "GRADED — nearshore_report.json"
+
+      - name: Summary
+        if: always() && env.ARMED_OFF != '1'
+        working-directory: backend
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          try:
+              r = json.load(open("nearshore_report.json"))
+          except Exception:
+              print("### Nearshore validation: **NOT GRADED** (no report written)"); raise SystemExit(0)
+          print(f"### Nearshore validation: **{'GRADED' if r['available'] else 'REFUSED'}**\n")
+          print(f"- stations live {r['n_stations']} / dead404 {len(r['station_probe']['dead_404'])} / infra {len(r['station_probe']['infra'])}")
+          print(f"- preds {r['n_preds']} · obs {r['n_obs']} · matched {r['n_matched']} (spot-hours {r.get('n_spot_hours')}, STATION-hours {r.get('n_station_hours')})")
+          if not r["available"]:
+              print(f"- ⚠️ {r['reason']}")
+          for s, v in sorted(r.get("stations", {}).items()):
+              print(f"- `{s}` n={v['n']} MAE {v['mae_m']} m bias {v['bias_m']:+} m")
+          print(f"- budget wall {r['budget']['wall_s']} s · point calls {r['point_api']['calls']} ({r['point_api']['failed']} failed)")
+          PY
+
+      - name: Upload the report series
+        if: always() && env.ARMED_OFF != '1'
+        uses: actions/upload-artifact@v6
+        with:
+          name: nearshore-validation-${{ github.run_id }}
+          path: |
+            backend/nearshore_report.json
+            backend/nearshore.txt
+          retention-days: 90
+          if-no-files-found: warn

@@ -1,0 +1,85 @@
+{
+ "version": 1,
+ "generated_at": "2026-08-16T03:59:16.934045+00:00",
+ "quantity": "transform_hs_at_station_depth_vs_cdip_hs (Hs statistic; no cap, no H1/10)",
+ "n_stations": 7,
+ "n_obs": 356,
+ "n_preds": 17,
+ "n_matched": 17,
+ "available": true,
+ "stations": {
+  "103p1": {
+   "n": 2,
+   "mae_m": 0.3892,
+   "bias_m": -0.3892
+  },
+  "143p1": {
+   "n": 6,
+   "mae_m": 0.033,
+   "bias_m": -0.033
+  },
+  "150p1": {
+   "n": 2,
+   "mae_m": 0.195,
+   "bias_m": -0.195
+  },
+  "153p1": {
+   "n": 3,
+   "mae_m": 0.3974,
+   "bias_m": -0.3974
+  },
+  "262p1": {
+   "n": 2,
+   "mae_m": 0.4161,
+   "bias_m": -0.4161
+  },
+  "265p1": {
+   "n": 1,
+   "mae_m": 0.2757,
+   "bias_m": -0.2757
+  },
+  "433p1": {
+   "n": 1,
+   "mae_m": 0.183,
+   "bias_m": -0.183
+  }
+ },
+ "station_probe": {
+  "live": [
+   "103p1",
+   "143p1",
+   "150p1",
+   "153p1",
+   "262p1",
+   "265p1",
+   "433p1"
+  ],
+  "dead_404": [
+   "043p1",
+   "101p1",
+   "115p1",
+   "116p1",
+   "129p1",
+   "134p1",
+   "142p1",
+   "161p1",
+   "172p1",
+   "207p1",
+   "254p1",
+   "261p1",
+   "266p1"
+  ],
+  "infra": []
+ },
+ "n_spot_hours": 17,
+ "n_station_hours": 7,
+ "point_api": {
+  "base": "https://raw-surf-antigravity.onrender.com",
+  "valid_time": "2026-08-16T03:00",
+  "calls": 17,
+  "failed": 0
+ },
+ "budget": {
+  "wall_s": 5.9
+ }
+}
