@@ -75,7 +75,8 @@ uniform highp vec2 u_overlayBounds_min; // [west, south] of the overlay — pixe
 uniform highp vec2 u_overlayBounds_max; // [east, north]
 uniform float u_overlayMaskEnabled;     // 1.0 when a painted overlay applies to the resident grid (wide grid, or regional at deep zoom)
 uniform float u_overlayReplace;         // 1.0 = overlay REPLACES the base sample (wide grid, base too coarse); 0.0 = min() combine (regional base already truthful; overlay only removes wash)
-uniform float u_dataMaskGate;           // 1.0 = blank the heatmap where the pixel is outside BOTH the data grid AND the mask (no data — kills the land-mask halo where both textures clamp-to-edge water). Set from __RAW_DISABLE_HEATMAP_BOUNDS_GATE__.
+uniform float u_dataMaskGate;           // 1.0 = blank the heatmap where the pixel is outside BOTH the data grid AND the mask (no data — kills the land-mask halo where both textures clamp-to-edge water). Set from __RAW_DISABLE_HEATMAP_BOUNDS_GATE__. ⚠️ MEASURED PIXEL-INERT 2026-08-15 (shaderlab-gate.js): the quad is rasterized exactly over the DATA bounds, so no fragment can be outside them and the AND below is unsatisfiable — kept for kill-switch compat only, never a halo defense.
+uniform float u_maskClipEnabled;        // SAFE_DEGRADED terminal clip (Audit 3.1 A3.1-02): 1.0 ONLY when the engine KNOWS the delivered mask fell short of the viewport AND the one-repaint budget is exhausted (resolveCoverageTerminalState). Blanks the heatmap outside the DELIVERED mask bounds wherever the viewport-truth overlay has no say — keys on the MASK uv alone and runs AFTER the overlay block, the two properties the inert gate lacks, so it actually reaches the halo strip. Kill: __RAW_DISABLE_MASK_SHORT_CLIP__.
 // COAST SDF (2026-07-21): the mask .b optionally carries a signed distance-to-coast (0.5 = coastline,
 // >0.5 offshore water, <0.5 inland; CPU EDT on the mask canvas). Thresholding the DISTANCE, not the
 // binary .r, gives a crisp, resolution-independent coast at ANY zoom (LINEAR-interp of a distance is
@@ -366,6 +367,7 @@ void main() {
   // overlay after a pan, or no overlay yet) the base mask stands — masking can never be WORSE
   // than the grid's own mask (the u_maskBounds-retarget attempt broke here: out-of-bounds samples
   // clamped to edge-water and disabled land masking wholesale — live Istria/Susak regression).
+  bool _ovApplied = false;
   if (u_overlayMaskEnabled > 0.5) {
     float oMercMinY = latToMercatorY(u_overlayBounds_max.y);
     float oMercMaxY = latToMercatorY(u_overlayBounds_min.y);
@@ -378,7 +380,18 @@ void main() {
         ovs = smoothstep(-u_coastAA, u_coastAA, (_ovSample.b - 0.5) - u_coastErode);
       }
       oceanAlpha = (u_overlayReplace > 0.5) ? ovs : min(oceanAlpha, ovs);
+      _ovApplied = true;
     }
+  }
+  // SAFE_DEGRADED MASK CLIP (2026-08-15, Audit 3.1): the delivered mask is KNOWN short and the
+  // bounded repaint stood down — outside the delivered mask there is NO land truth, and painting
+  // there means CLAMP_TO_EDGE water flooding coastal land (the halo). Blank it UNLESS the
+  // viewport-truth overlay just spoke for this pixel (_ovApplied — the overlay IS truth where it
+  // applies, so the clip must lose to it, never race it). Runs after the overlay block on purpose;
+  // the blend wash underneath (own world mask, never clipped) still shows through where engaged.
+  if (u_maskClipEnabled > 0.5 && !_ovApplied
+      && (mask_u <= 0.0 || mask_u >= 1.0 || mask_v <= 0.0 || mask_v >= 1.0)) {
+    oceanAlpha = 0.0;
   }
   vec4 waveData = texture2D(u_waveTexture, grid_uv);
   float depthFactor = texture2D(u_bathymetryTexture, grid_uv).r;

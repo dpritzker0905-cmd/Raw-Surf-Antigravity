@@ -263,6 +263,11 @@ async function main() {
           rf: g.crestRingFill && g.crestRingFill.enabled,
           blend: g.blendBoth && g.blendBoth.engaged,
           ovl: g.overlayMask && g.overlayMask.reason,
+          // Audit 3.1 gate/terminal telemetry (marineCoverageContract.js): [gateValue, clipValue,
+          // terminal] for the resident pass + the delivered-coverage verdict driving it.
+          gate: g.heatmapGate && g.heatmapGate.resident
+            ? [g.heatmapGate.resident.gateValue, g.heatmapGate.resident.clipValue, g.heatmapGate.resident.terminal] : null,
+          mDel: g.maskDelivered ? [g.maskDelivered.deliveredShort ? 1 : 0, g.maskDelivered.forcedRepaint ? 1 : 0] : null,
           bridge: (window.__MARINE_ZOOMOUT_BRIDGE__ || {}).count || 0,
           drawCalls: g.drawCallsPerFrame,
           hm: g.opacity && g.opacity.heatmap, mult: g.opacity && g.opacity.mult,
