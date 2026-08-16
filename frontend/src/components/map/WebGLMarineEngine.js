@@ -3020,7 +3020,7 @@ export function computeWideOverlayMode(opts) {
 // engage decision is unit-tested. TRUE ⇒ min-combine the viewport overlay at mid zoom. Requires the
 // overlay to CONTAIN the viewport (no padded-ring exposure — never a REPLACE-style ring flood) and
 // to be non-degraded. Kill via midCarveOff (__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ at the call site).
-export const MIDZOOM_OVERLAY_CARVE_MIN_Z = 9;
+export const MIDZOOM_OVERLAY_CARVE_MIN_Z = 8;   // 9->8 2026-08-16, LOP-0003 (repair half only)
 export function computeMidZoomOverlayEngage(opts) {
   const o = opts || {};
   if (o.midCarveOff) return false;

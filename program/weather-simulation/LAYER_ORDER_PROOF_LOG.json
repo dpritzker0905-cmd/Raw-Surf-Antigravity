@@ -6,7 +6,8 @@
     "An entry may only be added after a PAIRED experiment: the symptom must be shown PRESENT with the lever in its stock state and ABSENT with one single variable changed, at every zoom in the ladder. A one-way observation is not proof.",
     "Every entry MUST name an `invariant` that a test asserts, and `enforced_by` MUST point at that test. An entry with no enforcement is a story, not a proof.",
     "Verify the lever TOOK EFFECT before reading its result. A silently reverted lever reports 'no effect' identically to one that has none (see LOP-0001 `traps`).",
-    "Single-zoom results are inadmissible for any zoom-interpolated property. Run the ladder."
+    "Single-zoom results are inadmissible for any zoom-interpolated property. Run the ladder.",
+    "A status of PROVEN requires an ABSENT leg from a deployed build. Use SHIPPED_PENDING_OPTICAL_VERIFICATION for a reasoned repair that has not yet been seen."
   ],
   "entries": [
     {
@@ -300,10 +301,10 @@
       },
       "invariant": {
         "id": "INV-coastline-truth-below-z9",
-        "statement": "Below MIDZOOM_OVERLAY_CARVE_MIN_Z the marine field's coastline comes from generalized geometry, not basemap truth. Any change to that threshold, or to the buffer that covers the resulting band, must be measured on the owner coast AND a control coast across z8.5-z9.5.",
+        "statement": "Below MIDZOOM_OVERLAY_CARVE_MIN_Z the marine field's coastline comes from generalized geometry, not basemap truth. Any change to that threshold, or to the buffer that covers the resulting band, must be measured on the owner coast AND a control coast across z8.5-z9.5. ⚠️ LOP-0003 lowered this threshold 9->8; the ATTRIBUTION in this entry stands unchanged (the band is the coastline-truth gap below the carve threshold, wherever that threshold sits).",
         "checkable": "overlayMask.on flips true at exactly MIDZOOM_OVERLAY_CARVE_MIN_Z"
       },
-      "enforced_by": "frontend/src/components/map/WebGLMarineEngine.midzoomCarve.test.js",
+      "enforced_by": "frontend/src/components/map/WebGLMarineEngine.midZoomOverlayCarve.test.js",
       "evidence": [
         "program/weather-simulation/evidence/HALO-RESIDUAL-BAND-BELOW-Z9-2026-08-16.md"
       ],
@@ -312,7 +313,110 @@
         "C4-MR-02",
         "C4-MR-06"
       ],
-      "confirmed_by_owner": false
+      "confirmed_by_owner": false,
+      "superseded_fix_by": "LOP-0003"
+    },
+    {
+      "id": "LOP-0003",
+      "date": "2026-08-16",
+      "title": "Lower MIDZOOM_OVERLAY_CARVE_MIN_Z 9 -> 8: repair the coastline gap at source, do NOT re-enable the buffer",
+      "status": "SHIPPED_PENDING_OPTICAL_VERIFICATION",
+      "refuted_by": null,
+      "symptom": "The residual sub-z9 coastal band attributed in LOP-0002.",
+      "surface": {
+        "url": "https://dev--rawsurf.netlify.app/map",
+        "frontend_build": "464dd49f",
+        "authenticated": true,
+        "renderer": "real browser GPU"
+      },
+      "scene": {
+        "primary": [
+          -80.1,
+          26.9
+        ],
+        "control_coast": [
+          -78.09,
+          26.589
+        ],
+        "theme": "dark",
+        "model": "GFS",
+        "layer": "waves"
+      },
+      "mechanism": "Below the carve threshold the field's coastline comes from generalized land geometry instead of basemap water truth (LOP-0002). Lowering the threshold makes basemap truth reach one zoom level further out, shrinking the affected band from z<9 to z<8. This REPAIRS rather than covers.",
+      "experiment": {
+        "method": "owner-directed scope reduction after a live mis-step; the attribution ladder is LOP-0002's",
+        "legs": [
+          {
+            "leg": "stock (buffer off, carve at 9)",
+            "change": "none",
+            "halo": "band PRESENT below z9"
+          },
+          {
+            "leg": "carve at 8",
+            "change": "MIDZOOM_OVERLAY_CARVE_MIN_Z 9->8",
+            "halo": "band confined to z<8 — NOT yet optically verified on a deployed build"
+          },
+          {
+            "leg": "REJECTED: re-enable ocean-mask-buffer with a corrected colour",
+            "change": "opt-in flag ON",
+            "halo": "WORSE — see owner_incident"
+          }
+        ],
+        "zoom_ladder": [
+          {
+            "zoom": 8.72,
+            "before": "band PRESENT (both coasts)",
+            "after": "expected ABSENT — carve now engages",
+            "verified": false
+          },
+          {
+            "zoom": 8.9,
+            "before": "band PRESENT",
+            "after": "expected ABSENT",
+            "verified": false
+          },
+          {
+            "zoom": 9.3,
+            "before": "band ABSENT",
+            "after": "ABSENT (unchanged)",
+            "verified": true
+          }
+        ],
+        "owner_incident": "While testing the corrected buffer colour I set __RAW_WATER_TEMP_COAST_BUFFER__=true in the OWNER'S live browser, turning the near-black buffer back ON. Owner reported 'its worse at the moment'. Cleared and reloaded to stock. ★ LESSON: never leave a lever set in a surface someone else is watching — and say so immediately when it happens. A page refresh always restores stock, which is why console levers are the right tool and a persisted flag is not."
+      },
+      "rejected_hypotheses": [
+        {
+          "hypothesis": "re-enable the buffer with a colour derived from the composited basemap water (rgb(73,87,101), measured live: water hsl(197,15%,43%) @0.25 over land hsl(214,17%,31%), vs the shipped rgba(16,29,43,0.90))",
+          "why_rejected": "DEFERRED, not disproven. The derivation is verified correct against the live style, but line-color is RE-ASSERTED on a timer by syncLayers, so it could not be optically proven in-browser; and re-enabling a layer just proven harmful, unverified, on three themes, is not worth the risk while the carve alone may suffice. Recorded here so the recipe is not lost."
+        }
+      ],
+      "traps": [
+        {
+          "trap": "ocean-mask-buffer's LINE-COLOR is re-asserted, not just its visibility",
+          "detail": "syncLayers rewrites line-color on a timer (OceanMask.js fast path). A console colour override is reverted within seconds, so the corrected colour cannot be A/B'd live — it must ship to a build first.",
+          "use_instead": "ship it and verify on the deployed alias"
+        }
+      ],
+      "fix": {
+        "authority_surface": "frontend/src/components/map/WebGLMarineEngine.js",
+        "change": "MIDZOOM_OVERLAY_CARVE_MIN_Z 9 -> 8",
+        "loc_delta": 0,
+        "escape_hatch": "__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ = true raises it to 12 (disable), there is no flag to restore 9"
+      },
+      "invariant": {
+        "id": "INV-carve-threshold-8",
+        "statement": "MIDZOOM_OVERLAY_CARVE_MIN_Z is 8 and the engage flips exactly at it. ⚠️ The repaint cost of the extra zoom level is UNMEASURED; the number is pinned so it cannot drift while that is owed.",
+        "checkable": "computeMidZoomOverlayEngage flips false->true across 7.999/8"
+      },
+      "enforced_by": "frontend/src/components/map/WebGLMarineEngine.midZoomOverlayCarve.test.js",
+      "evidence": [
+        "program/weather-simulation/evidence/HALO-RESIDUAL-BAND-BELOW-Z9-2026-08-16.md"
+      ],
+      "ledger_rows": [
+        "C4-MR-16"
+      ],
+      "confirmed_by_owner": false,
+      "status_note": "NOT 'PROVEN', deliberately. The log's integrity test rejected a PROVEN claim here because no leg shows the band ABSENT — and it is right: the threshold change has NOT been optically verified on a deployed build. The ATTRIBUTION it rests on (LOP-0002) is proven; this change is a reasoned repair of that cause, shipped unverified. It becomes PROVEN only when a deployed z7.5/z8.2/z8.9 ladder on two coasts shows the band absent. ★ The guard fired on its author for the SECOND time today — first on a 2-stop ladder, now on an unearned PROVEN. That is the guard being real."
     }
   ]
 }

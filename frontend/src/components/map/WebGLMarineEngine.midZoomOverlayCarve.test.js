@@ -25,7 +25,18 @@ describe('computeMidZoomOverlayEngage — mid-zoom coastal carve gate', () => {
 
   it('does NOT engage below MIN_Z (grid coarsens/covers there — the "covered again" regime)', () => {
     expect(computeMidZoomOverlayEngage(band({ z: MIDZOOM_OVERLAY_CARVE_MIN_Z - 0.5 }))).toBe(false);
-    expect(computeMidZoomOverlayEngage(band({ z: 8.5 }))).toBe(false);
+    expect(computeMidZoomOverlayEngage(band({ z: 7.5 }))).toBe(false);   // was 8.5; LOP-0003 moved MIN_Z 9->8
+  });
+
+  // ⛔ LOP-0003 (2026-08-16) — AN ABSOLUTE PIN, not a relative one. Every other assertion here is
+  // written against MIDZOOM_OVERLAY_CARVE_MIN_Z, so they all follow the constant wherever it goes and
+  // NONE of them can notice it moving. This one can. LOP-0002 measured the coastline band below the
+  // threshold (z8.72/8.90 band PRESENT, z9.30 ABSENT) and LOP-0003 lowered it to 8 so basemap water
+  // truth reaches a zoom level further out.
+  // ⚠️ The REPAINT COST of that extra level is UNMEASURED and owed. Pinning the number keeps it from
+  // drifting while that debt stands.
+  it('MIN_Z is 8 — pinned absolutely so a silent move is visible (LOP-0003)', () => {
+    expect(MIDZOOM_OVERLAY_CARVE_MIN_Z).toBe(8);
   });
 
   it('does NOT engage when the overlay does NOT contain the viewport (guards against padded-ring/REPLACE flood)', () => {
