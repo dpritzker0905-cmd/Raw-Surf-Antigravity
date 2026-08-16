@@ -123,3 +123,59 @@ export function setHeatmapGateUniforms(gl, prog, pass, delivered, maskIsCached, 
   }
   return term;
 }
+
+// OVERLAY TRUTH GATE (AV-01a, Audit 4.0 independent verification, 2026-08-16). The engine stores
+// TWO overlay boxes: _overlayMaskBounds (PADDED texture-storage geography, 50%/side) and
+// _overlayMaskTruthBox (the strict viewport where basemap-tile truth was actually painted). The
+// shaders historically received only the storage bounds, so the pad ring — Natural-Earth base
+// truth, UNVERIFIED against tiles, live-probed wrong (overlay=255 over Ohio where base=0) — was
+// consumed as semantic truth and even suppressed the SAFE_DEGRADED clip via _ovApplied. This
+// resolver expresses the truth box as a RECT IN OVERLAY-UV SPACE (u linear in degrees, v a
+// mercator ratio — mirroring the shader's o_u/o_v mapping; ratios of mercator DIFFERENCES are
+// invariant under any affine latToMercatorY variant, so CPU and GLSL agree by construction) for
+// the shader's inner gate: the overlay may speak ONLY inside it; on the ring the base/wash/clip
+// decide, exactly as if the overlay were absent. Fail-open at every miss: kill switch, missing or
+// degenerate boxes all return enabled:false, and the shader's u_overlayTruthEnabled=0 path is
+// byte-identical to legacy (GL zero-default also protects any call site that never sets it).
+// Reuse safety: the caller must pass truth=null unless the bound overlay IS the viewport overlay
+// (identity check against _overlayMaskBounds — the same __mb freshness discipline as the clip).
+// Kill: __RAW_DISABLE_OVERLAY_TRUTH_GATE__. Telemetry: __RAW_GPU__.overlayTruthGate.
+const _mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (Math.max(-85, Math.min(85, lat)) * Math.PI) / 360));
+export function resolveOverlayTruthUv(storage, truth, win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  const tell = (r) => { if (w.__RAW_GPU__) w.__RAW_GPU__.overlayTruthGate = r; return r; };
+  const open = (reason) => tell({ enabled: false, reason, min: [0, 0], max: [1, 1] });
+  if (w.__RAW_DISABLE_OVERLAY_TRUTH_GATE__ === true) return open('killed');
+  const num = (b) => !!b && ['west', 'south', 'east', 'north'].every((k) => Number.isFinite(b[k]));
+  if (!num(storage)) return open('no_storage');
+  if (!num(truth)) return open('no_truth');
+  const uSpan = storage.east - storage.west;
+  const vSpan = _mercY(storage.south) - _mercY(storage.north);
+  if (!(uSpan > 1e-4) || !(vSpan < -1e-9)) return open('degenerate_storage');
+  const u = (lng) => (lng - storage.west) / uSpan;
+  const v = (lat) => (_mercY(storage.south) - _mercY(lat)) / vSpan;
+  const rect = {
+    enabled: true, reason: 'gated',
+    min: [Math.max(0, u(truth.west)), Math.max(0, v(truth.south))],
+    max: [Math.min(1, u(truth.east)), Math.min(1, v(truth.north))],
+  };
+  if (!(rect.min[0] < rect.max[0]) || !(rect.min[1] < rect.max[1])) return open('degenerate_truth');
+  return tell(rect);
+}
+
+// Uploads the truth rect with CACHED locations (the Khronos null-location silent-ignore trap —
+// same discipline as setHeatmapGateUniforms). enabled=0 writes ONLY the flag: below 0.5 the
+// shader never reads the rect, so stale rect values can never act. Location activity is stamped
+// onto the telemetry object so "the setter ran" can never stand in for "the program has it".
+export function setOverlayTruthUniforms(gl, prog, rect) {
+  if (prog.__otEnLoc === undefined) {
+    prog.__otEnLoc = gl.getUniformLocation(prog, 'u_overlayTruthEnabled');
+    prog.__otMinLoc = gl.getUniformLocation(prog, 'u_overlayTruth_min');
+    prog.__otMaxLoc = gl.getUniformLocation(prog, 'u_overlayTruth_max');
+  }
+  if (rect && typeof rect === 'object') rect.locationActive = prog.__otEnLoc !== null;
+  if (prog.__otEnLoc !== null) gl.uniform1f(prog.__otEnLoc, rect.enabled ? 1.0 : 0.0);
+  if (rect.enabled && prog.__otMinLoc !== null) gl.uniform2f(prog.__otMinLoc, rect.min[0], rect.min[1]);
+  if (rect.enabled && prog.__otMaxLoc !== null) gl.uniform2f(prog.__otMaxLoc, rect.max[0], rect.max[1]);
+  return prog.__otEnLoc !== null;
+}

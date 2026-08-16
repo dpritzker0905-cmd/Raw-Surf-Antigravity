@@ -219,6 +219,11 @@ function runLab(cfg) {
     const ob = ov.bounds || { west: 0, south: 0, east: 0, north: 0 };
     u2f(p, 'u_overlayBounds_min', ob.west, ob.south);
     u2f(p, 'u_overlayBounds_max', ob.east, ob.north);
+    // AV-01a truth rect (overlay-UV space); absent = legacy storage-bounds behavior. Against a
+    // pre-gate shader these locations are null and gl silently ignores the writes (spec no-op).
+    const tr = sc.truth || null;
+    u1f(p, 'u_overlayTruthEnabled', tr ? 1.0 : 0.0);
+    if (tr) { u2f(p, 'u_overlayTruth_min', tr.min[0], tr.min[1]); u2f(p, 'u_overlayTruth_max', tr.max[0], tr.max[1]); }
     u1i(p, 'u_waveTexture', 0);
     u1i(p, 'u_chlorophyllTexture', 1);
     u1i(p, 'u_bathymetryTexture', 2);
@@ -391,6 +396,52 @@ function runLab(cfg) {
   // blanked pixels — but the gate blanks NO rasterized pixel (S1/S7 diff=0), so no such geometry
   // exists; its first probe also sat sub-pixel from the quad edge (a placement artifact, not a
   // shader behavior). The ordering proof lives in S2d: clip defers to overlay truth per-pixel.)
+
+  // S8 — AV-01a OVERLAY TRUTH GATE (Audit 4.0, 2026-08-16): S5's exact flood, but the overlay's
+  // TRUTH box is the strict view V while its STORAGE box is the padded winView — production's
+  // pair (_overlayMaskTruthBox vs _overlayMaskBounds). Gate ON: the ring (in storage, out of
+  // truth) must fall back to the base (LAND discards) while the overlay still speaks inside
+  // truth. S8b omits the truth rect (legacy A/B — on a pre-gate shader S8 goes VIOLATION and S8b
+  // OK, the red leg). S8c flips ONLY overlay CONTENT with the gate on and requires the pixel
+  // diff be CONTAINED in the truth box: outside truth, overlay texels are semantically inert.
+  {
+    const mYl = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+    const truthRect = (s, t) => ({
+      min: [(t.west - s.west) / (s.east - s.west), (mYl(s.south) - mYl(t.south)) / (mYl(s.south) - mYl(s.north))],
+      max: [(t.east - s.west) / (s.east - s.west), (mYl(s.south) - mYl(t.north)) / (mYl(s.south) - mYl(s.north))],
+    });
+    const TR = truthRect(winView, V);
+    const ringLng = V.east + 0.15;
+    const s8base = { window: winView, data: WR, mask: WR, gate: true, maskTex: 'land',
+      overlay: { on: true, replace: true, tex: 'water', bounds: winView } };
+    scenario('S8_truth_gate_ring_inert', 'AV-01a: flood ring outside the TRUTH box falls back to base (land discards)', { ...s8base, truth: TR }, [
+      { lng: interiorLng, lat: midLat, label: 'inside truth — overlay still speaks (flood paints)', expect: true },
+      { lng: ringLng, lat: midLat, label: 'RING (in storage, out of truth) — overlay silent, base LAND discards', expect: false },
+      { lng: V.west - 0.15, lat: midLat, label: 'west ring — overlay silent there too', expect: false },
+    ]);
+    scenario('S8b_truth_gate_absent', 'no truth rect: legacy storage-bounds behavior preserved (ring floods)', s8base, [
+      { lng: ringLng, lat: midLat, label: 'ring under legacy — REPLACE paints it', expect: true },
+    ]);
+    {
+      const frame = drawHeatmap({ ...s8base, truth: TR });
+      const a = readAll();
+      drawHeatmap({ ...s8base, truth: TR, overlay: { ...s8base.overlay, tex: 'land' } });
+      const b = readAll();
+      const d = diffFrames(a, b);
+      const px = (lng) => Math.round(((lngToMercX(lng) - frame.mx0) / frame.dx) * W - 0.5);
+      const yb = (lat) => H - 1 - Math.round(((latToMercY(lat) - frame.my0) / frame.dy) * H - 0.5);
+      const tpx = { x0: px(V.west) - 1, x1: px(V.east) + 1, y0: yb(V.south) - 1, y1: yb(V.north) + 1 };
+      const contained = !!d.bbox && d.bbox[0] >= tpx.x0 && d.bbox[2] <= tpx.x1 && d.bbox[1] >= tpx.y0 && d.bbox[3] <= tpx.y1;
+      out.scenarios.push({
+        id: 'S8c_truth_perturbation_containment', title: 'overlay CONTENT flip moves pixels ONLY inside the truth box (gate ON)',
+        diff: d, truthPx: tpx,
+        probes: [
+          { label: 'diff contained in truth box', painted: contained, alpha: d.count, rgba: [0, 0, 0, 0], expect: true },
+          { label: 'non-vacuity: the content flip is visible inside truth', painted: d.count > 0, alpha: d.count, rgba: [0, 0, 0, 0], expect: true },
+        ],
+      });
+    }
+  }
 
   // S6 — antimeridian-crossing box (west>east wrap branch): continuity + gate no-fire.
   {
