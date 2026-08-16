@@ -140,6 +140,37 @@ map.moveLayer('ocean-mask-buffer','webgl-marine-particles');           // halo G
 
 All four legs are in-page only; a page refresh restores stock behavior.
 
+## 6a. ZOOM LADDER — the defect is bounded, and the fix holds across the whole affected band
+
+Owner challenge, correctly raised: the z7.5 result proves nothing about other zooms, because the
+buffer's geometry is zoom-interpolated. Re-run as **paired captures at the same position** with the
+order toggled in place (`center [-80.2, 28.33]`, dark, GFS, Waves, settled at every stop).
+
+| zoom | buffer width / offset / opacity | STOCK (buffer above field) | FIXED (buffer below field) |
+|---|---|---|---|
+| z2 | ~13 px / ~6 px / **1.0** | **halo PRESENT** — dark outline on both American coasts, Caribbean islands as dark blobs | **ABSENT** |
+| z4 | ~20 px / ~11 px / **1.0** | **halo PRESENT, severe** — thick black band on the entire Gulf + Atlantic seaboard, Cuba, Hispaniola, Jamaica, Central America | **ABSENT** — field reaches every shoreline |
+| z6 | ~40 px / ~20 px / **1.0** | (order verified `buffer 12 > field 11`) | **ABSENT**, order held `buffer 9 < field 12` |
+| z7.5 | ~50 px / ~25 px / **1.0** | **halo PRESENT** (the A/B/A/C legs in section 1) | **ABSENT** |
+| z9 | ~60 px / ~30 px / **0.5** | **effectively ABSENT** — opacity is ramping out | n/a |
+| > z9.5 | — / — / **0.0** | **ABSENT by construction** — the paint expression is 0 | n/a |
+
+**The affected band is roughly z1 to z9.5, worst z4-z8.5, and it self-extinguishes above z9.5** —
+which is exactly why the defect reads as "the halo appears at wide/mid zoom and goes away when you
+zoom in", and why close-zoom inspection alone would have missed it. The `line-opacity` ramp
+(`8.5 -> 1.0`, `9.5 -> 0.0`) is the sole reason the top of the range is clean; nothing else protects
+it.
+
+**The fix direction holds at every zoom tested.** Ordering the buffer below the field clears the
+halo at z2, z4, z6 and z7.5 with the buffer at full stock opacity and `visibility: visible`
+throughout. At each stop the order was re-verified after settle (`plannerMoved: 0`,
+`__RAW_DISABLE_MASK_FAMILY_ORDER__ = true`), so no stop is reporting a stale arrangement.
+
+**Coverage-state note:** `coverageTerminal` reads `unknown` at z2-z6, `safe_degraded` at z7.5 and
+`covered` at z9 — three different regimes, and the halo is present in all of the opaque ones. The
+defect is therefore independent of the coverage state machine, which corroborates section 2: the
+clip and the wash mode are not implicated.
+
 ## 7. What this does NOT establish
 
 - It does not clear the other faces. Particles/crests (`C4-MR-01`) and the missing INVALID mask
