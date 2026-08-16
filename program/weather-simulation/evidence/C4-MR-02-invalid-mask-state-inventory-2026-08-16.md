@@ -128,3 +128,89 @@ readers — there are 15 of them and one writer.
 - It has not been measured against a live scene; every claim here is from source at `52e2abd1`.
 - The Istria/Susak constraint is quoted from the code comment; the geography has **not** been
   re-measured. Before step 3 it must be reproduced, or the regression it guards is unfalsifiable.
+
+
+---
+
+# ADDENDUM — "reproduce Istria/Susak first" was the wrong precondition, and here is why
+
+**Investigated 2026-08-16, read-only, immediately after phase 1.** The conclusion in section 7 step
+3 — *"reproduce the Istria/Susak scene before deleting the conjunction"* — is **withdrawn**. It
+cannot be done, it should not be attempted, and an executable guard already exists in its place.
+
+## A. The scene does not exist, anywhere
+
+`Istria` / `Susak` appears **12+ times** across shader source, engine source, tests, runbooks, the
+handoff, three audit documents and this file. Every single occurrence is **prose**. Exhaustively
+searched: no latitude, no longitude, no committed scene, no fixture, no screenshot, no `.webm`, no
+zoomlab trace. A repo-wide scan for Adriatic coordinates (13-15°E, 44-46°N) returns nothing —
+the only numeric hits are false positives (`Mavericks 44.9°` bearing error, `Trestles +47.2`).
+
+⇒ **The constraint that blocks this row is documented only as a NAME.** It has been cited as
+load-bearing by four separate documents, including my own phase 1 above, and not one of them could
+have reproduced it.
+
+## B. The failure mode is ARCHITECTURALLY DEAD — killed by the same commit that named it
+
+`WebGLMarineEngine.js:2367` records what actually happened:
+
+> *"(A first attempt retargeted THIS texture to viewport bounds in place: one pan later the
+> out-of-bounds samples clamped to edge-water and land masking died wholesale — Istria/Susak.)"*
+
+The regression came from **retargeting the base mask texture to viewport bounds in place**. That
+approach was **abandoned** and replaced by a *separate* viewport-truth overlay texture, with the base
+mask never touched (`if (span >= 30) … refreshViewportOverlayMask`).
+
+⇒ **There is no live code path that can produce the original Istria/Susak failure.** Reproducing it
+would require first re-implementing the abandoned design. Chasing the geography would have burned a
+session on a scene that cannot fail for the recorded reason.
+
+## C. But the CONSTRAINT is real — it is just misnamed
+
+The conjunction has two justifications, and only one of them is alive:
+
+| Justification | Status |
+|---|---|
+| "preserves the Istria/Susak regression" | **DEAD** — that code path no longer exists |
+| *"masking can never be WORSE than the grid's own mask"* (`WebGLMarineShaders.js:377`) | **LIVE and correct** |
+
+The live one is a general safety property: outside the overlay's bounds, the base mask must **stand**,
+not blank — otherwise a stale or absent overlay blanks real water the base mask covers correctly.
+That is what any validity contract must not break. It has nothing to do with Croatia.
+
+## D. The regression guard ALREADY EXISTS, as executable tests
+
+`WebGLMarineShaders.test.js` carries two `describe` blocks that pin exactly this:
+
+1. **`land-mask halo gate (outside both data and mask bounds)`** — asserts
+   `_outData && _outMask`, `u_dataMaskGate > 0.5`, `oceanAlpha = 0.0`, and explicitly
+   *"tests the DATA uv (tex_u/tex_v) AND the MASK uv (mask_u/mask_v) — never one alone"*.
+2. **`viewport-truth OVERLAY overrides the base mask ONLY inside its bounds (stale-safe fallback)`** —
+   asserts the overlay is enabled-gated AND bounds-gated at **every** sampling site
+   (`HEATMAP_FS`, `ADVECT_FS`, `DRAW_VS`) with the base sample taken FIRST.
+
+**These fail the instant the conjunction is deleted.** They are the guard phase 1 asked for. The
+requirement is therefore not "reproduce a geography" but **"satisfy or deliberately revise these two
+describes, with the reason written down"** — which is a code review, not a field trip.
+
+⚠️ **Their limit, stated honestly:** they are **source-text assertions** (`expect(HEATMAP_FS)
+.toContain(…)`), not behavioural ones. GLSL is not executed in jest, so they verify the shader
+*string* still contains the guard — they would pass if the semantics changed while the text survived.
+That is a legitimate technique here, but it means they are a **change-detector, not a proof**. The
+optical proof for this face has to come from shaderlab or the zoom ladder, not from jest.
+
+## E. Revised phase 2 precondition
+
+Replace section 7 step 3's precondition with:
+
+> Before deleting the `_outData && _outMask` conjunction, demonstrate on a real scene that
+> **outside-overlay-but-inside-data still renders base-masked water rather than blank** — the live
+> invariant — and update the two `WebGLMarineShaders.test.js` describes in the same commit with the
+> reason. Do **not** search for Istria or Susak; the failure that named them cannot occur in the
+> current architecture.
+
+★ **The general lesson, which is the reusable part:** a constraint cited by four documents and
+guarded in two test suites still had **no reproducible instance** — and its stated cause had been
+architecturally eliminated by the very commit that recorded it. *A name is not a repro.* Before
+treating a documented constraint as load-bearing, check whether the code path that produced it still
+exists.
