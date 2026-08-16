@@ -83,6 +83,16 @@ uniform float u_maskClipEnabled;        // SAFE_DEGRADED terminal clip (Audit 3.
 // sub-texel-accurate; raw .r staircases). u_coastErode shifts the coast seaward to erode land bleed.
 uniform float u_coastSDFEnabled;        // 1.0 when the BASE mask .b is a signed dist-to-coast
 uniform float u_overlaySDFEnabled;      // 1.0 when the OVERLAY mask .b is a signed dist-to-coast
+// OVERLAY TRUTH GATE (AV-01a, Audit 4.0, 2026-08-16): u_overlayBounds is the PADDED texture
+// STORAGE box; tile truth was painted only inside _overlayMaskTruthBox (the strict viewport).
+// These carry that truth box as a rect in OVERLAY-UV space (resolveOverlayTruthUv). When enabled,
+// the overlay may speak ONLY inside it — on the pad ring the base/wash/clip decide, exactly as if
+// the overlay were absent (the ring is unverified NE truth, live-probed wrong over Ohio, and it
+// used to suppress the SAFE_DEGRADED clip via _ovApplied). 0.0/unset = legacy behavior: the GL
+// zero-default keeps any call site that never sets these byte-identical to the pre-gate shader.
+uniform float u_overlayTruthEnabled;
+uniform highp vec2 u_overlayTruth_min;  // truth box min corner, overlay-UV space
+uniform highp vec2 u_overlayTruth_max;  // truth box max corner
 uniform float u_coastErode;             // threshold shift in normalized SDF units (+ erodes water / grows land)
 uniform float u_coastAA;                // smoothstep half-width around the coast (normalized SDF units)
 
@@ -374,13 +384,19 @@ void main() {
     float o_u = (lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
     float o_v = (oMercMaxY - v_mercator_xy.y) / max(oMercMaxY - oMercMinY, 0.0001);
     if (o_u > 0.0 && o_u < 1.0 && o_v > 0.0 && o_v < 1.0) {
-      vec4 _ovSample = texture2D(u_overlayMaskTexture, vec2(o_u, o_v));
-      float ovs = _ovSample.r;
-      if (u_overlaySDFEnabled > 0.5) {
-        ovs = smoothstep(-u_coastAA, u_coastAA, (_ovSample.b - 0.5) - u_coastErode);
+      // AV-01a: inside STORAGE bounds is not inside TRUTH — the overlay speaks only inside its
+      // truth rect; on the pad ring _ovApplied stays false so the base/wash/clip decide.
+      if (u_overlayTruthEnabled < 0.5
+          || (o_u > u_overlayTruth_min.x && o_u < u_overlayTruth_max.x
+              && o_v > u_overlayTruth_min.y && o_v < u_overlayTruth_max.y)) {
+        vec4 _ovSample = texture2D(u_overlayMaskTexture, vec2(o_u, o_v));
+        float ovs = _ovSample.r;
+        if (u_overlaySDFEnabled > 0.5) {
+          ovs = smoothstep(-u_coastAA, u_coastAA, (_ovSample.b - 0.5) - u_coastErode);
+        }
+        oceanAlpha = (u_overlayReplace > 0.5) ? ovs : min(oceanAlpha, ovs);
+        _ovApplied = true;
       }
-      oceanAlpha = (u_overlayReplace > 0.5) ? ovs : min(oceanAlpha, ovs);
-      _ovApplied = true;
     }
   }
   // SAFE_DEGRADED MASK CLIP (2026-08-15, Audit 3.1): the delivered mask is KNOWN short and the

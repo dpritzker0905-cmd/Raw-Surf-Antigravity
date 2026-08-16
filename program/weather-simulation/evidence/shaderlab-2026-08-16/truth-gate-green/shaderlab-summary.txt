@@ -1,0 +1,75 @@
+shaderlab-gate @ 19e8c197e7b3c25ff56dd7cc5fc0a4d5275f7724  gpu=ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)
+heatmap: compiled=true linked=true gateLocationActive=true activeUniforms=39
+
+[S1_gate_on_equal_bounds] data==mask==delivered box; gate ON
+  interior control: painted=true alpha=204 expect=true OK
+  epsilon-inside east: painted=true alpha=204 expect=true OK
+  epsilon-outside east (beyond the quad): painted=false alpha=0 expect=false OK
+  epsilon-outside west: painted=false alpha=0 expect=false OK
+  epsilon-outside north: painted=false alpha=0 expect=false OK
+  epsilon-outside south: painted=false alpha=0 expect=false OK
+  gate on/off diff: 0 px changed (bbox null) of 262144
+
+[S2_mask_short_strip] regional data covers view, mask short on east (live z8.03 geometry); gate ON
+  interior control (in mask): painted=true alpha=204 expect=true OK
+  HALO STRIP (in data, out of mask) — gate cannot blank this: painted=true alpha=204 expect=true OK
+  halo strip north: painted=true alpha=204 expect=true OK
+  gate on/off diff: 0 px changed (bbox null) of 262144
+
+[S2c_mask_short_strip_clip] same geometry with u_maskClipEnabled=1 (SAFE_DEGRADED terminal action)
+  interior control (in mask): painted=true alpha=204 expect=true OK
+  halo strip — clip blanks it: painted=false alpha=0 expect=false OK
+  halo strip north — clip blanks it: painted=false alpha=0 expect=false OK
+
+[S2d_clip_vs_overlay_truth] clip ON + water overlay covering the strip: overlay truth renders, clip holds beyond it
+  strip under water overlay — overlay truth wins: painted=true alpha=204 expect=true OK
+  out-of-mask beyond overlay north — clip holds: painted=false alpha=0 expect=false OK
+  interior control: painted=true alpha=204 expect=true OK
+
+[S3_world_data_short_mask] world data grid + short mask: clamp paints beyond mask truth; gate inert
+  strip beyond mask (world data) — paints from edge clamp: painted=true alpha=204 expect=true OK
+  far beyond mask — still paints: painted=true alpha=204 expect=true OK
+  gate on/off diff: 0 px changed (bbox null) of 262144
+
+[S3b_overlay_land_carves] same + LAND overlay REPLACE inside its bounds: the only working defense here
+  strip under LAND overlay — discarded: painted=false alpha=0 expect=false OK
+  interior (outside overlay) — unchanged: painted=true alpha=204 expect=true OK
+
+[S5_wash_replace_flood] base mask LAND + water overlay REPLACE: the flood paints land
+  land pixel under water-flooded overlay — REPLACE paints it: painted=true alpha=204 expect=true OK
+
+[S5b_wash_min_combines] same geometry, min-combine: the base mask wins over the flood
+  land pixel — min(base=land, overlay=water) discards: painted=false alpha=0 expect=false OK
+
+[S5c_min_only_removes] water base + LAND overlay min-combine: crisp carve preserved
+  overlay land truth carves under min-combine: painted=false alpha=0 expect=false OK
+
+[S8_truth_gate_ring_inert] AV-01a: flood ring outside the TRUTH box falls back to base (land discards)
+  inside truth — overlay still speaks (flood paints): painted=true alpha=204 expect=true OK
+  RING (in storage, out of truth) — overlay silent, base LAND discards: painted=false alpha=0 expect=false OK
+  west ring — overlay silent there too: painted=false alpha=0 expect=false OK
+
+[S8b_truth_gate_absent] no truth rect: legacy storage-bounds behavior preserved (ring floods)
+  ring under legacy — REPLACE paints it: painted=true alpha=204 expect=true OK
+
+[S8c_truth_perturbation_containment] overlay CONTENT flip moves pixels ONLY inside the truth box (gate ON)
+  diff contained in truth box: painted=true alpha=152856 expect=true OK
+  non-vacuity: the content flip is visible inside truth: painted=true alpha=152856 expect=true OK
+  gate on/off diff: 152856 px changed (bbox [58,62,453,447]) of 262144
+
+[S6_antimeridian] antimeridian-crossing data+mask box; gate ON
+  inside west of seam: painted=true alpha=204 expect=true OK
+  inside east of seam (lng -175, wrapped copy): painted=true alpha=204 expect=true OK
+  epsilon-outside east (lng -169): painted=false alpha=0 expect=false OK
+
+[S7_exact_fit_boundary] data==mask==window exactly; gate ON vs OFF (edge-row semantics)
+  center: painted=true alpha=204 expect=true OK
+  gate on/off diff: 0 px changed (bbox null) of 262144
+
+[advect P1_control_in_bounds] particle inside data AND mask (water) — survives: survived=true expect=true OK (next=0.50062,0.50001, predicted=0.50062,0.5)
+
+[advect P2_mask_only_short_water_edge] MASK-ONLY SHORTFALL: in data, outside mask; edge texel water — the clamp keeps it alive: survived=true expect=true OK (next=0.50062,0.50001, predicted=0.50062,0.5)
+
+[advect P3_mask_only_short_land_edge] same shortfall, edge texel LAND — the clamp kills it (content-dependent, i.e. untruthful): survived=false expect=false OK (next=0.57813,0.43359, predicted=0.50062,0.5)
+
+[advect P4_data_short_oob] particle outside DATA (ring-fill off) — isOob drops it: survived=false expect=false OK (next=0.57813,0.43359, predicted=0.50062,0.5)
