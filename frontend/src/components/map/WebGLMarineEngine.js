@@ -2804,11 +2804,11 @@ export function resolveDeliveredCoverage(cachedBounds, curView, gridKey, lastFor
   const forceKey = curView
     ? `${gridKey}|${k(curView.west)},${k(curView.south)},${k(curView.east)},${k(curView.north)}`
     : `${gridKey}|`;
-  // Unknown delivery is NOT treated as short: this may only ADD repaints in the proven-bad case,
-  // never remove a skip the old code granted on information we do not have.
-  const deliveredShort = !disabled && !!cachedBounds && !!curView && !(
-    cachedBounds.west <= curView.west && cachedBounds.east >= curView.east
-    && cachedBounds.south <= curView.south && cachedBounds.north >= curView.north);
+  // Never skip on unknown delivery, nor on a WRAPPED box (east<west) that containment calls COVERED — C4-MR-09.
+  const deliveredShort = !disabled && !!cachedBounds && !!curView
+    && (curView.east < curView.west || cachedBounds.east < cachedBounds.west
+      || !(cachedBounds.west <= curView.west && cachedBounds.east >= curView.east
+        && cachedBounds.south <= curView.south && cachedBounds.north >= curView.north));
   return { deliveredShort, forceKey, forceRepaint: deliveredShort && lastForcedFor !== forceKey };
 }
 

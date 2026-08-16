@@ -281,6 +281,13 @@ export function disposeEngine(engine, gl) {
   engine._cachedMaskTex = null;
   engine._overlayMaskTex = null;
   engine._overlayMaskBounds = null;
+  // C4-MR-09 (2026-08-16): the truth box was ABSENT from this inventory — it outlived its own
+  // bounds. Not reachable today (render needs _overlayMaskTex && _overlayMaskBounds, both nulled
+  // above, and the uniform site re-checks `ob === _overlayMaskBounds`), so this is hygiene, not a
+  // live bug. It is still worth one line: this exact inventory has already leaked twice —
+  // _residentScoreTex (R11-10b, a grid-sized texture per dispose cycle) and the accounting choke
+  // (R11-10d) — and a field surviving its owner is how the third one starts.
+  engine._overlayMaskTruthBox = null;
   engine._cachedMaskGeoJSON = null;
   engine._lastPatchedMask = null;
   engine._landGeoJSON = null;
