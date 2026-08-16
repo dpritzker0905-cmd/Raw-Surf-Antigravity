@@ -78,15 +78,33 @@ describe('setOverlayTruthUniforms — cached locations, null-location safety', (
   };
   const LOCS = { u_overlayTruthEnabled: 'EN', u_overlayTruth_min: 'MN', u_overlayTruth_max: 'MX' };
 
-  it('uploads flag + rect when enabled; caches locations across calls', () => {
+  // ⛔ C4-MR-13 (2026-08-16): this asserted `queries === 3`, the same exact-count census the gate
+  // setter carried — and it was REPLICATED here when this setter was written, which is how a defect
+  // shape spreads. The count conflates "how many uniforms" with "is caching working", so it fails
+  // when a uniform is added (correct code, wrong reason) and passes if caching broke while one was
+  // removed. Split into the two facts.
+  it('uploads flag + rect when enabled; caching re-queries NOTHING on the second call', () => {
     const gl = mockGl(LOCS); const prog = {};
     const rect = resolveOverlayTruthUv(STORAGE, TRUTH, {});
     expect(setOverlayTruthUniforms(gl, prog, rect)).toBe(true);
+    const afterFirst = gl.calls.queries;
+    expect(afterFirst).toBeGreaterThan(0);        // non-vacuity: it really does query on call 1
     setOverlayTruthUniforms(gl, prog, rect);
-    expect(gl.calls.queries).toBe(3); // first call only — one per uniform in THIS setter
+    expect(gl.calls.queries - afterFirst).toBe(0); // THE invariant — a delta, not a total
     expect(gl.calls.f1).toEqual([['EN', 1.0], ['EN', 1.0]]);
     expect(gl.calls.f2.length).toBe(4);
     expect(rect.locationActive).toBe(true);
+  });
+
+  it('membership: the managed set is NAMED, not counted', () => {
+    const asked = [];
+    const gl = {
+      calls: { f1: [], f2: [], queries: 0 },
+      getUniformLocation: (_p, name) => { asked.push(name); return name in LOCS ? LOCS[name] : null; },
+      uniform1f: () => {}, uniform2f: () => {},
+    };
+    setOverlayTruthUniforms(gl, {}, resolveOverlayTruthUv(STORAGE, TRUTH, {}));
+    expect(asked.sort()).toEqual(['u_overlayTruthEnabled', 'u_overlayTruth_max', 'u_overlayTruth_min']);
   });
 
   it('enabled:false writes ONLY the flag=0 — stale rects can never act', () => {

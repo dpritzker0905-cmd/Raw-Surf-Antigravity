@@ -139,17 +139,34 @@ describe('setHeatmapGateUniforms — cached locations, null-location safety, tel
     expect(gl.calls).toContainEqual(['GATE', 0.0]);
   });
 
-  it('second call reuses the cached location (getUniformLocation not re-queried)', () => {
+  // ⛔ C4-MR-13 (2026-08-16): this asserted `queries === 2`, which CONFLATES TWO INDEPENDENT FACTS —
+  // how many uniforms this setter manages, and whether locations are cached. That single number
+  // therefore fails for the wrong reason (add a managed uniform and correct code goes red) AND
+  // passes for the wrong reason (break caching while removing a uniform: 2 calls x 1 uniform = 2,
+  // green). The repo's own recorded shape: the assertion was fine, the CENSUS was the defect.
+  // Split into the two facts, each asserted on its own terms.
+  it('caching: the SECOND call re-queries NOTHING, whatever the uniform count', () => {
     let queries = 0;
-    const gl = {
-      calls: [],
-      getUniformLocation: () => { queries++; return 'L'; },
-      uniform1f: () => {},
-    };
+    const gl = { calls: [], getUniformLocation: () => { queries++; return 'L'; }, uniform1f: () => {} };
     const prog = {};
     setHeatmapGateUniforms(gl, prog, 'resident', null, true, {});
+    const afterFirst = queries;
+    expect(afterFirst).toBeGreaterThan(0);        // non-vacuity: it really does query on call 1
     setHeatmapGateUniforms(gl, prog, 'resident', null, true, {});
-    expect(queries).toBe(2); // one per uniform, first call only
+    expect(queries - afterFirst).toBe(0);         // THE invariant — a delta, not a total
+  });
+
+  it('membership: the managed set is NAMED, not counted', () => {
+    const asked = [];
+    const gl = {
+      calls: [],
+      getUniformLocation: (_p, name) => { asked.push(name); return 'L'; },
+      uniform1f: () => {},
+    };
+    setHeatmapGateUniforms(gl, {}, 'resident', null, true, {});
+    // Adding a managed uniform SHOULD fail here — that is a deliberate contract change, and this
+    // names it. It must not fail the caching test, which is about a different property entirely.
+    expect(asked.sort()).toEqual(['u_dataMaskGate', 'u_maskClipEnabled']);
   });
 });
 
