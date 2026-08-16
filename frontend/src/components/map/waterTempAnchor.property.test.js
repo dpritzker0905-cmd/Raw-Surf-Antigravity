@@ -177,6 +177,52 @@ describe('mirrored literals — executable pins on the admitted duplications', (
     expect(classTerms).toEqual(kwTerms); // "the two lists move together" — now enforced, not hoped
   });
 
+  // ⛔ 2026-08-16 (C4-MR-07): there was a THIRD copy, and it was WRONG. layer-order-probe.js carried
+  // /landuse|park|landcover/i — three terms against these twelve — so the diagnostic silently
+  // misclassified wood/forest/glacier/sand/pitch/grass/cemetery/hospital/school/university while
+  // reporting a confident stack. A measuring instrument that disagrees with the thing it measures is
+  // worse than no instrument: it produces evidence that looks clean and is not.
+  test('the layer-order PROBE carries the same landuse term set as the code it measures', () => {
+    const anchorSrc = read('waterTempAnchor.js');
+    const probeSrc = fs.readFileSync(
+      path.join(__dirname, '..', '..', '..', 'scripts', 'layer-order-probe.js'), 'utf8');
+    const classMatch = anchorSrc.match(/const LANDUSE_CLASS = \/([^/]+)\/i;/);
+    const probeMatch = probeSrc.match(/const LANDUSE = \/([^/]+)\/i;/);
+    expect(classMatch).not.toBeNull();
+    expect(probeMatch).not.toBeNull();
+    expect(probeMatch[1].split('|').sort()).toEqual(classMatch[1].split('|').sort());
+  });
+
+  // The probe's blind spot itself, pinned. `getStyle().layers` omits CUSTOM layers, and the marine
+  // field is one — so a probe reading it cannot see the layer whose position it exists to report.
+  test('the layer-order PROBE enumerates map.style._order, never getStyle().layers', () => {
+    const probeSrc = fs.readFileSync(
+      path.join(__dirname, '..', '..', '..', 'scripts', 'layer-order-probe.js'), 'utf8');
+    expect(probeSrc).toContain('window.map.style._order');
+    // Match the DEFECT SHAPE — enumerating FROM getStyle().layers — not any mention of it. The
+    // probe's own comment and its failure message both name the old API on purpose, and a naive
+    // "does the string appear" check fails on its own documentation. (Caught by this test failing
+    // on the first run: `"x" in src` is never a real needle.)
+    expect(probeSrc).not.toMatch(/=\s*(window\.)?map\.getStyle\(\)\.layers/);
+  });
+
+  // ⚠️ STRUCTURAL is mirrored in mapUtils.js as an inline `id.includes(...)` chain (the "Double
+  // Fallback" insertion rule). Same drift risk, same fix: pin the term sets to each other.
+  test('STRUCTURAL (waterTempAnchor.js) and the mapUtils fallback chain carry identical term sets', () => {
+    const anchorSrc = read('waterTempAnchor.js');
+    const utilsSrc = read('mapUtils.js');
+    const structMatch = anchorSrc.match(/const STRUCTURAL = \/([^/]+)\/;/);
+    expect(structMatch).not.toBeNull();
+    // Scope to the Double Fallback CLASSIFIER only. mapUtils also has a SKIP-list above it that
+    // uses id.includes('waterway'), and a whole-file scan swept that in — a false positive this
+    // test produced on its first run. The classifier is the chain terminating in `type === 'symbol'`.
+    const block = utilsSrc.match(/Double Fallback[\s\S]*?layer\.type === 'symbol'/);
+    expect(block).not.toBeNull();                   // non-vacuity: the chain must still be findable
+    const utilsTerms = [...block[0].matchAll(/id\.includes\('([a-z-]+)'\)/g)].map((m) => m[1]);
+    expect(utilsTerms.length).toBeGreaterThan(0);
+    expect([...new Set(utilsTerms)].sort()).toEqual(structMatch[1].split('|').sort());
+  });
+
   test('dense-global thresholds flip at identical boundaries in computeWideOverlayMode and resolveWashOverlayMode', () => {
     const engineDense = (w, span) => computeWideOverlayMode({
       gwSpan: 360, mbCov: true, covReplaceOff: false,
