@@ -26,6 +26,20 @@ exemplars with expected directions can catch that, which is why the rollout plan
 
 ⚠️ READ-ONLY. This changes nothing. Flipping the flag afterwards is three places, together:
 precompute.yml, forecast-ingest.yml, and Render env -- see `tests/test_flag_lane_parity.py`.
+
+THE EXIT CONTRACT (2026-08-16, C4-SC-04)
+----------------------------------------
+    0  evaluated, acceptable      (SANE / BOUNDS STALE)
+    1  evaluated, FAILED          (NO-GO)  <- a real calibration verdict
+    2  COULD NOT EVALUATE         (infrastructure) <- never a verdict
+
+⛔ Until 2026-08-16 the five infrastructure sites raised `SystemExit("<string>")`, and Python exits
+**1** for a string-valued SystemExit -- the same code a genuine NO-GO returns. "no RENDER_API_KEY",
+"Render API 502" and "needs requests" were therefore indistinguishable from "the ORDERING claim
+failed". Anything reading this script's exit code -- a human, or the scheduled census -- would see a
+credential problem as a calibration failure and go looking for a physics bug that was not there.
+★ A check that cannot tell "not sampled" from "broken" must REFUSE. Raise `InfrastructureError` for
+anything that stops us OBTAINING the numbers; return from `main()` only once they were judged.
 """
 import json
 import os
@@ -46,6 +60,27 @@ RATINGS_KEY = "spot_ratings/latest.json"
 BUCKET = "weather-products"
 
 _SECRETS: list = []
+
+
+class InfrastructureError(RuntimeError):
+    """Could not REACH the data. NEVER a calibration verdict.
+
+    ⛔ 2026-08-16 (C4-SC-04). Five sites here raised `SystemExit("<string>")`. Python exits **1**
+    when SystemExit carries a string -- the SAME code `main()` returns for a genuine NO-GO. So
+    "no RENDER_API_KEY", "Render API 502" and "needs requests" were indistinguishable from
+    "the ORDERING claim failed": a scheduled run that could not authenticate reported a failed
+    calibration, and the `except SystemExit: raise` at the bottom deliberately preserved it,
+    so the exit-2 path could never catch them.
+
+    ★ A check that cannot tell "not sampled" from "broken" must REFUSE, not guess. Raise this for
+    anything that stops us from OBTAINING the numbers; return a code from `main()` only when the
+    numbers were obtained and judged.
+
+    THE EXIT CONTRACT (int only, never a string):
+        0  the calibration was evaluated and is acceptable (SANE / BOUNDS STALE)
+        1  the calibration was evaluated and FAILED (NO-GO)  -- a real verdict
+        2  the calibration could NOT be evaluated (infrastructure) -- not a verdict
+    """
 
 
 def _scrub(text):
@@ -96,13 +131,13 @@ def _prod_credentials(session):
         return env_url, env_key, {"RATING_LOCAL_SIZE": "(unknown -- not readable from Supabase env)"}
     key = _render_api_key()
     if not key:
-        raise SystemExit("no SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY and no RENDER_API_KEY "
-                         "(env or backend/.env) -- cannot reach production")
+        raise InfrastructureError("no SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY and no RENDER_API_KEY "
+                                 "(env or backend/.env) -- cannot reach production")
     _SECRETS.append(key)
     resp = session.get(f"https://api.render.com/v1/services/{RENDER_SERVICE}/env-vars?limit=100",
                        headers={"Authorization": f"Bearer {key}"}, timeout=30)
     if resp.status_code != 200:
-        raise SystemExit(_scrub(f"Render API {resp.status_code}: {resp.text[:200]}"))
+        raise InfrastructureError(_scrub(f"Render API {resp.status_code}: {resp.text[:200]}"))
     env = {}
     for row in resp.json():
         ev = row.get("envVar", row)
@@ -110,7 +145,7 @@ def _prod_credentials(session):
     url = (env.get("SUPABASE_URL") or "").rstrip("/")
     svc = env.get("SUPABASE_SERVICE_ROLE_KEY") or ""
     if not url or not svc:
-        raise SystemExit("Render service has no SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY")
+        raise InfrastructureError("Render service has no SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY")
     _SECRETS.append(svc)
     return url, svc, env
 
@@ -118,7 +153,7 @@ def _prod_credentials(session):
 def _get_json(session, url, svc, what):
     resp = session.get(url, headers={"Authorization": f"Bearer {svc}", "apikey": svc}, timeout=120)
     if resp.status_code != 200:
-        raise SystemExit(_scrub(f"{what}: HTTP {resp.status_code} {resp.text[:200]}"))
+        raise InfrastructureError(_scrub(f"{what}: HTTP {resp.status_code} {resp.text[:200]}"))
     return resp.json()
 
 
@@ -155,7 +190,7 @@ def main():
     try:
         import requests
     except ImportError:
-        raise SystemExit("needs `requests`")
+        raise InfrastructureError("needs `requests`")
 
     with requests.Session() as session:
         url, svc, render_env = _prod_credentials(session)
@@ -333,11 +368,33 @@ def main():
     return 1
 
 
-if __name__ == "__main__":
+def cli():
+    """The exit contract, in one place. 0/1 are VERDICTS; 2 means we never got to judge.
+
+    ⚠️ `except SystemExit: raise` stays FIRST and deliberate: `main()` returning an int is the only
+    legitimate source of 0/1, and re-raising keeps that path untouched. What changed 2026-08-16 is
+    that infrastructure no longer arrives here AS a SystemExit -- it arrives as InfrastructureError
+    and is routed to 2, so a scheduled run that could not authenticate can no longer be read as a
+    failed calibration.
+    """
     try:
-        sys.exit(main())
+        code = main()
+        # main() must return an int. A bare `return` (None) would exit 0 and report a PASS for a
+        # run that never judged anything -- the same class of defect one level down.
+        if not isinstance(code, int):
+            print(f"INFRASTRUCTURE: main() returned {type(code).__name__}, not an exit code",
+                  file=sys.stderr)
+            return 2
+        return code
     except SystemExit:
         raise
+    except InfrastructureError as exc:
+        print(_scrub(f"INFRASTRUCTURE (could not evaluate, NOT a verdict): {exc}"), file=sys.stderr)
+        return 2
     except Exception as exc:                                   # noqa: BLE001 - scrub before showing
-        print(_scrub(f"{type(exc).__name__}: {exc}"), file=sys.stderr)
-        sys.exit(2)
+        print(_scrub(f"INFRASTRUCTURE {type(exc).__name__}: {exc}"), file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    sys.exit(cli())

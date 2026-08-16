@@ -16,8 +16,6 @@ import { writeCoastDistanceField } from './maskCoastSDF'; // signed dist-to-coas
 import './marineSharpenTrace';   // installs window.__SHARPEN_TRACE__ (zoom-out sharpen-timeline instrument)
 
 import {
-  createShader,
-  createProgram,
   bindTexture,
   unbindTexture,
   safeDeleteTexture
@@ -58,7 +56,7 @@ import {
   trimDeadEdges, applySharpenOpacityEase, resolveColdVeil, resolveCoarseCrestControls,
   resolveAnimValue, coarseBaseKey,
 } from './marineEngineDecisions';
-import { setHeatmapGateUniforms, resolveWashOverlayMode } from './marineCoverageContract';
+import { setHeatmapGateUniforms, resolveWashOverlayMode, resolveOverlayTruthUv, setOverlayTruthUniforms } from './marineCoverageContract';
 
 export {
   latToMercatorY, heatmapZoomOpacity, resolveRatingBandFade, resolveRibbonTaper, boundsLonSpan,
@@ -1454,6 +1452,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayReplace'), _overlayReplace ? 1.0 : 0.0);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_min'), ob.west, ob.south);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_max'), ob.east, ob.north);
+    setOverlayTruthUniforms(gl, this.heatmapProgram, resolveOverlayTruthUv(ob, (ob === this._overlayMaskBounds) ? this._overlayMaskTruthBox : null)); // AV-01a: truth ONLY for the viewport overlay (identity check — the __mb discipline)
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
 
     const isRegionalGrid = (waveBounds.east - waveBounds.west < 359.9);
@@ -3099,6 +3098,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayReplace'), (_bovOn && resolveWashOverlayMode(base).replace) ? 1.0 : 0.0);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_min'), _bob.west, _bob.south);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_max'), _bob.east, _bob.north);
+  setOverlayTruthUniforms(gl, this.heatmapProgram, resolveOverlayTruthUv(_bob, (_bovOn && _bob === this._overlayMaskBounds) ? this._overlayMaskTruthBox : null)); // AV-01a: baseCrispMask fallback rides this slot with the CACHED mask's bounds — identity check fails ⇒ gate open
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_waveTexture'), 0);
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_chlorophyllTexture'), 1);
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_bathymetryTexture'), 2);

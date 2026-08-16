@@ -1,4 +1,31 @@
-# THE HALO IS ATTRIBUTED — `ocean-mask-buffer`, ordered above the marine field
+# THE HALO IS ATTRIBUTED — the painter is `ocean-mask-buffer`
+
+> ## ⛔ READ FIRST — THIS DOCUMENT'S CONCLUSION WAS PARTLY WRONG AND IS SUPERSEDED
+>
+> **The ATTRIBUTION below is correct and stands: the painter is `ocean-mask-buffer`.** Every
+> measurement in sections 1, 2, 3, 5, 6 and 6a is accurate and reproducible.
+>
+> **The DIAGNOSIS was wrong.** This document concludes "the defect is stack order, not styling" and
+> prescribes a repair in `MASK_FAMILY_CHAIN`. **That is refuted.** Reordering the buffer below the
+> marine field clears the band over water and then lands the near-black line above
+> `ocean-mask-fill`, **darkening coastal land instead** — the owner caught this within minutes of
+> the proposal. The symptom moves; it does not clear.
+>
+> **The real mechanism is the colour.** `ocean-mask-buffer` paints `rgba(16,29,43,0.90)` — near-black
+> — while the basemap water it was designed to blend into composites to a **medium slate** (`water`
+> `hsl(197,15%,43%)` at opacity **0.25** over the `land` background `hsl(214,17%,31%)`). It has never
+> matched. It therefore darkens whatever it sits above, in **any** stack position.
+>
+> **The shipped fix** (`784b4c6c`) makes the buffer **opt-in only** — it no longer paints at all
+> unless `__RAW_WATER_TEMP_COAST_BUFFER__ === true`. Verified in the deployed dev artifact and
+> owner-confirmed. Marine Nightly flipped red→green on the fix SHA.
+>
+> **Authoritative record:** `program/weather-simulation/LAYER_ORDER_PROOF_LOG.json` entry `LOP-0001`,
+> which carries the reordering hypothesis explicitly under `rejected_hypotheses`.
+>
+> *Kept unedited below rather than rewritten, because the experimental log is honest and the wrong
+> turn is instructive: leg C produces a real, reproducible pixel improvement while still being the
+> wrong fix. A lever that improves the symptom is not thereby the cause.*
 
 **Ledger row:** `C4-P0-03` (attribute the first bad halo painter) -> **CLOSED**
 **Date:** 2026-08-16 · **Surface:** `https://dev--rawsurf.netlify.app/map`, authenticated, real browser
@@ -173,11 +200,24 @@ clip and the wash mode are not implicated.
 
 ## 7. What this does NOT establish
 
+- ⛔ **It does not establish the fix.** See the banner at the top: the "stack order" conclusion and
+  the `MASK_FAMILY_CHAIN` prescription in sections 1, 4 and 6a are **REFUTED**. Reordering relocates
+  the darkening onto coastal land. The shipped repair is the opt-in default in `784b4c6c`.
 - It does not clear the other faces. Particles/crests (`C4-MR-01`) and the missing INVALID mask
   state (`C4-MR-02`) remain untested and un-attempted; this result says only that the *dominant,
   owner-visible* band at this scene is the buffer.
-- It was measured at one scene (Florida east coast, z7.5, dark theme). A control coast and the
-  light/beach themes are required before the repair is certified (`C4-P0-06`/`C4-P0-07`).
-- No fix has been written. Leg C shows the *direction*; the repair must still be made in
-  `MASK_FAMILY_CHAIN` with a failing-before/passing-after test, and must not re-break the raster-slot
-  blend the buffer exists to provide.
+- Themes: measured in **dark** only. Light and beach still owed (`C4-P0-07`), along with a distinct
+  control coast.
+
+## 8. The lesson worth keeping
+
+**Leg C produced a real, reproducible, multi-zoom pixel improvement — and was still the wrong fix.**
+It cleared the halo at z2, z4, z6 and z7.5 under a paired control. Every criterion this program uses
+to accept a fix was satisfied, and it was *wrong*, because it moved the artifact somewhere the test
+scene did not look: onto coastal **land**, at a coastline the owner happened to know well.
+
+⇒ **A lever that improves the symptom is not thereby the cause.** When an intervention works,
+enumerate what it moved the artifact *onto*, not just what it removed it *from*. Here the check that
+would have caught it in ten seconds was reading the composited colour of the layer being moved
+(`rgba(16,29,43,.9)` against a medium-slate background) — the same colour mismatch that had been sat
+in `resolveBufferColor` untested since 2026-07-05.

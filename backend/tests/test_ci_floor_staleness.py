@@ -254,7 +254,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #                 rule above forbids. CI observed 416 on BOTH lanes of `be6a705a` (runs
 #                 31900011802 / 31900014330, `416 passed, 2865 skipped`), so only 3 of the 12 land
 #                 here. Set from the reading, never from arithmetic on the last one.
-_FLOOR_SET_FROM = {"guards": 1788, "chain": 815, "estate": 416}
+_FLOOR_SET_FROM = {"guards": 1788, "chain": 815, "estate": 435}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
