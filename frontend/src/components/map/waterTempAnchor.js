@@ -177,6 +177,10 @@ export function planMaskFamilyOrder(order, getLayer) {
     const id = order[i];
     if (MASK_FAMILY_CHAIN.includes(id) || id.startsWith('ocean-mask-')
       || id.startsWith('water_temp-slot-') || id === 'esri-satellite-layer'
+      // Raster fallback slots ({waves,swell_1,swell_2,wind_waves}-slot-N-layer) are force-parked
+      // below MASK_BUFFER by OceanMask's slot batch — crowning one ceiling makes the two
+      // authorities alternate forever (planner demotes buffer/line under it, batch hoists it back).
+      || /-slot-\d+-layer$/.test(id)
       || LANDUSE_CLASS.test(id)) continue;
     ceiling = id; break;
   }
