@@ -156,7 +156,7 @@ describe('setHeatmapGateUniforms — cached locations, null-location safety, tel
     expect(queries - afterFirst).toBe(0);         // THE invariant — a delta, not a total
   });
 
-  it('membership: the managed set is NAMED, not counted', () => {
+  it('membership: the managed set is NAMED, not counted (heatmap gate)', () => {
     const asked = [];
     const gl = {
       calls: [],
@@ -218,5 +218,87 @@ describe('resolveWashOverlayMode — the wash stops REPLACING over a dense globa
   it('antimeridian-wrapped world bounds still count as global span', () => {
     const wrapped = { __maskCanvasDims: { w: 4096, h: 2048 }, bounds: { west: 10, south: -85, east: 9.5, north: 85 } };
     expect(resolveWashOverlayMode(wrapped, W).replace).toBe(false);
+  });
+});
+
+// ============================================================================================
+// C4-MR-04 — the state machine is CLOSED: total, reachable, and single-output.
+//
+// The row asked for "explicit behaviour and tests for unknown/retry/covered, not only
+// retry_exhausted". Measured 2026-08-16: every state ALREADY had both, and each fail-open is
+// reasoned in the source (the 07-03 unknown-input lesson; "clipping mid-retry would blink the
+// strip"). So the gap was not per-state behaviour. What was missing is the three properties that
+// make a state machine CLOSED rather than merely populated.
+// ============================================================================================
+describe('C4-MR-04 — coverage terminal machine: total, reachable, single-output', () => {
+  const W = {};
+  const STATES = ['unknown', 'covered', 'retry', 'safe_degraded'];
+
+  // Deliberately hostile inputs alongside the legitimate ones: a machine is total only if the
+  // shapes it never expected also land somewhere defined.
+  const INPUTS = [
+    null, undefined, {}, { deliveredShort: false }, { deliveredShort: true },
+    { deliveredShort: true, forceRepaint: true }, { deliveredShort: true, forceRepaint: false },
+    { deliveredShort: 'true' }, { deliveredShort: 1 }, { deliveredShort: null },
+    { deliveredShort: false, forceRepaint: true }, { forceRepaint: true },
+    { deliveredShort: true, forceRepaint: true, extra: 'ignored' },
+  ];
+
+  it('TOTAL — every input yields a well-formed verdict, never undefined or a stray state', () => {
+    for (const win of [W, { __RAW_DISABLE_MASK_SHORT_CLIP__: true }]) {
+      for (const input of INPUTS) {
+        const t = resolveCoverageTerminalState(input, win);
+        expect({ input, ok: !!t }).toEqual({ input, ok: true });
+        expect(STATES).toContain(t.state);
+        expect(['render', 'retry', 'clip']).toContain(t.action);
+        expect(typeof t.maskClip).toBe('boolean');   // the ONLY field that reaches the GPU
+        expect(typeof t.reason).toBe('string');
+        expect(t.reason.length).toBeGreaterThan(0);  // never an empty explanation
+      }
+    }
+  });
+
+  it('REACHABLE — every declared state is produced by some input (no dead states)', () => {
+    const seen = new Set();
+    for (const win of [W, { __RAW_DISABLE_MASK_SHORT_CLIP__: true }]) {
+      for (const input of INPUTS) seen.add(resolveCoverageTerminalState(input, win).state);
+    }
+    expect([...seen].sort()).toEqual([...STATES].sort());
+  });
+
+  it('SINGLE-OUTPUT — maskClip is true for exactly one state, and only via retry_exhausted', () => {
+    // Everything except `maskClip` is telemetry: the only consumer of `state` outside this file is
+    // the halo-isolate diagnostic script. If a future change makes behaviour depend on the state
+    // STRING, this assertion is where that becomes visible.
+    const clipping = [];
+    for (const win of [W, { __RAW_DISABLE_MASK_SHORT_CLIP__: true }]) {
+      for (const input of INPUTS) {
+        const t = resolveCoverageTerminalState(input, win);
+        if (t.maskClip) clipping.push({ state: t.state, action: t.action, reason: t.reason });
+      }
+    }
+    expect(clipping.length).toBeGreaterThan(0);              // non-vacuity: something does clip
+    for (const c of clipping) {
+      expect(c).toEqual({ state: 'safe_degraded', action: 'clip', reason: 'retry_exhausted' });
+    }
+  });
+
+  it('the kill switch removes the ONLY clip, leaving the machine total and fail-open', () => {
+    const killed = { __RAW_DISABLE_MASK_SHORT_CLIP__: true };
+    for (const input of INPUTS) {
+      expect(resolveCoverageTerminalState(input, killed).maskClip).toBe(false);
+    }
+  });
+
+  // ⛔ SCOPE, recorded so it is not silently assumed closed. "A wrong-but-covering mask has no
+  // defense" is TRUE and is NOT closable here: this machine only ever sees BOUNDS
+  // (`deliveredShort`), never mask CONTENT. A mask that claims the right box and carries wrong
+  // texels is indistinguishable from a correct one at this layer, by construction. That is
+  // C4-MR-02's territory (the missing INVALID sample state), and this test states the boundary
+  // rather than leaving the row looking half-done.
+  it('BOUNDS ONLY — identical bounds verdicts are identical regardless of mask content', () => {
+    const a = resolveCoverageTerminalState({ deliveredShort: false }, W);
+    const b = resolveCoverageTerminalState({ deliveredShort: false, maskContentWrong: true }, W);
+    expect(a).toEqual(b);   // the machine cannot see content — by design, documented, not a bug
   });
 });
