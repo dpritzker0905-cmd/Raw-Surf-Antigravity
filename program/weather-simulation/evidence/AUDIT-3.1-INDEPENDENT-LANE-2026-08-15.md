@@ -130,6 +130,42 @@ live — only this lane's build writes `__RAW_GPU__.heatmapGate`):
   stuck-zoom first attempt `zoomlab-clip-on/` (477 frames all-`covered` at a held z9 — the live
   quiescence control: the clip never engages in a covered state).
 
+## STEP-1 SURFACE ATTRIBUTION (same session, `frontend/scripts/halo-isolate.js`) — the strip belongs to the WASH, and the mask≠data regime does not exist in current code
+
+Isolation matrix at a settled SAFE_DEGRADED camera (z8.102, eastGap +0.30°, seven legs, per-leg
+state snapshots + rect pixel extracts), plus a forced world-regime run (route-abort of the backend
+after world residency):
+
+| Question | Measured answer |
+|---|---|
+| Who paints the out-of-bounds strip? | **The wash** (coarse base pass): strip L≈161 vs basemap 208, seamless with in-bounds ocean (163); clip/gate/particles/style levers all change it by ≤1 L. At this camera the strip is open OCEAN — honest coarsening, no visible halo. |
+| Does any lever paint or unpaint the LAND band? | No — land band L identical (245.68) across clip on/off, gate on/off, particles on/off, style buffer hidden. |
+| What is the marine-on vs marine-off land delta (+9 L)? | **Patchy, waterway-shaped** (35.4% px >30Δ, row fractions 0.06–0.69, west→east gradient) = layer-keyed inland-water restyling (OceanMask fill) + honest lagoon paint — NOT a halo sheet. |
+| Does the mask≠data regime (the geometry the clip's resident-pass bite needs) occur? | **Never observed.** Through world (360°), mid (32°), and fine (8°) residency, `_cachedMaskBounds ≡ grid bounds` at every notch. The engine comment claiming a viewport-scoped cached mask under the world grid describes RETIRED behavior (the code delegates to the overlay at span≥30). The 08-01 "east short 0.13°" was therefore almost certainly grid≡mask both short of the view — and the haloed edge was the wash/overlay face. |
+| Negative controls | Gate-off leg ≡ clip-on leg (the pixel-inert gate, confirmed a third way, live); world-mask window shows zero clip pixels (no fragment can leave a world mask's domain). |
+
+**Consequences.**
+1. **The user-visible halo's operative face is the wash + overlay-REPLACE path** (`_drawCoarseBasePass`
+   hard-REPLACE with padded overlay bounds, `WebGLMarineEngine.js:3096`, plus the wash's soft mask
+   edge classes) — this is now the top repair target, with `computeWideOverlayMode`'s verdict (or
+   truth-box bounds) passed down to the wash as the candidate shape.
+2. **The clip is demoted from "the fix" to "a correct, quiescent terminal defense":** it engages
+   honestly when delivery is short (46 live frames), can never misfire into a covered or world mask
+   (geometry-proven), but its visibly-protective population is the mask≠data regime, which current
+   code does not produce. Keep it (the state machine and telemetry are the durable value); do not
+   claim it closes the owner-visible regression.
+3. **A lane defect found and fixed by its own instrument:** the delivered-short verdict FROZE across
+   the wide-delegate window (gaps 1.9549/0.6633 verbatim from z2.18→z7.03) and reported
+   `safe_degraded` for five zoom levels while the world mask covered everything — pixel-safe but a
+   lying instrument. Fixed by stamping the verdict with the mask-bounds object it judged (`__mb`)
+   and voiding it on identity change; engine at exactly 3207/3207.
+4. The world-regime run also showed the app self-heals grid supply from client caches under a full
+   backend route-abort (251 blocked requests, grids kept refining 360→32→8°) — good resilience,
+   and a reason forced-failure experiments must verify their failure actually took hold.
+
+Evidence: `shaderlab-2026-08-15/halo-isolate/` and `halo-isolate-world/` (report JSON with base64
+rect pixels + per-leg PNGs + per-leg renderer state).
+
 ## Evidence-language corrections (A3.1-04)
 
 - "`shouldRejectMaskShrink` is HOLDING (0 events / 1,096 frames)" must be read as **"the 07-31 signature

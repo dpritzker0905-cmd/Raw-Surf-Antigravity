@@ -1437,8 +1437,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     gl.useProgram(this.heatmapProgram);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
-    // Gate + SAFE_DEGRADED clip (cached locations, telemetry) — see marineCoverageContract.js.
-    setHeatmapGateUniforms(gl, this.heatmapProgram, 'resident', this._maskDeliveredState, maskBounds === this._cachedMaskBounds);
+    // Gate + SAFE_DEGRADED clip (marineCoverageContract.js); a verdict stamped for a DIFFERENT mask object than the one bound this frame is stale ⇒ void.
+    setHeatmapGateUniforms(gl, this.heatmapProgram, 'resident', (this._maskDeliveredState
+      && this._maskDeliveredState.__mb === this._cachedMaskBounds) ? this._maskDeliveredState : null, maskBounds === this._cachedMaskBounds);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
@@ -2427,7 +2428,9 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   // Telemetry: __RAW_GPU__.maskDelivered.
   const _delivOff = typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_DELIVERED_COVER__ === true;
   const _cmb = this._cachedMaskBounds;
-  const _dv = this._maskDeliveredState = resolveDeliveredCoverage(_cmb, curView, gridKey, this._maskDeliveredForcedFor, _delivOff);
+  // __mb stamps WHICH mask this verdict judged — the render loop voids a verdict whose mask object is no longer the bound one (live-caught 2026-08-15: a frozen verdict reported safe_degraded across the wide-delegate window while the WORLD mask covered everything).
+  const _dv = this._maskDeliveredState = Object.assign(
+    resolveDeliveredCoverage(_cmb, curView, gridKey, this._maskDeliveredForcedFor, _delivOff), { __mb: _cmb });
   const _delivShort = _dv.deliveredShort;
   const _forceRepaint = _dv.forceRepaint;
   if (_forceRepaint) this._maskDeliveredForcedFor = _dv.forceKey;
@@ -3078,8 +3081,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
 
   gl.useProgram(this.heatmapProgram);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
-  // The wash never clips (world bounds; its own mask) — pass 'coarse' pins clip=0 + telemetry.
-  setHeatmapGateUniforms(gl, this.heatmapProgram, 'coarse', null, false);
+  setHeatmapGateUniforms(gl, this.heatmapProgram, 'coarse', null, false); // wash never clips (world bounds; own mask): pins clip=0 + telemetry
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), bb.west, bb.south);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), bb.east, bb.north);
   // The base binds its OWN world mask (encoded with the base grid), so its mask bounds = its grid.
