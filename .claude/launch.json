@@ -39,6 +39,12 @@
       "port": 3011
     },
     {
+      "name": "frontend-halo-lane",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "const cp=require('child_process');const env=Object.assign({},process.env,{NODE_OPTIONS:'--openssl-legacy-provider',PORT:'3013',BROWSER:'none',CI:'false'});cp.spawn('npm start',{cwd:'C:/Users/dprit/Raw-Surf/.claude/worktrees/halo-lane/frontend',stdio:'inherit',env,shell:true});"],
+      "port": 3013
+    },
+    {
       "name": "frontend-preview",
       "runtimeExecutable": "node",
       "runtimeArgs": ["-e", "const cp=require('child_process');const env=Object.assign({},process.env,{NODE_OPTIONS:'--openssl-legacy-provider',BROWSER:'none',CI:'false'});cp.spawn('npm start',{cwd:'C:/Users/dprit/Raw-Surf/frontend',stdio:'inherit',env,shell:true});"],
