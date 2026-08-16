@@ -214,3 +214,77 @@ guarded in two test suites still had **no reproducible instance** — and its st
 architecturally eliminated by the very commit that recorded it. *A name is not a repro.* Before
 treating a documented constraint as load-bearing, check whether the code path that produced it still
 exists.
+
+
+---
+
+# PHASE 2 STEP 0 - MEASURED: the alpha side-channel is viable, but ONLY above a hard floor
+
+**Measured 2026-08-16 in a real browser** (scratch canvas + WebGL context on the dev alias page, no
+app state touched). This is the step that had to happen before any encoder change, and it
+invalidated the naive form of my own phase-1 recommendation.
+
+## The hazard
+
+Masks do NOT upload from a `Uint8Array`. All four mask upload sites use the **DOM-element overload**:
+
+```js
+gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+```
+`WebGLMarineEngine.js:2474`, `:2668`, `WebGLMarineTextureEncoder.js:529`, `:716`
+
+A 2D canvas stores pixels **premultiplied**, so writing a low alpha round-trips RGB through
+`rgb*a` then `rgb/a`. The mask encoding is **0 / 64 / 255**, and 64 is sheltered water.
+
+## The measurement
+
+Engine path reproduced exactly (createImageData -> putImageData -> texImage2D(canvas) ->
+readPixels), with `UNPACK_PREMULTIPLY_ALPHA_WEBGL = false` as `createTexture` leaves it:
+
+| written | canvas readback | after GPU |
+|---|---|---|
+| `255,255,255,255` | `255,255,255,255` | identical |
+| `255,255,255,0` | **`0,0,0,0`** | `0,0,0,0` |
+| `255,255,255,1` | `255,255,255,1` | identical |
+
+Then swept alpha against both real mask values:
+
+| encoding | readback | verdict |
+|---|---|---|
+| `rgb 64 @ a=0` | **0** | destroyed |
+| `rgb 64 @ a=1` | **0** | sheltered water becomes LAND |
+| `rgb 64 @ a=2` | **128** | doubled - wrong but plausible |
+| `rgb 64 @ a=4` | 64 | intact |
+| `rgb 64 @ a>=4` | 64 | intact at 4,8,16,32,64,128,192,254,255 |
+| `rgb 255 @ a>=1` | 255 | intact at every alpha |
+
+**minSafeAlphaFor64 = 4.**
+
+## What this changes
+
+1. **`a = 0` as INVALID is dead.** RGB is destroyed, and the loss happens in the CANVAS at
+   `putImageData` - before the GPU is involved - so no upload flag can rescue it.
+2. **`a = 1` and `a = 2` are worse than dead.** `a=1` silently converts sheltered water (64) to
+   land (0). `a=2` converts it to **128**, which is none of the three legal states and reads as
+   "mostly water": it would not look broken, it would look like DIFFERENT DATA. Same shape as
+   LOP-0001, where the defect rendered as a believable value rather than an obvious error.
+3. **The side-channel IS viable at `a >= 4`.** The cheap option survives - one writer, no new
+   texture, no format change - but the sentinel comes from measurement, not convention.
+
+## Recommended encoding
+
+```
+VALID   : a = 255   (what every mask texel already carries - verified: the mask canvas is painted
+                     with opaque hex fills only, no globalAlpha, no fractional rgba())
+INVALID : a = 8     (2x margin over the measured floor of 4; far from both 0 and 255)
+```
+
+**Still to measure before any reader consults it:** masks are LINEAR-filtered, so alpha interpolates
+between 8 and 255 across the border. The bleed into the outermost VALID texel must be measured on
+the owner scene - the same discipline that produced this result, one level up.
+
+**The reusable lesson:** the obvious sentinel for "invalid" is `0`, and `0` is exactly the value
+that destroys the payload it was meant to annotate. A side-channel in a premultiplied surface has a
+FLOOR, discoverable only by measurement. Implemented straight from the phase-1 write-up, the bug
+would have been sheltered-water-becomes-land at coastal margins - visible only where the mask
+carries 64, unreproducible from a screenshot, and invisible to every existing test.
