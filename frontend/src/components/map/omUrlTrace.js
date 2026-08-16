@@ -81,6 +81,55 @@ export function traceOmUrl(url) {
  * Returns undefined always, so it can be folded into an existing return expression
  * (`return traceOmBlock(...) || fallback(...)`) without adding a line to a file at its LOC ceiling.
  */
+/**
+ * Record that a tile request was SERVED, and by which route.
+ *
+ * ⛔ C4-MR-11 (2026-08-16) — WHY THE FOG READING WAS INCONCLUSIVE. The measurement above
+ * ("z2.00 -> 24 entered, 0 reached the decode counter") was read as evidence of a blank. It is not.
+ * `TILE_TRUTH.protocolCalls` is documented as "actual decodes", and the DECODED_TILE_CACHE fast path
+ * returns BEFORE that counter, incrementing `cacheHits` instead. So **0 decodes is exactly what a
+ * warm cache produces while serving every tile perfectly** — openMeteoProtocol's own diagnosis
+ * string says so: `protocolCalls === 0` => "SourceCache is serving everything from GPU cache".
+ *
+ * The z2.99 leg ran with the cache cleared (20 decodes, cache now warm); the z2.00 leg then
+ * requested the SAME world tiles and decoded 0. That null hypothesis fits the numbers exactly, and
+ * nothing recorded at the time could separate it from a real block.
+ *
+ * ★ THE FIX IS RECONCILIATION, not another counter to eyeball: every entry must land in exactly one
+ * bucket, so `n === sum(blocked) + sum(served)` and a shortfall is visible as a shortfall. A trace
+ * that counts arrivals but not departures cannot tell "blocked" from "served" — the same shape as a
+ * check that cannot tell "not sampled" from "broken".
+ *
+ * Returns undefined always, so it folds onto an existing statement without adding a line to a file
+ * at its LOC ceiling (openMeteoProtocol.js is at 943/943).
+ */
+export function traceOmServed(route) {
+  if (typeof window === 'undefined') return undefined;
+  const t = window.__OM_URL_TRACE__;
+  if (!t) return undefined;
+  try {
+    t.served = t.served || {};
+    t.served[route] = (t.served[route] || 0) + 1;
+  } catch (e) { /* an instrument must never break the protocol */ }
+  return undefined;
+}
+
+/**
+ * Do the trace's arrivals and departures balance? Exported so a reading can be REFUSED rather than
+ * misread: if `unaccounted > 0`, some exit path is uninstrumented and no conclusion about blanks is
+ * admissible from this trace.
+ */
+export function reconcileOmTrace(trace) {
+  const t = trace || (typeof window !== 'undefined' ? window.__OM_URL_TRACE__ : null);
+  if (!t) return { ok: false, reason: 'no_trace' };
+  const sum = (o) => Object.values(o || {}).reduce((a, b) => a + (Number(b) || 0), 0);
+  const entered = Number(t.n) || 0;
+  const blocked = sum(t.blocked);
+  const served = sum(t.served);
+  const unaccounted = entered - blocked - served;
+  return { ok: unaccounted === 0, entered, blocked, served, unaccounted };
+}
+
 export function traceOmBlock(reason, detail) {
   if (typeof window === 'undefined') return undefined;
   const t = window.__OM_URL_TRACE__;

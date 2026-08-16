@@ -1,6 +1,6 @@
 import { CUSTOM_COLOR_SCALES, aliasSurfaceTemperature } from './colorScales';
 import { WeatherTelemetry } from './WeatherTelemetry';
-import { traceOmUrl, traceOmBlock } from './omUrlTrace';
+import { traceOmUrl, traceOmBlock, traceOmServed } from './omUrlTrace';
 
 // F4: per-tile / per-frame console output is GATED. With console capture / React Scan / PostHog
 // active, an unconditional console.log per decoded tile materially amplifies tile-heavy
@@ -840,7 +840,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               TILE_TRUTH.cacheHits++;
               TILE_TRUTH.recentTiles.push({ key: tileKey.slice(-60), source: 'CACHE_HIT', timestamp: Date.now(), marine: isMarine });
               if (TILE_TRUTH.recentTiles.length > 50) TILE_TRUTH.recentTiles.shift();
-              WeatherTelemetry.trackTileLoaded(tileKey, true);
+              WeatherTelemetry.trackTileLoaded(tileKey, true); traceOmServed('cache_hit');
               return DECODED_TILE_CACHE.get(tileKey);
             }
 
@@ -858,7 +858,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               }
               WeatherTelemetry.trackRasterDecodeStart(tileKey);
               const res = await omProtocol(params, abortController, effectiveSettings);
-              TILE_TRUTH.protocolCalls++;
+              TILE_TRUTH.protocolCalls++; traceOmServed('decode');
               TILE_TRUTH.cacheMisses++;
               const clipApplied = !!(effectiveSettings?.clippingOptions?.geojson);
               TILE_TRUTH.recentTiles.push({
