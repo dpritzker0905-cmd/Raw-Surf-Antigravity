@@ -118,6 +118,123 @@ export function findMaskInsertionPoint(layers) {
 }
 
 /**
+ * === MASK-FAMILY ORDER AUTHORITY (2026-08-15, owner live report: "rivers and lakes and parks,
+ * and buildings and nonhighway roads are covered up, and there is a halo around coastal areas") ===
+ *
+ * MEASURED on the running app (map.style._order — getStyle().layers OMITS custom layers, which is
+ * why earlier probes missed the field): the family's members were anchored by THREE independent
+ * rules — MASK_FILL/BUFFER via findMaskInsertionPoint (WS-CAN-0061), the marine custom layer via
+ * its own below-MASK_BUFFER assert, the inland repaints via the 2026-07-17 ORDER PIN
+ * ("directly below the marine layer... still above the ne_50m land fill"). WS-CAN-0061 raising the
+ * fill above `water` made the pin's two clauses UNSATISFIABLE (fill now sits ABOVE the field), so
+ * the repaints landed under the opaque land fill: lakes, wide rivers (water-fill polygons) and
+ * park fills vanished, and the realized permutation was mount-timing dependent — two probes of the
+ * same build returned two different family orders. Same class as the header above: distributed
+ * anchor authority, no post-condition.
+ *
+ * ONE arrangement satisfies every documented constraint simultaneously (0061's above-basemap-water,
+ * the 07-17 pin, the v15 header diagram's repaint intent, "marine forced below MASK_BUFFER", and
+ * water_temp's between-water-and-fill slot band, which turns the refusal above satisfiable):
+ *
+ *     water < MASK_FILL < (landuse fills) < INLAND_WATER < INLAND_WATERWAY
+ *           < FIELD (webgl-marine-particles) < MASK_BUFFER < MASK_LINE < basemap detail/labels
+ *
+ * The planner is PAIRWISE and idempotent: a member moves only when it sits above its successor
+ * (or below the basemap water floor), so legal interleavings survive — repositionLanduse re-slots
+ * landuse fills between MASK_FILL and INLAND_WATER every tick and must not be fought (a
+ * contiguous-block enforcer would loop with it across styledata ticks). Zero moves on a canonical
+ * stack. Pure: caller supplies the TRUE order (map.style._order) and a getLayer resolver.
+ */
+export const MARINE_FIELD_LAYER_ID = 'webgl-marine-particles';
+export const MASK_FAMILY_CHAIN = [
+  'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway',
+  MARINE_FIELD_LAYER_ID, 'ocean-mask-buffer', 'ocean-mask-line',
+];
+// ⚠️ MIRRORS OceanMask.js `landuseKeywords` — repositionLanduse legally re-slots these INSIDE the
+// family band (below INLAND_WATER), so the ceiling scan must never crown one of them ceiling or
+// the planner would fight repositionLanduse across styledata ticks. The two lists move together.
+const LANDUSE_CLASS = /landuse|park|wood|forest|glacier|sand|pitch|grass|cemetery|hospital|school|university/i;
+
+export function planMaskFamilyOrder(order, getLayer) {
+  if (!Array.isArray(order) || typeof getLayer !== 'function') return { moves: [], ceiling: null };
+  let waterIdx = -1;
+  for (let i = 0; i < order.length; i++) {
+    const id = order[i];
+    if (typeof id !== 'string' || id.startsWith('ocean-mask-') || id.startsWith('water_temp-slot-')) continue;
+    let l = null;
+    try { l = getLayer(id); } catch (e) { continue; }
+    if (!l || l.type !== 'fill') continue;
+    if (srcLayerOf(l) === 'water' || WATER_FILL_ID.test(id)) waterIdx = i;
+  }
+  if (waterIdx < 0) return { moves: [], ceiling: null };   // style we cannot parse: fail open
+  const waterFillId = order[waterIdx];
+  const chain = MASK_FAMILY_CHAIN.filter((id) => order.indexOf(id) >= 0);
+  if (!chain.length) return { moves: [], ceiling: null };
+  // Ceiling: the first non-family, non-slot layer above the water fill — the family's top member
+  // must stay beneath it, which is what keeps waterways/buildings/roads/labels above the field.
+  let ceiling = null;
+  for (let i = waterIdx + 1; i < order.length; i++) {
+    const id = order[i];
+    if (MASK_FAMILY_CHAIN.includes(id) || id.startsWith('ocean-mask-')
+      || id.startsWith('water_temp-slot-') || id === 'esri-satellite-layer'
+      || LANDUSE_CLASS.test(id)) continue;
+    ceiling = id; break;
+  }
+  if (!ceiling) return { moves: [], ceiling: null };
+  // Simulate on a working copy so each pairwise decision sees the prior moves (a stale-index
+  // pairwise pass can misjudge and would need extra styledata ticks to converge).
+  const work = order.slice();
+  const moves = [];
+  const apply = (id, before) => {
+    work.splice(work.indexOf(id), 1);
+    work.splice(work.indexOf(before), 0, id);
+  };
+  let succ = ceiling;
+  for (let k = chain.length - 1; k >= 0; k--) {
+    const id = chain[k];
+    if (work.indexOf(id) < work.indexOf(waterFillId)) {
+      // Below the basemap water floor: hoist to DIRECTLY above the water fill (never up to the
+      // ceiling — that would leapfrog landuse and put the land fill over the parks again).
+      const before = work[work.indexOf(waterFillId) + 1];
+      moves.push({ id, before });
+      apply(id, before);
+    } else if (work.indexOf(id) > work.indexOf(succ)) {
+      moves.push({ id, before: succ });
+      apply(id, succ);
+    }
+    succ = id;
+  }
+  return { moves, ceiling };
+}
+
+/**
+ * === COAST-BUFFER ENABLEMENT (2026-08-16, LAYER_ORDER_PROOF_LOG.json#LOP-0001) ===
+ *
+ * ⛔ `ocean-mask-buffer` IS the marine coastal halo. Attributed live on the authenticated dev alias
+ * and owner-confirmed: it paints near-black `rgba(16,29,43,.9)` while the basemap water it was
+ * designed to blend into composites to a MEDIUM SLATE (`water` hsl(197,15%,43%) @ 0.25 over the
+ * `land` background hsl(214,17%,31%)). It therefore DARKENS whatever it sits above. At z1-z9.5
+ * (worst z4-8.5) a 10-60px stroke with round joins self-overlaps on convoluted coastlines and the
+ * 0.9-alpha overlaps compound into faceted dark blobs over land (Cape Canaveral, Merritt Island).
+ * The `line-opacity` ramp to 0 by z9.5 is the ONLY reason close zoom ever looked clean.
+ *
+ * ⛔ REORDERING IS NOT THE FIX. Moving it below the marine field clears the band over water and
+ * then lands the near-black line above `ocean-mask-fill`, darkening coastal land instead. Measured
+ * and rejected (leg C in the proof log). The symptom moves; it does not clear.
+ *
+ * ⇒ The buffer is OPT-IN ONLY. It must NOT be enabled merely because a marine layer is active.
+ * Pure so the invariant is unit-testable without a rendered map, which is what every previous
+ * coast-buffer fix lacked.
+ *
+ * @param {*} _activeMarineLayer  deliberately ignored - kept so the call site reads honestly
+ * @param {*} forceFlag           window.__RAW_WATER_TEMP_COAST_BUFFER__
+ * @returns {boolean}
+ */
+export function resolveCoastBufferOn(_activeMarineLayer, forceFlag) {
+  return forceFlag === true;
+}
+
+/**
  * Decide what the re-assert should do. Returns the moves to perform, or a refusal.
  *
  * @returns {{refuse: boolean, occluder: string|null, moves: Array<{id: string, from: number}>}}

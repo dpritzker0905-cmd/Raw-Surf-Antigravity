@@ -263,6 +263,16 @@ async function main() {
           rf: g.crestRingFill && g.crestRingFill.enabled,
           blend: g.blendBoth && g.blendBoth.engaged,
           ovl: g.overlayMask && g.overlayMask.reason,
+          // ⚠️ `ovl` (reason) can read coverage_gap/world_grid while NO overlay is BOUND (the
+          // reason ternary reports the mode that WOULD apply; `on` is the binding truth) —
+          // 2026-08-15: a captured coverage_gap state had _overlayMaskBounds null. Record both.
+          ovlOn: !!(g.overlayMask && g.overlayMask.on),
+          wOm: g.washOverlayMode ? (g.washOverlayMode.replace ? 1 : 0) : null,
+          // Audit 3.1 gate/terminal telemetry (marineCoverageContract.js): [gateValue, clipValue,
+          // terminal] for the resident pass + the delivered-coverage verdict driving it.
+          gate: g.heatmapGate && g.heatmapGate.resident
+            ? [g.heatmapGate.resident.gateValue, g.heatmapGate.resident.clipValue, g.heatmapGate.resident.terminal] : null,
+          mDel: g.maskDelivered ? [g.maskDelivered.deliveredShort ? 1 : 0, g.maskDelivered.forcedRepaint ? 1 : 0] : null,
           bridge: (window.__MARINE_ZOOMOUT_BRIDGE__ || {}).count || 0,
           drawCalls: g.drawCallsPerFrame,
           hm: g.opacity && g.opacity.heatmap, mult: g.opacity && g.opacity.mult,
@@ -323,6 +333,22 @@ async function main() {
     setInterval(probeWater, 2000);
   });
   log('trace installed');
+
+  // DEV-OVERLAY GUARD (2026-08-15, Windows local runs): the webpack-dev-server client overlay
+  // iframe (eslint warnings) sits above the map and swallows REAL wheel/drag input — both
+  // page.mouse.wheel and raw CDP wheel hit the iframe and the zoom never moves (measured live:
+  // 96 notches, z9→z9, while a DOM WheelEvent on the canvas zoomed fine). CI headless builds
+  // don't paint it, which is why the nightly ladders zoom. Remove it — it is dev chrome, not the
+  // artifact under test — and LOG it so no trace can silently run its gestures under an overlay.
+  const removedOverlays = await page.evaluate(() => {
+    let n = 0;
+    for (const f of Array.from(document.querySelectorAll('iframe'))) {
+      const r = f.getBoundingClientRect();
+      if (r.width >= window.innerWidth * 0.9 && r.height >= window.innerHeight * 0.9) { f.remove(); n++; }
+    }
+    return n;
+  });
+  if (removedOverlays) log(`dev-overlay iframes removed: ${removedOverlays}`);
 
   const cx = 640, cy = 400;
   await page.mouse.move(cx, cy);

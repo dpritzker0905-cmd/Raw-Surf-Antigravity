@@ -1,0 +1,150 @@
+{
+  "manifest_version": 1,
+  "generated_at": "2026-08-16T03:35:00Z",
+  "verifier": "claude-independent-verification-lane",
+  "verifier_session": "1a3b8402-1009-43b1-aa62-59bfd0b9f913",
+  "subject_audit": "MASTER_CODEX_WEATHER_SIM_FORENSIC_AUDIT_4.0.md (OneDrive/Documents/New project, 38604 bytes, 2026-08-15 22:52)",
+  "report": "AUDIT-4.0-CLAUDE-INDEPENDENT-VERIFICATION-2026-08-15.md",
+
+  "repo_state": {
+    "captured_at": "2026-08-16T03:25:00Z",
+    "worktrees": [
+      {"path": "C:/Users/dprit/Raw-Surf", "branch": "dev", "head": "2e3efa66fe9d44a9b8800ce6545cc68351657a49", "behind_origin_dev": 4, "dirty": ["backend/uploads/forecast_cache/marine_global.json", "backend/uploads/forecast_cache/wind_global.json"]},
+      {"path": "C:/Users/dprit/Raw-Surf/.claude/worktrees/halo-lane", "branch": "claude/halo-audit31-lane", "head_at_start": "7becd02344f2c2806ada778c1b00c66537c2ec4f", "head_at_end": "19e8c197e7b3c25ff56dd7cc5fc0a4d5275f7724", "tracked_clean_at_receipts": true, "untracked": ["4 x zoomlab page@*.webm (hashes below)"]},
+      {"path": "C:/Users/dprit/Raw-Surf/.claude/worktrees/gracious-cannon-e4aed4", "branch": "claude/competent-poincare-ef53bf", "head": "ac08781d", "dirty": "backend security/websocket work + forecastCardCompiler.js — no mask-family overlap, untouched"},
+      {"path": "C:/Users/dprit/Raw-Surf-audit2", "branch": "claude/audit2-independent-verification", "head": "de3dc2c9", "dirty": []}
+    ],
+    "origin_dev": "7becd02344f2c2806ada778c1b00c66537c2ec4f",
+    "lane_commits": [
+      {"sha": "aa026f7fdced54d6e14ba4a5c88983a2509f7b92", "at": "2026-08-15T21:03:36-04:00", "subject": "fix(marine): [Audit 3.1] the halo gate is PIXEL-INERT -- measured; SAFE_DEGRADED mask clip is the terminal defense"},
+      {"sha": "198280d6bdb6aecbfbc080551b56b5e03e01cf2a", "at": "2026-08-15T21:34:36-04:00", "subject": "evidence(halo): the terminal state machine ENGAGED LIVE at the halo band -- 46 clip frames"},
+      {"sha": "ffb8656c28d27f8433c822665d9acf93b64d6467", "at": "2026-08-15T21:58:48-04:00", "subject": "evidence(halo): SURFACE ATTRIBUTION -- the strip belongs to the WASH; mask!=data regime does not exist"},
+      {"sha": "7becd02344f2c2806ada778c1b00c66537c2ec4f", "at": "2026-08-15T22:52:20-04:00", "subject": "fix(marine): the owner's visible regression ROOT-CAUSED -- the mask-family stack order; plus the wash REPLACE flood is closed"},
+      {"sha": "19e8c197e7b3c25ff56dd7cc5fc0a4d5275f7724", "at": "2026-08-16", "subject": "fix(marine): marine raster slots can no longer be crowned mask-family CEILING (this verification's commit, NOT pushed)"}
+    ],
+    "dirty_diff_fingerprint_note": "Codex freeze fingerprint cff5c10ce5f9e2cb04df15071824d8a724ac23ff NOT reproducible from ffb8656c..7becd023 (sha1 of full diff 2e96b88f..., git hash-object fa5c14f3..., code-only faebe6d9...); tree moved after freeze and recipe unrecorded. Superseded by clean-SHA receipts.",
+    "sessions": {
+      "halo_lane_session": {"file": "C:/Users/dprit/.claude/projects/C--Users-dprit-Raw-Surf--claude-worktrees-halo-lane/9df18c87-c157-4beb-b10a-ad359439cacd.jsonl", "bytes": 3622767, "last_write": "2026-08-15T22:57:05-04:00", "status": "quiet since commit+push"},
+      "concurrent_promotion_pr": "dev->main 'batch precompute lane (WS-CAN-0064)' CI run 31922902012 completed success — another context, untouched"
+    },
+    "ci": [
+      {"run": 31922900777, "event": "push dev @7becd023", "conclusion": "success (all jobs incl. E2E 8m31s)"},
+      {"run": 31923068290, "event": "pull_request claude/halo-audit31-lane", "conclusion": "success"}
+    ]
+  },
+
+  "test_receipts": [
+    {
+      "id": "clean-7becd023-focused-7",
+      "command": "CI=true npm test -- --runTestsByPath src/tests/mask-no-shrink-halo.test.js src/components/map/WebGLMarineEngine.deliveredCoverage.test.js src/components/map/WebGLMarineEngine.midZoomOverlayCarve.test.js src/components/map/WebGLMarineShaders.test.js src/components/map/marineCoverageContract.test.js src/components/map/WebGLMarineEngine.denseBaseOverlay.test.js src/components/map/waterTempAnchor.test.js --watchAll=false --no-cache --runInBand",
+      "cwd": "halo-lane/frontend", "sha": "7becd02344f2c2806ada778c1b00c66537c2ec4f", "tracked_clean": true,
+      "started": "2026-08-16T03:00:18Z", "ended": "2026-08-16T03:00:37Z",
+      "suites": "7/7 passed", "tests": "112/112 passed", "jest_time_s": 8.415, "exit": 0,
+      "matches_codex_dirty_result": true
+    },
+    {
+      "id": "counterexample-red",
+      "command": "CI=true npm test -- --runTestsByPath src/components/map/waterTempAnchor.property.test.js ... (new suite vs unmodified planner)",
+      "sha_base": "7becd023 + new test file only",
+      "result": "3 failed / 3 passed — slot-ceiling oscillation reproduced with the exact predicted move pair [ocean-mask-line before waves-slot-0-layer; ocean-mask-buffer before ocean-mask-line]"
+    },
+    {
+      "id": "clean-19e8c197-full-8",
+      "command": "same as focused-7 plus src/components/map/waterTempAnchor.property.test.js",
+      "sha": "19e8c197e7b3c25ff56dd7cc5fc0a4d5275f7724 (content)", "started": "2026-08-16T03:21:59Z",
+      "suites": "8/8 passed", "tests": "118/118 passed", "jest_time_s": 7.65, "exit": 0
+    },
+    {
+      "id": "shaderlab-clean-19e8c197",
+      "command": "node scripts/shaderlab-gate.js <scratchpad>/shaderlab-clean-19e8c197",
+      "sha": "19e8c197e7b3c25ff56dd7cc5fc0a4d5275f7724 (stamped in artifact header)",
+      "environment": "ANGLE (Google, Vulkan 1.3.0 SwiftShader Subzero), Playwright chromium, heatmap compiled/linked, 36 active uniforms",
+      "result": "every probe OK: S1/S2 gate diff 0/262144 px; S2c clip blanks strip; S2d overlay-truth beats clip inside truth; S3/S3b world-regime; S5 REPLACE paints land alpha=204 / S5b min discards / S5c min-only-removes; S6 antimeridian; S7 exact-fit; advect P1 control / P2 clamp-water survives (defect) / P3 clamp-land dies (defect: content-dependent) / P4 data-short drops",
+      "report_sha256": "3fd618d6f99c7d7efcfc9efc482a0b94f42ab8e17174a269049e2a1410adbd0c",
+      "exit": 0
+    }
+  ],
+
+  "evidence_hashes_verified": {
+    "algorithm": "SHA-256",
+    "codex_expected_all_match": true,
+    "tracked_at": "7becd02344f2c2806ada778c1b00c66537c2ec4f",
+    "files": [
+      {"path": "shaderlab-2026-08-15/post-wash-fix/shaderlab-report.json", "bytes": 25370, "sha256": "AF50441516F8D78F6F814138A298BC59588C1535C5DDDAE084CBB2978FC58C12", "tracked": true, "codex_match": true},
+      {"path": "shaderlab-2026-08-15/halo-isolate-world/halo-isolate-report.json", "bytes": 613895, "sha256": "74DBE9365EF438F368F77AC89E8E281FF738532FB2DC46F61E83CC55D4A96826", "tracked": true, "codex_match": true},
+      {"path": "shaderlab-2026-08-15/zoomlab-clip-on-r2/trace_staircase_full.json", "bytes": 548822, "sha256": "A4FA2EB9F2C57D0ADD68975DBA3B3987761DE0C821B534F739A54FE7F99EE81B", "tracked": true, "codex_match": true},
+      {"path": "shaderlab-2026-08-15/zoomlab-wash-fix/trace_staircase_full.json", "bytes": 521373, "sha256": "9DF870F77370422C530F6E714D6F78087AEBEFF801C79E408737C07ACA09F2DA", "tracked": true, "codex_match": true},
+      {"path": "shaderlab-2026-08-15/layer-order-true.json", "bytes": 10657, "sha256": "5F7E8D54E328C82A6B49FEC5747B7691D0FE1FD705DA61791598B3409D0D79CD", "tracked": true, "codex_match": true},
+      {"path": "shaderlab-2026-08-15/layer-order-full.json", "bytes": 15921, "sha256": "91B33534A9E42C6F1852D59AB9814A539C6AAD0F12E52C3ED6644BD1AE503ED7", "tracked": true},
+      {"path": "shaderlab-2026-08-15/layer-order-FIXED-z12.5-cocoa.png", "bytes": 507822, "sha256": "3407FE0AB2EC7022B890BFE6A7BE9635046F189A882E0F3AA6F3CEC5A0812B54", "tracked": true},
+      {"path": "shaderlab-2026-08-15/layer-order-z12.5-cocoa.png", "bytes": 490099, "sha256": "1471E28FDD34F87BA340F6D0649B9C8031819A3AB88CA252E3DDB8AAB1AC9EE5", "tracked": true},
+      {"path": "AUDIT-3.1-INDEPENDENT-LANE-2026-08-15.md", "bytes": 24463, "sha256": "E89A42A44249A59C7732567DBFEA93EEC64DCABCA3F6371F5D0BE23D5DD7F8C9", "tracked": true},
+      {"path": "shaderlab-2026-08-15/zoomlab-clip-off/trace_staircase_full.json", "bytes": 547082, "sha256": "22C8E436E6E2DB724077A050FF5556FB2C34C140E375BC81BDEA31A22B0ABB95", "tracked": true},
+      {"path": "shaderlab-2026-08-15/zoomlab-clip-on/trace_staircase_full.json", "bytes": 374612, "sha256": "29AB70577CA03612A885199B05D3BFDCF81CFA070A70F25AD73BCA98DE6F141B", "tracked": true},
+      {"path": "shaderlab-2026-08-15/halo-isolate/halo-isolate-report.json", "bytes": 5129450, "sha256": "31D217436967D0F37932E274400EFB5B9500423DD30D140B3F6C03CB0D2D4C2D", "tracked": true},
+      {"path": "shaderlab-2026-08-15/zoomlab-clip-off/page@faff366e1d72122271c8a66e95a552ea.webm", "bytes": 49964088, "sha256": "FF8DEC2D4422EF16BF2A08946CB3F0A598836F178D130114D2E33A311A7D7A81", "tracked": false},
+      {"path": "shaderlab-2026-08-15/zoomlab-clip-on/page@7c1b9970de949f3844c78afc7fdeca5a.webm", "bytes": 33840846, "sha256": "6080BC9B9C5B1FE6322948A7B81B54C3ABC100CAA93657EA9EFA658F085B031C", "tracked": false},
+      {"path": "shaderlab-2026-08-15/zoomlab-clip-on-r2/page@1c375ea2af47e727c54158e588dd6281.webm", "bytes": 46001977, "sha256": "E7C1CEBB5AF711E2A33933F94C804F244491E7440AD59B9F60155C731A0AEBFD", "tracked": false},
+      {"path": "shaderlab-2026-08-15/zoomlab-wash-fix/page@fbcca891b98a4e30a72b54da3dffd630.webm", "bytes": 62630281, "sha256": "BD87583111D197111395A54216685D7A84C3CDF9E67B62C065AB684D2F59EF28", "tracked": false}
+    ],
+    "trace_state_populations_verified": [
+      {"dir": "zoomlab-clip-off", "frames": 689, "covered": 631, "retry": 15, "safe_degraded": 43, "unknown": 0, "clip": 0, "verdict": "VERIFIED-EXACT"},
+      {"dir": "zoomlab-clip-on-r2", "frames": 693, "covered": 627, "retry": 20, "safe_degraded": 46, "unknown": 0, "clip": 46, "verdict": "VERIFIED-EXACT"},
+      {"dir": "zoomlab-wash-fix", "frames": 634, "covered": 502, "retry": 7, "safe_degraded": 43, "unknown": 82, "clip": 43, "verdict": "VERIFIED-EXACT"}
+    ]
+  },
+
+  "proof_matrix": [
+    {"claim": "u_dataMaskGate pixel-inert", "verdict": "VERIFIED_ON_CLEAN_CANDIDATE"},
+    {"claim": "SAFE_DEGRADED terminal clip (lab)", "verdict": "VERIFIED_ON_CLEAN_CANDIDATE", "live_optical": "PARTIALLY_VERIFIED"},
+    {"claim": "wash REPLACE flood closed", "verdict": "VERIFIED_ON_CLEAN_CANDIDATE"},
+    {"claim": "layer-order planner fixpoint", "verdict": "VERIFIED_ON_CLEAN_CANDIDATE", "note": "slot-ceiling counterexample found and closed at 19e8c197"},
+    {"claim": "buildings/roads root cause = stack order", "verdict": "PARTIALLY_VERIFIED", "note": "pixel/pass attribution absent; experiment specified in report §6"},
+    {"claim": "mask!=data regime absent in current code", "verdict": "VERIFIED_ON_CLEAN_CANDIDATE"},
+    {"claim": "ovlOn reason-string correction", "verdict": "VERIFIED_ON_CLEAN_CANDIDATE"},
+    {"claim": "particle P2/P3 edge-texel untruthfulness (defect proof)", "verdict": "VERIFIED_ON_CLEAN_CANDIDATE"},
+    {"claim": "MC4-01 storage-bounds-as-validity", "verdict": "CONFIRMED", "correction": "ring = unverified NE base truth, not garbage; truth box reaches zero uniforms"},
+    {"claim": "MC4-02 binary mask + clamp semantics", "verdict": "PARTIAL", "detail": "no-INVALID confirmed; clamp repetition confirmed for BASE masks, refuted for overlay (always bounds-guarded)"}
+  ],
+
+  "new_findings": [
+    {"id": "AV-02", "finding": "SAFE_DEGRADED clip suppressed by ring _ovApplied (WebGLMarineShaders.js:392 + :376-384)"},
+    {"id": "AV-03", "finding": "non-covering overlay REPLACE exposure at z>=4.4 (drop gate z<4.4 only, WebGLMarineEngine.js:1333-1334)"},
+    {"id": "slot-ceiling", "finding": "marine raster fallback slots absent from planner ceiling skip set -> perpetual planner-vs-batch oscillation; CLOSED at 19e8c197 with executable red->green counterexample"},
+    {"id": "AV-06", "finding": "layer-order-probe.js uses getStyle().layers (custom-layer-blind) + 3-term landuse regex; repositionLanduse landuse-raising arm dead under canonical order; mapUtils.js:438-441 duplicates STRUCTURAL semantics"},
+    {"id": "AV-07", "finding": "__RAW_DOWNGRADE_COVER_FRAC__ one lever, two per-site defaults (0.6 at 6 sites, 0.8 at 3 sites); __RAW_DISABLE_MASK_DELIVERED_COVER__ collapses the coverage machine silently"},
+    {"id": "AV-11", "finding": "resolveDeliveredCoverage antimeridian-naive (WebGLMarineEngine.js:2810-2812); dispose nulls bounds but not truth box (WebGLMarineEngineInit.js:283); contract test :152 hardcodes uniform census '2'"}
+  ],
+
+  "changes_made_by_this_verification": {
+    "commit": "19e8c197e7b3c25ff56dd7cc5fc0a4d5275f7724",
+    "branch": "claude/halo-audit31-lane",
+    "pushed": false,
+    "files": [
+      {"path": "frontend/src/components/map/waterTempAnchor.js", "change": "+5 lines: /-slot-\\d+-layer$/ added to ceiling skip set with rationale comment"},
+      {"path": "frontend/src/components/map/waterTempAnchor.property.test.js", "change": "new file, 6 tests (property fixpoint w/ non-vacuity floor, mount-order equivalence, slot-ceiling regression pair, two mirrored-literal pins)"}
+    ],
+    "rollback": "git revert 19e8c197 (or drop the commit); no flag semantics changed; kill switch __RAW_DISABLE_MASK_FAMILY_ORDER__ untouched",
+    "untracked_deliverables_main_worktree": [
+      "program/weather-simulation/evidence/AUDIT-4.0-CLAUDE-INDEPENDENT-VERIFICATION-2026-08-15.md",
+      "program/weather-simulation/evidence/AUDIT-4.0-CLAUDE-INDEPENDENT-VERIFICATION-manifest-2026-08-15.json"
+    ]
+  },
+
+  "open_gates": {
+    "owner_decisions": [
+      "optical promotion gate auth (storageState test account vs preview bypass) — RUNBOOK-2026-08-15-halo-optical-promotion-gate.md",
+      "whether 19e8c197 rides the open lane PR (push is a release-adjacent action)",
+      "production frontend unfreeze (WS-CAN-0039)"
+    ],
+    "experiments_required": [
+      "buildings/roads pass-isolated attribution across randomized mount-timing permutations (report §6) — z-order theory is otherwise unprovable for buildings specifically"
+    ],
+    "safe_to_start": [
+      "AV-01 truth-box uniform increment (report §0)",
+      "schedule the WS-CAN-0076 nearshore outcome runner",
+      "probe-script _order fix",
+      "AV-11 small fixes"
+    ]
+  }
+}

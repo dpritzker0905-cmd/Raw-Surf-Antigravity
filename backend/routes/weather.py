@@ -313,7 +313,6 @@ async def get_point(
 
     return response
 
-
 # ─────────────────────────────────────────────────────────────────────────────────────────────────────
 # P1 — PER-SPOT SURF-QUALITY RATINGS (the map-glyph accuracy path)
 # Resolve each surf spot in the viewport at its PRECISE location (best-resolution tile, not the coarse
@@ -325,7 +324,6 @@ async def get_point(
 # later serve these with zero serve-box compute; this live path is the fallback. Kill switch SPOT_RATINGS_V2=0.
 _SPOT_RATINGS_CONCURRENCY = env_int("SPOT_RATINGS_CONCURRENCY", 6, lo=1, hi=64)
 
-
 class SpotRatingItem(BaseModel):
     spot_id: str                          # SurfSpot.id is a UUID string
     name: Optional[str] = None
@@ -336,6 +334,10 @@ class SpotRatingItem(BaseModel):
     confidence: str = "low"              # low|medium|high (bathymetry/verification-aware)
     surf_height_m: Optional[float] = None
     period_s: Optional[float] = None
+    # WS-CAN-0064 batch fields — always-on in the frames for /conditions/batch; declared here or
+    # Pydantic silently DROPS them at this boundary (the wire-contract guard caught exactly that).
+    swell_from_deg: Optional[float] = None
+    offshore_hs_m: Optional[float] = None
     tide: Optional[dict] = None          # {height_m, norm 0..1, trend} when RATING_TIDE is on (else None)
     why: Optional[str] = None            # short human explanation
     # Observation gate (RATING_OBS_GATE): good/epic verdicts require confirmation — >=2-model agreement
@@ -419,7 +421,6 @@ class SpotRatingItem(BaseModel):
     # before this declaration was added. That failure is the evidence this line is load-bearing.
     forecast_confidence: Optional[dict] = None
 
-
 class SpotRatingsResponse(BaseModel):
     model: str
     valid_time: str                       # the hour ASKED FOR
@@ -435,7 +436,6 @@ class SpotRatingsResponse(BaseModel):
     served_valid_time: Optional[str] = None
     frame_offset_hours: Optional[float] = None
     spots: list[SpotRatingItem]
-
 
 def _offset_hours(requested: str, served: Optional[str]) -> Optional[float]:
     """Signed hours from the requested hour to the one actually served. None when unknowable."""

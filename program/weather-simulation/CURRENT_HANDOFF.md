@@ -4,6 +4,37 @@
 
 ---
 
+## ⬆ 2026-08-15 LATEST — the halo's prime suspect is MEASURED and the verdict rewrites the plan (independent lane; committed on `claude/halo-audit31-lane`, NOT pushed)
+
+External **Master Codex Audit 3.1** (land-mask second pass) commissioned an independent lane on the
+reopened halo. Outcome, all runtime-measured (`frontend/scripts/shaderlab-gate.js` — a new Playwright
+harness that compiles the EXACT working-tree shaders and reads pixels):
+
+- ✅✅ **`u_dataMaskGate` is PIXEL-INERT** — compiled, linked, location ACTIVE, value set, and
+  **0/262,144 px change in every geometry** incl. the live z8.03 delivered-short strip. The quad
+  rasterizes exactly over the DATA bounds ⇒ `_outData` is unsatisfiable ⇒ the AND never fires.
+  **The planned `__RAW_DISABLE_HEATMAP_BOUNDS_GATE__` zoomlab A/B must be null; "the gate stopped
+  binding" is refuted; do NOT re-run that A/B as a discriminator.**
+- **The real heatmap face:** delivered mask SHORT of the view while the data quad covers it (the
+  gate excludes exactly this case BY DESIGN — Istria), plus the world regime where only overlay
+  CONTENT defends (`_drawCoarseBasePass` hard-REPLACEs with PADDED overlay bounds —
+  `WebGLMarineEngine.js:3096` — open follow-up).
+- **Repair shipped on the lane (A3.1-02):** `marineCoverageContract.js` — COVERED→RETRY→
+  **SAFE_DEGRADED** terminal state over `resolveDeliveredCoverage` + shader `u_maskClipEnabled`
+  (blanks OUTSIDE the delivered mask where the overlay has no say; runs AFTER the overlay block;
+  kill `__RAW_DISABLE_MASK_SHORT_CLIP__`). Pixel-proven S2c/S2d; **71/71** focused tests; ratchet
+  green (engine 3205/3207, net +1); uniform locations cached + `__RAW_GPU__.heatmapGate` telemetry.
+- **Particles (A3.1-06), runtime-proven:** mask-only shortfall SURVIVES via edge-clamp water and its
+  fate flips with the edge texel content (`isOob` keys on DATA bounds only). Untouched — own design
+  needed (LOC cap 978/978).
+- Full report + hypothesis table: `evidence/AUDIT-3.1-INDEPENDENT-LANE-2026-08-15.md` · deployed
+  optical gate still auth-blocked → `docs/runbooks/RUNBOOK-2026-08-15-halo-optical-promotion-gate.md`.
+- Lane: worktree `.claude/worktrees/halo-lane`, branch `claude/halo-audit31-lane`, commit `aa026f7f`.
+  **Nothing pushed; owner review before any merge — the clip changes live pixels in the halo band
+  (it blanks pixels currently painted with no data).**
+
+---
+
 ## ⬆ 2026-08-15 LATER — Master Codex remediation batch (SECOND session; committed, NOT pushed)
 
 The external **Master Codex Audit 1.0** (`C:\Users\dprit\OneDrive\Documents\New project\`) was

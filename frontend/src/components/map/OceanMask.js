@@ -1,7 +1,7 @@
 /* eslint-disable no-empty */
 import { memo, useEffect, useRef, useState, useCallback } from 'react';
 import { findMarineInsertionLayer, getSharedLandGeoJSON, getSharedLandGeoJSONHiRes } from './mapUtils';
-import { findMaskInsertionPoint } from './waterTempAnchor';
+import { findMaskInsertionPoint, planMaskFamilyOrder, resolveCoastBufferOn } from './waterTempAnchor';
 
 /**
  * OceanMask v15 — Pristine GeoJSON Land Masking & Dynamic Coastline Blending.
@@ -627,6 +627,15 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
         const marineLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
         safeMoveLayersBatch(mapInstance, marineLayers, MASK_BUFFER);
 
+        // 7b. FAMILY ORDER AUTHORITY (2026-08-15, "rivers/lakes/parks covered + coastal halo"): three independent anchor rules left the family order MOUNT-TIMING dependent, and WS-CAN-0061 made the 07-17 pin unsatisfiable — lakes/rivers landed UNDER the land fill. planMaskFamilyOrder (waterTempAnchor.js) is the single idempotent post-condition; it reads style._order because getStyle() OMITS the custom field layer. Kill: __RAW_DISABLE_MASK_FAMILY_ORDER__.
+        if (typeof window === 'undefined' || window.__RAW_DISABLE_MASK_FAMILY_ORDER__ !== true) {
+          try {
+            const plan = planMaskFamilyOrder(mapInstance.style._order, (id) => mapInstance.getLayer(id));
+            for (const mv of plan.moves) { try { mapInstance.moveLayer(mv.id, mv.before); } catch (e) {} }
+            if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.maskFamilyOrder = { moved: plan.moves.length, ceiling: plan.ceiling };
+          } catch (e) {}
+        }
+
         // 8. INLAND-WATER vs water_temp (2026-07-11, live-hit): mapbox-streets v8 water has NO
         // `class` property AT ANY ZOOM, so this layer's NOT-ocean filter unavoidably repaints ALL
         // water — ocean included — at opacity 1. Marine renders ABOVE it (GPU in-shader land mask)
@@ -644,15 +653,15 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
           }
         }
 
-        // 9. COAST BUFFER vs water_temp (2026-07-11, user: "halo band from land coastal areas and
-        // islands bleeding through the heatmap"): MASK_BUFFER is a 16-60px ocean-COLORED blurred
-        // line offset into the ocean, built to blend the MARINE heatmap's coastline (its color
-        // matches the wave palette's zero). water_temp slots render ABOVE it at 0.45-0.62 opacity,
-        // so under a temperature palette the band ghosts through as a dark coastal halo. Same
-        // session-type gate as the lakes repaint (#8): buffer only while a marine layer is active.
-        // Force-on: __RAW_WATER_TEMP_COAST_BUFFER__ = true.
-        const bufferOn = !!stateRef.current.activeMarineLayer ||
-          (typeof window !== 'undefined' && window.__RAW_WATER_TEMP_COAST_BUFFER__ === true);
+        // 9. COAST BUFFER — a 16-60px blurred line offset into the ocean (07-05 recolour, 07-11 gate).
+        // ⛔ 2026-08-16 — THE MARINE COASTAL HALO IS THIS LAYER (attributed live, owner-confirmed).
+        // Its color is near-black rgba(16,29,43,.9) while the water it must blend into composites to
+        // a MEDIUM SLATE, so it darkens whatever it sits above; at z1-z9.5 (worst z4-8.5) a 10-60px
+        // stroke self-overlaps on convoluted coasts into faceted dark blobs over land. Reordering it
+        // only moves the darkening onto coastal land. NOW OFF BY DEFAULT — it is opt-in only.
+        // Proof + zoom ladder: program/weather-simulation/LAYER_ORDER_PROOF_LOG.json#LOP-0001.
+        const bufferOn = resolveCoastBufferOn(stateRef.current.activeMarineLayer,
+          typeof window !== 'undefined' ? window.__RAW_WATER_TEMP_COAST_BUFFER__ : undefined);
         if (mapInstance.getLayer(MASK_BUFFER)) {
           try { mapInstance.setLayoutProperty(MASK_BUFFER, 'visibility', bufferOn ? 'visible' : 'none'); } catch (e) {}
         }

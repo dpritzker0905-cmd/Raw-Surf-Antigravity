@@ -47,6 +47,36 @@ REGION_TIDE_STATIONS = {
 # governs both call sites instead of two caps that drift.
 from services.weather_pipeline.config_env import env_int
 
+# ── the precomputed-first lane (WS-CAN-0064, 2026-08-15) ────────────────────────────────────────
+# Production measured PERFECTLY LINEAR at 0.380 s/spot (10 s at ~26 spots; 11/11 sampled calls
+# over 10 s across two audits), concurrency buys nothing on the 1-CPU box, and the owner's Render
+# read (WS-CAN-0040) closed the last hypothesis: SPOT_RATINGS_CONCURRENCY is not set. The repair
+# is the one /spot-ratings already survives on: answer from the precomputed frames, per spot,
+# and fall through to the EXACT live path for anything the frame cannot answer (unknown id,
+# pre-upgrade blob entry, stale beyond bound, or CONDITIONS_BATCH_PRECOMPUTED=0).
+
+
+def _load_ratings_blob():
+    """Test seam. The real loader is the same TTL-cached L2 read /spot-ratings serves from."""
+    from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached
+    return load_spot_ratings_l2_cached()
+
+
+def _frame_conditions_entry(e, updated_at):
+    """Map a precomputed frame spot to the batch payload — BYTE-SHAPE IDENTICAL to the live
+    entry (six keys; the frozen frontend spreads these). `label` derives through the SAME public
+    ladder the live producer uses, so the two paths cannot disagree about a word."""
+    from services.conditions_labels import get_conditions_label
+    from services.weather_pipeline.spot_conditions import M_TO_FT
+    h_ft = round(float(e["surf_height_m"]) * M_TO_FT, 1)
+    return {"wave_height_ft": h_ft,
+            "wave_direction": e["swell_from_deg"],
+            "wave_period": e["period_s"],
+            "swell_height_ft": round(float(e["offshore_hs_m"]) * M_TO_FT, 1),
+            "label": get_conditions_label(h_ft),
+            "updated_at": updated_at}
+
+
 BATCH_MAX_SPOTS = 200
 # lo=1: Semaphore(0) is a request that never returns, not a setting (MC-08's deadlock input;
 # weather.py's twin clamped this SAME var while this site did not — MC-09 makes them one policy).
@@ -70,9 +100,53 @@ async def get_batch_conditions(
         logger.warning(f"/conditions/batch truncated {len(ids)} spot_ids to {BATCH_MAX_SPOTS}")
         ids = ids[:BATCH_MAX_SPOTS]
 
-    # ONE query instead of one per id; missing ids are simply absent, exactly as before.
-    result = await db.execute(select(SurfSpot).where(SurfSpot.id.in_(ids)))
-    spots_by_id = {s.id: s for s in result.scalars().all()}
+    # FRAME-FIRST (WS-CAN-0064): a fresh — or bounded-stale, same ladder as /spot-ratings —
+    # precomputed frame answers every spot it can before anything touches the database or the
+    # resolver. An entry qualifies only with ALL four source fields present, so a pre-upgrade
+    # blob degrades per spot to live, never to a partial payload.
+    pre = {}
+    pre_source = None
+    pre_valid_time = None
+    lane_on = os.environ.get("CONDITIONS_BATCH_PRECOMPUTED", "1") != "0"
+    if lane_on:
+        try:
+            from services.weather_pipeline.spot_ratings_precompute import (
+                pick_precomputed_frame, SELECT_TOLERANCE_S)
+            obj = await asyncio.to_thread(_load_ratings_blob)   # off-loop: a TTL-cached L2 read
+            frame = None
+            if obj:
+                _vt = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:00:00Z")
+                frame = pick_precomputed_frame(obj, model, _vt, SELECT_TOLERANCE_S)
+                pre_source = "precomputed" if frame else None
+                if frame is None:
+                    try:
+                        _stale = float(os.environ.get("SPOT_RATINGS_STALE_TOLERANCE_S", "21600"))
+                    except (TypeError, ValueError):
+                        _stale = 21600.0
+                    if _stale > 0:
+                        frame = pick_precomputed_frame(obj, model, _vt, _stale)
+                        pre_source = "precomputed_stale" if frame else None
+            if frame:
+                pre_valid_time = frame.get("valid_time")
+                _updated = (obj or {}).get("generated_at") or pre_valid_time
+                by_id = {str(s.get("spot_id")): s for s in frame.get("spots") or []}
+                for sid in ids:
+                    e = by_id.get(sid)
+                    if e and all(e.get(k) is not None for k in
+                                 ("surf_height_m", "period_s", "swell_from_deg", "offshore_hs_m")):
+                        pre[sid] = _frame_conditions_entry(e, _updated)
+        except Exception as _pe:
+            # the lane must never break the route it accelerates
+            logger.debug(f"/conditions/batch precomputed lane unavailable: {_pe}")
+            pre, pre_source, pre_valid_time = {}, None, None
+
+    live_ids = [sid for sid in ids if sid not in pre]
+    # ONE query instead of one per id; missing ids are simply absent, exactly as before —
+    # and only for the spots the frame could not answer (a full frame hit touches no DB at all).
+    spots_by_id = {}
+    if live_ids:
+        result = await db.execute(select(SurfSpot).where(SurfSpot.id.in_(live_ids)))
+        spots_by_id = {s.id: s for s in result.scalars().all()}
 
     sem = asyncio.Semaphore(_BATCH_CONCURRENCY)
 
@@ -106,11 +180,25 @@ async def get_batch_conditions(
         return spot_id, None
 
     results = dict(await asyncio.gather(
-        *(one(sid, spots_by_id[sid]) for sid in ids if sid in spots_by_id)))
-    # Rebuild in INPUT order so the payload is byte-comparable with the serial implementation.
-    conditions = {sid: results[sid] for sid in ids if results.get(sid) is not None}
+        *(one(sid, spots_by_id[sid]) for sid in live_ids if sid in spots_by_id)))
+    # Rebuild in INPUT order so the payload is byte-comparable with the serial implementation;
+    # frame answers and live answers interleave in the caller's own order.
+    conditions = {}
+    for sid in ids:
+        if sid in pre:
+            conditions[sid] = pre[sid]
+        elif results.get(sid) is not None:
+            conditions[sid] = results[sid]
 
     out = {"conditions": conditions}
+    if lane_on:
+        # additive disclosure, top-level only — the per-spot shape is frozen (WS-CAN-0039)
+        out["conditions_source"] = {
+            "source": pre_source or "live",
+            "precomputed": len(pre),
+            "live": sum(1 for sid in conditions if sid not in pre),
+            **({"served_valid_time": pre_valid_time} if pre_valid_time else {}),
+        }
     # ⛔ NEVER raise here: this is a PARTIAL-SUCCESS surface serving up to 200 spots, and one
     # upstream failure must not fail the other 199. The per-spot entry already says which failed;
     # this lifts it to the top level so a caller can branch on it WITHOUT type-sniffing every value.

@@ -47,6 +47,19 @@ let webpackConfig = {
       if (config.enableHealthCheck && healthPluginInstance) {
         webpackConfig.plugins.push(healthPluginInstance);
       }
+
+      // WEBPACK_CACHE_DIR (2026-08-15): a git WORKTREE that junctions the main tree's
+      // node_modules shares its webpack persistent cache — two absolute build contexts in one
+      // cache fail hard with "Can't handle conflicting asset info for sourceFilename" (hit live
+      // from .claude/worktrees/halo-lane). Opt-in redirect to a private cache dir; inert when
+      // the env var is unset, so normal builds are byte-identical.
+      if (process.env.WEBPACK_CACHE_DIR && webpackConfig.cache) {
+        webpackConfig.cache = {
+          ...(typeof webpackConfig.cache === 'object' ? webpackConfig.cache : {}),
+          type: 'filesystem',
+          cacheDirectory: path.resolve(process.env.WEBPACK_CACHE_DIR),
+        };
+      }
       return webpackConfig;
     },
   },

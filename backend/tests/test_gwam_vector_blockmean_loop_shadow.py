@@ -93,9 +93,16 @@ def _run(monkeypatch, vector_flag, resolution=_RES, bbox=None, grbs_cls=None,
     monkeypatch.setenv("FETCH_VECTOR_BLOCKMEAN", vector_flag)
     monkeypatch.setenv("DWD_GWAM_DIR_BLOCKMEAN", dir_flag)
     monkeypatch.setenv("DWD_GWAM_SCALAR_BLOCKMEAN", scalar_flag)
+    # ⚠️ FROZEN, not the passed-in `now` (2026-08-15): anchoring to `now` re-anchored EACH leg of
+    # a shadow comparison to the wall clock, so two legs straddling a top-of-hour produced time
+    # axes one hour apart and the byte-identity assertion reddened on the CLOCK, not the physics
+    # (observed live: CI run 31913293201 at 23:01Z — 'time' differed by exactly +1h while all 9
+    # physics fields were identical). Two legs of one comparison must share ONE instant.
+    from datetime import datetime as _dt, timezone as _tz
+    _t0 = _dt(2026, 1, 15, 6, 30, tzinfo=_tz.utc)
     monkeypatch.setattr(fetcher, "_pick_cycle",
-                        lambda _rq, now, _mf: (now.replace(minute=0, second=0, microsecond=0),
-                                               now.strftime("%Y%m%d"), "00"),
+                        lambda _rq, now, _mf: (_t0.replace(minute=0, second=0, microsecond=0),
+                                               _t0.strftime("%Y%m%d"), "00"),
                         raising=False)
     monkeypatch.setattr(fetcher, "_download_grib", lambda *a, **k: True, raising=False)
 

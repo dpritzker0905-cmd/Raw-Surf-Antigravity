@@ -1,0 +1,510 @@
+{
+ "version": 1,
+ "generated_at": "2026-08-15T23:15:44.604958+00:00",
+ "generator": "backend/scripts/build_nearshore_pairs.py",
+ "params": {
+  "max_km": 10.0,
+  "max_depth_m": 30.0
+ },
+ "provenance": "station identities DISCOVERED from the CDIP THREDDS catalogue at generation time; spots from the production /api/surf-spots",
+ "n_stations": 20,
+ "n_spot_links": 48,
+ "pairs": [
+  {
+   "station": "043p1",
+   "station_lat": 33.2198,
+   "station_lng": -117.4394,
+   "station_depth_m": 20.0,
+   "spots": [
+    {
+     "spot_id": "f954c3f5-34ec-4827-8b38-8fe630303c1a",
+     "name": "Oceanside Pier",
+     "lat": 33.1938,
+     "lng": -117.4218,
+     "distance_km": 3.32
+    }
+   ]
+  },
+  {
+   "station": "101p1",
+   "station_lat": 32.9297,
+   "station_lng": -117.2737,
+   "station_depth_m": 20.0,
+   "spots": [
+    {
+     "spot_id": "7eb3a816-3e9d-41d1-ab08-392bdd19f8b0",
+     "name": "Blacks Beach",
+     "lat": 32.8925,
+     "lng": -117.2536,
+     "distance_km": 4.54
+    },
+    {
+     "spot_id": "9bdaed85-9db6-4b41-bc37-4828e094bc2a",
+     "name": "La Jolla Shores",
+     "lat": 32.8565,
+     "lng": -117.2585,
+     "distance_km": 8.26
+    }
+   ]
+  },
+  {
+   "station": "103p1",
+   "station_lat": 34.022068,
+   "station_lng": -118.5784,
+   "station_depth_m": 20.4,
+   "spots": [
+    {
+     "spot_id": "0d4b2204-229c-4163-99b0-66b578e4e7f2",
+     "name": "Topanga",
+     "lat": 34.0388,
+     "lng": -118.62,
+     "distance_km": 4.26
+    },
+    {
+     "spot_id": "043c051f-2e48-4666-9cd2-f0c4ec729ecb",
+     "name": "Venice Breakwater",
+     "lat": 33.9898,
+     "lng": -118.502,
+     "distance_km": 7.9
+    }
+   ]
+  },
+  {
+   "station": "115p1",
+   "station_lat": 32.87565,
+   "station_lng": -117.257515,
+   "station_depth_m": 20.2,
+   "spots": [
+    {
+     "spot_id": "7eb3a816-3e9d-41d1-ab08-392bdd19f8b0",
+     "name": "Blacks Beach",
+     "lat": 32.8925,
+     "lng": -117.2536,
+     "distance_km": 1.91
+    },
+    {
+     "spot_id": "9bdaed85-9db6-4b41-bc37-4828e094bc2a",
+     "name": "La Jolla Shores",
+     "lat": 32.8565,
+     "lng": -117.2585,
+     "distance_km": 2.13
+    },
+    {
+     "spot_id": "dcac30c9-0124-4f96-be32-612007bdf240",
+     "name": "Windansea",
+     "lat": 32.8312,
+     "lng": -117.2811,
+     "distance_km": 5.41
+    },
+    {
+     "spot_id": "24340718-5822-45b2-bdf3-cf05ba46586b",
+     "name": "Pacific Beach",
+     "lat": 32.7982,
+     "lng": -117.278,
+     "distance_km": 8.82
+    }
+   ]
+  },
+  {
+   "station": "116p1",
+   "station_lat": 32.873272,
+   "station_lng": -117.25677,
+   "station_depth_m": 27.4,
+   "spots": [
+    {
+     "spot_id": "9bdaed85-9db6-4b41-bc37-4828e094bc2a",
+     "name": "La Jolla Shores",
+     "lat": 32.8565,
+     "lng": -117.2585,
+     "distance_km": 1.87
+    },
+    {
+     "spot_id": "7eb3a816-3e9d-41d1-ab08-392bdd19f8b0",
+     "name": "Blacks Beach",
+     "lat": 32.8925,
+     "lng": -117.2536,
+     "distance_km": 2.16
+    },
+    {
+     "spot_id": "dcac30c9-0124-4f96-be32-612007bdf240",
+     "name": "Windansea",
+     "lat": 32.8312,
+     "lng": -117.2811,
+     "distance_km": 5.2
+    },
+    {
+     "spot_id": "24340718-5822-45b2-bdf3-cf05ba46586b",
+     "name": "Pacific Beach",
+     "lat": 32.7982,
+     "lng": -117.278,
+     "distance_km": 8.58
+    }
+   ]
+  },
+  {
+   "station": "129p1",
+   "station_lat": 30.3823,
+   "station_lng": -86.6389,
+   "station_depth_m": 18.5,
+   "spots": [
+    {
+     "spot_id": "cbb9d937-10ae-4097-bfea-44808a13fd43",
+     "name": "Okaloosa Pier",
+     "lat": 30.378,
+     "lng": -86.622,
+     "distance_km": 1.69
+    },
+    {
+     "spot_id": "ae151c34-5ce8-460e-8e89-69ac072e534b",
+     "name": "Okaloosa Island",
+     "lat": 30.382,
+     "lng": -86.608,
+     "distance_km": 2.96
+    }
+   ]
+  },
+  {
+   "station": "134p1",
+   "station_lat": 27.55145,
+   "station_lng": -80.21703,
+   "station_depth_m": 16.8,
+   "spots": [
+    {
+     "spot_id": "12d7c4b4-3e17-4b4b-89e1-3f539a56b2a1",
+     "name": "Pepper Park",
+     "lat": 27.526236684141328,
+     "lng": -80.30834172403837,
+     "distance_km": 9.43
+    }
+   ]
+  },
+  {
+   "station": "142p1",
+   "station_lat": 37.788,
+   "station_lng": -122.6318,
+   "station_depth_m": 14.9,
+   "spots": [
+    {
+     "spot_id": "d7a491e4-e486-4400-80f0-aa24518e66c2",
+     "name": "Rodeo Beach",
+     "lat": 37.838,
+     "lng": -122.548,
+     "distance_km": 9.23
+    }
+   ]
+  },
+  {
+   "station": "143p1",
+   "station_lat": 28.39998,
+   "station_lng": -80.53334,
+   "station_depth_m": 9.8,
+   "spots": [
+    {
+     "spot_id": "146967fa-73f4-4041-a61a-048a8eb0b8da",
+     "name": "Jetty Park",
+     "lat": 28.4061,
+     "lng": -80.589,
+     "distance_km": 5.49
+    },
+    {
+     "spot_id": "2447cd65-4f05-47aa-88af-ee4fcb852d1c",
+     "name": "Cape Canaveral",
+     "lat": 28.3955,
+     "lng": -80.592,
+     "distance_km": 5.76
+    },
+    {
+     "spot_id": "ffb87adc-2445-4bda-b4e8-b982ba525e1a",
+     "name": "Cherie Down Park",
+     "lat": 28.3918,
+     "lng": -80.5951,
+     "distance_km": 6.11
+    },
+    {
+     "spot_id": "c673e683-6d29-4ee4-90b1-2b9d82363f35",
+     "name": "Cocoa Beach Pier",
+     "lat": 28.3676,
+     "lng": -80.6012,
+     "distance_km": 7.55
+    },
+    {
+     "spot_id": "91cb5755-24f7-4184-8021-46a8ff37b897",
+     "name": "Shepard Park",
+     "lat": 28.3585,
+     "lng": -80.6035,
+     "distance_km": 8.27
+    },
+    {
+     "spot_id": "5adabb15-1d17-4992-a9c3-c42bd5499e26",
+     "name": "Cape Canaveral Air Force Station",
+     "lat": 28.47,
+     "lng": -80.585,
+     "distance_km": 9.28
+    }
+   ]
+  },
+  {
+   "station": "150p1",
+   "station_lat": 34.1416,
+   "station_lng": -77.7147,
+   "station_depth_m": 17.0,
+   "spots": [
+    {
+     "spot_id": "3d8e903e-ed41-414e-a072-13cde1bd5640",
+     "name": "C Street Wrightsville",
+     "lat": 34.208,
+     "lng": -77.766,
+     "distance_km": 8.76
+    },
+    {
+     "spot_id": "16fc2a76-2007-45a3-b5eb-5a53c2d2cc61",
+     "name": "Johnnie Mercers Pier",
+     "lat": 34.218,
+     "lng": -77.76,
+     "distance_km": 9.46
+    }
+   ]
+  },
+  {
+   "station": "153p1",
+   "station_lat": 32.95654,
+   "station_lng": -117.27956,
+   "station_depth_m": 17.0,
+   "spots": [
+    {
+     "spot_id": "7eb3a816-3e9d-41d1-ab08-392bdd19f8b0",
+     "name": "Blacks Beach",
+     "lat": 32.8925,
+     "lng": -117.2536,
+     "distance_km": 7.52
+    },
+    {
+     "spot_id": "19d843e0-993a-4311-b4ce-3d36f78cd2b7",
+     "name": "Cardiff Reef",
+     "lat": 33.0228,
+     "lng": -117.3178,
+     "distance_km": 8.19
+    },
+    {
+     "spot_id": "7e1299b0-e296-4ba0-a47e-05911d606505",
+     "name": "Swamis",
+     "lat": 33.0348,
+     "lng": -117.3248,
+     "distance_km": 9.67
+    }
+   ]
+  },
+  {
+   "station": "161p1",
+   "station_lat": 33.0029,
+   "station_lng": -117.2917,
+   "station_depth_m": 20.1,
+   "spots": [
+    {
+     "spot_id": "19d843e0-993a-4311-b4ce-3d36f78cd2b7",
+     "name": "Cardiff Reef",
+     "lat": 33.0228,
+     "lng": -117.3178,
+     "distance_km": 3.29
+    },
+    {
+     "spot_id": "7e1299b0-e296-4ba0-a47e-05911d606505",
+     "name": "Swamis",
+     "lat": 33.0348,
+     "lng": -117.3248,
+     "distance_km": 4.7
+    }
+   ]
+  },
+  {
+   "station": "172p1",
+   "station_lat": 33.622932,
+   "station_lng": -118.01193,
+   "station_depth_m": 22.2,
+   "spots": [
+    {
+     "spot_id": "c84de5b4-bd84-4e3a-b96d-2a315b9774d0",
+     "name": "Huntington Beach Pier",
+     "lat": 33.655,
+     "lng": -117.999,
+     "distance_km": 3.76
+    },
+    {
+     "spot_id": "b683d2ed-09f2-446c-b430-242930dad4fc",
+     "name": "54th Street Newport",
+     "lat": 33.6032,
+     "lng": -117.92,
+     "distance_km": 8.79
+    }
+   ]
+  },
+  {
+   "station": "207p1",
+   "station_lat": 40.584503,
+   "station_lng": -73.10673,
+   "station_depth_m": 25.0,
+   "spots": [
+    {
+     "spot_id": "f33de1c9-2af3-418d-bc95-6686e8670bdf",
+     "name": "Fire Island",
+     "lat": 40.643,
+     "lng": -73.146,
+     "distance_km": 7.3
+    },
+    {
+     "spot_id": "48f7e05e-1472-4f6e-9950-6c11fbb90d63",
+     "name": "Fire Island Pines",
+     "lat": 40.658,
+     "lng": -73.068,
+     "distance_km": 8.8
+    }
+   ]
+  },
+  {
+   "station": "254p1",
+   "station_lat": 36.93439,
+   "station_lng": -122.03384,
+   "station_depth_m": 20.0,
+   "spots": [
+    {
+     "spot_id": "a0831e90-e082-4f2d-8aa4-922cf413ad24",
+     "name": "Steamer Lane",
+     "lat": 36.951,
+     "lng": -122.026,
+     "distance_km": 1.97
+    },
+    {
+     "spot_id": "54ad0401-dceb-4992-9dff-7dd48fa4594c",
+     "name": "Cowell's Beach",
+     "lat": 36.958,
+     "lng": -122.028,
+     "distance_km": 2.68
+    },
+    {
+     "spot_id": "5ffb6b8d-4b51-4d57-9c26-2c389db6d92f",
+     "name": "Pleasure Point",
+     "lat": 36.962,
+     "lng": -121.978,
+     "distance_km": 5.84
+    },
+    {
+     "spot_id": "617e5123-774e-4469-8ee1-0b7477ed9dd1",
+     "name": "The Hook",
+     "lat": 36.958,
+     "lng": -121.968,
+     "distance_km": 6.41
+    },
+    {
+     "spot_id": "41f7c0e0-01c6-4bde-8f20-701972e4ea1c",
+     "name": "Capitola",
+     "lat": 36.978,
+     "lng": -121.958,
+     "distance_km": 8.3
+    },
+    {
+     "spot_id": "f8b94dd9-9b5b-4467-9361-9a08aff27106",
+     "name": "New Brighton",
+     "lat": 36.978,
+     "lng": -121.938,
+     "distance_km": 9.8
+    }
+   ]
+  },
+  {
+   "station": "261p1",
+   "station_lat": 33.00083,
+   "station_lng": -117.29072,
+   "station_depth_m": 20.1,
+   "spots": [
+    {
+     "spot_id": "19d843e0-993a-4311-b4ce-3d36f78cd2b7",
+     "name": "Cardiff Reef",
+     "lat": 33.0228,
+     "lng": -117.3178,
+     "distance_km": 3.51
+    },
+    {
+     "spot_id": "7e1299b0-e296-4ba0-a47e-05911d606505",
+     "name": "Swamis",
+     "lat": 33.0348,
+     "lng": -117.3248,
+     "distance_km": 4.94
+    }
+   ]
+  },
+  {
+   "station": "262p1",
+   "station_lat": 33.062077,
+   "station_lng": -117.31407,
+   "station_depth_m": 17.0,
+   "spots": [
+    {
+     "spot_id": "7e1299b0-e296-4ba0-a47e-05911d606505",
+     "name": "Swamis",
+     "lat": 33.0348,
+     "lng": -117.3248,
+     "distance_km": 3.19
+    },
+    {
+     "spot_id": "19d843e0-993a-4311-b4ce-3d36f78cd2b7",
+     "name": "Cardiff Reef",
+     "lat": 33.0228,
+     "lng": -117.3178,
+     "distance_km": 4.38
+    }
+   ]
+  },
+  {
+   "station": "265p1",
+   "station_lat": 26.001,
+   "station_lng": -80.096,
+   "station_depth_m": 15.6,
+   "spots": [
+    {
+     "spot_id": "91f62e25-e996-4734-b9bc-cc0a0e624c86",
+     "name": "Hollywood Beach",
+     "lat": 26.015,
+     "lng": -80.118,
+     "distance_km": 2.69
+    }
+   ]
+  },
+  {
+   "station": "266p1",
+   "station_lat": 36.8449,
+   "station_lng": -121.8247,
+   "station_depth_m": 15.0,
+   "spots": [
+    {
+     "spot_id": "6f14cf3f-4e67-4775-93ea-a07c7cb3afd8",
+     "name": "Moss Landing",
+     "lat": 36.7968,
+     "lng": -121.815,
+     "distance_km": 5.42
+    },
+    {
+     "spot_id": "27be5b59-578e-4b66-bd14-403220a2f382",
+     "name": "Sunset State Beach",
+     "lat": 36.898,
+     "lng": -121.838,
+     "distance_km": 6.02
+    }
+   ]
+  },
+  {
+   "station": "433p1",
+   "station_lat": 36.19965,
+   "station_lng": -75.71498,
+   "station_depth_m": 18.1,
+   "spots": [
+    {
+     "spot_id": "b373740a-6647-4d3e-b832-0103769867d3",
+     "name": "Duck",
+     "lat": 36.17,
+     "lng": -75.755,
+     "distance_km": 4.88
+    }
+   ]
+  }
+ ]
+}

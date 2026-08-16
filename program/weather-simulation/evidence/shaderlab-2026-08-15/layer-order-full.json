@@ -1,0 +1,1003 @@
+[
+ {
+  "i": 0,
+  "id": "land",
+  "type": "background",
+  "src": null,
+  "vis": "visible"
+ },
+ {
+  "i": 1,
+  "id": "landcover",
+  "type": "fill",
+  "src": "landcover",
+  "vis": "visible"
+ },
+ {
+  "i": 2,
+  "id": "national-park",
+  "type": "fill",
+  "src": "landuse_overlay",
+  "vis": "visible"
+ },
+ {
+  "i": 3,
+  "id": "water",
+  "type": "fill",
+  "src": "water",
+  "vis": "visible"
+ },
+ {
+  "i": 4,
+  "id": "ocean-mask-inland-water",
+  "type": "fill",
+  "src": "water",
+  "vis": "visible"
+ },
+ {
+  "i": 5,
+  "id": "ocean-mask-inland-waterway",
+  "type": "line",
+  "src": "waterway",
+  "vis": "visible"
+ },
+ {
+  "i": 6,
+  "id": "landuse",
+  "type": "fill",
+  "src": "landuse",
+  "vis": "visible"
+ },
+ {
+  "i": 7,
+  "id": "ocean-mask-line",
+  "type": "line",
+  "src": null,
+  "vis": "visible"
+ },
+ {
+  "i": 8,
+  "id": "pitch-outline",
+  "type": "line",
+  "src": "landuse",
+  "vis": "visible"
+ },
+ {
+  "i": 9,
+  "id": "waterway",
+  "type": "line",
+  "src": "waterway",
+  "vis": "visible"
+ },
+ {
+  "i": 10,
+  "id": "ocean-mask-buffer",
+  "type": "line",
+  "src": null,
+  "vis": "visible"
+ },
+ {
+  "i": 11,
+  "id": "esri-satellite-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 12,
+  "id": "water_temp-slot-0-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 13,
+  "id": "water_temp-slot-1-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 14,
+  "id": "water_temp-slot-2-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 15,
+  "id": "ocean-mask-fill",
+  "type": "fill",
+  "src": null,
+  "vis": "visible"
+ },
+ {
+  "i": 16,
+  "id": "land-structure-polygon",
+  "type": "fill",
+  "src": "structure",
+  "vis": "visible"
+ },
+ {
+  "i": 17,
+  "id": "land-structure-line",
+  "type": "line",
+  "src": "structure",
+  "vis": "visible"
+ },
+ {
+  "i": 18,
+  "id": "aeroway-polygon",
+  "type": "fill",
+  "src": "aeroway",
+  "vis": "visible"
+ },
+ {
+  "i": 19,
+  "id": "aeroway-line",
+  "type": "line",
+  "src": "aeroway",
+  "vis": "visible"
+ },
+ {
+  "i": 20,
+  "id": "building-outline",
+  "type": "line",
+  "src": "building",
+  "vis": "visible"
+ },
+ {
+  "i": 21,
+  "id": "building",
+  "type": "fill",
+  "src": "building",
+  "vis": "visible"
+ },
+ {
+  "i": 22,
+  "id": "tunnel-minor-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 23,
+  "id": "tunnel-street-low-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 24,
+  "id": "tunnel-street-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 25,
+  "id": "tunnel-secondary-tertiary-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 26,
+  "id": "tunnel-primary-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 27,
+  "id": "tunnel-major-link-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 28,
+  "id": "tunnel-motorway-trunk-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 29,
+  "id": "tunnel-construction-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 30,
+  "id": "tunnel-major-link-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 31,
+  "id": "tunnel-minor-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 32,
+  "id": "tunnel-street-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 33,
+  "id": "tunnel-secondary-tertiary-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 34,
+  "id": "tunnel-primary-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 35,
+  "id": "tunnel-motorway-trunk-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 36,
+  "id": "ferry",
+  "type": "line",
+  "src": "road",
+  "vis": "none"
+ },
+ {
+  "i": 37,
+  "id": "ferry-auto",
+  "type": "line",
+  "src": "road",
+  "vis": "none"
+ },
+ {
+  "i": 38,
+  "id": "turning-feature-outline-navigation",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 39,
+  "id": "road-minor-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 40,
+  "id": "road-street-low-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 41,
+  "id": "road-street-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 42,
+  "id": "road-secondary-tertiary-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 43,
+  "id": "road-primary-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 44,
+  "id": "road-major-link-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 45,
+  "id": "road-motorway-trunk-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 46,
+  "id": "road-construction-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 47,
+  "id": "road-major-link-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 48,
+  "id": "road-minor-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 49,
+  "id": "traffic-tunnel-link-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 50,
+  "id": "traffic-tunnel-minor-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 51,
+  "id": "road-street-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 52,
+  "id": "traffic-tunnel-street-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 53,
+  "id": "road-secondary-tertiary-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 54,
+  "id": "traffic-tunnel-secondary-tertiary-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 55,
+  "id": "road-primary-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 56,
+  "id": "traffic-tunnel-primary-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 57,
+  "id": "road-motorway-trunk-case-low-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 58,
+  "id": "traffic-tunnel-major-link-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 59,
+  "id": "road-motorway-trunk-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 60,
+  "id": "traffic-tunnel-motorway-trunk-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 61,
+  "id": "road-rail",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 62,
+  "id": "road-rail-tracks",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 63,
+  "id": "level-crossing-navigation",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 64,
+  "id": "turning-feature-navigation",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 65,
+  "id": "bridge-minor-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 66,
+  "id": "bridge-street-low-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 67,
+  "id": "bridge-street-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 68,
+  "id": "bridge-secondary-tertiary-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 69,
+  "id": "bridge-primary-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 70,
+  "id": "bridge-major-link-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 71,
+  "id": "bridge-motorway-trunk-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 72,
+  "id": "bridge-construction-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 73,
+  "id": "bridge-major-link-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 74,
+  "id": "bridge-minor-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 75,
+  "id": "bridge-street-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 76,
+  "id": "bridge-secondary-tertiary-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 77,
+  "id": "bridge-primary-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 78,
+  "id": "bridge-motorway-trunk-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 79,
+  "id": "bridge-major-link-2-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 80,
+  "id": "bridge-motorway-trunk-2-case-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 81,
+  "id": "bridge-major-link-2-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 82,
+  "id": "bridge-motorway-trunk-2-navigation",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 83,
+  "id": "bridge-rail",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 84,
+  "id": "bridge-rail-tracks",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 85,
+  "id": "traffic-bridge-road-link-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 86,
+  "id": "traffic-bridge-road-minor-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 87,
+  "id": "traffic-bridge-road-street-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 88,
+  "id": "traffic-bridge-road-secondary-tertiary-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 89,
+  "id": "traffic-bridge-road-primary-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 90,
+  "id": "traffic-bridge-road-major-link-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 91,
+  "id": "traffic-bridge-road-motorway-trunk-case-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 92,
+  "id": "traffic-bridge-road-motorway-trunk-navigation",
+  "type": "line",
+  "src": "traffic",
+  "vis": "visible"
+ },
+ {
+  "i": 93,
+  "id": "traffic-level-crossing-navigation",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 94,
+  "id": "traffic-tunnel-oneway-arrow-blue-navigation",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 95,
+  "id": "traffic-tunnel-oneway-arrow-white-navigation",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 96,
+  "id": "traffic-road-oneway-arrow-blue-navigation",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 97,
+  "id": "traffic-road-oneway-arrow-white-navigation",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 98,
+  "id": "traffic-bridge-oneway-arrow-blue-navigation",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 99,
+  "id": "traffic-bridge-oneway-arrow-white-navigation",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 100,
+  "id": "incident-closure-lines-navigation",
+  "type": "line",
+  "src": "closures",
+  "vis": "visible"
+ },
+ {
+  "i": 101,
+  "id": "incident-closure-line-highlights-navigation",
+  "type": "line",
+  "src": "closures",
+  "vis": "visible"
+ },
+ {
+  "i": 102,
+  "id": "incident-endpoints-navigation",
+  "type": "symbol",
+  "src": "closures",
+  "vis": "visible"
+ },
+ {
+  "i": 103,
+  "id": "incident-startpoints-navigation",
+  "type": "symbol",
+  "src": "closures",
+  "vis": "visible"
+ },
+ {
+  "i": 104,
+  "id": "aerialway",
+  "type": "line",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 105,
+  "id": "admin-1-boundary-bg",
+  "type": "line",
+  "src": "admin",
+  "vis": "visible"
+ },
+ {
+  "i": 106,
+  "id": "admin-0-boundary-bg",
+  "type": "line",
+  "src": "admin",
+  "vis": "visible"
+ },
+ {
+  "i": 107,
+  "id": "admin-1-boundary",
+  "type": "line",
+  "src": "admin",
+  "vis": "visible"
+ },
+ {
+  "i": 108,
+  "id": "admin-0-boundary",
+  "type": "line",
+  "src": "admin",
+  "vis": "visible"
+ },
+ {
+  "i": 109,
+  "id": "admin-0-boundary-disputed",
+  "type": "line",
+  "src": "admin",
+  "vis": "visible"
+ },
+ {
+  "i": 110,
+  "id": "road-intersection",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 111,
+  "id": "road-label-navigation",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 112,
+  "id": "road-number-shield-navigation",
+  "type": "symbol",
+  "src": "road",
+  "vis": "visible"
+ },
+ {
+  "i": 113,
+  "id": "road-exit-shield-navigation",
+  "type": "symbol",
+  "src": "motorway_junction",
+  "vis": "visible"
+ },
+ {
+  "i": 114,
+  "id": "ferry-aerialway-label",
+  "type": "symbol",
+  "src": "road",
+  "vis": "none"
+ },
+ {
+  "i": 115,
+  "id": "waterway-label",
+  "type": "symbol",
+  "src": "natural_label",
+  "vis": "visible"
+ },
+ {
+  "i": 116,
+  "id": "natural-line-label",
+  "type": "symbol",
+  "src": "natural_label",
+  "vis": "visible"
+ },
+ {
+  "i": 117,
+  "id": "natural-point-label",
+  "type": "symbol",
+  "src": "natural_label",
+  "vis": "visible"
+ },
+ {
+  "i": 118,
+  "id": "water-line-label",
+  "type": "symbol",
+  "src": "natural_label",
+  "vis": "visible"
+ },
+ {
+  "i": 119,
+  "id": "water-point-label",
+  "type": "symbol",
+  "src": "natural_label",
+  "vis": "visible"
+ },
+ {
+  "i": 120,
+  "id": "poi-label",
+  "type": "symbol",
+  "src": "poi_label",
+  "vis": "visible"
+ },
+ {
+  "i": 121,
+  "id": "airport-label",
+  "type": "symbol",
+  "src": "airport_label",
+  "vis": "visible"
+ },
+ {
+  "i": 122,
+  "id": "settlement-subdivision-label",
+  "type": "symbol",
+  "src": "place_label",
+  "vis": "visible"
+ },
+ {
+  "i": 123,
+  "id": "settlement-minor-label",
+  "type": "symbol",
+  "src": "place_label",
+  "vis": "visible"
+ },
+ {
+  "i": 124,
+  "id": "settlement-major-label",
+  "type": "symbol",
+  "src": "place_label",
+  "vis": "visible"
+ },
+ {
+  "i": 125,
+  "id": "state-label",
+  "type": "symbol",
+  "src": "place_label",
+  "vis": "visible"
+ },
+ {
+  "i": 126,
+  "id": "country-label",
+  "type": "symbol",
+  "src": "place_label",
+  "vis": "visible"
+ },
+ {
+  "i": 127,
+  "id": "rain-slot-0-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 128,
+  "id": "rain-slot-1-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 129,
+  "id": "rain-slot-2-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 130,
+  "id": "satellite-slot-0-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 131,
+  "id": "satellite-slot-1-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 132,
+  "id": "satellite-slot-2-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 133,
+  "id": "pressure-slot-0-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 134,
+  "id": "pressure-slot-1-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 135,
+  "id": "pressure-slot-2-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 136,
+  "id": "temperature-slot-0-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 137,
+  "id": "temperature-slot-1-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 138,
+  "id": "temperature-slot-2-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 139,
+  "id": "fog-slot-0-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 140,
+  "id": "fog-slot-1-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 141,
+  "id": "fog-slot-2-layer",
+  "type": "raster",
+  "src": null,
+  "vis": "none"
+ },
+ {
+  "i": 142,
+  "id": "spot-geofences-layer",
+  "type": "circle",
+  "src": null,
+  "vis": "visible"
+ }
+]

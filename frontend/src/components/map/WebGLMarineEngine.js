@@ -58,6 +58,7 @@ import {
   trimDeadEdges, applySharpenOpacityEase, resolveColdVeil, resolveCoarseCrestControls,
   resolveAnimValue, coarseBaseKey,
 } from './marineEngineDecisions';
+import { setHeatmapGateUniforms, resolveWashOverlayMode } from './marineCoverageContract';
 
 export {
   latToMercatorY, heatmapZoomOpacity, resolveRatingBandFade, resolveRibbonTaper, boundsLonSpan,
@@ -1436,8 +1437,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     gl.useProgram(this.heatmapProgram);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_dataMaskGate'),
-      (typeof window === 'undefined' || window.__RAW_DISABLE_HEATMAP_BOUNDS_GATE__ !== true) ? 1.0 : 0.0);
+    // Gate + SAFE_DEGRADED clip (marineCoverageContract.js); a verdict stamped for a DIFFERENT mask object than the one bound this frame is stale ⇒ void.
+    setHeatmapGateUniforms(gl, this.heatmapProgram, 'resident', (this._maskDeliveredState
+      && this._maskDeliveredState.__mb === this._cachedMaskBounds) ? this._maskDeliveredState : null, maskBounds === this._cachedMaskBounds);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
@@ -2426,7 +2428,9 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   // Telemetry: __RAW_GPU__.maskDelivered.
   const _delivOff = typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_DELIVERED_COVER__ === true;
   const _cmb = this._cachedMaskBounds;
-  const _dv = resolveDeliveredCoverage(_cmb, curView, gridKey, this._maskDeliveredForcedFor, _delivOff);
+  // __mb stamps WHICH mask this verdict judged — the render loop voids a verdict whose mask object is no longer the bound one (live-caught 2026-08-15: a frozen verdict reported safe_degraded across the wide-delegate window while the WORLD mask covered everything).
+  const _dv = this._maskDeliveredState = Object.assign(
+    resolveDeliveredCoverage(_cmb, curView, gridKey, this._maskDeliveredForcedFor, _delivOff), { __mb: _cmb });
   const _delivShort = _dv.deliveredShort;
   const _forceRepaint = _dv.forceRepaint;
   if (_forceRepaint) this._maskDeliveredForcedFor = _dv.forceKey;
@@ -3077,23 +3081,22 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
 
   gl.useProgram(this.heatmapProgram);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_dataMaskGate'),
-    (typeof window === 'undefined' || window.__RAW_DISABLE_HEATMAP_BOUNDS_GATE__ !== true) ? 1.0 : 0.0);
+  setHeatmapGateUniforms(gl, this.heatmapProgram, 'coarse', null, false); // wash never clips (world bounds; own mask): pins clip=0 + telemetry
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), bb.west, bb.south);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), bb.east, bb.north);
-  // The base binds its OWN world mask (encoded with the base grid), so its mask bounds = its grid.
-  // Crisp coastal truth arrives via the OVERLAY slot below (replace-inside-bounds, per-pixel
-  // fallback) — never by swapping this base mask, whose bounds must match the world draw.
+  // The base binds its OWN world mask (bounds = its grid); crisp coastal truth arrives via the
+  // OVERLAY slot below, never by swapping this mask, whose bounds must match the world draw.
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_min'), bb.west, bb.south);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_max'), bb.east, bb.north);
-  // Viewport-truth overlay on the base wash (2026-07-04 zoom-out): the base is a WORLD grid whose
-  // 39 km mask bleeds over land at z8+ — inside the overlay's bounds REPLACE the base sample at
-  // meter truth (same rationale as the wide-grid main pass); per-pixel fallback everywhere else.
+  // Viewport-truth overlay on the base wash (2026-07-04). REPLACE was UNCONDITIONAL here until
+  // 2026-08-15 (step-1 attribution: the wash paints the halo strip; the padded ring's water-flood
+  // overrode this pass's own DENSE mask over land — the asymmetry the main pass retired 07-15).
+  // resolveWashOverlayMode: dense global mask ⇒ min-combine. Kill: __RAW_DISABLE_WASH_NO_REPLACE__.
   const _bovOn = !!(overlay && overlay.tex && overlay.bounds);
   const _bob = _bovOn ? overlay.bounds : { west: 0, south: 0, east: 0, north: 0 };
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskTexture'), 4);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskEnabled'), _bovOn ? 1.0 : 0.0);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayReplace'), _bovOn ? 1.0 : 0.0);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayReplace'), (_bovOn && resolveWashOverlayMode(base).replace) ? 1.0 : 0.0);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_min'), _bob.west, _bob.south);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_max'), _bob.east, _bob.north);
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_waveTexture'), 0);

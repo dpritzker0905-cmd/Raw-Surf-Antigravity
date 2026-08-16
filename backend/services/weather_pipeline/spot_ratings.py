@@ -280,6 +280,15 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         "confidence": spot_confidence(spot.get("accuracy_flag"), spot.get("is_verified_peak")),
         "surf_height_m": round(surf_h, 3) if surf_h is not None else None,
         "period_s": round(period, 1) if period is not None else None,
+        # ★ THE TWO BATCH FIELDS (WS-CAN-0064): /conditions/batch now serves from these frames,
+        # and its frozen per-spot shape needs the swell bearing and the OFFSHORE height beside
+        # the breaking one. MEASURED COST, stated honestly: ~8-10% on a realistic 200-spot frame
+        # (test_the_blob_tax_of_the_two_fields_is_measured_and_bounded — the first draft of this
+        # comment claimed 2-3% and was WRONG). Accepted deliberately: these are forecast-bearing
+        # PRODUCT fields, not instrument telemetry (the +42.8% inputs block the tax rule was
+        # written against), and they convert the system's worst route into frame reads.
+        "swell_from_deg": round(swell_from, 1) if swell_from is not None else None,
+        "offshore_hs_m": round(offshore_h, 3) if offshore_h is not None else None,
         "tide": tide_state,
         "why": why,
         # The binding constraint: which of the nine factors removed the most. See the block above.
