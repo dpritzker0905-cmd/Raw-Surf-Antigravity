@@ -1047,7 +1047,18 @@ jobs:
           # deliberately one-sided, so at 423-vs-413 it printed "every floor is current" (verified
           # by running it at HEAD, exit 0). Only the lane itself fails, and only after the raise
           # ships. See register L-2.
-          MIN_PASSED = 414
+          # ⬆ 414→428 on 2026-08-16 (C4-SC-04). This commit adds
+          # test_local_size_gonogo_exit_contract.py — 14 tests — and the ESTATE lane claims it
+          # (checked, not inferred: `ci_test_lanes.py --lane estate` goes 260→261 files with the
+          # file staged; guards and chain both return 0). CI-ANCHORED, per the ★ rule above: the
+          # last green run on this lane (31930196097, `8a7234aa`) printed verbatim
+          #     `estate: 260 files selected, 258 produced results, 416 passed, 0 silent.`
+          # so 416 + 14 = 430, and 430 - 2 (this lane's budget) = 428. A LOCAL reading was NOT used
+          # — this lane reads ~10-12 higher locally because test_trevec_index_gc.py's
+          # `importorskip("pyarrow"/"lance")` collects on a dev box and never in CI.
+          # ⚠️ The arithmetic is shown so the next green run can falsify it. If 416 was not the
+          # figure this lane actually carries forward, that run says so and the number moves.
+          MIN_PASSED = 428
 
           try:
               root = ET.parse('estate.xml').getroot()
