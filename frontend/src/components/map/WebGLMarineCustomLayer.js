@@ -2,6 +2,7 @@ import { registerMarineEngine } from '../../engine/RenderPlanDispatcher';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { shouldHoldClearOnDeactivate, noteMarineActive } from './marineTransitionCoordinator';
 import { resolveCoarseBridgeGrace } from './marineCoarseBridgeGrace';
+import { resolveRejectedOpacity } from './marineZoomOutGate';
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -289,7 +290,19 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
               // until the real global commits and supersedes it. Kill: __RAW_DISABLE_COARSE_BRIDGE__.
               const hasCoarseBridge = !!(engine._coarseBaseData && engine._coarseBaseData.u_waveTexture) &&
                 (typeof window === 'undefined' || window.__RAW_DISABLE_COARSE_BRIDGE__ !== true);
-              if (isViewportZoomedOut && isGridRegional && hasCoarseBridge) {
+              // C4-MR-15 (2026-08-16): the branch DECISION now comes from marineZoomOutGate, the pure
+              // module PR #7 landed with zero importers. It arrived as "a specification with a test,
+              // not the live code path", and its own header warned the two could drift silently — they
+              // already had: `e17f0332` (08-15) added the grace below, nine days after the module froze
+              // branch 1 at a flat 0.0. Wiring it AS WRITTEN would have reverted that grace.
+              // ⇒ The module owns WHICH branch; the layer keeps the impure grace and its side effects,
+              //   gated on `coarseBridge`. Neither duplicates the other's condition.
+              const _rej = resolveRejectedOpacity({
+                isViewportZoomedOut, isGridRegional, hasCoarseBridge, isZoomingOrMoving,
+                currentZoom, overlapRatio,
+              });
+              if (_rej.bail) { this._wasActive = false; return; }
+              if (_rej.coarseBridge) {
                 // COARSE-BRIDGE GRACE (2026-08-15) — the bridge above is the only fade-to-zero in
                 // this family with NO time bound, and the nightly measured it holding 18.8 s. See
                 // `marineCoarseBridgeGrace.js` for the traces, and for why this is neither
@@ -312,22 +325,10 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
                     ? { held: Math.round(_bg.state.held), revealing: _bg.state.revealing,
                         mult: +_bg.mult.toFixed(3) } : null;
                 }
-              } else if (!isZoomingOrMoving) {
-                this._wasActive = false;
-                return;
-              } else if (isViewportZoomedOut && isGridRegional) {
-                opacityMultiplier = 0.0;
               } else {
-                // Calculate fade out during zoom transition or low overlap
-                let zoomFade = 1.0;
-                if (currentZoom <= 6.5) {
-                  zoomFade = Math.max(0.0, Math.min(1.0, (currentZoom - 5.5) / (6.5 - 5.5)));
-                }
-                let overlapFade = 1.0;
-                if (overlapRatio < 0.15) {
-                  overlapFade = Math.max(0.0, Math.min(1.0, (overlapRatio - 0.05) / (0.15 - 0.05)));
-                }
-                opacityMultiplier = Math.min(zoomFade, overlapFade);
+                // Branches 3 and 4 (the measured blank, and the zoom/overlap fade) are the module's
+                // verbatim — the inline copy they replaced was byte-identical arithmetic.
+                opacityMultiplier = _rej.opacity;
               }
             }
           } else {

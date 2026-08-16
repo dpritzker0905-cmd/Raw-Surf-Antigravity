@@ -37,17 +37,22 @@
  *   retained so the <0.6 band is covered as designed (see WebGLMarineEngine.coarseBaseLru /
  *   coarseBaseSwap). Encode the decision first, then change it against a test that can see it.
  *
- * ⛔⛔ NOT YET WIRED — WebGLMarineCustomLayer STILL HOLDS ITS OWN INLINE COPY OF THIS LOGIC.
- * Until the layer imports `resolveRejectedOpacity`, this file is a SPECIFICATION WITH A TEST, not
- * the live code path, and the two can drift apart silently. Wiring it is the next step and is the
- * whole point: an extracted decision nobody calls is the "true but reaches nobody" defect class
- * this repo already has a name for.
- * ⚠️ Wiring was NOT done in the same change because the full frontend suite CANNOT BE RUN from a
- * `.claude/worktrees/...` checkout — jest builds `testMatch` as `...Raw-Surf\.claude/worktrees/...`
- * where the backslash escapes the dot, so it matches 0 of 1019 files, every pre-existing test
- * included. A behaviour-preserving edit to the layer could not have been regression-checked, and
- * this is the marine render path. Wire it from a normal checkout, or with the jest config in the
- * handoff, and run the full suite.
+ * ✅ WIRED 2026-08-16 (C4-MR-15). `WebGLMarineCustomLayer` imports `resolveRejectedOpacity` and the
+ * inline copy is retired. Equivalence proved over a 1,296-case grid against the retired logic
+ * transcribed as an oracle (`marineZoomOutGate.wiring.test.js`), and the full frontend suite ran
+ * green (237 suites / 2,248 tests) — from a NORMAL checkout, which is what the earlier deferral was
+ * waiting on.
+ *
+ * ⚠️ AND THE DRIFT THIS HEADER WARNED ABOUT HAD ALREADY HAPPENED — in nine days. `e17f0332`
+ * (2026-08-15) added the COARSE-BRIDGE GRACE to the layer's branch 1, while this module still froze
+ * that branch at a flat 0.0. Wiring the module AS WRITTEN would have REVERTED the grace: a
+ * behaviour regression delivered inside a "no-op refactor". The resolution is the division below.
+ *
+ * ★ THE DIVISION: this module owns WHICH BRANCH applies; the layer owns branch 1's OPACITY and its
+ *   side effects (the grace needs `map`, `performance` and engine state — it cannot be pure). So
+ *   `coarseBridge: true` means "the bridge branch applies, YOU supply the multiplier", and the
+ *   `opacity: 0.0` returned with it is the legacy default the layer overrides. Branches 2-4 are
+ *   authoritative here. Neither side duplicates the other's condition.
  */
 
 export const DEFAULT_COVER_FRAC = 0.6;
@@ -78,6 +83,9 @@ export function resolveRejectedOpacity(s) {
 
   // 1. The designed graceful path: hide the non-covering regional but let the engine paint the
   //    retained coarse-global base underneath, so the viewport degrades to a coarse field.
+  // ⚠️ `opacity` here is the LEGACY DEFAULT, not the answer. The caller overrides it with the
+  //    coarse-bridge grace multiplier (`e17f0332`), which is impure. `coarseBridge: true` is the
+  //    real return value of this branch — see the header's DIVISION note.
   if (isViewportZoomedOut && isGridRegional && hasCoarseBridge) {
     return { opacity: 0.0, coarseBridge: true, bail: false };
   }
