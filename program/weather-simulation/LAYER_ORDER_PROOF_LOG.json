@@ -23,8 +23,14 @@
         "renderer": "real browser GPU (not SwiftShader)"
       },
       "scene": {
-        "center": [-80.2, 28.33],
-        "control_center": [-80.62, 28.42],
+        "center": [
+          -80.2,
+          28.33
+        ],
+        "control_center": [
+          -80.62,
+          28.42
+        ],
         "theme": "dark",
         "model": "GFS",
         "layer": "waves",
@@ -45,28 +51,87 @@
       "experiment": {
         "method": "paired A/B at a fixed scene, one variable, order toggled in place, re-verified after settle at every stop",
         "legs": [
-          { "leg": "A", "change": "baseline", "halo": "PRESENT" },
-          { "leg": "B", "change": "line-opacity -> 0", "halo": "ABSENT" },
-          { "leg": "A'", "change": "line-opacity restored", "halo": "PRESENT (non-vacuity control)" },
-          { "leg": "C", "change": "full opacity, layer moved BELOW webgl-marine-particles", "halo": "band ABSENT over water, but darkening APPEARS OVER COASTAL LAND - REJECTED as the fix" }
+          {
+            "leg": "A",
+            "change": "baseline",
+            "halo": "PRESENT"
+          },
+          {
+            "leg": "B",
+            "change": "line-opacity -> 0",
+            "halo": "ABSENT"
+          },
+          {
+            "leg": "A'",
+            "change": "line-opacity restored",
+            "halo": "PRESENT (non-vacuity control)"
+          },
+          {
+            "leg": "C",
+            "change": "full opacity, layer moved BELOW webgl-marine-particles",
+            "halo": "band ABSENT over water, but darkening APPEARS OVER COASTAL LAND - REJECTED as the fix"
+          }
         ],
         "zoom_ladder": [
-          { "zoom": 2, "stock": "halo PRESENT", "fixed": "absent" },
-          { "zoom": 4, "stock": "halo SEVERE - whole Gulf, Atlantic seaboard, Cuba, Hispaniola, Central America", "fixed": "absent" },
-          { "zoom": 6, "stock": "halo PRESENT", "fixed": "absent" },
-          { "zoom": 7.5, "stock": "halo PRESENT", "fixed": "absent" },
-          { "zoom": 9.2, "stock": "faceted dark blobs over Cape Canaveral / Merritt Island", "fixed": "absent" },
-          { "zoom": ">9.5", "stock": "absent by construction (line-opacity expression is 0)", "fixed": "absent" }
+          {
+            "zoom": 2,
+            "stock": "halo PRESENT",
+            "fixed": "absent"
+          },
+          {
+            "zoom": 4,
+            "stock": "halo SEVERE - whole Gulf, Atlantic seaboard, Cuba, Hispaniola, Central America",
+            "fixed": "absent"
+          },
+          {
+            "zoom": 6,
+            "stock": "halo PRESENT",
+            "fixed": "absent"
+          },
+          {
+            "zoom": 7.5,
+            "stock": "halo PRESENT",
+            "fixed": "absent"
+          },
+          {
+            "zoom": 9.2,
+            "stock": "faceted dark blobs over Cape Canaveral / Merritt Island",
+            "fixed": "absent"
+          },
+          {
+            "zoom": ">9.5",
+            "stock": "absent by construction (line-opacity expression is 0)",
+            "fixed": "absent"
+          }
         ],
-        "coverage_regimes_observed": ["unknown", "safe_degraded", "covered"],
+        "coverage_regimes_observed": [
+          "unknown",
+          "safe_degraded",
+          "covered"
+        ],
         "coverage_independence": "The halo appeared in every opaque regime, so the defect is independent of the coverage state machine."
       },
       "rejected_hypotheses": [
-        { "hypothesis": "stack order - move the buffer below the marine field", "why_rejected": "clears the band over water but lands the near-black line above ocean-mask-fill, darkening coastal land. The symptom moves rather than clearing. Owner caught this." },
-        { "hypothesis": "planMaskFamilyOrder (7becd023) is the cause", "why_rejected": "it made an ordering relationship deterministic, but the halo reproduces with the planner ON and vanishes with the buffer's opacity alone at the stock order. Real bug, wrong bug." },
-        { "hypothesis": "SAFE_DEGRADED mask clip (aa026f7f)", "why_rejected": "measured ENGAGED AND CORRECT in the very frames showing the halo; does not govern a style layer" },
-        { "hypothesis": "wash REPLACE / min-combine (7becd023 half 2)", "why_rejected": "washOverlayMode replace:false throughout; does not govern a style layer" },
-        { "hypothesis": "u_dataMaskGate (25fd7c18, 2026-07-21)", "why_rejected": "measured PIXEL-INERT on 2026-08-15 by aa026f7f" }
+        {
+          "hypothesis": "stack order - move the buffer below the marine field",
+          "why_rejected": "clears the band over water but lands the near-black line above ocean-mask-fill, darkening coastal land. The symptom moves rather than clearing. Owner caught this."
+        },
+        {
+          "hypothesis": "planMaskFamilyOrder (7becd023) is the cause",
+          "why_rejected": "it made an ordering relationship deterministic, but the halo reproduces with the planner ON and vanishes with the buffer's opacity alone at the stock order. Real bug, wrong bug."
+        },
+        {
+          "hypothesis": "SAFE_DEGRADED mask clip (aa026f7f)",
+          "why_rejected": "measured ENGAGED AND CORRECT in the very frames showing the halo; does not govern a style layer"
+        },
+        {
+          "hypothesis": "wash REPLACE / min-combine (7becd023 half 2)",
+          "why_rejected": "washOverlayMode replace:false throughout; does not govern a style layer"
+        },
+        {
+          "hypothesis": "u_dataMaskGate (25fd7c18, 2026-07-21)",
+          "why_rejected": "measured PIXEL-INERT on 2026-08-15 by aa026f7f"
+        }
       ],
       "traps": [
         {
@@ -99,8 +164,155 @@
         "program/weather-simulation/evidence/HALO-ATTRIBUTED-ocean-mask-buffer-2026-08-16.md",
         "program/weather-simulation/evidence/HALO-COMMIT-ARCHAEOLOGY-2026-08-16.md"
       ],
-      "ledger_rows": ["C4-P0-01", "C4-P0-03", "C4-P0-04", "C4-P0-06", "C4-MR-06"],
+      "ledger_rows": [
+        "C4-P0-01",
+        "C4-P0-03",
+        "C4-P0-04",
+        "C4-P0-06",
+        "C4-MR-06"
+      ],
       "confirmed_by_owner": true
+    },
+    {
+      "id": "LOP-0002",
+      "date": "2026-08-16",
+      "title": "The residual coastal band below z9 is the coastline-truth gap the buffer was covering",
+      "status": "PROVEN",
+      "refuted_by": null,
+      "symptom": "After LOP-0001 removed ocean-mask-buffer, a grey band still separates land from the marine field along coastlines at z<9. Owner-reported as 'the land mask halo is still persisting around coast lines'.",
+      "surface": {
+        "url": "https://dev--rawsurf.netlify.app/map",
+        "frontend_build": "5117d4fc",
+        "authenticated": true,
+        "renderer": "real browser GPU"
+      },
+      "scene": {
+        "primary": [
+          -78.09,
+          26.589
+        ],
+        "control_coast": [
+          -80.1,
+          26.9
+        ],
+        "theme": "dark",
+        "model": "GFS",
+        "layer": "waves"
+      },
+      "mechanism": "MIDZOOM_OVERLAY_CARVE_MIN_Z = 9. Below z9 the viewport-truth overlay does not run, so the base mask's land/water boundary comes from the GENERALIZED land geometry rather than basemap water truth. The field is therefore masked out over real water in a band whose width is the generalization error (~1-2 km), which at z8.7 (~1199 px/deg) is 10-20 screen px. At z>=9 the overlay carves the coast with basemap truth and the band disappears.",
+      "experiment": {
+        "method": "lever elimination at a fixed scene, then a threshold ladder with telemetry",
+        "legs": [
+          {
+            "leg": "stock (buffer already opt-in OFF per LOP-0001)",
+            "change": "none",
+            "halo": "PRESENT"
+          },
+          {
+            "leg": "ocean-mask-line line-opacity -> 0",
+            "change": "one layer",
+            "halo": "PRESENT - eliminated"
+          },
+          {
+            "leg": "ocean-mask-fill fill-opacity -> 0",
+            "change": "one layer",
+            "halo": "PRESENT - eliminated"
+          },
+          {
+            "leg": "L6 basemap reference (Waves OFF, ocean-mask-* not mounted)",
+            "change": "weather layer off",
+            "halo": "ABSENT - the band requires the marine field"
+          }
+        ],
+        "zoom_ladder": [
+          {
+            "zoom": 8.72,
+            "coast": "Grand Bahama AND SE Florida",
+            "overlayMask_on": false,
+            "reason": "off",
+            "truthGate": false,
+            "band": "PRESENT on both"
+          },
+          {
+            "zoom": 8.9,
+            "coast": "SE Florida",
+            "overlayMask_on": false,
+            "reason": "off",
+            "truthGate": false,
+            "band": "PRESENT"
+          },
+          {
+            "zoom": 9.3,
+            "coast": "SE Florida",
+            "overlayMask_on": true,
+            "reason": "min_combine",
+            "truthGate": true,
+            "band": "ABSENT"
+          }
+        ],
+        "measurements": {
+          "mask_dims": "4096x2048 over 8 deg (_lastMaskIdKey 4096x2048|-82,-74)",
+          "mask_texel_deg": 0.001953,
+          "mask_texel_screen_px_at_z8.72": 2.3,
+          "note": "one texel is ~2.3 px, so LINEAR filtering CANNOT produce a 10-20 px band - mask resolution is eliminated as the cause",
+          "coastSDF": {
+            "base": false,
+            "erode": 0,
+            "aa": 0.012
+          }
+        },
+        "ladder_note": "Three measured stops, two coasts. 8.72 is where the owner report was first reproduced (both coasts, eliminating Bahamas-bank bathymetry as a cause); 8.90/9.30 bracket the threshold. The log's own >=3-stop rule rejected a 2-stop draft of this entry - the guard fired on its author, which is the only way to know it is not decoration."
+      },
+      "rejected_hypotheses": [
+        {
+          "hypothesis": "ocean-mask-buffer (LOP-0001) regressed",
+          "why_rejected": "visibility measured 'none' throughout - the LOP-0001 fix is live and working"
+        },
+        {
+          "hypothesis": "ocean-mask-line",
+          "why_rejected": "opacity 0, band unchanged"
+        },
+        {
+          "hypothesis": "ocean-mask-fill",
+          "why_rejected": "opacity 0, band unchanged"
+        },
+        {
+          "hypothesis": "mask LINEAR filtering / texel softness",
+          "why_rejected": "measured texel = 2.3 screen px vs a 10-20 px band"
+        },
+        {
+          "hypothesis": "Bahamas bank bathymetry / no-data",
+          "why_rejected": "reproduces identically on the SE Florida control coast"
+        },
+        {
+          "hypothesis": "coast SDF erosion",
+          "why_rejected": "coastSDF.base=false and erode=0 measured live"
+        }
+      ],
+      "relationship_to_LOP_0001": "NOT a regression of it. The buffer's line-opacity ramps 1.0 until z8.5 and 0 by z9.5, and its 2026-07-05 comment says it was 'built to blend the MARINE heatmap's coastline'. The buffer covered z<9.5; the overlay carve covers z>=9 - a designed handoff. LOP-0001 correctly removed the buffer because its colour was near-black against medium-slate water, but doing so EXPOSED the gap the buffer had been hiding. Two defects stacked: a wrong-coloured cover, and the thing it covered.",
+      "fix": {
+        "status": "NOT YET APPLIED - owner decision required",
+        "options": [
+          "(a) lower MIDZOOM_OVERLAY_CARVE_MIN_Z below 9 - closes the gap directly, but the threshold exists for repaint cost; needs a measured perf leg before shipping",
+          "(b) restore ocean-mask-buffer with a colour that MATCHES the composited basemap water (the 07-05 intent, executed correctly) so it blends instead of darkening - cheap, but keeps a cover-up",
+          "(c) both: overlay lower where affordable, correctly-coloured buffer as the fallback band"
+        ]
+      },
+      "invariant": {
+        "id": "INV-coastline-truth-below-z9",
+        "statement": "Below MIDZOOM_OVERLAY_CARVE_MIN_Z the marine field's coastline comes from generalized geometry, not basemap truth. Any change to that threshold, or to the buffer that covers the resulting band, must be measured on the owner coast AND a control coast across z8.5-z9.5.",
+        "checkable": "overlayMask.on flips true at exactly MIDZOOM_OVERLAY_CARVE_MIN_Z"
+      },
+      "enforced_by": "frontend/src/components/map/WebGLMarineEngine.midzoomCarve.test.js",
+      "evidence": [
+        "program/weather-simulation/evidence/HALO-RESIDUAL-BAND-BELOW-Z9-2026-08-16.md"
+      ],
+      "ledger_rows": [
+        "C4-P0-03",
+        "C4-MR-02",
+        "C4-MR-06"
+      ],
+      "confirmed_by_owner": false
     }
   ]
 }
