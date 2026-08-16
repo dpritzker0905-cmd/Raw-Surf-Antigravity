@@ -70,3 +70,20 @@ the three mitigations stopped binding, and why.*
 - ⛔ **zoomlab cannot grade any DEPLOYED build**: `/map` is auth-gated on both `main--` and `dev--`,
   and the harness seeds no auth (it works only against a locally-booted dev server). The estate's only
   optical net has never rendered the artifact that ships.
+
+---
+
+## ADDENDUM (2026-08-15, independent lane `claude/halo-audit31-lane`) — the A/B's question is ANSWERED, and the answer was neither of the two readings above
+
+**`u_dataMaskGate` was MEASURED at runtime** (`frontend/scripts/shaderlab-gate.js`: real compiled
+shaders, SwiftShader, the live z8.03 geometry): it is real, linked, its location is ACTIVE — and it
+changes **0 of 262,144 pixels in every geometry**, including the delivered-short strip. The heatmap
+quad is rasterized exactly over the DATA bounds, so `_outData` is unsatisfiable on every fragment and
+the `_outData && _outMask` conjunction never fires. ⇒ **The zoomlab A/B above MUST produce a null
+result, and "the gate stopped binding" is the wrong inference — the gate binds fine and protects the
+empty set.** It was never "the only thing standing between the flood and the screen".
+
+The heatmap's real halo face is **mask-short-INSIDE-data** (the gate excludes it BY DESIGN — the
+Istria preservation), plus the world-regime clamp where only overlay CONTENT defends. Repair, tests
+(71/71), instrumentation (`__RAW_GPU__.heatmapGate`), particle-contract proofs, and the promotion-gate
+runbook: `AUDIT-3.1-INDEPENDENT-LANE-2026-08-15.md` (lane branch, commit `aa026f7f`, NOT pushed).

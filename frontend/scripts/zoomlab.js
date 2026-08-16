@@ -329,6 +329,22 @@ async function main() {
   });
   log('trace installed');
 
+  // DEV-OVERLAY GUARD (2026-08-15, Windows local runs): the webpack-dev-server client overlay
+  // iframe (eslint warnings) sits above the map and swallows REAL wheel/drag input — both
+  // page.mouse.wheel and raw CDP wheel hit the iframe and the zoom never moves (measured live:
+  // 96 notches, z9→z9, while a DOM WheelEvent on the canvas zoomed fine). CI headless builds
+  // don't paint it, which is why the nightly ladders zoom. Remove it — it is dev chrome, not the
+  // artifact under test — and LOG it so no trace can silently run its gestures under an overlay.
+  const removedOverlays = await page.evaluate(() => {
+    let n = 0;
+    for (const f of Array.from(document.querySelectorAll('iframe'))) {
+      const r = f.getBoundingClientRect();
+      if (r.width >= window.innerWidth * 0.9 && r.height >= window.innerHeight * 0.9) { f.remove(); n++; }
+    }
+    return n;
+  });
+  if (removedOverlays) log(`dev-overlay iframes removed: ${removedOverlays}`);
+
   const cx = 640, cy = 400;
   await page.mouse.move(cx, cy);
 

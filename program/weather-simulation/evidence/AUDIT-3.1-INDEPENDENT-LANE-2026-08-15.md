@@ -97,6 +97,39 @@ frozen-commit run — plus 15 new). LOC ratchet: no new violations, no regressio
   clip needs its own design — ribbon endpoints sample the mask before their fade, and ring-fill adds a
   second bounds pair).
 
+## LIVE ladder results (added later the same session — the state machine engaged in the wild)
+
+`zoomlab staircase_full` against a dev server booted **from this worktree** (port 3011; bundle verified
+live — only this lane's build writes `__RAW_GPU__.heatmapGate`):
+
+- **Leg 1 (clip armed), 693 frames, z 2 → 14.03:** the terminal state machine executed live —
+  **627 frames `covered` / 20 `retry` / 46 `safe_degraded` with clip=1**, the SAFE_DEGRADED frames
+  sitting at **z 7.9–8.3 under `ovl:coverage_gap`** — the historical halo band exactly. Mean
+  luminance holds at ~192–194 through every clip frame: the clip bites only the sliver outside the
+  delivered mask (wash shows through), it never blanks the field. The "did not recur on demand"
+  precondition recurs naturally under the real gesture ladder (119 `coverage_gap` frames vs the
+  713-frame control's 98). Trace: `shaderlab-2026-08-15/zoomlab-clip-on-r2/` (.webm + per-frame
+  `gate`/`mDel` join).
+- **Harness fix required first:** on Windows local runs the webpack-dev-server WARNINGS overlay
+  iframe sits above the map and swallows REAL wheel input — 96 notches moved zoom z9→z9 while a
+  DOM WheelEvent zoomed fine (`scripts/zoomlab-wheel-probe.js`). CI headless never paints it, which
+  is why nightly ladders zoomed. zoomlab now removes full-viewport dev iframes pre-gesture and logs
+  the removal (a trace can no longer silently run its gestures under an overlay).
+- **Leg 2 (clip killed via `__RAW_DISABLE_MASK_SHORT_CLIP__`), 689 frames, same ladder:** the kill
+  switch is live-proven end-to-end — **43 frames reach `safe_degraded` with `clip=0`**
+  (`[1, 0, 'safe_degraded']` = "known short, render normally" restored under the flag), 15 `retry`.
+  State-conditioned comparison in the halo band (z 7.8–8.4, `safe_degraded` frames only): whole-frame
+  L 193.0 (on, n=13) vs 192.7 (off, n=15), spk 31.6 vs 32.1 — **as predicted, whole-frame means
+  cannot resolve the sliver the clip governs** (≤ ~5% of columns, land-dependent); the per-pixel
+  discrimination is the shaderlab's deterministic job (S2 painted vs S2c blanked at the same
+  coordinates). No luminance step, no blanking in either leg ⇒ the clip introduces no regression at
+  ladder grain. Run-to-run overlay-path mix differs (83 `noncovering_drop` frames in leg 2 vs 0 in
+  leg 1) — the H6 lesson in data: compare BY STATE, never by wall-clock.
+  Traces committed; `.webm` recordings kept on disk (untracked, ~127 MB):
+  `zoomlab-clip-on-r2/page@1c375ea2….webm`, `zoomlab-clip-off/page@faff366e….webm`, plus the
+  stuck-zoom first attempt `zoomlab-clip-on/` (477 frames all-`covered` at a held z9 — the live
+  quiescence control: the clip never engages in a covered state).
+
 ## Evidence-language corrections (A3.1-04)
 
 - "`shouldRejectMaskShrink` is HOLDING (0 events / 1,096 frames)" must be read as **"the 07-31 signature
@@ -133,7 +166,7 @@ frozen-commit run — plus 15 new). LOC ratchet: no new violations, no regressio
 
 | Criterion | Status |
 |---|---|
-| Disabling the responsible defense reproduces / enabling removes, same artifact | **Lab: yes for the clip (S2 vs S2c). Live: pending precondition recurrence** |
+| Disabling the responsible defense reproduces / enabling removes, same artifact | **Lab: yes (S2 vs S2c). Live: SAFE_DEGRADED engaged on 46 frames at z7.9–8.3 (`coverage_gap`), no field blanking; state-conditioned A/B leg captured** |
 | Uniform activity/value and pixel consequence proven | **Yes** (cached locations + telemetry + probes) |
 | Wash, crests, overlay, style buffer independently attributed | Wash/crests/overlay: mechanically yes; style buffer: **open** |
 | Two consecutive short deliveries end safely | **Yes** (state machine + 15 tests + pixel proof) |
