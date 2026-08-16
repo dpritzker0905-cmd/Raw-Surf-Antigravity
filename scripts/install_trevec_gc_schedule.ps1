@@ -29,10 +29,23 @@
     Unregister the task and exit.
 
 .PARAMETER IntervalHours
-    How often to prune. Default 1.
+    How often to prune, in hours. Default 1. Ignored when -IntervalMinutes is given.
+
+.PARAMETER IntervalMinutes
+    How often to prune, in minutes (registers /SC MINUTE instead of /SC HOURLY). Use when the store
+    is growing fast enough that an hourly sawtooth peaks too high.
+
+.PARAMETER OlderThan
+    Passed through to the GC as --older-than. THIS is what sets the size floor, not the interval.
+    Steady state ~= (version churn rate) x (this window), because anything younger always survives
+    the prune. The GC's 30m default was sized against ~22 versions/hour; at the ~268 versions/hour
+    measured on 2026-08-16 (two `trevec serve` writers live) that same default floors the store at
+    ~2.4 GB no matter how often the task fires. Do not go below ~8m -- it must exceed the longest
+    transaction (a full index run is ~6 min) or a live reader loses its version mid-read.
 
 .EXAMPLE
     pwsh -File scripts/install_trevec_gc_schedule.ps1
+    pwsh -File scripts/install_trevec_gc_schedule.ps1 -IntervalMinutes 15 -OlderThan 10m
     pwsh -File scripts/install_trevec_gc_schedule.ps1 -Remove
     schtasks /query /tn "Raw-Surf trevec index GC" /v /fo LIST
 #>
@@ -40,6 +53,8 @@
 param(
     [switch]$Remove,
     [int]$IntervalHours = 1,
+    [int]$IntervalMinutes = 0,
+    [string]$OlderThan,
     [string]$RepoRoot = (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
 )
 
@@ -79,7 +94,16 @@ if ($LASTEXITCODE -ne 0) { throw "$py cannot import lance. Run: & '$py' -m pip i
 if (Test-TaskExists) { schtasks /delete /tn $TaskName /f | Out-Null }   # idempotent re-register
 
 $action = "`"$pwsh`" -NoProfile -NonInteractive -WindowStyle Hidden -File `"$launcher`""
-schtasks /create /tn $TaskName /tr $action /sc HOURLY /mo $IntervalHours /f | Out-Null
+if ($OlderThan) { $action += " -OlderThan $OlderThan" }
+
+# /SC MINUTE is a first-class schtasks type with no repetition window to expire, so it carries the
+# same "cannot silently unregister itself" property that made /SC HOURLY the choice here.
+if ($IntervalMinutes -gt 0) {
+    $sc = 'MINUTE'; $mo = $IntervalMinutes; $expectMinutes = $IntervalMinutes
+} else {
+    $sc = 'HOURLY'; $mo = $IntervalHours; $expectMinutes = $IntervalHours * 60
+}
+schtasks /create /tn $TaskName /tr $action /sc $sc /mo $mo /f | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "schtasks /create failed with $LASTEXITCODE" }
 
 # Read the schedule back off the REGISTERED task. Registration succeeding has already proven not to
@@ -87,16 +111,28 @@ if ($LASTEXITCODE -ne 0) { throw "schtasks /create failed with $LASTEXITCODE" }
 if (-not (Test-TaskExists)) { throw "task did not persist after /create" }
 $info = schtasks /query /tn $TaskName /v /fo LIST 2>$null
 $repeat = ($info | Select-String -Pattern 'Repeat: Every|Schedule Type').Line -join '; '
-# `-not ($array -match ...)`, NOT `($array -notmatch ...)`. Against an ARRAY these operators FILTER
-# rather than return a boolean, so `$info -notmatch 'Hourly'` yields every line lacking the word --
-# a non-empty, truthy array -- and this guard failed on a task that was registered correctly. A
-# verification step with a false-positive failure is its own kind of broken.
-if (-not ($info -match 'Hourly')) {
-    throw "task registered but is not hourly. Inspect: schtasks /query /tn `"$TaskName`" /v /fo LIST"
+# Verify the CADENCE, not the wording. This used to assert `$info -match 'Hourly'`, which cannot
+# survive a second schedule type (and would have to know schtasks' exact noun for each one). Reading
+# NextRunTime back and checking it lands within the requested window tests the property we actually
+# care about -- that it will fire, and fire soon -- and cannot false-positive on phrasing.
+# ⚠️ Kept from the original: write `-not ($array -match ...)`, NEVER `($array -notmatch ...)`.
+# Against an ARRAY these operators FILTER rather than return a boolean, so `$info -notmatch 'Hourly'`
+# yields every line LACKING the word -- a non-empty, truthy array -- and that guard once failed on a
+# task that was registered correctly. A verification step with a false-positive failure is its own
+# kind of broken.
+$next = (Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction SilentlyContinue).NextRunTime
+if (-not $next) {
+    throw "task registered but has no NextRunTime. Inspect: schtasks /query /tn `"$TaskName`" /v /fo LIST"
+}
+$dueIn = ($next - (Get-Date)).TotalMinutes
+if ($dueIn -gt ($expectMinutes + 5) -or $dueIn -lt -1) {
+    throw ("task registered but next run is {0:N1} min away, expected <= {1} min. Inspect: schtasks /query /tn `"{2}`" /v /fo LIST" -f $dueIn, $expectMinutes, $TaskName)
 }
 
 Write-Output "registered: $TaskName"
-Write-Output "  schedule : hourly (every $IntervalHours h)  [$($repeat.Trim())]"
+Write-Output "  schedule : every $mo $($sc.ToLower())  [$($repeat.Trim())]"
+Write-Output "  next run : $next  (in $([math]::Round($dueIn,1)) min)"
+Write-Output "  older-than: $(if ($OlderThan) { $OlderThan } else { '30m (GC default)' })"
 Write-Output "  runs     : $launcher"
 Write-Output "  python   : $py"
 Write-Output "  log      : $(Join-Path $RepoRoot '.trevec\gc.log')"
