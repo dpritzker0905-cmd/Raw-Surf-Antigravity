@@ -288,3 +288,74 @@ that destroys the payload it was meant to annotate. A side-channel in a premulti
 FLOOR, discoverable only by measurement. Implemented straight from the phase-1 write-up, the bug
 would have been sheltered-water-becomes-land at coastal margins - visible only where the mask
 carries 64, unreproducible from a screenshot, and invisible to every existing test.
+
+
+---
+
+# PHASE 2 STEP 1 - THE ALPHA SIDE-CHANNEL IS REFUTED. Measured, not argued.
+
+**Measured 2026-08-16, same browser, immediately before writing the encoder change.** Step 0 tested
+only the mask's nominal values (64 and 255) and concluded `INVALID = 8` was safe. That conclusion
+was **too narrow and is now withdrawn.**
+
+## Why the step-0 sweep was insufficient
+
+The mask does not carry only 0/64/255:
+- **`.b` holds a continuous coast SDF** (signed distance, 0.5 = coast) - every value in 0..255 is legal.
+- Polygon fills **antialias**, so mask edges carry intermediate values by construction.
+
+So the question is not "does 64 survive" but "does EVERY value survive".
+
+## The measurement: worst-case RGB error across all 256 values, per candidate alpha
+
+| INVALID alpha | max RGB error | values exact (of 256) |
+|---|---:|---:|
+| 4 | **32** | 5 |
+| 8 | **16** | 9 |
+| 16 | 8 | 17 |
+| 32 | 4 | 33 |
+| 64 | 2 | 65 |
+| 96 - 254 | 1 | ~alpha |
+| **255** | **0** | **256** |
+
+Premultiplied storage quantizes RGB to steps of `255/alpha`. The error is therefore **inversely
+proportional to the sentinel's distance from VALID**, which is the exact opposite of what the design
+needs.
+
+## The irreconcilable tension
+
+- To remain **distinguishable from VALID=255 after LINEAR filtering**, INVALID must be FAR from 255.
+- To **preserve RGB**, alpha must be NEAR 255.
+
+There is no value satisfying both. `a=8` (my step-0 recommendation) quantizes RGB to steps of 32 at
+precisely the border texels - destroying the coast SDF and every antialiased edge exactly where the
+mask is most delicate. `a=254` preserves RGB but is indistinguishable from 255 after interpolation.
+
+⇒ **Option 2 (a 1-texel INVALID border in the alpha channel of a canvas-sourced mask) is DEAD.**
+Not "risky" - arithmetically impossible.
+
+## What survives, and why it resolves BOTH open problems
+
+**Option 1: a separate validity texture, `NEAREST`, uploaded from a `Uint8Array`.**
+
+1. **No canvas** => no premultiplication => RGB and validity are both exact. The whole quantization
+   problem disappears rather than being traded off.
+2. **`NEAREST`** => no interpolation => validity is exact at the border, which was the OTHER open
+   concern from phase 1 section 6. One choice closes both.
+3. `createTexture(gl, gl.NEAREST, uint8Array, w, h)` already takes the `ArrayBufferView` path
+   (`WebGLMarineTextureState.js:71-72`), so no new upload machinery is needed.
+
+Cost: one texture and one sampler slot per pass that consults validity. That is the honest price,
+and it is now the *cheaper* option because the alternative does not work at any price.
+
+## Revised recommendation
+
+Replace phase-1 section 6's ranking. **Option 1 is not the expensive fallback - it is the only
+correct one.** Phase-1 preferred Option 2 on the reasoning "changes one writer instead of fifteen
+readers"; that reasoning was sound about *churn* and silent about *arithmetic*.
+
+**The reusable lesson:** step 0 measured the values the mask was *documented* to hold (0/64/255) and
+declared the channel safe. The channel also carries a continuous SDF and antialiased edges, and
+those are what break it. **A sweep over the documented domain is not a sweep over the actual
+domain** - and the second measurement cost one browser call, while shipping on the first would have
+corrupted the coast SDF at every mask border.
