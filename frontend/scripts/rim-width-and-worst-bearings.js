@@ -97,7 +97,26 @@ const profile = ({ center, rayDeg, bearings, maxD }) => {
   const browser = await chromium.launch({ headless: true, args: ['--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
   const page = await ctx.newPage();
-  await page.addInitScript(() => { window.__DISABLE_WEBGL_GUARDRAIL__ = true; });
+  // ISLAND RE-ASSERT A/B (2026-08-17). reassertNeLand multiplies the pristine Natural Earth mask
+  // back over the basemap-painted one (mask * NE / 255), so NE land FORCES mask land regardless of
+  // what the basemap says. NE 10m is generalized, so wherever its coastline bulges seaward of the
+  // real one the field is masked off — a seaward displacement, worst on intricate coastline, which
+  // is exactly the NE-to-E cluster measured at Madeira. Gated on mask density < 1200 px/deg; the
+  // overlay canvas caps at 2048 over 2.409 deg = ~850, so it is ENABLED here.
+  const REASSERT_OFF = process.env.RW_REASSERT_OFF === '1';
+  // PROPOSED FIX, tested BEFORE changing code: the gate is already window-overridable, so the
+  // candidate constant can be A/B'd on the deployed build. The re-assert's own Abaco forensics were
+  // taken at a z9 mask of 205 px/deg; this overlay runs at ~850 px/deg (2048 canvas over 2.409 deg),
+  // 4x finer, yet the <1200 gate still fires. 400 keeps the validated coarse-mask cases (205, and
+  // world masks at ~11) and stops it firing on the fine overlay.
+  const MAXD = process.env.RW_MAXDENSITY ? Number(process.env.RW_MAXDENSITY) : null;
+  await page.addInitScript(({ off, maxd }) => {
+    window.__DISABLE_WEBGL_GUARDRAIL__ = true;
+    if (off) window.__RAW_DISABLE_ISLAND_REASSERT__ = true;
+    if (maxd) window.__RAW_ISLAND_REASSERT_MAX_DENSITY__ = maxd;
+  }, { off: REASSERT_OFF, maxd: MAXD });
+  console.log('[rim] leg: island re-assert ' + (REASSERT_OFF ? 'DISABLED' : 'enabled')
+    + (MAXD ? ` | MAX_DENSITY override = ${MAXD}` : ' (stock gate 1200)'));
   await page.goto(BASE + '/auth', { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.evaluate(({ u }) => {
     localStorage.setItem('raw-surf-user', JSON.stringify(u));

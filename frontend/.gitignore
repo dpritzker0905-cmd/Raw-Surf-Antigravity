@@ -55,3 +55,4 @@ scripts/overlay-mask-*/
 scripts/mask-*-out/
 scripts/mask-bounds-out/
 scripts/rim-width-out/
+scripts/rim-*/

@@ -76,6 +76,45 @@ export function isBasemapWaterSourceReady(mapInstance) {
 // NE land (0) forces mask 0, NE water (255) leaves the mask untouched (open water, canals, sheltered
 // 64, and port-landfill land — all NE=water or already black — survive). Full resolution so thin cays
 // NE carries survive (the old 1024 snapshot averaged them to water). Exported for tests.
+/**
+ * ISLAND RE-ASSERT GATE — pure, exported so the threshold is testable rather than inline.
+ *
+ * ⭐ 1200 → 400 (2026-08-17), and this is the ISLAND-HALO fix. The re-assert MULTIPLIES coarse
+ * Natural Earth land back over the accurate basemap-derived mask, so wherever NE's generalized
+ * coastline bulges seaward of the real one it FORCES the mask to land and the marine field is
+ * carved off real water. Measured at Madeira z9.30, per bearing, on the deployed build:
+ *
+ *     leg                       visible band    onset median   worst bearing
+ *     stock (gate 1200)            15 px            5 px       75° @ 57 px
+ *     re-assert DISABLED            3 px            0 px       255° @ 28 px
+ *     gate = 400                    3 px            0 px       255° @ 28 px
+ *
+ * The waves-OFF baseline is 2 px, so gate=400 returns the coast to the basemap's own edge, and it
+ * reproduces the fully-disabled result exactly while KEEPING the re-assert where it was justified.
+ *
+ * ⛔ WHY NOT SIMPLY DISABLE IT: it exists because the basemap's water polygons DROP small islands,
+ * which the ocean-white pass then floods — forensics measured Abaco 8–17% flooded at a z9 mask of
+ * **205 px/deg**, re-assert → 0. That evidence stands.
+ *
+ * ★ THE GATE WAS COMPARING THE WRONG PAIR. It asks whether the MASK's texel is coarser than NE, but
+ * what decides whether NE HELPS is whether the BASEMAP is coarser than NE. At 205 px/deg the mask is
+ * coarse and NE genuinely adds detail; the viewport overlay runs at ~850 px/deg (a 2048 canvas over
+ * ~2.4°) where the basemap is far finer than NE 10m and NE only corrupts. 400 separates the two:
+ * it keeps 205 (Abaco) and world masks (~11), and excludes the overlay (850) and the base (~1720).
+ *
+ * Tune/kill: `__RAW_ISLAND_REASSERT_MAX_DENSITY__`, `__RAW_DISABLE_ISLAND_REASSERT__`.
+ */
+export const ISLAND_REASSERT_MAX_DENSITY = 400;
+export function islandReassertEnabled(opts) {
+  const o = opts || {};
+  if (o.killed) return false;
+  const d = o.densityPxPerDeg;
+  if (typeof d !== 'number' || !isFinite(d) || d <= 0) return false;   // unknown => do not corrupt
+  const max = (typeof o.maxDensity === 'number' && isFinite(o.maxDensity) && o.maxDensity > 0)
+    ? o.maxDensity : ISLAND_REASSERT_MAX_DENSITY;
+  return d < max;
+}
+
 export function reassertNeLand(canvas, neFull) {
   if (!canvas || !neFull || typeof document === 'undefined') return { applied: false, reason: 'no_input' };
   try {
@@ -174,8 +213,8 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
     const _raOff = typeof window !== 'undefined' && window.__RAW_DISABLE_ISLAND_REASSERT__ === true;
     const _span = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
     const _densityPxDeg = _span > 0 ? canvas.width / _span : 0;
-    const _maxDensity = (typeof window !== 'undefined' && Number(window.__RAW_ISLAND_REASSERT_MAX_DENSITY__)) || 1200;
-    if (!_raOff && _densityPxDeg > 0 && _densityPxDeg < _maxDensity) {
+    const _maxDensity = (typeof window !== 'undefined') ? Number(window.__RAW_ISLAND_REASSERT_MAX_DENSITY__) : NaN;
+    if (islandReassertEnabled({ densityPxPerDeg: _densityPxDeg, maxDensity: _maxDensity, killed: _raOff })) {
       neFull = document.createElement('canvas');
       neFull.width = canvas.width; neFull.height = canvas.height;
       neFull.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0);
