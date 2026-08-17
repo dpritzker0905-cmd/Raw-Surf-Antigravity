@@ -116,7 +116,7 @@ const profile = ({ center, rayDeg, bearings, maxD }) => {
     if (maxd) window.__RAW_ISLAND_REASSERT_MAX_DENSITY__ = maxd;
   }, { off: REASSERT_OFF, maxd: MAXD });
   console.log('[rim] leg: island re-assert ' + (REASSERT_OFF ? 'DISABLED' : 'enabled')
-    + (MAXD ? ` | MAX_DENSITY override = ${MAXD}` : ' (stock gate 1200)'));
+    + (MAXD ? ` | MAX_DENSITY override = ${MAXD}` : ' (stock — code default 400)'));
   await page.goto(BASE + '/auth', { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.evaluate(({ u }) => {
     localStorage.setItem('raw-surf-user', JSON.stringify(u));

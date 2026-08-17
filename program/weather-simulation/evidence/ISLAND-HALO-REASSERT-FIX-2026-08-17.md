@@ -64,6 +64,30 @@ decisions, so this is cohesion rather than a LOC dodge), re-exported by name so 
 test is untouched. Engine 3199 ≤ 3207. **147 suites / 1574 tests pass; ratchet `Regressed: 0`; lint
 no new errors.**
 
+## 4a. ✅ VERIFIED ON THE DEPLOYED BUILD `050f19b3`, with a working positive control
+
+| leg | visible band (waves on) | onset median | bearing 75° |
+|---|---|---|---|
+| **stock — the fix (gate 400)** | **2 px** (= the waves-OFF baseline) | **0 px** | gone |
+| `MAX_DENSITY = 1200` | 2 px | 0 px | gone |
+| **`MAX_DENSITY = 100000`** (forced on) | **17 px** | **5 px** | **55 px** |
+
+Forcing the re-assert on restores the halo exactly, including the signature 75° bearing at 55 px
+(original: 57 / 55). **The lever discriminates on this build, so this is a within-build verification,
+not a cross-build inference.**
+
+⭐ **THE LEG THAT DID NOT REVERSE IS THE MOST INFORMATIVE ONE.** Gate 1200 no longer re-enables the
+halo while 100000 does, so the overlay's density lies BETWEEN them — above the ~850 estimated from a
+2048 canvas, i.e. the 4096 tier was selected. That puts the old threshold of 1200 right at the
+density: **the pre-fix gate was MARGINAL, engaging on some paints and not others depending on which
+canvas tier the span picked.** That is why the halo was intermittent and "slightly" visible rather
+than constant, and it is the argument for 400 rather than a value just under 1200 — the fix must sit
+clear of the boundary, not next to it.
+
+⚠️ Two identical legs (stock vs 1200) would have read as "the fix does nothing" without the forced-on
+control. **A null A/B needs a positive control before it means anything** — the third time that rule
+paid out in this arc.
+
 ## 5. ⚠️ What is NOT fixed
 
 - **Bearing 255° @ 28 px is UNCHANGED in all three legs** (32.69350, −17.12638). A separate, smaller
