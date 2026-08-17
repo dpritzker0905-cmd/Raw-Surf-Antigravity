@@ -48,3 +48,6 @@ scripts/coastband-poscontrol/
 scripts/coastband-noguard/
 scripts/ratingmode-noguard/
 scripts/fp-*/
+scripts/island-*/
+scripts/alpha-*/
+scripts/halo-value-out/
