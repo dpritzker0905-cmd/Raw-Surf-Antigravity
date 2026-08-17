@@ -44,7 +44,17 @@ another. Kill: `__RAW_DISABLE_MIDCARVE_REPLACE__`. 8 tests; 146 suites / 1564 te
 ⚠️ `7b6fc77d`'s message claims the halo IS `min(base, overlay)`. **That claim is wrong** and
 `31d5561f` corrects it on the remote. Do not quote the original.
 
-## 4. ➡️ THE NEXT STEP — one function, not a shader constant
+## 4. ⛔ CORRECTION — §4's original target is EXONERATED (measured 2026-08-17, later)
+
+`mask-geometry-vs-raster.js`: the rings `overlayBasemapWaterOnMask` is handed place the coast
+**median 0 px / max 1 px** from where the basemap renders it, on **24/24** bearings, with 0 polygons
+dropped by its class filter. **The query fidelity is NOT the defect.** The displacement enters
+downstream — rasterisation, or the bounds the finished texture is sampled with. A texture/bounds
+mismatch is the leading candidate; the engine's own MASK NO-SHRINK comment names that class.
+Discriminator: does the offset drift while panning inside the repaint hysteresis and snap back after
+a forced repaint? Drift ⇒ bounds/staleness. Invariant ⇒ the paint.
+
+## 4a. (superseded) the original next step
 
 Make the mask's coastline agree with the basemap's. `overlayBasemapWaterOnMask`
 (`WebGLMarineMaskRenderer.js`) exists for exactly that and returns `applied`. A residual **~6 px

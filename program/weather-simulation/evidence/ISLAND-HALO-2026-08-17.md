@@ -394,7 +394,46 @@ measured clean three independent ways.
 ⛔ Everything shader-side in this document is downstream of the averaging artifact. Re-read §19
 before trusting any width or ramp figure in sections 2, 12, 14, 17.
 
-## 21. ⚠️ WHAT IS NOT ESTABLISHED
+## 21. ⛔ THE §20 FIX TARGET IS MEASURABLY NOT THE DEFECT — the geometry is faithful
+
+`mask-geometry-vs-raster.js` compares, per ray, where the coast sits according to two oracles at the
+same camera: (A) `queryRenderedFeatures([x,y])` point truth — what the basemap actually renders — and
+(B) point-in-polygon against **the exact rings `overlayBasemapWaterOnMask` is handed**
+(`queryRenderedFeatures({layers})`, its own class filter applied, projected in Web Mercator as
+`makeMaskProjector` does).
+
+| | |
+|---|---|
+| rays with BOTH a point-coast and a polygon-coast | **24 / 24** |
+| polygon-coast − point-coast | **median 0 px, min 0, max 1** |
+| features / polygons / skipped by the class filter | 12 / 12 / **0** |
+
+⇒ **The geometry handed to the painter is CORRECT to within one device pixel on every bearing.** The
+query is not coarse, the class filter drops nothing, and the source/source-layer resolve correctly.
+**§20's target is exonerated — "fix the coastline fidelity in overlayBasemapWaterOnMask" would be
+changing something already right.**
+
+⇒ The ~6 px median displacement with ~48 px bearing spread is introduced **DOWNSTREAM of the
+geometry**: either in the rasterisation into the canvas, or in the BOUNDS the finished texture is
+sampled with.
+
+★ Ninth elimination in this arc. Also note the projector was checked and is proper Web Mercator, so a
+projection mismatch is out too.
+
+## 22. ➡️ THE TARGET NOW — a texture/bounds mismatch is the leading candidate
+
+The rings are right and the paint is a plain even-odd fill of those rings, so the most likely place
+for a bearing-dependent offset is a disagreement between the bounds a mask texture was PAINTED for
+and the bounds it is SAMPLED with (`u_overlayBounds` / `_overlayMaskBounds` vs the bounds passed to
+`renderMaskToCanvas`). The engine's own MASK NO-SHRINK comment already names this class:
+*"a tex/bounds mismatch is strictly worse than the halo"*.
+
+**Discriminator:** measure the mask-alpha coast offset while panning INSIDE the repaint hysteresis
+box (no repaint) and again immediately after a forced repaint. An offset that drifts with camera
+movement and snaps back on repaint is a bounds/staleness mismatch; one that is invariant is in the
+paint itself.
+
+## 23. ⚠️ WHAT IS NOT ESTABLISHED
 
 **Four candidate causes are now eliminated by measurement** — the mask edge (§8, direct uniform
 read), the crest pass (§10, clean live A/B on three targets), and the "data is honestly smaller
