@@ -1,4 +1,5 @@
 import { servedResolutionNotice, ServedResolutionRow } from './servedResolutionNotice';
+import { marineFallbackNotice, MarineFallbackRow, useMarineFallbackState } from './marineFallbackNotice';
 import React from 'react';
 
 /**
@@ -83,10 +84,21 @@ export function tickTransform(pct) {
 // MapWeatherControls (grandfathered over the 800-LOC ratchet, shrink-only) from growing at all.
 // Opt-in because the surf-RATING band renders its own LegendTicks; the grid coarseness belongs to
 // the data layer's key, not to the rating key, and showing it twice would be noise.
+// The raster-fallback disclosure rides the SAME opt-in as the resolution notice, for the same
+// reason: it is a fact about the DATA LAYER, so it belongs on the data layer's key and would be
+// noise repeated under the rating key. Riding `showResolution` also makes it appear exactly once
+// across all three layouts. It stays silent unless the fallback is actually engaged.
 export function LegendTicks({ ticks, className, showResolution = false }) {
+  // Hooks must run before any early return, or the hook order changes with `ticks` (React rule).
+  const marineFailed = useMarineFallbackState();
+  const ratingOn = typeof window !== 'undefined'
+    && (window.__SURF_MODE__ === true
+      || (window.__SURF_MODE__ === undefined && typeof window.localStorage !== 'undefined'
+          && window.localStorage.getItem('__SURF_MODE__') === 'true'));
   if (!Array.isArray(ticks) || ticks.length === 0) return null;
   const d = (showResolution && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) || null;
   const notice = d ? servedResolutionNotice(d.resolution, d.resolutionSource) : null;
+  const fallback = showResolution ? marineFallbackNotice(marineFailed, ratingOn) : null;
   return (
     <>
     <div className={`relative w-full ${className || ''}`} style={{ height: '0.85rem' }}>
@@ -101,6 +113,7 @@ export function LegendTicks({ ticks, className, showResolution = false }) {
       ))}
     </div>
     <ServedResolutionRow notice={notice} className={className} />
+    <MarineFallbackRow notice={fallback} className={className} />
     </>
   );
 }

@@ -758,6 +758,7 @@ const MapWebGL = ({
       setMarineFailed: (v) => { setWebglMarineFailed(v); localStorage.setItem('force_marine_fallback', String(v)); },
       reset: () => { setWebglWindFailed(false); setWebglMarineFailed(false); localStorage.removeItem('force_wind_fallback'); localStorage.removeItem('force_marine_fallback'); }
     };
+    window.dispatchEvent(new CustomEvent('rawsurf:marine-fallback', { detail: { marineFailed: webglMarineFailed } })); // legend disclosure (marineFallbackNotice)
     return () => { delete window.__WEBGL_GUARDRAIL_FALLBACK__; };
   }, [webglWindFailed, webglMarineFailed]);
 
