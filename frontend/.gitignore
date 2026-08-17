@@ -40,3 +40,11 @@ scripts/tier-B/
 scripts/zoomlab-out/
 scripts/wind-*-out/
 scripts/ab-results/
+
+# Marine fallback / coastband forensics output (2026-08-16). The existing `scripts/*-out/` rules
+# miss these names, and the dirs hold ~240 MB of frames and video — a previous session had its
+# untracked evidence swept into someone else's commit (aa305291), so name them explicitly.
+scripts/coastband-poscontrol/
+scripts/coastband-noguard/
+scripts/ratingmode-noguard/
+scripts/fp-*/

@@ -4,52 +4,9 @@
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "start"],
-      "port": 3000,
-      "autoPort": true
-    },
-    {
-      "name": "backend",
-      "runtimeExecutable": "C:/Users/dprit/AppData/Local/Python/pythoncore-3.14-64/python.exe",
-      "runtimeArgs": ["backend/server.py"],
-      "port": 8000
-    },
-    {
-      "name": "attach",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["-e", "require('http').createServer((q,s)=>{s.writeHead(200,{'content-type':'text/html'});s.end('<html><body>attach</body></html>')}).listen(5599,()=>console.log('attach on 5599'))"],
-      "port": 5599
-    },
-    {
-      "name": "frontend-live",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["-e", "const cp=require('child_process');const env=Object.assign({},process.env,{NODE_OPTIONS:'--openssl-legacy-provider',PORT:'3001',BROWSER:'none',CI:'false'});cp.spawn('npm start',{cwd:'C:/Users/dprit/Raw-Surf/frontend',stdio:'inherit',env,shell:true});"],
-      "port": 3001
-    },
-    {
-      "name": "frontend-verify",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["-e", "const cp=require('child_process');const env=Object.assign({},process.env,{NODE_OPTIONS:'--openssl-legacy-provider',PORT:'3009',BROWSER:'none',CI:'false'});cp.spawn('npm start',{cwd:'C:/Users/dprit/Raw-Surf/frontend',stdio:'inherit',env,shell:true});"],
-      "port": 3009
-    },
-    {
-      "name": "frontend-arb",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["-e", "const cp=require('child_process');const env=Object.assign({},process.env,{NODE_OPTIONS:'--openssl-legacy-provider',PORT:'3011',BROWSER:'none',CI:'false'});cp.spawn('npm start',{cwd:'C:/Users/dprit/Raw-Surf/frontend',stdio:'inherit',env,shell:true});"],
-      "port": 3011
-    },
-    {
-      "name": "frontend-halo-lane",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["-e", "const cp=require('child_process');const env=Object.assign({},process.env,{NODE_OPTIONS:'--openssl-legacy-provider',PORT:'3013',BROWSER:'none',CI:'false'});cp.spawn('npm start',{cwd:'C:/Users/dprit/Raw-Surf/.claude/worktrees/halo-lane/frontend',stdio:'inherit',env,shell:true});"],
-      "port": 3013
-    },
-    {
-      "name": "frontend-preview",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["-e", "const cp=require('child_process');const env=Object.assign({},process.env,{NODE_OPTIONS:'--openssl-legacy-provider',BROWSER:'none',CI:'false'});cp.spawn('npm start',{cwd:'C:/Users/dprit/Raw-Surf/frontend',stdio:'inherit',env,shell:true});"],
-      "port": 3007,
-      "autoPort": true
+      "runtimeArgs": ["start"],
+      "cwd": "frontend",
+      "port": 3000
     }
   ]
 }
