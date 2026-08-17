@@ -93,5 +93,5 @@ paid out in this arc.
 - **Bearing 255° @ 28 px is UNCHANGED in all three legs** (32.69350, −17.12638). A separate, smaller
   residual with a different cause. One bearing of 24.
 - The earlier `midcarve REPLACE` change (`7b6fc77d`, ~10%) stays; it is independent and kill-switched.
-- Not yet verified on a deployed build — but the exact constant WAS validated live via the window
-  override (§2), which is stronger than the usual pre-deploy position.
+- ✅ Deployed verification is DONE — §4a. (This bullet previously read "not yet verified"; §4a
+  superseded it and the stale line is corrected rather than left to contradict the section above it.)
