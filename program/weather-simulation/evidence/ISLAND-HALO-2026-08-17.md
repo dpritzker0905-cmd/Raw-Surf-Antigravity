@@ -316,7 +316,85 @@ produced.
 under its own preconditions, kill-switched. But the commit message on `7b6fc77d` claims the halo IS
 min(base, overlay); **as stated that is wrong, and this corrects it.**
 
-## 17. ⚠️ WHAT IS NOT ESTABLISHED
+## 17. ✅ THE MASK PROFILE BY MODE — and why the shipped fix bought only 10%
+
+`overlay-mask-profile.js` reads `oceanAlpha` itself via the shader's built-in
+`__GPU_DEBUG__ = {mode:'mask'}` (greyscale mask value, emitted BEFORE maskFade, the height term and
+the feather), recovered from two backgrounds so it is separated from every other alpha factor.
+
+| mode | mask alpha @ shore | @ d4 | @ d128 | edge |
+|---|---|---|---|---|
+| `coverage_gap` | **0.911** | 0.987 | 0.987 | crisp, ~4 px |
+| `min_combine` | **0.385** | 0.618 | 0.982 | soft, 32-64 px |
+| **`midcarve_replace`** (shipped, 6 replicates) | **0.441** | 0.618 | 0.982 | **soft** |
+
+⇒ **BOTH REPLACE PATHS SET THE SAME UNIFORM, YET ONE IS CRISP AND THE OTHER SOFT.** So the halo was
+never min-vs-replace: the overlay texture that the midcarve path replaces WITH is itself feathered.
+Overlay span 2.409 deg over a <=2048 canvas is ~2.1 device px/texel, which cannot make a 32-64 px
+edge by filtering — the softness is **baked into the overlay canvas**.
+
+★ **This closes the deployed A/B's loop.** The fix swapped `min(base, overlay)` for `overlay`, but
+the overlay is soft too — which is exactly why it bought ~10% rather than the cure. The 10% is the
+difference between two soft masks, not between soft and crisp.
+
+⚠️ **MY OWN GUARD FIRED, so these absolutes carry a caveat.** The recovered `u_opacity` runs
+0.85 -> 1.00 across distance in 5 of 6 replicates, and it is a UNIFORM — it must be flat. The
+two-unknown decomposition is therefore not clean (most likely premultiplied blending coupling RGB
+and A in the debug path). **The DIRECTION is robust** — 0.911 vs 0.441 at the shoreline is a large
+separation, reproducible across independent runs and stable to ~0.01 within mode — but the absolute
+alpha values must not be quoted as exact.
+
+## 18. ➡️ THE NEXT STEP, narrowed to one diff
+
+Same painter, two call sites, different results: `renderMaskToCanvas` + `overlayBasemapWaterOnMask`
+produce a CRISP coastline in the `coverage_gap` path and a FEATHERED one in the midcarve path.
+Compare those two call sites — canvas width, bounds padding, and whether the basemap-water overlay
+actually applied — rather than looking for a feather in the shader, which has now been measured
+three separate ways and is not the source.
+
+⛔ Do NOT make a third shader change on inference. Seven candidate causes have died under
+measurement in this arc; the pattern is that each shader-side hypothesis has been wrong.
+
+## 19. ⭐⭐⭐ THE MASK IS NOT SOFT — IT IS DISPLACED, AND MY OWN METRIC MADE THE RAMP
+
+Per-ray decomposition of the same mask-alpha capture (24 bearings solved individually instead of
+collapsed to a mean per bucket), reproducible across replicates:
+
+| statistic | value |
+|---|---|
+| median 10-90% transition width **PER RAY** | **3.5 - 4.6 device px** |
+| median 50% crossing | 5.9 - 6.0 px seaward of the basemap shoreline |
+| **50% crossing SPREAD across bearings** | **47.9 px** (identical in both replicates) |
+
+⇒ **Every individual ray has a nearly HARD edge (~4 px, consistent with a 1-2 px texel plus
+antialiasing). The "soft 32-64 px ramp" was AN ARTIFACT OF AVERAGING** — 24 crisp steps whose
+positions scatter over ~48 px, meaned into a smooth curve.
+
+⇒ **The mask coastline is DISPLACED from the basemap coastline by a bearing-dependent amount**, not
+feathered. That is a GEOMETRY disagreement, not a rendering softness.
+
+★★★★ **THE METHODOLOGICAL LESSON, and it invalidated seven rounds of hypotheses: A MEAN OVER
+BEARINGS CONVERTS DISPLACEMENT VARIANCE INTO APPARENT SOFTNESS.** I built that average into the very
+first radial harness and every later step inherited it — which is why no shader hypothesis ever
+matched the measured width, why the texel arithmetic never reconciled, and why each "cause" died.
+The shader was never the problem. **When a profile looks like a ramp, check whether it is a ramp per
+sample or a distribution of steps.**
+
+★ And it retroactively VINDICATES LOP-0002, which attributed the band to "generalized land geometry"
+rather than to any shader term. That was right. My mean-based metric obscured it for seven rounds.
+
+## 20. ➡️ THE FIX TARGET, now precise
+
+Make the mask's coastline agree with the basemap's. `overlayBasemapWaterOnMask` exists for exactly
+that and reports `applied`; the residual ~6 px median displacement with ~48 px bearing spread says
+it is either applying at coarser fidelity than the basemap renders (simplified tiles at the queried
+zoom) or applying only partially. That is where to look — NOT in the shader, which has now been
+measured clean three independent ways.
+
+⛔ Everything shader-side in this document is downstream of the averaging artifact. Re-read §19
+before trusting any width or ramp figure in sections 2, 12, 14, 17.
+
+## 21. ⚠️ WHAT IS NOT ESTABLISHED
 
 **Four candidate causes are now eliminated by measurement** — the mask edge (§8, direct uniform
 read), the crest pass (§10, clean live A/B on three targets), and the "data is honestly smaller
