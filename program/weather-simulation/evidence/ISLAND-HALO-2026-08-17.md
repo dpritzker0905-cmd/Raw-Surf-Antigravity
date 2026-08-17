@@ -282,7 +282,41 @@ alpha is flat under it, nothing regressed. NOT verified: that it removes the hal
 A/B is owed** — same harness against the alias after deploy, expecting the disabled leg near 0.6
 and the fixed leg near 0.02.
 
-## 16. ⚠️ WHAT IS NOT ESTABLISHED
+## 16. ⛔⛔ THE DEPLOYED A/B PARTLY REFUTES §14 — read this before trusting the attribution
+
+Same harness against the alias on `3a686f78`, where the defect actually reproduces. **Both legs
+stable** (|rep1-rep2| = 0.043 and 0.031), so this is a trustworthy controlled comparison:
+
+| leg | mode | alpha at shore | spread |
+|---|---|---|---|
+| fixed | `midcarve_replace` | 0.153 / 0.162 | 0.507 / 0.550 |
+| fix disabled | `min_combine` | 0.088 / 0.097 | 0.570 / 0.601 |
+
+**The fix is a REAL but SMALL improvement**: shoreline alpha up ~1.7x (0.09 → 0.16), spread down
+~10%. It is **NOT** the flat alpha ~0.68 that §14 predicted, and the halo remains.
+
+⛔ **WHY §14 OVER-READ ITS OWN DATA — the same error one level up.** §14 grouped runs by compositing
+MODE and concluded REPLACE removes the halo. But the flat runs were all `coverage_gap` REPLACE,
+which is a different **REGIME**, not merely a different min/replace choice: it fires when the base
+mask does not cover the viewport, so the resident mask situation differs too. Grouping across
+regimes is a correlation, not a controlled comparison. The deployed A/B IS the controlled
+comparison — same regime, same masks, only min() vs replace — and it yields ~10%.
+
+★★★ I corrected "grouping by lever" into "grouping by mode" and then made the identical mistake at
+the next level. **A grouping is only causal if everything else is held fixed, and switching regime
+holds nothing fixed.** The A/B was always the arbiter; the grouping was a hypothesis generator that
+I promoted to a finding.
+
+**WHAT SURVIVES.** Under REPLACE the overlay ALONE governs the coast, and alpha still ramps
+0.16 → 0.66. So the residual halo is **the overlay mask's own coastal alpha**, not a disagreement
+between two masks — one mask, one coastline, no union. That is the narrowest target this arc has
+produced.
+
+**DISPOSITION.** The change is KEPT, not reverted: measured improvement, no regression, principled
+under its own preconditions, kill-switched. But the commit message on `7b6fc77d` claims the halo IS
+min(base, overlay); **as stated that is wrong, and this corrects it.**
+
+## 17. ⚠️ WHAT IS NOT ESTABLISHED
 
 **Four candidate causes are now eliminated by measurement** — the mask edge (§8, direct uniform
 read), the crest pass (§10, clean live A/B on three targets), and the "data is honestly smaller
