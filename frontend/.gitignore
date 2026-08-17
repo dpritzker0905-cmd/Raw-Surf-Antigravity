@@ -54,3 +54,4 @@ scripts/halo-value-out/
 scripts/overlay-mask-*/
 scripts/mask-*-out/
 scripts/mask-bounds-out/
+scripts/rim-width-out/

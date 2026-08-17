@@ -93,16 +93,55 @@ coastal styling, or the eye is tracking a lower alpha threshold than the 50% cro
 before sizing any fix** — measure the visible rim's width directly off the ladder frames and compare
 against the alpha crossing at several thresholds (25% / 50% / 75%).
 
+## 6a. ✅ THE RIM-WIDTH TENSION IS RESOLVED — the rim is OURS, and I was conflating two quantities
+
+`rim-width-and-worst-bearings.js`, same camera, band = the run adjacent to the coast whose colour
+differs from that ray's OWN far-water colour, the identical rule applied to both legs:
+
+| leg | band width per ray (median) |
+|---|---|
+| Waves **ON** | **14 device px** (~7 CSS px) |
+| Waves **OFF** | **2 device px** |
+
+The basemap has essentially no coastal band of its own, so the visible rim is the marine layer's —
+7x wider with the field on.
+
+★ **The tension was mine.** 2.2-3.6 px is the mask's alpha EDGE SHARPNESS (10->90% transition); the
+rim is the DISPLACEMENT of that sharp edge. A crisp boundary in the wrong place still leaves a wide
+gap: edge ~3 px, median field onset ~6 px, visible band ~14 px — all consistent. I had been reading
+a sharpness figure as if it bounded the rim width. **Name the quantity, not just the number.**
+
+## 6b. ✅ THE WORST BEARINGS — the defect is a few SEGMENTS, with coordinates
+
+Field onset seaward of the basemap shoreline, per bearing, Madeira z9.30 (median 6 px, n=24):
+
+| bearing | onset | coordinates |
+|---|---|---|
+| **75°** | **55 px** | 32.76552, −16.80684 |
+| 255° | 28 px | 32.69350, −17.12638 |
+| 45° | 26 px | 32.79477, −16.85498 |
+| 60° | 25 px | 32.78223, −16.83313 |
+| 345° | 18 px | 32.83064, −16.94882 |
+| 0° | 17 px | 32.83374, −16.92000 |
+
+Clean for contrast — **onset 0 px**: 150°, 270°, 285°.
+
+⇒ 45/60/75° are CONTIGUOUS (the NE-to-E coast) plus 345/0° on the north, while the S and W are
+perfect. **Most of the coast is right; a few segments carry the whole defect** — which is why every
+whole-coast statistic in this document hid it, and it matches the ladder frames showing a wider rim
+on the north shore. The worst segments are Madeira's most intricate coastline, where a
+rasterised mask, its antialiasing and the `smoothstep(0.45,0.6)` cut have least margin.
+
 ## 7. ➡️ Next, in order
 
-1. **Resolve §6's tension** — 10 CSS px seen vs 2–3 device px measured. One of the two is not
-   measuring the halo the owner sees.
-2. **Find the bad bearings.** The defect is a few segments, not a ring: dump per-bearing `cross50`
-   at Madeira, take the worst 5, and unproject them to coordinates. Then compare the mask's ring
-   against the basemap's polygon AT THOSE COORDINATES specifically — a whole-coast statistic has
-   already been shown to hide this.
-3. Only then size a fix. ⛔ **Not another shader change** — the shader has measured clean four
-   independent ways.
+1. ✅ done — §6a. 2. ✅ done — §6b.
+3. **Go to the six coordinates in §6b** and compare, at those places only, the mask's rasterised
+   coast against the basemap polygon that produced it. The geometry handed to the painter is correct
+   to 1 px globally (§4), so at bearing 75° something between "correct ring" and "painted texel"
+   loses 55 px. Candidates in order: the even-odd fill on a narrow headland, antialiasing against the
+   `smoothstep(0.45,0.6)` cut, and the canvas resolution at that span.
+4. Size a fix only after (3) names the step. ⛔ **Not another shader change** — the shader has
+   measured clean four independent ways.
 
 ## 8. Instruments that work — don't rebuild these
 
