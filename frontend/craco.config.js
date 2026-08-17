@@ -53,11 +53,31 @@ let webpackConfig = {
       // cache fail hard with "Can't handle conflicting asset info for sourceFilename" (hit live
       // from .claude/worktrees/halo-lane). Opt-in redirect to a private cache dir; inert when
       // the env var is unset, so normal builds are byte-identical.
-      if (process.env.WEBPACK_CACHE_DIR && webpackConfig.cache) {
+      //
+      // ⭐ 2026-08-16 — MADE SAFE BY DEFAULT, because opt-in did not hold. This tree's cache was
+      // measured carrying `worktrees\halo-lane` build contexts (1.4 GB), and
+      // `.claude/worktrees/halo-lane/frontend/node_modules` is a JUNCTION to this tree's
+      // node_modules — so a build over there writes its cache in HERE, whatever this tree does.
+      // A guard that every writer must remember to set is not a guard.
+      //
+      // WHAT IT BROKE, and why it looked like nothing: the conflict landed on
+      // `@openmeteo/file-format-wasm`'s `om_reader_wasm.web.wasm`, so the asset was never emitted.
+      // The dev server then answered the .wasm request with the SPA's index.html, and the decoder
+      // died on `expected magic word 00 61 73 6d, found 3c 21 64 6f` ("<!do"). Every `om://` tile
+      // decode threw, so the Open-Meteo raster fallback painted NOTHING locally while looking
+      // perfectly healthy — layer added, visible, correct source URL, real opacity ramp. Measured:
+      // ocean colour 1/255 from bare water locally vs 11 on the deployed alias.
+      //
+      // Keying the directory on THIS tree's absolute path gives every worktree its own cache even
+      // through a shared/junctioned node_modules. WEBPACK_CACHE_DIR still overrides, by hand.
+      if (webpackConfig.cache) {
+        const treeKey = require('crypto').createHash('sha1').update(__dirname).digest('hex').slice(0, 12);
         webpackConfig.cache = {
           ...(typeof webpackConfig.cache === 'object' ? webpackConfig.cache : {}),
           type: 'filesystem',
-          cacheDirectory: path.resolve(process.env.WEBPACK_CACHE_DIR),
+          cacheDirectory: process.env.WEBPACK_CACHE_DIR
+            ? path.resolve(process.env.WEBPACK_CACHE_DIR)
+            : path.join(__dirname, 'node_modules', '.cache', 'webpack-tree', treeKey),
         };
       }
       return webpackConfig;
