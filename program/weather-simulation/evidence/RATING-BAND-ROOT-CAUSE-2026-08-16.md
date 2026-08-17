@@ -125,8 +125,21 @@ and a mutated props object (so the recovery ref never updated). In both cases th
 recover" assertions passed **vacuously** while only the positive tests failed — which is precisely
 what a suite without controls would have shipped.
 
-⚠️ **Not yet verified on a deployed build** — these changes are local; the dev alias still serves
-`d74b38f9`. The end-to-end proof is a real trip and a real recovery on the alias after deploy.
+✅ **VERIFIED ON THE DEPLOYED BUILD `6561ea30`** (`frontend/scripts/guardrail-recovery-live.js`).
+Nothing forced — no `__DISABLE_WEBGL_GUARDRAIL__`, no `force_marine_fallback`; SwiftShader's ~1 FPS
+is the same condition a genuinely slow GPU produces, so this exercises the real path:
+
+```
+t+39.8s   TRIP       [WebGLGuardrail] below 20 FPS for 12 consecutive seconds
+t+43.9s   FALLBACK   webglMarineFailed = true
+t+48.9s   NOTICE     "⚠ Simplified wave layer — surf-rating band unavailable"
+t+101.3s  RECOVERY   [WebGLGuardrail] Recovery attempt 1/2: re-enabling the WebGL Marine layer
+t+102.2s  BAND_ON    [rating-band] PAINTING ✓
+t+105.1s  RESTORED   webglMarineFailed = false, notice cleared
+```
+
+Recovery fired **61.5 s** after the trip — the 60 s backoff. All six checks pass: tripped, notice
+shown while down, recovered, **notice cleared after recovery**, recovery logged, band repainted.
 
 ## 5a. Does the fallback actually PAINT? — owner's question, answered both hosts
 
