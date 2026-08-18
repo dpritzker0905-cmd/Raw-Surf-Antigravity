@@ -431,6 +431,20 @@ void main() {
     } else if (u_debug_mode < 4.5) { // 'mercator' -> 4.0
       gl_FragColor = vec4(grid_uv.x, 1.0 - grid_uv.y, 1.0, u_opacity);
       return;
+    } else if (u_debug_mode < 5.5) { // 'why' -> 5.0
+      // DISCARD-REASON MAP (2026-08-17, the 255 deg teardown). The two discards below this block are
+      // the ONLY ways this pass yields nothing, and a blank pixel cannot say which one ran — the
+      // teardown could prove the mask was innocent but not name the culprit. Paint the reason:
+      //   RED   oceanAlpha < 0.5                      — the mask discard
+      //   BLUE  surf mode AND ratingScore <= 0.05     — the rating discard (the "bilinear tail")
+      //   GREEN this pass paints here
+      // Conditions are written to MATCH the real discards exactly; if they ever drift apart this
+      // view starts lying, so it is deliberately adjacent to them rather than in a helper.
+      // Alpha is pinned to 1.0 (not u_opacity) so the class is read straight, not through a blend.
+      if (oceanAlpha < 0.5) { gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); return; }
+      if (u_surfMode > 0.5 && waveHeight * 10.0 <= 0.05) { gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0); return; }
+      gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+      return;
     }
   }
 

@@ -1502,6 +1502,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       else if (mode === 'mask') debugModeVal = 2.0;
       else if (mode === 'grid') debugModeVal = 3.0;
       else if (mode === 'mercator') debugModeVal = 4.0;
+      else if (mode === 'why') debugModeVal = 5.0;   // discard-reason map (the 255° teardown)
     }
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
 
