@@ -9,7 +9,7 @@ import { FloatArrayConstructor } from './WebGLMarineFieldMath';
 
 const _geoCache = new Map();
 
-export function getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess, isGlobal, motionOceanArr) {
+export function getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess, isGlobal, motionOceanArr, trueOceanArr) {
   const N = cols * rows;
 
   // Cache key includes the OCEAN-CELL COUNT (2026-07-03): products of identical shape+bounds can
@@ -27,7 +27,17 @@ export function getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess,
     _motionCount = 0;
     for (let i = 0; i < N; i++) _motionCount += motionOceanArr[i];
   }
-  const cacheKey = `${cols}_${rows}_${bounds ? `${bounds.west.toFixed(3)}_${bounds.south.toFixed(3)}_${bounds.east.toFixed(3)}_${bounds.north.toFixed(3)}` : 'global'}_o${_oceanCount}${motionOceanArr ? `_m${_motionCount}` : ''}`;
+  // LAND-AWARE FETCH (2026-08-18): the TRUE land mask must key the cache too. oceanArr is
+  // POST-extrapolation, so two grids of identical shape/bounds/oceanCount can carry different true
+  // masks and would otherwise share a cached dataChl — reusing the wrong per-texel ocean flags. This
+  // is the same failure the ocean-count key was added for on 2026-07-03; the new channel needs the
+  // same discrimination. Absent (undefined) leaves the key byte-identical for existing callers.
+  let _trueCount = -1;
+  if (trueOceanArr) {
+    _trueCount = 0;
+    for (let i = 0; i < N; i++) _trueCount += trueOceanArr[i] === 1 ? 1 : 0;
+  }
+  const cacheKey = `${cols}_${rows}_${bounds ? `${bounds.west.toFixed(3)}_${bounds.south.toFixed(3)}_${bounds.east.toFixed(3)}_${bounds.north.toFixed(3)}` : 'global'}_o${_oceanCount}${motionOceanArr ? `_m${_motionCount}` : ''}${trueOceanArr ? `_t${_trueCount}` : ''}`;
   let geoData = _geoCache.get(cacheKey);
 
   if (!geoData) {
@@ -190,7 +200,11 @@ export function getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess,
       // shader reads it at exact texel CENTRES so it is never interpolated — see sampleWaveLandAware().
       // ⚠️ Must stay AFTER oceanFlag is declared: written above the const it is a temporal-dead-zone
       // ReferenceError, which is exactly how the first draft of this change failed.
-      dataChl[i * 4 + 3] = oceanFlag;
+      // ⚠️ The land-aware flag uses the TRUE (pre-extrapolation) mask, NOT oceanFlag.
+      // extrapolateOceanData marks every cell it fills as ocean, so oceanFlag says "ocean" for the
+      // island cells whose invented values are the whole problem. Falls back to oceanFlag when the
+      // caller passes no snapshot, so existing callers are byte-identical.
+      dataChl[i * 4 + 3] = trueOceanArr ? (trueOceanArr[i] === 1 ? 255 : 0) : oceanFlag;
       dataMask[i * 4 + 0] = oceanFlag;
       // G = MOTION-water when provided (rating grids); otherwise duplicates the color flag
       // exactly as before. Land is 0 on both channels, so max(r, g*unlock) can never leak land.

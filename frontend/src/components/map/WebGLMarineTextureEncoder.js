@@ -255,6 +255,11 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     };
   }
 
+  // LAND-AWARE FETCH (2026-08-18): snapshot the TRUE land mask FIRST. extrapolateOceanData sets
+  // oceanArr[idx] = 1 on every cell it fills, so after it runs the array no longer distinguishes
+  // "ocean" from "land we invented a value for" — and those filled cells are exactly the ones the
+  // land-aware fetch must exclude. Reading the flag after extrapolation made the fix inert.
+  const trueOceanArr = Uint8Array.from(oceanArr);
   extrapolateOceanData(uArr, vArr, hArr, pArr, oceanArr, cols, rows, isGlobal);
   if (hPhys && _physClones) {
     extrapolateOceanData(_physClones.u, _physClones.v, hPhys, _physClones.p, _physClones.o, cols, rows, isGlobal);
@@ -275,7 +280,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
   // Shelf-distance / bathymetry / chlorophyll / ocean-mask channels (viewport-cached in
   // WebGLMarineGeoData). Extracted for LOC compliance — pure geo derivation, no engine/mask coupling.
   // motionArr (rating grids only) rides into dataMask.g; null leaves the derivation byte-identical.
-  const { dataBath, dataChl, dataMask } = getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess, isGlobal, motionArr);
+  const { dataBath, dataChl, dataMask } = getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess, isGlobal, motionArr, trueOceanArr);
 
   // §4.2 A/B DISCRIMINATOR: if the unlock A/B still shows locked animations, this tells the next
   // probe WHICH root is live — unlockable = masked-ocean cells the g-channel frees; withMotion =

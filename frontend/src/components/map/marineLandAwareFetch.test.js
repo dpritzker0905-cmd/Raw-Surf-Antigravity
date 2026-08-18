@@ -145,3 +145,31 @@ describe('HEATMAP_FS wiring', () => {
     expect(HEATMAP_FS).toContain('u_waveTexel.x <= 0.0 || u_waveTexel.y <= 0.0');
   });
 });
+
+describe('the flag must be the TRUE land mask, not the post-extrapolation one', () => {
+  const { getMarineGeoData } = require('./WebGLMarineGeoData');
+  const COLS = 4, ROWS = 4, N = COLS * ROWS;
+  // cell 5 is land in truth, but extrapolateOceanData filled it and flipped its flag to ocean
+  const postExtrap = new Uint8Array(N).fill(1);
+  const truth = new Uint8Array(N).fill(1); truth[5] = 0;
+
+  it('marks the filled cell as LAND in chlorophyll alpha when the true mask is supplied', () => {
+    const { dataChl } = getMarineGeoData(COLS, ROWS, { west: -18, east: -16, south: 32, north: 34 },
+      postExtrap, N, false, null, truth);
+    expect(dataChl[5 * 4 + 3]).toBe(0);        // the whole point: excluded from the blend
+    expect(dataChl[6 * 4 + 3]).toBe(255);      // a genuine ocean neighbour is untouched
+  });
+
+  it('REGRESSION — without the true mask the flag says ocean, and the fix is silently inert', () => {
+    const { dataChl } = getMarineGeoData(COLS, ROWS, { west: -18, east: -16, south: 32, north: 34 },
+      postExtrap, N, false, null, undefined);
+    // This is what shipped in bcd8eb3e: every cell reads ocean, so no weight is ever zeroed.
+    expect(dataChl[5 * 4 + 3]).toBe(255);
+  });
+
+  it('leaves dataMask on the post-extrapolation array — that contract is unchanged', () => {
+    const { dataMask } = getMarineGeoData(COLS, ROWS, { west: -18, east: -16, south: 32, north: 34 },
+      postExtrap, N, false, null, truth);
+    expect(dataMask[5 * 4 + 0]).toBe(255);
+  });
+});
