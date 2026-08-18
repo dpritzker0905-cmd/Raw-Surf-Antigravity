@@ -159,6 +159,20 @@ def ingest_marine_forecast_task():
                   if os.environ.get("ICON_MARINE_MID_RES_INGEST", "1") != "0" else []),
                 *([("EURO Marine Global Mid", weather_scheduler.ingest_euro_marine_global_mid)]
                   if os.environ.get("EURO_MARINE_MID_RES_INGEST", "1") != "0" else []),
+                # ISLAND 0.083 deg (~9.2 km) CMEMS lane (2026-08-18, the island-halo TRUE fix). At
+                # 0.25 deg a small island is ONE cell, so its cell holds the mean of its ocean
+                # neighbours — lee averaged with windward — and bilinear spreads that onto both shores.
+                # Provably unfixable downstream: a Laplace solve returns the same mean to within 0.03 m
+                # at unit island thickness, and a land-aware fetch measured WORSE. The Madeira pilot on
+                # the live API reads 1.62-1.77 m windward (vs 1.24-1.38 at 0.25 deg) and resolves a
+                # sharp 0.59-0.98 m lee 8 km away. 20 regions x ONE bbox subset each; latency is per
+                # CALL not per cell (40/150/308 pts all ~12-13 s), so ~4.3 min and ~4.6 MB per frame.
+                # Runs LAST in the marine group: no downstream job reuses its cache, so isolating it is
+                # dependency-safe, and a slow CMEMS day cannot delay the tiers that already serve.
+                # Kills: COPERNICUS_ISLAND_INGEST=0; COPERNICUS_ISLAND_REGION_LIMIT=N trims to the N
+                # highest-spot-count regions (the list is ordered by spot count, so it degrades well).
+                *([("Copernicus Island Regional", weather_scheduler.ingest_copernicus_island_regions)]
+                  if os.environ.get("COPERNICUS_ISLAND_INGEST", "1") != "0" else []),
                 # WIND global_mid (~2°, 2026-07-20 queue #3): the fixed-resolution background wind
                 # field (the Windy/nullschool pattern) — mid_res_tier serves it clipped wherever
                 # wind would otherwise get the 10° coarse (wide spans, world zoom, dynamic-lane

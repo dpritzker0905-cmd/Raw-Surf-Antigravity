@@ -368,6 +368,19 @@ class WeatherPipelineScheduler:
         from services.weather_pipeline.marine_mid_res_ingestion import ingest_gfs_marine_global_mid_impl
         return await ingest_gfs_marine_global_mid_impl(self)
 
+    async def ingest_copernicus_island_regions(self) -> bool:
+        """
+        The 0.083 deg (~9.2 km) CMEMS wave field for the 20 island regions where a 0.25 deg grid
+        cannot resolve windward from lee. One CMEMS bbox subset per region, ~13 s each (measured:
+        latency is per CALL, not per cell), ~4.6 MB/frame total.
+
+        Writes products only — no serving tier reads region_id `island_*` yet, so this is inert for
+        viewports until one does. Products must exist BEFORE the serving tier can be gated on their
+        residency, which is why ingest lands first.
+        """
+        from services.weather_pipeline.copernicus_island_ingestion import ingest_copernicus_island_regions_impl
+        return await ingest_copernicus_island_regions_impl(self)
+
     async def ingest_euro_marine_global(self) -> bool:
         """Ingests EURO waves grid forecast globally at a coarse resolution (10°, 'global_coarse').
         Delegates to euro_marine_coarse_ingestion (keeps this file under the 800-LOC ceiling)."""
