@@ -135,7 +135,16 @@ regime-drift that produced two contradictory lever sweeps earlier in this arc.
   ⇒ obliquity inflated 255° by ~1.75× **without creating it**. Against the 4 px read at a clean
   bearing — the noise floor of antialiasing plus ring-estimate error — 16 px is ~4× baseline: real,
   modest, and moved by none of the levers (re-assert, midcarve, blend-both, crests).
-  **Cause unidentified. Not worth an eleventh hypothesis in the same session.**
+
+  ✅ **TAKEN APART SINCE — and it is NOT A MASK DEFECT AT ALL.** See
+  **[TEARDOWN-255-2026-08-17.md](TEARDOWN-255-2026-08-17.md)**. At that coordinate the mask reads
+  **255 (full water) on every term** — base, overlay, effective, `src: overlay_replace` — straight
+  through the hole, and the field is absent anyway (`|ON−OFF| = 0` exactly, a hard step to 94).
+  Eight further candidates are excluded there by direct measurement, including a covering layer, the
+  overlay engagement state, wave-data coverage and a shader mask-fetch displacement.
+  ⭐ **That is the explanation for every null lever sweep in this arc: they were all MASK levers, and
+  the mask was never the problem.** The residual is also wide-zoom-specific — 836 m at z9.3 against
+  24–98 m from z10.4 up.
 
   ★ The same probe reads **0 px at bearing 75°**, which confirms the re-assert fix a THIRD way and
   proves the instrument can report zero. Without that control the "16" would be unreadable.
