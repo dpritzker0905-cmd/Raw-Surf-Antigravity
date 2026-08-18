@@ -120,8 +120,31 @@ regime-drift that produced two contradictory lever sweeps earlier in this arc.
 
 ## 5. ⚠️ What is NOT fixed
 
-- **Bearing 255° @ 28 px is UNCHANGED in all three legs** (32.69350, −17.12638). A separate, smaller
-  residual with a different cause. One bearing of 24.
+- **Bearing 255° — REAL, but 16 px PERPENDICULAR rather than the 28 px the ray metric reported**
+  (32.69350, −17.12638). Every onset in this arc was measured along a ray cast from the island
+  centroid, which is a perpendicular distance divided by `cos(angle between ray and coast normal)`.
+  Measuring along the LOCAL COAST NORMAL instead (`frontend/scripts/coast-normal-onset.js`, normal
+  estimated from a ring of basemap-water truth):
+
+  | probe | ray-onset | **normal-onset** | obliquity |
+  |---|---|---|---|
+  | residual 255° | 28 px | **16 px** | 35° |
+  | repaired 75° | 55 px *(pre-fix)* | **0 px** | 67.5° |
+  | clean 285° | 0 px | **4 px** | 0° |
+
+  ⇒ obliquity inflated 255° by ~1.75× **without creating it**. Against the 4 px read at a clean
+  bearing — the noise floor of antialiasing plus ring-estimate error — 16 px is ~4× baseline: real,
+  modest, and moved by none of the levers (re-assert, midcarve, blend-both, crests).
+  **Cause unidentified. Not worth an eleventh hypothesis in the same session.**
+
+  ★ The same probe reads **0 px at bearing 75°**, which confirms the re-assert fix a THIRD way and
+  proves the instrument can report zero. Without that control the "16" would be unreadable.
+
+  ⚠️ **That script's first verdict column was WRONG and is corrected in place.** It compared each
+  probe's STALE PRE-FIX ray onset against a FRESH normal measurement, so it labelled the repaired
+  75° "consistent with obliquity" (its 55 px no longer exists) and called 4 px of noise "REAL along
+  the normal too". The raw measurements were sound throughout; only the labels were not.
+  **A verdict is only as good as the vintage of BOTH numbers it compares.**
 - The earlier `midcarve REPLACE` change (`7b6fc77d`, ~10%) stays; it is independent and kill-switched.
 - ✅ Deployed verification is DONE — §4a. (This bullet previously read "not yet verified"; §4a
   superseded it and the stale line is corrected rather than left to contradict the section above it.)
