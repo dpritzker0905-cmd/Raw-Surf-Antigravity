@@ -180,3 +180,59 @@ WARNING - this corrects my own earlier claim of "1.6 -> 1.1 on the windward shor
 
 **Only two things can move this:** finer marine data near islands, or a presentation decision to stop
 implying resolution the data does not have within one cell of a small island. Both are owner calls.
+
+---
+
+# ADDENDUM 2026-08-18 (c) - the TRUE fix, scoped from the production API
+
+Measured against the PRODUCTION backend (`raw-surf-antigravity.onrender.com`, SHA `f7714cf2`), not
+from code reading. bbox = Madeira, three models, two bbox widths:
+
+| model | served | -> per cell | source tile | dynamic lane |
+|---|---|---|---|---|
+| GFS | 4x4 over 6.0 deg | **1.50 deg (~140 km)** | 181x83 = 15,023 cells (2 deg global) | **False** |
+| EURO | 5x4 over 8.0 deg | **1.60 deg (~150 km)** | same | **False** |
+| ICON | 5x4 over 8.0 deg | **1.60 deg (~150 km)** | same | **False** |
+
+A 1-degree request is EXPANDED to 6 degrees and answered from the 2-degree `global_mid` tile:
+20 cells served out of a 15,023-cell source. The UI legend was right all along - "~223 km grid (2 deg)".
+
+## TWO REGIMES, and only one of them is the ring
+
+- **ARRIVAL: ~150 km.** `MARINE_MID_RES_MIN_SPAN` defaults to **0.0** and `MAX_SPAN` to **400.0**, so
+  the 2-degree tier is active at EVERY zoom. It was widened 15 -> 40 -> 400 to stop a compact storm
+  vanishing on zoom-out (copying the wind sibling's "the 2-degree field IS the base at every zoom").
+  The upper bound got all the attention; **the lower bound was never set.**
+- **SETTLED: 22.5 km.** On dwell the resolver sharpens 2 deg -> 0.25 deg ("the pre-mid steady state
+  restored"). That is the grid measured in section 1, and **that is the regime the ring lives in.**
+
+=> raising MIN_SPAN would fix the ARRIVAL coarseness, not the reported ring. Worth doing, but do not
+sell it as the halo fix.
+
+## The true fix, and what it actually costs
+
+All three served datasets are 0.25-degree native (`ncep_gfswave025`, `ecmwf_wam025`, `dwd_gwam`).
+The finer product - `cmems_mod_glo_wav_anfc_0.083deg_PT3H-i`, ~9.2 km - IS in this repo
+(`copernicus_marine_service.py`, `copernicus_global_fetcher.py`) but is wired for **POINT** fetches
+only (spot data via `copernicus_point_batching`). The GRID/heatmap lane never touches it.
+
+WARNING - `capabilities.py` lists EURO's `upstream_model` as the 0.083-degree dataset while its
+`source_docs_note` says "ECMWF WAM 0.25 degree", and the SERVED `source_dataset` is `ecmwf_wam025`.
+That is the "EURO = two upstreams under one label" trap. **Do not read capabilities as the served
+resolution - read the response.**
+
+At 0.083 degrees Madeira spans ~6 x 2.6 cells instead of ~2.5 x 1, which is the condition section 3
+proved is REQUIRED for any infill to separate windward from lee. So finer data is not merely nicer -
+it is the only thing that makes the geometry solvable.
+
+**Cost of the build, honestly:** a new grid ingestion lane (schedule, storage, cache keys), a finer
+tier in `grid_resolver`, `COPERNICUSMARINE_SERVICE_{USERNAME,PASSWORD}` confirmed on Render (no status
+endpoint exists to check remotely), and per-call Copernicus volume. Every push to `dev` is a
+production backend deploy.
+
+## The trap in the obvious shortcut
+
+Skipping the 2-degree tier at narrow spans is NOT a constant flip. That tier is also the FALLBACK
+that guarantees coverage - dropping it where the finer lane has no product is exactly the
+"marine blank" class. The correct form is conditional: skip the mid tier at narrow span ONLY when a
+finer product is actually resident, else keep it. That needs the blank-regression harness alongside it.
