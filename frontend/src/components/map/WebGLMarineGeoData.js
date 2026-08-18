@@ -184,6 +184,13 @@ export function getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess,
       dataChl[i * 4 + 3] = 255;
 
       const oceanFlag = grid[i] === 1 ? 255 : 0;
+      // LAND-AWARE WAVE FETCH (2026-08-18): the per-texel OCEAN FLAG also rides chlorophyll's ALPHA.
+      // That alpha was a constant 255, and it is the only channel on the SAME cols x rows grid as the
+      // wave texture that the wrap-seam average below leaves alone (it rewrites r/g/b only). The
+      // shader reads it at exact texel CENTRES so it is never interpolated — see sampleWaveLandAware().
+      // ⚠️ Must stay AFTER oceanFlag is declared: written above the const it is a temporal-dead-zone
+      // ReferenceError, which is exactly how the first draft of this change failed.
+      dataChl[i * 4 + 3] = oceanFlag;
       dataMask[i * 4 + 0] = oceanFlag;
       // G = MOTION-water when provided (rating grids); otherwise duplicates the color flag
       // exactly as before. Land is 0 on both channels, so max(r, g*unlock) can never leak land.

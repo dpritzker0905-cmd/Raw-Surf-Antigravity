@@ -29,6 +29,7 @@ import { renderMaskToCanvas, overlayBasemapWaterOnMask, isBasemapWaterSourceRead
 import { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason }
   from './marineOverlayMode';
 export { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason };
+import { setLandAwareFetchUniforms } from './marineLandAwareFetch';
 import { populateCrestDiagnostics } from './WebGLMarineEngineDiagnostics';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, COARSE_CREST_BAND_MIN_ZOOM } from './marineZoomThresholds';
 import {
@@ -1672,6 +1673,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaHi'), _haHi);
     // Crisp mask edge for coarse residents (the heatmap pass's own halo — see the damp block).
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_maskEdgeSharp'), this._maskEdgeSharp || 0.0);
+    setLandAwareFetchUniforms(gl, this.heatmapProgram, this._waveData && this._waveData.waveGrid);
     // COAST SDF (2026-07-21): a crisp, resolution-independent coast + tunable erosion from the .b
     // signed-distance field. Off (__RAW_DISABLE_COAST_SDF__ or no .b field) => legacy binary edge.
     const _sdfKill = (typeof window !== 'undefined' && window.__RAW_DISABLE_COAST_SDF__ === true);
@@ -3109,6 +3111,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaHi'), 1.0);
   // Same crisp-edge verdict as the main pass — the wash's coarse mask edge was the other halo face.
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_maskEdgeSharp'), this._maskEdgeSharp || 0.0);
+  setLandAwareFetchUniforms(gl, this.heatmapProgram, base && base.waveGrid);
   // The coarse-wash binds a DIFFERENT (global) base mask whose .b is not a resident SDF — force the
   // SDF path OFF here so it can't inherit the main pass's enabled uniform and misread .b as distance.
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_coastSDFEnabled'), 0.0);

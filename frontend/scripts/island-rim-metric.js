@@ -170,7 +170,14 @@ const measure = ({ nBearings, maxR }) => {
   const browser = await chromium.launch({ headless: true, args: ['--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
   const page = await ctx.newPage();
-  await page.addInitScript(() => { window.__DISABLE_WEBGL_GUARDRAIL__ = true; });
+  // LEVER: RIM_LANDAWARE=off sets the kill switch BEFORE the first frame, so the two legs differ
+  // only in the land-aware fetch on the SAME BUILD — a within-build A/B, not a cross-build inference.
+  const LEVER_OFF = String(process.env.RIM_LANDAWARE || '').toLowerCase() === 'off';
+  await page.addInitScript((off) => {
+    window.__DISABLE_WEBGL_GUARDRAIL__ = true;
+    if (off) window.__RAW_DISABLE_LAND_AWARE_FETCH__ = true;
+  }, LEVER_OFF);
+  log('leg: land-aware fetch ' + (LEVER_OFF ? 'DISABLED (control)' : 'ENABLED (shipped)'));
   await page.goto(BASE + '/auth', { waitUntil: 'domcontentloaded', timeout: 180000 });
   await page.evaluate(({ u }) => {
     localStorage.setItem('raw-surf-user', JSON.stringify(u));

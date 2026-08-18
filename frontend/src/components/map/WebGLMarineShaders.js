@@ -95,6 +95,64 @@ uniform highp vec2 u_overlayTruth_min;  // truth box min corner, overlay-UV spac
 uniform highp vec2 u_overlayTruth_max;  // truth box max corner
 uniform float u_coastErode;             // threshold shift in normalized SDF units (+ erodes water / grows land)
 uniform float u_coastAA;                // smoothstep half-width around the coast (normalized SDF units)
+uniform vec2 u_waveTexel;               // 1/cols, 1/rows of the WAVE grid — land-aware fetch only
+uniform float u_landAwareFetch;         // 1 = exclude land texels from the bilinear blend
+
+// LAND-AWARE WAVE FETCH (2026-08-18) — the island halo.
+//
+// THE DEFECT. The wave grid is ~22.5 km per cell, so a small island IS a cell or three. Those cells
+// are land; extrapolateOceanData fills them with the MEAN of their ocean neighbours, which at
+// Madeira mixes the sheltered lee (1.12 m) with the exposed north (1.60 m) and yields ~1.1. gl.LINEAR
+// then spreads that one averaged number outward, so the WINDWARD shore ramps 1.6 -> 1.1 over a full
+// cell. That ramp is the halo, and it rings an island because an island has coast on every side. On a
+// mainland coast the same cells sit inland and the coastline hides the ramp — which is exactly why
+// the owner saw it on islands and not over land.
+//
+// THE FIX, in Jacobian terms. Rendered height is H = sum(w_i * h_i) over the 4 surrounding texels, and
+// the bug is that dH/dh_land > 0. Zero the land weights and renormalise:
+//     H = sum_ocean(w_i h_i) / sum_ocean(w_i)
+// so a water pixel is interpolated only among WATER cells. When all four are land the pixel is on
+// land and masked anyway, so fall back to the plain fetch rather than inventing a value.
+//
+// ★ THE FLAG MUST NOT BE INTERPOLATED, or it stops being a flag. Each texel is sampled at its exact
+// CENTRE, where bilinear filtering returns that texel verbatim (weights 1,0,0,0) — so no NEAREST
+// sampler is needed and the wave texture's filtering is untouched.
+// ★ The flag rides u_chlorophyllTexture.a, which is the only channel that is (a) on the SAME
+// cols x rows grid as the wave texture, (b) previously a constant 255, and (c) not touched by the
+// wrap-seam average that rewrites chlorophyll's r/g/b. Uploads come from a Uint8Array, so
+// UNPACK_PREMULTIPLY_ALPHA_WEBGL does not apply and alpha survives the upload unmodified.
+//
+// Kill: u_landAwareFetch = 0 (window.__RAW_DISABLE_LAND_AWARE_FETCH__) restores the plain fetch
+// byte-for-byte.
+vec4 sampleWaveLandAware(vec2 uv) {
+  vec4 plain = texture2D(u_waveTexture, uv);
+  if (u_landAwareFetch < 0.5 || u_waveTexel.x <= 0.0 || u_waveTexel.y <= 0.0) return plain;
+
+  vec2 tc = uv / u_waveTexel - 0.5;          // texel-space position of the sample
+  vec2 f = fract(tc);
+  vec2 c0 = (floor(tc) + 0.5) * u_waveTexel; // centre of the lower-left texel of the 2x2 footprint
+  vec2 cx = vec2(u_waveTexel.x, 0.0);
+  vec2 cy = vec2(0.0, u_waveTexel.y);
+
+  vec4 s00 = texture2D(u_waveTexture, c0);
+  vec4 s10 = texture2D(u_waveTexture, c0 + cx);
+  vec4 s01 = texture2D(u_waveTexture, c0 + cy);
+  vec4 s11 = texture2D(u_waveTexture, c0 + cx + cy);
+
+  float m00 = step(0.5, texture2D(u_chlorophyllTexture, c0).a);
+  float m10 = step(0.5, texture2D(u_chlorophyllTexture, c0 + cx).a);
+  float m01 = step(0.5, texture2D(u_chlorophyllTexture, c0 + cy).a);
+  float m11 = step(0.5, texture2D(u_chlorophyllTexture, c0 + cx + cy).a);
+
+  float w00 = (1.0 - f.x) * (1.0 - f.y) * m00;
+  float w10 = f.x * (1.0 - f.y) * m10;
+  float w01 = (1.0 - f.x) * f.y * m01;
+  float w11 = f.x * f.y * m11;
+  float wsum = w00 + w10 + w01 + w11;
+  if (wsum < 0.0001) return plain;           // all four are land: masked pixel, do not invent a value
+
+  return (s00 * w00 + s10 * w10 + s01 * w01 + s11 * w11) / wsum;
+}
 
 float mercatorYToLat(float y) {
   float sinhVal = (exp(3.141592653589793 * (1.0 - 2.0 * y)) - exp(-3.141592653589793 * (1.0 - 2.0 * y))) * 0.5;
@@ -409,7 +467,7 @@ void main() {
       && (mask_u <= 0.0 || mask_u >= 1.0 || mask_v <= 0.0 || mask_v >= 1.0)) {
     oceanAlpha = 0.0;
   }
-  vec4 waveData = texture2D(u_waveTexture, grid_uv);
+  vec4 waveData = sampleWaveLandAware(grid_uv);
   float depthFactor = texture2D(u_bathymetryTexture, grid_uv).r;
   float waveHeight = waveData.b * 10.0;
   
