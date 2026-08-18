@@ -451,6 +451,541 @@ it is named for this and multiplies the base wash by 0.35; then `__RAW_DISABLE_B
 also gates `u_heightAlphaEnabled`) and keep whichever one FLATTENS the profile. That is a decisive
 attribution rather than a fifth guess, and the fix follows from whichever term owns the ramp.
 
+## 24. ⛔ THE §23 LEVER PLAN RAN — leg 1 was VOID, leg 2 REFUTES THE LAST LIVE SHADER TERM
+
+§23 closed with a mechanical plan: run the alpha solve with `__RAW_DISABLE_HALO_DAMP__` first, then
+`__RAW_DISABLE_BLEND_BOTH__`, and keep whichever FLATTENS. Both legs ran, isolated
+(one page load each, lever set before the first frame, replicated, stability-gated). **Neither
+outcome was the one the plan anticipated, and the first was not a result at all.**
+
+⚠️ **READ §19 FIRST.** This section was executed before §19/§21 landed from a concurrent session.
+Its spread figures are built on the SAME mean-over-24-bearings that §19 shows converts displacement
+variance into apparent softness, so **no "ramp" number below should be read as a ramp**. What
+survives that critique is stated explicitly in §24e — the eliminations here are readings and
+engagement facts, not ramp measurements.
+
+### 24a. ⛔ `__RAW_DISABLE_HALO_DAMP__` IS VOID BY CONSTRUCTION — the lever cannot fire here
+
+`frontend/scripts/alpha-lever-halodamp.js`, Madeira z9.30, beach, 2 legs × 2 replicates. Identical
+telemetry in **all four** legs, captured with the field painting (not after `setWaves(false)`, which
+is when the parent harness read it):
+
+| signal | value | reading |
+|---|---|---|
+| `leverSeen` (off legs) | **true** | the flag did reach the page — not a plumbing failure |
+| `haloDamp` (stock) | **false** | the damp never fired; there was nothing to disable |
+| `washPreDamp` / `washEff` | **0.21 / 0.21** | arithmetic proof no ×0.35 applied (would be 0.074) |
+| `baseMaskDense` | **true** | ← the cause |
+| `washNoTruthDamp` | **false** | the ISLAND damp is inactive too |
+
+⇒ `baseMaskDense` sets `_washSole`, and `WebGLMarineEngine.js:1237` requires `!_washSole`. **The
+DENSE-BASE WASH UN-DAMP exemption (2026-07-16) structurally disarms the halo damp at this camera.**
+The lever was inert before it was ever flipped. Spreads confirm a no-op: stock 0.515 / 0.538,
+off 0.554 / 0.538 — both stable, indistinguishable.
+
+⭐⭐⭐ **THIS IS WHY THE HARNESS GAINED AN ENGAGEMENT GATE. A lever that CANNOT FIRE reads exactly
+like a term that is INNOCENT.** Without `haloDamp` in the capture this run reports "0% flatter ⇒ the
+damp does not own the ramp" and books a fifth false elimination. The run is **VOID BY CONSTRUCTION,
+not negative** — the halo damp is neither implicated nor cleared, it is untested.
+
+★ **Free corollary, no run needed:** `washNoTruthDamp=false` and `washEff==washPreDamp` in every leg
+⇒ **`__RAW_DISABLE_ISLAND_HALO_DAMP__` is void at this camera too**, by the same exemption. Both
+0.35 damps are structurally off at Madeira z9.3. Neither is worth a leg.
+
+### 24b. ✅ THE UNIFORM READ — three terms eliminated without flipping anything
+
+`frontend/scripts/uniform-read.js` reads the live `heatmapProgram` uniforms off
+`map.painter.context.gl`. **Positive control:** `u_maskEdgeSharp` read from GL == `engine._maskEdgeSharp`
+== 1, and two reads across separate repaints agree — a GL uniform returns whatever was last set, so
+a program that did not draw returns a stale value that looks perfectly valid. The probe REFUSES
+rather than reports if the control fails.
+
+```
+u_opacity 0.763   u_maskEdgeSharp 1   u_coastSDFEnabled 0   u_overlaySDFEnabled 0
+u_heightAlphaEnabled 1  (lo 0.05, hi 1.4)     u_edgeFeatherEnabled 1  (width 0.18)
+u_surfMode 0   u_ribbonRadiusDeg 0            u_overlayMaskEnabled 1  u_overlayReplace 1
+```
+
+- **Band ribbon — ELIMINATED BY READING.** `u_ribbonRadiusDeg=0`, `u_surfMode=0`: the band path
+  (line 471) is not rendering here. Worth checking, because that path carries its own alpha chain
+  with a far SOFTER coastal `smoothstep(0.05,0.45,oceanAlpha)` than the main path's crisp (0.45,0.6).
+- **Grid-edge feather — ELIMINATED BY GEOMETRY, despite being ENABLED.** Madeira sits at grid_uv
+  (0.540, 0.370) in the 2.000° data grid, so `minEdgeDist = 0.370` against width 0.18. A 128
+  device-px ray moves uv by only 0.071 ⇒ worst case 0.299, still past the ramp. `smoothstep(0, 0.18,
+  ≥0.299) = 1.0` across the **entire** sampled range: live but CONSTANT, so it cannot make a gradient.
+- **Coast SDF — CONFIRMED 0/0** from the shader's own uniforms, independently of the engine-side
+  flags §5 quoted.
+- **Texel arithmetic.** Resident base mask 4096×2048 over exactly 2.000° ⇒ 4.883e-4 deg/texel =
+  **0.44 DEVICE PX per texel** at z9.3/dpr2. A bilinear edge ramps over ~1 texel.
+  ⚠️ The overlay has no dims property on the engine (it is uploaded straight from a canvas), so its
+  figure is **bounded from source, not measured**: `renderMaskToCanvas(geo, bounds, {maxWidth: 2048})`
+  (`WebGLMarineEngine.js:2616`) over its 2.409° span ⇒ **≥1.05 device px/texel**.
+
+### 24c. ⛔ THE HEIGHT-KEYED SMOOTHSTEP IS REFUTED AS THE OWNER
+
+`u_heightAlphaEnabled` read **1**, so the term is live and had to be tested — but NOT with
+`__RAW_DISABLE_BLEND_BOTH__`, which §5 already showed deletes the whole field (a lever that deletes
+the subject cannot test a property of it). `__RAW_BLEND_HEIGHT_LO__/HI` are re-read from `window`
+every frame (`WebGLMarineEngine.js:1665-1667`), so **LO=-1, HI=0 forces `smoothstep` to exactly 1
+for every h≥0 while the composite keeps painting.** Surgical, and the subject survives.
+
+| leg | d0 | d128 | spread | mean alpha |
+|---|---|---|---|---|
+| stock | 0.160 / 0.153 | 0.725 / 0.682 | 0.565 / 0.529 | 0.443 / 0.431 |
+| identity | 0.178 / 0.178 | 0.813 / 0.804 | 0.635 / 0.626 | **0.528 / 0.527** |
+
+Four gates all passed: **(1)** the lever reached the SHADER — `u_heightAlphaLo/Hi` read back off the
+live program as **-1/0** in the treated legs vs 0.05/1.4 in stock (not merely "the window global is
+set"); **(2)** `u_heightAlphaEnabled=1` in every leg; **(3)** subject not deleted — mean alpha rose,
+it did not collapse; **(4)** no compound movement, `u_maskEdgeSharp` and `u_overlayReplace` identical
+across legs.
+
+⇒ Removing the term **lifted alpha everywhere** (mean 0.43 → 0.53, exactly as a <1 multiplier should)
+and left the profile **STEEPER, not flatter** (0.547 → 0.631, −15%). **REFUTED as the owner.** It
+scales alpha; it does not create the shore-to-offshore profile.
+
+### 24d. ⚠️ TWO CORRECTIONS TO §23
+
+- §23 says *"The shader has exactly three alpha factors"*. That is true only of the MAIN path. The
+  BAND path (471-500) has its own chain — `presence`, `vividness`, `smoothstep(0.05,0.45,oceanAlpha)`,
+  the ribbon, and the inland gate. It is not rendering here (24b), but the count as written is wrong,
+  and the band path's coastal smoothstep is the softer of the two.
+- §23's recommended first lever is **retired** by 24a, and its second (`__RAW_DISABLE_BLEND_BOTH__`)
+  should be replaced by the LO/HI identity of 24c, which tests the same term without deleting the field.
+
+### 24e. ⇒ WHAT THIS ADDS ONCE §19 IS APPLIED
+
+§19 shows the ramp these harnesses measure is an artifact of averaging 24 bearings whose crisp edges
+scatter over ~48 px. **My harnesses inherit that construction verbatim** (`mean(buckets[d])` per
+distance bucket), so 24a's and 24c's *spread* numbers are the same artifact and must not be quoted as
+widths. What survives, because none of it depends on the profile's shape:
+
+1. The halo damp and the island damp are **structurally inert** at this camera (engagement telemetry).
+2. The band ribbon, coast SDF, and the grid-edge feather are **off or constant** (direct reads + geometry).
+3. The height-keyed smoothstep is **refuted as the owner** — it is a multiplier, and forcing it to
+   identity did not flatten anything.
+4. ★ The base-mask texel is **0.44 device px** — which is *independent corroboration of §19* from a
+   different instrument: a mask edge that sharp cannot be soft, and §19's per-ray 3.5-4.6 px width is
+   what a ~1 texel edge plus antialiasing looks like. Two instruments, same conclusion.
+
+⇒ **Every alpha term in the shader is now either off, constant, or refuted.** Combined with §19 and
+§21 this closes the shader as a source, and leaves §22's texture/bounds mismatch standing alone.
+
+### 24f. ⛔ ONE §22 SUB-HYPOTHESIS KILLED BY READING, before it cost a run
+
+A degree-vs-Mercator mismatch between the painted canvas and the sampled texture would produce
+exactly the latitude-dependent (hence bearing-dependent) offset §19 measured. **It is refuted:** the
+shader samples the overlay through `latToMercatorY(u_overlayBounds_*)`
+(`WebGLMarineShaders.js:382-384`), matching the proper Web Mercator `makeMaskProjector` §21 verified.
+Both ends are in Mercator, so canvas dimensions affect RESOLUTION only, not geometry. §22's remaining
+candidates are rasterisation fidelity and bounds STALENESS — its pan-inside-the-hysteresis-box
+discriminator is untouched by this and remains the right next test.
+
+**Artifacts:** `frontend/scripts/{alpha-lever-halodamp,uniform-read,alpha-lever-heightalpha}.js`,
+outputs in the matching `*-out/` dirs (untracked). Nothing shipped, no code changed, no lever left set.
+
+## 25. ✅ THE SAMPLING CHAIN IS CONSISTENT END TO END — §22's bounds/projection branch closes
+
+§22 named two candidates for the displacement §19 measured: the RASTERISATION into the canvas, or a
+disagreement between the bounds a texture was PAINTED for and the bounds it is SAMPLED with. The
+second is settled **by reading**, which is cheaper than a run and does not risk another void leg.
+Four links, each verified in source at HEAD:
+
+| link | what it does | source |
+|---|---|---|
+| projector **x** | `(lng − wrappedWest) / span × width` — linear in longitude | `marineMaskProjection.js:141` |
+| projector **y** | Web Mercator; `mercMinY = latToMercatorY(north)` ⇒ **north at canvas y=0** | `marineMaskProjection.js:133-141` |
+| upload | `UNPACK_FLIP_Y_WEBGL = true` ⇒ texture **v=0 becomes the canvas BOTTOM row = south** | `WebGLMarineEngine.js:2676` |
+| shader | `o_u` linear in longitude; `o_v = (oMercMaxY − v_mercator_xy.y)/…` ⇒ **v=0 at south** | `WebGLMarineShaders.js:382-385` |
+
+⇒ **Both axes are normalised identically at both ends, and the vertical flip cancels exactly.** A
+projection mismatch, an axis-normalisation mismatch, and an orientation flip are all out. With §21
+(the rings are correct to within 1 device px on every bearing) and §24f (both ends are Mercator, so
+canvas dimensions affect RESOLUTION only), **the geometry pipeline is verified from GeoJSON ring to
+sampled texel.**
+
+⚠️ **Verified by READING, not by execution.** That is the appropriate instrument for a question about
+which formula is used — but it cannot see a stale *value* flowing through a correct formula, which is
+exactly what bounds STALENESS would be. That half stays open until §26's derivative measures it.
+
+### 25a. ⚠️ ONE STRUCTURAL ODDITY, recorded because it predicts SPREAD and not MEDIAN
+
+`renderMaskToCanvas` hardcodes **`const height = width / 2`** (`WebGLMarineMaskRenderer.js:531`), so
+the overlay canvas is always 2:1 — 2048×1024 — regardless of the box's real aspect. Madeira's overlay
+box is **2.409° × 1.501°**, nothing like 2:1.
+
+This is **not a geometry error**: the projector and the shader both normalise to the full span on each
+axis independently, so the non-uniform scale is applied consistently at both ends and cancels. What it
+costs is **resolution asymmetry** — 1.18e-3 deg/px horizontally against 1.47e-3 deg/px vertically, so
+the mask is ~25% coarser north-south than east-west.
+
+★ Why that is worth writing down anyway: §19's signal is **bearing-dependent** (47.9 px spread around a
+~6 px median). A resolution that differs by axis produces an edge whose quantisation differs by
+bearing — a plausible contributor to the SPREAD, while explaining none of the MEDIAN. ⛔ Do not
+"fix" the aspect on this reasoning alone: it is a hypothesis about a second-order term, the median is
+the defect, and this arc's record on unmeasured shader-side inferences is 0 for 9.
+
+### 25b. ➡️ WHAT IS STILL LIVE
+
+Of §22's two branches, bounds/projection is closed and **rasterisation fidelity** stands alone —
+together with the one thing reading cannot settle, bounds STALENESS (a correct formula fed a stale
+value). §26 measures both as derivatives rather than as a before/after.
+
+## 26. ⭐⭐⭐ THE ISLAND RE-ASSERT IS A SECOND UNION — AND IT IS BAKED INTO THE TEXTURE
+
+> ⚠️⚠️ **READ FIRST — §§26-27 ARE AN INDEPENDENT REPLICATION, NOT A DISCOVERY.** A concurrent session
+> had already attributed this and **SHIPPED THE FIX** before this work began: `050f19b3` *"the island
+> halo is the NE island re-assert — gate 1200 → 400"*, verified deployed in `6022f4cf`, written up in
+> `ISLAND-HALO-REASSERT-FIX-2026-08-17.md`. It is in HEAD (`04e7c3ec`);
+> `ISLAND_REASSERT_MAX_DENSITY = 400` today. I did not connect those commits (they were in my
+> session-start snapshot) and re-derived the cause from source. **Value kept:** the attribution now
+> rests on two independent measurement routes reaching the same answer, which is genuine
+> corroboration — but nothing here is new, and §27c's proposed fix is SUPERSEDED (see the correction
+> in §27c).
+> ⚠️ **All numbers in §§26-27 were measured against the DEPLOYED build while it still had gate 1200**
+> (my stock legs read `applied=true` at 850 px/°, which the shipped 400 gate now makes `false`). They
+> describe PRE-FIX behaviour.
+
+⚠️ **HYPOTHESIS FROM READING, NOT YET MEASURED.** This arc's record on unmeasured shader-side
+inference is 0 for 9, so this is written as a candidate with its own kill switch and its own
+predictions, and the A/B is §27. What raises it above the previous nine is that it predicts the
+**SIGN**, the **bearing-dependence**, the **island salience**, and the **zoom self-limit**
+simultaneously — and it sits in §22's one surviving branch, the rasterisation.
+
+**THE MECHANISM.** `overlayBasemapWaterOnMask` step **3c**, the ISLAND RE-ASSERT
+(`WebGLMarineMaskRenderer.js:280-296`), takes a pristine full-resolution copy of the
+**Natural Earth 10m** mask canvas and composites it back over the basemap-patched canvas with
+
+```js
+ctx.globalCompositeOperation = 'multiply';        // reassertNeLand, :85-87
+ctx.imageSmoothingEnabled = false;
+ctx.drawImage(neFull, 0, 0, canvas.width, canvas.height);
+```
+
+Land is black (0), water white (255), so **multiply keeps land wherever EITHER source calls it
+land.** The finished overlay mask is therefore the **UNION OF TWO LAND SETS — Natural Earth 10m and
+the basemap's own water polygons.**
+
+★★★★ **THAT IS THE SAME UNION `7b6fc77d` ATTRIBUTED TO `min(base, overlay)`, AT A DIFFERENT LAYER.**
+The commit reasoned that two masks built from different coastlines take the union of both land areas
+wherever they disagree — correct as a mechanism, wrong about where it happens. The deployed A/B (§16)
+measured the shader-side min() at only ~10% because the *real* union is applied inside the overlay
+canvas, on the CPU, **before the GPU ever samples it**. That also explains why every shader-side
+hypothesis died: the displacement is already in the texture.
+
+**IT IS ACTIVE AT MADEIRA — the gate is arithmetic, not a guess.** `neFull` is captured only when
+`canvas.width / lonSpan < __RAW_ISLAND_REASSERT_MAX_DENSITY__` (default **1200** px/°,
+`WebGLMarineMaskRenderer.js:305-310`). The overlay canvas is capped at **2048** px wide over a
+**2.409°** span ⇒ **850 px/° < 1200 ⇒ THE RE-ASSERT ENGAGES.**
+
+**FOUR PREDICTIONS, all matching what is already measured:**
+
+| prediction | why | observed |
+|---|---|---|
+| the displacement is **SEAWARD** | multiply can only ADD land, never remove it | §19: median **+5.9-6.0 px seaward** ✅ |
+| it is **bearing-dependent** | NE-10m generalisation error varies around a coastline | §19: **47.9 px spread** ✅ |
+| worst on **ISLANDS** | it is literally the island re-assert; small islands are where NE 10m generalises hardest | owner: *"more visible on the islands"* ✅ |
+| it **self-disables at deep zoom** | the ≥1200 px/° gate | the midcarve block's "z≥12 is already sub-pixel-clean" ✅ |
+
+⇒ It also explains why §21 found the rings **correct to 1 px**: they are. The basemap water is
+painted faithfully — and then step 3c paints Natural Earth land back on top of it.
+
+**KILL SWITCH + TELEMETRY (both already exist):** `__RAW_DISABLE_ISLAND_REASSERT__` and
+`__RAW_GPU__.islandReassert = { applied, mode, densityPxDeg }`. ⛔ **Gate the A/B on
+`islandReassert.applied`** — §24a is the standing lesson that a lever which cannot fire reads exactly
+like a term that is innocent.
+
+⛔ **DO NOT SHIP A FIX ON THIS SECTION.** The re-assert exists for a reason (the Venice/Andros
+regressions: basemap parent tiles simplify small islands away, and painting them white floods the
+island). Disabling it wholesale would re-open those. If §27 confirms the attribution, the fix is a
+question of **which source wins in the disputed strip at which resolution**, not of deleting the pass.
+
+## 27. ✅✅ CONFIRMED — THE ISLAND RE-ASSERT OWNS THE DISPLACEMENT, BY TWO INDEPENDENT ROUTES
+
+`frontend/scripts/island-reassert-ab.js`, Madeira z9.30, beach, 4 legs × 2 replicates, one page load
+each, lever set before the first frame. **All three controls pass**: engagement matches expectation
+on all 8 legs, the gate relation `applied == (density < threshold)` holds on every leg, and every
+leg yielded **24/24 rays**.
+
+**Metric:** `a0` = field alpha AT the basemap shoreline, per ray, normalised as `G(0)/G_far`. Never
+meaned across bearings (§19). Over forced-red water G is exactly 0 without field and rises with it.
+
+| state | route | mechanism | reason | a0 (mean of reps) |
+|---|---|---|---|---|
+| ON | `stock` | threshold 1200 (default) | `multiply` | **0.509** |
+| ON | `dens_high` | threshold 5000 ⇒ gate open | `multiply` | **0.509** |
+| OFF | `off_flag` | boolean kill switch | `disabled` | **0.901** |
+| OFF | `dens_low` | threshold 400 ⇒ gate closed | `fine_basemap` | **0.893** |
+
+**Two ON routes agree to 0.000. Two OFF routes agree to 0.008. Separation 0.388** — ~48× the
+within-state scatter. Two mechanisms sharing no code path beyond the pass itself (one bypasses the
+gate, the other closes it) land on the same state, which is what separates *"the re-assert causes
+this"* from *"setting a global perturbed the paint"*. `dens_high` sets a `__RAW_ISLAND_REASSERT_*`
+global and lands **exactly** on stock, so the act of setting one is not the cause.
+
+⇒ **`reassertNeLand`'s `multiply` — the CPU-side union of Natural Earth 10m land with the basemap's
+water — suppresses the marine field seaward of the true coastline.** §26's mechanism is confirmed.
+
+### 27a. ⭐⭐⭐ THE PER-BEARING DECOMPOSITION — it is a SECTOR, and it is NOT the whole halo
+
+Same bearing, stock → off_flag (a0):
+
+```
+ 0: 0.00->0.93   1: 0.51->0.99   2: 0.05->0.90   3: 0.05->0.88   4: 0.18->0.78
+ 5: 0.05->0.87   6: 0.00->0.80  20: 0.00->0.97          <-- CHANGED (8 bearings)
+ 7,8,9,10,11,12,13,14,15,16,17,18,19,21,22,23           <-- IDENTICAL to 2 d.p. (16 bearings)
+```
+
+⇒ **The re-assert moves exactly 8 of 24 bearings — a contiguous arc — and leaves the other 16
+byte-identical.** A localised sector is a far stronger causal signature than a shift in a median: a
+global change to edge softness or alpha would move every bearing a little, not eight bearings
+completely and sixteen not at all.
+
+⛔ **AND IT IS NOT THE WHOLE DEFECT.** Suppressed fraction (`a0 < 0.5`) over all 48 rays per state:
+
+| | suppressed fraction | mean a0 | crossings > 2 px |
+|---|---|---|---|
+| ON (stock, dens_high) | **0.500** | 0.594 | **0.333** |
+| OFF (off_flag, dens_low) | **0.208** | 0.847 | **0.000** |
+
+- The re-assert accounts for **0.292 of the 0.500** suppressed fraction — call it ~58% of the
+  suppression — and **100% of the displacement**: every crossing beyond 2 px disappears with it off.
+- **~21% of bearings stay suppressed with the re-assert fully disabled** (bearings 9, 12, 13, 14, 15
+  sit at a0 ≈ 0.05-0.10 in BOTH states). Those are suppressed in AMPLITUDE without being DISPLACED —
+  a different signature, and this pass does not explain them.
+
+⚠️ **HYPOTHESIS, NOT MEASURED:** bearings 9-15 are the S/SW-facing arc. Under a NW swell that is the
+sheltered side, so a genuinely smaller nearshore height there would be **correct physics, not a
+halo**. ⛔ Do not treat the residual as a defect until that is tested — the obvious test is whether
+the residual arc rotates with swell direction.
+
+> ⛔⛔ **REFUTED 2026-08-17 BY §28. THE ARC DOES NOT ROTATE.** Swell turned **35°** and the arc centre
+> moved **0.0°** (201.8° → 201.8°, same 10 suppressed bearings) at 7.5° resolution. The sheltering
+> reading above is **wrong**, and so is the empty-cell alternative — see §28. Do not re-propose either.
+
+### 27b. ⚠️ TWO CORRECTIONS TO §26, AND ONE TO THIS RUN'S OWN OUTPUT
+
+- **§26 states 850 px/° as a computed constant. It is not a constant.** `densityPxDeg` is
+  `canvas.width / lonSpan` where the padded bounds follow the viewport at paint time; an earlier
+  session measured **690 and 850 in two replicates of the same leg**. All 8 legs here read 850, so
+  the conclusion is unaffected (690 and 850 are both far below the 1200 gate, so the pass engages
+  either way) — but the first version of this A/B used thresholds 900/800 to "straddle 850" and that
+  design was invalid, because at 690 a threshold of 800 leaves the pass ON. The gate route was moved
+  to 400/5000, outside the observed range in both directions.
+- **The script's own CONFIRMED line says "the gate flips exactly where it crosses 850".** That
+  sentence is stale from the discarded design; the gate legs are 400 and 5000 and nothing in this run
+  straddles 850. The verdict stands, the sentence overclaims.
+- ⭐ **INSTRUMENT LESSON — the channel was chosen from an assumption and it silently inverted the
+  test.** The first metric keyed on R, on the reasoning that "the field is dark so it lowers R over
+  red". In BEACH theme the field is WARM: far-field R reads 245-247, so the depth gate rejected
+  **20 of 24 rays** — precisely the ones where the field was strongest. `ray-profile-diag.js` printed
+  the actual pixels and the fix was immediate: over a forced primary, **key on a channel the backdrop
+  ZEROES** (G and B are exactly 0 over #ff0000). ★ A colour assumption is a hidden THEME dependency.
+
+### 27c. ⛔ NO FIX SHIPPED — the pass is load-bearing
+
+`94072098` (2026-07-07) introduced the re-assert and its message is explicit: *"z5 halo 65%→6.4%:
+overlay coverage-REPLACE … **SAFE only with the re-assert keeping islands masked**"*, and it took the
+z9 cay/coastal flood from 8-17% to **0.3%**. Deleting the pass reopens both. Note also that
+`reassertNeLand` has **no test coverage** — `reassertNeLand` / `ISLAND_REASSERT` / `islandReassert`
+appear in no `*.test.js` in `frontend/src`.
+
+⛔⛔ **THE PROPOSAL BELOW IS SUPERSEDED — DO NOT IMPLEMENT IT.** `050f19b3` already shipped a better
+fix: **lower the gate 1200 → 400**. Its insight is the one I missed — *the gate was comparing the
+wrong pair.* It asked whether the MASK texel is coarser than NE; what actually decides whether NE
+helps is whether the **BASEMAP** is coarser than NE. That separates the regimes cleanly (world mask
+~11 px/° on · Abaco z9 205 on · **viewport overlay ~850 OFF** · dense regional ~1720 off), so the
+Abaco flood protection is kept by KEEPING the pass where the basemap is coarse, rather than by
+eroding geometry everywhere. Simpler, and pinned by 10 tests using the two real measured densities.
+Kept below only as a record of what was proposed before that was known.
+
+➡️ ~~**PROPOSED SHAPE (owner decision, not a change): ERODE THE NE LAND BEFORE THE MULTIPLY.**~~ A
+missing island's *core* still gets re-asserted, so the flood stays fixed; but at a coastline where
+both sources roughly agree, eroded NE land falls INSIDE the basemap land, the multiply becomes a
+no-op there, and the basemap's better-positioned coastline wins. An erosion radius near the measured
+displacement targets exactly the defect. The machinery exists — `writeCoastDistanceField`
+(`WebGLMarineEngine.js:2665`) and `applyInlandWaterGuard`, which already runs a ~10 km distance
+operation against the NE snapshot. ⚠️ Any paint correction that ships must be appended to
+`LAYER_ORDER_PROOF_LOG.json` (owner mandate).
+
+**Artifacts:** `frontend/scripts/{island-reassert-ab,ray-profile-diag,mask-offset-jacobian}.js`,
+outputs in the matching `*-out/` dirs (untracked). Nothing shipped, no code changed, no lever left set.
+
+## 28. ⛔⛔ THE RESIDUAL ARC IS NEITHER SHELTERING NOR EMPTY CELLS — both refuted, one by SIGN
+
+`frontend/scripts/residual-arc-cause.js`, Madeira z9.30, beach, **island re-assert DISABLED
+throughout** (so §27's confirmed cause is removed and only the residual is in play), **48 bearings**
+(7.5° bins), 48/48 rays at both steps.
+
+### 28a. ⛔ (A) SHELTERING — REFUTED. The arc does not rotate.
+
+| | day +0 | day +4 |
+|---|---|---|
+| swell (N cell / E cell) | 201° / 198° | **166° / 183°** |
+| **arc centre** | 201.8° | **201.8°** |
+| suppressed bearings | 10 | **10** |
+
+⇒ **The swell turned 35°; the arc moved 0.0°** — same centre, same count, at a resolution where 35°
+is ~5 bins. The residual is invariant under swell direction. It is not a lee shadow.
+
+★★★ **AND THE DAY-0 ALIGNMENT WAS A COINCIDENCE, WHICH IS WHY ONE TIME-STEP IS NOT A TEST.** At day 0
+the arc sat at 201.8° while the swell vector pointed 201° — a near-perfect match that looks exactly
+like a shadow on the down-wave side, and it briefly moved me toward (A). One rotation step destroyed
+it. ⭐ **An alignment at a single value of the driver is not evidence; only the DERIVATIVE is.**
+
+### 28b. ⛔ (B) EMPTY GRID CELLS — REFUTED BY SIGN
+
+The resident grid is 8×8 (64 cells) and **3** are empty; the island's own centre cell IS empty
+(`centreCellEmpty=true`). But per bearing:
+
+| | mean empty-cell count |
+|---|---|
+| SUPPRESSED bearings (n=10) | **0.5** |
+| NORMAL bearings (n=38) | **2.92** |
+
+⇒ Suppressed bearings have **~6× FEWER** empty cells — the **opposite** of what
+interpolation-toward-empty predicts. ⭐ **A mechanism predicting the wrong SIGN is refuted, not
+partial** ([[the-band-and-the-glyph-are-two-populations-2026-08-09]]).
+⚠️ The harness printed `INCONCLUSIVE` on Pearson r=+0.293; its thresholds were tuned for correlation
+STRENGTH and are blind to an inverted effect. **The group means are the finding, not r.**
+
+★ This also closes a claim I had to retract mid-session: an earlier reading "the island's cells are
+all null/zero" came from a broken `cell[0]/cell[1]` accessor that returned null for EVERY cell, land
+or water (the real shape is `{u, v, speed, lat, lng}`, GridParserWorker.js:72-86). Measured properly,
+the centre cell IS empty — but at 3 of 64 cells, and concentrated where suppression is NOT, the
+footprint cannot carry the effect.
+
+### 28bis. ✅ HOW THIS RECONCILES WITH THE SHIPPED FIX'S §5 — two DIFFERENT residuals, not a conflict
+
+`ISLAND-HALO-REASSERT-FIX-2026-08-17.md` §5 records its own leftover: *"Bearing 255° @ 28 px is
+UNCHANGED in all three legs (32.69350, −17.12638). A separate, smaller residual with a different
+cause. One bearing of 24."* That is **not the same residual measured here**, and the two are
+complementary rather than contradictory:
+
+| | shipped-fix §5 | §28 (this section) |
+|---|---|---|
+| quantity | **displacement** (px offset of the coast edge) | **amplitude** (field alpha at the shoreline) |
+| extent | 1 bearing of 24 | 10 bearings of 48 |
+| displaced? | yes, 28 px | **no** — `offset > 2 px` = 0.000 |
+
+⇒ §27a already separated these: the re-assert owned **100% of crossings > 2 px** but only ~58% of the
+suppression. So §5's 255° residual is the leftover DISPLACEMENT defect, and §28's arc is the leftover
+AMPLITUDE defect. **Both survive the shipped gate change, and they are different failures.** §28's
+contribution is to refute the two obvious explanations for the amplitude one.
+
+⚠️ Because the shipped gate is now 400 and Madeira's overlay runs at 850, **§28's legs (re-assert
+disabled) correspond to TODAY'S SHIPPED BEHAVIOUR** — so this residual is what a user sees on the
+fixed build, not a pre-fix artifact.
+
+### 28c. ➡️ WHAT THE RESIDUAL MUST BE
+
+It is **fixed in geography**: invariant under a 35° swell rotation, unchanged by disabling the
+re-assert, uncorrelated (inversely correlated) with empty cells, and — from §27a — suppressed in
+AMPLITUDE while **not displaced** (`offset > 2 px` = 0.000 with the re-assert off). Already excluded:
+the shader's every alpha term (§24), the mask edge (§19), the ring geometry (§21), the sampling chain
+(§25), the re-assert (§27), sheltering and empty cells (here).
+
+⚠️ **NOT A NEW HYPOTHESIS, AN OBSERVATION:** `a0` is measured at the FIRST SUSTAINED BASEMAP WATER
+along each ray. On a convoluted coast that point can be inside a bay or shoreward of an offshore
+rock, where the field may be legitimately masked or the ray may re-enter land. Before hunting a
+render cause, the honest next step is to check **whether the 10 suppressed bearings share a coastline
+FORM** (bays/inlets vs open headland) — i.e. whether the metric's own coast-detection is picking
+different kinds of place, not whether the renderer is failing there. ⛔ Nine causes in this arc died
+because a render explanation was preferred to an instrument one.
+
+**Driver note for anyone re-running:** `swell-range-probe.js` reported `GO: 75.6 deg` of available
+rotation and that figure is WRONG — it circular-averaged four probes, two of which read ~180° apart,
+so the "range" was an artifact of averaging opposed vectors. The real leverage on the stable N/E
+cells is **~19-35°**. Read the per-probe values, never the aggregate.
+
+## 29. ⛔⛔ THE MARINE FIELD IS BLANK AT MADEIRA ON THE CURRENTLY DEPLOYED BUILD — the gate change is EXONERATED
+
+✅ **RESOLVED: THE SHIPPED `1200 → 400` GATE CHANGE DID NOT CAUSE THIS.** The field is blank under
+**both** gates, with the lever provably taking effect. The blank is real and reproducible; its cause
+is environmental, not `050f19b3`. Full result in §29c.
+
+### 29a. THE OBSERVATION
+
+`frontend/scripts/reassert-gate-blank-ab.js`, Madeira z9.30, beach, deployed build **`7f2c6f22`**:
+
+| leg | reassert.applied | dens | regime | water pts | fieldFrac | maxG |
+|---|---|---|---|---|---|---|
+| shipped gate (400) rep1 | false | 850 | `midcarve_replace` | 51 | **0** | **0** |
+| shipped gate (400) rep2 | false | 850 | `midcarve_replace` | 51 | **0** | **0** |
+| shipped gate (400) rep3 | false | 850 | `midcarve_replace` | 51 | **0** | **0** |
+
+⇒ **The marine field is entirely absent** — 51 basemap-confirmed water points per replicate, zero
+green on every one, before AND after a camera nudge, three replicates with zero variance. This is not
+a coast-detection artifact and not a sampling artifact: the metric samples a viewport grid and asks
+only "is the field painting".
+
+**The contrast that makes it notable:** earlier the same day, at the same camera with the same flags,
+`residual-arc-cause.js` returned **48/48 rays** twice and `island-reassert-ab.js` returned **24/24**
+on all eight legs. Those ran against the PRE-fix deployed bundle.
+
+### 29b. ⚠️ THE DEPLOYED BUILD CHANGED MID-SESSION — and it invalidates cross-run comparison
+
+`curl .../service-worker.js` → `BUILD_VERSION = '7f2c6f22'` — *"verify(marine): the Abaco flooding
+protection SURVIVES the gate change"*, which **contains** `050f19b3` (gate 1200 → 400).
+
+That resolves an apparent contradiction in this document: §27's stock legs reported
+`applied=true, reason=multiply, dens=850`, which is only possible under the **old 1200 gate**. So
+**§§26-28 were measured against the PRE-fix bundle** and anything measured now is against the
+POST-fix one. The concurrent session pushed and each push redeploys.
+
+⛔ **CORRECTION TO §28bis:** it states §28's re-assert-disabled legs "correspond to TODAY'S SHIPPED
+BEHAVIOUR". Directionally that is still true (the re-assert is off either way), but they were measured
+on a **different bundle**, and this section shows the two bundles do not render the same thing at this
+camera. Treat §28's numbers as pre-fix-bundle measurements.
+
+★★★ **THE CLASS: a deployed target can change UNDER a measurement campaign.** Every run in
+§§26-28 was implicitly assumed to be against one build. Date the build (`BUILD_VERSION` in the service
+worker) at the START of each run, not once at the start of the session.
+
+### 29c. ✅ THE DISCRIMINATOR RAN — blank under BOTH gates, so the gate is NOT the cause
+
+One lever on the current build: `__RAW_ISLAND_REASSERT_MAX_DENSITY__ = 1200` restores the pre-fix gate
+at 850 px/°. Identical nudge sequence in both legs.
+
+| leg | `islandReassert.applied` | dens | water pts | fieldFrac | maxG |
+|---|---|---|---|---|---|
+| gate 400 (shipped) ×3 | **false** | 850 | 51 | **0** | **0** |
+| gate 1200 (pre-fix) ×3 | **true** | 850 | 51 | **0** | **0** |
+
+<sub>All six legs identical at zero variance.</sub>
+
+⛔ **Control 1 PASSED, which is what makes this a negative rather than a void:** `applied` reads
+`false` under 400 and `true` under 1200 at the same measured density, so the lever demonstrably
+reached the code. Restoring the pre-fix gate **re-enabled the re-assert and the field stayed blank.**
+
+⇒ ✅ **`050f19b3` IS EXONERATED.** The blank is environmental — consistent with the fresh-deploy cache
+purge (`BUILD_VERSION` bumps auto-purge) or the known coverage-arrival race
+([[the-marine-blank-is-a-coverage-arrival-race-2026-08-15]]), and consistent with its intermittency
+all session (`residual-coast-form.js` refused four times, across two different regimes).
+
+★★★ **WHY THIS TEST EXISTED AT ALL.** The circumstantial case against the gate change was strong:
+a just-shipped change, deployed mid-session, touching exactly the density where the blank appears,
+under a commit (`94072098`) that explicitly warns coverage-REPLACE is *"SAFE only with the re-assert
+keeping islands masked"* — and a before/after that lines up perfectly (pre-fix bundle: 48/48 rays;
+post-fix bundle: 0/51 water points). **All of that was true and the conclusion would have been
+wrong.** One lever separated correlation from cause and stopped a false regression report against a
+colleague's deployed commit. ⭐ **When the suspect is someone else's shipped change, the A/B is owed
+BEFORE the accusation, not after.**
+
+⚠️ **STILL OPEN, and it is now the blocking item for this camera:** the field genuinely does not paint
+at Madeira z9.30 on build `7f2c6f22` — 51 water points, zero field, six consecutive page loads. Until
+that clears, **no further residual measurement at this camera is possible** (§28's follow-up is
+blocked on it, not abandoned). Next step is to establish whether the blank is camera-specific or
+global on this build — the same coverage metric at a mainland camera would tell in one run.
+
+### 29d. ⛔ A FALSE INFERENCE I MADE AND RETRACTED, recorded so it is not repeated
+
+Midway I concluded *"in the `coverage_gap` regime the field does not paint at this camera"*, from
+three runs where regime and outcome lined up (`coverage_gap` → blank, `midcarve_replace` → 48/48).
+**Refuted by the next run:** blank field with `waterPoints=6` in **`midcarve_replace`**. The regime
+instability is real — the overlay regime flips between page loads at an identical camera — but the
+causal link I attached to it was not. ★ Three co-occurrences are not a mechanism.
+
 ## 7. Session hygiene
 
 Nothing shipped, no lever left set, no code changed. Harnesses are untracked. Three of my own
