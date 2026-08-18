@@ -20,20 +20,27 @@ const fakeGl = () => {
   };
 };
 
+const ON = { __RAW_ENABLE_LAND_AWARE_FETCH__: true };
+
 describe('resolveLandAwareFetch', () => {
+  it('is OFF BY DEFAULT — the enabled leg measured WORSE than the control (see the module note)', () => {
+    expect(resolveLandAwareFetch({ cols: 8, rows: 7 }, {}).on).toBe(false);
+    expect(resolveLandAwareFetch({ cols: 8, rows: 7 }).on).toBe(false);
+  });
+
   it('is on for a real grid and reports its dimensions', () => {
-    expect(resolveLandAwareFetch({ cols: 8, rows: 7 }, {})).toEqual({ on: true, cols: 8, rows: 7 });
+    expect(resolveLandAwareFetch({ cols: 8, rows: 7 }, ON)).toEqual({ on: true, cols: 8, rows: 7 });
   });
 
   it('is off under the kill switch', () => {
-    expect(resolveLandAwareFetch({ cols: 8, rows: 7 }, { __RAW_DISABLE_LAND_AWARE_FETCH__: true }))
+    expect(resolveLandAwareFetch({ cols: 8, rows: 7 }, { ...ON, __RAW_DISABLE_LAND_AWARE_FETCH__: true }))
       .toEqual({ on: false, cols: null, rows: null });
   });
 
   it('fails safe on grids with no interior 2x2 footprint, and on junk', () => {
     for (const g of [null, undefined, {}, { cols: 1, rows: 7 }, { cols: 8, rows: 1 },
       { cols: 0, rows: 0 }, { cols: NaN, rows: 7 }, { cols: '8', rows: '7' }]) {
-      expect(resolveLandAwareFetch(g, {}).on).toBe(false);
+      expect(resolveLandAwareFetch(g, ON).on).toBe(false);
     }
   });
 });
@@ -41,7 +48,7 @@ describe('resolveLandAwareFetch', () => {
 describe('setLandAwareFetchUniforms', () => {
   it('writes the reciprocal texel size and the enable flag', () => {
     const gl = fakeGl();
-    setLandAwareFetchUniforms(gl, {}, { cols: 8, rows: 7 }, {});
+    setLandAwareFetchUniforms(gl, {}, { cols: 8, rows: 7 }, ON);
     expect(gl.calls.u2.u_waveTexel[0]).toBeCloseTo(1 / 8, 10);
     expect(gl.calls.u2.u_waveTexel[1]).toBeCloseTo(1 / 7, 10);
     expect(gl.calls.u1.u_landAwareFetch).toBe(1);
@@ -54,14 +61,14 @@ describe('setLandAwareFetchUniforms', () => {
     // stride. Nothing throws; the coastline just smears. So: ALWAYS both, on every path.
     it('sets BOTH uniforms even when disabled', () => {
       const gl = fakeGl();
-      setLandAwareFetchUniforms(gl, {}, { cols: 8, rows: 7 }, { __RAW_DISABLE_LAND_AWARE_FETCH__: true });
+      setLandAwareFetchUniforms(gl, {}, { cols: 8, rows: 7 }, { ...ON, __RAW_DISABLE_LAND_AWARE_FETCH__: true });
       expect(gl.calls.u2.u_waveTexel).toEqual([0, 0]);
       expect(gl.calls.u1.u_landAwareFetch).toBe(0);
     });
 
     it('sets BOTH uniforms even when the grid is missing', () => {
       const gl = fakeGl();
-      setLandAwareFetchUniforms(gl, {}, null, {});
+      setLandAwareFetchUniforms(gl, {}, null, ON);
       expect(gl.calls.u2.u_waveTexel).toEqual([0, 0]);
       expect(gl.calls.u1.u_landAwareFetch).toBe(0);
       expect(gl.calls.order).toEqual(['u_waveTexel', 'u_landAwareFetch']);
@@ -69,8 +76,8 @@ describe('setLandAwareFetchUniforms', () => {
   });
 
   it('does not throw without a gl or program (render must survive a missing context)', () => {
-    expect(() => setLandAwareFetchUniforms(null, null, { cols: 4, rows: 4 }, {})).not.toThrow();
-    expect(setLandAwareFetchUniforms(null, null, { cols: 4, rows: 4 }, {}).on).toBe(true);
+    expect(() => setLandAwareFetchUniforms(null, null, { cols: 4, rows: 4 }, ON)).not.toThrow();
+    expect(setLandAwareFetchUniforms(null, null, { cols: 4, rows: 4 }, ON).on).toBe(true);
   });
 });
 

@@ -26,6 +26,19 @@
  */
 export function resolveLandAwareFetch(waveGrid, win) {
   const w = win || (typeof window !== 'undefined' ? window : {});
+  // ⛔⛔ DEFAULT OFF — MEASURED REGRESSION, 2026-08-18. Enabling this made the halo WORSE, in a
+  // within-build A/B on deployed 2f58c7e6 with a working control:
+  //     madeira z9.3   control 0 px  ->  ENABLED 40 px (4177 m), peak 47 vs open-water 21
+  //     madeira z8.5    control 14 px ->  ENABLED 37 px (6728 m), peak 74 vs open-water 23
+  // WHY, and it is a flaw in the APPROACH, not a bug in this code: renormalising the weights makes
+  // the interpolant DISCONTINUOUS at the coast. A footprint containing a land texel collapses to the
+  // pure-water value while a footprint one cell further out keeps the full blend, so at ~22 km cells
+  // the two differ by up to 0.5 m across one cell boundary — a manufactured EDGE in place of a ramp.
+  // Removing the ramp was right; replacing it with a step is not.
+  // Kept, not deleted: the analysis and instruments are sound and a smooth variant (blend the
+  // renormalised and plain results by land-weight fraction, so the field stays C0) is the obvious
+  // next attempt. Opt in with __RAW_ENABLE_LAND_AWARE_FETCH__ = true to measure it.
+  if (w.__RAW_ENABLE_LAND_AWARE_FETCH__ !== true) return { on: false, cols: null, rows: null };
   if (w.__RAW_DISABLE_LAND_AWARE_FETCH__ === true) return { on: false, cols: null, rows: null };
   const g = waveGrid;
   // A 1-wide or 1-tall grid has no interior 2x2 footprint; fail safe to the plain fetch rather than
