@@ -56,3 +56,5 @@ scripts/mask-*-out/
 scripts/mask-bounds-out/
 scripts/rim-width-out/
 scripts/rim-*/
+scripts/abaco-*/
+scripts/deployed-*/

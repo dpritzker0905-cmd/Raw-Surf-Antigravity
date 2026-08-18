@@ -88,6 +88,36 @@ clear of the boundary, not next to it.
 control. **A null A/B needs a positive control before it means anything** — the third time that rule
 paid out in this arc.
 
+## 4b. ✅ THE ABACO FLOODING PROTECTION SURVIVES THE FIX — with a working positive control
+
+The risk this fix carried: the re-assert exists to stop the ocean-white pass flooding small islands
+the basemap drops, so narrowing its gate could have reintroduced that. Metric = share of basemap-LAND
+samples whose pixel looks more like the FIELD than like its OWN waves-OFF colour (comparing each
+pixel to itself is what makes it immune to the landuse restyle the Waves toggle causes).
+
+| camera | mode | stock (gate 400) | re-assert OFF | verdict |
+|---|---|---|---|---|
+| **bahamas z6.5** | `dense_base_min_combine` | **0 %** | **9.4 %** | ✅ **protection intact** |
+| bahamas z7.5 | `off` | 2.8 % | 3.7 % | control did not fire — NULL |
+| abaco z8.2 | `midcarve_replace` | 1.3 % | 2.5 % | control did not fire — NULL |
+| abaco z9 | `midcarve_replace` | 5.2 % | 4.9 % | control did not fire — NULL |
+| abaco z9.6 | `midcarve_replace` | 3.7 % | 3.4 % | control did not fire — NULL |
+
+⇒ **z6.5 is the only camera where the control actually floods, and there the shipped gate takes
+9.4 % → 0 %.** That is the Abaco mechanism, exercised and preserved.
+
+★ **The four nulls are reported as nulls, not as passes.** At those cameras the re-assert is inert in
+EVERY leg including the pre-fix gate, so this change cannot have regressed them — but a 1.3 % with a
+dead control proves nothing, and the harness says so in its own output rather than letting the low
+number read as a win. ⚠️ Finding the one camera that exercises the mechanism took a deliberate move
+to a WIDER span: density = mask_width / span, so the coarse regime the 205 px/deg forensics came from
+does not exist at z9.
+
+⚠️ **One leg is unreliable and is not attributed:** `gate_1200` at z6.5 read 36.5 %, worse than
+disabling the re-assert entirely — but it ran in `coverage_gap` while the other two ran in
+`dense_base_min_combine`. Different regime, so it is confounded, not evidence about the gate. Same
+regime-drift that produced two contradictory lever sweeps earlier in this arc.
+
 ## 5. ⚠️ What is NOT fixed
 
 - **Bearing 255° @ 28 px is UNCHANGED in all three legs** (32.69350, −17.12638). A separate, smaller
