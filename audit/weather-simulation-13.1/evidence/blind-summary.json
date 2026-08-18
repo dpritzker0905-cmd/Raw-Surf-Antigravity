@@ -1,0 +1,976 @@
+{
+  "tag": "blind",
+  "base": "http://localhost:3000",
+  "when": "2026-08-18T17:36:18.008Z",
+  "timeToMapHandle": 14939,
+  "consoleErrors": 110,
+  "consoleWarns": 39,
+  "pageErrors": 0,
+  "topErrors": [
+    [
+      "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error duri",
+      41
+    ],
+    [
+      "Failed to load resource: the server responded with a status of 404 ()",
+      22
+    ],
+    [
+      "[WebRTC] Signaling WS error: Event",
+      21
+    ],
+    [
+      "[ERROR] Failed to fetch bookings: AxiosError: Request failed with status code 404\n    at settle (http://localh",
+      5
+    ],
+    [
+      "[ERROR] Failed to fetch fresh avatar: AxiosError: Request failed with status code 404\n    at settle (http://lo",
+      5
+    ],
+    [
+      "Failed to refresh user: AxiosError: Request failed with status code 404\n    at settle (http://localhost:3000/s",
+      5
+    ],
+    [
+      "[Backend Weather Service] Wind grid fetch error: signal is aborted without reason. Falling back cleanly.",
+      5
+    ],
+    [
+      "Failed to load resource: the server responded with a status of 401 ()",
+      1
+    ],
+    [
+      "[ERROR] Error fetching streak: AxiosError: Request failed with status code 401\n    at settle (http://localhost",
+      1
+    ],
+    [
+      "[Backend Weather Service] Grid fetch error: Failed to fetch. Falling back cleanly to standard proxy pipeline.",
+      1
+    ],
+    [
+      "[Backend Weather Service] Grid fetch error: signal is aborted without reason. Falling back cleanly to standard",
+      1
+    ],
+    [
+      "[apiClient] Network error: timeout of 60000ms exceeded",
+      1
+    ],
+    [
+      "[ERROR] Error fetching featured photographers: AxiosError: timeout of 60000ms exceeded\n    at XMLHttpRequest.h",
+      1
+    ]
+  ],
+  "totalRequests": 1558,
+  "failedRequests": 122,
+  "topFailed": [
+    [
+      "https://raw-surf-antigravity.onrender.com/api/weather/grid_series",
+      50
+    ],
+    [
+      "https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013/latest.json",
+      10
+    ],
+    [
+      "https://raw-surf-antigravity.onrender.com/api/weather/grid",
+      8
+    ],
+    [
+      "https://raw-surf-antigravity.onrender.com/api/dispatch/user/admin-user-id/active",
+      7
+    ],
+    [
+      "https://raw-surf-antigravity.onrender.com/api/health",
+      4
+    ],
+    [
+      "https://raw-surf-antigravity.onrender.com/api/photographers/featured",
+      4
+    ],
+    [
+      "https://b.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/8/69/106.vector.pbf",
+      2
+    ],
+    [
+      "https://b.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/8/70/107.vector.pbf",
+      2
+    ],
+    [
+      "https://a.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/8/69/107.vector.pbf",
+      2
+    ],
+    [
+      "https://a.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/8/70/106.vector.pbf",
+      2
+    ],
+    [
+      "https://api.mapbox.com/v4/mapbox.mapbox-traffic-v1.json",
+      2
+    ],
+    [
+      "https://api.mapbox.com/v4/mapbox.mapbox-incidents-v1.json",
+      2
+    ],
+    [
+      "https://raw-surf-antigravity.onrender.com/api/photographer/admin-user-id/active-session",
+      2
+    ],
+    [
+      "https://a.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/9/140/214.vector.pbf",
+      2
+    ],
+    [
+      "https://b.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/9/140/213.vector.pbf",
+      2
+    ]
+  ],
+  "hiddenRafDelta": 145,
+  "marksSummary": [
+    {
+      "mark": "01-clean-load",
+      "zoom": 9,
+      "layers": 138,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 32,
+      "bufLive": 273,
+      "fbLive": 2,
+      "programs": 24,
+      "intervalsLive": 21,
+      "heapMB": 159.3,
+      "canvases": 2,
+      "domNodes": 568,
+      "reqs": 174,
+      "err": 16
+    },
+    {
+      "mark": "02-wind-active",
+      "zoom": 9,
+      "layers": 138,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 37,
+      "bufLive": 273,
+      "fbLive": 4,
+      "programs": 24,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 641,
+      "reqs": 186,
+      "err": 17
+    },
+    {
+      "mark": "03-cocoa-z8",
+      "zoom": 8,
+      "layers": 138,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 67,
+      "bufLive": 504,
+      "fbLive": 4,
+      "programs": 24,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 625,
+      "reqs": 213,
+      "err": 18
+    },
+    {
+      "mark": "04-cocoa-z11",
+      "zoom": 11,
+      "layers": 138,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 127,
+      "bufLive": 968,
+      "fbLive": 4,
+      "programs": 25,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 754,
+      "reqs": 243,
+      "err": 18
+    },
+    {
+      "mark": "05-cocoa-z5",
+      "zoom": 5,
+      "layers": 138,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 146,
+      "bufLive": 1333,
+      "fbLive": 4,
+      "programs": 27,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 608,
+      "reqs": 255,
+      "err": 20
+    },
+    {
+      "mark": "06-pan-return-z8",
+      "zoom": 8,
+      "layers": 138,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 138,
+      "bufLive": 1325,
+      "fbLive": 4,
+      "programs": 27,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 608,
+      "reqs": 278,
+      "err": 20
+    },
+    {
+      "mark": "07-time-plus6",
+      "zoom": 8,
+      "layers": 138,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 138,
+      "bufLive": 1325,
+      "fbLive": 4,
+      "programs": 27,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 608,
+      "reqs": 316,
+      "err": 21
+    },
+    {
+      "mark": "08-time-restored",
+      "zoom": 8,
+      "layers": 138,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 113,
+      "bufLive": 1267,
+      "fbLive": 4,
+      "programs": 27,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 608,
+      "reqs": 321,
+      "err": 21
+    },
+    {
+      "mark": "09-model-EURO",
+      "zoom": 8,
+      "layers": 138,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 113,
+      "bufLive": 1267,
+      "fbLive": 4,
+      "programs": 27,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 608,
+      "reqs": 335,
+      "err": 22
+    },
+    {
+      "mark": "10-model-GFS-restored",
+      "zoom": 8,
+      "layers": 138,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 114,
+      "bufLive": 1267,
+      "fbLive": 4,
+      "programs": 27,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 608,
+      "reqs": 342,
+      "err": 22
+    },
+    {
+      "mark": "11-layer-waves",
+      "zoom": 8,
+      "layers": 143,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 70,
+      "bufLive": 309,
+      "fbLive": 4,
+      "programs": 27,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 606,
+      "reqs": 360,
+      "err": 23
+    },
+    {
+      "mark": "12-layer-swell1",
+      "zoom": 8,
+      "layers": 143,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 78,
+      "bufLive": 309,
+      "fbLive": 4,
+      "programs": 27,
+      "intervalsLive": 23,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 612,
+      "reqs": 369,
+      "err": 23
+    },
+    {
+      "mark": "13-layer-swell2",
+      "zoom": 8,
+      "layers": 143,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 74,
+      "bufLive": 309,
+      "fbLive": 4,
+      "programs": 27,
+      "intervalsLive": 23,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 621,
+      "reqs": 386,
+      "err": 24
+    },
+    {
+      "mark": "14-layer-watertemp",
+      "zoom": 8,
+      "layers": 143,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 104,
+      "bufLive": 242,
+      "fbLive": 4,
+      "programs": 28,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 620,
+      "reqs": 477,
+      "err": 24
+    },
+    {
+      "mark": "15-layer-wind-restored",
+      "zoom": 8,
+      "layers": 143,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 92,
+      "bufLive": 217,
+      "fbLive": 4,
+      "programs": 28,
+      "intervalsLive": 21,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 620,
+      "reqs": 496,
+      "err": 25
+    },
+    {
+      "mark": "16-restored-from-hidden",
+      "zoom": 8,
+      "layers": 143,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 92,
+      "bufLive": 217,
+      "fbLive": 4,
+      "programs": 28,
+      "intervalsLive": 21,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 620,
+      "reqs": 503,
+      "err": 25
+    },
+    {
+      "mark": "17-return-to-map",
+      "zoom": 9,
+      "layers": 138,
+      "rafSites": 1,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 6,
+      "bufLive": 24,
+      "fbLive": 2,
+      "programs": 13,
+      "intervalsLive": 21,
+      "heapMB": 159.3,
+      "canvases": 2,
+      "domNodes": 568,
+      "reqs": 653,
+      "err": 43
+    },
+    {
+      "mark": "18-burnin-cycle1",
+      "zoom": null,
+      "layers": null,
+      "rafSites": 1,
+      "workers": 1,
+      "gl": 0,
+      "texLive": 0,
+      "bufLive": 0,
+      "fbLive": 0,
+      "programs": 0,
+      "intervalsLive": 18,
+      "heapMB": 159.3,
+      "canvases": 1,
+      "domNodes": 293,
+      "reqs": 762,
+      "err": 58
+    },
+    {
+      "mark": "18-burnin-cycle2",
+      "zoom": null,
+      "layers": null,
+      "rafSites": 1,
+      "workers": 1,
+      "gl": 0,
+      "texLive": 0,
+      "bufLive": 0,
+      "fbLive": 0,
+      "programs": 0,
+      "intervalsLive": 18,
+      "heapMB": 159.3,
+      "canvases": 1,
+      "domNodes": 293,
+      "reqs": 917,
+      "err": 73
+    },
+    {
+      "mark": "18-burnin-cycle3",
+      "zoom": 9,
+      "layers": 138,
+      "rafSites": 4,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 8,
+      "bufLive": 29,
+      "fbLive": 2,
+      "programs": 13,
+      "intervalsLive": 21,
+      "heapMB": 159.3,
+      "canvases": 2,
+      "domNodes": 568,
+      "reqs": 1137,
+      "err": 96
+    },
+    {
+      "mark": "19-race-midflight",
+      "zoom": 6,
+      "layers": 143,
+      "rafSites": 4,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 53,
+      "bufLive": 471,
+      "fbLive": 2,
+      "programs": 26,
+      "intervalsLive": 21,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 624,
+      "reqs": 1208,
+      "err": 99
+    },
+    {
+      "mark": "20-race-settled",
+      "zoom": 6,
+      "layers": 143,
+      "rafSites": 4,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 58,
+      "bufLive": 444,
+      "fbLive": 4,
+      "programs": 26,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 624,
+      "reqs": 1219,
+      "err": 101
+    },
+    {
+      "mark": "21-final",
+      "zoom": 9,
+      "layers": 143,
+      "rafSites": 4,
+      "workers": 18,
+      "gl": 1,
+      "texLive": 176,
+      "bufLive": 1708,
+      "fbLive": 4,
+      "programs": 26,
+      "intervalsLive": 22,
+      "heapMB": 159.3,
+      "canvases": 4,
+      "domNodes": 640,
+      "reqs": 1557,
+      "err": 110
+    }
+  ],
+  "samples": {
+    "s1": {
+      "px": [
+        540,
+        400
+      ],
+      "onScreen": true,
+      "body": "Skip to main content\nRaw Surf\nYour Role\n🏄\nSurfer\nHome\nNotifications\nExplore\nMap\nCreate\nMessages\nProfile\nSettings\nAdmin Console\nTheme\nLog out\nWORKSPACE\nBookings\nBackpack\nDIAGNOSTICS HUD\nCollapse\nHEALTH\nEVENTS\nVISUAL\nGPU/FCE\nModel / Layer:\nGFS / wind\nRender Mode:\nWind\nRaster Source:\nLOADED\nGRID PROVENANCE\nProvider:\nUNKNOWN\nClass:\nNO DATA\nTRUTH VIOLATIONS\n?\nNOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable)\n2\n5\n7\n16\nLive Map\n0 shooting\nAll\nSurf Spots\nPhotographers\nRequest a\nWEATHER\nGFS\nEURO\nICON\nSurf Rating: OFF\nft ⇄\nPrecip\nRadar\nSatellite\nWind\nWaves\nSwell\nSwell 2\nWind Waves\nFog\nPressure\nAir Temp\nWater Temp\nWind Speed (kts)\n0\n15\n30\n45\n60\n75+\nLive\n−1d\n−1h\nNow\n+1h\n+1d\n🌊 Marine Anim Tuner\n▾\nlive zoom —\nvalues apply at all zooms\nNo engine echo yet — turn on Waves (GFS → Waves) and keep this tab focused.\n🌊 Natural (default)\nFlat (legacy)\nTrochoidal crest\n0.7\nSharp leading face, broad trailing back (0 = symmetric)\nOrbital pitch\n2.5\nCrests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.\nShoaling foam\n1.5\nExtra whitecap in shallow water (needs bathymetry — zoom to a coast)\nCrest jitter\n0.26\nBreaks the parallel-crest \"grid\" over uniform fields (rad)\nWave speed\n1\nOverall drift-speed multiplier\nSpeed height cap\n3\nCaps how fast big swell drifts (m)\nCrest density\n1650\nOn-screen crest count (held constant across zoom)\nTile zoom min\n3\nZoom where the dense tile mode kicks in\nTile backoff\n2\nAUTO unless dragged: z3-4 uses the whole-world tile (backoff 3, seamless, kills the split), else 2. GPU:N = live applied; drag to PIN a constant for A/B\nCoarse wash\n0.72\nFaded coarse under-wash strength beneath a regional tile\n📋 Copy for Claude"
+    },
+    "s2": {
+      "px": [
+        540,
+        400
+      ],
+      "onScreen": true,
+      "body": "Skip to main content\nRaw Surf\nYour Role\n🏄\nSurfer\nHome\nNotifications\nExplore\nMap\nCreate\nMessages\nProfile\nSettings\nAdmin Console\nTheme\nLog out\nWORKSPACE\nBookings\nBackpack\nDIAGNOSTICS HUD\nCollapse\nHEALTH\nEVENTS\nVISUAL\nGPU/FCE\nModel / Layer:\nGFS / wind\nRender Mode:\nWind\nRaster Source:\nLOADED\nGRID PROVENANCE\nProvider:\nUNKNOWN\nClass:\nNO DATA\nTRUTH VIOLATIONS\n?\nNOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable)\n2\n2\n3\n3\n2\n2\n2\n2\n4\n3\n5\n2\nLive Map\n0 shooting\nAll\nSurf Spots\nPhotographers\nRequest a\nWEATHER\nGFS\nEURO\nICON\nSurf Rating: OFF\nft ⇄\nPrecip\nRadar\nSatellite\nWind\nWaves\nSwell\nSwell 2\nWind Waves\nFog\nPressure\nAir Temp\nWater Temp\nWind Speed (kts)\n0\n15\n30\n45\n60\n75+\nLive\n−1d\n−1h\nNow\n+1h\n+1d\n🌊 Marine Anim Tuner\n▾\nlive zoom —\nvalues apply at all zooms\nNo engine echo yet — turn on Waves (GFS → Waves) and keep this tab focused.\n🌊 Natural (default)\nFlat (legacy)\nTrochoidal crest\n0.7\nSharp leading face, broad trailing back (0 = symmetric)\nOrbital pitch\n2.5\nCrests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.\nShoaling foam\n1.5\nExtra whitecap in shallow water (needs bathymetry — zoom to a coast)\nCrest jitter\n0.26\nBreaks the parallel-crest \"grid\" over uniform fields (rad)\nWave speed\n1\nOverall drift-speed multiplier\nSpeed height cap\n3\nCaps how fast big swell drifts (m)\nCrest density\n1650\nOn-screen crest count (held constant across zoom)\nTile zoom min\n3\nZoom where the dense tile mode kicks in\nTile backoff\n2\nAUTO unless dragged: z3-4 uses the whole-world tile (backoff 3, seamless, kills the split), else 2. GPU:N = live applied; drag to PIN a constant for A/B\nCoarse wash\n0.72\nFaded coarse under-wash strength beneath a regional tile\n📋 Copy for Claude"
+    },
+    "s3": {
+      "px": [
+        540,
+        400
+      ],
+      "onScreen": true,
+      "body": "Skip to main content\nRaw Surf\nYour Role\n🏄\nSurfer\nHome\nNotifications\nExplore\nMap\nCreate\nMessages\nProfile\nSettings\nAdmin Console\nTheme\nLog out\nWORKSPACE\nBookings\nBackpack\nDIAGNOSTICS HUD\nCollapse\nHEALTH\nEVENTS\nVISUAL\nGPU/FCE\nModel / Layer:\nGFS / wind\nRender Mode:\nWind\nRaster Source:\nLOADED\nGRID PROVENANCE\nProvider:\nUNKNOWN\nClass:\nNO DATA\nTRUTH VIOLATIONS\n?\nNOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable)\nLive Map\n0 shooting\nAll\nSurf Spots\nPhotographers\nRequest a\nWEATHER\nGFS\nEURO\nICON\nSurf Rating: OFF\nft ⇄\nPrecip\nRadar\nSatellite\nWind\nWaves\nSwell\nSwell 2\nWind Waves\nFog\nPressure\nAir Temp\nWater Temp\nWind Speed (kts)\n0\n15\n30\n45\n60\n75+\nLive\n−1d\n−1h\nNow\n+1h\n+1d\n🌊 Marine Anim Tuner\n▾\nlive zoom —\nvalues apply at all zooms\nNo engine echo yet — turn on Waves (GFS → Waves) and keep this tab focused.\n🌊 Natural (default)\nFlat (legacy)\nTrochoidal crest\n0.7\nSharp leading face, broad trailing back (0 = symmetric)\nOrbital pitch\n2.5\nCrests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.\nShoaling foam\n1.5\nExtra whitecap in shallow water (needs bathymetry — zoom to a coast)\nCrest jitter\n0.26\nBreaks the parallel-crest \"grid\" over uniform fields (rad)\nWave speed\n1\nOverall drift-speed multiplier\nSpeed height cap\n3\nCaps how fast big swell drifts (m)\nCrest density\n1650\nOn-screen crest count (held constant across zoom)\nTile zoom min\n3\nZoom where the dense tile mode kicks in\nTile backoff\n2\nAUTO unless dragged: z3-4 uses the whole-world tile (backoff 3, seamless, kills the split), else 2. GPU:N = live applied; drag to PIN a constant for A/B\nCoarse wash\n0.72\nFaded coarse under-wash strength beneath a regional tile\n📋 Copy for Claude"
+    },
+    "s4": {
+      "px": [
+        540,
+        400
+      ],
+      "onScreen": true,
+      "body": "Skip to main content\nRaw Surf\nYour Role\n🏄\nSurfer\nHome\nNotifications\nExplore\nMap\nCreate\nMessages\nProfile\nSettings\nAdmin Console\nTheme\nLog out\nWORKSPACE\nBookings\nBackpack\nDIAGNOSTICS HUD\nCollapse\nHEALTH\nEVENTS\nVISUAL\nGPU/FCE\nModel / Layer:\nGFS / wind\nRender Mode:\nWind\nRaster Source:\nLOADED\nGRID PROVENANCE\nProvider:\nUNKNOWN\nClass:\nNO DATA\nTRUTH VIOLATIONS\n?\nNOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable)\nLive Map\n0 shooting\nAll\nSurf Spots\nPhotographers\nRequest a\nWEATHER\nGFS\nEURO\nICON\nSurf Rating: OFF\nft ⇄\nPrecip\nRadar\nSatellite\nWind\nWaves\nSwell\nSwell 2\nWind Waves\nFog\nPressure\nAir Temp\nWater Temp\nWind Speed (kts)\n0\n15\n30\n45\n60\n75+\nLive\n−1d\n−1h\nNow\n+1h\n+1d\n🌊 Marine Anim Tuner\n▾\nlive zoom —\nvalues apply at all zooms\nNo engine echo yet — turn on Waves (GFS → Waves) and keep this tab focused.\n🌊 Natural (default)\nFlat (legacy)\nTrochoidal crest\n0.7\nSharp leading face, broad trailing back (0 = symmetric)\nOrbital pitch\n2.5\nCrests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.\nShoaling foam\n1.5\nExtra whitecap in shallow water (needs bathymetry — zoom to a coast)\nCrest jitter\n0.26\nBreaks the parallel-crest \"grid\" over uniform fields (rad)\nWave speed\n1\nOverall drift-speed multiplier\nSpeed height cap\n3\nCaps how fast big swell drifts (m)\nCrest density\n1650\nOn-screen crest count (held constant across zoom)\nTile zoom min\n3\nZoom where the dense tile mode kicks in\nTile backoff\n2\nAUTO unless dragged: z3-4 uses the whole-world tile (backoff 3, seamless, kills the split), else 2. GPU:N = live applied; drag to PIN a constant for A/B\nCoarse wash\n0.72\nFaded coarse under-wash strength beneath a regional tile\n📋 Copy for Claude"
+    },
+    "s5": {
+      "px": [
+        540,
+        400
+      ],
+      "onScreen": true,
+      "body": "Skip to main content\nRaw Surf\nYour Role\n🏄\nSurfer\nHome\nNotifications\nExplore\nMap\nCreate\nMessages\nProfile\nSettings\nAdmin Console\nTheme\nLog out\nWORKSPACE\nBookings\nBackpack\nDIAGNOSTICS HUD\nCollapse\nHEALTH\nEVENTS\nVISUAL\nGPU/FCE\nModel / Layer:\nGFS / wind\nRender Mode:\nWind\nRaster Source:\nLOADED\nGRID PROVENANCE\nProvider:\nUNKNOWN\nClass:\nNO DATA\nTRUTH VIOLATIONS\n?\nNOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable)\nLive Map\n0 shooting\nAll\nSurf Spots\nPhotographers\nRequest a\nWEATHER\nGFS\nEURO\nICON\nSurf Rating: OFF\nft ⇄\nPrecip\nRadar\nSatellite\nWind\nWaves\nSwell\nSwell 2\nWind Waves\nFog\nPressure\nAir Temp\nWater Temp\nWind Speed (kts)\n0\n15\n30\n45\n60\n75+\nTue 7 PM\n−1d\n−1h\nNow\n+1h\n+1d\n🌊 Marine Anim Tuner\n▾\nlive zoom —\nvalues apply at all zooms\nNo engine echo yet — turn on Waves (GFS → Waves) and keep this tab focused.\n🌊 Natural (default)\nFlat (legacy)\nTrochoidal crest\n0.7\nSharp leading face, broad trailing back (0 = symmetric)\nOrbital pitch\n2.5\nCrests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.\nShoaling foam\n1.5\nExtra whitecap in shallow water (needs bathymetry — zoom to a coast)\nCrest jitter\n0.26\nBreaks the parallel-crest \"grid\" over uniform fields (rad)\nWave speed\n1\nOverall drift-speed multiplier\nSpeed height cap\n3\nCaps how fast big swell drifts (m)\nCrest density\n1650\nOn-screen crest count (held constant across zoom)\nTile zoom min\n3\nZoom where the dense tile mode kicks in\nTile backoff\n2\nAUTO unless dragged: z3-4 uses the whole-world tile (backoff 3, seamless, kills the split), else 2. GPU:N = live applied; drag to PIN a constant for A/B\nCoarse wash\n0.72\nFaded coarse under-wash strength beneath a regional tile\n📋 Copy for Claude"
+    },
+    "s6": {
+      "px": [
+        540,
+        400
+      ],
+      "onScreen": true,
+      "body": "Skip to main content\nRaw Surf\nYour Role\n🏄\nSurfer\nHome\nNotifications\nExplore\nMap\nCreate\nMessages\nProfile\nSettings\nAdmin Console\nTheme\nLog out\nWORKSPACE\nBookings\nBackpack\nDIAGNOSTICS HUD\nCollapse\nHEALTH\nEVENTS\nVISUAL\nGPU/FCE\nModel / Layer:\nGFS / wind\nRender Mode:\nWind\nRaster Source:\nLOADED\nGRID PROVENANCE\nProvider:\nUNKNOWN\nClass:\nNO DATA\nTRUTH VIOLATIONS\n?\nNOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable)\nLive Map\n0 shooting\nAll\nSurf Spots\nPhotographers\nRequest a\nWEATHER\nGFS\nEURO\nICON\nSurf Rating: OFF\nft ⇄\nPrecip\nRadar\nSatellite\nWind\nWaves\nSwell\nSwell 2\nWind Waves\nFog\nPressure\nAir Temp\nWater Temp\nWind Speed (kts)\n0\n15\n30\n45\n60\n75+\nLive\n−1d\n−1h\nNow\n+1h\n+1d\n🌊 Marine Anim Tuner\n▾\nlive zoom —\nvalues apply at all zooms\nNo engine echo yet — turn on Waves (GFS → Waves) and keep this tab focused.\n🌊 Natural (default)\nFlat (legacy)\nTrochoidal crest\n0.7\nSharp leading face, broad trailing back (0 = symmetric)\nOrbital pitch\n2.5\nCrests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.\nShoaling foam\n1.5\nExtra whitecap in shallow water (needs bathymetry — zoom to a coast)\nCrest jitter\n0.26\nBreaks the parallel-crest \"grid\" over uniform fields (rad)\nWave speed\n1\nOverall drift-speed multiplier\nSpeed height cap\n3\nCaps how fast big swell drifts (m)\nCrest density\n1650\nOn-screen crest count (held constant across zoom)\nTile zoom min\n3\nZoom where the dense tile mode kicks in\nTile backoff\n2\nAUTO unless dragged: z3-4 uses the whole-world tile (backoff 3, seamless, kills the split), else 2. GPU:N = live applied; drag to PIN a constant for A/B\nCoarse wash\n0.72\nFaded coarse under-wash strength beneath a regional tile\n📋 Copy for Claude"
+    },
+    "s7": {
+      "px": [
+        540,
+        400
+      ],
+      "onScreen": true,
+      "body": "Skip to main content\nRaw Surf\nYour Role\n🏄\nSurfer\nHome\nNotifications\nExplore\nMap\nCreate\nMessages\nProfile\nSettings\nAdmin Console\nTheme\nLog out\nWORKSPACE\nBookings\nBackpack\nDIAGNOSTICS HUD\nCollapse\nHEALTH\nEVENTS\nVISUAL\nGPU/FCE\nModel / Layer:\nEURO / wind\nRender Mode:\nWind\nRaster Source:\nLOADED\nGRID PROVENANCE\nProvider:\nUNKNOWN\nClass:\nNO DATA\nTRUTH VIOLATIONS\n?\nNOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable)\nLive Map\n0 shooting\nAll\nSurf Spots\nPhotographers\nRequest a\nWEATHER\nGFS\nEURO\nICON\nSurf Rating: OFF\nft ⇄\nPrecip\nRadar\nSatellite\nWind\nWaves\nSwell\nSwell 2\nWind Waves\nFog\nPressure\nAir Temp\nWater Temp\nWind Speed (kts)\n0\n15\n30\n45\n60\n75+\nLive\n−1d\n−1h\nNow\n+1h\n+1d\n🌊 Marine Anim Tuner\n▾\nlive zoom —\nvalues apply at all zooms\nNo engine echo yet — turn on Waves (GFS → Waves) and keep this tab focused.\n🌊 Natural (default)\nFlat (legacy)\nTrochoidal crest\n0.7\nSharp leading face, broad trailing back (0 = symmetric)\nOrbital pitch\n2.5\nCrests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.\nShoaling foam\n1.5\nExtra whitecap in shallow water (needs bathymetry — zoom to a coast)\nCrest jitter\n0.26\nBreaks the parallel-crest \"grid\" over uniform fields (rad)\nWave speed\n1\nOverall drift-speed multiplier\nSpeed height cap\n3\nCaps how fast big swell drifts (m)\nCrest density\n1650\nOn-screen crest count (held constant across zoom)\nTile zoom min\n3\nZoom where the dense tile mode kicks in\nTile backoff\n2\nAUTO unless dragged: z3-4 uses the whole-world tile (backoff 3, seamless, kills the split), else 2. GPU:N = live applied; drag to PIN a constant for A/B\nCoarse wash\n0.72\nFaded coarse under-wash strength beneath a regional tile\n📋 Copy for Claude"
+    },
+    "s8": {
+      "px": [
+        540,
+        400
+      ],
+      "onScreen": true,
+      "body": "Skip to main content\nRaw Surf\nYour Role\n🏄\nSurfer\nHome\nNotifications\nExplore\nMap\nCreate\nMessages\nProfile\nSettings\nAdmin Console\nTheme\nLog out\nWORKSPACE\nBookings\nBackpack\nDIAGNOSTICS HUD\nCollapse\nHEALTH\nEVENTS\nVISUAL\nGPU/FCE\nModel / Layer:\nGFS / wind\nRender Mode:\nWind\nRaster Source:\nLOADED\nGRID PROVENANCE\nProvider:\nUNKNOWN\nClass:\nNO DATA\nTRUTH VIOLATIONS\n?\nNOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable)\nLive Map\n0 shooting\nAll\nSurf Spots\nPhotographers\nRequest a\nWEATHER\nGFS\nEURO\nICON\nSurf Rating: OFF\nft ⇄\nPrecip\nRadar\nSatellite\nWind\nWaves\nSwell\nSwell 2\nWind Waves\nFog\nPressure\nAir Temp\nWater Temp\nWind Speed (kts)\n0\n15\n30\n45\n60\n75+\nLive\n−1d\n−1h\nNow\n+1h\n+1d\n🌊 Marine Anim Tuner\n▾\nlive zoom —\nvalues apply at all zooms\nNo engine echo yet — turn on Waves (GFS → Waves) and keep this tab focused.\n🌊 Natural (default)\nFlat (legacy)\nTrochoidal crest\n0.7\nSharp leading face, broad trailing back (0 = symmetric)\nOrbital pitch\n2.5\nCrests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.\nShoaling foam\n1.5\nExtra whitecap in shallow water (needs bathymetry — zoom to a coast)\nCrest jitter\n0.26\nBreaks the parallel-crest \"grid\" over uniform fields (rad)\nWave speed\n1\nOverall drift-speed multiplier\nSpeed height cap\n3\nCaps how fast big swell drifts (m)\nCrest density\n1650\nOn-screen crest count (held constant across zoom)\nTile zoom min\n3\nZoom where the dense tile mode kicks in\nTile backoff\n2\nAUTO unless dragged: z3-4 uses the whole-world tile (backoff 3, seamless, kills the split), else 2. GPU:N = live applied; drag to PIN a constant for A/B\nCoarse wash\n0.72\nFaded coarse under-wash strength beneath a regional tile\n📋 Copy for Claude"
+    },
+    "s9": {
+      "px": [
+        540,
+        400
+      ],
+      "onScreen": true,
+      "body": "Skip to main content\nRaw Surf\nYour Role\n🏄\nSurfer\nHome\nNotifications\nExplore\nMap\nCreate\nMessages\nProfile\nSettings\nAdmin Console\nTheme\nLog out\nWORKSPACE\nBookings\nBackpack\nDIAGNOSTICS HUD\nCollapse\nHEALTH\nEVENTS\nVISUAL\nGPU/FCE\nModel / Layer:\nGFS / waves\nRender Mode:\nMarine\nRaster Source:\nLOADING\nGRID PROVENANCE\nProvider:\nUNKNOWN\nClass:\nNO DATA\nTRUTH VIOLATIONS\n?\nNOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable)\nLive Map\n0 shooting\nAll\nSurf Spots\nPhotographers\nRequest a\nWEATHER\nGFS\nEURO\nICON\nSurf Rating: OFF\nft ⇄\nPrecip\nRadar\nSatellite\nWind\nWaves\nSwell\nSwell 2\nWind Waves\nFog\nPressure\nAir Temp\nWater Temp\nCombined Waves (ft)\n0.0\n4\n8\n12\n20+\nLive\n−1d\n−1h\nNow\n+1h\n+1d\n🌊 Marine Anim Tuner\n▾\nlive zoom —\nvalues apply at all zooms\nNo engine echo yet — turn on Waves (GFS → Waves) and keep this tab focused.\n🌊 Natural (default)\nFlat (legacy)\nTrochoidal crest\n0.7\nSharp leading face, broad trailing back (0 = symmetric)\nOrbital pitch\n2.5\nCrests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.\nShoaling foam\n1.5\nExtra whitecap in shallow water (needs bathymetry — zoom to a coast)\nCrest jitter\n0.26\nBreaks the parallel-crest \"grid\" over uniform fields (rad)\nWave speed\n1\nOverall drift-speed multiplier\nSpeed height cap\n3\nCaps how fast big swell drifts (m)\nCrest density\n1650\nOn-screen crest count (held constant across zoom)\nTile zoom min\n3\nZoom where the dense tile mode kicks in\nTile backoff\n2\nAUTO unless dragged: z3-4 uses the whole-world tile (backoff 3, seamless, kills the split), else 2. GPU:N = live applied; drag to PIN a constant for A/B\nCoarse wash\n0.72\nFaded coarse under-wash strength beneath a regional tile\n📋 Copy for Claude"
+    },
+    "s10": {
+      "px": [
+        540,
+        400
+      ],
+      "onScreen": true,
+      "body": "Skip to main content\nRaw Surf\nYour Role\n🏄\nSurfer\nHome\nNotifications\nExplore\nMap\nCreate\nMessages\nProfile\nSettings\nAdmin Console\nTheme\nLog out\nWORKSPACE\nBookings\nBackpack\nDIAGNOSTICS HUD\nCollapse\nHEALTH\nEVENTS\nVISUAL\nGPU/FCE\nModel / Layer:\nGFS / wind\nRender Mode:\nWind\nRaster Source:\nLOADED\nGRID PROVENANCE\nProvider:\nUNKNOWN\nClass:\nCOARSE 2° GRID\nTRUTH VIOLATIONS\n⚠️ SOURCE-PARITY-MISMATCH\nlayer: heatmap=swell_2 infobox=wind\nLive Map\n0 shooting\nAll\nSurf Spots\nPhotographers\nRequest a\nWEATHER\nGFS\nEURO\nICON\nSurf Rating: OFF\nft ⇄\nPrecip\nRadar\nSatellite\nWind\nWaves\nSwell\nSwell 2\nWind Waves\nFog\nPressure\nAir Temp\nWater Temp\nWind Speed (kts)\n0\n15\n30\n45\n60\n75+\n~223 km grid (2°)\nLive\n−1d\n−1h\nNow\n+1h\n+1d\n🌊 Marine Anim Tuner\n▾\nlive zoom 8.00\nvalues apply at all zooms\n🌊 Natural (default)\nFlat (legacy)\nTrochoidal crest\n0.7GPU:0.7 ✓\nSharp leading face, broad trailing back (0 = symmetric)\nOrbital pitch\n2.5GPU:2.5 ✓\nCrests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.\nShoaling foam\n1.5GPU:1.5 ✓\nExtra whitecap in shallow water (needs bathymetry — zoom to a coast)\nCrest jitter\n0.26GPU:0.26 ✓\nBreaks the parallel-crest \"grid\" over uniform fields (rad)\nWave speed\n1GPU:1 ✓\nOverall drift-speed multiplier\nSpeed height cap\n3GPU:3 ✓\nCaps how fast big swell drifts (m)\nCrest density\n1650GPU:1650 ✓\nOn-screen crest count (held constant across zoom)\nTile zoom min\n3GPU:3 ✓\nZoom where the dense tile mode kicks in\nTile backoff\n2GPU:2 ✓\nAUTO unless dragged: z3-4 uses the whole-world tile (backoff 3, seamless, kills the split), else 2. GPU:N = live applied; drag to PIN a constant for A/B\nCoarse wash\n0.72GPU:0.72 ✓\nFaded coarse under-wash strength beneath a regional tile\n📋 Copy for Claude"
+    }
+  },
+  "tour": [
+    {
+      "name": "florida",
+      "lng": -80.607,
+      "lat": 28.361,
+      "z": 8,
+      "zoom": 8,
+      "layers": 143,
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ],
+      "texLive": 88,
+      "bufLive": 675,
+      "heapMB": 159.3,
+      "px": {
+        "note": "no gl readback"
+      }
+    },
+    {
+      "name": "newyork",
+      "lng": -73.1,
+      "lat": 40.6,
+      "z": 8,
+      "zoom": 8,
+      "layers": 143,
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ],
+      "texLive": 148,
+      "bufLive": 1203,
+      "heapMB": 159.3,
+      "px": {
+        "note": "no gl readback"
+      }
+    },
+    {
+      "name": "portugal",
+      "lng": -9.4,
+      "lat": 38.7,
+      "z": 8,
+      "zoom": 8,
+      "layers": 143,
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ],
+      "texLive": 152,
+      "bufLive": 1422,
+      "heapMB": 159.3,
+      "px": {
+        "note": "no gl readback"
+      }
+    },
+    {
+      "name": "spain",
+      "lng": -2,
+      "lat": 43.4,
+      "z": 8,
+      "zoom": 8,
+      "layers": 143,
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ],
+      "texLive": 170,
+      "bufLive": 1797,
+      "heapMB": 159.3,
+      "px": {
+        "note": "no gl readback"
+      }
+    },
+    {
+      "name": "morocco",
+      "lng": -9.8,
+      "lat": 31.4,
+      "z": 8,
+      "zoom": 8,
+      "layers": 143,
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ],
+      "texLive": 204,
+      "bufLive": 2145,
+      "heapMB": 159.3,
+      "px": {
+        "note": "no gl readback"
+      }
+    },
+    {
+      "name": "elsalvador",
+      "lng": -89.3,
+      "lat": 13.4,
+      "z": 8,
+      "zoom": 8,
+      "layers": 143,
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ],
+      "texLive": 236,
+      "bufLive": 2521,
+      "heapMB": 159.3,
+      "px": {
+        "note": "no gl readback"
+      }
+    },
+    {
+      "name": "openatlantic",
+      "lng": -40,
+      "lat": 30,
+      "z": 5,
+      "zoom": 5,
+      "layers": 143,
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ],
+      "texLive": 224,
+      "bufLive": 2440,
+      "heapMB": 159.3,
+      "px": {
+        "note": "no gl readback"
+      }
+    },
+    {
+      "name": "openpacific",
+      "lng": -140,
+      "lat": 10,
+      "z": 5,
+      "zoom": 5,
+      "layers": 143,
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ],
+      "texLive": 188,
+      "bufLive": 2187,
+      "heapMB": 159.3,
+      "px": {
+        "note": "no gl readback"
+      }
+    },
+    {
+      "name": "antimeridian",
+      "lng": 179.6,
+      "lat": -17.6,
+      "z": 6,
+      "zoom": 6,
+      "layers": 143,
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ],
+      "texLive": 180,
+      "bufLive": 2070,
+      "heapMB": 159.3,
+      "px": {
+        "note": "no gl readback"
+      }
+    },
+    {
+      "name": "highlat",
+      "lng": -20,
+      "lat": 66.5,
+      "z": 5,
+      "zoom": 5,
+      "layers": 143,
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ],
+      "texLive": 166,
+      "bufLive": 1991,
+      "heapMB": 159.3,
+      "px": {
+        "note": "no gl readback"
+      }
+    },
+    {
+      "name": "islandchain-madeira",
+      "lng": -16.9,
+      "lat": 32.75,
+      "z": 9,
+      "zoom": 9,
+      "layers": 143,
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ],
+      "texLive": 172,
+      "bufLive": 1790,
+      "heapMB": 159.3,
+      "px": {
+        "note": "no gl readback"
+      }
+    },
+    {
+      "name": "bay-halfmoon",
+      "lng": -122.5,
+      "lat": 37.5,
+      "z": 9,
+      "zoom": 9,
+      "layers": 143,
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ],
+      "texLive": 176,
+      "bufLive": 1708,
+      "heapMB": 159.3,
+      "px": {
+        "note": "no gl readback"
+      }
+    }
+  ]
+}

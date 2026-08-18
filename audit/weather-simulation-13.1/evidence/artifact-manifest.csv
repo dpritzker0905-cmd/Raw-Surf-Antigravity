@@ -1,0 +1,121 @@
+relative_path,bytes,sha256_first16,kind,what_it_proves
+evidence/.gitignore,688,b148a29f1435f068,other,
+evidence/blind-log.txt,5704,a51fbab38e65a2d7,run log,the blind journey run log
+evidence/blind-marks.json,72478,1bf451b3121bd8db,measurement data,"the 23 instrumented marks of the blind journey: layers, RAF sites, workers, GL contexts, textures, buffers, intervals, requests"
+evidence/blind-projection-tour.json,7310,db575958ac093f28,measurement data,12-camera projection tour incl. antimeridian and 66.5N; the +5 style-layer leak persisting across all 12
+evidence/blind-sample-cocoa-EURO.json,1924,dab2e8c262a1c5ee,measurement data,"fixed-coordinate infobox reads at Cocoa Beach across zoom, time, model and layer"
+evidence/blind-sample-cocoa-GFS-restored.json,1923,a231cd9013d79dc7,measurement data,"fixed-coordinate infobox reads at Cocoa Beach across zoom, time, model and layer"
+evidence/blind-sample-cocoa-waves.json,1926,96fd4bb28f37a93d,measurement data,"fixed-coordinate infobox reads at Cocoa Beach across zoom, time, model and layer"
+evidence/blind-sample-cocoa-wind-restored.json,1919,791b0cead90a75f0,measurement data,"fixed-coordinate infobox reads at Cocoa Beach across zoom, time, model and layer"
+evidence/blind-sample-cocoa-z11.json,1959,69ca569f6ba3fcdb,measurement data,"fixed-coordinate infobox reads at Cocoa Beach across zoom, time, model and layer"
+evidence/blind-sample-cocoa-z5.json,1923,a231cd9013d79dc7,measurement data,"fixed-coordinate infobox reads at Cocoa Beach across zoom, time, model and layer"
+evidence/blind-sample-cocoa-z8-after-pan.json,1923,a231cd9013d79dc7,measurement data,"fixed-coordinate infobox reads at Cocoa Beach across zoom, time, model and layer"
+evidence/blind-sample-cocoa-z8-first.json,1936,57cae81b2aae5c91,measurement data,"fixed-coordinate infobox reads at Cocoa Beach across zoom, time, model and layer"
+evidence/blind-sample-cocoa-z8-hour-restored.json,1923,a231cd9013d79dc7,measurement data,"fixed-coordinate infobox reads at Cocoa Beach across zoom, time, model and layer"
+evidence/blind-sample-cocoa-z8-hourplus6.json,1927,bd6eb2cd941cb8ff,measurement data,"fixed-coordinate infobox reads at Cocoa Beach across zoom, time, model and layer"
+evidence/blind-summary.json,39347,0fab5c6775644523,measurement data,"the 23 instrumented marks of the blind journey: layers, RAF sites, workers, GL contexts, textures, buffers, intervals, requests"
+evidence/blind-ui-state-initial.json,3499,5eec993d5e16819c,measurement data,"62 buttons, 1 aria-pressed, 0 role=slider - the accessibility and testability finding"
+evidence/blindsnap.js,23100,60853c1d4719474e,audit harness (disposable; archived for reproducibility),HARNESS: the blind snapshot + lifecycle census
+evidence/causal-traces/local-ablation-custom-hidden.png,896459,e792a0bb2794d682,screenshot,frame from the ablation attempt that did not execute
+evidence/causal-traces/local-parity-ablation.json,3474,5cbf2b11415f45b4,measurement data,"the ablation that DID NOT EXECUTE - recorded as not-performed, never as a null result"
+evidence/causal-traces/local-parity-log.txt,5619,5dedfe23fc4138bc,run log,"9-step causal trace: the heatmap holds 15,023 live swell_2 vectors while activeLayer=wind, with unsampled=null"
+evidence/causal-traces/local-parity-trace.json,15073,7dba9504b5d75866,measurement data,"9-step causal trace: the heatmap holds 15,023 live swell_2 vectors while activeLayer=wind, with unsampled=null"
+evidence/console/blind-console.json,198494,348d6e8d1c672084,measurement data,"110 console errors and 0 uncaught page errors across 1,558 requests"
+evidence/console/blind-pageerrors.json,2,4f53cda18c2baa0c,measurement data,"110 console errors and 0 uncaught page errors across 1,558 requests"
+evidence/jac2.js,22001,87a4524afab44760,audit harness (disposable; archived for reproducibility),HARNESS: the Jacobian matrix + interaction residuals
+evidence/jacobian-tests/jacobian-FATAL.txt,543,1a18c51094de6f43,run log,Jacobian run log
+evidence/jacobian-tests/local-console-errors.json,8869,1331333becca7724,measurement data,
+evidence/jacobian-tests/local-failed-requests.json,3940,06a1515c78792816,measurement data,
+evidence/jacobian-tests/local-hidden-raf.json,4936,b339b212a604ee84,measurement data,17.8 RAF/s hidden vs 18.5/s visible - no app-side visibility owner
+evidence/jacobian-tests/local-interaction-residuals.json,16765,8f56ee54ed0f05b1,measurement data,"7 pairs, four-term protocol: the +84/+924 super-additive residual and the +1 interval created only in combination"
+evidence/jacobian-tests/local-jacobian-first-order.json,33380,e674f646cf0e80be,measurement data,22 probes x 10 outputs: the first-order sensitivity matrix
+evidence/jacobian-tests/local-jacobian-log.txt,9946,4a1d3116f772ef10,run log,Jacobian run log
+evidence/jacobian-tests/local-noise-estimate.json,6792,1de0ed8c68cf2eb9,measurement data,the ZERO-spread baseline over 4 identical repeats - what makes every Jacobian delta signal rather than noise
+evidence/network/blind-network.json,639610,d87e874523a23b3c,measurement data,full request/response/failure log of the blind journey (cold backend)
+evidence/paint-control-deployed568fc2c6-log.txt,2916,19a1ebfbaa9e177f,run log,DEPLOYED build paints at all 20 layer x camera cells
+evidence/paint-control-deployed568fc2c6-meta.json,3451,71c6d2d151c3775c,measurement data,deployed-build request census: grid_series 45/45 HTTP 200
+evidence/paint-control-deployed568fc2c6.json,19696,96d167543115ab2a,measurement data,DEPLOYED build paints at all 20 layer x camera cells
+evidence/paint-control-local-fb50fa6d-log.txt,3112,18fb2e435f7910f7,run log,per-layer ocean palettes proving the RENDERER draws the correct variable (the AB-02 discriminator)
+evidence/paint-control-local-fb50fa6d-meta.json,3720,47cda5c4afb97bcf,measurement data,warm-backend local control: grid_series 52/52 HTTP 200 - proves the blind run's 50 failures were a cold-start transient
+evidence/paint-control-local-fb50fa6d.json,25126,f369de2cb371d4ca,measurement data,per-layer ocean palettes proving the RENDERER draws the correct variable (the AB-02 discriminator)
+evidence/paintcontrol.js,9309,814dda0d67d12f80,audit harness (disposable; archived for reproducibility),HARNESS: pixel-decoding paint truth (PNG inflate + unfilter in Node)
+evidence/parityprobe.js,8644,b57b3646c5c84394,audit harness (disposable; archived for reproducibility),HARNESS: the source-parity causal trace
+evidence/playwright-traces/blind-trace.zip,607555885,37caa1e87d2e1202,playwright-trace,
+evidence/recordings/page@318e0ba9b8bd10bc52f0039a0f291865.webm,115329284,fdd1e6aefeca6f33,recording,full-session video of the blind journey
+evidence/resprobe.js,8167,af34b50b1b6d0793,audit harness (disposable; archived for reproducibility),HARNESS: the served-resolution sweep
+evidence/scientific-validation/deployed568fc2c6-resolution-log.txt,4618,bc0960592e9cfae3,run log,served-resolution run log
+evidence/scientific-validation/resolution-deployed568fc2c6-summary.json,345,6562d7897902d7ea,measurement data,served-resolution sweep summary
+evidence/scientific-validation/resolution-deployed568fc2c6.json,13469,1b0d738fb9432c2b,measurement data,THE CENTRAL SCIENTIFIC MEASUREMENT: ~223 km (2 deg) served at every zoom from 5 to 12 on the deployed build
+evidence/screenshots/blind-01-clean-load.png,401426,e9852151db0a6073,screenshot,blind-journey frame
+evidence/screenshots/blind-02-wind-active.png,766706,b323c0471d3a9981,screenshot,blind-journey frame
+evidence/screenshots/blind-03-cocoa-z8.png,755443,186cf9cbd96f7a37,screenshot,blind-journey frame
+evidence/screenshots/blind-04-cocoa-z11.png,835220,c9900131a8325636,screenshot,blind-journey frame
+evidence/screenshots/blind-05-cocoa-z5.png,1031624,7c6e54ab84332ebb,screenshot,blind-journey frame
+evidence/screenshots/blind-06-pan-return-z8.png,861519,d7fff95f2e4092d2,screenshot,blind-journey frame
+evidence/screenshots/blind-07-time-plus6.png,883053,7ff233f09216f783,screenshot,blind-journey frame
+evidence/screenshots/blind-08-time-restored.png,833333,68219d425bc9f151,screenshot,blind-journey frame
+evidence/screenshots/blind-09-model-EURO.png,797602,f733043d1749099b,screenshot,blind-journey frame
+evidence/screenshots/blind-10-model-GFS-restored.png,776131,daf761331ed65ad9,screenshot,blind-journey frame
+evidence/screenshots/blind-11-layer-waves.png,435004,eddef86c22ef5973,screenshot,blind-journey frame
+evidence/screenshots/blind-12-layer-swell1.png,604211,c962e847ce4432e9,screenshot,blind-journey frame
+evidence/screenshots/blind-13-layer-swell2.png,639838,3d4244e0805213a9,screenshot,blind-journey frame
+evidence/screenshots/blind-14-layer-watertemp.png,410840,67b3b236e20b4715,screenshot,blind-journey frame
+evidence/screenshots/blind-15-layer-wind-restored.png,830010,e05532e58a8aa9b3,screenshot,blind-journey frame
+evidence/screenshots/blind-16-restored-from-hidden.png,790391,84842fea155aa07e,screenshot,blind-journey frame
+evidence/screenshots/blind-17-return-to-map.png,258957,798c91706ab41a2f,screenshot,blind-journey frame
+evidence/screenshots/blind-18-burnin-cycle3.png,278372,3844468755c5b35c,screenshot,blind-journey frame
+evidence/screenshots/blind-19-race-midflight.png,455662,c488ad10c57eadbf,screenshot,blind-journey frame
+evidence/screenshots/blind-20-race-settled.png,1085262,52bae3334c9c36ae,screenshot,blind-journey frame
+evidence/screenshots/blind-21-final.png,1098018,f42b18d3edee7154,screenshot,blind-journey frame
+evidence/screenshots/blind-tour-antimeridian.png,1480386,d2257e5946bb6e70,screenshot,projection-tour frame
+evidence/screenshots/blind-tour-bay-halfmoon.png,1121734,831e33a924854091,screenshot,projection-tour frame
+evidence/screenshots/blind-tour-elsalvador.png,910902,dca3f1b13d1aa12a,screenshot,projection-tour frame
+evidence/screenshots/blind-tour-florida.png,771766,04c24a410e696ab5,screenshot,projection-tour frame
+evidence/screenshots/blind-tour-highlat.png,1253596,0fa86bb94c6bf7fc,screenshot,projection-tour frame
+evidence/screenshots/blind-tour-islandchain-madeira.png,1014261,bcd7c105f3bab420,screenshot,projection-tour frame
+evidence/screenshots/blind-tour-morocco.png,723721,a9dcffca45ca2b3b,screenshot,projection-tour frame
+evidence/screenshots/blind-tour-newyork.png,899333,96e19701206557ba,screenshot,projection-tour frame
+evidence/screenshots/blind-tour-openatlantic.png,1149074,a026427620df1aa0,screenshot,projection-tour frame
+evidence/screenshots/blind-tour-openpacific.png,1104094,8bb625df89484a87,screenshot,projection-tour frame
+evidence/screenshots/blind-tour-portugal.png,858358,b1fb3f902d086610,screenshot,projection-tour frame
+evidence/screenshots/blind-tour-spain.png,827979,68c5061914caa828,screenshot,projection-tour frame
+evidence/screenshots/deployed568fc2c6-paint-Swell-cocoa-z11.png,367838,37f134e882cef4e6,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Swell-cocoa-z8.png,368764,fb8ed1b46591dbef,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Swell-madeira-z9.png,210457,c71433947d38bc9e,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Swell-openatlantic-z5.png,156609,6ae48d2b081bc1c4,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Swell-portugal-z8.png,309813,b4a0f6f80f92b46c,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-WaterTemp-cocoa-z11.png,350006,49a3038044a765be,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-WaterTemp-cocoa-z8.png,401124,c7cee80a897d0498,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-WaterTemp-madeira-z9.png,197692,61f954532208b0e6,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-WaterTemp-openatlantic-z5.png,168813,563f07058549c1c5,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-WaterTemp-portugal-z8.png,235951,193c52afb151e9db,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Waves-cocoa-z11.png,388979,336696759289d64f,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Waves-cocoa-z8.png,527531,47819b52fcb26c6d,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Waves-madeira-z9.png,236748,c865e4b4ecd0fcff,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Waves-openatlantic-z5.png,204892,8f0713276abb304f,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Waves-portugal-z8.png,296444,5c53b8cbc6e90142,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Wind-cocoa-z11.png,896875,cfa1cc187404cd61,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Wind-cocoa-z8.png,792810,6d34793eb698f28e,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Wind-madeira-z9.png,1181144,75d74a710ae6026a,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Wind-openatlantic-z5.png,1452941,dfa354a4c6021c9a,screenshot,paint-truth frame
+evidence/screenshots/deployed568fc2c6-paint-Wind-portugal-z8.png,791028,e07010f41e0ee28c,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Swell-cocoa-z11.png,618438,8024d2a540fbf45a,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Swell-cocoa-z8.png,468511,1997490a228b1c5e,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Swell-madeira-z9.png,513449,5bc1bfedff0f6848,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Swell-openatlantic-z5.png,559737,a624a0061774ef8d,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Swell-portugal-z8.png,454765,8840f4f8211314c0,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-WaterTemp-cocoa-z11.png,363288,f59a37fa3e7258fc,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-WaterTemp-cocoa-z8.png,408281,a1b8cdb5b2ad8601,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-WaterTemp-madeira-z9.png,268018,525c591dd2b4e690,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-WaterTemp-openatlantic-z5.png,230803,4f2c1c62e2960750,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-WaterTemp-portugal-z8.png,312471,f68b746c3a4a9c1c,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Waves-cocoa-z11.png,610306,d19b36e2908b3825,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Waves-cocoa-z8.png,280193,60f4aab76dd8b59c,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Waves-madeira-z9.png,564788,7eb0f3688bb53dd7,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Waves-openatlantic-z5.png,314552,4c25b394cbb9caf9,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Waves-portugal-z8.png,255733,bbfdcd5479f8f11a,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Wind-cocoa-z11.png,827743,2bb6574faa2459dd,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Wind-cocoa-z8.png,437620,147653a80e1c13da,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Wind-madeira-z9.png,1014227,cdd833246b610108,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Wind-openatlantic-z5.png,1149947,b77e43db0bc92a47,screenshot,paint-truth frame
+evidence/screenshots/local-fb50fa6d-paint-Wind-portugal-z8.png,713692,6c08193974fbccc4,screenshot,paint-truth frame

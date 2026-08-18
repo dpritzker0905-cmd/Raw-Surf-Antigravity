@@ -1,0 +1,14 @@
+# AUDIT 13.1 — large binary evidence, deliberately NOT tracked.
+#
+# These two artefacts total ~690 MB. They are genuine evidence and are listed in
+# artifact-manifest.csv with their sizes and SHA-256 prefixes, but they must not enter git.
+#
+# This file exists because of a recorded incident in this repository: a concurrent session's
+# `git add -A` once swept another session's untracked evidence into a commit. Audit 13.1
+# observed the same class of event live — HEAD advanced and was pushed by a concurrent session
+# while this audit was running (see ../CURRENT_BASELINE_MANIFEST.md section 0).
+#
+# Everything else under evidence/ is small and may be tracked freely.
+
+*.zip
+*.webm

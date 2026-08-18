@@ -1,0 +1,6 @@
+page.evaluate: TypeError: Cannot read properties of undefined (reading 'setBearing')
+    at eval (eval at evaluate (:302:30), <anonymous>:1:35)
+    at UtilityScript.evaluate (<anonymous>:304:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+    at toBaseline (C:\Users\dprit\AppData\Local\Temp\claude\C--Users-dprit-Raw-Surf\2910eeb8-28bd-4d90-9e3f-979ebbe08a0f\scratchpad\jacobian.js:127:16)
+    at async C:\Users\dprit\AppData\Local\Temp\claude\C--Users-dprit-Raw-Surf\2910eeb8-28bd-4d90-9e3f-979ebbe08a0f\scratchpad\jacobian.js:136:43

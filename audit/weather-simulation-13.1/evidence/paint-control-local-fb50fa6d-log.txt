@@ -1,0 +1,24 @@
+=== PAINT CONTROL — local-fb50fa6d — http://localhost:3000 — 2026-08-18T17:50:39.547Z ===
+map handle: map
+  local-fb50fa6d Wind        cocoa-z8         colors= 496 dom= 53.5% sat=0.547 mean=[34,55,71] raster=LOADED provider=UNKNOWN class=NO DATA
+  local-fb50fa6d Wind        cocoa-z11        colors= 416 dom= 53.6% sat=0.552 mean=[34,55,71] raster=LOADED provider=UNKNOWN class=NO DATA
+  local-fb50fa6d Wind        madeira-z9       colors= 305 dom= 25.6% sat=0.425 mean=[69,119,96] raster=LOADED provider=UNKNOWN class=NO DATA
+  local-fb50fa6d Wind        openatlantic-z5  colors= 994 dom= 16.8% sat=0.496 mean=[60,109,111] raster=LOADED provider=UNKNOWN class=NO DATA
+  local-fb50fa6d Wind        portugal-z8      colors= 630 dom= 13.4% sat=0.575 mean=[48,85,113] raster=LOADED provider=UNKNOWN class=NO DATA
+  local-fb50fa6d Waves       cocoa-z8         colors= 213 dom= 51.7% sat=0.468 mean=[43,58,72] raster=LOADING provider=UNKNOWN class=NO DATA
+  local-fb50fa6d Waves       cocoa-z11        colors= 243 dom= 54.5% sat=0.536 mean=[36,64,70] raster=LOADED provider=NOAA class=COARSE 2° GRID
+  local-fb50fa6d Waves       madeira-z9       colors= 451 dom= 40.5% sat=0.607 mean=[58,134,172] raster=LOADED provider=NOAA class=COARSE 2° GRID
+  local-fb50fa6d Waves       openatlantic-z5  colors= 586 dom= 19.4% sat=0.817 mean=[37,169,212] raster=LOADED provider=NOAA class=COARSE 2° GRID
+  local-fb50fa6d Waves       portugal-z8      colors= 392 dom= 18.4% sat=0.837 mean=[31,161,210] raster=LOADED provider=NOAA class=COARSE 2° GRID
+  local-fb50fa6d Swell       cocoa-z8         colors= 144 dom= 49.4% sat=0.595 mean=[31,70,74] raster=LOADED provider=NOAA class=COARSE 2° GRID
+  local-fb50fa6d Swell       cocoa-z11        colors= 277 dom= 58.8% sat=0.509 mean=[38,60,69] raster=LOADED provider=NOAA class=COARSE 2° GRID
+  local-fb50fa6d Swell       madeira-z9       colors= 446 dom= 27.9% sat=0.633 mean=[51,149,161] raster=LOADED provider=NOAA class=COARSE 2° GRID
+  local-fb50fa6d Swell       openatlantic-z5  colors= 211 dom= 25.2% sat=0.854 mean=[25,185,174] raster=LOADED provider=NOAA class=COARSE 2° GRID
+  local-fb50fa6d Swell       portugal-z8      colors= 169 dom= 63.5% sat=0.884 mean=[21,181,211] raster=LOADED provider=NOAA class=COARSE 2° GRID
+  local-fb50fa6d Water Temp  cocoa-z8         colors= 179 dom= 48.6% sat=0.547 mean=[63,60,50] raster=LOADED provider=UNKNOWN class=COARSE 2° GRID
+  local-fb50fa6d Water Temp  cocoa-z11        colors= 153 dom= 48.7% sat=0.548 mean=[65,58,48] raster=LOADED provider=UNKNOWN class=COARSE 2° GRID
+  local-fb50fa6d Water Temp  madeira-z9       colors= 262 dom= 69.9% sat=0.628 mean=[147,137,56] raster=LOADED provider=UNKNOWN class=COARSE 2° GRID
+  local-fb50fa6d Water Temp  openatlantic-z5  colors=  68 dom= 68.9% sat=0.607 mean=[158,125,62] raster=LOADED provider=UNKNOWN class=COARSE 2° GRID
+  local-fb50fa6d Water Temp  portugal-z8      colors=  75 dom= 84.7% sat=0.708 mean=[167,161,42] raster=LOADED provider=UNKNOWN class=COARSE 2° GRID
+grid_series/grid response statuses: {"200":52}
+total failed requests: 59; console errors: 35

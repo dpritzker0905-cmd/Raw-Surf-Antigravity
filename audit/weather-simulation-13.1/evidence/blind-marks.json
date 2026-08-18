@@ -1,0 +1,3145 @@
+[
+  {
+    "rafCalls": 2038,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        2038
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 32,
+      "d": 0,
+      "live": 32
+    },
+    "buf": {
+      "c": 273,
+      "d": 0,
+      "live": 273
+    },
+    "fb": {
+      "c": 2,
+      "d": 0,
+      "live": 2
+    },
+    "programs": 24,
+    "timeouts": 690,
+    "intervals": 58,
+    "intervalsCleared": 37,
+    "intervalsLive": 21,
+    "listeners": [
+      [
+        "mousedown",
+        2674
+      ],
+      [
+        "dragstart",
+        2671
+      ],
+      [
+        "click",
+        1809
+      ],
+      [
+        "keydown",
+        1791
+      ],
+      [
+        "pointerdown",
+        1788
+      ],
+      [
+        "touchend",
+        1788
+      ],
+      [
+        "touchstart",
+        1787
+      ],
+      [
+        "dblclick",
+        1787
+      ],
+      [
+        "mouseup",
+        1786
+      ],
+      [
+        "mousemove",
+        1785
+      ],
+      [
+        "touchmove",
+        1785
+      ],
+      [
+        "mouseover",
+        1784
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 9,
+      "center": [
+        -80.6147,
+        28.3327
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 138,
+      "sources": 23,
+      "customLayers": [],
+      "marineLayers": [
+        "waterway",
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 568,
+    "canvases": 2,
+    "url": "/map",
+    "__mark": "01-clean-load",
+    "__t": 1787074082650,
+    "__consoleErrors": 16,
+    "__consoleWarns": 9,
+    "__requests": 174,
+    "__failed": 1
+  },
+  {
+    "rafCalls": 2371,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        2371
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 41,
+      "d": 4,
+      "live": 37
+    },
+    "buf": {
+      "c": 273,
+      "d": 0,
+      "live": 273
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 24,
+    "timeouts": 990,
+    "intervals": 110,
+    "intervalsCleared": 88,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2674
+      ],
+      [
+        "dragstart",
+        2671
+      ],
+      [
+        "click",
+        1808
+      ],
+      [
+        "keydown",
+        1790
+      ],
+      [
+        "pointerdown",
+        1788
+      ],
+      [
+        "touchend",
+        1788
+      ],
+      [
+        "dblclick",
+        1787
+      ],
+      [
+        "touchstart",
+        1786
+      ],
+      [
+        "mouseup",
+        1786
+      ],
+      [
+        "mousemove",
+        1785
+      ],
+      [
+        "touchmove",
+        1785
+      ],
+      [
+        "mouseover",
+        1784
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 9,
+      "center": [
+        -80.6147,
+        28.3327
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 138,
+      "sources": 23,
+      "customLayers": [],
+      "marineLayers": [
+        "waterway",
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 641,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "02-wind-active",
+    "__t": 1787074093512,
+    "__consoleErrors": 17,
+    "__consoleWarns": 9,
+    "__requests": 186,
+    "__failed": 1
+  },
+  {
+    "rafCalls": 2636,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        2636
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 71,
+      "d": 4,
+      "live": 67
+    },
+    "buf": {
+      "c": 504,
+      "d": 0,
+      "live": 504
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 24,
+    "timeouts": 1367,
+    "intervals": 178,
+    "intervalsCleared": 156,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2683
+      ],
+      [
+        "dragstart",
+        2680
+      ],
+      [
+        "click",
+        1810
+      ],
+      [
+        "keydown",
+        1796
+      ],
+      [
+        "pointerdown",
+        1794
+      ],
+      [
+        "touchend",
+        1794
+      ],
+      [
+        "dblclick",
+        1793
+      ],
+      [
+        "touchstart",
+        1792
+      ],
+      [
+        "mouseup",
+        1792
+      ],
+      [
+        "mousemove",
+        1791
+      ],
+      [
+        "touchmove",
+        1791
+      ],
+      [
+        "mouseover",
+        1790
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 8,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 138,
+      "sources": 23,
+      "customLayers": [],
+      "marineLayers": [
+        "waterway",
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 625,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "03-cocoa-z8",
+    "__t": 1787074103582,
+    "__consoleErrors": 18,
+    "__consoleWarns": 9,
+    "__requests": 213,
+    "__failed": 1
+  },
+  {
+    "rafCalls": 3032,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        3032
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 131,
+      "d": 4,
+      "live": 127
+    },
+    "buf": {
+      "c": 968,
+      "d": 0,
+      "live": 968
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 25,
+    "timeouts": 1921,
+    "intervals": 284,
+    "intervalsCleared": 262,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2782
+      ],
+      [
+        "dragstart",
+        2779
+      ],
+      [
+        "click",
+        1905
+      ],
+      [
+        "keydown",
+        1862
+      ],
+      [
+        "pointerdown",
+        1860
+      ],
+      [
+        "touchend",
+        1860
+      ],
+      [
+        "dblclick",
+        1859
+      ],
+      [
+        "touchstart",
+        1858
+      ],
+      [
+        "mouseup",
+        1858
+      ],
+      [
+        "mousemove",
+        1857
+      ],
+      [
+        "touchmove",
+        1857
+      ],
+      [
+        "mouseover",
+        1856
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 11,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 138,
+      "sources": 23,
+      "customLayers": [],
+      "marineLayers": [
+        "waterway",
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 754,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "04-cocoa-z11",
+    "__t": 1787074116744,
+    "__consoleErrors": 18,
+    "__consoleWarns": 10,
+    "__requests": 243,
+    "__failed": 1
+  },
+  {
+    "rafCalls": 3438,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        3438
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 153,
+      "d": 7,
+      "live": 146
+    },
+    "buf": {
+      "c": 1333,
+      "d": 0,
+      "live": 1333
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 27,
+    "timeouts": 2323,
+    "intervals": 360,
+    "intervalsCleared": 338,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2782
+      ],
+      [
+        "dragstart",
+        2779
+      ],
+      [
+        "click",
+        1871
+      ],
+      [
+        "keydown",
+        1862
+      ],
+      [
+        "pointerdown",
+        1860
+      ],
+      [
+        "touchend",
+        1860
+      ],
+      [
+        "dblclick",
+        1859
+      ],
+      [
+        "touchstart",
+        1858
+      ],
+      [
+        "mouseup",
+        1858
+      ],
+      [
+        "mousemove",
+        1857
+      ],
+      [
+        "touchmove",
+        1857
+      ],
+      [
+        "mouseover",
+        1856
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 5,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 138,
+      "sources": 23,
+      "customLayers": [],
+      "marineLayers": [
+        "waterway",
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 608,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "05-cocoa-z5",
+    "__t": 1787074125686,
+    "__consoleErrors": 20,
+    "__consoleWarns": 12,
+    "__requests": 255,
+    "__failed": 1
+  },
+  {
+    "rafCalls": 4266,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        4266
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 166,
+      "d": 28,
+      "live": 138
+    },
+    "buf": {
+      "c": 1345,
+      "d": 20,
+      "live": 1325
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 27,
+    "timeouts": 3016,
+    "intervals": 511,
+    "intervalsCleared": 489,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2989
+      ],
+      [
+        "dragstart",
+        2986
+      ],
+      [
+        "click",
+        2009
+      ],
+      [
+        "keydown",
+        2000
+      ],
+      [
+        "pointerdown",
+        1998
+      ],
+      [
+        "touchend",
+        1998
+      ],
+      [
+        "dblclick",
+        1997
+      ],
+      [
+        "touchstart",
+        1996
+      ],
+      [
+        "mouseup",
+        1996
+      ],
+      [
+        "mousemove",
+        1995
+      ],
+      [
+        "touchmove",
+        1995
+      ],
+      [
+        "mouseover",
+        1994
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 8,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 138,
+      "sources": 23,
+      "customLayers": [],
+      "marineLayers": [
+        "waterway",
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 608,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "06-pan-return-z8",
+    "__t": 1787074144541,
+    "__consoleErrors": 20,
+    "__consoleWarns": 12,
+    "__requests": 278,
+    "__failed": 1
+  },
+  {
+    "rafCalls": 4651,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        4651
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 193,
+      "d": 55,
+      "live": 138
+    },
+    "buf": {
+      "c": 1365,
+      "d": 40,
+      "live": 1325
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 27,
+    "timeouts": 3473,
+    "intervals": 617,
+    "intervalsCleared": 595,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2989
+      ],
+      [
+        "dragstart",
+        2986
+      ],
+      [
+        "click",
+        2009
+      ],
+      [
+        "keydown",
+        1999
+      ],
+      [
+        "pointerdown",
+        1998
+      ],
+      [
+        "touchend",
+        1998
+      ],
+      [
+        "dblclick",
+        1997
+      ],
+      [
+        "touchstart",
+        1996
+      ],
+      [
+        "mouseup",
+        1996
+      ],
+      [
+        "mousemove",
+        1995
+      ],
+      [
+        "touchmove",
+        1995
+      ],
+      [
+        "mouseover",
+        1994
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 8,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 138,
+      "sources": 23,
+      "customLayers": [],
+      "marineLayers": [
+        "waterway",
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 608,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "07-time-plus6",
+    "__t": 1787074161891,
+    "__consoleErrors": 21,
+    "__consoleWarns": 12,
+    "__requests": 316,
+    "__failed": 15
+  },
+  {
+    "rafCalls": 4998,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        4998
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 198,
+      "d": 85,
+      "live": 113
+    },
+    "buf": {
+      "c": 1365,
+      "d": 98,
+      "live": 1267
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 27,
+    "timeouts": 3864,
+    "intervals": 709,
+    "intervalsCleared": 687,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2989
+      ],
+      [
+        "dragstart",
+        2986
+      ],
+      [
+        "click",
+        2009
+      ],
+      [
+        "keydown",
+        1999
+      ],
+      [
+        "pointerdown",
+        1998
+      ],
+      [
+        "touchend",
+        1998
+      ],
+      [
+        "dblclick",
+        1997
+      ],
+      [
+        "touchstart",
+        1996
+      ],
+      [
+        "mouseup",
+        1996
+      ],
+      [
+        "mousemove",
+        1995
+      ],
+      [
+        "touchmove",
+        1995
+      ],
+      [
+        "mouseover",
+        1994
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 8,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 138,
+      "sources": 23,
+      "customLayers": [],
+      "marineLayers": [
+        "waterway",
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 608,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "08-time-restored",
+    "__t": 1787074176292,
+    "__consoleErrors": 21,
+    "__consoleWarns": 12,
+    "__requests": 321,
+    "__failed": 18
+  },
+  {
+    "rafCalls": 5300,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        5300
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 198,
+      "d": 85,
+      "live": 113
+    },
+    "buf": {
+      "c": 1365,
+      "d": 98,
+      "live": 1267
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 27,
+    "timeouts": 4229,
+    "intervals": 806,
+    "intervalsCleared": 784,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2989
+      ],
+      [
+        "dragstart",
+        2986
+      ],
+      [
+        "click",
+        2009
+      ],
+      [
+        "keydown",
+        1999
+      ],
+      [
+        "pointerdown",
+        1998
+      ],
+      [
+        "touchend",
+        1998
+      ],
+      [
+        "dblclick",
+        1997
+      ],
+      [
+        "touchstart",
+        1996
+      ],
+      [
+        "mouseup",
+        1996
+      ],
+      [
+        "mousemove",
+        1995
+      ],
+      [
+        "touchmove",
+        1995
+      ],
+      [
+        "mouseover",
+        1994
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 8,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 138,
+      "sources": 23,
+      "customLayers": [],
+      "marineLayers": [
+        "waterway",
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 608,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "09-model-EURO",
+    "__t": 1787074189308,
+    "__consoleErrors": 22,
+    "__consoleWarns": 12,
+    "__requests": 335,
+    "__failed": 20
+  },
+  {
+    "rafCalls": 5637,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        5637
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 207,
+      "d": 93,
+      "live": 114
+    },
+    "buf": {
+      "c": 1365,
+      "d": 98,
+      "live": 1267
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 27,
+    "timeouts": 4628,
+    "intervals": 917,
+    "intervalsCleared": 895,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2989
+      ],
+      [
+        "dragstart",
+        2986
+      ],
+      [
+        "click",
+        2009
+      ],
+      [
+        "keydown",
+        1999
+      ],
+      [
+        "pointerdown",
+        1998
+      ],
+      [
+        "touchend",
+        1998
+      ],
+      [
+        "dblclick",
+        1997
+      ],
+      [
+        "touchstart",
+        1996
+      ],
+      [
+        "mouseup",
+        1996
+      ],
+      [
+        "mousemove",
+        1995
+      ],
+      [
+        "touchmove",
+        1995
+      ],
+      [
+        "mouseover",
+        1994
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 8,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 138,
+      "sources": 23,
+      "customLayers": [],
+      "marineLayers": [
+        "waterway",
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 608,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "10-model-GFS-restored",
+    "__t": 1787074204649,
+    "__consoleErrors": 22,
+    "__consoleWarns": 12,
+    "__requests": 342,
+    "__failed": 22
+  },
+  {
+    "rafCalls": 6067,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        6067
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 249,
+      "d": 179,
+      "live": 70
+    },
+    "buf": {
+      "c": 1649,
+      "d": 1340,
+      "live": 309
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 27,
+    "timeouts": 5215,
+    "intervals": 1035,
+    "intervalsCleared": 1013,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2989
+      ],
+      [
+        "dragstart",
+        2986
+      ],
+      [
+        "click",
+        2009
+      ],
+      [
+        "keydown",
+        1999
+      ],
+      [
+        "pointerdown",
+        1998
+      ],
+      [
+        "touchend",
+        1998
+      ],
+      [
+        "dblclick",
+        1997
+      ],
+      [
+        "touchstart",
+        1996
+      ],
+      [
+        "mouseup",
+        1996
+      ],
+      [
+        "mousemove",
+        1995
+      ],
+      [
+        "touchmove",
+        1995
+      ],
+      [
+        "mouseover",
+        1994
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 8,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 143,
+      "sources": 24,
+      "customLayers": [],
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 606,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "11-layer-waves",
+    "__t": 1787074218794,
+    "__consoleErrors": 23,
+    "__consoleWarns": 12,
+    "__requests": 360,
+    "__failed": 23
+  },
+  {
+    "rafCalls": 6370,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        6370
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 261,
+      "d": 183,
+      "live": 78
+    },
+    "buf": {
+      "c": 1649,
+      "d": 1340,
+      "live": 309
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 27,
+    "timeouts": 5587,
+    "intervals": 1132,
+    "intervalsCleared": 1109,
+    "intervalsLive": 23,
+    "listeners": [
+      [
+        "mousedown",
+        2989
+      ],
+      [
+        "dragstart",
+        2986
+      ],
+      [
+        "click",
+        2009
+      ],
+      [
+        "keydown",
+        1999
+      ],
+      [
+        "pointerdown",
+        1998
+      ],
+      [
+        "touchend",
+        1998
+      ],
+      [
+        "dblclick",
+        1997
+      ],
+      [
+        "touchstart",
+        1996
+      ],
+      [
+        "mouseup",
+        1996
+      ],
+      [
+        "mousemove",
+        1995
+      ],
+      [
+        "touchmove",
+        1995
+      ],
+      [
+        "mouseover",
+        1994
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 8,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 143,
+      "sources": 24,
+      "customLayers": [],
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 612,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "12-layer-swell1",
+    "__t": 1787074231511,
+    "__consoleErrors": 23,
+    "__consoleWarns": 12,
+    "__requests": 369,
+    "__failed": 26
+  },
+  {
+    "rafCalls": 6497,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        6497
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 265,
+      "d": 191,
+      "live": 74
+    },
+    "buf": {
+      "c": 1649,
+      "d": 1340,
+      "live": 309
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 27,
+    "timeouts": 5755,
+    "intervals": 1169,
+    "intervalsCleared": 1146,
+    "intervalsLive": 23,
+    "listeners": [
+      [
+        "mousedown",
+        2989
+      ],
+      [
+        "dragstart",
+        2986
+      ],
+      [
+        "click",
+        2009
+      ],
+      [
+        "keydown",
+        1999
+      ],
+      [
+        "pointerdown",
+        1998
+      ],
+      [
+        "touchend",
+        1998
+      ],
+      [
+        "dblclick",
+        1997
+      ],
+      [
+        "touchstart",
+        1996
+      ],
+      [
+        "mouseup",
+        1996
+      ],
+      [
+        "mousemove",
+        1995
+      ],
+      [
+        "touchmove",
+        1995
+      ],
+      [
+        "mouseover",
+        1994
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 8,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 143,
+      "sources": 24,
+      "customLayers": [],
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 621,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "13-layer-swell2",
+    "__t": 1787074252537,
+    "__consoleErrors": 24,
+    "__consoleWarns": 14,
+    "__requests": 386,
+    "__failed": 28
+  },
+  {
+    "rafCalls": 6856,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        6856
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 319,
+      "d": 215,
+      "live": 104
+    },
+    "buf": {
+      "c": 1846,
+      "d": 1604,
+      "live": 242
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 28,
+    "timeouts": 6252,
+    "intervals": 1229,
+    "intervalsCleared": 1207,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2989
+      ],
+      [
+        "dragstart",
+        2986
+      ],
+      [
+        "click",
+        2009
+      ],
+      [
+        "keydown",
+        1999
+      ],
+      [
+        "pointerdown",
+        1998
+      ],
+      [
+        "touchend",
+        1998
+      ],
+      [
+        "dblclick",
+        1997
+      ],
+      [
+        "touchstart",
+        1996
+      ],
+      [
+        "mouseup",
+        1996
+      ],
+      [
+        "mousemove",
+        1995
+      ],
+      [
+        "touchmove",
+        1995
+      ],
+      [
+        "mouseover",
+        1994
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 8,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 143,
+      "sources": 24,
+      "customLayers": [],
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 620,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "14-layer-watertemp",
+    "__t": 1787074268395,
+    "__consoleErrors": 24,
+    "__consoleWarns": 14,
+    "__requests": 477,
+    "__failed": 32
+  },
+  {
+    "rafCalls": 7165,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        7165
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 361,
+      "d": 269,
+      "live": 92
+    },
+    "buf": {
+      "c": 2063,
+      "d": 1846,
+      "live": 217
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 28,
+    "timeouts": 6712,
+    "intervals": 1319,
+    "intervalsCleared": 1298,
+    "intervalsLive": 21,
+    "listeners": [
+      [
+        "mousedown",
+        2989
+      ],
+      [
+        "dragstart",
+        2986
+      ],
+      [
+        "click",
+        2009
+      ],
+      [
+        "keydown",
+        1999
+      ],
+      [
+        "pointerdown",
+        1998
+      ],
+      [
+        "touchend",
+        1998
+      ],
+      [
+        "dblclick",
+        1997
+      ],
+      [
+        "touchstart",
+        1996
+      ],
+      [
+        "mouseup",
+        1996
+      ],
+      [
+        "mousemove",
+        1995
+      ],
+      [
+        "touchmove",
+        1995
+      ],
+      [
+        "mouseover",
+        1994
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 8,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 143,
+      "sources": 24,
+      "customLayers": [],
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 620,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "15-layer-wind-restored",
+    "__t": 1787074279218,
+    "__consoleErrors": 25,
+    "__consoleWarns": 14,
+    "__requests": 496,
+    "__failed": 33
+  },
+  {
+    "rafCalls": 7593,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        7593
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/7137fb67-512c-4b66-a136-88d63d4b948a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/2d742796-53e3-44b9-98f5-e896f9f50a96",
+      "blob:http://localhost:3000/585b1f7d-d301-430e-a9b1-f90b4d7a01e2",
+      "blob:http://localhost:3000/fd0bcbe2-8242-412d-922f-9d79159687ee",
+      "blob:http://localhost:3000/3c2595e1-c4ec-4311-ac35-0ff925f7e9fc",
+      "blob:http://localhost:3000/1c58fd3f-bdaa-4caf-8b00-7b4596917aad",
+      "blob:http://localhost:3000/a3948ad0-67c0-4fd4-a8ca-5e83d2220d74",
+      "blob:http://localhost:3000/a0acc8a1-ee46-48ae-a7c6-3ecf212464e4",
+      "blob:http://localhost:3000/914c1efc-276d-45ac-a08e-b3f79d34508c",
+      "blob:http://localhost:3000/ea587de6-b780-43d2-938e-7a4e73f0e05d",
+      "blob:http://localhost:3000/94eac3bb-8924-4ff6-b802-d5f354ba560b",
+      "blob:http://localhost:3000/314e0324-53ec-4928-a1c1-1232fdeaf32e",
+      "blob:http://localhost:3000/96dbfd83-a5a7-495e-806c-41cd14c68aff",
+      "blob:http://localhost:3000/970eb0a1-741b-4861-9770-823b0945956e",
+      "blob:http://localhost:3000/c198cdef-150e-4e5a-8ab3-395a8cebbf58",
+      "blob:http://localhost:3000/00256a44-48dc-4daf-b16d-a6c00e0ad41c",
+      "blob:http://localhost:3000/4ff9ad3b-5564-4ad6-b20f-972280d90d51"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 361,
+      "d": 269,
+      "live": 92
+    },
+    "buf": {
+      "c": 2063,
+      "d": 1846,
+      "live": 217
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 28,
+    "timeouts": 7100,
+    "intervals": 1416,
+    "intervalsCleared": 1395,
+    "intervalsLive": 21,
+    "listeners": [
+      [
+        "mousedown",
+        2989
+      ],
+      [
+        "dragstart",
+        2986
+      ],
+      [
+        "click",
+        2009
+      ],
+      [
+        "keydown",
+        1999
+      ],
+      [
+        "pointerdown",
+        1998
+      ],
+      [
+        "touchend",
+        1998
+      ],
+      [
+        "dblclick",
+        1997
+      ],
+      [
+        "touchstart",
+        1996
+      ],
+      [
+        "mouseup",
+        1996
+      ],
+      [
+        "mousemove",
+        1995
+      ],
+      [
+        "touchmove",
+        1995
+      ],
+      [
+        "mouseover",
+        1994
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 8,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 143,
+      "sources": 24,
+      "customLayers": [],
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 620,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "16-restored-from-hidden",
+    "__t": 1787074297944,
+    "__consoleErrors": 25,
+    "__consoleWarns": 15,
+    "__requests": 503,
+    "__failed": 36
+  },
+  {
+    "rafCalls": 7476,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        7476
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/50ef0596-a87b-4752-a1a8-eb3435aec5e9",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/16b0c3b9-fa71-41c8-9e5c-090aa8d2d727",
+      "blob:http://localhost:3000/78cb86f6-bdbe-4818-acca-aaf78831e7f1",
+      "blob:http://localhost:3000/37271475-3345-4af7-a35c-5fa6ddcc2626",
+      "blob:http://localhost:3000/ce032d4f-f575-4a5c-8f56-b53725c72b6e",
+      "blob:http://localhost:3000/5dbdab97-3942-440b-95bb-d24152966446",
+      "blob:http://localhost:3000/c7a65533-5e1a-40f8-b5f4-186dfe702ec1",
+      "blob:http://localhost:3000/5c244b6c-649b-43d5-a257-2a16e8f72d69",
+      "blob:http://localhost:3000/a7a3415c-8617-42c5-819d-eaecc4d440d7",
+      "blob:http://localhost:3000/397cb922-7040-45ef-9f7c-00c0f23c1262",
+      "blob:http://localhost:3000/fa570271-0bc2-459a-be73-d267feb978fe",
+      "blob:http://localhost:3000/793a0e4a-9c20-4318-bfa4-0f67d33659b9",
+      "blob:http://localhost:3000/84c51460-195b-4c58-ba8a-8e20a6961cc9",
+      "blob:http://localhost:3000/1c6fbffc-b7ca-4944-8dc5-258ea43c6d78",
+      "blob:http://localhost:3000/22f02be1-00d2-43a2-ac22-80700f9fabc5",
+      "blob:http://localhost:3000/486ae696-728a-489c-9b81-d0995e43ef9c",
+      "blob:http://localhost:3000/39e7b0a4-fca9-49fd-930e-7d042db72201"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 6,
+      "d": 0,
+      "live": 6
+    },
+    "buf": {
+      "c": 24,
+      "d": 0,
+      "live": 24
+    },
+    "fb": {
+      "c": 2,
+      "d": 0,
+      "live": 2
+    },
+    "programs": 13,
+    "timeouts": 671,
+    "intervals": 51,
+    "intervalsCleared": 30,
+    "intervalsLive": 21,
+    "listeners": [
+      [
+        "mousedown",
+        2674
+      ],
+      [
+        "dragstart",
+        2671
+      ],
+      [
+        "click",
+        1809
+      ],
+      [
+        "keydown",
+        1791
+      ],
+      [
+        "pointerdown",
+        1788
+      ],
+      [
+        "touchend",
+        1788
+      ],
+      [
+        "touchstart",
+        1787
+      ],
+      [
+        "dblclick",
+        1787
+      ],
+      [
+        "mouseup",
+        1786
+      ],
+      [
+        "mousemove",
+        1785
+      ],
+      [
+        "touchmove",
+        1785
+      ],
+      [
+        "mouseover",
+        1784
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 9,
+      "center": [
+        -80.6147,
+        28.3327
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": false,
+      "layers": 138,
+      "sources": 23,
+      "customLayers": [],
+      "marineLayers": [
+        "waterway",
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 568,
+    "canvases": 2,
+    "url": "/map",
+    "__mark": "17-return-to-map",
+    "__t": 1787074319794,
+    "__consoleErrors": 43,
+    "__consoleWarns": 17,
+    "__requests": 653,
+    "__failed": 41
+  },
+  {
+    "rafCalls": 1481,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        1481
+      ]
+    ],
+    "workerCount": 1,
+    "workers": [
+      "blob:http://localhost:3000/dcb578dd-f5bf-4478-a7ae-ba824cdf7023"
+    ],
+    "glContexts": 0,
+    "ctxLost": 0,
+    "tex": {
+      "c": 0,
+      "d": 0,
+      "live": 0
+    },
+    "buf": {
+      "c": 0,
+      "d": 0,
+      "live": 0
+    },
+    "fb": {
+      "c": 0,
+      "d": 0,
+      "live": 0
+    },
+    "programs": 0,
+    "timeouts": 578,
+    "intervals": 39,
+    "intervalsCleared": 21,
+    "intervalsLive": 18,
+    "listeners": [
+      [
+        "click",
+        17
+      ],
+      [
+        "visibilitychange",
+        15
+      ],
+      [
+        "pageshow",
+        15
+      ],
+      [
+        "error",
+        12
+      ],
+      [
+        "keydown",
+        10
+      ],
+      [
+        "pagehide",
+        10
+      ],
+      [
+        "load",
+        9
+      ],
+      [
+        "pointerdown",
+        8
+      ],
+      [
+        "resize",
+        8
+      ],
+      [
+        "beforeunload",
+        7
+      ],
+      [
+        "scroll",
+        6
+      ],
+      [
+        "dblclick",
+        6
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": null,
+    "domNodes": 293,
+    "canvases": 1,
+    "url": "/map",
+    "__mark": "18-burnin-cycle1",
+    "__t": 1787074349969,
+    "__consoleErrors": 58,
+    "__consoleWarns": 20,
+    "__requests": 762,
+    "__failed": 53
+  },
+  {
+    "rafCalls": 1543,
+    "rafOwnerSites": 1,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        1543
+      ]
+    ],
+    "workerCount": 1,
+    "workers": [
+      "blob:http://localhost:3000/6f804720-bde7-4863-861e-4582276e7836"
+    ],
+    "glContexts": 0,
+    "ctxLost": 0,
+    "tex": {
+      "c": 0,
+      "d": 0,
+      "live": 0
+    },
+    "buf": {
+      "c": 0,
+      "d": 0,
+      "live": 0
+    },
+    "fb": {
+      "c": 0,
+      "d": 0,
+      "live": 0
+    },
+    "programs": 0,
+    "timeouts": 604,
+    "intervals": 38,
+    "intervalsCleared": 20,
+    "intervalsLive": 18,
+    "listeners": [
+      [
+        "click",
+        17
+      ],
+      [
+        "visibilitychange",
+        15
+      ],
+      [
+        "pageshow",
+        15
+      ],
+      [
+        "error",
+        12
+      ],
+      [
+        "keydown",
+        10
+      ],
+      [
+        "pagehide",
+        10
+      ],
+      [
+        "load",
+        9
+      ],
+      [
+        "pointerdown",
+        8
+      ],
+      [
+        "resize",
+        8
+      ],
+      [
+        "beforeunload",
+        7
+      ],
+      [
+        "scroll",
+        6
+      ],
+      [
+        "dblclick",
+        6
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": null,
+    "domNodes": 293,
+    "canvases": 1,
+    "url": "/map",
+    "__mark": "18-burnin-cycle2",
+    "__t": 1787074377281,
+    "__consoleErrors": 73,
+    "__consoleWarns": 25,
+    "__requests": 917,
+    "__failed": 61
+  },
+  {
+    "rafCalls": 8355,
+    "rafOwnerSites": 4,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        8350
+      ],
+      [
+        "/static/js/src_components_map_WeatherTelemetry_js.chunk.js:481:7",
+        3
+      ],
+      [
+        "/static/js/bundle.js:33208:9",
+        1
+      ],
+      [
+        "/static/js/src_components_map_WeatherTelemetry_js.chunk.js:483:5",
+        1
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/e75d749f-d745-4f69-a62c-9d2e7176654a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/8ddde2b7-ac65-4fcc-b3bf-69e6e68b9b0a",
+      "blob:http://localhost:3000/72aa6dd7-b76d-4c79-89a8-3a233322b484",
+      "blob:http://localhost:3000/ecb08d11-2ec5-47ff-b9d1-3f596f28b18e",
+      "blob:http://localhost:3000/1dbb8b45-1092-4617-8dc1-9f83f9bb0641",
+      "blob:http://localhost:3000/8d253278-47aa-4ee8-a1cd-962cfad07b62",
+      "blob:http://localhost:3000/ac6c9236-9121-4cf6-ac39-ba9b6e65f00d",
+      "blob:http://localhost:3000/0176f3fc-7c1c-4841-a073-afca846fa93a",
+      "blob:http://localhost:3000/8d04781e-5d2f-4acb-8a84-b9bf350ff793",
+      "blob:http://localhost:3000/4e1a7e01-9a98-4de7-82ca-919097b823e9",
+      "blob:http://localhost:3000/dfaa20d2-244c-405b-9c93-fb898f04ead6",
+      "blob:http://localhost:3000/4a71b696-21d7-48ed-bef7-8d2bcf341650",
+      "blob:http://localhost:3000/1d6a28c6-4340-4009-bbdf-d0399829bedb",
+      "blob:http://localhost:3000/5fa1d53c-cf46-427e-844d-8286ba40a070",
+      "blob:http://localhost:3000/d352e4bb-343b-42af-839c-b08d793fa10c",
+      "blob:http://localhost:3000/e96bf49a-0f06-49bc-a8ed-292204d3c68f",
+      "blob:http://localhost:3000/165855a9-dbd8-4cef-a421-1847df387ced"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 8,
+      "d": 0,
+      "live": 8
+    },
+    "buf": {
+      "c": 29,
+      "d": 0,
+      "live": 29
+    },
+    "fb": {
+      "c": 2,
+      "d": 0,
+      "live": 2
+    },
+    "programs": 13,
+    "timeouts": 707,
+    "intervals": 50,
+    "intervalsCleared": 29,
+    "intervalsLive": 21,
+    "listeners": [
+      [
+        "mousedown",
+        2674
+      ],
+      [
+        "dragstart",
+        2671
+      ],
+      [
+        "click",
+        1809
+      ],
+      [
+        "keydown",
+        1791
+      ],
+      [
+        "pointerdown",
+        1788
+      ],
+      [
+        "touchend",
+        1788
+      ],
+      [
+        "touchstart",
+        1787
+      ],
+      [
+        "dblclick",
+        1787
+      ],
+      [
+        "mouseup",
+        1786
+      ],
+      [
+        "mousemove",
+        1785
+      ],
+      [
+        "touchmove",
+        1785
+      ],
+      [
+        "mouseover",
+        1784
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 9,
+      "center": [
+        -80.6147,
+        28.3327
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": false,
+      "layers": 138,
+      "sources": 23,
+      "customLayers": [],
+      "marineLayers": [
+        "waterway",
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 568,
+    "canvases": 2,
+    "url": "/map",
+    "__mark": "18-burnin-cycle3",
+    "__t": 1787074413845,
+    "__consoleErrors": 96,
+    "__consoleWarns": 28,
+    "__requests": 1137,
+    "__failed": 76
+  },
+  {
+    "rafCalls": 8978,
+    "rafOwnerSites": 4,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        8973
+      ],
+      [
+        "/static/js/src_components_map_WeatherTelemetry_js.chunk.js:481:7",
+        3
+      ],
+      [
+        "/static/js/bundle.js:33208:9",
+        1
+      ],
+      [
+        "/static/js/src_components_map_WeatherTelemetry_js.chunk.js:483:5",
+        1
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/e75d749f-d745-4f69-a62c-9d2e7176654a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/8ddde2b7-ac65-4fcc-b3bf-69e6e68b9b0a",
+      "blob:http://localhost:3000/72aa6dd7-b76d-4c79-89a8-3a233322b484",
+      "blob:http://localhost:3000/ecb08d11-2ec5-47ff-b9d1-3f596f28b18e",
+      "blob:http://localhost:3000/1dbb8b45-1092-4617-8dc1-9f83f9bb0641",
+      "blob:http://localhost:3000/8d253278-47aa-4ee8-a1cd-962cfad07b62",
+      "blob:http://localhost:3000/ac6c9236-9121-4cf6-ac39-ba9b6e65f00d",
+      "blob:http://localhost:3000/0176f3fc-7c1c-4841-a073-afca846fa93a",
+      "blob:http://localhost:3000/8d04781e-5d2f-4acb-8a84-b9bf350ff793",
+      "blob:http://localhost:3000/4e1a7e01-9a98-4de7-82ca-919097b823e9",
+      "blob:http://localhost:3000/dfaa20d2-244c-405b-9c93-fb898f04ead6",
+      "blob:http://localhost:3000/4a71b696-21d7-48ed-bef7-8d2bcf341650",
+      "blob:http://localhost:3000/1d6a28c6-4340-4009-bbdf-d0399829bedb",
+      "blob:http://localhost:3000/5fa1d53c-cf46-427e-844d-8286ba40a070",
+      "blob:http://localhost:3000/d352e4bb-343b-42af-839c-b08d793fa10c",
+      "blob:http://localhost:3000/e96bf49a-0f06-49bc-a8ed-292204d3c68f",
+      "blob:http://localhost:3000/165855a9-dbd8-4cef-a421-1847df387ced"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 91,
+      "d": 38,
+      "live": 53
+    },
+    "buf": {
+      "c": 770,
+      "d": 299,
+      "live": 471
+    },
+    "fb": {
+      "c": 2,
+      "d": 0,
+      "live": 2
+    },
+    "programs": 26,
+    "timeouts": 1372,
+    "intervals": 100,
+    "intervalsCleared": 79,
+    "intervalsLive": 21,
+    "listeners": [
+      [
+        "mousedown",
+        2692
+      ],
+      [
+        "dragstart",
+        2689
+      ],
+      [
+        "click",
+        1816
+      ],
+      [
+        "keydown",
+        1801
+      ],
+      [
+        "pointerdown",
+        1800
+      ],
+      [
+        "touchend",
+        1800
+      ],
+      [
+        "dblclick",
+        1799
+      ],
+      [
+        "touchstart",
+        1798
+      ],
+      [
+        "mouseup",
+        1798
+      ],
+      [
+        "mousemove",
+        1797
+      ],
+      [
+        "touchmove",
+        1797
+      ],
+      [
+        "mouseover",
+        1796
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 6,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": false,
+      "layers": 143,
+      "sources": 24,
+      "customLayers": [],
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 624,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "19-race-midflight",
+    "__t": 1787074425468,
+    "__consoleErrors": 99,
+    "__consoleWarns": 31,
+    "__requests": 1208,
+    "__failed": 108
+  },
+  {
+    "rafCalls": 9228,
+    "rafOwnerSites": 4,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        9223
+      ],
+      [
+        "/static/js/src_components_map_WeatherTelemetry_js.chunk.js:481:7",
+        3
+      ],
+      [
+        "/static/js/bundle.js:33208:9",
+        1
+      ],
+      [
+        "/static/js/src_components_map_WeatherTelemetry_js.chunk.js:483:5",
+        1
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/e75d749f-d745-4f69-a62c-9d2e7176654a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/8ddde2b7-ac65-4fcc-b3bf-69e6e68b9b0a",
+      "blob:http://localhost:3000/72aa6dd7-b76d-4c79-89a8-3a233322b484",
+      "blob:http://localhost:3000/ecb08d11-2ec5-47ff-b9d1-3f596f28b18e",
+      "blob:http://localhost:3000/1dbb8b45-1092-4617-8dc1-9f83f9bb0641",
+      "blob:http://localhost:3000/8d253278-47aa-4ee8-a1cd-962cfad07b62",
+      "blob:http://localhost:3000/ac6c9236-9121-4cf6-ac39-ba9b6e65f00d",
+      "blob:http://localhost:3000/0176f3fc-7c1c-4841-a073-afca846fa93a",
+      "blob:http://localhost:3000/8d04781e-5d2f-4acb-8a84-b9bf350ff793",
+      "blob:http://localhost:3000/4e1a7e01-9a98-4de7-82ca-919097b823e9",
+      "blob:http://localhost:3000/dfaa20d2-244c-405b-9c93-fb898f04ead6",
+      "blob:http://localhost:3000/4a71b696-21d7-48ed-bef7-8d2bcf341650",
+      "blob:http://localhost:3000/1d6a28c6-4340-4009-bbdf-d0399829bedb",
+      "blob:http://localhost:3000/5fa1d53c-cf46-427e-844d-8286ba40a070",
+      "blob:http://localhost:3000/d352e4bb-343b-42af-839c-b08d793fa10c",
+      "blob:http://localhost:3000/e96bf49a-0f06-49bc-a8ed-292204d3c68f",
+      "blob:http://localhost:3000/165855a9-dbd8-4cef-a421-1847df387ced"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 116,
+      "d": 58,
+      "live": 58
+    },
+    "buf": {
+      "c": 1140,
+      "d": 696,
+      "live": 444
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 26,
+    "timeouts": 1741,
+    "intervals": 175,
+    "intervalsCleared": 153,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2692
+      ],
+      [
+        "dragstart",
+        2689
+      ],
+      [
+        "click",
+        1816
+      ],
+      [
+        "keydown",
+        1801
+      ],
+      [
+        "pointerdown",
+        1800
+      ],
+      [
+        "touchend",
+        1800
+      ],
+      [
+        "dblclick",
+        1799
+      ],
+      [
+        "touchstart",
+        1798
+      ],
+      [
+        "mouseup",
+        1798
+      ],
+      [
+        "mousemove",
+        1797
+      ],
+      [
+        "touchmove",
+        1797
+      ],
+      [
+        "mouseover",
+        1796
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 6,
+      "center": [
+        -80.607,
+        28.361
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 143,
+      "sources": 24,
+      "customLayers": [],
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 624,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "20-race-settled",
+    "__t": 1787074443622,
+    "__consoleErrors": 101,
+    "__consoleWarns": 31,
+    "__requests": 1219,
+    "__failed": 108
+  },
+  {
+    "rafCalls": 13068,
+    "rafOwnerSites": 4,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        13063
+      ],
+      [
+        "/static/js/src_components_map_WeatherTelemetry_js.chunk.js:481:7",
+        3
+      ],
+      [
+        "/static/js/bundle.js:33208:9",
+        1
+      ],
+      [
+        "/static/js/src_components_map_WeatherTelemetry_js.chunk.js:483:5",
+        1
+      ]
+    ],
+    "workerCount": 18,
+    "workers": [
+      "blob:http://localhost:3000/e75d749f-d745-4f69-a62c-9d2e7176654a",
+      "/maplibre-gl-worker.js",
+      "blob:http://localhost:3000/8ddde2b7-ac65-4fcc-b3bf-69e6e68b9b0a",
+      "blob:http://localhost:3000/72aa6dd7-b76d-4c79-89a8-3a233322b484",
+      "blob:http://localhost:3000/ecb08d11-2ec5-47ff-b9d1-3f596f28b18e",
+      "blob:http://localhost:3000/1dbb8b45-1092-4617-8dc1-9f83f9bb0641",
+      "blob:http://localhost:3000/8d253278-47aa-4ee8-a1cd-962cfad07b62",
+      "blob:http://localhost:3000/ac6c9236-9121-4cf6-ac39-ba9b6e65f00d",
+      "blob:http://localhost:3000/0176f3fc-7c1c-4841-a073-afca846fa93a",
+      "blob:http://localhost:3000/8d04781e-5d2f-4acb-8a84-b9bf350ff793",
+      "blob:http://localhost:3000/4e1a7e01-9a98-4de7-82ca-919097b823e9",
+      "blob:http://localhost:3000/dfaa20d2-244c-405b-9c93-fb898f04ead6",
+      "blob:http://localhost:3000/4a71b696-21d7-48ed-bef7-8d2bcf341650",
+      "blob:http://localhost:3000/1d6a28c6-4340-4009-bbdf-d0399829bedb",
+      "blob:http://localhost:3000/5fa1d53c-cf46-427e-844d-8286ba40a070",
+      "blob:http://localhost:3000/d352e4bb-343b-42af-839c-b08d793fa10c",
+      "blob:http://localhost:3000/e96bf49a-0f06-49bc-a8ed-292204d3c68f",
+      "blob:http://localhost:3000/165855a9-dbd8-4cef-a421-1847df387ced"
+    ],
+    "glContexts": 1,
+    "ctxLost": 0,
+    "tex": {
+      "c": 474,
+      "d": 298,
+      "live": 176
+    },
+    "buf": {
+      "c": 4133,
+      "d": 2425,
+      "live": 1708
+    },
+    "fb": {
+      "c": 4,
+      "d": 0,
+      "live": 4
+    },
+    "programs": 26,
+    "timeouts": 6229,
+    "intervals": 1084,
+    "intervalsCleared": 1062,
+    "intervalsLive": 22,
+    "listeners": [
+      [
+        "mousedown",
+        2959
+      ],
+      [
+        "dragstart",
+        2956
+      ],
+      [
+        "click",
+        1998
+      ],
+      [
+        "keydown",
+        1979
+      ],
+      [
+        "pointerdown",
+        1978
+      ],
+      [
+        "touchend",
+        1978
+      ],
+      [
+        "dblclick",
+        1977
+      ],
+      [
+        "touchstart",
+        1976
+      ],
+      [
+        "mouseup",
+        1976
+      ],
+      [
+        "mousemove",
+        1975
+      ],
+      [
+        "touchmove",
+        1975
+      ],
+      [
+        "mouseover",
+        1974
+      ]
+    ],
+    "heapMB": 159.3,
+    "map": {
+      "zoom": 9,
+      "center": [
+        -122.5,
+        37.5
+      ],
+      "bearing": 0,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 143,
+      "sources": 24,
+      "customLayers": [],
+      "marineLayers": [
+        "water",
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "waterway",
+        "waterway-label",
+        "water-line-label",
+        "water-point-label"
+      ]
+    },
+    "domNodes": 640,
+    "canvases": 4,
+    "url": "/map",
+    "__mark": "21-final",
+    "__t": 1787074572151,
+    "__consoleErrors": 110,
+    "__consoleWarns": 39,
+    "__requests": 1557,
+    "__failed": 121
+  }
+]

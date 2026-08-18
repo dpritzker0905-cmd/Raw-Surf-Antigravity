@@ -1,0 +1,635 @@
+[
+  {
+    "build": "deployed568fc2c6",
+    "cam": "cocoa-FL",
+    "requestedZoom": 5,
+    "actualZoom": 5,
+    "disclosedGridKm": null,
+    "disclosedGridDeg": null,
+    "simplifiedMode": false,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 143,
+    "marineLayers": 0,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 3,
+    "gridStatuses": [
+      200,
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "cocoa-FL",
+    "requestedZoom": 7,
+    "actualZoom": 7,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [
+      "ncep_gfswave025"
+    ],
+    "omReqCount": 1,
+    "gridReqCount": 1,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "cocoa-FL",
+    "requestedZoom": 8,
+    "actualZoom": 8,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 1,
+    "failedSample": [
+      "ncep_gfswave025"
+    ]
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "cocoa-FL",
+    "requestedZoom": 9,
+    "actualZoom": 9,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [
+      "ncep_gfswave025"
+    ],
+    "omReqCount": 15,
+    "gridReqCount": 1,
+    "gridStatuses": [
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "cocoa-FL",
+    "requestedZoom": 10,
+    "actualZoom": 10,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 1,
+    "gridStatuses": [
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "cocoa-FL",
+    "requestedZoom": 12,
+    "actualZoom": 12,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "madeira-IS",
+    "requestedZoom": 5,
+    "actualZoom": 5,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "madeira-IS",
+    "requestedZoom": 7,
+    "actualZoom": 7,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 1,
+    "gridStatuses": [
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "madeira-IS",
+    "requestedZoom": 8,
+    "actualZoom": 8,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": false,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 143,
+    "marineLayers": 0,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "madeira-IS",
+    "requestedZoom": 9,
+    "actualZoom": 9,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": false,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 143,
+    "marineLayers": 0,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 3,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "madeira-IS",
+    "requestedZoom": 10,
+    "actualZoom": 10,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 1,
+    "gridStatuses": [
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "madeira-IS",
+    "requestedZoom": 12,
+    "actualZoom": 12,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "portugal-EU",
+    "requestedZoom": 5,
+    "actualZoom": 5,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 1,
+    "gridStatuses": [
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "portugal-EU",
+    "requestedZoom": 7,
+    "actualZoom": 7,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "portugal-EU",
+    "requestedZoom": 8,
+    "actualZoom": 8,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 3,
+    "gridStatuses": [
+      200,
+      200,
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "portugal-EU",
+    "requestedZoom": 9,
+    "actualZoom": 9,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "portugal-EU",
+    "requestedZoom": 10,
+    "actualZoom": 10,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 3,
+    "gridStatuses": [
+      200,
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "portugal-EU",
+    "requestedZoom": 12,
+    "actualZoom": 12,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "canary-IS",
+    "requestedZoom": 5,
+    "actualZoom": 5,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 1,
+    "gridStatuses": [
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "canary-IS",
+    "requestedZoom": 7,
+    "actualZoom": 7,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "canary-IS",
+    "requestedZoom": 8,
+    "actualZoom": 8,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "canary-IS",
+    "requestedZoom": 9,
+    "actualZoom": 9,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 1,
+    "gridStatuses": [
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "canary-IS",
+    "requestedZoom": 10,
+    "actualZoom": 10,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 3,
+    "gridStatuses": [
+      200,
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "canary-IS",
+    "requestedZoom": 12,
+    "actualZoom": 12,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "hawaii-IS",
+    "requestedZoom": 5,
+    "actualZoom": 5,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 1,
+    "gridStatuses": [
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "hawaii-IS",
+    "requestedZoom": 7,
+    "actualZoom": 7,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "hawaii-IS",
+    "requestedZoom": 8,
+    "actualZoom": 8,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 3,
+    "gridStatuses": [
+      200,
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "hawaii-IS",
+    "requestedZoom": 9,
+    "actualZoom": 9,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 1,
+    "gridStatuses": [
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "hawaii-IS",
+    "requestedZoom": 10,
+    "actualZoom": 10,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 3,
+    "gridStatuses": [
+      200,
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  },
+  {
+    "build": "deployed568fc2c6",
+    "cam": "hawaii-IS",
+    "requestedZoom": 12,
+    "actualZoom": 12,
+    "disclosedGridKm": 223,
+    "disclosedGridDeg": "2°",
+    "simplifiedMode": true,
+    "legend": "Combined Waves (ft)",
+    "layerCount": 155,
+    "marineLayers": 12,
+    "omProducts": [],
+    "omReqCount": 0,
+    "gridReqCount": 2,
+    "gridStatuses": [
+      200,
+      200
+    ],
+    "failedInWindow": 0,
+    "failedSample": []
+  }
+]

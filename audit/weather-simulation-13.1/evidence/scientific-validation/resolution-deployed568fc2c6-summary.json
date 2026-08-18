@@ -1,0 +1,19 @@
+{
+  "base": "https://dev--rawsurf.netlify.app",
+  "allOmProducts": [
+    "ncep_gfswave025"
+  ],
+  "distinctDisclosedGridKm": [
+    null,
+    223
+  ],
+  "simplifiedCells": 27,
+  "totalCells": 30,
+  "totalOmRequests": 16,
+  "totalOmFailed": 1,
+  "totalGridSeriesRequests": 58,
+  "gridSeriesStatuses": {
+    "200": 56
+  },
+  "gridSeriesFailed": 0
+}

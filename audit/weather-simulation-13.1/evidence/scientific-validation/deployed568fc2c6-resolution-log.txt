@@ -1,0 +1,37 @@
+=== SERVED-RESOLUTION PROBE — deployed568fc2c6 — https://dev--rawsurf.netlify.app — 2026-08-18T17:57:00.601Z ===
+map handle: map
+waves state: {"gridKm":null,"gridDeg":null,"simplified":false,"legend":"Combined Waves (ft)","zoom":9,"marineLayerIds":[],"layerCount":143}
+  deployed568fc2c6 cocoa-FL     z 5 -> actual 5     | grid=  null km (null) | simplified=false | om=[] n=0 | gridReq=3 st=[200,200,200] | fail=0
+  deployed568fc2c6 cocoa-FL     z 7 -> actual 7     | grid=   223 km (2°) | simplified=true | om=["ncep_gfswave025"] n=1 | gridReq=1 st=[200,200] | fail=0
+  deployed568fc2c6 cocoa-FL     z 8 -> actual 8     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=2 st=[200,200] | fail=1
+  deployed568fc2c6 cocoa-FL     z 9 -> actual 9     | grid=   223 km (2°) | simplified=true | om=["ncep_gfswave025"] n=15 | gridReq=1 st=[200] | fail=0
+  deployed568fc2c6 cocoa-FL     z10 -> actual 10    | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=1 st=[200] | fail=0
+  deployed568fc2c6 cocoa-FL     z12 -> actual 12    | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=2 st=[200,200] | fail=0
+  deployed568fc2c6 madeira-IS   z 5 -> actual 5     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=2 st=[200,200] | fail=0
+  deployed568fc2c6 madeira-IS   z 7 -> actual 7     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=1 st=[200] | fail=0
+  deployed568fc2c6 madeira-IS   z 8 -> actual 8     | grid=   223 km (2°) | simplified=false | om=[] n=0 | gridReq=2 st=[200,200] | fail=0
+  deployed568fc2c6 madeira-IS   z 9 -> actual 9     | grid=   223 km (2°) | simplified=false | om=[] n=0 | gridReq=3 st=[200,200] | fail=0
+  deployed568fc2c6 madeira-IS   z10 -> actual 10    | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=1 st=[200] | fail=0
+  deployed568fc2c6 madeira-IS   z12 -> actual 12    | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=2 st=[200,200] | fail=0
+  deployed568fc2c6 portugal-EU  z 5 -> actual 5     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=1 st=[200] | fail=0
+  deployed568fc2c6 portugal-EU  z 7 -> actual 7     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=2 st=[200] | fail=0
+  deployed568fc2c6 portugal-EU  z 8 -> actual 8     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=3 st=[200,200,200,200] | fail=0
+  deployed568fc2c6 portugal-EU  z 9 -> actual 9     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=2 st=[200,200] | fail=0
+  deployed568fc2c6 portugal-EU  z10 -> actual 10    | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=3 st=[200,200,200] | fail=0
+  deployed568fc2c6 portugal-EU  z12 -> actual 12    | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=2 st=[200,200] | fail=0
+  deployed568fc2c6 canary-IS    z 5 -> actual 5     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=1 st=[200] | fail=0
+  deployed568fc2c6 canary-IS    z 7 -> actual 7     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=2 st=[200,200] | fail=0
+  deployed568fc2c6 canary-IS    z 8 -> actual 8     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=2 st=[200,200] | fail=0
+  deployed568fc2c6 canary-IS    z 9 -> actual 9     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=1 st=[200] | fail=0
+  deployed568fc2c6 canary-IS    z10 -> actual 10    | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=3 st=[200,200,200] | fail=0
+  deployed568fc2c6 canary-IS    z12 -> actual 12    | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=2 st=[200,200] | fail=0
+  deployed568fc2c6 hawaii-IS    z 5 -> actual 5     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=1 st=[200] | fail=0
+  deployed568fc2c6 hawaii-IS    z 7 -> actual 7     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=2 st=[200,200] | fail=0
+  deployed568fc2c6 hawaii-IS    z 8 -> actual 8     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=3 st=[200,200,200] | fail=0
+  deployed568fc2c6 hawaii-IS    z 9 -> actual 9     | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=1 st=[200] | fail=0
+  deployed568fc2c6 hawaii-IS    z10 -> actual 10    | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=3 st=[200,200,200] | fail=0
+  deployed568fc2c6 hawaii-IS    z12 -> actual 12    | grid=   223 km (2°) | simplified=true | om=[] n=0 | gridReq=2 st=[200,200] | fail=0
+
+DISTINCT open-meteo products requested: ["ncep_gfswave025"]
+DISTINCT disclosed grid resolutions: [null,223]
+simplifiedMode TRUE in 27 of 30 cells

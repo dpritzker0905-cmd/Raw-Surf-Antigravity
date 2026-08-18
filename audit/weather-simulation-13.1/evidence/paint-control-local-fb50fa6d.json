@@ -1,0 +1,1442 @@
+[
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Wind",
+    "cam": "cocoa-z8",
+    "hud": {
+      "modelLayer": "GFS / wind",
+      "renderMode": "Wind",
+      "raster": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "NO DATA",
+      "truth": "? NOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable) 2 5 7 16 Live Map 0 shooting A"
+    },
+    "distinctColors": 496,
+    "dominantPct": 53.5,
+    "mean": [
+      34,
+      55,
+      71
+    ],
+    "meanSaturation": 0.547,
+    "topColors": [
+      {
+        "rgb": [
+          8,
+          16,
+          24
+        ],
+        "pct": 53.5
+      },
+      {
+        "rgb": [
+          48,
+          96,
+          120
+        ],
+        "pct": 8.4
+      },
+      {
+        "rgb": [
+          72,
+          160,
+          248
+        ],
+        "pct": 3.9
+      },
+      {
+        "rgb": [
+          48,
+          104,
+          120
+        ],
+        "pct": 3.6
+      },
+      {
+        "rgb": [
+          8,
+          16,
+          32
+        ],
+        "pct": 3.5
+      },
+      {
+        "rgb": [
+          24,
+          48,
+          80
+        ],
+        "pct": 2.6
+      }
+    ],
+    "gridResponsesSinceCam": 2
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Wind",
+    "cam": "cocoa-z11",
+    "hud": {
+      "modelLayer": "GFS / wind",
+      "renderMode": "Wind",
+      "raster": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "NO DATA",
+      "truth": "? NOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable) 2 2 3 3 2 2 2 2 4 3 5 2 Live M"
+    },
+    "distinctColors": 416,
+    "dominantPct": 53.6,
+    "mean": [
+      34,
+      55,
+      71
+    ],
+    "meanSaturation": 0.552,
+    "topColors": [
+      {
+        "rgb": [
+          8,
+          16,
+          24
+        ],
+        "pct": 53.6
+      },
+      {
+        "rgb": [
+          48,
+          96,
+          120
+        ],
+        "pct": 9.8
+      },
+      {
+        "rgb": [
+          72,
+          160,
+          248
+        ],
+        "pct": 3.9
+      },
+      {
+        "rgb": [
+          8,
+          16,
+          32
+        ],
+        "pct": 3
+      },
+      {
+        "rgb": [
+          40,
+          96,
+          112
+        ],
+        "pct": 2.9
+      },
+      {
+        "rgb": [
+          56,
+          56,
+          56
+        ],
+        "pct": 2
+      }
+    ],
+    "gridResponsesSinceCam": 1
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Wind",
+    "cam": "madeira-z9",
+    "hud": {
+      "modelLayer": "GFS / wind",
+      "renderMode": "Wind",
+      "raster": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "NO DATA",
+      "truth": "? NOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable) 6 5 Live Map 0 shooting All Su"
+    },
+    "distinctColors": 305,
+    "dominantPct": 25.6,
+    "mean": [
+      69,
+      119,
+      96
+    ],
+    "meanSaturation": 0.425,
+    "topColors": [
+      {
+        "rgb": [
+          64,
+          112,
+          96
+        ],
+        "pct": 25.6
+      },
+      {
+        "rgb": [
+          48,
+          96,
+          72
+        ],
+        "pct": 12.7
+      },
+      {
+        "rgb": [
+          64,
+          112,
+          88
+        ],
+        "pct": 10.1
+      },
+      {
+        "rgb": [
+          56,
+          104,
+          88
+        ],
+        "pct": 8.3
+      },
+      {
+        "rgb": [
+          56,
+          112,
+          88
+        ],
+        "pct": 4.7
+      },
+      {
+        "rgb": [
+          64,
+          104,
+          88
+        ],
+        "pct": 3.3
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Wind",
+    "cam": "openatlantic-z5",
+    "hud": {
+      "modelLayer": "GFS / wind",
+      "renderMode": "Wind",
+      "raster": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "NO DATA",
+      "truth": "? NOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable) 23 Live Map 0 shooting All Sur"
+    },
+    "distinctColors": 994,
+    "dominantPct": 16.8,
+    "mean": [
+      60,
+      109,
+      111
+    ],
+    "meanSaturation": 0.496,
+    "topColors": [
+      {
+        "rgb": [
+          48,
+          104,
+          112
+        ],
+        "pct": 16.8
+      },
+      {
+        "rgb": [
+          48,
+          104,
+          104
+        ],
+        "pct": 5.8
+      },
+      {
+        "rgb": [
+          56,
+          112,
+          104
+        ],
+        "pct": 4.4
+      },
+      {
+        "rgb": [
+          16,
+          24,
+          48
+        ],
+        "pct": 4.1
+      },
+      {
+        "rgb": [
+          56,
+          104,
+          112
+        ],
+        "pct": 4
+      },
+      {
+        "rgb": [
+          64,
+          112,
+          88
+        ],
+        "pct": 3.7
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Wind",
+    "cam": "portugal-z8",
+    "hud": {
+      "modelLayer": "GFS / wind",
+      "renderMode": "Wind",
+      "raster": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "NO DATA",
+      "truth": "? NOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable) Live Map 0 shooting All Surf S"
+    },
+    "distinctColors": 630,
+    "dominantPct": 13.4,
+    "mean": [
+      48,
+      85,
+      113
+    ],
+    "meanSaturation": 0.575,
+    "topColors": [
+      {
+        "rgb": [
+          48,
+          104,
+          112
+        ],
+        "pct": 13.4
+      },
+      {
+        "rgb": [
+          48,
+          96,
+          120
+        ],
+        "pct": 13
+      },
+      {
+        "rgb": [
+          16,
+          24,
+          48
+        ],
+        "pct": 9.1
+      },
+      {
+        "rgb": [
+          48,
+          72,
+          120
+        ],
+        "pct": 7.8
+      },
+      {
+        "rgb": [
+          48,
+          80,
+          120
+        ],
+        "pct": 6.7
+      },
+      {
+        "rgb": [
+          48,
+          88,
+          120
+        ],
+        "pct": 6.1
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Waves",
+    "cam": "cocoa-z8",
+    "hud": {
+      "modelLayer": "GFS / waves",
+      "renderMode": "Marine",
+      "raster": "LOADING",
+      "provider": "UNKNOWN",
+      "klass": "NO DATA",
+      "truth": "? NOT VERIFIED — source parity not established (heatmap: no rendered provider · heatmap: zero vectors rendered) 10 11 8 4 3 4 7 6 4 4 Live Map 0 shoot"
+    },
+    "distinctColors": 213,
+    "dominantPct": 51.7,
+    "mean": [
+      43,
+      58,
+      72
+    ],
+    "meanSaturation": 0.468,
+    "topColors": [
+      {
+        "rgb": [
+          8,
+          16,
+          24
+        ],
+        "pct": 51.7
+      },
+      {
+        "rgb": [
+          88,
+          112,
+          128
+        ],
+        "pct": 13.7
+      },
+      {
+        "rgb": [
+          8,
+          16,
+          32
+        ],
+        "pct": 5.3
+      },
+      {
+        "rgb": [
+          72,
+          160,
+          248
+        ],
+        "pct": 3.9
+      },
+      {
+        "rgb": [
+          88,
+          112,
+          120
+        ],
+        "pct": 3.6
+      },
+      {
+        "rgb": [
+          24,
+          48,
+          80
+        ],
+        "pct": 3
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Waves",
+    "cam": "cocoa-z11",
+    "hud": {
+      "modelLayer": "GFS / waves",
+      "renderMode": "Marine",
+      "raster": "LOADED",
+      "provider": "NOAA",
+      "klass": "COARSE 2° GRID",
+      "truth": "✓ No Causal Layer Violations Detected · source parity n/a (no point selected) 2 2 3 3 2 2 2 2 4 3 5 2 Live Map 0 shooting All Surf Spots Photographers"
+    },
+    "distinctColors": 243,
+    "dominantPct": 54.5,
+    "mean": [
+      36,
+      64,
+      70
+    ],
+    "meanSaturation": 0.536,
+    "topColors": [
+      {
+        "rgb": [
+          8,
+          16,
+          24
+        ],
+        "pct": 54.5
+      },
+      {
+        "rgb": [
+          64,
+          136,
+          128
+        ],
+        "pct": 5.7
+      },
+      {
+        "rgb": [
+          72,
+          160,
+          248
+        ],
+        "pct": 3.9
+      },
+      {
+        "rgb": [
+          64,
+          136,
+          120
+        ],
+        "pct": 3.7
+      },
+      {
+        "rgb": [
+          8,
+          24,
+          32
+        ],
+        "pct": 3.3
+      },
+      {
+        "rgb": [
+          8,
+          16,
+          32
+        ],
+        "pct": 2.6
+      }
+    ],
+    "gridResponsesSinceCam": 8
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Waves",
+    "cam": "madeira-z9",
+    "hud": {
+      "modelLayer": "GFS / waves",
+      "renderMode": "Marine",
+      "raster": "LOADED",
+      "provider": "NOAA",
+      "klass": "COARSE 2° GRID",
+      "truth": "✓ No Causal Layer Violations Detected · source parity n/a (no point selected) 6 5 Live Map 0 shooting All Surf Spots Photographers Request a WEATHER G"
+    },
+    "distinctColors": 451,
+    "dominantPct": 40.5,
+    "mean": [
+      58,
+      134,
+      172
+    ],
+    "meanSaturation": 0.607,
+    "topColors": [
+      {
+        "rgb": [
+          48,
+          152,
+          200
+        ],
+        "pct": 40.5
+      },
+      {
+        "rgb": [
+          64,
+          72,
+          88
+        ],
+        "pct": 20.3
+      },
+      {
+        "rgb": [
+          48,
+          144,
+          200
+        ],
+        "pct": 13.9
+      },
+      {
+        "rgb": [
+          48,
+          152,
+          216
+        ],
+        "pct": 2.2
+      },
+      {
+        "rgb": [
+          56,
+          152,
+          192
+        ],
+        "pct": 1.9
+      },
+      {
+        "rgb": [
+          56,
+          144,
+          200
+        ],
+        "pct": 1.8
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Waves",
+    "cam": "openatlantic-z5",
+    "hud": {
+      "modelLayer": "GFS / waves",
+      "renderMode": "Marine",
+      "raster": "LOADED",
+      "provider": "NOAA",
+      "klass": "COARSE 2° GRID",
+      "truth": "✓ No Causal Layer Violations Detected · source parity n/a (no point selected) 23 Live Map 0 shooting All Surf Spots Photographers Request a WEATHER GF"
+    },
+    "distinctColors": 586,
+    "dominantPct": 19.4,
+    "mean": [
+      37,
+      169,
+      212
+    ],
+    "meanSaturation": 0.817,
+    "topColors": [
+      {
+        "rgb": [
+          24,
+          192,
+          208
+        ],
+        "pct": 19.4
+      },
+      {
+        "rgb": [
+          24,
+          192,
+          200
+        ],
+        "pct": 9.7
+      },
+      {
+        "rgb": [
+          24,
+          200,
+          224
+        ],
+        "pct": 4.2
+      },
+      {
+        "rgb": [
+          24,
+          192,
+          232
+        ],
+        "pct": 3.9
+      },
+      {
+        "rgb": [
+          24,
+          200,
+          216
+        ],
+        "pct": 3.6
+      },
+      {
+        "rgb": [
+          24,
+          192,
+          216
+        ],
+        "pct": 3.1
+      }
+    ],
+    "gridResponsesSinceCam": 2
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Waves",
+    "cam": "portugal-z8",
+    "hud": {
+      "modelLayer": "GFS / waves",
+      "renderMode": "Marine",
+      "raster": "LOADED",
+      "provider": "NOAA",
+      "klass": "COARSE 2° GRID",
+      "truth": "✓ No Causal Layer Violations Detected · source parity n/a (no point selected) Live Map 0 shooting All Surf Spots Photographers Request a WEATHER GFS E"
+    },
+    "distinctColors": 392,
+    "dominantPct": 18.4,
+    "mean": [
+      31,
+      161,
+      210
+    ],
+    "meanSaturation": 0.837,
+    "topColors": [
+      {
+        "rgb": [
+          24,
+          184,
+          240
+        ],
+        "pct": 18.4
+      },
+      {
+        "rgb": [
+          32,
+          168,
+          240
+        ],
+        "pct": 16.7
+      },
+      {
+        "rgb": [
+          24,
+          176,
+          240
+        ],
+        "pct": 14
+      },
+      {
+        "rgb": [
+          8,
+          32,
+          56
+        ],
+        "pct": 9.2
+      },
+      {
+        "rgb": [
+          32,
+          160,
+          240
+        ],
+        "pct": 5.3
+      },
+      {
+        "rgb": [
+          32,
+          176,
+          240
+        ],
+        "pct": 3.1
+      }
+    ],
+    "gridResponsesSinceCam": 2
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Swell",
+    "cam": "cocoa-z8",
+    "hud": {
+      "modelLayer": "GFS / swell_1",
+      "renderMode": "Marine",
+      "raster": "LOADED",
+      "provider": "NOAA",
+      "klass": "COARSE 2° GRID",
+      "truth": "⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=waves infobox=swell_1 10 11 8 4 3 4 7 6 4 4 Live Map 0 shooting All Surf Spots Photographers Request a WEATHE"
+    },
+    "distinctColors": 144,
+    "dominantPct": 49.4,
+    "mean": [
+      31,
+      70,
+      74
+    ],
+    "meanSaturation": 0.595,
+    "topColors": [
+      {
+        "rgb": [
+          8,
+          16,
+          24
+        ],
+        "pct": 49.4
+      },
+      {
+        "rgb": [
+          8,
+          24,
+          32
+        ],
+        "pct": 10.3
+      },
+      {
+        "rgb": [
+          40,
+          168,
+          136
+        ],
+        "pct": 8.4
+      },
+      {
+        "rgb": [
+          40,
+          168,
+          144
+        ],
+        "pct": 8
+      },
+      {
+        "rgb": [
+          72,
+          160,
+          248
+        ],
+        "pct": 3.9
+      },
+      {
+        "rgb": [
+          40,
+          160,
+          136
+        ],
+        "pct": 2.5
+      }
+    ],
+    "gridResponsesSinceCam": 3
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Swell",
+    "cam": "cocoa-z11",
+    "hud": {
+      "modelLayer": "GFS / swell_1",
+      "renderMode": "Marine",
+      "raster": "LOADED",
+      "provider": "NOAA",
+      "klass": "COARSE 2° GRID",
+      "truth": "✓ No Causal Layer Violations Detected · source parity n/a (no point selected) 2 2 3 3 2 2 2 2 4 3 5 2 Live Map 0 shooting All Surf Spots Photographers"
+    },
+    "distinctColors": 277,
+    "dominantPct": 58.8,
+    "mean": [
+      38,
+      60,
+      69
+    ],
+    "meanSaturation": 0.509,
+    "topColors": [
+      {
+        "rgb": [
+          8,
+          16,
+          24
+        ],
+        "pct": 58.8
+      },
+      {
+        "rgb": [
+          72,
+          120,
+          120
+        ],
+        "pct": 8.7
+      },
+      {
+        "rgb": [
+          72,
+          160,
+          248
+        ],
+        "pct": 3.9
+      },
+      {
+        "rgb": [
+          56,
+          56,
+          56
+        ],
+        "pct": 2
+      },
+      {
+        "rgb": [
+          72,
+          112,
+          120
+        ],
+        "pct": 2
+      },
+      {
+        "rgb": [
+          128,
+          128,
+          128
+        ],
+        "pct": 1.8
+      }
+    ],
+    "gridResponsesSinceCam": 3
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Swell",
+    "cam": "madeira-z9",
+    "hud": {
+      "modelLayer": "GFS / swell_1",
+      "renderMode": "Marine",
+      "raster": "LOADED",
+      "provider": "NOAA",
+      "klass": "COARSE 2° GRID",
+      "truth": "✓ No Causal Layer Violations Detected · source parity n/a (no point selected) 6 5 Live Map 0 shooting All Surf Spots Photographers Request a WEATHER G"
+    },
+    "distinctColors": 446,
+    "dominantPct": 27.9,
+    "mean": [
+      51,
+      149,
+      161
+    ],
+    "meanSaturation": 0.633,
+    "topColors": [
+      {
+        "rgb": [
+          40,
+          168,
+          176
+        ],
+        "pct": 27.9
+      },
+      {
+        "rgb": [
+          40,
+          168,
+          184
+        ],
+        "pct": 22.2
+      },
+      {
+        "rgb": [
+          64,
+          72,
+          88
+        ],
+        "pct": 20.2
+      },
+      {
+        "rgb": [
+          40,
+          176,
+          184
+        ],
+        "pct": 5.5
+      },
+      {
+        "rgb": [
+          32,
+          184,
+          200
+        ],
+        "pct": 2.6
+      },
+      {
+        "rgb": [
+          32,
+          192,
+          200
+        ],
+        "pct": 1.9
+      }
+    ],
+    "gridResponsesSinceCam": 3
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Swell",
+    "cam": "openatlantic-z5",
+    "hud": {
+      "modelLayer": "GFS / swell_1",
+      "renderMode": "Marine",
+      "raster": "LOADED",
+      "provider": "NOAA",
+      "klass": "COARSE 2° GRID",
+      "truth": "✓ No Causal Layer Violations Detected · source parity n/a (no point selected) 23 Live Map 0 shooting All Surf Spots Photographers Request a WEATHER GF"
+    },
+    "distinctColors": 211,
+    "dominantPct": 25.2,
+    "mean": [
+      25,
+      185,
+      174
+    ],
+    "meanSaturation": 0.854,
+    "topColors": [
+      {
+        "rgb": [
+          24,
+          184,
+          152
+        ],
+        "pct": 25.2
+      },
+      {
+        "rgb": [
+          24,
+          184,
+          160
+        ],
+        "pct": 8.2
+      },
+      {
+        "rgb": [
+          16,
+          200,
+          200
+        ],
+        "pct": 6.4
+      },
+      {
+        "rgb": [
+          16,
+          200,
+          208
+        ],
+        "pct": 6.2
+      },
+      {
+        "rgb": [
+          16,
+          208,
+          216
+        ],
+        "pct": 5.7
+      },
+      {
+        "rgb": [
+          16,
+          208,
+          224
+        ],
+        "pct": 4.1
+      }
+    ],
+    "gridResponsesSinceCam": 1
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Swell",
+    "cam": "portugal-z8",
+    "hud": {
+      "modelLayer": "GFS / swell_1",
+      "renderMode": "Marine",
+      "raster": "LOADED",
+      "provider": "NOAA",
+      "klass": "COARSE 2° GRID",
+      "truth": "✓ No Causal Layer Violations Detected · source parity n/a (no point selected) Live Map 0 shooting All Surf Spots Photographers Request a WEATHER GFS E"
+    },
+    "distinctColors": 169,
+    "dominantPct": 63.5,
+    "mean": [
+      21,
+      181,
+      211
+    ],
+    "meanSaturation": 0.884,
+    "topColors": [
+      {
+        "rgb": [
+          16,
+          200,
+          232
+        ],
+        "pct": 63.5
+      },
+      {
+        "rgb": [
+          8,
+          40,
+          56
+        ],
+        "pct": 9.2
+      },
+      {
+        "rgb": [
+          16,
+          192,
+          232
+        ],
+        "pct": 3.3
+      },
+      {
+        "rgb": [
+          16,
+          208,
+          232
+        ],
+        "pct": 3.2
+      },
+      {
+        "rgb": [
+          24,
+          200,
+          224
+        ],
+        "pct": 2.9
+      },
+      {
+        "rgb": [
+          8,
+          32,
+          48
+        ],
+        "pct": 2
+      }
+    ],
+    "gridResponsesSinceCam": 2
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Water Temp",
+    "cam": "cocoa-z8",
+    "hud": {
+      "modelLayer": "GFS / water_temp",
+      "renderMode": "Raster",
+      "raster": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "COARSE 2° GRID",
+      "truth": "⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=swell_1 infobox=water_temp 10 11 8 4 3 4 7 6 4 4 Live Map 0 shooting All Surf Spots Photographers Request a W"
+    },
+    "distinctColors": 179,
+    "dominantPct": 48.6,
+    "mean": [
+      63,
+      60,
+      50
+    ],
+    "meanSaturation": 0.547,
+    "topColors": [
+      {
+        "rgb": [
+          8,
+          16,
+          24
+        ],
+        "pct": 48.6
+      },
+      {
+        "rgb": [
+          176,
+          128,
+          40
+        ],
+        "pct": 11.7
+      },
+      {
+        "rgb": [
+          16,
+          16,
+          24
+        ],
+        "pct": 11.2
+      },
+      {
+        "rgb": [
+          72,
+          160,
+          248
+        ],
+        "pct": 3.9
+      },
+      {
+        "rgb": [
+          176,
+          112,
+          40
+        ],
+        "pct": 2.9
+      },
+      {
+        "rgb": [
+          56,
+          56,
+          56
+        ],
+        "pct": 2
+      }
+    ],
+    "gridResponsesSinceCam": 1
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Water Temp",
+    "cam": "cocoa-z11",
+    "hud": {
+      "modelLayer": "GFS / water_temp",
+      "renderMode": "Raster",
+      "raster": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "COARSE 2° GRID",
+      "truth": "⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=swell_1 infobox=water_temp 2 2 3 3 2 2 2 2 4 3 5 2 Live Map 0 shooting All Surf Spots Photographers Request a"
+    },
+    "distinctColors": 153,
+    "dominantPct": 48.7,
+    "mean": [
+      65,
+      58,
+      48
+    ],
+    "meanSaturation": 0.548,
+    "topColors": [
+      {
+        "rgb": [
+          8,
+          16,
+          24
+        ],
+        "pct": 48.7
+      },
+      {
+        "rgb": [
+          184,
+          120,
+          32
+        ],
+        "pct": 13.5
+      },
+      {
+        "rgb": [
+          16,
+          16,
+          24
+        ],
+        "pct": 11.2
+      },
+      {
+        "rgb": [
+          176,
+          112,
+          32
+        ],
+        "pct": 4.7
+      },
+      {
+        "rgb": [
+          72,
+          160,
+          248
+        ],
+        "pct": 3.9
+      },
+      {
+        "rgb": [
+          56,
+          56,
+          56
+        ],
+        "pct": 2
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Water Temp",
+    "cam": "madeira-z9",
+    "hud": {
+      "modelLayer": "GFS / water_temp",
+      "renderMode": "Raster",
+      "raster": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "COARSE 2° GRID",
+      "truth": "⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=swell_1 infobox=water_temp 6 5 Live Map 0 shooting All Surf Spots Photographers Request a WEATHER GFS EURO IC"
+    },
+    "distinctColors": 262,
+    "dominantPct": 69.9,
+    "mean": [
+      147,
+      137,
+      56
+    ],
+    "meanSaturation": 0.628,
+    "topColors": [
+      {
+        "rgb": [
+          176,
+          160,
+          40
+        ],
+        "pct": 69.9
+      },
+      {
+        "rgb": [
+          64,
+          72,
+          88
+        ],
+        "pct": 21.6
+      },
+      {
+        "rgb": [
+          48,
+          56,
+          64
+        ],
+        "pct": 0.8
+      },
+      {
+        "rgb": [
+          56,
+          64,
+          80
+        ],
+        "pct": 0.6
+      },
+      {
+        "rgb": [
+          48,
+          48,
+          40
+        ],
+        "pct": 0.6
+      },
+      {
+        "rgb": [
+          56,
+          72,
+          88
+        ],
+        "pct": 0.6
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Water Temp",
+    "cam": "openatlantic-z5",
+    "hud": {
+      "modelLayer": "GFS / water_temp",
+      "renderMode": "Raster",
+      "raster": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "COARSE 2° GRID",
+      "truth": "⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=swell_1 infobox=water_temp 23 Live Map 0 shooting All Surf Spots Photographers Request a WEATHER GFS EURO ICO"
+    },
+    "distinctColors": 68,
+    "dominantPct": 68.9,
+    "mean": [
+      158,
+      125,
+      62
+    ],
+    "meanSaturation": 0.607,
+    "topColors": [
+      {
+        "rgb": [
+          160,
+          120,
+          56
+        ],
+        "pct": 68.9
+      },
+      {
+        "rgb": [
+          160,
+          136,
+          56
+        ],
+        "pct": 23.5
+      },
+      {
+        "rgb": [
+          40,
+          32,
+          56
+        ],
+        "pct": 3
+      },
+      {
+        "rgb": [
+          152,
+          120,
+          56
+        ],
+        "pct": 1.4
+      },
+      {
+        "rgb": [
+          56,
+          48,
+          64
+        ],
+        "pct": 0.9
+      },
+      {
+        "rgb": [
+          144,
+          112,
+          56
+        ],
+        "pct": 0.9
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "local-fb50fa6d",
+    "layer": "Water Temp",
+    "cam": "portugal-z8",
+    "hud": {
+      "modelLayer": "GFS / water_temp",
+      "renderMode": "Raster",
+      "raster": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "COARSE 2° GRID",
+      "truth": "⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=swell_1 infobox=water_temp Live Map 0 shooting All Surf Spots Photographers Request a WEATHER GFS EURO ICON S"
+    },
+    "distinctColors": 75,
+    "dominantPct": 84.7,
+    "mean": [
+      167,
+      161,
+      42
+    ],
+    "meanSaturation": 0.708,
+    "topColors": [
+      {
+        "rgb": [
+          176,
+          168,
+          40
+        ],
+        "pct": 84.7
+      },
+      {
+        "rgb": [
+          40,
+          32,
+          40
+        ],
+        "pct": 6.6
+      },
+      {
+        "rgb": [
+          168,
+          160,
+          40
+        ],
+        "pct": 2.7
+      },
+      {
+        "rgb": [
+          160,
+          152,
+          32
+        ],
+        "pct": 1.6
+      },
+      {
+        "rgb": [
+          48,
+          48,
+          48
+        ],
+        "pct": 1
+      },
+      {
+        "rgb": [
+          176,
+          184,
+          40
+        ],
+        "pct": 1
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  }
+]

@@ -1,0 +1,129 @@
+{
+  "hiddenIds": null,
+  "pre": {
+    "parity": {
+      "activeModel": "GFS",
+      "activeLayer": "wind",
+      "timeOffsetHours": 0,
+      "infobox": {
+        "provider": "none",
+        "status": "idle",
+        "timestamp": null
+      },
+      "heatmap": {
+        "model": "GFS",
+        "provider": "open-meteo",
+        "waveData": true,
+        "vectorCount": 169,
+        "nonzeroActiveLayer": 99
+      },
+      "status": "MISMATCH",
+      "match": false,
+      "mismatchReasons": [
+        "layer: heatmap=waves infobox=wind"
+      ],
+      "unsampledReasons": null,
+      "timestamp": "2026-08-18T17:58:21.439Z"
+    },
+    "webglDiag": {
+      "activeModel": "GFS",
+      "infoboxHeatmapParity": false,
+      "keys": [
+        "status",
+        "activeModel",
+        "activeMarineLayer",
+        "renderedProvider",
+        "componentLayer",
+        "backendGridVectorCount",
+        "webglSourceVectorCount",
+        "particleCount",
+        "renderedParticleCount",
+        "lastUploadedGridSignature",
+        "waveDataPresent",
+        "timeOffsetHours",
+        "lastUploadClearRejectionReason",
+        "infoboxHeatmapParity",
+        "timestamp"
+      ]
+    },
+    "engine": {
+      "hasWaveData": true,
+      "waveDataLen": null,
+      "activeLayer": null,
+      "activeModel": null,
+      "keys": [
+        "_waveData",
+        "__coarseBridgeActive",
+        "_dispatcherActive",
+        "_coarseBaseData",
+        "_lastCoarseMaskVisible"
+      ]
+    },
+    "style": null,
+    "hudTruth": "⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=waves infobox=wind 6 2 6 5 5 4 Live Map 0 shooting All Surf Spots Photographers Request a WEATHER GFS EURO ICON Surf Rating: OFF ft ⇄ Precip Radar Satellite Wind",
+    "badge": null
+  },
+  "post": {
+    "parity": {
+      "activeModel": "GFS",
+      "activeLayer": "wind",
+      "timeOffsetHours": 0,
+      "infobox": {
+        "provider": "none",
+        "status": "idle",
+        "timestamp": null
+      },
+      "heatmap": {
+        "model": "GFS",
+        "provider": "open-meteo",
+        "waveData": true,
+        "vectorCount": 169,
+        "nonzeroActiveLayer": 99
+      },
+      "status": "MISMATCH",
+      "match": false,
+      "mismatchReasons": [
+        "layer: heatmap=waves infobox=wind"
+      ],
+      "unsampledReasons": null,
+      "timestamp": "2026-08-18T17:58:35.341Z"
+    },
+    "webglDiag": {
+      "activeModel": "GFS",
+      "infoboxHeatmapParity": false,
+      "keys": [
+        "status",
+        "activeModel",
+        "activeMarineLayer",
+        "renderedProvider",
+        "componentLayer",
+        "backendGridVectorCount",
+        "webglSourceVectorCount",
+        "particleCount",
+        "renderedParticleCount",
+        "lastUploadedGridSignature",
+        "waveDataPresent",
+        "timeOffsetHours",
+        "lastUploadClearRejectionReason",
+        "infoboxHeatmapParity",
+        "timestamp"
+      ]
+    },
+    "engine": {
+      "hasWaveData": true,
+      "waveDataLen": null,
+      "activeLayer": null,
+      "activeModel": null,
+      "keys": [
+        "_waveData",
+        "__coarseBridgeActive",
+        "_dispatcherActive",
+        "_coarseBaseData",
+        "_lastCoarseMaskVisible"
+      ]
+    },
+    "style": null,
+    "hudTruth": "⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=waves infobox=wind 6 2 6 5 5 4 Live Map 0 shooting All Surf Spots Photographers Request a WEATHER GFS EURO ICON Surf Rating: OFF ft ⇄ Precip Radar Satellite Wind",
+    "badge": null
+  }
+}
