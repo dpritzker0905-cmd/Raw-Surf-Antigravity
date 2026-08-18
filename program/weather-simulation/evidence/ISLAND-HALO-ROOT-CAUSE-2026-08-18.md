@@ -236,3 +236,54 @@ Skipping the 2-degree tier at narrow spans is NOT a constant flip. That tier is 
 that guarantees coverage - dropping it where the finer lane has no product is exactly the
 "marine blank" class. The correct form is conditional: skip the mid tier at narrow span ONLY when a
 finer product is actually resident, else keep it. That needs the blank-regression harness alongside it.
+
+---
+
+# ADDENDUM 2026-08-18 (d) - THE MADEIRA PILOT PASSES. The fix is finer data, and it is proven.
+
+Owner approved a Madeira pilot before any ingestion build. Run against PRODUCTION
+`POST /api/copernicus-marine` (which already accepts up to 500 explicit coordinates), 150 points on a
+0.0833 deg lattice over Madeira plus open water on both sides. **No new code was needed to prove it.**
+
+## The field at 7.8 km (wave_height m, valid 15:00Z, NORTH at top)
+
+```
+33.167   1.84 1.84 1.84 1.84 1.83 1.81 1.79 1.78 1.76 1.75 1.74 1.73 1.72 1.72 1.71
+33.000   1.80 1.80 1.80 1.79 1.77 1.74 1.72 1.70 1.69 1.68 1.67 1.66 1.65 1.63 1.54
+32.917   1.77 1.77 1.76 1.72 1.69 1.68 1.66 1.65 1.65 1.65 1.65 1.64 1.63 1.62 1.58
+32.833   1.74 1.73 1.69 1.61 1.54 land land land land land 1.54 1.56 1.58 1.60 1.59
+32.750   1.70 1.67 1.62 1.51 1.37 land land land land land 1.21 1.32 1.46 1.58 1.58
+32.667   1.66 1.62 1.56 1.45 1.26 0.98 0.70 0.59 land land 0.95 1.14 1.36 1.55 1.57
+32.583   1.61 1.57 1.52 1.43 1.26 1.04 0.83 0.76 0.78 0.87 1.02 1.19 1.36 1.50 1.55
+32.500   1.57 1.53 1.49 1.42 1.27 1.08 0.92 0.87 0.90 0.98 1.09 1.22 1.34 1.40 1.50
+```
+
+| | 0.25 deg (what ships) | 0.083 deg (the pilot) |
+|---|---|---|
+| windward shore (row N of land) | renders **1.24-1.38** | **1.62-1.77** |
+| lee, directly behind the island | absent - averaged away | **0.59-0.98**, sharp |
+| island cells | **0.0**, then extrapolated to ~1.1 | **null** (12 of 150) |
+| windward/lee separation | none - one ~1.1 cell | **1.65 vs 0.59, 8 km apart** |
+
+## What it proves
+
+1. **The windward shore keeps open-ocean values.** The failure this whole arc chased - a ramp down to
+   ~1.1 on the exposed coast - does not occur at 7.8 km.
+2. **The lee shadow is REAL and sharp.** The owner's turquoise ring is a SMEARED version of genuine
+   physics, not an artifact painted over it. At 0.25 deg the 1.65-vs-0.59 structure collapses into one
+   averaged cell; that averaging IS the ring.
+3. **Land returns `null`, not zero.** So `extrapolateOceanData`'s zero-smear - the mechanism behind
+   every failed repair in this arc - has nothing to act on at this resolution. The fix removes the
+   defect's cause rather than compensating for it.
+4. **Credentials are live.**
+
+## The measured cost, and the design it forces
+
+**23.6 s for 150 points, 278 KB, forecast_days=1.**
+
+=> ON-DEMAND PER-VIEWPORT FETCHING IS RULED OUT. Nobody waits 24 s for a pan. The lane must be
+SCHEDULED INGESTION into pre-baked regional tiles, exactly like the existing `global_mid` lane, with
+the viewport request served from cache. The pilot measured latency instead of assuming it, and that
+single number decides the architecture.
+
+Raw pilot response committed alongside: `PILOT-madeira-copernicus-0083deg-2026-08-18.json`.
