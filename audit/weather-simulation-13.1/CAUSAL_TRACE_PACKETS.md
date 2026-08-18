@@ -14,7 +14,7 @@ result.
 | | |
 |---|---|
 | **Finding ID** | 13.1-F1 |
-| **Classification** | **Confirmed** (static multi-site trace; runtime falsification available but not run) |
+| **Classification** | **CONFIRMED — static multi-site trace AND live production falsification (2026-08-18)** |
 | **Severity** | **CRITICAL** |
 | **Objectives / Tasks** | WS-OBJ-302 / WS-CAN-0064 |
 | **Introduced by** | `9d8b2ad9` — *"[WS-CAN-0064 / Mission 4] /conditions/batch serves from the precomputed frames"* |
@@ -67,13 +67,52 @@ record already measured the offshore-vs-breaking divergence at a single coordina
 −18.7% to +92.7%, signed both ways — establishing that height-family substitutions in this
 system are not small.
 
-### Falsification — available, **NOT PERFORMED**
+### Falsification — ✅ **PERFORMED 2026-08-18, AGAINST PRODUCTION, READ-ONLY**
 
-One production `/api/conditions/batch` call for a spot present in the current frame, compared
-against the same spot with `CONDITIONS_BATCH_PRECOMPUTED=0`. This audit is non-invasive and did
-not set a backend environment variable on a production service. **Recorded in
-`OPEN_EVIDENCE_GAPS.md`.** If that comparison shows agreement within tolerance at every sampled
-spot, the finding downgrades to a naming defect — this is the mission's explicit stop condition.
+Full write-up: `evidence/scientific-validation/F1-FALSIFICATION-2026-08-18.md`.
+Raw data: `F1-falsification-production.json`. Harness: `evidence/f1falsify.js`.
+
+**No production configuration was changed.** Rather than flipping `CONDITIONS_BATCH_PRECOMPUTED=0`,
+the run asks **which variable the published number equals**, by sampling `/api/weather/point` at
+`layer=waves` and `layer=swell_1` for the same coordinate and hour. That is strictly stronger than
+demonstrating that two lanes differ.
+
+**Sample:** 20 spots across 5 regions (Florida, California, Portugal/Iberia, Hawaii, NY/NJ),
+backend `568fc2c6`, `valid_time 2026-08-18T21:00:00Z`.
+**Lane that answered:** `conditions_source: {"source":"precomputed","precomputed":20,"live":0}` —
+all 20 served by the default-ON frame lane under test.
+
+| spot | region | published | VHM0 (`waves`) | VHM0_SW1 (`swell_1`) | tracks | vs partition |
+|---|---|---|---|---|---|---|
+| Rockpiles | Hawaii | **4.0** | **4.0** | 1.0 | **VHM0** | **+300%** |
+| Backdoor | Hawaii | **4.0** | **4.0** | 1.0 | **VHM0** | **+300%** |
+| Laniakea | Hawaii | **3.7** | 3.8 | 1.0 | **VHM0** | **+270%** |
+| Doran Beach | California | **3.7** | 3.6 | 1.5 | **VHM0** | +146.7% |
+| Fort Point | California | **3.2** | **3.2** | 1.7 | **VHM0** | +88.2% |
+| Kaisers | Hawaii | **3.5** | **3.5** | 1.9 | **VHM0** | +84.2% |
+| Ocean Beach SF | California | **3.1** | **3.1** | 1.7 | **VHM0** | +82.4% |
+| Princeton Jetty | California | **3.2** | **3.2** | 1.8 | **VHM0** | +77.8% |
+| Pepper Park | Florida | **1.0** | **1.0** | 0.7 | **VHM0** | +42.9% |
+| Jetty Park | Florida | **1.4** | **1.4** | 1.0 | **VHM0** | +40% |
+| Ponce Inlet | Florida | **1.5** | **1.5** | 1.2 | **VHM0** | +25% |
+
+> **11 of 11 discriminating spots track VHM0. 0 of 11 track VHM0_SW1.**
+> Overstatement **min +25%, median +84.2%, max +300% — every one positive**, exactly as a
+> total-vs-partition substitution predicts (a total is ≥ its own partition by construction).
+
+**Independent field-identity check:** for **20 of 20** spots,
+`published == round(frame.offshore_hs_m × 3.28084, 1)` — **exact**. `/api/weather/spot-ratings`
+exposes `offshore_hs_m` directly, so the published field is confirmed to be that value **from the
+wire**, not only from the source.
+
+**The remaining 9 spots are reported, not dropped:** all groundswell-dominated with
+`|VHM0 − SW1| ≤ 0.2 ft`, where the test genuinely cannot discriminate because the two quantities
+coincide. ⚠️ That is not evidence against the finding — **the defect's magnitude is
+sea-state-dependent, not location-dependent.** The same Portuguese spot diverges the moment a wind
+sea builds over the groundswell.
+
+**⛔ The mission's stop condition is NOT met.** §11.1 required agreement within tolerance at
+*every* sampled spot. **F1 remains CRITICAL and Mission 13.1-C1 proceeds as written.**
 
 ### Required guardrail
 

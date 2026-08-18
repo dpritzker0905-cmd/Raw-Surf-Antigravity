@@ -66,6 +66,14 @@ OFFSHORE significant wave height."*
 where all the guards live.** The mandate constrains a function; it does not constrain a route.
 That is a structural gap, not merely a bug.
 
+✅ **FALSIFIED AGAINST PRODUCTION 2026-08-18 — and it CONFIRMED.** 20 spots, 5 regions, all served
+by the frame lane: **11 of 11 discriminating spots track VHM0, 0 track VHM0_SW1**; overstatement
+**min +25%, median +84.2%, max +300%**, every one positive. **Rockpiles and Backdoor, Oahu publish
+`4.0 ft` where the primary swell partition is `1.0 ft`.** Field identity confirmed from the wire:
+**20 of 20** spots satisfy `published == round(frame.offshore_hs_m × 3.28084, 1)`. **No production
+configuration was changed** — the run identifies *which variable the published number equals*
+rather than flipping a lane off.
+
 ### ⛔ HIGH — a third EURO marine ingestion authority shipped default ON, labelled inert
 
 `fb50fa6d` ships a 20-region 0.083° Copernicus island lane, default ON

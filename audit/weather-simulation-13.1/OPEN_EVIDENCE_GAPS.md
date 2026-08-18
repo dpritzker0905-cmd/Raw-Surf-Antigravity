@@ -8,16 +8,27 @@ Ordered by how much each gap constrains the trajectory verdict.
 
 ## ⛔ TIER 1 — gaps that limit a stated finding
 
-### G-01 · The F1 magnitude was never measured on live data
+### ~~G-01 · The F1 magnitude was never measured on live data~~ — ✅ **CLOSED 2026-08-18**
+
+**Run against production, read-only. F1 CONFIRMED; the finding does NOT downgrade.**
 
 | | |
 |---|---|
-| Claim affected | Finding 13.1-F1 — `swell_height_ft` publishes VHM0 on the frame lane and VHM0_SW1 on the live lane |
-| What IS established | The two lanes read **different source fields**, traced to file:line on both sides, and the frame lane is default ON. This is a **static certainty**. |
-| What is NOT established | **How far apart the two numbers actually are**, per spot and per hour. |
-| Why not measured | Verifying it requires setting `CONDITIONS_BATCH_PRECOMPUTED=0` against a running backend. This audit is non-invasive and does not set environment variables on a production service. |
-| **What would close it** | One `/api/conditions/batch` call for ≥10 spots across ≥3 regions present in the current frame, compared against the same spots with `CONDITIONS_BATCH_PRECOMPUTED=0`. Record both values and the signed difference. |
-| Consequence if it shows agreement | **F1 downgrades from Critical to a naming defect** — and that is the explicit stop condition in `NEXT_AUTHORIZED_MISSION.md` §11. |
+| Evidence | `evidence/scientific-validation/F1-FALSIFICATION-2026-08-18.md` + `F1-falsification-production.json` |
+| Backend | `2.0.0-stage-6f-v1-568fc2c6`, `healthy`, `valid_time 2026-08-18T21:00:00Z` |
+| Sample | **20 spots across 5 regions** (contract required ≥10 / ≥3); all answered by the frame lane — `conditions_source: {"precomputed":20,"live":0}` |
+| **Result** | **11 of 11** discriminating spots track **VHM0** (`waves`.speed); **0 of 11** track **VHM0_SW1** (`swell_1`) |
+| **Magnitude** | overstatement vs the swell partition **min +25%, median +84.2%, max +300%** — **every one positive**, as a total-vs-partition substitution predicts |
+| Field identity | **20 / 20** exact: `published == round(frame.offshore_hs_m × 3.28084, 1)` — confirmed from the wire, not from source |
+| Worst case | **Rockpiles and Backdoor, Oahu — published `4.0 ft` where the primary swell partition is `1.0 ft`** |
+| Method note | ⭐ **No production configuration was changed.** Instead of flipping `CONDITIONS_BATCH_PRECOMPUTED=0`, the run identifies **which variable the published number equals** by sampling `/weather/point` at `layer=waves` and `layer=swell_1` for the same coordinate and hour. That is strictly stronger than showing two lanes differ. |
+| Stop condition | **NOT triggered.** `NEXT_AUTHORIZED_MISSION.md` §11.1 required agreement within tolerance at *every* sampled spot. F1 stays **CRITICAL** and the mission proceeds as written. |
+
+**Residual limits, stated:** 9 of the 20 spots were groundswell-dominated (`|VHM0 − SW1| ≤ 0.2 ft`)
+and **cannot** discriminate — reported in the evidence file rather than dropped. The live lane was
+never exercised directly (all 20 spots hit the frame), so this establishes *what the frame
+publishes*, not a paired live-vs-frame delta. And it is a **single valid_time** — the magnitudes
+are one sea state, though the *identity* is structural.
 
 ### G-02 · No baseline runtime measurement exists — so "coupling decreased" cannot be answered
 

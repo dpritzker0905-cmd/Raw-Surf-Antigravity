@@ -22,6 +22,7 @@ evidence/causal-traces/local-parity-log.txt,5619,5dedfe23fc4138bc,run log,"9-ste
 evidence/causal-traces/local-parity-trace.json,15073,7dba9504b5d75866,measurement data,"9-step causal trace: the heatmap holds 15,023 live swell_2 vectors while activeLayer=wind, with unsampled=null"
 evidence/console/blind-console.json,198494,348d6e8d1c672084,measurement data,"110 console errors and 0 uncaught page errors across 1,558 requests"
 evidence/console/blind-pageerrors.json,2,4f53cda18c2baa0c,measurement data,"110 console errors and 0 uncaught page errors across 1,558 requests"
+evidence/f1falsify.js,8229,80320c93fc99e963,audit harness (disposable; archived for reproducibility),
 evidence/jac2.js,22001,87a4524afab44760,audit harness (disposable; archived for reproducibility),HARNESS: the Jacobian matrix + interaction residuals
 evidence/jacobian-tests/jacobian-FATAL.txt,543,1a18c51094de6f43,run log,Jacobian run log
 evidence/jacobian-tests/local-console-errors.json,8869,1331333becca7724,measurement data,
@@ -44,6 +45,8 @@ evidence/playwright-traces/blind-trace.zip,607555885,37caa1e87d2e1202,playwright
 evidence/recordings/page@318e0ba9b8bd10bc52f0039a0f291865.webm,115329284,fdd1e6aefeca6f33,recording,full-session video of the blind journey
 evidence/resprobe.js,8167,af34b50b1b6d0793,audit harness (disposable; archived for reproducibility),HARNESS: the served-resolution sweep
 evidence/scientific-validation/deployed568fc2c6-resolution-log.txt,4618,bc0960592e9cfae3,run log,served-resolution run log
+evidence/scientific-validation/F1-FALSIFICATION-2026-08-18.md,8384,a5f038e4dfe58d8b,audit report,
+evidence/scientific-validation/F1-falsification-production.json,16068,d9f356fbf714d3ba,measurement data,
 evidence/scientific-validation/resolution-deployed568fc2c6-summary.json,345,6562d7897902d7ea,measurement data,served-resolution sweep summary
 evidence/scientific-validation/resolution-deployed568fc2c6.json,13469,1b0d738fb9432c2b,measurement data,THE CENTRAL SCIENTIFIC MEASUREMENT: ~223 km (2 deg) served at every zoom from 5 to 12 on the deployed build
 evidence/screenshots/blind-01-clean-load.png,401426,e9852151db0a6073,screenshot,blind-journey frame

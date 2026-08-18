@@ -647,9 +647,26 @@ be within tolerance. Rejected — they are distinct model variables
 (`noaa_gfs_wave_fetcher.py:52`; `capabilities.py:31`) and the divergence is **signed one way and
 structural**, not noise.
 
-**Falsification available and not yet run:** one production `/conditions/batch` call for a spot
-in the current frame, against the same spot with `CONDITIONS_BATCH_PRECOMPUTED=0`. **This audit
-did not run it** — see `OPEN_EVIDENCE_GAPS.md`.
+### Falsification — ✅ PERFORMED 2026-08-18 against production, read-only, no config changed
+
+**F1 CONFIRMED. 11 of 11 discriminating spots track VHM0; 0 track VHM0_SW1.** 20 spots across 5
+regions, all served by the frame lane (`conditions_source: {"precomputed":20,"live":0}`).
+Overstatement vs the swell partition **min +25%, median +84.2%, max +300%** — **every one
+positive**, exactly as a total-vs-partition substitution predicts.
+
+Worst observed: **Rockpiles and Backdoor, Oahu — published `4.0 ft` where the primary swell
+partition is `1.0 ft`.** Field identity confirmed from the wire: **20 of 20** satisfy
+`published == round(frame.offshore_hs_m × 3.28084, 1)`.
+
+⭐ **No production configuration was changed.** Instead of flipping
+`CONDITIONS_BATCH_PRECOMPUTED=0`, the run samples `/api/weather/point` at `layer=waves` and
+`layer=swell_1` for the same coordinate and hour, and asks **which variable the published number
+equals** — strictly stronger than showing two lanes differ.
+
+Residual limits, stated: 9 of the 20 spots were groundswell-dominated (`|VHM0 − SW1| ≤ 0.2 ft`)
+and cannot discriminate — reported rather than dropped; the live lane was never exercised
+directly; single `valid_time`. **The mission's stop condition is NOT met — F1 stays CRITICAL.**
+Full write-up: `evidence/scientific-validation/F1-FALSIFICATION-2026-08-18.md`.
 
 **Required guardrail:** a test that pins the *meaning*, not the shape — assert both lanes
 return the same variable for the same spot-hour, and fail if either sources from
@@ -862,7 +879,7 @@ second clause: *no route may publish a height-shaped field it did not obtain fro
 
 | # | quantity | drift | severity |
 |---|---|---|---|
-| 1 | `/conditions/batch` `swell_height_ft` | VHM0_SW1 → **VHM0** depending on lane, default ON | **CRITICAL** |
+| 1 | `/conditions/batch` `swell_height_ft` | VHM0_SW1 → **VHM0** depending on lane, default ON — **CONFIRMED ON PRODUCTION 2026-08-18: 11/11 discriminating spots track VHM0, 0 track VHM0_SW1; median +84.2%, max +300%; Oahu publishes 4.0 ft where the partition is 1.0 ft** | **CRITICAL** |
 | 2 | Marine ingestion authority, model=EURO | 2 lanes → **3**, default ON | **HIGH** |
 | 3 | Island lane "inert by construction" | **contradicted** by the selector | **HIGH** |
 | 4 | `/conditions/batch` `updated_at` | a frame-answered spot may describe an hour up to **6 h** away while the frozen six-key payload cannot say so; only the top-level `conditions_source` discloses it. The `/spot-ratings` twin does better, surfacing `served_valid_time` **and** `frame_offset_hours` per response (`weather.py:511-515`) | MODERATE |
