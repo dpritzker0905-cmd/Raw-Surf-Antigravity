@@ -26,9 +26,9 @@ import {
 } from './WebGLMarineTextureEncoder';
 import { renderMaskToCanvas, overlayBasemapWaterOnMask, isBasemapWaterSourceReady, maskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
 
-import { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z }
+import { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason }
   from './marineOverlayMode';
-export { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z };
+export { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason };
 import { populateCrestDiagnostics } from './WebGLMarineEngineDiagnostics';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, COARSE_CREST_BAND_MIN_ZOOM } from './marineZoomThresholds';
 import {
@@ -1359,7 +1359,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       (_rawWideTrigger || (z >= 12 && _ovSpan > 0 && _ovSpan < _gwSpan * 0.5) || _midCarveEngage));
     const ob = overlayOn ? this._overlayMaskBounds : { west: 0, south: 0, east: 0, north: 0 };
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, overlayCoversView: _overlayCoversViewport, reason: _nonCoveringDrop ? 'noncovering_drop' : _degradedDrop ? 'degraded_drop' : (_overlayReplace ? (_midCarveReplace && !_overlayReplaceWide ? 'midcarve_replace' : (_gwSpan >= 340 ? 'world_grid' : 'coverage_gap')) : (overlayOn ? (_baseGlobalDense ? 'dense_base_min_combine' : 'min_combine') : 'off')), baseCoversView: _mbCov, baseGlobalDense: _baseGlobalDense, bounds: overlayOn ? ob : null };
+      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, overlayCoversView: _overlayCoversViewport, reason: overlayTelemetryReason({ overlayOn, overlayReplace: _overlayReplace, nonCoveringDrop: _nonCoveringDrop, degradedDrop: _degradedDrop, midCarveReplace: _midCarveReplace, overlayReplaceWide: _overlayReplaceWide, gwSpan: _gwSpan, baseGlobalDense: _baseGlobalDense }), baseCoversView: _mbCov, baseGlobalDense: _baseGlobalDense, bounds: overlayOn ? ob : null };
     }
     // Probe state (maskFloodProbe.js): the exact mask-selection the shader just used, so the
     // GPU read-back diagnostic samples what is actually on screen. Dev-only; cheap object write.

@@ -61,3 +61,30 @@ export function computeMidZoomOverlayEngage(opts) {
   if (o.overlayPaintDegraded === true) return false;
   return true;
 }
+
+/**
+ * The overlay-mask telemetry `reason`, as a pure function so its PRECEDENCE is testable.
+ *
+ * ⛔ THE BUG THIS FIXES (2026-08-17). The inline expression tested `_overlayReplace` BEFORE
+ * `overlayOn`, so an overlay that was NOT APPLIED still reported a mode name. Observed live at
+ * Madeira: `{on:false, replace:true, reason:'coverage_gap', bounds:null}` — a string that reads
+ * "the overlay is active in coverage-gap mode" while nothing was applied and bounds were null.
+ * It misled this session's own halo diagnosis in BOTH directions, and the question it exists to
+ * answer — "is viewport truth reaching this coast?" — is exactly the question the island-halo
+ * investigation turns on.
+ *
+ * ★ `on` is the ground truth for "is the overlay applied". A reason may only DESCRIBE that state,
+ * never contradict it. Every label for the on-cases is preserved verbatim; only the off-cases
+ * change, and they collapse to the drop reason or plain 'off'.
+ */
+export function overlayTelemetryReason(opts) {
+  const o = opts || {};
+  if (o.nonCoveringDrop) return 'noncovering_drop';
+  if (o.degradedDrop) return 'degraded_drop';
+  if (!o.overlayOn) return 'off';
+  if (o.overlayReplace) {
+    if (o.midCarveReplace && !o.overlayReplaceWide) return 'midcarve_replace';
+    return (o.gwSpan >= 340) ? 'world_grid' : 'coverage_gap';
+  }
+  return o.baseGlobalDense ? 'dense_base_min_combine' : 'min_combine';
+}
