@@ -21,7 +21,16 @@ router = APIRouter()
 
 @router.get("/site-access")
 async def check_site_access(db: AsyncSession = Depends(get_db)):
-    """Public endpoint to check if access code is required (no auth needed)"""
+    """Public endpoint to check if access code is required (no auth needed).
+
+    FAILS CLOSED. A blanket `except: return {"access_code_enabled": False}` used to answer
+    HTTP 200 "no gate needed" whenever the settings read raised -- a DB blip, a pool timeout,
+    a deploy-window restart -- which silently opened a private-beta site and, because it was
+    a 200, gave the client no way to tell a real answer from a failure. An unreadable setting
+    is an UNKNOWN state, not a permissive one, so it now surfaces as 503 and the gate screen
+    holds. Note the distinction: NO settings row is a legitimate "never configured" and still
+    answers False.
+    """
     from models import PlatformSettings
     try:
         result = await db.execute(select(PlatformSettings).limit(1))
@@ -32,7 +41,7 @@ async def check_site_access(db: AsyncSession = Depends(get_db)):
             "access_code_enabled": settings.access_code_enabled if hasattr(settings, 'access_code_enabled') else False
         }
     except Exception:
-        return {"access_code_enabled": False}
+        raise HTTPException(status_code=503, detail="Unable to read site access settings")
 
 
 class VerifyAccessCode(BaseModel):
