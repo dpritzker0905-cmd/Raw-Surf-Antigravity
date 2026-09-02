@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
@@ -26,6 +27,13 @@ export const useMapData = (userId = null, userLocation = null) => {
   const [featuredPhotographersGeoJSON, setFeaturedPhotographersGeoJSON] = useState({ type: 'FeatureCollection', features: [] });
   
   const [loading, setLoading] = useState(true);
+  // Surfaced to callers so a dead /surf-spots is VISIBLE. Before this, exhausting the retry ladder
+  // only wrote to logger.error -- the user sat on a silently stale or empty map with no error state
+  // and no reason to reload.
+  const [spotsError, setSpotsError] = useState(null);
+  // Toast only on the ok -> failed EDGE. This fetch also runs on a 30s poll, so an unguarded toast
+  // would fire every half-minute for as long as the outage lasted.
+  const spotsFailedRef = useRef(false);
 
   // Helper to convert arrays to GeoJSON
   const toGeoJSON = (data, latKey = 'latitude', lngKey = 'longitude') => ({
@@ -44,13 +52,28 @@ export const useMapData = (userId = null, userLocation = null) => {
     // cached spot list (or an {offline, data:[]} marker), which strands the map on the last region (the
     // "only Central FL spots show worldwide" report). So: retry with backoff on failure/offline-fallback,
     // and NEVER clobber a good spot list with an empty one — keep what we have until a real fetch succeeds.
-    const RETRY_DELAYS = [1500, 3000, 6000, 12000];
+    // Was [1500, 3000, 6000, 12000] -- 4 retries, ~22.5s of silent retrying, on top of a then-60s
+    // per-request timeout. That ladder was sized for a Render free-tier idle wake that does not
+    // happen (paid plan). Two retries covers a deploy-window restart, which is the real transient.
+    const RETRY_DELAYS = [1500, 4000];
     const retry = (err) => {
       if (attempt < RETRY_DELAYS.length) {
         // Recurse via a ref (not the callback itself) so this doesn't need to depend on itself.
         setTimeout(() => { if (fetchSurfSpotsRef.current) fetchSurfSpotsRef.current(viewport, attempt + 1); }, RETRY_DELAYS[attempt]);
-      } else {
-        logger.error('Error fetching surf spots (gave up after retries):', err);
+        return;
+      }
+      // Exhausted. This used to end at logger.error, so a broken /surf-spots looked identical to a
+      // working one: the map kept whatever spots it had (or none) and said nothing. Fail LOUDLY --
+      // the stale-spot bug this ladder exists for ("only Central FL spots show worldwide") is
+      // precisely the kind that is invisible unless we say so.
+      logger.error('Error fetching surf spots (gave up after retries):', err);
+      setSpotsError(err);
+      if (!spotsFailedRef.current) {
+        spotsFailedRef.current = true;
+        toast.error("Couldn't load surf spots. The map may be incomplete or out of date.", {
+          id: 'surf-spots-error',
+          duration: 8000,
+        });
       }
     };
     try {
@@ -90,6 +113,9 @@ export const useMapData = (userId = null, userLocation = null) => {
       if (data.length === 0 && !viewport) { retry(new Error('empty-global-spots')); return; }
       setSurfSpots(data);
       setSurfSpotsGeoJSON(toGeoJSON(data));
+      // Recovered (or never broken): clear the error and re-arm the edge so a LATER outage toasts.
+      setSpotsError(null);
+      spotsFailedRef.current = false;
     } catch (error) {
       retry(error);   // network error (cold-start) — keep current spots + retry
     }
@@ -159,6 +185,7 @@ export const useMapData = (userId = null, userLocation = null) => {
     featuredPhotographers,
     featuredPhotographersGeoJSON,
     loading,
+    spotsError,
     refreshData: loadMapData,
     fetchLivePhotographers,
     fetchSurfSpots,
