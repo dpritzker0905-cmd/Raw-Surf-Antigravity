@@ -193,33 +193,34 @@ export const useDutyStationActions = ({
         earnings_cause_name: pricingConfig.earnings_cause_name || null
       };
       
-      const MAX_ATTEMPTS = 3;
+      // This block used to be a cold-start warm-up ceremony: a 30s status ping, an 8s sleep, a
+      // SECOND 30s ping, then a 120s go-live POST, all wrapped in 3 attempts with 5s/10s waits --
+      // so a failing go-live could burn several minutes behind a toast reading "Server waking
+      // up..." before showing an error. It was built for Render free-tier idle spin-down, which
+      // does not happen: the backend is on a PAID plan. The pings woke nothing, and the copy
+      // misattributed every failure (a 500, a bad payload) to a sleeping server.
+      //
+      // What remains is a bounded retry for the one real transient left -- a deploy-window
+      // restart. HTTP errors still short-circuit immediately (see hasResponse): a 400/409 is an
+      // answer, not a blip, and retrying it only delays the truth.
+      const MAX_ATTEMPTS = 2;
+      const RETRY_DELAY_MS = 3000;
       let lastError = null;
-      
+
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
         try {
           if (attempt > 1) {
-            const retryDelay = attempt === 2 ? 5000 : 10000;
-            toast.loading(`Server waking up - retry ${attempt - 1} of ${MAX_ATTEMPTS - 1}...`, { id: 'go-live-warmup' });
-            await new Promise(r => setTimeout(r, retryDelay));
+            toast.loading('Connection failed - retrying...', { id: 'go-live-warmup' });
+            await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
           } else {
-            toast.loading('Connecting to server...', { id: 'go-live-warmup' });
+            toast.loading('Going live...', { id: 'go-live-warmup' });
           }
-          
-          try {
-            await apiClient.get(`/photographer/${user.id}/status`, { timeout: 30000 });
-            } catch (pingErr) {
-            if (attempt === 1) {
-              toast.loading('Server is starting up...', { id: 'go-live-warmup' });
-              await new Promise(r => setTimeout(r, 8000));
-              try {
-                await apiClient.get(`/photographer/${user.id}/status`, { timeout: 30000 });
-              } catch (secondPingErr) { /* ignore */ }
-            }
-          }
+
+          // 20s: a go-live is a small JSON POST plus a session write. It is not a slow endpoint,
+          // and the old 120s only meant the photographer watched a spinner for two minutes at the
+          // beach before learning it had failed.
+          await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload, { timeout: 20000 });
           toast.dismiss('go-live-warmup');
-          
-          await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload, { timeout: 120000 });
           setLiveActive(true);
           setShowConditionsModal(false);
           toast.success(`Now live at ${selectedSpot.name}!`);
@@ -247,7 +248,9 @@ export const useDutyStationActions = ({
       } else if (detail) {
         toast.error(`Go-live error: ${detail}`);
       } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        toast.error('Server is warming up - please wait a moment and try again.', { duration: 6000 });
+        // Was "Server is warming up" -- a free-tier story that blamed a sleeping server for what
+        // is now, on a paid plan, a genuinely slow or failing request.
+        toast.error('Go-live timed out. Please try again.', { duration: 6000 });
       } else if (!error.response) {
         toast.error('Could not reach the server after retrying. Please check your connection and try again.', { duration: 8000 });
       } else {
