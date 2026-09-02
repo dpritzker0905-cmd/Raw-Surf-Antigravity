@@ -25,9 +25,40 @@ export const BACKEND_URL = (typeof window !== 'undefined' && (window.__BACKEND_U
 /** Full /api base URL string -- for edge cases that still need a bare string */
 export const API_BASE = `${BACKEND_URL}/api`;
 
+/**
+ * Default request timeout.
+ *
+ * Was 60s, justified as "handles Render free-tier cold starts (30-60s warm-up)". That premise is
+ * FALSE: the backend is on a PAID Render plan and does not idle-spin-down, so no request is
+ * waiting on a 30-60s wake. What the 60s actually bought was a 60-second delay before a genuine
+ * failure -- a saturated box, a stalled upstream, a dead worker -- became visible to the user.
+ *
+ * 15s covers a deploy-restart blip (the one real stall left) with margin, and surfaces real
+ * breakage ~4x sooner. Compare the feed's own 8s timeout, which has been shorter than the
+ * "30s cold start" its comment claimed all along and has not caused trouble.
+ *
+ * Genuinely slow endpoints are NOT covered by this and must not be: see SLOW_ENDPOINTS below.
+ */
+const DEFAULT_TIMEOUT_MS = 15000;
+
+/**
+ * Endpoints that are legitimately slow -- model inference, image compositing, bulk fan-out --
+ * and were silently relying on the old 60s default. Dropping the default without these would
+ * convert working features into timeouts, so each is pinned explicitly with its reason.
+ *
+ * A caller passing its own `timeout` always wins over this list.
+ */
+const SLOW_ENDPOINTS = [
+  { pattern: /^\/ai\/(suggest-tags|face-match|analyze-photo|scan-surfboard)/, ms: 90000 }, // vision model inference
+  { pattern: /^\/gallery\/trigger-ai-match/, ms: 90000 },                                  // batch face-match fan-out
+  { pattern: /^\/gallery\/generate-watermark-preview/, ms: 60000 },                         // server-side image compositing
+  { pattern: /^\/compliance\/data-export\//, ms: 120000 },                                  // full-account GDPR export
+  { pattern: /^\/admin\/bulk-campaigns\/[^/]+\/send/, ms: 120000 },                         // fan-out to every recipient
+];
+
 const apiClient = axios.create({
   baseURL: `${BACKEND_URL}/api`,
- timeout: 60000, // 60s -- handles Render free-tier cold starts (30-60s warm-up)
+  timeout: DEFAULT_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -62,6 +93,16 @@ apiClient.interceptors.request.use(
       }
     } catch {
  // Malformed localStorage -- silently skip; 401 interceptor below will handle
+    }
+
+    // Raise the timeout for known-slow endpoints. Only when the caller did NOT set its own:
+    // axios has already merged defaults by this point, so `timeout === DEFAULT_TIMEOUT_MS` is
+    // how we detect "caller expressed no opinion".
+    if (config.timeout === DEFAULT_TIMEOUT_MS && typeof config.url === 'string') {
+      const slow = SLOW_ENDPOINTS.find((e) => e.pattern.test(config.url));
+      if (slow) {
+        config.timeout = slow.ms;
+      }
     }
 
     // Per-request debug is OPT-IN (window.__RAW_API_DEBUG__ = true): the dispatch/unread-count
