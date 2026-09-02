@@ -12,8 +12,10 @@ const ACCESS_CODE_KEY = 'site_access_code'; // Stores the actual code for re-val
 
 export const AccessCodeScreen = ({ children }) => {
   const [checking, setChecking] = useState(true);
-  const [accessRequired, setAccessRequired] = useState(false);
-  const [accessGranted, setAccessGranted] = useState(true);
+  // MUST start false: the render guard below short-circuits on `accessGranted`, so any truthy
+  // initial value renders the app before checkAccess() can decide. Every grant path calls
+  // setAccessGranted(true) explicitly.
+  const [accessGranted, setAccessGranted] = useState(false);
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [verifying, setVerifying] = useState(false);
@@ -61,8 +63,7 @@ export const AccessCodeScreen = ({ children }) => {
         }
       }
       
-      // No valid stored code - require entry
-      setAccessRequired(true);
+      // No valid stored code - fall through with accessGranted still false, which renders the gate.
     } catch (err) {
       // If endpoint fails, assume no access code needed
       setAccessGranted(true);
@@ -106,8 +107,9 @@ export const AccessCodeScreen = ({ children }) => {
     );
   }
 
-  // Access granted - show the app
-  if (accessGranted || !accessRequired) {
+  // Access granted - show the app. Gate on accessGranted ALONE: `|| !accessRequired` was a
+  // second way in that opened the site whenever a path forgot to flag the requirement.
+  if (accessGranted) {
     return children;
   }
 
