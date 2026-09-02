@@ -160,6 +160,13 @@ jobs:
         working-directory: frontend
         env:
           E2E_BASE_URL: ${{ github.event.inputs.base_url || 'https://dev--rawsurf.netlify.app' }}
+          # The deployed site is behind AccessCodeScreen, whose dev-bypass only covers localhost.
+          # Without this the very first page.goto of every spec lands on "Enter Access Code" and the
+          # whole lane fails -- which is exactly what happened once the gate was fixed on
+          # 2026-09-02 (it had been unable to render at all, so this lane passed by accident).
+          # playwright.config.js seeds it into localStorage; an unset secret fails LOUDLY there
+          # rather than being silently bypassed. Rotate this whenever the site access code changes.
+          E2E_ACCESS_CODE: ${{ secrets.E2E_ACCESS_CODE }}
         # ⛔ `list` FIRST, then `html`. With `--reporter=html` alone, stdout carried ONLY the
         # aggregate ("47 passed, 5 skipped") — no test names, no skip reasons. This spec's whole
         # design is to REFUSE rather than fake a pass (six `test.skip(cond, reason)` gates), and the
