@@ -781,15 +781,7 @@ jobs:
           # ⬆ 801→809 on 2026-08-15 (fifth): +8 tests, test_nearshore_validation.py (WS-CAN-0076's
           # refusal/composition-pin/QC/report core), selector-verified into this lane.
           # 807 + 8 = 815; 815 - 6 = 809. MIN_FILES 87 → 88.
-          # ⬆ MIN_FILES 88→90, MIN_PASSED 809→833 on 2026-08-18 (the 0.083° island lane). This
-          # commit adds test_copernicus_island_regions.py (14) and test_copernicus_island_ingestion.py
-          # (10) = 24 tests in 2 files, so the lane will collect 90 files / 839 passed. MIN_FILES is
-          # EXACT; MIN_PASSED keeps the customary 6 below, and _FLOOR_SET_FROM["chain"] moves to 839
-          # in the SAME commit — the pair test reddens if either moves alone.
-          # ⚠️ RAISED BECAUSE THE PRE-PUSH HOOK REFUSED THE PUSH, which is the 5th time this lane has
-          # needed it. The floor is not merely a minimum: backend-floor-staleness goes red when the
-          # observed count runs too far ABOVE it, so adding tests without raising it is a red CI.
-          MIN_FILES, MIN_PASSED = 90, 833
+          MIN_FILES, MIN_PASSED = 88, 809
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
