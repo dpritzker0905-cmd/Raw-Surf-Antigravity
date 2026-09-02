@@ -64,20 +64,14 @@ const apiClient = axios.create({
   },
 });
 
-// --- Cold-start warmup ---
-// The backend runs on Render's free tier, which spins the server down after ~15 min idle
-// and takes 20-60s to wake on the next request. Fire a lightweight fire-and-forget ping at
-// module-import time (before React even renders) so the server starts waking as early as
-// possible, overlapping the cold start with app bootstrap instead of the user's first
-// weather fetch. Any request wakes Render, so a 404 is fine; errors are intentionally ignored.
-// NOTE: this only shaves time by starting the wake earlier — it does NOT eliminate the cold
-// start. The real fix is keeping the backend warm (a cron ping every ~10 min, or a paid tier).
-if (typeof window !== 'undefined' && typeof fetch === 'function') {
-  try {
-    fetch(`${BACKEND_URL}/api/health`, { method: 'GET', mode: 'cors', cache: 'no-store', keepalive: true })
-      .catch(() => { /* warmup is best-effort; ignore failures */ });
-  } catch { /* ignore */ }
-}
+// --- Cold-start warmup: REMOVED ---
+// A fire-and-forget GET /api/health used to run here at module-import time, to start waking a
+// spun-down Render box before React rendered. Its own closing note read: "The real fix is keeping
+// the backend warm (a cron ping every ~10 min, or a PAID TIER)." That fix has since been applied --
+// the backend is on a paid plan and does not idle-spin-down -- so the ping woke nothing and was
+// simply one extra request on every single app load. Deleted rather than re-commented: there is no
+// remaining behaviour to explain. (Connection pre-warm is not a reason to keep it; the first real
+// request follows milliseconds later and opens the connection itself.)
 
 // --- Request interceptor -- inject auth token ---
 apiClient.interceptors.request.use(

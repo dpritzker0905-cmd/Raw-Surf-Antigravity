@@ -107,9 +107,13 @@ describe('apiClient', () => {
       expect(client.defaults.baseURL).toBe(`${BACKEND_URL}/api`);
     });
 
-    it('has 60s timeout configured', () => {
+    // Was 60s, asserted here as such. Lowered to 15s: the 60s was justified as cover for Render
+    // free-tier cold starts (30-60s idle wake), which do not happen -- the backend is on a paid
+    // plan -- so it only delayed real failures from reaching the user. See SLOW_ENDPOINTS in
+    // apiClient.js for the genuinely-slow endpoints that are pinned longer instead of inheriting.
+    it('has a 15s default timeout configured', () => {
       const { default: client } = require('./apiClient');
-      expect(client.defaults.timeout).toBe(60000);
+      expect(client.defaults.timeout).toBe(15000);
     });
   });
 });
