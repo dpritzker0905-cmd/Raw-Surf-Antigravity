@@ -218,7 +218,7 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
   const [moveNonce, setMoveNonce] = useState(0);
   const lastKeyRef = useRef(null);
   const baseKeyRef = useRef(null);                 // validTime|model — accumulated ratings reset when the frame/model changes
-  const retryRef = useRef({ key: null, n: 0 });   // cold-start auto-recovery: bounded retries per viewport
+  const retryRef = useRef({ key: null, n: 0 });   // bounded transient-failure retries per viewport
   const retryTimerRef = useRef(null);
 
   // moveend fires once per pan/zoom settle (not per frame) → a clean refetch trigger.
@@ -327,13 +327,25 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
           lastKeyRef.current = null; /* allow retry; keep last + grid fallback */
           if (err && err.name === 'AbortError') return;    // superseded by a newer viewport — not a real failure
           writeSpotRatingsDiag({ status: 'error', error: String(err && err.message || err) });
-          // COLD-START AUTO-RECOVERY: Render spin-down makes EVERY fetch fail (CORS/timeout) for ~30-60s, so
-          // toggling Rating during that window left glyphs blank until a manual re-toggle/pan. Retry THIS
-          // viewport a few times so glyphs reappear on their own once the box is warm; bounded per-viewport so
-          // a genuinely-down backend isn't hammered. AbortErrors (panning) are excluded above.
+          // TRANSIENT-FAILURE AUTO-RECOVERY. Without it, a failed fetch left this viewport on the grid
+          // fallback until a manual re-toggle/pan. Retry THIS viewport so the accurate glyphs arrive on
+          // their own; bounded per-viewport so a genuinely-down backend isn't hammered. AbortErrors
+          // (panning) are excluded above.
+          //
+          // Was `r.n < 4` -- 4 x 3.5s = 14s of silent retrying -- justified in-comment as "Render
+          // spin-down makes EVERY fetch fail (CORS/timeout) for ~30-60s". That premise is FALSE: the
+          // backend is on a PAID plan and does not idle-spin-down. At 4 deep, a real ratings outage or a
+          // CORS misconfig was indistinguishable from a warm-up. 2 x 3.5s = 7s covers a deploy-window
+          // restart, the transient that actually exists.
+          //
+          // No user-facing error here, deliberately, and unlike the /surf-spots ladder: a failed fetch
+          // degrades to `gridRatings` (the instant grid-sample fallback) rather than to nothing, so the
+          // map stays useful. The failure is already recorded for diagnosis by the
+          // writeSpotRatingsDiag({ status: 'error' }) above, and this runs per viewport -- a toast here
+          // would fire on every pan during an outage.
           const r = retryRef.current;
           if (r.key !== key) { r.key = key; r.n = 0; }
-          if (r.n < 4) { r.n += 1; retryTimerRef.current = setTimeout(() => setMoveNonce((n) => (n + 1) % 1000000), 3500); }
+          if (r.n < 2) { r.n += 1; retryTimerRef.current = setTimeout(() => setMoveNonce((n) => (n + 1) % 1000000), 3500); }
         });
     }, 150);  // debounce: 450ms was tuned for the old 7-22s live path; precompute is instant now, so a short
               // debounce makes glyphs light up ~300ms sooner on toggle/pan while still coalescing rapid moves.
