@@ -19,6 +19,7 @@ export const AccessCodeScreen = ({ children }) => {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [checkFailed, setCheckFailed] = useState(false);
 
   useEffect(() => {
     checkAccess();
@@ -65,11 +66,19 @@ export const AccessCodeScreen = ({ children }) => {
       
       // No valid stored code - fall through with accessGranted still false, which renders the gate.
     } catch (err) {
-      // If endpoint fails, assume no access code needed
-      setAccessGranted(true);
+      // FAIL CLOSED. This used to grant access on any error, so a single failed request opened
+      // a private-beta site. An unreachable check is an UNKNOWN state, not a permissive one --
+      // hold the gate and tell the user why, rather than guessing in the visitor's favour.
+      setCheckFailed(true);
     } finally {
       setChecking(false);
     }
+  };
+
+  const retryCheck = () => {
+    setCheckFailed(false);
+    setChecking(true);
+    checkAccess();
   };
 
   const verifyCode = async (e) => {
@@ -137,6 +146,24 @@ export const AccessCodeScreen = ({ children }) => {
               <p className="text-zinc-500 text-sm">This site is currently in private beta</p>
             </div>
           </div>
+
+          {checkFailed && (
+            <div
+              role="alert"
+              className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3"
+            >
+              <p className="text-amber-200 text-sm">
+                Couldn't confirm access settings. Enter your code, or retry the check.
+              </p>
+              <Button
+                type="button"
+                onClick={retryCheck}
+                className="mt-2 h-8 bg-amber-500/20 hover:bg-amber-500/30 text-amber-100 text-xs px-3"
+              >
+                Retry
+              </Button>
+            </div>
+          )}
 
           <form onSubmit={verifyCode} className="space-y-4">
             <div>
