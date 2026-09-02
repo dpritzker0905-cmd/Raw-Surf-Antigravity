@@ -433,7 +433,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
     try {
       const res = await fetch(url, { signal: localController.signal });
       if (!res.ok) {
-        // §4.3(b): a failed page (deploy-window 500, cold-start 502) retries bounded instead of
+        // §4.3(b): a failed page (deploy-window 500/502) retries bounded instead of
         // silently vanishing until the next gesture. Entries that already hold frames skip it.
         if (!localController.signal.aborted && !(existing && existing.frames && existing.frames.size)) {
           scheduleFailRetry(model, layer, bounds, page, signal, key, `http_${res.status}`);

@@ -45,9 +45,9 @@ def run_dedup(endpoint, label, execute=False):
         else:
             print(f"Response: {r.text[:500]}")
     except requests.exceptions.ConnectionError:
-        print("Connection error - server may be sleeping, try again in 30s")
+        print("Connection error - server unreachable (deploy restart? network?)")
     except requests.exceptions.Timeout:
-        print("Timeout - server may be waking up")
+        print("Timeout - server slow or overloaded")
     except Exception as e:
         print(f"Error: {e}")
 

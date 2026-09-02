@@ -139,8 +139,15 @@ apiClient.interceptors.response.use(
     // Do NOT redirect if already on /auth (avoids redirect loops).
  // Do NOT redirect for admin-only endpoints -- let the admin console handle
     // those errors gracefully via its own .catch() handlers. The admin console
-    // fires 7+ parallel API calls on load; a single transient 401 (e.g. Render
-    // cold-start timing) should NOT nuke the entire session.
+    // fires 7+ parallel API calls on load; a single transient 401 should NOT nuke
+    // the entire session.
+    // WARNING: the original justification named "Render cold-start timing" as the source of that
+    // transient 401. That is not a real mechanism -- a cold start yields a timeout or a 502, never
+    // a 401 -- and the backend is on a paid plan with no idle spin-down anyway. The SUPPRESSION is
+    // left in place because it stands on its own (the admin console handles its own auth errors,
+    // and the isOnAdmin check below already blocks the redirect), but it rests on a thinner
+    // rationale than it appears to: a 401 reaching here is probably GENUINE. Worth revisiting on
+    // its own merits rather than as cold-start debris.
     if (status === 401 && !_sessionExpiredShown) {
  // Skip if this is an auth call itself (login/signup) G let the caller handle it
       const isAuthCall = url.includes('/auth/login') || url.includes('/auth/signup');
@@ -179,7 +186,8 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
- // 503 -- backend is down / starting up on Render free tier
+ // 503 -- backend is down, restarting after a deploy, or shedding load. (Was attributed to
+    // "starting up on Render free tier"; there is no free-tier idle wake -- the plan is paid.)
     if (status === 503) {
       toast.error('Service temporarily unavailable. Please try again shortly.', { duration: 5000 });
       return Promise.reject(error);

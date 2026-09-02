@@ -48,7 +48,7 @@ export const useMapData = (userId = null, userLocation = null) => {
   // Live ref to the latest fetchSurfSpots so the retry timer can re-invoke it without a self-dependency.
   const fetchSurfSpotsRef = useRef(null);
   const fetchSurfSpots = useCallback(async (viewport = null, attempt = 0) => {
-    // Backend cold-starts (Render) make this fetch transiently fail; the service worker then serves a STALE
+    // A transient failure (deploy-window restart, network blip) makes this fetch fail; the service worker then serves a STALE
     // cached spot list (or an {offline, data:[]} marker), which strands the map on the last region (the
     // "only Central FL spots show worldwide" report). So: retry with backoff on failure/offline-fallback,
     // and NEVER clobber a good spot list with an empty one — keep what we have until a real fetch succeeds.
@@ -101,15 +101,15 @@ export const useMapData = (userId = null, userLocation = null) => {
       const url = `/surf-spots${params.toString() ? '?' + params.toString() : ''}`;
       const response = await apiClient.get(url);
       const payload = response.data;
-      // SW no-cache offline response → cold-start, retry.
+      // SW no-cache offline response → transient, retry.
       if (payload && payload.offline) { retry(new Error('sw-offline-fallback')); return; }
-      // SW served STALE cache (network failed). If we're actually online it's a transient cold-start — retry
+      // SW served STALE cache (network failed). If we're actually online it's transient — retry
       // so we don't get stuck on a stale spot list ("only Central FL spots"). If genuinely offline, accept it.
       const swStale = !!(response.headers && (response.headers['x-sw-cache-fallback'] || response.headers['X-SW-Cache-Fallback']));
       const isOnline = (typeof navigator === 'undefined') || navigator.onLine !== false;
-      if (swStale && isOnline) { retry(new Error('sw-stale-coldstart')); return; }
+      if (swStale && isOnline) { retry(new Error('sw-stale-transient')); return; }
       const data = Array.isArray(payload) ? payload : [];
-      // An empty GLOBAL load (no viewport ⇒ there are always spots) is also a transient cold-start.
+      // An empty GLOBAL load (no viewport ⇒ there are always spots) is also transient.
       if (data.length === 0 && !viewport) { retry(new Error('empty-global-spots')); return; }
       setSurfSpots(data);
       setSurfSpotsGeoJSON(toGeoJSON(data));
@@ -117,7 +117,7 @@ export const useMapData = (userId = null, userLocation = null) => {
       setSpotsError(null);
       spotsFailedRef.current = false;
     } catch (error) {
-      retry(error);   // network error (cold-start) — keep current spots + retry
+      retry(error);   // network error — keep current spots + retry
     }
   }, [userId, userLat, userLng]);
   fetchSurfSpotsRef.current = fetchSurfSpots;

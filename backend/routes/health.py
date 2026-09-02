@@ -314,7 +314,7 @@ async def data_freshness_health():
     Data-freshness health for an EXTERNAL uptime monitor (2026-07-08). Computes lane freshness ON READ
     from the served manifest (no DB, no fetch) so it catches a DEAD/timing-out forecast-ingest cron even
     when the cron never runs to publish health.json — the manifest simply ages and this returns 503.
-    Point an UptimeRobot/cron-job.org probe here (like keep-warm) to get alerted BEFORE users see stale
+    Point an UptimeRobot/cron-job.org probe here to get alerted BEFORE users see stale
     data. 200 = ok/warn, 503 = critical (cron down or a lane missing). Never raises.
     """
     import asyncio
