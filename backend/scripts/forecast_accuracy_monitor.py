@@ -161,12 +161,12 @@ def evaluate_report(report, now, cfg):
     if mae > cfg["red_mae_m"]:
         code = RED
         lines.append("::error::FORECAST ACCURACY RED -- height MAE %.3f m breaches the %.2f m bound "
-                     "(2x the measured p50, 49%% over the observed max). This is the "
-                     "shipped-a-bad-constant class, not sea-state noise: diff the last deploys to "
-                     "the height chain before anything else." % (mae, cfg["red_mae_m"]))
+                     "This is an observed threshold breach, not a diagnosis of its cause. "
+                     "Compare matched buoy/time/source cohorts and deployment identity before "
+                     "attributing it to model constants or sea-state changes." % (mae, cfg["red_mae_m"]))
     elif mae > cfg["warn_mae_m"]:
         lines.append("::warning::height MAE %.3f m exceeds the %.2f m warn band (observed max "
-                     "0.269). Big sea state can do this; two consecutive warns cannot."
+                     "0.269). Repeated warnings require investigation; they do not establish cause."
                      % (mae, cfg["warn_mae_m"]))
 
     ops = report.get("forecast_skill_ops")

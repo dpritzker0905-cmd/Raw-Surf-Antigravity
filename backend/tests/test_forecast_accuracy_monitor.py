@@ -60,6 +60,8 @@ def test_an_mae_breach_goes_red_the_positive_control():
     code, lines = evaluate_report(_report(mae=0.45), NOW, default_cfg())
     assert code == RED
     assert any("ACCURACY RED" in l for l in lines)
+    assert any("not a diagnosis" in l for l in lines)
+    assert not any("not sea-state noise" in l for l in lines)
 
 
 def test_the_warn_band_warns_without_paging():
