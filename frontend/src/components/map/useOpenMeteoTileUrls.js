@@ -533,8 +533,15 @@ export function useOpenMeteoTileUrls({
         // backend grids and must not depend on an unrelated tile host at startup.
         // fetchModelMetadata deduplicates live/in-flight requests; bootstrap cached axes
         // alone are not proof that a model's metadata has actually been fetched.
-        await Promise.all(models.map(m => fetchMetadata(m)));
-        if (!isMounted) return;
+        const missingMetadata = models.filter(m => !LIVE_FETCHED_MODELS.has(m)
+          || !Array.isArray(MODEL_METADATA_CACHE[m]?.validTimes)
+          || !MODEL_METADATA_CACHE[m].validTimes.length);
+        // Preserve the May warm-cache fast path: genuinely live metadata resolves within
+        // this animation callback. Placeholder axes must still trigger an actual fetch.
+        if (missingMetadata.length) {
+          await Promise.all(missingMetadata.map(m => fetchMetadata(m)));
+          if (!isMounted) return;
+        }
 
         const newUrls = {};
         const newActiveSlots = {};

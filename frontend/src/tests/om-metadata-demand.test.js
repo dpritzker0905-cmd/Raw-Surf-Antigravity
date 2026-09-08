@@ -1,6 +1,7 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useOpenMeteoTileUrls } from '../components/map/useOpenMeteoTileUrls';
-import { fetchModelMetadata } from '../components/map/mapUtils';
+import { fetchModelMetadata, LIVE_FETCHED_MODELS } from '../components/map/mapUtils';
+import { MODEL_METADATA_CACHE } from '../components/map/LayerRegistry';
 
 jest.mock('maplibre-gl', () => ({}));
 jest.mock('../components/map/useModelTransition', () => ({ useModelTransition: () => {}, resolveVariable: () => null }));
@@ -25,7 +26,11 @@ jest.mock('../components/map/LayerRegistry', () => ({
 const base = { mapInstance: null, activeModel: 'GFS', activeLayers: ['waves'], theme: 'light',
   timeOffsetHours: 0, userTier: 'pro', activeMarineLayer: 'waves', webglMarineFailed: false };
 
-beforeEach(() => fetchModelMetadata.mockClear());
+beforeEach(() => {
+  fetchModelMetadata.mockClear();
+  LIVE_FETCHED_MODELS.clear();
+  MODEL_METADATA_CACHE.ncep_gfs025.variables = [];
+});
 
 test('native marine does not request unrelated external raster metadata', async () => {
   const { result } = renderHook(() => useOpenMeteoTileUrls(base));
@@ -43,4 +48,23 @@ test('marine fallback still requests its required metadata', async () => {
   renderHook(() => useOpenMeteoTileUrls({ ...base, webglMarineFailed: true }));
   await waitFor(() => expect(fetchModelMetadata).toHaveBeenCalled());
   expect([...new Set(fetchModelMetadata.mock.calls.map(call => call[0]))]).toEqual(['ncep_gfswave025']);
+});
+
+test('historical warm-cache fix: live raster URLs resolve in the same animation callback', () => {
+  const frames = [];
+  const raf = jest.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+    frames.push(callback);
+    return frames.length;
+  });
+  LIVE_FETCHED_MODELS.add('ncep_gfs025');
+  MODEL_METADATA_CACHE.ncep_gfs025.variables = ['pressure_msl'];
+  try {
+    const { result } = renderHook(() => useOpenMeteoTileUrls({ ...base, activeLayers: ['pressure'] }));
+    // Deliberately synchronous: awaiting here would hide the historical latency regression.
+    act(() => frames.shift()(0));
+    expect(result.current.omTileUrls['pressure-slot-0']).toContain('/ncep_gfs025/latest.json');
+    expect(fetchModelMetadata).not.toHaveBeenCalled();
+  } finally {
+    raf.mockRestore();
+  }
 });

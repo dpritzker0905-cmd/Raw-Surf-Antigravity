@@ -1,0 +1,262 @@
+{
+  "baseline": "524d8c49236bf42848a1dfe10b2bbd2ce59a64cf",
+  "head": "c4cb14db35726c69e6d226e584ed5eb64f91d8ed",
+  "scope": "Seven selected files; identical source is preservation evidence, not behavioral or scientific certification.",
+  "files": [
+    {
+      "path": "frontend/src/components/map/useMarineDataFetcherCore.js",
+      "baseline_sha256": "04ecebd809b18ddd24a0a7cd3e11ad509e537b5d8df70c1f9f20fd098c8534cf",
+      "head_sha256": "04ecebd809b18ddd24a0a7cd3e11ad509e537b5d8df70c1f9f20fd098c8534cf",
+      "identical_since_audit_baseline": true
+    },
+    {
+      "path": "frontend/src/components/map/useMarineDataFetcherHelpers.js",
+      "baseline_sha256": "fb24ed2ac2db377fe174f63d02adc240e7dd20ffa09cd8c00469eec7a4d55c96",
+      "head_sha256": "fb24ed2ac2db377fe174f63d02adc240e7dd20ffa09cd8c00469eec7a4d55c96",
+      "identical_since_audit_baseline": true
+    },
+    {
+      "path": "frontend/src/components/map/marineControllerCache.js",
+      "baseline_sha256": "ec17780da98a79163fb40948fd0220f83cfa2834cd3f04dd8d53d3314dc54d0b",
+      "head_sha256": "ec17780da98a79163fb40948fd0220f83cfa2834cd3f04dd8d53d3314dc54d0b",
+      "identical_since_audit_baseline": true
+    },
+    {
+      "path": "frontend/src/hooks/useMarineRevalidation.js",
+      "baseline_sha256": "22a1a4397a19664c02dcbb70dacaf68036406b013874c5fc3095d5433c43314f",
+      "head_sha256": "22a1a4397a19664c02dcbb70dacaf68036406b013874c5fc3095d5433c43314f",
+      "identical_since_audit_baseline": true
+    },
+    {
+      "path": "frontend/src/components/map/backendWeatherServiceClientHelpers.js",
+      "baseline_sha256": "f192d0ca33c86278eea45ddc3644affe8d06988960ec949246e5d39fb7dd7eaa",
+      "head_sha256": "f192d0ca33c86278eea45ddc3644affe8d06988960ec949246e5d39fb7dd7eaa",
+      "identical_since_audit_baseline": true
+    },
+    {
+      "path": "frontend/src/components/map/LayerAccessResolver.js",
+      "baseline_sha256": "6ea5331a83b6a2be7db123d9fd631924e5c399f9f5d94ac597352f8900fc1b14",
+      "head_sha256": "6ea5331a83b6a2be7db123d9fd631924e5c399f9f5d94ac597352f8900fc1b14",
+      "identical_since_audit_baseline": true
+    },
+    {
+      "path": "backend/services/weather_pipeline/forecast_skill.py",
+      "baseline_sha256": "49acce5ac301324d8dd76664a4d9a3d3cc1970e769c7b43c9273407142f4094f",
+      "head_sha256": "49acce5ac301324d8dd76664a4d9a3d3cc1970e769c7b43c9273407142f4094f",
+      "identical_since_audit_baseline": true
+    }
+  ],
+  "selected_executed_tests": [
+    {
+      "path": "frontend/src/tests/om-metadata-demand.test.js",
+      "status": "passed",
+      "assertions": [
+        {
+          "title": "native marine does not request unrelated external raster metadata",
+          "status": "passed"
+        },
+        {
+          "title": "activating a raster requests its actual model despite bootstrap cached axes",
+          "status": "passed"
+        },
+        {
+          "title": "marine fallback still requests its required metadata",
+          "status": "passed"
+        },
+        {
+          "title": "historical warm-cache fix: live raster URLs resolve in the same animation callback",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "path": "frontend/src/__tests__/marineOversizedGrid.test.js",
+      "status": "passed",
+      "assertions": [
+        {
+          "title": "mapNormalizedGridToWebGL \u2014 oversized-grid guard rejects a ~1M-vector global native grid as a transient non-renderable",
+          "status": "passed"
+        },
+        {
+          "title": "mapNormalizedGridToWebGL \u2014 oversized-grid guard passes a normal coarse grid (37x17) through unchanged and renderable",
+          "status": "passed"
+        },
+        {
+          "title": "mapNormalizedGridToWebGL \u2014 oversized-grid guard passes a regional grid (33x33) through unchanged",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "path": "frontend/src/__tests__/marineEmptyGridRetry.test.js",
+      "status": "passed",
+      "assertions": [
+        {
+          "title": "_cacheMarineResult \u2014 does not cache empty/non-renderable grids skips an empty (zero-vector, non-renderable) grid",
+          "status": "passed"
+        },
+        {
+          "title": "_cacheMarineResult \u2014 does not cache empty/non-renderable grids still caches a grid that has vectors",
+          "status": "passed"
+        },
+        {
+          "title": "_cacheMarineResult \u2014 does not cache empty/non-renderable grids still caches a stale grid as long as it carries vectors",
+          "status": "passed"
+        },
+        {
+          "title": "scheduleSWRRevalidation \u2014 retries a transient empty grid schedules a bounded retry for an empty/non-renderable (non-stale) grid",
+          "status": "passed"
+        },
+        {
+          "title": "scheduleSWRRevalidation \u2014 retries a transient empty grid does NOT retry a terminal no_coverage empty grid",
+          "status": "passed"
+        },
+        {
+          "title": "scheduleSWRRevalidation \u2014 retries a transient empty grid does NOT retry an unsupported-layer empty grid",
+          "status": "passed"
+        },
+        {
+          "title": "scheduleSWRRevalidation \u2014 retries a transient empty grid does NOT retry an EURO no_copernicus_coverage safe-zero grid (grid.__failureReason)",
+          "status": "passed"
+        },
+        {
+          "title": "scheduleSWRRevalidation \u2014 retries a transient empty grid does NOT retry a no_backend_coverage safe-zero grid",
+          "status": "passed"
+        },
+        {
+          "title": "scheduleSWRRevalidation \u2014 retries a transient empty grid STILL retries a generic backend_fetch_failed empty grid (transient, may self-heal)",
+          "status": "passed"
+        },
+        {
+          "title": "scheduleSWRRevalidation \u2014 retries a transient empty grid stops after 3 retries (does not poll forever)",
+          "status": "passed"
+        },
+        {
+          "title": "scheduleSWRRevalidation \u2014 retries a transient empty grid a renderable grid clears the retry state (no retry scheduled)",
+          "status": "passed"
+        },
+        {
+          "title": "terminal no-coverage tracker (\u00a77.6 far-horizon scrub churn) records + reports a terminal (model,layer,hour)",
+          "status": "passed"
+        },
+        {
+          "title": "terminal no-coverage tracker (\u00a77.6 far-horizon scrub churn) is keyed per model/layer/hour \u2014 no false positives on neighbours",
+          "status": "passed"
+        },
+        {
+          "title": "terminal no-coverage tracker (\u00a77.6 far-horizon scrub churn) expires after the TTL so a later run that ingests the estimates re-tries",
+          "status": "passed"
+        },
+        {
+          "title": "terminal no-coverage tracker (\u00a77.6 far-horizon scrub churn) the kill switch forces it off (instant revert)",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "path": "frontend/src/components/map/useMarineOrchestrator.dedup.test.js",
+      "status": "passed",
+      "assertions": [
+        {
+          "title": "shouldSkipDuplicateCommit (state-authoritative orchestrator dedup) SKIPS a true duplicate: ledger AND prev state both hold this exact signature",
+          "status": "passed"
+        },
+        {
+          "title": "shouldSkipDuplicateCommit (state-authoritative orchestrator dedup) COMMITS the wedge case: ledger holds the sig but state holds a DIFFERENT grid",
+          "status": "passed"
+        },
+        {
+          "title": "shouldSkipDuplicateCommit (state-authoritative orchestrator dedup) COMMITS after a ledger invalidation even when state content is identical (recovery hatch)",
+          "status": "passed"
+        },
+        {
+          "title": "shouldSkipDuplicateCommit (state-authoritative orchestrator dedup) COMMITS when there is no prev state at all (first commit)",
+          "status": "passed"
+        },
+        {
+          "title": "shouldSkipDuplicateCommit (state-authoritative orchestrator dedup) never skips a null/empty signature",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "path": "frontend/src/components/map/useMarineDataFetcherCore.debounceHeal.test.js",
+      "status": "passed",
+      "assertions": [
+        {
+          "title": "shouldHealStrandedDebounce (finally-path debounce strand heal) HEALS a genuine strand: never dispatched (requestId=0), not deliberately preserved, flag stuck true",
+          "status": "passed"
+        },
+        {
+          "title": "shouldHealStrandedDebounce (finally-path debounce strand heal) does NOT heal a dispatched fetch (requestId>0 already cleared the flag at dispatch)",
+          "status": "passed"
+        },
+        {
+          "title": "shouldHealStrandedDebounce (finally-path debounce strand heal) does NOT heal a path that deliberately preserved the debounce (clearDebounce=false \u2192 a re-drive is pending)",
+          "status": "passed"
+        },
+        {
+          "title": "shouldHealStrandedDebounce (finally-path debounce strand heal) is a no-op when the flag is not actually stranded (already false)",
+          "status": "passed"
+        },
+        {
+          "title": "shouldHealStrandedDebounce (finally-path debounce strand heal) kill switch __RAW_DISABLE_MARINE_DEBOUNCE_STRAND_HEAL__ restores the old stranding behavior",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "path": "frontend/src/components/map/useMarineDataFetcherHelpers.dedup.test.js",
+      "status": "passed",
+      "assertions": [
+        {
+          "title": "commitMarineData duplicate detection (state-authoritative, 2026-07-03) COMMITS when the ledger holds the incoming sig but state holds a DIFFERENT grid (the wedge)",
+          "status": "passed"
+        },
+        {
+          "title": "commitMarineData duplicate detection (state-authoritative, 2026-07-03) SKIPS a true duplicate (state holds this exact product AND the ledger agrees)",
+          "status": "passed"
+        },
+        {
+          "title": "commitMarineData duplicate detection (state-authoritative, 2026-07-03) COMMITS an identical product after a ledger invalidation (the \u00a72b/toggle recovery hatch)",
+          "status": "passed"
+        },
+        {
+          "title": "commitMarineData duplicate detection (state-authoritative, 2026-07-03) stamps __committedSig on commit so the next dedup reads prev without rehashing",
+          "status": "passed"
+        }
+      ]
+    },
+    {
+      "path": "frontend/src/components/map/WebGLMarineEngineDiagnostics.dedup.test.js",
+      "status": "passed",
+      "assertions": [
+        {
+          "title": "an unchanged grid emits telemetry ONCE across many frames, not once per frame",
+          "status": "passed"
+        },
+        {
+          "title": "SETUP CONTROL: the fixture really is the live shape that broke it",
+          "status": "passed"
+        },
+        {
+          "title": "a genuinely NEW grid still emits \u2014 the guard must not become a mute",
+          "status": "passed"
+        },
+        {
+          "title": "the key carries no clock \u2014 two calls a second apart on identical data still dedup",
+          "status": "passed"
+        },
+        {
+          "title": "the kill switch restores the old always-emit behaviour",
+          "status": "passed"
+        }
+      ]
+    }
+  ],
+  "frontend_tests": {
+    "numPassedTests": 2381,
+    "numFailedTests": 0,
+    "numPassedTestSuites": 250
+  }
+}
