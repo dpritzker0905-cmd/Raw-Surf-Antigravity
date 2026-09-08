@@ -242,7 +242,9 @@ jobs:
         working-directory: frontend
         run: npx playwright install chromium --with-deps
       - name: Controlled WebGL handoff experiment
-        run: node frontend/scripts/marine-handoff-lab/run.cjs /tmp/marine-handoff-lab
+        run: |
+          node frontend/scripts/marine-handoff-lab/run.cjs /tmp/marine-handoff-lab
+          node frontend/scripts/marine-handoff-lab/verify.test.cjs /tmp/marine-handoff-lab/results.json
       - name: Upload controlled handoff evidence
         if: always()
         uses: actions/upload-artifact@v6

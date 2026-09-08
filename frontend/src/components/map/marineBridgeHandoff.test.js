@@ -85,6 +85,19 @@ it('records the wash actually drawn and clears the handoff across a lifecycle re
   expect(applyBridgeHandoffWash(engine, .2, 1, false, true, win, 1000)).toBe(.5);
   expect(engine._bridgeHandoffScale).toBe(0);
   expect(win.__RAW_GPU__.washEff).toBe(.5);
+  expect(win.__RAW_GPU__.bridgeHandoff.lastReplacement).toMatchObject({
+    enabled: true, sameTarget: true, sameBase: true, covers: true, priorMult: 0, priorBridge: true,
+  });
   engine.clearBuffers(null);
   expect(engine._bridgeHandoffState).toBeNull();
+});
+
+it('records missing/changed identity without enabling a rejected handoff', () => {
+  const engine = { _bridgeHandoffState: held(), _waveData: { waveGrid: { ...grid(), served_valid_time: null } },
+    _coarseBaseData: base };
+  const win = { __RAW_ENABLE_BRIDGE_HANDOFF_BLEND__: true, __RAW_GPU__: {} };
+  expect(applyBridgeHandoffWash(engine, .2, 1, false, true, win, 1000)).toBe(.2);
+  expect(win.__RAW_GPU__.bridgeHandoff.lastReplacement).toMatchObject({ enabled: true, sameTarget: false,
+    before: { served: '2026-09-08T00:00:00Z' }, after: { served: null, asked: null } });
+  expect(win.__RAW_GPU__.bridgeHandoff.starts).toBe(0);
 });

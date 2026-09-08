@@ -34,6 +34,18 @@ export function resolveBridgeHandoff(previous, input, now, enabled) {
 }
 
 export function applyBridgeHandoffWash(engine, wash, mult, bridge, covers, win, now) {
+  const previous = engine._bridgeHandoffState, grid = engine._waveData?.waveGrid;
+  if (previous && previous.grid !== grid) {
+    const identity = g => ({ model: g?.__sourceModel ?? null, layer: g?.__componentLayer ?? null,
+      rating: g?.ratingMode ?? null, served: g?.served_valid_time ?? null,
+      asked: g?.valid_time ?? g?.validTime ?? null, hour: g?.hourOffset ?? null });
+    engine._bridgeHandoffLastReplacement = {
+      enabled: win?.__RAW_ENABLE_BRIDGE_HANDOFF_BLEND__ === true,
+      sameTarget: sameHandoffTarget(previous.grid, grid), sameBase: previous.base === engine._coarseBaseData,
+      before: identity(previous.grid), after: identity(grid), covers,
+      priorMult: previous.mult, priorBridge: previous.bridge, priorWash: previous.wash,
+    };
+  }
   const result = resolveBridgeHandoff(engine._bridgeHandoffState, {
     grid: engine._waveData?.waveGrid, base: engine._coarseBaseData, wash, mult, bridge, covers,
   }, now, win?.__RAW_ENABLE_BRIDGE_HANDOFF_BLEND__ === true);
@@ -43,7 +55,8 @@ export function applyBridgeHandoffWash(engine, wash, mult, bridge, covers, win, 
   engine._bridgeHandoffState = result.state;
   engine._bridgeHandoffScale = result.scale;
   if (win?.__RAW_GPU__) {
-    win.__RAW_GPU__.bridgeHandoff = { scale: result.scale, wash: result.wash, starts: engine._bridgeHandoffStarts || 0 };
+    win.__RAW_GPU__.bridgeHandoff = { scale: result.scale, wash: result.wash, starts: engine._bridgeHandoffStarts || 0,
+      lastReplacement: engine._bridgeHandoffLastReplacement || null };
     win.__RAW_GPU__.washEff = +result.wash.toFixed(3);
   }
   return result.wash;

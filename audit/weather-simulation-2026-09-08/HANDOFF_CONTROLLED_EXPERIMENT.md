@@ -32,8 +32,9 @@ The candidate coordinates coarse wash, regional heatmap and crest opacity over 6
 zero luminance change at the replacement instant in this fixture. Repeats and final-frame windows
 are compared by SHA-256 of every framebuffer; the final rendering converges to the default result.
 The immediate-arrival path must retain identical framebuffer hashes with the flag enabled.
-All nine legs must paint more than 190,000 of 196,608 pixels, exercise all three actual commits,
-and report zero browser, renderer-disable and WebGL errors. The measured minimum was 194,596 pixels.
+All nine legs must paint more than 190,000 of 196,608 pixels during resident warmup and handoff,
+exercise all three actual commits, and report zero browser, renderer-disable and WebGL errors.
+The measured Edge minimum including setup was 194,596 pixels.
 The four initial baseline cases also retained exactly their pre-edit luminance series after the
 default-off integration. This is a finite intervention across a branch gate, not a smooth Jacobian.
 
@@ -86,3 +87,35 @@ review. These are ordered gates within the existing task registers, not a replac
 
 GitHub checks on baseline `1ef2008d` completed successfully (hosting informational checks neutral).
 Candidate-head CI and live results must be recorded separately; this report does not predict them.
+
+## Ubuntu evidence and judge correction
+
+The first Ubuntu controlled run at0526159c failed the spatial assertion on the single coarse
+setup frame (145,677 pixels exceeded the eight-level color-difference threshold). Every resident
+and handoff frame painted all196,608 pixels. No browser, renderer-disable or WebGL error occurred.
+The measured effect replicated: maximum60Hz step33.204 default versus1.882 with the candidate.
+
+The judge now checks setup for valid nonblank output and keeps the original190,000-pixel floor
+throughout warmup and handoff. No measured-handoff threshold was relaxed. Raw Ubuntu and Edge
+artifacts pass the corrected judge, including exact framebuffer repeat/convergence comparisons.
+Ten injected faults verify rejection of missing legs/frames, blank setup, measured coverage gaps,
+GL errors, missing hashes, renderer disable, changed on-time output, a vacuous data control and
+an unexercised treatment. This corrects an overbroad setup assertion; it does not establish cold
+activation equivalence across GPUs. The report preserves the original failed run34291660087.
+
+## Live result: promotion refused
+
+Run34291656386 at0526159c passed the data contract but failed the coastal visual budget:
+369 analyzed frames,155 water samples,zero transport/browser errors, sixMULT0_FRAME findings and
+oneSETTLED_STEP of-18.6 atz5.344. The incoming covering grid replaced a0.211-coverage resident;
+the coarse wash remained present. Candidate transition starts stayed0 even with the experiment
+requested. This is neither a successful repair nor evidence of an engaged candidate regression.
+Unlike the synthetic scene, the wash did not dim at this recorded replacement.
+
+The trace lacks the identities/base-reference comparison needed to prove which prerequisite
+refused the transition. Replacement telemetry now records those observed inputs and the flag
+without changing the predicate. Source inspection found the explicit `useMarineWindData` field
+list omits served_valid_time, but the existing trace cannot establish that this caused the refusal.
+Do not substitute that plausible explanation for a measured rejection. Next: capture a qualified
+or rejected real replacement with these inputs, then repair only the demonstrated boundary.
+The candidate stays default-off; live budgets are unchanged.
