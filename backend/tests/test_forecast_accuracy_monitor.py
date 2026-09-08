@@ -16,6 +16,26 @@ NOW = datetime(2026, 8, 20, 12, 0, tzinfo=timezone.utc)   # past both self-expir
 ARMED = datetime(2026, 8, 25, 12, 0, tzinfo=timezone.utc)  # past paired_grace 08-22 as well
 
 
+def test_empty_scored_archive_refuses_after_grace():
+    code, lines = evaluate_scored_segment([], ARMED)
+    assert code == REFUSED
+    assert any('UNMEASURED' in line for line in lines)
+
+
+def test_no_pairs_respects_grace_and_disabled_gate():
+    assert evaluate_scored_segment([], NOW)[0] == OK
+    cfg = default_cfg()
+    cfg['paired_gate'] = False
+    assert evaluate_scored_segment([], ARMED, cfg=cfg)[0] == OK
+
+
+def test_future_targets_do_not_count_as_scored_evidence():
+    row = {'target_time': (ARMED + timedelta(days=1)).isoformat()}
+    code, lines = evaluate_scored_segment([row], ARMED)
+    assert code == REFUSED
+    assert any('0 with targets' in line for line in lines)
+
+
 def _report(mae=0.205, n=60, age_h=1.0, ops="healthy", available=True):
     r = {"available": available,
          "generated_at": (NOW - timedelta(hours=age_h)).isoformat(),
@@ -40,6 +60,8 @@ def test_an_mae_breach_goes_red_the_positive_control():
     code, lines = evaluate_report(_report(mae=0.45), NOW, default_cfg())
     assert code == RED
     assert any("ACCURACY RED" in l for l in lines)
+    assert any("not a diagnosis" in l for l in lines)
+    assert not any("not sea-state noise" in l for l in lines)
 
 
 def test_the_warn_band_warns_without_paging():

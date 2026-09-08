@@ -279,7 +279,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
             
             {/* Swell */}
             <div className={`${cellBg} rounded-lg p-3 text-center`}>
-              <p className={`text-3xl font-bold ${tPrimary}`}>{current.swell_height_ft || 0}<span className="text-lg">ft</span></p>
+              <p className={`text-3xl font-bold ${tPrimary}`}>{current.swell_height_ft ?? '—'}<span className="text-lg">ft</span></p>
               <p className={`text-xs ${tSecondary}`}>Swell</p>
             </div>
 

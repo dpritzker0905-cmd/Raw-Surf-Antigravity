@@ -16,9 +16,29 @@
  */
 const { analyzeTrace } = require('../../scripts/zoomlab-verdict');
 
+it('refuses empty or unmeasured animation', () => {
+  for (const frames of [[], [{ t: 0, L: 100 }], [{ t: 0, anim: [NaN] }]]) {
+    expect(analyzeTrace({ frames }).verdict).toBe('REFUSE');
+  }
+});
+
+it('preserves a renderer error even when transport also fails', () => {
+  const verdict = analyzeTrace({ frames: [], consoleErrors: ['TypeError: broken render', 'Failed to fetch'] });
+  expect(verdict.verdict).toBe('FAIL');
+  expect(verdict.hardRenderFindings).toHaveLength(1);
+});
+
+it('requires completion of the requested scenario', () => {
+  const frames = [0, 100].map(t => ({t, anim: new Array(40).fill(8)}));
+  const opts = { expectedScenario: 'staircase_full' };
+  expect(analyzeTrace({frames, scenario: 'staircase_full'}, opts).verdict).toBe('REFUSE');
+  expect(analyzeTrace({frames, scenario: 'other', completed: true}, opts).verdict).toBe('REFUSE');
+  expect(analyzeTrace({frames, scenario: 'staircase_full', completed: true}, opts).verdict).toBe('PASS');
+});
+
 const mult0Frames = [
-  { t: 0, z: 6.5, L: 100, mult: 1 },
-  { t: 500, z: 6.5, L: 100, mult: 0 },
+  { t: 0, z: 6.5, L: 100, mult: 1, anim: new Array(40).fill(8) },
+  { t: 500, z: 6.5, L: 100, mult: 0, anim: new Array(40).fill(8) },
 ];
 
 describe('zoomlab verdict: instrument findings do not page as rendering defects', () => {
@@ -41,7 +61,7 @@ describe('zoomlab verdict: instrument findings do not page as rendering defects'
   });
 
   it('a clean trace passes', () => {
-    expect(analyzeTrace({ frames: [{ t: 0, z: 6.5, L: 100, mult: 1 }] }).verdict).toBe('PASS');
+    expect(analyzeTrace({ frames: mult0Frames.map(f => ({...f, mult: 1})) }).verdict).toBe('PASS');
   });
 
   it('⛔ a genuine JS error is NOT laundered into a refusal', () => {
@@ -50,7 +70,7 @@ describe('zoomlab verdict: instrument findings do not page as rendering defects'
       consoleErrors: ["TypeError: Cannot read properties of undefined (reading 'wave')"],
     });
     expect(v.verdict).toBe('FAIL');
-    expect(v.observable).toBe(true);
+    expect(v.observable).toBe(false);
     expect(v.renderFindings).toHaveLength(1);
   });
 

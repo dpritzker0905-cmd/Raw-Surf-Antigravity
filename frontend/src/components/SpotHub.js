@@ -419,7 +419,7 @@ const SpotHub = () => {
             </div>
             <div className="text-center">
               <TrendingUp className="w-4 h-4 mx-auto text-purple-400 mb-0.5" />
-              <p className={`text-lg font-bold ${textPrimary}`}>{currentConditions.swell_height_ft || '-'}ft</p>
+              <p className={`text-lg font-bold ${textPrimary}`}>{currentConditions.swell_height_ft ?? '—'}ft</p>
               <p className={`text-[10px] ${textSecondary}`}>Swell</p>
             </div>
           </div>

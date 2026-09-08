@@ -56,7 +56,14 @@ def _frame_provenance(product) -> dict:
     fields only; None where the resolved product carries none. run_time remains the INGEST
     wall-clock (true model-cycle identity is a separate, Phase-3 item)."""
     rt = getattr(product, "run_time", None)
+    from services.weather_pipeline.cycle_provenance import time_provenance
+    cycle = time_provenance(product)
+    for key in ("model_run_time", "ingested_at"):
+        value = cycle[key]
+        if hasattr(value, "isoformat"):
+            cycle[key] = value.isoformat()
     return {
+        **cycle,
         "run_time": rt.strftime("%Y-%m-%dT%H:%M:%SZ") if hasattr(rt, "strftime") else rt,
         "upstream_provider": getattr(product, "upstream_provider", None),
         "source_dataset": getattr(product, "source_dataset", None),

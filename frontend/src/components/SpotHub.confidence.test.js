@@ -67,7 +67,7 @@ const FC = {
   calibrated: false,
 };
 
-function mockApi(forecastConfidence) {
+function mockApi(forecastConfidence, swellHeight = 0.7) {
   apiClient.get.mockImplementation((url) => {
     if (url.includes('/explore/spot-details/')) {
       return Promise.resolve({
@@ -82,7 +82,7 @@ function mockApi(forecastConfidence) {
             wave_height_ft: 2.1,
             wave_period: 4.41,
             wave_direction: 286,
-            swell_height_ft: 0.7,
+            swell_height_ft: swellHeight,
             ...(forecastConfidence ? { forecast_confidence: forecastConfidence } : {}),
           },
         },
@@ -108,6 +108,15 @@ beforeEach(() => {
   mockTheme = 'dark';
   jest.clearAllMocks();
 });
+
+it.each([['light', null, '—ft'], ['dark', 0, '0ft'], ['beach', 1.1, '1.1ft']])(
+  'keeps unknown, zero and measured swell distinct in %s', async (theme, height, text) => {
+    mockTheme = theme;
+    mockApi(null, height);
+    render(<SpotHub />);
+    expect(await screen.findByText(text)).toBeInTheDocument();
+  }
+);
 
 it('renders the level word, the sentence, and hides the dot from assistive tech', async () => {
   mockApi(FC);

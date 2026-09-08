@@ -1,6 +1,3 @@
-import platform
-platform._wmi = None
-
 import os
 import sys
 import subprocess

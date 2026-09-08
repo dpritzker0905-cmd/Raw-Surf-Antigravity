@@ -218,7 +218,7 @@ def fetch_global_coarse(payload):
                 "latitude": float(la), "longitude": float(lo),
                 "generationtime_ms": 0, "utc_offset_seconds": 0,
                 "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
-                "__provider": "noaa",
+                "__provider": "noaa", "__model_run_time": cycle_dt.isoformat(),
                 "hourly_units": {"time": "iso8601", "pressure_msl": "hPa"},
                 "hourly": {"time": times, "pressure_msl": series[pi]},
             })

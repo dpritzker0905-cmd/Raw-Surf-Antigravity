@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from services.weather_pipeline.schemas import NormalizedPointResponse
+from services.weather_pipeline.cycle_provenance import time_provenance
 from services.weather_pipeline.surf_rating import compute_surf_rating
 
 logger = logging.getLogger(__name__)
@@ -102,9 +103,11 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     lat, lng = spot["latitude"], spot["longitude"]
     surf_h = period = swell_from = shore_normal = wind_ms = wind_from = None
     offshore_h = spread_m = None
+    primary_swell_h = None
     geometry_readiness = None
     partitions = None
     run_time = wind_run_time = None
+    cycle_evidence = {lane: time_provenance(None) for lane in ('marine', 'wind')}
     try:
         marine = await resolver.resolve_point(
             model=model, domain="marine", layer="waves", lat=lat, lng=lng, valid_time_str=valid_time)
@@ -119,6 +122,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
             # live re-compute (7.5-8.6 s on the 1-CPU box): 3 of the 4 LEVEL differences the health
             # probe found on 2026-07-31 were exactly this, and proving it cost a live sweep.
             run_time = _iso_z(marine.run_time)
+            cycle_evidence['marine'] = time_provenance(marine)
             surf_h = marine.surf_height_m
             period = marine.point.period
             swell_from = marine.point.direction
@@ -135,6 +139,16 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
             spread_m = getattr(marine.point, "speed_spread", None)
     except Exception as e:
         logger.debug(f"[spot-ratings] marine resolve failed for {spot.get('id')}: {e}")
+    if offshore_h is not None:
+        try:
+            from services.weather_pipeline.spot_conditions import cached_primary_swell
+            dt = datetime.fromisoformat(valid_time.replace("Z", "+00:00"))
+            swell = await cached_primary_swell(resolver, model, lat, lng, dt)
+            if swell is not None:
+                primary_swell_h = swell["swell_height"]
+        except Exception as e:
+            # Optional display data must never trigger a provider fallback or break the rating.
+            logger.debug(f"[spot-ratings] primary swell unavailable for {spot.get('id')}: {e}")
     try:
         wind = await resolver.resolve_point(
             model=model, domain="wind", layer="wind", lat=lat, lng=lng, valid_time_str=valid_time)
@@ -143,6 +157,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
             # run at 0 of 4 spots measured 2026-07-31 (Mavericks 07:27 vs 08:10, Bells Beach 04:07
             # vs 14:44). One `run_time` would describe only half the inputs to the score.
             wind_run_time = _iso_z(wind.run_time)
+            cycle_evidence['wind'] = time_provenance(wind)
             wind_ms = (wind.point.speed or 0.0) * SR.KT_TO_MS    # wind point speed is knots
             wind_from = wind.point.direction
     except Exception as e:
@@ -289,6 +304,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         # written against), and they convert the system's worst route into frame reads.
         "swell_from_deg": round(swell_from, 1) if swell_from is not None else None,
         "offshore_hs_m": round(offshore_h, 3) if offshore_h is not None else None,
+        "primary_swell_hs_m": primary_swell_h,  # raw cached swell_1; unknown stays None
         "tide": tide_state,
         "why": why,
         # The binding constraint: which of the nine factors removed the most. See the block above.
@@ -317,6 +333,9 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         # downloads. The live path keeps them inline (nothing to intern, one request).
         "run_time": run_time,
         "wind_run_time": wind_run_time,
+        "time_provenance": {lane: {k: _iso_z(v) if isinstance(v, datetime) else v
+                                   for k, v in evidence.items()}
+                            for lane, evidence in cycle_evidence.items()},
         # WHICH REFERENCE (2026-08-09, parity run 31311733401): the size reference is a MOVING
         # input — each precompute folds new heights in, so a frame rated at build time can carry a
         # different reference than the blob holds an hour later (Pedras Negras 1.279 vs 2.199 = an

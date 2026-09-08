@@ -214,6 +214,13 @@ async def resolve_grid(
         product = await viewport_service.get_cached_dynamic_product(
             model=model, domain=domain, layer=layer, target_dt=target_dt, bbox_str=bbox
         )
+        if product is not None:
+            from services.weather_pipeline.dynamic_cycle_policy import superseded_dynamic
+            replacement = await superseded_dynamic(store, product)
+            if replacement:
+                filename, product = replacement
+                product.product_id = filename
+                product.is_dynamic_viewport_product = False
 
         # RESOLUTION-ADEQUACY GUARD (2026-07-15, root A — the "ICON coarse / wave-direction wrong when
         # the rating band is on" report): a STALE COARSE dynamic-viewport product (e.g. a 0.44°/cell

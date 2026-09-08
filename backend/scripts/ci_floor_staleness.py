@@ -204,6 +204,14 @@ def _gh(args, what):
     return proc.stdout
 
 
+def history_branch(explicit=None):
+    """PRs compare against their base; pushes against their own branch, never an unrelated dev."""
+    branch = explicit or os.environ.get('GITHUB_BASE_REF') or os.environ.get('GITHUB_REF_NAME')
+    if not branch:
+        raise Refusal('No branch context; pass --branch explicitly outside GitHub Actions.')
+    return branch
+
+
 def last_green_run(branch):
     """(run_id, sha) of the most recent successful ci.yml run on `branch`."""
     out = _gh(["run", "list", "--workflow=ci.yml", f"--branch={branch}", "--status=success",
@@ -272,21 +280,21 @@ def evaluate(floors, readings):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--branch", default="dev",
-                    help="branch whose run history to read (default: dev, the deploy branch)")
+    ap.add_argument("--branch", help="history branch; defaults to the PR base or pushed branch in Actions")
     ap.add_argument("--report", action="store_true",
                     help="print every floor against its reading and exit 0")
     args = ap.parse_args()
 
     try:
+        branch = history_branch(args.branch)
         floors = read_floors()
-        run_id, sha, created = last_green_run(args.branch)
+        run_id, sha, created = last_green_run(branch)
         readings = {lane: observed(run_id, lane) for lane in LANES}
     except Refusal as exc:
         print(f"::error::floor staleness check REFUSED: {exc}")
         return 1
 
-    print(f"reading run {run_id} ({sha[:8]}, {created}) on {args.branch}")
+    print(f"reading run {run_id} ({sha[:8]}, {created}) on {branch}")
     for lane in LANES:
         obs_files, obs_passed = readings[lane]
         floor = floors[lane]

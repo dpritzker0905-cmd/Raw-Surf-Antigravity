@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from services.weather_pipeline.cycle_provenance import time_provenance
 from datetime import datetime, timezone, timedelta
 from typing import List, Tuple, Optional
 
@@ -121,6 +122,7 @@ def _build_manifest_item(product, filename: str, resolution: float, is_tf: bool)
         domain=product.domain,
         layer=product.layer,
         run_time=product.run_time,
+        **time_provenance(product),
         valid_time_start=product.valid_time,
         valid_time_end=product.valid_time,  # single frame grid product
         resolution=resolution,

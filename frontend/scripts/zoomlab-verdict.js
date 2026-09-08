@@ -76,8 +76,12 @@ function nearestWater(water, t, maxAgeMs) {
 }
 
 function analyzeTrace(trace, opts = {}) {
+  trace = trace && typeof trace === 'object' ? trace : {};
   const cfg = { ...DEFAULTS, ...opts };
-  const F = (trace.frames || []).filter((f) => Array.isArray(f.anim) && f.anim.some((v) => v > 0));
+  const all = (Array.isArray(trace.frames) ? trace.frames : []).filter(f => f && typeof f === 'object');
+  const F = all.filter(f => Number.isFinite(f.t) && Array.isArray(f.anim)
+    && f.anim.length === 40 && f.anim.every(v => Number.isFinite(v) && v >= 0)
+    && f.anim.some(v => v > 0));
   const findings = [];
 
   // --- dead-band tracking across frames (keyed by overlapping column ranges) ---
@@ -113,7 +117,6 @@ function analyzeTrace(trace, opts = {}) {
   }
 
   // --- settled luminance steps + mult0 ---
-  const all = trace.frames || [];
   for (let i = 1; i < all.length; i++) {
     const a = all[i - 1], b = all[i];
     if (typeof a.L !== 'number' || typeof b.L !== 'number') continue;
@@ -143,7 +146,7 @@ function analyzeTrace(trace, opts = {}) {
   // real defect behind a refusal, so these stay message-SHAPE specific rather than keyword-loose.
   const TRANSPORT_RE = /net::ERR_|Failed to fetch|Failed to load resource|blocked by CORS|Access to \w+ at |Network ?Error|ERR_CONNECTION|ERR_NAME_NOT_RESOLVED|\b50[234]\b/i;
   let transportErrors = 0;
-  for (const e of (trace.consoleErrors || [])) {
+  for (const e of (Array.isArray(trace.consoleErrors) ? trace.consoleErrors : [])) {
     const msg = String(e).slice(0, 120);
     const instrument = TRANSPORT_RE.test(msg);
     if (instrument) transportErrors++;
@@ -157,12 +160,22 @@ function analyzeTrace(trace, opts = {}) {
   //   parity probe's FAIL (INSTRUMENT) vs FAIL (COMPOSITION), d43563ca.
   const renderFindings = findings.filter((f) => f.klass !== 'INSTRUMENT');
   const instrumentFindings = findings.filter((f) => f.klass === 'INSTRUMENT');
-  const observable = transportErrors === 0;
+  const hardRenderFindings = renderFindings.filter(f => f.type === 'CONSOLE_ERROR');
+  const observationGaps = [];
+  if (new Set(F.map(f => f.t)).size < 2) observationGaps.push('Fewer than two valid animation samples at distinct times');
+  if (opts.expectedScenario && (trace.scenario !== opts.expectedScenario || trace.completed !== true)) {
+    observationGaps.push('Requested scenario did not complete');
+  }
+  if (transportErrors) observationGaps.push('Transport errors prevented a complete visual measurement');
+  const observable = observationGaps.length === 0;
+  // A missing sea can cause optical artifacts, but cannot excuse an independent JS crash.
+  const verdict = hardRenderFindings.length ? 'FAIL'
+    : !observable ? 'REFUSE' : renderFindings.length ? 'FAIL' : 'PASS';
 
   return {
-    pass: findings.length === 0, findings, framesAnalyzed: F.length,
+    pass: verdict === 'PASS', findings, framesAnalyzed: F.length,
     observable,
-    verdict: !observable ? 'REFUSE' : (renderFindings.length === 0 ? 'PASS' : 'FAIL'),
+    verdict, hardRenderFindings, observationGaps,
     renderFindings, instrumentFindings, transportErrors,
     landExcludedBandFrames: landExcluded,
     waterSamples: Array.isArray(trace.water) ? trace.water.length : 0,
@@ -175,23 +188,25 @@ module.exports = { analyzeTrace, bandsInFrame, DEFAULTS };
 if (require.main === module) {
   const file = process.argv[2];
   if (!file) { console.error('usage: node zoomlab-verdict.js <trace.json> [--json]'); process.exit(2); }
-  const trace = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const verdict = analyzeTrace(trace);
+  let trace;
+  try { trace = JSON.parse(fs.readFileSync(file, 'utf8')); }
+  catch (error) { console.error(`Cannot read trace: ${error.message}`); process.exit(2); }
+  const scenarioIndex = process.argv.indexOf('--scenario');
+  if (scenarioIndex >= 0 && (!process.argv[scenarioIndex + 1] || process.argv[scenarioIndex + 1].startsWith('--'))) {
+    console.error('--scenario requires a scenario name'); process.exit(2);
+  }
+  const verdict = analyzeTrace(trace, scenarioIndex >= 0 ? { expectedScenario: process.argv[scenarioIndex + 1] } : {});
   if (process.argv.includes('--json')) console.log(JSON.stringify(verdict, null, 1));
   else {
     console.log(`[verdict] ${verdict.verdict} — ${verdict.renderFindings.length} render finding(s), `
       + `${verdict.instrumentFindings.length} instrument finding(s), ${verdict.framesAnalyzed} anim frames`
       + (verdict.waterSamples ? `, ${verdict.waterSamples} water samples, ${verdict.landExcludedBandFrames} land band-frames excluded` : ' (no water ground truth — legacy mode)'));
     if (!verdict.observable) {
-      console.log(`  REFUSE: ${verdict.transportErrors} transport error(s) fetching the data under `
-        + 'test — the renderer cannot be graded on a sea that was never delivered. The render '
-        + 'findings below are REPORTED, NOT PAGED, because MULT0/SETTLED_STEP are consequences of '
-        + 'the absence. Warm the backend and re-run to grade it.');
+      console.log(`  Observation gaps: ${verdict.observationGaps.join('; ')}.`);
+      if (verdict.hardRenderFindings.length) console.log('  Independent renderer errors still FAIL.');
     }
     for (const f of verdict.findings.slice(0, 20)) console.log('  ' + JSON.stringify(f));
   }
-  // 0 PASS · 1 FAIL (real render findings) · 3 REFUSE (ungradeable — the caller decides, and the
-  // nightly warns rather than pages, because a red meaning "Render was asleep" trains the operator
-  // to ignore the one optical net this estate has).
+  // 0 PASS · 1 FAIL · 3 REFUSE. Nightly preserves refusal as non-green, with a distinct summary.
   process.exit(verdict.verdict === 'PASS' ? 0 : verdict.verdict === 'REFUSE' ? 3 : 1);
 }

@@ -1,0 +1,13 @@
+{
+  "reason": "PR #14 LOC gate required extracting frame conversion; original package inventory remains a pre-PR snapshot",
+  "files": [
+    {
+      "path": "frontend/src/components/map/marineGridSeries.js",
+      "sha256": "d75e99cf6bef97e80b91d0a06aebc932a25c29f06202b0dd0399a6f1e426df80"
+    },
+    {
+      "path": "frontend/src/components/map/marineSeriesFrame.js",
+      "sha256": "10bbc453963258a597234cd00ad1b669f0ab24fc73ac9297a539d0dad500929d"
+    }
+  ]
+}

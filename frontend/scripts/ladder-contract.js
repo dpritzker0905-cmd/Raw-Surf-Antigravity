@@ -49,6 +49,18 @@ function colValidity(g) {
   return { lngs, at: (lng) => byLng.get(lng) };
 }
 
+function assessGlobalSeam(g) {
+  const cv = colValidity(g);
+  const westLng = cv.lngs[0], eastLng = cv.lngs[cv.lngs.length - 1];
+  if (!g.bounds || Math.abs(g.bounds.west + 180) > 0.01 || Math.abs(g.bounds.east - 180) > 0.01 ||
+      Math.abs(westLng + 180) > 0.01 || Math.abs(eastLng - 180) > 0.01 || cv.lngs.length < 2) {
+    return { ok: false, message: `E1 unmeasured: expected global ±180 endpoints, received ${westLng}..${eastLng}` };
+  }
+  const west = cv.at(westLng), east = cv.at(eastLng);
+  return { ok: west.valid > 0 && east.valid > 0,
+    message: `E1 global seam: west ${west.valid}/${west.total}, east ${east.valid}/${east.total}` };
+}
+
 async function main() {
   const vt = nowValidTime();
   console.log(`ladder-contract vs ${BASE} @ ${vt}`);
@@ -69,16 +81,9 @@ async function main() {
     } catch (e) { fail('T2 ' + e.message); }
     // T3 + E1: global product parses; ±180 seam columns both live.
     try {
-      const t3 = await grid(model, 'waves', null, vt);
-      const cv = colValidity(t3.g);
-      const west = cv.at(cv.lngs[0]), east = cv.at(cv.lngs[cv.lngs.length - 1]);
-      if (east.valid > 0 && west.valid > 0 && east.valid === west.valid) {
-        ok(`E1 seam: west ${west.valid}/${west.total} == east ${east.valid}/${east.total}`);
-      } else if (east.valid === 0 || west.valid === 0) {
-        fail(`E1 dead seam column: west ${west.valid}/${west.total}, east ${east.valid}/${east.total} (fencepost head #3 regression)`);
-      } else {
-        ok(`E1 seam live (west ${west.valid}, east ${east.valid} — asymmetry tolerated)`);
-      }
+      const t3 = await grid(model, 'waves', '-180,-80,180,85', vt);
+      const verdict = assessGlobalSeam(t3.g);
+      (verdict.ok ? ok : fail)(`${verdict.message} (${t3.p.product_id})`);
     } catch (e) { fail('E1 ' + e.message); }
     // E2: FL regional east edge fully valid.
     try {
@@ -93,4 +98,5 @@ async function main() {
   console.log(failures === 0 ? 'CONTRACT PASS' : `CONTRACT FAIL — ${failures} violation(s)`);
   process.exit(failures === 0 ? 0 : 1);
 }
-main().catch((e) => { console.error('contract runner error:', e); process.exit(1); });
+module.exports = { assessGlobalSeam };
+if (require.main === module) main().catch((e) => { console.error('contract runner error:', e); process.exit(1); });

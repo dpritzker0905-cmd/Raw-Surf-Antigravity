@@ -338,6 +338,7 @@ class SpotRatingItem(BaseModel):
     # Pydantic silently DROPS them at this boundary (the wire-contract guard caught exactly that).
     swell_from_deg: Optional[float] = None
     offshore_hs_m: Optional[float] = None
+    primary_swell_hs_m: Optional[float] = None  # cached swell_1; None means unavailable, not total sea
     tide: Optional[dict] = None          # {height_m, norm 0..1, trend} when RATING_TIDE is on (else None)
     why: Optional[str] = None            # short human explanation
     # Observation gate (RATING_OBS_GATE): good/epic verdicts require confirmation — >=2-model agreement
@@ -371,6 +372,7 @@ class SpotRatingItem(BaseModel):
     # `geometry_readiness` above, and as `served_valid_time` on the response).
     run_time: Optional[str] = None            # the marine run — it produced `surf_height_m`
     wind_run_time: Optional[str] = None
+    time_provenance: Optional[dict] = None  # independent marine/wind cycle evidence; legacy unknown
     # WHICH OF THE NINE FACTORS REMOVED THE MOST. The score is a product of nine terms in [0,1] and
     # this payload published only the score plus `why` (height/period/wind — three INPUTS, not
     # factors), so the live ceiling of 68.8 with zero 'good' could not be ATTRIBUTED.
@@ -796,4 +798,3 @@ async def get_diagnostics_log(admin=Depends(get_current_admin)):
 # Include the ingestion sub-router dynamically to break circular imports
 from .weather_ingest import router as ingest_router
 router.include_router(ingest_router)
-

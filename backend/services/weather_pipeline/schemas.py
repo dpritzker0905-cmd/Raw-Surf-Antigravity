@@ -65,6 +65,9 @@ class NormalizedProduct(BaseModel):
     domain: str
     layer: str
     run_time: datetime
+    model_run_time: Optional[datetime] = None  # verified cycle; never inferred from run_time
+    model_run_time_status: str = "missing"
+    ingested_at: Optional[datetime] = None
     valid_time: datetime
     is_forecast_authoritative: bool
     is_estimated: bool
@@ -166,6 +169,9 @@ class NormalizedPointResponse(BaseModel):
     domain: str
     layer: str
     run_time: datetime
+    model_run_time: Optional[datetime] = None  # verified cycle; never inferred from run_time
+    model_run_time_status: str = "missing"
+    ingested_at: Optional[datetime] = None
     valid_time: datetime
     is_forecast_authoritative: bool
     is_estimated: bool
@@ -295,6 +301,9 @@ class ManifestProduct(BaseModel):
     domain: str
     layer: str
     run_time: datetime
+    model_run_time: Optional[datetime] = None  # verified cycle; never inferred from run_time
+    model_run_time_status: str = "missing"
+    ingested_at: Optional[datetime] = None
     valid_time_start: datetime
     valid_time_end: datetime
     resolution: float

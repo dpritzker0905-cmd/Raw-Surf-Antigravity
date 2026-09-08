@@ -38,10 +38,11 @@ import routes.surf_data.conditions as C         # noqa: E402
 NOW_HOUR = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:00:00Z")
 
 
-def _frame_spot(sid, h=1.2, tp=10.0, swell=245.0, off=0.9):
+def _frame_spot(sid, h=1.2, tp=10.0, swell=245.0, off=0.9, primary=0.4):
     return {"spot_id": sid, "name": f"spot {sid}", "latitude": 33.0, "longitude": -118.0,
             "score": 61.0, "level": "fair_good", "surf_height_m": h, "period_s": tp,
-            "swell_from_deg": swell, "offshore_hs_m": off, "tide": None, "why": "w"}
+            "swell_from_deg": swell, "offshore_hs_m": off, "primary_swell_hs_m": primary,
+            "tide": None, "why": "w"}
 
 
 def _blob(spots, valid_time=NOW_HOUR, generated_at="2026-08-15T12:00:00Z"):
@@ -116,7 +117,7 @@ def test_a_fresh_frame_answers_without_touching_resolver_or_db(app_client, monke
                       "label", "updated_at"}, "the per-spot shape is frozen (the client spreads it)"
     assert a["wave_height_ft"] == pytest.approx(round(1.2 * 3.28084, 1))
     assert a["wave_direction"] == 245.0 and a["wave_period"] == 10.0
-    assert a["swell_height_ft"] == pytest.approx(round(0.9 * 3.28084, 1))
+    assert a["swell_height_ft"] == pytest.approx(round(0.4 * 3.28084, 1))
     assert isinstance(a["label"], str) and a["label"]
     src = body.get("conditions_source")
     assert src and src["precomputed"] == 2 and src["live"] == 0
@@ -218,3 +219,113 @@ def test_the_blob_tax_of_the_two_fields_is_measured_and_bounded():
     new = len(json.dumps([realistic(i, True) for i in range(200)], separators=(",", ":")))
     tax = (new - old) / old
     assert 0.0 < tax < 0.12, f"the two fields cost {tax:.1%} against a realistic entry"
+
+
+@pytest.mark.parametrize('primary', [None, float('nan'), float('inf'), -0.1])
+def test_missing_or_invalid_swell_is_unknown_not_total_sea(primary):
+    e = _frame_spot('a', off=3.0, primary=primary)
+    assert C._frame_conditions_entry(e, 't')['swell_height_ft'] is None
+
+
+def test_old_frame_keeps_fast_path_without_inventing_swell(app_client):
+    e = _frame_spot('a', off=3.0)
+    del e['primary_swell_hs_m']
+    client, calls = app_client(_blob([e]), _NoDB())
+    result = client.get('/conditions/batch', params={'spot_ids': 'a'}).json()
+    assert result['conditions']['a']['swell_height_ft'] is None
+    assert calls['live'] == []
+
+
+def test_measured_zero_swell_is_zero_even_with_nonzero_total_sea():
+    assert C._frame_conditions_entry(_frame_spot('a', off=3.0, primary=0.0), 't')['swell_height_ft'] == 0.0
+
+
+@pytest.mark.parametrize('step', [0.25, 0.125])
+@pytest.mark.parametrize('field,expected', [('offshore_hs_m', 0.0), ('surf_height_m', 0.0),
+                                           ('primary_swell_hs_m', 3.28084)])
+def test_swell_field_jacobian_has_only_the_swell_dependency(field, expected, step):
+    # Software dependency control, not a physical sea-state perturbation. The wire rounds to 0.1 ft.
+    base = _frame_spot('a', h=2.0, off=3.0, primary=1.0)
+    values = []
+    for sign in (-1, 1):
+        changed = dict(base, **{field: base[field] + sign * step})
+        values.append(C._frame_conditions_entry(changed, 't')['swell_height_ft'])
+    derivative = (values[1] - values[0]) / (2 * step)
+    assert derivative == pytest.approx(expected, abs=0.1 / (2 * step) + 1e-9)
+
+
+@pytest.mark.parametrize('model', ['GFS', 'ICON', 'EURO'])
+@pytest.mark.parametrize('primary', [1.1, 0.0, None])
+def test_producer_wire_frame_and_live_share_the_swell_quantity(monkeypatch, model, primary):
+    from types import SimpleNamespace as NS
+    from services.weather_pipeline import spot_conditions as SC, spot_ratings as R
+    from services.weather_pipeline.schemas import NormalizedPointResponse
+    from services.weather_pipeline.spot_ratings_precompute import build_l2_object, select_precomputed
+    from routes.weather import SpotRatingItem
+    from services.weather_pipeline import surf_point
+
+    point = NS(speed=3.0, period=12.0, direction=90.0)
+    marine = NormalizedPointResponse.model_construct(
+        point=point, run_time=datetime(2026, 9, 7, tzinfo=timezone.utc), surf_height_m=1.2,
+        shore_normal_deg=90.0, geometry_readiness='degraded')
+
+    class Resolver:
+        def __init__(self):
+            self.lookups = []
+            self.upstream = 0
+            self.sampler = NS(sample_point=lambda product, *a: NS(point=product.point))
+            self.provider = NS(fetch_point=self.fetch_point)
+
+        async def resolve_point(self, **kw):
+            return marine if kw['domain'] == 'marine' else None
+
+        async def find_cached_grid_product(self, model, domain, layer, *args):
+            self.lookups.append(layer)
+            if layer == 'waves':
+                return NS(point=point)
+            if layer == 'swell_1' and primary is not None:
+                return NS(point=NS(speed=primary, direction=80.0), value_unit='m')
+            return None
+
+        async def fetch_point(self, **kw):
+            self.upstream += 1
+            return {'hourly': {}}  # missing stays missing, never interpreted as a flat swell
+
+    for flag in ['SURF_PARTITIONS', 'RATING_TIDE', 'RATING_BREAKER_TYPE', 'RATING_LOCAL_SIZE']:
+        monkeypatch.setenv(flag, '0')
+    monkeypatch.setattr(surf_point, 'resolve_surf_geometry', lambda *a: None)
+    # Hold the unrelated physics transform constant to isolate field identity at the wire.
+    monkeypatch.setattr(SC, '_breaking_ft', lambda *a, **k: (round(1.2 * SC.M_TO_FT, 1), 'test'))
+    resolver = Resolver()
+    spot = {'id': 'a', 'latitude': 33.0, 'longitude': -118.0}
+    vt = '2026-09-07T12:00:00Z'
+    produced = asyncio.run(R.rate_one_spot(resolver, spot, model, vt))
+    assert produced['primary_swell_hs_m'] == primary
+    assert produced['offshore_hs_m'] == 3.0
+    assert resolver.upstream == 0, 'precompute must not introduce a swell provider query'
+    assert resolver.lookups == ['swell_1'], 'one cache lookup, independent of the spectral flag'
+    wire = SpotRatingItem(**produced).model_dump()
+    obj = json.loads(json.dumps(build_l2_object([{'model': model, 'valid_time': vt, 'spots': [wire]}])))
+    stored = select_precomputed(obj, (-119, 32, -117, 34), model, vt)[0]
+    cached = C._frame_conditions_entry(stored, 't')
+    live = asyncio.run(SC.resolve_spot_conditions_impl(resolver, model, 33.0, -118.0, 1))
+    expected = None if primary is None else round(primary * SC.M_TO_FT, 1)
+    assert cached['swell_height_ft'] == expected
+    assert live['current_conditions']['swell_height_ft'] == expected
+    assert all(day['swell_height_ft'] == expected for day in live['forecast'])
+    assert cached['wave_height_ft'] == live['current_conditions']['wave_height_ft']
+
+
+@pytest.mark.parametrize('unit,basis', [('ft', None), ('m', {'method': 'wave_component_ratio_estimation'})])
+def test_cached_swell_rejects_wrong_units_and_fabricated_components(unit, basis):
+    from types import SimpleNamespace as NS
+    from services.weather_pipeline.spot_conditions import cached_primary_swell
+
+    async def find(*args):
+        return NS(value_unit=unit, estimate_basis=basis)
+
+    def forbidden(*args):
+        raise AssertionError('an invalid product must not be sampled')
+
+    resolver = NS(find_cached_grid_product=find, sampler=NS(sample_point=forbidden))
+    assert asyncio.run(cached_primary_swell(resolver, 'GFS', 0, 0, datetime.now(timezone.utc))) is None
