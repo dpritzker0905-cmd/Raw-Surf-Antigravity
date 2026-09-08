@@ -609,7 +609,8 @@ jobs:
           # WS-CAN-0072 cap-seam property lane) = +47 tests. CI-anchored per the estate lesson:
           # last green run 31864807822 observed 1741; 1741 + 47 = 1788; 1788 - 6 = 1782. The
           # pre-push hook blocked the batch until this pair moved — as designed (5th catch).
-          MIN_FILES, MIN_PASSED = 154, 1782
+          # September 8, dev run 34279488030: 155 files / 1804 passed; retain six-test margin.
+          MIN_FILES, MIN_PASSED = 155, 1798
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -789,7 +790,8 @@ jobs:
           # ⚠️ RAISED BECAUSE THE PRE-PUSH HOOK REFUSED THE PUSH, which is the 5th time this lane has
           # needed it. The floor is not merely a minimum: backend-floor-staleness goes red when the
           # observed count runs too far ABOVE it, so adding tests without raising it is a red CI.
-          MIN_FILES, MIN_PASSED = 90, 833
+          # September 8, dev run 34279488030: 93 files / 884 passed; retain six-test margin.
+          MIN_FILES, MIN_PASSED = 93, 878
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1074,7 +1076,8 @@ jobs:
           # `importorskip("pyarrow"/"lance")` collects on a dev box and never in CI.
           # ⚠️ The arithmetic is shown so the next green run can falsify it. If 416 was not the
           # figure this lane actually carries forward, that run says so and the number moves.
-          MIN_PASSED = 433
+          # September 8, PR run 34281409579: 445 passed, zero silent; retain two-test margin.
+          MIN_PASSED = 443
 
           try:
               root = ET.parse('estate.xml').getroot()
