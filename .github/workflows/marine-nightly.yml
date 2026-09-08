@@ -97,15 +97,14 @@ jobs:
       - name: Verdict (budgeted)
         run: |
           set +e
-          node frontend/scripts/zoomlab-verdict.js /tmp/zoomlab-out/trace_staircase_full.json --json \
+          node frontend/scripts/zoomlab-verdict.js /tmp/zoomlab-out/trace_staircase_full.json --scenario staircase_full --json \
             > /tmp/zoomlab-out/verdict.json 2>/tmp/zoomlab-out/verdict.err
           CODE=$?
-          OUT=$(node frontend/scripts/zoomlab-verdict.js /tmp/zoomlab-out/trace_staircase_full.json 2>&1)
+          OUT=$(node frontend/scripts/zoomlab-verdict.js /tmp/zoomlab-out/trace_staircase_full.json --scenario staircase_full 2>&1)
           echo "$OUT"
-          # ⛔ EXIT CODE 3 = REFUSE: transport errors fetching the data under test, so the optical
-          # claims are consequences of the absence rather than evidence about the renderer. Warn,
-          # never fail — a red meaning "Render was asleep" is how the only optical net in the estate
-          # became a red nobody read (most days since 08-03). The trace artifact is still uploaded.
+          set -e
+          # Exit 3 means unmeasured. Preserve it as non-green and label it separately from
+          # a measured rendering failure; always upload the trace for diagnosis.
           # ★ ALWAYS state what was measured, on the run page itself. A refusal that only exists as a
           # warning buried in a step log is how "green" comes to mean "never graded" — the same trap
           # one level up from the one this refusal closes.
@@ -115,15 +114,21 @@ jobs:
               `- frames analysed: ${v.framesAnalyzed} · water samples: ${v.waterSamples}`,
               `- render findings: ${v.renderFindings.length} · instrument (transport) findings: ${v.instrumentFindings.length}`,
               v.observable?"- the sea under test was delivered, so the renderer WAS graded"
-                          :"- ⚠️ REFUSED: the data under test never arrived — the renderer was NOT graded this run"];
+                          :"- Incomplete visual measurement; independent renderer errors still fail",
+                     `- Independent renderer errors: ${v.hardRenderFindings.length}`];
             require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY, l.join("\n")+"\n");
           ' || true
           if [ "$CODE" = "3" ]; then
-            echo "::warning::Marine nightly REFUSED to grade: the battery could not fetch the prod"\
-                 "data under test (transport errors), so MULT0/SETTLED_STEP findings are consequences"\
-                 "of missing data, not rendering defects. Preflight said awake=${{ steps.warm.outputs.awake }}."\
-                 "Re-run after the backend is warm to get an actual verdict."
-            exit 0
+            echo "::error::Marine nightly REFUSED: incomplete visual evidence. See observationGaps"\
+                 "in verdict.json. This is unmeasured, not a rendering pass."
+            exit 3
+          fi
+          if [ "$CODE" != "0" ] && [ "$CODE" != "1" ]; then
+            echo "::error::Visual verdict could not be computed (exit $CODE)"; exit 2
+          fi
+          HARD=$(node -e 'console.log(require("/tmp/zoomlab-out/verdict.json").hardRenderFindings.length)')
+          if [ "$HARD" -gt 0 ]; then
+            echo "::error::Independent renderer errors: $HARD"; exit 1
           fi
           # BUDGET (tightened 2026-07-18 EVE-2): zoomlab now records engine-mask water ground
           # truth per column and the verdict excludes LAND columns from dead-band claims — the

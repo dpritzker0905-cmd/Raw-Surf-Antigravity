@@ -86,6 +86,7 @@ async function main() {
 
   const consoleErrors = [];
   page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 400)); });
+  page.on('pageerror', (error) => consoleErrors.push(`Uncaught ${error.message}`.slice(0, 400)));
 
   log('goto /map');
   await page.goto(BASE + '/map', { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -511,7 +512,7 @@ async function main() {
           .filter((e) => e.type === 'reject_downgrade' || e.type === 'reject_subcover')
           .map((e) => ({ type: e.type, rule: e.rule, decidedBy: e.decidedBy, zoom: e.zoom })) : [],
   }));
-  fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ scenario, zoomNow, consoleErrors: consoleErrors.slice(0, 20), arbShadow, arbLive, ...trace }));
+  fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ ...trace, scenario, completed: true, zoomNow, consoleErrors: [...new Set(consoleErrors)], arbShadow, arbLive }));
   log(`arbiter: mode=${arbLive.mode} decisions=${arbLive.tallies ? arbLive.tallies.n : 0} rejects=${arbLive.tallies ? arbLive.tallies.rejects : 0} rules=${JSON.stringify(arbLive.tallies ? arbLive.tallies.byRule : {})}`);
   log(`trace saved: ${trace.frames.length} frames, final zoom ${zoomNow.toFixed(2)}`);
 

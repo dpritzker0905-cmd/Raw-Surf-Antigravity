@@ -32,6 +32,7 @@ from services.weather_pipeline.point_direct_fallbacks import (  # noqa: E402
 # `surf_height_m` is produced.
 from services.weather_pipeline.point_surf_augment import augment_with_surf  # noqa: E402
 from services.weather_pipeline import wave_physics  # noqa: E402
+from services.weather_pipeline.dynamic_cycle_policy import superseded_dynamic
 
 def _selection_key(pair):
     """Candidate ranking for the point resolver's manifest selection, ONE definition for both
@@ -46,7 +47,8 @@ def _selection_key(pair):
     p, diff = pair
     area = get_bbox_area(p.coverage.west, p.coverage.south, p.coverage.east, p.coverage.north)
     if os.environ.get("POINT_RES_TIEBREAK", "1") != "0":
-        return (diff, float(p.resolution), area)
+        from services.weather_pipeline.selection_identity import selection_identity
+        return (diff, float(p.resolution), area, *selection_identity(p))
     return (diff, area)
 
 
@@ -306,6 +308,10 @@ class PointResolutionService:
         )
         if dynamic_match:
             product = await asyncio.to_thread(self.store.load_product, dynamic_match["product_id"])
+            replacement = await superseded_dynamic(self.store, product) if product else None
+            if replacement:
+                filename, product = replacement
+                dynamic_match = {"product_id": filename, "coverage_mode": "regional_tile"}
             if product:
                 # Ensure coverage_mode is set!
                 if not getattr(product, "coverage_mode", None):
@@ -316,10 +322,10 @@ class PointResolutionService:
                 response.valid_time = target_dt
                 response.product_id = dynamic_match["product_id"]
                 response.source = "grid_file"
-                response.coverage_status = "inside_served_bbox"
+                response.coverage_status = "inside_regional_tile" if replacement else "inside_served_bbox"
                 response.fallback_attempted = False
                 response.fallback_reason = None
-                response.is_dynamic_viewport_product = True
+                response.is_dynamic_viewport_product = not bool(replacement)
                 response.cache_key = dynamic_match.get("cache_key")
                 response.cache_hit = "cache_hit"
                 response.requested_bbox = dynamic_match.get("requested_bbox")
@@ -693,6 +699,9 @@ class PointResolutionService:
         )
         if dynamic_match:
             product = await asyncio.to_thread(self.store.load_product, dynamic_match["product_id"])
+            replacement = await superseded_dynamic(self.store, product) if product else None
+            if replacement:
+                return replacement[1]
             if product:
                 return product
 
@@ -762,4 +771,3 @@ class PointResolutionService:
         from services.weather_pipeline.spot_conditions import resolve_spot_conditions_impl
         return await resolve_spot_conditions_impl(self, model, lat, lng, forecast_days,
                                                   spot_id=spot_id)
-

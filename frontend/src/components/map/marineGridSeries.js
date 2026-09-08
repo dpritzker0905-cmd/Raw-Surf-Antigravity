@@ -258,7 +258,13 @@ function frameToMarineData(frame, model, layer) {
     model === 'ICON' ? 'gwam_dwd' :
     model === 'EURO' ? 'copernicus_cmems' : null
   );
+  const cycleProvenance = {
+    model_run_time: frame.model_run_time ?? null,
+    model_run_time_status: frame.model_run_time_status || 'missing',
+    ingested_at: frame.ingested_at ?? null,
+  };
   const grid = {
+    ...cycleProvenance,
     vectors: frame.vectors,
     cols: frame.cols,
     rows: frame.rows,
@@ -303,6 +309,7 @@ function frameToMarineData(frame, model, layer) {
   // that's the object the engine sees (waveGrid.truthTag), and mirrored on the wrapper for the
   // orchestratorCommit's marineData.truthTag read.
   const truthTag = renderable ? buildTruthTag({
+    ...cycleProvenance,
     grid, model, domain: 'marine', layer,
     valid_time: frame.valid_time, run_time: frame.run_time,
     product_id, provider,
@@ -337,6 +344,9 @@ function frameToMarineData(frame, model, layer) {
     __provider: provider,
     __renderable: renderable,
     __fromSeries: true,
+    valid_time: frame.valid_time,
+    run_time: frame.run_time,
+    ...cycleProvenance,
     hourOffset: frame.hour_offset,
     ...(truthTag ? { truthTag } : {}),
     product_id,

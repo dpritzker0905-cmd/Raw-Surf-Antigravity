@@ -32,6 +32,7 @@ network I/O. The daily loop still samples the cached grid — the fix is what th
 how many of them are fetched.
 """
 import logging
+import math
 import os
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
@@ -48,6 +49,42 @@ M_TO_FT = 3.28084
 # surface disagree with the sim at exactly 3.00 kt of wind (good 83.0 against epic 92.0). Read the
 # engine's constant as an ATTRIBUTE so the knots -> m/s -> knots round trip is exact.
 from services.weather_pipeline import surf_rating as SR
+
+
+def swell_height_m(value):
+    """A measured swell height in metres, or unknown. Zero is valid; missing is not calm."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return None
+    return value if math.isfinite(value) and value >= 0 else None
+
+
+def swell_height_ft(value):
+    height = swell_height_m(value)
+    return round(height * M_TO_FT, 1) if height is not None else None
+
+
+async def cached_primary_swell(resolver, model, lat, lng, dt):
+    """Sample the existing swell_1 cache lane. No provider fetch or total-sea substitution.
+
+    Used by the hub and rating-frame producer. Reconciled physics partitions are not raw
+    primary swell observations and must not be reused for this display field.
+    """
+    prod = await resolver.find_cached_grid_product(model, "marine", "swell_1", lat, lng, dt)
+    if not prod or getattr(prod, "value_unit", "m") != "m":
+        return None
+    basis = getattr(prod, "estimate_basis", None)
+    if isinstance(basis, dict) and basis.get("method") == "wave_component_ratio_estimation":
+        return None
+    res = resolver.sampler.sample_point(prod, lat, lng)
+    point = getattr(res, "point", None)
+    height = swell_height_m(getattr(point, "speed", None))
+    if height is None:
+        return None
+    return {"swell_height": height, "swell_direction": getattr(point, "direction", None)}
 
 
 def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg, geometry, partitions=None):
@@ -249,13 +286,9 @@ async def resolve_spot_conditions_impl(
             cache_misses = True
             
         # Swell
-        swell_prod = await self.find_cached_grid_product(model, "marine", "swell_1", lat, lng, dt)
-        if swell_prod:
-            res = self.sampler.sample_point(swell_prod, lat, lng)
-            swell_data[dt] = {
-                "swell_height": res.point.speed,
-                "swell_direction": res.point.direction
-            }
+        cached_swell = await cached_primary_swell(self, model, lat, lng, dt)
+        if cached_swell is not None:
+            swell_data[dt] = cached_swell
         else:
             cache_misses = True
 
@@ -289,7 +322,7 @@ async def resolve_spot_conditions_impl(
                             }
                         # Parse swell fallback
                         if dt not in swell_data:
-                            swell_height = safe_index_get(raw_point["hourly"], "swell_wave_height", idx, 0.0)
+                            swell_height = swell_height_m(safe_index_get(raw_point["hourly"], "swell_wave_height", idx, None))
                             swell_dir = safe_index_get(raw_point["hourly"], "swell_wave_direction", idx, 0.0)
                             swell_data[dt] = {
                                 "swell_height": swell_height,
@@ -344,7 +377,7 @@ async def resolve_spot_conditions_impl(
     # Construct current conditions response dict
     current_waves = waves_data.get(current_dt, {"wave_height": 0.0, "wave_direction": 0.0,
                                                 "wave_period": 0.0, "wave_height_spread": None})
-    current_swell = swell_data.get(current_dt, {"swell_height": 0.0, "swell_direction": 0.0})
+    current_swell = swell_data.get(current_dt, {"swell_height": None, "swell_direction": None})
 
     offshore_m = current_waves["wave_height"] or 0.0
     period_s = current_waves["wave_period"] or 0.0
@@ -356,7 +389,7 @@ async def resolve_spot_conditions_impl(
                                                period_s)
     current_wave_height_ft, regime = _breaking_ft(
         lat, lng, offshore_m, period_s, swell_from, geometry, partitions=current_parts)
-    current_swell_height_ft = round(current_swell["swell_height"] * M_TO_FT, 1) if current_swell["swell_height"] else 0
+    current_swell_height_ft = swell_height_ft(current_swell["swell_height"])
 
     current_conditions = {
         # ⚠️ THIS IS THE BREAKING HEIGHT NOW, not the offshore Hs it used to be. The offshore value
@@ -487,7 +520,7 @@ async def resolve_spot_conditions_impl(
     for dt in forecast_dates:
         date_str = dt.strftime("%Y-%m-%d")
         day_waves = waves_data.get(dt, {"wave_height": 0.0, "wave_direction": 0.0, "wave_period": 0.0})
-        day_swell = swell_data.get(dt, {"swell_height": 0.0})
+        day_swell = swell_data.get(dt, {"swell_height": None})
 
         day_offshore = day_waves["wave_height"] or 0.0
         # Spectral per frame for the same reason as the current frame: one payload must not mix a
@@ -501,7 +534,7 @@ async def resolve_spot_conditions_impl(
         # forecast — it was `max * 0.6` with no comment, which reads like measured spread. Named as
         # what it is, and kept so the existing UI range still renders.
         min_ft = round(max_ft * 0.6, 1)
-        swell_max_ft = round(day_swell["swell_height"] * M_TO_FT, 1) if day_swell["swell_height"] else 0
+        swell_max_ft = swell_height_ft(day_swell["swell_height"])
 
         forecast_list.append({
             "date": date_str,

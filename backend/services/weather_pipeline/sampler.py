@@ -1,5 +1,6 @@
 import math
 import logging
+from services.weather_pipeline.cycle_provenance import time_provenance
 from typing import Optional, Dict, Any, Tuple, List
 from services.weather_pipeline.schemas import (
     NormalizedProduct, NormalizedPointDetail, NormalizedPointResponse
@@ -136,6 +137,7 @@ class PointSampler:
                 domain=product.domain,
                 layer=product.layer,
                 run_time=product.run_time,
+                **time_provenance(product),
                 valid_time=product.valid_time,
                 is_forecast_authoritative=False,
                 is_estimated=is_estimated,
@@ -542,6 +544,7 @@ class PointSampler:
             domain=product.domain,
             layer=product.layer,
             run_time=product.run_time,
+            **time_provenance(product),
             valid_time=product.valid_time,
             is_forecast_authoritative=False,
             is_estimated=False,
@@ -576,6 +579,7 @@ class PointSampler:
             domain=product.domain,
             layer=product.layer,
             run_time=product.run_time,
+            **time_provenance(product),
             valid_time=product.valid_time,
             is_forecast_authoritative=not is_estimated,
             is_estimated=is_estimated,

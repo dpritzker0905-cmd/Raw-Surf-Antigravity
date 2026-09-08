@@ -138,6 +138,9 @@ function frameToWindData(frame, model) {
   // product_id + traceId instead of reconstructing divergent tags ("Product: undefined" +
   // different traceIds per stage — user log 07-10).
   const truthTag = renderable ? buildTruthTag({
+    model_run_time: frame.model_run_time,
+    model_run_time_status: frame.model_run_time_status,
+    ingested_at: frame.ingested_at,
     grid: { vectors: mappedVectors, cols: frame.cols, rows: frame.rows, bounds: frame.bounds },
     model: model || 'GFS', domain: 'wind', layer: 'wind',
     valid_time: frame.valid_time, run_time: frame.run_time,

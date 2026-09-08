@@ -1164,12 +1164,10 @@ jobs:
           python-version: '3.12'
 
       # No pip install: the script is stdlib + the `gh` CLI, which is preinstalled on the runner.
-      # ⛔ `--branch dev` is PINNED and not derived from the current ref. The lanes accumulate their
-      # green history on dev (every push there is also the backend deploy), so a run triggered from
-      # main or from a PR must still read dev's history — deriving the branch would make this job
-      # refuse on every branch that has no CI history of its own, which is most of them.
+      # Compare pushes with their own branch; PRs with their base branch. Main and dev have
+      # different test estates. No branch history is an explicit refusal, never a dev fallback.
       - name: "🔍 Are the ratchet floors still current, or has CI outgrown them?"
         working-directory: backend
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python scripts/ci_floor_staleness.py --branch dev
+        run: python scripts/ci_floor_staleness.py

@@ -388,7 +388,7 @@ def fetch_global_coarse(payload):
                     "latitude": float(la), "longitude": float(lo),
                     "generationtime_ms": 0, "utc_offset_seconds": 0,
                     "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
-                    "__provider": "dwd",
+                    "__provider": "dwd", "__model_run_time": cycle_dt.isoformat(),
                     "hourly_units": {"time": "iso8601", **OM_UNITS,
                                      **({DIR_CONFIDENCE_OM: "fraction"} if export_confidence else {})},
                     "hourly": hourly,

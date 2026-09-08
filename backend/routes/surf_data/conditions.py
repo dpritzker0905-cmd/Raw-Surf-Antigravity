@@ -65,14 +65,16 @@ def _load_ratings_blob():
 def _frame_conditions_entry(e, updated_at):
     """Map a precomputed frame spot to the batch payload — BYTE-SHAPE IDENTICAL to the live
     entry (six keys; the frozen frontend spreads these). `label` derives through the SAME public
-    ladder the live producer uses, so the two paths cannot disagree about a word."""
+    ladder the live producer uses. Legacy frames lack primary swell: publish None, retaining
+    the fast path, rather than inventing a swell measurement from total offshore Hs."""
     from services.conditions_labels import get_conditions_label
     from services.weather_pipeline.spot_conditions import M_TO_FT
+    from services.weather_pipeline.spot_conditions import swell_height_ft
     h_ft = round(float(e["surf_height_m"]) * M_TO_FT, 1)
     return {"wave_height_ft": h_ft,
             "wave_direction": e["swell_from_deg"],
             "wave_period": e["period_s"],
-            "swell_height_ft": round(float(e["offshore_hs_m"]) * M_TO_FT, 1),
+            "swell_height_ft": swell_height_ft(e.get("primary_swell_hs_m")),
             "label": get_conditions_label(h_ft),
             "updated_at": updated_at}
 

@@ -64,12 +64,16 @@ def intern_frame_runs(frame: dict) -> dict:
     table, index = [], {}
     spots = frame.get("spots") or []
     for sp in spots:
-        pair = (sp.pop("run_time", None), sp.pop("wind_run_time", None))
-        if pair == (None, None):
+        evidence = sp.pop("time_provenance", None)
+        pair = (sp.pop("run_time", None), sp.pop("wind_run_time", None),
+                json.dumps(evidence, sort_keys=True) if evidence is not None else None)
+        if pair == (None, None, None):
             continue                                  # nothing known — no index, expands to None
         if pair not in index:
             index[pair] = len(table)
             table.append([pair[0], pair[1]])
+            if evidence is not None:
+                table[-1].append(evidence)  # optional third column; old readers retain the pair
         sp["run"] = index[pair]
     if table:
         frame["runs"] = table
@@ -91,7 +95,9 @@ def expand_frame_runs(spots: list, frame: dict) -> list:
         idx = sp.get("run")
         pair = table[idx] if isinstance(idx, int) and 0 <= idx < len(table) else (None, None)
         out.append({k: v for k, v in sp.items() if k != "run"}
-                   | {"run_time": pair[0], "wind_run_time": pair[1]})
+                   | {"run_time": pair[0], "wind_run_time": pair[1]}
+                   | ({"time_provenance": json.loads(json.dumps(pair[2]))}
+                      if len(pair) > 2 else {}))
     return out
 
 

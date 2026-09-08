@@ -30,7 +30,7 @@ exited 0, because the only gate was absolute MAE (0.176 m vs a 0.40 m bound). Au
 corrective action on 2026-08-10 ("adding a persistence + Open-Meteo row to the RED criterion is
 still unstarted"); it was still unstarted on 08-12. See evaluate_scored_segment for the three
 severities and why they differ. THE MARGIN IS NOT TUNED TO PASS: the skill floor sits at 0.0 and
-noise is rejected by requiring MAE and win rate to AGREE, not by widening the bound.
+the operational rule requires MAE and win rate to agree. This is not a significance test.
 
 SELF-EXPIRING GRACE for the skill-ledger gates: the ledger fix (5e181f69, 2026-08-08) needs one
 calibration cron to attach forecast_skill_ops, and ~72 h for the surviving pending cohort's targets
@@ -99,8 +99,8 @@ def default_cfg():
         # scaled to paired keys (measured 2026-08-12: the live rows carry n_paired 371..1963).
         "paired_min_n": 200,
         # THE SKILL FLOOR IS THE SIGN, NOT A TUNED NUMBER. 0.0 = any real loss to persistence
-        # counts. "Real" is enforced by requiring MAE and win-rate to AGREE (see below), not by
-        # inflating this margin until today's data passes -- which the F-06 constraint forbids.
+        # counts under this operational rule. Agreement does not remove sample dependence;
+        # do not inflate the margin until today's data passes.
         "paired_persistence_margin_m": 0.0,
         # BASIS, stated so a re-tune has provenance: the largest public-reference gap ever recorded
         # is +0.081 m (Audit 11.1, 2026-08-10, n=714..799) and it has since narrowed to +0.063 m
@@ -240,10 +240,8 @@ def _gradeable(c, cfg):
 
 
 def _loses(c, margin):
-    """A loss both statistics agree on. `head_to_head`'s own docstring is the reason: "one storm
-    can move an MAE and cannot move a win rate". Requiring agreement is what keeps the skill-floor
-    margin honest at 0.0 -- the noise is rejected by the SECOND statistic, not by inflating the
-    first until today's data happens to pass."""
+    """Operational loss criterion. Correlated observations can move both statistics together;
+    agreement alone is not proof of statistical significance."""
     return c["delta_m"] > margin and c["win_rate"] < 0.50
 
 
@@ -271,7 +269,8 @@ def evaluate_scored_segment(rows, now, paired=None, cfg=None):
         return (REFUSED, ["::error::SKILL FLOOR UNMEASURED -- " + line + " and the paired gate is "
                           "armed. This is refusal, not health."]) if armed else \
                (OK, [line + " -- informational only"])
-    week = [r for r in rows if (t := _parse_iso(r.get("target_time"))) and now - t <= timedelta(days=7)]
+    week = [r for r in rows if (t := _parse_iso(r.get("target_time")))
+            and timedelta(0) <= now - t <= timedelta(days=7)]
     lines = ["scored archive: %d rows this month, %d with targets in trailing 7d" % (len(rows), len(week))]
     for s in skill_summary(week):
         lines.append("  %-22s +%dh  n=%-5d mae=%.3f bias=%+.3f"
@@ -284,7 +283,9 @@ def evaluate_scored_segment(rows, now, paired=None, cfg=None):
     # is the only one of the two that supports a "we lose" sentence -- and the only one that gates.
     h2h = head_to_head(week) if paired is None else paired
     if not h2h:
-        return OK, lines
+        return (REFUSED if armed else OK), lines + [
+            ("::error::" if armed else "::warning::")
+            + "SKILL FLOOR UNMEASURED -- no paired comparisons in the trailing 7 d."]
     lines.append("  -- PAIRED head-to-head (same buoy x target x lead; the comparable one) --")
     for c in h2h:
         skew = ""
@@ -322,9 +323,9 @@ def evaluate_scored_segment(rows, now, paired=None, cfg=None):
                     key=lambda c: c["lead_h"]):
         sev, msg = _sev(
             "SKILL FLOOR BREACHED at +%dh -- we lose to `%s` on n=%d paired keys: MAE %.3f vs "
-            "%.3f (delta %+.3f m) AND win rate %.0f%% < 50%%. Both statistics agree, so this is "
-            "not one storm. A lane that cannot beat 'tomorrow = today' is adding no value at this "
-            "lead." % (c["lead_h"], c["source"], c["n_paired"], c["mae_ours_m"],
+            "%.3f (delta %+.3f m) AND win rate %.0f%% < 50%%. This breaches the operational "
+            "skill floor; correlated observations mean these statistics alone do not establish "
+            "significance." % (c["lead_h"], c["source"], c["n_paired"], c["mae_ours_m"],
                        c["mae_theirs_m"], c["delta_m"], 100.0 * c["win_rate"]))
         code = combine(code, sev)
         lines.append(msg)

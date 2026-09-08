@@ -19,6 +19,7 @@ a test that needs a token is a test that skips in half the places it runs, and a
 a guard stops guarding.
 """
 import os
+import platform
 import re
 import sys
 
@@ -29,6 +30,32 @@ if BACKEND not in sys.path:
     sys.path.insert(0, BACKEND)
 
 from scripts import ci_floor_staleness as S            # noqa: E402
+
+
+def test_test_fixtures_leave_platform_metadata_usable():
+    assert platform.system()
+    assert platform.node()
+
+
+@pytest.mark.parametrize('environment,expected', [
+    ({'GITHUB_REF_NAME': 'dev'}, 'dev'),
+    ({'GITHUB_REF_NAME': 'main'}, 'main'),
+    ({'GITHUB_REF_NAME': '13/merge', 'GITHUB_BASE_REF': 'main'}, 'main'),
+])
+def test_history_branch_follows_the_tested_branch(monkeypatch, environment, expected):
+    monkeypatch.delenv('GITHUB_REF_NAME', raising=False)
+    monkeypatch.delenv('GITHUB_BASE_REF', raising=False)
+    for key, value in environment.items():
+        monkeypatch.setenv(key, value)
+    assert S.history_branch() == expected
+
+
+def test_local_history_requires_an_explicit_branch(monkeypatch):
+    monkeypatch.delenv('GITHUB_REF_NAME', raising=False)
+    monkeypatch.delenv('GITHUB_BASE_REF', raising=False)
+    with pytest.raises(S.Refusal):
+        S.history_branch()
+    assert S.history_branch('main') == 'main'
 
 
 def test_the_floors_can_still_be_found_in_the_workflow():

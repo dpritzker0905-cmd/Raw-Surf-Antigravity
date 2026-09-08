@@ -4,9 +4,6 @@ Shared test fixtures for the Raw Surf backend test suite.
 Uses httpx.AsyncClient + ASGITransport for testing FastAPI async endpoints
 without needing a running server. This is the FastAPI 2025 recommended pattern.
 """
-import platform
-platform._wmi = None
-
 import os
 import sys
 from pathlib import Path

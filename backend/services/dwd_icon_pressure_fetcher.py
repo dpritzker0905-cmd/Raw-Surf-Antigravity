@@ -173,6 +173,7 @@ def fetch_global_coarse(payload):
                 {"time": "iso8601", "pressure_msl": "hPa"},
                 {"time": times, "pressure_msl": series[pi]},
             ))
+            points[-1]["__model_run_time"] = cycle_dt.isoformat()
             pi += 1
     return points, steps_ok, steps_failed, times
 
