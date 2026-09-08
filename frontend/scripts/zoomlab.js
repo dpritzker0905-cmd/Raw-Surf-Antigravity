@@ -282,6 +282,7 @@ async function main() {
           coarseBridgeActive: g.coarseBridgeActive ?? null,
           washFloor: g.washFloor ? { ...g.washFloor } : null,
           opacityEase: g.opacityEase ? { ...g.opacityEase } : null,
+          bridgeHandoff: g.bridgeHandoff ? { ...g.bridgeHandoff } : null,
           coarseBridgeGrace: g.coarseBridgeGrace ? { ...g.coarseBridgeGrace } : null,
           hasCoarseTexture: !!(eng._coarseBaseData && eng._coarseBaseData.u_waveTexture),
           viewport: (() => {

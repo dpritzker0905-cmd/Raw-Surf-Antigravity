@@ -1,13 +1,11 @@
 /**
  * WebGLMarineEngine.js
- * Ocean GPU v2 — Fully GPU-native, raster-free marine rendering engine.
- * Renders pulsing, perpendicular wave fronts using gl.drawArrays(gl.LINES)
- * overlayed on a smooth, continuous GPU wave height heatmap.
- * Strictly conforms to WebGL State Isolation Protocol and is < 600 lines of code.
+ * GPU marine rendering engine. Historical policy predicates are retained in dedicated modules.
  */
 
 import { recordTruthStage } from './weatherTruthTracker';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
+import { applyBridgeHandoffWash } from './marineBridgeHandoff';
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
@@ -1384,6 +1382,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // ReferenceError, not dead code (the reader's own gate is `blendEngaged`, the same condition that
     // fills this in). Keep it out here; do NOT re-narrow it into the block.
     let _washOpacityEff = 0;
+    this._bridgeHandoffScale = 1;
+    if (!blendEngaged) this._bridgeHandoffState = null;
     if (blendEngaged) {
       // Same degraded-drop as the main pass: a false-land overlay must not clip the wash either.
       const baseOverlay = (this._overlayMaskTex && this._overlayMaskBounds && !_degradedDrop)
@@ -1439,9 +1439,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (typeof window !== 'undefined' && window.__RAW_GPU__) {
         window.__RAW_GPU__.baseCrispMask = !!baseCrispMask;
         window.__RAW_GPU__.washNoTruthDamp = _noTruthDamp && baseWashOpacity > 0;
-        // The FINAL wash opacity handed to the base pass (2026-07-16 zoom-clear forensics).
+        // Final wash; the optional handoff updates this diagnostic at the draw boundary.
         window.__RAW_GPU__.washEff = +_washOpacityEff.toFixed(3);
       }
+      _washOpacityEff = applyBridgeHandoffWash(this, _washOpacityEff, mult, _bridgeActive, !!viewportBounds && _washResidentCovers, window, performance.now());
       this._drawCoarseBasePass(gl, mat4, themeVal, time, _washOpacityEff, baseOverlay || baseCrispMask);
     }
 
@@ -1770,6 +1771,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
     // Last DRAWN value — the ease stamp chains from this so mid-ease re-commits stay smooth.
     // (Stored PRE-veil: the veil below is a bounded final multiplier, not part of the ease chain.)
+    heatmapOpacity *= this._bridgeHandoffScale;
     this._lastHeatmapOpacity = heatmapOpacity;
 
     // COLD-ACTIVATION COARSE VEIL apply (see resolveColdVeil + the setWaveData stamp): final
@@ -1981,7 +1983,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
       // Tiny-tile parity applies to the crest/particle ink too — a fully-faded heatmap with
       // crisp crest animation inside the tile is still an animated rectangle.
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult * _tinyTileFadeVal);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult * _tinyTileFadeVal * this._bridgeHandoffScale);
 
       // Constant-screen-density (flow-viz best practice): keep a FIXED number of seeded crests on screen at every
       // zoom instead of an ad-hoc per-zoom fraction. Particles live in a tile ~Nx the screen; the viewport's share
@@ -3151,6 +3153,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
 };
 
 WebGLMarineEngine.prototype.clearBuffers = function(gl) {
+  this._bridgeHandoffState = null;
   if (!gl) return;
   console.log('[WebGLMarineEngine-Clear] Clearing resident wave textures and waveData');
   recordMarineEvent('engine_clear', {

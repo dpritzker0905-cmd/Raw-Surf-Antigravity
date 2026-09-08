@@ -1,0 +1,74 @@
+[
+  {
+    "name": "on_time",
+    "errors": [],
+    "layerErrors": 0,
+    "minPainted": 194596,
+    "maxStep": 0.717502497311159,
+    "minMult": 1
+  },
+  {
+    "name": "delayed",
+    "errors": [],
+    "layerErrors": 0,
+    "minPainted": 194596,
+    "maxStep": 32.70184677522032,
+    "minMult": 0
+  },
+  {
+    "name": "delayed_repeat",
+    "errors": [],
+    "layerErrors": 0,
+    "minPainted": 194596,
+    "maxStep": 32.70184677522032,
+    "minMult": 0
+  },
+  {
+    "name": "value_control",
+    "errors": [],
+    "layerErrors": 0,
+    "minPainted": 194596,
+    "maxStep": 0.3615889526317062,
+    "minMult": 1
+  },
+  {
+    "name": "blend",
+    "errors": [],
+    "layerErrors": 0,
+    "minPainted": 194596,
+    "maxStep": 9.280549698712008,
+    "minMult": 0
+  },
+  {
+    "name": "blend_repeat",
+    "errors": [],
+    "layerErrors": 0,
+    "minPainted": 194596,
+    "maxStep": 9.280549698712008,
+    "minMult": 0
+  },
+  {
+    "name": "on_time_blend",
+    "errors": [],
+    "layerErrors": 0,
+    "minPainted": 194596,
+    "maxStep": 0.717502497311159,
+    "minMult": 1
+  },
+  {
+    "name": "delayed_60hz",
+    "errors": [],
+    "layerErrors": 0,
+    "minPainted": 194596,
+    "maxStep": 32.707122405913665,
+    "minMult": 0
+  },
+  {
+    "name": "blend_60hz",
+    "errors": [],
+    "layerErrors": 0,
+    "minPainted": 194596,
+    "maxStep": 1.8572152059661846,
+    "minMult": 0
+  }
+]

@@ -236,6 +236,24 @@ jobs:
           process.exit(bad ? 1 : 0);
           JS
 
+      # Actual shaders and custom layer, fixed synthetic inputs, no production services. The
+      # opt-in repair must improve a reproduced delay failure without changing the default draw.
+      - name: Install browser for controlled marine handoff
+        working-directory: frontend
+        run: npx playwright install chromium --with-deps
+      - name: Controlled WebGL handoff experiment
+        run: node frontend/scripts/marine-handoff-lab/run.cjs /tmp/marine-handoff-lab
+      - name: Upload controlled handoff evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: marine-handoff-lab-${{ github.run_id }}
+          path: |
+            /tmp/marine-handoff-lab/*.json
+            /tmp/marine-handoff-lab/*.png
+          if-no-files-found: error
+          retention-days: 14
+
   backend-lint:
     runs-on: ubuntu-latest
 

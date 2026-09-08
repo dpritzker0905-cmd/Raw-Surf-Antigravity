@@ -10,7 +10,12 @@
 name: Marine Nightly (contract + zoomlab)
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      handoff_blend:
+        description: 'Test the opt-in coarse-to-regional handoff blend (not a release approval)'
+        type: boolean
+        default: false
   schedule:
     - cron: '30 6 * * *'   # 06:30 UTC daily — after the 04:15Z ingest cycle's serve restore
 
@@ -93,6 +98,7 @@ jobs:
         working-directory: frontend
         env:
           ZL_BASE: http://localhost:3009
+          ZL_FLAGS: ${{ inputs.handoff_blend && '__RAW_ENABLE_BRIDGE_HANDOFF_BLEND__' || '' }}
         run: node scripts/zoomlab.js staircase_full /tmp/zoomlab-out
       - name: Verdict (budgeted)
         run: |
