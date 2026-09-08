@@ -64,7 +64,7 @@ GAMMA = 0.78        # reference depth-limited breaking index (solitary-wave / Mc
 # Kill: SURF_GAMMA_FIELD_CEILING=0 restores the pre-2026-08-05 laboratory ceilings.
 GAMMA_MIN = 0.63    # short-period windchop breaks low + mushy (spilling) — Carini spilling floor
 GAMMA_MAX = 0.81    # long-period groundswell breaks tall + violent (plunging) — Carini plunging max
-GAMMA_MAX_STEEP = 0.81  # a steep reef cannot exceed the field-observed individual-wave maximum
+GAMMA_MAX_STEEP = 0.81  # adopted field-study ceiling; not a universal maximum for all reefs
 _GAMMA_MIN_LEGACY, _GAMMA_MAX_LEGACY, _GAMMA_MAX_STEEP_LEGACY = 0.62, 1.05, 1.25
 
 # ★★★ REFRACTION — the ACTUAL partner of SURF_HEIGHT_H110, and the reason neither shipped alone.

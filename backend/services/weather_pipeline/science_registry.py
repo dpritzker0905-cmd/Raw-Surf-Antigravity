@@ -4,8 +4,8 @@ and its PUBLISHED VALIDITY RANGE, in one machine-readable place.
 WHY THIS EXISTS (2026-08-05)
 ---------------------------
 `GAMMA_MAX_STEEP = 1.25` sat in `surf_transform.py` for weeks with a docstring citing Weggel (1972)
-and Kaminsky (1994). Both citations are real. The value is still **54% above the highest breaker
-index ever measured in the field** (Carini et al. 2021: plunging 0.73-0.81 over 1,600+ waves at the
+and Kaminsky (1994). Both citations are real. The value is still **54% above the upper plunging
+range reported in one field study** (Carini et al. 2021: plunging 0.73-0.81 over 1,600+ waves at the
 Duck FRF). Nobody caught it, because the provenance lived in PROSE and prose is not checkable: a
 docstring can name a source without the value being inside what that source observed.
 
@@ -32,7 +32,7 @@ HOW TO USE IT
 
 CONVENTIONS
 -----------
-* `method` is how the number was OBSERVED, and it is load-bearing: FIELD beats LAB beats MODEL.
+* `method` records how the number was obtained; relevance depends on regime and measured quantity.
   A laboratory plane-slope regular-wave value does not automatically apply to a field significant
   wave height -- see GAMMA_MAX_STEEP's own note.
 * `published_range` is what the SOURCE observed or validated, NOT what we would like to be true.

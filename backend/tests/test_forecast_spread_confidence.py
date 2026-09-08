@@ -25,6 +25,9 @@ from services.weather_pipeline.forecast_spread import (          # noqa: E402
 @pytest.mark.parametrize("spread,height", [
     (None, 2.0), (0.2, None), (None, None),
     (float("nan"), 2.0), (0.2, float("nan")),
+    (float("inf"), 1.0), (1.0, float("inf")),
+    (float("inf"), float("inf")),
+    (1e308, 1e-308),  # finite operands can still overflow their ratio
     (-0.1, 2.0),
 ])
 def test_unanswerable_inputs_return_None_never_zero(spread, height):

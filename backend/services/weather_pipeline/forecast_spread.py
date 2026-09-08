@@ -34,6 +34,7 @@ silently inflate the ratio by whatever the nearshore transform did.
 """
 from __future__ import annotations
 
+import math
 import os
 from typing import Optional
 
@@ -69,11 +70,12 @@ def relative_spread(spread_m, offshore_height_m) -> Optional[float]:
         h = float(offshore_height_m)
     except (TypeError, ValueError):
         return None
-    if sd != sd or h != h:                 # NaN defeats every comparison; catch by self-inequality
+    if not math.isfinite(sd) or not math.isfinite(h):
         return None
     if sd < 0.0 or h <= 0.0:
         return None
-    return sd / h
+    ratio = sd / h
+    return ratio if math.isfinite(ratio) else None
 
 
 def confidence_level(spread_m, offshore_height_m) -> Optional[str]:
