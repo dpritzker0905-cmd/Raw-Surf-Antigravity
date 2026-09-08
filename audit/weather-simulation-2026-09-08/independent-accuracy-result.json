@@ -1,0 +1,12 @@
+{
+  "healthy": {
+    "monitor_exit": 0,
+    "offline_replay_verified": true,
+    "tampering_rejected": true
+  },
+  "paired_loss": {
+    "monitor_exit": 1,
+    "offline_replay_verified": true,
+    "tampering_rejected": true
+  }
+}

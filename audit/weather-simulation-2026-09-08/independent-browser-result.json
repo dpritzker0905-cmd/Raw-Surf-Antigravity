@@ -1,0 +1,19 @@
+{
+  "kind": "Controlled browser fault injection, not production health",
+  "browser": "152.0.4191.66",
+  "retained": {
+    "requests": [
+      {
+        "origin": "https://forensic.invalid",
+        "resourceType": "fetch",
+        "errorCode": "net::ERR_NAME_NOT_RESOLVED"
+      }
+    ],
+    "dropped": 0
+  },
+  "same_recorded_frames": 626,
+  "clean": "PASS",
+  "injected_dns": "REFUSE",
+  "injected_renderer_fault": "FAIL",
+  "secret_url_parts_absent": true
+}

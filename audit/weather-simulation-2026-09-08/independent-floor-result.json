@@ -1,0 +1,21 @@
+{
+  "basis": "measured Linux counts from dev34279488030 and PR34281409579",
+  "unchanged_floors_pass": true,
+  "independent_mutations": [
+    {
+      "changed_lane": "guards",
+      "intervention": "pass floor lowered by one beyond existing margin",
+      "detected": true
+    },
+    {
+      "changed_lane": "chain",
+      "intervention": "pass floor lowered by one beyond existing margin",
+      "detected": true
+    },
+    {
+      "changed_lane": "estate",
+      "intervention": "pass floor lowered by one beyond existing margin",
+      "detected": true
+    }
+  ]
+}
