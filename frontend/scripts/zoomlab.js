@@ -277,6 +277,17 @@ async function main() {
             ? [g.heatmapGate.resident.gateValue, g.heatmapGate.resident.clipValue, g.heatmapGate.resident.terminal] : null,
           mDel: g.maskDelivered ? [g.maskDelivered.deliveredShort ? 1 : 0, g.maskDelivered.forcedRepaint ? 1 : 0] : null,
           bridge: (window.__MARINE_ZOOMOUT_BRIDGE__ || {}).count || 0,
+          // `bridge` above counts promotions, not whether the coarse wash is drawing.
+          // Preserve the actual draw decision so mult=0 cannot be mistaken for a blank sea.
+          coarseBridgeActive: g.coarseBridgeActive ?? null,
+          washFloor: g.washFloor ? { ...g.washFloor } : null,
+          opacityEase: g.opacityEase ? { ...g.opacityEase } : null,
+          coarseBridgeGrace: g.coarseBridgeGrace ? { ...g.coarseBridgeGrace } : null,
+          hasCoarseTexture: !!(eng._coarseBaseData && eng._coarseBaseData.u_waveTexture),
+          viewport: (() => {
+            const b = m.getBounds();
+            return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+          })(),
           drawCalls: g.drawCallsPerFrame,
           hm: g.opacity && g.opacity.heatmap, mult: g.opacity && g.opacity.mult,
           w0: g.washPreDamp, wE: g.washEff,
