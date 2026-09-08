@@ -74,6 +74,7 @@ jobs:
           set -o pipefail
           python3 scripts/forecast_accuracy_monitor.py \
             --base "$BASE" \
+            --evidence-dir accuracy-evidence \
             --red-mae "${{ vars.ACCURACY_RED_MAE_M || '0.40' }}" \
             --warn-mae "${{ vars.ACCURACY_WARN_MAE_M || '0.30' }}" \
             --min-n "${{ vars.ACCURACY_MIN_N || '30' }}" \
@@ -82,3 +83,21 @@ jobs:
             --paired-min-n "${{ vars.ACCURACY_PAIRED_MIN_N || '200' }}" \
             --paired-persistence-margin "${{ vars.ACCURACY_PAIRED_PERSISTENCE_MARGIN_M || '0.0' }}" \
             --paired-reference-margin "${{ vars.ACCURACY_PAIRED_REFERENCE_MARGIN_M || '0.10' }}"
+
+      - name: Verify offline replay even on a red or refused verdict
+        if: always()
+        working-directory: backend
+        run: python3 -m scripts.accuracy_evidence accuracy-evidence
+
+      # This repository is public. Private archive rows stay on the ephemeral runner.
+      # Only hashes, deployment identity and aggregate integrity counts are uploaded.
+      - name: Preserve public-safe accuracy evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: accuracy-evidence-${{ github.run_id }}
+          path: |
+            backend/accuracy-evidence/manifest.json
+            backend/accuracy-evidence/quality.json
+          if-no-files-found: error
+          retention-days: 30

@@ -399,6 +399,7 @@ def main():
                     default=d["paired_reference_margin_m"])
     ap.add_argument("--as-of", default=None, help="Grade as if it were this UTC instant "
                     "(replay/dry-run only; does not change what is read).")
+    ap.add_argument("--evidence-dir", help="Save exact grading inputs for offline replay.")
     args = ap.parse_args()
     cfg = {"red_mae_m": args.red_mae, "warn_mae_m": args.warn_mae, "min_n": args.min_n,
            "max_report_age_h": args.max_report_age_h,
@@ -420,18 +421,25 @@ def main():
 
     has_creds = bool(os.environ.get("SUPABASE_URL")) and bool(
         os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY"))
+    residuals = scored = None
     if has_creds:
-        rc, rl = evaluate_residual_history(_fetch_l2("calibration/history/residuals-%s.json" % month), now)
+        residuals = _fetch_l2("calibration/history/residuals-%s.json" % month)
+        rc, rl = evaluate_residual_history(residuals, now)
         print("\n".join(rl))
         code = combine(code, rc)
-        sc, sl = evaluate_scored_segment(_fetch_l2("calibration/skill/scored-%s.json" % month),
-                                         now, cfg=cfg)
+        scored = _fetch_l2("calibration/skill/scored-%s.json" % month)
+        sc, sl = evaluate_scored_segment(scored, now, cfg=cfg)
         print("\n".join(sl))
         code = combine(code, sc)
     else:
         print("archive readers skipped (no SUPABASE credentials) -- the report gates above still page")
 
     print("verdict: %s" % {OK: "OK", RED: "RED", REFUSED: "REFUSED (blind, not healthy)"}[code])
+    if args.evidence_dir:
+        from scripts.accuracy_evidence import write_evidence
+        write_evidence(args.evidence_dir, now=now, cfg=cfg, report=report,
+                       residuals=residuals, scored=scored, has_creds=has_creds,
+                       verdict=code, health=_fetch_json(args.base.rstrip("/") + "/api/health"))
     return code
 
 
