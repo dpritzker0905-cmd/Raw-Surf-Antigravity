@@ -8,12 +8,17 @@
 #                    documented budget below.
 # Both are read-only against prod (a handful of /grid GETs + one browser session).
 name: Marine Nightly (contract + zoomlab)
+run-name: ${{ inputs.cadence_probe && 'Marine cadence diagnostic — no visual release verdict' || 'Marine Nightly (contract + zoomlab)' }}
 
 on:
   workflow_dispatch:
     inputs:
       handoff_blend:
         description: 'Test the opt-in coarse-to-regional handoff blend (not a release approval)'
+        type: boolean
+        default: false
+      cadence_probe:
+        description: 'Run a cadence diagnostic instead of the visual verdict; supplies no release approval'
         type: boolean
         default: false
   schedule:
@@ -32,6 +37,7 @@ jobs:
         run: node frontend/scripts/ladder-contract.js
 
   zoomlab-battery:
+    name: ${{ inputs.cadence_probe && 'cadence diagnostic (not a visual verdict)' || 'zoomlab-battery' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -95,12 +101,22 @@ jobs:
           done
           echo "dev server never came up"; tail -50 /tmp/devserver.log; exit 1
       - name: Run staircase battery
+        if: ${{ !inputs.cadence_probe }}
         working-directory: frontend
         env:
           ZL_BASE: http://localhost:3009
           ZL_FLAGS: ${{ inputs.handoff_blend && '__RAW_ENABLE_BRIDGE_HANDOFF_BLEND__' || '' }}
         run: node scripts/zoomlab.js staircase_full /tmp/zoomlab-out
+      - name: Measure app cadence and observer cost (diagnostic only)
+        if: ${{ inputs.cadence_probe }}
+        working-directory: frontend
+        env:
+          ZL_BASE: http://localhost:3009
+        run: |
+          echo '### Cadence diagnostic — no visual or scientific release verdict' >> "$GITHUB_STEP_SUMMARY"
+          node scripts/marine-cadence.cjs /tmp/zoomlab-out
       - name: Verdict (budgeted)
+        if: ${{ !inputs.cadence_probe }}
         run: |
           set +e
           node frontend/scripts/zoomlab-verdict.js /tmp/zoomlab-out/trace_staircase_full.json --scenario staircase_full --json \
