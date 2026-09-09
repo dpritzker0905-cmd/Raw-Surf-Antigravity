@@ -143,12 +143,37 @@ async function measurePage(page) {
 
 async function main() {
   fs.mkdirSync(out, { recursive: true });
-  const browser = await chromium.launch({ headless: true,
-    ...(process.env.HANDOFF_BROWSER_CHANNEL ? { channel: process.env.HANDOFF_BROWSER_CHANNEL } : {}),
-    args: ['--enable-unsafe-swiftshader', '--disable-background-timer-throttling',
-      '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
+  const launchArgs = ['--enable-unsafe-swiftshader', '--disable-background-timer-throttling',
+    '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'];
+  const launch = args => chromium.launch({ headless: true, args,
+    ...(process.env.HANDOFF_BROWSER_CHANNEL ? { channel: process.env.HANDOFF_BROWSER_CHANNEL } : {}) });
+  const capability = async browser => {
+    const page = await browser.newPage();
+    try {
+      return { browserVersion: browser.version(), ...await page.evaluate(() => {
+        const gl = document.createElement('canvas').getContext('webgl2', { powerPreference: 'high-performance' });
+        if (!gl) return { webgl2: false, timerAvailable: false };
+        const ext = gl.getExtension('WEBGL_debug_renderer_info');
+        return { webgl2: true, timerAvailable: !!gl.getExtension('EXT_disjoint_timer_query_webgl2'),
+          renderer: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
+          extensions: gl.getSupportedExtensions() };
+      }) };
+    } finally { await page.close(); }
+  };
+  // Chromium may classify GPU timers as developer extensions. Preserve the default-browser
+  // control; the developer flag applies only to this diagnostic, never the visual verdict.
+  const capabilities = [], controlBrowser = await launch(launchArgs);
+  try { capabilities.push({ launchArgs: [...launchArgs], ...await capability(controlBrowser) }); }
+  finally { await controlBrowser.close(); }
+  launchArgs.push('--enable-webgl-developer-extensions');
+  const browser = await launch(launchArgs);
   const results = [];
   try {
+    capabilities.push({ launchArgs, ...await capability(browser) });
+    fs.writeFileSync(path.join(out, 'gpu-capability.json'), JSON.stringify({ sourceCommit: process.env.GITHUB_SHA,
+      diagnosticOnly: true, capabilities }, null, 2) + '\n');
+    assert(capabilities[1].timerAvailable, 'GPU timers unavailable with developer extensions; pass cost remains unmeasured');
+    if (process.argv.includes('--capability-only')) return;
     for (const video of [false, true]) {
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block',
         ...(video ? { recordVideo: { dir: out, size: { width: 1280, height: 800 } } } : {}) });
@@ -165,7 +190,7 @@ async function main() {
         const measurement = await measurePage(page);
         const result = { video, errors, ...measurement }; results.push(result);
         const write = () => fs.writeFileSync(path.join(out, 'cadence.json'), JSON.stringify({
-          diagnosticOnly: true, sourceCommit: process.env.GITHUB_SHA, results }, null, 2) + '\n');
+          diagnosticOnly: true, sourceCommit: process.env.GITHUB_SHA, launchArgs, results }, null, 2) + '\n');
         write();
         try { result.renderProfile = await page.evaluate(measureMarinePasses); }
         catch (error) { result.renderProfileError = error.message; write(); throw error; }
