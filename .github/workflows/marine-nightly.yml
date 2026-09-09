@@ -128,6 +128,7 @@ jobs:
         working-directory: frontend
         env:
           ZL_BASE: http://localhost:3009
+          COASTAL_COMPARE_ZERO_DRAWS: 'true'
         run: |
           echo '### Coastal replay diagnostic — no visual or scientific release verdict' >> "$GITHUB_STEP_SUMMARY"
           node scripts/marine-coastal-replay/run.cjs /tmp/zoomlab-out

@@ -12,21 +12,7 @@ async function main() {
     return;
   }
   fs.mkdirSync(out, { recursive: true });
-  await new Promise((resolve, reject) => webpack({
-    mode: 'development', context: root, target: 'web', devtool: false,
-    entry: path.join(__dirname, 'browser.js'),
-    output: { path: out, filename: 'bundle.js', publicPath: '' },
-    resolve: { modules: [path.join(root, 'frontend/node_modules'), 'node_modules'],
-      extensions: ['.js', '.jsx', '.json'], alias: { '@': path.join(root, 'frontend/src') } },
-    module: { rules: [{ test: /\.jsx?$/, exclude: /node_modules/, use: {
-      loader: path.join(root, 'frontend/node_modules/babel-loader'), options: {
-        babelrc: false, configFile: false, presets: [path.join(root, 'frontend/node_modules/babel-preset-react-app')],
-      } } }] },
-    plugins: [new webpack.DefinePlugin({ 'process.env': JSON.stringify({ NODE_ENV: 'test' }) })],
-  }, (error, stats) => {
-    if (error || stats.hasErrors()) reject(error || new Error(stats.toString({ all: false, errors: true })));
-    else resolve();
-  }));
+  await compileLab(out);
   const browser = await chromium.launch({ headless: true,
     ...(process.env.HANDOFF_BROWSER_CHANNEL ? { channel: process.env.HANDOFF_BROWSER_CHANNEL } : {}) });
   const results = [];
@@ -56,6 +42,24 @@ async function main() {
   fs.writeFileSync(path.join(out, 'results.json'), JSON.stringify(results, null, 2) + '\n');
   const summary = verifyResults(results);
   fs.writeFileSync(path.join(out, 'summary.json'), JSON.stringify(summary, null, 2) + '\n');
+}
+
+async function compileLab(out) {
+  await new Promise((resolve, reject) => webpack({
+    mode: 'development', context: root, target: 'web', devtool: false,
+    entry: path.join(__dirname, 'browser.js'),
+    output: { path: out, filename: 'bundle.js', publicPath: '' },
+    resolve: { modules: [path.join(root, 'frontend/node_modules'), 'node_modules'],
+      extensions: ['.js', '.jsx', '.json'], alias: { '@': path.join(root, 'frontend/src') } },
+    module: { rules: [{ test: /\.jsx?$/, exclude: /node_modules/, use: {
+      loader: path.join(root, 'frontend/node_modules/babel-loader'), options: {
+        babelrc: false, configFile: false, presets: [path.join(root, 'frontend/node_modules/babel-preset-react-app')],
+      } } }] },
+    plugins: [new webpack.DefinePlugin({ 'process.env': JSON.stringify({ NODE_ENV: 'test' }) })],
+  }, (error, stats) => {
+    if (error || stats.hasErrors()) reject(error || new Error(stats.toString({ all: false, errors: true })));
+    else resolve();
+  }));
 }
 
 function verifyResults(results) {
@@ -95,5 +99,5 @@ function verifyResults(results) {
   console.log('PASS: real WebGL controls, repeatability, continuity, convergence and unchanged on-time path. Coastal/app validation remains separate.');
   return summary;
 }
-module.exports = { verifyResults };
+module.exports = { verifyResults, compileLab };
 if (require.main === module) main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -1,6 +1,8 @@
 const assert = require('node:assert/strict');
 const { hash } = require('./fixture.cjs');
 const names = ['default', 'blend', 'blend_repeat', 'default_repeat'];
+const replayPlan = compare => names.flatMap((name, i) => (compare ? (i % 2 ? [false, true] : [true, false]) : [false])
+  .map(legacyDraws => ({ name, legacyDraws })));
 
 function verifyReplay(report) {
   assert.equal(report.diagnosticOnly, true, 'Must be labeled diagnostic');
@@ -47,4 +49,15 @@ function verifyReplay(report) {
   }
   return { diagnosticOnly: true, measurement: 'Complete delivered-grid coastal replay; no visual/scientific release verdict', summaries };
 }
-module.exports = { verifyReplay, names };
+function verifyDrawComparison(report) {
+  assert.deepEqual(report.results.map(({ name, legacyDraws }) => ({ name, legacyDraws })), replayPlan(true), 'Missing draw comparison leg');
+  const summaries = [true, false].map(legacyDraws => ({ legacyDraws,
+    ...verifyReplay({ ...report, results: report.results.filter(r => r.legacyDraws === legacyDraws) }) }));
+  const first = report.results[0];
+  for (const r of report.results) {
+    assert.deepEqual(r.inputHashes, first.inputHashes, 'Draw comparison inputs differ');
+    assert.deepEqual(r.samples.map(s => s.valuesSha256), first.samples.map(s => s.valuesSha256), 'Draw comparison masks differ');
+  }
+  return { diagnosticOnly: true, measurement: 'Same delivered inputs, counterbalanced transparent-draw controls. No release verdict.', summaries };
+}
+module.exports = { verifyReplay, verifyDrawComparison, replayPlan, names };

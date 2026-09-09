@@ -7,6 +7,7 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { applyBridgeHandoffWash } from './marineBridgeHandoff';
 import { probeMarineMaskGPU } from './marineMaskProbe';
+import { shouldDrawMarinePass } from './marineDrawVisibility';
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
@@ -1865,7 +1866,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     // DEGREES here; the particle pass below uses its own mercator-unit offsets [0, ∓1]. Both were
     // function-scoped `var worldOffsets` until 2026-07-31 — same name, same scope, different UNITS.
-    const worldOffsets = _needWrap ? [0.0, -360.0, 360.0] : [0.0];
+    const worldOffsets = shouldDrawMarinePass(heatmapOpacity, debugModeVal) ? (_needWrap ? [0.0, -360.0, 360.0] : [0.0]) : [];
     for (let wi = 0; wi < worldOffsets.length; wi++) {
       gl.uniform1f(heatLngOffsetLoc, worldOffsets[wi]);
       gl.drawElements(gl.TRIANGLES, this.numGridIndices, gl.UNSIGNED_SHORT, 0);
@@ -1984,7 +1985,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
       // Tiny-tile parity applies to the crest/particle ink too — a fully-faded heatmap with
       // crisp crest animation inside the tile is still an animated rectangle.
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult * _tinyTileFadeVal * this._bridgeHandoffScale);
+      const crestOpacity = mult * _tinyTileFadeVal * this._bridgeHandoffScale;
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), crestOpacity);
 
       // Constant-screen-density (flow-viz best practice): keep a FIXED number of seeded crests on screen at every
       // zoom instead of an ad-hoc per-zoom fraction. Particles live in a tile ~Nx the screen; the viewport's share
@@ -2146,7 +2148,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // v5.3: gl.TRIANGLES quad ribbons (6 verts per particle)
       var numQuadVerts = this._numQuadVertices || this.particleRes * this.particleRes * 6;
       // MERCATOR UNITS here (the heatmap pass above uses DEGREES) — see the note at that site.
-      const worldOffsets = _needWrap ? [0.0, -1.0, 1.0] : [0.0];
+      const worldOffsets = shouldDrawMarinePass(crestOpacity, drawDebugModeVal) ? (_needWrap ? [0.0, -1.0, 1.0] : [0.0]) : [];
       for (let wi = 0; wi < worldOffsets.length; wi++) {
         gl.uniform1f(mercOffsetLoc, worldOffsets[wi]);
         gl.drawArrays(gl.TRIANGLES, 0, numQuadVerts);
@@ -3060,7 +3062,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
   }
 
-  const worldOffsets = [0.0, -360.0, 360.0];
+  const worldOffsets = shouldDrawMarinePass(baseOpacity, debugModeVal) ? [0.0, -360.0, 360.0] : [];
   for (let wi = 0; wi < worldOffsets.length; wi++) {
     gl.uniform1f(heatLngOffsetLoc, worldOffsets[wi]);
     gl.drawElements(gl.TRIANGLES, this.numGridIndices, gl.UNSIGNED_SHORT, 0);

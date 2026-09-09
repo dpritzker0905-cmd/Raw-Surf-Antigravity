@@ -247,6 +247,8 @@ jobs:
           node --test frontend/scripts/marine-coastal-replay/verify.test.cjs
           node frontend/scripts/marine-handoff-lab/run.cjs /tmp/marine-handoff-lab
           node frontend/scripts/marine-handoff-lab/verify.test.cjs /tmp/marine-handoff-lab/results.json
+          node frontend/scripts/marine-handoff-lab/visibility.cjs /tmp/marine-visibility-lab
+          node frontend/scripts/marine-handoff-lab/visibility.test.cjs /tmp/marine-visibility-lab/results.json
       - name: Upload controlled handoff evidence
         if: always()
         uses: actions/upload-artifact@v6
@@ -255,6 +257,7 @@ jobs:
           path: |
             /tmp/marine-handoff-lab/*.json
             /tmp/marine-handoff-lab/*.png
+            /tmp/marine-visibility-lab/*.json
           if-no-files-found: error
           retention-days: 14
 

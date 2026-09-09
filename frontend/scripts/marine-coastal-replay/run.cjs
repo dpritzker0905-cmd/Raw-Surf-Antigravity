@@ -4,7 +4,7 @@ const path = require('node:path');
 const { chromium } = require('../../node_modules/@playwright/test');
 const { makeTargets, hash } = require('./fixture.cjs');
 const { replayCoastalHandoff } = require('./browser.cjs');
-const { verifyReplay, names } = require('./verify.cjs');
+const { verifyReplay, verifyDrawComparison, replayPlan } = require('./verify.cjs');
 const out = path.resolve(process.argv[2] || '/tmp/zoomlab-out');
 const base = process.env.ZL_BASE || 'http://localhost:3009';
 const save = (name, value) => fs.writeFileSync(path.join(out, name), JSON.stringify(value, null, 2) + '\n');
@@ -60,9 +60,11 @@ async function main() {
     ...(process.env.HANDOFF_BROWSER_CHANNEL ? { channel: process.env.HANDOFF_BROWSER_CHANNEL } : {}) });
   const report = { diagnosticOnly: true, sourceCommit: process.env.GITHUB_SHA, browserVersion: browser.version(),
     launchArgs, rawInputHashes: { coarse: hash(input.coarse), regional: hash(input.regional) }, results: [] };
+  const compare = process.env.COASTAL_COMPARE_ZERO_DRAWS === 'true';
+  report.compareZeroDraws = compare;
   const write = () => save('coastal-replay.json', report);
   try {
-    for (const name of names) {
+    for (const { name, legacyDraws } of replayPlan(compare)) {
       const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, serviceWorkers: 'block' });
       const errors = [], networkFailures = [];
       try {
@@ -72,6 +74,7 @@ async function main() {
             getRegistration: () => Promise.resolve(null), getRegistrations: () => Promise.resolve([]) };
           Object.defineProperty(navigator, 'serviceWorker', { get: () => mockSW, configurable: true });
         });
+        await context.addInitScript(legacy => { window.__RAW_DISABLE_ZERO_OPACITY_SKIP__ = legacy; }, legacyDraws);
         const page = await context.newPage();
         page.on('pageerror', e => errors.push(e.message));
         page.on('console', m => { if (m.type() === 'error' || m.text().includes('Render error')) errors.push(m.text().slice(0, 500)); });
@@ -80,7 +83,7 @@ async function main() {
         const renderer = await page.evaluate(() => {
           const gl = window.map.painter.context.gl, ext = gl.getExtension('WEBGL_debug_renderer_info');
           return { renderer: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
-            attributes: gl.getContextAttributes() };
+            attributes: gl.getContextAttributes(), legacyDraws: window.__RAW_DISABLE_ZERO_OPACITY_SKIP__ === true };
         });
         try {
           report.results.push({ name, errors, networkFailures, ...renderer,
@@ -90,12 +93,12 @@ async function main() {
             partial: await page.evaluate(() => window.__COASTAL_REPLAY_PARTIAL__ || null), failure: error.message });
           throw error;
         }
-        await page.screenshot({ path: path.join(out, name + '.png') });
-        write(); console.log(`${name}: ${report.results.at(-1).frames.length} frames, ${report.results.at(-1).starts} handoff starts`);
+        await page.screenshot({ path: path.join(out, name + (compare ? (legacyDraws ? '-legacy' : '-skip') : '') + '.png') });
+        write(); console.log(`${name} legacyDraws=${legacyDraws}: ${report.results.at(-1).frames.length} frames, ${report.results.at(-1).starts} handoff starts`);
       } catch (error) { report.failure = `${name}: ${error.message}`; write(); throw error; }
       finally { await context.close(); }
     }
-    const summary = verifyReplay(report); save('coastal-summary.json', summary);
+    const summary = compare ? verifyDrawComparison(report) : verifyReplay(report); save('coastal-summary.json', summary);
     console.log(JSON.stringify(summary));
   } finally { write(); await browser.close(); }
 }

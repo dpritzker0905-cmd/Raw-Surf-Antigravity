@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { makeTargets, hash } = require('./fixture.cjs');
-const { verifyReplay, names } = require('./verify.cjs');
+const { verifyReplay, verifyDrawComparison, replayPlan, names } = require('./verify.cjs');
 
 function input() {
   const grid = { cols: 3, rows: 3, bounds: { west: -82, south: 26, east: -78, north: 30 },
@@ -61,3 +61,22 @@ for (const [name, change] of [
   ['empty draw', r => { r.results[1].frames[16].drawCalls = 0; }],
   ['unfinished transition', r => { r.results[1].frames.at(-1).handoff.scale = .5; }],
 ]) test('replay refuses ' + name, () => { const r = report(); change(r); assert.throws(() => verifyReplay(r)); });
+
+function comparison() {
+  const base = report();
+  return { diagnosticOnly: true, results: replayPlan(true).map(({ name, legacyDraws }) =>
+    ({ ...structuredClone(base.results.find(r => r.name === name)), legacyDraws })) };
+}
+test('counterbalanced draw comparison retains both complete handoff experiments', () => {
+  assert.deepEqual(replayPlan(false), names.map(name => ({ name, legacyDraws: false })));
+  assert.equal(verifyDrawComparison(comparison()).summaries.length, 2);
+});
+for (const [name, change] of [
+  ['missing control leg', r => r.results.pop()],
+  ['wrong kill switch', r => { r.results[1].legacyDraws = true; }],
+  ['differing control inputs', r => { for (const x of r.results.filter(x => x.legacyDraws)) x.inputHashes.coarse = 'b'.repeat(64); }],
+  ['differing masks', r => {
+    const s = r.results[1].samples[0]; s.values[0].effective = 254; s.valuesSha256 = hash(s.values);
+  }],
+  ['control browser error', r => r.results[0].errors.push('timeout')],
+]) test('draw comparison refuses ' + name, () => { const r = comparison(); change(r); assert.throws(() => verifyDrawComparison(r)); });
