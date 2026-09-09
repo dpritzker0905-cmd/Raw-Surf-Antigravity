@@ -244,6 +244,7 @@ jobs:
       - name: Controlled WebGL handoff experiment
         run: |
           node --test frontend/scripts/marine-render-profiler.test.cjs
+          node --test frontend/scripts/marine-coastal-replay/verify.test.cjs
           node frontend/scripts/marine-handoff-lab/run.cjs /tmp/marine-handoff-lab
           node frontend/scripts/marine-handoff-lab/verify.test.cjs /tmp/marine-handoff-lab/results.json
       - name: Upload controlled handoff evidence

@@ -8,7 +8,7 @@
 #                    documented budget below.
 # Both are read-only against prod (a handful of /grid GETs + one browser session).
 name: Marine Nightly (contract + zoomlab)
-run-name: ${{ inputs.cadence_probe && 'Marine cadence diagnostic — no visual release verdict' || 'Marine Nightly (contract + zoomlab)' }}
+run-name: ${{ inputs.coastal_replay && 'Marine coastal replay diagnostic — no release verdict' || inputs.cadence_probe && 'Marine cadence diagnostic — no visual release verdict' || 'Marine Nightly (contract + zoomlab)' }}
 
 on:
   workflow_dispatch:
@@ -19,6 +19,10 @@ on:
         default: false
       cadence_probe:
         description: 'Run a cadence diagnostic instead of the visual verdict; supplies no release approval'
+        type: boolean
+        default: false
+      coastal_replay:
+        description: 'Replay fixed delivered grids in the real coastal map; diagnostic, no release approval'
         type: boolean
         default: false
   schedule:
@@ -37,11 +41,15 @@ jobs:
         run: node frontend/scripts/ladder-contract.js
 
   zoomlab-battery:
-    name: ${{ inputs.cadence_probe && 'cadence diagnostic (not a visual verdict)' || 'zoomlab-battery' }}
+    name: ${{ inputs.coastal_replay && 'coastal replay diagnostic (not a release verdict)' || inputs.cadence_probe && 'cadence diagnostic (not a visual verdict)' || 'zoomlab-battery' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
+      - name: Reject conflicting diagnostic inputs
+        if: ${{ inputs.coastal_replay && inputs.cadence_probe }}
+        run: |
+          echo '::error::Choose coastal_replay or cadence_probe, not both'; exit 1
       - uses: actions/setup-node@v5
         with:
           node-version: 20
@@ -101,7 +109,7 @@ jobs:
           done
           echo "dev server never came up"; tail -50 /tmp/devserver.log; exit 1
       - name: Run staircase battery
-        if: ${{ !inputs.cadence_probe }}
+        if: ${{ !inputs.cadence_probe && !inputs.coastal_replay }}
         working-directory: frontend
         env:
           ZL_BASE: http://localhost:3009
@@ -115,8 +123,16 @@ jobs:
         run: |
           echo '### Cadence diagnostic — no visual or scientific release verdict' >> "$GITHUB_STEP_SUMMARY"
           node scripts/marine-cadence.cjs /tmp/zoomlab-out
+      - name: Replay coastal delivered-grid replacement (diagnostic only)
+        if: ${{ inputs.coastal_replay }}
+        working-directory: frontend
+        env:
+          ZL_BASE: http://localhost:3009
+        run: |
+          echo '### Coastal replay diagnostic — no visual or scientific release verdict' >> "$GITHUB_STEP_SUMMARY"
+          node scripts/marine-coastal-replay/run.cjs /tmp/zoomlab-out
       - name: Verdict (budgeted)
-        if: ${{ !inputs.cadence_probe }}
+        if: ${{ !inputs.cadence_probe && !inputs.coastal_replay }}
         run: |
           set +e
           node frontend/scripts/zoomlab-verdict.js /tmp/zoomlab-out/trace_staircase_full.json --scenario staircase_full --json \
