@@ -236,6 +236,31 @@ jobs:
           process.exit(bad ? 1 : 0);
           JS
 
+      # Actual shaders and custom layer, fixed synthetic inputs, no production services. The
+      # opt-in repair must improve a reproduced delay failure without changing the default draw.
+      - name: Install browser for controlled marine handoff
+        working-directory: frontend
+        run: npx playwright install chromium --with-deps
+      - name: Controlled WebGL handoff experiment
+        run: |
+          node --test frontend/scripts/marine-render-profiler.test.cjs
+          node --test frontend/scripts/marine-coastal-replay/verify.test.cjs
+          node frontend/scripts/marine-handoff-lab/run.cjs /tmp/marine-handoff-lab
+          node frontend/scripts/marine-handoff-lab/verify.test.cjs /tmp/marine-handoff-lab/results.json
+          node frontend/scripts/marine-handoff-lab/visibility.cjs /tmp/marine-visibility-lab
+          node frontend/scripts/marine-handoff-lab/visibility.test.cjs /tmp/marine-visibility-lab/results.json
+      - name: Upload controlled handoff evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: marine-handoff-lab-${{ github.run_id }}
+          path: |
+            /tmp/marine-handoff-lab/*.json
+            /tmp/marine-handoff-lab/*.png
+            /tmp/marine-visibility-lab/*.json
+          if-no-files-found: error
+          retention-days: 14
+
   backend-lint:
     runs-on: ubuntu-latest
 
@@ -609,7 +634,8 @@ jobs:
           # WS-CAN-0072 cap-seam property lane) = +47 tests. CI-anchored per the estate lesson:
           # last green run 31864807822 observed 1741; 1741 + 47 = 1788; 1788 - 6 = 1782. The
           # pre-push hook blocked the batch until this pair moved — as designed (5th catch).
-          MIN_FILES, MIN_PASSED = 154, 1782
+          # September 8, dev run 34279488030: 155 files / 1804 passed; retain six-test margin.
+          MIN_FILES, MIN_PASSED = 155, 1798
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -789,7 +815,8 @@ jobs:
           # ⚠️ RAISED BECAUSE THE PRE-PUSH HOOK REFUSED THE PUSH, which is the 5th time this lane has
           # needed it. The floor is not merely a minimum: backend-floor-staleness goes red when the
           # observed count runs too far ABOVE it, so adding tests without raising it is a red CI.
-          MIN_FILES, MIN_PASSED = 90, 833
+          # September 8, dev run 34279488030: 93 files / 884 passed; retain six-test margin.
+          MIN_FILES, MIN_PASSED = 93, 878
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1074,7 +1101,8 @@ jobs:
           # `importorskip("pyarrow"/"lance")` collects on a dev box and never in CI.
           # ⚠️ The arithmetic is shown so the next green run can falsify it. If 416 was not the
           # figure this lane actually carries forward, that run says so and the number moves.
-          MIN_PASSED = 433
+          # September 8, PR run 34281409579: 445 passed, zero silent; retain two-test margin.
+          MIN_PASSED = 443
 
           try:
               root = ET.parse('estate.xml').getroot()

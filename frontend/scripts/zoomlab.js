@@ -7,6 +7,7 @@
  */
 const path = require('path');
 const fs = require('fs');
+const { attachNetworkEvidence } = require('./zoomlab-network-evidence');
 // Portable resolve (2026-07-18, CI): plain require works when run from frontend/ (or with
 // NODE_PATH set); the explicit node_modules fallback covers running from the repo root locally.
 let chromium;
@@ -85,6 +86,7 @@ async function main() {
   });
 
   const consoleErrors = [];
+  const networkEvidence = attachNetworkEvidence(page);
   page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 400)); });
   page.on('pageerror', (error) => consoleErrors.push(`Uncaught ${error.message}`.slice(0, 400)));
 
@@ -275,6 +277,18 @@ async function main() {
             ? [g.heatmapGate.resident.gateValue, g.heatmapGate.resident.clipValue, g.heatmapGate.resident.terminal] : null,
           mDel: g.maskDelivered ? [g.maskDelivered.deliveredShort ? 1 : 0, g.maskDelivered.forcedRepaint ? 1 : 0] : null,
           bridge: (window.__MARINE_ZOOMOUT_BRIDGE__ || {}).count || 0,
+          // `bridge` above counts promotions, not whether the coarse wash is drawing.
+          // Preserve the actual draw decision so mult=0 cannot be mistaken for a blank sea.
+          coarseBridgeActive: g.coarseBridgeActive ?? null,
+          washFloor: g.washFloor ? { ...g.washFloor } : null,
+          opacityEase: g.opacityEase ? { ...g.opacityEase } : null,
+          bridgeHandoff: g.bridgeHandoff ? { ...g.bridgeHandoff } : null,
+          coarseBridgeGrace: g.coarseBridgeGrace ? { ...g.coarseBridgeGrace } : null,
+          hasCoarseTexture: !!(eng._coarseBaseData && eng._coarseBaseData.u_waveTexture),
+          viewport: (() => {
+            const b = m.getBounds();
+            return [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+          })(),
           drawCalls: g.drawCallsPerFrame,
           hm: g.opacity && g.opacity.heatmap, mult: g.opacity && g.opacity.mult,
           w0: g.washPreDamp, wE: g.washEff,
@@ -512,7 +526,7 @@ async function main() {
           .filter((e) => e.type === 'reject_downgrade' || e.type === 'reject_subcover')
           .map((e) => ({ type: e.type, rule: e.rule, decidedBy: e.decidedBy, zoom: e.zoom })) : [],
   }));
-  fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ ...trace, scenario, completed: true, zoomNow, consoleErrors: [...new Set(consoleErrors)], arbShadow, arbLive }));
+  fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ ...trace, scenario, completed: true, zoomNow, consoleErrors: [...new Set(consoleErrors)], networkEvidence: networkEvidence(), arbShadow, arbLive }));
   log(`arbiter: mode=${arbLive.mode} decisions=${arbLive.tallies ? arbLive.tallies.n : 0} rejects=${arbLive.tallies ? arbLive.tallies.rejects : 0} rules=${JSON.stringify(arbLive.tallies ? arbLive.tallies.byRule : {})}`);
   log(`trace saved: ${trace.frames.length} frames, final zoom ${zoomNow.toFixed(2)}`);
 

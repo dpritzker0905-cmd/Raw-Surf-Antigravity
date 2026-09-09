@@ -1,0 +1,49 @@
+{
+  "at": "2026-09-08T21:56:14.916Z",
+  "map-tiles.open-meteo.com": {
+    "Status": 3,
+    "TC": false,
+    "RD": true,
+    "RA": true,
+    "AD": false,
+    "CD": false,
+    "Question": [
+      {
+        "name": "map-tiles.open-meteo.com.",
+        "type": 1
+      }
+    ],
+    "Authority": [
+      {
+        "name": "open-meteo.com.",
+        "type": 6,
+        "TTL": 1800,
+        "data": "arely.ns.cloudflare.com. dns.cloudflare.com. 2413920203 10000 2400 604800 1800"
+      }
+    ],
+    "Comment": "Response from 172.64.33.137."
+  },
+  "api.open-meteo.com": {
+    "Status": 0,
+    "TC": false,
+    "RD": true,
+    "RA": true,
+    "AD": false,
+    "CD": false,
+    "Question": [
+      {
+        "name": "api.open-meteo.com.",
+        "type": 1
+      }
+    ],
+    "Answer": [
+      {
+        "name": "api.open-meteo.com.",
+        "type": 1,
+        "TTL": 1800,
+        "data": "188.40.99.226"
+      }
+    ],
+    "Comment": "Response from 91.200.176.1."
+  }
+}

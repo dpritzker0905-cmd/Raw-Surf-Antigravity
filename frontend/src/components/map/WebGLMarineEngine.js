@@ -1,13 +1,13 @@
 /**
  * WebGLMarineEngine.js
- * Ocean GPU v2 — Fully GPU-native, raster-free marine rendering engine.
- * Renders pulsing, perpendicular wave fronts using gl.drawArrays(gl.LINES)
- * overlayed on a smooth, continuous GPU wave height heatmap.
- * Strictly conforms to WebGL State Isolation Protocol and is < 600 lines of code.
+ * GPU marine rendering engine. Historical policy predicates are retained in dedicated modules.
  */
 
 import { recordTruthStage } from './weatherTruthTracker';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
+import { applyBridgeHandoffWash } from './marineBridgeHandoff';
+import { probeMarineMaskGPU } from './marineMaskProbe';
+import { shouldDrawMarinePass } from './marineDrawVisibility';
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
@@ -1384,6 +1384,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // ReferenceError, not dead code (the reader's own gate is `blendEngaged`, the same condition that
     // fills this in). Keep it out here; do NOT re-narrow it into the block.
     let _washOpacityEff = 0;
+    this._bridgeHandoffScale = 1;
+    if (!blendEngaged) this._bridgeHandoffState = null;
     if (blendEngaged) {
       // Same degraded-drop as the main pass: a false-land overlay must not clip the wash either.
       const baseOverlay = (this._overlayMaskTex && this._overlayMaskBounds && !_degradedDrop)
@@ -1439,9 +1441,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (typeof window !== 'undefined' && window.__RAW_GPU__) {
         window.__RAW_GPU__.baseCrispMask = !!baseCrispMask;
         window.__RAW_GPU__.washNoTruthDamp = _noTruthDamp && baseWashOpacity > 0;
-        // The FINAL wash opacity handed to the base pass (2026-07-16 zoom-clear forensics).
+        // Final wash; the optional handoff updates this diagnostic at the draw boundary.
         window.__RAW_GPU__.washEff = +_washOpacityEff.toFixed(3);
       }
+      _washOpacityEff = applyBridgeHandoffWash(this, _washOpacityEff, mult, _bridgeActive, !!viewportBounds && _washResidentCovers, window, performance.now());
       this._drawCoarseBasePass(gl, mat4, themeVal, time, _washOpacityEff, baseOverlay || baseCrispMask);
     }
 
@@ -1770,6 +1773,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
     // Last DRAWN value — the ease stamp chains from this so mid-ease re-commits stay smooth.
     // (Stored PRE-veil: the veil below is a bounded final multiplier, not part of the ease chain.)
+    heatmapOpacity *= this._bridgeHandoffScale;
     this._lastHeatmapOpacity = heatmapOpacity;
 
     // COLD-ACTIVATION COARSE VEIL apply (see resolveColdVeil + the setWaveData stamp): final
@@ -1862,7 +1866,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     // DEGREES here; the particle pass below uses its own mercator-unit offsets [0, ∓1]. Both were
     // function-scoped `var worldOffsets` until 2026-07-31 — same name, same scope, different UNITS.
-    const worldOffsets = _needWrap ? [0.0, -360.0, 360.0] : [0.0];
+    const worldOffsets = shouldDrawMarinePass(heatmapOpacity, debugModeVal) ? (_needWrap ? [0.0, -360.0, 360.0] : [0.0]) : [];
     for (let wi = 0; wi < worldOffsets.length; wi++) {
       gl.uniform1f(heatLngOffsetLoc, worldOffsets[wi]);
       gl.drawElements(gl.TRIANGLES, this.numGridIndices, gl.UNSIGNED_SHORT, 0);
@@ -1981,7 +1985,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
       // Tiny-tile parity applies to the crest/particle ink too — a fully-faded heatmap with
       // crisp crest animation inside the tile is still an animated rectangle.
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult * _tinyTileFadeVal);
+      const crestOpacity = mult * _tinyTileFadeVal * this._bridgeHandoffScale;
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), crestOpacity);
 
       // Constant-screen-density (flow-viz best practice): keep a FIXED number of seeded crests on screen at every
       // zoom instead of an ad-hoc per-zoom fraction. Particles live in a tile ~Nx the screen; the viewport's share
@@ -2143,7 +2148,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // v5.3: gl.TRIANGLES quad ribbons (6 verts per particle)
       var numQuadVerts = this._numQuadVertices || this.particleRes * this.particleRes * 6;
       // MERCATOR UNITS here (the heatmap pass above uses DEGREES) — see the note at that site.
-      const worldOffsets = _needWrap ? [0.0, -1.0, 1.0] : [0.0];
+      const worldOffsets = shouldDrawMarinePass(crestOpacity, drawDebugModeVal) ? (_needWrap ? [0.0, -1.0, 1.0] : [0.0]) : [];
       for (let wi = 0; wi < worldOffsets.length; wi++) {
         gl.uniform1f(mercOffsetLoc, worldOffsets[wi]);
         gl.drawArrays(gl.TRIANGLES, 0, numQuadVerts);
@@ -2697,88 +2702,9 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
   }
 };
 
-// GPU MASK READ-BACK (maskFloodProbe.js diagnostic, 2026-07-07 — "innovate a better way to test"):
-// sample the ACTUAL ocean-mask texel the shader used at each lng/lat by attaching the live mask
-// texture to an FBO and readPixels (persistent texture; no draw-timing games, no preserveDrawingBuffer).
-// Returns per-point { base, overlay, effective, src } as 0-255 red (≥128 = water). `effective`
-// mirrors the shader's per-pixel selection (overlay REPLACE, z≥12 min-combine, or base) using the
-// state stashed during the last draw. Dev tool only; no effect on rendering.
+// Dev-only GPU ground truth; batching and mask-selection history live with the probe.
 WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
-  const gl = glIn || (typeof window !== 'undefined' && window.map && window.map.painter && window.map.painter.context && window.map.painter.context.gl);
-  if (!gl || !Array.isArray(points)) return null;
-  const ps = this._probeState || {};
-  const merc = (lat) => { const c = Math.max(-85.051129, Math.min(85.051129, lat)) * Math.PI / 180; return (1 - Math.log(Math.tan(c) + 1 / Math.cos(c)) / Math.PI) / 2; };
-  const wrap = (lng, center) => { let p = lng; while (p - center > 180) p -= 360; while (p - center < -180) p += 360; return p; };
-  const dimsForOverlay = (b) => {
-    const span = (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
-    let w = span < 10 ? 4096 : (span < 30 ? 2048 : 4096); if (w > 2048) w = 2048;
-    // MID-ZOOM COASTAL CARVE (2026-07-21, user residual-fringe report): the regional min-combine
-    // overlay spans ~0.5–3° across the halo band; at the flat 2048 cap that is ~56 m/texel and the
-    // coast carve is soft, so the heatmap feather still rides a thin fringe onto land. Lift the cap to
-    // 4096 (~28 m/texel) for that span band so the coast cuts crisply — matching the z>=12 look the
-    // user confirmed clean. Deep-zoom (<0.35°, already fine at 2048) and world (≥30°, memory-bound)
-    // spans are unchanged. Kill: __RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ (restores the flat 2048 cap).
-    if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ === true) &&
-        span >= 0.35 && span < 6) w = 4096;
-    return { w, h: w / 2 };
-  };
-  const prevFbo = gl.getParameter(gl.FRAMEBUFFER_BINDING);
-  const fbo = gl.createFramebuffer();
-  const out = new Uint8Array(4);
-  const read = (tex, b, dims, lng, lat) => {
-    if (!tex || !b || !dims) return null;
-    const center = (b.west + b.east) / 2;
-    const wW = wrap(b.west, center), wE = wrap(b.east, center), pl = wrap(lng, center);
-    const mnX = (wW + 180) / 360, mxX = (wE + 180) / 360, mnY = merc(b.north), mxY = merc(b.south);
-    if (mxX <= mnX || mxY <= mnY) return null;
-    const u = ((pl + 180) / 360 - mnX) / (mxX - mnX);
-    const v = (merc(lat) - mnY) / (mxY - mnY);          // 0 = north (canvas top)
-    if (u < 0 || u > 1 || v < 0 || v > 1) return null;
-    const tx = Math.max(0, Math.min(dims.w - 1, Math.round(u * (dims.w - 1))));
-    const tyC = Math.max(0, Math.min(dims.h - 1, Math.round(v * (dims.h - 1))));
-    const ty = dims.h - 1 - tyC;                          // mask uploaded UNPACK_FLIP_Y=true
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) return null;
-    gl.readPixels(tx, ty, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
-    return { r: out[0], b: out[2] }; // .r = land/water; .b = coast SDF (when __RAW_COAST_SDF__)
-  };
-  const inBounds = (b, lng, lat) => {
-    if (!b || lat < b.south || lat > b.north) return false;
-    const c = (b.west + b.east) / 2, pl = wrap(lng, c), wW = wrap(b.west, c), wE = wrap(b.east, c);
-    return pl >= wW && pl <= wE;
-  };
-  const baseTex = this._cachedMaskTex, baseB = this._cachedMaskBounds, baseD = this._cachedMaskTexDims;
-  const ovTex = this._overlayMaskTex, ovB = this._overlayMaskBounds, ovD = ovB ? dimsForOverlay(ovB) : null;
-  // COARSE-BASE FALLBACK (2026-07-18 EVE-2): beyond the RESIDENT mask bounds both reads return
-  // null, which callers (zoomlab's water ground truth) had to guess about — the ring-fill zone
-  // read as "unknown/land" and could hide a real dead-ring finding there. The held coarse base
-  // is world-covering with its own mask; sample it when the resident/overlay can't answer.
-  const cb = this._coarseBaseData;
-  const cbTex = cb && cb.u_oceanMaskTexture, cbB = cb && cb.bounds;
-  const cbD = (cb && cb.__maskCanvasDims) ? { w: cb.__maskCanvasDims.w, h: cb.__maskCanvasDims.h } : null;
-  const res = points.map(({ lng, lat }) => {
-    const baseS = read(baseTex, baseB, baseD, lng, lat);
-    const ovS = read(ovTex, ovB, ovD, lng, lat);
-    const base = baseS ? baseS.r : null;
-    const overlay = ovS ? ovS.r : null;
-    let effective = base, src = 'base', effB = baseS ? baseS.b : null; // effB = the coast-SDF byte the shader uses
-    if (ps.overlayOn && overlay != null && inBounds(ovB, lng, lat)) {
-      if (ps.replace) { effective = overlay; effB = ovS.b; src = 'overlay_replace'; }
-      else {
-        effective = (base == null) ? overlay : Math.min(base, overlay);
-        effB = (baseS && ovS) ? Math.min(baseS.b, ovS.b) : (ovS ? ovS.b : effB); // min-combine of two SDFs = more-land
-        src = 'overlay_min';
-      }
-    }
-    if (effective == null && cbTex && cbB && cbD) {
-      const cbS = read(cbTex, cbB, cbD, lng, lat);
-      if (cbS != null) { effective = cbS.r; effB = cbS.b; src = 'coarse_base'; }
-    }
-    return { lng, lat, base, overlay, effective, src, effB };
-  });
-  try { gl.bindFramebuffer(gl.FRAMEBUFFER, prevFbo); gl.deleteFramebuffer(fbo); } catch (e) { /* probe cleanup only — the sampled result is already captured in `res` */ }
-  return res;
+  return probeMarineMaskGPU(this, points, glIn);
 };
 
 // BLEND BOTH: snapshot a global-coarse grid into a standalone (non-resident) texture set we own + free.
@@ -3136,7 +3062,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
   }
 
-  const worldOffsets = [0.0, -360.0, 360.0];
+  const worldOffsets = shouldDrawMarinePass(baseOpacity, debugModeVal) ? [0.0, -360.0, 360.0] : [];
   for (let wi = 0; wi < worldOffsets.length; wi++) {
     gl.uniform1f(heatLngOffsetLoc, worldOffsets[wi]);
     gl.drawElements(gl.TRIANGLES, this.numGridIndices, gl.UNSIGNED_SHORT, 0);
@@ -3151,6 +3077,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
 };
 
 WebGLMarineEngine.prototype.clearBuffers = function(gl) {
+  this._bridgeHandoffState = null;
   if (!gl) return;
   console.log('[WebGLMarineEngine-Clear] Clearing resident wave textures and waveData');
   recordMarineEvent('engine_clear', {
