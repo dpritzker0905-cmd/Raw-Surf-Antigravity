@@ -243,6 +243,7 @@ jobs:
         run: npx playwright install chromium --with-deps
       - name: Controlled WebGL handoff experiment
         run: |
+          node --test frontend/scripts/marine-render-profiler.test.cjs
           node frontend/scripts/marine-handoff-lab/run.cjs /tmp/marine-handoff-lab
           node frontend/scripts/marine-handoff-lab/verify.test.cjs /tmp/marine-handoff-lab/results.json
       - name: Upload controlled handoff evidence

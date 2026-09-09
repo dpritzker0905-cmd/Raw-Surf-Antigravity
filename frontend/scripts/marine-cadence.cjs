@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const assert = require('assert/strict');
 const { chromium } = require('../node_modules/@playwright/test');
+const { measureMarinePasses } = require('./marine-render-profiler.cjs');
 const out = path.resolve(process.argv[2] || '/tmp/zoomlab-out');
 const base = process.env.ZL_BASE || 'http://localhost:3009';
 
@@ -162,9 +163,13 @@ async function main() {
         page.on('pageerror', e => errors.push(e.message));
         page.on('console', m => { if (m.type() === 'error' || m.text().includes('Render error')) errors.push(m.text().slice(0, 400)); });
         const measurement = await measurePage(page);
-        results.push({ video, errors, ...measurement });
-        fs.writeFileSync(path.join(out, 'cadence.json'), JSON.stringify({ diagnosticOnly: true, sourceCommit: process.env.GITHUB_SHA,
-          results }, null, 2) + '\n');
+        const result = { video, errors, ...measurement }; results.push(result);
+        const write = () => fs.writeFileSync(path.join(out, 'cadence.json'), JSON.stringify({
+          diagnosticOnly: true, sourceCommit: process.env.GITHUB_SHA, results }, null, 2) + '\n');
+        write();
+        try { result.renderProfile = await page.evaluate(measureMarinePasses); }
+        catch (error) { result.renderProfileError = error.message; write(); throw error; }
+        write();
         console.log(JSON.stringify({ video, renderer: measurement.setup.renderer, stable: measurement.stable,
           blocks: measurement.blocks.map(b => ({ mode: b.mode,
             intervalMs: b.frames.slice(2).reduce((s, f) => s + f.intervalMs, 0) / 10,
