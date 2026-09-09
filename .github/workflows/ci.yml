@@ -421,7 +421,9 @@ jobs:
           test -s /tmp/guard_files.txt || { echo "::error::--lane guards selected NO files"; exit 1; }
           sed 's/^/  guard: /' /tmp/guard_files.txt
           FILES=$(tr '\n' ' ' < /tmp/guard_files.txt)
-          python -m pytest $FILES -q --junitxml=guards.xml
+          # The prior successful job reached its 20-minute wall-clock limit. Record
+          # slow phases before changing collection or time allowances.
+          python -m pytest $FILES -q --durations=30 --junitxml=guards.xml
 
       # Shrink-only ratchet on COVERAGE, run even when pytest already failed so a collapse in what
       # was collected is reported rather than hidden behind the first red test.

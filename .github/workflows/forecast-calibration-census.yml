@@ -159,9 +159,9 @@ jobs:
         working-directory: backend
         run: |
           set -o pipefail
-          python3 scripts/climatology_drift_census.py --fail-on-drift --json > drift.json || DRIFT=$?
-          python3 scripts/climatology_drift_census.py --fail-on-drift 2>&1 | tail -12
-          exit ${DRIFT:-0}
+          # One captured observation supplies both artifact and human summary. A second
+          # live read adds Storage pressure and can describe a different refresh.
+          python3 scripts/climatology_drift_census.py --fail-on-drift --json --summary-to-stderr > drift.json
 
       # ── 3. IS WHAT WE SERVE FRESH? ───────────────────────────────────────────────────────────
       - name: "3. Served freshness — run age behind each served spot-hour"
@@ -169,9 +169,7 @@ jobs:
         working-directory: backend
         run: |
           set -o pipefail
-          python3 scripts/served_freshness_census.py --json > freshness.json || FRESH=$?
-          python3 scripts/served_freshness_census.py --fail-on-stale 2>&1 | tail -14
-          exit ${FRESH:-0}
+          python3 scripts/served_freshness_census.py --fail-on-stale --json --summary-to-stderr > freshness.json
 
       # ── 4. DOES THE POINT LANE SERVE THE PER-SPOT REFERENCE? (E#1 acceptance) ────────────
       # `ead3c666` made the per-spot climatology answerable BY COORDINATE so `/api/weather/point`

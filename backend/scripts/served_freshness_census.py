@@ -44,13 +44,14 @@ import argparse
 import json
 import os
 import sys
-import urllib.request
 from collections import Counter
 from datetime import datetime, timezone
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
+
+from scripts.census_http import CensusReadError, fetch_json
 
 try:                                                    # pragma: no cover - console-dependent
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -69,12 +70,10 @@ DEFAULT_CRITICAL_SHARE_PCT = 1.0
 
 
 def _fetch_json(url, token, what, timeout=120):
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}",
-                                               "apikey": token,
-                                               "User-Agent": "served-freshness-census/1"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.load(r)
+        return fetch_json(url, token, what, timeout)
+    except CensusReadError as error:
+        raise SystemExit(str(error)) from None
     except Exception as e:
         raise SystemExit(f"{what}: {type(e).__name__} (message withheld — it can echo the key)")
 
@@ -137,6 +136,7 @@ def main():
     ap.add_argument("--critical-share-pct", type=float, default=DEFAULT_CRITICAL_SHARE_PCT)
     ap.add_argument("--fail-on-stale", action="store_true")
     ap.add_argument("--json", dest="as_json", action="store_true")
+    ap.add_argument("--summary-to-stderr", action="store_true", help="Also describe the same JSON observation on stderr")
     ap.add_argument("--worst", type=int, default=8)
     args = ap.parse_args()
 
@@ -169,17 +169,19 @@ def main():
         print(json.dumps({"summary": s,
                           "worst": [{"age_h": round(a, 2), "kind": k, "spot": nm, "valid_time": vt}
                                     for a, k, nm, vt in worst]}, indent=2, default=str))
-    else:
-        print(f"served blob generated_at {s['generated_at']}   samples {s['samples']}")
-        print(f"  RUN AGE h   p50 {s['p50']}  p90 {s['p90']}  p95 {s['p95']}  p99 {s['p99']}  "
+    if not args.as_json or args.summary_to_stderr:
+        def human(text):
+            print(text, file=sys.stderr if args.as_json else sys.stdout)
+        human(f"served blob generated_at {s['generated_at']}   samples {s['samples']}")
+        human(f"  RUN AGE h   p50 {s['p50']}  p90 {s['p90']}  p95 {s['p95']}  p99 {s['p99']}  "
               f"max {s['max']}")
         b = s["bands"]
-        print(f"  bands       <12h {b.get('lt12h', 0)}  12-24h {b.get('h12_24', 0)}  "
+        human(f"  bands       <12h {b.get('lt12h', 0)}  12-24h {b.get('h12_24', 0)}  "
               f"24-48h {b.get('h24_48', 0)}  >=48h {b.get('ge48h', 0)}")
-        print(f"  over {args.critical_h}h  {s['over_critical']} spot-hours "
+        human(f"  over {args.critical_h}h  {s['over_critical']} spot-hours "
               f"({s['over_critical_pct']}%)")
         for a, k, nm, vt in sorted(rows, reverse=True)[:args.worst]:
-            print(f"    {a:7.1f} h  {k:7}  {str(nm)[:38]}")
+            human(f"    {a:7.1f} h  {k:7}  {str(nm)[:38]}")
 
     if args.fail_on_stale:
         # CRITICAL is a SHARE past a hard bound — a systemic stall, not one unlucky spot.
