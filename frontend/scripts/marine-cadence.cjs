@@ -99,12 +99,40 @@ async function measurePage(page) {
           [.15, .3, .5, .7, .85][i % 5] * container.clientHeight]);
         return { lng: p.lng, lat: p.lat };
       });
-      // Finish isolates the probe's own cost from previously queued GPU draws. Both numbers
-      // are reported; attributing the wait to readPixels alone would misdiagnose the renderer.
+      // Record finish separately, then force a CPU readback before profiling the mask. A zero
+      // finish wall time alone is insufficient evidence that the later probe has no GPU wait.
       const finishStart = performance.now(); gl.finish(); const finishMs = performance.now() - finishStart;
-      const probeStart = performance.now(), samples = engine.probeMaskGPU(points, gl), probeMs = performance.now() - probeStart;
+      const barrierStart = performance.now(), readTarget = gl.READ_FRAMEBUFFER ?? gl.FRAMEBUFFER;
+      const readBinding = gl.READ_FRAMEBUFFER_BINDING ?? gl.FRAMEBUFFER_BINDING;
+      const previousRead = gl.getParameter(readBinding);
+      try {
+        gl.bindFramebuffer(readTarget, null);
+        gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
+      } finally { gl.bindFramebuffer(readTarget, previousRead); }
+      const readbackBarrierMs = performance.now() - barrierStart, probes = [];
+      let samples, expectedSamples;
+      for (let repeat = 0; repeat < 3; repeat++) {
+        const operations = [], originals = {};
+        for (const name of ['getParameter', 'bindFramebuffer', 'framebufferTexture2D', 'checkFramebufferStatus', 'readPixels']) {
+          originals[name] = gl[name];
+          gl[name] = function(...args) {
+            const t = performance.now();
+            try { return originals[name].apply(this, args); }
+            finally { operations.push({ name, ms: performance.now() - t,
+              ...(name === 'readPixels' ? { x: args[0], y: args[1], width: args[2], height: args[3] } : {}) }); }
+          };
+        }
+        const start = performance.now();
+        try { samples = engine.probeMaskGPU(points, gl); }
+        finally { for (const name of Object.keys(originals)) gl[name] = originals[name]; }
+        const ms = performance.now() - start, encoded = JSON.stringify(samples);
+        if (expectedSamples === undefined) expectedSamples = encoded;
+        if (encoded !== expectedSamples) throw Error('Repeated mask probes changed without a draw');
+        probes.push({ ms, operations });
+      }
+      const probeMs = probes[0].ms, glError = gl.getError();
       const after = identity(), afterHash = await digest();
-      return { setup, blocks, after, afterHash, finishMs, probeMs, probeCount: samples?.length,
+      return { setup, blocks, after, afterHash, finishMs, readbackBarrierMs, probeMs, probes, glError, probeCount: samples?.length,
         known: samples?.filter(s => s.effective != null).length, water: samples?.filter(s => s.effective >= 128).length,
         stable: beforeHash === afterHash && [after, ...blocks.flatMap(b => b.frames.map(f => f.identity))]
           .every(value => JSON.stringify(value) === JSON.stringify(before)) };
@@ -141,10 +169,12 @@ async function main() {
           blocks: measurement.blocks.map(b => ({ mode: b.mode,
             intervalMs: b.frames.slice(2).reduce((s, f) => s + f.intervalMs, 0) / 10,
             engineMs: b.frames.slice(2).reduce((s, f) => s + f.renderMs, 0) / 10 })),
-          finishMs: measurement.finishMs, probeMs: measurement.probeMs, errors }));
+          finishMs: measurement.finishMs, barrierMs: measurement.readbackBarrierMs,
+          probes: measurement.probes.map(p => ({ ms: p.ms, reads: p.operations.filter(o => o.name === 'readPixels').length })), errors }));
         assert.deepEqual(errors, [], 'Browser errors invalidate the cadence comparison');
         assert(measurement.stable, 'Data/mask identity changed during the comparison');
         assert.equal(measurement.probeCount, 200, 'Missing water samples');
+        assert.equal(measurement.glError, 0, 'GPU error invalidates the diagnostic');
         assert(measurement.blocks.filter(b => b.mode !== 'basemap_only').every(b =>
           b.frames.slice(2).every(f => f.renderCalls > 0 && f.drawCalls > 0)), 'Marine drawing was not observed');
       } finally { await context.close(); }
