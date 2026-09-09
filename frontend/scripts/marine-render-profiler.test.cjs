@@ -5,6 +5,7 @@ const { measureMarinePasses } = require('./marine-render-profiler.cjs');
 // Controls for the measurement instrument, not a substitute for real GPU validation.
 async function fixture(options, run) {
   const previousWindow = global.window, previousRaf = global.requestAnimationFrame;
+  const previousCrypto = Object.getOwnPropertyDescriptor(global, 'crypto');
   let program, active = null, nextQuery = 0, queued = false;
   const deleted = [], listeners = new Set(), queries = [];
   const ext = { TIME_ELAPSED_EXT: 1, GPU_DISJOINT_EXT: 2 };
@@ -56,12 +57,16 @@ async function fixture(options, run) {
   const originalMethods = { ...gl }, originalRender = engine.render, originalCoarse = engine._drawCoarseBasePass;
   global.window = { map, __MARINE_ENGINE__: engine };
   global.requestAnimationFrame = fn => setImmediate(fn);
+  // This function normally executes in a secure browser. Node 18 has no ambient Web Crypto
+  // in this CI job, so provide the browser dependency explicitly and restore it afterward.
+  Object.defineProperty(global, 'crypto', { value: require('node:crypto').webcrypto, configurable: true });
   try { await run(); }
   finally {
     assert.equal(engine.render, originalRender); assert.equal(engine._drawCoarseBasePass, originalCoarse);
     for (const key of Object.keys(originalMethods)) assert.equal(gl[key], originalMethods[key], key + ' restored');
     assert.equal(active, null); assert.deepEqual(deleted, queries); assert.equal(listeners.size, 0);
     global.window = previousWindow; global.requestAnimationFrame = previousRaf;
+    if (previousCrypto) Object.defineProperty(global, 'crypto', previousCrypto); else delete global.crypto;
   }
 }
 
