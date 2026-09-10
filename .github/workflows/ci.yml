@@ -794,7 +794,10 @@ jobs:
           # needed it. The floor is not merely a minimum: backend-floor-staleness goes red when the
           # observed count runs too far ABOVE it, so adding tests without raising it is a red CI.
           # September 9: dev run 34279488030 observed 93 files / 884 passed.
-          MIN_FILES, MIN_PASSED = 93, 878
+          # September 10: tracked chain selector claims test_tide_acquisition.py; full local
+          # chain measured 94 files / 922 passed / 0 skipped (356.57s). Keep the 6-test margin
+          # and update _FLOOR_SET_FROM["chain"] in the same commit. Linux CI verifies this floor.
+          MIN_FILES, MIN_PASSED = 94, 916
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

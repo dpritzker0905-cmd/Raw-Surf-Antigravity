@@ -360,8 +360,8 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     # TIDE pre-warm (2026-07-18, RATING_TIDE flip): with the tide factor on, a fresh CI process would
     # cold-fetch ~900 spot-cells ONE request at a time inside rate_one_spot (Open-Meteo quota + tail
     # latency). Batch-seed the TTL cache first (~10 comma-separated-coords requests for ~1500 spots);
-    # the per-spot path then hits the cache. Never fatal — a failed pre-warm just leaves the per-spot
-    # fallback (and a tide miss is always a neutral rating).
+    # the per-spot path then hits the cache. Never fatal — failed acquisition stays unavailable during
+    # a timed cooldown, including the per-spot fallback, so a refused batch cannot create a request burst.
     if spots and os.environ.get("RATING_TIDE", "0") == "1":
         try:
             from services.weather_pipeline.tide import prewarm_tide_cache
