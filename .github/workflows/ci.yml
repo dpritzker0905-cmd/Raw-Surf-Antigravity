@@ -264,6 +264,12 @@ jobs:
           pip install -q flake8
           pip install -q -r requirements.txt
 
+      # The April route split imported successfully while function bodies retained
+      # missing globals. Fail this repaired family even while wider lint debt is soft.
+      - name: Condition-report runtime dependency guard
+        working-directory: backend
+        run: flake8 --select=F821 routes/condition_reports
+
       - name: Lint backend
         working-directory: backend
         run: flake8 --max-line-length=150 --count --select=E9,F63,F7,F82 --show-source --statistics .
@@ -613,7 +619,10 @@ jobs:
           # pre-push hook blocked the batch until this pair moved — as designed (5th catch).
           # September 9: dev run 34279488030 observed 155 files / 1804 passed.
           # Restore the zero-file and six-test margins; no selection or skip change.
-          MIN_FILES, MIN_PASSED = 155, 1798
+          # September 10: CI34520513943 observed 155 files / 1804 passed.
+          # Add one module with 24 locally executed endpoint controls. The candidate
+          # CI run must confirm 156 / 1828; retain the six-test aggregate margin.
+          MIN_FILES, MIN_PASSED = 156, 1822
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -645,6 +654,11 @@ jobs:
           if passed < MIN_PASSED:
               bad.append(f"only {passed} tests passed, floor is {MIN_PASSED} — guards were deleted "
                          f"or mass-skipped")
+          report_controls = [tc for s in suites for tc in s.iter('testcase')
+                             if tc.get('classname') == 'tests.test_spot_condition_report_routes']
+          if len(report_controls) < 24 or any(tc.find(tag) is not None
+                                             for tc in report_controls for tag in ('failure', 'error', 'skipped')):
+              bad.append("condition-report endpoint controls missing, skipped or failing (require all 24)")
           if bad:
               for b in bad:
                   print(f"::error::Composition guard suite: {b}")

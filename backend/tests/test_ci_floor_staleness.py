@@ -283,7 +283,10 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #                 here. Set from the reading, never from arithmetic on the last one.
 # September 9: dev run 34279488030 guards/chain; PR run 34418519128 estate.
 # September 10: full tracked chain measured 94 files / 922 passed / 0 skipped; tide acquisition guards.
-_FLOOR_SET_FROM = {"guards": 1804, "chain": 922, "estate": 459}
+# September 10 condition-report repair: projected from CI34520513943's 1804
+# plus 24 executed new controls. Candidate CI must confirm 1828. Keep the
+# companion to ci.yml's raised floor in sync; the first candidate caught this omission.
+_FLOOR_SET_FROM = {"guards": 1828, "chain": 922, "estate": 459}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
