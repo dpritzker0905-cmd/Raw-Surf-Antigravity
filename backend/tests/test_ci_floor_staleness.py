@@ -282,7 +282,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #                 31900011802 / 31900014330, `416 passed, 2865 skipped`), so only 3 of the 12 land
 #                 here. Set from the reading, never from arithmetic on the last one.
 # September 9: dev run 34279488030 guards/chain; PR run 34418519128 estate.
-_FLOOR_SET_FROM = {"guards": 1804, "chain": 884, "estate": 459}
+# September 10: full tracked chain measured 94 files / 922 passed / 0 skipped; tide acquisition guards.
+_FLOOR_SET_FROM = {"guards": 1804, "chain": 922, "estate": 459}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
