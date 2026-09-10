@@ -39,6 +39,9 @@ const standardUser = {
 
 async function signIn(page) {
   await page.goto('/auth', { waitUntil: 'domcontentloaded' });
+  // Wait for the real access-code verification before leaving this document. In Safari trace
+  // 34515311331, navigating early cancelled verification and the gate cleared its stored code.
+  await expect(page.getByTestId('auth-card')).toBeVisible({ timeout: 60000 });
   await page.evaluate(({ user }) => {
     localStorage.setItem('raw-surf-user', JSON.stringify(user));
     localStorage.setItem(`tos-accepted-${user.id}-1.0`, Date.now().toString());
@@ -104,8 +107,8 @@ test.describe('Explore', () => {
       .toBeVisible({ timeout: 60000 });
   });
 
-  // ⏱ THE ASSERTION TIMEOUTS IN THIS FILE ARE 60 s, MATCHING apiClient.js:30's OWN DECLARED BUDGET
-  // ("60s -- handles Render free-tier cold starts"). They were 10-20 s, which contradicted it.
+  // Historical timeout investigation follows. The current client budget is 15 s, and Render is
+  // paid. The retained 60 s assertion is NOT a claim that transport failures recover by waiting.
   //
   // TRACE FORENSICS, run 31197681499 (`close-spothub-btn` not found):
   //   click trending-spot -> OK · toHaveURL(/\/spot-hub\//) -> PASSED · toBeVisible -> FAILED at 10.0 s
@@ -154,4 +157,60 @@ test.describe('Explore', () => {
       await expect(page.locator('[data-testid="bottom-nav"]')).toBeHidden();
     }
   });
+});
+
+test.describe('Spot hub transport recovery', () => {
+  // These fault controls require interception to own each request. Keep service workers enabled
+  // in the existing live journeys; Playwright documents that they can bypass page.route.
+  test.use({ serviceWorkers: 'block' });
+  for (const failure of ['network', '503', 'timeout']) {
+    test(`${failure} preserves a manual recovery path`, async ({ page, context, browserName }, testInfo) => {
+      const id = 'forensic-recovery-spot';
+      let attempts = 0;
+      let firstAttemptAt;
+      let releaseTimedOutRequest;
+      const heldRequest = new Promise(resolve => { releaseTimedOutRequest = resolve; });
+      await context.route(`**/api/explore/spot-details/${id}?*`, async route => {
+        attempts += 1;
+        if (attempts === 1) {
+          firstAttemptAt = Date.now();
+          if (failure === 'network') return route.abort('failed');
+          if (failure === '503') return route.fulfill({ status: 503, json: { detail: 'Unavailable' } });
+          // A held WebKit interception produced no timeout within 25 s in the retained trace.
+          // Use its native network timeout failure; this does NOT measure its 15 s budget.
+          if (browserName === 'webkit') return route.abort('timedout');
+          // Chromium/Firefox measure the real, unchanged Axios 15 s budget.
+          await heldRequest;
+          return route.abort('failed').catch(() => {});
+        }
+        return route.fulfill({ json: { id, name: 'Recovery test beach', region: 'Test coast', forecast: [] } });
+      });
+      await context.route(`**/api/condition-reports/spot/${id}?*`, route => route.fulfill({ json: { reports: [] } }));
+      await context.route(`**/api/posts/spot/${id}?*`, route => route.fulfill({ json: { photographer_posts: [], user_posts: [] } }));
+      await context.route(`**/api/surf-spots/${id}/live-shooting-pulse?*`, route => route.fulfill({ json: {} }));
+      try {
+        await signIn(page);
+        await page.goto(`/spot-hub/${id}?model=GFS`, { waitUntil: 'domcontentloaded' });
+        await expect(page).toHaveURL(new RegExp(`/spot-hub/${id}`));
+        await expect.poll(() => attempts, { message: 'the controlled fault reached the detail request', timeout: 15000 }).toBe(1);
+        await expect(page.getByRole('heading', { name: 'Unable to load this spot' })).toBeVisible({ timeout: 25000 });
+        const unavailableAfterMs = Date.now() - firstAttemptAt;
+        if (failure === 'timeout' && browserName !== 'webkit') expect(unavailableAfterMs).toBeGreaterThanOrEqual(14500);
+        await expect(page.getByText('Spot Not Found', { exact: true })).toHaveCount(0);
+        expect(attempts).toBe(1);
+        releaseTimedOutRequest();
+        await page.getByRole('button', { name: 'Try again', exact: true }).click();
+        await expect(page.getByTestId('close-spothub-btn')).toBeVisible({ timeout: 15000 });
+        expect(attempts).toBe(2);
+        await expect(page.getByRole('heading', { name: 'Unable to load this spot' })).toHaveCount(0);
+        await testInfo.attach('recovery-measurement', {
+          contentType: 'application/json',
+          body: Buffer.from(JSON.stringify({ failure, browserName, attempts, unavailableAfterMs,
+            timeoutMeasurement: failure !== 'timeout' ? null : browserName === 'webkit' ? 'native network timeout injection' : 'actual Axios elapsed budget' })),
+        });
+      } finally {
+        releaseTimedOutRequest();
+      }
+    });
+  }
 });
