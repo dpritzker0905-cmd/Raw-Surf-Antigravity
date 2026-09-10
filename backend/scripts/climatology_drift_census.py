@@ -46,12 +46,13 @@ import json
 import math
 import os
 import sys
-import urllib.request
 from datetime import datetime, timezone
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
+
+from scripts.census_http import CensusReadError, fetch_json
 
 try:                                                    # pragma: no cover - console-dependent
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -74,12 +75,10 @@ SPOT_MOVE_SHARE_PCT = 5.0   # ...and this share of spots doing so is systemic
 
 
 def _fetch_json(url, token, what, timeout=120):
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}",
-                                               "apikey": token,
-                                               "User-Agent": "climatology-drift-census/1"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.load(r)
+        return fetch_json(url, token, what, timeout)
+    except CensusReadError as error:
+        raise SystemExit(str(error)) from None
     except Exception as e:
         raise SystemExit(f"{what}: {type(e).__name__} (message withheld — it can echo the key)")
 
@@ -150,6 +149,7 @@ def main():
     ap.add_argument("--fail-on-drift", action="store_true")
     ap.add_argument("--write-baseline", action="store_true")
     ap.add_argument("--json", dest="as_json", action="store_true")
+    ap.add_argument("--summary-to-stderr", action="store_true", help="Also describe the same JSON observation on stderr")
     ap.add_argument("--max-blob-age-h", type=float, default=24.0)
     args = ap.parse_args()
 
@@ -208,17 +208,19 @@ def main():
 
     if args.as_json:
         print(json.dumps(report, indent=2, default=str))
-    else:
+    if not args.as_json or args.summary_to_stderr:
+        def human(text):
+            print(text, file=sys.stderr if args.as_json else sys.stdout)
         r, sp = report, report["spots"]
-        print(f"climatology  {r['entries']} entries, {r['with_reference']} with a reference, "
+        human(f"climatology  {r['entries']} entries, {r['with_reference']} with a reference, "
               f"updated {r['updated_at']} ({r['blob_age_h']} h ago)")
-        print(f"  distribution  {r['distribution']}")
-        print(f"  PSI vs baseline ({r['baseline_written_at']}): {r['psi']}  "
+        human(f"  distribution  {r['distribution']}")
+        human(f"  PSI vs baseline ({r['baseline_written_at']}): {r['psi']}  "
               f"[<{PSI_WARN} stable, <{PSI_CRITICAL} moderate, else significant]")
-        print(f"  per-spot      {sp['moved_spots']}/{sp['shared']} moved >={SPOT_MOVE_PCT}% "
+        human(f"  per-spot      {sp['moved_spots']}/{sp['shared']} moved >={SPOT_MOVE_PCT}% "
               f"({sp['moved_share_pct']}%)   added {sp['added']}  dropped {sp['dropped']}")
         for m in sp["biggest_movers"][:5]:
-            print(f"    {m['move_pct']:+7.1f}%  {m['baseline_m']} -> {m['live_m']} m  {m['spot_id'][:8]}")
+            human(f"    {m['move_pct']:+7.1f}%  {m['baseline_m']} -> {m['live_m']} m  {m['spot_id'][:8]}")
 
     if args.fail_on_drift:
         if blob_age_h is not None and blob_age_h > args.max_blob_age_h:

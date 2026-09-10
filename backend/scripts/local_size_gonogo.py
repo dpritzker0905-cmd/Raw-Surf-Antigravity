@@ -49,6 +49,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from scripts.census_http import CensusReadError, get_json as census_get_json
+
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
 except (AttributeError, OSError, ValueError, LookupError):
@@ -151,10 +153,10 @@ def _prod_credentials(session):
 
 
 def _get_json(session, url, svc, what):
-    resp = session.get(url, headers={"Authorization": f"Bearer {svc}", "apikey": svc}, timeout=120)
-    if resp.status_code != 200:
-        raise InfrastructureError(_scrub(f"{what}: HTTP {resp.status_code} {resp.text[:200]}"))
-    return resp.json()
+    try:
+        return census_get_json(session, url, {"Authorization": f"Bearer {svc}", "apikey": svc}, what)
+    except CensusReadError as error:
+        raise InfrastructureError(_scrub(str(error))) from None
 
 
 def _exemplar_defs():
