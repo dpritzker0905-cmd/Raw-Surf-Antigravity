@@ -122,6 +122,7 @@ const SpotHub = () => {
   const [photographerPosts, setPhotographerPosts] = useState([]); // Posts tagged by photographers
   const [userPosts, setUserPosts] = useState([]); // Posts tagged by regular users
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [activeTab, setActiveTab] = useState('conditions');
   const [_userLocation, setUserLocation] = useState(null);
   
@@ -158,6 +159,7 @@ const SpotHub = () => {
   // ============ HANDLERS FROM useSpotHubActions ============
   const {
     fetchAllSpotData,
+    cancelSpotDataLoad,
     fetchLivePulse,
     fetchIntelData,
     handleReportConditionReport,
@@ -178,6 +180,7 @@ const SpotHub = () => {
     setPhotographerPosts,
     setUserPosts,
     setLoading,
+    setLoadError,
     setUserLocation,
     setIsWithinProximity,
     setLivePulse,
@@ -192,8 +195,12 @@ const SpotHub = () => {
   });
 
   useEffect(() => {
+    if (spotId) fetchAllSpotData();
+    return cancelSpotDataLoad;
+  }, [spotId, user?.id, userTier, activeModel]);
+
+  useEffect(() => {
     if (spotId) {
-      fetchAllSpotData();
       fetchLivePulse();
       
       // Refresh pulse every 30 seconds for real-time updates
@@ -260,13 +267,21 @@ const SpotHub = () => {
     );
   }
 
-  if (!spot) {
+  if (loadError || !spot) {
+    const notFound = loadError === 'not-found';
     return (
       <div className="max-w-xl mx-auto p-4">
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <AlertCircle className="w-12 h-12 text-red-400 mb-3" />
-          <h2 className="font-bold mb-1">Spot Not Found</h2>
-          <p className="text-sm text-gray-400 mb-4">This spot may have been removed.</p>
+          <h2 className={`font-bold mb-1 ${textPrimary}`}>
+            {notFound ? 'Spot Not Found' : 'Unable to load this spot'}
+          </h2>
+          <p role={notFound ? undefined : 'alert'} className={`text-sm mb-4 ${textSecondary}`}>
+            {notFound ? 'This spot may have been removed.' : 'Spot information is unavailable right now. Please try again.'}
+          </p>
+          {!notFound && (
+            <Button onClick={fetchAllSpotData} size="sm" className="mb-3">Try again</Button>
+          )}
           <Button onClick={() => navigate('/explore')} size="sm">
             Back to Explore
           </Button>

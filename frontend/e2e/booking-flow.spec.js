@@ -104,8 +104,8 @@ test.describe('Explore', () => {
       .toBeVisible({ timeout: 60000 });
   });
 
-  // ⏱ THE ASSERTION TIMEOUTS IN THIS FILE ARE 60 s, MATCHING apiClient.js:30's OWN DECLARED BUDGET
-  // ("60s -- handles Render free-tier cold starts"). They were 10-20 s, which contradicted it.
+  // Historical timeout investigation follows. The current client budget is 15 s, and Render is
+  // paid. The retained 60 s assertion is NOT a claim that transport failures recover by waiting.
   //
   // TRACE FORENSICS, run 31197681499 (`close-spothub-btn` not found):
   //   click trending-spot -> OK · toHaveURL(/\/spot-hub\//) -> PASSED · toBeVisible -> FAILED at 10.0 s
@@ -154,4 +154,44 @@ test.describe('Explore', () => {
       await expect(page.locator('[data-testid="bottom-nav"]')).toBeHidden();
     }
   });
+});
+
+test.describe('Spot hub transport recovery', () => {
+  for (const failure of ['network', '503', 'timeout']) {
+    test(`${failure} preserves a manual recovery path`, async ({ page }) => {
+      await signIn(page);
+      const id = 'forensic-recovery-spot';
+      let attempts = 0;
+      let releaseTimedOutRequest;
+      const heldRequest = new Promise(resolve => { releaseTimedOutRequest = resolve; });
+      await page.route(`**/api/explore/spot-details/${id}?*`, async route => {
+        attempts += 1;
+        if (attempts === 1) {
+          if (failure === 'network') return route.abort('failed');
+          if (failure === '503') return route.fulfill({ status: 503, json: { detail: 'Unavailable' } });
+          // Hold the real Axios request past its unchanged 15 s budget; no synthetic error object.
+          await heldRequest;
+          return route.abort('failed').catch(() => {});
+        }
+        return route.fulfill({ json: { id, name: 'Recovery test beach', region: 'Test coast', forecast: [] } });
+      });
+      await page.route(`**/api/condition-reports/spot/${id}?*`, route => route.fulfill({ json: { reports: [] } }));
+      await page.route(`**/api/posts/spot/${id}?*`, route => route.fulfill({ json: { photographer_posts: [], user_posts: [] } }));
+      await page.route(`**/api/surf-spots/${id}/live-shooting-pulse?*`, route => route.fulfill({ json: {} }));
+      try {
+        await page.goto(`/spot-hub/${id}?model=GFS`, { waitUntil: 'domcontentloaded' });
+        await expect(page).toHaveURL(new RegExp(`/spot-hub/${id}`));
+        await expect(page.getByRole('heading', { name: 'Unable to load this spot' })).toBeVisible({ timeout: 25000 });
+        await expect(page.getByText('Spot Not Found', { exact: true })).toHaveCount(0);
+        expect(attempts).toBe(1);
+        releaseTimedOutRequest();
+        await page.getByRole('button', { name: 'Try again', exact: true }).click();
+        await expect(page.getByTestId('close-spothub-btn')).toBeVisible({ timeout: 15000 });
+        expect(attempts).toBe(2);
+        await expect(page.getByRole('heading', { name: 'Unable to load this spot' })).toHaveCount(0);
+      } finally {
+        releaseTimedOutRequest();
+      }
+    });
+  }
 });
