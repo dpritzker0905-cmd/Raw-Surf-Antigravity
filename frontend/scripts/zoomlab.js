@@ -7,6 +7,7 @@
  */
 const path = require('path');
 const fs = require('fs');
+const { runWithNetworkEvidence } = require('./zoomlab-network-evidence');
 // Portable resolve (2026-07-18, CI): plain require works when run from frontend/ (or with
 // NODE_PATH set); the explicit node_modules fallback covers running from the repo root locally.
 let chromium;
@@ -40,6 +41,19 @@ async function main() {
     recordVideo: { dir: outdir, size: { width: 1280, height: 800 } },
   });
   const page = await context.newPage();
+
+  await runWithNetworkEvidence(page, {
+    run: networkEvidence => runScenario(page, networkEvidence),
+    close: async () => {
+      try { await context.close(); } finally { await browser.close(); }
+    },
+    save: evidence => fs.writeFileSync(path.join(outdir, `network_${scenario}.json`), JSON.stringify(evidence)),
+  });
+  const vids = fs.readdirSync(outdir).filter((f) => f.endsWith('.webm'));
+  log('videos: ' + vids.join(', '));
+}
+
+async function runScenario(page, networkEvidence) {
 
   // ZL_FLAGS: comma-separated window globals set true before app boot (kill-switch A/B runs),
   // e.g. ZL_FLAGS="__RAW_DISABLE_FLAT_HEATMAP_OPACITY__,__RAW_DISABLE_SHARPEN_OPACITY_EASE__".
@@ -512,14 +526,10 @@ async function main() {
           .filter((e) => e.type === 'reject_downgrade' || e.type === 'reject_subcover')
           .map((e) => ({ type: e.type, rule: e.rule, decidedBy: e.decidedBy, zoom: e.zoom })) : [],
   }));
-  fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ ...trace, scenario, completed: true, zoomNow, consoleErrors: [...new Set(consoleErrors)], arbShadow, arbLive }));
+  fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ ...trace, scenario, completed: true, zoomNow, consoleErrors: [...new Set(consoleErrors)], networkEvidence: networkEvidence(), arbShadow, arbLive }));
   log(`arbiter: mode=${arbLive.mode} decisions=${arbLive.tallies ? arbLive.tallies.n : 0} rejects=${arbLive.tallies ? arbLive.tallies.rejects : 0} rules=${JSON.stringify(arbLive.tallies ? arbLive.tallies.byRule : {})}`);
   log(`trace saved: ${trace.frames.length} frames, final zoom ${zoomNow.toFixed(2)}`);
 
-  await context.close(); // flushes video
-  const vids = fs.readdirSync(outdir).filter((f) => f.endsWith('.webm'));
-  log('videos: ' + vids.join(', '));
-  await browser.close();
 }
 
 function log(s) { console.log(`[zoomlab] ${s}`); }

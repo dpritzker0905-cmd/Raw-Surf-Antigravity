@@ -42,6 +42,9 @@ jobs:
       - name: Install Playwright chromium
         working-directory: frontend
         run: npx playwright install chromium --with-deps
+      - name: Verify request evidence with controlled browser failures
+        working-directory: frontend
+        run: node scripts/zoomlab-network-check.cjs /tmp/zoomlab-out/request-controls
       - name: Preflight — basemap token present
         run: |
           if [ -z "${{ secrets.MAPBOX_PUBLIC_TOKEN }}" ]; then
