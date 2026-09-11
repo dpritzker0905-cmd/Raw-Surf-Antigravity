@@ -4,6 +4,7 @@
  */
 
 import maplibregl from 'maplibre-gl';
+export { fetchModelMetadata, LIVE_FETCHED_MODELS, MODEL_METADATA_PROMISES } from './openMeteoMetadata';
 
 export function invalidateStaleTileRequests() {
   // Backwards compatibility stub
@@ -338,52 +339,6 @@ export var OM_MODEL_MAP = {
   EURO: 'ecmwf_ifs025',
   ICON: 'dwd_icon',
 };
-
-export var MODEL_METADATA_PROMISES = {};
-export var LIVE_FETCHED_MODELS = new Set();
-
-export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onMetadataChanged) {
-  const cached = MODEL_METADATA_CACHE[modelToCheck];
-  if (!LIVE_FETCHED_MODELS.has(modelToCheck) && !MODEL_METADATA_PROMISES[modelToCheck]) {
-    MODEL_METADATA_PROMISES[modelToCheck] = fetch(`https://map-tiles.open-meteo.com/data_spatial/${modelToCheck}/latest.json?skip_intercept=true`)
-      .then(res => {
-        if (!res.ok) throw new Error('Fetch failed');
-        return res.json();
-      })
-      .then(data => {
-        const variables = data.variables || [];
-        if (variables.includes('wind_u_component_10m') && variables.includes('wind_v_component_10m') && !variables.includes('wind_speed_10m')) {
-          variables.push('wind_speed_10m');
-        }
-        const result = {
-          variables: variables,
-          validTimes: data.valid_times || [],
-          referenceTime: data.reference_time || null,
-        };
-        const prevCache = MODEL_METADATA_CACHE[modelToCheck];
-        const hasChanged = !prevCache ||
-          prevCache.referenceTime !== result.referenceTime ||
-          prevCache.variables.length !== result.variables.length ||
-          prevCache.validTimes.length !== result.validTimes.length;
-
-        MODEL_METADATA_CACHE[modelToCheck] = result;
-        LIVE_FETCHED_MODELS.add(modelToCheck);
-
-        if (hasChanged && onMetadataChanged) {
-          onMetadataChanged();
-        }
-        return result;
-      })
-      .catch(err => {
-        console.warn(`[MapWebGL] Failed to fetch latest.json for ${modelToCheck}`, err);
-        return cached || { variables: [], validTimes: [], referenceTime: null };
-      })
-      .finally(() => {
-        MODEL_METADATA_PROMISES[modelToCheck] = null;
-      });
-  }
-  return cached || { variables: [], validTimes: [], referenceTime: null };
-}
 
 /**
  * Find the correct insertion layer for marine rasters in a Mapbox vector style.
