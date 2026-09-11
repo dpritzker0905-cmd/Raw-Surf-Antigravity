@@ -299,6 +299,10 @@ async function runScenario(page, networkEvidence) {
           // ARBITER PHASE B shadow tallies: [decisions, disagreements] — battery-wide agreement data.
           arb: (window.__RAW_ARBITER_SHADOW__)
             ? [window.__RAW_ARBITER_SHADOW__.n, window.__RAW_ARBITER_SHADOW__.disagree] : null,
+          // The layer's completed decision, including the resident BEFORE an in-frame swap.
+          // Sequence/time expose stale samples and skipped engine calls instead of guessing from GPU flags.
+          opacityEvidence: window.__RAW_CAPTURE_OPACITY__ === true && window.__RAW_OPACITY_EVIDENCE__
+            ? window.__RAW_OPACITY_EVIDENCE__.frame : null,
         });
       } catch (e) { T.frames.push({ err: String(e && e.message).slice(0, 60) }); }
     });
@@ -507,6 +511,14 @@ async function runScenario(page, networkEvidence) {
   }
 
   const trace = await page.evaluate(() => window.__ZT__);
+  if (process.env.ZL_FLAGS && process.env.ZL_FLAGS.split(',').map(s => s.trim()).includes('__RAW_CAPTURE_OPACITY__')) {
+    const evidence = await page.evaluate(() => {
+      const s = window.__RAW_OPACITY_EVIDENCE__;
+      return s ? { schema: s.schema, framesSeen: s.seq, events: [...s.events].sort((a, b) => a.seq - b.seq),
+        eventsSeen: s.eventsSeen, eventsDropped: s.eventsDropped, errors: s.errors } : null;
+    });
+    fs.writeFileSync(path.join(outdir, `opacity_${scenario}.json`), JSON.stringify(evidence));
+  }
   const zoomNow = await page.evaluate(() => window.map.getZoom());
   // ARBITER Phase B soak: persist the shadow tallies + full divergence events (the forensic ring
   // dies with the browser; the per-frame arb:[n,disagree] locates WHEN, this preserves WHAT).
