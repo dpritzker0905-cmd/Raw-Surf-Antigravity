@@ -369,16 +369,6 @@ export function useOpenMeteoTileUrls({
     );
   }, []);
 
-  // Pre-warm ALL model metadata immediately upon mount to eliminate layer activation latency completely
-  useEffect(() => {
-    const allModels = [
-      'ncep_gfs025', 'ncep_gfs013', 'ncep_gfswave025',
-      'ecmwf_ifs025', 'ecmwf_wam025',
-      'dwd_icon', 'dwd_gwam'
-    ];
-    allModels.forEach(m => fetchMetadata(m));
-  }, [fetchMetadata]);
-
   // Closest time index computation
   const closestTimeIdx = useMemo(() => {
     const model = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
@@ -539,10 +529,17 @@ export function useOpenMeteoTileUrls({
         const models = [...new Set(activeTasks.map(t => resolveModel(t.entry, t.variable)))];
         window.__OM_ACTIVE_MODELS__ = models;
 
-        const allCached = models.every(m => MODEL_METADATA_CACHE[m] && Array.isArray(MODEL_METADATA_CACHE[m].validTimes) && MODEL_METADATA_CACHE[m].validTimes.length);
-        if (!allCached) {
-          // Asynchronous slow-path (only used if cache is cold)
-          await Promise.all(models.map(m => fetchMetadata(m)));
+        // Fetch only models required by active raster/fallback layers. Native marine uses
+        // backend grids and must not depend on an unrelated tile host at startup.
+        // fetchModelMetadata deduplicates live/in-flight requests; bootstrap cached axes
+        // alone are not proof that a model's metadata has actually been fetched.
+        const missingMetadata = models.filter(m => !LIVE_FETCHED_MODELS.has(m)
+          || !Array.isArray(MODEL_METADATA_CACHE[m]?.validTimes)
+          || !MODEL_METADATA_CACHE[m].validTimes.length);
+        // Preserve the May warm-cache fast path: genuinely live metadata resolves within
+        // this animation callback. Placeholder axes must still trigger an actual fetch.
+        if (missingMetadata.length) {
+          await Promise.all(missingMetadata.map(m => fetchMetadata(m)));
           if (!isMounted) return;
         }
 
@@ -764,4 +761,3 @@ export function useOpenMeteoTileUrls({
   };
 
 }
-
