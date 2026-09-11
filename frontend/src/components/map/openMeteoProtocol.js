@@ -1,6 +1,8 @@
 import { CUSTOM_COLOR_SCALES, aliasSurfaceTemperature } from './colorScales';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { traceOmUrl, traceOmBlock, traceOmServed } from './omUrlTrace';
+import { openMeteoFetchInput, legacyOpenMeteoUrl } from './openMeteoTransport';
+import { LIVE_FETCHED_MODELS } from './openMeteoMetadata';
 
 // F4: per-tile / per-frame console output is GATED. With console capture / React Scan / PostHog
 // active, an unconditional console.log per decoded tile materially amplifies tile-heavy
@@ -421,10 +423,11 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
     globalCtx.__FETCH_INTERCEPTED__ = true;
     const originalFetch = globalCtx.fetch;
     globalCtx.fetch = function (input, init) {
-      const urlString = typeof input === 'string' ? input : input?.url || '';
+      const urlString = typeof input === 'string' ? input : input instanceof URL ? input.href : input?.url || '';
+      const isOmResource = legacyOpenMeteoUrl(input) !== null;
       
       // Fast-path: Block requests to known missing model runs or specific missing tiles in 0ms
-      if (urlString.includes('map-tiles.open-meteo.com')) {
+      if (isOmResource) {
         if (MISSING_OM_TILES.has(urlString)) {
           return Promise.resolve(new Response('OM Tile Missing', {
             status: 404,
@@ -442,22 +445,15 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         }
       }
 
-      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('latest.json') && !urlString.includes('time_step=') && !urlString.includes('skip_intercept=true') && MODEL_METADATA_CACHE) {
+      if (isOmResource && urlString.includes('latest.json') && !urlString.includes('time_step=') && !urlString.includes('skip_intercept=true') && MODEL_METADATA_CACHE) {
         try {
           const urlObj = new URL(urlString);
           const parts = urlObj.pathname.split('/');
           const model = parts[2];
-          if (model && MODEL_METADATA_CACHE[model] && MODEL_METADATA_CACHE[model].validTimes?.length) {
+          if (model && LIVE_FETCHED_MODELS.has(model) && MODEL_METADATA_CACHE[model]?.sourceMetadata) {
             const meta = MODEL_METADATA_CACHE[model];
             WeatherTelemetry.trackCacheHit(model, 'MODEL_METADATA_CACHE');
-            const responseData = {
-              completed: true,
-              crs_wkt: "",
-              last_modified_time: new Date().toISOString(),
-              reference_time: meta.referenceTime || new Date().toISOString(),
-              valid_times: meta.validTimes,
-              variables: meta.variables || []
-            };
+            const responseData = meta.sourceMetadata;
             return Promise.resolve(new Response(JSON.stringify(responseData), {
               status: 200,
               statusText: 'OK',
@@ -472,15 +468,15 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       }
 
       let effectiveInit = init;
-      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('.om')) {
+      if (isOmResource && urlString.includes('.om')) {
         effectiveInit = { ...init, cache: 'no-store' };
       }
 
       const fetchStartTime = Date.now();
-      const promise = originalFetch.call(this, input, effectiveInit);
+      const promise = originalFetch.call(this, openMeteoFetchInput(input), effectiveInit);
 
       // Inspect response and register 404s for .om tile runs
-      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('.om')) {
+      if (isOmResource && urlString.includes('.om')) {
         return promise.then(res => {
           const duration = Date.now() - fetchStartTime;
           if (res.status === 404) {
