@@ -1,5 +1,6 @@
 // Opt-in observation only. Never supplies a rendering decision, changes a flag, or retains grids.
 // The frame sequence joins the actual layer decision to Zoomlab's subsequent map render event.
+import { captureMarineGridEvidence } from './marineGridEvidence';
 const ids = new WeakMap();
 let nextId = 0;
 const id = value => {
@@ -18,9 +19,12 @@ const FLAGS = [
 
 export function opacityGridIdentity(grid) {
   if (!grid) return null;
+  const gridId = id(grid);
+  const store = typeof window !== 'undefined' && window.__RAW_CAPTURE_OPACITY__ === true && window.__RAW_OPACITY_EVIDENCE__;
+  if (store) captureMarineGridEvidence(store, grid, gridId);
   const b = grid.bounds;
   return {
-    id: id(grid), bounds: b ? [b.west, b.south, b.east, b.north] : null,
+    id: gridId, bounds: b ? [b.west, b.south, b.east, b.north] : null,
     cols: grid.cols ?? null, rows: grid.rows ?? null,
     model: grid.__sourceModel ?? null, layer: grid.__componentLayer ?? null,
     rating: !!grid.ratingMode, coverage: grid.coverage_scope ?? grid.coverageMode ?? null,
@@ -85,6 +89,7 @@ export function beginOpacityEvidence(engine) {
   try {
     const store = window.__RAW_OPACITY_EVIDENCE__ || (window.__RAW_OPACITY_EVIDENCE__ = {
       schema: 1, seq: 0, events: [], eventsSeen: 0, eventsDropped: 0, errors: 0, engines: new WeakSet(),
+      grids: [], gridObjects: new WeakSet(), gridsSeen: 0, gridsDropped: 0, gridVectorsCaptured: 0,
     });
     observeLifecycle(engine, window, store);
     const flags = Object.fromEntries(FLAGS.map(name => [name, window[name] ?? null]));

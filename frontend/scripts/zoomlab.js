@@ -515,7 +515,8 @@ async function runScenario(page, networkEvidence) {
     const evidence = await page.evaluate(() => {
       const s = window.__RAW_OPACITY_EVIDENCE__;
       return s ? { schema: s.schema, framesSeen: s.seq, events: [...s.events].sort((a, b) => a.seq - b.seq),
-        eventsSeen: s.eventsSeen, eventsDropped: s.eventsDropped, errors: s.errors } : null;
+        eventsSeen: s.eventsSeen, eventsDropped: s.eventsDropped, errors: s.errors,
+        grids: s.grids, gridsSeen: s.gridsSeen, gridsDropped: s.gridsDropped, gridVectorsCaptured: s.gridVectorsCaptured } : null;
     });
     fs.writeFileSync(path.join(outdir, `opacity_${scenario}.json`), JSON.stringify(evidence));
   }
