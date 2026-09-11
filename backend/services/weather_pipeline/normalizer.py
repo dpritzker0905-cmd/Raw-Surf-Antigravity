@@ -146,14 +146,6 @@ class WeatherNormalizer:
         from services.weather_pipeline.cycle_provenance import cycle_from_points
         cycle = cycle_from_points(raw_results)
 
-        # Build bounds
-        bounds = CoverageBounds(
-            west=bbox["west"],
-            south=bbox["south"],
-            east=bbox["east"],
-            north=bbox["north"]
-        )
-
         # Standardize layers
         layer_def = self.LAYER_VARS.get(layer)
         if not layer_def:
@@ -229,6 +221,15 @@ class WeatherNormalizer:
         unique_lons = sorted(list(clean_lons_set))
         cols = len(unique_lons)
         rows = len(unique_lats)
+
+        # Grid consumers interpolate between NODE endpoints. The requested bbox can end
+        # between nodes; labeling it as the grid extent stretches spacing and breaks trim.
+        # Use the same longitude wrapping as vector emission, preserving both +/-180 columns.
+        def node_longitude(lng):
+            return round(lng - 360.0 if lng > 180.0 else (lng + 360.0 if lng < -180.0 else lng), 4)
+
+        bounds = CoverageBounds(west=node_longitude(unique_lons[0]), south=unique_lats[0],
+                                east=node_longitude(unique_lons[-1]), north=unique_lats[-1])
 
         # Build mapping from raw results to snapped grid coordinates
         grid_data = {}
@@ -516,6 +517,7 @@ class WeatherNormalizer:
             rows=rows,
             vectors=vectors,
             diagnostics={
+                "requested_bounds": dict(bbox),
                 "cols": cols,
                 "rows": rows,
                 "vectorCount": len(vectors),
