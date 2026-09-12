@@ -38,6 +38,19 @@ function respond(page, req, status) {
   page.emit('response', { request: () => req, status: () => status });
 }
 
+test.each([
+  ['/api/weather/grid_series', 'weather-grid-series'],
+  ['/api/weather/grid_series/', 'weather-grid-series'],
+  ['/api/weather/grid-series', 'weather-grid-series'],
+  ['/api/weather/grid_series/private', null],
+  ['/api/weather/grid_series_backup', null],
+])('categorizes the real series endpoint without retaining private query data: %s', (path, route) => {
+  const h = harness(), r = request('https://api.example' + path + '?token=secret');
+  h.page.emit('request', r); h.page.emit('requestfailed', r);
+  expect(h.snapshot().requests[0].route).toBe(route);
+  expect(JSON.stringify(h.snapshot())).not.toContain('secret');
+});
+
 test('pairs overlapping identical URLs by request object and records measured timing', () => {
   const h = harness();
   const a = request(), b = request();

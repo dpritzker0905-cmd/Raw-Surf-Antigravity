@@ -5,7 +5,7 @@ const RESOURCE_TYPES = new Set(['document', 'stylesheet', 'image', 'media', 'fon
 const ROUTES = [
   [/^\/api\/explore\/spot-details\/[^/]+\/?$/, 'spot-details'],
   [/^\/api\/weather\/grid\/?$/, 'weather-grid'],
-  [/^\/api\/weather\/grid-series\/?$/, 'weather-grid-series'],
+  [/^\/api\/weather\/grid[-_]series\/?$/, 'weather-grid-series'],
   [/^\/api\/conditions\/batch\/?$/, 'conditions-batch'],
   [/^\/api\/condition-reports(?:\/|$)/, 'condition-reports'],
   [/\/latest\.json$/, 'weather-manifest'],
