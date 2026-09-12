@@ -8,6 +8,7 @@
 const path = require('path');
 const fs = require('fs');
 const { runWithNetworkEvidence } = require('./zoomlab-network-evidence');
+const { attachWeatherEvidence } = require('./zoomlab-weather-evidence.cjs');
 // Portable resolve (2026-07-18, CI): plain require works when run from frontend/ (or with
 // NODE_PATH set); the explicit node_modules fallback covers running from the repo root locally.
 let chromium;
@@ -42,13 +43,17 @@ async function main() {
   });
   const page = await context.newPage();
 
-  await runWithNetworkEvidence(page, {
+  const weatherEvidence = process.env.ZL_FLAGS?.split(',').map(s => s.trim()).includes('__RAW_CAPTURE_OPACITY__')
+    ? attachWeatherEvidence(page) : null;
+  try { await runWithNetworkEvidence(page, {
     run: networkEvidence => runScenario(page, networkEvidence),
     close: async () => {
       try { await context.close(); } finally { await browser.close(); }
     },
     save: evidence => fs.writeFileSync(path.join(outdir, `network_${scenario}.json`), JSON.stringify(evidence)),
-  });
+  }); } finally {
+    if (weatherEvidence) fs.writeFileSync(path.join(outdir, `weather_${scenario}.json`), JSON.stringify(await weatherEvidence()));
+  }
   const vids = fs.readdirSync(outdir).filter((f) => f.endsWith('.webm'));
   log('videos: ' + vids.join(', '));
 }
@@ -516,7 +521,8 @@ async function runScenario(page, networkEvidence) {
       const s = window.__RAW_OPACITY_EVIDENCE__;
       return s ? { schema: s.schema, framesSeen: s.seq, events: [...s.events].sort((a, b) => a.seq - b.seq),
         eventsSeen: s.eventsSeen, eventsDropped: s.eventsDropped, errors: s.errors,
-        grids: s.grids, gridsSeen: s.gridsSeen, gridsDropped: s.gridsDropped, gridVectorsCaptured: s.gridVectorsCaptured } : null;
+        grids: s.grids, gridsSeen: s.gridsSeen, gridsDropped: s.gridsDropped, gridVectorsCaptured: s.gridVectorsCaptured,
+        encoder: window.__RAW_ENCODER_EVIDENCE__ || null } : null;
     });
     fs.writeFileSync(path.join(outdir, `opacity_${scenario}.json`), JSON.stringify(evidence));
   }
