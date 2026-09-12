@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const { runWithNetworkEvidence } = require('./zoomlab-network-evidence');
 const { attachWeatherEvidence } = require('./zoomlab-weather-evidence.cjs');
+const { sampleBrowserClock } = require('./zoomlab-clock-evidence.cjs');
 // Portable resolve (2026-07-18, CI): plain require works when run from frontend/ (or with
 // NODE_PATH set); the explicit node_modules fallback covers running from the repo root locally.
 let chromium;
@@ -43,10 +44,14 @@ async function main() {
   });
   const page = await context.newPage();
 
-  const weatherEvidence = process.env.ZL_FLAGS?.split(',').map(s => s.trim()).includes('__RAW_CAPTURE_OPACITY__')
-    ? attachWeatherEvidence(page) : null;
+  const capture = process.env.ZL_FLAGS?.split(',').map(s => s.trim()).includes('__RAW_CAPTURE_OPACITY__');
+  let weatherEvidence;
   try { await runWithNetworkEvidence(page, {
-    run: networkEvidence => runScenario(page, networkEvidence),
+    recorderOptions: capture ? { weatherLimit: 300 } : undefined,
+    run: networkEvidence => {
+      weatherEvidence = capture ? attachWeatherEvidence(page, networkEvidence.requestIdentity) : null;
+      return runScenario(page, networkEvidence);
+    },
     close: async () => {
       try { await context.close(); } finally { await browser.close(); }
     },
@@ -59,6 +64,8 @@ async function main() {
 }
 
 async function runScenario(page, networkEvidence) {
+  const clockEvidence = [];
+  const captureEvidence = process.env.ZL_FLAGS?.split(',').map(s => s.trim()).includes('__RAW_CAPTURE_OPACITY__');
 
   // ZL_FLAGS: comma-separated window globals set true before app boot (kill-switch A/B runs),
   // e.g. ZL_FLAGS="__RAW_DISABLE_FLAT_HEATMAP_OPACITY__,__RAW_DISABLE_SHARPEN_OPACITY_EASE__".
@@ -213,6 +220,7 @@ async function runScenario(page, networkEvidence) {
   await page.waitForTimeout(6000);
 
   // In-page per-frame trace, synchronized on map render events.
+  if (captureEvidence) clockEvidence.push(await sampleBrowserClock(page, networkEvidence.clock));
   await page.evaluate(() => {
     const m = window.map, eng = window.__MARINE_ENGINE__;
     const src = m.getCanvas();
@@ -516,6 +524,7 @@ async function runScenario(page, networkEvidence) {
   }
 
   const trace = await page.evaluate(() => window.__ZT__);
+  if (captureEvidence) clockEvidence.push(await sampleBrowserClock(page, networkEvidence.clock));
   if (process.env.ZL_FLAGS && process.env.ZL_FLAGS.split(',').map(s => s.trim()).includes('__RAW_CAPTURE_OPACITY__')) {
     const evidence = await page.evaluate(() => {
       const s = window.__RAW_OPACITY_EVIDENCE__;
@@ -525,6 +534,11 @@ async function runScenario(page, networkEvidence) {
         encoder: window.__RAW_ENCODER_EVIDENCE__ || null } : null;
     });
     fs.writeFileSync(path.join(outdir, `opacity_${scenario}.json`), JSON.stringify(evidence));
+    const demand = await page.evaluate(() => {
+      const s = window.__RAW_DEMAND_EVIDENCE__;
+      return s ? { ...s, events: [...s.events].sort((a, b) => a.id - b.id) } : null;
+    });
+    fs.writeFileSync(path.join(outdir, `demand_${scenario}.json`), JSON.stringify({ clockEvidence, demand }));
   }
   const zoomNow = await page.evaluate(() => window.map.getZoom());
   // ARBITER Phase B soak: persist the shadow tallies + full divergence events (the forensic ring

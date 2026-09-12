@@ -28,12 +28,14 @@ function utc(ms) {
 }
 function attachNetworkEvidence(page, options = {}) {
   if (typeof options === 'number') options = { limit: options }; // Original numeric API.
-  const { limit = 200, pendingLimit = 1000, slowMs = 1000,
+  const { limit = 200, pendingLimit = 1000, slowMs = 1000, weatherLimit = 0,
     now = () => ({ utcMs: Date.now(), monoMs: performance.now() }) } = options;
   if (!Number.isInteger(limit) || limit < 0 || limit > 1000
       || !Number.isInteger(pendingLimit) || pendingLimit < 1 || pendingLimit > 2000
-      || !Number.isFinite(slowMs) || slowMs < 0) throw new RangeError('Invalid evidence bounds');
-  const requests = [], pending = new Map();
+      || !Number.isFinite(slowMs) || slowMs < 0
+      || !Number.isInteger(weatherLimit) || weatherLimit < 0 || weatherLimit > 1000) throw new RangeError('Invalid evidence bounds');
+  const requests = [], pending = new Map(), identities = new WeakMap(), weatherRequests = [];
+  let weatherSeen = 0, weatherDropped = 0;
   const captureId = randomUUID(); // Request IDs are scoped to this capture, not server trace IDs.
   const totals = { started: 0, finished: 0, failed: 0, httpErrors: 0, slow: 0, unattributedTerminals: 0 };
   let sequence = 0, dropped = 0, trackingDropped = 0, phase = 'capture', stopped = false, stoppedAt;
@@ -44,6 +46,7 @@ function attachNetworkEvidence(page, options = {}) {
     return { requestId: entry.requestId, origin: entry.origin, route: entry.route,
       resourceType: entry.resourceType, outcome, status: entry.status, errorCode,
       startedAtUTC: entry.start ? utc(entry.start.utcMs) : null,
+      startedAtMonoMs: entry.start ? entry.start.monoMs : null, observedAtMonoMs: end.monoMs,
       observedAtUTC: utc(end.utcMs), durationMs: Number.isFinite(elapsed) && elapsed >= 0
         ? Math.round(elapsed * 1000) / 1000 : null,
       durationBasis: 'observer-monotonic', startedPhase: entry.startedPhase, finishedPhase: phase };
@@ -51,7 +54,8 @@ function attachNetworkEvidence(page, options = {}) {
   function started(request) {
     totals.started++;
     if (pending.size >= pendingLimit) { trackingDropped++; return; }
-    pending.set(request, metadata(request, now()));
+    const entry = metadata(request, now());
+    pending.set(request, entry); identities.set(request, entry.requestId);
   }
   function responseReceived(response) {
     const entry = pending.get(response.request());
@@ -82,13 +86,23 @@ function attachNetworkEvidence(page, options = {}) {
       if (requests.length < limit) requests.push(result);
       else dropped++;
     }
+    // The diagnostic budget may fill with map-tile errors. Keep an independent opt-in ledger
+    // of ALL weather grid terminals, including fast 200s, so later recovery remains observable.
+    if (weatherLimit && ['weather-grid', 'weather-grid-series'].includes(result.route)) {
+      weatherSeen++;
+      if (weatherRequests.length < weatherLimit) weatherRequests.push(result);
+      else { weatherRequests[(weatherSeen - 1) % weatherLimit] = result; weatherDropped++; }
+    }
   }
   const handlers = { request: started, response: responseReceived,
     requestfinished: request => ended(request, false), requestfailed: request => ended(request, true) };
   for (const [event, handler] of Object.entries(handlers)) page.on(event, handler);
   const snapshot = () => ({ version: 2, captureId, phase, stopped, dropped, trackingDropped,
     totals: { ...totals }, requests: requests.map(r => ({ ...r })),
-    pending: [...pending.values()].map(entry => record(entry, stoppedAt || now(), 'incomplete')) });
+    pending: [...pending.values()].map(entry => record(entry, stoppedAt || now(), 'incomplete')),
+    ...(weatherLimit ? { weatherSeen, weatherDropped, weatherRequests: weatherRequests.map(r => ({ ...r })) } : {}) });
+  snapshot.clock = () => now();
+  snapshot.requestIdentity = request => identities.has(request) ? { captureId, requestId: identities.get(request) } : null;
   snapshot.beginTeardown = () => { if (!stopped) phase = 'teardown'; };
   snapshot.stop = () => {
     if (stopped) return;

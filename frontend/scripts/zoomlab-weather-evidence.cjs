@@ -10,7 +10,7 @@ const LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 const pick = (o, keys) => Object.fromEntries(keys.filter(k => o && Object.hasOwn(o, k))
   .map(k => [k, o[k] === null || typeof o[k] === 'boolean' || (typeof o[k] === 'number' && Number.isFinite(o[k]))
     || (typeof o[k] === 'string' && o[k].length <= 180) ? o[k] : '[unsupported]']));
-function attachWeatherEvidence(page) {
+function attachWeatherEvidence(page, requestIdentity = () => null) {
   const state = { schema: 1, seen: 0, dropped: 0, cells: 0, framesSeen: 0, framesDropped: 0, errors: 0, responses: [] };
   const pending = new Set();
   function frame(raw) {
@@ -28,7 +28,8 @@ function attachWeatherEvidence(page) {
     return snap;
   }
   async function capture(response, route) {
-    const row = { id: ++state.seen, route, status: response.status(), atUTC: new Date().toISOString(), complete: false };
+    const row = { id: ++state.seen, route, status: response.status(), atUTC: new Date().toISOString(),
+      network: requestIdentity(response.request()), complete: false };
     if (state.responses.length >= 32) { state.dropped++; return; }
     state.responses.push(row);
     if (row.status !== 200) { row.reason = 'http-status'; return; }

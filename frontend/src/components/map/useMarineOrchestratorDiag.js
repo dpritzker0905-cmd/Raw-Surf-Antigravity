@@ -5,6 +5,7 @@
  */
 
 import { computeGridContentHash } from './marineGridHash';
+import { recordMarineDemand } from './marineDemandEvidence';
 
 export function _marineDataSignature(data, layer) {
   if (!data?.grid) return null;
@@ -14,6 +15,7 @@ export function _marineDataSignature(data, layer) {
 }
 
 export function _logPipelineEvent(eventType, detail, pipelineEventsRef, pipelineCountersRef, activeModelRef, activeMarineLayerRef, timeOffsetRef, lastCommittedSigRef, pendingMarineIntentRef) {
+  recordMarineDemand('pipeline', eventType, null, null, detail);
   const entry = { event: eventType, ...detail, timestamp: new Date().toISOString() };
   pipelineEventsRef.current = [...pipelineEventsRef.current.slice(-19), entry];
   const c = pipelineCountersRef.current;

@@ -1,5 +1,6 @@
 const { EventEmitter } = require('events');
 const { attachWeatherEvidence } = require('../../scripts/zoomlab-weather-evidence.cjs');
+const { attachNetworkEvidence } = require('../../scripts/zoomlab-network-evidence');
 const g = () => ({ model: 'GFS', model_run_time: '2026-09-12T00:00:00Z', cols: 2, rows: 2,
   bounds: { west: 0, south: 0, east: 1, north: 1 }, vectors: [{ lat: 0, lng: 0, is_valid: false,
     waves: { height: 2, is_valid: false }, private: 'secret' }], token: 'secret', user: { name: 'secret' } });
@@ -26,6 +27,18 @@ it('ignores private routes, lookalike hosts and writes', async () => {
   p.emit('response', response(g(), '/api/weather/grid', 'https://raw-surf-antigravity.onrender.com.evil.test'));
   p.emit('response', { ...response(g()), request: () => ({ method: () => 'POST' }) });
   expect((await stop()).seen).toBe(0);
+});
+it('joins concurrent same-route response bodies by the actual request object, not response order', async () => {
+  const p = new EventEmitter(), network = attachNetworkEvidence(p, { weatherLimit: 4 });
+  const stop = attachWeatherEvidence(p, network.requestIdentity);
+  const a = { method: () => 'GET', url: () => 'https://raw-surf-antigravity.onrender.com/api/weather/grid?token=secret', resourceType: () => 'fetch' };
+  const b = { ...a };
+  p.emit('request', a); p.emit('request', b);
+  for (const req of [b, a]) { p.emit('response', { ...response(g(), '/api/weather/grid'), request: () => req }); p.emit('requestfinished', req); }
+  const state = await stop(); network.stop();
+  expect(state.responses.map(r => r.network.requestId)).toEqual(['r2', 'r1']);
+  expect(state.responses.map(r => r.network.captureId)).toEqual([network().captureId, network().captureId]);
+  expect(JSON.stringify(state)).not.toContain('secret');
 });
 it('does not claim complete when the frame or vector budget truncates a response', async () => {
   const p = new EventEmitter(), stop = attachWeatherEvidence(p);
