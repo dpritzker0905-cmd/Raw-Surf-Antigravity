@@ -1,6 +1,7 @@
 import { renderMaskToCanvas, maskDensityPxPerDeg, incomingMaskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer
 import { captureMarineEncoderEvidence } from './marineEncoderEvidence';
+import { beginCoarseBaseSnapshot, finishCoarseBaseSnapshot } from './marineCoarseBaseSnapshot';
 import { applyPatchCarry } from './maskSmoothing';
 import { writeCoastDistanceField } from './maskCoastSDF'; // signed dist-to-coast → mask .b (opt-in, best-in-class crisp coast)
 import {
@@ -226,6 +227,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
   }
 
   captureMarineEncoderEvidence(waveGrid, standalone, [uArr, vArr, hArr, pArr, oceanArr, confArr, motionArr, hPhys]);
+  const coarseSnapshot = beginCoarseBaseSnapshot(waveGrid, [uArr, vArr, hArr, pArr, oceanArr, confArr, motionArr, hPhys]);
   if (!encodeMarineTexture._forensicCount) encodeMarineTexture._forensicCount = 0;
   if (encodeMarineTexture._forensicCount < 3) {
     let minS = Infinity, maxS = 0, sumS = 0, cnt = 0;
@@ -772,6 +774,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
   }
 
   return {
+    coarseSnapshot: finishCoarseBaseSnapshot(coarseSnapshot, [dataWave, dataChl, dataBath, dataMask, dataWaveScore]),
     u_waveTexture: waveTex,
     u_chlorophyllTexture: chlTex,
     u_bathymetryTexture: bathTex,
