@@ -1,6 +1,6 @@
 const { analyzeTrace } = require('../../scripts/zoomlab-verdict');
 const frames = [0, 100].map(t => ({ t, z: 6.862, L: 100, mult: 1, anim: new Array(40).fill(8) }));
-const sources = ['featured photographers', 'friends on map'];
+const sources = ['featured photographers', 'friends on map', 'live photographers'];
 
 it.each(sources)('keeps the observed %s Axios timeout non-green, with the correct cause', source => {
   // Error shapes from run34304969847. Both call sites log the caught API request error.
@@ -18,6 +18,8 @@ it.each([
   '[ERROR] Error fetching friends on map: TypeError: timeout of 15000ms exceeded',
   '[ERROR] Error fetching featured photographers: TypeError: cannot read properties of undefined',
   '[ERROR] Error fetching friends on map: AxiosError: invalid render data',
+  '[ERROR] Error fetching live photographers: TypeError: timeout of 15000ms exceeded',
+  '[ERROR] Error fetching live photographers: AxiosError: invalid render data',
 ])('preserves nearby non-transport errors: %s', error => {
   const result = analyzeTrace({ frames, consoleErrors: [error] });
   expect(result.verdict).toBe('FAIL');
