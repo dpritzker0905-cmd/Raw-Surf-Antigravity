@@ -180,6 +180,8 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
           // Mid-band ceiling from the SAME window the guard read, so the shadow can't diverge on it.
           midBandCeil: Number(window.__RAW_MARINE_GLOBAL_SPAN__) || 40.0,
           midBandCeilOff: window.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true,
+          sameFieldBridgeDisabled: window.__RAW_DISABLE_ZOOMOUT_BRIDGE__ === true || window.__RAW_DISABLE_SUBCOVER_REJECT__ === true,
+          coverFrac: Number(window.__RAW_DOWNGRADE_COVER_FRAC__) || undefined,
           // Shadow must exercise the SAME rule list the flip will run, grace included — otherwise
           // it re-reports the (now-fixed) rating-grace class as a divergence forever.
           graceState: _arbiterGraceState,
