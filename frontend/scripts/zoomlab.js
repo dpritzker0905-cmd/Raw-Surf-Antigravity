@@ -10,6 +10,7 @@ const fs = require('fs');
 const { runWithNetworkEvidence } = require('./zoomlab-network-evidence');
 const { attachWeatherEvidence } = require('./zoomlab-weather-evidence.cjs');
 const { sampleBrowserClock } = require('./zoomlab-clock-evidence.cjs');
+const { analyzeTransitions } = require('./zoomlab-transition-evidence.cjs');
 // Portable resolve (2026-07-18, CI): plain require works when run from frontend/ (or with
 // NODE_PATH set); the explicit node_modules fallback covers running from the repo root locally.
 let chromium;
@@ -534,6 +535,7 @@ async function runScenario(page, networkEvidence) {
         encoder: window.__RAW_ENCODER_EVIDENCE__ || null } : null;
     });
     fs.writeFileSync(path.join(outdir, `opacity_${scenario}.json`), JSON.stringify(evidence));
+    fs.writeFileSync(path.join(outdir, `transitions_${scenario}.json`), JSON.stringify(analyzeTransitions(evidence), null, 2));
     const demand = await page.evaluate(() => {
       const s = window.__RAW_DEMAND_EVIDENCE__;
       return s ? { ...s, events: [...s.events].sort((a, b) => a.id - b.id) } : null;
