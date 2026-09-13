@@ -20,6 +20,8 @@
  * via arguments. First match wins.
  */
 
+import { sameFieldSubcover } from './marineSameFieldBridge';
+
 const ZOOMED_OUT_MAX_ZOOM_DEFAULT = 6.5;
 
 function cellDegOf(grid) {
@@ -193,7 +195,7 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
     ? ((typeof ctx.zoom === 'number' && ctx.zoom <= zMax)
         || (Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > 15.0 || (vbW[3] - vbW[1]) > 15.0)))
     : (Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > _amc || (vbW[3] - vbW[1]) > _amc));
-  const zoomedOut = wideNow && rRated === iRated;
+  const zoomedOut = (wideNow || sameFieldSubcover(incoming, resident, ctx.zoom, ctx.viewportBounds, ctx)) && rRated === iRated;
   const rSpan = spanLngOf(resident), iSpan = spanLngOf(incoming);
   if (zoomedOut && rSpan !== null && rSpan >= 340 && iSpan !== null && iSpan < 340) {
     const iFrac = coverageFrac(incoming, ctx.viewportBounds);

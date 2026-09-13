@@ -22,6 +22,7 @@
  * WebGLMarineEngine re-exports every name below, so no importer and no test changed.
  */
 import { recordMarineEvent } from './marineForensics';
+import { alignMarineNodeBounds } from './marineGridBounds';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 
 export function latToMercatorY(lat) {
@@ -515,6 +516,7 @@ export function resolveFineSeamFloor(cellDeg, coarseFloor, win) {
 export function trimDeadEdges(waveGrid, win) {
   const w = win || (typeof window !== 'undefined' ? window : {});
   if (w.__RAW_DISABLE_DEAD_EDGE_TRIM__ === true) return waveGrid;
+  waveGrid = alignMarineNodeBounds(waveGrid);
   if (!waveGrid || !waveGrid.vectors || !waveGrid.bounds || !(waveGrid.cols > 3) || !(waveGrid.rows > 3)) return waveGrid;
   const b = waveGrid.bounds;
   const stepX = (b.east - b.west) / (waveGrid.cols - 1);

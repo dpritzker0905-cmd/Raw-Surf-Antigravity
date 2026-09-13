@@ -38,6 +38,49 @@ function respond(page, req, status) {
   page.emit('response', { request: () => req, status: () => status });
 }
 
+test('separate weather ledger retains fast and late terminals after diagnostic exhaustion', () => {
+  const h = harness({ limit: 1, weatherLimit: 2 });
+  h.page.emit('requestfailed', request()); h.page.emit('requestfailed', request());
+  const a = request('https://api.example/api/weather/grid?token=secret'), b = request('https://api.example/api/weather/grid_series');
+  h.page.emit('request', a); const identity = h.snapshot.requestIdentity(a);
+  h.advance(5); h.page.emit('request', b); respond(h.page, b, 200); h.page.emit('requestfinished', b);
+  respond(h.page, a, 200); h.advance(5); h.page.emit('requestfinished', a);
+  const s = h.snapshot();
+  expect(s).toMatchObject({ dropped: 1, weatherSeen: 2, weatherDropped: 0 });
+  expect(s.weatherRequests).toMatchObject([
+    { requestId: h.snapshot.requestIdentity(b).requestId, outcome: 'finished', startedAtMonoMs: 5, observedAtMonoMs: 5 },
+    { requestId: identity.requestId, outcome: 'finished', startedAtMonoMs: 0, observedAtMonoMs: 10 },
+  ]);
+  expect(h.snapshot.requestIdentity(a)).toEqual(identity); // still linkable after terminal removal
+  expect(identity.captureId).toBe(s.captureId);
+  expect(h.snapshot.requestIdentity({})).toBeNull();
+  expect(JSON.stringify(s)).not.toContain('secret');
+});
+test('weather ledger overflow is explicit, keeps latest results and does not change default capture', () => {
+  const h = harness({ weatherLimit: 1 });
+  for (let i = 0; i < 3; i++) h.page.emit('requestfailed', request('https://api.example/api/weather/grid'));
+  expect(h.snapshot()).toMatchObject({ weatherSeen: 3, weatherDropped: 2, weatherRequests: [{ requestId: 'r3' }] });
+  const s = h.snapshot(); s.weatherRequests[0].status = 999;
+  expect(h.snapshot().weatherRequests[0].status).toBeNull();
+  expect(harness().snapshot().weatherRequests).toBeUndefined();
+});
+test.each([-1, 1.5, NaN, 1001])('rejects invalid weather ledger bound %s', weatherLimit => {
+  expect(() => harness({ weatherLimit })).toThrow(RangeError);
+});
+
+test.each([
+  ['/api/weather/grid_series', 'weather-grid-series'],
+  ['/api/weather/grid_series/', 'weather-grid-series'],
+  ['/api/weather/grid-series', 'weather-grid-series'],
+  ['/api/weather/grid_series/private', null],
+  ['/api/weather/grid_series_backup', null],
+])('categorizes the real series endpoint without retaining private query data: %s', (path, route) => {
+  const h = harness(), r = request('https://api.example' + path + '?token=secret');
+  h.page.emit('request', r); h.page.emit('requestfailed', r);
+  expect(h.snapshot().requests[0].route).toBe(route);
+  expect(JSON.stringify(h.snapshot())).not.toContain('secret');
+});
+
 test('pairs overlapping identical URLs by request object and records measured timing', () => {
   const h = harness();
   const a = request(), b = request();

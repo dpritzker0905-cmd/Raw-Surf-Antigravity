@@ -41,6 +41,7 @@ import {
 } from './marineControllerCache';
 
 import { extractMarineAtOffset } from './marineControllerExtractor';
+import { bboxContains } from './marineBboxGeometry';
 
 import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
 import { publishServeDiag } from './marineServeDiag';
@@ -516,7 +517,6 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   const snappedBounds = { west: Math.floor((west - padding) / snap) * snap, south: latMin, east: Math.ceil((east + padding) / snap) * snap, north: latMax };
 
   const clampRes = clampViewportBbox(bounds, activeLayer, model, 'marine');
-  const resolvedBounds = clampRes.isInside && clampRes.clampedBbox ? clampRes.clampedBbox : bounds;
 
   const _perModelHourCache = getPerModelHourCache();
 
@@ -559,8 +559,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         }
         const g = entry.data?.grid;
         if (g?.vectors?.length > 0 && g.bounds) {
-          const ew = resolvedBounds.west, ee = resolvedBounds.east, es = bounds.south, en = bounds.north;
-          const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+          const gw = g.bounds.west, ge = g.bounds.east;
           // NEVER serve a coarse-GLOBAL cache entry at a ZOOMED-IN viewport (2026-07-04): the global
           // grid (bounds ±180) CONTAINS every regional viewport, so this containment fallback would
           // return it whenever a global entry is cached (after any zoom-out, or the global-coarse
@@ -571,12 +570,10 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
           // anyway where no fine product exists, so coverage is never lost).
           const gwid = (ge < gw) ? (ge + 360 - gw) : (ge - gw);
           if (gwid >= 340 && clampRes.selectedTileId !== 'global_coarse') continue;
-          const containsLng = ge < gw
-            ? (ew >= gw || ew <= ge) && (ee >= gw || ee <= ge)
-            : ew >= gw && ee <= ge;
-          const containsLat = es >= gs && en <= gn;
-
-          if (containsLng && containsLat) {
+          // Cache readiness is coverage of the viewport, like the scheduler's predicate.
+          // HTTP padding supplies future pan headroom; requiring it here discards an
+          // already-covering regional prewarm and needlessly waits for another response.
+          if (bboxContains(g.bounds, bounds)) {
             const sig = entry.signature;
             if (sig) {
               const bStr = g.bounds.west !== undefined ? `${g.bounds.west.toFixed(2)}:${g.bounds.south.toFixed(2)}:${g.bounds.east.toFixed(2)}:${g.bounds.north.toFixed(2)}` : 'none';

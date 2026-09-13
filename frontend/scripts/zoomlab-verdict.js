@@ -145,10 +145,13 @@ function analyzeTrace(trace, opts = {}) {
   // Direction of risk is deliberate: a false NEGATIVE pages spuriously, a false POSITIVE hides a
   // real defect behind a refusal, so these stay message-SHAPE specific rather than keyword-loose.
   const TRANSPORT_RE = /net::ERR_|Failed to fetch|Failed to load resource|blocked by CORS|Access to \w+ at |Network ?Error|ERR_CONNECTION|ERR_NAME_NOT_RESOLVED|\b50[234]\b/i;
+  // Run34304969847: these caught API timeouts were mislabeled as renderer crashes. Match the
+  // observed logger/error shape; a TypeError from the same call site must still fail as RENDER.
+  const AXIOS_TIMEOUT_RE = /^\[ERROR\] Error fetching (?:featured photographers|friends on map|live photographers): AxiosError: timeout of \d+ms exceeded(?:\s|$)/;
   let transportErrors = 0;
   for (const e of (Array.isArray(trace.consoleErrors) ? trace.consoleErrors : [])) {
     const msg = String(e).slice(0, 120);
-    const instrument = TRANSPORT_RE.test(msg);
+    const instrument = TRANSPORT_RE.test(msg) || AXIOS_TIMEOUT_RE.test(msg);
     if (instrument) transportErrors++;
     findings.push({ type: 'CONSOLE_ERROR', msg, klass: instrument ? 'INSTRUMENT' : 'RENDER' });
   }

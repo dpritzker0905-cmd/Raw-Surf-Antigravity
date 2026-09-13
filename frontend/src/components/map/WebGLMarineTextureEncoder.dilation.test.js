@@ -7,6 +7,7 @@
  * direction-bearing cell into every zero-direction texel; height/period/mask are untouched.
  */
 import { dilateDirectionField, _encodeMarineTexture } from './WebGLMarineTextureEncoder';
+import { resolveMarineFields } from './marineFieldResolver';
 
 const mag = (u, v) => Math.sqrt(u * u + v * v);
 
@@ -148,7 +149,9 @@ describe('encodeMarineTexture wiring', () => {
     // The encode body moved inside a `withTextureState` scope (2026-08-11, gl.getParameter
     // batching), so `encodeMarineTexture` is now a thin wrapper. Read the body directly — same
     // adaptation this suite already made for the WebGLMarineFieldMath extraction.
-    const src = _encodeMarineTexture.toString();
+    // The unchanged field-resolution block is now shared with commit arbitration.
+    expect(_encodeMarineTexture.toString()).toContain('resolveMarineFields');
+    const src = resolveMarineFields.toString();
     expect(src).toContain('waveSub.is_valid === false');
     expect(src).toMatch(/direction !== undefined && isOcean/);
     // The validity decision must come BEFORE the synthesis so the gate can use it.

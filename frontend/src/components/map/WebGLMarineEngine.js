@@ -8,6 +8,7 @@
 
 import { recordTruthStage } from './weatherTruthTracker';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
+import { canReuseCoarseBase } from './marineCoarseBaseSnapshot';
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
@@ -179,6 +180,8 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
           // Mid-band ceiling from the SAME window the guard read, so the shadow can't diverge on it.
           midBandCeil: Number(window.__RAW_MARINE_GLOBAL_SPAN__) || 40.0,
           midBandCeilOff: window.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true,
+          sameFieldBridgeDisabled: window.__RAW_DISABLE_ZOOMOUT_BRIDGE__ === true || window.__RAW_DISABLE_SUBCOVER_REJECT__ === true,
+          coverFrac: Number(window.__RAW_DOWNGRADE_COVER_FRAC__) || undefined,
           // Shadow must exercise the SAME rule list the flip will run, grace included — otherwise
           // it re-reports the (now-fixed) rating-grace class as a divergence forever.
           graceState: _arbiterGraceState,
@@ -398,13 +401,13 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
     const blendEnabled = (typeof window === 'undefined') || window.__RAW_DISABLE_BLEND_BOTH__ !== true;
     if (blendEnabled && newWaveData && isCoarseGlobalGrid(waveGrid)) {
       const key = coarseBaseKey(waveGrid);
-      // §2d: the dedupe consults the WHOLE LRU — an identical grid already cached under any slot
-      // just retargets the pointer (no re-encode). Kill-switch path keeps the single-slot check.
+      // Shape alone collides across forecast cycles and changed fields. Reuse requires the copied
+      // encoded field/identity too; both the LRU and single-slot path keep the atomic-swap policy.
       const _lruHit = this._coarseBaseLruEnabled() && this._coarseBaseLru
-        ? [...this._coarseBaseLru.values()].find((b) => b.__key === key) : null;
+        ? [...this._coarseBaseLru.values()].find((b) => canReuseCoarseBase(b, newWaveData, key)) : null;
       if (_lruHit) {
         this._coarseBaseData = _lruHit;
-      } else if (!this._coarseBaseData || this._coarseBaseData.__key !== key) {
+      } else if (!canReuseCoarseBase(this._coarseBaseData, newWaveData, key)) {
         this._captureCoarseBase(gl, waveGrid, key);
       }
     }

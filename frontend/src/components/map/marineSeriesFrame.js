@@ -1,4 +1,5 @@
 import { buildTruthTag, recordTruthStage } from './weatherTruthTracker';
+import { copyMarineFrameProvenance } from './marineFrameProvenance';
 
 // Convert one backend series frame into a marineData object shaped exactly like a normal
 // cached grid commit, so the orchestrator's existing commit/parity logic accepts it.
@@ -41,6 +42,7 @@ export function frameToMarineData(frame, model, layer) {
     ingested_at: frame.ingested_at ?? null,
   };
   const grid = {
+    ...copyMarineFrameProvenance(frame),
     ...cycleProvenance,
     vectors: frame.vectors,
     cols: frame.cols,
@@ -114,6 +116,7 @@ export function frameToMarineData(frame, model, layer) {
     }
   }
   return {
+    ...copyMarineFrameProvenance(frame),
     type: 'FeatureCollection',
     features: [],
     grid,
@@ -131,4 +134,3 @@ export function frameToMarineData(frame, model, layer) {
     is_dynamic_viewport_product: true,
   };
 }
-

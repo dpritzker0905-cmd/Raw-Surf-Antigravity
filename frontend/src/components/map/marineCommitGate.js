@@ -28,6 +28,7 @@
  */
 
 import { arbiterDecide } from './marineCommitArbiter';
+import { sameFieldSubcover } from './marineSameFieldBridge';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import {
   isCoarseGlobalGrid, isRegionalBounds, shouldRejectResolutionDowngrade,
@@ -76,7 +77,10 @@ export function shouldBridgeToCoarseGlobal(resident, coarse, lastZoom, viewportB
   if (!resident || !resident.bounds || !isRegionalBounds(resident.bounds) || isCoarseGlobalGrid(resident)) return false;
   const vb = viewportBounds;
   if (!vb) return false;
-  if (!_midBandBridgeWide(vb, lastZoom, w)) return false;
+  if (!_midBandBridgeWide(vb, lastZoom, w) && !sameFieldSubcover(resident, coarse, lastZoom, vb, {
+    coverFrac: (w && Number(w.__RAW_DOWNGRADE_COVER_FRAC__)) || undefined,
+    sameFieldBridgeDisabled: !!(w && (w.__RAW_DISABLE_NO_DOWNGRADE__ || w.__RAW_DISABLE_SUBCOVER_REJECT__ === true)),
+  })) return false;
   const rb = resident.bounds;
   const vpA = Math.max(1e-9, (vb[2] - vb[0]) * (vb[3] - vb[1]));
   const ix = Math.max(0, Math.min(rb.east, vb[2]) - Math.max(rb.west, vb[0]));
@@ -115,7 +119,10 @@ export function shouldRejectSubcoveringRegional(resident, incoming, lastZoom, vi
   // Mirror of shouldBridgeToCoarseGlobal (2026-07-22): fire only PAST the mid-band ceiling so a
   // 15-40° mid is ACCEPTED over a coarse resident (it covers) instead of rejected as "subcovering" —
   // the reject and the bridge share this classification so commit/gate/bridge can never disagree.
-  if (!_midBandBridgeWide(vb, lastZoom, w)) return false;
+  if (!_midBandBridgeWide(vb, lastZoom, w) && !sameFieldSubcover(incoming, resident, lastZoom, vb, {
+    coverFrac: (w && Number(w.__RAW_DOWNGRADE_COVER_FRAC__)) || undefined,
+    sameFieldBridgeDisabled: !!(w && w.__RAW_DISABLE_ZOOMOUT_BRIDGE__ === true),
+  })) return false;
   const ib = incoming.bounds;
   const vpA = Math.max(1e-9, (vb[2] - vb[0]) * (vb[3] - vb[1]));
   const ix = Math.max(0, Math.min(ib.east, vb[2]) - Math.max(ib.west, vb[0]));
@@ -184,6 +191,7 @@ export function decideMarineCommit(resident, incoming, lastZoom, viewportBounds,
     // Mid-band ceiling from the SAME `w` the guard's shouldRejectSubcoveringRegional read above.
     midBandCeil: (w && Number(w.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0,
     midBandCeilOff: !!(w && w.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true),
+    sameFieldBridgeDisabled: !!(w && (w.__RAW_DISABLE_ZOOMOUT_BRIDGE__ === true || w.__RAW_DISABLE_SUBCOVER_REJECT__ === true)),
     coverFrac: (w && Number(w.__RAW_DOWNGRADE_COVER_FRAC__)) || undefined,
     graceState: _arbiterGraceState,
     graceDisabled: !!(w && w.__RAW_DISABLE_RATING_GRACE__ === true),
