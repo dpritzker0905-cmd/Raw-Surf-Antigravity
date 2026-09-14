@@ -622,7 +622,10 @@ jobs:
           # September 10: CI34520513943 observed 155 files / 1804 passed.
           # Add one module with 24 locally executed endpoint controls. The candidate
           # CI run must confirm 156 / 1828; retain the six-test aggregate margin.
-          MIN_FILES, MIN_PASSED = 156, 1822
+          # September 14: dev CI34556618466 observed 156 files / 1828 passed.
+          # Isolated ownership and coordinate repairs add 2 files / 46 tests.
+          # Candidate Linux CI must confirm 158 / 1874; keep the six-test margin.
+          MIN_FILES, MIN_PASSED = 158, 1868
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
