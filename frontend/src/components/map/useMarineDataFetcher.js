@@ -24,6 +24,7 @@ import {
 import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
 import { createMarineInFlightRegistry } from './marineInFlightRegistry';
 import { recordMarineEvent } from './marineForensics';   // surf_toggle breadcrumb (§5b pinning instrument)
+import { useMarineRegionalReady } from './useMarineRegionalReady';
 
 
 export function useMarineDataFetcher({
@@ -172,6 +173,23 @@ export function useMarineDataFetcher({
 
   enqueueMarineUpdateRef.current = enqueueMarineUpdate;
   manualMarineTriggerRef.current = () => enqueueMarineUpdate('manual');
+
+  useMarineRegionalReady({ mapInstance, activeMarineLayersRef, activeModelRef, activeMarineLayerRef, timeOffsetRef,
+    marineDataRef, marineFetchLocksRef, isCommittingDataRef,
+    commit: (data, bounds, model, layer, timeOffset) => {
+      // A proven coverage repair can have the same dimensions/values at different
+      // coordinates. Preserve the existing ledger-null recovery hatch for that case.
+      lastCommittedSigRef.current = null;
+      commitMarineData({
+      data, bounds, model, layer, timeOffset, timeOffsetRef, setMarineData, lastCommittedSigRef,
+      marineRevision, getViewportHash, logPipelineEventHelper, consecutiveFailuresRef,
+      isCommittingDataRef, isInternalMapUpdateRef, internalUpdateTimerRef, locks: marineFetchLocksRef.current,
+      source: 'regional_ready', scheduleSWRRevalidation, updateMarineGrid, getBackendCopernicusFlag,
+      getBackendIconMarineFlag, getBackendWeatherFlag, _marineDataSignature, getSharedValidTime,
+      updateDeprecationDiag, setTimeoutFunc: setTimeout, clearTimeoutFunc: clearTimeout,
+      });
+    },
+  });
 
   // Option-2 Swell<->Surf toggle: re-fetch the marine grid when the surf flag flips. The toggle (in
   // MapWeatherControls) flips the flag then dispatches this event; the URL builder + cache key already read

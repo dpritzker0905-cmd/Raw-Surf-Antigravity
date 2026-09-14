@@ -43,6 +43,7 @@ import {
 
 import { extractMarineAtOffset } from './marineControllerExtractor';
 import { bboxContains } from './marineBboxGeometry';
+import { publishMarineRegionalReady } from './marineRegionalReady';
 
 import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
 import { publishServeDiag } from './marineServeDiag';
@@ -164,16 +165,17 @@ export function prewarmZoomOutMarineGrid(model, hourOffset, bounds, activeLayer)
       west: Math.max(-180, cLng - span / 2), east: Math.min(180, cLng + span / 2),
       south: Math.max(-80, cLat - span / 2), north: Math.min(85, cLat + span / 2)
     };
-    const m = model || 'GFS';
-    const key = `${m}_${hourOffset}_${activeLayer}_ZO_${exp.west.toFixed(0)}_${exp.south.toFixed(0)}`;
+    const m = model || 'GFS', surf = getSurfModeFlag();
+    const key = `${m}_${hourOffset}_${activeLayer}_${surf}_ZO_${exp.west.toFixed(0)}_${exp.south.toFixed(0)}`;
     if (_zoomOutPrewarmInFlight.has(key)) return;
     _zoomOutPrewarmInFlight.add(key);
     Promise.resolve()
-      .then(() => fetchBackendMarineGrid(exp, hourOffset, undefined, exp, activeLayer, m))
+      .then(() => getSurfModeFlag() === surf ? fetchBackendMarineGrid(exp, hourOffset, undefined, exp, activeLayer, m) : null)
       .then((result) => {
         const g = result && result.grid;
-        if (g && Array.isArray(g.vectors) && g.vectors.length > 0) {
+        if (g && Array.isArray(g.vectors) && g.vectors.length > 0 && getSurfModeFlag() === surf && !!g.ratingMode === surf) {
           _cacheMarineResult(m, hourOffset, result, activeLayer, true /* silent */);
+          publishMarineRegionalReady(m, activeLayer, hourOffset, surf);
         }
       })
       .catch(() => { /* best-effort */ })
