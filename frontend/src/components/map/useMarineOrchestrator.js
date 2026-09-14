@@ -13,6 +13,7 @@ import { isTerminalNoCoverage } from './marineControllerCache';
 
 import { useMarineOrchestratorScrubCache } from './useMarineOrchestratorScrubCache';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { recordMarineDemand } from './marineDemandEvidence';
 import { useMarineScrubSettle } from './useMarineScrubSettle';
 
 // Module-level scrub log throttle (max once per 2s)
@@ -302,16 +303,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     };
 
     const onMoveEnd = () => {
+      recordMarineDemand('moveend', 'moveend', mapInstance, marineFetchLocksRef.current);
       if (window.isScrubbingTimeline) return;
 
-      // STRANDED-DEBOUNCE ROOT (2026-07-07, live-caught: engine empty + renderable data +
-      // govIdle, nothing healing): every `move`/`zoom` event sets __MARINE_FETCH_DEBOUNCING__
-      // unconditionally (below), but the flag was only cleared on the path that schedules a
-      // fetch — the camera-hash dedup and degenerate-bounds early returns SKIPPED that path and
-      // stranded the flag TRUE forever (any gesture ending at the same camera hash). A stranded
-      // "transitioning" flag makes ~8 gates hold stale frames indefinitely: the close-zoom
-      // "clamped animation resolution" and the returned land halo are its downstream faces.
-      // The gesture is OVER when moveend fires — clear first; the schedule path re-arms it.
+      // STRANDED-DEBOUNCE ROOT (2026-07-07): move/zoom sets the flag unconditionally.
+      // Camera-hash dedup and degenerate-bounds returns once skipped its clear, leaving
+      // transition gates holding stale frames despite an idle governor and renderable data.
+      // Clear when the gesture ends, BEFORE those returns; scheduling re-arms it.
       if (typeof window !== 'undefined') {
         window.__MARINE_FETCH_DEBOUNCING__ = false;
       }
@@ -342,6 +340,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       }
       
       const debounceTime = isCached ? 50 : 900;
+      recordMarineDemand('scheduled', 'moveend', mapInstance, marineFetchLocksRef.current, { delay: debounceTime });
       clearTimeout(moveendDebounceRef.current.timer);
       moveendDebounceRef.current.timer = setTimeout(() => { enqueueMarineUpdate('moveend'); }, debounceTime);
     };
@@ -905,4 +904,3 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
   return { marineData };
 }
-

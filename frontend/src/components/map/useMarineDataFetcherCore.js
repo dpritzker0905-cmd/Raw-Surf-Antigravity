@@ -25,6 +25,7 @@ import {
   bufferPanMovedReplay
 } from './useMarineDataFetcherHelpers';
 import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
+import { recordMarineDemand } from './marineDemandEvidence';
 
 /**
  * Release an abandoned in-flight marine fetch when a newer request supersedes it.
@@ -230,6 +231,7 @@ export function useMarineDataFetcherCore({
                 : rawModel;
     const zoom = mapInstance.getZoom();
     const locks = marineFetchLocksRef.current;
+    const demandAttempt = recordMarineDemand('update', source, mapInstance, locks, { model, layer, hour: timeOffset });
     let requestId = 0;
     let clearDebounce = true;
     // Generation of the transition this fetch fulfills, if any. Captured at dispatch so
@@ -466,6 +468,7 @@ export function useMarineDataFetcherCore({
       locks.isFetching = true;
       locks.activeSource = source;
       locks.fetchStartedAt = Date.now(); // lease start — see releaseStaleMarineLock watchdog
+      recordMarineDemand('dispatch', source, mapInstance, locks, { attempt: demandAttempt, requestId, intent: myController.__intent });
       // Auto-redrive: if this fetch is still holding the lock past the lease (stranded), re-drive
       // once so the watchdog releases it and fetches fresh WITHOUT needing a user scrub/toggle —
       // covers the "activate a layer and it never loads" wedge. A newer fetch clears this timer
@@ -566,6 +569,7 @@ export function useMarineDataFetcherCore({
         }
       }
 
+      recordMarineDemand('resolved', source, mapInstance, locks, { attempt: demandAttempt, requestId, grid: data?.grid });
       // A renderable response means fetchMarineData has self-cached this target (warm for a
       // switch-back). Record success for registry telemetry BEFORE the stale-reject return so
       // a detached request that finished is counted as completed-into-cache, not failed.
@@ -715,6 +719,7 @@ export function useMarineDataFetcherCore({
         console.log(`[Marine] Fetch exception (isAbort=${isAbort}, isCurrentHour=${isCurrentHour}), preserving stale data.`);
       }
     } finally {
+      recordMarineDemand('exit', source, mapInstance, locks, { attempt: demandAttempt, requestId, phase, status: fetchStatus });
       // Registry bookkeeping for THIS request — runs for foreground AND detached/stale
       // requests. Identity-safe (ignored if a newer controller re-took this key), and it
       // NEVER commits or touches the transition/locks, so a detached completion is inert.
@@ -806,6 +811,7 @@ export function useMarineDataFetcherCore({
   ]);
 
   const enqueueMarineUpdate = useCallback((source) => {
+    recordMarineDemand('enqueue', source, mapInstance, marineFetchLocksRef.current, { model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current });
     if (source === 'cancel_scrub') {
       if (scrubDebounceRef.current) {
         clearTimeout(scrubDebounceRef.current);

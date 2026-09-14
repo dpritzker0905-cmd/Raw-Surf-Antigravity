@@ -9,6 +9,7 @@
 import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { arrayMax } from './marineControllerUtils';
+import { copyMarineFrameProvenance } from './marineFrameProvenance';
 
 /**
  * Perform circular blending for direction vectors.
@@ -264,6 +265,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
   }
 
   const result = {
+    ...copyMarineFrameProvenance(json),
     type: 'FeatureCollection',
     features: [],
     hourOffset,
@@ -272,6 +274,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
     tile_id: json.tile_id || json.region_id || null,
     region_id: json.region_id || json.tile_id || null,
     grid: {
+      ...copyMarineFrameProvenance(json),
       vectors: mappedVectors,
       bounds: json.grid.bounds || snappedBounds,
       cols: json.grid.cols,

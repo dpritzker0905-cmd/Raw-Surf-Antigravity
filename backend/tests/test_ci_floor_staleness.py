@@ -286,7 +286,10 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # September 10 condition-report repair: projected from CI34520513943's 1804
 # plus 24 executed new controls. Candidate CI must confirm 1828. Keep the
 # companion to ci.yml's raised floor in sync; the first candidate caught this omission.
-_FLOOR_SET_FROM = {"guards": 1828, "chain": 922, "estate": 459}
+# September 14: parent CI34803686246 measured 1839; 15 new provider controls.
+# Candidate Linux CI must confirm 1854; keep the six-test floor margin paired.
+# Coordinate selection: measured parent 1854 + 31 new cases; candidate CI must confirm 1885.
+_FLOOR_SET_FROM = {"guards": 1885, "chain": 922, "estate": 459}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

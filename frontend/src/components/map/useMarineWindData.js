@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { isGridLayerSupported } from './marineControllerUtils';
 import { markDisplayed } from './marineTransitionCoordinator';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
+import { copyMarineFrameProvenance } from './marineFrameProvenance';
 
 function getLongitudinalOverlap(w1, e1, w2, e2) {
   const vpWidth = (e1 < w1) ? (e1 + 360) - w1 : e1 - w1;
@@ -129,6 +130,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
 
     return {
       bounds: marineData.grid.bounds,
+      ...copyMarineFrameProvenance(marineData.grid, marineData),
       cols: marineData.grid.cols,
       rows: marineData.grid.rows,
       vectors,
@@ -144,7 +146,6 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       is_estimated: isGridEstimated,
       isEstimated: isGridEstimated,
       provider: marineData?.provider || marineData?.grid?.provider || null,
-      source_dataset: marineData?.source_dataset || marineData?.grid?.source_dataset || null,
       estimate_basis: marineData?.estimate_basis || marineData?.grid?.estimate_basis || null,
       productId: marineData.grid.productId || marineData.productId || null,
       is_dynamic_viewport_product: marineData.grid.is_dynamic_viewport_product || false,

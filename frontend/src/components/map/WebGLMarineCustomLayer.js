@@ -3,6 +3,7 @@ import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { shouldHoldClearOnDeactivate, noteMarineActive } from './marineTransitionCoordinator';
 import { resolveCoarseBridgeGrace } from './marineCoarseBridgeGrace';
 import { resolveRejectedOpacity } from './marineZoomOutGate';
+import { beginOpacityEvidence, finishOpacityEvidence } from './marineOpacityEvidence';
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -112,6 +113,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
     },
 
     render(glOrArgs, matrixArg) {
+      const _opacityEvidence = beginOpacityEvidence(engine);
       var _gl, _matrix;
       var isWebGLCtx = (glOrArgs instanceof WebGLRenderingContext || glOrArgs instanceof WebGL2RenderingContext);
       if (isWebGLCtx) {
@@ -191,6 +193,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       } catch (e) {
         // ignore bounds retrieval errors for viewportBounds, we will use zoom-based fallback below if needed
       }
+      if (_opacityEvidence) _opacityEvidence.viewport = viewportBounds;
 
       if (engine && engine._waveData && engine._waveData.waveGrid?.bounds) {
         const bounds = engine._waveData.waveGrid.bounds;
@@ -301,6 +304,10 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
                 isViewportZoomedOut, isGridRegional, hasCoarseBridge, isZoomingOrMoving,
                 currentZoom, overlapRatio,
               });
+              if (_opacityEvidence) _opacityEvidence.gate = {
+                isViewportZoomedOut, isGridRegional, hasCoarseBridge, isZoomingOrMoving,
+                currentZoom, overlapRatio, result: { ..._rej },
+              };
               if (_rej.bail) { this._wasActive = false; return; }
               if (_rej.coarseBridge) {
                 // COARSE-BRIDGE GRACE (2026-08-15) — the bridge above is the only fade-to-zero in
@@ -319,6 +326,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
                   typeof window !== 'undefined' ? window : undefined);
                 engine.__coarseBridgeGrace = _bg.state;
                 opacityMultiplier = _bg.mult;
+                if (_opacityEvidence) _opacityEvidence.grace = { moving: !!_bgMoving, mult: _bg.mult, state: _bg.state };
                 engine.__coarseBridgeActive = true;
                 if (typeof window !== 'undefined' && window.__RAW_GPU__) {
                   window.__RAW_GPU__.coarseBridgeGrace = _bg.state
@@ -350,7 +358,9 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
 
+        if (_opacityEvidence) { _opacityEvidence.status = 'engine-called'; _opacityEvidence.inputMult = opacityMultiplier; }
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, viewportBounds, opacityMultiplier);
+        if (_opacityEvidence) _opacityEvidence.status = 'engine-returned';
       } catch (e) {
         errorCount++;
         lastErrorTime = Date.now();
@@ -362,6 +372,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
           if (onErrorRef.current) onErrorRef.current();
         }
       } finally {
+        finishOpacityEvidence(_opacityEvidence, engine);
         // ⛔ `finally`, NOT the last line of `try`. MapLibre gives a custom layer no repaint
         // heartbeat — this call IS the animation clock. When it sat inside `try` after
         // `engine.render()`, a throw skipped it, so the layer went unscheduled AND `errorCount`

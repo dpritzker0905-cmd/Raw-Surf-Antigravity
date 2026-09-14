@@ -31,6 +31,7 @@ import {
   getLastKnownGoodMarineModel,
   getPerModelHourCache,
   _isAllVarModel,
+  preferReadyRegionalMarine,
   _cacheMarineResult,
   _updateDiagnosticsOnCacheHit,
   createFallbackSafeZeroGrid,
@@ -41,6 +42,8 @@ import {
 } from './marineControllerCache';
 
 import { extractMarineAtOffset } from './marineControllerExtractor';
+import { bboxContains } from './marineBboxGeometry';
+import { publishMarineRegionalReady } from './marineRegionalReady';
 
 import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
 import { publishServeDiag } from './marineServeDiag';
@@ -162,16 +165,17 @@ export function prewarmZoomOutMarineGrid(model, hourOffset, bounds, activeLayer)
       west: Math.max(-180, cLng - span / 2), east: Math.min(180, cLng + span / 2),
       south: Math.max(-80, cLat - span / 2), north: Math.min(85, cLat + span / 2)
     };
-    const m = model || 'GFS';
-    const key = `${m}_${hourOffset}_${activeLayer}_ZO_${exp.west.toFixed(0)}_${exp.south.toFixed(0)}`;
+    const m = model || 'GFS', surf = getSurfModeFlag();
+    const key = `${m}_${hourOffset}_${activeLayer}_${surf}_ZO_${exp.west.toFixed(0)}_${exp.south.toFixed(0)}`;
     if (_zoomOutPrewarmInFlight.has(key)) return;
     _zoomOutPrewarmInFlight.add(key);
     Promise.resolve()
-      .then(() => fetchBackendMarineGrid(exp, hourOffset, undefined, exp, activeLayer, m))
+      .then(() => getSurfModeFlag() === surf ? fetchBackendMarineGrid(exp, hourOffset, undefined, exp, activeLayer, m) : null)
       .then((result) => {
         const g = result && result.grid;
-        if (g && Array.isArray(g.vectors) && g.vectors.length > 0) {
+        if (g && Array.isArray(g.vectors) && g.vectors.length > 0 && getSurfModeFlag() === surf && !!g.ratingMode === surf) {
           _cacheMarineResult(m, hourOffset, result, activeLayer, true /* silent */);
+          publishMarineRegionalReady(m, activeLayer, hourOffset, surf);
         }
       })
       .catch(() => { /* best-effort */ })
@@ -225,8 +229,8 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
             sig.cols === (g.cols || 0) &&
             sig.rows === (g.rows || 0) &&
             sig.vectorsLength === (g.vectors?.length || 0)) {
-          hitData = exact.data;
-          cacheSource = 'per_model_hour_cache_exact';
+          hitData = preferReadyRegionalMarine(exact.data, wanted, wantedHour, wantedLayer, bounds);
+          cacheSource = hitData === exact.data ? 'per_model_hour_cache_exact' : 'per_model_hour_cache_contained';
         }
       } else if (!isBackendActive) {
         hitData = exact.data;
@@ -239,7 +243,7 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
     // function rather than a measurement of it. `recordSelectorLookup` namespaces every reason
     // under `sel_` so these tallies can never merge into the predicate's buckets and make both
     // unattributable — see marineControllerCache.selectorTelemetry.test.js.
-    recordSelectorLookup(hitData ? 'hit' : 'exact_key_absent', {
+    recordSelectorLookup(hitData ? (hitData === exact?.data ? 'hit' : 'hit_ready_regional') : 'exact_key_absent', {
       lookupKey: `${wanted}_${layerPart}_${tileId}_${wantedHour}`, tileId, model: wanted, layer: wantedLayer, hourOffset: wantedHour
     });
 
@@ -516,7 +520,6 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   const snappedBounds = { west: Math.floor((west - padding) / snap) * snap, south: latMin, east: Math.ceil((east + padding) / snap) * snap, north: latMax };
 
   const clampRes = clampViewportBbox(bounds, activeLayer, model, 'marine');
-  const resolvedBounds = clampRes.isInside && clampRes.clampedBbox ? clampRes.clampedBbox : bounds;
 
   const _perModelHourCache = getPerModelHourCache();
 
@@ -544,9 +547,10 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
               sig.cols === (g.cols || 0) &&
               sig.rows === (g.rows || 0) &&
               sig.vectorsLength === (g.vectors?.length || 0)) {
-            _updateDiagnosticsOnCacheHit(exact.data, model || 'GFS', hourOffset, activeLayer, bounds);
+            const ready = preferReadyRegionalMarine(exact.data, model, hourOffset, activeLayer, bounds);
+            _updateDiagnosticsOnCacheHit(ready, model || 'GFS', hourOffset, activeLayer, bounds);
             _rewarmWashBaseIfStale(model || 'GFS', hourOffset, bounds, activeLayer);
-            return exact.data;
+            return ready;
           }
         }
       }
@@ -559,8 +563,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         }
         const g = entry.data?.grid;
         if (g?.vectors?.length > 0 && g.bounds) {
-          const ew = resolvedBounds.west, ee = resolvedBounds.east, es = bounds.south, en = bounds.north;
-          const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+          const gw = g.bounds.west, ge = g.bounds.east;
           // NEVER serve a coarse-GLOBAL cache entry at a ZOOMED-IN viewport (2026-07-04): the global
           // grid (bounds ±180) CONTAINS every regional viewport, so this containment fallback would
           // return it whenever a global entry is cached (after any zoom-out, or the global-coarse
@@ -571,12 +574,10 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
           // anyway where no fine product exists, so coverage is never lost).
           const gwid = (ge < gw) ? (ge + 360 - gw) : (ge - gw);
           if (gwid >= 340 && clampRes.selectedTileId !== 'global_coarse') continue;
-          const containsLng = ge < gw
-            ? (ew >= gw || ew <= ge) && (ee >= gw || ee <= ge)
-            : ew >= gw && ee <= ge;
-          const containsLat = es >= gs && en <= gn;
-
-          if (containsLng && containsLat) {
+          // Cache readiness is coverage of the viewport, like the scheduler's predicate.
+          // HTTP padding supplies future pan headroom; requiring it here discards an
+          // already-covering regional prewarm and needlessly waits for another response.
+          if (bboxContains(g.bounds, bounds)) {
             const sig = entry.signature;
             if (sig) {
               const bStr = g.bounds.west !== undefined ? `${g.bounds.west.toFixed(2)}:${g.bounds.south.toFixed(2)}:${g.bounds.east.toFixed(2)}:${g.bounds.north.toFixed(2)}` : 'none';
