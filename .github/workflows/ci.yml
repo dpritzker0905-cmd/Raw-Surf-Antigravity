@@ -342,7 +342,9 @@ jobs:
   # passing count collapses — measure FILES PARSED, not finding count.
   backend-sim-composition-guards:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # CI 34886811636 passed all 1874 guards but used 19m58s of 20m.
+    # Keep a bounded five-minute margin; selection and pass floors stay unchanged.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
 
@@ -427,8 +429,7 @@ jobs:
           test -s /tmp/guard_files.txt || { echo "::error::--lane guards selected NO files"; exit 1; }
           sed 's/^/  guard: /' /tmp/guard_files.txt
           FILES=$(tr '\n' ' ' < /tmp/guard_files.txt)
-          # The prior successful job reached its 20-minute wall-clock limit. Record
-          # slow phases before changing collection or time allowances.
+          # Retain slow-phase evidence to distinguish test cost from job setup time.
           python -m pytest $FILES -q --durations=30 --junitxml=guards.xml
 
       # Shrink-only ratchet on COVERAGE, run even when pytest already failed so a collapse in what
