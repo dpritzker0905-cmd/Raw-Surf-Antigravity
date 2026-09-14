@@ -11,7 +11,7 @@
  * ⚠️ THE RULES ARE NOT "the ideal simpler list" ANY MORE — that framing cost real time. Every
  * guard nuance this list once omitted turned out to encode a historical outage (07-01 coarse⇄
  * regional spin, 07-03 permanent wedge, 07-05 island shadow, round-12 §4f band blink). The list
- * now reproduces the guard chain on 3000/3000 enumerated fixtures. Before "simplifying" a rule,
+ * now reproduces the guard chain on 5880/5880 enumerated fixtures. Before "simplifying" a rule,
  * read `marineCommitArbiter.differential.test.js` — it will tell you exactly which scar you are
  * about to reopen. Live shadow agreement is NOT sufficient evidence: a live trajectory only walks
  * the common path, which is how a 89/89 soak hid 166 divergences.
@@ -86,12 +86,20 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
   // 5. Flavor rules (want = the surf-rating flag at decision time).
   const rRated = !!resident.ratingMode, iRated = !!incoming.ratingMode;
   const rCell = cellDegOf(resident), iCell = cellDegOf(incoming);
+  const rSpan = spanLngOf(resident), iSpan = spanLngOf(incoming);
+  const residentRegional = rSpan !== null && rSpan > 0 && rSpan < 359.0;
+  // The guard also protects regional → world replacements with cells >1 degree,
+  // even at equal pitch (recorded 23x19 regional → 181x82 world). Conversely a
+  // world resident is never protected by that guard. Apply both predicates to
+  // flavor upgrades and ordinary replacements so their priority stays aligned.
+  const resolutionDowngrade = residentRegional && (
+    (iSpan !== null && iSpan >= 359.0 && iCell !== null && iCell > 1.0)
+    || (rCell !== null && iCell !== null && iCell >= rCell * 2.0));
   // A ≥2× cell-size downgrade over a resident that still COVERS is the 07-01 coarse⇄regional
   // "spin" / 07-05 island-shadow geometry. Computed here because two flavor rules below must
   // respect it — a rating transition is not a licence to collapse resolution.
   const rFracEarly = coverageFrac(resident, ctx.viewportBounds);
-  const tierCollapse = rFracEarly !== null && rFracEarly >= minCover
-    && rCell !== null && iCell !== null && iCell >= rCell * 2.0;
+  const tierCollapse = rFracEarly !== null && rFracEarly >= minCover && resolutionDowngrade;
   if (ctx.flavorWant === true) {
     // DIFFERENTIAL-SWEEP FIX (2026-07-18 EVE-3, 3000-fixture guard/arbiter sweep, 35 divergences
     // in this class): `flavor_upgrade` sat ABOVE the tier check, so ANY rated incoming — including
@@ -145,8 +153,6 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
       // release to end it (coverage can't drop: a world grid covers everything) and no grace bound
       // either, since the grace lives on the uncovering branch. That is the 07-03 permanent-wedge
       // shape, manufactured by a rule that reads as "protect the band".
-      const rSpanF = spanLngOf(resident);
-      const residentRegional = rSpanF !== null && rSpanF > 0 && rSpanF < 359.0;
       if (residentRegional) return { verdict: 'reject', rule: 'flavor_downgrade' };
       return { verdict: 'commit', rule: 'flavor_downgrade_world_resident' };
     }
@@ -167,8 +173,7 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
   //    Unknown zoom still fails OPEN (a wrong accept self-heals via sharpen; a wrong reject
   //    strands — the 07-03 lesson) via the coverage check: unknown viewport → rFrac null → no
   //    rule-6 release data → this rule still requires a KNOWN covering resident to reject.
-  const rc = cellDegOf(resident), ic = cellDegOf(incoming);
-  if (rFrac !== null && rc !== null && ic !== null && ic >= rc * 2.0) {
+  if (rFrac !== null && resolutionDowngrade) {
     return { verdict: 'reject', rule: 'tier_downgrade' };
   }
 
@@ -196,7 +201,6 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
         || (Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > 15.0 || (vbW[3] - vbW[1]) > 15.0)))
     : (Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > _amc || (vbW[3] - vbW[1]) > _amc));
   const zoomedOut = (wideNow || sameFieldSubcover(incoming, resident, ctx.zoom, ctx.viewportBounds, ctx)) && rRated === iRated;
-  const rSpan = spanLngOf(resident), iSpan = spanLngOf(incoming);
   if (zoomedOut && rSpan !== null && rSpan >= 340 && iSpan !== null && iSpan < 340) {
     const iFrac = coverageFrac(incoming, ctx.viewportBounds);
     if (iFrac !== null && iFrac < minCover) return { verdict: 'reject', rule: 'subcover_at_wide' };

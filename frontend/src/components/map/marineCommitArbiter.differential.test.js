@@ -27,6 +27,10 @@ import {
 const GRIDS = {
   // name: [westSpanDeg, cols]  -> cellDeg = span/cols
   world_coarse: { bounds: { west: -180, south: -80, east: 180, north: 85 }, cols: 37, rows: 17 },
+  // Recorded September 13 path: a 2-degree world grid and a clip of that tier.
+  // World replacement is a separate guard predicate, even below a 2x pitch ratio.
+  world_mid: { bounds: { west: -180, south: -78, east: 180, north: 84 }, cols: 181, rows: 82 },
+  regional_44deg: { bounds: { west: -100, south: 10, east: -56, north: 46 }, cols: 23, rows: 19 },
   mid_16deg: { bounds: { west: -88, south: 22, east: -72, north: 34 }, cols: 9, rows: 7 },
   regional_4deg: { bounds: { west: -83, south: 26, east: -79, north: 30 }, cols: 16, rows: 16 },
   fine_2deg: { bounds: { west: -81, south: 26, east: -79, north: 28 }, cols: 32, rows: 32 },
@@ -110,7 +114,7 @@ describe('FORENSIC: exhaustive guard-vs-arbiter differential', () => {
     expect(guardModeMismatch).toBe(0);
     // Q2 — the flip gate. See the header before ever changing this expectation.
     expect({ classes: classes.map(([c]) => c), total: totalDiv }).toEqual({ classes: [], total: 0 });
-    expect(n).toBe(3000);                // the sweep must not silently shrink
+    expect(n).toBe(5880);                // the sweep must not silently shrink
     expect(bothReject).toBeGreaterThan(300);   // …nor collapse into all-commit (a vacuous pass)
   });
 });
