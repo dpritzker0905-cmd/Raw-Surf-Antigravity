@@ -8,6 +8,7 @@ import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { shouldShortCircuitSameProductCommit } from './marineCommitShortCircuit';
 import { recordMarineEvent } from './marineForensics';
+import { recordMarineDemand } from './marineDemandEvidence';
 
 export const EURO_NATIVE_HOURS = 240;
 export const DISPLAY_EURO_WAVES_MAX_HOURS = 336;
@@ -475,7 +476,9 @@ export function commitMarineData({
             _sf.__commitRevision = marineRevision.current;
             _sf.__committedSig = _sig;
             logPipelineEventHelper('pingpong_guard_series_preferred', { model, layer, hour: timeOffset, coarseW: Math.round(_dW), seriesW: Math.round(_sfW) });
-            return _sf;
+            recordMarineDemand('state_selected', 'pingpong_guard_series_preferred', null, locks,
+              { grid: _sf.grid, revision: _sf.__commitRevision, sameReference: prev === _sf });
+            return _sf === prev ? { ..._sf } : _sf;
           });
           return;
         }
@@ -545,6 +548,7 @@ export function commitMarineData({
         prev, incoming: data, lastCommittedSig: lastCommittedSigRef.current,
       });
       if (_sc) {
+        recordMarineDemand('state_skipped', source, null, locks, { status: 'same_product', grid: data.grid });
         logPipelineEventHelper('commit_short_circuit', _sc);
         recordMarineEvent('commit_short_circuit', _sc);
         if (typeof window !== 'undefined') {
@@ -567,6 +571,7 @@ export function commitMarineData({
     // lets the commit through, and a wrong pass costs one redundant upload, never a wedge.
     const prevSig = prev ? (prev.__committedSig || _marineDataSignature(prev, prevLayer)) : null;
     if (newSig && newSig === prevSig && newSig === lastCommittedSigRef.current) {
+      recordMarineDemand('state_skipped', source, null, locks, { status: 'duplicate', grid: data.grid });
       logPipelineEventHelper('duplicate_commit_skipped', { signature: newSig });
       return prev;
     }
@@ -574,6 +579,9 @@ export function commitMarineData({
     data.__committedSig = newSig;
     marineRevision.current += 1;
     data.__commitRevision = marineRevision.current;
+    // A selected updater value is not proof that React observed it or the engine accepted it.
+    recordMarineDemand('state_selected', source, null, locks, { grid: data.grid,
+      revision: data.__commitRevision, sameReference: prev === data });
     if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && timeOffset === 0) {
       window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
       window.__GFS_WAVES_SINGLE_SLICE_TRACE__.cacheCommit = {
@@ -591,7 +599,10 @@ export function commitMarineData({
         window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
       }
     }
-    return data;
+    // The ledger-null escape requests a real refeed. Returning the cached state
+    // object itself makes React bail out even after the revision was advanced.
+    // Renew only that accepted envelope; retain grid/vector identity and normal dedup.
+    return data === prev ? { ...data } : data;
   });
 
   // Clear the commit lock after the commit's render frame. NOT via rAF alone: rAF PAUSES when the

@@ -4,6 +4,7 @@ import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { bboxContains } from './marineBboxGeometry';
 import { MARINE_REGIONAL_READY } from './marineRegionalReady';
 import { recordMarineEvent } from './marineForensics';
+import { recordMarineDemand } from './marineDemandEvidence';
 
 const width = b => b.east < b.west ? b.east + 360 - b.west : b.east - b.west;
 const validBox = b => b && ['west', 'east', 'south', 'north'].every(k => Number.isFinite(b[k])) && b.north > b.south && width(b) > 0;
@@ -44,11 +45,13 @@ export function useMarineRegionalReady(options) {
             g.__sourceModel !== intent.model || g.__componentLayer !== intent.layer || !!g.ratingMode !== intent.surf ||
             g.vectors === resident.vectors) return;
         o.commit(data, bounds, intent.model, intent.layer, intent.hour);
+        recordMarineDemand('ready_submitted', 'regional_ready', mapInstance, o.marineFetchLocksRef.current, { intent, grid: g });
         recordMarineEvent('regional_ready_submitted', { model: intent.model, layer: intent.layer, hour: intent.hour });
       } catch (e) { recordMarineEvent('regional_ready_error', { message: String(e?.message || e).slice(0, 120) }); }
     };
     const arrive = event => {
       if (!matches(event.detail, live.current)) return;
+      recordMarineDemand('ready_hint', 'regional_ready', mapInstance, live.current.marineFetchLocksRef.current, { intent: event.detail });
       pending = { intent: event.detail, expires: Date.now() + 30000 };
       if (timer === null) timer = setTimeout(flush, 50);
     };

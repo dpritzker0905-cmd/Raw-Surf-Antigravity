@@ -7,6 +7,8 @@ const target = d => d ? { model: label(d.model), layer: label(d.layer), hour: nu
 const grid = g => g ? { model: label(g.__sourceModel), layer: label(g.__componentLayer), hour: number(g.hourOffset),
   cols: number(g.cols), rows: number(g.rows), bounds: bounds(g.bounds),
   cycle: label(g.model_run_time), served: label(g.served_valid_time), rating: !!g.ratingMode,
+  cycleStatus: label(g.model_run_time_status), upstream: label(g.upstream_provider || g.__upstreamProvider),
+  dataset: label(g.source_dataset || g.__sourceDataset), lane: label(g.__commitLane),
   stale: !!g.stale, renderable: g.__renderable !== false } : null;
 
 export function recordMarineDemand(stage, source, map, locks, detail = {}) {
@@ -20,6 +22,8 @@ export function recordMarineDemand(stage, source, map, locks, detail = {}) {
     const event = { id, stage: label(stage), source: label(source), t: performance.now(), utcMs: Date.now(),
       attempt: number(detail.attempt), requestId: number(detail.requestId), phase: label(detail.phase),
       status: label(detail.status), delay: number(detail.delay),
+      // Incoming cached envelope === previous state, before any recovery copy.
+      revision: number(detail.revision), sameReference: typeof detail.sameReference === 'boolean' ? detail.sameReference : null,
       viewport: b ? [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map(number) : null,
       zoom: number(map?.getZoom()), moving: !!map?.isMoving(), zooming: !!map?.isZooming(),
       target: target(detail.intent || detail), incoming: grid(detail.grid),

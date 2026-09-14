@@ -46,6 +46,18 @@ it('counts overflow while retaining the latest bounded interval', () => {
   expect(Math.min(...s.events.map(e => e.id))).toBe(4);
   expect(Math.max(...s.events.map(e => e.id))).toBe(2003);
 });
+it('distinguishes selected state from observed state and records bounded provenance', () => {
+  window.__RAW_CAPTURE_OPACITY__ = true;
+  const grid = { model_run_time_status: 'missing', upstream_provider: 'open-meteo', source_dataset: 'ncep_gfswave025',
+    __commitLane: 'regional_ready', token: 'private', vectors: [{ private: true }] };
+  recordMarineDemand('state_selected', 'regional_ready', null, null, { grid, revision: 8, sameReference: true });
+  recordMarineDemand('state_observed', 'regional_ready', null, null, { grid, revision: 8 });
+  const [selected, observed] = window.__RAW_DEMAND_EVIDENCE__.events;
+  expect(selected).toMatchObject({ stage: 'state_selected', revision: 8, sameReference: true,
+    incoming: { cycle: null, cycleStatus: 'missing', upstream: 'open-meteo', dataset: 'ncep_gfswave025', lane: 'regional_ready' } });
+  expect(observed).toMatchObject({ stage: 'state_observed', revision: 8, sameReference: null });
+  expect(JSON.stringify([selected, observed])).not.toMatch(/private|vectors|token/);
+});
 it('cannot break the scheduler when a diagnostic read throws; missing inputs remain unknown', () => {
   window.__RAW_CAPTURE_OPACITY__ = true;
   expect(recordMarineDemand('update', 'moveend', { getBounds: () => { throw Error('secret'); } }, null)).toBeNull();

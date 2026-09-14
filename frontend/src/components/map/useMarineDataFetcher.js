@@ -25,6 +25,7 @@ import { getTarget, endTransition, recordChurn } from './marineTransitionCoordin
 import { createMarineInFlightRegistry } from './marineInFlightRegistry';
 import { recordMarineEvent } from './marineForensics';   // surf_toggle breadcrumb (§5b pinning instrument)
 import { useMarineRegionalReady } from './useMarineRegionalReady';
+import { recordMarineDemand } from './marineDemandEvidence';
 
 
 export function useMarineDataFetcher({
@@ -249,7 +250,9 @@ export function useMarineDataFetcher({
 
   useEffect(() => {
     marineDataRef.current = marineData;
-  }, [marineData]);
+    recordMarineDemand('state_observed', marineData?.__commitLane, mapInstance, marineFetchLocksRef.current,
+      { grid: marineData?.grid, revision: marineData?.__commitRevision });
+  }, [marineData, mapInstance]);
 
   useEffect(() => {
     consecutiveFailuresRef.current = 0;

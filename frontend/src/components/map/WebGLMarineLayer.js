@@ -20,6 +20,8 @@ import { markMaskViewportSettled } from './marineMaskShelter';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
+import { recordMarineDemand } from './marineDemandEvidence';
+import { attachMarineZoomOutListener } from './marineZoomOutListener';
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
@@ -101,7 +103,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     activeLayersRef.current = activeLayers;
     activeModelRef.current = activeModel;
     timeOffsetHoursRef.current = timeOffsetHours;
-  }, [active, mapInstance, onAddedChange, onError, data, theme, beforeId, activeLayers, activeModel, timeOffsetHours]);
+    recordMarineDemand('layer_props', 'react_effect', mapInstance, null, { grid: data, revision });
+  }, [active, mapInstance, onAddedChange, onError, data, theme, beforeId, activeLayers, activeModel, timeOffsetHours, revision]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -209,6 +212,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
 
   const safeUploadWaveData = (reason, gl, grid, geojson) => {
     if (!engineRef.current || !gl || !grid || !grid.vectors?.length) return;
+    recordMarineDemand('upload_attempt', reason, mapInstance, null, { grid, revision });
     const engine = engineRef.current;
 
     if (typeof window !== 'undefined') {
@@ -256,6 +260,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     });
 
     if (diffResult.shouldSkip) {
+      recordMarineDemand('upload_skipped', reason, mapInstance, null, { grid, revision, status: diffResult.skipReason });
       if (diffResult.skipReason === 'skipped_identical_content_across_hours') {
         console.log(`[WebGLMarine] Skip upload for hour +${requestedHour}h: content is mathematically identical to hour +${lastUploadedGridRef.current.renderedDataHour}h`);
       }
@@ -298,6 +303,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
           viewportBounds,
         });
         if (held) {
+          recordMarineDemand('upload_skipped', reason, mapInstance, null, { grid, revision, status: 'scrub_hold' });
           window.__MARINE_SCRUB_HOLD_COUNT__ = (window.__MARINE_SCRUB_HOLD_COUNT__ || 0) + 1;
           window.__WEBGL_MARINE_UPLOAD_REASON__ = 'scrub_no_downgrade_hold';
           runDiagnosticsUpdate('scrub_no_downgrade_hold');
@@ -349,6 +355,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     engine._dispatcherActive = false;
     try {
       engine.setWaveData(gl, grid, geojson);
+      recordMarineDemand('upload_returned', reason, mapInstance, null, { grid, revision });
     } catch (err) {
       console.error('[WebGLMarine] Texture encoding failed:', err.message);
       if (window.__WEATHER_TELEMETRY__) {
@@ -754,23 +761,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     // starts AFTER the gesture — warm the ~2.5×-span grid the moment the gesture is clearly a
     // zoom-OUT (>0.4 drop from gesture start, one-shot per gesture), so the post-gesture lookup
     // serves it from cache via the containment fallback and the crest field expands near-instantly.
-    let _zoStartZoom = null, _zoFired = false;
-    const onZoomStart = () => { try { _zoStartZoom = mapInstance.getZoom(); _zoFired = false; } catch (e) {} };
-    const onZoom = () => {
-      if (_zoFired || _zoStartZoom == null || !activeRef.current) return;
-      let z; try { z = mapInstance.getZoom(); } catch (e) { return; }
-      if (_zoStartZoom - z > 0.4) {
-        _zoFired = true;
-        try {
-          const b = mapInstance.getBounds();
-          const vb = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
-          const lyr = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
-          prewarmZoomOutMarineGrid(activeModelRef.current, timeOffsetHoursRef.current, vb, lyr);
-        } catch (e) { /* anticipation is best-effort */ }
-      }
-    };
-    mapInstance.on('zoomstart', onZoomStart);
-    mapInstance.on('zoom', onZoom);
+    const detachZoomOut = attachMarineZoomOutListener(mapInstance, () => ({ active: activeRef.current,
+      model: activeModelRef.current, hour: timeOffsetHoursRef.current, layers: activeLayersRef.current }), prewarmZoomOutMarineGrid);
     // MOTION COARSE-PROMOTION (2026-07-16 — the zoom-out "clearing" keystone; deck.gl/MapLibre
     // hold-previous-tiles practice: never show a partial/empty frame mid-gesture). The data-layer
     // bridge (engine.bridgeToCoarseGlobalIfHeld) used to fire ONLY from the data-commit effect, so
@@ -814,7 +806,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     mapInstance.on('move', onMotionBridge);
     refresh();
     return () => {
-      try { mapInstance.off('idle', refresh); mapInstance.off('zoomend', refresh); mapInstance.off('moveend', refresh); mapInstance.off('sourcedata', onSourceData); mapInstance.off('zoomstart', onZoomStart); mapInstance.off('zoom', onZoom); mapInstance.off('zoom', onMotionBridge); mapInstance.off('move', onMotionBridge); } catch (e) {}
+      try { mapInstance.off('idle', refresh); mapInstance.off('zoomend', refresh); mapInstance.off('moveend', refresh); mapInstance.off('sourcedata', onSourceData); detachZoomOut(); mapInstance.off('zoom', onMotionBridge); mapInstance.off('move', onMotionBridge); } catch (e) {}
     };
   }, [mapInstance]);
 
