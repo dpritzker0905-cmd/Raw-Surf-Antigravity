@@ -18,6 +18,7 @@ import {
 } from './backendWeatherServiceClient';
 import { recordTruthStage } from './weatherTruthTracker';
 import { extractMarineAtOffset } from './marineControllerExtractor';
+import { bboxContains } from './marineBboxGeometry';
 
 // --- CACHES ---
 var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
@@ -169,6 +170,40 @@ export function _isAllVarModel(model) {
   if (m === 'GFS' && getBackendWeatherFlag()) return false;
   if (m === 'ICON' && getBackendIconMarineFlag()) return false;
   return true;
+}
+
+// Request-key aliases index the response; they do not prove it covers the request.
+// If that response is partial, prefer an already-ready regional replacement. Keep
+// the original fallback when none is available: rejecting it alone can blank the
+// renderer while a wider response is delayed or unavailable. No fetching here.
+export function preferReadyRegionalMarine(data, model, hourOffset, layer, bounds) {
+  const validBox = b => b && ['west', 'south', 'east', 'north'].every(k => Number.isFinite(b[k])) && b.north > b.south;
+  const width = b => b.east < b.west ? b.east + 360 - b.west : b.east - b.west;
+  const original = data?.grid?.bounds;
+  if (_isAllVarModel(model) || !validBox(bounds) || !validBox(original) ||
+      width(original) >= 340 || bboxContains(original, bounds)) return data;
+  const wanted = model || 'GFS', wantedLayer = layer || 'waves';
+  const layerPart = wantedLayer + (getSurfModeFlag() ? '~surf' : '');
+  const firstWins = typeof window !== 'undefined' && window.__RAW_DISABLE_TIGHTEST_CONTAINED__ === true;
+  let best = data, bestArea = Infinity, bestKey = null;
+  const now = Date.now();
+  for (const [key, entry] of _perModelHourCache.entries()) {
+    if (!key.startsWith(`${wanted}_${layerPart}_`) || !key.endsWith(`_${hourOffset}`) ||
+        !(now - entry.timestamp < PER_MODEL_HOUR_CACHE_TTL)) continue;
+    const g = entry.data?.grid, sig = entry.signature, b = g?.bounds;
+    if (entry.data?.stale || g?.stale || g?.renderable === false || g?.__renderable === false ||
+        !g?.vectors?.length || !validBox(b) || width(b) <= 0 || width(b) >= 340 || !bboxContains(b, bounds) || !sig) continue;
+    const bStr = `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}`;
+    if (sig.model !== wanted || sig.layer !== wantedLayer || sig.hourOffset !== hourOffset ||
+        sig.provider !== (g.__gridProvider || g.provider || 'none') || sig.boundsStr !== bStr ||
+        sig.cols !== (g.cols || 0) || sig.rows !== (g.rows || 0) || sig.vectorsLength !== g.vectors.length) continue;
+    if (firstWins) return entry.data;
+    const area = width(b) * (b.north - b.south);
+    if (area < bestArea || (area === bestArea && (bestKey === null || key < bestKey))) {
+      best = entry.data; bestArea = area; bestKey = key;
+    }
+  }
+  return best;
 }
 
 // `requestTileId` (2026-08-11, T-2' step 3) — the tile id the CALLER asked for, i.e.

@@ -31,6 +31,7 @@ import {
   getLastKnownGoodMarineModel,
   getPerModelHourCache,
   _isAllVarModel,
+  preferReadyRegionalMarine,
   _cacheMarineResult,
   _updateDiagnosticsOnCacheHit,
   createFallbackSafeZeroGrid,
@@ -226,8 +227,8 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
             sig.cols === (g.cols || 0) &&
             sig.rows === (g.rows || 0) &&
             sig.vectorsLength === (g.vectors?.length || 0)) {
-          hitData = exact.data;
-          cacheSource = 'per_model_hour_cache_exact';
+          hitData = preferReadyRegionalMarine(exact.data, wanted, wantedHour, wantedLayer, bounds);
+          cacheSource = hitData === exact.data ? 'per_model_hour_cache_exact' : 'per_model_hour_cache_contained';
         }
       } else if (!isBackendActive) {
         hitData = exact.data;
@@ -240,7 +241,7 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
     // function rather than a measurement of it. `recordSelectorLookup` namespaces every reason
     // under `sel_` so these tallies can never merge into the predicate's buckets and make both
     // unattributable — see marineControllerCache.selectorTelemetry.test.js.
-    recordSelectorLookup(hitData ? 'hit' : 'exact_key_absent', {
+    recordSelectorLookup(hitData ? (hitData === exact?.data ? 'hit' : 'hit_ready_regional') : 'exact_key_absent', {
       lookupKey: `${wanted}_${layerPart}_${tileId}_${wantedHour}`, tileId, model: wanted, layer: wantedLayer, hourOffset: wantedHour
     });
 
@@ -544,9 +545,10 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
               sig.cols === (g.cols || 0) &&
               sig.rows === (g.rows || 0) &&
               sig.vectorsLength === (g.vectors?.length || 0)) {
-            _updateDiagnosticsOnCacheHit(exact.data, model || 'GFS', hourOffset, activeLayer, bounds);
+            const ready = preferReadyRegionalMarine(exact.data, model, hourOffset, activeLayer, bounds);
+            _updateDiagnosticsOnCacheHit(ready, model || 'GFS', hourOffset, activeLayer, bounds);
             _rewarmWashBaseIfStale(model || 'GFS', hourOffset, bounds, activeLayer);
-            return exact.data;
+            return ready;
           }
         }
       }
