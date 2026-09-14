@@ -704,6 +704,16 @@ input[type="range"].appearance-none::-moz-range-track {
   color: #b45309 !important; /* text-amber-700 */
 }
 
+/* The beta gate stays dark in every theme. Outrank the broad input overrides above. */
+.access-code-screen .access-code-input {
+  color: #ffffff !important;
+  caret-color: #ffffff;
+}
+
+.access-code-screen .access-code-input::placeholder {
+  color: #a1a1aa !important;
+}
+
 /* ============ AUTHENTICATION THEME CONTRAST ============ */
 /* Auth is available before sign-in, so it must respect a previously saved theme. */
 .auth-page {
