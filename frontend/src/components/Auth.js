@@ -267,13 +267,13 @@ export const Auth = () => {
           </div>
 
           {/* Login / Sign Up Tabs */}
-          <div className="flex mx-6 bg-zinc-800 rounded-lg p-1">
+          <div className="flex mx-6 bg-secondary rounded-lg p-1">
             <button
               onClick={() => handleTabChange('login')}
               className={`flex-1 py-3 text-sm font-medium rounded-md transition-all ${
                 isLogin 
-                  ? 'bg-zinc-700 text-white' 
-                  : 'text-gray-400 hover:text-white'
+                  ? 'bg-muted text-foreground'
+                  : 'auth-muted hover:text-foreground'
               }`}
               data-testid="login-tab"
             >
@@ -284,7 +284,7 @@ export const Auth = () => {
               className={`flex-1 py-3 text-sm font-medium rounded-md transition-all ${
                 !isLogin 
                   ? 'bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 text-black' 
-                  : 'text-gray-400 hover:text-white'
+                  : 'auth-muted hover:text-foreground'
               }`}
               data-testid="signup-tab"
             >
@@ -325,7 +325,7 @@ export const Auth = () => {
                 <button
                   type="button"
                   aria-expanded={showPassword} onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 auth-muted hover:text-foreground"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -343,7 +343,7 @@ export const Auth = () => {
               <button
                 type="button"
                 onClick={() => navigate('/forgot-password')}
-                className="w-full text-center text-sm text-gray-400 hover:text-white transition-colors"
+                className="w-full text-center text-sm auth-muted hover:text-foreground transition-colors"
                 data-testid="forgot-password-link"
               >
                 Forgot your password?
@@ -354,7 +354,7 @@ export const Auth = () => {
           {/* Category Selection */}
           {showCategorySelection && (
             <div className="mt-6">
-              <h3 className="text-center text-white text-lg mb-6">I am a...</h3>
+              <h3 className="text-center text-foreground text-lg mb-6">I am a...</h3>
               <div className="space-y-3">
                 {Object.entries(ROLE_CONFIG).map(([key, config]) => {
                   const Icon = config.icon;
@@ -362,23 +362,23 @@ export const Auth = () => {
                     <button
                       key={key}
                       onClick={() => handleCategorySelect(key)}
-                      className="w-full flex items-start gap-4 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all text-left"
+                      className="w-full flex items-start gap-4 p-4 bg-secondary hover:bg-muted rounded-lg border auth-control-border hover:border-ring transition-all text-left"
                       data-testid={`category-${key}`}
                     >
                       <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-emerald-400/20 via-yellow-400/20 to-orange-400/20 flex items-center justify-center flex-shrink-0">
                         <Icon className="w-5 h-5 text-yellow-400" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-white font-medium">
+                        <div className="text-foreground font-medium">
                           {key === 'surfer' ? 'Surfer' : key === 'photographer' ? 'Photographer' : 'Business'}
                         </div>
-                        <div className="text-gray-400 text-sm mt-0.5">
+                        <div className="auth-muted text-sm mt-0.5">
                           {config.tagline}
                         </div>
                         {config.benefits && (
                           <div className="flex flex-wrap gap-1.5 mt-2">
                             {config.benefits.slice(0, 2).map((benefit, idx) => (
-                              <span key={idx} className="text-xs px-2 py-0.5 bg-zinc-700 rounded-full text-gray-300">
+                              <span key={idx} className="text-xs px-2 py-0.5 bg-muted rounded-full auth-muted">
                                 {benefit}
                               </span>
                             ))}
@@ -398,7 +398,7 @@ export const Auth = () => {
               {/* Back to Categories */}
               <button aria-label="Go back"
                 onClick={handleBackToCategories}
-                className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors mb-4"
+                className="flex items-center gap-2 auth-muted hover:text-foreground transition-colors mb-4"
                 data-testid="back-to-categories"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -407,9 +407,9 @@ export const Auth = () => {
 
               {/* Category Badge */}
               <div className="flex justify-center mb-6">
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-800 rounded-full border border-zinc-700">
-                  <categoryConfig.icon className="w-4 h-4 text-gray-400" />
-                  <span className="text-white font-medium">{categoryConfig.title}</span>
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary rounded-full border auth-control-border">
+                  <categoryConfig.icon className="w-4 h-4 auth-muted" />
+                  <span className="text-foreground font-medium">{categoryConfig.title}</span>
                 </div>
               </div>
 
@@ -441,7 +441,7 @@ export const Auth = () => {
 
                 {/* Username field - Required */}
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">@</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 auth-muted">@</span>
                   <Input
                     type="text"
                     placeholder="username"
@@ -456,7 +456,7 @@ export const Auth = () => {
                     data-testid="username-input"
                   />
                 </div>
-                <p id="username-hint" className="text-xs text-gray-500 -mt-2">Letters, numbers, underscores. 3-30 characters.</p>
+                <p id="username-hint" className="text-xs auth-muted -mt-2">Letters, numbers, underscores. 3-30 characters.</p>
                 <p id="password-hint" className="sr-only">Minimum 8 characters</p>
 
                 <Input
@@ -485,7 +485,7 @@ export const Auth = () => {
                   <button
                     type="button"
                     aria-expanded={showPassword} onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 auth-muted hover:text-foreground"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -495,7 +495,7 @@ export const Auth = () => {
                 {/* Parent email for Groms */}
                 {selectedRole?.requiresParent && (
                   <div className="space-y-3">
-                    <div className="text-xs text-gray-400 uppercase tracking-wider">
+                    <div className="text-xs auth-muted uppercase tracking-wider">
                       Parent/Guardian Information
                     </div>
                     <Input
@@ -521,12 +521,12 @@ export const Auth = () => {
                     />
                     
                     {/* Grom Competes Toggle */}
-                    <div className="flex items-center justify-between p-3 bg-zinc-800/50 rounded-lg border border-zinc-700">
+                    <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg border auth-control-border">
                       <div className="flex items-center gap-2">
                         <Trophy className="w-5 h-5 text-yellow-400" />
                         <div>
-                          <div className="text-sm font-medium text-white">Grom Competes</div>
-                          <div className="text-xs text-gray-400">Participates in surf competitions</div>
+                          <div className="text-sm font-medium text-foreground">Grom Competes</div>
+                          <div className="text-xs auth-muted">Participates in surf competitions</div>
                         </div>
                       </div>
                       <button
@@ -536,7 +536,7 @@ export const Auth = () => {
                         aria-label="Grom competes in surf competitions"
                         onClick={() => setFormData({ ...formData, grom_competes: !formData.grom_competes })}
                         className={`w-12 h-6 rounded-full transition-colors ${
-                          formData.grom_competes ? 'bg-yellow-500' : 'bg-zinc-700'
+                          formData.grom_competes ? 'bg-yellow-500' : 'bg-muted'
                         }`}
                         data-testid="grom-competes-toggle"
                       >
@@ -554,7 +554,7 @@ export const Auth = () => {
                       </p>
                     )}
                     
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs auth-muted">
                       Your parent will receive an invite to link your account
                     </p>
                   </div>
@@ -562,7 +562,7 @@ export const Auth = () => {
 
                 {/* Role Selection */}
                 <div className="pt-2">
-                  <div className="text-xs text-gray-400 uppercase tracking-wider mb-3">
+                  <div className="text-xs auth-muted uppercase tracking-wider mb-3">
                     Choose your profile type
                   </div>
                   <div className="space-y-2">
@@ -574,14 +574,14 @@ export const Auth = () => {
                         className={`w-full flex items-center gap-3 p-4 rounded-lg border transition-all ${
                           selectedRole?.id === role.id
                             ? 'bg-gradient-to-r from-emerald-400/20 via-yellow-400/20 to-orange-400/20 border-yellow-400'
-                            : 'bg-zinc-800 border-zinc-700 hover:border-zinc-600'
+                            : 'bg-secondary auth-control-border hover:border-ring'
                         }`}
                         data-testid={`role-${role.id}`}
                       >
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
                           selectedRole?.id === role.id
                             ? 'border-yellow-400'
-                            : 'border-zinc-600'
+                            : 'auth-control-border'
                         }`}>
                           {selectedRole?.id === role.id && (
                             <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
@@ -589,8 +589,8 @@ export const Auth = () => {
                         </div>
                         <span className="text-lg">{role.icon}</span>
                         <div className="text-left">
-                          <div className="text-white font-medium">{role.label}</div>
-                          <div className="text-gray-400 text-sm">{role.description}</div>
+                          <div className="text-foreground font-medium">{role.label}</div>
+                          <div className="auth-muted text-sm">{role.description}</div>
                         </div>
                       </button>
                     ))}
@@ -605,17 +605,17 @@ export const Auth = () => {
                       className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
                         tosAccepted
                           ? 'bg-emerald-500 border-emerald-500'
-                          : 'border-zinc-600 group-hover:border-zinc-400'
+                          : 'auth-control-border group-hover:border-zinc-400'
                       }`}
                       data-testid="tos-checkbox"
                     >
                       {tosAccepted && (
-                        <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
+                        <svg className="w-3 h-3 text-foreground" viewBox="0 0 12 12" fill="none">
                           <path d="M2 6L5 9L10 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                       )}
                     </div>
-                    <span className="text-sm text-gray-400 leading-tight">
+                    <span className="text-sm auth-muted leading-tight">
                       I agree to the{' '}
                       <button
                         type="button"
@@ -644,7 +644,7 @@ export const Auth = () => {
                   className={`w-full h-12 font-bold mt-4 transition-all ${
                     tosAccepted
                       ? 'bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black'
-                      : 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
+                      : 'bg-muted text-zinc-400 cursor-not-allowed'
                   }`}
                   data-testid="signup-submit"
                 >
@@ -656,23 +656,23 @@ export const Auth = () => {
         </div>
 
         {/* Footer Link */}
-        <div className="bg-zinc-800/50 py-4 text-center border-t border-zinc-800">
+        <div className="bg-secondary/50 py-4 text-center border-t border-border">
           {isLogin ? (
-            <span className="text-gray-400">
+            <span className="auth-muted">
               Don't have an account?{' '}
               <button
                 onClick={() => handleTabChange('signup')}
-                className="text-emerald-400 hover:text-emerald-300 font-medium"
+                className="auth-link hover:underline font-medium"
               >
                 Sign up
               </button>
             </span>
           ) : (
-            <span className="text-gray-400">
+            <span className="auth-muted">
               Have an account?{' '}
               <button
                 onClick={() => handleTabChange('login')}
-                className="text-emerald-400 hover:text-emerald-300 font-medium"
+                className="auth-link hover:underline font-medium"
               >
                 Log in
               </button>
@@ -684,18 +684,18 @@ export const Auth = () => {
       {/* ToS Modal */}
       {showTosModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg max-h-[85vh] bg-zinc-900 border border-zinc-700 rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+          <div className="w-full max-w-lg max-h-[85vh] bg-card border auth-control-border rounded-2xl flex flex-col overflow-hidden shadow-2xl">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-cyan-500/10">
                   <Shield className="w-5 h-5 text-cyan-400" />
                 </div>
-                <h2 className="text-lg font-semibold text-white">Terms of Service</h2>
+                <h2 className="text-lg font-semibold text-foreground">Terms of Service</h2>
               </div>
               <button
                 onClick={() => setShowTosModal(false)}
-                className="p-1 rounded-full hover:bg-zinc-800 text-gray-400 hover:text-white transition-colors"
+                className="p-1 rounded-full hover:bg-secondary auth-muted hover:text-foreground transition-colors"
                 aria-label="Close terms of service"
                 data-testid="tos-modal-close"
               >
@@ -704,11 +704,11 @@ export const Auth = () => {
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto px-6 py-4 text-sm text-gray-300 space-y-4" style={{ maxHeight: '60vh' }}>
-              <p className="text-xs text-gray-500 uppercase tracking-wider">Version {authTosContent.version || CURRENT_TOS_VERSION} \u00B7 Effective {authTosContent.effective_date || 'May 2026'}</p>
+            <div className="flex-1 overflow-y-auto px-6 py-4 text-sm auth-muted space-y-4" style={{ maxHeight: '60vh' }}>
+              <p className="text-xs auth-muted uppercase tracking-wider">Version {authTosContent.version || CURRENT_TOS_VERSION} \u00B7 Effective {authTosContent.effective_date || 'May 2026'}</p>
               {(authTosContent.sections || []).map((section, idx) => (
                 <React.Fragment key={idx}>
-                  <h3 className="text-white font-semibold text-base">{section.title}</h3>
+                  <h3 className="text-foreground font-semibold text-base">{section.title}</h3>
                   <p>{section.body}</p>
                 </React.Fragment>
               ))}
@@ -720,11 +720,11 @@ export const Auth = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-zinc-800 flex gap-3">
+            <div className="px-6 py-4 border-t border-border flex gap-3">
               <Button
                 onClick={() => setShowTosModal(false)}
                 variant="outline"
-                className="flex-1 border-zinc-700 text-gray-300 hover:bg-zinc-800"
+                className="flex-1 auth-control-border auth-muted hover:bg-secondary"
               >
                 Close
               </Button>
