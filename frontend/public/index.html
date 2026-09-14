@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- Build: 2026-04-23T22:30 -->
-<html lang="en">
+<html lang="en" class="dark">
     <head>
         <!-- React Scan (dev render profiler). auto.global.js instruments EVERY React render and
              paints overlays — a heavy main-thread tax on this WebGL-heavy map that ships to all
@@ -34,9 +34,27 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
         <!-- Dynamic theme-color - will be updated by ThemeContext.js -->
-        <meta name="theme-color" id="theme-color-meta" content="#000000" />
+        <meta name="theme-color" id="theme-color-meta" content="#09090B" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <!-- Apply the saved theme before CSS/React paint. ThemeContext tests pin policy parity. -->
+        <script id="theme-bootstrap">
+          (function () {
+            var theme = 'dark';
+            try {
+              var saved = localStorage.getItem('raw-surf-theme');
+              if (['light', 'dark', 'beach'].indexOf(saved) !== -1) theme = saved;
+            } catch (_) {}
+            var root = document.documentElement;
+            root.classList.remove('light', 'dark', 'beach-mode');
+            root.classList.add(theme === 'beach' ? 'beach-mode' : theme);
+            root.style.colorScheme = theme === 'light' ? 'light' : 'dark';
+            document.getElementById('theme-color-meta').setAttribute('content',
+              { light: '#FFFFFF', dark: '#09090B', beach: '#000000' }[theme]);
+            document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
+              .setAttribute('content', theme === 'light' ? 'default' : 'black-translucent');
+          })();
+        </script>
         <meta name="description" content="Raw Surf — surf photography, live streams, and community for surfers worldwide." />
         <meta property="og:title" content="Raw Surf — Surf Photography & Community" />
         <meta property="og:description" content="Live surf photography, session booking, and community for surfers worldwide." />
@@ -228,4 +246,3 @@
         </script>
     </body>
 </html>
-

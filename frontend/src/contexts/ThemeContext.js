@@ -1,6 +1,15 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const ThemeContext = createContext();
+const VALID_THEMES = ['light', 'dark', 'beach'];
+
+export const readInitialTheme = () => {
+  try {
+    const saved = localStorage.getItem('raw-surf-theme');
+    if (VALID_THEMES.includes(saved)) return saved;
+  } catch (_) { /* Storage restrictions must not prevent sign-in. */ }
+  return 'dark';
+};
 
 // Theme color values for meta tag
 const THEME_COLORS = {
@@ -10,15 +19,7 @@ const THEME_COLORS = {
 };
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('raw-surf-theme');
-    if (saved) return saved;
-    // Auto-detect system preference on first visit
-    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
-  });
+  const [theme, setTheme] = useState(readInitialTheme);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -30,7 +31,10 @@ export const ThemeProvider = ({ children }) => {
       root.classList.add(theme);
     }
     
-    localStorage.setItem('raw-surf-theme', theme);
+    root.style.colorScheme = theme === 'light' ? 'light' : 'dark';
+    try {
+      localStorage.setItem('raw-surf-theme', theme);
+    } catch (_) { /* The selected theme still works for this session. */ }
     
     // ============ DYNAMIC THEME-COLOR META TAG ============
     // Update the theme-color meta tag for browser chrome/status bar
@@ -48,7 +52,7 @@ export const ThemeProvider = ({ children }) => {
   }, [theme]);
 
   const toggleTheme = (newTheme) => {
-    setTheme(newTheme);
+    if (VALID_THEMES.includes(newTheme)) setTheme(newTheme);
   };
 
   return (
