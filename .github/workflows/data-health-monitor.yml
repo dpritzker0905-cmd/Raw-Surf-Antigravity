@@ -29,6 +29,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
+        id: checkout
 
       - name: Poll /api/health/data
         env:
@@ -97,6 +98,8 @@ jobs:
       # bound either cry-wolfs on the rotation or goes blind on the globals.
       # Set repo Actions variable REGION_HEALTH_PAGING=0 to downgrade this to a warning annotation.
       - name: Regional product run-age census
+        # Global paging must not hide the finer regional diagnosis (run 34849338600).
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
         env:
           BASE: ${{ vars.HEALTH_BASE || 'https://raw-surf-antigravity.onrender.com' }}
           PAGING: ${{ vars.REGION_HEALTH_PAGING || '1' }}
