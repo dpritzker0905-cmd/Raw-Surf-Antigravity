@@ -288,7 +288,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # companion to ci.yml's raised floor in sync; the first candidate caught this omission.
 # September 14: parent CI34803686246 measured 1839; 15 new provider controls.
 # Candidate Linux CI must confirm 1854; keep the six-test floor margin paired.
-_FLOOR_SET_FROM = {"guards": 1854, "chain": 922, "estate": 459}
+# Coordinate selection: measured parent 1854 + 31 new cases; candidate CI must confirm 1885.
+_FLOOR_SET_FROM = {"guards": 1885, "chain": 922, "estate": 459}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
