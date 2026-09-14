@@ -17,6 +17,7 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException
 from starlette.background import BackgroundTasks
+from services.weather_pipeline.provider_fetches import await_provider_fetch
 
 from services.weather_pipeline.series_vector_budget import (
     decimate_vectors,
@@ -265,11 +266,11 @@ async def _build_euro_marine_series(viewport_service, layer: str, bbox: str, hou
     # request resolves from cache and EURO serves its native Copernicus grid (incl. real swell
     # partitions). Restored from 4bbe81c3 — it was dropped as collateral in the 06-23 00:56 batch
     # revert (the actual breaker was the coordinator-parity change, re-applied corrected as f0627bf8).
-    raw = await asyncio.shield(cop.fetch_grid(
+    raw = await await_provider_fetch(cop.fetch_grid(
         layer=layer, bbox=bbox_dict, resolution=resolution,
         forecast_days=forecast_days, precomputed_coords=(lats, lons),
         valid_time=None,  # FULL range in ONE fetch — the entire point of this path
-    ))
+    ), provider="Copernicus/EURO")
     if not raw:
         return None
     raw_list = raw if isinstance(raw, list) else [raw]
@@ -359,10 +360,10 @@ async def _build_openmeteo_marine_series(viewport_service, model: str, layer: st
 
     provider = OpenMeteoProvider()
     # Shield the fetch (like EURO) so a cancelled request still warms the provider's 5-min cache for next time.
-    raw = await asyncio.shield(provider.fetch_grid(
+    raw = await await_provider_fetch(provider.fetch_grid(
         model=model, domain="marine", layer=layer, bbox=bbox_dict,
         resolution=resolution, forecast_days=forecast_days, precomputed_coords=(lats, lons),
-    ))
+    ), provider="Open-Meteo")
     if not raw:
         return None
     raw_list = raw if isinstance(raw, list) else [raw]
