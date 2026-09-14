@@ -286,7 +286,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # September 10 condition-report repair: projected from CI34520513943's 1804
 # plus 24 executed new controls. Candidate CI must confirm 1828. Keep the
 # companion to ci.yml's raised floor in sync; the first candidate caught this omission.
-_FLOOR_SET_FROM = {"guards": 1874, "chain": 922, "estate": 459}
+# CI34893458258 measured 1874; node-bounds adds 11 locally passing guards.
+# Candidate Linux CI must confirm 1885 before promotion.
+_FLOOR_SET_FROM = {"guards": 1885, "chain": 922, "estate": 459}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
