@@ -310,9 +310,11 @@ def fetch_recent_reports_via_rest(fresh_h: float = REPORT_FRESH_H, limit: int = 
         import requests
         from datetime import timedelta
         cutoff = (datetime.now(timezone.utc) - timedelta(hours=fresh_h)).isoformat()
-        url = (f"{base}/rest/v1/surf_reports?select=spot_id,rating,created_at"
-               f"&created_at=gte.{cutoff}&rating=not.is.null&limit={limit}")
-        resp = requests.get(url, headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=20)
+        # Encode the UTC '+' as %2B; a literal '+' in a query becomes a space in PostgREST.
+        params = {"select": "spot_id,rating,created_at", "created_at": f"gte.{cutoff}",
+                  "rating": "not.is.null", "limit": limit}
+        resp = requests.get(f"{base}/rest/v1/surf_reports", params=params,
+                            headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=20)
         resp.raise_for_status()
         by_spot = {}
         for row in resp.json():
