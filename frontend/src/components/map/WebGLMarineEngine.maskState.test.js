@@ -49,6 +49,9 @@ describe('mask upload preserves the shared basemap texture state', () => {
     if (fails) {
       expect(f.engine._regionalPatchState).toBeUndefined();
       expect(f.engine._overlayMaskTruthBox).toBeUndefined();
+      expect(f.engine._overlayMaskTexDims).toBeUndefined();
+    } else if (method === 'refreshViewportOverlayMask') {
+      expect(f.engine._overlayMaskTexDims).toEqual({ w: 128, h: 64 });
     }
   });
 });

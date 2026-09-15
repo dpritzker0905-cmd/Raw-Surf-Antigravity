@@ -2682,6 +2682,7 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
     });
+    this._overlayMaskTexDims = { w: canvas.width, h: canvas.height }; // probe follows uploaded size
     this._overlayMaskBounds = bounds;
     // The region the painter truth-painted from tiles = the strict viewport at paint time; the
     // canvas ring outside it holds NE base truth (sane but coarser). Hysteresis keys on this box.
@@ -2709,18 +2710,10 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
   const ps = this._probeState || {};
   const merc = (lat) => { const c = Math.max(-85.051129, Math.min(85.051129, lat)) * Math.PI / 180; return (1 - Math.log(Math.tan(c) + 1 / Math.cos(c)) / Math.PI) / 2; };
   const wrap = (lng, center) => { let p = lng; while (p - center > 180) p -= 360; while (p - center < -180) p += 360; return p; };
-  const dimsForOverlay = (b) => {
-    const span = (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
-    let w = span < 10 ? 4096 : (span < 30 ? 2048 : 4096); if (w > 2048) w = 2048;
-    // MID-ZOOM COASTAL CARVE (2026-07-21, user residual-fringe report): the regional min-combine
-    // overlay spans ~0.5–3° across the halo band; at the flat 2048 cap that is ~56 m/texel and the
-    // coast carve is soft, so the heatmap feather still rides a thin fringe onto land. Lift the cap to
-    // 4096 (~28 m/texel) for that span band so the coast cuts crisply — matching the z>=12 look the
-    // user confirmed clean. Deep-zoom (<0.35°, already fine at 2048) and world (≥30°, memory-bound)
-    // spans are unchanged. Kill: __RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ (restores the flat 2048 cap).
-    if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ === true) &&
-        span >= 0.35 && span < 6) w = 4096;
-    return { w, h: w / 2 };
+  const dimsForOverlay = () => {
+    // Follow the successful upload; legacy overlays used the writer's fixed 2048 cap.
+    const dims = this._overlayMaskTexDims;
+    return dims && dims.w > 0 && dims.h > 0 ? dims : { w: 2048, h: 1024 };
   };
   const prevFbo = gl.getParameter(gl.FRAMEBUFFER_BINDING);
   const fbo = gl.createFramebuffer();
@@ -2749,7 +2742,7 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
     return pl >= wW && pl <= wE;
   };
   const baseTex = this._cachedMaskTex, baseB = this._cachedMaskBounds, baseD = this._cachedMaskTexDims;
-  const ovTex = this._overlayMaskTex, ovB = this._overlayMaskBounds, ovD = ovB ? dimsForOverlay(ovB) : null;
+  const ovTex = this._overlayMaskTex, ovB = this._overlayMaskBounds, ovD = ovB ? dimsForOverlay() : null;
   // COARSE-BASE FALLBACK (2026-07-18 EVE-2): beyond the RESIDENT mask bounds both reads return
   // null, which callers (zoomlab's water ground truth) had to guess about — the ring-fill zone
   // read as "unknown/land" and could hide a real dead-ring finding there. The held coarse base
