@@ -39,7 +39,8 @@ class WeatherTelemetryEngine {
     };
     
     this.gpuStats = {
-      fps: 60,
+      fps: null,
+      fpsMeasuredAt: null,
       lastFrameTime: Date.now(),
       drawCalls: 0,
       textureCount: 0,
@@ -386,6 +387,7 @@ class WeatherTelemetryEngine {
       const now = performance.now();
       if (now - lastTime >= 1000) {
         this.gpuStats.fps = Math.round((frameCount * 1000) / (now - lastTime));
+        this.gpuStats.fpsMeasuredAt = now;
         frameCount = 0;
         lastTime = now;
         
