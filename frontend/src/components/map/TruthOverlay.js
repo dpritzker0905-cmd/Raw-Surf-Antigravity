@@ -329,7 +329,7 @@ var TruthOverlay = ({
   return (
     <div aria-label="Weather diagnostics" style={{
       position: 'absolute', bottom: '96px', left: '16px', zIndex: 100,
-      boxSizing: 'border-box', maxWidth: 'calc(100% - 32px)', maxHeight: '40%',
+      boxSizing: 'border-box', maxWidth: 'calc(100% - 96px)', maxHeight: '40%',
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
       fontFamily: '"Outfit", "Inter", -apple-system, sans-serif', color: '#f8fafc',
       background: 'rgba(10, 10, 26, 0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
@@ -366,7 +366,7 @@ var TruthOverlay = ({
             fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
             background: 'linear-gradient(135deg, #00f0ff, #0072ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
           }}>
-            Diagnostics HUD
+            Diagnostics
           </span>
         </div>
         <button
