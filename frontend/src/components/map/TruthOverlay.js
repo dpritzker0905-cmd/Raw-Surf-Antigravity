@@ -52,7 +52,7 @@ var TruthOverlay = ({
   simFrameIndex = 0,
   isTransitioning = false
 }) => {
-  const [minimized, setMinimized] = useState(false);
+  const [minimized, setMinimized] = useState(true);
   const [activeTab, setActiveTab] = useState('health'); // 'health', 'events', 'visual', 'gpu'
   const [combo, setCombo] = useState('');
   const [activeDiagnostic, setActiveDiagnostic] = useState(null);
@@ -327,18 +327,21 @@ var TruthOverlay = ({
   if (!isDiagHudEnabled(typeof window !== 'undefined' ? window : null)) return null;
 
   return (
-    <div style={{
-      position: 'absolute', bottom: '16px', left: '16px', zIndex: 100,
+    <div aria-label="Weather diagnostics" style={{
+      position: 'absolute', bottom: '96px', left: '16px', zIndex: 100,
+      boxSizing: 'border-box', maxWidth: 'calc(100% - 32px)', maxHeight: '40%',
+      display: 'flex', flexDirection: 'column', overflow: 'hidden',
       fontFamily: '"Outfit", "Inter", -apple-system, sans-serif', color: '#f8fafc',
       background: 'rgba(10, 10, 26, 0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
       border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px',
-      boxShadow: '0 20px 50px 0 rgba(0, 0, 0, 0.55)', width: minimized ? '220px' : '360px',
-      padding: '16px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      boxShadow: '0 20px 50px 0 rgba(0, 0, 0, 0.55)', width: minimized ? '260px' : '360px',
+      padding: '12px',
       userSelect: 'none', pointerEvents: 'auto'
     }}>
       {/* HUD Header */}
       <div style={{
         display: 'flex',
+        flexShrink: 0,
         alignItems: 'center',
         justifyContent: 'space-between',
         borderBottom: minimized ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
@@ -367,6 +370,8 @@ var TruthOverlay = ({
           </span>
         </div>
         <button
+          aria-expanded={!minimized}
+          aria-controls="weather-diagnostics-content"
           onClick={() => setMinimized(!minimized)}
           style={{
             background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '6px', color: '#94a3b8',
@@ -380,7 +385,7 @@ var TruthOverlay = ({
       </div>
 
       {!minimized && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div id="weather-diagnostics-content" style={{ display: 'flex', flexDirection: 'column', gap: '10px', minHeight: 0, overflowY: 'auto', overflowWrap: 'anywhere', overscrollBehavior: 'contain' }}>
           {/* Tab Selection Row */}
           <div style={{
             display: 'flex',
