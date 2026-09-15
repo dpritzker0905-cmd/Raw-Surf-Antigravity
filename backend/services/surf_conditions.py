@@ -263,6 +263,7 @@ async def get_surf_conditions(
                         "wave_height",
                         "wave_period",
                         "wave_direction",
+                        "swell_wave_height",
                     ],
                     "timezone": "UTC",
                     "forecast_days": 1
@@ -281,6 +282,7 @@ async def get_surf_conditions(
             wave_height_m = current.get("wave_height")
             wave_period = current.get("wave_period")
             wave_direction = current.get("wave_direction")
+            swell_height_m = current.get("swell_wave_height")
             
             # If no current data, try hourly
             if wave_height_m is None:
@@ -289,6 +291,8 @@ async def get_surf_conditions(
                 heights = hourly.get("wave_height", [])
                 periods = hourly.get("wave_period", [])
                 directions = hourly.get("wave_direction", [])
+                swells = hourly.get("swell_wave_height", [])
+                swell_height_m = None
                 
                 # Find closest hour
                 if times and heights:
@@ -298,6 +302,7 @@ async def get_surf_conditions(
                             wave_height_m = heights[i] if i < len(heights) else None
                             wave_period = periods[i] if i < len(periods) else None
                             wave_direction = directions[i] if i < len(directions) else None
+                            swell_height_m = swells[i] if i < len(swells) else None
                             break
                     
                     # If no exact match, use first available
@@ -305,6 +310,7 @@ async def get_surf_conditions(
                         wave_height_m = heights[0]
                         wave_period = periods[0] if periods else None
                         wave_direction = directions[0] if directions else None
+                        swell_height_m = swells[0] if swells else None
             
             result = {
                 "source": "open-meteo",
@@ -320,8 +326,11 @@ async def get_surf_conditions(
                 breaking_ft, regime = _breaking_ft(
                     latitude, longitude, wave_height_m, wave_period, wave_direction)
                 result["wave_height_ft"] = breaking_ft          # BREAKING — what a surfer rides
-                result["swell_height_ft"] = meters_to_feet(wave_height_m)   # OFFSHORE — what the model reports
+                result["offshore_height_ft"] = meters_to_feet(wave_height_m)  # TOTAL SEA, not swell
                 result["surf_regime"] = regime                  # provenance: 'offshore_estimate' == the transform failed open
+
+            # Swell is a distinct provider quantity. Missing swell must not fall back to total sea.
+            result["swell_height_ft"] = meters_to_feet(swell_height_m) if swell_height_m is not None else None
 
             if wave_period is not None:
                 result["wave_period_sec"] = int(wave_period)
@@ -475,7 +484,8 @@ async def get_full_conditions(
         # stamps the offshore value and the regime beside the breaking height; forwarding only the
         # height here would leave this surface unable to say whether the transform ran or failed
         # open — the same "a number that cannot say what it is" class the fix above closed.
-        "swell_height_ft": surf.get("swell_height_ft"),        # OFFSHORE, named
+        "swell_height_ft": surf.get("swell_height_ft"),        # PROVIDER SWELL, may be unknown
+        "offshore_height_ft": surf.get("offshore_height_ft"),  # TOTAL SEA
         "surf_regime": surf.get("surf_regime"),                # 'offshore_estimate' == failed open
         "wave_period_sec": surf.get("wave_period_sec"),
         "wave_direction": surf.get("wave_direction"),
