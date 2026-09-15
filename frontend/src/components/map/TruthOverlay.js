@@ -682,6 +682,8 @@ var TruthOverlay = ({
           {activeTab === 'gpu' && (
             <TruthOverlayGpuTab
               gpuFps={gpuFps}
+              mapFps={typeof window !== 'undefined' ? window.__MAP_RENDER_FPS__ : null}
+              renderHistogram={typeof window !== 'undefined' ? window.__RAW_GPU__?.frameTimeHistogram : null}
               gpuMemoryBytes={gpuMemoryBytes}
               gpuTexturesCount={gpuTexturesCount}
               gpuUploadsCount={gpuUploadsCount}
