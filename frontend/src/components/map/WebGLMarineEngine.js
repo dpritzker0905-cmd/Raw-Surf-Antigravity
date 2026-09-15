@@ -7,6 +7,7 @@
  */
 
 import { recordTruthStage } from './weatherTruthTracker';
+import { describeResidentMarineGrid } from './marineResidentEvidence';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
@@ -1609,6 +1610,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (!this._forensicSnapT || (_fsNow - this._forensicSnapT) > 15000) {
         this._forensicSnapT = _fsNow;
         var _snap = {
+          resident: describeResidentMarineGrid(waveGrid),
           zoom: (typeof z === 'number') ? +z.toFixed(2) : null,
           dims: waveGrid ? `${waveGrid.cols}x${waveGrid.rows}` : null,
           spanLng: (waveGrid && waveGrid.bounds) ? +boundsLonSpan(waveGrid.bounds).toFixed(2) : null,
