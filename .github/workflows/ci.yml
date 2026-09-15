@@ -816,7 +816,9 @@ jobs:
           # September 10: tracked chain selector claims test_tide_acquisition.py; full local
           # chain measured 94 files / 922 passed / 0 skipped (356.57s). Keep the 6-test margin
           # and update _FLOOR_SET_FROM["chain"] in the same commit. Linux CI verifies this floor.
-          MIN_FILES, MIN_PASSED = 94, 916
+          # PR31 CI35021160260 measured 96 files / 932 passes on the merged code.
+          # Keep the six-test margin and the paired citation in sync.
+          MIN_FILES, MIN_PASSED = 96, 926
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
