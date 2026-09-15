@@ -2715,7 +2715,8 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
     const dims = this._overlayMaskTexDims;
     return dims && dims.w > 0 && dims.h > 0 ? dims : { w: 2048, h: 1024 };
   };
-  const prevFbo = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  const readTarget = gl.READ_FRAMEBUFFER ?? gl.FRAMEBUFFER;
+  const prevFbo = gl.getParameter(gl.READ_FRAMEBUFFER_BINDING ?? gl.FRAMEBUFFER_BINDING);
   const fbo = gl.createFramebuffer();
   const out = new Uint8Array(4);
   const read = (tex, b, dims, lng, lat) => {
@@ -2730,9 +2731,9 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
     const tx = Math.max(0, Math.min(dims.w - 1, Math.round(u * (dims.w - 1))));
     const tyC = Math.max(0, Math.min(dims.h - 1, Math.round(v * (dims.h - 1))));
     const ty = dims.h - 1 - tyC;                          // mask uploaded UNPACK_FLIP_Y=true
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) return null;
+    gl.bindFramebuffer(readTarget, fbo);
+    gl.framebufferTexture2D(readTarget, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    if (gl.checkFramebufferStatus(readTarget) !== gl.FRAMEBUFFER_COMPLETE) return null;
     gl.readPixels(tx, ty, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
     return { r: out[0], b: out[2] }; // .r = land/water; .b = coast SDF (when __RAW_COAST_SDF__)
   };
@@ -2750,28 +2751,31 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
   const cb = this._coarseBaseData;
   const cbTex = cb && cb.u_oceanMaskTexture, cbB = cb && cb.bounds;
   const cbD = (cb && cb.__maskCanvasDims) ? { w: cb.__maskCanvasDims.w, h: cb.__maskCanvasDims.h } : null;
-  const res = points.map(({ lng, lat }) => {
-    const baseS = read(baseTex, baseB, baseD, lng, lat);
-    const ovS = read(ovTex, ovB, ovD, lng, lat);
-    const base = baseS ? baseS.r : null;
-    const overlay = ovS ? ovS.r : null;
-    let effective = base, src = 'base', effB = baseS ? baseS.b : null; // effB = the coast-SDF byte the shader uses
-    if (ps.overlayOn && overlay != null && inBounds(ovB, lng, lat)) {
-      if (ps.replace) { effective = overlay; effB = ovS.b; src = 'overlay_replace'; }
-      else {
-        effective = (base == null) ? overlay : Math.min(base, overlay);
-        effB = (baseS && ovS) ? Math.min(baseS.b, ovS.b) : (ovS ? ovS.b : effB); // min-combine of two SDFs = more-land
-        src = 'overlay_min';
+  try {
+    const res = points.map(({ lng, lat }) => {
+      const baseS = read(baseTex, baseB, baseD, lng, lat);
+      const ovS = read(ovTex, ovB, ovD, lng, lat);
+      const base = baseS ? baseS.r : null;
+      const overlay = ovS ? ovS.r : null;
+      let effective = base, src = 'base', effB = baseS ? baseS.b : null; // effB = the coast-SDF byte the shader uses
+      if (ps.overlayOn && overlay != null && inBounds(ovB, lng, lat)) {
+        if (ps.replace) { effective = overlay; effB = ovS.b; src = 'overlay_replace'; }
+        else {
+          effective = (base == null) ? overlay : Math.min(base, overlay);
+          effB = (baseS && ovS) ? Math.min(baseS.b, ovS.b) : (ovS ? ovS.b : effB); // min-combine of two SDFs = more-land
+          src = 'overlay_min';
+        }
       }
-    }
-    if (effective == null && cbTex && cbB && cbD) {
-      const cbS = read(cbTex, cbB, cbD, lng, lat);
-      if (cbS != null) { effective = cbS.r; effB = cbS.b; src = 'coarse_base'; }
-    }
-    return { lng, lat, base, overlay, effective, src, effB };
-  });
-  try { gl.bindFramebuffer(gl.FRAMEBUFFER, prevFbo); gl.deleteFramebuffer(fbo); } catch (e) { /* probe cleanup only — the sampled result is already captured in `res` */ }
-  return res;
+      if (effective == null && cbTex && cbB && cbD) {
+        const cbS = read(cbTex, cbB, cbD, lng, lat);
+        if (cbS != null) { effective = cbS.r; effB = cbS.b; src = 'coarse_base'; }
+      }
+      return { lng, lat, base, overlay, effective, src, effB };
+    });
+    return res;
+  } finally {
+    try { gl.bindFramebuffer(readTarget, prevFbo); } finally { gl.deleteFramebuffer(fbo); }
+  }
 };
 
 // BLEND BOTH: snapshot a global-coarse grid into a standalone (non-resident) texture set we own + free.
