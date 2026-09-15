@@ -16,12 +16,27 @@
  * — that the payload line still exists — so a rename makes the guard RED rather than vacuous.
  */
 const fs = require('fs');
+const React = require('react');
+const { render } = require('@testing-library/react');
+const { TruthOverlayGpuTab } = require('./TruthOverlayGpuTab');
 const path = require('path');
 
 const SRC = fs.readFileSync(path.join(__dirname, 'TruthOverlay.js'), 'utf8');
 
 // The payload key as it is actually written, ignoring surrounding whitespace.
 const FPS_PAYLOAD_LINE = /^\s*fps:\s*(.+?),\s*$/m;
+
+test.each([[0, '0 FPS'], [12, '12 FPS'], [60, '60 FPS'], [null, 'Unavailable'], [undefined, 'Unavailable'], [NaN, 'Unavailable'], [-1, 'Unavailable']])('GPU panel reports %s without fabricating healthy FPS', (gpuFps, expected) => {
+  const { getByText } = render(<TruthOverlayGpuTab gpuFps={gpuFps} />);
+  expect(getByText(expected)).toBeTruthy();
+});
+
+test('browser scheduling and map rendering remain independent measurements', () => {
+  const { getByText } = render(<TruthOverlayGpuTab gpuFps={60} mapFps={1} renderHistogram={[120, 2, 0, 0, 0]} />);
+  expect(getByText('60 FPS')).toBeTruthy();
+  expect(getByText('Map render cadence (last measured window): 1 FPS')).toBeTruthy();
+  expect(getByText(/120 \/ 2 \/ 0 \/ 0 \/ 0/)).toBeTruthy();
+});
 
 describe('TruthOverlay fps payload — measure or refuse (WS-CAN-0063)', () => {
   test('POSITIVE CONTROL: the fps payload line still exists', () => {

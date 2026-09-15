@@ -2,6 +2,8 @@ import React from 'react';
 
 export const TruthOverlayGpuTab = ({
   gpuFps,
+  mapFps,
+  renderHistogram,
   gpuMemoryBytes,
   gpuTexturesCount,
   gpuUploadsCount,
@@ -16,11 +18,13 @@ export const TruthOverlayGpuTab = ({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <span style={{ color: '#94a3b8' }}>Frame Rate:</span>
+        <span style={{ color: '#94a3b8' }}>Browser animation cadence:</span>
         <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#10b981' }}>
-          {gpuFps || 60} FPS
+          {Number.isFinite(gpuFps) && gpuFps >= 0 ? `${gpuFps} FPS` : 'Unavailable'}
         </span>
       </div>
+      <div>Map render cadence (last measured window): {Number.isFinite(mapFps) && mapFps >= 0 ? `${mapFps} FPS` : 'Unavailable'}</div>
+      <div>Marine CPU submission buckets (&lt;8 / 16.6 / 33.3 / 66.6 / ≥66.6 ms): {Array.isArray(renderHistogram) ? renderHistogram.join(' / ') : 'Unavailable'}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span style={{ color: '#94a3b8' }}>GPU Memory:</span>
         <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#f472b6' }}>

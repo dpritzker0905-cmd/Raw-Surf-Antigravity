@@ -114,6 +114,7 @@ export function useWebGLGuardrail({
       if (delta >= 2000) {
         frameCount = 0;
         lastTime = now;
+        lowFpsCount = 0; // An excluded scheduling gap breaks consecutive low-FPS evidence.
         return;
       }
 
@@ -191,7 +192,10 @@ export function useWebGLGuardrail({
             lowFpsCount = 0;
             return;
           }
-          console.warn(`[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: ${fps} FPS`);
+          const rafStats = WeatherTelemetry.gpuStats;
+          const rafAgeMs = Number.isFinite(rafStats?.fpsMeasuredAt) ? Math.round(now - rafStats.fpsMeasuredAt) : null;
+          const cpuBuckets = typeof window !== 'undefined' ? window.__RAW_GPU__?.frameTimeHistogram?.slice(0, 5) : null;
+          console.warn(`[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: ${fps} FPS; browserRAF=${rafStats?.fps ?? 'unavailable'}; sampleAgeMs=${rafAgeMs ?? 'unavailable'}; marineCPU=${cpuBuckets?.join('/') ?? 'unavailable'}`);
           
           // Log to console & telemetry
           WeatherTelemetry.emit('FPS_drop_detected', { 

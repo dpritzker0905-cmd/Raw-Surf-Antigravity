@@ -1,4 +1,5 @@
 import React from 'react';
+import { MarineProbePanel } from './MarineProbePanel';
 
 export const TruthOverlayVisualTab = ({
   combo,
@@ -11,6 +12,7 @@ export const TruthOverlayVisualTab = ({
 }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <MarineProbePanel />
       <div style={{
         fontSize: '9px',
         fontWeight: 700,

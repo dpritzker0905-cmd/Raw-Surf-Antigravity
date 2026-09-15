@@ -626,7 +626,9 @@ jobs:
           # September 14: dev CI34556618466 observed 156 files / 1828 passed.
           # Isolated ownership and coordinate repairs add 2 files / 46 tests.
           # Candidate Linux CI must confirm 158 / 1874; keep the six-test margin.
-          MIN_FILES, MIN_PASSED = 158, 1868
+          # Paired node-bounds repair adds one selected module with 11 locally passing guards.
+          # Prior Linux CI34893458258: 158 files / 1874 passes; candidate must confirm 159 / 1885.
+          MIN_FILES, MIN_PASSED = 159, 1879
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

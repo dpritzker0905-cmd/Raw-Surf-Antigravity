@@ -222,6 +222,35 @@ describe('useWebGLGuardrail', () => {
     expect(setWebglWindFailed).not.toHaveBeenCalled();
   });
 
+  it('records independent browser cadence and CPU submission evidence at the slow map window', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    WeatherTelemetry.gpuStats = { fps: 60, fpsMeasuredAt: 12500 };
+    window.__RAW_GPU__ = { frameTimeHistogram: [20, 1, 0, 0, 0] };
+    renderHook(() => useWebGLGuardrail({ mapInstance, activeLayers: ['waves'],
+      setWebglWindFailed: jest.fn(), setWebglMarineFailed: jest.fn(), webglMarineFailed: false }));
+    currentTime = 12000; eventListeners.render();
+    currentTime = 13000; eventListeners.render();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('1 FPS; browserRAF=60; sampleAgeMs=500; marineCPU=20/1/0/0/0'));
+    delete WeatherTelemetry.gpuStats;
+    delete window.__RAW_GPU__;
+  });
+
+  it('requires a fresh 12 low-FPS windows after an excluded scheduling gap', () => {
+    const setWebglMarineFailed = jest.fn();
+    renderHook(() => useWebGLGuardrail({ mapInstance, activeLayers: ['waves'],
+      setWebglWindFailed: jest.fn(), setWebglMarineFailed, webglMarineFailed: false }));
+    const frame = (ms) => { currentTime += ms; eventListeners.render(); };
+    frame(11000); // Finish startup grace.
+    for (let i = 0; i < 11; i++) frame(1000);
+    expect(setWebglMarineFailed).not.toHaveBeenCalled();
+    frame(2000); // Existing policy excludes this suspend/stutter sample.
+    for (let i = 0; i < 11; i++) frame(1000);
+    expect(setWebglMarineFailed).not.toHaveBeenCalled();
+    frame(1000); // Genuine consecutive 1 FPS still trips at the unchanged threshold.
+    expect(setWebglMarineFailed).toHaveBeenCalledTimes(1);
+    expect(setWebglMarineFailed).toHaveBeenCalledWith(true);
+  });
+
   it('does not trigger fallback if delta is >= 2000ms (delta-time gate)', () => {
     const setWebglWindFailed = jest.fn();
     const setWebglMarineFailed = jest.fn();
