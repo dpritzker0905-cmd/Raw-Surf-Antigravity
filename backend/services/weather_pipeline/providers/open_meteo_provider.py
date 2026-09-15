@@ -191,6 +191,15 @@ class OpenMeteoProvider:
     _POINT_CACHE: Dict[str, tuple] = {}
     _CACHE_TTL_SEC = 300.0  # 5 minutes
 
+    @classmethod
+    def _prune_expired_responses(cls, now: float) -> None:
+        # TTL must release unrelated expired entries, even on a warm-cache hit.
+        # Both dictionaries already have small entry caps (50 grids, 200 points).
+        for cache in (cls._GRID_CACHE, cls._POINT_CACHE):
+            for key, entry in list(cache.items()):
+                if now >= entry[0] and cache.get(key) is entry:
+                    cache.pop(key, None)
+
     # ── SHARED 429 CIRCUIT BREAKER (2026-07-24, the Render restart-under-load) ────────────────────
     # Render crash log signature: a burst of ICON marine work (many cold L2→L1 product restores +
     # per-hour gulf-fills + deepcopies) on a 512 MB / 1-CPU box, INTERLEAVED with a storm of
@@ -281,6 +290,7 @@ class OpenMeteoProvider:
 
         # Check in-memory grid cache
         now = datetime.now(timezone.utc).timestamp()
+        self._prune_expired_responses(now)
         # Interior points and ordering are part of the requested physical field.
         # Endpoints alone alias different precomputed grids (including reordered cells).
         coords_key = hashlib.sha256(repr((tuple(lats), tuple(lons))).encode('utf-8')).hexdigest()
@@ -572,6 +582,7 @@ class OpenMeteoProvider:
 
         # Check in-memory point cache
         now = datetime.now(timezone.utc).timestamp()
+        self._prune_expired_responses(now)
         cache_key = f"{model.upper()}_{domain.lower()}_{layer.lower()}_{lat:.4f}_{lng:.4f}_{forecast_days}"
         if cache_key in self._POINT_CACHE:
             exp_time, cached_data = self._POINT_CACHE[cache_key]

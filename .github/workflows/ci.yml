@@ -626,7 +626,8 @@ jobs:
           # September 14: dev CI34556618466 observed 156 files / 1828 passed.
           # Isolated ownership and coordinate repairs add 2 files / 46 tests.
           # Candidate Linux CI must confirm 158 / 1874; keep the six-test margin.
-          MIN_FILES, MIN_PASSED = 158, 1868
+          # dev run 34924124059 observed 159 files / 1877 passes; preserve six-test margin.
+          MIN_FILES, MIN_PASSED = 159, 1871
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
