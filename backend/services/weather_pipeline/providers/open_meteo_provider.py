@@ -4,6 +4,7 @@ import logging
 import asyncio
 import time
 import threading
+import hashlib
 from typing import Dict, List, Any, Optional
 import math
 from datetime import datetime, timezone, timedelta
@@ -280,7 +281,9 @@ class OpenMeteoProvider:
 
         # Check in-memory grid cache
         now = datetime.now(timezone.utc).timestamp()
-        coords_key = f"{len(lats)}_coords_{lats[0]:.4f}_{lons[0]:.4f}_{lats[-1]:.4f}_{lons[-1]:.4f}" if lats else "empty"
+        # Interior points and ordering are part of the requested physical field.
+        # Endpoints alone alias different precomputed grids (including reordered cells).
+        coords_key = hashlib.sha256(repr((tuple(lats), tuple(lons))).encode('utf-8')).hexdigest()
         cache_key = f"{model.upper()}_{domain.lower()}_{layer.lower()}_{coords_key}_{resolution}_{forecast_days}"
         if cache_key in self._GRID_CACHE:
             exp_time, cached_data = self._GRID_CACHE[cache_key]
