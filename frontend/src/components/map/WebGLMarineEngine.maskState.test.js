@@ -34,6 +34,16 @@ function fixture(existingOverlay, fails) {
 describe('mask upload preserves the shared basemap texture state', () => {
   beforeEach(() => { jest.spyOn(console, 'warn').mockImplementation(() => {}); });
   afterEach(() => jest.restoreAllMocks());
+  test.each(['refreshMaskWithBasemapWater', 'refreshViewportOverlayMask'])(
+    '%s contains a failing console wrapper and retains the original exception', method => {
+      const f = fixture(false, true);
+      console.warn.mockImplementation(() => { throw new RangeError('recorder failure'); });
+      expect(() => f.engine[method](f.gl, f.map)).not.toThrow();
+      expect(f.engine._maskRefreshFailures.count).toBe(1);
+      expect(f.engine._maskRefreshFailures.first.message).toBe('injected upload failure');
+      expect(f.engine._maskRefreshFailures.first.stack).toContain('injected upload failure');
+      expect(f.state()).toEqual({ bound: f.foreign, flip: false });
+    });
   test.each([
     ['regional success', 'refreshMaskWithBasemapWater', false, false],
     ['regional failure', 'refreshMaskWithBasemapWater', false, true],

@@ -7,6 +7,7 @@
  */
 
 import { recordTruthStage } from './weatherTruthTracker';
+import { recordMaskRefreshFailure } from './marineMaskFailure';
 import { describeResidentMarineGrid } from './marineResidentEvidence';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
@@ -2521,7 +2522,7 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     this._lastMaskRepatchReason = 'applied';
     return true;
   } catch (e) {
-    console.warn('[WebGLMarineEngine] basemap-water mask refresh skipped:', e && e.message, String(e?.stack || '').split('\n').slice(0, 8).join('\n'));
+    recordMaskRefreshFailure(this, 'basemap-water', e);
     return false;
   }
 };
@@ -2693,7 +2694,7 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
     }
     return true;
   } catch (e) {
-    console.warn('[WebGLMarineEngine] viewport overlay mask refresh skipped:', e && e.message);
+    recordMaskRefreshFailure(this, 'viewport overlay', e);
     return false;
   }
 };

@@ -33,6 +33,10 @@ it('performs no automatic read and takes one snapshot per click', () => {
     act(() => host.querySelector('button').click());
     expect(f.__MARINE_ENGINE__.probeMaskGPU).toHaveBeenCalledTimes(1);
     expect(host.querySelector('[aria-label="Mask probe snapshot"]').textContent).toContain('2048');
+    f.__MARINE_ENGINE__._maskRefreshFailures = { count: 1, first: { message: 'origin failure' } };
+    act(() => host.querySelectorAll('button')[1].click());
+    expect(host.querySelector('[aria-label="Mask refresh failures"]').textContent).toContain('origin failure');
+    expect(f.__MARINE_ENGINE__.probeMaskGPU).toHaveBeenCalledTimes(1);
   } finally {
     act(() => root.unmount());
     window.map = oldMap; window.__MARINE_ENGINE__ = oldEngine;
