@@ -241,8 +241,15 @@ async def get_surf_conditions(
         Dictionary with wave_height_ft, wave_period_sec, wind_speed_mph, 
         wind_direction, and source
     """
+    explicit_target = target_datetime is not None
     if target_datetime is None:
         target_datetime = datetime.now(timezone.utc)
+    # The provider is queried in UTC. Naive caller timestamps retain the historical UTC convention.
+    target_datetime = (target_datetime.replace(tzinfo=timezone.utc) if target_datetime.tzinfo is None
+                       else target_datetime.astimezone(timezone.utc))
+    target_hour = target_datetime.strftime("%Y-%m-%dT%H:00")
+    time_params = ({"start_hour": target_hour, "end_hour": target_hour}
+                   if explicit_target else {"forecast_days": 1})
     
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -266,7 +273,7 @@ async def get_surf_conditions(
                         "swell_wave_height",
                     ],
                     "timezone": "UTC",
-                    "forecast_days": 1
+                    **time_params
                 }
             )
             
@@ -277,7 +284,7 @@ async def get_surf_conditions(
             data = response.json()
             
             # Get current conditions if available
-            current = data.get("current", {})
+            current = {} if explicit_target else data.get("current", {})
             
             wave_height_m = current.get("wave_height")
             wave_period = current.get("wave_period")
@@ -294,9 +301,8 @@ async def get_surf_conditions(
                 swells = hourly.get("swell_wave_height", [])
                 swell_height_m = None
                 
-                # Find closest hour
+                # Select the containing UTC hour. Missing data must not borrow another valid time.
                 if times and heights:
-                    target_hour = target_datetime.strftime("%Y-%m-%dT%H:00")
                     for i, t in enumerate(times):
                         if t == target_hour:
                             wave_height_m = heights[i] if i < len(heights) else None
@@ -305,12 +311,6 @@ async def get_surf_conditions(
                             swell_height_m = swells[i] if i < len(swells) else None
                             break
                     
-                    # If no exact match, use first available
-                    if wave_height_m is None and heights:
-                        wave_height_m = heights[0]
-                        wave_period = periods[0] if periods else None
-                        wave_direction = directions[0] if directions else None
-                        swell_height_m = swells[0] if swells else None
             
             result = {
                 "source": "open-meteo",

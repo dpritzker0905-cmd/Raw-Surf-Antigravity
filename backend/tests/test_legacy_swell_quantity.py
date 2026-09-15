@@ -1,5 +1,5 @@
 """Exercise the actual legacy HTTP consumer; total sea must never masquerade as swell."""
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -78,3 +78,42 @@ async def test_full_conditions_preserves_quantity_names(monkeypatch):
     assert result['offshore_height_ft'] == 6.6
     assert result['swell_height_ft'] == 1.6
     assert result['wave_height_ft'] == 4.2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('offset', [0, -6, 9])
+async def test_explicit_time_selects_same_instant_in_any_timezone(provider, offset):
+    payload, requests = provider
+    payload['current'] = {'wave_height': 6, 'wave_period': 5, 'swell_wave_height': 4}
+    payload['hourly'] = {'time': ['2026-09-16T12:00'], 'wave_height': [2],
+                         'wave_period': [12], 'swell_wave_height': [0.5]}
+    target = datetime(2026, 9, 16, 12, 35, tzinfo=timezone.utc)
+    result = await sc.get_surf_conditions(28.3, -80.6, target.astimezone(timezone(timedelta(hours=offset))))
+    assert result['offshore_height_ft'] == sc.meters_to_feet(2)
+    assert result['swell_height_ft'] == sc.meters_to_feet(0.5)
+    assert result['wave_period_sec'] == 12
+    assert requests[0]['start_hour'] == '2026-09-16T12:00'
+    assert requests[0]['end_hour'] == '2026-09-16T12:00'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('values', [[6, None], [6]])
+async def test_missing_target_height_never_borrows_first_hour(provider, values):
+    payload, _ = provider
+    payload['hourly'] = {'time': ['2026-09-15T00:00', '2026-09-15T12:00'],
+                         'wave_height': values, 'wave_period': [5, 12],
+                         'swell_wave_height': [4, 0.5]}
+    result = await sc.get_surf_conditions(28.3, -80.6, datetime(2026, 9, 15, 12, tzinfo=timezone.utc))
+    assert result.get('offshore_height_ft') is None
+    assert result.get('wave_height_ft') is None
+    assert result['swell_height_ft'] == sc.meters_to_feet(0.5)
+
+
+@pytest.mark.asyncio
+async def test_out_of_range_request_remains_unavailable(provider):
+    payload, _ = provider
+    payload['current'] = {'wave_height': 6, 'wave_period': 5}
+    payload['hourly'] = {'time': ['2026-09-15T00:00'], 'wave_height': [4], 'wave_period': [8]}
+    result = await sc.get_surf_conditions(28.3, -80.6, datetime(2026, 9, 16, 12, tzinfo=timezone.utc))
+    assert result.get('offshore_height_ft') is None
+    assert result.get('wave_period_sec') is None
