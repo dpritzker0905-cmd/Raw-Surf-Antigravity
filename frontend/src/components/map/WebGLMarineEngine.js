@@ -23,6 +23,7 @@ import {
 } from './WebGLWindUtils';
 import {
   createTexture,
+  withTextureState,
   encodeMarineTexture
 } from './WebGLMarineTextureEncoder';
 import { renderMaskToCanvas, overlayBasemapWaterOnMask, isBasemapWaterSourceReady, maskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
@@ -2483,13 +2484,11 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     // COAST SDF: re-write the signed dist-to-coast into .b on the PATCHED base coast (this re-upload
     // would otherwise revert .b to a redundant .r). Opt-in; byte-identical when off. Keeps the flag live.
     this._cachedMaskHasSDF = writeCoastDistanceField(canvas);
-    const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
-    const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
-    gl.bindTexture(gl.TEXTURE_2D, prevTex);
+    withTextureState(gl, () => {
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    });
     // Record the TRUTH box for the hysteresis above — the STRICT viewport the painter actually
     // repainted (the old 40%-padded box claimed truth over a ring the tile queries can never
     // cover; that ring was black land = the pan/zoom "rectangle holes"). Zoom-ins inside the box
@@ -2669,21 +2668,20 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
     }
     // COAST SDF for the viewport-truth overlay (the band's min-combine mask). Opt-in; byte-identical off.
     this._overlayMaskHasSDF = writeCoastDistanceField(canvas);
-    if (!this._overlayMaskTex) {
-      this._overlayMaskTex = gl.createTexture();
+    // Capture before allocation binds anything; restore even when an upload throws.
+    withTextureState(gl, () => {
+      if (!this._overlayMaskTex) {
+        this._overlayMaskTex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      }
       gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    }
-    const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
-    const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
-    gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
-    gl.bindTexture(gl.TEXTURE_2D, prevTex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    });
     this._overlayMaskBounds = bounds;
     // The region the painter truth-painted from tiles = the strict viewport at paint time; the
     // canvas ring outside it holds NE base truth (sane but coarser). Hysteresis keys on this box.
