@@ -2522,7 +2522,7 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     this._lastMaskRepatchReason = 'applied';
     return true;
   } catch (e) {
-    console.warn('[WebGLMarineEngine] basemap-water mask refresh skipped:', e && e.message);
+    console.warn('[WebGLMarineEngine] basemap-water mask refresh skipped:', e && e.message, String(e?.stack || '').split('\n').slice(0, 8).join('\n'));
     return false;
   }
 };
