@@ -126,9 +126,12 @@ def test_the_provenance_travels_to_every_surface_that_forwards_the_height():
 
 
 def test_the_offshore_value_is_preserved_under_its_own_name():
-    """`swell_height_ft` keeps the model's offshore number. Deleting it would lose information;
-    leaving it in `wave_height_ft` was the defect. Surfline splits swell/surf; so do we."""
+    """Preserve total sea under its own name; provider swell is a separate quantity.
+
+    Behavioral value independence is covered by test_legacy_swell_quantity.
+    """
     import services.surf_conditions as sc
     src = open(sc.__file__, encoding="utf-8").read()
     assert 'result["swell_height_ft"]' in src
+    assert 'result["offshore_height_ft"]' in src
     assert 'result["surf_regime"]' in src, "provenance must ride along, incl. 'offshore_estimate'"
