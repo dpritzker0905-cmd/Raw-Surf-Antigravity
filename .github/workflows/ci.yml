@@ -1106,7 +1106,9 @@ jobs:
           # September 9: run 34418519128 at cfcd0168 observed 459 passed,
           # 2865 skipped, 263 selected / 261 producing results, zero silent files.
           # This includes all 19 new census transport controls. Margin stays two.
-          MIN_PASSED = 457
+          # September 16: PR35 run35038920152 job104614181006 observed488 passes;
+          # retain the estate lane's two-test deletion margin.
+          MIN_PASSED = 486
 
           try:
               root = ET.parse('estate.xml').getroot()
