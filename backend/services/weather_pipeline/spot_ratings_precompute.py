@@ -34,6 +34,8 @@ import asyncio
 import json
 import logging
 import os
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -221,21 +223,27 @@ def upload_spot_ratings_l2(store, obj) -> None:
     store._upload_to_supabase(SPOT_RATINGS_L2_KEY, data)
 
 
-_l2_cache = {"obj": None, "ts": 0.0}
+_l2_cache = {"obj": None, "ts": None}
+_l2_cache_lock = threading.Lock()
+_L2_NEGATIVE_TTL_S = 60.0
 
 
 def load_spot_ratings_l2_cached(ttl: float = 300.0) -> Optional[dict]:
-    """TTL-cached wrapper around load_spot_ratings_l2 so the serve box reads L2 at most once per `ttl`
-    seconds (the precompute refreshes ~hourly on the cron). Used by the endpoint's precomputed-read path."""
-    import time
-    now = time.time()
-    if _l2_cache["obj"] is not None and (now - _l2_cache["ts"]) < ttl:
-        return _l2_cache["obj"]
-    obj = load_spot_ratings_l2()
-    # Cache even a None result briefly so a missing object doesn't 404 on every request.
-    _l2_cache["obj"] = obj
-    _l2_cache["ts"] = now
-    return obj
+    """Cache successful reads for `ttl`, failures for at most 60s (also bounded by `ttl`).
+
+    Serialize worker-thread refreshes so concurrent misses share the completed result, including
+    None. Unknown data remains unknown; the caller's existing serve ladder still owns fallback.
+    The monotonic TTL starts at completion, so a slow read cannot consume its own backoff.
+    """
+    with _l2_cache_lock:
+        age = None if _l2_cache["ts"] is None else time.monotonic() - _l2_cache["ts"]
+        effective_ttl = ttl if _l2_cache["obj"] is not None else min(ttl, _L2_NEGATIVE_TTL_S)
+        if age is not None and 0 <= age < effective_ttl:
+            return _l2_cache["obj"]
+        obj = load_spot_ratings_l2()
+        _l2_cache["obj"] = obj
+        _l2_cache["ts"] = time.monotonic()
+        return obj
 
 
 def load_spot_ratings_l2() -> Optional[dict]:
