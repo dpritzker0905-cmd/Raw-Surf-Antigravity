@@ -33,7 +33,7 @@ from services.weather_pipeline.spot_ratings import rate_one_spot
 # The precompute/L2 lane split out of spot_ratings.py 2026-08-14; `rate_one_spot` above is still
 # THE reference implementation and is imported from its original module.
 from services.weather_pipeline.spot_ratings_precompute import (
-    load_spot_ratings_l2_cached, select_precomputed,
+    load_spot_ratings_l2_cached, select_precomputed, served_offset_hours as _offset_hours,
 )
 
 logger = logging.getLogger(__name__)
@@ -437,20 +437,9 @@ class SpotRatingsResponse(BaseModel):
     # None on the live path (computed at the requested hour) and when disabled.
     served_valid_time: Optional[str] = None
     frame_offset_hours: Optional[float] = None
+    # Producer-owned metadata, not the serving process's current flags. Old/live frames stay unknown.
+    height_convention: Optional[dict] = None
     spots: list[SpotRatingItem]
-
-def _offset_hours(requested: str, served: Optional[str]) -> Optional[float]:
-    """Signed hours from the requested hour to the one actually served. None when unknowable."""
-    if not served or not requested:
-        return None
-    from datetime import datetime as _dt
-    try:
-        r = _dt.strptime(requested, "%Y-%m-%dT%H:%M:%SZ")
-        s = _dt.strptime(served, "%Y-%m-%dT%H:%M:%SZ")
-    except ValueError:
-        return None
-    return round((s - r).total_seconds() / 3600.0, 2)
-
 
 # Live-path TTL cache: rating a viewport on the 1-CPU serve box is 7-22s, so a re-view (or another user) would
 # pay it again and most fetches abort on pan before finishing. Cache the computed response per
@@ -489,7 +478,7 @@ async def get_spot_ratings(
     # bound live remains the truth path. Kill: SPOT_RATINGS_STALE_TOLERANCE_S=0.
     pre, pre_source, pre_served = None, "precomputed", None
     try:
-        from services.weather_pipeline.spot_ratings_precompute import select_precomputed_laddered
+        from services.weather_pipeline.spot_ratings_precompute import select_precomputed_laddered, pick_precomputed_frame
         # ⛔ OFF THE EVENT LOOP (2026-08-06, MASTER-AUDIT-9.0 §5.1). This loader is a synchronous
         # `requests.get(timeout=10)` to Supabase Storage behind a 300 s TTL, so calling it bare here
         # ran a blocking socket read on the loop: measured against this handler, **0 of ~50 possible
@@ -510,12 +499,15 @@ async def get_spot_ratings(
     if pre is not None:
         items = [SpotRatingItem(**sp) for sp in pre[:limit]]
         count = sum(1 for it in items if it.score is not None)
+        selected_frame = pick_precomputed_frame(_l2_obj, model, pre_served, tolerance_s=0) or {}
+        frame_convention = selected_frame.get("height_convention")
         # `valid_time` echoes what was ASKED FOR; `served_valid_time` is what the frame describes.
         # The stale ladder can serve a frame up to 6 h away and only the label said so — so a client
         # (or a parity check) had no way to tell a real disagreement from a time offset.
         return SpotRatingsResponse(model=model, valid_time=valid_time, count=count,
                                    source=pre_source, served_valid_time=pre_served,
                                    frame_offset_hours=_offset_hours(valid_time, pre_served),
+                                   height_convention=frame_convention if isinstance(frame_convention, dict) else None,
                                    spots=items)
 
     # Live-path cache hit (a recent identical viewport already paid the 7-22s compute)?

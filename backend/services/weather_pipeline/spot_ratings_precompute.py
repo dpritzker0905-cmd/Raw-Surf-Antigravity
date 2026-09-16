@@ -34,6 +34,8 @@ import asyncio
 import json
 import logging
 import os
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -113,6 +115,19 @@ def _parse_dt(s):
 
 
 SELECT_TOLERANCE_S = 7200  # 2h — the frontend's getSharedValidTime needn't string-match the precomputed key
+
+
+def served_offset_hours(requested: str, served: Optional[str]) -> Optional[float]:
+    """Signed hours from the requested hour to the one actually served. None when unknowable."""
+    if not served or not requested:
+        return None
+    from datetime import datetime as _dt
+    try:
+        r = _dt.strptime(requested, "%Y-%m-%dT%H:%M:%SZ")
+        s = _dt.strptime(served, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return None
+    return round((s - r).total_seconds() / 3600.0, 2)
 
 
 def pick_precomputed_frame(obj, model, valid_time, tolerance_s: float = SELECT_TOLERANCE_S):
@@ -221,21 +236,27 @@ def upload_spot_ratings_l2(store, obj) -> None:
     store._upload_to_supabase(SPOT_RATINGS_L2_KEY, data)
 
 
-_l2_cache = {"obj": None, "ts": 0.0}
+_l2_cache = {"obj": None, "ts": None}
+_l2_cache_lock = threading.Lock()
+_L2_NEGATIVE_TTL_S = 60.0
 
 
 def load_spot_ratings_l2_cached(ttl: float = 300.0) -> Optional[dict]:
-    """TTL-cached wrapper around load_spot_ratings_l2 so the serve box reads L2 at most once per `ttl`
-    seconds (the precompute refreshes ~hourly on the cron). Used by the endpoint's precomputed-read path."""
-    import time
-    now = time.time()
-    if _l2_cache["obj"] is not None and (now - _l2_cache["ts"]) < ttl:
-        return _l2_cache["obj"]
-    obj = load_spot_ratings_l2()
-    # Cache even a None result briefly so a missing object doesn't 404 on every request.
-    _l2_cache["obj"] = obj
-    _l2_cache["ts"] = now
-    return obj
+    """Cache successful reads for `ttl`, failures for at most 60s (also bounded by `ttl`).
+
+    Serialize worker-thread refreshes so concurrent misses share the completed result, including
+    None. Unknown data remains unknown; the caller's existing serve ladder still owns fallback.
+    The monotonic TTL starts at completion, so a slow read cannot consume its own backoff.
+    """
+    with _l2_cache_lock:
+        age = None if _l2_cache["ts"] is None else time.monotonic() - _l2_cache["ts"]
+        effective_ttl = ttl if _l2_cache["obj"] is not None else min(ttl, _L2_NEGATIVE_TTL_S)
+        if age is not None and 0 <= age < effective_ttl:
+            return _l2_cache["obj"]
+        obj = load_spot_ratings_l2()
+        _l2_cache["obj"] = obj
+        _l2_cache["ts"] = time.monotonic()
+        return obj
 
 
 def load_spot_ratings_l2() -> Optional[dict]:
@@ -379,9 +400,14 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     for model in models:
         for h in hour_offsets:
             vt = (base + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z")
+            from services.weather_pipeline.surf_height_convention import describe
+            height_convention = describe()
             rated = list(await asyncio.gather(*[_one(resolver, sp, model, vt) for sp in spots])) if spots else []
+            # Only freshly computed frames own this policy. Never stamp the merged outer object:
+            # checkpoint uploads retain other models' older frames, whose convention may differ.
             frames.append(intern_frame_runs(
-                {"model": model, "valid_time": vt, "hour_offset": h, "spots": rated}))
+                {"model": model, "valid_time": vt, "hour_offset": h, "spots": rated,
+                 "height_convention": height_convention}))
     return build_l2_object(frames)
 
 
