@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { LAYER_REGISTRY } from './LayerRegistry';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { API_BASE } from '../../lib/apiClient';
@@ -326,11 +327,11 @@ var TruthOverlay = ({
   // running for production users while the panel itself never mounts for them.
   if (!isDiagHudEnabled(typeof window !== 'undefined' ? window : null)) return null;
 
-  return (
+  return createPortal(
     <div aria-label="Weather diagnostics" style={{
-      // Above weather controls (900–1000), so the timeline cannot intercept Expand.
-      position: 'absolute', bottom: '96px', left: '16px', zIndex: 1100,
-      boxSizing: 'border-box', maxWidth: 'calc(100% - 96px)', maxHeight: '40%',
+      // Escape the map's z-0 stacking context; a child z-index alone cannot beat the timeline.
+      position: 'fixed', bottom: '96px', left: '16px', zIndex: 1100,
+      boxSizing: 'border-box', maxWidth: 'calc(100vw - 96px)', maxHeight: '40vh',
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
       fontFamily: '"Outfit", "Inter", -apple-system, sans-serif', color: '#f8fafc',
       background: 'rgba(10, 10, 26, 0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
@@ -716,7 +717,7 @@ var TruthOverlay = ({
           100% { box-shadow: 0 0 15px rgba(0, 240, 255, 0.3); }
         }
       `}} />
-    </div>
+    </div>, document.body
   );
 };
 
