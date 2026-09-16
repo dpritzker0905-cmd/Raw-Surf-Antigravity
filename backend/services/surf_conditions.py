@@ -124,9 +124,11 @@ async def get_noaa_tide_data(
     
     if target_datetime is None:
         target_datetime = datetime.now(timezone.utc)
-    
-    # Get predictions for today
-    date_str = target_datetime.strftime("%Y%m%d")
+    target_datetime = (target_datetime.replace(tzinfo=timezone.utc) if target_datetime.tzinfo is None
+                       else target_datetime.astimezone(timezone.utc))
+    # Include adjacent days so midnight has both surrounding extrema in UTC.
+    begin_date = (target_datetime - timedelta(days=1)).strftime("%Y%m%d")
+    end_date = (target_datetime + timedelta(days=1)).strftime("%Y%m%d")
     
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -141,8 +143,8 @@ async def get_noaa_tide_data(
                     "time_zone": "gmt",
                     "application": "RawSurfOS",
                     "format": "json",
-                    "begin_date": date_str,
-                    "end_date": date_str,
+                    "begin_date": begin_date,
+                    "end_date": end_date,
                     "interval": "hilo"  # High/Low only
                 }
             )
@@ -159,7 +161,10 @@ async def get_noaa_tide_data(
             
             result = {
                 "source": "noaa",
-                "station_id": station_id
+                "station_id": station_id,
+                "tide_status": "unknown",
+                "tide_datum": "MLLW",
+                "tide_method": "linear_hilo_estimate"
             }
             
             # Parse predictions to find current tide status
@@ -210,7 +215,7 @@ async def get_noaa_tide_data(
                     result["next_low"] = next_tide["time"].isoformat()
                     result["next_low_height"] = next_tide["height"]
             
-            elif prev_tide:
+            elif prev_tide and prev_tide["time"] == now:
                 result["tide_status"] = "High" if prev_tide["type"] == "H" else "Low"
                 result["tide_height_ft"] = prev_tide["height"]
             
@@ -387,7 +392,8 @@ async def get_conditions_for_spot(
         spot_info["lat"],
         spot_info["lon"],
         spot_info["name"],
-        spot_info.get("noaa_station")
+        spot_info.get("noaa_station"),
+        target_datetime=target_datetime
     )
     
     conditions["coordinates"] = {"lat": spot_info["lat"], "lon": spot_info["lon"]}
@@ -397,7 +403,8 @@ async def get_conditions_for_spot(
 
 async def get_wind_conditions(
     latitude: float,
-    longitude: float
+    longitude: float,
+    target_datetime: Optional[datetime] = None
 ) -> Dict[str, Any]:
     """
     Fetch wind conditions from Open-Meteo Weather API
@@ -410,6 +417,14 @@ async def get_wind_conditions(
         Dictionary with wind_speed_mph, wind_direction
     """
     WEATHER_API = "https://api.open-meteo.com/v1/forecast"
+    target_hour = None
+    if target_datetime is not None:
+        target_datetime = (target_datetime.replace(tzinfo=timezone.utc) if target_datetime.tzinfo is None
+                           else target_datetime.astimezone(timezone.utc))
+        target_hour = target_datetime.strftime("%Y-%m-%dT%H:00")
+    fields = ["wind_speed_10m", "wind_direction_10m"]
+    time_params = ({"hourly": fields, "start_hour": target_hour, "end_hour": target_hour}
+                   if target_hour else {"current": fields})
     
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -418,7 +433,7 @@ async def get_wind_conditions(
                 params={
                     "latitude": latitude,
                     "longitude": longitude,
-                    "current": ["wind_speed_10m", "wind_direction_10m"],
+                    **time_params,
                     "timezone": "UTC"
                 }
             )
@@ -427,7 +442,14 @@ async def get_wind_conditions(
                 return {"source": "error", "error": f"API returned {response.status_code}"}
             
             data = response.json()
-            current = data.get("current", {})
+            current = data.get("current", {}) if target_hour is None else {}
+            if target_hour is not None:
+                hourly = data.get("hourly", {})
+                times = hourly.get("time", [])
+                if target_hour in times:
+                    index = times.index(target_hour)
+                    current = {field: hourly.get(field, [])[index]
+                               for field in fields if index < len(hourly.get(field, []))}
             
             result = {"source": "open-meteo-weather"}
             
@@ -452,7 +474,8 @@ async def get_full_conditions(
     latitude: float,
     longitude: float,
     spot_name: Optional[str] = None,
-    noaa_station: Optional[str] = None
+    noaa_station: Optional[str] = None,
+    target_datetime: Optional[datetime] = None
 ) -> Dict[str, Any]:
     """
     Get combined surf, wind, and tide conditions
@@ -466,16 +489,23 @@ async def get_full_conditions(
     Returns:
         Combined conditions dictionary
     """
-    # Get surf conditions (wave data)
-    surf = await get_surf_conditions(latitude, longitude)
+    # An explicit composite represents one containing UTC hour for every source.
+    target_args = {}
+    if target_datetime is not None:
+        target_datetime = (target_datetime.replace(tzinfo=timezone.utc) if target_datetime.tzinfo is None
+                           else target_datetime.astimezone(timezone.utc))
+        target_datetime = target_datetime.replace(minute=0, second=0, microsecond=0)
+        target_args = {"target_datetime": target_datetime}
+    # Default current-mode callers retain their existing provider behavior.
+    surf = await get_surf_conditions(latitude, longitude, **target_args)
     
     # Get wind conditions
-    wind = await get_wind_conditions(latitude, longitude)
+    wind = await get_wind_conditions(latitude, longitude, **target_args)
     
     # Get tide conditions (if NOAA station available)
     tide = {}
     if noaa_station:
-        tide = await get_noaa_tide_data(noaa_station)
+        tide = await get_noaa_tide_data(noaa_station, **target_args)
     
     # Merge results
     result = {
@@ -494,6 +524,8 @@ async def get_full_conditions(
         "wind_direction": wind.get("wind_direction"),
         "tide_height_ft": tide.get("tide_height_ft"),
         "tide_status": tide.get("tide_status"),
+        "tide_method": tide.get("tide_method"),
+        "tide_datum": tide.get("tide_datum"),
         "next_high": tide.get("next_high"),
         "next_low": tide.get("next_low"),
         "source": "auto",
@@ -503,6 +535,8 @@ async def get_full_conditions(
     
     if spot_name:
         result["spot_name"] = spot_name
+    if target_datetime is not None:
+        result["requested_time"] = target_datetime.isoformat()
     
     # Remove None values
     result = {k: v for k, v in result.items() if v is not None}
