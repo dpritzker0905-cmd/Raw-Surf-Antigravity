@@ -16,8 +16,23 @@ const ExploreTrending = ({
   trending,
   spotConditions,
   user,
+  error = false,
+  onRetry,
 }) => {
   const navigate = useNavigate();
+
+  if (error) {
+    return (
+      <div role="alert" className="rounded-xl border border-border bg-card p-6 text-center text-foreground">
+        <p className="font-medium">Could not load Explore</p>
+        <p className="mt-2 text-sm text-muted-foreground">Check your connection and try again.</p>
+        <button type="button" onClick={onRetry}
+          className="mt-4 rounded-lg bg-primary px-4 py-2 text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+          Retry Explore
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
