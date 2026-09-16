@@ -65,6 +65,11 @@ function lngIn(lng, w, e) {
  * view must NOT fall back), or null when no frame matches (→ the endpoint/live signal).
  */
 export function selectPrecomputedFrame(obj, bbox, model, validTime, toleranceS = FRESH_TOLERANCE_S) {
+  const selected = selectFrameWithPolicy(obj, bbox, model, validTime, toleranceS);
+  return selected ? selected.spots : null;
+}
+
+function selectFrameWithPolicy(obj, bbox, model, validTime, toleranceS) {
   if (!obj || !Array.isArray(obj.frames)) return null;
   if (!Array.isArray(bbox) || bbox.length !== 4) return null;
   const [w, s, e, n] = bbox;
@@ -91,7 +96,9 @@ export function selectPrecomputedFrame(obj, bbox, model, validTime, toleranceS =
     if (!sp || sp.latitude == null || sp.longitude == null) continue;
     if (s <= sp.latitude && sp.latitude <= n && lngIn(sp.longitude, w, e)) out.push(sp);
   }
-  return out;
+  const convention = frame.height_convention;
+  return { spots: out, height_convention: convention && typeof convention === 'object'
+    && !Array.isArray(convention) ? convention : null };
 }
 
 /**
@@ -99,10 +106,10 @@ export function selectPrecomputedFrame(obj, bbox, model, validTime, toleranceS =
  * (±STALE_TOLERANCE_S, labeled) → null (→ endpoint/live). Returns { spots, source } or null.
  */
 export function selectPrecomputedLaddered(obj, bbox, model, validTime) {
-  let sel = selectPrecomputedFrame(obj, bbox, model, validTime, FRESH_TOLERANCE_S);
-  if (sel !== null) return { spots: sel, source: 'precomputed_cdn' };
-  sel = selectPrecomputedFrame(obj, bbox, model, validTime, STALE_TOLERANCE_S);
-  if (sel !== null) return { spots: sel, source: 'precomputed_cdn_stale' };
+  let sel = selectFrameWithPolicy(obj, bbox, model, validTime, FRESH_TOLERANCE_S);
+  if (sel !== null) return { ...sel, source: 'precomputed_cdn' };
+  sel = selectFrameWithPolicy(obj, bbox, model, validTime, STALE_TOLERANCE_S);
+  if (sel !== null) return { ...sel, source: 'precomputed_cdn_stale' };
   return null;
 }
 

@@ -117,6 +117,19 @@ def _parse_dt(s):
 SELECT_TOLERANCE_S = 7200  # 2h — the frontend's getSharedValidTime needn't string-match the precomputed key
 
 
+def served_offset_hours(requested: str, served: Optional[str]) -> Optional[float]:
+    """Signed hours from the requested hour to the one actually served. None when unknowable."""
+    if not served or not requested:
+        return None
+    from datetime import datetime as _dt
+    try:
+        r = _dt.strptime(requested, "%Y-%m-%dT%H:%M:%SZ")
+        s = _dt.strptime(served, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return None
+    return round((s - r).total_seconds() / 3600.0, 2)
+
+
 def pick_precomputed_frame(obj, model, valid_time, tolerance_s: float = SELECT_TOLERANCE_S):
     """PURE: the frame for (model, valid_time), or None. Exact match first, else the NEAREST
     same-model frame within `tolerance_s` (the frontend's getSharedValidTime needn't byte-match the
@@ -387,9 +400,14 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     for model in models:
         for h in hour_offsets:
             vt = (base + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z")
+            from services.weather_pipeline.surf_height_convention import describe
+            height_convention = describe()
             rated = list(await asyncio.gather(*[_one(resolver, sp, model, vt) for sp in spots])) if spots else []
+            # Only freshly computed frames own this policy. Never stamp the merged outer object:
+            # checkpoint uploads retain other models' older frames, whose convention may differ.
             frames.append(intern_frame_runs(
-                {"model": model, "valid_time": vt, "hour_offset": h, "spots": rated}))
+                {"model": model, "valid_time": vt, "hour_offset": h, "spots": rated,
+                 "height_convention": height_convention}))
     return build_l2_object(frames)
 
 
