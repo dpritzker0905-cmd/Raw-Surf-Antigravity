@@ -328,7 +328,8 @@ var TruthOverlay = ({
 
   return (
     <div aria-label="Weather diagnostics" style={{
-      position: 'absolute', bottom: '96px', left: '16px', zIndex: 100,
+      // Above weather controls (900–1000), so the timeline cannot intercept Expand.
+      position: 'absolute', bottom: '96px', left: '16px', zIndex: 1100,
       boxSizing: 'border-box', maxWidth: 'calc(100% - 96px)', maxHeight: '40%',
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
       fontFamily: '"Outfit", "Inter", -apple-system, sans-serif', color: '#f8fafc',
