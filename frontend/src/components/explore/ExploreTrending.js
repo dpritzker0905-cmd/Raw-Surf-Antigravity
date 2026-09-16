@@ -16,8 +16,23 @@ const ExploreTrending = ({
   trending,
   spotConditions,
   user,
+  error = false,
+  onRetry,
 }) => {
   const navigate = useNavigate();
+
+  if (error) {
+    return (
+      <div role="alert" className="rounded-xl border border-border bg-card p-6 text-center text-foreground">
+        <p className="font-medium">Could not load Explore</p>
+        <p className="mt-2 text-sm text-muted-foreground">Check your connection and try again.</p>
+        <button type="button" onClick={onRetry}
+          className="mt-4 rounded-lg bg-primary px-4 py-2 text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+          Retry Explore
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -129,22 +144,22 @@ const ExploreTrending = ({
                   
                   {/* Wave Height Badge */}
                   {conditions?.wave_height_ft !== undefined && (
-                    <div className="absolute top-2 right-2 z-20 flex items-center gap-1 bg-blue-500/80 backdrop-blur-sm rounded-full px-2 py-1">
-                      <Waves className="w-3 h-3 text-foreground" />
-                      <span className="text-xs font-bold text-foreground">{conditions.wave_height_ft}ft</span>
+                    <div className="absolute top-2 right-2 z-20 flex items-center gap-1 bg-blue-700 rounded-full px-2 py-1">
+                      <Waves className="w-3 h-3 text-white" />
+                      <span className="text-xs font-bold text-white">{conditions.wave_height_ft}ft</span>
                     </div>
                   )}
                   
                   {/* Video indicator */}
                   {hasTaggedContent && thumbnail.media_type === 'video' && (
                     <div className="absolute top-2 left-2 z-20 bg-black/60 backdrop-blur-sm rounded-full p-1.5">
-                      <Play className="w-3 h-3 text-foreground fill-white" />
+                      <Play className="w-3 h-3 text-white fill-white" />
                     </div>
                   )}
                   
                   {/* Spot info */}
                   <div className="absolute bottom-0 left-0 right-0 p-3 z-20">
-                    <h4 className="font-medium text-foreground truncate">{spot.name}</h4>
+                    <h4 className="font-medium text-white truncate">{spot.name}</h4>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-gray-300">{spot.region}</p>
                       {conditions?.conditions_label && (

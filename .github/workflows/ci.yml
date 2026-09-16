@@ -627,7 +627,8 @@ jobs:
           # Isolated ownership and coordinate repairs add 2 files / 46 tests.
           # Candidate Linux CI must confirm 158 / 1874; keep the six-test margin.
           # dev run 34924124059 observed 159 files / 1877 passes; preserve six-test margin.
-          MIN_FILES, MIN_PASSED = 159, 1871
+          # September 16: hosted CI35055272824 measured 160 files / 1883 passes.
+          MIN_FILES, MIN_PASSED = 160, 1877
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -818,7 +819,8 @@ jobs:
           # and update _FLOOR_SET_FROM["chain"] in the same commit. Linux CI verifies this floor.
           # PR31 CI35021160260 measured 96 files / 932 passes on the merged code.
           # Keep the six-test margin and the paired citation in sync.
-          MIN_FILES, MIN_PASSED = 96, 926
+          # September 16: hosted CI35055272824 measured 97 files / 940 passes.
+          MIN_FILES, MIN_PASSED = 97, 934
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
