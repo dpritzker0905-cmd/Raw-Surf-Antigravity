@@ -163,7 +163,8 @@ export function compileForecastCards({
     const hasRain = precip != null && precip > 0 && (!hasSnow || (temp != null && temp > 2));
     const isSnowOnly = hasSnow && !hasRain;
     const isMixed = hasSnow && hasRain;
-    const noPrecip = (precip == null || precip === 0) && (snowfall == null || snowfall === 0);
+    // Zero total precipitation is evidence of dry weather; missing total (even with zero snow) is not.
+    const noPrecip = precip === 0 && (snowfall == null || snowfall === 0);
 
     if (noPrecip) {
       const precipLabel = temp != null && temp <= 2 ? 'Snow' : 'Rain';
@@ -177,7 +178,7 @@ export function compileForecastCards({
       cards.push({ icon: CloudRain, label: 'Rain', value: `${rainAmount} mm/h`, color: 'text-blue-400' });
       cards.push({ icon: Snowflake, label: 'Snow', value: `${snowfall.toFixed(1)} cm/h`, color: 'text-sky-300' });
     } else {
-      cards.push({ icon: CloudRain, label: 'Rain', value: precip != null ? `${precip.toFixed(1)} mm/h${_prov}` : '--', color: 'text-blue-400', provisional: isProvisionalPaint });
+      cards.push({ icon: CloudRain, label: 'Rain', value: precip != null ? `${precip.toFixed(1)} mm/h${_prov}` : (isLoading ? 'Loading' : '--'), color: 'text-blue-400', provisional: isProvisionalPaint });
     }
     cards.push({
       icon: Droplets,
