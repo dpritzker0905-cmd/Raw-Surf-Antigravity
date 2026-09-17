@@ -303,8 +303,11 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
     // we're queued, acquireSeriesSlot resolves false and we never fetch (superseded warm dropped).
     const gotSlot = await acquireSeriesSlot(localController.signal);
     if (!gotSlot || localController.signal.aborted) {
+      // Cancellation can follow acquisition (including a queued handoff) before this
+      // continuation runs. Return only an owned slot; queued drops own none.
+      if (gotSlot) releaseSeriesSlot();
       _inFlight.delete(key);
-      if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } } // ⛔ OUTSIDE the try/finally below so its removal never ran here: 10 added / 0 removed over 4 cycles. Do NOT move the acquire into the try (finally would over-release the slot). docs/runbooks/RATIONALE-2026-08-09-observability-and-duplicate-load-fixes.md
+      if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } } // Preserve queued-drop listener cleanup; see RATIONALE-2026-08-09-observability-and-duplicate-load-fixes.md.
       return;
     }
     timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 45000);
