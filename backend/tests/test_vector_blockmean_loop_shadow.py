@@ -34,6 +34,7 @@ subject rather than its subject. Both are fixed: `_INTERIOR_RES` gives the loop 
 """
 import sys
 import types
+from datetime import datetime, timezone
 
 import numpy as np
 import pytest
@@ -131,8 +132,10 @@ def _run(monkeypatch, vector_flag, part_conf="1", resolution=30.0, bbox=None):
     # way the plain direction reduction is exercised at all.
     monkeypatch.setenv("NOAA_PARTITION_DIR_CONFIDENCE", part_conf)
     monkeypatch.setenv("FETCH_VECTOR_BLOCKMEAN", vector_flag)
+    # Both shadow runs must use the same cycle, including across a wall-clock hour
+    # rollover. Match the cycle encoded by _idx_text instead of consulting now.
     monkeypatch.setattr(fetcher, "_pick_cycle",
-                        lambda _rq, now, _mf: (now.replace(minute=0, second=0, microsecond=0),
+                        lambda _rq, _now, _mf: (datetime(2026, 8, 2, tzinfo=timezone.utc),
                                                "https://stub/gfswave."))
 
     def _get(url, **kw):
