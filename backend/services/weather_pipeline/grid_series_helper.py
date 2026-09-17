@@ -535,12 +535,20 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # long await bought nothing: await only a short first-paint budget (warm-cache scrubs still return
     # regional frames instantly), fall back fast otherwise, and let the reval pick up the warmed cache.
     # Revert lever: GFS_ICON_SERIES_FASTPATH_WAIT_SEC=30.
-    if (os.environ.get("GFS_ICON_SERIES_FASTPATH") == "1"
+    from services.weather_pipeline.series_source_policy import has_direct_series_coverage
+    # The old flag names models, not the supplier. Keep it as a compatibility alias;
+    # the explicit Open-Meteo name takes precedence, including an explicit disable.
+    openmeteo_series = os.environ.get("OPENMETEO_MARINE_SERIES_FASTPATH",
+                                     os.environ.get("GFS_ICON_SERIES_FASTPATH", "0")) == "1"
+    live_series_eligible = (openmeteo_series
             and viewport_service is not None
             and model.upper() in ("GFS", "ICON")
             and domain.lower() == "marine"
             and not surf
-            and not await _client_gone()):
+            and not await _client_gone())
+    prefer_stored = live_series_eligible and await has_direct_series_coverage(
+        viewport_service, model, domain, layer, bbox, hour_list, base)
+    if live_series_eligible and not prefer_stored:
         try:
             fastpath_wait = float(os.environ.get("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "2.5"))
             fp = await asyncio.wait_for(
@@ -549,9 +557,9 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             )
             if fp and fp.get("frame_count", 0) > 0:
                 return fp
-            logger.warning(f"[grid_series] {model} marine fast path returned no frames; using the per-hour loop.")
+            logger.warning(f"[grid_series] Open-Meteo {model} marine live-series returned no frames; using the per-hour resolver.")
         except BaseException as e:
-            logger.warning(f"[grid_series] {model} marine fast path failed ({type(e).__name__}: {e}); using the per-hour loop.")
+            logger.warning(f"[grid_series] Open-Meteo {model} marine live-series failed ({type(e).__name__}: {e}); using the per-hour resolver.")
 
     # Bound concurrency so we don't spike CPU/memory on the 1-CPU box re-normalizing many
     # hours at once (each hour after the first is a cheap re-slice of the cached fetch).
@@ -701,6 +709,30 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                 bound["before"] += len(pf.get("vectors") or [])
                 if shared_bounds is None and pf.get("bounds"):
                     shared_bounds, shared_cols, shared_rows = pf["bounds"], pf.get("cols", 0), pf.get("rows", 0)
+
+    # A manifest advertises coverage; it does not prove the file loaded. Recover
+    # only missing hours, retaining successfully resolved direct frames unchanged.
+    missing_hours = sorted(set(hour_list) - {f["hour_offset"] for f in frames})
+    if prefer_stored and missing_hours and not await _client_gone():
+        logger.info("[grid_series] %s %s/%s stored resolution left %d missing hours; "
+                    "attempting bounded Open-Meteo recovery", model, domain, layer, len(missing_hours))
+        try:
+            wait = min(float(os.environ.get("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "2.5")),
+                       OPENMETEO_SERIES_TIMEOUT)
+            recovery = await asyncio.wait_for(
+                _build_openmeteo_marine_series(viewport_service, model, layer, bbox, missing_hours, base),
+                timeout=wait)
+            for frame in (recovery or {}).get("frames", []):
+                if frame.get("hour_offset") in missing_hours and frame.get("vectors"):
+                    frames.append(frame)
+                    missing_hours.remove(frame["hour_offset"])
+                    bound["before"] += len(frame["vectors"])
+                    if shared_bounds is None and frame.get("bounds"):
+                        shared_bounds = frame["bounds"]
+                        shared_cols, shared_rows = frame.get("cols", 0), frame.get("rows", 0)
+        except Exception as e:
+            logger.warning("[grid_series] Open-Meteo missing-frame recovery failed (%s); "
+                           "retaining resolved frames", type(e).__name__)
 
     frames.sort(key=lambda f: f["hour_offset"])
     resp = {

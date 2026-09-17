@@ -6,6 +6,7 @@ import { BUILD_VERSION } from '../../buildVersion';
 import { TruthOverlayVisualTab } from './TruthOverlayVisualTab';
 import { TruthOverlayGpuTab } from './TruthOverlayGpuTab';
 import { resolveTruthVerdict } from './truthVerdict';
+import { weatherSourceLabel } from './weatherSourceLabel';
 
 // PROD GATE (2026-07-19). This HUD was mounted UNCONDITIONALLY by MapWebGL — a 360px dark
 // diagnostics panel fixed bottom-left over the live map for EVERY production user (nearly
@@ -290,20 +291,8 @@ var TruthOverlay = ({
             : resolutionDeg > 0.5
               ? { label: `COARSE ${resolutionDeg}° GRID`, color: '#fbbf24' }
               : { label: 'AUTHORITATIVE NATIVE', color: '#10b981' };
-  // Map the data's source_dataset to its basic origin name so the HUD shows where the data ACTUALLY came
-  // from (NOAA / DWD / Copernicus / ECMWF) instead of the 'open-meteo' capabilities-contract channel key.
-  const __basicSourceName = (sd) => {
-    if (!sd) return null;
-    const s = String(sd).toLowerCase();
-    if (s.includes('gfs') || s.startsWith('ncep')) return 'NOAA';
-    if (s.includes('gwam') || s.includes('dwd')) return 'DWD';
-    if (s.includes('copernicus') || s.includes('cmems')) return 'Copernicus';
-    if (s.includes('ecmwf')) return 'ECMWF';
-    if (s.includes('open') && s.includes('meteo')) return 'Open-Meteo';
-    return null;
-  };
   const gridSourceDataset = marineData?.grid?.__sourceDataset || marineData?.grid?.sourceDataset || null;
-  const displayProvider = __basicSourceName(gridSourceDataset) || gridProvider;
+  const displayProvider = weatherSourceLabel(marineData?.grid);
   const showExtendedWarning = activeModel === 'EURO' && timeOffsetHours > 240;
 
   // GPU metrics from window
@@ -459,7 +448,7 @@ var TruthOverlay = ({
                   Grid Provenance
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Provider:</span>
+                  <span style={{ color: '#94a3b8' }}>Supplier:</span>
                   <span style={{ fontWeight: 600, color: '#f8fafc', textTransform: 'uppercase' }}>
                     {displayProvider}
                   </span>
