@@ -61,7 +61,7 @@ class NormalizedGrid(BaseModel):
 
 class NormalizedProduct(BaseModel):
     model: str
-    provider: str
+    provider: str = Field(description="Legacy normalization/dispatch channel; not the upstream supplier. See upstream_provider.")
     domain: str
     layer: str
     run_time: datetime
@@ -88,7 +88,7 @@ class NormalizedProduct(BaseModel):
     warnings: List[str] = Field(default_factory=list)
     is_test_fixture: bool = False
     source_dataset: Optional[str] = None
-    upstream_provider: Optional[str] = None
+    upstream_provider: Optional[str] = Field(default=None, description="Actual acquisition supplier reported by the fetcher; null means unverified. Independent of source_dataset.")
     upstream_model: Optional[str] = None
     # ★★★ SUBSTITUTED-DATA PROVENANCE (declared 2026-08-03; MASTER AUDIT 1.0 §2a).
     # `coarse_gulf_fill` copies GFS values onto a EURO/ICON vector and flips `is_valid` True, then
@@ -165,7 +165,7 @@ class NormalizedPointDetail(BaseModel):
 
 class NormalizedPointResponse(BaseModel):
     model: str
-    provider: str
+    provider: str = Field(description="Legacy normalization/dispatch channel; not the upstream supplier. See upstream_provider.")
     domain: str
     layer: str
     run_time: datetime
@@ -191,7 +191,7 @@ class NormalizedPointResponse(BaseModel):
     warnings: List[str] = Field(default_factory=list)
     is_test_fixture: bool = False
     source_dataset: Optional[str] = None
-    upstream_provider: Optional[str] = None
+    upstream_provider: Optional[str] = Field(default=None, description="Actual acquisition supplier reported by the fetcher; null means unverified. Independent of source_dataset.")
     upstream_model: Optional[str] = None
 
     # Point Fallback status fields for Stage 6H
@@ -297,7 +297,7 @@ class NormalizedPointResponse(BaseModel):
 
 class ManifestProduct(BaseModel):
     model: str
-    provider: str
+    provider: str = Field(description="Legacy normalization/dispatch channel; not the upstream supplier. See upstream_provider.")
     domain: str
     layer: str
     run_time: datetime
@@ -315,7 +315,7 @@ class ManifestProduct(BaseModel):
     is_estimated: bool = False
     estimate_basis: Optional[Dict[str, Any]] = None
     source_dataset: Optional[str] = None
-    upstream_provider: Optional[str] = None
+    upstream_provider: Optional[str] = Field(default=None, description="Actual acquisition supplier reported by the fetcher; null means unverified. Independent of source_dataset.")
     upstream_model: Optional[str] = None
     
     # Region metadata fields for Stage 6H

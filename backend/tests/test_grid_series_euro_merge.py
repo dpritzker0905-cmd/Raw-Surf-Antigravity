@@ -219,6 +219,60 @@ def test_gfs_fast_path_skipped_when_flag_off(monkeypatch):
     assert out["frame_count"] == 3 and len(used_generic) == 3     # generic loop ran (flag off)
 
 
+def test_explicit_openmeteo_disable_overrides_legacy_flag(monkeypatch):
+    monkeypatch.setenv("GFS_ICON_SERIES_FASTPATH", "1")
+    monkeypatch.setenv("OPENMETEO_MARINE_SERIES_FASTPATH", "0")
+    calls = []
+
+    async def live(*args):
+        calls.append("open-meteo")
+        return _fast_path_frames([0])
+
+    async def resolve(**kwargs):
+        return _gfs_product()
+
+    monkeypatch.setattr(grid_series_helper, "_build_openmeteo_marine_series", live)
+    out = asyncio.run(build_grid_series(resolve, _FakeVP(), "GFS", "marine", "waves", "-81,27,-80,28", "0"))
+    assert out["frame_count"] == 1
+    assert calls == []
+
+
+def test_direct_coverage_prevents_openmeteo_series_request(monkeypatch):
+    from types import SimpleNamespace
+    monkeypatch.setenv("GFS_ICON_SERIES_FASTPATH", "1")
+    base = datetime(2026, 9, 17, tzinfo=timezone.utc)
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return base
+    monkeypatch.setattr(grid_series_helper, "datetime", Clock)
+    from datetime import timedelta
+    products = []
+    for hour in [0, 3, 6]:
+        p = _gfs_product()
+        products.append(SimpleNamespace(model="GFS", domain="marine", layer="waves",
+            upstream_provider="noaa", is_forecast_authoritative=True, resolution=.25,
+            coverage=p.coverage, valid_time_start=base + timedelta(hours=hour)))
+    vp = SimpleNamespace(store=SimpleNamespace(get_manifest=lambda: SimpleNamespace(products=products)))
+    calls = []
+
+    async def openmeteo(*args):
+        calls.append("open-meteo")
+        return _fast_path_frames([0, 3, 6])
+
+    monkeypatch.setattr(grid_series_helper, "_build_openmeteo_marine_series", openmeteo)
+
+    async def resolve(**kwargs):
+        p = _gfs_product()
+        p.upstream_provider = "noaa"
+        return p
+
+    out = asyncio.run(build_grid_series(resolve, vp, "GFS", "marine", "waves", "-81,27,-80,28", "0,3,6"))
+    assert calls == []
+    assert out["frame_count"] == 3
+    assert all(f["upstream_provider"] == "noaa" for f in out["frames"])
+
+
 def test_fast_path_hang_falls_back_within_swr_budget(monkeypatch):
     """Audit #24: Render logs showed the fastpath await hitting its 30s ceiling on 62% of attempts
     (+21% upstream 400s) — a 30s-held request per series page before the instant stored fallback.

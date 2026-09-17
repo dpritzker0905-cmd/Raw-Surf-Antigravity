@@ -535,12 +535,19 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # long await bought nothing: await only a short first-paint budget (warm-cache scrubs still return
     # regional frames instantly), fall back fast otherwise, and let the reval pick up the warmed cache.
     # Revert lever: GFS_ICON_SERIES_FASTPATH_WAIT_SEC=30.
-    if (os.environ.get("GFS_ICON_SERIES_FASTPATH") == "1"
+    from services.weather_pipeline.series_source_policy import has_direct_series_coverage
+    # The old flag names models, not the supplier. Keep it as a compatibility alias;
+    # the explicit Open-Meteo name takes precedence, including an explicit disable.
+    openmeteo_series = os.environ.get("OPENMETEO_MARINE_SERIES_FASTPATH",
+                                     os.environ.get("GFS_ICON_SERIES_FASTPATH", "0")) == "1"
+    if (openmeteo_series
             and viewport_service is not None
             and model.upper() in ("GFS", "ICON")
             and domain.lower() == "marine"
             and not surf
-            and not await _client_gone()):
+            and not await _client_gone()
+            and not await has_direct_series_coverage(
+                viewport_service, model, domain, layer, bbox, hour_list, base)):
         try:
             fastpath_wait = float(os.environ.get("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "2.5"))
             fp = await asyncio.wait_for(
