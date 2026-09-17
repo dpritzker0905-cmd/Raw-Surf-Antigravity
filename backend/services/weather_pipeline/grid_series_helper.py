@@ -556,9 +556,9 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             )
             if fp and fp.get("frame_count", 0) > 0:
                 return fp
-            logger.warning(f"[grid_series] {model} marine fast path returned no frames; using the per-hour loop.")
+            logger.warning(f"[grid_series] Open-Meteo {model} marine live-series returned no frames; using the per-hour resolver.")
         except BaseException as e:
-            logger.warning(f"[grid_series] {model} marine fast path failed ({type(e).__name__}: {e}); using the per-hour loop.")
+            logger.warning(f"[grid_series] Open-Meteo {model} marine live-series failed ({type(e).__name__}: {e}); using the per-hour resolver.")
 
     # Bound concurrency so we don't spike CPU/memory on the 1-CPU box re-normalizing many
     # hours at once (each hour after the first is a cheap re-slice of the cached fetch).

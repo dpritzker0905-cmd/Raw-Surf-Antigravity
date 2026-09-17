@@ -35,7 +35,12 @@ async def has_direct_series_coverage(viewport_service, model, domain, layer, bbo
             # Exact valid time: do not replace an exact live frame with a nearby one.
             covered.update(h for h, target in targets.items()
                            if product.valid_time_start.timestamp() == target)
-        return len(covered) == len(targets)
+        complete = len(covered) == len(targets)
+        if complete:
+            logger.info("[grid_series] %s %s/%s has direct-source coverage for %d exact hours; "
+                        "using stored resolver without Open-Meteo live-series fetch",
+                        model, domain, layer, len(targets))
+        return complete
     except Exception:
         logger.exception("[grid_series] direct coverage lookup failed; retaining normal fallback")
         return False
