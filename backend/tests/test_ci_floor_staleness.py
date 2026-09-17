@@ -287,7 +287,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # plus 24 executed new controls. Candidate CI must confirm 1828. Keep the
 # companion to ci.yml's raised floor in sync; the first candidate caught this omission.
 # September 16: hosted CI35055272824; retain the existing six-test margins.
-_FLOOR_SET_FROM = {"guards": 1883, "chain": 940, "estate": 488}
+_FLOOR_SET_FROM = {"guards": 1899, "chain": 940, "estate": 488}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

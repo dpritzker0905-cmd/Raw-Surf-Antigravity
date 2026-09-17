@@ -628,7 +628,10 @@ jobs:
           # Candidate Linux CI must confirm 158 / 1874; keep the six-test margin.
           # dev run 34924124059 observed 159 files / 1877 passes; preserve six-test margin.
           # September 16: hosted CI35055272824 measured 160 files / 1883 passes.
-          MIN_FILES, MIN_PASSED = 160, 1877
+          # September17 direct-source policy: selector adds one file/14 tests,
+          # plus two series integration controls. Prior hosted1883 +16 =1899;
+          # retain the six-test margin and pin the new file into the floor.
+          MIN_FILES, MIN_PASSED = 161, 1893
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
