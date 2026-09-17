@@ -37,8 +37,8 @@ async def has_direct_series_coverage(viewport_service, model, domain, layer, bbo
                            if product.valid_time_start.timestamp() == target)
         complete = len(covered) == len(targets)
         if complete:
-            logger.info("[grid_series] %s %s/%s has direct-source coverage for %d exact hours; "
-                        "using stored resolver without Open-Meteo live-series fetch",
+            logger.info("[grid_series] %s %s/%s manifest advertises direct-source coverage for %d exact hours; "
+                        "preferring stored resolver; missing frames may require Open-Meteo recovery",
                         model, domain, layer, len(targets))
         return complete
     except Exception:

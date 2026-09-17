@@ -629,9 +629,9 @@ jobs:
           # dev run 34924124059 observed 159 files / 1877 passes; preserve six-test margin.
           # September 16: hosted CI35055272824 measured 160 files / 1883 passes.
           # September17 direct-source policy: selector adds one file/14 tests,
-          # plus two series integration controls. Prior hosted1883 +16 =1899;
+          # plus four series integration controls. Hosted1899 +two missing-file controls =1901;
           # retain the six-test margin and pin the new file into the floor.
-          MIN_FILES, MIN_PASSED = 161, 1893
+          MIN_FILES, MIN_PASSED = 161, 1895
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

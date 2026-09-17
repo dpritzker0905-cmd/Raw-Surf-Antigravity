@@ -5,6 +5,7 @@ path builds the native hours and the per-hour loop builds the estimated (>240h) 
 STORED estimated products; the two are merged so the page returns its full hour range.
 """
 import asyncio
+import pytest
 from datetime import datetime, timezone
 
 from services.weather_pipeline import grid_series_helper
@@ -237,7 +238,8 @@ def test_explicit_openmeteo_disable_overrides_legacy_flag(monkeypatch):
     assert calls == []
 
 
-def test_direct_coverage_prevents_openmeteo_series_request(monkeypatch):
+@pytest.mark.parametrize("missing", [False, True, "partial"])
+def test_direct_coverage_prevents_openmeteo_series_request(monkeypatch, missing):
     from types import SimpleNamespace
     monkeypatch.setenv("GFS_ICON_SERIES_FASTPATH", "1")
     base = datetime(2026, 9, 17, tzinfo=timezone.utc)
@@ -255,22 +257,30 @@ def test_direct_coverage_prevents_openmeteo_series_request(monkeypatch):
             coverage=p.coverage, valid_time_start=base + timedelta(hours=hour)))
     vp = SimpleNamespace(store=SimpleNamespace(get_manifest=lambda: SimpleNamespace(products=products)))
     calls = []
+    requested = []
 
     async def openmeteo(*args):
         calls.append("open-meteo")
+        requested.append(list(args[4]))
         return _fast_path_frames([0, 3, 6])
 
     monkeypatch.setattr(grid_series_helper, "_build_openmeteo_marine_series", openmeteo)
 
     async def resolve(**kwargs):
+        if missing is True or (missing == "partial" and "T03:" in kwargs["valid_time"]):
+            return None
         p = _gfs_product()
         p.upstream_provider = "noaa"
         return p
 
     out = asyncio.run(build_grid_series(resolve, vp, "GFS", "marine", "waves", "-81,27,-80,28", "0,3,6"))
-    assert calls == []
+    assert calls == (["open-meteo"] if missing else [])
     assert out["frame_count"] == 3
-    assert all(f["upstream_provider"] == "noaa" for f in out["frames"])
+    if not missing:
+        assert all(f["upstream_provider"] == "noaa" for f in out["frames"])
+    elif missing == "partial":
+        assert requested == [[3]], "only missing hours may trigger recovery"
+        assert [f.get("upstream_provider") for f in out["frames"]] == ["noaa", None, "noaa"]
 
 
 def test_fast_path_hang_falls_back_within_swr_budget(monkeypatch):
