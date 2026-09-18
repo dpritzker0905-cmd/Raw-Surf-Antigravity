@@ -1,45 +1,16 @@
 import { buildTruthTag, recordTruthStage } from './weatherTruthTracker';
+import { weatherFrameProvenance } from './weatherFrameProvenance';
 
 // Convert one backend series frame into a marineData object shaped exactly like a normal
 // cached grid commit, so the orchestrator's existing commit/parity logic accepts it.
 export function frameToMarineData(frame, model, layer) {
   const provider = frame.provider || (model === 'EURO' ? 'copernicus' : 'open-meteo');
   const renderable = Array.isArray(frame.vectors) && frame.vectors.length > 0;
-  // True data origin for the HUD provenance. `provider` is the deliberate 'open-meteo' contract key (kept
-  // byte-identical across the NOAA-direct + open-meteo paths), so without __sourceDataset the HUD mislabels
-  // NOAA-direct GFS as "open-meteo". Prefer the backend's per-frame source_dataset; else derive from the model
-  // (on the decoupled ingest runner open-meteo is unreachable, so GFS marine is always NOAA-direct ncep_gfswave025,
-  // ICON=GWAM/DWD, EURO=Copernicus). The HUD's __basicSourceName maps these → NOAA / DWD / Copernicus.
-  // ⛔⛔ THE MODEL->DATASET GUESS IS FALSIFIED FOR EURO (measured 2026-08-03). The derivation below
-  // assumes one upstream per model, and the comment above says why that was true when written. It is
-  // NOT true for EURO: sampled over 70 NDBC coordinates, `EURO` served THREE different
-  // `upstream_provider`s — copernicus, ecmwf, and gfs_estimated_fallback — and their accuracy is not
-  // interchangeable. Scoring GFS on the SAME sites:
-  //     EURO/copernicus MAE 0.159 (3.2x better than GFS)
-  //     EURO/ecmwf      MAE 0.339 (WORSE than GFS's 0.266 there) -- 36% of EURO's coverage
-  //     EURO/gfs_estimated_fallback MAE 0.114
-  // The Florida EURO grid returns `upstream_provider: "ecmwf"`, so the guess labels it
-  // "copernicus_cmems" and the HUD tells the user Copernicus for a coarser field. A label that is
-  // right 50% of the time is a PROVENANCE defect, which is this repo's recurring class.
-  // ⇒ PREFER THE BACKEND'S OWN `upstream_provider` (served on every marine response, alongside the
-  //   `provider` DISPATCH KEY). The model guess stays as the last resort for frames that predate it,
-  //   so nothing regresses where the guess was already right.
+  // Preserve evidence from the served frame. Model and dispatch channel do not
+  // establish either the supplier or the dataset; legacy omissions stay unknown.
   const __upstreamProvider = frame.upstream_provider || null;
-  const __sourceDataset = frame.source_dataset || (
-    __upstreamProvider === 'copernicus' ? 'copernicus_cmems' :
-    __upstreamProvider === 'ecmwf' ? 'ecmwf_ifs' :
-    __upstreamProvider === 'noaa' ? 'ncep_gfswave025' :
-    __upstreamProvider === 'dwd' ? 'gwam_dwd' :
-    __upstreamProvider === 'gfs_estimated_fallback' ? 'gfs_estimated_fallback' :
-    model === 'GFS' ? 'ncep_gfswave025' :
-    model === 'ICON' ? 'gwam_dwd' :
-    model === 'EURO' ? 'copernicus_cmems' : null
-  );
-  const cycleProvenance = {
-    model_run_time: frame.model_run_time ?? null,
-    model_run_time_status: frame.model_run_time_status || 'missing',
-    ingested_at: frame.ingested_at ?? null,
-  };
+  const __sourceDataset = frame.source_dataset || null;
+  const cycleProvenance = weatherFrameProvenance(frame);
   const grid = {
     ...cycleProvenance,
     vectors: frame.vectors,
@@ -123,6 +94,9 @@ export function frameToMarineData(frame, model, layer) {
     __fromSeries: true,
     valid_time: frame.valid_time,
     run_time: frame.run_time,
+    served_valid_time: frame.served_valid_time || null,
+    frame_offset_hours: frame.frame_offset_hours ?? 0,
+    frame_substituted: !!frame.frame_substituted,
     ...cycleProvenance,
     hourOffset: frame.hour_offset,
     ...(truthTag ? { truthTag } : {}),
@@ -131,4 +105,3 @@ export function frameToMarineData(frame, model, layer) {
     is_dynamic_viewport_product: true,
   };
 }
-

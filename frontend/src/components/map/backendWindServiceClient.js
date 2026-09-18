@@ -18,6 +18,7 @@ import {
 } from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
 import { recordTruthStage } from './weatherTruthTracker';
+import { weatherFrameProvenance } from './weatherFrameProvenance';
 
 export const windPointCache = new BoundedPointCache(50, 30000);
 
@@ -50,6 +51,9 @@ export function mapNormalizedWindGridToWebGL(json, snappedBounds, hourOffset) {
   }
 
   const result = {
+    ...weatherFrameProvenance(json),
+    __upstreamProvider: json.upstream_provider || null,
+    __sourceDataset: json.source_dataset || null,
     vectors: mappedVectors,
     bounds: json.grid.bounds || snappedBounds,
     cols: json.grid.cols,
@@ -627,4 +631,3 @@ if (typeof window !== 'undefined') {
   window.fetchBackendExactWindPoint = fetchBackendExactWindPoint;
   window.fetchBackendWindGrid = fetchBackendWindGrid;
 }
-

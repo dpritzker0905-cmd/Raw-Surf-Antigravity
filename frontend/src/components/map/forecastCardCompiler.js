@@ -188,6 +188,10 @@ export function compileForecastCards({
         : '--',
       color: 'text-indigo-400'
     });
+    // These values come from the forecast model, never from radar pixel sampling.
+    if (activeLayer === 'radar') {
+      cards.forEach(card => { card.label = `Model ${card.label}`; });
+    }
     if (temp != null) {
       cards.push({ icon: Thermometer, label: 'Temp', value: `${Math.round(temp * 9/5 + 32)}°F`, color: 'text-amber-400' });
     }

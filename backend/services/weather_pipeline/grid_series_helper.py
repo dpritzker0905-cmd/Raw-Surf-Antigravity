@@ -18,6 +18,7 @@ from datetime import datetime, timezone, timedelta
 from fastapi import HTTPException
 from starlette.background import BackgroundTasks
 from services.weather_pipeline.provider_fetches import await_provider_fetch
+from services.weather_pipeline.phase_timing import trace_series_phases
 
 from services.weather_pipeline.series_vector_budget import (
     decimate_vectors,
@@ -411,6 +412,7 @@ async def _build_openmeteo_marine_series(viewport_service, model: str, layer: st
     }
 
 
+@trace_series_phases
 async def build_grid_series(resolve_grid, viewport_service, model: str, domain: str, layer: str,
                             bbox: str, hours: str, request=None, surf: bool = False) -> dict:
     """Public entry point: build the series, then BOUND it (audit v7 §3).
@@ -420,27 +422,40 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
     the "guard ran nowhere" class this codebase has now hit seven times. Every path returns through
     here, so the invariant lives here and cannot be routed around by a future fourth path.
     """
+    started = time.perf_counter()
     resp = await _build_grid_series_impl(
         resolve_grid, viewport_service, model, domain, layer, bbox, hours,
         request=request, surf=surf,
     )
-    # RUN CENSUS (2026-08-09, R11-04): each hour resolves independently, so ONE response can mix
-    # model runs mid-ingest (~1-2.75 h window, 6x/day) — physically discontinuous adjacent frames.
-    # Frames now carry run_time; the census makes a mixed page detectable at a glance (client-side
-    # and in any dump) without walking every frame. Additive; absent when no frame carries a run.
+    assembled = time.perf_counter()
+    from services.weather_pipeline.series_evidence import cycle_census
+    resp['cycle_census'] = cycle_census(resp.get('frames', []))
+    # Compatibility census of legacy revisions; this does NOT prove forecast cycle identity.
+    # Consumers requiring model cycles must use cycle_census above.
     try:
         runs = sorted({f["run_time"] for f in resp.get("frames", []) if f.get("run_time")})
         if runs:
-            resp["run_census"] = {"distinct_runs": len(runs), "min_run_time": runs[0],
+            resp["run_census"] = {"basis": "legacy_run_time_not_verified_cycle", "distinct_runs": len(runs), "min_run_time": runs[0],
                                   "max_run_time": runs[-1], "mixed_runs": len(runs) > 1}
     except Exception:
         logger.exception("[series-run-census] census failed; serving without it")
     try:
         from services.weather_pipeline.series_vector_budget import apply_vector_budget
-        return apply_vector_budget(resp)
+        resp = apply_vector_budget(resp)
     except Exception:
         logger.exception("[series-budget] bounding failed; serving the unbounded response")
-        return resp
+    # These durations exclude HTTP serialization, transport and browser presentation.
+    # The response ID also appears in one bounded log entry for correlation.
+    from uuid import uuid4
+    trace_id = uuid4().hex
+    finished = time.perf_counter()
+    resp['timing'] = {'trace_id': trace_id, 'assembly_ms': round((assembled-started)*1000, 3),
+                      'budget_and_census_ms': round((finished-assembled)*1000, 3),
+                      'total_build_ms': round((finished-started)*1000, 3)}
+    logger.info('[series-timing] trace=%s model=%s layer=%s frames=%d assembly_ms=%.3f budget_ms=%.3f',
+                trace_id, model, layer, len(resp.get('frames', [])),
+                resp['timing']['assembly_ms'], resp['timing']['budget_and_census_ms'])
+    return resp
 
 
 async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str, request=None, surf: bool = False) -> dict:
@@ -535,12 +550,20 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # long await bought nothing: await only a short first-paint budget (warm-cache scrubs still return
     # regional frames instantly), fall back fast otherwise, and let the reval pick up the warmed cache.
     # Revert lever: GFS_ICON_SERIES_FASTPATH_WAIT_SEC=30.
-    if (os.environ.get("GFS_ICON_SERIES_FASTPATH") == "1"
+    from services.weather_pipeline.series_source_policy import has_direct_series_coverage
+    # The old flag names models, not the supplier. Keep it as a compatibility alias;
+    # the explicit Open-Meteo name takes precedence, including an explicit disable.
+    openmeteo_series = os.environ.get("OPENMETEO_MARINE_SERIES_FASTPATH",
+                                     os.environ.get("GFS_ICON_SERIES_FASTPATH", "0")) == "1"
+    live_series_eligible = (openmeteo_series
             and viewport_service is not None
             and model.upper() in ("GFS", "ICON")
             and domain.lower() == "marine"
             and not surf
-            and not await _client_gone()):
+            and not await _client_gone())
+    prefer_stored = live_series_eligible and await has_direct_series_coverage(
+        viewport_service, model, domain, layer, bbox, hour_list, base)
+    if live_series_eligible and not prefer_stored:
         try:
             fastpath_wait = float(os.environ.get("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "2.5"))
             fp = await asyncio.wait_for(
@@ -549,9 +572,9 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             )
             if fp and fp.get("frame_count", 0) > 0:
                 return fp
-            logger.warning(f"[grid_series] {model} marine fast path returned no frames; using the per-hour loop.")
+            logger.warning(f"[grid_series] Open-Meteo {model} marine live-series returned no frames; using the per-hour resolver.")
         except BaseException as e:
-            logger.warning(f"[grid_series] {model} marine fast path failed ({type(e).__name__}: {e}); using the per-hour loop.")
+            logger.warning(f"[grid_series] Open-Meteo {model} marine live-series failed ({type(e).__name__}: {e}); using the per-hour resolver.")
 
     # Bound concurrency so we don't spike CPU/memory on the 1-CPU box re-normalizing many
     # hours at once (each hour after the first is a cheap re-slice of the cached fetch).
@@ -701,6 +724,30 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                 bound["before"] += len(pf.get("vectors") or [])
                 if shared_bounds is None and pf.get("bounds"):
                     shared_bounds, shared_cols, shared_rows = pf["bounds"], pf.get("cols", 0), pf.get("rows", 0)
+
+    # A manifest advertises coverage; it does not prove the file loaded. Recover
+    # only missing hours, retaining successfully resolved direct frames unchanged.
+    missing_hours = sorted(set(hour_list) - {f["hour_offset"] for f in frames})
+    if prefer_stored and missing_hours and not await _client_gone():
+        logger.info("[grid_series] %s %s/%s stored resolution left %d missing hours; "
+                    "attempting bounded Open-Meteo recovery", model, domain, layer, len(missing_hours))
+        try:
+            wait = min(float(os.environ.get("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "2.5")),
+                       OPENMETEO_SERIES_TIMEOUT)
+            recovery = await asyncio.wait_for(
+                _build_openmeteo_marine_series(viewport_service, model, layer, bbox, missing_hours, base),
+                timeout=wait)
+            for frame in (recovery or {}).get("frames", []):
+                if frame.get("hour_offset") in missing_hours and frame.get("vectors"):
+                    frames.append(frame)
+                    missing_hours.remove(frame["hour_offset"])
+                    bound["before"] += len(frame["vectors"])
+                    if shared_bounds is None and frame.get("bounds"):
+                        shared_bounds = frame["bounds"]
+                        shared_cols, shared_rows = frame.get("cols", 0), frame.get("rows", 0)
+        except Exception as e:
+            logger.warning("[grid_series] Open-Meteo missing-frame recovery failed (%s); "
+                           "retaining resolved frames", type(e).__name__)
 
     frames.sort(key=lambda f: f["hour_offset"])
     resp = {

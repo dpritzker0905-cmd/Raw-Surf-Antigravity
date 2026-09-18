@@ -24,9 +24,11 @@ class MapErrorBoundary extends React.Component {
       return (
         <div className="flex flex-col items-center justify-center h-screen bg-zinc-900 text-white p-4">
  <div className="text-6xl mb-4"></div>
-          <h2 className="text-xl font-bold mb-2">Map Error</h2>
+          <h2 className="text-xl font-bold mb-2">Map unavailable</h2>
           <p className="text-gray-400 text-center mb-4">
-            Something went wrong loading the map.
+            {this.state.error?.name === 'MapStartupError'
+              ? 'The map could not start in this browser. Reload to try again, or return to your feed.'
+              : 'Something went wrong loading the map.'}
           </p>
           <button
             onClick={() => window.location.reload()}
@@ -34,6 +36,7 @@ class MapErrorBoundary extends React.Component {
           >
             Reload Page
           </button>
+          <a href="/feed" className="mt-4 text-cyan-400 underline">Return to feed</a>
           {process.env.NODE_ENV === 'development' && (
             <pre className="mt-4 p-2 bg-zinc-800 rounded text-xs text-red-400 max-w-md overflow-auto">
               {this.state.error?.message}

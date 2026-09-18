@@ -20,8 +20,10 @@ Steps: 3-hourly to 144h, then 6-hourly to min(forecast_days*24, 240h). 00/12 run
 06/18 runs only reach 144h — so we try the full step list and fall back to ≤144h on failure (a partial
 cycle just means open-meteo fallback upstream, never a crash).
 
-OUTPUT: Open-Meteo-shaped JSON (__provider:'ecmwf'). Caller keeps provider='open-meteo' so the manifest
-(source_dataset='ecmwf_ifs') stays byte-identical. Masked/out-of-range -> None (np.ma.filled + sanitize).
+OUTPUT: Open-Meteo-shaped JSON (__provider:'ecmwf'). The format does not imply an Open-Meteo request.
+Caller retains provider='open-meteo' as the legacy normalizer dispatch key; upstream_provider='ecmwf'
+records direct acquisition. source_dataset identifies IFS atmosphere or WAM waves, depending on layer.
+Masked/out-of-range -> None (np.ma.filled + sanitize).
 
 USAGE: subprocess `python ecmwf_opendata_fetcher.py '<payload-json>'`; standalone (no args) for verify;
 ECMWF_OPENDATA_FETCHER_QUICK=1 -> tiny region + ~2 days. Source override: ECMWF_OPENDATA_SOURCE (ecmwf|aws|azure).

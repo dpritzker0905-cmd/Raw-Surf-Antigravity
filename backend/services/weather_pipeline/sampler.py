@@ -302,6 +302,12 @@ class PointSampler:
                 interp_gust = None
             
             interp_speed = math.sqrt(interp_u**2 + interp_v**2)
+            # Marine speed stores significant wave height, not vector magnitude.
+            # Interpolate Hs spatially; opposing propagation directions cannot cancel it.
+            if product.domain.lower() == "marine":
+                interp_speed = sum(v.speed * w for v, w in corner_weights)
+                if math.hypot(interp_u, interp_v) < 1e-10:
+                    warnings.append("Interpolated wave direction is indeterminate; height remains scalar")
             interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
             if interp_dir < 0.0:
                 interp_dir += 360.0
@@ -353,6 +359,10 @@ class PointSampler:
                     interp_gust = None
                 
                 interp_speed = math.sqrt(interp_u**2 + interp_v**2)
+                if product.domain.lower() == "marine":
+                    interp_speed = sum(v.speed * w for v, w in valid_ocean_corners) / sum_w
+                    if math.hypot(interp_u, interp_v) < 1e-10:
+                        warnings.append("Interpolated wave direction is indeterminate; height remains scalar")
                 interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
                 if interp_dir < 0.0:
                     interp_dir += 360.0

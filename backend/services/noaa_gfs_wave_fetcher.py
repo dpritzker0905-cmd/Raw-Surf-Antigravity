@@ -19,8 +19,9 @@ LOW-STRAIN DESIGN (mirrors copernicus_global_fetcher.py's thin-band ethos):
 
 OUTPUT: Open-Meteo-shaped JSON (list of point dicts with hourly arrays, __provider:'noaa') so the existing
 normalizer/ingestion consumes it UNCHANGED — same schema as the open-meteo all_marine path. All 4 layers
-(waves/swell_1/swell_2/wind_waves). The caller (ingest_gfs_marine_global) keeps provider='open-meteo' so
-the manifest (source_dataset='ncep_gfswave025') stays byte-identical to the open-meteo path — zero regression.
+(waves/swell_1/swell_2/wind_waves). The caller retains provider='open-meteo' ONLY as a legacy
+normalizer dispatch key. The saved upstream_provider='noaa' identifies this direct acquisition;
+source_dataset='ncep_gfswave025' identifies the model, not the HTTP supplier.
 
 USAGE:
   - As a subprocess (production): python noaa_gfs_wave_fetcher.py '<payload-json>' → writes JSON to

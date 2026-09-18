@@ -189,7 +189,7 @@ export var MapWeatherControls = ({
     swell_2: `Secondary Swell (${_hu})`,
     wind_waves: `Wind Waves (${_hu})`,
     rain: 'Rain / Snow (mm/h)', // R11-11: stops ARE the mm breakpoints (buildStops emits them verbatim); '(in/h)' was a 25.4× misread
-    radar: 'Live Radar (dBZ)',
+    radar: 'Radar reflectivity (relative)',
     satellite: 'Cloud Cover (%)',
     fog: 'Visibility / Fog',
     wind: 'Wind Speed (kts)',
@@ -239,8 +239,8 @@ export var MapWeatherControls = ({
     };
     config.radar = {
       label: LEGEND_LABELS.radar,
-      gradientCSS: 'linear-gradient(to right, rgba(200,200,200,0.3), rgba(96,165,250,0.6), rgba(99,102,241,0.7), rgba(147,51,234,0.85), rgba(219,39,119,0.95))',
-      stops: evenStops(['0', '.1', '.3', '.5', '2+']),
+      gradientCSS: 'linear-gradient(to right, #004768, #0070a3, #00a3e0, #ffee00, #e30b0f)',
+      stops: evenStops(['Weak', '', 'Moderate', '', 'Strong']),
     };
     // Temperature pair: tiles are colored by the OM library's registered 'temperature' scale
     // (not BASE_CUSTOM), so the legend is a static approximation of that ramp in °F.
@@ -950,4 +950,3 @@ export var MapWeatherControls = ({
 };
 
 export default MapWeatherControls;
-

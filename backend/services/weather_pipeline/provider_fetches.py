@@ -1,11 +1,13 @@
 """Own shielded series fetches until their provider cache has finished warming."""
 import asyncio
 import logging
+from services.weather_pipeline.phase_timing import timed_phase
 
 logger = logging.getLogger(__name__)
 _background_fetches = set()
 
 
+@timed_phase('provider_wait')
 async def await_provider_fetch(fetch, *, provider):
     """Preserve caller cancellation without abandoning the provider's eventual outcome.
 

@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
 from services.weather_pipeline.schemas import NormalizedProduct
+from services.weather_pipeline.phase_timing import timed_await
 from services.weather_pipeline.route_helpers import (
     parse_valid_time, parse_bbox, filter_grid_to_bbox,
     make_unsupported_icon_swell2_grid_response, make_no_coverage_grid_response,
@@ -153,7 +154,7 @@ async def resolve_grid(
         req_w, req_s, req_e, req_n = parse_bbox(bbox)
 
     # 1. Search the manifest for candidate products covering the target time
-    manifest = await asyncio.to_thread(store.get_manifest)
+    manifest = await timed_await('manifest_load', asyncio.to_thread(store.get_manifest))
     authoritative_candidates, estimated_candidates = find_candidates(
         manifest, model, domain, layer, target_dt
     )
@@ -255,7 +256,7 @@ async def resolve_grid(
     # Step 3: Durable manifest full coverage
     if not product:
         if use_manifest_product and matching_manifest_item:
-            candidate_product = await asyncio.to_thread(store.load_product, matching_manifest_item.filename, **_load_kw(series_stride))
+            candidate_product = await timed_await('product_load', asyncio.to_thread(store.load_product, matching_manifest_item.filename, **_load_kw(series_stride)))
             if candidate_product and not _is_oversized_grid(candidate_product):
                 product = candidate_product
                 if product.grid:
@@ -294,7 +295,7 @@ async def resolve_grid(
         file_exists = await asyncio.to_thread(file_path.exists)
         if file_exists:
             logger.info(f"[Grid Route] Serving conformed manifest item {manifest_preview_item.filename} as instant SWR preview")
-            candidate_product = await asyncio.to_thread(store.load_product, manifest_preview_item.filename, **_load_kw(series_stride))
+            candidate_product = await timed_await('product_load', asyncio.to_thread(store.load_product, manifest_preview_item.filename, **_load_kw(series_stride)))
             if candidate_product and not _is_oversized_grid(candidate_product):
                 product = candidate_product
                 if product.grid:
@@ -548,7 +549,7 @@ async def resolve_grid(
 
                 if overlap_manifest_item:
                     logger.info(f"[Grid Route] Fallback: Serving overlapping regional manifest product '{overlap_manifest_item.filename}' as regional_partial")
-                    candidate_product = await asyncio.to_thread(store.load_product, overlap_manifest_item.filename, **_load_kw(series_stride))
+                    candidate_product = await timed_await('product_load', asyncio.to_thread(store.load_product, overlap_manifest_item.filename, **_load_kw(series_stride)))
                     if candidate_product and not _is_oversized_grid(candidate_product):
                         product = candidate_product
                         if not product or not product.grid:

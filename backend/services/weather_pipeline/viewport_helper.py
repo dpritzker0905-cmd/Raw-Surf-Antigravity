@@ -624,8 +624,8 @@ def is_viewport_enabled_helper(
         model.upper() in ("GFS", "ICON", "EURO") and
         (
             (domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")) or
-            (domain.lower() == "wind" and layer.lower() == "wind")
+            (domain.lower() == "wind" and layer.lower() == "wind") or
+            (domain.lower() == "weather" and layer.lower() == "pressure")
         )
         and not use_manifest_product
     )
-
