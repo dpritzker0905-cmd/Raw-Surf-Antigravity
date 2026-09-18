@@ -327,6 +327,9 @@ describe('coarse-preview revalidation keeps re-driving past the old 8-attempt bu
     window.__MARINE_SERIES__ = true;
     global.fetch = jest.fn();
     jest.useFakeTimers();
+    // Keep this retry-budget scenario within one UTC cache hour. Rollover has
+    // separate coverage in marineGridSeries.utcBase.test.js.
+    jest.setSystemTime(new Date('2026-09-17T12:00:00Z'));
   });
   afterEach(() => {
     jest.useRealTimers();
