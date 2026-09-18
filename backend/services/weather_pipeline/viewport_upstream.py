@@ -9,6 +9,7 @@ surgery) stays entirely in viewport_service.py; nothing here touches it.
 import os
 import asyncio
 import logging
+from services.weather_pipeline.phase_timing import timed_phase
 
 from services.weather_pipeline.route_helpers import (
     generate_bbox_coords, build_dynamic_cache_key
@@ -17,6 +18,7 @@ from services.weather_pipeline.route_helpers import (
 logger = logging.getLogger(__name__)
 
 
+@timed_phase('viewport_upstream')
 async def fetch_upstream_raw(
     service,
     model: str,
@@ -106,6 +108,7 @@ async def fetch_upstream_raw(
     return raw_data, resolution, coord_count, bbox_dict
 
 
+@timed_phase('normalize_persist')
 async def normalize_and_persist_layers(
     service,
     model: str,
@@ -167,10 +170,16 @@ async def normalize_and_persist_layers(
                 raise Exception("Target product normalization returned None.")
             continue
 
-        is_empty_grid = False
-        if normalized.grid and normalized.grid.vectors:
-            if not any(v.speed > 0 for v in normalized.grid.vectors):
-                is_empty_grid = True
+        # Pressure is stored in value (hPa), with zero u/v/speed by design.
+        # Vector-only diagnostics would reject a successfully normalized scalar grid.
+        is_pressure = domain.lower() == "weather" and target_layer == "pressure"
+        vectors = normalized.grid.vectors if normalized.grid else []
+        nonzero_count = sum(
+            (v.is_valid is not False and v.value is not None and v.value > 0)
+            if is_pressure else v.speed > 0
+            for v in vectors
+        )
+        is_empty_grid = bool(vectors) and nonzero_count == 0
 
         if is_empty_grid:
             logger.warning(f"[Dynamic Viewport] Normalization produced empty grid for target hour: model={model}, domain={domain}, layer={target_layer}. Allowing zero grid.")
@@ -203,11 +212,11 @@ async def normalize_and_persist_layers(
                 "domain": domain,
                 "layer": target_layer,
                 "valid_time": target_dt_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "nonzeroCount": normalized.grid.diagnostics.get("nonzeroCount", 0) if normalized.grid.diagnostics else 0,
+                "nonzeroCount": nonzero_count,
                 "vectorCount": len(normalized.grid.vectors) if normalized.grid.vectors else 0,
                 "vectors_length": len(normalized.grid.vectors) if normalized.grid.vectors else 0,
                 "gridMode": "rectangular",
-                "renderable": len(normalized.grid.vectors) > 0 and any(v.speed > 0 for v in normalized.grid.vectors),
+                "renderable": bool(vectors) and nonzero_count > 0,
                 "stale": False,
                 "partial_coverage": False
             }

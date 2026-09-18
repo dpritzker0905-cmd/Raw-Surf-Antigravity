@@ -206,7 +206,7 @@ function viewportKey(bounds) {
 }
 
 function pageKey(model, layer, bounds, page) {
-  return `${model || 'GFS'}_${layer || 'waves'}_${getSurfModeFlag() ? 'surf' : 'swell'}_${viewportKey(bounds)}_p${page}`;
+  return `${model || 'GFS'}_${layer || 'waves'}_${getSurfModeFlag() ? 'surf' : 'swell'}_${viewportKey(bounds)}_p${page}_utc${Math.floor(Date.now() / 3600000)}`;
 }
 
 
@@ -227,6 +227,7 @@ function scheduleIdlePrefetch(fn) {
 async function loadSeriesPage(model, layer, bounds, page, signal, force = false) {
   if (!isMarineSeriesEnabled() || !bounds || page < 0 || page > lastPageFor(model)) return;
   const key = pageKey(model, layer, bounds, page);
+  const requestedBaseHour = Math.floor(Date.now() / 3600000);
   // Padded request box (also used for the coverage-aware dedup below). Computed once here.
   // PAD FIRST, THEN NORMALISE (order matters): padding a viewport whose west sits at -179.8 pushes
   // it to -180.3 and would re-introduce the very out-of-range edge normalisation exists to remove.
@@ -322,6 +323,10 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
         return;
       }
       const json = await res.json();
+      // An hour-relative response belongs to its original UTC base, including across
+      // a queued request/hour rollover. Never relabel yesterday's h0 as today's h0.
+      if (Math.floor(Date.now() / 3600000) !== requestedBaseHour) return;
+      if (json?.base_time && Math.floor(Date.parse(json.base_time) / 3600000) !== requestedBaseHour) return;
       if (!json || !Array.isArray(json.frames) || json.frames.length === 0) {
         // COLD-START retry (2026-07-06, chip task_e618f9ff): an empty series marked `warming`
         // means the backend is mid L2-restore (every deploy opens this window) — retry with the
@@ -431,6 +436,7 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
   if (!isMarineSeriesEnabled() || !bounds) return;
   const page = marineSeriesPageForHour(hourOffset, model);
   const h0key = `${pageKey(model, layer, bounds, page)}_h0`;
+  const requestedBaseHour = Math.floor(Date.now() / 3600000);
   const existing = _seriesCache.get(h0key);
   if ((existing && Date.now() - existing.ts < SERIES_TTL_MS) || _inFlight.has(h0key)) return;
   const h = Math.max(0, Math.round(hourOffset / 3) * 3);   // snap to the 3-hourly frame grid
@@ -452,6 +458,8 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
       const res = await fetch(url, { signal: localController.signal });
       if (!res.ok) return;                                   // silent: the full page is coming anyway
       const json = await res.json();
+      if (Math.floor(Date.now() / 3600000) !== requestedBaseHour) return;
+      if (json?.base_time && Math.floor(Date.parse(json.base_time) / 3600000) !== requestedBaseHour) return;
       if (!json || !Array.isArray(json.frames) || json.frames.length === 0) return;
       const f = json.frames.find((x) => typeof x.hour_offset === 'number' && x.vectors && x.vectors.length > 0);
       if (!f) return;
@@ -603,6 +611,7 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     const _wantSurf = getSurfModeFlag();
     for (const entry of _seriesCache.values()) {
       if (now - entry.ts >= SERIES_TTL_MS) continue;
+      if (Math.floor(entry.ts / 3600000) !== Math.floor(now / 3600000)) continue;
       if (entry.model !== model || entry.layer !== layer) continue;
       // FLAVOR GUARD (2026-07-15, "the rating band isn't turning off"): NEVER serve a surf-flavored
       // page in swell mode — its frames carry SCOREs (ratingMode:true) and the engine's reverse gate

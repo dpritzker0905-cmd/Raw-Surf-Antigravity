@@ -19,6 +19,7 @@ import {
 } from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
 import { arrayMax } from './marineControllerUtils';
+import { weatherFrameProvenance } from './weatherFrameProvenance';
 
 export const copernicusPointCache = new BoundedPointCache(50, 30000);
 
@@ -66,6 +67,7 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
   const renderable = mappedVectors.length > 0;
 
   return {
+    ...weatherFrameProvenance(json),
     type: 'FeatureCollection',
     features: [],
     hourOffset,
@@ -74,6 +76,7 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
     tile_id: json.tile_id || json.region_id || null,
     region_id: json.region_id || json.tile_id || null,
     grid: {
+      ...weatherFrameProvenance(json),
       vectors: mappedVectors,
       bounds: json.grid.bounds || snappedBounds,
       cols: json.grid.cols,

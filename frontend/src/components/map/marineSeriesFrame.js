@@ -1,4 +1,5 @@
 import { buildTruthTag, recordTruthStage } from './weatherTruthTracker';
+import { weatherFrameProvenance } from './weatherFrameProvenance';
 
 // Convert one backend series frame into a marineData object shaped exactly like a normal
 // cached grid commit, so the orchestrator's existing commit/parity logic accepts it.
@@ -9,11 +10,7 @@ export function frameToMarineData(frame, model, layer) {
   // establish either the supplier or the dataset; legacy omissions stay unknown.
   const __upstreamProvider = frame.upstream_provider || null;
   const __sourceDataset = frame.source_dataset || null;
-  const cycleProvenance = {
-    model_run_time: frame.model_run_time ?? null,
-    model_run_time_status: frame.model_run_time_status || 'missing',
-    ingested_at: frame.ingested_at ?? null,
-  };
+  const cycleProvenance = weatherFrameProvenance(frame);
   const grid = {
     ...cycleProvenance,
     vectors: frame.vectors,
@@ -97,6 +94,9 @@ export function frameToMarineData(frame, model, layer) {
     __fromSeries: true,
     valid_time: frame.valid_time,
     run_time: frame.run_time,
+    served_valid_time: frame.served_valid_time || null,
+    frame_offset_hours: frame.frame_offset_hours ?? 0,
+    frame_substituted: !!frame.frame_substituted,
     ...cycleProvenance,
     hourOffset: frame.hour_offset,
     ...(truthTag ? { truthTag } : {}),
@@ -105,4 +105,3 @@ export function frameToMarineData(frame, model, layer) {
     is_dynamic_viewport_product: true,
   };
 }
-

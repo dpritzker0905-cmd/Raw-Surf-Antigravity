@@ -9,6 +9,7 @@
 import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { arrayMax } from './marineControllerUtils';
+import { weatherFrameProvenance } from './weatherFrameProvenance';
 
 /**
  * Perform circular blending for direction vectors.
@@ -158,9 +159,11 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
     console.warn(`[Backend Weather Service] Oversized grid rejected: ${rawVectorCount} vectors (cols=${json.grid.cols}, rows=${json.grid.rows}) exceeds cap ${MAX_GRID_CELLS}. Treating as transient non-renderable so the retry fetches the coarse product.`);
     return {
       type: 'FeatureCollection',
+      ...weatherFrameProvenance(json),
       features: [],
       hourOffset,
       grid: {
+        ...weatherFrameProvenance(json),
         vectors: [],
         bounds: json.grid.bounds || snappedBounds,
         cols: 0,
@@ -313,6 +316,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       // the run) — the commit short-circuit refuses to skip without it. Must be carried
       // explicitly: this mapper rebuilds the result field-by-field, so unknown fields are dropped.
       run_time: json.run_time || null,
+      ...weatherFrameProvenance(json),
       // §0c SERVING HONESTY: valid_time above ECHOES the ask; these carry the frame actually
       // served (frame_substituted = a ±3h nearest-frame stand-in) — surfaced in FORENSIC-SNAP
       // so a pasted log self-reports frame skew.
@@ -326,6 +330,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
     validTime: json.valid_time || null,
     valid_time: json.valid_time || null,
     run_time: json.run_time || null,
+    ...weatherFrameProvenance(json),
     served_valid_time: json.served_valid_time || null,
     truthTag: json.truthTag || null
   };
