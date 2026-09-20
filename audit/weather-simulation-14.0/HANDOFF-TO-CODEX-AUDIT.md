@@ -15,9 +15,10 @@ Assume you cannot see either prior session.
 | | |
 |---|---|
 | **Repo** | `dpritzker0905-cmd/Raw-Surf-Antigravity` |
-| **Deployed baseline** | `dev` = `ed5e46c6a27d3bec51bc1f67fb855a1b2c688ac0` (your batch, PR49) |
-| **This work** | branch `claude/weather-f01-f03`, commits `caaa5eb8` (F-01), `de93a3b0` (F-03) |
-| **Status** | **committed, NOT pushed, NOT deployed.** Nothing below is live. |
+| **Deployed baseline** | `dev` = `00c95d23374550a72b0e52cd637318eb02d9ac3d` — **F-01 + F-03 ARE NOW LIVE** |
+| **Previous baseline** | `ed5e46c6` (your `weather-stabilization-14` batch, PR49) |
+| **This work** | PR #50, merged `2026-09-20T23:18:42Z` via `--rebase` |
+| **Status** | **MERGED AND DEPLOYED.** Backend + `dev--rawsurf` both verified at `00c95d23`. |
 | **Audit report** | `audit/weather-simulation-14.0/FINDINGS.md` (original) + this file |
 | **Your batch's report** | `audit/weather-stabilization-14.0/REVIEW_SUMMARY.md` in the OneDrive worktree |
 
@@ -27,7 +28,13 @@ curl -s https://raw-surf-antigravity.onrender.com/api/health | grep -o 'ed5e46c6
 curl -s https://dev--rawsurf.netlify.app/service-worker.js | grep "^const BUILD_VERSION"
 git rev-parse HEAD && git log --oneline -3
 ```
-At handoff time both read `ed5e46c6`; production shell remains the frozen `3bd38a83`.
+Both now read `00c95d23`; production shell remains the frozen `3bd38a83`.
+
+⚠️ **SHA REWRITE — the audit trail needs this mapping.** `--rebase` rewrote the commits. CI run
+`35542391384` cites `af26d195`, which **no longer exists on any branch**. Deployed `00c95d23` and
+tested `af26d195` share the identical tree `832885cba12e6e0c43955e8ae50b1aa5bea9bd57` with an empty
+`git diff`, so the shipped content is byte-for-byte what CI tested. Pre-rebase → post-rebase:
+`caaa5eb8`→`eca495c5`, `de93a3b0`→`9ee21ce0`, `e38f82c0`→`1570888a`, `af26d195`→`00c95d23`.
 
 **Preserve, do not commit:** `backend/uploads/forecast_cache/{marine_global,wind_global}.json`
 (modified) and `frontend/scripts/gr-live/` (untracked). A concurrent session shares this tree —
@@ -66,12 +73,13 @@ Shipped in `caaa5eb8`:
 1. `pytest backend/tests/test_grid_series_base_anchor.py` — 10 tests, including two route-wiring
    tests. Then **mutate**: make `_resolve_series_anchor` ignore its argument and confirm tests go red.
 2. Frontend: `--testPathPattern="marineGridSeries.baseAnchor"` (5 tests).
-3. **The acceptance I could NOT close:** the end-to-end proof needs a backend that has this commit.
-   I tested the local frontend against the **deployed** backend, which does not yet accept
-   `base_time` — so I verified only that the parameter is on the wire (12/12 series requests), not
-   that the committed frame now matches the requested hour. **Run the local frontend against a local
-   backend carrying `caaa5eb8`, at a wall-clock minute ≥ 30, and confirm
-   `selectedValidTime` == the frame the wheel displays.** That is the missing proof.
+3. ✅ **ACCEPTANCE NOW CLOSED against the deployed backend** (2026-09-20 23:21–23:37Z, every reading
+   taken at minute ≥ 30, where the two clocks diverge). Contract: `server` / `client` /
+   `client_rejected` all correct; server-vs-client `base_time` delta measured at **1:00:00** — the
+   defect itself. Browser: wheel "Now" with `requested == selected == 2026-09-21T00:00Z` and series
+   response `base_time_source: "client"`; five scrub steps `allSameInstant: true`. Recovery: a real
+   pointer click on "Jump to now" returns the clock to the current frame, so the unrecoverable state
+   does not reproduce. Full record: `F01-DEPLOYED-VERIFICATION.md`.
 4. **Still open from your own report, and untouched by me:** whether the original unrecoverable
    "Now shows +20 h" state is reachable by *human gestures alone*. I entered it via `map.jumpTo()`
    plus synthetic `keydown`s. The broken *recovery* was confirmed with a real pointer click, but the
@@ -135,6 +143,83 @@ from it. **Do not "fix" it by making the prewarm stop writing until you know who
 
 This is the same class as your WP-8 orphaned-parity finding: an instrument that reads healthy while
 describing something other than what it appears to describe.
+
+---
+
+## C2. F-12 · rapid scrubbing desynchronises the handle from the clock
+**Severity P2 · Confidence HIGH · NOT a regression from the F-01 fix**
+
+Found while verifying F-01 on the deployed backend. Ten `ArrowRight` presses at **600 ms** (faster
+than the debounce), then a pan/zoom, then a real "Jump to now" click produced a state **stable
+across 20 s of no input**:
+
+```
+both wheels : handle 15, "+15 hours"
+clock       : requested == selected == 2026-09-21T06:00:00.000Z   (offset +6 h)
+```
+
+- "Jump to now" reset the clock (`recovered: true`) but did NOT reset the handle and did NOT cancel
+  the queued increments.
+- With no further input the clock then drifted `00:00Z -> 03:00Z -> 06:00Z` over ~50 s as the queued
+  presses drained.
+
+A **latest-selection-wins / cancellation** gap, not an anchor problem: `requested == selected`
+throughout, so the fetch path stays self-consistent; the break is wheel-offset vs clock-offset. The
+slow-scrub control (5 s spacing) is completely clean, which isolates it to input faster than the
+debounce — but "drag the scrubber quickly" is an ordinary gesture. Same family as F-07; treat them
+together.
+
+⚠️ Verification trap that nearly produced a false F-01 *failure*: `requested` carries the browser's
+`toISOString()` (`...00:00.000Z`) while `selected` can carry the backend's format (`...00:00Z`).
+Same instant, unequal as strings. **Compare with `Date.parse`, never `===`.**
+
+---
+
+## C3. F-13 · the blank raster layers cannot all be fixed by the endpoint change
+**Severity P1 · Confidence HIGH · measured live 2026-09-20 ~23:40Z**
+
+Codex's layer-recovery diagnosis is CORRECT and independently confirmed: the configured raster host
+`map-tiles.open-meteo.com` is genuinely dead (DNS failure, `http=000`), while the documented
+`https://openmeteo.s3.amazonaws.com/data_spatial` serves fresh `completed: true` manifests
+(`ncep_gfs025` last modified 23:35:07Z, 209 valid times, 316 variables).
+
+**But the host change alone cannot restore all six reported layers**, because the variable inventory
+differs per model. Measured on the live endpoint:
+
+| model | Precip | AirTemp (`temperature_2m`) | Pressure | Fog | WaterTemp (SST) |
+|---|---|---|---|---|---|
+| `ncep_gfs025` (GFS raster default) | X | X | YES | YES | X |
+| `dwd_icon` | YES | YES | YES | YES | X |
+| `ecmwf_ifs025` | YES | YES | YES | YES | X |
+| `ncep_gfs013` | YES | YES | X | YES | X |
+
+`ncep_gfs025` carries only **14** non-pressure-level variables: `cape, categorical_freezing_rain,
+convective_inhibition, freezing_level_height, lifted_index, pressure_msl, temperature_100m,
+temperature_80m, visibility, wind_gusts_10m, wind_{u,v}_component_{80m,100m}`.
+
+Per reported blank layer:
+- **Pressure** — restored by the host fix alone (`pressure_msl` on GFS).
+- **Fog** — restored by the host fix (`visibility` on GFS; `cloud_cover` on ICON/EURO).
+- **Precipitation** — host fix NOT sufficient on GFS. Needs routing to `ncep_gfs013` (already used
+  for wind) or ICON/EURO.
+- **Air Temp** — same. NEVER substitute `temperature_80m`/`temperature_100m` and label it air
+  temperature; that is exactly the hidden-substitution rule this project forbids.
+- **Water Temp** — **SST is absent from ALL FOUR models on this transport.** It cannot be served
+  here at any model: it needs a different source, or the layer must disclose unavailability. This
+  matches F-09, where Water Temp has no capability-matrix row at all.
+- **Satellite** — already declared discontinued (`"Satellite IR discontinued Jan 2026."`), so a
+  blank satellite layer is the capability matrix telling the truth, not a bug.
+
+**Do not report "layers fixed" from a transport repair.** Acceptance must be per layer per model,
+asserting a real image decode — not a 200 on `latest.json`.
+
+⚠️ Codex's work on this is PRESERVED but UNREVIEWED at commit `f7d0b604` on branch
+`codex/weather-layer-recovery-14` (worktree `raw-surf-layer-recovery14`). It was left entirely
+uncommitted when that session ran out of credits; I committed it verbatim so it could not be lost.
+Not pushed, not verified, and its own report calls it "in progress".
+
+⚠️ Reported by the owner and NOT yet investigated: **"cannot load surf spots"** on localhost, and
+marine/wind layers "having challenges when toggling between them and scrubbing into the future".
 
 ---
 
