@@ -140,7 +140,7 @@ async def find_any_cached_product_helper(
             except Exception:
                 continue
 
-    from services.weather_pipeline.point_resolution import _island_gated
+    from services.weather_pipeline.island_gate import is_island_gated as _island_gated
 
     # 2. Search Manifest (pruning for anomalous future-dated entries runs inside get_manifest())
     manifest = await asyncio.to_thread(store.get_manifest)

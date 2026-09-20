@@ -124,16 +124,43 @@ run on this file is therefore evidence, not decoration.
   accuracy monitor's cohorts are not segmented by `region_id`, so that attribution is unmade. It is
   worth noting the +24h paired MAE *improved* over this window (0.270 → 0.209); nothing here shows
   the island lane caused that, and nothing here rules it out.
-- **It does not establish that the read-path gate is complete.** Only three selection sites are
-  gated. `grid_resolver`, `grid_resolver_selection`, `lattice_fill`, `icon_marine_extension` and
-  `far_edge_hold` all read `manifest.products` directly and were not audited for island exposure.
-  ⇒ **Re-arming `COPERNICUS_ISLAND_INGEST=1` requires finishing that enumeration first.** Until
-  then, Layer 1 is the thing actually holding, and Layer 2 is a partial backstop.
+- **The read-path gate is now COMPLETE as of the same day.** The five remaining direct
+  `manifest.products` consumers were audited (see the addendum below). Two were further holes and
+  are gated; three are exonerated with cause.
+
+## Addendum, same day: the enumeration, and two more holes
+
+The gate originally covered three sites and this document warned it was "not known to be complete".
+It was not. Auditing the five remaining consumers:
+
+| consumer | verdict |
+|---|---|
+| `grid_resolver_selection.find_candidates` | **HOLE — the worst of all five.** Ranking runs through `_select_best_from_list`: largest intersection, then **smallest coverage area**. Zoomed in at an island the request sits inside *both* tiles, so intersection ties and the smallest bbox — always the 0.083° island tile — won **deterministically**, on `/api/weather/grid`. Now gated. |
+| `grid_resolver` Step 6 `regional_partial` overlap | **HOLE — weaker.** Ties on intersection, then time diff, then **list order** — the exact trap `mid_res_tier` already documents for `global_mid`. Now gated. |
+| `lattice_fill._lane_items` | **Exonerated** — exact-match allowlist `("global_coarse", "global_mid")`. |
+| `icon_marine_extension` | **Exonerated** — `region_id` allowlist *and* a model filter of ICON/GFS, while island tiles are all EURO. Two independent exclusions. |
+| `far_edge_hold` | **Exonerated** — requires `coverage_mode == "global_tile"`; the island lane writes `regional_tile`. |
+
+⇒ **The site I gated first was not the main road.** `/api/weather/grid` carries the map; point
+resolution carries spot lookups. An enumeration done at the time of the first fix would have found
+the bigger surface immediately — "gate the site that reproduced the bug" is not the same as "gate
+the paths that can select the product".
+
+Because there are now five sites and no choke point, the predicate moved to its own module,
+`island_gate.py`. Five copies of a predicate is how the 4096/340 literal duplication happened.
+
+**Residual exposure while this was open:** island products carry valid times out to 2026-09-29, so
+they stayed selectable for ~10 days after ingest was defaulted off. Turning ingest off never
+retracts what is already in the manifest — only TTL does.
 
 ## Re-arming checklist
 
-1. Audit the five ungated `manifest.products` consumers above; gate or exonerate each with a test.
+1. ~~Audit the five ungated `manifest.products` consumers.~~ **Done 2026-09-19** — see the addendum.
 2. Arm ingest (`COPERNICUS_ISLAND_INGEST=1`) and let products accumulate with serving still gated.
 3. Run the live A/B the original header asked for, at an island camera, with the halo instrument.
 4. Only then arm `COPERNICUS_ISLAND_SERVE=1`, and segment an accuracy cohort by `region_id` so the
    serving change is measured rather than assumed.
+
+⚠️ If a SIXTH selection site is ever added, it must be added to `island_gate.py`'s site list and to
+the five-site guard in `tests/test_island_serving_gate.py` in the same commit. The guard is the only
+thing standing between "five sites gated" and the copy-per-site drift this lane already caused once.

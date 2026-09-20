@@ -29,12 +29,16 @@ DESIGN, and why it is shaped this way:
   ⛔ INGEST DEFAULTS OFF (COPERNICUS_ISLAND_INGEST=1 arms it). That is the COMPLETE stop: with no
   products in the manifest, no selection site anywhere can pick an island tile. The serving switch is
   the risky half (dropping a fallback tier is what has produced marine blanks here before) and has its
-  own gate, COPERNICUS_ISLAND_SERVE (default 0) in `point_resolution._island_gated`, applied at THREE
+  own gate, COPERNICUS_ISLAND_SERVE (default 0) in `island_gate.is_island_gated`, applied at ALL FIVE
   manifest selection sites and covered by tests/test_island_serving_gate.py.
-  ⚠️ THAT GATE IS NOT KNOWN TO BE COMPLETE — `grid_resolver`, `grid_resolver_selection`, `lattice_fill`,
-  `icon_marine_extension` and `far_edge_hold` also read `manifest.products` directly and were NOT
-  audited. Re-arming ingest requires finishing that enumeration first; see the re-arming checklist in
-  docs/runbooks/RATIONALE-2026-09-19-island-serving-gate.md.
+  ✅ THE ENUMERATION IS NOW COMPLETE (2026-09-19). The five remaining direct `manifest.products`
+  consumers were audited: `grid_resolver_selection.find_candidates` and `grid_resolver`'s Step 6
+  overlap were TWO MORE HOLES — both on `/api/weather/grid`, and the first was the worst of all five
+  (its ranking breaks an intersection tie by SMALLEST COVERAGE AREA, so a 0.083° tile won
+  DETERMINISTICALLY when zoomed in at an island). Both are now gated. EXONERATED with cause:
+  `lattice_fill` (exact-match allowlist "global_coarse"/"global_mid"), `icon_marine_extension`
+  (region_id allowlist AND model ICON/GFS, while island tiles are EURO), `far_edge_hold` (requires
+  coverage_mode == "global_tile"; island writes "regional_tile").
 
   ⚠️⚠️ THIS HEADER ONCE CLAIMED THE LANE WAS "inert by construction — until a serving tier reads
   region_id `island_*`". THAT WAS FALSE FOR A MONTH (2026-08-18 → 2026-09-19). No tier read region_id,

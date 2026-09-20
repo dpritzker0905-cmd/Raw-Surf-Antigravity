@@ -290,7 +290,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # September 19 island serving gate: projected from CI35055272824's chain 940 plus the 6 executed
 # controls in test_island_serving_gate.py (selector-verified into chain: 97 -> 98 files).
 # Candidate CI must confirm 946. The six-test margin is retained, so no budget moves.
-_FLOOR_SET_FROM = {"guards": 1883, "chain": 946, "estate": 488}
+# September 19 grid-path gate: +1 test in the same file (no new file), so chain 946 -> 947
+# and MIN_FILES is unchanged at 98. Candidate CI must confirm 947.
+_FLOOR_SET_FROM = {"guards": 1883, "chain": 947, "estate": 488}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
