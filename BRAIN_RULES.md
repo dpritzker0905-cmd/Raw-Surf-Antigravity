@@ -55,7 +55,7 @@ AI assistants must proactively query and call tools from the active MCP suite be
 * **Keypath Architectural Memory** $\rightarrow$ Call `memstate` MCP (`memstate_remember`, `memstate_get`, `memstate_list`) to save and retrieve structured, versioned keypath architectural facts and stack configuration rules.
 * **Supermemory MCP** $\rightarrow$ Persistent memory provider and RAG storage for Claude Desktop and OpenCode.
   * URL: `https://mcp.supermemory.ai/mcp`
-  * API Key: `sm_E9Xrnuj9Cmptcm2SQEhjjd_gYLbXcRqWRNQmGxn38rnlLpBEIkozqVsSlIw6fAaZzT0UkudmIR3Oz6HCgWki2lI`
+  * API Key: Read from the `SUPERMEMORY_API_KEY` environment variable; never inline the value in tracked files.
   * Config: Registered manually at `C:\Users\dprit\AppData\Roaming\Claude\claude_desktop_config.json` and in `C:\Users\dprit\.config\opencode\opencode.jsonc`.
 * **ChromaDB Vector Store** $\rightarrow$ Vector database for in-memory and client-server prototyping, semantic queries, document tokenization, and embedding indexes.
   * Setup: `chromadb.Client()` (in-memory) or `chroma run --path /chroma_db_path` (client-server).

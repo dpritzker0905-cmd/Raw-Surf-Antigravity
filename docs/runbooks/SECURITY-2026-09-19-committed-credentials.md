@@ -1,4 +1,4 @@
-# Committed credentials in a PUBLIC repository — 2026-09-19
+# Committed credentials in a PUBLIC repository — 2026-09-19, second checked 2026-09-20
 
 **No secret value appears in this document, and none may ever be added to it.** Only locations,
 exposure windows and remediation status are recorded.
@@ -6,15 +6,18 @@ exposure windows and remediation status are recorded.
 ## Severity
 
 `dpritzker0905-cmd/Raw-Surf-Antigravity` is **PUBLIC** (`visibility=PUBLIC`, verified 2026-09-19).
-Every credential below has therefore been world-readable for the window stated. **All of them must
-be treated as compromised.** Rotation at the provider is the only effective remediation; nothing
-done inside this repository reduces the exposure of a value that has already been published.
+The confirmed credential entries below have been publicly readable. **Treat published credentials
+as compromised until their revocation is verified.** All six scanner alerts report validity
+`unknown`; current provider acceptance, privileges and associated production resources were not
+tested. Removing current file contents does not revoke a credential or erase Git history.
 
 ## What was asked, and what was actually found
 
 The standing item was "rotate the `BRAIN_RULES.md` key" — one credential. Enumerating the repo's
 own GitHub secret-scanning alerts found **six more, all `open` and `UNRESOLVED`**, several of which
-are considerably more dangerous than the one being tracked.
+may carry broader authority than the one being tracked. The independent second check also found
+a retained Supermemory key in the same two instruction files: eight credential entries in total
+(six scanner alerts plus Qdrant and Supermemory), not a complete repository-wide secret census.
 
 ### A. GitHub secret-scanning alerts — 6 open, unresolved
 
@@ -27,31 +30,46 @@ are considerably more dangerous than the one being tracked.
 | 2 | Mapbox Secret Access Token | `frontend/src/components/Explore.js:593` | 2026-04-15 |
 | 1 | Stripe Test API Secret Key | `backend/.env:5` | 2026-04-15 |
 
-⛔ **The two Supabase Service Keys are the worst of these.** A `service_role` key bypasses RLS
-entirely — it is full read/write authority over the production database, and no amount of
-route-level BOLA hardening constrains it.
+⛔ **Prioritize the two Supabase Service Key alerts.** An accepted `service_role` credential can
+bypass RLS. The alerts do not establish current validity, project association or current database
+grants; full production access was not tested. Route-level authorization is not evidence that an
+exposed provider credential has been revoked.
 
 ### B. The Qdrant key (the originally tracked item)
 
 `BRAIN_RULES.md:200` and `.antigravityrules` carried a Qdrant Cloud API key **inline, next to its
-cluster endpoint URL**, committed `8e156c8c` on **2026-05-26 — ~116 days**, live on **both `main`
-and `dev`**. Removed from both files by this change and replaced with a `QDRANT_API_KEY`
+cluster endpoint URL**, committed `8e156c8c` on **2026-05-26 — ~116 days**, present in the tracked
+contents of **both `main` and `dev`** at the audit baseline. Removed from both files by this change and replaced with a `QDRANT_API_KEY`
 environment-variable reference.
 
-Note the correct pattern was already present one line below, at `BRAIN_RULES.md:201`: the LangSmith
-key is held in episodic memory and referenced by name, never inlined. The Qdrant line simply did
-not follow it.
+This change replaces the inline value with an environment-variable reference. It does not change
+the user's local provider configuration or verify that a replacement credential is configured.
+
+### B2. The retained Supermemory key found by the second check
+
+`BRAIN_RULES.md:58` and `.antigravityrules:58` still contained a credential-shaped 90-character
+value under **Supermemory MCP / API Key** on the first cleanup branch. Its provider URL is
+`https://mcp.supermemory.ai/mcp`. Blame attributes both lines to `58f7e87d`, committed
+2026-05-28 04:35 UTC; the value is present on the inspected `main`, `dev`, and original cleanup
+head `3d599eb7`.
+
+The second check removes both inline occurrences and references `SUPERMEMORY_API_KEY` instead.
+Provider URL and local configuration-location instructions remain intact. No key was printed,
+submitted to the provider or otherwise exercised; validity and permissions remain unknown.
 
 ### C. Not detected by GitHub, and therefore easy to miss
 
-`secret_scanning_non_provider_patterns` is **disabled** on this repository. GitHub only flags
-credentials matching a known provider signature, so anything generic was never alerted on. The
-Qdrant key is proof this gap is real. By the same logic the following, all present in the local
-`backend/.env`, should be assumed exposed if that file was ever pushed (see §D):
+`secret_scanning_non_provider_patterns` is **disabled** on this repository. The six alerts are not
+a complete credential inventory: the two inline keys above were found separately. Broader pattern
+coverage may help discovery, but does not prove that every credential type will be detected.
+
+The first audit also reported the following names in local `backend/.env`. Their historical values
+need comparison with published copies before claiming confirmed exposure; treat them as potentially
+exposed while that check is outstanding (see §D):
 `RENDER_API_KEY` (production configuration write authority),
 `COPERNICUSMARINE_SERVICE_USERNAME` / `COPERNICUSMARINE_SERVICE_PASSWORD`.
 
-## D. ⛔ The history cleanup did NOT remediate anything
+## D. ⛔ History cleanup did not establish credential revocation
 
 `backend/.env` is **not tracked at HEAD and is correctly gitignored today**, and `git log --all`
 finds **zero** commits touching it. That appears clean. It is not.
@@ -74,30 +92,33 @@ same defect shape this codebase keeps meeting: a written value mistaken for a li
 
 ## Remediation — owner actions, in priority order
 
-Claude cannot perform any of these: they require provider-account authority, and handling
-credential values is out of scope by policy.
+These actions require authorized provider-account access. This cleanup did not exercise provider
+credentials, rotate keys, modify deployments, close alerts or rewrite history.
 
-1. **Rotate both Supabase `service_role` keys first.** Full DB authority, exposed ~5 months.
+1. **Revoke/rotate the exposed Supabase service keys first.** Confirm associated projects and scope.
    Update Render (`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SERVICE_KEY`) and local `backend/.env`.
 2. **Rotate the Stripe secret key.** Alert says *Test*; confirm no live key shares the exposure.
 3. **Rotate OneSignal, Mapbox and Google API keys.** Re-apply referrer/IP restrictions on the
    Google and Mapbox keys while you are there.
-4. **Rotate the Qdrant Cloud key** (the originally tracked item) and set `QDRANT_API_KEY` in the
-   environment. The cluster endpoint is also public, so the key is the only remaining control.
-5. **Rotate `RENDER_API_KEY` and the Copernicus service password** — undetected by GitHub, so
-   never alerted, but in the same file as items 1/3/5.
-6. **Close all 6 alerts** with `revoked` once rotated, so the list means something again.
-7. **Enable `secret_scanning_non_provider_patterns`** — this is the gap that hid items 4 and 5.
-8. **Ask GitHub Support to purge the unreachable commits.** Only GitHub can drop them from the
+4. **Rotate the Qdrant Cloud key** and configure `QDRANT_API_KEY` in the authorized local environment.
+5. **Revoke/rotate the Supermemory key** and configure `SUPERMEMORY_API_KEY`; update the authorized
+   local integrations that previously used the published value.
+6. **Check historical `RENDER_API_KEY` and Copernicus password values for exposure** and revoke/rotate
+   any published values, updating their authorized consumers. Their exposure is not established by
+   the six provider alerts alone.
+7. **Close all 6 alerts** with `revoked` only after revocation is verified.
+8. **Enable broader secret-scanning patterns** as a discovery improvement, not a remediation claim.
+9. **Ask GitHub Support to purge the unreachable commits.** Only GitHub can drop them from the
    public object store; deleting a branch does not. This is cleanup *after* rotation, never
    instead of it.
 
 ## What this change does and does not do
 
-- **Does:** removes the Qdrant key from `BRAIN_RULES.md` and `.antigravityrules` at HEAD, so it
-  stops being re-published in every future clone, and records the full finding.
-- **Does NOT:** reduce the exposure of any already-published value, including the Qdrant key
-  itself. Items 1–6 above are the remediation. This commit is bookkeeping.
+- **Does:** removes the identified Qdrant and Supermemory values from the current tracked contents
+  of `BRAIN_RULES.md` and `.antigravityrules`, replacing them with environment-variable references.
+- **Does NOT:** revoke any value, remove it from historical commits, or prove all repository secrets
+  have been found. Ordinary full-history clones can still contain the old values. Provider
+  revocation is still required; this file cleanup is not evidence of completed incident response.
 
-⚠️ History rewriting is destructive and is **not** proposed here. It would not help — §D shows the
-last rewrite left the secrets publicly fetchable — and it would require separate explicit approval.
+⚠️ History rewriting is destructive and is **not** proposed here. The earlier rewrite left values
+publicly fetchable, so removing refs cannot be substituted for provider revocation.
