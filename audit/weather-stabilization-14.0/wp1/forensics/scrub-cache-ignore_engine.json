@@ -1,0 +1,115 @@
+{
+  "mode": "ignore_engine",
+  "baselineRevision": "91b90ae9",
+  "note": "Controlled dependency experiment against actual hook. Not a browser or network test. Mutations are in-memory only.",
+  "cases": [
+    {
+      "pass": true,
+      "scrubbing": false,
+      "series": false,
+      "ownerHour": 0,
+      "committedHours": [],
+      "enqueued": [
+        "timeline_scrub_deferred"
+      ],
+      "events": [],
+      "timeline": {
+        "timeOffsetHours": 0,
+        "selectedValidTime": "2026-09-21T15:00:00Z",
+        "requestedValidTime": "2026-09-20T21:00:00Z",
+        "coverage_status": "stale_time_mismatch",
+        "domain": "marine",
+        "activeModel": "GFS",
+        "activeLayer": "waves",
+        "requestedValidTimeOriginal": null,
+        "temporalStatus": "response_time_mismatch",
+        "temporalMismatch": true,
+        "responseTimeMismatch": true,
+        "renderTimeMismatch": false,
+        "reportedRenderTimeMismatch": false,
+        "renderVerified": false,
+        "requestedHour": 0,
+        "renderedHour": null,
+        "renderedValidTime": null,
+        "renderEvidenceSource": null,
+        "spatialCoverageStatus": "full_coverage"
+      }
+    },
+    {
+      "pass": true,
+      "scrubbing": true,
+      "series": false,
+      "ownerHour": 0,
+      "committedHours": [],
+      "enqueued": [],
+      "events": [],
+      "timeline": {
+        "timeOffsetHours": 0,
+        "selectedValidTime": "2026-09-21T15:00:00Z",
+        "requestedValidTime": "2026-09-20T21:00:00Z",
+        "coverage_status": "stale_time_mismatch",
+        "domain": "marine",
+        "activeModel": "GFS",
+        "activeLayer": "waves",
+        "requestedValidTimeOriginal": null,
+        "temporalStatus": "response_time_mismatch",
+        "temporalMismatch": true,
+        "responseTimeMismatch": true,
+        "renderTimeMismatch": false,
+        "reportedRenderTimeMismatch": false,
+        "renderVerified": false,
+        "requestedHour": 0,
+        "renderedHour": null,
+        "renderedValidTime": null,
+        "renderEvidenceSource": null,
+        "spatialCoverageStatus": "full_coverage"
+      }
+    },
+    {
+      "pass": true,
+      "scrubbing": false,
+      "series": true,
+      "ownerHour": 0,
+      "committedHours": [
+        0
+      ],
+      "enqueued": [],
+      "events": [
+        "local_cache_remap_timeline"
+      ],
+      "timeline": {
+        "timeOffsetHours": 0,
+        "selectedValidTime": "2026-09-20T21:00:00Z",
+        "requestedValidTime": "2026-09-20T21:00:00Z",
+        "coverage_status": "full_coverage",
+        "domain": "marine",
+        "activeModel": "GFS",
+        "activeLayer": "waves",
+        "requestedValidTimeOriginal": null,
+        "temporalStatus": "aligned",
+        "temporalMismatch": false,
+        "responseTimeMismatch": false,
+        "renderTimeMismatch": false,
+        "reportedRenderTimeMismatch": false,
+        "renderVerified": false,
+        "requestedHour": 0,
+        "renderedHour": null,
+        "renderedValidTime": null,
+        "renderEvidenceSource": null,
+        "spatialCoverageStatus": "full_coverage",
+        "gridProductId": null,
+        "model_run_time": null,
+        "model_run_time_status": "missing",
+        "commitRevision": 2,
+        "cacheStatus": "committed_cache_frame"
+      }
+    },
+    {
+      "case": "accepted_engine_over_legacy",
+      "pass": false,
+      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ 'temporal_coverage_unverified'\n- 'full_coverage'\n"
+    }
+  ],
+  "passed": 3,
+  "failed": 1
+}

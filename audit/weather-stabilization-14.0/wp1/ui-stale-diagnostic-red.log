@@ -1,0 +1,34 @@
+FAIL src/components/map/ForecastTimeStatus.test.js
+  √ shows a spoken time mismatch in light theme (35 ms)
+  √ shows a spoken time mismatch in dark theme (5 ms)
+  √ shows a spoken time mismatch in beach theme (3 ms)
+  × clears the warning when the selected response catches up without another user action (6 ms)
+  √ does not attribute an old model or layer diagnostic to the current selection (1 ms)
+  √ does not claim an unverified render diagnostic proves a stale field (3 ms)
+
+  ● clears the warning when the selected response catches up without another user action
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "full_coverage"
+    Received: "stale_time_mismatch"
+
+      31 |   act(() => { jest.advanceTimersByTime(1000); });
+      32 |   expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    > 33 |   expect(window.__FORECAST_TIMELINE_COVERAGE_DIAG__.coverage_status).toBe('full_coverage');
+         |                                                                      ^
+      34 | });
+      35 |
+      36 | it('does not attribute an old model or layer diagnostic to the current selection', () => {
+
+      at Object.<anonymous> (src/components/map/ForecastTimeStatus.test.js:33:70)
+      at TestScheduler.scheduleTests (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:173:3)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 5 passed, 6 total
+Snapshots:   0 total
+Time:        1.637 s
+Ran all test suites within paths "src/components/map/ForecastTimeStatus.test.js".

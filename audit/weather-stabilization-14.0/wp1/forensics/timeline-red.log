@@ -1,0 +1,153 @@
+FAIL src/components/map/useMarineOrchestratorScrubCache.timeline.test.js
+  ● Console
+
+    console.log
+      [SCRUB] [BACKEND CACHE] Instant re-index: +0h model=GFS layer=waves
+
+      at src/components/map/useMarineOrchestratorScrubCache.js:163:21
+
+  ● reset commits the actual current series identity and leaves the single time owner at zero
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  - 5
+    + Received  + 3
+
+      Object {
+    -   "gridProductId": "series-GFS-0",
+    -   "model_run_time": "2026-09-20T06:00:00Z",
+    -   "selectedValidTime": "2026-09-20T21:00:00Z",
+    -   "temporalStatus": "aligned",
+    -   "timeOffsetHours": 0,
+    +   "gridProductId": "series-GFS-18",
+    +   "selectedValidTime": "2026-09-21T15:00:00Z",
+    +   "timeOffsetHours": 18,
+      }
+
+      51 |   expect(args.timeOffsetRef.current).toBe(0);
+      52 |   expect(args.setMarineData).toHaveBeenCalledWith(expect.objectContaining({ hourOffset: 0 }));
+    > 53 |   expect(window.__FORECAST_TIMELINE_COVERAGE_DIAG__).toMatchObject({ timeOffsetHours: 0,
+         |                                                      ^
+      54 |     selectedValidTime: '2026-09-20T21:00:00Z', gridProductId: 'series-GFS-0',
+      55 |     model_run_time: '2026-09-20T06:00:00Z', temporalStatus: 'aligned' });
+      56 |   expect(args.enqueueMarineUpdate).not.toHaveBeenCalled();
+
+      at Object.<anonymous> (src/components/map/useMarineOrchestratorScrubCache.timeline.test.js:53:54)
+
+  ● a current-hour cache miss retains the old selected time but cannot retain green temporal coverage
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  - 4
+    + Received  + 3
+
+      Object {
+    -   "coverage_status": "stale_time_mismatch",
+    -   "requestedValidTime": "2026-09-20T21:00:00Z",
+    +   "coverage_status": "full_coverage",
+    +   "requestedValidTime": "2026-09-21T15:00:00Z",
+        "selectedValidTime": "2026-09-21T15:00:00Z",
+    -   "temporalStatus": "response_time_mismatch",
+    -   "timeOffsetHours": 0,
+    +   "timeOffsetHours": 18,
+      }
+
+      64 |   expect(args.enqueueMarineUpdate).toHaveBeenCalledWith('timeline_scrub_deferred');
+      65 |   expect(args.setMarineData).not.toHaveBeenCalled();
+    > 66 |   expect(window.__FORECAST_TIMELINE_COVERAGE_DIAG__).toMatchObject({ timeOffsetHours: 0,
+         |                                                      ^
+      67 |     requestedValidTime: '2026-09-20T21:00:00Z', selectedValidTime: '2026-09-21T15:00:00Z',
+      68 |     coverage_status: 'stale_time_mismatch', temporalStatus: 'response_time_mismatch' });
+      69 | });
+
+      at Object.<anonymous> (src/components/map/useMarineOrchestratorScrubCache.timeline.test.js:66:54)
+
+FAIL src/components/map/marineTimelineCoverage.test.js
+  ● a spatially covering future response cannot claim current temporal coverage
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "stale_time_mismatch"
+    Received: "full_coverage"
+
+      19 |   publish({ validTime: FUTURE });
+      20 |   const diag = window.__FORECAST_TIMELINE_COVERAGE_DIAG__;
+    > 21 |   expect(diag.coverage_status).toBe('stale_time_mismatch');
+         |                                ^
+      22 |   expect(diag.spatialCoverageStatus).toBe('full_coverage');
+      23 |   expect(diag.temporalStatus).toBe('response_time_mismatch');
+      24 | });
+
+      at Object.<anonymous> (src/components/map/marineTimelineCoverage.test.js:21:32)
+      at TestScheduler.scheduleTests (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:173:3)
+
+  ● unverified retained-render telemetry is disclosed without claiming a verified render failure
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "temporal_coverage_unverified"
+    Received: "full_coverage"
+
+      28 |   publish();
+      29 |   const diag = window.__FORECAST_TIMELINE_COVERAGE_DIAG__;
+    > 30 |   expect(diag.coverage_status).toBe('temporal_coverage_unverified');
+         |                                ^
+      31 |   expect(diag.temporalStatus).toBe('render_time_unverified');
+      32 |   expect(diag.renderTimeMismatch).toBe(false);
+      33 |   expect(diag.reportedRenderTimeMismatch).toBe(true);
+
+      at Object.<anonymous> (src/components/map/marineTimelineCoverage.test.js:30:32)
+      at TestScheduler.scheduleTests (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:173:3)
+
+  ● verified render evidence can establish the actual mismatch
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "render_time_mismatch"
+    Received: undefined
+
+      37 |   window.__MARINE_RENDER_HOUR_PARITY__ = { requestedHour: 0, renderedDataHour: 18, parity: false, verified: true };
+      38 |   publish();
+    > 39 |   expect(window.__FORECAST_TIMELINE_COVERAGE_DIAG__.temporalStatus).toBe('render_time_mismatch');
+         |                                                                     ^
+      40 |   expect(window.__FORECAST_TIMELINE_COVERAGE_DIAG__.coverage_status).toBe('stale_time_mismatch');
+      41 | });
+      42 |
+
+      at Object.<anonymous> (src/components/map/marineTimelineCoverage.test.js:39:69)
+      at TestScheduler.scheduleTests (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:173:3)
+
+  ● a correct subsequent response clears a prior response mismatch
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "aligned"
+    Received: undefined
+
+      50 |   publish();
+      51 |   expect(window.__FORECAST_TIMELINE_COVERAGE_DIAG__.coverage_status).toBe('full_coverage');
+    > 52 |   expect(window.__FORECAST_TIMELINE_COVERAGE_DIAG__.temporalStatus).toBe('aligned');
+         |                                                                     ^
+      53 | });
+      54 |
+
+      at Object.<anonymous> (src/components/map/marineTimelineCoverage.test.js:52:69)
+      at TestScheduler.scheduleTests (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:173:3)
+
+Test Suites: 2 failed, 2 total
+Tests:       6 failed, 1 passed, 7 total
+Snapshots:   0 total
+Time:        2.64 s
+Ran all test suites within paths "src/components/map/marineTimelineCoverage.test.js", "src/components/map/useMarineOrchestratorScrubCache.timeline.test.js".

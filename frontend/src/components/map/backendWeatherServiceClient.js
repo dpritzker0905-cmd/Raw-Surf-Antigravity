@@ -186,8 +186,9 @@ export function getBackendIconMarineFlag() {
  * Computes a standardized snapped UTC ISO string from hourOffset.
  * Resolves the nearest valid_time from cachedManifest when available (max 3h delta).
  * Provides the single source of authority for matching grid/point time dimensions.
+ * Diagnostic callers use readOnly to avoid manifest refreshes or serving diagnostic writes.
  */
-export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName = 'GFS') {
+export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName = 'GFS', { readOnly = false } = {}) {
   const offset = isNaN(Number(timeOffsetHours)) ? 0 : Number(timeOffsetHours);
   const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
   const roundedNow = Math.round(baseTime / 3600000) * 3600000;
@@ -238,11 +239,11 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
   } else {
     fallbackReason = "Manifest is not yet loaded, empty, or invalid; using snapped target valid time as fallback";
     // Prefetch or refresh manifest in background
-    fetchProductsManifest(true).catch(() => {});
+    if (!readOnly) fetchProductsManifest(true).catch(() => {});
   }
 
   const cacheDiagKey = `${filterModel}_${filterLayer}`;
-  latestTimeDiag[cacheDiagKey] = {
+  if (!readOnly) latestTimeDiag[cacheDiagKey] = {
     requestedValidTime,
     selectedManifestValidTime,
     manifestDeltaHours,
