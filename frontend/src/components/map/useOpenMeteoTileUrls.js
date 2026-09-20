@@ -555,6 +555,16 @@ export function useOpenMeteoTileUrls({
           }
           let layerModel = resolveModel(entry, variable);
           let meta = MODEL_METADATA_CACHE[layerModel] || { variables: [], validTimes: [] };
+          if (!meta.sourceMetadata) {
+            // A failed cold request leaves UI bootstrap defaults in the cache. Their
+            // time index is not portable to the provider axis fetched by the decoder.
+            // Wait for verified metadata before publishing any real tile URL.
+            newActiveSlots[layerKey] = 0;
+            for (let slot = 0; slot < 3; slot++) {
+              newUrls[`${layerKey}-slot-${slot}`] = 'om://transparent-tile';
+            }
+            continue;
+          }
           let resolvedVar = variable;
           if (!meta.variables.includes(variable)) {
             if (entry.omModelGroup === 'marine') {

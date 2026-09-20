@@ -65,29 +65,59 @@ def get_estimate_weights(target_hour: float, native_limit: float, is_icon_valid:
         "confidence": confidence
     }
 
+def _finite_number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _direction_from_components(u, v, amplitude) -> Optional[float]:
+    """Resolve a bearing only above dimensionless floating-point cancellation noise.
+
+    Angular roundoff grows as O(epsilon / resultant). sqrt(epsilon) is a numerical
+    conditioning guard, NOT calibrated directional confidence or a physical threshold.
+    Components and amplitude must use the same units; calm has no vector bearing.
+    """
+    if not all(_finite_number(x) for x in (u, v, amplitude)) or amplitude <= 0.0:
+        return None
+    if math.hypot(u / amplitude, v / amplitude) <= math.sqrt(math.ulp(1.0)):
+        return None
+    return (math.degrees(math.atan2(-u, -v)) + 360.0) % 360.0
+
+
 def blend_direction(heights: list, directions: list, weights: list) -> Optional[float]:
-    """Height-weighted vector circular blend for wave direction."""
-    sum_u = 0.0
-    sum_v = 0.0
-    valid_weight_sum = 0.0
+    """Height-weighted circular blend; missing active support or cancellation refuses.
+
+    Zero weight/height contributes no directional energy. For an entirely calm blend,
+    retain an existing finite bearing when present; callers keep their zero-vector
+    calm representation when absent, without interpreting it as measured direction.
+    """
+    us, vs, amplitudes = [], [], []
+    calm_direction = None
 
     for i in range(len(heights)):
         h = heights[i]
         d = directions[i]
         w = weights[i]
 
-        if h is not None and d is not None and not math.isnan(h) and not math.isnan(d) and w > 0.0:
-            rad = d * math.pi / 180.0
-            u = -h * math.sin(rad)
-            v = -h * math.cos(rad)
-            sum_u += u * w
-            sum_v += v * w
-            valid_weight_sum += w
+        if not _finite_number(w):
+            return None
+        if w <= 0.0:
+            continue
+        if not _finite_number(h) or h < 0.0:
+            return None
+        if h == 0.0:
+            if calm_direction is None and _finite_number(d):
+                calm_direction = d % 360.0
+            continue
+        if not _finite_number(d) or not math.isfinite(h * w):
+            return None
+        rad = math.radians(d % 360.0)
+        amplitudes.append(h * w)
+        us.append(-h * w * math.sin(rad))
+        vs.append(-h * w * math.cos(rad))
 
-    if valid_weight_sum > 0.0 and (sum_u != 0.0 or sum_v != 0.0):
-        val = math.atan2(-sum_u, -sum_v) * 180.0 / math.pi
-        return (val + 360.0) % 360.0
-    return directions[0] if (directions and directions[0] is not None) else None
+    if not amplitudes:
+        return calm_direction
+    return _direction_from_components(math.fsum(us), math.fsum(vs), math.fsum(amplitudes))
 
 def blend_period(periods: list, weights: list) -> Optional[float]:
     """Linear blend for wave period, rejecting zero/null values."""
@@ -246,6 +276,7 @@ def estimate_euro_grid(
     blended_cells = 0
     skipped_invalid_anchor = 0
     skipped_gfs_resample = 0
+    skipped_unresolved_direction = 0
 
     for v_euro_anchor in euro_anchor_grid.vectors:
         vector_count += 1
@@ -271,10 +302,7 @@ def estimate_euro_grid(
             p_euro_anchor = 0.0
 
         # Extract direction of EURO anchor
-        d_euro_anchor = None
-        if v_euro_anchor.u != 0.0 or v_euro_anchor.v != 0.0:
-            val = math.atan2(-v_euro_anchor.u, -v_euro_anchor.v) * 180.0 / math.pi
-            d_euro_anchor = (val + 360.0) % 360.0
+        d_euro_anchor = _direction_from_components(v_euro_anchor.u, v_euro_anchor.v, h_euro_anchor)
 
         # Resample GFS
         c_gfs_anchor = resample_from_grid(lat, lng, gfs_anchor_grid)
@@ -293,10 +321,7 @@ def estimate_euro_grid(
             continue
 
         # Extract GFS direction from target
-        d_gfs_target = None
-        if c_gfs_target["u"] != 0.0 or c_gfs_target["v"] != 0.0:
-            val = math.atan2(-c_gfs_target["u"], -c_gfs_target["v"]) * 180.0 / math.pi
-            d_gfs_target = (val + 360.0) % 360.0
+        d_gfs_target = _direction_from_components(c_gfs_target["u"], c_gfs_target["v"], c_gfs_target["speed"])
 
         h_gfs_trend = max(0.0, h_euro_anchor + (c_gfs_target["speed"] - c_gfs_anchor["speed"]))
         
@@ -320,13 +345,10 @@ def estimate_euro_grid(
             c_icon_anchor = resample_from_grid(lat, lng, icon_anchor_grid)
             c_icon_target = resample_from_grid(lat, lng, icon_target_grid)
             if c_icon_anchor and c_icon_target and c_icon_target["speed"] is not None:
-                valid_icon = True
-                d_icon_target = None
-                if c_icon_target["u"] != 0.0 or c_icon_target["v"] != 0.0:
-                    val = math.atan2(-c_icon_target["u"], -c_icon_target["v"]) * 180.0 / math.pi
-                    d_icon_target = (val + 360.0) % 360.0
+                d_icon_target = _direction_from_components(c_icon_target["u"], c_icon_target["v"], c_icon_target["speed"])
 
                 h_icon_trend = max(0.0, h_euro_anchor + (c_icon_target["speed"] - c_icon_anchor["speed"]))
+                valid_icon = not (w_icon * h_icon_trend > 0.0 and d_icon_target is None)
                 
                 if (p_euro_anchor > 0.0 and c_icon_anchor["period"] is not None
                         and c_icon_target["period"] is not None):
@@ -341,8 +363,6 @@ def estimate_euro_grid(
 
         # Blended Height
         blended_height = max(0.0, w_persist * h_euro_anchor + w_gfs_real * h_gfs_trend + w_icon_real * h_icon_trend)
-        if blended_height > 0.05:
-            nonzero_count += 1
 
         # Blended Period
         periods = [p_euro_anchor, p_gfs_trend]
@@ -363,6 +383,13 @@ def estimate_euro_grid(
             heights.append(h_icon_trend)
 
         blended_direction = blend_direction(heights, directions, d_weights)
+        if blended_height > 0.0 and blended_direction is None:
+            skipped_unresolved_direction += 1
+            vectors.append(GridVector(lat=lat, lng=lng, speed=0.0, direction=0.0,
+                                      u=0.0, v=0.0, period=None, is_valid=False))
+            continue
+        if blended_height > 0.05:
+            nonzero_count += 1
 
         u = 0.0
         v = 0.0
@@ -400,8 +427,9 @@ def estimate_euro_grid(
             )
         logger.error(
             "[Estimator] ZERO blendable cells for %s@%.0fh — skipped_invalid_anchor=%d "
-            "skipped_gfs_resample=%d of %d anchor cells. %s | %s | %s",
-            active_layer, target_hour, skipped_invalid_anchor, skipped_gfs_resample, vector_count,
+            "skipped_gfs_resample=%d skipped_unresolved_direction=%d of %d anchor cells. %s | %s | %s",
+            active_layer, target_hour, skipped_invalid_anchor, skipped_gfs_resample,
+            skipped_unresolved_direction, vector_count,
             _geo("euro_anchor", euro_anchor_product),
             _geo("gfs_anchor", gfs_anchor_product),
             _geo("gfs_target", gfs_target_product),
@@ -416,6 +444,7 @@ def estimate_euro_grid(
         diagnostics={
             "vectorCount": vector_count,
             "nonzeroCount": nonzero_count,
+            "unresolvedDirectionCount": skipped_unresolved_direction,
             "estimateConfidence": confidence,
             "weights": {"persistence": w_persist, "gfs": w_gfs_real, "icon": w_icon_real}
         }
@@ -507,7 +536,7 @@ def estimate_euro_grid(
 
 def _extract_point_vals(raw_point: dict, layer: str, idx: int) -> dict:
     if not raw_point or "hourly" not in raw_point:
-        return {"speed": None, "direction": 0.0, "period": 0.0}
+        return {"speed": None, "direction": None, "period": 0.0}
     h = raw_point["hourly"]
     l_map = {
         "waves": ("wave_height", "wave_direction", "wave_period"),
@@ -528,7 +557,7 @@ def _extract_point_vals(raw_point: dict, layer: str, idx: int) -> dict:
 
     return {
         "speed": get_val(speed_key, None),
-        "direction": get_val(dir_key),
+        "direction": get_val(dir_key, None),
         "period": get_val(per_key)
     }
 
@@ -592,13 +621,19 @@ async def resolve_euro_estimate_point(
             
     native_limit = EURO_LIMIT_WAVES if layer.lower() == "waves" else EURO_LIMIT_COMPONENTS
     w = get_estimate_weights(target_hour, native_limit, is_icon_valid)
+    if (is_icon_valid and w["icon"] > 0.0
+            and max(0.0, euro_anc["speed"] + icon_tgt["speed"] - icon_anc["speed"]) > 0.0
+            and not _finite_number(icon_tgt["direction"])):
+        # Apply the same unavailable-source policy as a missing ICON height. Anchor
+        # bearings are not consumed by a height trend and do not govern eligibility.
+        is_icon_valid = False
+        w = get_estimate_weights(target_hour, native_limit, False)
     w_persist, w_gfs, w_icon, confidence = w["persistence"], w["gfs"], w["icon"], w["confidence"]
     w_icon_real = w_icon if is_icon_valid else 0.0
     w_gfs_real = w_gfs + (w_icon if not is_icon_valid else 0.0)
     
     # Match the grid estimator's period contract. Upstream nulls were historically
     # decoded as zero here; zero/nonfinite periods cannot anchor a physical trend.
-    # Direction fallback policy is intentionally unchanged in this path.
     for values in (euro_anc, gfs_anc, gfs_tgt, icon_anc, icon_tgt):
         if values is not None:
             period = values["period"]
@@ -634,6 +669,8 @@ async def resolve_euro_estimate_point(
         d_weights.append(w_icon_real)
         heights.append(h_icon_trend)
     blended_direction = blend_direction(heights, directions, d_weights)
+    if blended_height > 0.0 and blended_direction is None:
+        return None
     
     u, v = 0.0, 0.0
     if blended_height > 0.0 and blended_direction is not None:

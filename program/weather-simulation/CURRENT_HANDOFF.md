@@ -2,6 +2,40 @@
 
 **Written so a fresh session can continue WITHOUT rereading the 12+ audits.**
 
+## 2026-09-20 — Codex second check continuation
+
+The active weather lane is `codex/weather-handoff-second-check` in the isolated
+`raw-surf-weather-audit` checkout. Last pushed head is `d82032f5`; overnight CI
+`35487375744` passed 11/11 jobs on an identical tree. The day-two continuation is local.
+Use [the summary audit](../../audit/weather-handoff-day2-2026-09-20/SUMMARY_AUDIT.md)
+and its linked receipts for current work; the August records below remain historical.
+
+- Direction cancellation/missingness is repaired through backend point/grid/lattice and the
+  separate frontend ICON mirrors. Healthy calm/north/wrap controls remain. Numerical refusal
+  is not a calibrated uncertainty score or field validation.
+- Raster fallback now uses completed provider manifests and refuses bootstrap time axes after
+  a cold metadata failure. Decoder and mounted-hook tests reproduce and prevent wrong-cycle
+  and wrong-hour selection. Live pixels/performance are not certified by these tests.
+- Fixed private September scored-archive replay passes the unchanged persistence rule at all
+  three leads, with zero observation-pairing exclusions. Public references still outperform
+  the served lane. C4-SC-12 retains its first corrected scheduled-verdict requirement.
+- A real-code fault-injection probe reproduces archive/pending replacement after a failed read.
+  Strict reads, acknowledged writes and create-only missing-object handling now protect the
+  skill ledger, hot residual archive and monthly rollup. Pending is consumed only after scored
+  archives acknowledge. Concurrent successful updates remain unprotected; do not infer complete
+  monthly retention or a confirmed historical production-loss cause from the snapshot's date span.
+
+Final local verification: forecast chain **1,148 passed / 101 files**, frontend **2,542 passed /
+259 suites**, frontend production build passed with warnings, governance **51 passed**. Storage
+affected suites reran **213 passed** after a test-clock fix; an isolated ordering mutation failed
+the preservation guard while its healthy control passed. Source hashes and environment limits
+are recorded in the linked audit's `final-validation.json`; new hosted CI remains outstanding.
+
+Separate approval is required for this new continuation push, any merge, or deployment.
+No changes to bucket permissions, forecast thresholds, scientific flags or frontend release
+status are authorized by the local verification. Raw archive bytes are outside the Git checkout.
+
+
 ---
 
 ## ⬆ 2026-08-15 LATEST — the halo's prime suspect is MEASURED and the verdict rewrites the plan (independent lane; committed on `claude/halo-audit31-lane`, NOT pushed)

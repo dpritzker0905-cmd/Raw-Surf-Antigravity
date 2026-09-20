@@ -1,6 +1,7 @@
 import { CUSTOM_COLOR_SCALES, aliasSurfaceTemperature } from './colorScales';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { traceOmUrl, traceOmBlock, traceOmServed } from './omUrlTrace';
+import { LIVE_FETCHED_MODELS } from './openMeteoMetadata';
 
 // F4: per-tile / per-frame console output is GATED. With console capture / React Scan / PostHog
 // active, an unconditional console.log per decoded tile materially amplifies tile-heavy
@@ -447,18 +448,12 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           const urlObj = new URL(urlString);
           const parts = urlObj.pathname.split('/');
           const model = parts[2];
-          if (model && MODEL_METADATA_CACHE[model] && MODEL_METADATA_CACHE[model].validTimes?.length) {
+          if (model && LIVE_FETCHED_MODELS.has(model) && MODEL_METADATA_CACHE[model]?.sourceMetadata) {
             const meta = MODEL_METADATA_CACHE[model];
             WeatherTelemetry.trackCacheHit(model, 'MODEL_METADATA_CACHE');
-            const responseData = {
-              completed: true,
-              crs_wkt: "",
-              last_modified_time: new Date().toISOString(),
-              reference_time: meta.referenceTime || new Date().toISOString(),
-              valid_times: meta.validTimes,
-              variables: meta.variables || []
-            };
-            return Promise.resolve(new Response(JSON.stringify(responseData), {
+            // Only a validated provider response can stand in for latest.json.
+            // Never promote bootstrap cycle/time guesses or UI aliases to provider truth.
+            return Promise.resolve(new Response(JSON.stringify(meta.sourceMetadata), {
               status: 200,
               statusText: 'OK',
               headers: { 'Content-Type': 'application/json' }

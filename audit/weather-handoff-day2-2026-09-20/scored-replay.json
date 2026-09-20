@@ -1,0 +1,702 @@
+{
+  "captured_at": "2026-09-20T16:30:38.826648+00:00",
+  "snapshot": {
+    "filename": "scored-2026-09.json",
+    "bytes": 17686467,
+    "sha256": "9012f386d32995ee66ec04a6a7ce816356481366e502bd9d135fce6c326e417e",
+    "storage_object": "weather-products/calibration/skill/scored-2026-09.json",
+    "storage_updated_at": "2026-09-20T15:37:56.791017+00:00",
+    "raw_archive_handling": "Private local directory outside the Git checkout; never published."
+  },
+  "evaluation_as_of": "2026-09-20T16:29:23+00:00",
+  "window": "target_time in [as_of - 7 days, as_of] inclusive",
+  "evaluator": {
+    "head": "d82032f5cd5978967622721b8c9638da36a87f7d",
+    "source_sha256": {
+      "backend/services/weather_pipeline/forecast_skill.py": "67a327ad1efa661355137286c9265579a17bfc7986ae1a1b063c9b4bc3e15022",
+      "backend/scripts/forecast_accuracy_monitor.py": "7ec5c536ee820996b85c28447023504afafe1c0f5b11efefd484e1f68540fb10"
+    },
+    "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]"
+  },
+  "quality_month_snapshot": {
+    "row_count": 86346,
+    "unique_source_buoy_target_lead_keys": 86346,
+    "source_counts": {
+      "open_meteo:ncep_gfswave025": 12554,
+      "open_meteo_marine": 14422,
+      "persistence": 14867,
+      "raw_surf": 14865,
+      "raw_surf:EURO": 14861,
+      "raw_surf:ICON": 14777
+    },
+    "buoy_count": 56,
+    "target_span": [
+      "2026-09-09T21:00:00+00:00",
+      "2026-09-20T16:00:00+00:00"
+    ],
+    "observation_span": [
+      "2026-09-09T21:03:00+00:00",
+      "2026-09-20T15:00:00+00:00"
+    ],
+    "max_stored_error_difference_m": 4.440892098500626e-16,
+    "checks": {
+      "invalid_target_time": 0,
+      "invalid_obs_time": 0,
+      "invalid_error": 0,
+      "invalid_height": 0,
+      "invalid_observation_height": 0,
+      "observation_after_as_of": 0,
+      "outside_90_minute_join": 0,
+      "stored_error_mismatch_gt_0_000051m": 0,
+      "duplicate_key_groups": 0,
+      "duplicate_extra_rows": 0,
+      "duplicate_conflicting_rows_groups": 0
+    }
+  },
+  "quality_week": {
+    "row_count": 55425,
+    "unique_source_buoy_target_lead_keys": 55425,
+    "source_counts": {
+      "open_meteo:ncep_gfswave025": 8099,
+      "open_meteo_marine": 9286,
+      "persistence": 9534,
+      "raw_surf": 9532,
+      "raw_surf:EURO": 9530,
+      "raw_surf:ICON": 9444
+    },
+    "buoy_count": 56,
+    "target_span": [
+      "2026-09-13T17:00:00+00:00",
+      "2026-09-20T16:00:00+00:00"
+    ],
+    "observation_span": [
+      "2026-09-13T17:45:00+00:00",
+      "2026-09-20T15:00:00+00:00"
+    ],
+    "max_stored_error_difference_m": 4.440892098500626e-16,
+    "checks": {
+      "invalid_target_time": 0,
+      "invalid_obs_time": 0,
+      "invalid_error": 0,
+      "invalid_height": 0,
+      "invalid_observation_height": 0,
+      "observation_after_as_of": 0,
+      "outside_90_minute_join": 0,
+      "stored_error_mismatch_gt_0_000051m": 0,
+      "duplicate_key_groups": 0,
+      "duplicate_extra_rows": 0,
+      "duplicate_conflicting_rows_groups": 0
+    }
+  },
+  "common_observation_pairs": [
+    {
+      "source": "open_meteo:ncep_gfswave025",
+      "lead_h": 24,
+      "n_target_matched": 2750,
+      "n_paired": 2750,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3220,
+      "n_theirs_total": 2750,
+      "mae_ours_m": 0.2064,
+      "mae_theirs_m": 0.1843,
+      "delta_m": 0.022,
+      "win_rate": 0.3767,
+      "we_lose": true
+    },
+    {
+      "source": "open_meteo:ncep_gfswave025",
+      "lead_h": 48,
+      "n_target_matched": 2700,
+      "n_paired": 2700,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3174,
+      "n_theirs_total": 2700,
+      "mae_ours_m": 0.2177,
+      "mae_theirs_m": 0.1991,
+      "delta_m": 0.0186,
+      "win_rate": 0.413,
+      "we_lose": true
+    },
+    {
+      "source": "open_meteo:ncep_gfswave025",
+      "lead_h": 72,
+      "n_target_matched": 2649,
+      "n_paired": 2649,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3138,
+      "n_theirs_total": 2649,
+      "mae_ours_m": 0.2307,
+      "mae_theirs_m": 0.2138,
+      "delta_m": 0.0169,
+      "win_rate": 0.4115,
+      "we_lose": true
+    },
+    {
+      "source": "open_meteo_marine",
+      "lead_h": 24,
+      "n_target_matched": 3150,
+      "n_paired": 3150,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3220,
+      "n_theirs_total": 3152,
+      "mae_ours_m": 0.2118,
+      "mae_theirs_m": 0.1612,
+      "delta_m": 0.0506,
+      "win_rate": 0.3737,
+      "we_lose": true
+    },
+    {
+      "source": "open_meteo_marine",
+      "lead_h": 48,
+      "n_target_matched": 3093,
+      "n_paired": 3093,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3174,
+      "n_theirs_total": 3093,
+      "mae_ours_m": 0.224,
+      "mae_theirs_m": 0.1729,
+      "delta_m": 0.0511,
+      "win_rate": 0.3999,
+      "we_lose": true
+    },
+    {
+      "source": "open_meteo_marine",
+      "lead_h": 72,
+      "n_target_matched": 3041,
+      "n_paired": 3041,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3138,
+      "n_theirs_total": 3041,
+      "mae_ours_m": 0.2355,
+      "mae_theirs_m": 0.1863,
+      "delta_m": 0.0492,
+      "win_rate": 0.413,
+      "we_lose": true
+    },
+    {
+      "source": "persistence",
+      "lead_h": 24,
+      "n_target_matched": 3220,
+      "n_paired": 3220,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3220,
+      "n_theirs_total": 3222,
+      "mae_ours_m": 0.2125,
+      "mae_theirs_m": 0.2671,
+      "delta_m": -0.0546,
+      "win_rate": 0.5497,
+      "we_lose": false
+    },
+    {
+      "source": "persistence",
+      "lead_h": 48,
+      "n_target_matched": 3174,
+      "n_paired": 3174,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3174,
+      "n_theirs_total": 3174,
+      "mae_ours_m": 0.2245,
+      "mae_theirs_m": 0.3549,
+      "delta_m": -0.1304,
+      "win_rate": 0.6238,
+      "we_lose": false
+    },
+    {
+      "source": "persistence",
+      "lead_h": 72,
+      "n_target_matched": 3138,
+      "n_paired": 3138,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3138,
+      "n_theirs_total": 3138,
+      "mae_ours_m": 0.2358,
+      "mae_theirs_m": 0.3851,
+      "delta_m": -0.1492,
+      "win_rate": 0.6217,
+      "we_lose": false
+    },
+    {
+      "source": "raw_surf:EURO",
+      "lead_h": 24,
+      "n_target_matched": 3218,
+      "n_paired": 3218,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3220,
+      "n_theirs_total": 3220,
+      "mae_ours_m": 0.2126,
+      "mae_theirs_m": 0.1818,
+      "delta_m": 0.0308,
+      "win_rate": 0.44,
+      "we_lose": true
+    },
+    {
+      "source": "raw_surf:EURO",
+      "lead_h": 48,
+      "n_target_matched": 3173,
+      "n_paired": 3173,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3174,
+      "n_theirs_total": 3173,
+      "mae_ours_m": 0.2245,
+      "mae_theirs_m": 0.1959,
+      "delta_m": 0.0286,
+      "win_rate": 0.4482,
+      "we_lose": true
+    },
+    {
+      "source": "raw_surf:EURO",
+      "lead_h": 72,
+      "n_target_matched": 3137,
+      "n_paired": 3137,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3138,
+      "n_theirs_total": 3137,
+      "mae_ours_m": 0.2359,
+      "mae_theirs_m": 0.21,
+      "delta_m": 0.0259,
+      "win_rate": 0.4498,
+      "we_lose": true
+    },
+    {
+      "source": "raw_surf:ICON",
+      "lead_h": 24,
+      "n_target_matched": 3130,
+      "n_paired": 3130,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3220,
+      "n_theirs_total": 3132,
+      "mae_ours_m": 0.2125,
+      "mae_theirs_m": 0.2882,
+      "delta_m": -0.0757,
+      "win_rate": 0.6524,
+      "we_lose": false
+    },
+    {
+      "source": "raw_surf:ICON",
+      "lead_h": 48,
+      "n_target_matched": 3174,
+      "n_paired": 3174,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3174,
+      "n_theirs_total": 3174,
+      "mae_ours_m": 0.2245,
+      "mae_theirs_m": 0.302,
+      "delta_m": -0.0775,
+      "win_rate": 0.6172,
+      "we_lose": false
+    },
+    {
+      "source": "raw_surf:ICON",
+      "lead_h": 72,
+      "n_target_matched": 3138,
+      "n_paired": 3138,
+      "n_observation_mismatch": 0,
+      "n_observation_missing": 0,
+      "n_ours_total": 3138,
+      "n_theirs_total": 3138,
+      "mae_ours_m": 0.2358,
+      "mae_theirs_m": 0.3175,
+      "delta_m": -0.0817,
+      "win_rate": 0.6192,
+      "we_lose": false
+    }
+  ],
+  "pairing_diagnostics": {
+    "invalid_error_rows": 0,
+    "comparisons": [
+      {
+        "source": "open_meteo:ncep_gfswave025",
+        "lead_h": 24,
+        "n_target_matched": 2750,
+        "n_paired": 2750,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "open_meteo:ncep_gfswave025",
+        "lead_h": 48,
+        "n_target_matched": 2700,
+        "n_paired": 2700,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "open_meteo:ncep_gfswave025",
+        "lead_h": 72,
+        "n_target_matched": 2649,
+        "n_paired": 2649,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "open_meteo_marine",
+        "lead_h": 24,
+        "n_target_matched": 3150,
+        "n_paired": 3150,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "open_meteo_marine",
+        "lead_h": 48,
+        "n_target_matched": 3093,
+        "n_paired": 3093,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "open_meteo_marine",
+        "lead_h": 72,
+        "n_target_matched": 3041,
+        "n_paired": 3041,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "persistence",
+        "lead_h": 24,
+        "n_target_matched": 3220,
+        "n_paired": 3220,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "persistence",
+        "lead_h": 48,
+        "n_target_matched": 3174,
+        "n_paired": 3174,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "persistence",
+        "lead_h": 72,
+        "n_target_matched": 3138,
+        "n_paired": 3138,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "raw_surf:EURO",
+        "lead_h": 24,
+        "n_target_matched": 3218,
+        "n_paired": 3218,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "raw_surf:EURO",
+        "lead_h": 48,
+        "n_target_matched": 3173,
+        "n_paired": 3173,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "raw_surf:EURO",
+        "lead_h": 72,
+        "n_target_matched": 3137,
+        "n_paired": 3137,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "raw_surf:ICON",
+        "lead_h": 24,
+        "n_target_matched": 3130,
+        "n_paired": 3130,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "raw_surf:ICON",
+        "lead_h": 48,
+        "n_target_matched": 3174,
+        "n_paired": 3174,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      },
+      {
+        "source": "raw_surf:ICON",
+        "lead_h": 72,
+        "n_target_matched": 3138,
+        "n_paired": 3138,
+        "n_observation_mismatch": 0,
+        "n_observation_missing": 0
+      }
+    ]
+  },
+  "target_only_baseline": {
+    "commit": "607af934e74fa87f3b8e58698ef68fdce919ea54",
+    "source_sha256": "49acce5ac301324d8dd76664a4d9a3d3cc1970e769c7b43c9273407142f4094f",
+    "pairs_on_same_snapshot_and_window": [
+      {
+        "source": "open_meteo:ncep_gfswave025",
+        "lead_h": 24,
+        "n_paired": 2750,
+        "n_ours_total": 3220,
+        "n_theirs_total": 2750,
+        "mae_ours_m": 0.2064,
+        "mae_theirs_m": 0.1843,
+        "delta_m": 0.022,
+        "win_rate": 0.3767,
+        "we_lose": true
+      },
+      {
+        "source": "open_meteo:ncep_gfswave025",
+        "lead_h": 48,
+        "n_paired": 2700,
+        "n_ours_total": 3174,
+        "n_theirs_total": 2700,
+        "mae_ours_m": 0.2177,
+        "mae_theirs_m": 0.1991,
+        "delta_m": 0.0186,
+        "win_rate": 0.413,
+        "we_lose": true
+      },
+      {
+        "source": "open_meteo:ncep_gfswave025",
+        "lead_h": 72,
+        "n_paired": 2649,
+        "n_ours_total": 3138,
+        "n_theirs_total": 2649,
+        "mae_ours_m": 0.2307,
+        "mae_theirs_m": 0.2138,
+        "delta_m": 0.0169,
+        "win_rate": 0.4115,
+        "we_lose": true
+      },
+      {
+        "source": "open_meteo_marine",
+        "lead_h": 24,
+        "n_paired": 3150,
+        "n_ours_total": 3220,
+        "n_theirs_total": 3152,
+        "mae_ours_m": 0.2118,
+        "mae_theirs_m": 0.1612,
+        "delta_m": 0.0506,
+        "win_rate": 0.3737,
+        "we_lose": true
+      },
+      {
+        "source": "open_meteo_marine",
+        "lead_h": 48,
+        "n_paired": 3093,
+        "n_ours_total": 3174,
+        "n_theirs_total": 3093,
+        "mae_ours_m": 0.224,
+        "mae_theirs_m": 0.1729,
+        "delta_m": 0.0511,
+        "win_rate": 0.3999,
+        "we_lose": true
+      },
+      {
+        "source": "open_meteo_marine",
+        "lead_h": 72,
+        "n_paired": 3041,
+        "n_ours_total": 3138,
+        "n_theirs_total": 3041,
+        "mae_ours_m": 0.2355,
+        "mae_theirs_m": 0.1863,
+        "delta_m": 0.0492,
+        "win_rate": 0.413,
+        "we_lose": true
+      },
+      {
+        "source": "persistence",
+        "lead_h": 24,
+        "n_paired": 3220,
+        "n_ours_total": 3220,
+        "n_theirs_total": 3222,
+        "mae_ours_m": 0.2125,
+        "mae_theirs_m": 0.2671,
+        "delta_m": -0.0546,
+        "win_rate": 0.5497,
+        "we_lose": false
+      },
+      {
+        "source": "persistence",
+        "lead_h": 48,
+        "n_paired": 3174,
+        "n_ours_total": 3174,
+        "n_theirs_total": 3174,
+        "mae_ours_m": 0.2245,
+        "mae_theirs_m": 0.3549,
+        "delta_m": -0.1304,
+        "win_rate": 0.6238,
+        "we_lose": false
+      },
+      {
+        "source": "persistence",
+        "lead_h": 72,
+        "n_paired": 3138,
+        "n_ours_total": 3138,
+        "n_theirs_total": 3138,
+        "mae_ours_m": 0.2358,
+        "mae_theirs_m": 0.3851,
+        "delta_m": -0.1492,
+        "win_rate": 0.6217,
+        "we_lose": false
+      },
+      {
+        "source": "raw_surf:EURO",
+        "lead_h": 24,
+        "n_paired": 3218,
+        "n_ours_total": 3220,
+        "n_theirs_total": 3220,
+        "mae_ours_m": 0.2126,
+        "mae_theirs_m": 0.1818,
+        "delta_m": 0.0308,
+        "win_rate": 0.44,
+        "we_lose": true
+      },
+      {
+        "source": "raw_surf:EURO",
+        "lead_h": 48,
+        "n_paired": 3173,
+        "n_ours_total": 3174,
+        "n_theirs_total": 3173,
+        "mae_ours_m": 0.2245,
+        "mae_theirs_m": 0.1959,
+        "delta_m": 0.0286,
+        "win_rate": 0.4482,
+        "we_lose": true
+      },
+      {
+        "source": "raw_surf:EURO",
+        "lead_h": 72,
+        "n_paired": 3137,
+        "n_ours_total": 3138,
+        "n_theirs_total": 3137,
+        "mae_ours_m": 0.2359,
+        "mae_theirs_m": 0.21,
+        "delta_m": 0.0259,
+        "win_rate": 0.4498,
+        "we_lose": true
+      },
+      {
+        "source": "raw_surf:ICON",
+        "lead_h": 24,
+        "n_paired": 3130,
+        "n_ours_total": 3220,
+        "n_theirs_total": 3132,
+        "mae_ours_m": 0.2125,
+        "mae_theirs_m": 0.2882,
+        "delta_m": -0.0757,
+        "win_rate": 0.6524,
+        "we_lose": false
+      },
+      {
+        "source": "raw_surf:ICON",
+        "lead_h": 48,
+        "n_paired": 3174,
+        "n_ours_total": 3174,
+        "n_theirs_total": 3174,
+        "mae_ours_m": 0.2245,
+        "mae_theirs_m": 0.302,
+        "delta_m": -0.0775,
+        "win_rate": 0.6172,
+        "we_lose": false
+      },
+      {
+        "source": "raw_surf:ICON",
+        "lead_h": 72,
+        "n_paired": 3138,
+        "n_ours_total": 3138,
+        "n_theirs_total": 3138,
+        "mae_ours_m": 0.2358,
+        "mae_theirs_m": 0.3175,
+        "delta_m": -0.0817,
+        "win_rate": 0.6192,
+        "we_lose": false
+      }
+    ]
+  },
+  "monitor": {
+    "code": 0,
+    "verdict": "OK",
+    "scope": "Pure evaluate_scored_segment only; no live report/residual gates or scheduled run.",
+    "config": {
+      "red_mae_m": 0.4,
+      "warn_mae_m": 0.3,
+      "min_n": 30,
+      "max_report_age_h": 8.0,
+      "ops_grace": "2026-08-10T12:00:00+00:00",
+      "scored_grace": "2026-08-12T06:00:00+00:00",
+      "paired_gate": true,
+      "paired_grace": "2026-08-22T00:00:00+00:00",
+      "paired_min_n": 200,
+      "paired_persistence_margin_m": 0.0,
+      "paired_reference_margin_m": 0.1
+    },
+    "lines": [
+      "scored archive: 86346 rows this month, 55425 with targets in trailing 7d",
+      "  open_meteo:ncep_gfswave025 +24h  n=2750  mae=0.184 bias=-0.087",
+      "  open_meteo:ncep_gfswave025 +48h  n=2700  mae=0.199 bias=-0.073",
+      "  open_meteo:ncep_gfswave025 +72h  n=2649  mae=0.214 bias=-0.054",
+      "  open_meteo_marine      +24h  n=3152  mae=0.161 bias=-0.025",
+      "  open_meteo_marine      +48h  n=3093  mae=0.173 bias=-0.025",
+      "  open_meteo_marine      +72h  n=3041  mae=0.186 bias=-0.021",
+      "  persistence            +24h  n=3222  mae=0.267 bias=-0.013",
+      "  persistence            +48h  n=3174  mae=0.355 bias=-0.015",
+      "  persistence            +72h  n=3138  mae=0.385 bias=-0.007",
+      "  raw_surf               +24h  n=3220  mae=0.212 bias=-0.091",
+      "  raw_surf               +48h  n=3174  mae=0.225 bias=-0.081",
+      "  raw_surf               +72h  n=3138  mae=0.236 bias=-0.068",
+      "  raw_surf:EURO          +24h  n=3220  mae=0.182 bias=+0.014",
+      "  raw_surf:EURO          +48h  n=3173  mae=0.196 bias=+0.026",
+      "  raw_surf:EURO          +72h  n=3137  mae=0.210 bias=+0.034",
+      "  raw_surf:ICON          +24h  n=3132  mae=0.288 bias=+0.055",
+      "  raw_surf:ICON          +48h  n=3174  mae=0.302 bias=+0.123",
+      "  raw_surf:ICON          +72h  n=3138  mae=0.318 bias=+0.143",
+      "  -- PAIRED head-to-head (same buoy x target x lead AND verifying observation) --",
+      "  vs open_meteo:ncep_gfswave025 +24h  n=2750  ours=0.206 theirs=0.184 delta=+0.022 win=38%  WE LOSE",
+      "  vs open_meteo:ncep_gfswave025 +48h  n=2700  ours=0.218 theirs=0.199 delta=+0.019 win=41%  WE LOSE",
+      "  vs open_meteo:ncep_gfswave025 +72h  n=2649  ours=0.231 theirs=0.214 delta=+0.017 win=41%  WE LOSE",
+      "  vs open_meteo_marine   +24h  n=3150  ours=0.212 theirs=0.161 delta=+0.051 win=37%  WE LOSE",
+      "  vs open_meteo_marine   +48h  n=3093  ours=0.224 theirs=0.173 delta=+0.051 win=40%  WE LOSE",
+      "  vs open_meteo_marine   +72h  n=3041  ours=0.235 theirs=0.186 delta=+0.049 win=41%  WE LOSE",
+      "  vs persistence         +24h  n=3220  ours=0.212 theirs=0.267 delta=-0.055 win=55%  we win",
+      "  vs persistence         +48h  n=3174  ours=0.225 theirs=0.355 delta=-0.130 win=62%  we win",
+      "  vs persistence         +72h  n=3138  ours=0.236 theirs=0.385 delta=-0.149 win=62%  we win",
+      "  vs raw_surf:EURO       +24h  n=3218  ours=0.213 theirs=0.182 delta=+0.031 win=44%  WE LOSE",
+      "  vs raw_surf:EURO       +48h  n=3173  ours=0.225 theirs=0.196 delta=+0.029 win=45%  WE LOSE",
+      "  vs raw_surf:EURO       +72h  n=3137  ours=0.236 theirs=0.210 delta=+0.026 win=45%  WE LOSE",
+      "  vs raw_surf:ICON       +24h  n=3130  ours=0.212 theirs=0.288 delta=-0.076 win=65%  we win",
+      "  vs raw_surf:ICON       +48h  n=3174  ours=0.225 theirs=0.302 delta=-0.077 win=62%  we win",
+      "  vs raw_surf:ICON       +72h  n=3138  ours=0.236 theirs=0.318 delta=-0.082 win=62%  we win",
+      "::warning::PUBLIC REFERENCE ahead at +24h -- `open_meteo:ncep_gfswave025` beats us by +0.022 m on n=2750 (win rate 38%). Standing product condition, deliberately not a page: it has held since 2026-08-10 and a permanently-red workflow trains red-blindness. Pages at +0.100 m.",
+      "::warning::PUBLIC REFERENCE ahead at +48h -- `open_meteo:ncep_gfswave025` beats us by +0.019 m on n=2700 (win rate 41%). Standing product condition, deliberately not a page: it has held since 2026-08-10 and a permanently-red workflow trains red-blindness. Pages at +0.100 m.",
+      "::warning::PUBLIC REFERENCE ahead at +72h -- `open_meteo:ncep_gfswave025` beats us by +0.017 m on n=2649 (win rate 41%). Standing product condition, deliberately not a page: it has held since 2026-08-10 and a permanently-red workflow trains red-blindness. Pages at +0.100 m.",
+      "::warning::PUBLIC REFERENCE ahead at +24h -- `open_meteo_marine` beats us by +0.051 m on n=3150 (win rate 37%). Standing product condition, deliberately not a page: it has held since 2026-08-10 and a permanently-red workflow trains red-blindness. Pages at +0.100 m.",
+      "::warning::PUBLIC REFERENCE ahead at +48h -- `open_meteo_marine` beats us by +0.051 m on n=3093 (win rate 40%). Standing product condition, deliberately not a page: it has held since 2026-08-10 and a permanently-red workflow trains red-blindness. Pages at +0.100 m.",
+      "::warning::PUBLIC REFERENCE ahead at +72h -- `open_meteo_marine` beats us by +0.049 m on n=3041 (win rate 41%). Standing product condition, deliberately not a page: it has held since 2026-08-10 and a permanently-red workflow trains red-blindness. Pages at +0.100 m."
+    ]
+  },
+  "limitations": [
+    "One retained snapshot, not a proof of complete September retention.",
+    "Rows contain no forecast-issue/scoring timestamp; cannot reconstruct a historical as-known cohort.",
+    "Operational paired rule is not a statistical significance test.",
+    "Offshore significant wave height verification does not validate nearshore surf ratings."
+  ],
+  "workflow_config_observation": {
+    "captured_at": "2026-09-20T16:36:22Z",
+    "source": "gh variable list --repo dpritzker0905-cmd/Raw-Surf-Antigravity --json name,value; filtered ACCURACY_ prefix",
+    "repository_accuracy_variables": [],
+    "meaning": "No repository ACCURACY_ overrides observed; checked-in workflow defaults agree with replay policy."
+  }
+}

@@ -488,29 +488,72 @@ def fetch_buoy_spots_via_rest(limit: int = 5000) -> list:
     return resp.json()
 
 
-def upload_calibration_l2(store, obj, key: str = None) -> None:
-    """Persist the calibration report to Supabase Storage L2 (same REST upload path as the grid products)."""
+class CalibrationReadError(RuntimeError):
+    """L2 history could not be read reliably; it must not be replaced as empty."""
+
+
+class CalibrationWriteError(RuntimeError):
+    """L2 persistence was not acknowledged; pending evidence must remain retryable."""
+
+
+def upload_calibration_l2(store, obj, key: str = None, *, strict: bool = False,
+                          overwrite: bool = True) -> None:
+    """Persist to L2; strict callers require acknowledgment before consuming evidence."""
     import json
     data = json.dumps(obj, separators=(",", ":")).encode("utf-8")
-    store._upload_to_supabase(key or BUOY_CALIBRATION_L2_KEY, data)
+    if not strict:
+        options = {} if overwrite else {"overwrite": False}
+        store._upload_to_supabase(key or BUOY_CALIBRATION_L2_KEY, data, **options)
+        return
+    try:
+        acknowledged = store._upload_to_supabase(
+            key or BUOY_CALIBRATION_L2_KEY, data, strict=True, overwrite=overwrite)
+        if acknowledged is not True:
+            raise RuntimeError("upload did not acknowledge persistence")
+    except Exception as exc:
+        raise CalibrationWriteError(f"L2 write failed for {key or BUOY_CALIBRATION_L2_KEY}") from exc
 
 
-def load_calibration_l2(l2_key: str = None):
+def load_calibration_l2(l2_key: str = None, *, strict: bool = False):
     """Read a calibration object back from L2 via a self-contained Storage REST GET (mirrors the upload).
-    Returns the parsed object or None (missing / not configured / error)."""
+    Legacy reads return None on failure. Strict reads reserve None for object-not-found;
+    callers must create-only on that result because an unseen object may exist."""
     base = os.environ.get("SUPABASE_URL", "").rstrip("/")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not base or not key:
+        if strict:
+            raise CalibrationReadError("L2 storage is not configured")
         return None
     try:
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{l2_key or BUOY_CALIBRATION_L2_KEY}"
         resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=10)
-        return resp.json() if resp.status_code == 200 else None
+        if resp.status_code == 200:
+            obj = resp.json()
+            if strict and obj is None:
+                raise CalibrationReadError("L2 object contains JSON null")
+            return obj
+        if not strict:
+            return None
+        if resp.status_code == 404 and resp.json().get("code") in ("NoSuchKey", "not_found"):
+            return None
+        raise CalibrationReadError(f"L2 read returned HTTP {resp.status_code}")
     except Exception as e:
+        if strict:
+            raise CalibrationReadError(f"L2 read failed for {l2_key or BUOY_CALIBRATION_L2_KEY}") from e
         logger.debug(f"[buoy-calibration] L2 load failed: {e}")
         return None
+
+
+def load_calibration_rows_l2(key: str):
+    """Strict archive read as (rows, exists); absent objects require create-only writes."""
+    rows = load_calibration_l2(key, strict=True)
+    if rows is None:
+        return [], False
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        raise CalibrationReadError(f"L2 archive object is not a list of rows: {key}")
+    return rows, True
 
 
 # ── THE RESIDUAL ARCHIVE — the evidence a calibration curve needs and did not have ────────────
@@ -697,9 +740,10 @@ def run_buoy_calibration() -> tuple:
     # hiccup here must never cost the calibration report itself.
     if os.environ.get("BUOY_RESIDUAL_ARCHIVE", "1") != "0":
         try:
-            existing = load_calibration_l2(BUOY_RESIDUAL_ARCHIVE_KEY) or []
+            existing, exists = load_calibration_rows_l2(BUOY_RESIDUAL_ARCHIVE_KEY)
             merged = merge_residual_archive(existing, archive_rows_from_report(report))
-            upload_calibration_l2(store, merged, BUOY_RESIDUAL_ARCHIVE_KEY)
+            upload_calibration_l2(store, merged, BUOY_RESIDUAL_ARCHIVE_KEY,
+                                  strict=True, overwrite=exists)
             report["archive"] = build_archive_summary(merged)
             logger.info("[buoy-calibration] residual archive: %d entries across %d buoys.",
                         len(merged), report["archive"]["n_buoys"])

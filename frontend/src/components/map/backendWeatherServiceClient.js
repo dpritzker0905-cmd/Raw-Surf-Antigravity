@@ -14,6 +14,7 @@ import { latestTimeDiag, updateDiagnostics, updateProjectionDiag } from './backe
 import { recordTruthStage } from './weatherTruthTracker';
 import { fetchBackendMarineGridIconExtended, mapNormalizedGridToWebGL } from './backendWeatherServiceClientHelpers';
 import { arrayMax, arrayMin } from './marineControllerUtils';
+import { blendSubVector } from './marineDirectionBlend';
 
 
 export { BoundedPointCache };
@@ -354,34 +355,17 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       let maxSpeed = 0, nonzeroCount = 0;
 
       const blendedVectors = primaryVectors.map(pv => {
-        let speed = pv.speed || 0;
-        let u = pv.u || 0;
-        let v = pv.v || 0;
-        let period = pv.period || 0;
-
         const sv = secondaryLookup ? secondaryLookup.get(skey(pv.lat, pv.lng)) : null;
-        const sSpeed = sv ? (sv.speed || 0) : 0;
-        if (sSpeed > 0 && speed > 0) {
-          // both sources have secondary swell here -> weighted blend
-          speed = speed * primaryW + sSpeed * secondaryW;
-          u = u * primaryW + (sv.u || 0) * secondaryW;
-          v = v * primaryW + (sv.v || 0) * secondaryW;
-          period = period * primaryW + (sv.period || 0) * secondaryW;
-        } else if (sSpeed > 0) {
-          // only the secondary source has it -> use it fully (fills the anchor grid's gaps, e.g. EURO in
-          // the Gulf where GFS is 0/coarse). This is what kills the no-swell square.
-          speed = sSpeed; u = sv.u || 0; v = sv.v || 0; period = sv.period || 0;
-        }
-        // else: only the primary source (or neither) -> keep the primary value
-
-        if (speed > maxSpeed) maxSpeed = speed;
-        if (speed > 0) nonzeroCount++;
-
-        return {
-          lat: pv.lat, lng: pv.lng,
-          speed, u, v, period,
-          is_valid: pv.is_valid !== false
-        };
+        const pAvailable = pv.isOcean !== false && pv.is_valid !== false;
+        const sAvailable = sv && sv.isOcean !== false && sv.is_valid !== false;
+        // Keep full-strength single-source ocean coverage, but never synthesize a bearing
+        // from cancelling directions or include a masked secondary source.
+        const blended = pAvailable && sAvailable && pv.speed > 0 && sv.speed > 0
+          ? blendSubVector(pv, sv, primaryW, secondaryW)
+          : blendSubVector(sAvailable && sv.speed > 0 ? sv : (pAvailable ? pv : null), null, 1, 0);
+        if (blended.speed > maxSpeed) maxSpeed = blended.speed;
+        if (blended.speed > 0) nonzeroCount++;
+        return { lat: pv.lat, lng: pv.lng, ...blended };
       });
 
       const blendedGrid = {

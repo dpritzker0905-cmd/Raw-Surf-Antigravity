@@ -1,0 +1,35 @@
+FAIL src/tests/om-metadata-provenance.test.js
+  × cold metadata demands share and await the provider request before replacing bootstrap axes (573 ms)
+  √ the actual decoder never caches guessed run/time paths while a cold provider manifest is pending (18 ms)
+  √ a verified warm manifest reaches the decoder verbatim without fetching or adding UI aliases (8 ms)
+  √ rejects unfinished run without promoting bootstrap metadata or suppressing a later retry (6 ms)
+  √ rejects missing completion proof without promoting bootstrap metadata or suppressing a later retry (7 ms)
+  √ rejects invalid reference time without promoting bootstrap metadata or suppressing a later retry (6 ms)
+  √ rejects empty time axis without promoting bootstrap metadata or suppressing a later retry (7 ms)
+  √ rejects invalid valid time without promoting bootstrap metadata or suppressing a later retry (7 ms)
+  √ rejects missing variables without promoting bootstrap metadata or suppressing a later retry (8 ms)
+  √ failed metadata transport cannot become fabricated success in the actual decoder (21 ms)
+  √ healthy live metadata remains a deduplicated warm-cache hit (7 ms)
+
+  ● cold metadata demands share and await the provider request before replacing bootstrap axes
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      90 |   await api.MODEL_METADATA_PROMISES[MODEL];
+      91 |
+    > 92 |   expect(settledBeforeProvider).toBe(false);
+         |                                 ^
+      93 |   expect(transport).toHaveBeenCalledTimes(1);
+      94 |   expect(results[0]).toBe(results[1]);
+      95 |   expect(results[0]).toBe(cache[MODEL]);
+
+      at Object.<anonymous> (src/tests/om-metadata-provenance.test.js:92:33)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 10 passed, 11 total
+Snapshots:   0 total
+Time:        1.812 s, estimated 2 s
+Ran all test suites matching /om-metadata-provenance.test.js/i.

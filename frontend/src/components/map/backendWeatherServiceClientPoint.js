@@ -1,5 +1,6 @@
 import { getSharedValidTime, pointCache, POINT_URL, blendDirection, blendPeriod } from './backendWeatherServiceClient';
 import { iconExtendedContinuityDecay, iconExtendedContinuityOffset } from './backendWeatherServiceClientHelpers';
+import { requireMarineDirection } from './marineDirectionBlend';
 import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics } from './backendWeatherServiceClientDiag';
 
@@ -27,12 +28,15 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
           const dKey = `${prefix}_direction`;
           const pKey = `${prefix}_period`;
 
-          const hIconAnchor = iconAnchor.hourly?.[hKey]?.[0] || 0;
+          const hIconAnchor = iconAnchor.hourly?.[hKey]?.[0];
           const pIconAnchor = iconAnchor.hourly?.[pKey]?.[0] || 0;
           const dIconAnchor = iconAnchor.hourly?.[dKey]?.[0];
 
-          const hGfsAnchor = gfsAnchor.hourly?.[hKey]?.[0] || 0;
-          const hGfsTarget = gfsTarget.hourly?.[hKey]?.[0] || 0;
+          const hGfsAnchor = gfsAnchor.hourly?.[hKey]?.[0];
+          const hGfsTarget = gfsTarget.hourly?.[hKey]?.[0];
+          if (![hIconAnchor, hGfsAnchor, hGfsTarget].every(h => Number.isFinite(h) && h >= 0)) {
+            throw new Error('ICON point extended estimate requires valid anchor and target heights');
+          }
           const pGfsAnchor = gfsAnchor.hourly?.[pKey]?.[0] || 0;
           const pGfsTarget = gfsTarget.hourly?.[pKey]?.[0] || 0;
           const dGfsTarget = gfsTarget.hourly?.[dKey]?.[0];
@@ -64,6 +68,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
           const blendedHeight = Math.max(0, weightPersist * hIconAnchor + weightGfs * hGfsTrend);
           const blendedPeriod = blendPeriod([pIconAnchor, pGfsTrend], [weightPersist, weightGfs]) || 0;
           const blendedDirection = blendDirection([hIconAnchor, hGfsTrend], [dIconAnchor, dGfsTrend], [weightPersist, weightGfs]);
+          requireMarineDirection(blendedHeight, blendedDirection);
 
           const conformedHourly = {
             time: [validTimeStr.replace(/\.\d+Z$/, 'Z')],
@@ -149,6 +154,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
           const hEuro = euroVal?.hourly?.[hKey]?.[0];
           const dEuro = euroVal?.hourly?.[dKey]?.[0];
           const pEuro = euroVal?.hourly?.[pKey]?.[0];
+          if (hGfs == null && hEuro == null) throw new Error('ICON extended blend has no usable target heights');
 
           let blendedHeight = 0;
           let blendedPeriod = 0;
@@ -174,6 +180,8 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
             usedEuroWeight = 1.0;
           }
 
+          // Validate before the offset: clamping an unresolved positive blend to zero is not calm.
+          requireMarineDirection(blendedHeight, blendedDirection);
           // Additive continuity offset (see branch comment above). The shared grid helpers take
           // {height, period} cells, so the scalar hourly values are wrapped; a null anchor makes
           // iconExtendedContinuityOffset return null → raw mix unchanged (fail-open).
@@ -192,6 +200,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
               continuityApplied = true;
             }
           }
+          requireMarineDirection(blendedHeight, blendedDirection);
 
           const conformedHourly = {
             time: [validTimeStr.replace(/\.\d+Z$/, 'Z')],
@@ -288,6 +297,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
         } else {
           blendedHeight = hEuro; blendedPeriod = pEuro; blendedDirection = dEuro; usedGfsWeight = 0.0; usedEuroWeight = 1.0;
         }
+        requireMarineDirection(blendedHeight, blendedDirection);
         if (typeof window !== 'undefined') {
           window.__ICON_EXTENDED_ESTIMATE_DIAG__ = {
             activeModel: 'ICON', activeLayer: 'swell_2', targetHour: hourOffset,
@@ -505,8 +515,10 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     // to NULL so the infobox shows its no-data state instead of a confident "0.0 ft / N 0" — the same
     // contract as the all-land grid-cell fix (3f45d004).
     const _ptUnavailable = !json.point || json.point.interpolation_method === 'unavailable';
-    const _ptSpeed = _ptUnavailable ? null : (json.point.speed || 0);
-    const _ptDir = _ptUnavailable ? null : (json.point.direction || 0);
+    const _ptSpeed = _ptUnavailable || !Number.isFinite(json.point.speed) || json.point.speed < 0 ? null : json.point.speed;
+    // Preserve missing bearings for the mirror's active-source checks; zero is valid north.
+    const _ptDir = _ptUnavailable || !Number.isFinite(json.point.direction)
+      ? null : ((json.point.direction % 360) + 360) % 360;
     const _ptPer = _ptUnavailable ? null : (json.point.period || 0);
 
     if (layer === 'waves') {

@@ -403,11 +403,12 @@ def test_validation_and_quarantine(isolated_store):
     registered = [p for p in manifest.products if p.filename == filename]
     assert len(registered) == 0
 
-@pytest.mark.parametrize("target_height,coarse_present,expected_status", [
-    (2.2, False, 200), (None, False, 404),
-    (2.2, True, 200), (None, True, 200),
+@pytest.mark.parametrize("target_height,target_direction,coarse_present,expected_status", [
+    (2.2, 180., False, 200), (None, 180., False, 404),
+    (2.2, 180., True, 200), (None, 180., True, 200),
+    (2.2, None, False, 404), (2.2, None, True, 200),
 ])
-def test_point_estimate_blend(monkeypatch, isolated_store, target_height, coarse_present, expected_status):
+def test_point_estimate_blend(monkeypatch, isolated_store, target_height, target_direction, coarse_present, expected_status):
     from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
     
     t0 = datetime.now(timezone.utc)
@@ -459,7 +460,7 @@ def test_point_estimate_blend(monkeypatch, isolated_store, target_height, coarse
                 "hourly": {
                     "time": [t0_str, anchor_str, target_str],
                     "swell_wave_height": [1.8, 1.8, target_height],
-                    "swell_wave_direction": [180.0, 180.0, 180.0],
+                    "swell_wave_direction": [180.0, 180.0, target_direction],
                     "swell_wave_period": [8.0, 8.0, 10.0]
                 }
             }
@@ -486,7 +487,7 @@ def test_point_estimate_blend(monkeypatch, isolated_store, target_height, coarse
     if expected_status == 404:
         assert "point" not in res_json, "missing data must not return a numeric point forecast"
         return
-    if coarse_present and target_height is None:
+    if coarse_present and (target_height is None or target_direction is None):
         assert res_json["source"] == "grid_file"
         assert res_json["coverage_status"] == "inside_global_coarse"
         assert res_json["fallback_attempted"] is True

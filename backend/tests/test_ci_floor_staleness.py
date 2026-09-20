@@ -301,7 +301,11 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Selector-confirmed, executed additions: guards +15 scoring controls; chain +29 direct-height
 # and +3 real-resolver cases. Expected next hosted readings 1912/1022/502, not yet observed.
 # No new files. The paired ci.yml floors preserve margins 6/6/2 in this same commit.
-_FLOOR_SET_FROM = {"guards": 1912, "chain": 1022, "estate": 502}
+# Day-two run35487375744 confirmed 1912/1022/502 on d82032f5. Direction support adds
+# 57 chain controls in one selector-confirmed file; full local chain reads 1079/100.
+# Retention adds 69 executed cases in one more chain file: expected 1148/101.
+# Next hosted CI must confirm that projection; six-test chain margin is unchanged.
+_FLOOR_SET_FROM = {"guards": 1912, "chain": 1148, "estate": 502}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

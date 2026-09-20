@@ -134,10 +134,10 @@ def test_ledger_persists_only_valid_scores_and_reports_rejections(monkeypatch):
                {**base, "buoy_id": "bad_forecast", "hs_m": None},
                {**base, "buoy_id": "bad_observation", "hs_m": 1.0}]
     monkeypatch.setattr(calibration, "load_calibration_l2",
-                        lambda key: pending if key == skill.SKILL_PENDING_L2_KEY else [])
+                        lambda key, **kwargs: pending if key == skill.SKILL_PENDING_L2_KEY else [])
     writes = {}
     monkeypatch.setattr(calibration, "upload_calibration_l2",
-                        lambda store, rows, key: writes.update({key: rows}))
+                        lambda store, rows, key, **kwargs: writes.update({key: rows}))
     report = _report([_entry("valid", buoy_time=NOW.isoformat(), buoy_wvht=2.0),
                       _entry("bad_forecast", buoy_time=NOW.isoformat(), buoy_wvht=2.0),
                       _entry("bad_observation", buoy_time=NOW.isoformat(), buoy_wvht=float("nan"))])
