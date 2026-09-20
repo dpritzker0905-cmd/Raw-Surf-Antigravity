@@ -820,7 +820,12 @@ jobs:
           # PR31 CI35021160260 measured 96 files / 932 passes on the merged code.
           # Keep the six-test margin and the paired citation in sync.
           # September 16: hosted CI35055272824 measured 97 files / 940 passes.
-          MIN_FILES, MIN_PASSED = 97, 934
+          # ⬆ 97/934 → 98/940 on 2026-09-19 (the island SERVING gate). This commit adds
+          # test_island_serving_gate.py (6), selector-verified into this lane with
+          # `ci_test_lanes.py --lane chain` (97 → 98 files). 940 + 6 = 946; 946 - 6 = 940.
+          # MIN_FILES is EXACT; MIN_PASSED keeps the customary 6 below, and
+          # _FLOOR_SET_FROM["chain"] moves to 946 in the SAME commit.
+          MIN_FILES, MIN_PASSED = 98, 940
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

@@ -169,10 +169,10 @@ def ingest_marine_forecast_task():
                 # CALL not per cell (40/150/308 pts all ~12-13 s), so ~4.3 min and ~4.6 MB per frame.
                 # Runs LAST in the marine group: no downstream job reuses its cache, so isolating it is
                 # dependency-safe, and a slow CMEMS day cannot delay the tiers that already serve.
-                # Kills: COPERNICUS_ISLAND_INGEST=0; COPERNICUS_ISLAND_REGION_LIMIT=N trims to the N
+                # Arms: COPERNICUS_ISLAND_INGEST=1 (default 0 since 2026-09-19); COPERNICUS_ISLAND_REGION_LIMIT=N trims to the N
                 # highest-spot-count regions (the list is ordered by spot count, so it degrades well).
                 *([("Copernicus Island Regional", weather_scheduler.ingest_copernicus_island_regions)]
-                  if os.environ.get("COPERNICUS_ISLAND_INGEST", "1") != "0" else []),
+                  if os.environ.get("COPERNICUS_ISLAND_INGEST", "0") == "1" else []),
                 # WIND global_mid (~2°, 2026-07-20 queue #3): the fixed-resolution background wind
                 # field (the Windy/nullschool pattern) — mid_res_tier serves it clipped wherever
                 # wind would otherwise get the 10° coarse (wide spans, world zoom, dynamic-lane

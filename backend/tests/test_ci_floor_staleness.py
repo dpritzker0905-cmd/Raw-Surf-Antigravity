@@ -287,7 +287,10 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # plus 24 executed new controls. Candidate CI must confirm 1828. Keep the
 # companion to ci.yml's raised floor in sync; the first candidate caught this omission.
 # September 16: hosted CI35055272824; retain the existing six-test margins.
-_FLOOR_SET_FROM = {"guards": 1883, "chain": 940, "estate": 488}
+# September 19 island serving gate: projected from CI35055272824's chain 940 plus the 6 executed
+# controls in test_island_serving_gate.py (selector-verified into chain: 97 -> 98 files).
+# Candidate CI must confirm 946. The six-test margin is retained, so no budget moves.
+_FLOOR_SET_FROM = {"guards": 1883, "chain": 946, "estate": 488}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

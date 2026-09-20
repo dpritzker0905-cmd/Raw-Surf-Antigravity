@@ -140,6 +140,8 @@ async def find_any_cached_product_helper(
             except Exception:
                 continue
 
+    from services.weather_pipeline.point_resolution import _island_gated
+
     # 2. Search Manifest (pruning for anomalous future-dated entries runs inside get_manifest())
     manifest = await asyncio.to_thread(store.get_manifest)
     best_manifest_item = None
@@ -156,6 +158,13 @@ async def find_any_cached_product_helper(
             # cover) and would win or lose by MANIFEST ORDER — serving a ~24x payload where the 629-vector
             # coarse was intended. Skip it here; the coarse remains the honest instant preview.
             if getattr(p, "region_id", None) == "global_mid":
+                continue
+            # Same class as the global_mid skip above: an ungated tier winning a scan it was never
+            # measured in. Island tiles are 0.083 deg, so on a small viewport they fully cover the
+            # bbox and displace the tier that had been answering. See point_resolution._island_gated
+            # (this is the SECOND independent manifest selection site -- there is no single choke
+            # point, which is why COPERNICUS_ISLAND_INGEST now defaults to 0).
+            if _island_gated(p):
                 continue
             diff = abs(p.valid_time_start.timestamp() - target_ts)
             # Allow up to 24 hours stale product fallback for rate limit
