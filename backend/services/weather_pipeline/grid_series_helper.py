@@ -411,19 +411,71 @@ async def _build_openmeteo_marine_series(viewport_service, model: str, layer: st
     }
 
 
+# F-01 (audit 14.0): how far a CLIENT-SUPPLIED series anchor may sit from this box's own clock
+# before we refuse it. The anchor exists to reconcile a half-hour phase difference (the browser
+# ROUNDS the hour, this module FLOORS it), so an honest client is always within ~1h. The window is
+# deliberately wider than that -- a laptop with a lazy NTP sync is a legitimate client -- and still
+# far too narrow to let a caller pin the series to an arbitrary time and drive unbounded upstream
+# fetches or poison a shared per-time cache. Anything outside falls back to the server clock and is
+# DISCLOSED as `base_time_source: "client_rejected"`; it is never silently honoured.
+SERIES_ANCHOR_MAX_SKEW_HOURS = 26
+
+
+def _resolve_series_anchor(base_time, server_now):
+    """Return (anchor_datetime, source) for the series.
+
+    source is one of "server" (no anchor asked for), "client" (accepted, snapped to the hour) or
+    "client_rejected" (unparseable or outside the skew window -- server clock used instead).
+
+    Fails OPEN by design: this runs on the scrub hot path, and a hard failure here would blank the
+    heatmap. A bad anchor degrades to exactly the pre-2026-09-20 behaviour.
+    """
+    server_anchor = server_now.replace(minute=0, second=0, microsecond=0)
+    if base_time is None or str(base_time).strip() == "":
+        return server_anchor, "server"
+    try:
+        raw = str(base_time).strip().replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(raw)
+        # The contract is UTC. A naive stamp is UTC, never this box's local zone -- reading it as
+        # local time would shift the whole series by the server's offset.
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.astimezone(timezone.utc)
+    except Exception:
+        return server_anchor, "client_rejected"
+    if abs((parsed - server_now).total_seconds()) > SERIES_ANCHOR_MAX_SKEW_HOURS * 3600:
+        return server_anchor, "client_rejected"
+    # The series grid is hourly; snap so a smeared client clock cannot produce fractional frames.
+    return parsed.replace(minute=0, second=0, microsecond=0), "client"
+
+
 async def build_grid_series(resolve_grid, viewport_service, model: str, domain: str, layer: str,
-                            bbox: str, hours: str, request=None, surf: bool = False) -> dict:
+                            bbox: str, hours: str, request=None, surf: bool = False,
+                            base_time: str = None) -> dict:
     """Public entry point: build the series, then BOUND it (audit v7 §3).
 
     A thin wrapper, deliberately. This module has THREE assembly points -- the EURO fast path, the
     Open-Meteo fast path, and the generic per-hour loop -- and a budget applied at one of them is
     the "guard ran nowhere" class this codebase has now hit seven times. Every path returns through
     here, so the invariant lives here and cannot be routed around by a future fourth path.
+
+    `base_time` is the CLIENT'S absolute series anchor (F-01, audit 14.0). Before it existed this
+    module floored its own clock while the browser rounded its own, so the two disagreed by exactly
+    one hour whenever the minute was >= 30 -- with no way to reconcile them, because the request
+    carried only hour OFFSETS. Omitting it reproduces the old behaviour byte-for-byte.
+    `base_time_source` is stamped on EVERY response here, at the single funnel, for the same reason
+    the budget is: a disclosure applied at one of three assembly points is a disclosure that ran
+    nowhere.
     """
+    anchor, anchor_source = _resolve_series_anchor(base_time, datetime.now(timezone.utc))
     resp = await _build_grid_series_impl(
         resolve_grid, viewport_service, model, domain, layer, bbox, hours,
-        request=request, surf=surf,
+        request=request, surf=surf, base_anchor=anchor,
     )
+    try:
+        resp["base_time_source"] = anchor_source
+    except Exception:
+        logger.exception("[series-anchor] could not stamp base_time_source")
     # RUN CENSUS (2026-08-09, R11-04): each hour resolves independently, so ONE response can mix
     # model runs mid-ingest (~1-2.75 h window, 6x/day) — physically discontinuous adjacent frames.
     # Frames now carry run_time; the census makes a mixed page detectable at a glance (client-side
@@ -443,7 +495,7 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
         return resp
 
 
-async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str, request=None, surf: bool = False) -> dict:
+async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str, request=None, surf: bool = False, base_anchor=None) -> dict:
     """
     resolve_grid: the SAME async resolver /grid uses (routes.weather.get_grid). Called once
     per requested hour with its valid_time so every frame matches exactly what the live
@@ -469,7 +521,10 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     if not hour_list:
         raise HTTPException(status_code=400, detail="no valid hours provided")
 
-    base = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    # F-01 (audit 14.0): the anchor now arrives resolved from build_grid_series, which reconciles
+    # the client's rounded hour with this box's floored one. The `or` keeps every direct caller of
+    # this private impl (tests, any future internal path) on the historic floor behaviour.
+    base = base_anchor or datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
 
     # EURO/Copernicus fast path: one full-range fetch + slice all hours (the generic per-hour
     # loop below hangs for EURO — each hour is a separate ±3h CMEMS download). Additive +
