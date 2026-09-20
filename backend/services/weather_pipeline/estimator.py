@@ -507,7 +507,7 @@ def estimate_euro_grid(
 
 def _extract_point_vals(raw_point: dict, layer: str, idx: int) -> dict:
     if not raw_point or "hourly" not in raw_point:
-        return {"speed": 0.0, "direction": 0.0, "period": 0.0}
+        return {"speed": None, "direction": 0.0, "period": 0.0}
     h = raw_point["hourly"]
     l_map = {
         "waves": ("wave_height", "wave_direction", "wave_period"),
@@ -519,18 +519,25 @@ def _extract_point_vals(raw_point: dict, layer: str, idx: int) -> dict:
     if layer.lower() == "swell_2" and speed_key not in h and "swell_wave_height" in h:
         speed_key, dir_key, per_key = "swell_wave_height", "swell_wave_direction", "swell_wave_period"
         
-    def get_val(key):
+    def get_val(key, default=0.0):
         lst = h.get(key)
-        if isinstance(lst, list) and idx < len(lst):
+        if isinstance(lst, list) and 0 <= idx < len(lst):
             val = lst[idx]
-            return val if val is not None else 0.0
-        return 0.0
+            return val if val is not None else default
+        return default
 
     return {
-        "speed": get_val(speed_key),
+        "speed": get_val(speed_key, None),
         "direction": get_val(dir_key),
         "period": get_val(per_key)
     }
+
+
+def _usable_point_height(values: dict) -> bool:
+    height = values.get("speed")
+    return (isinstance(height, (int, float)) and not isinstance(height, bool)
+            and math.isfinite(height) and height >= 0.0)
+
 
 async def resolve_euro_estimate_point(
     provider_inst: Any,
@@ -558,6 +565,11 @@ async def resolve_euro_estimate_point(
     euro_anc = _extract_point_vals(raw_euro, layer, anchor_idx)
     gfs_anc = _extract_point_vals(gfs_raw, layer, gfs_anc_idx)
     gfs_tgt = _extract_point_vals(gfs_raw, layer, gfs_tgt_idx)
+    # The required trend cannot be formed from absent heights. Refuse this estimate so
+    # the existing resolver can return its labeled coarse fallback or no-coverage response.
+    # An explicit numeric zero is still a valid calm-water height.
+    if not all(_usable_point_height(values) for values in (euro_anc, gfs_anc, gfs_tgt)):
+        return None
     
     now_dt = datetime.now(timezone.utc)
     target_hour = (target_dt - now_dt).total_seconds() / 3600.0
@@ -572,9 +584,9 @@ async def resolve_euro_estimate_point(
                 icon_anc_idx = WeatherNormalizer.find_closest_time_index(icon_times, anchor_dt)
                 icon_tgt_idx = WeatherNormalizer.find_closest_time_index(icon_times, target_dt)
                 if icon_anc_idx is not None and icon_tgt_idx is not None:
-                    is_icon_valid = True
                     icon_anc = _extract_point_vals(icon_raw, layer, icon_anc_idx)
                     icon_tgt = _extract_point_vals(icon_raw, layer, icon_tgt_idx)
+                    is_icon_valid = all(_usable_point_height(values) for values in (icon_anc, icon_tgt))
         except Exception:
             pass
             
@@ -586,7 +598,7 @@ async def resolve_euro_estimate_point(
     
     # Match the grid estimator's period contract. Upstream nulls were historically
     # decoded as zero here; zero/nonfinite periods cannot anchor a physical trend.
-    # Height and direction fallback policy is intentionally unchanged in this path.
+    # Direction fallback policy is intentionally unchanged in this path.
     for values in (euro_anc, gfs_anc, gfs_tgt, icon_anc, icon_tgt):
         if values is not None:
             period = values["period"]

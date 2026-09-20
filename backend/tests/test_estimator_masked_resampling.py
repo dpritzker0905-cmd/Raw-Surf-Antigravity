@@ -104,7 +104,9 @@ def test_antimeridian_support_works_on_both_longitude_representations():
 
 
 def direct_estimate(monkeypatch, euro_period=8.0, gfs_anchor_period=8.0,
-                    gfs_target_period=10.0, icon=False, icon_target_period=8.0):
+                    gfs_target_period=10.0, icon=False, icon_target_period=8.0,
+                    euro_height=2.0, gfs_anchor_height=1.8, gfs_target_height=2.2,
+                    icon_anchor_height=1.5, icon_target_height=1.5, layer="waves", truncate_gfs=False):
     now = datetime(2026, 9, 20, tzinfo=timezone.utc)
     anchor = now + timedelta(hours=48 if icon else 240)
     target = now + timedelta(hours=96 if icon else 264)
@@ -115,21 +117,24 @@ def direct_estimate(monkeypatch, euro_period=8.0, gfs_anchor_period=8.0,
             return now
 
     def payload(times, heights, periods):
+        prefix = {"waves": "wave", "swell_1": "swell_wave", "swell_2": "secondary_swell_wave",
+                  "wind_waves": "wind_wave"}[layer]
         return {"hourly": {"time": [t.strftime("%Y-%m-%dT%H:%M:%SZ") for t in times],
-                           "wave_height": heights, "wave_direction": [90.0] * len(times),
-                           "wave_period": periods}}
+                           f"{prefix}_height": heights, f"{prefix}_direction": [90.0] * len(times),
+                           f"{prefix}_period": periods}}
 
     async def fetch_point(**kwargs):
         if kwargs["model"] == "GFS":
-            return payload([anchor, target], [1.8, 2.2], [gfs_anchor_period, gfs_target_period])
+            heights = [gfs_anchor_height] if truncate_gfs else [gfs_anchor_height, gfs_target_height]
+            return payload([anchor, target], heights, [gfs_anchor_period, gfs_target_period])
         if icon and kwargs["model"] == "ICON":
-            return payload([anchor, target], [1.5, 1.5], [8.0, icon_target_period])
+            return payload([anchor, target], [icon_anchor_height, icon_target_height], [8.0, icon_target_period])
         return None
 
     monkeypatch.setattr("services.weather_pipeline.estimator.datetime", Clock)
     provider = SimpleNamespace(fetch_point=AsyncMock(side_effect=fetch_point))
     return asyncio.run(resolve_euro_estimate_point(
-        provider, "marine", "waves", 0, 0, target, payload([anchor], [2.0], [euro_period])))
+        provider, "marine", layer, 0, 0, target, payload([anchor], [euro_height], [euro_period])))
 
 
 @pytest.mark.parametrize("changes,expected", [
@@ -164,3 +169,39 @@ def test_direct_healthy_icon_cannot_invent_a_missing_euro_anchor(monkeypatch):
     response = direct_estimate(monkeypatch, icon=True, euro_period=None)
     assert response.point.period is None
     assert response.point.speed == 2.12
+
+
+@pytest.mark.parametrize("layer", ["waves", "swell_1", "swell_2", "wind_waves"])
+@pytest.mark.parametrize("field", ["euro_height", "gfs_anchor_height", "gfs_target_height"])
+def test_direct_missing_required_height_refuses_each_partition(monkeypatch, layer, field):
+    assert direct_estimate(monkeypatch, layer=layer, **{field: None}) is None
+
+
+@pytest.mark.parametrize("height", [-1.0, float("nan"), float("inf"), float("-inf"), True, "2.2"])
+def test_direct_invalid_height_cannot_enter_a_trend(monkeypatch, height):
+    assert direct_estimate(monkeypatch, gfs_target_height=height) is None
+
+
+def test_direct_truncated_height_series_is_missing_not_calm(monkeypatch):
+    assert direct_estimate(monkeypatch, truncate_gfs=True) is None
+
+
+@pytest.mark.parametrize("height", [None, float("nan"), -1.0])
+@pytest.mark.parametrize("field", ["icon_anchor_height", "icon_target_height"])
+def test_direct_unusable_icon_is_excluded_with_truthful_weights(monkeypatch, height, field):
+    response = direct_estimate(monkeypatch, icon=True, **{field: height})
+    assert response.point.speed == 2.12
+    assert response.estimate_basis["weights"] == {"persistence": .7, "gfs": .3, "icon": 0.0}
+    assert response.estimate_basis["type"] == "euro_persistence_gfs_blend"
+
+
+@pytest.mark.parametrize("field,expected", [("euro_height", .24), ("gfs_anchor_height", 3.32),
+                                             ("gfs_target_height", .92)])
+def test_direct_explicit_calm_zero_remains_usable(monkeypatch, field, expected):
+    response = direct_estimate(monkeypatch, **{field: 0.0})
+    assert response.point.speed == expected
+
+
+def test_direct_all_calm_water_remains_a_numeric_zero(monkeypatch):
+    response = direct_estimate(monkeypatch, euro_height=0.0, gfs_anchor_height=0.0, gfs_target_height=0.0)
+    assert response.point.speed == 0.0

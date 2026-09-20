@@ -297,7 +297,11 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # 514 includes 12 optional trevec passes absent from hosted PR46's 488; comparable value 502.
 # Local Python 3.14's four reproduced baseline ownership failures cannot lower the guard floor.
 # ci.yml and this reference move together; keep established margins guards/chain=6, estate=2.
-_FLOOR_SET_FROM = {"guards": 1897, "chain": 990, "estate": 502}
+# September 20 continuation: run35485093918 at 74ca4f4e CONFIRMED 1897/990/502.
+# Selector-confirmed, executed additions: guards +15 scoring controls; chain +29 direct-height
+# and +3 real-resolver cases. Expected next hosted readings 1912/1022/502, not yet observed.
+# No new files. The paired ci.yml floors preserve margins 6/6/2 in this same commit.
+_FLOOR_SET_FROM = {"guards": 1912, "chain": 1022, "estate": 502}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

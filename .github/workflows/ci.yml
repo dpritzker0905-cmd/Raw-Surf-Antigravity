@@ -632,7 +632,10 @@ jobs:
           # in existing guard modules. Expected hosted reading 1883 + 14 = 1897, pending
           # candidate CI; preserve the six-test margin. Local Python 3.14 has four separately
           # reproduced baseline provider-ownership failures, so do not lower the hosted floor.
-          MIN_FILES, MIN_PASSED = 160, 1891
+          # September 20 continuation: run35485093918 at 74ca4f4e confirmed 1897.
+          # +15 executed scoring-validity controls in the same guard file -> expected 1912.
+          # Keep the six-test margin; _FLOOR_SET_FROM moves in this same commit.
+          MIN_FILES, MIN_PASSED = 160, 1906
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -835,7 +838,10 @@ jobs:
           # September 20 second check: selector-confirmed +1 file / +43 executed controls
           # (grid estimator/periods +30, point periods +8, nonfinite spread +5). Expected hosted
           # reading 947 + 43 = 990; retain six-test margin and paired provenance. CI confirms.
-          MIN_FILES, MIN_PASSED = 99, 984
+          # September 20 continuation: run35485093918 at 74ca4f4e confirmed 990.
+          # +29 direct-height controls and +3 real-resolver cases -> expected 1022.
+          # No new files; retain six-test margin and move paired provenance together.
+          MIN_FILES, MIN_PASSED = 99, 1016
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

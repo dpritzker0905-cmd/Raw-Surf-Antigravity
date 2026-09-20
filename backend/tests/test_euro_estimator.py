@@ -403,7 +403,11 @@ def test_validation_and_quarantine(isolated_store):
     registered = [p for p in manifest.products if p.filename == filename]
     assert len(registered) == 0
 
-def test_point_estimate_blend(monkeypatch):
+@pytest.mark.parametrize("target_height,coarse_present,expected_status", [
+    (2.2, False, 200), (None, False, 404),
+    (2.2, True, 200), (None, True, 200),
+])
+def test_point_estimate_blend(monkeypatch, isolated_store, target_height, coarse_present, expected_status):
     from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
     
     t0 = datetime.now(timezone.utc)
@@ -414,6 +418,29 @@ def test_point_estimate_blend(monkeypatch):
     
     target_dt = t0 + timedelta(days=4)
     target_str = target_dt.strftime("%Y-%m-%dT%H:00Z")
+
+    if coarse_present:
+        # The real sampler sees a masked coarse stencil at the requested point and keeps it
+        # as a labeled last resort while trying the native EURO anchor's direct estimate.
+        monkeypatch.setattr(isolated_store, "_upload_to_supabase", lambda *args, **kwargs: None)
+        monkeypatch.setattr("services.weather_pipeline.store._fetch_remote_manifest_products", lambda: None)
+        bounds = CoverageBounds(west=-90.0, south=20.0, east=-80.0, north=30.0)
+        vectors = [GridVector(lat=lat, lng=lng, speed=.92 if valid else 0.0,
+                              direction=90.0, u=-.92 if valid else 0.0,
+                              v=0.0, period=7.6, is_valid=valid)
+                   for lat, lng, valid in [(20., -90., True), (20., -80., True),
+                                          (30., -90., True), (30., -80., False)]]
+        coarse = NormalizedProduct(
+            model="EURO", provider="open-meteo", domain="marine", layer="swell_1",
+            run_time=t0, valid_time=target_dt, is_forecast_authoritative=True, is_estimated=False,
+            coverage=bounds, grid=NormalizedGrid(bounds=bounds, cols=2, rows=2, vectors=vectors),
+            value_kind="wave_height", value_unit="m", display_unit_hint="ft",
+            source_variables=["swell_wave_height"], freshness_sec=3600,
+            region_id="global_coarse", coverage_mode="global_tile",
+        )
+        assert isolated_store.save_product(coarse, resolution=10.0) is not None
+
+    fetched_models = []
     
     async def mock_fetch_euro_marine(*args, **kwargs):
         return [{
@@ -426,11 +453,12 @@ def test_point_estimate_blend(monkeypatch):
         }]
         
     async def mock_fetch_point(self, model, domain, layer, lat, lng, forecast_days):
+        fetched_models.append(model)
         if model == "GFS":
             return {
                 "hourly": {
                     "time": [t0_str, anchor_str, target_str],
-                    "swell_wave_height": [1.8, 1.8, 2.2],
+                    "swell_wave_height": [1.8, 1.8, target_height],
                     "swell_wave_direction": [180.0, 180.0, 180.0],
                     "swell_wave_period": [8.0, 8.0, 10.0]
                 }
@@ -452,10 +480,22 @@ def test_point_estimate_blend(monkeypatch):
     response = client.get(
         f"/api/weather/point?model=EURO&domain=marine&layer=swell_1&lat=28.4&lng=-80.6&valid_time={target_str}"
     )
-    assert response.status_code == 200
+    assert response.status_code == expected_status
     res_json = response.json()
+    assert "GFS" in fetched_models, "the real EURO estimator must attempt the required trend"
+    if expected_status == 404:
+        assert "point" not in res_json, "missing data must not return a numeric point forecast"
+        return
+    if coarse_present and target_height is None:
+        assert res_json["source"] == "grid_file"
+        assert res_json["coverage_status"] == "inside_global_coarse"
+        assert res_json["fallback_attempted"] is True
+        assert res_json["fallback_reason"] == "coarse_sample_degraded_direct_point_failed"
+        assert res_json["grid_parity"] is False and res_json["gridParity"] is False
+        assert res_json["point"]["interpolation_method"] == "bilinear_ocean_masked"
+        assert res_json["point"]["speed"] == pytest.approx(.92)
+        return
     assert res_json["is_estimated"] is True
     assert res_json["provider"] == "estimated"
     assert "point_estimate_blend" in res_json["point"]["interpolation_method"]
     assert res_json["point"]["speed"] > 0.0
-

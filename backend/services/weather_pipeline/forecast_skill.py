@@ -296,22 +296,36 @@ def merge_pending(existing, incoming, now: Optional[datetime] = None,
     return kept
 
 
-def score_pending(pending, report, now: Optional[datetime] = None):
+def score_pending(pending, report, now: Optional[datetime] = None, stats: Optional[dict] = None):
     """Split pending into (still_pending, scored): a row scores when THIS run's report holds a
-    buoy observation within tolerance of its target hour."""
+    finite nonnegative buoy observation within tolerance of its target hour.
+
+    Invalid forecast heights cannot be recovered by waiting and are rejected, with optional
+    counts for the operator report. Valid forecasts retain the existing expiry policy when
+    this report has no eligible observation. Explicit calm zero is distinct from missing.
+    """
     now = now or datetime.now(timezone.utc)
     obs = {}
+    invalid_forecasts = invalid_observations = 0
     for entry in (report or {}).get("spots") or []:
         bid = entry.get("buoy_id")
         res = entry.get("residual") or {}
         bt = _parse_iso(entry.get("buoy_time"))
-        if bid is None or bt is None or res.get("buoy_wvht_m") is None:
+        if bid is None or bt is None:
             continue
-        obs.setdefault(bid, []).append((bt, res.get("buoy_wvht_m"), res.get("buoy_dpd_s")))
+        height = res.get("buoy_wvht_m")
+        if not _finite_number(height) or height < 0.0:
+            invalid_observations += 1
+            continue
+        obs.setdefault(bid, []).append((bt, height, res.get("buoy_dpd_s")))
     still, scored = [], []
     for row in pending or []:
         t = _parse_iso(row.get("target_time"))
         if t is None:
+            continue
+        height = row.get("hs_m")
+        if not _finite_number(height) or height < 0.0:
+            invalid_forecasts += 1
             continue
         candidates = obs.get(row.get("buoy_id")) or []
         best = None
@@ -323,10 +337,12 @@ def score_pending(pending, report, now: Optional[datetime] = None):
             scored.append({**row,
                            "obs_time": best[1].isoformat(),
                            "obs_hs_m": best[2], "obs_dpd_s": best[3],
-                           "err_m": round((row.get("hs_m") or 0.0) - best[2], 4)})
+                           "err_m": round(height - best[2], 4)})
         elif t > now - timedelta(hours=PENDING_EXPIRY_H):
             still.append(row)
         # else: expired unmatched — dropped
+    if stats is not None:
+        stats.update(invalid_forecasts=invalid_forecasts, invalid_observations=invalid_observations)
     return still, scored
 
 
@@ -580,7 +596,8 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     pending = load_calibration_l2(SKILL_PENDING_L2_KEY) or []
     merge_stats: Dict[str, int] = {}
     pending = merge_pending(pending, incoming, now=now, stats=merge_stats)
-    still, scored = score_pending(pending, report, now=now)
+    score_stats: Dict[str, int] = {}
+    still, scored = score_pending(pending, report, now=now, stats=score_stats)
     upload_calibration_l2(store, still, SKILL_PENDING_L2_KEY)
     if scored:
         month_groups: Dict[str, List[dict]] = {}
@@ -597,12 +614,13 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     summary = skill_summary(scored)
     # ⚠️ The `ledgered=%d scored=%d` prefix is an operator surface: it is the string the Actions-log
     # grep dated the 08-04 outage with. Append fields, never reorder it.
-    logger.info("[forecast-skill] ledgered=%d scored=%d pending=%d evicted_cap=%d %s",
+    logger.info("[forecast-skill] ledgered=%d scored=%d pending=%d evicted_cap=%d invalid_forecasts=%d invalid_observations=%d %s",
                 len(incoming), len(scored), len(still), merge_stats.get("cap_evicted", 0),
+                score_stats["invalid_forecasts"], score_stats["invalid_observations"],
                 summary if summary else "")
     return {"ledgered": len(incoming), "scored": len(scored),
             "pending_kept": len(still), "pending_evicted_cap": merge_stats.get("cap_evicted", 0),
-            "summary": summary}
+            "summary": summary, "scoring_rejections": score_stats}
 
 
 def attach_to_report(report, skill) -> None:
@@ -616,3 +634,5 @@ def attach_to_report(report, skill) -> None:
     report["forecast_skill"] = skill.get("summary") or []
     report["forecast_skill_ops"] = {k: skill.get(k) for k in
                                     ("ledgered", "scored", "pending_kept", "pending_evicted_cap")}
+    if "scoring_rejections" in skill:
+        report["forecast_skill_ops"]["scoring_rejections"] = skill["scoring_rejections"]

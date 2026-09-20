@@ -291,6 +291,33 @@ describe('useWebGLGuardrail', () => {
     expect(setWebglMarineFailed).toHaveBeenCalledWith(true);
   });
 
+  it.each([2000, 3000])('breaks a low-FPS streak across an excluded %i ms gap', (gap) => {
+    const setWebglMarineFailed = jest.fn();
+    renderHook(() => useWebGLGuardrail({
+      mapInstance, activeLayers: ['waves'], setWebglWindFailed: jest.fn(),
+      setWebglMarineFailed, webglWindFailed: false, webglMarineFailed: false,
+    }));
+    const onRender = eventListeners.render;
+    currentTime += 11000;
+    onRender();
+    for (let i = 0; i < 11; i++) {
+      currentTime += 1000;
+      onRender();
+    }
+    expect(setWebglMarineFailed).not.toHaveBeenCalled();
+    currentTime += gap;
+    onRender();
+    for (let i = 0; i < 11; i++) {
+      currentTime += 1000;
+      onRender();
+      expect(setWebglMarineFailed).not.toHaveBeenCalled();
+    }
+    currentTime += 1000;
+    onRender();
+    expect(setWebglMarineFailed).toHaveBeenCalledTimes(1);
+    expect(setWebglMarineFailed).toHaveBeenCalledWith(true);
+  });
+
   it('resets tracking counters on tab visibility change to avoid false drops', () => {
     const setWebglWindFailed = jest.fn();
     const setWebglMarineFailed = jest.fn();

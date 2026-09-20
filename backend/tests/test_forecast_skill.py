@@ -74,6 +74,83 @@ def test_score_pending_joins_within_tolerance_and_expires_the_rest():
     assert ours["obs_hs_m"] == 2.0 and ours["err_m"] == -0.2
 
 
+@pytest.mark.parametrize("height", [None, float("nan"), float("inf"), -1.0, True, "1.0"])
+def test_score_pending_never_grades_an_invalid_forecast_as_zero(height):
+    row = {"source": SOURCE_OURS, "buoy_id": "46012", "lead_h": 24,
+           "target_time": NOW.isoformat(), "hs_m": height}
+    report = _report([_entry("46012", buoy_time=NOW.isoformat(), buoy_wvht=2.0)])
+    still, scored = score_pending([row], report, now=NOW)
+    assert scored == []
+    assert still == [], "an immutable invalid forecast cannot become scoreable by waiting"
+
+
+@pytest.mark.parametrize("height", [None, float("nan"), float("inf"), -1.0, True, "1.0"])
+def test_score_pending_chooses_nearest_valid_observation(height):
+    row = {"source": SOURCE_OURS, "buoy_id": "46012", "lead_h": 24,
+           "target_time": NOW.isoformat(), "hs_m": 1.8}
+    later = (NOW + timedelta(minutes=40)).isoformat()
+    report = _report([_entry("46012", buoy_time=NOW.isoformat(), buoy_wvht=height),
+                      _entry("46012", buoy_time=later, buoy_wvht=2.0)])
+    still, scored = score_pending([row], report, now=NOW)
+    assert still == []
+    assert len(scored) == 1
+    assert scored[0]["obs_time"] == later
+    assert scored[0]["err_m"] == -.2
+
+
+def test_score_pending_retains_valid_forecast_when_observations_are_invalid():
+    row = {"source": SOURCE_OURS, "buoy_id": "46012", "lead_h": 24,
+           "target_time": NOW.isoformat(), "hs_m": 1.8}
+    report = _report([_entry("46012", buoy_time=NOW.isoformat(), buoy_wvht=float("nan"))])
+    still, scored = score_pending([row], report, now=NOW)
+    assert still == [row]
+    assert scored == []
+
+
+def test_score_pending_preserves_explicit_calm_zero():
+    row = {"source": SOURCE_OURS, "buoy_id": "46012", "lead_h": 24,
+           "target_time": NOW.isoformat(), "hs_m": 0.0}
+    report = _report([_entry("46012", buoy_time=NOW.isoformat(), buoy_wvht=0.0)])
+    still, scored = score_pending([row], report, now=NOW)
+    assert still == []
+    assert scored[0]["hs_m"] == scored[0]["obs_hs_m"] == scored[0]["err_m"] == 0.0
+
+
+def test_ledger_persists_only_valid_scores_and_reports_rejections(monkeypatch):
+    import asyncio
+    from unittest.mock import AsyncMock
+    from services.weather_pipeline import forecast_skill as skill
+    from services.weather_pipeline import buoy_calibration as calibration
+
+    monkeypatch.setenv("FORECAST_SKILL", "1")
+    monkeypatch.setenv("FORECAST_SKILL_COMPARE_MODELS", "")
+    monkeypatch.setenv("FORECAST_SKILL_PERSISTENCE", "0")
+    monkeypatch.setenv("FORECAST_SKILL_OM_CONTROL", "0")
+    monkeypatch.setattr(calibration, "calibrate_spots", AsyncMock(return_value={"spots": []}))
+    monkeypatch.setattr(calibration, "fetch_ndbc_station_coords", AsyncMock(return_value={}))
+    monkeypatch.setattr(skill, "fetch_om_forecast_rows", lambda *args, **kwargs: [])
+    base = {"source": SOURCE_OURS, "lead_h": 24, "target_time": NOW.isoformat()}
+    pending = [{**base, "buoy_id": "valid", "hs_m": 1.8},
+               {**base, "buoy_id": "bad_forecast", "hs_m": None},
+               {**base, "buoy_id": "bad_observation", "hs_m": 1.0}]
+    monkeypatch.setattr(calibration, "load_calibration_l2",
+                        lambda key: pending if key == skill.SKILL_PENDING_L2_KEY else [])
+    writes = {}
+    monkeypatch.setattr(calibration, "upload_calibration_l2",
+                        lambda store, rows, key: writes.update({key: rows}))
+    report = _report([_entry("valid", buoy_time=NOW.isoformat(), buoy_wvht=2.0),
+                      _entry("bad_forecast", buoy_time=NOW.isoformat(), buoy_wvht=2.0),
+                      _entry("bad_observation", buoy_time=NOW.isoformat(), buoy_wvht=float("nan"))])
+    result = asyncio.run(skill.run_skill_ledger(None, None, [], "GFS", report, now=NOW))
+    assert result["scored"] == 1 and result["pending_kept"] == 1
+    assert writes[skill.SKILL_PENDING_L2_KEY] == [pending[2]]
+    saved = writes[f"{skill.SKILL_SCORED_PREFIX}{NOW:%Y-%m}.json"]
+    assert len(saved) == 1 and saved[0]["buoy_id"] == "valid" and saved[0]["err_m"] == -.2
+    skill.attach_to_report(report, result)
+    assert report["forecast_skill_ops"]["scoring_rejections"] == {
+        "invalid_forecasts": 1, "invalid_observations": 1}
+
+
 def test_skill_summary_reports_independence():
     scored = [
         {"source": SOURCE_OURS, "buoy_id": "a", "lead_h": 24.0, "err_m": 0.2},
