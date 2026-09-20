@@ -42,6 +42,50 @@ export function registerPrewarmDeps({ getModelSafeMarine, cacheMarineResult, isS
 const _globalGridPrewarmInFlight = new Set();
 const _GLOBAL_BOUNDS = { west: -180, south: -80, east: 180, north: 85 };
 
+// F-03 (audit 14.0) — THE GUARD KEYED ON THE WRONG QUANTITY.
+// Both the in-flight key and the controller result cache were keyed by `hourOffset`, but the thing
+// actually fetched is identified by the RESOLVED valid_time. Marine frames are 3-hourly, so three
+// consecutive 1-hour wheel steps resolve to ONE valid_time -- and each one missed the guard and
+// downloaded the same ~2.3 MB world grid again. Measured live 2026-09-20 at z7: wheel handles 13,
+// 14 and 15 every one resolved to 2026-09-21T12:00:00.000Z and issued three identical requests;
+// across a 9-hour scrub that was 9 world fetches / 14,084 KB where 3 / ~4,700 KB were needed.
+//
+// So dedupe on the resolved time as well. This is strictly a REQUEST-IDENTITY repair: the second
+// and third offsets receive the very grid the first one fetched for the same valid_time, so it
+// cannot change a pixel. The global lane itself is untouched -- it has real consumers (coastal
+// wash, crest-ring fill, zoom-out bridge) and removing it was never the fix.
+const _globalGridByValidTime = new Map();   // vtKey -> { result, ts }
+const _GLOBAL_VT_TTL_MS = 10 * 60 * 1000;   // matches the series page TTL: a warm scrub, not a session
+
+function _vtKey(model, layer, validTimeIso) {
+  return `${model}_${layer}_${validTimeIso}_GLOBALGRID`;
+}
+
+function _rememberGlobalByValidTime(key, result) {
+  try {
+    _globalGridByValidTime.set(key, { result, ts: Date.now() });
+    // Bounded: a long scrub walks many frames, and this holds whole world grids. Evict oldest
+    // beyond a small window so the repair cannot become the memory problem it just fixed.
+    if (_globalGridByValidTime.size > 8) {
+      const oldest = [..._globalGridByValidTime.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+      if (oldest) _globalGridByValidTime.delete(oldest[0]);
+    }
+  } catch (e) { /* best-effort */ }
+}
+
+function _recallGlobalByValidTime(key) {
+  const hit = _globalGridByValidTime.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.ts > _GLOBAL_VT_TTL_MS) { _globalGridByValidTime.delete(key); return null; }
+  return hit.result;
+}
+
+/** Test seam: the module-level maps outlive a Jest module registry reset of their consumers. */
+export function _resetGlobalPrewarmDedupeForTest() {
+  _globalGridByValidTime.clear();
+  _globalGridPrewarmInFlight.clear();
+}
+
 // Stage a global-width grid as the zoom-out bridge's coarse-base seed (engine snapshots it at its
 // next render — GL-timing-safe). Shared by the prewarm's fetch path and its cache-warm early-return
 // (2026-07-06: the early-return used to skip seeding, leaving the bridge baseless after an engine
@@ -120,8 +164,28 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
       } catch (e) { /* best-effort: a warm must never break the gesture that triggered it */ }
     }
 
-    const key = `${m}_${hourOffset}_${activeLayer}_GLOBALGRID`;
+    // F-03: dedupe on the RESOLVED valid_time, not the raw hourOffset -- three 1-hour steps share
+    // one 3-hourly frame. Falls back to the offset key if the time cannot be resolved, which is
+    // exactly the pre-2026-09-20 behaviour.
+    // readOnly: this resolution exists ONLY to build a cache key. Without the flag it would
+    // trigger a manifest refresh and a diagnostic write on every prewarm -- a dedupe that issues a
+    // network request to decide whether to issue a network request. (WP-3's seriesReuse test pins
+    // that constraint; readOnly is how it stays satisfied.)
+    let _vt = null;
+    try { _vt = getSharedValidTime(hourOffset, activeLayer, m, { readOnly: true }); } catch (e) { _vt = null; }
+    const key = _vt ? _vtKey(m, activeLayer, _vt) : `${m}_${hourOffset}_${activeLayer}_GLOBALGRID`;
     if (_globalGridPrewarmInFlight.has(key)) return;
+    // An earlier offset that resolved to this same valid_time already fetched this exact world
+    // grid. Re-cache it under THIS offset and seed the bridge -- zero network, identical pixels.
+    if (_vt) {
+      const shared = _recallGlobalByValidTime(key);
+      const sharedGrid = shared && shared.grid;
+      if (sharedGrid && Array.isArray(sharedGrid.vectors) && sharedGrid.vectors.length > 0) {
+        deps.cacheMarineResult(m, hourOffset, shared, activeLayer, true);
+        _stageCoarseBridgeSeed(sharedGrid, m, activeLayer, 'valid_time_dedupe');
+        return;
+      }
+    }
     // Already have the global-coarse cached (from a prior zoom-out or prewarm)? Nothing to FETCH —
     // but the bridge seed below must still run: the engine's coarse base can be empty even while
     // the cache is warm (engine re-created or cleared on a layer/model switch AFTER the zoom-out
@@ -172,6 +236,9 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
         const g = result && result.grid;
         if (g && Array.isArray(g.vectors) && g.vectors.length > 0) {
           deps.cacheMarineResult(m, hourOffset, result, activeLayer, true /* silent: no truth-stage pollution */);
+          // F-03: remember it under the RESOLVED valid_time so the sibling offsets that share this
+          // 3-hourly frame reuse it instead of re-downloading the same world grid.
+          if (_vt) _rememberGlobalByValidTime(key, result);
           // COARSE-BASE SEED (2026-07-04, Part 2 of the z7 zoom-out bridge): a COLD coast (fresh session
           // straight to a coast, never zoomed out) never commits a coarse grid → engine._coarseBaseData is
           // empty → the zoom-out bridge can't engage. Stage the prewarmed global (tagged for blend match) so
