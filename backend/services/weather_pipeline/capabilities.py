@@ -597,6 +597,49 @@ WEATHER_CAPABILITIES: List[Dict[str, Any]] = [
     }
 ]
 
+# EURO's legacy scalar fields identify its default source family, not every served grid.
+# Prepared waves pilots/global tiles can use ECMWF directly (provider remains the legacy
+# open-meteo dispatch key); dynamic viewports and native partitions use Copernicus.
+# Keep the old fields/fallback_sources shape for existing consumers and publish the
+# per-layer native alternatives explicitly. Estimates must use their response/basis.
+for _row in WEATHER_CAPABILITIES:
+    if (_row["model"], _row["domain"]) != ("EURO", "marine"):
+        continue
+    _row["provenance_policy"] = {
+        "legacy_fields": "default_source_not_request_guarantee",
+        "native_grid": "native_grid_sources",
+        "effective_source": "product_response",
+        "estimated_grid": "product_response_and_estimate_basis",
+    }
+    _row["native_grid_sources"] = [{
+        "provider": _row["provider"],
+        "upstream_providers": [_row["upstream_provider"]],
+        "upstream_model": _row["upstream_model"],
+        "source_dataset": _row["source_dataset"],
+        "usage": "native_partitions_dynamic_viewports_or_waves_fallback",
+    }]
+    _row["source_docs_note"] = (
+        "Native CMEMS partition grids use Copernicus. Legacy scalar provenance fields "
+        "describe the default source only; effective provenance comes from the served "
+        "product. Estimated/fallback grids must be read with their estimate_basis."
+    )
+    if _row["layer"] == "waves":
+        _row["native_grid_sources"].insert(0, {
+            "provider": "open-meteo",
+            "upstream_providers": ["ecmwf", "open-meteo"],
+            "upstream_model": "ecmwf_wam025",
+            "source_dataset": "ecmwf_wam025",
+            "usage": "prepared_regional_pilots_and_preferred_global_waves",
+        })
+        _row["source_docs_note"] = (
+            "Native prepared waves grids prefer ECMWF WAM; upstream_provider distinguishes "
+            "ECMWF direct from Open-Meteo despite the legacy provider dispatch key. "
+            "Copernicus serves dynamic viewports and native fallback grids. Geography, "
+            "available products and forecast horizon determine the path. Legacy scalar "
+            "fields describe the default source, not a request guarantee; the product "
+            "response and estimate_basis are authoritative."
+        )
+
 def get_weather_capabilities() -> List[Dict[str, Any]]:
     """Returns the backend-owned capabilities matrix for weather, marine, and wind models."""
     return WEATHER_CAPABILITIES
@@ -630,6 +673,20 @@ def validate_capabilities_contract(capabilities: List[Dict[str, Any]]) -> None:
                f_source.get("api") != "marine" or \
                f_source.get("usage") != "direct_point_fallback_or_estimate_source":
                 raise ValueError(f"Row {idx} EURO marine fallback source content mismatch: {f_source}")
+            sources = row.get("native_grid_sources")
+            if not isinstance(sources, list) or not sources:
+                raise ValueError(f"Row {idx} EURO marine native_grid_sources must be a nonempty list")
+            for source in sources:
+                if not isinstance(source, dict) or any(not source.get(key) for key in (
+                        "provider", "upstream_model", "source_dataset", "usage")):
+                    raise ValueError(f"Row {idx} native_grid_sources has an incomplete source")
+                upstream = source.get("upstream_providers")
+                if not isinstance(upstream, list) or not upstream or not all(
+                        isinstance(value, str) and value for value in upstream):
+                    raise ValueError(f"Row {idx} native_grid_sources needs upstream_providers")
+            policy = row.get("provenance_policy", {})
+            if not isinstance(policy, dict) or policy.get("effective_source") != "product_response":
+                raise ValueError(f"Row {idx} EURO marine provenance_policy must use product_response")
         else:
             if len(fallback) != 0:
                 raise ValueError(f"Row {idx} non-EURO marine row must have empty fallback_sources, got {len(fallback)}")

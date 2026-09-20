@@ -1,0 +1,155 @@
+..FF............                                                         [100%]
+================================== FAILURES ===================================
+_ test_euro_native_capability_matches_normalized_served_grid[waves-open-meteo-ecmwf] _
+
+tmp_path = WindowsPath('C:/Users/dprit/AppData/Local/Temp/pytest-of-dprit/pytest-594/test_euro_native_capability_ma0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000236BDE60C30>
+layer = 'waves', provider = 'open-meteo', fetched_by = 'ecmwf'
+
+    @pytest.mark.parametrize("layer,provider,fetched_by", [
+        ("waves", "open-meteo", "ecmwf"),
+        ("waves", "open-meteo", "open-meteo"),
+        ("waves", "copernicus", "copernicus"),
+        ("swell_1", "copernicus", "copernicus"),
+        ("swell_2", "copernicus", "copernicus"),
+        ("wind_waves", "copernicus", "copernicus"),
+    ])
+    def test_euro_native_capability_matches_normalized_served_grid(
+            tmp_path, monkeypatch, layer, provider, fetched_by):
+        """Exercise the real normalizer -> disk/manifest -> HTTP grid resolver contract."""
+        from routes import weather
+        from services.weather_pipeline.normalizer import WeatherNormalizer
+        from services.weather_pipeline import store as store_module
+    
+        monkeypatch.setenv("TESTING", "1")
+        monkeypatch.setattr(store_module, "_get_supabase_storage", lambda: None)
+        monkeypatch.setattr(store_module.ProductStore, "_product_cache", {})
+        monkeypatch.setattr(store_module.ProductStore, "_product_cache_vectors", {})
+        monkeypatch.setattr(store_module.ProductStore, "_cached_manifest", None)
+        local_store = store_module.ProductStore(cache_dir=tmp_path)
+        monkeypatch.setattr(weather, "store", local_store)
+        monkeypatch.setattr(weather.viewport_service, "is_viewport_enabled", lambda *a, **k: False)
+        valid = datetime(2035, 1, 1, 12, tzinfo=timezone.utc)
+        variables = WeatherNormalizer.LAYER_VARS[layer]
+        raw = [{
+            "latitude": lat, "longitude": lon, "__provider": fetched_by,
+            "hourly": {"time": [valid.strftime("%Y-%m-%dT%H:%M:%SZ")], variables["speed"]: [2.0],
+                       variables["direction"]: [180.0], variables["period"]: [10.0]},
+        } for lat in (26, 27) for lon in (-81, -80)]
+        product = WeatherNormalizer().normalize(
+            model="EURO", provider=provider, domain="marine", layer=layer,
+            raw_results=raw, bbox={"west": -81, "south": 26, "east": -80, "north": 27},
+            resolution=1.0, target_time=valid, run_time=valid,
+            region_id="capability_test", coverage_mode="regional_tile",
+        )
+        assert product is not None and product.is_estimated is False
+        filename = local_store.save_product(product, resolution=1.0)
+        assert filename
+        response = client.get("/api/weather/grid", params={
+            "model": "EURO", "domain": "marine", "layer": layer,
+            "valid_time": valid.isoformat(),
+        })
+        assert response.status_code == 200, response.text
+        served = response.json()
+        assert served["product_id"] == filename
+        assert served["provider"] == provider
+        assert served["upstream_provider"] == fetched_by
+        assert served["is_estimated"] is False
+        assert len(served["grid"]["vectors"]) == 4
+        row = next(row for row in client.get("/api/weather/capabilities").json()
+                   if (row["model"], row["domain"], row["layer"]) == ("EURO", "marine", layer))
+>       assert _native_source_matches(row, served), (row, served["upstream_model"])
+E       AssertionError: ({'backend_owned': True, 'cadence_hours': 3, 'domain': 'marine', 'estimated_horizon_hours': 96, ...}, 'ecmwf_wam025')
+E       assert False
+E        +  where False = _native_source_matches({'backend_owned': True, 'cadence_hours': 3, 'domain': 'marine', 'estimated_horizon_hours': 96, ...}, {'cache_hit': None, 'cache_key': None, 'coarse_fill': None, 'coordinate_count': None, ...})
+
+tests\test_capabilities_contract.py:259: AssertionError
+------------------------------ Captured log call ------------------------------
+WARNING  services.weather_pipeline.store:store.py:83 [Product Store] L2 pipeline upload SKIPPED (this box is not the designated writer): euro_marine_waves_capability_test_20350101T120000Z.json (total skipped: 1). Designated writers set L2_WRITER=1; kill switch: L2_WRITER_GATE=0.
+WARNING  services.weather_pipeline.store:store.py:83 [Product Store] L2 pipeline upload SKIPPED (this box is not the designated writer): manifest.json (total skipped: 2). Designated writers set L2_WRITER=1; kill switch: L2_WRITER_GATE=0.
+_ test_euro_native_capability_matches_normalized_served_grid[waves-open-meteo-open-meteo] _
+
+tmp_path = WindowsPath('C:/Users/dprit/AppData/Local/Temp/pytest-of-dprit/pytest-594/test_euro_native_capability_ma1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000236BDE615B0>
+layer = 'waves', provider = 'open-meteo', fetched_by = 'open-meteo'
+
+    @pytest.mark.parametrize("layer,provider,fetched_by", [
+        ("waves", "open-meteo", "ecmwf"),
+        ("waves", "open-meteo", "open-meteo"),
+        ("waves", "copernicus", "copernicus"),
+        ("swell_1", "copernicus", "copernicus"),
+        ("swell_2", "copernicus", "copernicus"),
+        ("wind_waves", "copernicus", "copernicus"),
+    ])
+    def test_euro_native_capability_matches_normalized_served_grid(
+            tmp_path, monkeypatch, layer, provider, fetched_by):
+        """Exercise the real normalizer -> disk/manifest -> HTTP grid resolver contract."""
+        from routes import weather
+        from services.weather_pipeline.normalizer import WeatherNormalizer
+        from services.weather_pipeline import store as store_module
+    
+        monkeypatch.setenv("TESTING", "1")
+        monkeypatch.setattr(store_module, "_get_supabase_storage", lambda: None)
+        monkeypatch.setattr(store_module.ProductStore, "_product_cache", {})
+        monkeypatch.setattr(store_module.ProductStore, "_product_cache_vectors", {})
+        monkeypatch.setattr(store_module.ProductStore, "_cached_manifest", None)
+        local_store = store_module.ProductStore(cache_dir=tmp_path)
+        monkeypatch.setattr(weather, "store", local_store)
+        monkeypatch.setattr(weather.viewport_service, "is_viewport_enabled", lambda *a, **k: False)
+        valid = datetime(2035, 1, 1, 12, tzinfo=timezone.utc)
+        variables = WeatherNormalizer.LAYER_VARS[layer]
+        raw = [{
+            "latitude": lat, "longitude": lon, "__provider": fetched_by,
+            "hourly": {"time": [valid.strftime("%Y-%m-%dT%H:%M:%SZ")], variables["speed"]: [2.0],
+                       variables["direction"]: [180.0], variables["period"]: [10.0]},
+        } for lat in (26, 27) for lon in (-81, -80)]
+        product = WeatherNormalizer().normalize(
+            model="EURO", provider=provider, domain="marine", layer=layer,
+            raw_results=raw, bbox={"west": -81, "south": 26, "east": -80, "north": 27},
+            resolution=1.0, target_time=valid, run_time=valid,
+            region_id="capability_test", coverage_mode="regional_tile",
+        )
+        assert product is not None and product.is_estimated is False
+        filename = local_store.save_product(product, resolution=1.0)
+        assert filename
+        response = client.get("/api/weather/grid", params={
+            "model": "EURO", "domain": "marine", "layer": layer,
+            "valid_time": valid.isoformat(),
+        })
+        assert response.status_code == 200, response.text
+        served = response.json()
+        assert served["product_id"] == filename
+        assert served["provider"] == provider
+        assert served["upstream_provider"] == fetched_by
+        assert served["is_estimated"] is False
+        assert len(served["grid"]["vectors"]) == 4
+        row = next(row for row in client.get("/api/weather/capabilities").json()
+                   if (row["model"], row["domain"], row["layer"]) == ("EURO", "marine", layer))
+>       assert _native_source_matches(row, served), (row, served["upstream_model"])
+E       AssertionError: ({'backend_owned': True, 'cadence_hours': 3, 'domain': 'marine', 'estimated_horizon_hours': 96, ...}, 'ecmwf_wam025')
+E       assert False
+E        +  where False = _native_source_matches({'backend_owned': True, 'cadence_hours': 3, 'domain': 'marine', 'estimated_horizon_hours': 96, ...}, {'cache_hit': None, 'cache_key': None, 'coarse_fill': None, 'coordinate_count': None, ...})
+
+tests\test_capabilities_contract.py:259: AssertionError
+------------------------------ Captured log call ------------------------------
+WARNING  services.weather_pipeline.store:store.py:83 [Product Store] L2 pipeline upload SKIPPED (this box is not the designated writer): euro_marine_waves_capability_test_20350101T120000Z.json (total skipped: 3). Designated writers set L2_WRITER=1; kill switch: L2_WRITER_GATE=0.
+============================== warnings summary ===============================
+routes\profiles\username.py:44
+  C:\Users\dprit\OneDrive\Documents\New project\raw-surf-stabilization14\backend\routes\profiles\username.py:44: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    @validator('username')
+
+routes\profiles\username.py:63
+  C:\Users\dprit\OneDrive\Documents\New project\raw-surf-stabilization14\backend\routes\profiles\username.py:63: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    @validator('new_username')
+
+routes\surf_data\surfboards.py:124
+  C:\Users\dprit\OneDrive\Documents\New project\raw-surf-stabilization14\backend\routes\surf_data\surfboards.py:124: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SurfboardResponse(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+ENVIRONMENT IS NOT THE DECLARED ONE: python 3.14 != declared 3.12; 28 of 46 pins differ; 7 declared packages absent; not in a virtualenv
+  => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
+=========================== short test summary info ===========================
+FAILED tests/test_capabilities_contract.py::test_euro_native_capability_matches_normalized_served_grid[waves-open-meteo-ecmwf]
+FAILED tests/test_capabilities_contract.py::test_euro_native_capability_matches_normalized_served_grid[waves-open-meteo-open-meteo]
+2 failed, 14 passed, 3 warnings in 22.16s
