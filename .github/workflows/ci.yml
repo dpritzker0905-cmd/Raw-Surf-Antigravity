@@ -628,7 +628,11 @@ jobs:
           # Candidate Linux CI must confirm 158 / 1874; keep the six-test margin.
           # dev run 34924124059 observed 159 files / 1877 passes; preserve six-test margin.
           # September 16: hosted CI35055272824 measured 160 files / 1883 passes.
-          MIN_FILES, MIN_PASSED = 160, 1877
+          # September 20 second check: 14 executed observation-pairing/finite-error controls
+          # in existing guard modules. Expected hosted reading 1883 + 14 = 1897, pending
+          # candidate CI; preserve the six-test margin. Local Python 3.14 has four separately
+          # reproduced baseline provider-ownership failures, so do not lower the hosted floor.
+          MIN_FILES, MIN_PASSED = 160, 1891
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -828,7 +832,10 @@ jobs:
           # ⬆ 940 → 941 on 2026-09-19 (the grid-path half of the island gate). The same test FILE
           # gains a 7th test (the /api/weather/grid ranking outcome), so MIN_FILES stays 98 while
           # the reading moves 946 → 947; 947 - 6 = 941. _FLOOR_SET_FROM["chain"] moves with it.
-          MIN_FILES, MIN_PASSED = 98, 941
+          # September 20 second check: selector-confirmed +1 file / +43 executed controls
+          # (grid estimator/periods +30, point periods +8, nonfinite spread +5). Expected hosted
+          # reading 947 + 43 = 990; retain six-test margin and paired provenance. CI confirms.
+          MIN_FILES, MIN_PASSED = 99, 984
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1118,7 +1125,11 @@ jobs:
           # This includes all 19 new census transport controls. Margin stays two.
           # September 16: PR35 run35038920152 job104614181006 observed488 passes;
           # retain the estate lane's two-test deletion margin.
-          MIN_PASSED = 486
+          # September 20 second check: PR46 run35482845900/job106003630843 read 488.
+          # Full local estate reads 514: subtract the 12 undeclared optional trevec tests
+          # (hosted importorskip), leaving 502 expected hosted passes including 14 new gate
+          # controls. Preserve THIS lane's two-test margin, not the other lanes' six.
+          MIN_PASSED = 500
 
           try:
               root = ET.parse('estate.xml').getroot()

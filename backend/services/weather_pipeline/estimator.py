@@ -103,15 +103,35 @@ def blend_period(periods: list, weights: list) -> Optional[float]:
 
     return period_sum / weight_sum if weight_sum > 0.0 else None
 
+def _usable_marine_vector(vector) -> bool:
+    """A wet, finite source cell; zero-height calm water remains valid.
+
+    Height and direction components share one support mask so a sample cannot describe
+    different source populations. Period has separate optional support.
+    """
+    return bool(
+        vector is not None and vector.is_valid and vector.speed >= 0.0
+        and all(math.isfinite(value) for value in (vector.speed, vector.u, vector.v))
+    )
+
+
 def resample_from_grid(lat: float, lng: float, grid: Any) -> Optional[dict]:
-    """Bilinearly interpolates/resamples values from a source grid at a specific lat/lng."""
-    if not grid or not grid.vectors or not grid.bounds or not grid.cols or not grid.rows:
+    """Bilinear marine sampling over wet support, with missing periods kept separate.
+
+    Invalid cells contain numeric zero placeholders, not calm-water observations. Exclude
+    them and renormalize the remaining positive weights; no wet support means no sample.
+    """
+    if (not grid or not grid.vectors or not grid.bounds
+            or grid.cols <= 0 or grid.rows <= 0):
         return None
 
     west = grid.bounds.west
     south = grid.bounds.south
     east = grid.bounds.east
     north = grid.bounds.north
+
+    if not all(math.isfinite(value) for value in (lat, lng, west, south, east, north)):
+        return None
     
     if west <= east:
         lng_span = east - west
@@ -119,7 +139,7 @@ def resample_from_grid(lat: float, lng: float, grid: Any) -> Optional[dict]:
         lng_span = (east + 360.0) - west
     lat_span = north - south
 
-    if lng_span == 0.0 or lat_span == 0.0:
+    if lng_span <= 0.0 or lat_span <= 0.0:
         return None
 
     # Normalize longitude into grid bounds
@@ -153,58 +173,26 @@ def resample_from_grid(lat: float, lng: float, grid: Any) -> Optional[dict]:
     ):
         return None
 
-    v00 = grid.vectors[idx00]
-    v10 = grid.vectors[idx10]
-    v01 = grid.vectors[idx01]
-    v11 = grid.vectors[idx11]
-
-    if not v00 or not v10 or not v01 or not v11:
+    corners = (
+        (grid.vectors[idx00], (1.0 - dx) * (1.0 - dy)),
+        (grid.vectors[idx10], dx * (1.0 - dy)),
+        (grid.vectors[idx01], (1.0 - dx) * dy),
+        (grid.vectors[idx11], dx * dy),
+    )
+    support = [(cell, weight) for cell, weight in corners
+               if weight > 0.0 and _usable_marine_vector(cell)]
+    weight_sum = sum(weight for _, weight in support)
+    if weight_sum <= 0.0:
         return None
 
-    speed = (
-        v00.speed * (1.0 - dx) * (1.0 - dy) +
-        v10.speed * dx * (1.0 - dy) +
-        v01.speed * (1.0 - dx) * dy +
-        v11.speed * dx * dy
-    )
-
-    p00 = v00.period or 0.0
-    p10 = v10.period or 0.0
-    p01 = v01.period or 0.0
-    p11 = v11.period or 0.0
-
-    period = (
-        p00 * (1.0 - dx) * (1.0 - dy) +
-        p10 * dx * (1.0 - dy) +
-        p01 * (1.0 - dx) * dy +
-        p11 * dx * dy
-    )
-
-    u00 = v00.u or 0.0
-    u10 = v10.u or 0.0
-    u01 = v01.u or 0.0
-    u11 = v11.u or 0.0
-
-    u = (
-        u00 * (1.0 - dx) * (1.0 - dy) +
-        u10 * dx * (1.0 - dy) +
-        u01 * (1.0 - dx) * dy +
-        u11 * dx * dy
-    )
-
-    v00_val = v00.v or 0.0
-    v10_val = v10.v or 0.0
-    v01_val = v01.v or 0.0
-    v11_val = v11.v or 0.0
-
-    v = (
-        v00_val * (1.0 - dx) * (1.0 - dy) +
-        v10_val * dx * (1.0 - dy) +
-        v01_val * (1.0 - dx) * dy +
-        v11_val * dx * dy
-    )
-
-    return {"u": u, "v": v, "speed": speed, "period": period}
+    values = {name: sum(getattr(cell, name) * weight for cell, weight in support) / weight_sum
+              for name in ("u", "v", "speed")}
+    period_support = [(cell.period, weight) for cell, weight in support
+                      if cell.period is not None and math.isfinite(cell.period) and cell.period > 0.0]
+    period_weight = sum(weight for _, weight in period_support)
+    values["period"] = (sum(period * weight for period, weight in period_support) / period_weight
+                        if period_weight > 0.0 else None)
+    return values
 
 def estimate_euro_grid(
     target_hour: float,
@@ -263,7 +251,7 @@ def estimate_euro_grid(
         vector_count += 1
         lat = v_euro_anchor.lat
         lng = v_euro_anchor.lng
-        is_valid = v_euro_anchor.is_valid
+        is_valid = _usable_marine_vector(v_euro_anchor)
 
         if not is_valid:
             skipped_invalid_anchor += 1
@@ -278,7 +266,9 @@ def estimate_euro_grid(
             continue
 
         h_euro_anchor = v_euro_anchor.speed or 0.0
-        p_euro_anchor = v_euro_anchor.period or 0.0
+        p_euro_anchor = v_euro_anchor.period
+        if p_euro_anchor is None or not math.isfinite(p_euro_anchor) or p_euro_anchor <= 0.0:
+            p_euro_anchor = 0.0
 
         # Extract direction of EURO anchor
         d_euro_anchor = None
@@ -310,7 +300,10 @@ def estimate_euro_grid(
 
         h_gfs_trend = max(0.0, h_euro_anchor + (c_gfs_target["speed"] - c_gfs_anchor["speed"]))
         
-        if c_gfs_anchor["period"] and c_gfs_anchor["period"] > 0.0:
+        # A period trend needs both endpoints. Missing target periods cannot mean zero
+        # seconds: retain the EURO anchor period when the trend is unavailable.
+        if (p_euro_anchor > 0.0 and c_gfs_anchor["period"] is not None
+                and c_gfs_target["period"] is not None):
             p_gfs_trend = max(2.0, p_euro_anchor + (c_gfs_target["period"] - c_gfs_anchor["period"]))
         else:
             p_gfs_trend = p_euro_anchor
@@ -335,7 +328,8 @@ def estimate_euro_grid(
 
                 h_icon_trend = max(0.0, h_euro_anchor + (c_icon_target["speed"] - c_icon_anchor["speed"]))
                 
-                if c_icon_anchor["period"] and c_icon_anchor["period"] > 0.0:
+                if (p_euro_anchor > 0.0 and c_icon_anchor["period"] is not None
+                        and c_icon_target["period"] is not None):
                     p_icon_trend = max(2.0, p_euro_anchor + (c_icon_target["period"] - c_icon_anchor["period"]))
                 else:
                     p_icon_trend = p_euro_anchor
@@ -357,7 +351,7 @@ def estimate_euro_grid(
             periods.append(p_icon_trend)
             p_weights.append(w_icon_real)
         
-        blended_period = blend_period(periods, p_weights) or 0.0
+        blended_period = blend_period(periods, p_weights)
 
         # Blended Direction
         directions = [d_euro_anchor, d_gfs_trend]
@@ -384,7 +378,7 @@ def estimate_euro_grid(
                 direction=round(blended_direction, 2) if blended_direction is not None else 0.0,
                 u=round(u, 4),
                 v=round(v, 4),
-                period=round(blended_period, 2),
+                period=round(blended_period, 2) if blended_period is not None else None,
                 is_valid=True
             )
         )
@@ -590,13 +584,26 @@ async def resolve_euro_estimate_point(
     w_icon_real = w_icon if is_icon_valid else 0.0
     w_gfs_real = w_gfs + (w_icon if not is_icon_valid else 0.0)
     
+    # Match the grid estimator's period contract. Upstream nulls were historically
+    # decoded as zero here; zero/nonfinite periods cannot anchor a physical trend.
+    # Height and direction fallback policy is intentionally unchanged in this path.
+    for values in (euro_anc, gfs_anc, gfs_tgt, icon_anc, icon_tgt):
+        if values is not None:
+            period = values["period"]
+            if (not isinstance(period, (int, float)) or isinstance(period, bool)
+                    or not math.isfinite(period) or period <= 0.0):
+                values["period"] = None
+
     h_gfs_trend = max(0.0, euro_anc["speed"] + (gfs_tgt["speed"] - gfs_anc["speed"]))
-    p_gfs_trend = max(2.0, euro_anc["period"] + (gfs_tgt["period"] - gfs_anc["period"])) if gfs_anc["period"] > 0 else euro_anc["period"]
+    p_gfs_trend = euro_anc["period"]
+    if all(values["period"] is not None for values in (euro_anc, gfs_anc, gfs_tgt)):
+        p_gfs_trend = max(2.0, euro_anc["period"] + (gfs_tgt["period"] - gfs_anc["period"]))
     
-    h_icon_trend, p_icon_trend = 0.0, 0.0
+    h_icon_trend, p_icon_trend = 0.0, euro_anc["period"]
     if is_icon_valid and icon_anc and icon_tgt:
         h_icon_trend = max(0.0, euro_anc["speed"] + (icon_tgt["speed"] - icon_anc["speed"]))
-        p_icon_trend = max(2.0, euro_anc["period"] + (icon_tgt["period"] - icon_anc["period"])) if icon_anc["period"] > 0 else euro_anc["period"]
+        if all(values["period"] is not None for values in (euro_anc, icon_anc, icon_tgt)):
+            p_icon_trend = max(2.0, euro_anc["period"] + (icon_tgt["period"] - icon_anc["period"]))
         
     blended_height = max(0.0, w_persist * euro_anc["speed"] + w_gfs_real * h_gfs_trend + w_icon_real * h_icon_trend)
     
@@ -605,7 +612,7 @@ async def resolve_euro_estimate_point(
     if is_icon_valid:
         periods.append(p_icon_trend)
         p_weights.append(w_icon_real)
-    blended_period = blend_period(periods, p_weights) or 0.0
+    blended_period = blend_period(periods, p_weights)
     
     directions = [euro_anc["direction"], gfs_tgt["direction"]]
     d_weights = [w_persist, w_gfs_real]
@@ -625,7 +632,8 @@ async def resolve_euro_estimate_point(
     detail = NormalizedPointDetail(
         requested_lat=lat, requested_lng=lng, sampled_lat=lat, sampled_lng=lng,
         speed=round(blended_height, 4), direction=round(blended_direction, 2) if blended_direction is not None else 0.0,
-        u=round(u, 4), v=round(v, 4), period=round(blended_period, 2), gust=None,
+        u=round(u, 4), v=round(v, 4),
+        period=round(blended_period, 2) if blended_period is not None else None, gust=None,
         interpolation_method="point_estimate_blend"
     )
     

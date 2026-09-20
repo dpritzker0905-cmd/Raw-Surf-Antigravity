@@ -372,13 +372,16 @@ def obs_band(obs_m) -> Optional[str]:
     return None
 
 
+def _finite_number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
 def verification_metrics(pairs) -> Optional[dict]:
     """Operational wave-verification metrics over (forecast_m, observed_m) pairs, or None if empty.
 
     Shape metrics (si/corr/sym_slope) are None rather than a number whenever they would be
     unstable or undefined — see MIN_N_FOR_SHAPE above for why that matters more than coverage."""
-    fo = [(f, o) for f, o in (pairs or [])
-          if isinstance(f, (int, float)) and isinstance(o, (int, float))]
+    fo = [(f, o) for f, o in (pairs or []) if _finite_number(f) and _finite_number(o)]
     n = len(fo)
     if n == 0:
         return None
@@ -411,9 +414,15 @@ def verification_metrics(pairs) -> Optional[dict]:
     return out
 
 
-def head_to_head(scored_rows, primary: str = SOURCE_OURS) -> List[dict]:
+def head_to_head(scored_rows, primary: str = SOURCE_OURS,
+                 diagnostics: Optional[dict] = None) -> List[dict]:
     """PAIRED comparison of `primary` against every other source, on the EXACT SAME
-    (buoy_id, target_time, lead-bucket) keys.
+    (buoy_id, target_time, lead-bucket) keys AND the same verifying observation.
+
+    Matching target hours alone does not establish observation parity: score_pending allows
+    observations within 90 minutes, and different scoring runs can select different ones.
+    Missing observation identity is ungradeable. Optional diagnostics expose exclusions even
+    when no valid comparison survives; existing callers still receive a list of scored pairs.
 
     ⛔⛔ WHY THIS EXISTS — IT CAUGHT A FALSE ALARM, MINE, ON 2026-08-10. `skill_summary` groups each
     source INDEPENDENTLY, so its MAE column compares DIFFERENT POPULATIONS. Read across that column
@@ -431,28 +440,50 @@ def head_to_head(scored_rows, primary: str = SOURCE_OURS) -> List[dict]:
     `win_rate` is the fraction of paired keys where our absolute error is strictly smaller — a
     median-free view, because one storm can move an MAE and cannot move a win rate.
     """
-    by_source: Dict[str, Dict[tuple, float]] = {}
+    by_source: Dict[str, Dict[tuple, dict]] = {}
+    invalid_errors = 0
     for r in scored_rows or []:
         e = r.get("err_m")
-        if not isinstance(e, (int, float)):
+        if not _finite_number(e):
+            invalid_errors += 1
             continue
         key = (r.get("buoy_id"), r.get("target_time"), _lead_bucket(r.get("lead_h") or 0))
-        by_source.setdefault(r.get("source"), {})[key] = abs(e)
+        by_source.setdefault(r.get("source"), {})[key] = r
 
     ours = by_source.get(primary) or {}
     out = []
+    exclusions = []
     for source in sorted(k for k in by_source if k != primary):
         theirs = by_source[source]
         for bucket in sorted({k[2] for k in ours} | {k[2] for k in theirs}):
-            common = [k for k in ours if k[2] == bucket and k in theirs]
-            if not common:
+            candidates = [k for k in ours if k[2] == bucket and k in theirs]
+            if not candidates:
                 continue
+            common = []
+            missing = mismatched = 0
+            for key in candidates:
+                our_obs, their_obs = ours[key], theirs[key]
+                our_time, their_time = _parse_iso(our_obs.get("obs_time")), _parse_iso(their_obs.get("obs_time"))
+                our_h, their_h = our_obs.get("obs_hs_m"), their_obs.get("obs_hs_m")
+                if (our_time is None or their_time is None
+                        or not _finite_number(our_h) or not _finite_number(their_h)):
+                    missing += 1
+                elif our_time != their_time or our_h != their_h:
+                    mismatched += 1
+                else:
+                    common.append(key)
             n = len(common)
-            mo = sum(ours[k] for k in common) / n
-            mt = sum(theirs[k] for k in common) / n
-            wins = sum(1 for k in common if ours[k] < theirs[k])
+            excluded = {"source": source, "lead_h": bucket * 24,
+                        "n_target_matched": len(candidates), "n_paired": n,
+                        "n_observation_mismatch": mismatched, "n_observation_missing": missing}
+            exclusions.append(excluded)
+            if not n:
+                continue
+            mo = sum(abs(ours[k]["err_m"]) for k in common) / n
+            mt = sum(abs(theirs[k]["err_m"]) for k in common) / n
+            wins = sum(1 for k in common if abs(ours[k]["err_m"]) < abs(theirs[k]["err_m"]))
             out.append({
-                "source": source, "lead_h": bucket * 24, "n_paired": n,
+                **excluded,
                 "n_ours_total": sum(1 for k in ours if k[2] == bucket),
                 "n_theirs_total": sum(1 for k in theirs if k[2] == bucket),
                 "mae_ours_m": round(mo, 4), "mae_theirs_m": round(mt, 4),
@@ -460,6 +491,8 @@ def head_to_head(scored_rows, primary: str = SOURCE_OURS) -> List[dict]:
                 "win_rate": round(wins / n, 4),
                 "we_lose": mo > mt,
             })
+    if diagnostics is not None:
+        diagnostics.update(invalid_error_rows=invalid_errors, comparisons=exclusions)
     return out
 
 
@@ -472,7 +505,7 @@ def skill_summary(scored_rows) -> List[dict]:
     error a surfer notices most while contributing least to the average."""
     groups: Dict[tuple, List[dict]] = {}
     for r in scored_rows or []:
-        if not isinstance(r.get("err_m"), (int, float)):
+        if not _finite_number(r.get("err_m")):
             continue
         groups.setdefault((r.get("source"), _lead_bucket(r.get("lead_h") or 0)), []).append(r)
     out = []

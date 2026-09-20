@@ -292,7 +292,12 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Candidate CI must confirm 946. The six-test margin is retained, so no budget moves.
 # September 19 grid-path gate: +1 test in the same file (no new file), so chain 946 -> 947
 # and MIN_FILES is unchanged at 98. Candidate CI must confirm 947.
-_FLOOR_SET_FROM = {"guards": 1883, "chain": 947, "estate": 488}
+# September 20 second check: selector-confirmed, executed additions guards +14, chain +43,
+# estate +14. Hosted candidate readings are EXPECTED, not yet observed. Full local estate
+# 514 includes 12 optional trevec passes absent from hosted PR46's 488; comparable value 502.
+# Local Python 3.14's four reproduced baseline ownership failures cannot lower the guard floor.
+# ci.yml and this reference move together; keep established margins guards/chain=6, estate=2.
+_FLOOR_SET_FROM = {"guards": 1897, "chain": 990, "estate": 502}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

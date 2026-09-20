@@ -281,12 +281,22 @@ def evaluate_scored_segment(rows, now, paired=None, cfg=None):
     # lose to persistence (0.268 vs 0.206) when the paired truth was the opposite (0.183 vs 0.206);
     # persistence had 374 rows over SEVEN target times against our 2,825 over 64. The table below
     # is the only one of the two that supports a "we lose" sentence -- and the only one that gates.
-    h2h = head_to_head(week) if paired is None else paired
+    pair_diagnostics = {}
+    h2h = head_to_head(week, diagnostics=pair_diagnostics) if paired is None else paired
+    for rejected in pair_diagnostics.get("comparisons", []):
+        if rejected["n_observation_mismatch"] or rejected["n_observation_missing"]:
+            lines.append("  vs %s +%dh observation pairing: %d target matches, %d verified pairs, "
+                         "%d mismatched observations, %d missing observation identities" % (
+                             rejected["source"], rejected["lead_h"], rejected["n_target_matched"],
+                             rejected["n_paired"], rejected["n_observation_mismatch"],
+                             rejected["n_observation_missing"]))
+    if pair_diagnostics.get("invalid_error_rows"):
+        lines.append("  excluded %d rows with missing/non-finite errors" % pair_diagnostics["invalid_error_rows"])
     if not h2h:
         return (REFUSED if armed else OK), lines + [
             ("::error::" if armed else "::warning::")
             + "SKILL FLOOR UNMEASURED -- no paired comparisons in the trailing 7 d."]
-    lines.append("  -- PAIRED head-to-head (same buoy x target x lead; the comparable one) --")
+    lines.append("  -- PAIRED head-to-head (same buoy x target x lead AND verifying observation) --")
     for c in h2h:
         skew = ""
         if c["n_paired"] < 0.5 * max(c["n_ours_total"], c["n_theirs_total"]):

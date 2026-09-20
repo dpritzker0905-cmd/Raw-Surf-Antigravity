@@ -4,6 +4,7 @@ Pins the ledger's honesty properties: the earliest forecast per (source, buoy, t
 wins, scoring joins only within tolerance of real observations, unmatched rows expire instead of
 lingering, and the summary reports independence (n_buoys) beside n."""
 import json
+import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, MagicMock
 
@@ -403,7 +404,7 @@ from services.weather_pipeline.forecast_skill import head_to_head  # noqa: E402
 
 def _scored(source, buoy, target, lead_h, err_m):
     return {"source": source, "buoy_id": buoy, "target_time": target,
-            "lead_h": lead_h, "err_m": err_m}
+            "lead_h": lead_h, "err_m": err_m, "obs_time": target, "obs_hs_m": 1.0}
 
 
 def test_head_to_head_INVERTS_the_verdict_an_unpaired_column_gives():
@@ -478,11 +479,81 @@ def test_head_to_head_ignores_rows_with_no_error_the_same_way_the_summary_does()
     assert h["n_paired"] == 1, "an unscored row is not a pair"
 
 
+def test_identical_forecasts_on_different_observations_cannot_fabricate_a_victory():
+    target = "2026-09-20T00:00:00Z"
+    ours = {**_scored("raw_surf", "B1", target, 24, 0.0), "hs_m": 1.0,
+            "obs_time": "2026-09-19T23:00:00Z", "obs_hs_m": 1.0}
+    theirs = {**_scored("comparison", "B1", target, 24, -1.0), "hs_m": 1.0,
+              "obs_time": "2026-09-20T01:00:00Z", "obs_hs_m": 2.0}
+    diagnostics = {}
+    assert head_to_head([ours, theirs], diagnostics=diagnostics) == []
+    assert diagnostics["comparisons"] == [{"source": "comparison", "lead_h": 24,
+        "n_target_matched": 1, "n_paired": 0, "n_observation_mismatch": 1,
+        "n_observation_missing": 0}]
+
+
+def test_same_observation_in_different_timestamp_notation_remains_paired():
+    target = "2026-09-20T00:00:00Z"
+    ours = _scored("raw_surf", "B1", target, 24, .1)
+    theirs = {**_scored("comparison", "B1", target, 24, .3),
+              "obs_time": "2026-09-19T20:00:00-04:00"}
+    result = head_to_head([ours, theirs])[0]
+    assert result["n_paired"] == 1 and result["delta_m"] == -.2
+    assert result["n_observation_mismatch"] == result["n_observation_missing"] == 0
+
+
+def test_revised_observation_value_is_not_the_same_truth_even_at_identical_time():
+    target = "2026-09-20T00:00:00Z"
+    ours = _scored("raw_surf", "B1", target, 24, .1)
+    theirs = {**_scored("comparison", "B1", target, 24, .3), "obs_hs_m": 1.1}
+    diagnostics = {}
+    assert head_to_head([ours, theirs], diagnostics=diagnostics) == []
+    assert diagnostics["comparisons"][0]["n_observation_mismatch"] == 1
+
+
+@pytest.mark.parametrize("field,bad", [("obs_time", None), ("obs_time", "invalid"),
+                                     ("obs_hs_m", None), ("obs_hs_m", float("nan")),
+                                     ("obs_hs_m", float("inf"))])
+def test_missing_observation_identity_is_ungradeable_and_counted(field, bad):
+    target = "2026-09-20T00:00:00Z"
+    ours = _scored("raw_surf", "B1", target, 24, .1)
+    theirs = {**_scored("comparison", "B1", target, 24, .3), field: bad}
+    diagnostics = {}
+    assert head_to_head([ours, theirs], diagnostics=diagnostics) == []
+    assert diagnostics["comparisons"][0]["n_observation_missing"] == 1
+
+
+def test_partial_observation_mismatch_retains_valid_pairs_and_population_totals():
+    target = "2026-09-20T00:00:00Z"
+    rows = [_scored(source, buoy, target, 24, error)
+            for source, error in (("raw_surf", .1), ("comparison", .3))
+            for buoy in ("B1", "B2")]
+    rows[-1]["obs_hs_m"] = 2.0
+    result = head_to_head(rows)[0]
+    assert result["n_paired"] == 1
+    assert result["n_ours_total"] == result["n_theirs_total"] == 2
+    assert result["n_target_matched"] == 2 and result["n_observation_mismatch"] == 1
+    assert result["mae_ours_m"] == .1 and result["mae_theirs_m"] == .3
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -float("inf")])
+def test_nonfinite_values_do_not_poison_skill_metrics_or_comparisons(bad):
+    assert verification_metrics([(bad, 1), (1, bad)]) is None
+    metrics = verification_metrics([(2, 1), (bad, 1), (1, bad)])
+    assert metrics["n_paired"] == 1 and metrics["mae_m"] == metrics["rmse_m"] == 1
+    target = "2026-09-20T00:00:00Z"
+    rows = [_scored("raw_surf", "B1", target, 24, bad),
+            _scored("comparison", "B1", target, 24, .3)]
+    diagnostics = {}
+    assert head_to_head(rows, diagnostics=diagnostics) == []
+    assert diagnostics["invalid_error_rows"] == 1
+    assert [s["source"] for s in skill_summary(rows)] == ["comparison"]
+
+
 # ── THE SAME-MODEL CONTROL LANE (2026-08-10) ──────────────────────────────────────────────────
 # The competitor lane is Open-Meteo `best_match` -- their best wave model per coordinate, against
 # our GFS. It beat us at every lead PAIRED, and that number cannot tell "their model is better"
 # from "our chain is worse". These guard the lane that separates the two.
-import pytest  # noqa: E402
 
 from services.weather_pipeline.forecast_skill import (  # noqa: E402
     OM_CONTROL_MODEL, SOURCE_OM_GFS, _om_payload_error,
