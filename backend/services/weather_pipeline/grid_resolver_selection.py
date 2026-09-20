@@ -25,9 +25,18 @@ def find_candidates(manifest, model, domain, layer, target_dt):
     """Search the manifest for candidate products covering the target time (±3h), split
     authoritative vs estimated. Returns (authoritative_candidates, estimated_candidates) as
     lists of (product, time_diff_seconds)."""
+    from services.weather_pipeline.island_gate import is_island_gated
+
     authoritative_candidates = []
     estimated_candidates = []
     for p in manifest.products:
+        # ⛔ THE ISLAND GATE, and this was the WORST of the five sites. Ranking runs through
+        # _select_best_from_list: largest intersection, then SMALLEST COVERAGE AREA. Zoomed in at
+        # an island the request sits inside BOTH the island tile and the regional/global tile, so
+        # intersection ties and the smallest bbox -- always the 0.083 deg island tile -- won
+        # DETERMINISTICALLY on /api/weather/grid. Not order luck; it won by construction.
+        if is_island_gated(p):
+            continue
         if (
             p.model.upper() == model.upper()
             and p.domain.lower() == domain.lower()

@@ -495,7 +495,14 @@ async def resolve_grid(
 
                 # Step 6: Durable manifest overlap as regional_partial only if no better dynamic/stale viewport product exists
                 overlap_candidates = []
+                from services.weather_pipeline.island_gate import is_island_gated
                 for p in manifest.products:
+                    # The island gate. Weaker than the find_candidates site but the same class:
+                    # this ranks by intersection area, which TIES for any tile containing the
+                    # request, then falls to time diff and finally to LIST ORDER -- exactly the
+                    # trap mid_res_tier already documents for global_mid.
+                    if is_island_gated(p):
+                        continue
                     if (
                         p.model.upper() == model.upper()
                         and p.domain.lower() == domain.lower()

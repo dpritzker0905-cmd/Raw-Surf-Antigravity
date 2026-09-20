@@ -825,7 +825,10 @@ jobs:
           # `ci_test_lanes.py --lane chain` (97 → 98 files). 940 + 6 = 946; 946 - 6 = 940.
           # MIN_FILES is EXACT; MIN_PASSED keeps the customary 6 below, and
           # _FLOOR_SET_FROM["chain"] moves to 946 in the SAME commit.
-          MIN_FILES, MIN_PASSED = 98, 940
+          # ⬆ 940 → 941 on 2026-09-19 (the grid-path half of the island gate). The same test FILE
+          # gains a 7th test (the /api/weather/grid ranking outcome), so MIN_FILES stays 98 while
+          # the reading moves 946 → 947; 947 - 6 = 941. _FLOOR_SET_FROM["chain"] moves with it.
+          MIN_FILES, MIN_PASSED = 98, 941
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

@@ -52,21 +52,12 @@ def _selection_key(pair):
     return (diff, area)
 
 
-ISLAND_REGION_PREFIX = "island_"
-
-
-def _island_gated(p) -> bool:
-    """The island lane's SERVING gate. `copernicus_island_ingestion` documents itself as "inert by
-    construction -- until a serving tier reads region_id `island_*`". No tier ever did: both manifest
-    sites below rank on (diff, RESOLUTION, area) and island tiles are 0.083 deg -- the finest in the
-    estate -- so they did not merely leak into selection, they WON every time tie at an island spot.
-    The lane shipped default-ON behind a false inertness claim, and its own header warns that
-    dropping a fallback tier is what has produced marine blanks here before. This is the gate that
-    header said the serving half deserved. Ingest is untouched; products still accumulate.
-    Arm: COPERNICUS_ISLAND_SERVE=1. See docs/runbooks/RATIONALE-2026-09-19-island-serving-gate.md."""
-    if os.environ.get("COPERNICUS_ISLAND_SERVE", "0") == "1":
-        return False
-    return str(getattr(p, "region_id", None) or "").startswith(ISLAND_REGION_PREFIX)
+# The island SERVING gate now lives in island_gate.py -- there are FIVE selection sites, so a
+# predicate defined next to one of them was already drifting toward the copy-per-site shape.
+# `_island_gated` is kept as the module-local name the gated loops below read.
+from services.weather_pipeline.island_gate import (  # noqa: E402
+    ISLAND_REGION_PREFIX, is_island_gated as _island_gated,
+)
 
 
 class PointResolutionService:
