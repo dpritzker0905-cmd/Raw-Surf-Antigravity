@@ -305,7 +305,11 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # 57 chain controls in one selector-confirmed file; full local chain reads 1079/100.
 # Retention adds 69 executed cases in one more chain file: expected 1148/101.
 # Next hosted CI must confirm that projection; six-test chain margin is unchanged.
-_FLOOR_SET_FROM = {"guards": 1912, "chain": 1148, "estate": 502}
+# guards 1922: hosted run35538513375 (ed5e46c6) read 1912; audit 14.0 F-01 adds 10 executed
+#   controls in tests/test_grid_series_base_anchor.py, selected by `--lane guards` ONLY.
+# chain 1194: the SAME hosted run actually read 1194, not the 1148 previously projected here.
+#   The projection was never confirmed, so this is corrected to the receipt (see ci.yml).
+_FLOOR_SET_FROM = {"guards": 1922, "chain": 1194, "estate": 502}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

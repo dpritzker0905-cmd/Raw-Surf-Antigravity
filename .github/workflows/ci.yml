@@ -641,7 +641,12 @@ jobs:
           # September 20 continuation: run35485093918 at 74ca4f4e confirmed 1897.
           # +15 executed scoring-validity controls in the same guard file -> expected 1912.
           # Keep the six-test margin; _FLOOR_SET_FROM moves in this same commit.
-          MIN_FILES, MIN_PASSED = 160, 1906
+          # September 20, audit 14.0 F-01: run35538513375 at ed5e46c6 confirmed 160/1912.
+          # tests/test_grid_series_base_anchor.py adds 10 executed series-anchor controls in ONE
+          # new file selected by `--lane guards` only (verified: chain and estate do not select
+          # it), so files 160 -> 161 EXACT and the expected hosted reading is 1912 + 10 = 1922.
+          # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1922 in this commit.
+          MIN_FILES, MIN_PASSED = 161, 1916
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -852,7 +857,13 @@ jobs:
           # Retention adds 69 executed controls in one further selector-confirmed file.
           # Expected final chain 1148/101; hosted receipt must confirm that projection.
           # Retain the established six-test margin and paired reference.
-          MIN_FILES, MIN_PASSED = 101, 1142
+          # ⬆ 2026-09-20: that projection was NOT confirmed — hosted run35538513375 at ed5e46c6
+          # actually observed 102 files / 1194 passes (the weather-stabilization-14 batch landed
+          # its WP2/WP5 cases without moving this pair). A floor 52 below the reading cannot
+          # detect anything shrinking back to it, so it is corrected here from that receipt:
+          # files 102 EXACT, passes 1194 - 6 = 1188. Local `--lane chain` also selects 102.
+          # This lane is untouched by audit 14.0's F-01 work; the drift is pre-existing.
+          MIN_FILES, MIN_PASSED = 102, 1188
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
