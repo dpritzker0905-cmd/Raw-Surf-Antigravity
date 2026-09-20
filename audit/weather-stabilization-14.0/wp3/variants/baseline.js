@@ -12,9 +12,9 @@
 // depend on that tolerance. marineController calls registerPrewarmDeps once at module scope instead,
 // so the edges here point one way only: marineController -> marineGlobalPrewarm -> {series, clients}.
 
-import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
-import { fetchBackendMarineGrid, getSharedValidTime } from './backendWeatherServiceClient';
-import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
+import { ensureMarineSeries, getMarineSeriesFrame } from "C:/Users/dprit/OneDrive/Documents/New project/raw-surf-stabilization14/frontend/src/components/map/marineGridSeries";
+import { fetchBackendMarineGrid, getSharedValidTime } from "C:/Users/dprit/OneDrive/Documents/New project/raw-surf-stabilization14/frontend/src/components/map/backendWeatherServiceClient";
+import { fetchBackendCopernicusGrid } from "C:/Users/dprit/OneDrive/Documents/New project/raw-surf-stabilization14/frontend/src/components/map/backendCopernicusServiceClient";
 
 let _prewarmDeps = null;
 
@@ -136,24 +136,6 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
         _stageCoarseBridgeSeed(cached.grid, m, activeLayer, 'cache_warm');
         return;
       }
-    }
-    // The global series page may already hold this hour while the controller's single-frame
-    // cache is cold. Reuse that actual frame instead of downloading another world grid.
-    // The series selector permits nearest-hour/bridge fallbacks: this cache write is stricter.
-    // Never stamp an older hour or a substituted valid time as the requested forecast.
-    const seriesFrame = getMarineSeriesFrame(m, activeLayer, _GLOBAL_BOUNDS, hourOffset);
-    const sg = seriesFrame?.grid;
-    const sb = sg?.bounds;
-    const sw = sb ? ((sb.east < sb.west) ? (sb.east + 360) - sb.west : sb.east - sb.west) : 0;
-    const targetTime = sg && sg.hourOffset === hourOffset
-      ? Date.parse(getSharedValidTime(hourOffset, activeLayer, m)) : NaN;
-    if (sg && Array.isArray(sg.vectors) && sg.vectors.length > 0 && sw >= 340 &&
-        sg.hourOffset === hourOffset && Date.parse(sg.valid_time) === targetTime &&
-        (!sg.served_valid_time || Date.parse(sg.served_valid_time) === targetTime) &&
-        !sg.frame_substituted) {
-      deps.cacheMarineResult(m, hourOffset, seriesFrame, activeLayer, true);
-      _stageCoarseBridgeSeed(sg, m, activeLayer, 'series_cache');
-      return;
     }
     _globalGridPrewarmInFlight.add(key);
     // No abort signal: this is a background best-effort warm that must survive the pan/zoom which

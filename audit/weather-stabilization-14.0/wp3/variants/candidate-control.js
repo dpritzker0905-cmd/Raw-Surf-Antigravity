@@ -12,9 +12,9 @@
 // depend on that tolerance. marineController calls registerPrewarmDeps once at module scope instead,
 // so the edges here point one way only: marineController -> marineGlobalPrewarm -> {series, clients}.
 
-import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
-import { fetchBackendMarineGrid, getSharedValidTime } from './backendWeatherServiceClient';
-import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
+import { ensureMarineSeries, getMarineSeriesFrame } from "C:/Users/dprit/OneDrive/Documents/New project/raw-surf-stabilization14/frontend/src/components/map/marineGridSeries";
+import { fetchBackendMarineGrid, getSharedValidTime } from "C:/Users/dprit/OneDrive/Documents/New project/raw-surf-stabilization14/frontend/src/components/map/backendWeatherServiceClient";
+import { fetchBackendCopernicusGrid } from "C:/Users/dprit/OneDrive/Documents/New project/raw-surf-stabilization14/frontend/src/components/map/backendCopernicusServiceClient";
 
 let _prewarmDeps = null;
 
