@@ -1,0 +1,219 @@
+...FFFFFF......FF......FFF...F                                           [100%]
+================================== FAILURES ===================================
+_____ test_fixed_span_crosses_edge_without_resolution_collapse[-78.9999] ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000187AFBB79B0>
+east = -78.9999
+
+    @pytest.mark.parametrize("east", [-79.01, -79.0001, -79, -78.9999, -78.97, -78.8, -78.5, -78.11201])
+    def test_fixed_span_crosses_edge_without_resolution_collapse(monkeypatch, east):
+        bbox = f"{east - 2.96},26.5,{east},29.2"
+        result = resolve(monkeypatch, bbox)
+>       assert result.product_id == "florida.json"
+E       AssertionError: assert 'global_mid.json' == 'florida.json'
+E         
+E         - florida.json
+E         + global_mid.json
+
+tests\test_regional_edge_selection.py:97: AssertionError
+______ test_fixed_span_crosses_edge_without_resolution_collapse[-78.97] _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000187AFBB7AC0>
+east = -78.97
+
+    @pytest.mark.parametrize("east", [-79.01, -79.0001, -79, -78.9999, -78.97, -78.8, -78.5, -78.11201])
+    def test_fixed_span_crosses_edge_without_resolution_collapse(monkeypatch, east):
+        bbox = f"{east - 2.96},26.5,{east},29.2"
+        result = resolve(monkeypatch, bbox)
+>       assert result.product_id == "florida.json"
+E       AssertionError: assert 'global_mid.json' == 'florida.json'
+E         
+E         - florida.json
+E         + global_mid.json
+
+tests\test_regional_edge_selection.py:97: AssertionError
+_______ test_fixed_span_crosses_edge_without_resolution_collapse[-78.8] _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000187AFEEE750>
+east = -78.8
+
+    @pytest.mark.parametrize("east", [-79.01, -79.0001, -79, -78.9999, -78.97, -78.8, -78.5, -78.11201])
+    def test_fixed_span_crosses_edge_without_resolution_collapse(monkeypatch, east):
+        bbox = f"{east - 2.96},26.5,{east},29.2"
+        result = resolve(monkeypatch, bbox)
+>       assert result.product_id == "florida.json"
+E       AssertionError: assert 'global_mid.json' == 'florida.json'
+E         
+E         - florida.json
+E         + global_mid.json
+
+tests\test_regional_edge_selection.py:97: AssertionError
+_______ test_fixed_span_crosses_edge_without_resolution_collapse[-78.5] _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000187AFFF6250>
+east = -78.5
+
+    @pytest.mark.parametrize("east", [-79.01, -79.0001, -79, -78.9999, -78.97, -78.8, -78.5, -78.11201])
+    def test_fixed_span_crosses_edge_without_resolution_collapse(monkeypatch, east):
+        bbox = f"{east - 2.96},26.5,{east},29.2"
+        result = resolve(monkeypatch, bbox)
+>       assert result.product_id == "florida.json"
+E       AssertionError: assert 'global_mid.json' == 'florida.json'
+E         
+E         - florida.json
+E         + global_mid.json
+
+tests\test_regional_edge_selection.py:97: AssertionError
+_____ test_fixed_span_crosses_edge_without_resolution_collapse[-78.11201] _____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000187AFDC8F50>
+east = -78.11201
+
+    @pytest.mark.parametrize("east", [-79.01, -79.0001, -79, -78.9999, -78.97, -78.8, -78.5, -78.11201])
+    def test_fixed_span_crosses_edge_without_resolution_collapse(monkeypatch, east):
+        bbox = f"{east - 2.96},26.5,{east},29.2"
+        result = resolve(monkeypatch, bbox)
+>       assert result.product_id == "florida.json"
+E       AssertionError: assert 'global_mid.json' == 'florida.json'
+E         
+E         - florida.json
+E         + global_mid.json
+
+tests\test_regional_edge_selection.py:97: AssertionError
+______ test_sebastian_audit_longitudes_queue_full_viewport_revalidation _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000187AFDC9F40>
+
+    def test_sebastian_audit_longitudes_queue_full_viewport_revalidation(monkeypatch):
+        # Audit gives longitudes only; controlled latitude is deliberately stated, not invented UI evidence.
+        bbox = "-81.93,26.5,-78.97,29.2"
+        tasks, viewport = Tasks(), Viewport()
+        result = resolve(monkeypatch, bbox, viewport=viewport, tasks=tasks)
+>       assert result.product_id == "florida.json"
+E       AssertionError: assert 'global_mid.json' == 'florida.json'
+E         
+E         - florida.json
+E         + global_mid.json
+
+tests\test_regional_edge_selection.py:115: AssertionError
+__________ test_disabled_dynamic_does_not_claim_pending_revalidation __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000187AFC103C0>
+
+    def test_disabled_dynamic_does_not_claim_pending_revalidation(monkeypatch):
+        tasks = Tasks()
+        result = resolve(monkeypatch, "-81.93,26.5,-78.97,29.2", viewport=Viewport(enabled=False), tasks=tasks)
+>       assert result.product_id == "florida.json"
+E       AssertionError: assert 'global_mid.json' == 'florida.json'
+E         
+E         - florida.json
+E         + global_mid.json
+
+tests\test_regional_edge_selection.py:149: AssertionError
+____________________ test_revalidation_queue_cap_preserved ____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000187AFD5C230>
+
+    def test_revalidation_queue_cap_preserved(monkeypatch):
+        viewport, tasks = Viewport(), Tasks()
+        viewport.ACTIVE_REVALIDATIONS.update({"existing-1", "existing-2"})
+        result = resolve(monkeypatch, "-81.93,26.5,-78.97,29.2", viewport=viewport, tasks=tasks)
+>       assert result.product_id == "florida.json"
+E       AssertionError: assert 'global_mid.json' == 'florida.json'
+E         
+E         - florida.json
+E         + global_mid.json
+
+tests\test_regional_edge_selection.py:159: AssertionError
+____________ test_manifest_order_does_not_change_partial_selection ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000187AFF38AD0>
+
+    def test_manifest_order_does_not_change_partial_selection(monkeypatch):
+        store = Store()
+        store.items.reverse()
+>       assert resolve(monkeypatch, "-81.93,26.5,-78.97,29.2", store=store).product_id == "florida.json"
+E       AssertionError: assert 'global_mid.json' == 'florida.json'
+E         
+E         - florida.json
+E         + global_mid.json
+
+tests\test_regional_edge_selection.py:185: AssertionError
+____________________ test_revalidation_span_cap_preserved _____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000187AFF38C20>
+
+    def test_revalidation_span_cap_preserved(monkeypatch):
+        monkeypatch.setenv("MARINE_MID_REVAL_MAX_SPAN", "2")
+        tasks = Tasks()
+        result = resolve(monkeypatch, "-81.93,26.5,-78.97,29.2", tasks=tasks)
+>       assert result.partial_coverage is True
+E       AssertionError: assert False is True
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+
+tests\test_regional_edge_selection.py:192: AssertionError
+______ test_northern_edge_shortfall_is_not_hidden_by_longitude_coverage _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000187AFBEAC80>
+
+    def test_northern_edge_shortfall_is_not_hidden_by_longitude_coverage(monkeypatch):
+        result = resolve(monkeypatch, "-82,29.1,-80,31.1")
+>       assert result.product_id == "florida.json"
+E       AssertionError: assert 'global_mid.json' == 'florida.json'
+E         
+E         - florida.json
+E         + global_mid.json
+
+tests\test_regional_edge_selection.py:199: AssertionError
+_______ test_partial_revalidation_can_schedule_without_background_tasks _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000187AFBEAD60>
+
+    def test_partial_revalidation_can_schedule_without_background_tasks(monkeypatch):
+        from services.weather_pipeline import store as store_module
+        monkeypatch.setattr(store_module, "is_test_environment", lambda: False)
+        calls = []
+        viewport = Viewport()
+    
+        async def revalidate(*args):
+            calls.append(args)
+    
+        viewport._revalidate_fetch = revalidate
+    
+        async def run():
+            result = await grid_resolver.resolve_grid(
+                Store(), viewport, model="GFS", domain="marine", layer="waves",
+                valid_time="2026-09-20T18:00:00Z", bbox="-81.93,26.5,-78.97,29.2")
+            await asyncio.sleep(0)
+            return result
+    
+>       assert asyncio.run(run()).partial_coverage is True
+E       AssertionError: assert False is True
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...nding', fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+E        +    where NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...nding', fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False) = <function run at 0x000001878D594B40>(<coroutine object test_partial_revalidation_can_schedule_without_background_tasks.<locals>.run at 0x00000187AFE568A0>)
+E        +      where <function run at 0x000001878D594B40> = asyncio.run
+E        +      and   <coroutine object test_partial_revalidation_can_schedule_without_background_tasks.<locals>.run at 0x00000187AFE568A0> = <function test_partial_revalidation_can_schedule_without_background_tasks.<locals>.run at 0x00000187AFFD4E00>()
+
+tests\test_regional_edge_selection.py:232: AssertionError
+============================== warnings summary ===============================
+..\..\..\..\..\AppData\Roaming\Python\Python314\site-packages\_pytest\config\__init__.py:1309
+  C:\Users\dprit\AppData\Roaming\Python\Python314\site-packages\_pytest\config\__init__.py:1309: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+ENVIRONMENT IS NOT THE DECLARED ONE: python 3.14 != declared 3.12; 28 of 46 pins differ; 7 declared packages absent; not in a virtualenv
+  => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
+=========================== short test summary info ===========================
+FAILED tests/test_regional_edge_selection.py::test_fixed_span_crosses_edge_without_resolution_collapse[-78.9999]
+FAILED tests/test_regional_edge_selection.py::test_fixed_span_crosses_edge_without_resolution_collapse[-78.97]
+FAILED tests/test_regional_edge_selection.py::test_fixed_span_crosses_edge_without_resolution_collapse[-78.8]
+FAILED tests/test_regional_edge_selection.py::test_fixed_span_crosses_edge_without_resolution_collapse[-78.5]
+FAILED tests/test_regional_edge_selection.py::test_fixed_span_crosses_edge_without_resolution_collapse[-78.11201]
+FAILED tests/test_regional_edge_selection.py::test_sebastian_audit_longitudes_queue_full_viewport_revalidation
+FAILED tests/test_regional_edge_selection.py::test_disabled_dynamic_does_not_claim_pending_revalidation
+FAILED tests/test_regional_edge_selection.py::test_revalidation_queue_cap_preserved
+FAILED tests/test_regional_edge_selection.py::test_manifest_order_does_not_change_partial_selection
+FAILED tests/test_regional_edge_selection.py::test_revalidation_span_cap_preserved
+FAILED tests/test_regional_edge_selection.py::test_northern_edge_shortfall_is_not_hidden_by_longitude_coverage
+FAILED tests/test_regional_edge_selection.py::test_partial_revalidation_can_schedule_without_background_tasks
+12 failed, 18 passed, 1 warning in 1.94s

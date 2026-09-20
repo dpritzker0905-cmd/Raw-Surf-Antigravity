@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="11" skipped="0" tests="30" time="1.912" timestamp="2026-09-20T16:18:48.449832-04:00" hostname="DESKTOP-MCNC85Q"><testcase classname="tests.test_regional_edge_selection" name="test_fixed_span_crosses_edge_without_resolution_collapse[-79.01]" time="0.094" /><testcase classname="tests.test_regional_edge_selection" name="test_fixed_span_crosses_edge_without_resolution_collapse[-79.0001]" time="0.018" /><testcase classname="tests.test_regional_edge_selection" name="test_fixed_span_crosses_edge_without_resolution_collapse[-79]" time="0.020" /><testcase classname="tests.test_regional_edge_selection" name="test_fixed_span_crosses_edge_without_resolution_collapse[-78.9999]" time="0.020"><failure message="AssertionError: assert False is (-78.9999 &gt; -79)&#10; +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002116B1279B0&gt;
+east = -78.9999
+
+    @pytest.mark.parametrize("east", [-79.01, -79.0001, -79, -78.9999, -78.97, -78.8, -78.5, -78.11201])
+    def test_fixed_span_crosses_edge_without_resolution_collapse(monkeypatch, east):
+        bbox = f"{east - 2.96},26.5,{east},29.2"
+        result = resolve(monkeypatch, bbox)
+        assert result.product_id == "florida.json"
+        lons = sorted({v.lng for v in result.grid.vectors})
+        assert all(b - a == pytest.approx(0.25) for a, b in zip(lons, lons[1:]))
+        assert result.resolution == 0.25
+&gt;       assert result.partial_coverage is (east &gt; -79)
+E       AssertionError: assert False is (-78.9999 &gt; -79)
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+
+tests\test_regional_edge_selection.py:101: AssertionError</failure></testcase><testcase classname="tests.test_regional_edge_selection" name="test_fixed_span_crosses_edge_without_resolution_collapse[-78.97]" time="0.019"><failure message="AssertionError: assert False is (-78.97 &gt; -79)&#10; +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002116B127AC0&gt;
+east = -78.97
+
+    @pytest.mark.parametrize("east", [-79.01, -79.0001, -79, -78.9999, -78.97, -78.8, -78.5, -78.11201])
+    def test_fixed_span_crosses_edge_without_resolution_collapse(monkeypatch, east):
+        bbox = f"{east - 2.96},26.5,{east},29.2"
+        result = resolve(monkeypatch, bbox)
+        assert result.product_id == "florida.json"
+        lons = sorted({v.lng for v in result.grid.vectors})
+        assert all(b - a == pytest.approx(0.25) for a, b in zip(lons, lons[1:]))
+        assert result.resolution == 0.25
+&gt;       assert result.partial_coverage is (east &gt; -79)
+E       AssertionError: assert False is (-78.97 &gt; -79)
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+
+tests\test_regional_edge_selection.py:101: AssertionError</failure></testcase><testcase classname="tests.test_regional_edge_selection" name="test_fixed_span_crosses_edge_without_resolution_collapse[-78.8]" time="0.034"><failure message="AssertionError: assert False is (-78.8 &gt; -79)&#10; +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002116B457650&gt;
+east = -78.8
+
+    @pytest.mark.parametrize("east", [-79.01, -79.0001, -79, -78.9999, -78.97, -78.8, -78.5, -78.11201])
+    def test_fixed_span_crosses_edge_without_resolution_collapse(monkeypatch, east):
+        bbox = f"{east - 2.96},26.5,{east},29.2"
+        result = resolve(monkeypatch, bbox)
+        assert result.product_id == "florida.json"
+        lons = sorted({v.lng for v in result.grid.vectors})
+        assert all(b - a == pytest.approx(0.25) for a, b in zip(lons, lons[1:]))
+        assert result.resolution == 0.25
+&gt;       assert result.partial_coverage is (east &gt; -79)
+E       AssertionError: assert False is (-78.8 &gt; -79)
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+
+tests\test_regional_edge_selection.py:101: AssertionError</failure></testcase><testcase classname="tests.test_regional_edge_selection" name="test_fixed_span_crosses_edge_without_resolution_collapse[-78.5]" time="0.017"><failure message="AssertionError: assert False is (-78.5 &gt; -79)&#10; +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002116B518B50&gt;
+east = -78.5
+
+    @pytest.mark.parametrize("east", [-79.01, -79.0001, -79, -78.9999, -78.97, -78.8, -78.5, -78.11201])
+    def test_fixed_span_crosses_edge_without_resolution_collapse(monkeypatch, east):
+        bbox = f"{east - 2.96},26.5,{east},29.2"
+        result = resolve(monkeypatch, bbox)
+        assert result.product_id == "florida.json"
+        lons = sorted({v.lng for v in result.grid.vectors})
+        assert all(b - a == pytest.approx(0.25) for a, b in zip(lons, lons[1:]))
+        assert result.resolution == 0.25
+&gt;       assert result.partial_coverage is (east &gt; -79)
+E       AssertionError: assert False is (-78.5 &gt; -79)
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+
+tests\test_regional_edge_selection.py:101: AssertionError</failure></testcase><testcase classname="tests.test_regional_edge_selection" name="test_fixed_span_crosses_edge_without_resolution_collapse[-78.11201]" time="0.019"><failure message="AssertionError: assert False is (-78.11201 &gt; -79)&#10; +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002116B495220&gt;
+east = -78.11201
+
+    @pytest.mark.parametrize("east", [-79.01, -79.0001, -79, -78.9999, -78.97, -78.8, -78.5, -78.11201])
+    def test_fixed_span_crosses_edge_without_resolution_collapse(monkeypatch, east):
+        bbox = f"{east - 2.96},26.5,{east},29.2"
+        result = resolve(monkeypatch, bbox)
+        assert result.product_id == "florida.json"
+        lons = sorted({v.lng for v in result.grid.vectors})
+        assert all(b - a == pytest.approx(0.25) for a, b in zip(lons, lons[1:]))
+        assert result.resolution == 0.25
+&gt;       assert result.partial_coverage is (east &gt; -79)
+E       AssertionError: assert False is (-78.11201 &gt; -79)
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+
+tests\test_regional_edge_selection.py:101: AssertionError</failure></testcase><testcase classname="tests.test_regional_edge_selection" name="test_sebastian_audit_longitudes_queue_full_viewport_revalidation" time="0.019"><failure message="AssertionError: assert False is True&#10; +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002116B496300&gt;
+
+    def test_sebastian_audit_longitudes_queue_full_viewport_revalidation(monkeypatch):
+        # Audit gives longitudes only; controlled latitude is deliberately stated, not invented UI evidence.
+        bbox = "-81.93,26.5,-78.97,29.2"
+        tasks, viewport = Tasks(), Viewport()
+        result = resolve(monkeypatch, bbox, viewport=viewport, tasks=tasks)
+        assert result.product_id == "florida.json"
+&gt;       assert result.partial_coverage is True
+E       AssertionError: assert False is True
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+
+tests\test_regional_edge_selection.py:116: AssertionError</failure></testcase><testcase classname="tests.test_regional_edge_selection" name="test_less_than_seventy_percent_keeps_covering_mid[-78.11199]" time="0.007" /><testcase classname="tests.test_regional_edge_selection" name="test_less_than_seventy_percent_keeps_covering_mid[-78.1119]" time="0.008" /><testcase classname="tests.test_regional_edge_selection" name="test_less_than_seventy_percent_keeps_covering_mid[-77]" time="0.005" /><testcase classname="tests.test_regional_edge_selection" name="test_less_than_seventy_percent_keeps_covering_mid[-70]" time="0.005" /><testcase classname="tests.test_regional_edge_selection" name="test_missing_fine_product_retains_coarse_fallback" time="0.006" /><testcase classname="tests.test_regional_edge_selection" name="test_covering_dynamic_cache_still_wins" time="0.035" /><testcase classname="tests.test_regional_edge_selection" name="test_disabled_dynamic_does_not_claim_pending_revalidation" time="0.017"><failure message="AssertionError: assert False is True&#10; +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002116B1A71D0&gt;
+
+    def test_disabled_dynamic_does_not_claim_pending_revalidation(monkeypatch):
+        tasks = Tasks()
+        result = resolve(monkeypatch, "-81.93,26.5,-78.97,29.2", viewport=Viewport(enabled=False), tasks=tasks)
+        assert result.product_id == "florida.json"
+&gt;       assert result.partial_coverage is True
+E       AssertionError: assert False is True
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+
+tests\test_regional_edge_selection.py:150: AssertionError</failure></testcase><testcase classname="tests.test_regional_edge_selection" name="test_revalidation_queue_cap_preserved" time="0.020"><failure message="AssertionError: assert False is True&#10; +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002116B2CC410&gt;
+
+    def test_revalidation_queue_cap_preserved(monkeypatch):
+        viewport, tasks = Viewport(), Tasks()
+        viewport.ACTIVE_REVALIDATIONS.update({"existing-1", "existing-2"})
+        result = resolve(monkeypatch, "-81.93,26.5,-78.97,29.2", viewport=viewport, tasks=tasks)
+        assert result.product_id == "florida.json"
+&gt;       assert result.partial_coverage is True
+E       AssertionError: assert False is True
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+
+tests\test_regional_edge_selection.py:160: AssertionError</failure></testcase><testcase classname="tests.test_regional_edge_selection" name="test_existing_overlap_kill_switch_preserved" time="0.007" /><testcase classname="tests.test_regional_edge_selection" name="test_regional_must_be_finer_same_frame_and_known_resolution[older]" time="0.008" /><testcase classname="tests.test_regional_edge_selection" name="test_regional_must_be_finer_same_frame_and_known_resolution[coarser]" time="0.007" /><testcase classname="tests.test_regional_edge_selection" name="test_regional_must_be_finer_same_frame_and_known_resolution[coarser_than_mid]" time="0.007" /><testcase classname="tests.test_regional_edge_selection" name="test_regional_must_be_finer_same_frame_and_known_resolution[nan_resolution]" time="0.008" /><testcase classname="tests.test_regional_edge_selection" name="test_regional_must_be_finer_same_frame_and_known_resolution[missing_resolution]" time="0.008" /><testcase classname="tests.test_regional_edge_selection" name="test_manifest_order_does_not_change_partial_selection" time="0.018" /><testcase classname="tests.test_regional_edge_selection" name="test_revalidation_span_cap_preserved" time="0.020"><failure message="AssertionError: assert False is True&#10; +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002116B4ACC90&gt;
+
+    def test_revalidation_span_cap_preserved(monkeypatch):
+        monkeypatch.setenv("MARINE_MID_REVAL_MAX_SPAN", "2")
+        tasks = Tasks()
+        result = resolve(monkeypatch, "-81.93,26.5,-78.97,29.2", tasks=tasks)
+&gt;       assert result.partial_coverage is True
+E       AssertionError: assert False is True
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+
+tests\test_regional_edge_selection.py:192: AssertionError</failure></testcase><testcase classname="tests.test_regional_edge_selection" name="test_northern_edge_shortfall_is_not_hidden_by_longitude_coverage" time="0.015"><failure message="AssertionError: assert False is True&#10; +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002116B15B620&gt;
+
+    def test_northern_edge_shortfall_is_not_hidden_by_longitude_coverage(monkeypatch):
+        result = resolve(monkeypatch, "-82,29.1,-80,31.1")
+        assert result.product_id == "florida.json"
+&gt;       assert result.partial_coverage is True
+E       AssertionError: assert False is True
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+
+tests\test_regional_edge_selection.py:200: AssertionError</failure></testcase><testcase classname="tests.test_regional_edge_selection" name="test_preference_leaves_other_requests_unchanged[wind-bbox0]" time="0.003" /><testcase classname="tests.test_regional_edge_selection" name="test_preference_leaves_other_requests_unchanged[marine-bbox1]" time="0.003" /><testcase classname="tests.test_regional_edge_selection" name="test_preference_leaves_other_requests_unchanged[marine-bbox2]" time="0.004" /><testcase classname="tests.test_regional_edge_selection" name="test_partial_revalidation_can_schedule_without_background_tasks" time="0.020"><failure message="AssertionError: assert False is True&#10; +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage&#10; +    where NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False) = &lt;function run at 0x0000021148BA4B40&gt;(&lt;coroutine object test_partial_revalidation_can_schedule_without_background_tasks.&lt;locals&gt;.run at 0x000002116B3A6680&gt;)&#10; +      where &lt;function run at 0x0000021148BA4B40&gt; = asyncio.run&#10; +      and   &lt;coroutine object test_partial_revalidation_can_schedule_without_background_tasks.&lt;locals&gt;.run at 0x000002116B3A6680&gt; = &lt;function test_partial_revalidation_can_schedule_without_background_tasks.&lt;locals&gt;.run at 0x000002116B5499B0&gt;()">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000002116B15AD60&gt;
+
+    def test_partial_revalidation_can_schedule_without_background_tasks(monkeypatch):
+        from services.weather_pipeline import store as store_module
+        monkeypatch.setattr(store_module, "is_test_environment", lambda: False)
+        calls = []
+        viewport = Viewport()
+    
+        async def revalidate(*args):
+            calls.append(args)
+    
+        viewport._revalidate_fetch = revalidate
+    
+        async def run():
+            result = await grid_resolver.resolve_grid(
+                Store(), viewport, model="GFS", domain="marine", layer="waves",
+                valid_time="2026-09-20T18:00:00Z", bbox="-81.93,26.5,-78.97,29.2")
+            await asyncio.sleep(0)
+            return result
+    
+&gt;       assert asyncio.run(run()).partial_coverage is True
+E       AssertionError: assert False is True
+E        +  where False = NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False).partial_coverage
+E        +    where NormalizedProduct(model='GFS', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9,...n=None, fallbackReason=None, served_valid_time='2026-09-20T18:00:00Z', frame_offset_hours=0.0, frame_substituted=False) = &lt;function run at 0x0000021148BA4B40&gt;(&lt;coroutine object test_partial_revalidation_can_schedule_without_background_tasks.&lt;locals&gt;.run at 0x000002116B3A6680&gt;)
+E        +      where &lt;function run at 0x0000021148BA4B40&gt; = asyncio.run
+E        +      and   &lt;coroutine object test_partial_revalidation_can_schedule_without_background_tasks.&lt;locals&gt;.run at 0x000002116B3A6680&gt; = &lt;function test_partial_revalidation_can_schedule_without_background_tasks.&lt;locals&gt;.run at 0x000002116B5499B0&gt;()
+
+tests\test_regional_edge_selection.py:232: AssertionError</failure></testcase></testsuite></testsuites>

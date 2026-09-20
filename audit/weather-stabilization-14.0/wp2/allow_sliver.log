@@ -1,0 +1,60 @@
+.........FFF..................                                           [100%]
+================================== FAILURES ===================================
+________ test_less_than_seventy_percent_keeps_covering_mid[-78.11199] _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000025A42546DD0>
+east = -78.11199
+
+    @pytest.mark.parametrize("east", [-78.11199, -78.1119, -77, -70])
+    def test_less_than_seventy_percent_keeps_covering_mid(monkeypatch, east):
+        result = resolve(monkeypatch, f"{east - 2.96},26.5,{east},29.2")
+>       assert result.product_id == "global_mid.json"
+E       AssertionError: assert 'florida.json' == 'global_mid.json'
+E         
+E         - global_mid.json
+E         + florida.json
+
+tests\test_regional_edge_selection.py:128: AssertionError
+_________ test_less_than_seventy_percent_keeps_covering_mid[-78.1119] _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000025A427482F0>
+east = -78.1119
+
+    @pytest.mark.parametrize("east", [-78.11199, -78.1119, -77, -70])
+    def test_less_than_seventy_percent_keeps_covering_mid(monkeypatch, east):
+        result = resolve(monkeypatch, f"{east - 2.96},26.5,{east},29.2")
+>       assert result.product_id == "global_mid.json"
+E       AssertionError: assert 'florida.json' == 'global_mid.json'
+E         
+E         - global_mid.json
+E         + florida.json
+
+tests\test_regional_edge_selection.py:128: AssertionError
+___________ test_less_than_seventy_percent_keeps_covering_mid[-77] ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000025A423CA0D0>
+east = -77
+
+    @pytest.mark.parametrize("east", [-78.11199, -78.1119, -77, -70])
+    def test_less_than_seventy_percent_keeps_covering_mid(monkeypatch, east):
+        result = resolve(monkeypatch, f"{east - 2.96},26.5,{east},29.2")
+>       assert result.product_id == "global_mid.json"
+E       AssertionError: assert 'florida.json' == 'global_mid.json'
+E         
+E         - global_mid.json
+E         + florida.json
+
+tests\test_regional_edge_selection.py:128: AssertionError
+============================== warnings summary ===============================
+..\..\..\..\..\AppData\Roaming\Python\Python314\site-packages\_pytest\config\__init__.py:1309
+  C:\Users\dprit\AppData\Roaming\Python\Python314\site-packages\_pytest\config\__init__.py:1309: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; anyio
+    self._mark_plugins_for_rewrite(hook, disable_autoload)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+ENVIRONMENT IS NOT THE DECLARED ONE: python 3.14 != declared 3.12; 28 of 46 pins differ; 7 declared packages absent; not in a virtualenv
+  => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
+=========================== short test summary info ===========================
+FAILED tests/test_regional_edge_selection.py::test_less_than_seventy_percent_keeps_covering_mid[-78.11199]
+FAILED tests/test_regional_edge_selection.py::test_less_than_seventy_percent_keeps_covering_mid[-78.1119]
+FAILED tests/test_regional_edge_selection.py::test_less_than_seventy_percent_keeps_covering_mid[-77]
+3 failed, 27 passed, 1 warning in 1.97s

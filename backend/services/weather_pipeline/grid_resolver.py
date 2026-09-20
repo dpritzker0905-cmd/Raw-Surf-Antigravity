@@ -28,7 +28,7 @@ from services.weather_pipeline.viewport_helper import _is_oversized_grid
 # Pure extractions — calculate_bbox_intersection_area is re-exported here for compatibility.
 from services.weather_pipeline.grid_resolver_selection import (
     calculate_bbox_intersection_area, find_candidates, decide_manifest_product,
-    apply_surf_regional_prefer,
+    apply_surf_regional_prefer, prefer_overlapping_marine_region,
 )
 from services.weather_pipeline.grid_resolver_surf import apply_surf_overlay
 
@@ -172,6 +172,10 @@ async def resolve_grid(
     matching_manifest_item = select_best_candidate(
         authoritative_candidates, estimated_candidates, req_w, req_s, req_e, req_n
     )
+    matching_manifest_item = prefer_overlapping_marine_region(
+        matching_manifest_item, authoritative_candidates, estimated_candidates,
+        domain, req_w, req_s, req_e, req_n, _mid_auth + _mid_est,
+    )
 
     # Coverage policy (extracted: grid_resolver_selection.decide_manifest_product) — should the
     # selected manifest item be served for this viewport?
@@ -272,6 +276,31 @@ async def resolve_grid(
                         product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
                     if product.grid and product.grid.bounds:
                         product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
+                        if bbox and domain.lower() == "marine" and regional_span_lng < 350.0:
+                            # Coverage is the served lattice, not manifest extents or a tolerance:
+                            # a 0.03-degree shortfall must never be labelled full coverage.
+                            product.partial_coverage = not is_bbox_covered_by(
+                                req_w, req_s, req_e, req_n, product.grid.bounds, margin=0.0)
+                            if product.partial_coverage:
+                                product.coverage_scope = "regional_partial"
+                                # Preserve the existing SWR queue bound and eligibility. Fetch the
+                                # ORIGINAL viewport so a partial regional never becomes sticky.
+                                key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
+                                active = viewport_service.ACTIVE_REVALIDATIONS
+                                span = max((req_e - req_w) % 360, req_n - req_s)
+                                if (viewport_service.is_viewport_enabled(
+                                        model, domain, layer, False, bbox, target_dt=target_dt)
+                                        and span <= float(os.environ.get("MARINE_MID_REVAL_MAX_SPAN", "8.0"))
+                                        and (key in active or len(active) < int(os.environ.get("MARINE_REVAL_QUEUE_MAX", "2")))):
+                                    product.stale = True
+                                    product.staleReason = "swr_revalidation_pending"
+                                    if key not in active:
+                                        active.add(key)
+                                        args = (model, domain, layer, valid_time, target_dt, bbox, key)
+                                        if background_tasks:
+                                            background_tasks.add_task(viewport_service._revalidate_fetch, *args)
+                                        else:
+                                            asyncio.create_task(viewport_service._revalidate_fetch(*args))
             elif candidate_product:
                 logger.warning(
                     f"[Grid Resolver] Skipping oversized stale manifest product {matching_manifest_item.filename} "
