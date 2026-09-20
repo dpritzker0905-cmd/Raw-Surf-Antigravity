@@ -1,0 +1,17 @@
+
+================================================================
+  LOC Ratchet (limit 800) � 2285 files scanned
+================================================================
+
+[>] 6 grandfathered file(s) shrank:
+   3207 -> 3203 frontend/src/components/map/WebGLMarineEngine.js
+   1095 -> 1093 frontend/src/components/map/WebGLWindEngine.js
+    966 -> 959  frontend/src/components/map/useMarineDataFetcherCore.js
+    957 -> 953  frontend/src/components/map/MapWeatherControls.js
+    943 -> 938  frontend/src/components/map/openMeteoProtocol.js
+    905 -> 904  frontend/src/components/map/OceanMask.js
+
+[OK] No new violations. 12 file(s) grandfathered and not growing.
+
+  Grandfathered: 12   New: 0   Regressed: 0
+================================================================

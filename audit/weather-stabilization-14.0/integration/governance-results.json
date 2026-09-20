@@ -1,0 +1,63 @@
+{
+  "captured_at": "2026-09-20T20:55:50.219345+00:00",
+  "head": "eb715a150ba59499aad3c675d50130fa3cfef6ad",
+  "ci_sha256": "abc0f2787a5949660c1675182e5d2dfec95adde6f334571d77689a72cf15814c",
+  "summary_sha256_at_review": "11a2de1e6c16226beb00f5f907736478a356f4f020cd1e89f7c8a7760c2d2196",
+  "governance_pytest": {
+    "tests": "55",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0",
+    "time": "1.381"
+  },
+  "commands": [
+    {
+      "cwd": "backend",
+      "command": "python scripts/check_file_size.py --path . --max-lines 800",
+      "exit": 0,
+      "log": "backend-size.log"
+    },
+    {
+      "cwd": "backend",
+      "command": "python scripts/check_imports.py --path routes",
+      "exit": 0,
+      "log": "backend-imports.log"
+    },
+    {
+      "cwd": "backend",
+      "command": "python scripts/check_bola_routes.py",
+      "exit": 0,
+      "log": "backend-bola.log"
+    },
+    {
+      "cwd": "backend",
+      "command": "python scripts/ci_test_lanes.py --assert-partition",
+      "exit": 0,
+      "log": "partition.log"
+    },
+    {
+      "cwd": "root",
+      "command": "python scripts/loc_ratchet.py",
+      "exit": 0,
+      "log": "loc-ratchet.log"
+    },
+    {
+      "cwd": "root",
+      "command": "Git Bash integration/encoding-check.sh (unchanged run block from encoding-check.yml)",
+      "exit": 0,
+      "log": "encoding-check.log"
+    },
+    {
+      "cwd": "backend",
+      "command": "python -m flake8 --select=F821 routes/condition_reports",
+      "status": "unavailable: local flake8 is not installed",
+      "log": "runtime-dependency-lint.log"
+    }
+  ],
+  "limitations": [
+    "Windows Python3.14.4 and Node24.19.0 differ from hosted environment",
+    "No actionlint available; YAML structure checked with PyYAML",
+    "No new hosted CI run",
+    "No remote last-green floor query; local paired floor/selector governance tests pass"
+  ]
+}

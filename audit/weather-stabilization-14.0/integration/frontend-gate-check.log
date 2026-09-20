@@ -1,0 +1,8 @@
+suites 7/7  tests 96/96  failed 0
+  guard: ForecastTimeStatus.test.js
+  guard: backendWeatherServiceClient.readOnly.test.js
+  guard: forecast-card-swell-vs-surf.test.js
+  guard: marine-card-matrix-closure.test.js
+  guard: marineGlobalPrewarm.seriesReuse.test.js
+  guard: marineTimelineCoverage.test.js
+  guard: useMarineOrchestratorScrubCache.timeline.test.js

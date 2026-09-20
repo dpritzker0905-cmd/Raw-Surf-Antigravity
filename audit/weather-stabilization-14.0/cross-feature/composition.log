@@ -1,0 +1,35 @@
+........................................................................ [ 77%]
+.....................                                                    [100%]
+============================== warnings summary ===============================
+routes\profiles\username.py:44
+  C:\Users\dprit\OneDrive\Documents\New project\raw-surf-stabilization14\backend\routes\profiles\username.py:44: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    @validator('username')
+
+routes\profiles\username.py:63
+  C:\Users\dprit\OneDrive\Documents\New project\raw-surf-stabilization14\backend\routes\profiles\username.py:63: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    @validator('new_username')
+
+routes\surf_data\surfboards.py:124
+  C:\Users\dprit\OneDrive\Documents\New project\raw-surf-stabilization14\backend\routes\surf_data\surfboards.py:124: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class SurfboardResponse(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+ENVIRONMENT IS NOT THE DECLARED ONE: python 3.14 != declared 3.12; 28 of 46 pins differ; 7 declared packages absent; not in a virtualenv
+  => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
+============================ slowest 15 durations =============================
+0.25s call     tests/test_spot_hub_local_size_reference.py::test_every_conditions_caller_that_has_a_spot_id_passes_it
+0.11s call     tests/test_spot_conditions_batch_bounds.py::test_one_db_query_and_bounded_concurrency_not_250_serial_awaits
+0.07s call     tests/test_rating_composition_parity.py::test_the_registry_matches_what_the_code_actually_passes[spot_ratings (REFERENCE \u2014 map glyphs + precompute)]
+0.02s call     tests/test_rating_composition_parity.py::test_the_reference_surface_supplies_the_most
+0.02s call     tests/test_surf_point_land_bit.py::test_every_land_entry_promotes_coastal_without_claiming_a_bearing
+0.01s call     tests/test_rating_composition_parity.py::test_the_registry_matches_what_the_code_actually_passes[rating_transform_grid (the on-map RATING BAND)]
+0.01s call     tests/test_spot_conditions_surf_transform.py::test_the_hub_height_equals_the_production_chain_exactly
+0.01s call     tests/test_rating_composition_parity.py::test_every_surface_applies_every_post_rating_step[observation_gate-precompute -> glyph payload]
+0.01s call     tests/test_rating_composition_parity.py::test_the_registry_matches_what_the_code_actually_passes[sim_rating (the weather SIM)]
+0.01s call     tests/test_spot_conditions_batch_bounds.py::test_the_cap_is_enforced_and_disclosed
+0.01s call     tests/test_spot_hub_forecast_confidence.py::test_the_hub_does_not_let_confidence_touch_the_rating
+0.01s call     tests/test_rating_composition_parity.py::test_every_surface_applies_every_post_rating_step[observation_gate-map rating band]
+0.01s call     tests/test_rating_composition_parity.py::test_the_registry_matches_what_the_code_actually_passes[spot_conditions (the spot HUB)]
+
+(2 durations < 0.005s hidden.  Use -vv to show these durations.)
+93 passed, 3 warnings in 8.79s

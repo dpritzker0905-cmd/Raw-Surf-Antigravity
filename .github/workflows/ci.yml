@@ -199,7 +199,7 @@ jobs:
         run: |
           set -o pipefail
           CI=true npx react-scripts test --watchAll=false \
-            --testPathPattern="marine-card-matrix-closure|forecast-card-swell-vs-surf" \
+            --testPathPattern="marine-card-matrix-closure|forecast-card-swell-vs-surf|marineGlobalPrewarm.seriesReuse|marineTimelineCoverage|useMarineOrchestratorScrubCache.timeline|backendWeatherServiceClient.readOnly|ForecastTimeStatus" \
             --json --outputFile=guard-results.json
         # NO continue-on-error. That is the entire point of this job.
 
@@ -223,7 +223,9 @@ jobs:
           // ⬆ 37 -> 48 (1a-2: the derived energy coefficient, the band ladder, coarsen-don't-hide,
           //             magnitude-based precision, and the live-fixture band-span anti-vacuity)
           // Measured from the run each time, never incremented by hand.
-          const MIN_SUITES = 2, MIN_TESTS = 48;
+          // Audit14: measured 7 suites / 96 tests, including exact-time reuse and timeline truth.
+          // This focused discovery floor supplements the blocking full frontend suite.
+          const MIN_SUITES = 7, MIN_TESTS = 96;
           let r;
           try { r = JSON.parse(fs.readFileSync('guard-results.json', 'utf8')); }
           catch (e) { console.error('✗ no guard-results.json — jest never wrote a result'); process.exit(1); }
