@@ -160,7 +160,17 @@ test('a cold miss leaves target-time resolution to the ordinary grid fetch', asy
   prewarmGlobalMarineGrid('GFS', 3, COAST, 'waves');
   await flush();
   expect(gridRequests()).toHaveLength(1);
-  // The existing controller/client path makes one exported resolution call. The reuse
-  // check must not add another (it can refresh manifests) without a candidate to compare.
-  expect(resolveTime).toHaveBeenCalledTimes(1);
+  // The reuse check must not add a SIDE-EFFECTING resolution (one that can refresh manifests)
+  // without a candidate to compare.
+  //
+  // Updated 2026-09-20 (F-03, audit 14.0): the world-grid dedupe now also resolves the target time,
+  // because the request identity is the resolved valid_time and not the hour offset -- three
+  // 1-hour wheel steps share one 3-hourly frame and were each re-downloading the same ~2.3 MB
+  // world grid. So there are now two calls, and the invariant this test protects is expressed
+  // directly: EVERY call beyond the first must pass readOnly, which is the flag that suppresses
+  // the manifest refresh and the diagnostic write. Asserting the flag is strictly stronger than
+  // asserting the count -- a future side-effecting call would still fail here.
+  expect(resolveTime).toHaveBeenCalledTimes(2);
+  const sideEffecting = resolveTime.mock.calls.filter((args) => !(args[3] && args[3].readOnly));
+  expect(sideEffecting).toHaveLength(1);
 });
