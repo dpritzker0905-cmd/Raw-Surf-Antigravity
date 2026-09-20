@@ -83,6 +83,7 @@ async def get_grid_series(
     bbox: str = Query(..., description="west,south,east,north viewport bbox"),
     hours: str = Query(..., description="comma-separated integer hour offsets from now, e.g. 0,3,6,9"),
     surf: bool = Query(False, description="Option-2: surf-transform each frame (Swell<->Surf toggle)"),
+    base_time: Optional[str] = Query(None, description="ISO-8601 UTC anchor the hour offsets are measured from; omit for the server clock."),
     request: Request = None,
 ):
     """
@@ -103,7 +104,9 @@ async def get_grid_series(
     # viewport_service enables the EURO/Copernicus fast path (one full-range fetch + slice).
     # request is threaded through so a scrub-aborted connection cancels the remaining per-hour
     # builds instead of running the whole multi-hour series to completion (zombie OOM load).
-    return await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours, request=request, surf=surf)
+    # base_time (F-01, audit 14.0): the client's absolute anchor — validated, skew-bounded and
+    # disclosed as `base_time_source` in build_grid_series, whose docstring carries the rationale.
+    return await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours, request=request, surf=surf, base_time=base_time)
 
 
 @router.get("/grid", response_model=NormalizedProduct)

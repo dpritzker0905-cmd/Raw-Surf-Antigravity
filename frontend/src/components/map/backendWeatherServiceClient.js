@@ -183,6 +183,29 @@ export function getBackendIconMarineFlag() {
 }
 
 /**
+ * THE frontend forecast anchor, in epoch ms: "now" snapped to the NEAREST whole hour.
+ *
+ * F-01 (audit 14.0). This value used to be computed inline inside getSharedValidTime only, while
+ * the /grid_series backend independently FLOORED its own clock. The two agree for 30 minutes of
+ * every hour and disagree by exactly one hour for the other 30 — so the committed series frame
+ * silently differed from the hour the wheel displayed (measured live 2026-09-20 20:52Z: requested
+ * 21Z, committed 20Z). It is exported so every caller that needs the anchor reads THIS one rather
+ * than re-deriving it; the series request now transmits it, and the backend honours it.
+ *
+ * ⚠️ Do not "fix" a future anchor disagreement by adding a second rounding rule here. There is one
+ * anchor; if a consumer disagrees with it, transmit this value to that consumer instead.
+ */
+export function getSeriesAnchorMs() {
+  const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
+  return Math.round(baseTime / 3600000) * 3600000;
+}
+
+/** The same anchor as an ISO-8601 UTC string, which is the wire format /grid_series accepts. */
+export function getSeriesAnchorIso() {
+  return new Date(getSeriesAnchorMs()).toISOString();
+}
+
+/**
  * Computes a standardized snapped UTC ISO string from hourOffset.
  * Resolves the nearest valid_time from cachedManifest when available (max 3h delta).
  * Provides the single source of authority for matching grid/point time dimensions.
@@ -190,8 +213,7 @@ export function getBackendIconMarineFlag() {
  */
 export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName = 'GFS', { readOnly = false } = {}) {
   const offset = isNaN(Number(timeOffsetHours)) ? 0 : Number(timeOffsetHours);
-  const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
-  const roundedNow = Math.round(baseTime / 3600000) * 3600000;
+  const roundedNow = getSeriesAnchorMs();
   const targetDt = new Date(roundedNow + offset * 3600000);
   const requestedValidTime = targetDt.toISOString();
 
