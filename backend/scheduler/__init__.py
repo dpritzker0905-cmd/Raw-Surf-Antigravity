@@ -238,6 +238,36 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # MEMORY TRACE (2026-09-21) — the instrument for "does the degradation track process uptime?"
+    # A restart cleared a 4.6% 5xx rate, an 11.4% over-10s rate and 85.3% memory use, under HIGHER
+    # load. That inference rests on two snapshots of two DIFFERENT processes, which is not a growth
+    # series; this job makes one. It samples RSS alongside the sizes of the four unbounded caches
+    # AND two bounded controls, so the leak names itself instead of only announcing that it exists.
+    # 5 minutes × 288 samples = the 24h window that spans the 14h degradation. Cost per sample is
+    # one psutil read plus a few len() calls. Kill: MEMORY_TRACE=0.
+    def _sample_memory():
+        try:
+            from services import memory_trace
+            memory_trace.sample()
+        except Exception as e:
+            logger.warning(f"[Scheduler] Memory trace sample failed: {e}")
+
+    scheduler.add_job(
+        tracked('memory_trace', 'Sample RSS and cache sizes for leak detection', 'Every 5 minutes', _sample_memory),
+        IntervalTrigger(minutes=5),
+        id='memory_trace', name='Sample RSS and cache sizes for leak detection',
+        replace_existing=True
+    )
+
+    # Take one sample immediately so the series has a t≈0 origin. Without it the first data point
+    # is 5 minutes in, and the question is specifically about growth FROM startup.
+    try:
+        from services import memory_trace
+        memory_trace.register_default_gauges()
+        memory_trace.sample()
+    except Exception as e:
+        logger.warning(f"[Scheduler] Memory trace init failed: {e}")
+
     scheduler.start()
     logger.info("[Scheduler] Background scheduler started")
     logger.info("[Scheduler] Jobs: surf_alerts (15min), story_cleanup (1hr), leaderboard_reset (monthly), "
