@@ -639,7 +639,19 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                 bg = None if warm_regional else BackgroundTasks()
                 # Per-hour timeout so a slow/stalled model (EURO dynamic) can't hang the whole
                 # series; cold budget while the L2 restore is in flight (see PER_HOUR_TIMEOUT_COLD).
-                _t = _per_hour_timeout()
+                # ── DEADLINE-CLAMPED PER-HOUR BUDGET (2026-09-21) ────────────────────────
+                # OVERALL_DEADLINE was checked only BEFORE starting an hour, while the per-hour
+                # BOUND is 10s (16s cold) — not the "~1s each measured" its headroom note assumes.
+                # So an hour starting at t=19.9s ran to t=29.9s, past NETLIFY_PROXY_WINDOW_S, the
+                # TOTAL loss that comment exists to prevent. ⭐ The headroom was sized against the
+                # TYPICAL cost instead of the BOUND it must contain. Hour 0 is unaffected (t≈0 ⇒
+                # min() returns its full cold budget).
+                # Full reconciliation, incl. the two-service-state readings that show this is NOT a
+                # symptom of that day's saturation: tests/test_grid_series_deadline_bound.py.
+                _remaining = deadline - time.monotonic()
+                if _remaining <= 0:
+                    return (h, None)
+                _t = min(_per_hour_timeout(), _remaining)
                 # ── LOAD-TIME BOUND (2026-08-10) ──────────────────────────────────────────────
                 # By the time hour 0 has resolved, `bound["stride"]` is known — and every
                 # remaining hour is going to be strided by exactly that number a few lines below.

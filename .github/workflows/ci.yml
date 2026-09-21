@@ -654,7 +654,12 @@ jobs:
           # new file selected by `--lane guards` only (verified: chain and estate do not select
           # it), so files 160 -> 161 EXACT and the expected hosted reading is 1912 + 10 = 1922.
           # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1922 in this commit.
-          MIN_FILES, MIN_PASSED = 161, 1916
+          # September 21, grid_series deadline bound: +1 file auto-claimed by `--lane guards`
+          # (selector run before and after `git add`: guards 161 -> 162, chain 102 and estate
+          # 266 unchanged). tests/test_grid_series_deadline_bound.py adds 13 executed controls,
+          # so files 161 -> 162 EXACT and the expected hosted reading is 1922 + 13 = 1935.
+          # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1935 in this commit.
+          MIN_FILES, MIN_PASSED = 162, 1929
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
