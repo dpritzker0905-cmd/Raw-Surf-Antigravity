@@ -68,11 +68,17 @@ async function startSampler(page) {
     const w = window;
     w.__RAW_CONTINUITY__ = { samples: [], started: Date.now() };
     w.__RAW_CONTINUITY_TIMER__ = setInterval(() => {
-      const o = (w.__RAW_GPU__ && w.__RAW_GPU__.opacity) || null;
+      const g = w.__RAW_GPU__ || null;
+      const o = (g && g.opacity) || null;
+      const bf = (g && g.ratingBandFade) || null;
       w.__RAW_CONTINUITY__.samples.push({
         at: Date.now(),
         n: o ? o.n : null,            // draw counter — null means the engine never drew at all
         heatmap: o ? o.heatmap : null,
+        // The band is a SEPARATE surface from the animation and can clear on its own — the owner
+        // reported "animations AND band clear at wrong time", which is two observations, not one.
+        // Sampling only the draw counter would call a vanished band a healthy frame.
+        bandMult: bf && typeof bf.bandMult === 'number' ? bf.bandMult : null,
         label: w.__RAW_CONTINUITY_LABEL__ || null,
       });
     }, pollMs);
@@ -195,5 +201,119 @@ test.describe('Marine render continuity across real gestures', () => {
       + `(budget ${GAP_BUDGET_MS} ms). That is the owner-reported gap, captured. `
       + `The attached series and the retained video show which gesture produced it.`,
     ).toBeLessThanOrEqual(GAP_BUDGET_MS);
+  });
+});
+
+/**
+ * RAPID ZOOM/PAN BURST at the camera the owner reported.
+ *
+ * Owner, 2026-09-21: *"when I rapid pan and zoom really fast, sometimes animations and band clears
+ * at wrong time, seems buggy, at sebastian inlet z12"*.
+ *
+ * ⛔⛔ THE GATE ABOVE WOULD NOT HAVE CAUGHT THIS, and that is worth saying out loud rather than
+ * quietly widening it: it drives ONE slow wheel in and one out, with waits between. The owner's
+ * words are "rapid" and "really fast", and this repo's hardest-won map lesson is that a SETTLED
+ * read cannot see a mid-gesture defect — six hypotheses once died because every read settled
+ * first, and the field was rendering DURING the zoom and being erased ON settle.
+ * There is also a standing owner MANDATE (2026-07-19) that every marine/wind zoom verification
+ * include an animated burst, after clamping was seen live on a build where THREE settled ladders
+ * had just passed 72/72. This encodes that mandate in CI at the reported camera.
+ *
+ * ⭐ TWO SURFACES, SAMPLED SEPARATELY. "animations AND band clears" is two observations: the
+ * heatmap draw loop (`opacity.n`) and the rating band (`ratingBandFade.bandMult`). They can fail
+ * independently, and a gate watching only the draw counter would pass a run where the band
+ * vanished. Both are asserted.
+ */
+const SEBASTIAN = { lat: 27.8608, lng: -80.4464, zoom: 12 };
+
+test.describe('Marine render continuity under a rapid zoom/pan burst', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/map', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('[data-testid="featured-photographers-btn"]'))
+      .toBeVisible({ timeout: 65000 });
+  });
+
+  test('the field and the band survive a fast burst at Sebastian Inlet z12', async ({ page }) => {
+    test.setTimeout(300000);
+
+    const hasWebGL = await page.evaluate(() => {
+      try {
+        const c = document.createElement('canvas');
+        return !!(c.getContext('webgl2') || c.getContext('webgl'));
+      } catch (e) { return false; }
+    });
+    test.skip(!hasWebGL, 'no WebGL on this runner — this would measure the runner, not the app');
+    const isMobile = await page.evaluate(() => window.innerWidth < 768);
+    test.skip(isMobile, 'desktop layout only — the mobile bottom sheet adds motion this oracle misreads');
+
+    await clickLayer(page, 'Waves');
+    await page.evaluate(({ lat, lng, zoom }) => {
+      const m = window.__MAP_INSTANCE__;
+      if (m) m.jumpTo({ center: [lng, lat], zoom });
+    }, SEBASTIAN);
+
+    await page.waitForFunction(
+      () => !!(window.__RAW_GPU__ && window.__RAW_GPU__.opacity && window.__RAW_GPU__.opacity.n > 0),
+      null, { timeout: 90000 },
+    );
+
+    // POSITIVE CONTROL at rest, before any gesture. Without it a burst that measured a dead engine
+    // would read as a catastrophic gap and point at the gesture rather than at startup.
+    const n0 = await page.evaluate(() => window.__RAW_GPU__.opacity.n);
+    await page.waitForTimeout(1500);
+    const n1 = await page.evaluate(() => window.__RAW_GPU__.opacity.n);
+    expect(n1, 'the engine must be drawing at rest before a burst means anything').toBeGreaterThan(n0);
+
+    await startSampler(page);
+    await label(page, 'burst:sebastian-z12');
+
+    // THE BURST. Deliberately NO settle waits — the gestures overlap, which is the whole point.
+    // ~100 ms between inputs is roughly a real flick; easeTo/panBy are left mid-flight on purpose.
+    const canvas = page.locator('canvas').first();
+    const box = await canvas.boundingBox();
+    const cx = box ? box.x + box.width / 2 : 400;
+    const cy = box ? box.y + box.height / 2 : 400;
+    for (let i = 0; i < 12; i++) {
+      await page.mouse.move(cx, cy);
+      await page.mouse.wheel(0, i % 2 === 0 ? -300 : 300);
+      await page.evaluate((k) => {
+        const m = window.__MAP_INSTANCE__;
+        if (m) m.panBy([k % 2 === 0 ? 220 : -220, k % 3 === 0 ? 140 : -140], { duration: 180 });
+      }, i);
+      await page.waitForTimeout(100);
+    }
+    // Let the last gestures land, still sampling — the 08-13 defect appeared ON settle, not during.
+    await label(page, 'burst:settling');
+    await page.waitForTimeout(4000);
+
+    const samples = await stopSampler(page);
+    const worst = longestStall(samples);
+    const bandSamples = samples.filter((s) => typeof s.bandMult === 'number');
+    const bandDark = bandSamples.filter((s) => s.bandMult <= 0.01).length;
+
+    await test.info().attach('burst-samples.json', {
+      body: JSON.stringify({ camera: SEBASTIAN, budgetMs: GAP_BUDGET_MS, worst,
+                             bandSamples: bandSamples.length, bandDark, samples }, null, 2),
+      contentType: 'application/json',
+    });
+
+    expect(samples.length, 'the sampler produced no samples at all').toBeGreaterThan(20);
+    expect(
+      worst.ms,
+      `the field stopped drawing for ${worst.ms} ms during "${worst.label}" at Sebastian Inlet z12 `
+      + `(budget ${GAP_BUDGET_MS} ms) — the owner's reported burst defect, captured.`,
+    ).toBeLessThanOrEqual(GAP_BUDGET_MS);
+
+    // The band is only judged if it was ever measurable: a run where ratingBandFade never appeared
+    // means the band was not engaged at all, which is a DIFFERENT finding and must not be silently
+    // scored as "band healthy". ⭐ Refuse rather than pass when the subject was never observed.
+    if (bandSamples.length > 10) {
+      const darkFrac = bandDark / bandSamples.length;
+      expect(
+        darkFrac,
+        `the rating band was fully faded in ${(darkFrac * 100).toFixed(0)}% of burst samples `
+        + `(${bandDark}/${bandSamples.length}) — "band clears at wrong time", captured.`,
+      ).toBeLessThan(0.5);
+    }
   });
 });
