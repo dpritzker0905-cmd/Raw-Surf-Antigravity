@@ -1170,7 +1170,14 @@ jobs:
           # Full local estate reads 514: subtract the 12 undeclared optional trevec tests
           # (hosted importorskip), leaving 502 expected hosted passes including 14 new gate
           # controls. Preserve THIS lane's two-test margin, not the other lanes' six.
-          MIN_PASSED = 500
+          # ⬆ 500→514 on 2026-09-21: +14 tests in the new tests/test_memory_trace.py, which
+          # `--lane estate` claims (estate 266→267; guards 161 and chain 102 unchanged,
+          # selector run before and after `git add`). CI-ANCHORED per the rule above, NOT a
+          # local reading: last CI-anchored value 502 + 14 = 516; 516 - 2 (this lane's budget)
+          # = 514, and _FLOOR_SET_FROM[estate] moves to 516 with it. The new module carries no
+          # importorskip, so it collects identically on both sides and does not add to this
+          # lane's structural local-high bias.
+          MIN_PASSED = 514
 
           try:
               root = ET.parse('estate.xml').getroot()
