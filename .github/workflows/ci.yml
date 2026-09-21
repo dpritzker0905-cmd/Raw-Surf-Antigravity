@@ -659,7 +659,21 @@ jobs:
           # 266 unchanged). tests/test_grid_series_deadline_bound.py adds 13 executed controls,
           # so files 161 -> 162 EXACT and the expected hosted reading is 1922 + 13 = 1935.
           # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1935 in this commit.
-          MIN_FILES, MIN_PASSED = 162, 1929
+          # September 21, /api/surf-spots response cache: TWO more files, both auto-claimed by
+          # `--lane guards` the moment they were tracked (selector run before and after `git add`:
+          # guards 162 -> 164, chain 102 and estate unchanged).
+          #   tests/test_surf_spots_cache.py       23 tests -- cache semantics, TTL, kill switch,
+          #     and the PRIVACY restriction that a geofenced response is never cacheable
+          #   tests/test_surf_spots_cache_route.py 13 tests -- the route-level query COUNT, i.e.
+          #     that a hit acquires no pool connection and executes nothing
+          # So files 162 -> 164 EXACT and the expected hosted reading is 1935 + 36 = 1971.
+          # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1971 in this commit.
+          # ⭐ The 36-test delta RECONCILES against a full local guards run taken before the
+          # grid_series file existed (163 files, 20:50): "4 failed, 1954 passed", and 1958 - 1954 = 4
+          # is exactly the test_grid_series_provider_ownership.py set this block already records as
+          # reproduced on local Python 3.14 and absent from the hosted 3.12 reading. Two independent
+          # routes to the same delta is what makes this a projection worth banking, not a guess.
+          MIN_FILES, MIN_PASSED = 164, 1965
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

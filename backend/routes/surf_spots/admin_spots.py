@@ -15,6 +15,7 @@ import logging
 from database import get_db
 from deps.admin_auth import get_current_admin
 from models import Profile, SurfSpot
+from . import spots_cache
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -119,6 +120,9 @@ async def normalize_surf_spot_hierarchy(
         results["errors"].append(f"Population error: {str(e)}")
     
     await db.commit()
+    # The cached catalogue is now stale by definition. TTL would heal it within 30 s, but an
+    # admin who just edited a spot must not have to wait to see their own write.
+    spots_cache.invalidate()
     
     return {
         "success": True,
@@ -190,6 +194,9 @@ async def admin_update_spot(
         spot.region = region
     
     await db.commit()
+    # The cached catalogue is now stale by definition. TTL would heal it within 30 s, but an
+    # admin who just edited a spot must not have to wait to see their own write.
+    spots_cache.invalidate()
     return {"success": True, "spot": spot.name, "changes": changes}
 
 
@@ -430,6 +437,9 @@ async def update_spot(
             spot.verified_at = datetime.now(timezone.utc)
     
     await db.commit()
+    # The cached catalogue is now stale by definition. TTL would heal it within 30 s, but an
+    # admin who just edited a spot must not have to wait to see their own write.
+    spots_cache.invalidate()
     
     return {"success": True, "message": f"Updated spot: {spot.name}"}
 
