@@ -147,7 +147,7 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
         cacheRef.current.add(cacheKey);
 
         var darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
-        var url = 'https://map-tiles.open-meteo.com/data_spatial/' + model
+        var url = 'https://openmeteo.s3.amazonaws.com/data_spatial/' + model
           + '/latest.json?time_step=valid_times_' + targetIdx + '&variable=' + resolvedVar + darkParam;
         fetch(url, { signal: signal }).catch(function () { /* best-effort */ });
       }

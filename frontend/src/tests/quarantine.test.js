@@ -108,8 +108,8 @@ describe("Weather Legacy Quarantine Firewall", () => {
     expect(window.__WEATHER_LEGACY_QUARANTINE_DIAG__).toBeUndefined();
   });
 
-  test("5. map-tiles.open-meteo.com metadata/tile fetch => allowed", async () => {
-    const url = "https://map-tiles.open-meteo.com/v1/map/waves?latitude=26.35&longitude=-80.08";
+  test("5. openmeteo.s3.amazonaws.com metadata/tile fetch => allowed", async () => {
+    const url = "https://openmeteo.s3.amazonaws.com/v1/map/waves?latitude=26.35&longitude=-80.08";
     const response = await window.fetch(url);
 
     expect(response.status).toBe(200);

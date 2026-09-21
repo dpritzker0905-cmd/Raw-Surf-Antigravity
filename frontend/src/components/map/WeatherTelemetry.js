@@ -51,12 +51,12 @@ class WeatherTelemetryEngine {
     this.failureKnowledgebase = [];
     this.topologyMap = {
       sources: {
-        GFS: 'https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013',
-        EURO: 'https://map-tiles.open-meteo.com/data_spatial/ecmwf_ifs025',
-        ICON: 'https://map-tiles.open-meteo.com/data_spatial/dwd_icon',
-        GFS_Wave: 'https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025',
-        EURO_Wave: 'https://map-tiles.open-meteo.com/data_spatial/ecmwf_wam025',
-        ICON_Wave: 'https://map-tiles.open-meteo.com/data_spatial/dwd_gwam'
+        GFS: 'https://openmeteo.s3.amazonaws.com/data_spatial/ncep_gfs013',
+        EURO: 'https://openmeteo.s3.amazonaws.com/data_spatial/ecmwf_ifs025',
+        ICON: 'https://openmeteo.s3.amazonaws.com/data_spatial/dwd_icon',
+        GFS_Wave: 'https://openmeteo.s3.amazonaws.com/data_spatial/ncep_gfswave025',
+        EURO_Wave: 'https://openmeteo.s3.amazonaws.com/data_spatial/ecmwf_wam025',
+        ICON_Wave: 'https://openmeteo.s3.amazonaws.com/data_spatial/dwd_gwam'
       },
       layers: {
         rain: { engine: 'MapLibre Raster Layer', sync: '3-hourly Ring Buffer' },
