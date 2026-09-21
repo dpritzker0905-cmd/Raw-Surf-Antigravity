@@ -244,9 +244,71 @@ async function loadSeriesPage(model, bounds, page, signal) {
  * Background-load the wind series PAGE containing `hourOffset` first, then prefetch adjacent
  * page(s) during idle. Idempotent + TTL'd + deduped. No-op when the flag is off. Never throws.
  */
+// === HOUR-0-FIRST PAINT LANE (wind) ===
+// Ported from the marine lane's measured fix (marineGridSeries.js, 2026-07-18). The wind lane
+// never had one, and it is the slow-layer complaint: MEASURED 2026-09-20 at z6, enabling Wind
+// issued ONE /grid_series covering 15 hours that returned 1,339 KB after **25.9 seconds**. It is
+// LATENCY-bound, not bandwidth-bound -- 1.3 MB is nothing, but the 1-CPU backend assembles 15
+// hourly frames serially, and nothing paints until all 15 land.
+//
+// So fire a MINI load for the CURRENT hour only, stored under a distinct '_h0' key that
+// getWindSeriesFrame serves immediately; the full page lands later under the exact page key and
+// supersedes it. Deliberately BYPASSES the 2-slot wind queue for the same reason marine does --
+// the point is not to queue behind the very page it exists to beat.
+// Kill: __RAW_DISABLE_HOUR0_FIRST__ (shared with marine). Telemetry: __WIND_SERIES_DIAG__.h0Loads.
+async function loadWindSeriesHour0(model, bounds, hourOffset, signal) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_HOUR0_FIRST__ === true) return;
+  if (!isWindSeriesEnabled() || !bounds) return;
+  const page = windSeriesPageForHour(hourOffset);
+  const h0key = `${pageKey(model, bounds, page)}_h0`;
+  const existing = _seriesCache.get(h0key);
+  if ((existing && Date.now() - existing.ts < SERIES_TTL_MS) || _inFlight.has(h0key)) return;
+  const h = Math.max(0, Math.round(hourOffset / 3) * 3);   // snap to the frame grid, as the page does
+  const reqBox = normalizeRequestBbox(bounds);
+  const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
+    + `&domain=wind&layer=wind`
+    + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
+    + `&hours=${h}`
+    + seriesAnchorParam();   // F-01: the same anchor the paged lane sends
+  const localController = new AbortController();
+  const onCallerAbort = () => { try { localController.abort(); } catch (e) { /* ignore */ } };
+  if (signal) { try { signal.addEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
+  const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 15000);
+  const p = (async () => {
+    try {
+      const res = await fetch(url, { signal: localController.signal });
+      if (!res.ok) return;                                   // silent: the full page is coming anyway
+      const json = await res.json();
+      if (!json || !Array.isArray(json.frames) || json.frames.length === 0) return;
+      const f = json.frames.find((x) => typeof x.hour_offset === 'number' && x.vectors && x.vectors.length > 0);
+      if (!f) return;
+      const frames = new Map([[f.hour_offset, frameToWindData(f, model)]]);
+      _seriesCache.set(h0key, { ts: Date.now(), frames, hours: [f.hour_offset], h0: true });
+      if (typeof window !== 'undefined') {
+        const dg = (window.__WIND_SERIES_DIAG__ = window.__WIND_SERIES_DIAG__ || { loads: 0, hits: 0, misses: 0 });
+        dg.h0Loads = (dg.h0Loads || 0) + 1;
+        try { window.dispatchEvent(new Event('wind_series_revalidated')); } catch (e) { /* ignore */ }
+      }
+    } catch (e) { /* silent — the full page is the safety net */ } finally {
+      clearTimeout(timeoutId);
+      _inFlight.delete(h0key);
+      if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
+    }
+  })();
+  _inFlight.set(h0key, p);
+  await p;
+}
+
 export async function ensureWindSeries(model, bounds, hourOffset = 0, signal) {
   if (!isWindSeriesEnabled() || !bounds) return;
   const page = windSeriesPageForHour(hourOffset);
+  // Race the mini ahead of the page when the page is COLD. Fire-and-forget: it must not delay the
+  // page load it exists to beat, and a warm page needs no first-paint shortcut.
+  const pk = pageKey(model, bounds, page);
+  const warm = _seriesCache.get(pk);
+  if (!(warm && Date.now() - warm.ts < SERIES_TTL_MS)) {
+    loadWindSeriesHour0(model, bounds, hourOffset, signal);
+  }
   await loadSeriesPage(model, bounds, page, signal);
   for (const adj of [page + 1, page - 1]) {
     if (adj < 0 || adj > LAST_PAGE) continue;
@@ -281,11 +343,17 @@ export function getWindSeriesFrame(model, bounds, hourOffset) {
   let bestDiff = Infinity;
   for (const cand of [page, page + 1, page - 1]) {
     if (cand < 0 || cand > LAST_PAGE) continue;
-    const entry = _seriesCache.get(pageKey(model, bounds, cand));
-    if (!entry || now - entry.ts >= SERIES_TTL_MS) continue;
-    for (const h of entry.hours) {
-      const d = Math.abs(h - hourOffset);
-      if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
+    const pk = pageKey(model, bounds, cand);
+    // The hour-0-first MINI entry lives under a '_h0' suffix of the page key. Read it here or the
+    // whole lane is dead code: it would fetch, cache, and never be served. Listed AFTER the exact
+    // page key so a landed full page naturally wins on an equal hour distance.
+    for (const k of [pk, `${pk}_h0`]) {
+      const entry = _seriesCache.get(k);
+      if (!entry || now - entry.ts >= SERIES_TTL_MS) continue;
+      for (const h of entry.hours) {
+        const d = Math.abs(h - hourOffset);
+        if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
+      }
     }
   }
   if (best === null || bestDiff > 1.5) {
