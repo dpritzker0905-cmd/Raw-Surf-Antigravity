@@ -89,6 +89,14 @@ jobs:
           // Retire the now-observed platform uncertainty and the stale 72/800 gap.
           // Today's additional 2 suites / 56 tests pass locally; ratchet those only
           // after the next hosted receipt, rather than labelling a projection observed.
+          // 2026-09-21 (F-15): local Windows now reads 272 suites / 2651 tests — the two new
+          // suites are openMeteoProtocolFailure.test.js (14) and truthOverlayLayerTruth.test.js
+          // (17). DELIBERATELY NOT RAISED, per the rule two lines up: a local figure is a
+          // projection, not a receipt. The pending gap is now 15 suites / 165 tests, and the
+          // NEXT hosted green run should be used to ratchet all of it at once.
+          // ⚠️ This lag is the documented cost of that rule, not an oversight — the backend lanes'
+          // "a floor that lags is not measuring anything" note argues the other way, and the two
+          // are reconciled by WHERE the number comes from: hosted receipt raises, local never does.
           const MIN_SUITES = 257, MIN_TESTS = 2486;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
