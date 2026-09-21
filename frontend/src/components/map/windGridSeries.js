@@ -22,6 +22,7 @@ import { buildTruthTag } from './weatherTruthTracker';
 // viewportKey normalises longitude at :97, the URL below sent the raw bounds. A duplicated rule
 // only diverges on a boundary, and this one's boundary is the antimeridian.
 import { normalizeRequestBbox } from './marineBboxGeometry';
+import { seriesAnchorTag, seriesAnchorParam } from './seriesAnchor';
 
 // pageKey (model_viewportKey_pN) -> { ts, frames: Map<hourOffset, windData>, hours: number[] }
 const _seriesCache = new Map();
@@ -109,7 +110,11 @@ function viewportKey(bounds) {
 }
 
 function pageKey(model, bounds, page) {
-  return `${model || 'GFS'}_${viewportKey(bounds)}_p${page}`;
+  // F-01 (audit 14.0): the anchor is part of a cached page's identity. Frames are addressed by
+  // hour OFFSET, so the same key under a different anchor names a different absolute time -- a page
+  // still warm across an hour rollover served the previous hour's frames under today's offsets.
+  // Shared with the marine lane; see seriesAnchor.js.
+  return `${model || 'GFS'}_${viewportKey(bounds)}_p${page}${seriesAnchorTag()}`;
 }
 
 function scheduleIdlePrefetch(fn) {
@@ -178,7 +183,13 @@ async function loadSeriesPage(model, bounds, page, signal) {
   const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
     + `&domain=wind&layer=wind`
     + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
-    + `&hours=${hours.join(',')}`;
+    + `&hours=${hours.join(',')}`
+    // F-01 (audit 14.0): transmit the absolute anchor the hour offsets are measured from. Without
+    // it the backend floors its own clock while this client rounds its own, so the committed frame
+    // sat one hour off the requested hour for half of every hour. That is WORSE here than on the
+    // marine lane: wind is 1-HOURLY, so every step is a real frame and the error is a directly
+    // wrong hour of wind, where marine's 3-hourly cadence often absorbed it into quantisation.
+    + seriesAnchorParam();
 
   const localController = new AbortController();
   const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 45000);
