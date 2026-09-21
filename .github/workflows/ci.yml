@@ -895,7 +895,12 @@ jobs:
           # detect anything shrinking back to it, so it is corrected here from that receipt:
           # files 102 EXACT, passes 1194 - 6 = 1188. Local `--lane chain` also selects 102.
           # This lane is untouched by audit 14.0's F-01 work; the drift is pre-existing.
-          MIN_FILES, MIN_PASSED = 102, 1188
+          # September 21, Queue E#1 band-reference echo: +1 file auto-claimed by `--lane chain`
+          # (selector run before and after `git add`: chain 102 -> 103, guards 165 and estate
+          # 267 unchanged). tests/test_band_reference_echo.py adds 12 executed controls, so
+          # files 102 -> 103 EXACT and the expected hosted reading is 1194 + 12 = 1206.
+          # Retain the six-test margin; _FLOOR_SET_FROM["chain"] moves to 1206 in this commit.
+          MIN_FILES, MIN_PASSED = 103, 1200
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

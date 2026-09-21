@@ -135,7 +135,18 @@ def test_apply_surf_overlay_threads_reference_under_flag():
     src = inspect.getsource(apply_surf_overlay)
     assert 'os.environ.get("RATING_LOCAL_SIZE", "0") == "1"' in src
     assert "load_grid_size_climatology_l2_cached" in src
-    assert "reference_fn=reference_fn" in src
+    # ⬇ 2026-09-21: was `assert "reference_fn=reference_fn" in src`. The reference is now threaded
+    # through a RECORDING WRAPPER so the per-cell values it returns can be echoed into
+    # `diagnostics.surf_transform.reference_m` (Queue E#1: the band's score is monotonic in this
+    # number, and it was the one input a reader could not see). The INTENT is unchanged and is
+    # asserted more strictly than before — the fn reaching rating_transform_grid must still be
+    # gated on `reference_fn` being truthy, so the no-climatology path still passes None rather
+    # than a wrapper that would record an empty list and report "no reference" forever.
+    assert "reference_fn=(_recording_reference_fn if reference_fn else None)" in src
+    assert "_recording_reference_fn" in src and "_f(lat, lng)" in src, (
+        "the wrapper must CALL the injected fn and return its value — an echo that substituted or "
+        "swallowed the reference would change the very scores it exists to explain"
+    )
 
 
 def test_gfs_mid_ingest_wires_grid_climatology():
