@@ -9,6 +9,7 @@ zooms that still paint the band. This sweeps bbox size at a fixed centre and rep
 for each: the served grid geometry, the rating diagnostics, the band cell value nearest
 the spot, and the glyph score for the same spot.
 """
+import argparse
 import json
 import math
 import sys
@@ -22,6 +23,16 @@ SPOTS = [
     ("Mavericks", 37.4956, -122.5011),
 ]
 HALF_WIDTHS = [0.08, 0.15, 0.3, 0.6, 1.2, 2.5, 5.0, 10.0]
+
+# ⭐ THE MODEL DIMENSION, ADDED 2026-09-21. The 2026-08-09 sweep that produced the 2.3-2.7x
+# band-vs-glyph finding hardcoded `model=GFS`, so it could not see a per-model difference AT ALL.
+# The owner then reported (a) ICON band colour not matching the glyphs and (b) the EURO band not
+# turning on at close zoom -- two model-specific claims this instrument was structurally blind to.
+# ⛔ Queue E#1 stands: the binding sub-term is NOT isolated and NEITHER LANE MAY BE TUNED yet.
+# What this addition can do is SPLIT the question: if the gap differs by model, the binding term is
+# something model-dependent (the wind field co-sampled at the cell, or which tier/cell answers);
+# if it is identical across models, it is not, and that eliminates a whole family in one run.
+MODELS = ["GFS", "ICON", "EURO"]
 
 
 def get(url, timeout=100):
@@ -48,9 +59,20 @@ def nearest_cell(vectors, lat, lng):
 
 
 def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--models", default=",".join(MODELS),
+                    help="comma-separated models to sweep (default GFS,ICON,EURO)")
+    ap.add_argument("--half-widths", default=",".join(str(h) for h in HALF_WIDTHS),
+                    help="comma-separated bbox half-widths in degrees")
+    ap.add_argument("--spots", default="", help="substring filter on the spot list")
+    args = ap.parse_args()
+    models = [m.strip().upper() for m in args.models.split(",") if m.strip()]
+    half_widths = [float(h) for h in args.half_widths.split(",") if h.strip()]
+    spots = [s for s in SPOTS if args.spots.lower() in s[0].lower()]
+
     vt = vt_now()
-    print(f"valid_time={vt}\n")
-    for name, lat, lng in SPOTS:
+    print(f"valid_time={vt}  models={','.join(models)}")
+    for name, lat, lng in spots:
         print("=" * 104)
         print(f"{name}  ({lat}, {lng})")
         print("=" * 104)
@@ -73,16 +95,16 @@ def main():
                   f"level={glyph.get('level')} ref={glyph.get('reference_size_m')} "
                   f"h_m={glyph.get('surf_height_m')}")
         print()
-        print(f"  {'half°':>6} {'cols x rows':>9} {'cell°':>6} {'kind':>12} {'local':>5} "
+        print(f"  {'model':>5} {'half°':>6} {'cols x rows':>9} {'cell°':>6} {'kind':>12} {'local':>5} "
               f"{'rated':>5} {'masked':>6} {'midres':>6} {'BANDscore':>9} {'dist°':>7}")
-        for hw in HALF_WIDTHS:
+        for model, hw in [(m, h) for m in models for h in half_widths]:
             bbox = f"{lng-hw:.4f},{lat-hw:.4f},{lng+hw:.4f},{lat+hw:.4f}"
-            url = (f"{API}/api/weather/grid?model=GFS&domain=marine&layer=waves"
+            url = (f"{API}/api/weather/grid?model={model}&domain=marine&layer=waves"
                    f"&valid_time={vt}&bbox={bbox}&surf=1")
             try:
                 d = get(url)
             except Exception as e:
-                print(f"  {hw:>6} FAILED {type(e).__name__}: {e}")
+                print(f"  {model:>5} {hw:>6} FAILED {type(e).__name__}: {e}")
                 continue
             g = d.get("grid") or {}
             b = g.get("bounds") or {}
@@ -106,7 +128,7 @@ def main():
             rated_cells = [v for v in vecs if (v.get("speed") or 0) > 0.001]
             rcell, rdist = nearest_cell(rated_cells, lat, lng)
             rband = round((rcell.get("speed") or 0) * 10, 1) if (rcell and kind == "surf_rating") else None
-            print(f"  {hw:>6} "
+            print(f"  {model:>5} {hw:>6} "
                   + f"{cols}x{rows}".rjust(9)
                   + f"{('%.2f' % cell) if cell else '-':>7}"
                   + f"{str(kind):>13}"
