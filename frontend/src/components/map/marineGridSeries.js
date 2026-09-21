@@ -22,7 +22,8 @@
 // and anything missing falls back to the existing per-hour fetch.
 
 import { API_BASE } from '../../lib/apiClient';
-import { getSurfModeFlag, getSeriesAnchorIso } from './backendWeatherServiceClient';
+import { getSurfModeFlag } from './backendWeatherServiceClient';
+import { seriesAnchorTag, seriesAnchorParam } from './seriesAnchor';
 import { frameToMarineData } from './marineSeriesFrame';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { padRegionalBbox, normalizeRequestBbox, bboxContains } from './marineBboxGeometry';
@@ -211,29 +212,12 @@ function viewportKey(bounds) {
 // previous hour's frames under today's offsets — the cache silently answered the wrong absolute
 // time. Granularity is the hour, so this adds one key per hour, not one per request.
 //
-// NEVER THROWS. pageKey sits on the scrub hot path and is reached from cancellation and
-// slot-accounting paths; an exception here would abort a fetch mid-flight and strand its
-// concurrency slot. A missing anchor degrades to the pre-2026-09-20 single-bucket behaviour,
-// which is a stale-cache risk at the rollover and not a crash.
-function seriesAnchorTag() {
-  try {
-    const iso = (typeof getSeriesAnchorIso === 'function') ? getSeriesAnchorIso() : null;
-    return iso ? `@${iso}` : '';
-  } catch (e) {
-    return '';
-  }
-}
-
+// `seriesAnchorTag` / `seriesAnchorParam` moved to ./seriesAnchor so the WIND lane could use the
+// identical pair rather than grow its own copy — recreating the two-independent-clocks shape that
+// F-01 was about. That module also documents why it is separate from backendWeatherServiceClient
+// and why neither helper may ever throw.
 function pageKey(model, layer, bounds, page) {
   return `${model || 'GFS'}_${layer || 'waves'}_${getSurfModeFlag() ? 'surf' : 'swell'}_${viewportKey(bounds)}_p${page}${seriesAnchorTag()}`;
-}
-
-// The wire half of the same anchor. Omitted rather than sent empty when unavailable: `base_time`
-// is an OPTIONAL query parameter, and a backend that receives none simply keeps its own clock
-// (the documented legacy behaviour) instead of parsing a malformed one.
-function seriesAnchorParam() {
-  const tag = seriesAnchorTag();
-  return tag ? `&base_time=${encodeURIComponent(tag.slice(1))}` : '';
 }
 
 
