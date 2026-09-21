@@ -673,7 +673,12 @@ jobs:
           # is exactly the test_grid_series_provider_ownership.py set this block already records as
           # reproduced on local Python 3.14 and absent from the hosted 3.12 reading. Two independent
           # routes to the same delta is what makes this a projection worth banking, not a guess.
-          MIN_FILES, MIN_PASSED = 164, 1965
+          # September 21, marine cold-fetch sharing: +1 file auto-claimed by `--lane guards`
+          # (selector run before and after `git add`: guards 164 -> 165, chain 102 and estate
+          # 267 unchanged). tests/test_marine_cold_fetch_sharing.py adds 25 executed controls,
+          # so files 164 -> 165 EXACT and the expected hosted reading is 1971 + 25 = 1996.
+          # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1996 in this commit.
+          MIN_FILES, MIN_PASSED = 165, 1990
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
