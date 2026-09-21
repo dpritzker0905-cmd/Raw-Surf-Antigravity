@@ -6,7 +6,7 @@ jest.mock('../components/map/WeatherTelemetry', () => ({
 }));
 
 const MODEL = 'ncep_gfswave025';
-const MANIFEST_URL = `https://map-tiles.open-meteo.com/data_spatial/${MODEL}/latest.json`;
+const MANIFEST_URL = `https://openmeteo.s3.amazonaws.com/data_spatial/${MODEL}/latest.json`;
 const TILE_URL = `om://${MANIFEST_URL}?time_step=valid_times_1&variable=wave_height&webgl_fallback=true`;
 const bootstrap = () => ({
   variables: ['wave_height'],

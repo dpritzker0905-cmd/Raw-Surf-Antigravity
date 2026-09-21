@@ -429,7 +429,7 @@ export function useOpenMeteoTileUrls({
       const cacheBuster = cacheBustRef.current ? `&_cb=${cacheBustRef.current}` : '';
       // wt-landmask heal: one-time URL rotation so cached pre-mask decodes get re-decoded masked.
       const wtHeal = (variable === 'surface_temperature' && wtLandmaskNudgeRef.current) ? '&wtlm=1' : '';
-      return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}${wtHeal}`;
+      return `om://https://openmeteo.s3.amazonaws.com/data_spatial/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}${wtHeal}`;
     };
 
     const resolveAllUrls = async () => {

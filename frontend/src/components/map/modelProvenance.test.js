@@ -10,7 +10,7 @@
 import { familyOfOmModel, describeSubstitution, describeLayerSubstitution, describeStaleHour } from './modelProvenance';
 
 const SLOT = (model, ti = 3) =>
-  `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${ti}&variable=visibility&contours=true`;
+  `om://https://openmeteo.s3.amazonaws.com/data_spatial/${model}/latest.json?time_step=valid_times_${ti}&variable=visibility&contours=true`;
 
 function makeMap({ layerKey = 'fog', model = 'ncep_gfs025', activeSlot = 1 } = {}) {
   return {

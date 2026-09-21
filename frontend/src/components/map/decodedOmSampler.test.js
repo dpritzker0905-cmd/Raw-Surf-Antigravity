@@ -6,7 +6,7 @@
  */
 import { sampleDecodedOmValue, resolveDisplayedSlot } from './decodedOmSampler';
 
-const GRID_URL = (model, ti) => `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${ti}&variable=surface_temperature&contours=true`;
+const GRID_URL = (model, ti) => `om://https://openmeteo.s3.amazonaws.com/data_spatial/${model}/latest.json?time_step=valid_times_${ti}&variable=surface_temperature&contours=true`;
 
 function makeMap({ model = 'ncep_gfs013', ti = 7, activeSlot = 1 } = {}) {
   return {
