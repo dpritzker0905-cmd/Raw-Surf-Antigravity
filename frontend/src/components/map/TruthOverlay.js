@@ -6,6 +6,10 @@ import { BUILD_VERSION } from '../../buildVersion';
 import { TruthOverlayVisualTab } from './TruthOverlayVisualTab';
 import { TruthOverlayGpuTab } from './TruthOverlayGpuTab';
 import { resolveTruthVerdict } from './truthVerdict';
+import {
+  isOpenMeteoProtocolFailed, subscribeToProtocolFailure, getOpenMeteoProtocolFailure,
+  OM_PROTOCOL_DEPENDENT_LAYERS,
+} from './openMeteoProtocolFailure';
 
 // PROD GATE (2026-07-19). This HUD was mounted UNCONDITIONALLY by MapWebGL — a 360px dark
 // diagnostics panel fixed bottom-left over the live map for EVERY production user (nearly
@@ -27,9 +31,15 @@ export function isDiagHudEnabled(win) {
   } catch (e) { return false; }
 }
 
-const getLayerTruth = (id, visible, wind, marine) => {
+// F-15 (2026-09-21): a raster layer that is not visible used to read "LOADING" unconditionally, so
+// a protocol that was PERMANENTLY DEAD reported as a load that had not finished yet — forever. That
+// is the "absence encoded as silence" shape inside the very surface built to prevent it. When
+// registration has failed, every raster slot is guaranteed never to mount (MapWebGL gates the whole
+// factory on protocolReady), so the only honest reading is UNAVAILABLE.
+// ⭐ "LOADING" must mean "still might arrive". If nothing can arrive, it is a lie.
+export const getLayerTruth = (id, visible, wind, marine, protocolFailed = false) => {
   const l = LAYER_REGISTRY[id];
-  return !l ? "OFF" : l.type === "raster" ? (visible ? "LOADED" : "LOADING")
+  return !l ? "OFF" : l.type === "raster" ? (protocolFailed ? "UNAVAILABLE" : visible ? "LOADED" : "LOADING")
     : l.type === "particle" ? (wind?.vectors?.length ? "LOADED" : "LOADING")
     : l.type === "marine" ? (marine?.grid?.vectors?.length ? "LOADED" : "LOADING") : "OFF";
 };
@@ -59,10 +69,20 @@ var TruthOverlay = ({
   const [stackInfo, setStackInfo] = useState([]);
   const [ticks, setTicks] = useState(0);
 
+  // F-15: seed from the getter as well as subscribing, because registration can fail BEFORE this
+  // HUD mounts — a subscribe-only version would show "LOADING" forever in exactly the case it
+  // exists to disclose. subscribeToProtocolFailure fires immediately when already failed, so the
+  // seed and the subscription agree; the seed covers a non-browser render with no event target.
+  const [protocolFailed, setProtocolFailed] = useState(() => isOpenMeteoProtocolFailed());
+  useEffect(() => subscribeToProtocolFailure(() => setProtocolFailed(true)), []);
+
   // Stats calculation
   const windVectorCount = windData?.vectors?.length || 0;
   const marineVectorCount = marineData?.grid?.vectors?.length || 0;
   const activeLayer = activeLayers?.[0] || 'none';
+  // Computed once — it was called three times inline, which made the failure branch easy to add in
+  // one place and miss in another.
+  const rasterTruth = getLayerTruth(activeLayer, rasterVisible, windData, marineData, protocolFailed);
 
   // Live telemetry ticking loop (updates at 0.5Hz — only when GPU tab is active and not minimized)
   useEffect(() => {
@@ -438,12 +458,32 @@ var TruthOverlay = ({
                 <span style={{ color: '#94a3b8' }}>Raster Source:</span>
                 <span style={{
                   fontWeight: 600,
-                  color: getLayerTruth(activeLayer, rasterVisible, windData, marineData) === 'LOADED' ? '#10b981' : 
-                         getLayerTruth(activeLayer, rasterVisible, windData, marineData) === 'LOADING' ? '#fbbf24' : '#64748b'
+                  // UNAVAILABLE gets the error red, not the muted grey OFF uses — a dead protocol
+                  // is a fault to act on, not an idle layer.
+                  color: rasterTruth === 'LOADED' ? '#10b981'
+                       : rasterTruth === 'LOADING' ? '#fbbf24'
+                       : rasterTruth === 'UNAVAILABLE' ? '#ef4444' : '#64748b'
                 }}>
-                  {getLayerTruth(activeLayer, rasterVisible, windData, marineData)}
+                  {rasterTruth}
                 </span>
               </div>
+
+              {/* F-15: a status word alone still leaves the reader guessing. Name the cause and the
+                  blast radius, so the next person does not spend a day inside the tile pipeline for
+                  a failure that happened before a single tile was ever requested. */}
+              {rasterTruth === 'UNAVAILABLE' && (
+                <div style={{
+                  background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.35)',
+                  borderRadius: '8px', padding: '8px 10px', color: '#fca5a5', fontSize: '11px',
+                  lineHeight: 1.45
+                }}>
+                  Open-Meteo protocol registration FAILED — all forecast raster layers
+                  ({OM_PROTOCOL_DEPENDENT_LAYERS.join(', ')}) are dead this session.
+                  Cause: <code style={{ color: '#fecaca' }}>
+                    {(getOpenMeteoProtocolFailure() || {}).message || 'unknown'}
+                  </code>. Full record: <code style={{ color: '#fecaca' }}>window.__OM_PROTOCOL_FAILURE__</code>
+                </div>
+              )}
 
               {/* Grid Provenance */}
               <div style={{

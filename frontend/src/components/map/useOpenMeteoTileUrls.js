@@ -7,6 +7,8 @@ import {
   closestAxisIndex, effectiveCutoverH,
 } from './modelHorizons';
 import maplibregl from 'maplibre-gl';
+import { toast } from 'sonner';
+import { subscribeToProtocolFailure, OM_PROTOCOL_DEPENDENT_LAYERS } from './openMeteoProtocolFailure';
 import {
   OM_MODEL_MAP,
   fetchModelMetadata,
@@ -330,6 +332,22 @@ export function useOpenMeteoTileUrls({
   useEffect(() => {
     registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE);
   }, []);
+
+  // F-15 (2026-09-21): the PRODUCTION-facing half of the disclosure. The diagnostics HUD's
+  // UNAVAILABLE row is dev-gated (isDiagHudEnabled is OFF in production), so without this a real
+  // user would still get six silently blank layers. Fires at most once — the failure is terminal,
+  // nothing retries, and subscribeToProtocolFailure is self-deduplicating. Deliberately does NOT
+  // name the exception to the user: the message is upstream text we do not control and could be
+  // anything; the actionable part is which layers are gone. The cause is in the console, in
+  // telemetry, and on window.__OM_PROTOCOL_FAILURE__.
+  useEffect(() => subscribeToProtocolFailure(() => {
+    try {
+      toast.error('Weather map layers are unavailable', {
+        description: `${OM_PROTOCOL_DEPENDENT_LAYERS.join(', ')} could not start. Reload to retry.`,
+        duration: 10000,
+      });
+    } catch (e) { /* a missing toast host must not break the map */ }
+  }), []);
 
   // Water-temp halo heal (2026-07-11): if a surface_temperature decode raced past the land-mask
   // build, the library cached an UNMASKED field for that timestep. When the protocol signals the

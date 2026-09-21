@@ -2,6 +2,7 @@ import { CUSTOM_COLOR_SCALES, aliasSurfaceTemperature } from './colorScales';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { traceOmUrl, traceOmBlock, traceOmServed } from './omUrlTrace';
 import { LIVE_FETCHED_MODELS } from './openMeteoMetadata';
+import { reportProtocolRegistrationFailure } from './openMeteoProtocolFailure';
 
 // F4: per-tile / per-frame console output is GATED. With console capture / React Scan / PostHog
 // active, an unconditional console.log per decoded tile materially amplifies tile-heavy
@@ -907,7 +908,9 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
     }
     setProtocolReady(true);
-  });
+    // F-15: this chain had no .catch, and setProtocolReady(true) is its LAST statement — so any
+    // throw above left protocolReady false forever and silently blanked all six raster layers.
+  }).catch(err => reportProtocolRegistrationFailure(err, setProtocolReady));
 }
 
 /**
