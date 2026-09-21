@@ -101,35 +101,69 @@ def history() -> List[dict]:
     return list(_samples)
 
 
+# ⛔⛔ THE BOOT RAMP MUST NOT BE MEASURED AS GROWTH (fixed 2026-09-21 from this module's FIRST live
+# reading, which is exactly what shipping an instrument early is for). It reported:
+#
+#     rss_mb_first 400.3 -> rss_mb_last 752.6 over 0.17 h  =>  "rss_mb_per_hour: 2113.4"
+#
+# That is not a leak, it is STARTUP: the first sample is taken inside start_scheduler(), before the
+# L2 restore has loaded ~18,000 products. And because the ring is 288 samples deep, `_samples[0]`
+# stays the boot sample for a full DAY — so a first-vs-last rate would have been poisoned for the
+# entire window the instrument exists to observe.
+# ⭐⭐⭐ AN INSTRUMENT'S ORIGIN IS AS LOAD-BEARING AS ITS READINGS. This is the same defect class as
+# the cross-process comparison it replaced: a slope measured from the wrong starting point.
+WARMUP_S = 900.0        # 15 min — comfortably past the restore; tune with MEMORY_TRACE_WARMUP_S.
+
+
+def _warmup_s() -> float:
+    try:
+        return max(0.0, float(os.environ.get("MEMORY_TRACE_WARMUP_S", WARMUP_S)))
+    except (TypeError, ValueError):
+        return WARMUP_S
+
+
 def growth_summary() -> dict:
     """
-    First vs last sample, plus a per-hour rate for anything that moved.
+    A per-hour rate measured from the first POST-WARMUP sample, plus what moved.
 
     Deliberately NOT a regression or a trend test. Two endpoints over a known interval is what the
     question "does this climb with uptime" actually needs, and a fitted slope would invite reading
     significance into a handful of points. ⭐ The raw series is in `history()`; judge it there.
+
+    Gauges are split into `growing` (the unbounded suspects) and `controls` (the bounded ones).
+    Both fill from zero at boot, so lumping them together made the controls the loudest entries in
+    the first live reading — technically true, and useless for finding a leak.
     """
-    if len(_samples) < 2:
-        return {"samples": len(_samples), "note": "need at least 2 samples to state a rate"}
-    first, last = _samples[0], _samples[-1]
+    warm = [s for s in _samples if s["uptime_s"] >= _warmup_s()]
+    out: Dict[str, Any] = {"samples": len(_samples), "warm_samples": len(warm)}
+    if _samples:
+        out["uptime_s"] = _samples[-1]["uptime_s"]
+        # Always publish the boot ramp rather than hiding it: it is real, and a reader who sees
+        # only a suppressed rate cannot tell "still warming up" from "instrument broken".
+        out["boot_rss_mb"] = _samples[0].get("rss_mb")
+    if len(warm) < 2:
+        out["note"] = (f"need 2 samples past {_warmup_s():.0f}s uptime to state a rate; "
+                       f"before that the L2 restore dominates RSS and any rate is boot, not growth")
+        return out
+    first, last = warm[0], warm[-1]
     hours = max((last["uptime_s"] - first["uptime_s"]) / 3600.0, 1e-9)
-    out: Dict[str, Any] = {
-        "samples": len(_samples),
-        "window_hours": round(hours, 2),
-        "uptime_s": last["uptime_s"],
-    }
+    out["window_hours"] = round(hours, 2)
     if first.get("rss_mb") is not None and last.get("rss_mb") is not None:
         out["rss_mb_first"] = first["rss_mb"]
         out["rss_mb_last"] = last["rss_mb"]
         out["rss_mb_per_hour"] = round((last["rss_mb"] - first["rss_mb"]) / hours, 1)
-    climbing = {}
+    growing, controls = {}, {}
     for name in _gauges:
         a, b = first["sizes"].get(name), last["sizes"].get(name)
         if isinstance(a, int) and isinstance(b, int) and b != a:
-            climbing[name] = {"first": a, "last": b, "per_hour": round((b - a) / hours, 1)}
-    # Only the movers, so a flat control is visible by its ABSENCE here while still present in
+            entry = {"first": a, "last": b, "per_hour": round((b - a) / hours, 1)}
+            (controls if name.endswith("_CONTROL") else growing)[name] = entry
+    # Only the movers, so a flat gauge is visible by its ABSENCE here while still present in
     # history() — the summary answers "what is growing", the series answers "by how much, when".
-    out["growing"] = climbing
+    # ⭐ An empty `growing` with a climbing `rss_mb_per_hour` is the finding that says the leak is
+    # OUTSIDE everything registered here, and the next search must start somewhere new.
+    out["growing"] = growing
+    out["controls"] = controls
     return out
 
 

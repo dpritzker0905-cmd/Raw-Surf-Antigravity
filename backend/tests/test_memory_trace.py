@@ -105,15 +105,72 @@ class TestItFailsSafe:
         )
 
 
+class TestTheBootRampIsNotGrowth:
+    """
+    ⛔⛔ CAUGHT BY THIS MODULE'S FIRST LIVE READING, which is what shipping an instrument early is
+    for. It reported rss 400.3 -> 752.6 MB over 0.17 h as "rss_mb_per_hour: 2113.4". That is
+    STARTUP -- the first sample lands inside start_scheduler(), before the L2 restore loads ~18,000
+    products -- and because the ring is 288 deep, that boot sample would have anchored the rate for
+    a full DAY. ⭐⭐⭐ AN INSTRUMENT'S ORIGIN IS AS LOAD-BEARING AS ITS READINGS.
+    """
+
+    def test_a_boot_only_series_refuses_to_state_a_rate(self, monkeypatch):
+        monkeypatch.setenv("MEMORY_TRACE_WARMUP_S", "900")
+        for up in (0.0, 300.0, 600.0):
+            memory_trace._samples.append({"uptime_s": up, "rss_mb": 400 + up, "sizes": {}})
+        out = memory_trace.growth_summary()
+        assert "rss_mb_per_hour" not in out, "a boot ramp must never be published as a growth rate"
+        assert out["warm_samples"] == 0
+        assert "note" in out and "boot" in out["note"]
+
+    def test_it_still_reports_the_boot_reading_rather_than_hiding_it(self, monkeypatch):
+        monkeypatch.setenv("MEMORY_TRACE_WARMUP_S", "900")
+        memory_trace._samples.append({"uptime_s": 0.0, "rss_mb": 400.0, "sizes": {}})
+        # A reader who sees only a suppressed rate cannot tell "still warming" from "broken".
+        assert memory_trace.growth_summary()["boot_rss_mb"] == 400.0
+
+    def test_the_rate_is_measured_from_the_first_POST_WARMUP_sample(self, monkeypatch):
+        monkeypatch.setenv("MEMORY_TRACE_WARMUP_S", "900")
+        # Boot ramp 400->700, then a flat steady state. The honest answer is ~0, not the ramp.
+        for up, rss in ((0.0, 400.0), (600.0, 700.0), (1200.0, 800.0), (4800.0, 800.0)):
+            memory_trace._samples.append({"uptime_s": up, "rss_mb": rss, "sizes": {}})
+        out = memory_trace.growth_summary()
+        assert out["rss_mb_first"] == 800.0, "the boot samples must not anchor the window"
+        assert out["rss_mb_per_hour"] == 0.0
+
+    def test_a_REAL_post_warmup_climb_is_still_reported(self, monkeypatch):
+        """THE CONTROL. Suppressing the boot ramp must not suppress an actual leak."""
+        monkeypatch.setenv("MEMORY_TRACE_WARMUP_S", "900")
+        for up, rss in ((0.0, 400.0), (1800.0, 800.0), (5400.0, 900.0)):
+            memory_trace._samples.append({"uptime_s": up, "rss_mb": rss, "sizes": {}})
+        assert memory_trace.growth_summary()["rss_mb_per_hour"] == 100.0
+
+    def test_controls_are_reported_SEPARATELY_from_suspects(self, monkeypatch):
+        monkeypatch.setenv("MEMORY_TRACE_WARMUP_S", "0")
+        memory_trace.register_gauge("suspect", lambda: 0)
+        memory_trace.register_gauge("thing_CONTROL", lambda: 0)
+        memory_trace._samples.append({"uptime_s": 0.0, "rss_mb": 1.0,
+                                      "sizes": {"suspect": 1, "thing_CONTROL": 1}})
+        memory_trace._samples.append({"uptime_s": 3600.0, "rss_mb": 2.0,
+                                      "sizes": {"suspect": 9, "thing_CONTROL": 9}})
+        out = memory_trace.growth_summary()
+        # Both bounded and unbounded caches fill from zero at boot, so lumping them together made
+        # the CONTROLS the loudest entries in the first live reading -- true, and useless.
+        assert "suspect" in out["growing"] and "suspect" not in out["controls"]
+        assert "thing_CONTROL" in out["controls"] and "thing_CONTROL" not in out["growing"]
+
+
 class TestTheSummaryTellsTheTruth:
-    def test_it_refuses_to_state_a_rate_from_one_point(self):
+    def test_it_refuses_to_state_a_rate_from_one_point(self, monkeypatch):
+        monkeypatch.setenv("MEMORY_TRACE_WARMUP_S", "0")
         memory_trace.sample()
         out = memory_trace.growth_summary()
         assert "rss_mb_per_hour" not in out
         assert out["samples"] == 1
         assert "note" in out, "it must say WHY it is not answering, not just omit the answer"
 
-    def test_a_flat_gauge_is_not_reported_as_growing(self):
+    def test_a_flat_gauge_is_not_reported_as_growing(self, monkeypatch):
+        monkeypatch.setenv("MEMORY_TRACE_WARMUP_S", "0")
         """⭐ THE CONTROL THAT MATTERS. A detector that flags a flat series would send the next
         session hunting a cache that never moved."""
         memory_trace.register_gauge("flat", lambda: 42)
@@ -121,7 +178,8 @@ class TestTheSummaryTellsTheTruth:
         memory_trace.sample()
         assert memory_trace.growth_summary()["growing"] == {}
 
-    def test_a_climbing_gauge_is_reported_with_its_rate(self):
+    def test_a_climbing_gauge_is_reported_with_its_rate(self, monkeypatch):
+        monkeypatch.setenv("MEMORY_TRACE_WARMUP_S", "0")
         seq = iter([100, 200])
         memory_trace.register_gauge("climber", lambda: next(seq))
         memory_trace.sample()
@@ -132,7 +190,8 @@ class TestTheSummaryTellsTheTruth:
         assert growing["climber"]["last"] == 200
         assert growing["climber"]["per_hour"] > 0
 
-    def test_a_SHRINKING_gauge_is_also_surfaced(self):
+    def test_a_SHRINKING_gauge_is_also_surfaced(self, monkeypatch):
+        monkeypatch.setenv("MEMORY_TRACE_WARMUP_S", "0")
         # An eviction path that suddenly starts discarding far more than it should is a defect too,
         # and a summary that only looked for growth would be blind to it.
         seq = iter([500, 100])

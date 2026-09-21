@@ -1196,7 +1196,12 @@ jobs:
           # = 514, and _FLOOR_SET_FROM[estate] moves to 516 with it. The new module carries no
           # importorskip, so it collects identically on both sides and does not add to this
           # lane's structural local-high bias.
-          MIN_PASSED = 514
+          # ⬆ 514→519 on 2026-09-21: +5 tests in the EXISTING tests/test_memory_trace.py (no new
+          # file, so estate stays 267 and only the test count moves). They pin the boot-ramp fix
+          # this module's own first live reading exposed — it published a 400→752 MB STARTUP
+          # ramp as "rss_mb_per_hour: 2113.4". CI-ANCHORED per the rule above: 516 + 5 = 521;
+          # 521 - 2 (this lane's budget) = 519, and _FLOOR_SET_FROM[estate] moves to 521.
+          MIN_PASSED = 519
 
           try:
               root = ET.parse('estate.xml').getroot()
