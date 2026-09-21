@@ -207,8 +207,24 @@ Per reported blank layer:
 - **Water Temp** — **SST is absent from ALL FOUR models on this transport.** It cannot be served
   here at any model: it needs a different source, or the layer must disclose unavailability. This
   matches F-09, where Water Temp has no capability-matrix row at all.
-- **Satellite** — already declared discontinued (`"Satellite IR discontinued Jan 2026."`), so a
-  blank satellite layer is the capability matrix telling the truth, not a bug.
+- ~~**Satellite** — already declared discontinued (`"Satellite IR discontinued Jan 2026."`), so a
+  blank satellite layer is the capability matrix telling the truth, not a bug.~~
+  ⛔ **RETRACTED 2026-09-21 — THIS LINE WAS WRONG, AND IT CONTRADICTS §E4 OF THIS SAME FILE.**
+  Satellite is a live, two-part composite and BOTH parts work. Measured against the running app,
+  clean page, settled (`isStyleLoaded()===true`, 18 slot sources mounted):
+  - **ESRI World Imagery** (`esri-satellite-layer`, `MapWebGL.js:803`) — real aerial imagery,
+    tiles return **200 `image/jpeg` ~15.6 KB**, `raster-opacity` 1.0, `visibility` flips
+    `none`→`visible` with the toggle, style index **7** — above `land`(0)/`landcover`(1)/
+    `landuse`(3)/`water`(6) and below the road + label layers, i.e. correctly anchored.
+  - **GFS cloud cover** (`satellite-slot-{0,1,2}`) — `ncep_gfs013`, `variable=cloud_cover`, on the
+    live host, legend already honest at `'Cloud Cover (%)'` (`MapWeatherControls.js:193`).
+
+  The `upstream: discontinued` / `"Satellite IR discontinued Jan 2026."` capability row describes a
+  **retired IR product that this layer no longer uses**. The row is stale, not prophetic — reading
+  it as an explanation for a blank layer is the error. ⭐ **A CAPABILITY ROW IS A CLAIM ABOUT THE
+  PAST; IT IS NOT EVIDENCE ABOUT WHAT THE LAYER RENDERS TODAY — TOGGLE IT AND READ THE SOURCE URL.**
+  Credit where due: Codex's premise rebuttal was right and my finding was wrong, twice — first
+  calling the layer dead, then calling it mislabeled.
 
 **Do not report "layers fixed" from a transport repair.** Acceptance must be per layer per model,
 asserting a real image decode — not a 200 on `latest.json`.
@@ -262,10 +278,83 @@ marine/wind layers "having challenges when toggling between them and scrubbing i
      that caused F-03's duplicate fetches, so the two share a root quantity.
    - **F-08** 41.3% of 1,773 catalogued spots sit outside every 0.25° tile. Owner scope decision.
    - **F-09 / WP-7** your premise rebuttal stands (Satellite is an active ESRI basemap + cloud cover,
-     not a dead layer); the missing temperature capability rows remain.
+     not a dead layer); the missing temperature capability rows remain. **CLOSED on the satellite
+     half 2026-09-21** — see §C's retraction and F-15 below. The temperature rows are still open.
    - **B-01** animation/compositor proof. Both passes failed to measure it here: my RAF returned
      **0 frames in 4,006 ms** while visible and focused; you observed **1–2 FPS**. Neither is an
      acceptable-animation claim. It needs a harness that genuinely composites, or it stays BLOCKED.
+
+---
+
+## E-bis. SATELLITE TIME-FOLLOWING — **VERIFIED PASS** (2026-09-21)
+
+The open question was whether Satellite's cloud-cover half is a live forecast field or a static
+decoration. It is live, and it tracks the wheel **exactly**. Driven through the real UI (keyboard on
+the `role="slider"` wheel, the accessible path), settled ≥18 s before each read, reading the slot
+source URL — the capture that splits "assignment skipped" from "downstream render failure":
+
+| wheel | active slot | `time_step` served | Δ vs Now |
+|---|---|---|---|
+| Now | — | `valid_times_7` | 0 |
+| **+12 hours** | slot 0 | `valid_times_19` | **+12** |
+| **+36 hours** | slot 2 | `valid_times_43` | **+36** |
+
+Both deltas are exact, one manifest index per hour, `ncep_gfs013` / `cloud_cover` throughout, with
+the inactive slots correctly parked at `raster-opacity` 0 and the neighbour pre-staged
+(`valid_times_42` at +36). **Two points, not one** — a single offset could have been coincidence.
+HUD concurred: `GFS / satellite`, `Render Mode: Raster`, `Raster Source: LOADED`.
+
+⇒ Satellite = **static ESRI aerial imagery** (does NOT change with the wheel, and should not) under
+a **live GFS cloud-cover forecast** (does). Both behaviours are correct for what they are.
+
+## ⛔⛔ E-ter. RETRACTION: THE "RASTER SLOTS NEVER MOUNT" CLAIM WAS MINE AND IT WAS WRONG
+
+An earlier pass in this batch reported that the OM raster machinery failed to mount — `styleLoaded:
+false` stable over 30 s, `totalSources: 5`, **0** `*-slot-*` sources, 0 `data_spatial` requests — and
+attributed it to a pre-existing race, citing two `model_warning`s reading *"Failed to add layer:
+Style is not done loading."* **None of that survived a clean re-test.** Same branch, same commit,
+fresh page, settled: `isStyleLoaded()` **true**, **18** slot sources mounted, `protocolReady` true
+(50 colour scales registered), ESRI + cloud both painting.
+
+Two separate errors, both worth carrying:
+
+1. ⭐⭐⭐ **I READ AN UNSETTLED / POKED PAGE AND CALLED INITIALISATION A FAILURE.** This is the
+   **third** recorded occurrence of that exact class in this project. The rule already existed and I
+   did not apply it: **assert settled before reading — `isStyleLoaded()`, stable zoom/bounds, and a
+   fresh page rather than one you have been scripting against.**
+2. ⭐⭐⭐ **I TREATED A SELF-HEALING WARNING AS A FAILED END STATE.** `handleStyleData` in both
+   `WebGLWindLayer.js:262` and `WebGLMarineLayer.js:850` is registered on **`styledata` AND
+   `style.load`** and re-attempts `addLayer` on every tick. The first synchronous call before the
+   style is ready is *expected* to throw and be caught. ⇒ **Before citing a caught-and-logged warning
+   as a defect, check whether its emitter retries — a warning on a retry path is not an outcome.**
+
+## 🔶 F-15 (NEW, STRUCTURAL) — one uncaught promise silently blanks all six raster layers
+
+Found while chasing the above, and it stands on its own regardless of that retraction.
+
+`openMeteoProtocol.js:508` opens `import('@openmeteo/weather-map-layer').then(({ omProtocol, … }) =>
+{ … })` and the callback runs ~400 lines, ending at `setProtocolReady(true)` on **line 909**.
+**The chain has no `.catch`.** Consequence, at `MapWebGL.js:853`:
+
+```js
+return protocolReady && Object.keys(LAYER_REGISTRY).filter(…)   // ← false ⇒ renders NOTHING
+```
+
+So **any** throw anywhere in that callback — a chunk-load failure, a library API change, a bad
+colour-scale assign — leaves `protocolReady === false` forever, and **rain, satellite, pressure,
+temperature, water_temp and fog all mount zero sources and render blank with no error reaching the
+user and no telemetry marking the cause.** The global `unhandledrejection` handler at `index.js:200`
+does not help: it only suppresses `AbortError`/`DOMException`.
+
+This is the project's recurring **"absence encoded as silence"** shape, at a six-layer blast radius,
+and it is *the same failure signature F-13 spent a day diagnosing* — which is the argument for
+fixing it: next time the cause would be invisible in exactly the same way.
+
+**Status: SUSPECTED-BY-CONSTRUCTION, NOT OBSERVED.** I have proven the missing `.catch` and the
+gate it feeds; I have **not** produced a live throw. Do not write this up as the cause of any past
+blank layer. Suggested repair is a `.catch` that (a) logs with the real error, (b) emits a telemetry
+event, and (c) surfaces a disclosed-unavailable state rather than an empty map — plus a test that
+forces the import to reject and asserts the layers disclose rather than silently vanish.
 
 ---
 
