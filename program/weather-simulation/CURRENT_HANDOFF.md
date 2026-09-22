@@ -38,10 +38,16 @@ preview signed in, across all three themes and on mobile, before merge.
 
 ### Open threads, in priority order
 
-1. **Six 3.12-ONLY backend failures** — `test_dynamic_viewport.py` (1 to 5) and
-   `test_dynamic_viewport_extended.py` (0 to 1) fail on Python 3.12 but not 3.11. Same tree,
-   same pins. This is the map's own data path, so it may or may not relate to the above; the
-   relationship is UNESTABLISHED and must not be assumed either way.
+1. ~~Six 3.12-only backend failures~~ **RETRACTED SAME DAY — they were my harness, not the
+   code.** I reported `test_dynamic_viewport*` failing on 3.12 but not 3.11. **False.** The
+   two full runs differed in the interpreter AND in the `PYTEST_DEBUG_TEMPROOT` I had set,
+   and I attributed the delta to the variable I meant to change. With a SHORT root the file
+   is **15/15 green on BOTH interpreters**; with a deep root it fails 5-7 times on either,
+   varying with the length of the directory name. Cause: fixture filenames like
+   `viewport_gfs_marine_waves_20260602T120000Z_179.00_24.00_-179.00_30.00.json` under a deep
+   root exceed Windows MAX_PATH (260), so `open()`/`os.replace()` raise `[WinError 3]`.
+   ⭐ The log said `WinError 3` on a 260-char path from the start — a path-length error, not
+   a logic error. **There is no viewport/grid defect here. Do not re-open this.**
 2. **Backend latency peaks** — over 14 h: `/api/weather/grid_series` max **26.3 s**,
    `/api/photographers/featured` **62.6 s**, 81 requests over 10 s. ~79% of all 18,955
    requests are background polls (unread-counts, notifications, dispatch, friends/map).
@@ -59,6 +65,15 @@ untouched at `backend/.venv`; the 3.12 venv is OUTSIDE the repo at
 ⚠️ `C:/Users/13218/AppData/Local/Temp/pytest-of-13218` is ACL-locked (even `icacls` is denied)
 and was silently erroring **289 backend tests** at fixture setup. Set `PYTEST_DEBUG_TEMPROOT`
 to a writable path, or clear that directory from an elevated prompt.
+⛔ **That path MUST BE SHORT — use `C:/t1`, never a scratchpad path.** A deep root pushes
+fixture filenames past Windows MAX_PATH (260) and manufactures failures that look exactly
+like product bugs in the viewport/grid lane. That trap cost a false finding on 2026-09-22.
+**True clean baseline, Python 3.12 + short root: 9 failed / 3745 passed / 2937 skipped / 0
+errors.** All nine are environmental and stable across both interpreters: `test_debug_
+consciousness` x5 (no Event Bus DB), `test_password_hashing_py313` (the `crypt` module is
+Unix-only and absent on Windows at any version), `test_weather_sim_mcp` x2 (empty local
+sqlite from a missing DATABASE_URL), `test_weather_sim_mcp_server_startup` (MCP handshake).
+Earlier figures of 13 and 18 failures are CONTAMINATED by the long root; ignore them.
 ⚠️ CI runs pytest in **exactly two scoped lanes** — per `ci.yml:727`, 309 of 411 test files are
 CI-orphans. A full `pytest tests/` run is NOT a CI-equivalent check.
 
