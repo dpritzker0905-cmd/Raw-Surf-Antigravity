@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { WeatherTelemetry } from './WeatherTelemetry';
-import { detectWebglSupport, isMapStartupFailure } from './mapWebglSupport';
+import { classifyMapInitError, isMapStartupFailure } from './mapWebglSupport';
 
 /**
  * Everything the map does when its rendering goes wrong, in one place.
@@ -19,9 +19,12 @@ import { detectWebglSupport, isMapStartupFailure } from './mapWebglSupport';
  * Returns the startup state the surface renders from, plus the handler to hand to <Map>.
  */
 export const useMapErrorSurface = ({ mapInstance, innerMapRef, setWebglWindFailed, setWebglMarineFailed }) => {
-  // Probed once per mount rather than per render: cheap, but not free, and it allocates a
-  // real GL context (which mapWebglSupport releases immediately).
-  const [webglSupport] = useState(() => detectWebglSupport());
+  // ⛔ THERE IS NO EAGER WEBGL PROBE, AND THERE MUST NOT BE ONE. The first version of this
+  // hook probed by creating a context and calling loseContext() to free it. Chrome counts
+  // deliberate context losses against the PAGE and eventually refuses every further context
+  // ("Web page caused context loss and was blocked") -- observed live, the map drew for about
+  // a minute, froze, then could not start at all on hardware where WebGL was fine. See
+  // mapWebglSupport.js. The map now simply tries, and onError reports what really happened.
   const [mapInitError, setMapInitError] = useState(null);
   const [mapMountAttempt, setMapMountAttempt] = useState(0);
 
@@ -39,10 +42,13 @@ export const useMapErrorSurface = ({ mapInstance, innerMapRef, setWebglWindFaile
     if (!isMapStartupFailure(event, Boolean(innerMapRef?.current))) return;
 
     const err = event?.error || event;
-    const message = (err && err.message) || String(err || 'Unknown map initialisation error');
+    // The browser's own statusMessage is the most specific thing here; keep it verbatim so
+    // the panel (and telemetry) carry the real cause rather than a paraphrase of it.
+    const message = (err && (err.statusMessage || err.message))
+      || String(err || 'Unknown map initialisation error');
     console.error('[MapWebGL] Map failed to initialise:', err);
     WeatherTelemetry.trackMapError(message, (err && err.stack) || '');
-    setMapInitError(message);
+    setMapInitError({ reason: classifyMapInitError(err), message });
   }, [innerMapRef]);
 
   /**
@@ -104,12 +110,19 @@ export const useMapErrorSurface = ({ mapInstance, innerMapRef, setWebglWindFaile
     };
   }, [mapInstance, setWebglWindFailed, setWebglMarineFailed]);
 
-  // A WebGL-less browser is reported up front; anything else only after maplibre has tried.
-  const mapUnavailableReason = !webglSupport.supported
-    ? webglSupport.reason
-    : (mapInitError ? 'init-failed' : null);
+  // Derived purely from what actually failed. Nothing is sticky, so Retry genuinely retries:
+  // clearing mapInitError removes the panel and the remount gets a real second attempt. The
+  // probe version could not do this -- a probe result captured at mount never changed, so
+  // Retry was a button that could not work.
+  const mapUnavailableReason = mapInitError ? mapInitError.reason : null;
 
-  return { mapUnavailableReason, mapInitError, mapMountAttempt, onMapError, onRetryMapInit };
+  return {
+    mapUnavailableReason,
+    mapInitError: mapInitError ? mapInitError.message : null,
+    mapMountAttempt,
+    onMapError,
+    onRetryMapInit,
+  };
 };
 
 export default useMapErrorSurface;
