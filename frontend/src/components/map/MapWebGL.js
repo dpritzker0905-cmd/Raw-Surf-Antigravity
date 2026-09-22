@@ -1,7 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
-import { WeatherTelemetry } from './WeatherTelemetry';
 import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
@@ -17,7 +16,7 @@ import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import MarineAnimTuner from './MarineAnimTuner';
 import MapInitFailureNotice from './MapInitFailureNotice';
-import { detectWebglSupport, isMapStartupFailure } from './mapWebglSupport';
+import { useMapErrorSurface } from './useMapErrorSurface';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
 import { radarForecastTileUrl, rainviewerTileTemplate } from './radarForecastSources';
 
@@ -97,49 +96,6 @@ const MapWebGL = ({
   const [webglWindFailed, setWebglWindFailed] = useState(() => typeof window !== 'undefined' && (window.__FORCE_WIND_FALLBACK__ === true || localStorage.getItem('force_wind_fallback') === 'true'));
   const [webglMarineFailed, setWebglMarineFailed] = useState(() => typeof window !== 'undefined' && (window.__FORCE_MARINE_FALLBACK__ === true || localStorage.getItem('force_marine_fallback') === 'true'));
 
-  // MAP STARTUP FAILURE (2026-09-22). Two independent ways the map can fail to exist, and
-  // before this both rendered the SAME empty rectangle:
-  //   1. WebGL is unavailable up front — probed once on mount, cheaply, before maplibre tries.
-  //   2. maplibre's async init rejects for any other reason — caught via the Map `onError`
-  //      prop below. Without that prop @vis.gl/react-maplibre swallows the rejection into a
-  //      bare console.error and never mounts, so NOTHING throws and no ErrorBoundary fires.
-  // The probe is lazy-initialised so it runs once per mount rather than on every render.
-  const [webglSupport] = useState(() => detectWebglSupport());
-  const [mapInitError, setMapInitError] = useState(null);
-
-  // ⚠️ `onError` is NOT only an init hook. @vis.gl/react-maplibre maps the map's ongoing
-  // `error` event onto the SAME prop (dist/maplibre/maplibre.js line 60, `error: 'onError'`),
-  // so a single failed tile, style or source request arrives here too. Surfacing the startup
-  // panel on one of those would be a worse bug than the silence it replaces — a transient
-  // 404 on one tile would blank a map that is drawing perfectly well.
-  //
-  // The discriminator is structural, not a guess: the init catch constructs its event with
-  // `target: null` (dist/components/map.js line 47), while a runtime maplibre ErrorEvent
-  // always carries the map as its target. `innerMapRef.current` is the second, independent
-  // check — once the map has mounted, nothing arriving here can be a STARTUP failure.
-  const onMapInitError = useCallback((event) => {
-    const err = event?.error || event;
-    const message = (err && err.message) || String(err || 'Unknown map initialisation error');
-    // Runtime errors are NOT ours to report: the `mapInstance.on('error', ...)` effect below
-    // already logs and calls trackMapError for exactly these. Claiming them here too would
-    // double every runtime map error in telemetry and quietly corrupt the counts.
-    if (!isMapStartupFailure(event, Boolean(innerMapRef.current))) return;
-
-    console.error('[MapWebGL] Map failed to initialise:', err);
-    WeatherTelemetry.trackMapError(message, (err && err.stack) || '');
-    setMapInitError(message);
-  }, []);
-
-  // Retry remounts the map subtree by key rather than reloading the page: a reload would
-  // discard the user's session state to fix a failure that is often transient (a lost GPU
-  // process recovers on its own). The counter is the key, so React tears the old map down.
-  const [mapMountAttempt, setMapMountAttempt] = useState(0);
-  const onRetryMapInit = useCallback(() => {
-    setMapInitError(null);
-    setMapMountAttempt((n) => n + 1);
-  }, []);
-
-  const mapUnavailableReason = !webglSupport.supported ? webglSupport.reason : (mapInitError ? 'init-failed' : null);
 
   // Reset temporary WebGL failure flags when model or active layers change
   useEffect(() => {
@@ -157,6 +113,11 @@ const MapWebGL = ({
 
   // 1. Map Initialization and Async Abort Interceptions
   const { mapInstance } = useMapInitialization({ innerMapRef, mapInstanceRef });
+
+  // Map rendering failures, startup AND runtime, in one hook (see useMapErrorSurface).
+  // Before 2026-09-22 a map that never started rendered an empty rectangle in silence.
+  const { mapUnavailableReason, mapInitError, mapMountAttempt, onMapError, onRetryMapInit } =
+    useMapErrorSurface({ mapInstance, innerMapRef, setWebglWindFailed, setWebglMarineFailed });
 
   const activeMarineLayer = useMemo(() => {
     return ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayers.includes(l));
@@ -739,53 +700,6 @@ const MapWebGL = ({
     };
   }, [mapInstance, userTier]);
 
-  // Self-healing observability for MapLibre errors and WebGL context events
-  useEffect(() => {
-    if (!mapInstance) return;
-
-    const onError = (e) => {
-      console.error('[MapWebGL] Map instance error event:', e);
-      WeatherTelemetry.trackMapError(e.error?.message || 'MapError', e.error?.stack || '');
-    };
-
-    mapInstance.on('error', onError);
-
-    const canvas = mapInstance.getCanvas();
-    let onContextLost = null;
-    let onContextRestored = null;
-
-    if (canvas) {
-      onContextLost = (e) => {
-        e.preventDefault();
-        console.error('[MapWebGL] WebGL context lost detected! Triggering safety fallbacks.');
-        WeatherTelemetry.trackWebGLContextLost();
-        setWebglWindFailed(true);
-        setWebglMarineFailed(true);
-      };
-
-      onContextRestored = () => {
-        console.log('[MapWebGL] WebGL context restored successfully! Recovering WebGL renderers.');
-        WeatherTelemetry.trackWebGLContextRestored();
-        
-        const forceWind = typeof window !== 'undefined' && (window.__FORCE_WIND_FALLBACK__ === true || localStorage.getItem('force_wind_fallback') === 'true');
-        const forceMarine = typeof window !== 'undefined' && (window.__FORCE_MARINE_FALLBACK__ === true || localStorage.getItem('force_marine_fallback') === 'true');
-        
-        if (!forceWind) setWebglWindFailed(false);
-        if (!forceMarine) setWebglMarineFailed(false);
-      };
-
-      canvas.addEventListener('webglcontextlost', onContextLost);
-      canvas.addEventListener('webglcontextrestored', onContextRestored);
-    }
-
-    return () => {
-      mapInstance.off('error', onError);
-      if (canvas) {
-        if (onContextLost) canvas.removeEventListener('webglcontextlost', onContextLost);
-        if (onContextRestored) canvas.removeEventListener('webglcontextrestored', onContextRestored);
-      }
-    };
-  }, [mapInstance]);
 
   useWebGLGuardrail({
     mapInstance,
@@ -1031,7 +945,7 @@ const MapWebGL = ({
         key={mapMountAttempt}
         ref={innerMapRef}
         mapLib={maplibregl}
-        onError={onMapInitError}
+        onError={onMapError}
         {...viewState}
         onMove={onMove}
         onMoveEnd={onMoveEnd}
