@@ -333,8 +333,36 @@ describe('coarse-preview revalidation keeps re-driving past the old 8-attempt bu
     delete window.__MARINE_SERIES__;
   });
 
-  // Flush the microtask queue so awaited fetch mocks settle under fake timers.
-  const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+  // Drain the microtask queue until the OBSERVABLE stops moving, rather than a fixed number of
+  // ticks.
+  //
+  // ⛔ THIS WAS `for (let i = 0; i < 12; i++) await Promise.resolve()` AND IT FLAKED IN CI
+  // (2026-09-21, run 35667408964: "suites 272/273 tests 2662/2663 failed 1" on a PR whose entire
+  // diff was one Python file — the same lane passed on two sibling branches minutes apart).
+  // 12 is a GUESS ABOUT THE DEPTH OF SOMEONE ELSE'S PROMISE CHAIN. `ensureMarineSeries` awaits a
+  // fetch, then `.json()`, then normalisation, then schedules the revalidation; if that chain needs
+  // a 13th tick on a loaded runner, the very next `toHaveBeenCalledTimes(n + 1)` fires one short
+  // and the test reports a product defect that did not happen.
+  // ⭐ A FIXED DRAIN COUNT IS A TIMING ASSUMPTION WEARING A DETERMINISTIC COSTUME. Settling on the
+  // observable is bounded, scheduling-insensitive, and NOT more permissive: a late extra fetch
+  // still moves the count, resets the streak, and is therefore still caught by the exact-count
+  // assertions below.
+  // ⚠️ AND THE FIRST VERSION OF THIS FIX WAS WORSE THAN THE BUG. Settling purely on "the count has
+  // not moved for N ticks" is satisfied by the INITIAL state — it could return after 4 ticks,
+  // before the chain had produced anything at all, and 5 of 8 local runs failed. ⭐ A SETTLE
+  // CONDITION THAT THE STARTING STATE ALREADY SATISFIES IS NOT A SETTLE CONDITION. Drain a floor
+  // of MIN_TICKS first (>= the 12 the original used, so this is never less thorough), and only
+  // then require stability — adaptive on top of the old behaviour, never instead of it.
+  const flush = async (minTicks = 12, stableTicks = 4, maxTicks = 500) => {
+    let stable = 0;
+    let last = global.fetch.mock.calls.length;
+    for (let i = 0; i < maxTicks; i++) {
+      await Promise.resolve();
+      const now = global.fetch.mock.calls.length;
+      if (now === last) { stable += 1; } else { stable = 0; last = now; }
+      if (i + 1 >= minTicks && stable >= stableTicks) break;
+    }
+  };
 
   it('a persistent GLOBAL preview for a REGIONAL request revalidates 15 times on the backoff schedule, then stops', async () => {
     const regional = { west: -81.7, south: 27.8, east: -79.6, north: 28.8 };
