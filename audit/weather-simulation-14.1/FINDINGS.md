@@ -127,3 +127,23 @@ rating. Re-landed correctly with `raises=AssertionError` in PR #65, together wit
    intermittent precomputed-ratings gap.
 5. **Provenance** — F-05 EURO cycle, F-06, F-11, F-10, F-09 temperature rows, `run_census` fetch-time label.
 6. **Owner decisions** — F2 calibration, cap-seam flag, F-08 regional coverage.
+
+## 9. Addendum — later the same day (2026-09-23)
+
+- **Pipelines verified (owner mandate: marine from NOAA GRIB / ECMWF).** Ingestion runs `35792283418`
+  / `35795126132`: GFS regional "GFS-Wave multi-region OK" (12 + 3 regions, NOAA byte-range GRIB),
+  ICON "DWD-direct OK", EURO mid "ECMWF-direct OK", EURO regional CMEMS. Stored products comply.
+  ⚠️ Manifest `provider: "open-meteo"` on those rows is the render-whitelist key, not the transport
+  (off-openmeteo runbook §5); origin is `upstream_provider`. I briefly misread this — corrected.
+- **The request path did not comply:** `GFS_ICON_SERIES_FASTPATH=1` served every GFS/ICON scrub from
+  a live Open-Meteo fetch over stored NOAA tiles (and at a coarser grid: 64 vs 169 vectors at the
+  same view). PR #68 routes to stored products; it needs PR #67 (series offsets on the product grid).
+- **T-01 accepted on the #67 deploy preview**, A/B against dev at the same phase: dev mismatched at
+  +1 h and +4 h; the PR matched at every step. Evidence on PR #67.
+- **F-07, a third clock:** the timeline readout printed browser time + offset ("4 AM" while the
+  anchor meant 05:00 and 06:00 was drawn). PR #69.
+- **F-11 is user-visible:** the legend's "~N km grid" notice reads `__MARINE_PROJECTION_DIAG__`;
+  live at z9 it said "~223 km grid (2°)" over a 221-vector regional field. PR #70.
+- **F-12** not reproduced here: no queue exists in the wheel or `useWeatherState`; the drain is
+  downstream, and 14.0 never reproduced the entry by real gestures. Left open.
+- **F-08** priced: `F08-COVERAGE-PROPOSAL.md`.
