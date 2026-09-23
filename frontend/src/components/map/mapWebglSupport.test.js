@@ -46,8 +46,14 @@ describe('classifyMapInitError', () => {
       message: 'Failed to initialize WebGL',
     };
     expect(classifyMapInitError(blocked)).toBe(WEBGL_UNSUPPORTED_REASONS.CONTEXT_BLOCKED);
-    expect(describeWebglFailure(classifyMapInitError(blocked))).toMatch(/new one|restart the browser/i);
-    expect(describeWebglFailure(classifyMapInitError(blocked))).not.toMatch(/graphics acceleration/i);
+    const copy = describeWebglFailure(classifyMapInitError(blocked));
+    // Leading with the action that WORKS is the point of this branch. Observed 2026-09-22:
+    // opening a new tab did not clear the block; only a full browser restart did. So the copy
+    // must name the restart, and must not offer a new tab as the remedy.
+    expect(copy).toMatch(/restart/i);
+    expect(copy).toMatch(/new tab will not clear it/i);
+    expect(copy.toLowerCase().indexOf('restart')).toBeLessThan(copy.toLowerCase().indexOf('open the map again'));
+    expect(copy).not.toMatch(/graphics acceleration/i);
   });
 
   it('classifies a plain WebGL initialisation failure as unavailable', () => {

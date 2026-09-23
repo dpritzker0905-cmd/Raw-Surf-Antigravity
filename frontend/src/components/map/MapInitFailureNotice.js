@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
-import { describeWebglFailure } from './mapWebglSupport';
+import { describeWebglFailure, WEBGL_UNSUPPORTED_REASONS } from './mapWebglSupport';
 
 /**
  * The thing the map shows INSTEAD of nothing when it cannot start.
@@ -37,6 +37,21 @@ export const MapInitFailureNotice = ({ reason, detail, onRetry }) => {
     : 'bg-cyan-500 text-black hover:bg-cyan-400 focus-visible:ring-cyan-300';
 
   const message = describeWebglFailure(reason);
+
+  /**
+   * ⛔ Retry is HIDDEN when the browser has blocked the page, because pressing it makes the
+   * situation worse rather than better.
+   *
+   * Retry remounts the map subtree, and maplibre's own teardown calls
+   * `WEBGL_lose_context.loseContext()` in `Map.remove()` (confirmed in the shipped bundle).
+   * A deliberate context loss is precisely what Chrome counts when deciding to block a page,
+   * so a user tapping Retry on a blocked page feeds the very counter that is blocking them.
+   *
+   * ★ A control that cannot succeed should not be offered. The copy for this reason names the
+   * action that does work (restart the browser), so nothing is lost by removing the button.
+   */
+  const retryWouldMakeItWorse = reason === WEBGL_UNSUPPORTED_REASONS.CONTEXT_BLOCKED;
+  const showRetry = Boolean(onRetry) && !retryWouldMakeItWorse;
 
   return (
     <div
@@ -86,7 +101,7 @@ export const MapInitFailureNotice = ({ reason, detail, onRetry }) => {
               </p>
             ) : null}
 
-            {onRetry ? (
+            {showRetry ? (
               <button
                 type="button"
                 onClick={onRetry}

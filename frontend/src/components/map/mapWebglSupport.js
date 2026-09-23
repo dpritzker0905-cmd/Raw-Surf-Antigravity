@@ -108,9 +108,14 @@ export const classifyMapInitError = (err) => {
 export const describeWebglFailure = (reason) => {
   switch (reason) {
     case WEBGL_UNSUPPORTED_REASONS.CONTEXT_BLOCKED:
-      return 'Your browser stopped this tab from using the graphics hardware after repeated '
-        + 'errors. Close this tab and open the map in a new one. If it keeps happening, '
-        + 'restart the browser.';
+      // ORDER IS EVIDENCE-BASED, NOT A GUESS. This copy used to lead with "open a new tab"
+      // and mention restarting only as a fallback. Observed 2026-09-22: a new tab did NOT
+      // clear the block; only a full browser restart did. Leading with advice that does not
+      // work costs the user a round trip at the exact moment they are already stuck.
+      return 'Your browser stopped this page from using the graphics hardware after repeated '
+        + 'errors, and a new tab will not clear it. Restart your browser, then open the map '
+        + 'again. In Chrome you can type chrome://restart in the address bar to restart and '
+        + 'reopen your tabs.';
     case WEBGL_UNSUPPORTED_REASONS.CONTEXT_UNAVAILABLE:
       return 'Your browser blocked WebGL, which the map needs in order to draw. Turn on '
         + '"Use graphics acceleration when available" in your browser settings and reload. '

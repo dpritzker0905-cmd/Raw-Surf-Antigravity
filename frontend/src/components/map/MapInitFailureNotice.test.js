@@ -88,4 +88,26 @@ describe('MapInitFailureNotice', () => {
 
     expect(svg).toHaveAttribute('aria-hidden', 'true');
   });
+
+  describe('Retry is withheld when pressing it would make things worse', () => {
+    // maplibre's Map.remove() calls WEBGL_lose_context.loseContext(). Retry remounts the map,
+    // so on a page Chrome has already blocked, Retry feeds the very counter doing the blocking.
+    it('hides Retry for CONTEXT_BLOCKED even when an onRetry handler is supplied', () => {
+      renderInTheme('dark', { reason: WEBGL_UNSUPPORTED_REASONS.CONTEXT_BLOCKED, onRetry: jest.fn() });
+      expect(screen.queryByRole('button', { name: /retry loading the map/i })).toBeNull();
+    });
+
+    it('still names an action the user can actually take', () => {
+      renderInTheme('dark', { reason: WEBGL_UNSUPPORTED_REASONS.CONTEXT_BLOCKED, onRetry: jest.fn() });
+      expect(screen.getByRole('alert')).toHaveTextContent(/restart/i);
+    });
+
+    it.each([
+      ['CONTEXT_UNAVAILABLE', WEBGL_UNSUPPORTED_REASONS.CONTEXT_UNAVAILABLE],
+      ['INIT_FAILED', WEBGL_UNSUPPORTED_REASONS.INIT_FAILED],
+    ])('still offers Retry for %s, where a retry can genuinely succeed', (_label, reason) => {
+      renderInTheme('dark', { reason, onRetry: jest.fn() });
+      expect(screen.getByRole('button', { name: /retry loading the map/i })).toBeInTheDocument();
+    });
+  });
 });
