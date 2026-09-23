@@ -23,7 +23,7 @@
 
 import { API_BASE } from '../../lib/apiClient';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
-import { seriesAnchorTag, seriesAnchorParam } from './seriesAnchor';
+import { seriesAnchorTag, seriesAnchorParam, seriesGridPhase, alignToCadenceGrid } from './seriesAnchor';
 import { frameToMarineData } from './marineSeriesFrame';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { padRegionalBbox, normalizeRequestBbox, bboxContains } from './marineBboxGeometry';
@@ -174,11 +174,15 @@ export function marineSeriesPageForHour(hourOffset, model) {
   return Math.min(lastPageFor(model), Math.floor(h / pageSpanHours(model)));
 }
 
-// The hour offsets a page requests (<=48 frames, 3-hourly, clamped to the 336h ceiling).
+// The hour offsets a page requests (<=48 frames, 3-hourly, clamped to the 336h ceiling), shifted
+// back by the anchor's grid phase so every frame lands on a real 00/03/06.. UTC product time (T-01,
+// audit 14.1). Phase 0 reproduces the historic lattice exactly; otherwise page 0 opens at -phase,
+// the product at or before "now" — the frame the manifest lane also selects for the Now handle.
 function buildPageHours(page, model) {
   const span = pageSpanHours(model);
-  const start = page * span;
-  const end = Math.min(start + span - 3, MARINE_SERIES_MAX_HOURS);
+  const phase = seriesGridPhase(3);
+  const start = page * span - phase;
+  const end = Math.min(page * span + span - 3 - phase, MARINE_SERIES_MAX_HOURS);
   const hours = [];
   for (let h = start; h <= end; h += 3) hours.push(h);
   return hours;
@@ -449,7 +453,7 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
   const h0key = `${pageKey(model, layer, bounds, page)}_h0`;
   const existing = _seriesCache.get(h0key);
   if ((existing && Date.now() - existing.ts < SERIES_TTL_MS) || _inFlight.has(h0key)) return;
-  const h = Math.max(0, Math.round(hourOffset / 3) * 3);   // snap to the 3-hourly frame grid
+  const h = alignToCadenceGrid(Math.max(0, hourOffset), 3);   // T-01: snap to the UTC product grid, not anchor+3k
   // PAD FIRST, THEN NORMALISE (order matters): padding a viewport whose west sits at -179.8 pushes
   // it to -180.3 and would re-introduce the very out-of-range edge normalisation exists to remove.
   const reqBox = normalizeRequestBbox(padRegionalBbox(bounds));

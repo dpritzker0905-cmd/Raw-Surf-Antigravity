@@ -42,3 +42,35 @@ export function seriesAnchorParam() {
   const tag = seriesAnchorTag();
   return tag ? `&base_time=${encodeURIComponent(tag.slice(1))}` : '';
 }
+
+/**
+ * Hours the anchor sits PAST the model's UTC cadence grid: `anchorHourUTC % cadenceHours`, in
+ * [0, cadenceHours). NEVER THROWS; an unresolvable anchor returns 0, which is exactly the
+ * pre-2026-09-23 lattice.
+ *
+ * T-01 (audit 14.1): marine products exist only at 00/03/06/... UTC, but the series lane
+ * requested offsets 0,3,6 from an HOUR-ROUNDED anchor, so at a 01:00 anchor its frames landed
+ * at 01/04/07 — instants no stored product has. The wheel then drew 04:00 while the coverage
+ * lane selected 06:00 for the same handle (measured live). Offsets must sit on the grid.
+ */
+export function seriesGridPhase(cadenceHours = 3) {
+  try {
+    const iso = (typeof getSeriesAnchorIso === 'function') ? getSeriesAnchorIso() : null;
+    const t = iso ? Date.parse(iso) : NaN;
+    if (!Number.isFinite(t) || !(cadenceHours > 1)) return 0;
+    const hour = Math.floor(t / 3600000);
+    return ((hour % cadenceHours) + cadenceHours) % cadenceHours;
+  } catch (e) {
+    return 0;
+  }
+}
+
+/**
+ * The grid-aligned hour offset NEAREST to `hourOffset` (offsets stay relative to the anchor, so
+ * every existing consumer keeps its meaning). Offsets are integers and the grid spacing is 3, so
+ * the nearest point is always unique — the same instant the manifest lane picks.
+ */
+export function alignToCadenceGrid(hourOffset, cadenceHours = 3, phase = seriesGridPhase(cadenceHours)) {
+  const h = Number(hourOffset) || 0;
+  return Math.round((h + phase) / cadenceHours) * cadenceHours - phase;
+}
