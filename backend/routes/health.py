@@ -166,6 +166,18 @@ async def health_check(
     except Exception as e:
         logger.warning(f"[health] config fingerprint failed: {e}")
 
+    # Serving gates (2026-09-23, audit 14.1): the product run-age census must tell a lane that is
+    # FAILING from one that is deliberately NOT SERVED, or a gated lane pages forever (the island lane
+    # failed the monitor 4 runs in a row after it was switched off). A deliberate, narrow exception
+    # to the "counts, never values" posture above: a public boolean per gate, read through the SAME
+    # function the resolver uses, so the monitor and the serving path cannot disagree.
+    serving_gates = None
+    try:
+        from services.weather_pipeline.island_gate import island_serving_armed
+        serving_gates = {"island": bool(island_serving_armed())}
+    except Exception as e:
+        logger.warning(f"[health] serving gates failed: {e}")
+
     # Process Uptime
     try:
         p = psutil.Process(os.getpid())
@@ -217,6 +229,7 @@ async def health_check(
         "environment": os.environ.get("RENDER", "local"),
         "runtime": _runtime_fingerprint(),
         "config": config_fp,
+        "serving_gates": serving_gates,
         "memory": memory,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "copernicus_credentials_present": bool(copernicus_user and copernicus_password),
