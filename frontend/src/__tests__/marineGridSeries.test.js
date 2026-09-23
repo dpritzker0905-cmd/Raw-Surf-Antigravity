@@ -327,10 +327,19 @@ describe('coarse-preview revalidation keeps re-driving past the old 8-attempt bu
     window.__MARINE_SERIES__ = true;
     global.fetch = jest.fn();
     jest.useFakeTimers();
+    // ⛔ TIME-OF-DAY FLAKE, PROVEN 2026-09-23 (PR #70's CI: "Expected 15, Received 16"). The series
+    // anchor rounds Date.now() to the hour and — since F-01 (PR #50) — is PART OF THE PAGE CACHE KEY.
+    // This test advances fake timers by hours; whenever the fake clock crossed an xx:30 rounding
+    // boundary the key changed and one extra page fetch fired. A/B on a copy of this suite: fake
+    // clock started at 03:29:50Z -> 16 calls (fail); at 03:05Z -> 15 (pass). The 2026-09-21
+    // microtask-drain fix below was real but was not this. Pin the anchor so the clock the test
+    // advances cannot move it.
+    window.__MOCK_DATE_NOW__ = Date.UTC(2026, 8, 23, 3, 10, 0);
   });
   afterEach(() => {
     jest.useRealTimers();
     delete window.__MARINE_SERIES__;
+    delete window.__MOCK_DATE_NOW__;
   });
 
   // Drain the microtask queue until the OBSERVABLE stops moving, rather than a fixed number of
