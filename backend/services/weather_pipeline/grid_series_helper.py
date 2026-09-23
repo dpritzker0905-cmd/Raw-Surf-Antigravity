@@ -17,6 +17,7 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException
 from starlette.background import BackgroundTasks
+from services.weather_pipeline.series_source_policy import has_stored_series_coverage, recover_missing_hours
 from services.weather_pipeline.provider_fetches import await_provider_fetch
 
 from services.weather_pipeline.series_vector_budget import (
@@ -583,19 +584,18 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # no-data square during scrub). Additive + fall-through: on any failure the generic per-hour loop below runs
     # unchanged. Default off because it trades the instant manifest-coarse render for a live regional fetch.
     #
-    # SWR budget (audit #24, 2026-07-11): Render logs showed the await hitting the 30s ceiling on 62% of
-    # attempts (+21% upstream 400s, 17% empty) — every one a 30s-held request on the 1-CPU box before the
-    # instant stored fallback. The inner fetch is SHIELDED, so on timeout it keeps running and warms the
-    # provider's 5-min cache; the client's coarse-reval machinery already re-fetches spaced retries. So the
-    # long await bought nothing: await only a short first-paint budget (warm-cache scrubs still return
-    # regional frames instantly), fall back fast otherwise, and let the reval pick up the warmed cache.
-    # Revert lever: GFS_ICON_SERIES_FASTPATH_WAIT_SEC=30.
-    if (os.environ.get("GFS_ICON_SERIES_FASTPATH") == "1"
+    # SWR budget (audit #24, 2026-07-11): the await hit the 30s ceiling on 62% of attempts on the 1-CPU box.
+    # The fetch is SHIELDED (a timeout still warms the provider's 5-min cache), so await only a short
+    # first-paint budget and let the client's reval pick up the warmed cache. Revert: ..._WAIT_SEC=30.
+    # T-01 (audit 14.1): skip the live lane when stored cycle-identified products cover every hour exactly.
+    live_series = (os.environ.get("GFS_ICON_SERIES_FASTPATH") == "1"
             and viewport_service is not None
             and model.upper() in ("GFS", "ICON")
             and domain.lower() == "marine"
             and not surf
-            and not await _client_gone()):
+            and not await _client_gone())
+    prefer_stored = live_series and await has_stored_series_coverage(viewport_service, model, domain, layer, bbox, hour_list, base)
+    if live_series and not prefer_stored:
         try:
             fastpath_wait = float(os.environ.get("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "2.5"))
             fp = await asyncio.wait_for(
@@ -768,6 +768,11 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                 bound["before"] += len(pf.get("vectors") or [])
                 if shared_bounds is None and pf.get("bounds"):
                     shared_bounds, shared_cols, shared_rows = pf["bounds"], pf.get("cols", 0), pf.get("rows", 0)
+    if prefer_stored and not await _client_gone():   # a listed file that failed to load: fill ONLY that hour live
+        await recover_missing_hours(lambda hs: _build_openmeteo_marine_series(viewport_service, model, layer, bbox, hs, base), frames, hour_list,
+                                    min(float(os.environ.get("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "2.5")), OPENMETEO_SERIES_TIMEOUT))
+        if shared_bounds is None and frames and frames[0].get("bounds"):
+            shared_bounds, shared_cols, shared_rows = frames[0]["bounds"], frames[0].get("cols", 0), frames[0].get("rows", 0)
 
     frames.sort(key=lambda f: f["hour_offset"])
     resp = {
