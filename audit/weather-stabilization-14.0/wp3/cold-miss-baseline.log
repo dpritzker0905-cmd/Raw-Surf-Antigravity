@@ -1,0 +1,25 @@
+PASS src/components/map/marineGlobalPrewarm.seriesReuse.test.js
+  √ a cold miss leaves target-time resolution to the ordinary grid fetch (6 ms)
+  ○ skipped reuses exact-hour GFS world series through the actual controller cache
+  ○ skipped reuses exact-hour ICON world series through the actual controller cache
+  ○ skipped reuses exact-hour EURO world series through the actual controller cache
+  ○ skipped settled exact-hour steps reuse the warm page without per-hour global grids
+  ○ skipped an old h0 frame cannot populate requested h1 cache or seed
+  ○ skipped an old h0 frame cannot populate requested h3 cache or seed
+  ○ skipped does not relabel a same-offset frame with earlier valid time
+  ○ skipped does not relabel a same-offset frame with earlier served time
+  ○ skipped does not relabel a same-offset frame with missing valid time
+  ○ skipped does not relabel a same-offset frame with invalid valid time
+  ○ skipped does not relabel a same-offset frame with substituted frame
+  ○ skipped does not reuse a world series with different model identity
+  ○ skipped does not reuse a world series with different layer identity
+  ○ skipped does not reuse a world series with different flavor identity
+  ○ skipped same relative hour from an earlier timeline base does not become the new valid time
+  ○ skipped a regional series frame cannot replace the world bridge seed
+  ○ skipped a warm controller result remains preferred over the series alternative
+
+Test Suites: 1 passed, 1 total
+Tests:       17 skipped, 1 passed, 18 total
+Snapshots:   0 total
+Time:        1.639 s
+Ran all test suites matching /marineGlobalPrewarm.seriesReuse.test.js/i with tests matching "cold miss".

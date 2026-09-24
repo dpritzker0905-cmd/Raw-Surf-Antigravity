@@ -1,0 +1,131 @@
+
+============================================================
+  File Size Governance Check (max: 800 LOC)
+============================================================
+
+[!] WARNINGS (118 files between 500-800 LOC):
+    800 LOC  weather_sim_mcp.py
+    797 LOC  services\weather_pipeline\surf_rating.py
+    795 LOC  services\weather_pipeline\surf_transform.py
+    792 LOC  routes\weather.py
+    785 LOC  services\weather_pipeline\point_resolution.py
+    784 LOC  routes\surf_data\alerts.py
+    774 LOC  services\weather_pipeline\buoy_calibration.py
+    773 LOC  services\weather_pipeline\wind_ingestion.py
+    772 LOC  routes\admin\content_mgmt.py
+    771 LOC  services\_fetch_common.py
+    770 LOC  routes\posts\feed.py
+    763 LOC  models\admin_ops.py
+    752 LOC  services\weather_pipeline\route_helpers.py
+    748 LOC  routes\uploads\core.py
+    748 LOC  services\weather_pipeline\normalizer.py
+    744 LOC  services\weather_pipeline\grid_resolver.py
+    743 LOC  scripts\era5_deepen_climatology.py
+    737 LOC  scripts\caribbean_asia_pacific_expansion.py
+    732 LOC  services\noaa_gfs_wave_fetcher.py
+    727 LOC  services\weather_pipeline\grid_series_helper.py
+    721 LOC  routes\live\livekit.py
+    720 LOC  services\weather_pipeline\store.py
+    719 LOC  models\gamification.py
+    719 LOC  services\weather_pipeline\capabilities.py
+    714 LOC  server.py
+    712 LOC  routes\admin\p1.py
+    712 LOC  services\weather_pipeline\providers\open_meteo_provider.py
+    711 LOC  scripts\global_expansion_phase3.py
+    709 LOC  services\weather_pipeline\estimator.py
+    704 LOC  routes\admin\core.py
+    703 LOC  services\weather_pipeline\store_helpers.py
+    702 LOC  routes\content\notes.py
+    701 LOC  routes\gallery\items.py
+    701 LOC  services\weather_pipeline\scheduler_helpers.py
+    696 LOC  routes\profiles\profiles.py
+    685 LOC  routes\commerce\pricing_config.py
+    683 LOC  routes\explore_discover\explore.py
+    679 LOC  routes\live\social_live.py
+    677 LOC  routes\subscriptions_billing\photo_subscriptions.py
+    672 LOC  routes\dispatch\status.py
+    672 LOC  routes\messages\conversations.py
+    672 LOC  services\weather_pipeline\viewport_service.py
+    671 LOC  routes\ai\ai_tagging.py
+    671 LOC  routes\subscriptions_billing\payments.py
+    667 LOC  routes\bookings\invites.py
+    659 LOC  routes\crew\crew_leaderboard.py
+    658 LOC  routes\posts\interactions.py
+    657 LOC  operator_core.py
+    657 LOC  services\copernicus_marine_service.py
+    652 LOC  routes\dispatch\lifecycle.py
+    652 LOC  routes\surf_spots\spot_admin.py
+    648 LOC  routes\gallery\collections.py
+    645 LOC  services\weather_pipeline\forecast_skill.py
+    644 LOC  event_bus_core.py
+    640 LOC  debug_consciousness_mcp_server.py
+    640 LOC  scripts\import_global_spots.py
+    640 LOC  services\weather_pipeline\viewport_helper.py
+    633 LOC  routes\compliance_pkg\violations.py
+    628 LOC  scripts\sim_health_probe.py
+    627 LOC  services\weather_pipeline\scheduler.py
+    622 LOC  routes\uploads\media.py
+    621 LOC  utils\video_processor.py
+    620 LOC  routes\surfer_gallery\gallery_core.py
+    618 LOC  services\ecmwf_opendata_fetcher.py
+    617 LOC  routes\bookings\lineup.py
+    616 LOC  routes\career_hub\career.py
+    614 LOC  routes\posts\post_collaboration.py
+    613 LOC  scripts\archive\global_expansion_phase2_data.py
+    611 LOC  routes\gallery\distribution.py
+    609 LOC  routes\admin\analytics_enhanced.py
+    600 LOC  services\weather_pipeline\sampler.py
+    598 LOC  routes\gallery\sales.py
+    593 LOC  routes\photographer\sessions.py
+    593 LOC  scheduler\bookings.py
+    592 LOC  routes\admin\moderation.py
+    591 LOC  routes\admin\p2.py
+    588 LOC  routes\dispatch\sessions.py
+    583 LOC  routes\bookings\booking_lifecycle.py
+    582 LOC  routes\profiles\profile_content.py
+    581 LOC  routes\admin\analytics.py
+    581 LOC  routes\auth_pkg\auth.py
+    581 LOC  routes\surf_data\waves.py
+    578 LOC  routes\gallery\collections_roster.py
+    577 LOC  routes\bookings\crud.py
+    575 LOC  routes\bookings\crew_hub.py
+    573 LOC  routes\gallery\admin.py
+    572 LOC  semantic_memory_mcp_server.py
+    571 LOC  routes\admin\system.py
+    562 LOC  routes\career_hub\leaderboard.py
+    559 LOC  routes\live\websocket.py
+    554 LOC  routes\sessions\join.py
+    554 LOC  services\weather_pipeline\spot_conditions.py
+    551 LOC  routes\admin\finance.py
+    551 LOC  routes\photographer\pricing.py
+    550 LOC  scripts\migrations_archive\global_expansion.py
+    549 LOC  routes\reviews_pkg\reviews.py
+    547 LOC  routes\photographer\availability.py
+    544 LOC  services\surf_conditions.py
+    541 LOC  routes\gallery\distribution_tagging.py
+    541 LOC  scripts\science_shadow_ab.py
+    538 LOC  models\admin.py
+    535 LOC  scripts\archive\global_mega_expansion_data.py
+    534 LOC  services\watermark.py
+    532 LOC  google_maps_mcp_server.py
+    530 LOC  services\weather_pipeline\spot_ratings_precompute.py
+    529 LOC  routes\commerce\ad_controls.py
+    529 LOC  scripts\migrations_archive\master_offshore_system.py
+    527 LOC  routes\gallery\gallery_purchases.py
+    526 LOC  routes\content\meta_sharing.py
+    526 LOC  routes\content\stories.py
+    526 LOC  scripts\global_expansion_phase4.py
+    525 LOC  recommendation_mcp_server.py
+    522 LOC  stripe_mcp_server.py
+    519 LOC  utils\revenue_routing.py
+    518 LOC  world_model_mcp_server.py
+    506 LOC  routes\messages\features.py
+    506 LOC  routes\social\friends.py
+    503 LOC  routes\surfer_gallery\selection.py
+
+[OK] All 603 files are within the 800 LOC threshold.
+
+  Scanned: 603 Python files
+  Warnings: 118
+  Violations: 0
+============================================================

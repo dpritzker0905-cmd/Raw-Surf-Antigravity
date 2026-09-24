@@ -1,0 +1,211 @@
+FAIL src/tests/om-metadata-provenance.test.js
+  × cold metadata demands share and await the provider request before replacing bootstrap axes (88 ms)
+  × the actual decoder never caches guessed run/time paths while a cold provider manifest is pending (39 ms)
+  × a verified warm manifest reaches the decoder verbatim without fetching or adding UI aliases (24 ms)
+  × rejects unfinished run without promoting bootstrap metadata or suppressing a later retry (14 ms)
+  × rejects missing completion proof without promoting bootstrap metadata or suppressing a later retry (13 ms)
+  × rejects invalid reference time without promoting bootstrap metadata or suppressing a later retry (11 ms)
+  × rejects empty time axis without promoting bootstrap metadata or suppressing a later retry (9 ms)
+  × rejects invalid valid time without promoting bootstrap metadata or suppressing a later retry (9 ms)
+  × rejects missing variables without promoting bootstrap metadata or suppressing a later retry (11 ms)
+  × failed metadata transport cannot become fabricated success in the actual decoder (14 ms)
+  √ healthy live metadata remains a deduplicated warm-cache hit (19 ms)
+
+  ● cold metadata demands share and await the provider request before replacing bootstrap axes
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      90 |   await api.MODEL_METADATA_PROMISES[MODEL];
+      91 |
+    > 92 |   expect(settledBeforeProvider).toBe(false);
+         |                                 ^
+      93 |   expect(transport).toHaveBeenCalledTimes(1);
+      94 |   expect(results[0]).toBe(results[1]);
+      95 |   expect(results[0]).toBe(cache[MODEL]);
+
+      at Object.<anonymous> (src/tests/om-metadata-provenance.test.js:92:33)
+
+  ● the actual decoder never caches guessed run/time paths while a cold provider manifest is pending
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: false
+    Received: true
+
+      112 |   const cachedUrl = await normalizeUrl(TILE_URL);
+      113 |
+    > 114 |   expect(decodedBeforeProvider).toBe(false);
+          |                                 ^
+      115 |   expect(firstUrl).toContain('/2026/09/20/1200Z/2026-09-20T1300.om');
+      116 |   expect(cachedUrl).toBe(firstUrl);
+      117 |   expect(cachedUrl).toContain('webgl_fallback=true');
+
+      at Object.<anonymous> (src/tests/om-metadata-provenance.test.js:114:33)
+
+  ● a verified warm manifest reaches the decoder verbatim without fetching or adding UI aliases
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 5
+    + Received  + 3
+
+      Object {
+        "completed": true,
+    -   "crs_wkt": "provider CRS",
+    -   "last_modified_time": "2026-09-20T16:00:00Z",
+    -   "provider_extension": Object {
+    -     "revision": 42,
+    -   },
+    +   "crs_wkt": "",
+    +   "last_modified_time": "2026-09-20T16:21:25.638Z",
+        "reference_time": "2026-09-20T12:00:00Z",
+        "valid_times": Array [
+          "2026-09-20T12:00:00Z",
+          "2026-09-20T13:00:00Z",
+        ],
+        "variables": Array [
+          "wave_height",
+          "wind_u_component_10m",
+          "wind_v_component_10m",
+    +     "wind_speed_10m",
+        ],
+      }
+
+      131 |
+      132 |   expect(cache[MODEL].variables).toContain('wind_speed_10m');
+    > 133 |   expect(decoderManifest).toEqual(provider);
+          |                           ^
+      134 |   expect(decoderManifest.variables).not.toContain('wind_speed_10m');
+      135 |   expect(decoded).toContain('/2026/09/20/1200Z/2026-09-20T1300.om');
+      136 |   expect(transport).toHaveBeenCalledTimes(before);
+
+      at Object.<anonymous> (src/tests/om-metadata-provenance.test.js:133:27)
+
+  ● rejects unfinished run without promoting bootstrap metadata or suppressing a later retry
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      159 |   await api.MODEL_METADATA_PROMISES[MODEL];
+      160 |
+    > 161 |   expect(rejected).toBe(true);
+          |                    ^
+      162 |   expect(preserved).toBe(true);
+      163 |   expect(changedOnInvalid).toBe(0);
+      164 |   expect(transport).toHaveBeenCalledTimes(2);
+
+      at src/tests/om-metadata-provenance.test.js:161:20
+
+  ● rejects missing completion proof without promoting bootstrap metadata or suppressing a later retry
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      159 |   await api.MODEL_METADATA_PROMISES[MODEL];
+      160 |
+    > 161 |   expect(rejected).toBe(true);
+          |                    ^
+      162 |   expect(preserved).toBe(true);
+      163 |   expect(changedOnInvalid).toBe(0);
+      164 |   expect(transport).toHaveBeenCalledTimes(2);
+
+      at src/tests/om-metadata-provenance.test.js:161:20
+
+  ● rejects invalid reference time without promoting bootstrap metadata or suppressing a later retry
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      159 |   await api.MODEL_METADATA_PROMISES[MODEL];
+      160 |
+    > 161 |   expect(rejected).toBe(true);
+          |                    ^
+      162 |   expect(preserved).toBe(true);
+      163 |   expect(changedOnInvalid).toBe(0);
+      164 |   expect(transport).toHaveBeenCalledTimes(2);
+
+      at src/tests/om-metadata-provenance.test.js:161:20
+
+  ● rejects empty time axis without promoting bootstrap metadata or suppressing a later retry
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      159 |   await api.MODEL_METADATA_PROMISES[MODEL];
+      160 |
+    > 161 |   expect(rejected).toBe(true);
+          |                    ^
+      162 |   expect(preserved).toBe(true);
+      163 |   expect(changedOnInvalid).toBe(0);
+      164 |   expect(transport).toHaveBeenCalledTimes(2);
+
+      at src/tests/om-metadata-provenance.test.js:161:20
+
+  ● rejects invalid valid time without promoting bootstrap metadata or suppressing a later retry
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      159 |   await api.MODEL_METADATA_PROMISES[MODEL];
+      160 |
+    > 161 |   expect(rejected).toBe(true);
+          |                    ^
+      162 |   expect(preserved).toBe(true);
+      163 |   expect(changedOnInvalid).toBe(0);
+      164 |   expect(transport).toHaveBeenCalledTimes(2);
+
+      at src/tests/om-metadata-provenance.test.js:161:20
+
+  ● rejects missing variables without promoting bootstrap metadata or suppressing a later retry
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      159 |   await api.MODEL_METADATA_PROMISES[MODEL];
+      160 |
+    > 161 |   expect(rejected).toBe(true);
+          |                    ^
+      162 |   expect(preserved).toBe(true);
+      163 |   expect(changedOnInvalid).toBe(0);
+      164 |   expect(transport).toHaveBeenCalledTimes(2);
+
+      at src/tests/om-metadata-provenance.test.js:161:20
+
+  ● failed metadata transport cannot become fabricated success in the actual decoder
+
+    expect(received).rejects.toThrow()
+
+    Received promise resolved instead of rejected
+    Resolved to value: "om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/2026/09/20/0600Z/2026-09-20T0700.om?variable=wave_height&webgl_fallback=true"
+
+      175 |   expect(api.LIVE_FETCHED_MODELS.has(MODEL)).toBe(false);
+      176 |   expect(cache[MODEL]).toEqual(bootstrap());
+    > 177 |   await expect(normalizeUrl(TILE_URL)).rejects.toThrow('provider unavailable');
+          |         ^
+      178 | });
+      179 |
+      180 | test('healthy live metadata remains a deduplicated warm-cache hit', async () => {
+
+      at expect (../../../../../Raw-Surf/frontend/node_modules/expect/build/index.js:178:15)
+      at Object.<anonymous> (src/tests/om-metadata-provenance.test.js:177:9)
+
+Test Suites: 1 failed, 1 total
+Tests:       10 failed, 1 passed, 11 total
+Snapshots:   0 total
+Time:        2.98 s
+Ran all test suites matching /om-metadata-provenance.test.js/i.

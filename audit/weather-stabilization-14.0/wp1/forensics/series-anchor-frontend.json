@@ -1,0 +1,72 @@
+{
+  "note": "Actual shared-time resolver, series mapper and nearest-frame selector with controlled dependencies; no HTTP/GPU claim.",
+  "phaseControls": [
+    {
+      "now": "2026-09-20T20:29:59Z",
+      "requestedHour": 18,
+      "requestedValidTime": "2026-09-21T14:00:00.000Z",
+      "seriesBaseTime": "2026-09-20T20:00:00Z",
+      "seriesValidTime": "2026-09-21T14:00:00Z",
+      "mismatchHours": 0
+    },
+    {
+      "now": "2026-09-20T20:30:00Z",
+      "requestedHour": 18,
+      "requestedValidTime": "2026-09-21T15:00:00.000Z",
+      "seriesBaseTime": "2026-09-20T20:00:00Z",
+      "seriesValidTime": "2026-09-21T14:00:00Z",
+      "mismatchHours": 1
+    },
+    {
+      "now": "2026-09-20T20:52:35Z",
+      "requestedHour": 18,
+      "requestedValidTime": "2026-09-21T15:00:00.000Z",
+      "seriesBaseTime": "2026-09-20T20:00:00Z",
+      "seriesValidTime": "2026-09-21T14:00:00Z",
+      "mismatchHours": 1
+    },
+    {
+      "now": "2026-09-20T21:00:01Z",
+      "requestedHour": 18,
+      "requestedValidTime": "2026-09-21T15:00:00.000Z",
+      "seriesBaseTime": "2026-09-20T21:00:00Z",
+      "seriesValidTime": "2026-09-21T15:00:00Z",
+      "mismatchHours": 0
+    }
+  ],
+  "observedClockFixture": [
+    {
+      "requestedHour": 0,
+      "requestedValidTime": "2026-09-20T21:00:00.000Z",
+      "seriesHour": 0,
+      "selectedValidTime": "2026-09-20T20:00:00Z",
+      "gridValidTime": "2026-09-20T20:00:00Z",
+      "wrapperProductId": "series_GFS_waves_h0",
+      "gridProductId": null,
+      "modelRunTime": null,
+      "legacyRunTime": "2026-09-20T20:52:35Z"
+    },
+    {
+      "requestedHour": 1,
+      "requestedValidTime": "2026-09-20T21:00:00.000Z",
+      "seriesHour": 0,
+      "selectedValidTime": "2026-09-20T20:00:00Z",
+      "gridValidTime": "2026-09-20T20:00:00Z",
+      "wrapperProductId": "series_GFS_waves_h0",
+      "gridProductId": null,
+      "modelRunTime": null,
+      "legacyRunTime": "2026-09-20T20:52:35Z"
+    },
+    {
+      "requestedHour": 18,
+      "requestedValidTime": "2026-09-21T15:00:00.000Z",
+      "seriesHour": 18,
+      "selectedValidTime": "2026-09-21T14:00:00Z",
+      "gridValidTime": "2026-09-21T14:00:00Z",
+      "wrapperProductId": "series_GFS_waves_h18",
+      "gridProductId": null,
+      "modelRunTime": null,
+      "legacyRunTime": "2026-09-20T20:52:35Z"
+    }
+  ]
+}

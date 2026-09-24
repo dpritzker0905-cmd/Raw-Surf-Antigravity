@@ -1,0 +1,35 @@
+  console.log
+    [WEATHER_TRUTH] Stage: seriesFrameMint | TraceID: 102fc659 | Product: series_GFS_waves_h0 | Status: OK
+
+      at recordTruthStage (src/components/map/weatherTruthTracker.js:353:13)
+
+  console.log
+    [WEATHER_TRUTH] Stage: cacheRead | TraceID: 102fc659 | Product: series_GFS_waves_h0 | Status: OK
+
+      at recordTruthStage (src/components/map/weatherTruthTracker.js:353:13)
+
+PASS src/components/map/marineGlobalPrewarm.seriesReuse.test.js
+  √ reuses exact-hour GFS world series through the actual controller cache (34 ms)
+  √ reuses exact-hour ICON world series through the actual controller cache (3 ms)
+  √ reuses exact-hour EURO world series through the actual controller cache (3 ms)
+  √ settled exact-hour steps reuse the warm page without per-hour global grids (4 ms)
+  √ an old h0 frame cannot populate requested h1 cache or seed (3 ms)
+  √ an old h0 frame cannot populate requested h3 cache or seed (1 ms)
+  √ does not relabel a same-offset frame with earlier valid time (2 ms)
+  √ does not relabel a same-offset frame with earlier served time (1 ms)
+  √ does not relabel a same-offset frame with missing valid time (2 ms)
+  √ does not relabel a same-offset frame with invalid valid time (2 ms)
+  √ does not relabel a same-offset frame with substituted frame (2 ms)
+  √ does not reuse a world series with different model identity (2 ms)
+  √ does not reuse a world series with different layer identity (1 ms)
+  √ does not reuse a world series with different flavor identity (1 ms)
+  √ same relative hour from an earlier timeline base does not become the new valid time (1 ms)
+  √ a regional series frame cannot replace the world bridge seed (1 ms)
+  √ a warm controller result remains preferred over the series alternative (1 ms)
+  √ a cold miss leaves target-time resolution to the ordinary grid fetch (1 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       18 passed, 18 total
+Snapshots:   0 total
+Time:        3.353 s
+Ran all test suites matching /marineGlobalPrewarm.seriesReuse.test.js/i.

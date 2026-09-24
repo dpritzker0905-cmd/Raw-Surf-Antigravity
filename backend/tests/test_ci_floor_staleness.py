@@ -287,7 +287,29 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # plus 24 executed new controls. Candidate CI must confirm 1828. Keep the
 # companion to ci.yml's raised floor in sync; the first candidate caught this omission.
 # September 16: hosted CI35055272824; retain the existing six-test margins.
-_FLOOR_SET_FROM = {"guards": 1883, "chain": 940, "estate": 488}
+# September 19 island serving gate: projected from CI35055272824's chain 940 plus the 6 executed
+# controls in test_island_serving_gate.py (selector-verified into chain: 97 -> 98 files).
+# Candidate CI must confirm 946. The six-test margin is retained, so no budget moves.
+# September 19 grid-path gate: +1 test in the same file (no new file), so chain 946 -> 947
+# and MIN_FILES is unchanged at 98. Candidate CI must confirm 947.
+# September 20 second check: selector-confirmed, executed additions guards +14, chain +43,
+# estate +14. Hosted candidate readings are EXPECTED, not yet observed. Full local estate
+# 514 includes 12 optional trevec passes absent from hosted PR46's 488; comparable value 502.
+# Local Python 3.14's four reproduced baseline ownership failures cannot lower the guard floor.
+# ci.yml and this reference move together; keep established margins guards/chain=6, estate=2.
+# September 20 continuation: run35485093918 at 74ca4f4e CONFIRMED 1897/990/502.
+# Selector-confirmed, executed additions: guards +15 scoring controls; chain +29 direct-height
+# and +3 real-resolver cases. Expected next hosted readings 1912/1022/502, not yet observed.
+# No new files. The paired ci.yml floors preserve margins 6/6/2 in this same commit.
+# Day-two run35487375744 confirmed 1912/1022/502 on d82032f5. Direction support adds
+# 57 chain controls in one selector-confirmed file; full local chain reads 1079/100.
+# Retention adds 69 executed cases in one more chain file: expected 1148/101.
+# Next hosted CI must confirm that projection; six-test chain margin is unchanged.
+# guards 1922: hosted run35538513375 (ed5e46c6) read 1912; audit 14.0 F-01 adds 10 executed
+#   controls in tests/test_grid_series_base_anchor.py, selected by `--lane guards` ONLY.
+# chain 1194: the SAME hosted run actually read 1194, not the 1148 previously projected here.
+#   The projection was never confirmed, so this is corrected to the receipt (see ci.yml).
+_FLOOR_SET_FROM = {"guards": 1996, "chain": 1206, "estate": 521}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

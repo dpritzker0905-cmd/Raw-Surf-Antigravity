@@ -73,6 +73,23 @@ def _add(c: Constant) -> None:
     _REGISTRY[c.name] = c
 
 
+_add(Constant(
+    name="MARINE_REGIONAL_MIN_COVERAGE_FRACTION",
+    value=0.70,
+    units="fraction of requested longitude-latitude rectangle",
+    what="Minimum regional coverage accepted before the covering coarse fallback.",
+    module="services.weather_pipeline.grid_resolver_selection",
+    source="OURS. Audit 14 WP-2 explicitly permits clamped regional coverage at >=70%.",
+    method="owner",
+    sample="Selection policy, not an empirically calibrated physical constant. "
+           "Sebastian edge sensitivity and threshold controls in test_regional_edge_selection.py.",
+    published_range=None,
+    status=DERIVED,
+    applies_to="Marine manifest selection only; actual served bounds still determine partial_coverage. "
+               "Does not increase upstream resolution or manufacture cells outside the tile.",
+))
+
+
 # --- depth-limited breaking --------------------------------------------------------------------
 
 _add(Constant(

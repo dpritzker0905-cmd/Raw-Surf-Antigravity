@@ -1,0 +1,40 @@
+{
+  "at": "2026-09-20T20:44:35.859578+00:00",
+  "valid_time": "2026-09-20T21:00:00Z",
+  "latitude_note": "Root browser capture at 20:31:49Z, 1280x900, Sebastian z8; replay uses /grid, not /grid_series.",
+  "health_version": "2.0.0-stage-6f-v1-607af934e74fa87f3b8e58698ef68fdce919ea54",
+  "cases": [
+    {
+      "case": "actual_z8_viewport",
+      "requested_bbox": "-81.93315429687473,26.761836762966084,-78.96684570312489,28.947149606276398",
+      "product_id": "gfs_marine_waves_global_mid_20260920T210000Z.json",
+      "resolution": null,
+      "partial_coverage": false,
+      "coverage_scope": "regional",
+      "served_bbox": "-84.0000,24.0000,-76.0000,30.0000",
+      "stale": false,
+      "model_run_time": "2026-09-19T12:00:00Z",
+      "ingested_at": "2026-09-19T22:55:48.854304Z",
+      "native_longitude_spacing": [
+        2.0
+      ],
+      "vector_count": 20
+    },
+    {
+      "case": "actual_padded_series_request",
+      "requested_bbox": "-82.4332,26.2618,-78.4668,29.4471",
+      "product_id": "gfs_marine_waves_global_mid_20260920T210000Z.json",
+      "resolution": null,
+      "partial_coverage": false,
+      "coverage_scope": "regional",
+      "served_bbox": "-84.0000,24.0000,-76.0000,32.0000",
+      "stale": false,
+      "model_run_time": "2026-09-19T12:00:00Z",
+      "ingested_at": "2026-09-19T22:55:48.854304Z",
+      "native_longitude_spacing": [
+        2.0
+      ],
+      "vector_count": 25
+    }
+  ]
+}

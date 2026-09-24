@@ -8,7 +8,10 @@ is identical; resolve_grid passes its locals in and takes the decision tuple bac
 """
 import os
 import logging
+import math
 from datetime import datetime, timezone, timedelta
+
+from services.weather_pipeline import science_registry
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +28,18 @@ def find_candidates(manifest, model, domain, layer, target_dt):
     """Search the manifest for candidate products covering the target time (±3h), split
     authoritative vs estimated. Returns (authoritative_candidates, estimated_candidates) as
     lists of (product, time_diff_seconds)."""
+    from services.weather_pipeline.island_gate import is_island_gated
+
     authoritative_candidates = []
     estimated_candidates = []
     for p in manifest.products:
+        # ⛔ THE ISLAND GATE, and this was the WORST of the five sites. Ranking runs through
+        # _select_best_from_list: largest intersection, then SMALLEST COVERAGE AREA. Zoomed in at
+        # an island the request sits inside BOTH the island tile and the regional/global tile, so
+        # intersection ties and the smallest bbox -- always the 0.083 deg island tile -- won
+        # DETERMINISTICALLY on /api/weather/grid. Not order luck; it won by construction.
+        if is_island_gated(p):
+            continue
         if (
             p.model.upper() == model.upper()
             and p.domain.lower() == domain.lower()
@@ -40,6 +52,54 @@ def find_candidates(manifest, model, domain, layer, target_dt):
                 else:
                     authoritative_candidates.append((p, diff))
     return authoritative_candidates, estimated_candidates
+
+
+def prefer_overlapping_marine_region(current, authoritative, estimated, domain, req_w, req_s, req_e, req_n,
+                                    mid_candidates=()):
+    """Keep a mostly covering fine region instead of dropping the entire viewport to global.
+
+    Dynamic cache still has first refusal. The resolver clips real cells, labels any shortfall,
+    and revalidates the original request so this cannot recreate July's sticky partial rectangle.
+    """
+    from services.weather_pipeline.product_selection import (
+        bbox_intersection_area, get_bbox_area, select_best_candidate,
+    )
+    if (domain.lower() != "marine" or req_w is None
+            or os.environ.get("MARINE_REGIONAL_OVERLAP_REUSE", "1") == "0"):
+        return current
+    area = get_bbox_area(req_w, req_s, req_e, req_n)
+    if area <= 0:
+        return current
+    floor = science_registry.value("MARINE_REGIONAL_MIN_COVERAGE_FRACTION")
+
+    def eligible(pair):
+        item, _ = pair
+        cov = item.coverage
+        span = (cov.east - cov.west) % 360 if cov.west > cov.east else cov.east - cov.west
+        res = getattr(item, "resolution", None)
+        return (span < 350 and res is not None and math.isfinite(res) and res > 0
+                and bbox_intersection_area(req_w, req_s, req_e, req_n, cov) / area >= floor)
+
+    regional = select_best_candidate(
+        [pair for pair in authoritative if eligible(pair)],
+        [pair for pair in estimated if eligible(pair)], req_w, req_s, req_e, req_n,
+    )
+    if regional is None:
+        return current
+    # The mid tier is split out before generic selection. Compare it too: a 4-degree
+    # regional tile must never displace the already available 2-degree covering fallback.
+    new_diff = min(diff for item, diff in authoritative + estimated if item is regional)
+    for item, diff in mid_candidates:
+        resolution = getattr(item, "resolution", None)
+        if diff < new_diff or (resolution and math.isfinite(resolution) and regional.resolution >= resolution):
+            return current
+    if current is not None:
+        pairs = authoritative + estimated
+        old_diff = min(diff for item, diff in pairs if item is current)
+        current_res = getattr(current, "resolution", None)
+        if new_diff > old_diff or (current_res and regional.resolution >= current_res):
+            return current
+    return regional
 
 
 def decide_manifest_product(matching_manifest_item, req_w, req_s, req_e, req_n, domain, model, target_dt):
@@ -89,7 +149,10 @@ def decide_manifest_product(matching_manifest_item, req_w, req_s, req_e, req_n, 
                         req_w, req_s, req_e, req_n,
                         cov.west, cov.south, cov.east, cov.north
                     )
-                    if overlap_area > 0.0001 and not is_wider:
+                    from services.weather_pipeline.product_selection import get_bbox_area
+                    viewport_area = get_bbox_area(req_w, req_s, req_e, req_n)
+                    minimum_fraction = science_registry.value("MARINE_REGIONAL_MIN_COVERAGE_FRACTION")
+                    if viewport_area > 0 and overlap_area / viewport_area >= minimum_fraction and not is_wider:
                         use_manifest_product = True
             else:
                 # If no bbox coordinates provided, serve manifest product by default

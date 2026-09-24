@@ -20,7 +20,7 @@ describe('omUrlTrace', () => {
 
   test('records z/x/y from a real om tile URL', () => {
     const t = arm();
-    traceOmUrl('om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013/2026-08-13T00/2/1/3.om');
+    traceOmUrl('om://https://openmeteo.s3.amazonaws.com/data_spatial/ncep_gfs013/2026-08-13T00/2/1/3.om');
     expect(t.n).toBe(1);
     expect(t.z['2']).toBe(1);
     expect(t.x['1']).toBe(1);
@@ -45,7 +45,7 @@ describe('omUrlTrace', () => {
     // The metadata fetch lands here. Keeping a sample is how we learned water_temp is served
     // from ncep_gfs013 whatever model the UI shows -- an unmatched entry is evidence, not noise.
     const t = arm();
-    traceOmUrl('om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013/latest.json?variable=surface_temperature');
+    traceOmUrl('om://https://openmeteo.s3.amazonaws.com/data_spatial/ncep_gfs013/latest.json?variable=surface_temperature');
     traceOmUrl('om://host/other/latest.json');
     expect(t.n).toBe(0);
     expect(t.unmatched).toBe(2);

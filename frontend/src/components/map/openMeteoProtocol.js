@@ -1,6 +1,8 @@
 import { CUSTOM_COLOR_SCALES, aliasSurfaceTemperature } from './colorScales';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { traceOmUrl, traceOmBlock, traceOmServed } from './omUrlTrace';
+import { LIVE_FETCHED_MODELS } from './openMeteoMetadata';
+import { reportProtocolRegistrationFailure } from './openMeteoProtocolFailure';
 
 // F4: per-tile / per-frame console output is GATED. With console capture / React Scan / PostHog
 // active, an unconditional console.log per decoded tile materially amplifies tile-heavy
@@ -424,7 +426,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       const urlString = typeof input === 'string' ? input : input?.url || '';
       
       // Fast-path: Block requests to known missing model runs or specific missing tiles in 0ms
-      if (urlString.includes('map-tiles.open-meteo.com')) {
+      if (urlString.includes('openmeteo.s3.amazonaws.com')) {
         if (MISSING_OM_TILES.has(urlString)) {
           return Promise.resolve(new Response('OM Tile Missing', {
             status: 404,
@@ -442,23 +444,17 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         }
       }
 
-      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('latest.json') && !urlString.includes('time_step=') && !urlString.includes('skip_intercept=true') && MODEL_METADATA_CACHE) {
+      if (urlString.includes('openmeteo.s3.amazonaws.com') && urlString.includes('latest.json') && !urlString.includes('time_step=') && !urlString.includes('skip_intercept=true') && MODEL_METADATA_CACHE) {
         try {
           const urlObj = new URL(urlString);
           const parts = urlObj.pathname.split('/');
           const model = parts[2];
-          if (model && MODEL_METADATA_CACHE[model] && MODEL_METADATA_CACHE[model].validTimes?.length) {
+          if (model && LIVE_FETCHED_MODELS.has(model) && MODEL_METADATA_CACHE[model]?.sourceMetadata) {
             const meta = MODEL_METADATA_CACHE[model];
             WeatherTelemetry.trackCacheHit(model, 'MODEL_METADATA_CACHE');
-            const responseData = {
-              completed: true,
-              crs_wkt: "",
-              last_modified_time: new Date().toISOString(),
-              reference_time: meta.referenceTime || new Date().toISOString(),
-              valid_times: meta.validTimes,
-              variables: meta.variables || []
-            };
-            return Promise.resolve(new Response(JSON.stringify(responseData), {
+            // Only a validated provider response can stand in for latest.json.
+            // Never promote bootstrap cycle/time guesses or UI aliases to provider truth.
+            return Promise.resolve(new Response(JSON.stringify(meta.sourceMetadata), {
               status: 200,
               statusText: 'OK',
               headers: { 'Content-Type': 'application/json' }
@@ -472,7 +468,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       }
 
       let effectiveInit = init;
-      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('.om')) {
+      if (urlString.includes('openmeteo.s3.amazonaws.com') && urlString.includes('.om')) {
         effectiveInit = { ...init, cache: 'no-store' };
       }
 
@@ -480,7 +476,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       const promise = originalFetch.call(this, input, effectiveInit);
 
       // Inspect response and register 404s for .om tile runs
-      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('.om')) {
+      if (urlString.includes('openmeteo.s3.amazonaws.com') && urlString.includes('.om')) {
         return promise.then(res => {
           const duration = Date.now() - fetchStartTime;
           if (res.status === 404) {
@@ -693,7 +689,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
     // Global programmatic GRIB tile prefetcher for marine waves (bypasses MapLibre entirely)
     window.__FETCH_OM_TILE__ = async (variable, timeIndex, model = 'ncep_gfswave025') => {
       if (typeof window === 'undefined') return;
-      const url = `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${timeIndex}&variable=${variable}`;
+      const url = `om://https://openmeteo.s3.amazonaws.com/data_spatial/${model}/latest.json?time_step=valid_times_${timeIndex}&variable=${variable}`;
       
       const abortController = new AbortController();
       const currentSettings = window.__OM_PROTOCOL_SETTINGS__ || settings;
@@ -912,7 +908,9 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
     }
     setProtocolReady(true);
-  });
+    // F-15: this chain had no .catch, and setProtocolReady(true) is its LAST statement — so any
+    // throw above left protocolReady false forever and silently blanked all six raster layers.
+  }).catch(err => reportProtocolRegistrationFailure(err, setProtocolReady));
 }
 
 /**

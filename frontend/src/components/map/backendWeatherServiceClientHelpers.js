@@ -10,132 +10,8 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { arrayMax } from './marineControllerUtils';
 
-/**
- * Perform circular blending for direction vectors.
- */
-export function blendDirection(heights, directions, weights) {
-  let sumU = 0;
-  let sumV = 0;
-  let validWeightSum = 0;
-
-  for (let i = 0; i < heights.length; i++) {
-    const h = heights[i];
-    const dir = directions[i];
-    const w = weights[i];
-
-    if (h != null && dir != null && !isNaN(h) && !isNaN(dir) && w > 0) {
-      const rad = (dir * Math.PI) / 180;
-      const u = -h * Math.sin(rad);
-      const v = -h * Math.cos(rad);
-      sumU += u * w;
-      sumV += v * w;
-      validWeightSum += w;
-    }
-  }
-
-  if (validWeightSum > 0 && (sumU !== 0 || sumV !== 0)) {
-    return (Math.atan2(-sumU, -sumV) * 180 / Math.PI + 360) % 360;
-  }
-  return directions[0] != null ? directions[0] : null;
-}
-
-/**
- * Weighted average of wave periods.
- */
-export function blendPeriod(periods, weights) {
-  let periodSum = 0;
-  let weightSum = 0;
-
-  for (let i = 0; i < periods.length; i++) {
-    const p = periods[i];
-    const w = weights[i];
-    if (p != null && p > 0 && !isNaN(p) && w > 0) {
-      periodSum += p * w;
-      weightSum += w;
-    }
-  }
-
-  return weightSum > 0 ? periodSum / weightSum : null;
-}
-
-/**
- * Average individual sub-layer vectors using direction/period circular weights.
- */
-export function blendSubVector(v1, v2, w1, w2) {
-  if (!v1 && !v2) return { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false };
-  if (!v1) return v2;
-  if (!v2) return v1;
-  const h1 = v1.speed || 0;
-  const h2 = v2.speed || 0;
-  const blendedHeight = h1 * w1 + h2 * w2;
-
-  const p1 = v1.period || 0;
-  const p2 = v2.period || 0;
-  const blendedPeriod = blendPeriod([p1, p2], [w1, w2]) || 0;
-
-  const d1 = v1.direction !== undefined ? v1.direction : ((Math.atan2(-v1.u, -v1.v) * 180 / Math.PI + 360) % 360);
-  const d2 = v2.direction !== undefined ? v2.direction : ((Math.atan2(-v2.u, -v2.v) * 180 / Math.PI + 360) % 360);
-  const blendedDirection = blendDirection([h1, h2], [d1, d2], [w1, w2]);
-
-  let u = 0;
-  let v = 0;
-  if (blendedHeight > 0 && blendedDirection != null) {
-    const rad = (blendedDirection * Math.PI) / 180;
-    u = -blendedHeight * Math.sin(rad);
-    v = -blendedHeight * Math.cos(rad);
-  }
-  return {
-    u,
-    v,
-    speed: blendedHeight,
-    period: blendedPeriod,
-    height: blendedHeight,
-    direction: blendedDirection,
-    isOcean: v1.isOcean || v2.isOcean
-  };
-}
-
-/**
- * Extrapolates trend delta of GFS model onto anchor DWD ICON vector.
- */
-export function extrapolateSubVector(iconAnchor, gfsAnchor, gfsTarget, weightPersist, weightGfs) {
-  if (!iconAnchor) return { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false };
-  const hIcon = iconAnchor.speed || 0;
-  const pIcon = iconAnchor.period || 0;
-  const dIcon = iconAnchor.direction !== undefined ? iconAnchor.direction : ((Math.atan2(-iconAnchor.u, -iconAnchor.v) * 180 / Math.PI + 360) % 360);
-
-  const hGfsAnchor = gfsAnchor?.speed || 0;
-  const hGfsTarget = gfsTarget?.speed || 0;
-  const hGfsTrend = Math.max(0, hIcon + (hGfsTarget - hGfsAnchor));
-
-  const pGfsAnchor = gfsAnchor?.period || 0;
-  const pGfsTarget = gfsTarget?.period || 0;
-  const pGfsTrend = pGfsAnchor > 0 ? Math.max(2, pIcon + (pGfsTarget - pGfsAnchor)) : pIcon;
-
-  const dGfsTarget = gfsTarget ? (gfsTarget.direction !== undefined ? gfsTarget.direction : ((Math.atan2(-gfsTarget.u, -gfsTarget.v) * 180 / Math.PI + 360) % 360)) : dIcon;
-  const dGfsTrend = dGfsTarget;
-
-  const blendedHeight = Math.max(0, weightPersist * hIcon + weightGfs * hGfsTrend);
-  const blendedPeriod = blendPeriod([pIcon, pGfsTrend], [weightPersist, weightGfs]) || 0;
-  const blendedDirection = blendDirection([hIcon, hGfsTrend], [dIcon, dGfsTrend], [weightPersist, weightGfs]);
-
-  let u = 0;
-  let v = 0;
-  if (blendedHeight > 0 && blendedDirection != null) {
-    const rad = (blendedDirection * Math.PI) / 180;
-    u = -blendedHeight * Math.sin(rad);
-    v = -blendedHeight * Math.cos(rad);
-  }
-  return {
-    u,
-    v,
-    speed: blendedHeight,
-    period: blendedPeriod,
-    height: blendedHeight,
-    direction: blendedDirection,
-    isOcean: iconAnchor.isOcean
-  };
-}
+import { blendSubVector, extrapolateSubVector } from './marineDirectionBlend';
+export { blendDirection, blendPeriod, blendSubVector, extrapolateSubVector } from './marineDirectionBlend';
 
 /**
  * Maps standard backend grid response to WebGLLayer expectations.
@@ -447,7 +323,7 @@ export function iconExtendedContinuityOffset(icon168, gfs168, gfs240, euro240, g
 }
 
 export function applySubContinuity(sub, off, decay) {
-  if (!sub || !off || !(decay > 0)) return sub;
+  if (!sub || sub.isOcean === false || sub.is_valid === false || !off || !(decay > 0)) return sub;
   const h0 = sub.speed || 0;
   const h1 = Math.max(0, h0 + off.dH * decay);
   const scale = h0 > 0 ? h1 / h0 : 0;
@@ -559,7 +435,7 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
         if (activeBlended.speed > 0.05) nonzeroCount++;
 
         blendedVectors.push({
-          lat: iv.lat, lng: iv.lng, isOcean: true,
+          lat: iv.lat, lng: iv.lng, isOcean: activeBlended.isOcean, is_valid: activeBlended.isOcean,
           u: activeBlended.u, v: activeBlended.v,
           speed: activeBlended.speed, period: activeBlended.period,
           height: activeBlended.height, direction: activeBlended.direction,
@@ -717,7 +593,7 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
         if (activeBlended.speed > 0.05) nonzeroCount++;
 
         blendedVectors.push({
-          lat: pv.lat, lng: pv.lng, isOcean: true,
+          lat: pv.lat, lng: pv.lng, isOcean: activeBlended.isOcean, is_valid: activeBlended.isOcean,
           u: activeBlended.u, v: activeBlended.v,
           speed: activeBlended.speed, period: activeBlended.period,
           height: activeBlended.height, direction: activeBlended.direction,

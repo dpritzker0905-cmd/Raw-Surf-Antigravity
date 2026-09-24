@@ -1,0 +1,81 @@
+{
+  "mode": "disable_frame",
+  "baselineRevision": "91b90ae9",
+  "note": "Controlled dependency experiment against actual hook. Not a browser or network test. Mutations are in-memory only.",
+  "cases": [
+    {
+      "pass": true,
+      "scrubbing": false,
+      "series": false,
+      "ownerHour": 0,
+      "committedHours": [],
+      "enqueued": [
+        "timeline_scrub_deferred"
+      ],
+      "events": [],
+      "timeline": {
+        "timeOffsetHours": 0,
+        "selectedValidTime": "2026-09-21T15:00:00Z",
+        "requestedValidTime": "2026-09-20T21:00:00Z",
+        "coverage_status": "stale_time_mismatch",
+        "domain": "marine",
+        "activeModel": "GFS",
+        "activeLayer": "waves",
+        "requestedValidTimeOriginal": null,
+        "temporalStatus": "response_time_mismatch",
+        "temporalMismatch": true,
+        "responseTimeMismatch": true,
+        "renderTimeMismatch": false,
+        "reportedRenderTimeMismatch": false,
+        "renderVerified": false,
+        "requestedHour": 0,
+        "renderedHour": null,
+        "renderedValidTime": null,
+        "renderEvidenceSource": null,
+        "spatialCoverageStatus": "full_coverage"
+      }
+    },
+    {
+      "pass": true,
+      "scrubbing": true,
+      "series": false,
+      "ownerHour": 0,
+      "committedHours": [],
+      "enqueued": [],
+      "events": [],
+      "timeline": {
+        "timeOffsetHours": 0,
+        "selectedValidTime": "2026-09-21T15:00:00Z",
+        "requestedValidTime": "2026-09-20T21:00:00Z",
+        "coverage_status": "stale_time_mismatch",
+        "domain": "marine",
+        "activeModel": "GFS",
+        "activeLayer": "waves",
+        "requestedValidTimeOriginal": null,
+        "temporalStatus": "response_time_mismatch",
+        "temporalMismatch": true,
+        "responseTimeMismatch": true,
+        "renderTimeMismatch": false,
+        "reportedRenderTimeMismatch": false,
+        "renderVerified": false,
+        "requestedHour": 0,
+        "renderedHour": null,
+        "renderedValidTime": null,
+        "renderEvidenceSource": null,
+        "spatialCoverageStatus": "full_coverage"
+      }
+    },
+    {
+      "pass": false,
+      "scrubbing": false,
+      "series": true,
+      "error": "Expected values to be strictly equal:\n+ actual - expected\n\n+ '2026-09-21T15:00:00Z'\n- '2026-09-20T21:00:00Z'\n            ^\n"
+    },
+    {
+      "case": "accepted_engine_over_legacy",
+      "pass": true
+    }
+  ],
+  "passed": 3,
+  "failed": 1
+}

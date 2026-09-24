@@ -1826,8 +1826,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
     // Per-frame MAIN-pass opacity + resident-mask identity forensics (2026-07-16 zoom-clear trace).
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      // t/n (2026-09-21): unstamped, this object goes STALE when the heatmap stops drawing — so
+      // "hidden at opacity 0" and "not drawing at all" read identically, and the second is the gap.
+      const _n = ((window.__RAW_GPU__.opacity || {}).n || 0) + 1;
       window.__RAW_GPU__.opacity = {
         heatmap: +heatmapOpacity.toFixed(3), mult: +mult.toFixed(3), coarseFade: +coarseFade.toFixed(2),
+        t: Date.now(), n: _n,
       };
       window.__RAW_GPU__.maskId = {
         cachedBound: this._waveData.u_oceanMaskTexture === this._cachedMaskTex,

@@ -1,0 +1,525 @@
+UNKNOWN STEP	﻿2026-09-20T03:44:58.9311375Z Current runner version: '2.337.0'
+UNKNOWN STEP	2026-09-20T03:44:58.9335172Z ##[group]Runner Image Provisioner
+UNKNOWN STEP	2026-09-20T03:44:58.9335963Z Hosted Compute Agent
+UNKNOWN STEP	2026-09-20T03:44:58.9336506Z Version: 20260828.587
+UNKNOWN STEP	2026-09-20T03:44:58.9337106Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+UNKNOWN STEP	2026-09-20T03:44:58.9337759Z Build Date: 2026-08-28T16:44:25Z
+UNKNOWN STEP	2026-09-20T03:44:58.9338405Z Worker ID: {4248f2cf-de31-4ee0-9912-19cca8e08bd0}
+UNKNOWN STEP	2026-09-20T03:44:58.9339047Z Azure Region: westus3
+UNKNOWN STEP	2026-09-20T03:44:58.9339580Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:58.9341098Z ##[group]Operating System
+UNKNOWN STEP	2026-09-20T03:44:58.9341669Z Ubuntu
+UNKNOWN STEP	2026-09-20T03:44:58.9342121Z 24.04.5
+UNKNOWN STEP	2026-09-20T03:44:58.9342601Z LTS
+UNKNOWN STEP	2026-09-20T03:44:58.9343077Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:58.9343570Z ##[group]Runner Image
+UNKNOWN STEP	2026-09-20T03:44:58.9344117Z Image: ubuntu-24.04
+UNKNOWN STEP	2026-09-20T03:44:58.9344639Z Version: 20260907.300.1
+UNKNOWN STEP	2026-09-20T03:44:58.9345756Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+UNKNOWN STEP	2026-09-20T03:44:58.9347144Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+UNKNOWN STEP	2026-09-20T03:44:58.9348004Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:58.9349102Z ##[group]GITHUB_TOKEN Permissions
+UNKNOWN STEP	2026-09-20T03:44:58.9351120Z Contents: read
+UNKNOWN STEP	2026-09-20T03:44:58.9351633Z Metadata: read
+UNKNOWN STEP	2026-09-20T03:44:58.9352208Z Packages: read
+UNKNOWN STEP	2026-09-20T03:44:58.9352694Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:58.9354695Z Secret source: Actions
+UNKNOWN STEP	2026-09-20T03:44:58.9355571Z Cache mode: write
+UNKNOWN STEP	2026-09-20T03:44:58.9356205Z Prepare workflow directory
+UNKNOWN STEP	2026-09-20T03:44:58.9675801Z Prepare all required actions
+UNKNOWN STEP	2026-09-20T03:44:58.9723995Z Getting action download info
+UNKNOWN STEP	2026-09-20T03:44:59.2817467Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+UNKNOWN STEP	2026-09-20T03:44:59.3855957Z Download action repository 'actions/setup-python@v6' (SHA:ece7cb06caefa5fff74198d8649806c4678c61a1)
+UNKNOWN STEP	2026-09-20T03:44:59.5597739Z Complete job name: backend-forecast-chain-guards
+UNKNOWN STEP	2026-09-20T03:44:59.6365778Z ##[group]Run actions/checkout@v5
+UNKNOWN STEP	2026-09-20T03:44:59.6366506Z with:
+UNKNOWN STEP	2026-09-20T03:44:59.6366977Z   repository: dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.6370578Z   token: ***
+UNKNOWN STEP	2026-09-20T03:44:59.6370969Z   ssh-strict: true
+UNKNOWN STEP	2026-09-20T03:44:59.6371369Z   ssh-user: git
+UNKNOWN STEP	2026-09-20T03:44:59.6371775Z   persist-credentials: true
+UNKNOWN STEP	2026-09-20T03:44:59.6372212Z   clean: true
+UNKNOWN STEP	2026-09-20T03:44:59.6372614Z   sparse-checkout-cone-mode: true
+UNKNOWN STEP	2026-09-20T03:44:59.6373072Z   fetch-depth: 1
+UNKNOWN STEP	2026-09-20T03:44:59.6373446Z   fetch-tags: false
+UNKNOWN STEP	2026-09-20T03:44:59.6373835Z   show-progress: true
+UNKNOWN STEP	2026-09-20T03:44:59.6374221Z   lfs: false
+UNKNOWN STEP	2026-09-20T03:44:59.6374578Z   submodules: false
+UNKNOWN STEP	2026-09-20T03:44:59.6374975Z   set-safe-directory: true
+UNKNOWN STEP	2026-09-20T03:44:59.6375416Z   allow-unsafe-pr-checkout: false
+UNKNOWN STEP	2026-09-20T03:44:59.6376093Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.7333252Z Syncing repository: dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.7335137Z ##[group]Getting Git version info
+UNKNOWN STEP	2026-09-20T03:44:59.7336006Z Working directory is '/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity'
+UNKNOWN STEP	2026-09-20T03:44:59.7337041Z [command]/usr/bin/git version
+UNKNOWN STEP	2026-09-20T03:44:59.7406243Z git version 2.55.0
+UNKNOWN STEP	2026-09-20T03:44:59.7426589Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.7442312Z Temporarily overriding HOME='/home/runner/work/_temp/15bf03be-e0ee-4e99-b154-14a05ea53bd4' before making global git config changes
+UNKNOWN STEP	2026-09-20T03:44:59.7445100Z Adding repository directory to the temporary git global config as a safe directory
+UNKNOWN STEP	2026-09-20T03:44:59.7448966Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.7499302Z Deleting the contents of '/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity'
+UNKNOWN STEP	2026-09-20T03:44:59.7506653Z ##[group]Initializing the repository
+UNKNOWN STEP	2026-09-20T03:44:59.7515589Z [command]/usr/bin/git init /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.7606840Z hint: Using 'master' as the name for the initial branch. This default branch name
+UNKNOWN STEP	2026-09-20T03:44:59.7608633Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+UNKNOWN STEP	2026-09-20T03:44:59.7610110Z hint: to use in all of your new repositories, which will suppress this warning,
+UNKNOWN STEP	2026-09-20T03:44:59.7611521Z hint: call:
+UNKNOWN STEP	2026-09-20T03:44:59.7612184Z hint:
+UNKNOWN STEP	2026-09-20T03:44:59.7612970Z hint: 	git config --global init.defaultBranch <name>
+UNKNOWN STEP	2026-09-20T03:44:59.7613911Z hint:
+UNKNOWN STEP	2026-09-20T03:44:59.7614823Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+UNKNOWN STEP	2026-09-20T03:44:59.7616410Z hint: 'development'. The just-created branch can be renamed via this command:
+UNKNOWN STEP	2026-09-20T03:44:59.7617656Z hint:
+UNKNOWN STEP	2026-09-20T03:44:59.7618287Z hint: 	git branch -m <name>
+UNKNOWN STEP	2026-09-20T03:44:59.7618991Z hint:
+UNKNOWN STEP	2026-09-20T03:44:59.7620020Z hint: Disable this message with "git config set advice.defaultBranchName false"
+UNKNOWN STEP	2026-09-20T03:44:59.7622158Z Initialized empty Git repository in /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/.git/
+UNKNOWN STEP	2026-09-20T03:44:59.7625218Z [command]/usr/bin/git remote add origin https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.7662198Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.7663489Z ##[group]Disabling automatic garbage collection
+UNKNOWN STEP	2026-09-20T03:44:59.7667028Z [command]/usr/bin/git config --local gc.auto 0
+UNKNOWN STEP	2026-09-20T03:44:59.7692961Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.7694199Z ##[group]Setting up auth
+UNKNOWN STEP	2026-09-20T03:44:59.7700676Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+UNKNOWN STEP	2026-09-20T03:44:59.7728529Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+UNKNOWN STEP	2026-09-20T03:44:59.8054364Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+UNKNOWN STEP	2026-09-20T03:44:59.8085014Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+UNKNOWN STEP	2026-09-20T03:44:59.8276293Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+UNKNOWN STEP	2026-09-20T03:44:59.8304572Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+UNKNOWN STEP	2026-09-20T03:44:59.8481593Z [command]/usr/bin/git config --local http.https://github.com/.extraheader [REDACTED] ***
+UNKNOWN STEP	2026-09-20T03:44:59.8514047Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.8515330Z ##[group]Fetching the repository
+UNKNOWN STEP	2026-09-20T03:44:59.8524928Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +21feff6f3b4b225191120201cca9cc0f0157d54c:refs/remotes/pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:11.4004338Z From https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:11.4007448Z  * [new ref]         21feff6f3b4b225191120201cca9cc0f0157d54c -> pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:11.4012156Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:11.4013777Z ##[group]Determining the checkout info
+UNKNOWN STEP	2026-09-20T03:45:11.4016240Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:11.4017384Z [command]/usr/bin/git sparse-checkout disable
+UNKNOWN STEP	2026-09-20T03:45:11.4064640Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+UNKNOWN STEP	2026-09-20T03:45:11.4088007Z ##[group]Checking out the ref
+UNKNOWN STEP	2026-09-20T03:45:11.4090705Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:12.4196898Z Updating files:  50% (2216/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.4242470Z Updating files:  51% (2260/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.4281646Z Updating files:  52% (2304/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.4318575Z Updating files:  53% (2348/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.4500918Z Updating files:  54% (2393/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.4662508Z Updating files:  55% (2437/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.4693619Z Updating files:  56% (2481/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.4725059Z Updating files:  57% (2526/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.4742578Z Updating files:  58% (2570/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5019088Z Updating files:  59% (2614/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5051981Z Updating files:  60% (2658/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5085743Z Updating files:  61% (2703/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5120945Z Updating files:  62% (2747/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5155615Z Updating files:  63% (2791/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5185992Z Updating files:  64% (2836/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5212496Z Updating files:  65% (2880/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5236344Z Updating files:  66% (2924/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5266191Z Updating files:  67% (2969/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5300986Z Updating files:  68% (3013/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5341992Z Updating files:  69% (3057/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5370721Z Updating files:  70% (3101/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5401688Z Updating files:  71% (3146/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5429121Z Updating files:  72% (3190/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5457989Z Updating files:  73% (3234/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5486478Z Updating files:  74% (3279/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5509909Z Updating files:  75% (3323/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5533520Z Updating files:  76% (3367/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5546839Z Updating files:  77% (3412/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5564810Z Updating files:  78% (3456/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5587896Z Updating files:  79% (3500/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5612228Z Updating files:  80% (3544/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5633990Z Updating files:  81% (3589/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5653756Z Updating files:  82% (3633/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5788334Z Updating files:  83% (3677/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.5845817Z Updating files:  84% (3722/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6107218Z Updating files:  85% (3766/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6164604Z Updating files:  86% (3810/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6186469Z Updating files:  87% (3855/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6611150Z Updating files:  88% (3899/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6627859Z Updating files:  89% (3943/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6644952Z Updating files:  90% (3987/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6663130Z Updating files:  91% (4032/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6680383Z Updating files:  92% (4076/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6698204Z Updating files:  93% (4120/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6717247Z Updating files:  94% (4165/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6731320Z Updating files:  95% (4209/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6743123Z Updating files:  96% (4253/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6755811Z Updating files:  97% (4298/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6767896Z Updating files:  98% (4342/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6926925Z Updating files:  99% (4386/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6927390Z Updating files: 100% (4430/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.6927666Z Updating files: 100% (4430/4430), done.
+UNKNOWN STEP	2026-09-20T03:45:12.6974218Z Note: switching to 'refs/remotes/pull/47/merge'.
+UNKNOWN STEP	2026-09-20T03:45:12.6974702Z 
+UNKNOWN STEP	2026-09-20T03:45:12.6974989Z You are in 'detached HEAD' state. You can look around, make experimental
+UNKNOWN STEP	2026-09-20T03:45:12.6975598Z changes and commit them, and you can discard any commits you make in this
+UNKNOWN STEP	2026-09-20T03:45:12.6976142Z state without impacting any branches by switching back to a branch.
+UNKNOWN STEP	2026-09-20T03:45:12.6976597Z 
+UNKNOWN STEP	2026-09-20T03:45:12.6976871Z If you want to create a new branch to retain commits you create, you may
+UNKNOWN STEP	2026-09-20T03:45:12.6977544Z do so (now or later) by using -c with the switch command. Example:
+UNKNOWN STEP	2026-09-20T03:45:12.6977988Z 
+UNKNOWN STEP	2026-09-20T03:45:12.6978163Z   git switch -c <new-branch-name>
+UNKNOWN STEP	2026-09-20T03:45:12.6978455Z 
+UNKNOWN STEP	2026-09-20T03:45:12.6978619Z Or undo this operation with:
+UNKNOWN STEP	2026-09-20T03:45:12.6978887Z 
+UNKNOWN STEP	2026-09-20T03:45:12.6979032Z   git switch -
+UNKNOWN STEP	2026-09-20T03:45:12.6979241Z 
+UNKNOWN STEP	2026-09-20T03:45:12.6979616Z Turn off this advice by setting config variable advice.detachedHead to false
+UNKNOWN STEP	2026-09-20T03:45:12.6979924Z 
+UNKNOWN STEP	2026-09-20T03:45:12.6980254Z HEAD is now at 21feff6 Merge d82032f5cd5978967622721b8c9638da36a87f7d into 607af934e74fa87f3b8e58698ef68fdce919ea54
+UNKNOWN STEP	2026-09-20T03:45:12.7026214Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:12.7071565Z [command]/usr/bin/git log -1 --format=%H
+UNKNOWN STEP	2026-09-20T03:45:12.7095196Z 21feff6f3b4b225191120201cca9cc0f0157d54c
+UNKNOWN STEP	2026-09-20T03:45:12.7338246Z ##[group]Run actions/setup-python@v6
+UNKNOWN STEP	2026-09-20T03:45:12.7338556Z with:
+UNKNOWN STEP	2026-09-20T03:45:12.7338769Z   python-version: 3.12
+UNKNOWN STEP	2026-09-20T03:45:12.7338996Z   check-latest: false
+UNKNOWN STEP	2026-09-20T03:45:12.7341539Z   token: ***
+UNKNOWN STEP	2026-09-20T03:45:12.7341757Z   update-environment: true
+UNKNOWN STEP	2026-09-20T03:45:12.7341999Z   allow-prereleases: false
+UNKNOWN STEP	2026-09-20T03:45:12.7342231Z   freethreaded: false
+UNKNOWN STEP	2026-09-20T03:45:12.7342456Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:12.8585180Z ##[group]Installed versions
+UNKNOWN STEP	2026-09-20T03:45:12.8667709Z Successfully set up CPython (3.12.14)
+UNKNOWN STEP	2026-09-20T03:45:12.8668568Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:12.8766231Z ##[group]Run pip install -q -r requirements.txt
+UNKNOWN STEP	2026-09-20T03:45:12.8766723Z ^[[36;1mpip install -q -r requirements.txt^[[0m
+UNKNOWN STEP	2026-09-20T03:45:12.8767112Z ^[[36;1mpip install -q -r requirements-dev.txt^[[0m
+UNKNOWN STEP	2026-09-20T03:45:12.8803985Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T03:45:12.8804275Z env:
+UNKNOWN STEP	2026-09-20T03:45:12.8804553Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:12.8805009Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+UNKNOWN STEP	2026-09-20T03:45:12.8805423Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:12.8805796Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:12.8806166Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:12.8806679Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+UNKNOWN STEP	2026-09-20T03:45:12.8807005Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:49.1016023Z ##[group]Run set -o pipefail
+UNKNOWN STEP	2026-09-20T03:45:49.1016589Z ^[[36;1mset -o pipefail^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1017397Z ^[[36;1m# ⭐ SAME SINGLE SOURCE as the composition lane above. `--lane chain` is "tracked test^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1018450Z ^[[36;1m# files that import the forecast chain, MINUS everything COMPOSITION already claims" —^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1019450Z ^[[36;1m# and that subtraction is exactly why the two lanes must not each own a list. The^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1020381Z ^[[36;1m# exclusion set and the selector are the SAME SET; expressed twice, they diverge.^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1021103Z ^[[36;1m#^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1021454Z ^[[36;1m# ⛔⛔ THIS STEP HELD AN INLINE `COMPOSITION = [...]` LITERAL UNTIL 2026-08-11 — a 47-entry^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1022018Z ^[[36;1m# mirror of the composition lane's `ls` glob, maintained by hand, with its own comment^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1022625Z ^[[36;1m# instructing the next reader to "EDIT BOTH, ALWAYS". The pair was pinned equal and did^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1023197Z ^[[36;1m# stay equal; what nobody pinned was scripts/ci_test_lanes.py, which had been the declared^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1023747Z ^[[36;1m# single source since 2026-08-06 while both copies here outlived it.^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1024590Z ^[[36;1m# ★ ADDING A SINGLE SOURCE IS NOT THE SAME ACT AS RETIRING THE COPIES.^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1025539Z ^[[36;1m# See ci_test_lanes.py's COMPOSITION block for the measured cost, and the composition lane^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1026361Z ^[[36;1m# above for why nothing may be inlined back.^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1027102Z ^[[36;1mpython scripts/ci_test_lanes.py --lane chain > /tmp/chain_files.txt^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1028075Z ^[[36;1m# Same refusal as the composition lane: empty selection would run the whole tests/ tree.^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1029151Z ^[[36;1mtest -s /tmp/chain_files.txt || { echo "::error::--lane chain selected NO files"; exit 1; }^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1029979Z ^[[36;1msed 's/^/  chain: /' /tmp/chain_files.txt^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1030693Z ^[[36;1mFILES=$(tr '\n' ' ' < /tmp/chain_files.txt)^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1031302Z ^[[36;1mpython -m pytest $FILES -q --junitxml=chain.xml^[[0m
+UNKNOWN STEP	2026-09-20T03:45:49.1065292Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T03:45:49.1065742Z env:
+UNKNOWN STEP	2026-09-20T03:45:49.1066172Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:49.1066804Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+UNKNOWN STEP	2026-09-20T03:45:49.1067488Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:49.1068395Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:49.1069031Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:49.1069648Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+UNKNOWN STEP	2026-09-20T03:45:49.1070249Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:49.2222225Z   chain: tests/test_all_wind_pilots_multi_bbox.py
+UNKNOWN STEP	2026-09-20T03:45:49.2223218Z   chain: tests/test_batch_blast_radius_isolation.py
+UNKNOWN STEP	2026-09-20T03:45:49.2223847Z   chain: tests/test_bathymetry.py
+UNKNOWN STEP	2026-09-20T03:45:49.2224338Z   chain: tests/test_blockmean_vectorized_parity.py
+UNKNOWN STEP	2026-09-20T03:45:49.2224959Z   chain: tests/test_buoy_calibration.py
+UNKNOWN STEP	2026-09-20T03:45:49.2225512Z   chain: tests/test_buoy_residual_retention.py
+UNKNOWN STEP	2026-09-20T03:45:49.2226061Z   chain: tests/test_capabilities_contract.py
+UNKNOWN STEP	2026-09-20T03:45:49.2226425Z   chain: tests/test_clamp_preview_coverage.py
+UNKNOWN STEP	2026-09-20T03:45:49.2226806Z   chain: tests/test_conditions_batch_precompute.py
+UNKNOWN STEP	2026-09-20T03:45:49.2227225Z   chain: tests/test_conditions_hourly_composition.py
+UNKNOWN STEP	2026-09-20T03:45:49.2227593Z   chain: tests/test_config_env.py
+UNKNOWN STEP	2026-09-20T03:45:49.2227958Z   chain: tests/test_copernicus_island_ingestion.py
+UNKNOWN STEP	2026-09-20T03:45:49.2228347Z   chain: tests/test_copernicus_island_regions.py
+UNKNOWN STEP	2026-09-20T03:45:49.2228721Z   chain: tests/test_copernicus_point_batching.py
+UNKNOWN STEP	2026-09-20T03:45:49.2229114Z   chain: tests/test_directional_conflict_disclosure.py
+UNKNOWN STEP	2026-09-20T03:45:49.2229789Z   chain: tests/test_directional_exposure_contract.py
+UNKNOWN STEP	2026-09-20T03:45:49.2230240Z   chain: tests/test_directional_exposure_harness.py
+UNKNOWN STEP	2026-09-20T03:45:49.2230939Z   chain: tests/test_dwd_icon_marine.py
+UNKNOWN STEP	2026-09-20T03:45:49.2231335Z   chain: tests/test_dwd_icon_pressure.py
+UNKNOWN STEP	2026-09-20T03:45:49.2231661Z   chain: tests/test_dwd_icon_wind.py
+UNKNOWN STEP	2026-09-20T03:45:49.2232081Z   chain: tests/test_dynamic_cycle_selection.py
+UNKNOWN STEP	2026-09-20T03:45:49.2232506Z   chain: tests/test_dynamic_viewport.py
+UNKNOWN STEP	2026-09-20T03:45:49.2232855Z   chain: tests/test_dynamic_viewport_extended.py
+UNKNOWN STEP	2026-09-20T03:45:49.2233238Z   chain: tests/test_dynamic_viewport_global.py
+UNKNOWN STEP	2026-09-20T03:45:49.2233601Z   chain: tests/test_ecmwf_period_bands_decode.py
+UNKNOWN STEP	2026-09-20T03:45:49.2233969Z   chain: tests/test_ecmwf_period_bands_ingest.py
+UNKNOWN STEP	2026-09-20T03:45:49.2234323Z   chain: tests/test_ecmwf_wave_ensemble.py
+UNKNOWN STEP	2026-09-20T03:45:49.2234714Z   chain: tests/test_estimator_masked_resampling.py
+UNKNOWN STEP	2026-09-20T03:45:49.2235092Z   chain: tests/test_estimator_zero_blend_guard.py
+UNKNOWN STEP	2026-09-20T03:45:49.2235483Z   chain: tests/test_euro_estimator.py
+UNKNOWN STEP	2026-09-20T03:45:49.2235839Z   chain: tests/test_euro_extended_estimates_anchor.py
+UNKNOWN STEP	2026-09-20T03:45:49.2236204Z   chain: tests/test_euro_marine_ext_tz.py
+UNKNOWN STEP	2026-09-20T03:45:49.2236562Z   chain: tests/test_euro_marine_horizon_contract.py
+UNKNOWN STEP	2026-09-20T03:45:49.2236929Z   chain: tests/test_euro_marine_pilot.py
+UNKNOWN STEP	2026-09-20T03:45:49.2237270Z   chain: tests/test_euro_wind_extended_tail.py
+UNKNOWN STEP	2026-09-20T03:45:49.2237665Z   chain: tests/test_euro_wind_gfs_fallback.py
+UNKNOWN STEP	2026-09-20T03:45:49.2238085Z   chain: tests/test_event_loop_offload_guard.py
+UNKNOWN STEP	2026-09-20T03:45:49.2238441Z   chain: tests/test_far_edge_hold.py
+UNKNOWN STEP	2026-09-20T03:45:49.2238774Z   chain: tests/test_fetcher_http_pooling.py
+UNKNOWN STEP	2026-09-20T03:45:49.2239127Z   chain: tests/test_flagship_pilot_horizon.py
+UNKNOWN STEP	2026-09-20T03:45:49.2239497Z   chain: tests/test_forecast_spread_confidence.py
+UNKNOWN STEP	2026-09-20T03:45:49.2239874Z   chain: tests/test_forecast_wind_scheduling.py
+UNKNOWN STEP	2026-09-20T03:45:49.2240259Z   chain: tests/test_frame_height_convention.py
+UNKNOWN STEP	2026-09-20T03:45:49.2240852Z   chain: tests/test_gfs_marine_pilot_multi_bbox.py
+UNKNOWN STEP	2026-09-20T03:45:49.2241239Z   chain: tests/test_gfs_marine_stabilization.py
+UNKNOWN STEP	2026-09-20T03:45:49.2241615Z   chain: tests/test_gfs_wind_pilot_multi_bbox.py
+UNKNOWN STEP	2026-09-20T03:45:49.2242017Z   chain: tests/test_gwam_vector_blockmean_loop_shadow.py
+UNKNOWN STEP	2026-09-20T03:45:49.2242410Z   chain: tests/test_height_quantile_map.py
+UNKNOWN STEP	2026-09-20T03:45:49.2242788Z   chain: tests/test_icon_marine_extended_estimates.py
+UNKNOWN STEP	2026-09-20T03:45:49.2243172Z   chain: tests/test_icon_wind_extended_tail.py
+UNKNOWN STEP	2026-09-20T03:45:49.2243862Z   chain: tests/test_icon_wind_multi_bbox_fetch.py
+UNKNOWN STEP	2026-09-20T03:45:49.2244261Z   chain: tests/test_icon_wind_native_horizon_purge.py
+UNKNOWN STEP	2026-09-20T03:45:49.2244634Z   chain: tests/test_island_serving_gate.py
+UNKNOWN STEP	2026-09-20T03:45:49.2245013Z   chain: tests/test_l2_writer_gate.py
+UNKNOWN STEP	2026-09-20T03:45:49.2245449Z   chain: tests/test_lattice_inband_fill.py
+UNKNOWN STEP	2026-09-20T03:45:49.2245910Z   chain: tests/test_model_agreement_spread.py
+UNKNOWN STEP	2026-09-20T03:45:49.2246315Z   chain: tests/test_nearshore_validation.py
+UNKNOWN STEP	2026-09-20T03:45:49.2246643Z   chain: tests/test_ocean_access.py
+UNKNOWN STEP	2026-09-20T03:45:49.2246908Z   chain: tests/test_open_meteo_breaker.py
+UNKNOWN STEP	2026-09-20T03:45:49.2247189Z   chain: tests/test_open_meteo_grid_cache.py
+UNKNOWN STEP	2026-09-20T03:45:49.2247473Z   chain: tests/test_open_meteo_proxy_url.py
+UNKNOWN STEP	2026-09-20T03:45:49.2247751Z   chain: tests/test_oversized_grid_guard.py
+UNKNOWN STEP	2026-09-20T03:45:49.2248045Z   chain: tests/test_partitions_period_gate.py
+UNKNOWN STEP	2026-09-20T03:45:49.2248339Z   chain: tests/test_pilot_region_starvation.py
+UNKNOWN STEP	2026-09-20T03:45:49.2248627Z   chain: tests/test_pilot_regions.py
+UNKNOWN STEP	2026-09-20T03:45:49.2248951Z   chain: tests/test_precipitation.py
+UNKNOWN STEP	2026-09-20T03:45:49.2249213Z   chain: tests/test_pressure.py
+UNKNOWN STEP	2026-09-20T03:45:49.2249473Z   chain: tests/test_production_hardening.py
+UNKNOWN STEP	2026-09-20T03:45:49.2249762Z   chain: tests/test_provider_cache_expiry.py
+UNKNOWN STEP	2026-09-20T03:45:49.2250071Z   chain: tests/test_prune_duplicate_valid_times.py
+UNKNOWN STEP	2026-09-20T03:45:49.2250672Z   chain: tests/test_refactoring.py
+UNKNOWN STEP	2026-09-20T03:45:49.2250978Z   chain: tests/test_reference_generation_disclosure.py
+UNKNOWN STEP	2026-09-20T03:45:49.2251306Z   chain: tests/test_repair_package_storage.py
+UNKNOWN STEP	2026-09-20T03:45:49.2251597Z   chain: tests/test_report_calibration.py
+UNKNOWN STEP	2026-09-20T03:45:49.2251902Z   chain: tests/test_sampler_carries_ensemble_spread.py
+UNKNOWN STEP	2026-09-20T03:45:49.2252221Z   chain: tests/test_sampler_coarse_ocean.py
+UNKNOWN STEP	2026-09-20T03:45:49.2252502Z   chain: tests/test_science_registry.py
+UNKNOWN STEP	2026-09-20T03:45:49.2252791Z   chain: tests/test_science_registry_coverage.py
+UNKNOWN STEP	2026-09-20T03:45:49.2253115Z   chain: tests/test_selection_cycle_identity.py
+UNKNOWN STEP	2026-09-20T03:45:49.2253407Z   chain: tests/test_shore_normal.py
+UNKNOWN STEP	2026-09-20T03:45:49.2253687Z   chain: tests/test_shore_normal_asset.py
+UNKNOWN STEP	2026-09-20T03:45:49.2253993Z   chain: tests/test_shore_normal_borrow_radius.py
+UNKNOWN STEP	2026-09-20T03:45:49.2254291Z   chain: tests/test_shore_normal_fit.py
+UNKNOWN STEP	2026-09-20T03:45:49.2254605Z   chain: tests/test_size_curve_branch_is_the_served_one.py
+UNKNOWN STEP	2026-09-20T03:45:49.2254979Z   chain: tests/test_slope_gamma_contamination_two_regimes.py
+UNKNOWN STEP	2026-09-20T03:45:49.2255339Z   chain: tests/test_small_island_coastal_promotion.py
+UNKNOWN STEP	2026-09-20T03:45:49.2255643Z   chain: tests/test_swell_fetch.py
+UNKNOWN STEP	2026-09-20T03:45:49.2255945Z   chain: tests/test_three_surfaces_agree_BEHAVIOURALLY.py
+UNKNOWN STEP	2026-09-20T03:45:49.2256259Z   chain: tests/test_tide.py
+UNKNOWN STEP	2026-09-20T03:45:49.2256509Z   chain: tests/test_tide_acquisition.py
+UNKNOWN STEP	2026-09-20T03:45:49.2256780Z   chain: tests/test_tide_extrema.py
+UNKNOWN STEP	2026-09-20T03:45:49.2257061Z   chain: tests/test_tide_moves_the_breaking_cap.py
+UNKNOWN STEP	2026-09-20T03:45:49.2257398Z   chain: tests/test_tide_reaches_the_serving_height.py
+UNKNOWN STEP	2026-09-20T03:45:49.2257726Z   chain: tests/test_truth_tag_validity_census.py
+UNKNOWN STEP	2026-09-20T03:45:49.2258042Z   chain: tests/test_vector_blockmean_loop_shadow.py
+UNKNOWN STEP	2026-09-20T03:45:49.2258369Z   chain: tests/test_viewport_shared_context_poison.py
+UNKNOWN STEP	2026-09-20T03:45:49.2258693Z   chain: tests/test_viewport_upstream_timeout.py
+UNKNOWN STEP	2026-09-20T03:45:49.2259002Z   chain: tests/test_wave_physics_validity.py
+UNKNOWN STEP	2026-09-20T03:45:49.2259286Z   chain: tests/test_wave_wrapping.py
+UNKNOWN STEP	2026-09-20T03:47:27.0484232Z ........................................................................ [  7%]
+UNKNOWN STEP	2026-09-20T03:47:27.3597506Z ........................................................................ [ 14%]
+UNKNOWN STEP	2026-09-20T03:47:39.8864864Z ........................................................................ [ 21%]
+UNKNOWN STEP	2026-09-20T03:48:02.1701327Z ........................................................................ [ 28%]
+UNKNOWN STEP	2026-09-20T03:48:02.2534013Z ........................................................................ [ 35%]
+UNKNOWN STEP	2026-09-20T03:48:32.8407271Z ........................................................................ [ 42%]
+UNKNOWN STEP	2026-09-20T03:51:19.9129296Z ........................................................................ [ 49%]
+UNKNOWN STEP	2026-09-20T03:51:40.5468917Z ........................................................................ [ 56%]
+UNKNOWN STEP	2026-09-20T03:51:40.6823929Z ........................................................................ [ 63%]
+UNKNOWN STEP	2026-09-20T03:51:42.2153307Z ........................................................................ [ 70%]
+UNKNOWN STEP	2026-09-20T03:51:42.3508392Z ........................................................................ [ 77%]
+UNKNOWN STEP	2026-09-20T03:51:42.7934046Z ........................................................................ [ 84%]
+UNKNOWN STEP	2026-09-20T03:51:43.2602169Z ........................................................................ [ 91%]
+UNKNOWN STEP	2026-09-20T03:52:08.8881647Z ........................................................................ [ 98%]
+UNKNOWN STEP	2026-09-20T03:52:10.1132217Z ..............                                                           [100%]
+UNKNOWN STEP	2026-09-20T03:52:10.1132881Z =============================== warnings summary ===============================
+UNKNOWN STEP	2026-09-20T03:52:10.1133498Z ../../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:41
+UNKNOWN STEP	2026-09-20T03:52:10.1134859Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:41: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+UNKNOWN STEP	2026-09-20T03:52:10.1135801Z     [], typing.ContextManager[anyio.abc.BlockingPortal]
+UNKNOWN STEP	2026-09-20T03:52:10.1136095Z 
+UNKNOWN STEP	2026-09-20T03:52:10.1136462Z routes/profiles/username.py:44
+UNKNOWN STEP	2026-09-20T03:52:10.1138840Z   /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/backend/routes/profiles/username.py:44: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+UNKNOWN STEP	2026-09-20T03:52:10.1141797Z     @validator('username')
+UNKNOWN STEP	2026-09-20T03:52:10.1151072Z 
+UNKNOWN STEP	2026-09-20T03:52:10.1151245Z routes/profiles/username.py:63
+UNKNOWN STEP	2026-09-20T03:52:10.1153860Z   /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/backend/routes/profiles/username.py:63: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+UNKNOWN STEP	2026-09-20T03:52:10.1155330Z     @validator('new_username')
+UNKNOWN STEP	2026-09-20T03:52:10.1155493Z 
+UNKNOWN STEP	2026-09-20T03:52:10.1155806Z ../../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pydantic/_internal/_config.py:295
+UNKNOWN STEP	2026-09-20T03:52:10.1157270Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pydantic/_internal/_config.py:295: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+UNKNOWN STEP	2026-09-20T03:52:10.1158508Z     warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+UNKNOWN STEP	2026-09-20T03:52:10.1158741Z 
+UNKNOWN STEP	2026-09-20T03:52:10.1159049Z ../../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/passlib/utils/__init__.py:854
+UNKNOWN STEP	2026-09-20T03:52:10.1159936Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+UNKNOWN STEP	2026-09-20T03:52:10.1160771Z     from crypt import crypt as _crypt
+UNKNOWN STEP	2026-09-20T03:52:10.1161147Z 
+UNKNOWN STEP	2026-09-20T03:52:10.1161450Z ../../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/supabase/_async/auth_client.py:3
+UNKNOWN STEP	2026-09-20T03:52:10.1162553Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/supabase/_async/auth_client.py:3: DeprecationWarning: The `gotrue` package is deprecated, is not going to receive updates in the future. Please, use `supabase_auth` instead.
+UNKNOWN STEP	2026-09-20T03:52:10.1163472Z     from gotrue import (
+UNKNOWN STEP	2026-09-20T03:52:10.1163613Z 
+UNKNOWN STEP	2026-09-20T03:52:10.1163818Z -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+UNKNOWN STEP	2026-09-20T03:52:10.1164208Z 1022 passed, 6 warnings in 377.68s (0:06:17)
+UNKNOWN STEP	2026-09-20T03:52:11.4096712Z ##[group]Run python - <<'PY'
+UNKNOWN STEP	2026-09-20T03:52:11.4097192Z ^[[36;1mpython - <<'PY'^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4097509Z ^[[36;1mimport sys, xml.etree.ElementTree as ET^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4098064Z ^[[36;1m# Measured 2026-08-01 in a clean worktree with no dev.db and fastmcp blocked — the^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4098782Z ^[[36;1m# configuration this job actually runs in, never a developer checkout: 63 files, 486 passed,^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4099509Z ^[[36;1m# 0 skipped, 0 failed. MIN_FILES is EXACT so any drop (an import that stops matching, a file^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4100198Z ^[[36;1m# renamed out of the selector) is red rather than quietly narrower; MIN_PASSED sits just^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4101094Z ^[[36;1m# below so a mass-skip is caught without pinning to a total that normal churn moves.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4101747Z ^[[36;1m# ⬆ 63→65 / 480→498 on 2026-08-02. The two files are today's own^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4102431Z ^[[36;1m# (`test_shore_normal_borrow_radius.py`, `test_ecmwf_period_bands_ingest.py`) — `a9bd6e35`^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4103112Z ^[[36;1m# wrote the new count into its commit message and left the floor at 63, so for a day the^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4103769Z ^[[36;1m# gate would have stayed green if both of them stopped being collected. Audit v5 F4.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4104423Z ^[[36;1m# From the gate's OWN run on origin/dev @ ff94cb7d: "collected 504 tests across 65 files^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4104987Z ^[[36;1m# -> 504 passed, 0 skipped, 0 failed, 0 errors".^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4105490Z ^[[36;1m# ⬆ 65→67 / 498→509. NOT new tests — COVERAGE. Widening the selector to the^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4106128Z ^[[36;1m# `from services import <mod>` form adopted two files that were running nowhere:^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4106771Z ^[[36;1m# `test_ecmwf_period_bands_decode.py` (5 tests, orphaned the moment it was added) and^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4107440Z ^[[36;1m# `test_icon_wind_multi_bbox_fetch.py` (6 tests, orphaned outright — its docstring warns a^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4108154Z ^[[36;1m# mis-association would "produce plausible wind at the wrong place, which no smoke test^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4108760Z ^[[36;1m# would notice"). 504→515 reconciles to exactly those 11.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4184048Z ^[[36;1m# From the gate's OWN run on origin/dev @ 03d7841b: "collected 515 tests across 67 files^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4184585Z ^[[36;1m# -> 515 passed, 0 skipped, 0 failed, 0 errors".^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4185061Z ^[[36;1m# ⬆ 67→82 / 519→697 on 2026-08-06, from the gate's OWN run on origin/dev @ db990131:^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4185605Z ^[[36;1m# "82 files -> 699 passed, 0 skipped, 0 failed, 0 errors". Cross-checked against a local^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4186234Z ^[[36;1m# `ci_test_lanes.py --lane chain`, which also reports 82 — the counts agree, so this is^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4186871Z ^[[36;1m# not the local-inflation trap the estate lane's block records (a local 266 once set a^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4187298Z ^[[36;1m# floor above CI's achievable 244).^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4187677Z ^[[36;1m# ⚠️ THE FLOOR WAS STALE BY 15 FILES, NOT BY THE 4 ADDED TODAY. Only^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4188109Z ^[[36;1m# test_event_loop_offload_guard / test_fetcher_http_pooling /^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4188611Z ^[[36;1m# test_blockmean_vectorized_parity / test_vector_blockmean_loop_shadow are this session's;^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4189414Z ^[[36;1m# the other 11 accumulated earlier without the floor moving. For that whole period **15^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4189981Z ^[[36;1m# files could have stopped being collected and this gate would have stayed green** — the^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4190631Z ^[[36;1m# exact failure its own 2026-08-02 note describes ("for a day the gate would have stayed^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4191138Z ^[[36;1m# green if both of them stopped being collected"), recurring at 7x the size.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4191656Z ^[[36;1m# ⇒ RAISE THIS IN THE SAME COMMIT THAT ADDS THE FILES. A floor that lags is a floor that^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4192216Z ^[[36;1m# is not measuring anything.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4192619Z ^[[36;1m# ⬆ 82→85 / 697→780 on 2026-08-11, and the note directly above is the one that dates it:^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4193157Z ^[[36;1m# "RAISE THIS IN THE SAME COMMIT THAT ADDS THE FILES." It was not. Three files and 89^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4193697Z ^[[36;1m# tests accumulated since 2026-08-06 with the floor untouched, so this lane repeated its^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4194262Z ^[[36;1m# own recorded failure for a third time — 2 files in 2026-08-02, 15 in 2026-08-06, 3 now.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4194804Z ^[[36;1m# ★ A RULE WRITTEN IN THE COMMENT ABOVE THE NUMBER DOES NOT ENFORCE ITSELF. All three^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4195338Z ^[[36;1m# lanes were found stale in one sweep on 2026-08-11 (composition by 38 files, this by 3,^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4195902Z ^[[36;1m# estate 36 tests below achievable), which says the discipline is the wrong mechanism:^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4196518Z ^[[36;1m# nothing FAILS when a floor lags, so it lags. ⇒ The durable fix is a check that compares^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4197070Z ^[[36;1m# each floor to its lane's last green reading — not another instruction to remember.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4197606Z ^[[36;1m# From the gate's OWN run on origin/dev @ 1b447f44 (run 31509178910): "collected 786 tests^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4198083Z ^[[36;1m# across 85 files -> 786 passed, 0 skipped, 0 failed, 0 errors".^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4198576Z ^[[36;1m# ⚠️ 780 is 6 below observed, matching this block's 2026-08-02 entries (498/504, 509/515)^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4199106Z ^[[36;1m# rather than the 2-below of its 2026-08-06 one. MIN_FILES is EXACT, so a whole file^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4199658Z ^[[36;1m# vanishing is red regardless; MIN_PASSED only has to catch tests disappearing from files^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4200229Z ^[[36;1m# this lane still collects, and 6 leaves room for ordinary churn without pinning the gate.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4200841Z ^[[36;1m# ★ CONTROL ON THIS COMMIT: 85 is also what `--lane chain` selects after the inline^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4201393Z ^[[36;1m# COMPOSITION literal was retired — this lane's file set did not move, only its owner.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4201935Z ^[[36;1m# ⬆ 780→784 on 2026-08-15: +4 tests appended to test_report_calibration.py (the^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4202457Z ^[[36;1m# WS-CAN-0073 route-refusal pins; same file, so MIN_FILES holds at 85). Last green^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4202916Z ^[[36;1m# 31864807822 observed 786; 786 + 4 = 790; 790 - 6 = 784.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4203345Z ^[[36;1m# ⬆ 784→793 on 2026-08-15 (third): CI READ 799 — the SELECTOR routed the new^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4203857Z ^[[36;1m# test_config_env.py (9 tests) HERE, not to estate as the author predicted; estate took^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4204404Z ^[[36;1m# only test_startup_config_hardening.py (+3 → 416). LANE MEMBERSHIP IS THE SELECTOR'S^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4204943Z ^[[36;1m# DECISION, NOT THE AUTHOR'S INTENT: run `ci_test_lanes.py --lane <x>` on the TRACKED^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4205498Z ^[[36;1m# file before predicting a count (an untracked file is invisible to it, which is exactly^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4206018Z ^[[36;1m# how this prediction went wrong). 799 - 6 = 793. MIN_FILES 85 → 86 (+1 file).^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4206529Z ^[[36;1m# ⬆ 793→801 on 2026-08-15 (fourth): +8 tests, test_conditions_batch_precompute.py —^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4207075Z ^[[36;1m# SELECTOR-VERIFIED into this lane before predicting (the rule the third raise bought).^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4207625Z ^[[36;1m# 799 + 8 = 807; 807 - 6 = 801. MIN_FILES 86 → 87.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4208052Z ^[[36;1m# ⬆ 801→809 on 2026-08-15 (fifth): +8 tests, test_nearshore_validation.py (WS-CAN-0076's^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4208579Z ^[[36;1m# refusal/composition-pin/QC/report core), selector-verified into this lane.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4209004Z ^[[36;1m# 807 + 8 = 815; 815 - 6 = 809. MIN_FILES 87 → 88.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4209428Z ^[[36;1m# ⬆ MIN_FILES 88→90, MIN_PASSED 809→833 on 2026-08-18 (the 0.083° island lane). This^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4210117Z ^[[36;1m# commit adds test_copernicus_island_regions.py (14) and test_copernicus_island_ingestion.py^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4210745Z ^[[36;1m# (10) = 24 tests in 2 files, so the lane will collect 90 files / 839 passed. MIN_FILES is^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4211285Z ^[[36;1m# EXACT; MIN_PASSED keeps the customary 6 below, and _FLOOR_SET_FROM["chain"] moves to 839^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4211804Z ^[[36;1m# in the SAME commit — the pair test reddens if either moves alone.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4212321Z ^[[36;1m# ⚠️ RAISED BECAUSE THE PRE-PUSH HOOK REFUSED THE PUSH, which is the 5th time this lane has^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4212898Z ^[[36;1m# needed it. The floor is not merely a minimum: backend-floor-staleness goes red when the^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4213451Z ^[[36;1m# observed count runs too far ABOVE it, so adding tests without raising it is a red CI.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4213937Z ^[[36;1m# September 9: dev run 34279488030 observed 93 files / 884 passed.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4214427Z ^[[36;1m# September 10: tracked chain selector claims test_tide_acquisition.py; full local^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4214957Z ^[[36;1m# chain measured 94 files / 922 passed / 0 skipped (356.57s). Keep the 6-test margin^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4215492Z ^[[36;1m# and update _FLOOR_SET_FROM["chain"] in the same commit. Linux CI verifies this floor.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4216007Z ^[[36;1m# PR31 CI35021160260 measured 96 files / 932 passes on the merged code.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4216453Z ^[[36;1m# Keep the six-test margin and the paired citation in sync.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4216881Z ^[[36;1m# September 16: hosted CI35055272824 measured 97 files / 940 passes.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4217333Z ^[[36;1m# ⬆ 97/934 → 98/940 on 2026-09-19 (the island SERVING gate). This commit adds^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4217809Z ^[[36;1m# test_island_serving_gate.py (6), selector-verified into this lane with^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4218292Z ^[[36;1m# `ci_test_lanes.py --lane chain` (97 → 98 files). 940 + 6 = 946; 946 - 6 = 940.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4218751Z ^[[36;1m# MIN_FILES is EXACT; MIN_PASSED keeps the customary 6 below, and^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4219163Z ^[[36;1m# _FLOOR_SET_FROM["chain"] moves to 946 in the SAME commit.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4219628Z ^[[36;1m# ⬆ 940 → 941 on 2026-09-19 (the grid-path half of the island gate). The same test FILE^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4220158Z ^[[36;1m# gains a 7th test (the /api/weather/grid ranking outcome), so MIN_FILES stays 98 while^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4220883Z ^[[36;1m# the reading moves 946 → 947; 947 - 6 = 941. _FLOOR_SET_FROM["chain"] moves with it.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4221407Z ^[[36;1m# September 20 second check: selector-confirmed +1 file / +43 executed controls^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4221956Z ^[[36;1m# (grid estimator/periods +30, point periods +8, nonfinite spread +5). Expected hosted^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4222500Z ^[[36;1m# reading 947 + 43 = 990; retain six-test margin and paired provenance. CI confirms.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4223023Z ^[[36;1m# September 20 continuation: run35485093918 at 74ca4f4e confirmed 990.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4223507Z ^[[36;1m# +29 direct-height controls and +3 real-resolver cases -> expected 1022.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4224004Z ^[[36;1m# No new files; retain six-test margin and move paired provenance together.^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4224392Z ^[[36;1mMIN_FILES, MIN_PASSED = 99, 1016^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4224736Z ^[[36;1mtry:^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4224967Z ^[[36;1m    root = ET.parse('chain.xml').getroot()^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4225257Z ^[[36;1mexcept Exception as e:^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4225659Z ^[[36;1m    print(f"::error::No parseable chain.xml — the forecast-chain suite did not run ({e}).")^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4226085Z ^[[36;1m    sys.exit(1)^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4226420Z ^[[36;1msuites = [root] if root.tag == 'testsuite' else root.findall('testsuite')^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4226841Z ^[[36;1mtests = sum(int(s.get('tests', 0)) for s in suites)^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4227210Z ^[[36;1mfails = sum(int(s.get('failures', 0)) for s in suites)^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4227632Z ^[[36;1merrs = sum(int(s.get('errors', 0)) for s in suites)^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4227991Z ^[[36;1mskips = sum(int(s.get('skipped', 0)) for s in suites)^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4228373Z ^[[36;1mfiles = {'.'.join((tc.get('classname') or '').split('.')[:2])^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4228734Z ^[[36;1m         for s in suites for tc in s.iter('testcase')}^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4229039Z ^[[36;1mfiles.discard('')^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4229289Z ^[[36;1mpassed = tests - fails - errs - skips^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4229654Z ^[[36;1mprint(f"collected {tests} tests across {len(files)} files -> "^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4230096Z ^[[36;1m      f"{passed} passed, {skips} skipped, {fails} failed, {errs} errors")^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4230547Z ^[[36;1mbad = []^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4230744Z ^[[36;1mif fails or errs:^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4231013Z ^[[36;1m    bad.append(f"{fails} failed / {errs} errored")^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4231326Z ^[[36;1mif len(files) < MIN_FILES:^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4231728Z ^[[36;1m    bad.append(f"only {len(files)} files collected, floor is {MIN_FILES} — the import "^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4232224Z ^[[36;1m               f"selector stopped matching, so guards silently went unrun")^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4232587Z ^[[36;1mif passed < MIN_PASSED:^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4232982Z ^[[36;1m    bad.append(f"only {passed} tests passed, floor is {MIN_PASSED} — guards were deleted "^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4233419Z ^[[36;1m               f"or mass-skipped")^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4233682Z ^[[36;1mif bad:^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4233883Z ^[[36;1m    for b in bad:^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4234160Z ^[[36;1m        print(f"::error::Forecast-chain guards: {b}")^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4234463Z ^[[36;1m    sys.exit(1)^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4234767Z ^[[36;1mprint("Forecast-chain guards ran in full and are green.")^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4235087Z ^[[36;1mPY^[[0m
+UNKNOWN STEP	2026-09-20T03:52:11.4256722Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T03:52:11.4256975Z env:
+UNKNOWN STEP	2026-09-20T03:52:11.4257252Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:52:11.4257662Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+UNKNOWN STEP	2026-09-20T03:52:11.4258066Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:52:11.4258435Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:52:11.4258793Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:52:11.4259161Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+UNKNOWN STEP	2026-09-20T03:52:11.4259474Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:52:11.4519629Z collected 1022 tests across 99 files -> 1022 passed, 0 skipped, 0 failed, 0 errors
+UNKNOWN STEP	2026-09-20T03:52:11.4520139Z Forecast-chain guards ran in full and are green.
+UNKNOWN STEP	2026-09-20T03:52:11.4649933Z Post job cleanup.
+UNKNOWN STEP	2026-09-20T03:52:11.5990313Z Post job cleanup.
+UNKNOWN STEP	2026-09-20T03:52:11.7379073Z [command]/usr/bin/git version
+UNKNOWN STEP	2026-09-20T03:52:11.7462930Z git version 2.55.0
+UNKNOWN STEP	2026-09-20T03:52:11.7495562Z Temporarily overriding HOME='/home/runner/work/_temp/d355cdb3-5b1b-42eb-9023-0c7cfeac0337' before making global git config changes
+UNKNOWN STEP	2026-09-20T03:52:11.7496990Z Adding repository directory to the temporary git global config as a safe directory
+UNKNOWN STEP	2026-09-20T03:52:11.7498487Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:52:11.7570830Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+UNKNOWN STEP	2026-09-20T03:52:11.7631971Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+UNKNOWN STEP	2026-09-20T03:52:11.7906584Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+UNKNOWN STEP	2026-09-20T03:52:11.7941295Z http.https://github.com/.extraheader
+UNKNOWN STEP	2026-09-20T03:52:11.7953527Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+UNKNOWN STEP	2026-09-20T03:52:11.7996407Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+UNKNOWN STEP	2026-09-20T03:52:11.8221168Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+UNKNOWN STEP	2026-09-20T03:52:11.8265090Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+UNKNOWN STEP	2026-09-20T03:52:11.8578859Z Cleaning up orphan processes

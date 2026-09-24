@@ -328,8 +328,9 @@ class ProductStore:
 
     # ── Supabase Storage L2 helpers ──────────────────────────────────────
 
-    def _upload_to_supabase(self, filename: str, data_bytes: bytes):
-        """Upload a file to Supabase Storage L2 (fire-and-forget with logging).
+    def _upload_to_supabase(self, filename: str, data_bytes: bytes, *,
+                            strict: bool = False, overwrite: bool = True):
+        """Upload to L2; strict mode raises on failure and returns True on HTTP acknowledgment.
 
         Uses the Storage REST API directly (via requests) instead of storage3's sync .upload(): in the
         pinned supabase==2.4.6, that method raises an UnboundLocalError ("cannot access local variable
@@ -342,13 +343,19 @@ class ProductStore:
         # "spot_ratings/...") are per-feature state blobs and pass through.
         if "/" not in filename and not _l2_pipeline_writes_allowed():
             _note_l2_write_skipped("upload", filename)
+            if strict:
+                raise RuntimeError("L2 upload blocked by designated-writer gate")
             return
         sb = _get_supabase_storage()  # gates on config + ensures the bucket exists (one-time create)
         if sb is None:
+            if strict:
+                raise RuntimeError("L2 storage is unavailable")
             return
         base = os.environ.get("SUPABASE_URL", "").rstrip("/")
         key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
         if not base or not key:
+            if strict:
+                raise RuntimeError("L2 storage is not configured")
             return
         try:
             import requests
@@ -357,7 +364,7 @@ class ProductStore:
                 "Authorization": f"Bearer {key}",
                 "apikey": key,
                 "Content-Type": "application/json",
-                "x-upsert": "true",
+                "x-upsert": "true" if overwrite else "false",
                 # CDN cache policy (2026-07-06, the stale-manifest root): manifest.json mutates
                 # every few minutes but was uploaded with max-age 3600 — Supabase's CDN edges
                 # served the serve-box periodic L2 restore copies up to an HOUR stale and
@@ -383,10 +390,14 @@ class ProductStore:
                     publish_run_keyed(self, data_bytes, self._upload_to_supabase, self._delete_from_supabase)
                 except Exception as ptr_err:
                     logger.warning(f"[Product Store] run-keyed manifest publish failed (legacy lane OK): {ptr_err}")
+            if strict:
+                return True
         except Exception as e:
             err_msg = f"L2 upload failed for {filename}: {e}"
             logger.warning(f"[Product Store] {err_msg}")
             ProductStore._last_upload_errors = (ProductStore._last_upload_errors + [err_msg])[-10:]
+            if strict:
+                raise
 
     def _delete_from_supabase(self, filename: str):
         """Delete a product from Supabase Storage L2 (best-effort, never raises).
@@ -707,4 +718,3 @@ class ProductStore:
         """Moves invalid Copernicus products to quarantine."""
         from services.weather_pipeline.copernicus_validator import quarantine_invalid_copernicus_products_helper
         return quarantine_invalid_copernicus_products_helper(self)
-

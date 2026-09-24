@@ -274,3 +274,29 @@ def test_T7_the_kill_switch_restores_the_previous_behaviour_exactly():
     assert code == OK
     assert not any("::error::" in l for l in lines)
     assert any("WE LOSE" in l for l in lines), "the table must still print when the gate is off"
+
+
+def test_mismatched_observation_pairs_refuse_and_report_exclusions():
+    target = (ARMED - timedelta(days=1)).isoformat()
+    common = {"buoy_id": "B1", "target_time": target, "lead_h": 24,
+              "hs_m": 1.0, "obs_time": target}
+    rows = [{**common, "source": "raw_surf", "obs_hs_m": 1.0, "err_m": 0.0},
+            {**common, "source": "persistence", "obs_hs_m": 2.0, "err_m": -1.0}]
+    code, lines = evaluate_scored_segment(rows, ARMED)
+    assert code == REFUSED
+    assert any("1 mismatched observations" in line for line in lines)
+    assert any("0 verified pairs" in line for line in lines)
+    assert not any("we win" in line for line in lines)
+
+
+def test_matching_observations_still_allow_the_real_skill_floor_verdict():
+    target = (ARMED - timedelta(days=1)).isoformat()
+    common = {"buoy_id": "B1", "target_time": target, "lead_h": 24,
+              "obs_hs_m": 1.0, "obs_time": target}
+    rows = [{**common, "source": "raw_surf", "hs_m": 1.1, "err_m": .1},
+            {**common, "source": "persistence", "hs_m": 1.3, "err_m": .3}]
+    cfg = default_cfg()
+    cfg["paired_min_n"] = 1
+    code, lines = evaluate_scored_segment(rows, ARMED, cfg=cfg)
+    assert code == OK
+    assert any("we win" in line for line in lines)

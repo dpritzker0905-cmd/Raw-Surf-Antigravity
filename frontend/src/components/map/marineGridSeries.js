@@ -23,6 +23,7 @@
 
 import { API_BASE } from '../../lib/apiClient';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
+import { seriesAnchorTag, seriesAnchorParam } from './seriesAnchor';
 import { frameToMarineData } from './marineSeriesFrame';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { padRegionalBbox, normalizeRequestBbox, bboxContains } from './marineBboxGeometry';
@@ -205,8 +206,18 @@ function viewportKey(bounds) {
   return `${r(w)}_${r(bounds.south)}_${r(e)}_${r(bounds.north)}`;
 }
 
+// F-01 (audit 14.0): the ANCHOR is part of the identity of a cached page.
+// A page holds frames addressed by hour OFFSET, so the same key under a different anchor names a
+// different absolute time. Without it, a page still warm across an hour rollover served the
+// previous hour's frames under today's offsets — the cache silently answered the wrong absolute
+// time. Granularity is the hour, so this adds one key per hour, not one per request.
+//
+// `seriesAnchorTag` / `seriesAnchorParam` moved to ./seriesAnchor so the WIND lane could use the
+// identical pair rather than grow its own copy — recreating the two-independent-clocks shape that
+// F-01 was about. That module also documents why it is separate from backendWeatherServiceClient
+// and why neither helper may ever throw.
 function pageKey(model, layer, bounds, page) {
-  return `${model || 'GFS'}_${layer || 'waves'}_${getSurfModeFlag() ? 'surf' : 'swell'}_${viewportKey(bounds)}_p${page}`;
+  return `${model || 'GFS'}_${layer || 'waves'}_${getSurfModeFlag() ? 'surf' : 'swell'}_${viewportKey(bounds)}_p${page}${seriesAnchorTag()}`;
 }
 
 
@@ -281,6 +292,11 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
     + `&domain=marine&layer=${encodeURIComponent(layer || 'waves')}`
     + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
     + `&hours=${hours.join(',')}`
+    // F-01 (audit 14.0): transmit the absolute anchor the hour offsets are measured from. Without
+    // it the backend floored its own clock while this client rounds its own, so the committed frame
+    // could sit one hour off the requested hour for half of every hour. Backend validates + bounds
+    // it and reports `base_time_source`; an older backend ignores the param (additive).
+    + seriesAnchorParam()
     + (surfFlavor ? '&surf=1' : '');
 
   // Local timeout so a slow model (EURO/Copernicus) can't leave the series fetch hanging.
@@ -442,6 +458,7 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
     + `&domain=marine&layer=${encodeURIComponent(layer || 'waves')}`
     + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
     + `&hours=${h}`
+    + seriesAnchorParam()   // F-01: same anchor as the paged lane
     + (surfFlavor ? '&surf=1' : '');
   const localController = new AbortController();
   const onCallerAbort = () => { try { localController.abort(); } catch (e) { /* ignore */ } };

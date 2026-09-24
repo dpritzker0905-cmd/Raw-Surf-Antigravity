@@ -1,0 +1,42 @@
+{
+  "measuredAt": "2026-09-20T16:14:06.801Z",
+  "baseline": "d82032f5",
+  "candidateSource": "2488c987 (PR22, included PR23)",
+  "decoderVersion": "0.0.19",
+  "caveat": "Offline actual-source fixture. No network, GPU, browser or live failure attribution.",
+  "current": {
+    "beforeProvider": {
+      "demandSettled": true,
+      "decoderSettled": true,
+      "providerCalls": 1
+    },
+    "requestedNetworkUrls": [
+      "https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/latest.json?skip_intercept=true"
+    ],
+    "returnedReferenceTime": "2026-09-19T06:00:00Z",
+    "eventualCacheReferenceTime": "2026-09-19T12:00:00Z",
+    "decodedUrl": "om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/2026/09/19/0600Z/2026-09-19T0700.om?variable=wave_height&webgl_fallback=true",
+    "repeatedDecodedUrl": "om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/2026/09/19/0600Z/2026-09-19T0700.om?variable=wave_height&webgl_fallback=true",
+    "changed": 1,
+    "warmManifestPreservesProviderExtension": false,
+    "incompleteManifestMarkedLive": true
+  },
+  "pr22": {
+    "beforeProvider": {
+      "demandSettled": false,
+      "decoderSettled": false,
+      "providerCalls": 2
+    },
+    "requestedNetworkUrls": [
+      "https://openmeteo.s3.amazonaws.com/data_spatial/ncep_gfswave025/latest.json?skip_intercept=true",
+      "https://openmeteo.s3.amazonaws.com/data_spatial/ncep_gfswave025/latest.json"
+    ],
+    "returnedReferenceTime": "2026-09-19T12:00:00Z",
+    "eventualCacheReferenceTime": "2026-09-19T12:00:00Z",
+    "decodedUrl": "om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/2026/09/19/1200Z/2026-09-19T1300.om?variable=wave_height&webgl_fallback=true",
+    "repeatedDecodedUrl": "om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/2026/09/19/1200Z/2026-09-19T1300.om?variable=wave_height&webgl_fallback=true",
+    "changed": 1,
+    "warmManifestPreservesProviderExtension": true,
+    "incompleteManifestMarkedLive": false
+  }
+}

@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="16" time="22.044" timestamp="2026-09-20T16:33:50.362038-04:00" hostname="DESKTOP-MCNC85Q"><testcase classname="tests.test_capabilities_contract" name="test_capabilities_contract" time="0.022" /><testcase classname="tests.test_capabilities_contract" name="test_product_manifest_alignment_audit" time="0.035" /><testcase classname="tests.test_capabilities_contract" name="test_euro_native_capability_matches_normalized_served_grid[waves-open-meteo-ecmwf]" time="0.114"><failure message="AssertionError: ({'backend_owned': True, 'cadence_hours': 3, 'domain': 'marine', 'estimated_horizon_hours': 96, ...}, 'ecmwf_wam025')&#10;assert False&#10; +  where False = _native_source_matches({'backend_owned': True, 'cadence_hours': 3, 'domain': 'marine', 'estimated_horizon_hours': 96, ...}, {'cache_hit': None, 'cache_key': None, 'coarse_fill': None, 'coordinate_count': None, ...})">tmp_path = WindowsPath('C:/Users/dprit/AppData/Local/Temp/pytest-of-dprit/pytest-594/test_euro_native_capability_ma0')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x00000236BDE60C30&gt;
+layer = 'waves', provider = 'open-meteo', fetched_by = 'ecmwf'
+
+    @pytest.mark.parametrize("layer,provider,fetched_by", [
+        ("waves", "open-meteo", "ecmwf"),
+        ("waves", "open-meteo", "open-meteo"),
+        ("waves", "copernicus", "copernicus"),
+        ("swell_1", "copernicus", "copernicus"),
+        ("swell_2", "copernicus", "copernicus"),
+        ("wind_waves", "copernicus", "copernicus"),
+    ])
+    def test_euro_native_capability_matches_normalized_served_grid(
+            tmp_path, monkeypatch, layer, provider, fetched_by):
+        """Exercise the real normalizer -&gt; disk/manifest -&gt; HTTP grid resolver contract."""
+        from routes import weather
+        from services.weather_pipeline.normalizer import WeatherNormalizer
+        from services.weather_pipeline import store as store_module
+    
+        monkeypatch.setenv("TESTING", "1")
+        monkeypatch.setattr(store_module, "_get_supabase_storage", lambda: None)
+        monkeypatch.setattr(store_module.ProductStore, "_product_cache", {})
+        monkeypatch.setattr(store_module.ProductStore, "_product_cache_vectors", {})
+        monkeypatch.setattr(store_module.ProductStore, "_cached_manifest", None)
+        local_store = store_module.ProductStore(cache_dir=tmp_path)
+        monkeypatch.setattr(weather, "store", local_store)
+        monkeypatch.setattr(weather.viewport_service, "is_viewport_enabled", lambda *a, **k: False)
+        valid = datetime(2035, 1, 1, 12, tzinfo=timezone.utc)
+        variables = WeatherNormalizer.LAYER_VARS[layer]
+        raw = [{
+            "latitude": lat, "longitude": lon, "__provider": fetched_by,
+            "hourly": {"time": [valid.strftime("%Y-%m-%dT%H:%M:%SZ")], variables["speed"]: [2.0],
+                       variables["direction"]: [180.0], variables["period"]: [10.0]},
+        } for lat in (26, 27) for lon in (-81, -80)]
+        product = WeatherNormalizer().normalize(
+            model="EURO", provider=provider, domain="marine", layer=layer,
+            raw_results=raw, bbox={"west": -81, "south": 26, "east": -80, "north": 27},
+            resolution=1.0, target_time=valid, run_time=valid,
+            region_id="capability_test", coverage_mode="regional_tile",
+        )
+        assert product is not None and product.is_estimated is False
+        filename = local_store.save_product(product, resolution=1.0)
+        assert filename
+        response = client.get("/api/weather/grid", params={
+            "model": "EURO", "domain": "marine", "layer": layer,
+            "valid_time": valid.isoformat(),
+        })
+        assert response.status_code == 200, response.text
+        served = response.json()
+        assert served["product_id"] == filename
+        assert served["provider"] == provider
+        assert served["upstream_provider"] == fetched_by
+        assert served["is_estimated"] is False
+        assert len(served["grid"]["vectors"]) == 4
+        row = next(row for row in client.get("/api/weather/capabilities").json()
+                   if (row["model"], row["domain"], row["layer"]) == ("EURO", "marine", layer))
+&gt;       assert _native_source_matches(row, served), (row, served["upstream_model"])
+E       AssertionError: ({'backend_owned': True, 'cadence_hours': 3, 'domain': 'marine', 'estimated_horizon_hours': 96, ...}, 'ecmwf_wam025')
+E       assert False
+E        +  where False = _native_source_matches({'backend_owned': True, 'cadence_hours': 3, 'domain': 'marine', 'estimated_horizon_hours': 96, ...}, {'cache_hit': None, 'cache_key': None, 'coarse_fill': None, 'coordinate_count': None, ...})
+
+tests\test_capabilities_contract.py:259: AssertionError</failure></testcase><testcase classname="tests.test_capabilities_contract" name="test_euro_native_capability_matches_normalized_served_grid[waves-open-meteo-open-meteo]" time="0.034"><failure message="AssertionError: ({'backend_owned': True, 'cadence_hours': 3, 'domain': 'marine', 'estimated_horizon_hours': 96, ...}, 'ecmwf_wam025')&#10;assert False&#10; +  where False = _native_source_matches({'backend_owned': True, 'cadence_hours': 3, 'domain': 'marine', 'estimated_horizon_hours': 96, ...}, {'cache_hit': None, 'cache_key': None, 'coarse_fill': None, 'coordinate_count': None, ...})">tmp_path = WindowsPath('C:/Users/dprit/AppData/Local/Temp/pytest-of-dprit/pytest-594/test_euro_native_capability_ma1')
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x00000236BDE615B0&gt;
+layer = 'waves', provider = 'open-meteo', fetched_by = 'open-meteo'
+
+    @pytest.mark.parametrize("layer,provider,fetched_by", [
+        ("waves", "open-meteo", "ecmwf"),
+        ("waves", "open-meteo", "open-meteo"),
+        ("waves", "copernicus", "copernicus"),
+        ("swell_1", "copernicus", "copernicus"),
+        ("swell_2", "copernicus", "copernicus"),
+        ("wind_waves", "copernicus", "copernicus"),
+    ])
+    def test_euro_native_capability_matches_normalized_served_grid(
+            tmp_path, monkeypatch, layer, provider, fetched_by):
+        """Exercise the real normalizer -&gt; disk/manifest -&gt; HTTP grid resolver contract."""
+        from routes import weather
+        from services.weather_pipeline.normalizer import WeatherNormalizer
+        from services.weather_pipeline import store as store_module
+    
+        monkeypatch.setenv("TESTING", "1")
+        monkeypatch.setattr(store_module, "_get_supabase_storage", lambda: None)
+        monkeypatch.setattr(store_module.ProductStore, "_product_cache", {})
+        monkeypatch.setattr(store_module.ProductStore, "_product_cache_vectors", {})
+        monkeypatch.setattr(store_module.ProductStore, "_cached_manifest", None)
+        local_store = store_module.ProductStore(cache_dir=tmp_path)
+        monkeypatch.setattr(weather, "store", local_store)
+        monkeypatch.setattr(weather.viewport_service, "is_viewport_enabled", lambda *a, **k: False)
+        valid = datetime(2035, 1, 1, 12, tzinfo=timezone.utc)
+        variables = WeatherNormalizer.LAYER_VARS[layer]
+        raw = [{
+            "latitude": lat, "longitude": lon, "__provider": fetched_by,
+            "hourly": {"time": [valid.strftime("%Y-%m-%dT%H:%M:%SZ")], variables["speed"]: [2.0],
+                       variables["direction"]: [180.0], variables["period"]: [10.0]},
+        } for lat in (26, 27) for lon in (-81, -80)]
+        product = WeatherNormalizer().normalize(
+            model="EURO", provider=provider, domain="marine", layer=layer,
+            raw_results=raw, bbox={"west": -81, "south": 26, "east": -80, "north": 27},
+            resolution=1.0, target_time=valid, run_time=valid,
+            region_id="capability_test", coverage_mode="regional_tile",
+        )
+        assert product is not None and product.is_estimated is False
+        filename = local_store.save_product(product, resolution=1.0)
+        assert filename
+        response = client.get("/api/weather/grid", params={
+            "model": "EURO", "domain": "marine", "layer": layer,
+            "valid_time": valid.isoformat(),
+        })
+        assert response.status_code == 200, response.text
+        served = response.json()
+        assert served["product_id"] == filename
+        assert served["provider"] == provider
+        assert served["upstream_provider"] == fetched_by
+        assert served["is_estimated"] is False
+        assert len(served["grid"]["vectors"]) == 4
+        row = next(row for row in client.get("/api/weather/capabilities").json()
+                   if (row["model"], row["domain"], row["layer"]) == ("EURO", "marine", layer))
+&gt;       assert _native_source_matches(row, served), (row, served["upstream_model"])
+E       AssertionError: ({'backend_owned': True, 'cadence_hours': 3, 'domain': 'marine', 'estimated_horizon_hours': 96, ...}, 'ecmwf_wam025')
+E       assert False
+E        +  where False = _native_source_matches({'backend_owned': True, 'cadence_hours': 3, 'domain': 'marine', 'estimated_horizon_hours': 96, ...}, {'cache_hit': None, 'cache_key': None, 'coarse_fill': None, 'coordinate_count': None, ...})
+
+tests\test_capabilities_contract.py:259: AssertionError</failure></testcase><testcase classname="tests.test_capabilities_contract" name="test_euro_native_capability_matches_normalized_served_grid[waves-copernicus-copernicus]" time="0.035" /><testcase classname="tests.test_capabilities_contract" name="test_euro_native_capability_matches_normalized_served_grid[swell_1-copernicus-copernicus]" time="0.029" /><testcase classname="tests.test_capabilities_contract" name="test_euro_native_capability_matches_normalized_served_grid[swell_2-copernicus-copernicus]" time="0.029" /><testcase classname="tests.test_capabilities_contract" name="test_euro_native_capability_matches_normalized_served_grid[wind_waves-copernicus-copernicus]" time="0.034" /><testcase classname="tests.test_capabilities_contract" name="test_euro_source_policy_preserves_horizon_and_marks_response_authority[waves]" time="0.001" /><testcase classname="tests.test_capabilities_contract" name="test_euro_source_policy_preserves_horizon_and_marks_response_authority[swell_1]" time="0.001" /><testcase classname="tests.test_capabilities_contract" name="test_euro_source_policy_preserves_horizon_and_marks_response_authority[swell_2]" time="0.001" /><testcase classname="tests.test_capabilities_contract" name="test_euro_source_policy_preserves_horizon_and_marks_response_authority[wind_waves]" time="0.001" /><testcase classname="tests.test_capabilities_contract" name="test_euro_source_contract_rejects_missing_native_source_declaration" time="0.001" /><testcase classname="tests.test_capabilities_contract" name="test_euro_source_contract_rejects_unusable_provenance[incomplete_source-incomplete source]" time="0.001" /><testcase classname="tests.test_capabilities_contract" name="test_euro_source_contract_rejects_unusable_provenance[missing_upstream-needs upstream_providers]" time="0.001" /><testcase classname="tests.test_capabilities_contract" name="test_euro_source_contract_rejects_unusable_provenance[wrong_authority-provenance_policy must use product_response]" time="0.002" /></testsuite></testsuites>

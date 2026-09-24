@@ -75,6 +75,7 @@ CHAIN_MODULES = [
     "services/weather_pipeline/surf_height_convention.py",
     CLIMATOLOGY,
     WAVE_PHYSICS,
+    "services/weather_pipeline/grid_resolver_selection.py",  # WP-2 registered coverage policy
 ]
 
 # (module, name) -> (category, why). SHRINK-ONLY. Frozen 2026-08-08 at 42 entries.

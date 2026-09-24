@@ -1,0 +1,29 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_ test_regional_must_be_finer_same_frame_and_known_resolution[coarser_than_mid] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002077F24BBB0>
+change = 'coarser_than_mid'
+
+    @pytest.mark.parametrize("change", ["older", "coarser", "coarser_than_mid", "nan_resolution", "missing_resolution"])
+    def test_regional_must_be_finer_same_frame_and_known_resolution(monkeypatch, change):
+        from datetime import timedelta
+        store = Store()
+        regional = store.items[1]
+        if change == "older":
+            regional.valid_time_start -= timedelta(hours=3)
+        else:
+            regional.resolution = {"coarser": 20, "coarser_than_mid": 4, "nan_resolution": float("nan"), "missing_resolution": None}[change]
+        result = resolve(monkeypatch, "-81.93,26.5,-78.97,29.2", store=store)
+>       assert result.product_id == "global_mid.json"
+E       AssertionError: assert 'florida.json' == 'global_mid.json'
+E         
+E         - global_mid.json
+E         + florida.json
+
+tests\test_regional_edge_selection.py:179: AssertionError
+ENVIRONMENT IS NOT THE DECLARED ONE: python 3.14 != declared 3.12; 28 of 46 pins differ; 7 declared packages absent; not in a virtualenv
+  => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
+=========================== short test summary info ===========================
+FAILED tests/test_regional_edge_selection.py::test_regional_must_be_finer_same_frame_and_known_resolution[coarser_than_mid]
+1 failed, 29 deselected in 2.35s

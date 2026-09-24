@@ -1,0 +1,26 @@
+{
+  "method": "Exact extracted CI JavaScript; only fs input/process exit substituted",
+  "source_receipt": "../frontend-gate.json",
+  "controls": [
+    {
+      "name": "healthy",
+      "gate_exit": 0,
+      "expected_exit": 0
+    },
+    {
+      "name": "one_pass_below_floor",
+      "gate_exit": 1,
+      "expected_exit": 1
+    },
+    {
+      "name": "one_suite_below_floor",
+      "gate_exit": 1,
+      "expected_exit": 1
+    },
+    {
+      "name": "failed_test",
+      "gate_exit": 1,
+      "expected_exit": 1
+    }
+  ]
+}

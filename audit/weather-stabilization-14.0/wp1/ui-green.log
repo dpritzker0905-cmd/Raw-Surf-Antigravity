@@ -1,0 +1,13 @@
+PASS src/components/map/ForecastTimeStatus.test.js
+  √ shows a spoken time mismatch in light theme (36 ms)
+  √ shows a spoken time mismatch in dark theme (4 ms)
+  √ shows a spoken time mismatch in beach theme (4 ms)
+  √ clears the warning when the selected response catches up without another user action (4 ms)
+  √ does not attribute an old model or layer diagnostic to the current selection (1 ms)
+  √ does not claim an unverified render diagnostic proves a stale field (3 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       6 passed, 6 total
+Snapshots:   0 total
+Time:        1.283 s, estimated 2 s
+Ran all test suites within paths "src/components/map/ForecastTimeStatus.test.js".

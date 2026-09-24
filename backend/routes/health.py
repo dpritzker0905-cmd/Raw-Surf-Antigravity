@@ -144,6 +144,17 @@ async def health_check(
     except Exception as e:            # an instrument must never break the thing it observes
         logger.warning(f"[health] memory probe failed: {e}")
 
+    # LEAK TRACE (2026-09-21). rss_mb above is a POINT; the open question is a SLOPE — whether the
+    # degradation that a restart cleared tracks process uptime. Two snapshots of two different
+    # processes cannot answer that, so the scheduler samples this process every 5 minutes and the
+    # summary is published here. `growing` lists only the gauges that MOVED, so a flat bounded
+    # control is visible by its absence there while still present in the raw series.
+    try:
+        from services import memory_trace
+        memory["trace"] = memory_trace.growth_summary()
+    except Exception as e:
+        logger.warning(f"[health] memory trace summary failed: {e}")
+
     # ── the configuration fingerprint (MC-09, 2026-08-15) ────────────────────────────────────────
     # A redacted identity for the resolved flag registry: hash + counts, never values. Two boxes
     # or two moments can be told apart during an incident without a flag crossing the wire. Same

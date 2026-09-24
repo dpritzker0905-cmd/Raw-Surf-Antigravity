@@ -1,0 +1,44 @@
+FAIL src/components/map/marineGlobalPrewarm.seriesReuse.test.js
+  × a cold miss leaves target-time resolution to the ordinary grid fetch (7 ms)
+  ○ skipped reuses exact-hour GFS world series through the actual controller cache
+  ○ skipped reuses exact-hour ICON world series through the actual controller cache
+  ○ skipped reuses exact-hour EURO world series through the actual controller cache
+  ○ skipped settled exact-hour steps reuse the warm page without per-hour global grids
+  ○ skipped an old h0 frame cannot populate requested h1 cache or seed
+  ○ skipped an old h0 frame cannot populate requested h3 cache or seed
+  ○ skipped does not relabel a same-offset frame with earlier valid time
+  ○ skipped does not relabel a same-offset frame with earlier served time
+  ○ skipped does not relabel a same-offset frame with missing valid time
+  ○ skipped does not relabel a same-offset frame with invalid valid time
+  ○ skipped does not relabel a same-offset frame with substituted frame
+  ○ skipped does not reuse a world series with different model identity
+  ○ skipped does not reuse a world series with different layer identity
+  ○ skipped does not reuse a world series with different flavor identity
+  ○ skipped same relative hour from an earlier timeline base does not become the new valid time
+  ○ skipped a regional series frame cannot replace the world bridge seed
+  ○ skipped a warm controller result remains preferred over the series alternative
+
+  ● a cold miss leaves target-time resolution to the ordinary grid fetch
+
+    expect(jest.fn()).not.toHaveBeenCalled()
+
+    Expected number of calls: 0
+    Received number of calls: 2
+
+    1: 3, "waves", "GFS"
+    2: 3, "waves", "GFS"
+
+      163 |   // The client's own fetch resolves its target internally. The prewarm need not call this
+      164 |   // exported function (which can refresh manifests) when there is no candidate to compare.
+    > 165 |   expect(resolveTime).not.toHaveBeenCalled();
+          |                           ^
+      166 | });
+      167 |
+
+      at Object.<anonymous> (src/components/map/marineGlobalPrewarm.seriesReuse.test.js:165:27)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 17 skipped, 18 total
+Snapshots:   0 total
+Time:        1.676 s, estimated 2 s
+Ran all test suites matching /marineGlobalPrewarm.seriesReuse.test.js/i with tests matching "cold miss".

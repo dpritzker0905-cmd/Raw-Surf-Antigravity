@@ -1,0 +1,1043 @@
+(node:39700) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Creating an optimized production build...
+Compiled with warnings.
+
+[eslint] 
+src\admin\advanced\EventGraphExplorer.tsx
+  Line 130:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 144:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\admin\advanced\SimulationEngine.tsx
+  Line 149:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 184:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\admin\advanced\SocialIntelligencePanel.tsx
+  Line 194:21:  Redundant alt attribute. Screen-readers already announce `img` tags as an image. You don’t need to use the words `image`, `photo,` or `picture` (or any specified custom words) in the alt prop  jsx-a11y/img-redundant-alt
+
+src\admin\components\AdminQueue.tsx
+  Line 121:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 133:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 147:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\admin\components\EventCard.tsx
+  Line 38:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 38:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\admin\components\EventInbox.tsx
+  Line 108:19:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 108:19:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\AIProposedMatches.js
+  Line 157:9:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 157:9:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\ActiveSessionBanner.js
+  Line 84:7:    Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 84:7:    Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 128:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 128:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\Auth.js
+  Line 256:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 256:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 603:21:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 603:21:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\BottomNav.js
+  Line 90:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\ConditionsModal.js
+  Line 373:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 544:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\CreateAdModal.js
+  Line 217:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 284:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 301:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 332:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 346:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 359:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 382:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\CreatePost.js
+  Line 309:17:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 421:21:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 421:21:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\CreateWaveModal.js
+  Line 239:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 239:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 389:17:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+  Line 406:17:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+
+src\components\CrewChat.js
+  Line 330:21:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 330:21:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 626:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 626:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\CrewPaymentModal.js
+  Line 299:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 299:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\EmojiPicker.js
+  Line 167:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 167:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\ExactTimeSlotPicker.js
+  Line 230:9:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 275:11:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 330:11:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\ExploreSpotCard.js
+  Line 163:11:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 174:13:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 338:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 338:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 395:21:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 395:21:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\GalleryGrid.js
+  Line 56:5:    Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 56:5:    Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 90:11:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 90:11:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 129:11:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 137:11:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\GoLiveModal.js
+  Line 311:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 311:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\GromHQ.js
+  Line 735:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\GromManage.js
+  Line 349:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 362:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\ImpactDashboard.js
+  Line 516:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\ImpactZoneHub.js
+  Line 380:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 387:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 395:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\JumpInSessionModal.js
+  Line 176:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 176:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\LivePhotographers.js
+  Line 60:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 60:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\LiveStreamViewer.js
+  Line 494:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 494:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\MediaGridItem.js
+  Line 21:5:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 21:5:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 29:13:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 37:11:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\NotificationsDrawer.js
+  Line 265:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 265:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\NotificationsPage.js
+  Line 311:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 311:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\OnDemandSessionManager.js
+  Line 635:23:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 635:23:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\OnDemandSettingsPage.js
+  Line 520:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\PersonaMaskBanner.js
+  Line 314:9:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 314:9:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\PhotoToolsDrawer.js
+  Line 315:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 315:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\PhotoUploadModal.js
+  Line 257:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 257:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\PhotographerDirectory.js
+  Line 195:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 219:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 246:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\PhotographerGalleryManager.js
+  Line 563:19:  Non-interactive elements should not be assigned mouse or keyboard event listeners  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\PhotographerSessionDashboard.js
+  Line 114:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 114:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 238:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 238:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 308:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 308:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 325:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\PhotographerSubscriptionSettings.js
+  Line 239:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 243:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 267:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 286:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 307:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\PostCard.js
+  Line 144:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 144:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 154:19:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 369:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 369:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 441:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 441:17:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 447:19:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 447:19:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\PostModal.js
+  Line 338:7:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 360:7:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 360:7:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 367:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 367:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 397:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 397:15:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 441:21:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 441:21:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 481:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 481:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 490:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 490:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\ProfileBlockModal.js
+  Line 35:11:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 48:11:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\ProfileEditModal.js
+  Line 46:13:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 56:13:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 67:13:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 78:13:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 89:13:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 111:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 140:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 152:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\PublicPhotographerGallery.js
+  Line 225:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 225:17:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 515:17:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+  Line 634:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 634:17:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 643:19:  Redundant alt attribute. Screen-readers already announce `img` tags as an image. You don’t need to use the words `image`, `photo,` or `picture` (or any specified custom words) in the alt prop    jsx-a11y/img-redundant-alt
+
+src\components\ReviewModal.js
+  Line 379:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\RichText.js
+  Line 207:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 263:7:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 263:7:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\SavedCrewSelector.js
+  Line 241:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 371:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\SessionChatDrawer.js
+  Line 388:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 388:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\Sidebar.js
+  Line 175:5:  Non-interactive elements should not be assigned mouse or keyboard event listeners  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\SinglePost.js
+  Line 566:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 566:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 570:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 570:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\SpotConditions.js
+  Line 587:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 607:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 625:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 642:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 659:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 677:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\SpotHub.js
+  Line 341:11:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 652:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 652:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 662:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 662:11:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\SpotSelector.js
+  Line 371:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 389:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\SpotVerificationNudge.js
+  Line 197:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 207:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\StokedTab.js
+  Line 236:19:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 236:19:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\SurfAlerts.js
+  Line 419:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\SurfLog.js
+  Line 222:18:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 224:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 234:18:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 236:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 250:20:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 251:20:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 257:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 266:20:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 267:20:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 273:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 286:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 292:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\SurfPassport.js
+  Line 220:7:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 220:7:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 410:23:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 410:23:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\SurfboardsTab.js
+  Line 137:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 137:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\SurferRosterCard.js
+  Line 211:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 211:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\TaggedPhotoModal.js
+  Line 271:11:  Redundant alt attribute. Screen-readers already announce `img` tags as an image. You don’t need to use the words `image`, `photo,` or `picture` (or any specified custom words) in the alt prop  jsx-a11y/img-redundant-alt
+
+src\components\ThePeakHub.js
+  Line 397:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 397:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\TopNav.js
+  Line 253:9:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 253:9:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\UnifiedSpotDrawer.js
+  Line 514:23:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 514:23:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 758:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 758:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 768:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 768:11:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\ViolationBanner.js
+  Line 156:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 156:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\WavesFeed.js
+  Line 141:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 141:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 305:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 305:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\WebcamCaptureModal.js
+  Line 434:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 434:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\XPLeaderboard.js
+  Line 198:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 198:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\admin\AdminAccessControlPanel.js
+  Line 76:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\admin\AdminCommunicationsDashboard.js
+  Line 436:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 440:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 445:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 457:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 487:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 491:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 495:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 500:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 511:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 541:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 545:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 549:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 554:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 564:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\admin\AdminComplianceDashboard.js
+  Line 624:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 633:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\admin\AdminContentMgmtDashboard.js
+  Line 550:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 562:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 567:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 578:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 600:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 604:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 608:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 613:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 624:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 653:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 657:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 661:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 682:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 687:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 698:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 721:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 725:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 738:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 742:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\admin\AdminContentModDashboard.js
+  Line 369:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\admin\AdminP1Dashboard.js
+  Line 322:25:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 322:25:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 531:25:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 531:25:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\admin\AdminPricingEditor.js
+  Line 495:37:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 495:37:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\admin\AdminSessionsPanel.js
+  Line 178:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 201:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 224:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 236:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 272:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\admin\AdminSpotEditor.js
+  Line 610:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 610:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\admin\AdminSpotsPanel.js
+  Line 479:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 488:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 496:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 506:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 514:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 525:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 535:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 546:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\admin\AdminSupportDashboard.js
+  Line 255:19:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 255:19:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\admin\analytics\GrowthToolsPanel.js
+  Line 239:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 244:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 272:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 276:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 280:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 297:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 301:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 305:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\admin\p1\AdminP1ComplianceTab.js
+  Line 252:19:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 252:19:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 303:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 303:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\admin\p1\AdminP1TestAccountsTab.js
+  Line 36:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\alerts\SurfAlertModal.js
+  Line 140:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 156:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 173:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 209:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 255:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\booking\ScheduledBookingHelpers.js
+  Line 92:3:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 92:3:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\booking\impact-zone\LocationDropdowns.js
+  Line 32:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 54:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\bookings\AvailabilityModal.js
+  Line 76:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\bookings\DirectoryTab.js
+  Line 341:13:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+  Line 360:13:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+  Line 382:13:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+  Line 713:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 713:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\bookings\OnDemandTab.js
+  Line 392:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 392:17:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\bookings\PastTab.js
+  Line 202:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 202:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\bookings\SessionDetailDrawer.js
+  Line 227:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 227:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 241:9:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 241:9:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\calendar\DayCell.js
+  Line 28:5:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 28:5:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 59:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\create-post\SessionConditionsPanel.js
+  Line 71:21:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 80:21:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 89:21:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 107:23:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 118:23:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 128:23:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 151:23:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 161:23:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 184:23:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 197:23:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\explore\BrowseMode.js
+  Line 61:11:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 83:13:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 106:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\explore\ExploreConditionsTab.js
+  Line 142:13:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+  Line 163:15:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+  Line 185:15:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+  Line 317:21:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 317:21:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 429:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 429:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\explore\ExplorePeopleTab.js
+  Line 74:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 74:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\explore\ExplorePostsTab.js
+  Line 54:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 54:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\explore\ExploreSearchResults.js
+  Line 51:15:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 51:15:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 91:15:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 91:15:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 100:21:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 146:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 146:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\explore\ExploreSponsorsTab.js
+  Line 46:15:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 46:15:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 102:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 102:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\explore\ExploreTrending.js
+  Line 48:15:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 48:15:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 93:17:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 93:17:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 103:21:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 126:23:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 208:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 208:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\explore\ExploreWavesTab.js
+  Line 72:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 72:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\explore\HashtagsTab.js
+  Line 70:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 70:17:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\explore\PostMediaPreview.js
+  Line 27:11:  Non-interactive elements should not be assigned mouse or keyboard event listeners  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\feed\ReactionPicker.js
+  Line 31:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 31:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 73:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 73:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\gallery\AssignDrawerModal.js
+  Line 53:19:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 53:19:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\gallery\FindMeModal.js
+  Line 152:15:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 204:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 213:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 222:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\gallery\GalleryFolderList.js
+  Line 63:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 63:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 78:23:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 89:23:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\gallery\GalleryFolderModals.js
+  Line 296:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 296:17:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\gallery\GalleryItemCard.js
+  Line 20:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 20:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\gallery\GalleryItemModal.js
+  Line 306:15:  Non-interactive elements should not be assigned mouse or keyboard event listeners  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\gallery\GalleryLightbox.js
+  Line 170:5:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 170:5:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 277:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 277:13:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 297:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 297:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\gallery\GromHighlightsCard.js
+  Line 102:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 102:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\gallery\LinkSessionModal.js
+  Line 48:19:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 48:19:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\gallery\PhotographerLightbox.js
+  Line 16:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 16:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 54:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 54:7:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\gallery\ProStudioManager.js
+  Line 226:17:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+  Line 254:19:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+  Line 291:17:  A form label must have accessible text                                                                                                                                                             jsx-a11y/label-has-associated-control
+  Line 304:17:  A form label must have accessible text                                                                                                                                                             jsx-a11y/label-has-associated-control
+  Line 321:19:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+  Line 552:19:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 552:19:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\gallery\SessionRosterCard.js
+  Line 54:7:    Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 54:7:    Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 248:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 248:17:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 329:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 329:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 330:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 330:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\gallery\TaggingAssignModal.js
+  Line 41:17:   Redundant alt attribute. Screen-readers already announce `img` tags as an image. You don’t need to use the words `image`, `photo,` or `picture` (or any specified custom words) in the alt prop    jsx-a11y/img-redundant-alt
+  Line 76:21:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 76:21:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 141:23:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 141:23:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\gallery\UploadPhotoModal.js
+  Line 393:19:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 393:19:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\lineup\EmptySeat.js
+  Line 15:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 15:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\map\FeaturedPhotographersPanel.js
+  Line 41:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 41:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\map\MapWeatherControls.js
+  Line 669:9:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 669:9:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 845:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 845:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\map\MarineAnimTuner.js
+  Line 156:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\map\NearestSpotCard.js
+  Line 68:9:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 68:9:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\map\PhotographerBottomSheet.js
+  Line 20:9:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 20:9:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\map\RequestProModal.js
+  Line 108:3:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 108:3:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 441:13:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+  Line 473:13:  A form label must be associated with a control                                                                                                                                                     jsx-a11y/label-has-associated-control
+
+src\components\messages\ChatViewPanel.js
+  Line 78:13:  Non-interactive elements should not be assigned mouse or keyboard event listeners  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\messages\ComposeModal.js
+  Line 149:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 149:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 150:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 150:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\messages\ConversationItem.js
+  Line 92:13:  Non-interactive elements should not be assigned mouse or keyboard event listeners  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\messages\CreateNoteModal.js
+  Line 47:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 47:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 48:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 48:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\messages\EmojiPicker.js
+  Line 77:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 77:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\messages\InCallView.js
+  Line 82:5:    Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 82:5:    Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 388:5:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 388:5:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 490:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 490:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 552:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 552:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\messages\MessageBubble.js
+  Line 96:15:   Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 186:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 186:9:   Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 240:5:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 316:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 316:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\messages\StoryBubble.js
+  Line 47:17:  Non-interactive elements should not be assigned mouse or keyboard event listeners  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\messages\ViewNoteModal.js
+  Line 46:5:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 46:5:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 47:7:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 47:7:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 55:15:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\on-demand\ActiveSessionCard.js
+  Line 151:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 151:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 174:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 174:17:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\on-demand\IncomingRequestCard.js
+  Line 345:7:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 345:7:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 349:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 349:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 437:25:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 437:25:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 470:27:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 470:27:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 529:7:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 529:7:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 533:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 533:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\on-demand\OnDemandSettingsTab.js
+  Line 148:19:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\on-demand\SurfboardAvatar.js
+  Line 76:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 76:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\profile\ProfileActionButtons.js
+  Line 149:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 149:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\profile\ProfileHeaderSection.js
+  Line 60:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 60:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\sessions\ParticipantCard.js
+  Line 194:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 194:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 198:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 198:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\settings\PasswordSecurityCard.js
+  Line 81:13:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 94:13:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 111:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\social\CommentWithReaction.js
+  Line 187:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 187:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 205:21:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 205:21:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 234:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 234:17:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 289:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 289:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\social\MediaPreviewCarousel.js
+  Line 29:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\social\PostCardMedia.js
+  Line 168:5:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 191:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 191:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 242:21:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 321:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 321:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 361:9:   Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\social\PostModalComponents.js
+  Line 129:5:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 129:5:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 160:7:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 160:7:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 164:9:   Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 164:9:   Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 191:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 351:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 351:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 366:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 366:17:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\social\PostModalMobileView.js
+  Line 77:7:    Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 77:7:    Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 165:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 165:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 170:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 170:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 289:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 289:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 295:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 295:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 334:23:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 334:23:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 347:27:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 347:27:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\social\ReactionIcon.js
+  Line 24:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 30:9:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 47:9:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\social\ReplyItem.js
+  Line 55:11:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 55:11:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 73:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 73:17:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\spot-drawer\SpotDrawerHelpers.js
+  Line 41:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 41:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\spot-drawer\SpotReportContent.js
+  Line 142:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 142:17:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 228:15:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 228:15:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 357:27:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 357:27:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 375:19:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 375:19:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 376:21:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+  Line 395:19:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 395:19:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 396:21:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\spot-drawer\SpotSetupPanel.js
+  Line 73:9:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 93:9:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\spot-hub\PhotographerRequestModal.js
+  Line 98:11:   A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 123:11:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 143:11:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 163:11:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 181:11:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\spot-hub\SpotHubConditionsTab.js
+  Line 86:17:  Visible, non-interactive elements with click handlers must have at least one keyboard listener  jsx-a11y/click-events-have-key-events
+  Line 86:17:  Non-interactive elements should not be assigned mouse or keyboard event listeners               jsx-a11y/no-noninteractive-element-interactions
+
+src\components\spot-hub\SpotHubIntelTab.js
+  Line 128:9:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 128:9:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\spot-hub\SpotHubLivePulse.js
+  Line 42:13:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 42:13:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\spot-hub\SpotHubMediaTab.js
+  Line 11:3:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 11:3:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+  Line 12:5:  Non-interactive elements should not be assigned mouse or keyboard event listeners                                                                                                                  jsx-a11y/no-noninteractive-element-interactions
+
+src\components\stories\CreateStoryModal.js
+  Line 236:17:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+  Line 261:13:  A form label must be associated with a control  jsx-a11y/label-has-associated-control
+
+src\components\stories\StoryViewer.js
+  Line 116:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 116:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\surfboards\SurfboardCard.js
+  Line 11:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 11:5:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\surfer-gallery\GalleryItemCard.js
+  Line 181:7:  Visible, non-interactive elements with click handlers must have at least one keyboard listener                                                                                                     jsx-a11y/click-events-have-key-events
+  Line 181:7:  Avoid non-native interactive elements. If using native HTML is not possible, add an appropriate role and support for tabbing, mouse, keyboard, and touch inputs to an interactive content element  jsx-a11y/no-static-element-interactions
+
+src\components\ui\ResponsiveImage.js
+  Line 56:5:  Visible, non-interactive elements with click handlers must have at least one keyboard listener  jsx-a11y/click-events-have-key-events
+  Line 56:5:  Non-interactive elements should not be assigned mouse or keyboard event listeners               jsx-a11y/no-noninteractive-element-interactions
+
+Search for the keywords to learn more about each warning.
+To ignore, add // eslint-disable-next-line to the line before.
+
+File sizes after gzip:
+
+  396.26 kB  build\static\js\7295.4bf462b1.chunk.js
+  327.46 kB  build\static\js\main.92874a15.js
+  291.79 kB  build\static\js\5866.7d17ccae.chunk.js
+  140.15 kB  build\static\js\508.8b7e68ca.chunk.js
+  106.86 kB  build\static\js\679.edeaf7e1.chunk.js
+  77.8 kB    build\static\js\5655.20a3574b.chunk.js
+  75.31 kB   build\static\js\6769.3981e865.chunk.js
+  53.52 kB   build\static\js\485.3c6fd63b.chunk.js
+  51.92 kB   build\static\js\9130.a56db8de.chunk.js
+  46.02 kB   build\static\js\1139.fe949005.chunk.js
+  42.98 kB   build\static\js\2071.cf95a283.chunk.js
+  40.51 kB   build\static\css\main.a6dabbff.css
+  38.82 kB   build\static\js\6310.575c2abc.chunk.js
+  37.67 kB   build\static\js\4180.1a206170.chunk.js
+  34.91 kB   build\static\js\7987.15b6dace.chunk.js
+  29.64 kB   build\static\js\7271.98ac07ae.chunk.js
+  28.79 kB   build\static\js\8355.37df4b58.chunk.js
+  28.73 kB   build\static\js\7624.b8c1731e.chunk.js
+  27.7 kB    build\static\js\2223.90faf31c.chunk.js
+  26.29 kB   build\static\js\2144.4325f965.chunk.js
+  25.5 kB    build\static\js\3574.63e738b5.chunk.js
+  25.24 kB   build\static\js\847.5a1cb2e5.chunk.js
+  21.68 kB   build\static\js\8970.cb96b46e.chunk.js
+  20.84 kB   build\static\js\6281.0f4601e3.chunk.js
+  19.44 kB   build\static\js\9659.4a92c9f1.chunk.js
+  19.31 kB   build\static\js\1481.ec693356.chunk.js
+  18.51 kB   build\static\js\5501.224ba54f.chunk.js
+  17.56 kB   build\static\js\7730.c4c63129.chunk.js
+  16.38 kB   build\static\css\5866.55efa72d.chunk.css
+  15.26 kB   build\static\js\6000.bb171ca1.chunk.js
+  13 kB      build\static\js\3468.eeb19b7d.chunk.js
+  12.9 kB    build\static\js\9622.15aa93f5.chunk.js
+  11.9 kB    build\static\js\2676.dfa5db9e.chunk.js
+  10.94 kB   build\static\js\4126.9826ba2f.chunk.js
+  10.73 kB   build\static\js\4970.13c8bcd9.chunk.js
+  9.47 kB    build\static\js\1010.4dbc2fae.chunk.js
+  9.38 kB    build\static\js\1296.395dd581.chunk.js
+  8.85 kB    build\static\js\8907.1f1cad25.chunk.js
+  8.58 kB    build\static\js\5792.88e4e904.chunk.js
+  8.21 kB    build\static\js\2582.da9405cd.chunk.js
+  7.49 kB    build\static\js\273.dbfb4913.chunk.js
+  7.39 kB    build\static\js\8482.72035680.chunk.js
+  7.13 kB    build\static\js\4037.248639d6.chunk.js
+  7.12 kB    build\static\js\2195.ebcb2550.chunk.js
+  7.1 kB     build\static\js\7719.24af7868.chunk.js
+  6.96 kB    build\static\js\3802.cee9a591.chunk.js
+  6.77 kB    build\static\js\6453.7fba6de6.chunk.js
+  6.63 kB    build\static\js\4675.4151e3a3.chunk.js
+  6.38 kB    build\static\css\6000.d5a638aa.chunk.css
+  6.38 kB    build\static\css\7745.d5a638aa.chunk.css
+  6.38 kB    build\static\css\7987.d5a638aa.chunk.css
+  6.24 kB    build\static\js\9155.d347be49.chunk.js
+  6.24 kB    build\static\js\4942.1fa588ef.chunk.js
+  5.69 kB    build\static\js\7472.7f34f335.chunk.js
+  5.54 kB    build\static\js\1134.14c5b75e.chunk.js
+  5.28 kB    build\static\js\3648.3e8dbb38.chunk.js
+  5.21 kB    build\static\js\6094.962efd65.chunk.js
+  5.2 kB     build\static\js\9443.db1b7cf9.chunk.js
+  5.15 kB    build\static\js\9303.25a39e31.chunk.js
+  4.97 kB    build\static\js\1299.ee2e0e41.chunk.js
+  4.9 kB     build\static\js\4995.130b6b3d.chunk.js
+  4.8 kB     build\static\js\2306.fcda4d08.chunk.js
+  4.79 kB    build\static\js\6974.d3e5ed93.chunk.js
+  4.7 kB     build\static\js\9179.e1f97a84.chunk.js
+  4.6 kB     build\static\js\1719.15ed40da.chunk.js
+  4.57 kB    build\static\js\3362.3c592fd1.chunk.js
+  4.54 kB    build\static\js\8538.67d3c9c5.chunk.js
+  4.33 kB    build\static\js\2931.cbfff689.chunk.js
+  4.29 kB    build\static\css\508.dbde137d.chunk.css
+  4.26 kB    build\static\js\4519.08a5a639.chunk.js
+  4.03 kB    build\static\js\9670.6a4dff7f.chunk.js
+  4 kB       build\static\js\2267.41b8ebc9.chunk.js
+  3.91 kB    build\static\js\5943.d5b028cb.chunk.js
+  3.64 kB    build\static\js\118.3f771610.chunk.js
+  3.56 kB    build\static\js\6617.25adc254.chunk.js
+  3.53 kB    build\static\js\9446.f8571b15.chunk.js
+  3.51 kB    build\static\js\4231.c19af555.chunk.js
+  3.47 kB    build\static\js\2021.4f24392d.chunk.js
+  3.45 kB    build\static\js\9968.43f49894.chunk.js
+  3.44 kB    build\static\js\5955.79f625fb.chunk.js
+  3.38 kB    build\static\js\1837.c9b3d49f.chunk.js
+  3.37 kB    build\static\js\2987.06056fee.chunk.js
+  3.29 kB    build\static\js\4307.b24bea09.chunk.js
+  3.24 kB    build\static\js\7154.fe8a1bd8.chunk.js
+  3.21 kB    build\static\js\3678.1075e4be.chunk.js
+  3.08 kB    build\static\js\6707.bcc5ea46.chunk.js
+  3 kB       build\static\js\5062.65e94a43.chunk.js
+  2.77 kB    build\static\js\7664.6079973c.chunk.js
+  2.71 kB    build\static\js\4046.683984a8.chunk.js
+  2.69 kB    build\static\js\962.52ce1f9f.chunk.js
+  2.62 kB    build\static\js\7876.0bd3cd24.chunk.js
+  2.59 kB    build\static\js\1895.1bedf132.chunk.js
+  2.55 kB    build\static\js\7766.3d100d70.chunk.js
+  2.25 kB    build\static\js\8659.d6a4b08f.chunk.js
+  2.07 kB    build\static\js\9553.135379b2.chunk.js
+  1.95 kB    build\static\js\4791.dd21530f.chunk.js
+  1.83 kB    build\static\js\6981.bc9c92e3.chunk.js
+  1.7 kB     build\static\js\251.2dd1753e.chunk.js
+  1.63 kB    build\static\js\4956.29faaad9.chunk.js
+  1.53 kB    build\static\js\6464.9bdb32e9.chunk.js
+  1.52 kB    build\static\js\9855.13dd4011.chunk.js
+  1.36 kB    build\static\js\3392.8eaaedd9.chunk.js
+  443 B      build\static\js\5350.bf14eadb.chunk.js
+  270 B      build\static\js\7745.5649329c.chunk.js
+  256 B      build\static\js\9944.a706541e.chunk.js
+
+The project was built assuming it is hosted at /.
+You can control this with the homepage field in your package.json.
+
+The build folder is ready to be deployed.
+You may serve it with a static server:
+
+  npm install -g serve
+  serve -s build
+
+Find out more about deployment here:
+
+  https://cra.link/deployment
+

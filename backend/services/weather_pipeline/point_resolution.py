@@ -52,6 +52,14 @@ def _selection_key(pair):
     return (diff, area)
 
 
+# The island SERVING gate now lives in island_gate.py -- there are FIVE selection sites, so a
+# predicate defined next to one of them was already drifting toward the copy-per-site shape.
+# `_island_gated` is kept as the module-local name the gated loops below read.
+from services.weather_pipeline.island_gate import (  # noqa: E402
+    ISLAND_REGION_PREFIX, is_island_gated as _island_gated,
+)
+
+
 class PointResolutionService:
     """
     Service responsible for sampling weather points from grids or falling back
@@ -344,6 +352,8 @@ class PointResolutionService:
 
         from services.weather_pipeline.manifest_view import products_for
         for p in products_for(manifest, model, domain, layer):
+            if _island_gated(p):
+                continue
             # Check point containment (0.0001 snapping-tolerant margin, antimeridian aware)
             actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
             if is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
@@ -713,6 +723,8 @@ class PointResolutionService:
         from services.weather_pipeline.manifest_view import products_for
         from services.weather_pipeline.route_helpers import is_inside_bounds, get_actual_grid_bounds
         for p in products_for(manifest, model, domain, layer):
+            if _island_gated(p):
+                continue
             actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
             if is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
                 t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start

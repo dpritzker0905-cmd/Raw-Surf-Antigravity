@@ -1,0 +1,30 @@
+F.                                                                       [100%]
+================================== FAILURES ===================================
+_________ test_failed_archive_write_preserves_pending_for_retry[503] __________
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x000002277F47AF90>, run=<function wire.<locals>.run at 0x000002277F4FE140>)
+mode = '503'
+
+    @pytest.mark.parametrize("mode", ["503", "timeout"])
+    def test_failed_archive_write_preserves_pending_for_retry(wire, mode):
+        before = deepcopy(wire.objects)
+        wire.write_modes[MONTH] = mode
+        with pytest.raises(RuntimeError):
+            wire.run()
+>       assert wire.objects == before
+E       AssertionError: assert {'calibration...h': 24, ...}]} == {'calibration...h': 24, ...}]}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         {'calibration/skill/pending.json': []} != {'calibration/skill/pending.json': [{'buoy_id': 'new', 'hs_m': 1.6, 'lead_h': 24, 'source': 'raw_surf', ...}]}
+E         Use -v to get more diff
+
+tests\test_forecast_skill_retention.py:165: AssertionError
+------------------------------ Captured log call ------------------------------
+WARNING  services.weather_pipeline.store:store.py:397 [Product Store] L2 upload failed for calibration/skill/scored-2026-09.json: HTTP 503: synthetic response
+ENVIRONMENT IS NOT THE DECLARED ONE: python 3.14 != declared 3.12; 28 of 46 pins differ; 7 declared packages absent; not in a virtualenv
+  => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
+=========================== short test summary info ===========================
+FAILED tests/test_forecast_skill_retention.py::test_failed_archive_write_preserves_pending_for_retry[503]
+1 failed, 1 passed in 1.48s
+Mutation detected: one expected retention failure; healthy control still passed.

@@ -49,10 +49,10 @@ def test_roll_up_appends_only_new_rows_and_skips_untouched_months():
     ]
     uploads = {}
 
-    def fake_load(key=None):
+    def fake_load(key=None, **kwargs):
         return {history_key_for_month("2026-07"): list(existing_july)}.get(key, [])
 
-    def fake_upload(store, obj, key):
+    def fake_upload(store, obj, key, **kwargs):
         uploads[key] = obj
 
     with patch("services.weather_pipeline.buoy_calibration.load_calibration_l2", fake_load), \
@@ -69,9 +69,9 @@ def test_roll_up_is_idempotent_no_upload_when_nothing_new():
     existing = [_row("41009", "2026-07-30T00:00:00Z"), _row("41009", "2026-07-30T01:00:00Z")]
     uploads = {}
     with patch("services.weather_pipeline.buoy_calibration.load_calibration_l2",
-               lambda key=None: list(existing)), \
+               lambda key=None, **kwargs: list(existing)), \
          patch("services.weather_pipeline.buoy_calibration.upload_calibration_l2",
-               lambda store, obj, key: uploads.__setitem__(key, obj)):
+               lambda store, obj, key, **kwargs: uploads.__setitem__(key, obj)):
         touched = roll_up_history(MagicMock(), list(existing),
                                   now=datetime(2026, 8, 1, 3, 0, tzinfo=timezone.utc))
     assert touched == {}
@@ -84,9 +84,9 @@ def test_history_never_prunes_beyond_the_hot_caps():
     old = [_row(f"b{i}", f"2020-01-{(i % 27) + 1:02d}T{i % 24:02d}:00:00Z") for i in range(25000)]
     uploads = {}
     with patch("services.weather_pipeline.buoy_calibration.load_calibration_l2",
-               lambda key=None: []), \
+               lambda key=None, **kwargs: []), \
          patch("services.weather_pipeline.buoy_calibration.upload_calibration_l2",
-               lambda store, obj, key: uploads.__setitem__(key, obj)):
+               lambda store, obj, key, **kwargs: uploads.__setitem__(key, obj)):
         touched = roll_up_history(MagicMock(), old,
                                   now=datetime(2026, 8, 1, 3, 0, tzinfo=timezone.utc))
     total_after = sum(v["after"] for v in touched.values())

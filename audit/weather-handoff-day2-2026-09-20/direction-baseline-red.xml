@@ -1,0 +1,820 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="36" skipped="0" tests="50" time="5.086" timestamp="2026-09-20T12:20:54.173408-04:00" hostname="DESKTOP-MCNC85Q"><testcase classname="tests.test_estimator_direction_support" name="test_active_invalid_direction_refuses_the_blend[None]" time="0.014"><failure message="assert 90.0 is None&#10; +  where 90.0 = &lt;function blend_direction at 0x000001C768242A30&gt;([2, 2], [90, None], [0.5, 0.5])&#10; +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction">direction = None
+
+    @pytest.mark.parametrize("direction", [None, math.nan, math.inf, -math.inf, True, "90"])
+    def test_active_invalid_direction_refuses_the_blend(direction):
+&gt;       assert estimator.blend_direction([2, 2], [90, direction], [.5, .5]) is None
+E       assert 90.0 is None
+E        +  where 90.0 = &lt;function blend_direction at 0x000001C768242A30&gt;([2, 2], [90, None], [0.5, 0.5])
+E        +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction
+
+tests\test_estimator_direction_support.py:23: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_active_invalid_direction_refuses_the_blend[nan]" time="0.006"><failure message="assert 90.0 is None&#10; +  where 90.0 = &lt;function blend_direction at 0x000001C768242A30&gt;([2, 2], [90, nan], [0.5, 0.5])&#10; +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction">direction = nan
+
+    @pytest.mark.parametrize("direction", [None, math.nan, math.inf, -math.inf, True, "90"])
+    def test_active_invalid_direction_refuses_the_blend(direction):
+&gt;       assert estimator.blend_direction([2, 2], [90, direction], [.5, .5]) is None
+E       assert 90.0 is None
+E        +  where 90.0 = &lt;function blend_direction at 0x000001C768242A30&gt;([2, 2], [90, nan], [0.5, 0.5])
+E        +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction
+
+tests\test_estimator_direction_support.py:23: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_active_invalid_direction_refuses_the_blend[inf]" time="0.001"><failure message="ValueError: expected a finite input, got inf">direction = inf
+
+    @pytest.mark.parametrize("direction", [None, math.nan, math.inf, -math.inf, True, "90"])
+    def test_active_invalid_direction_refuses_the_blend(direction):
+&gt;       assert estimator.blend_direction([2, 2], [90, direction], [.5, .5]) is None
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+heights = [2, 2], directions = [90, inf], weights = [0.5, 0.5]
+
+    def blend_direction(heights: list, directions: list, weights: list) -&gt; Optional[float]:
+        """Height-weighted vector circular blend for wave direction."""
+        sum_u = 0.0
+        sum_v = 0.0
+        valid_weight_sum = 0.0
+    
+        for i in range(len(heights)):
+            h = heights[i]
+            d = directions[i]
+            w = weights[i]
+    
+            if h is not None and d is not None and not math.isnan(h) and not math.isnan(d) and w &gt; 0.0:
+                rad = d * math.pi / 180.0
+&gt;               u = -h * math.sin(rad)
+                         ^^^^^^^^^^^^^
+E               ValueError: expected a finite input, got inf
+
+services\weather_pipeline\estimator.py:81: ValueError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_active_invalid_direction_refuses_the_blend[-inf]" time="0.001"><failure message="ValueError: expected a finite input, got -inf">direction = -inf
+
+    @pytest.mark.parametrize("direction", [None, math.nan, math.inf, -math.inf, True, "90"])
+    def test_active_invalid_direction_refuses_the_blend(direction):
+&gt;       assert estimator.blend_direction([2, 2], [90, direction], [.5, .5]) is None
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+heights = [2, 2], directions = [90, -inf], weights = [0.5, 0.5]
+
+    def blend_direction(heights: list, directions: list, weights: list) -&gt; Optional[float]:
+        """Height-weighted vector circular blend for wave direction."""
+        sum_u = 0.0
+        sum_v = 0.0
+        valid_weight_sum = 0.0
+    
+        for i in range(len(heights)):
+            h = heights[i]
+            d = directions[i]
+            w = weights[i]
+    
+            if h is not None and d is not None and not math.isnan(h) and not math.isnan(d) and w &gt; 0.0:
+                rad = d * math.pi / 180.0
+&gt;               u = -h * math.sin(rad)
+                         ^^^^^^^^^^^^^
+E               ValueError: expected a finite input, got -inf
+
+services\weather_pipeline\estimator.py:81: ValueError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_active_invalid_direction_refuses_the_blend[True]" time="0.001"><failure message="assert 45.5 is None&#10; +  where 45.5 = &lt;function blend_direction at 0x000001C768242A30&gt;([2, 2], [90, True], [0.5, 0.5])&#10; +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction">direction = True
+
+    @pytest.mark.parametrize("direction", [None, math.nan, math.inf, -math.inf, True, "90"])
+    def test_active_invalid_direction_refuses_the_blend(direction):
+&gt;       assert estimator.blend_direction([2, 2], [90, direction], [.5, .5]) is None
+E       assert 45.5 is None
+E        +  where 45.5 = &lt;function blend_direction at 0x000001C768242A30&gt;([2, 2], [90, True], [0.5, 0.5])
+E        +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction
+
+tests\test_estimator_direction_support.py:23: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_active_invalid_direction_refuses_the_blend[90]" time="0.001"><failure message="TypeError: must be real number, not str">direction = '90'
+
+    @pytest.mark.parametrize("direction", [None, math.nan, math.inf, -math.inf, True, "90"])
+    def test_active_invalid_direction_refuses_the_blend(direction):
+&gt;       assert estimator.blend_direction([2, 2], [90, direction], [.5, .5]) is None
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:23: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+heights = [2, 2], directions = [90, '90'], weights = [0.5, 0.5]
+
+    def blend_direction(heights: list, directions: list, weights: list) -&gt; Optional[float]:
+        """Height-weighted vector circular blend for wave direction."""
+        sum_u = 0.0
+        sum_v = 0.0
+        valid_weight_sum = 0.0
+    
+        for i in range(len(heights)):
+            h = heights[i]
+            d = directions[i]
+            w = weights[i]
+    
+&gt;           if h is not None and d is not None and not math.isnan(h) and not math.isnan(d) and w &gt; 0.0:
+                                                                             ^^^^^^^^^^^^^
+E           TypeError: must be real number, not str
+
+services\weather_pipeline\estimator.py:79: TypeError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_numerically_unresolved_resultant_is_scale_independent[-1e-08-1e-09]" time="0.002"><failure message="assert 1.403341855166218e-06 is None&#10; +  where 1.403341855166218e-06 = &lt;function blend_direction at 0x000001C768242A30&gt;([2e-09, 1.9999999900000003e-09], [0, 180], [0.5, 0.5])&#10; +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction">scale = 1e-09, delta = -1e-08
+
+    @pytest.mark.parametrize("scale", [1e-9, 1, 1e9])
+    @pytest.mark.parametrize("delta", [-1e-8, 0, 1e-8])
+    def test_numerically_unresolved_resultant_is_scale_independent(scale, delta):
+&gt;       assert estimator.blend_direction([2 * scale, (2 + delta) * scale], [0, 180], [.5, .5]) is None
+E       assert 1.403341855166218e-06 is None
+E        +  where 1.403341855166218e-06 = &lt;function blend_direction at 0x000001C768242A30&gt;([2e-09, 1.9999999900000003e-09], [0, 180], [0.5, 0.5])
+E        +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction
+
+tests\test_estimator_direction_support.py:29: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_numerically_unresolved_resultant_is_scale_independent[-1e-08-1]" time="0.002"><failure message="assert 1.403341855166218e-06 is None&#10; +  where 1.403341855166218e-06 = &lt;function blend_direction at 0x000001C768242A30&gt;([2, 1.99999999], [0, 180], [0.5, 0.5])&#10; +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction">scale = 1, delta = -1e-08
+
+    @pytest.mark.parametrize("scale", [1e-9, 1, 1e9])
+    @pytest.mark.parametrize("delta", [-1e-8, 0, 1e-8])
+    def test_numerically_unresolved_resultant_is_scale_independent(scale, delta):
+&gt;       assert estimator.blend_direction([2 * scale, (2 + delta) * scale], [0, 180], [.5, .5]) is None
+E       assert 1.403341855166218e-06 is None
+E        +  where 1.403341855166218e-06 = &lt;function blend_direction at 0x000001C768242A30&gt;([2, 1.99999999], [0, 180], [0.5, 0.5])
+E        +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction
+
+tests\test_estimator_direction_support.py:29: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_numerically_unresolved_resultant_is_scale_independent[-1e-08-1000000000.0]" time="0.002"><failure message="assert 1.403341855166218e-06 is None&#10; +  where 1.403341855166218e-06 = &lt;function blend_direction at 0x000001C768242A30&gt;([2000000000.0, 1999999990.0], [0, 180], [0.5, 0.5])&#10; +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction">scale = 1000000000.0, delta = -1e-08
+
+    @pytest.mark.parametrize("scale", [1e-9, 1, 1e9])
+    @pytest.mark.parametrize("delta", [-1e-8, 0, 1e-8])
+    def test_numerically_unresolved_resultant_is_scale_independent(scale, delta):
+&gt;       assert estimator.blend_direction([2 * scale, (2 + delta) * scale], [0, 180], [.5, .5]) is None
+E       assert 1.403341855166218e-06 is None
+E        +  where 1.403341855166218e-06 = &lt;function blend_direction at 0x000001C768242A30&gt;([2000000000.0, 1999999990.0], [0, 180], [0.5, 0.5])
+E        +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction
+
+tests\test_estimator_direction_support.py:29: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_numerically_unresolved_resultant_is_scale_independent[0-1e-09]" time="0.013"><failure message="assert 90.0 is None&#10; +  where 90.0 = &lt;function blend_direction at 0x000001C768242A30&gt;([2e-09, 2e-09], [0, 180], [0.5, 0.5])&#10; +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction">scale = 1e-09, delta = 0
+
+    @pytest.mark.parametrize("scale", [1e-9, 1, 1e9])
+    @pytest.mark.parametrize("delta", [-1e-8, 0, 1e-8])
+    def test_numerically_unresolved_resultant_is_scale_independent(scale, delta):
+&gt;       assert estimator.blend_direction([2 * scale, (2 + delta) * scale], [0, 180], [.5, .5]) is None
+E       assert 90.0 is None
+E        +  where 90.0 = &lt;function blend_direction at 0x000001C768242A30&gt;([2e-09, 2e-09], [0, 180], [0.5, 0.5])
+E        +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction
+
+tests\test_estimator_direction_support.py:29: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_numerically_unresolved_resultant_is_scale_independent[0-1]" time="0.002"><failure message="assert 90.0 is None&#10; +  where 90.0 = &lt;function blend_direction at 0x000001C768242A30&gt;([2, 2], [0, 180], [0.5, 0.5])&#10; +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction">scale = 1, delta = 0
+
+    @pytest.mark.parametrize("scale", [1e-9, 1, 1e9])
+    @pytest.mark.parametrize("delta", [-1e-8, 0, 1e-8])
+    def test_numerically_unresolved_resultant_is_scale_independent(scale, delta):
+&gt;       assert estimator.blend_direction([2 * scale, (2 + delta) * scale], [0, 180], [.5, .5]) is None
+E       assert 90.0 is None
+E        +  where 90.0 = &lt;function blend_direction at 0x000001C768242A30&gt;([2, 2], [0, 180], [0.5, 0.5])
+E        +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction
+
+tests\test_estimator_direction_support.py:29: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_numerically_unresolved_resultant_is_scale_independent[0-1000000000.0]" time="0.002"><failure message="assert 90.0 is None&#10; +  where 90.0 = &lt;function blend_direction at 0x000001C768242A30&gt;([2000000000.0, 2000000000.0], [0, 180], [0.5, 0.5])&#10; +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction">scale = 1000000000.0, delta = 0
+
+    @pytest.mark.parametrize("scale", [1e-9, 1, 1e9])
+    @pytest.mark.parametrize("delta", [-1e-8, 0, 1e-8])
+    def test_numerically_unresolved_resultant_is_scale_independent(scale, delta):
+&gt;       assert estimator.blend_direction([2 * scale, (2 + delta) * scale], [0, 180], [.5, .5]) is None
+E       assert 90.0 is None
+E        +  where 90.0 = &lt;function blend_direction at 0x000001C768242A30&gt;([2000000000.0, 2000000000.0], [0, 180], [0.5, 0.5])
+E        +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction
+
+tests\test_estimator_direction_support.py:29: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_numerically_unresolved_resultant_is_scale_independent[1e-08-1e-09]" time="0.002"><failure message="assert 179.9999985966581 is None&#10; +  where 179.9999985966581 = &lt;function blend_direction at 0x000001C768242A30&gt;([2e-09, 2.00000001e-09], [0, 180], [0.5, 0.5])&#10; +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction">scale = 1e-09, delta = 1e-08
+
+    @pytest.mark.parametrize("scale", [1e-9, 1, 1e9])
+    @pytest.mark.parametrize("delta", [-1e-8, 0, 1e-8])
+    def test_numerically_unresolved_resultant_is_scale_independent(scale, delta):
+&gt;       assert estimator.blend_direction([2 * scale, (2 + delta) * scale], [0, 180], [.5, .5]) is None
+E       assert 179.9999985966581 is None
+E        +  where 179.9999985966581 = &lt;function blend_direction at 0x000001C768242A30&gt;([2e-09, 2.00000001e-09], [0, 180], [0.5, 0.5])
+E        +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction
+
+tests\test_estimator_direction_support.py:29: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_numerically_unresolved_resultant_is_scale_independent[1e-08-1]" time="0.002"><failure message="assert 179.9999985966581 is None&#10; +  where 179.9999985966581 = &lt;function blend_direction at 0x000001C768242A30&gt;([2, 2.00000001], [0, 180], [0.5, 0.5])&#10; +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction">scale = 1, delta = 1e-08
+
+    @pytest.mark.parametrize("scale", [1e-9, 1, 1e9])
+    @pytest.mark.parametrize("delta", [-1e-8, 0, 1e-8])
+    def test_numerically_unresolved_resultant_is_scale_independent(scale, delta):
+&gt;       assert estimator.blend_direction([2 * scale, (2 + delta) * scale], [0, 180], [.5, .5]) is None
+E       assert 179.9999985966581 is None
+E        +  where 179.9999985966581 = &lt;function blend_direction at 0x000001C768242A30&gt;([2, 2.00000001], [0, 180], [0.5, 0.5])
+E        +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction
+
+tests\test_estimator_direction_support.py:29: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_numerically_unresolved_resultant_is_scale_independent[1e-08-1000000000.0]" time="0.002"><failure message="assert 179.9999985966581 is None&#10; +  where 179.9999985966581 = &lt;function blend_direction at 0x000001C768242A30&gt;([2000000000.0, 2000000010.0], [0, 180], [0.5, 0.5])&#10; +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction">scale = 1000000000.0, delta = 1e-08
+
+    @pytest.mark.parametrize("scale", [1e-9, 1, 1e9])
+    @pytest.mark.parametrize("delta", [-1e-8, 0, 1e-8])
+    def test_numerically_unresolved_resultant_is_scale_independent(scale, delta):
+&gt;       assert estimator.blend_direction([2 * scale, (2 + delta) * scale], [0, 180], [.5, .5]) is None
+E       assert 179.9999985966581 is None
+E        +  where 179.9999985966581 = &lt;function blend_direction at 0x000001C768242A30&gt;([2000000000.0, 2000000010.0], [0, 180], [0.5, 0.5])
+E        +    where &lt;function blend_direction at 0x000001C768242A30&gt; = estimator.blend_direction
+
+tests\test_estimator_direction_support.py:29: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_direction_positive_and_inactive_support_controls[heights0-directions0-weights0-0]" time="0.001" /><testcase classname="tests.test_estimator_direction_support" name="test_direction_positive_and_inactive_support_controls[heights1-directions1-weights1-0]" time="0.002" /><testcase classname="tests.test_estimator_direction_support" name="test_direction_positive_and_inactive_support_controls[heights2-directions2-weights2-90]" time="0.001" /><testcase classname="tests.test_estimator_direction_support" name="test_direction_positive_and_inactive_support_controls[heights3-directions3-weights3-90]" time="0.002"><failure message="ValueError: expected a finite input, got inf">heights = [2, 0], directions = [90, inf], weights = [0.5, 0.5], expected = 90
+
+    @pytest.mark.parametrize("heights,directions,weights,expected", [
+        ([2, 2], [0, 0], [.5, .5], 0),
+        ([2, 2], [359, 1], [.5, .5], 0),
+        ([2, 2], [90, math.inf], [1, 0], 90),
+        ([2, 0], [90, math.inf], [.5, .5], 90),
+        ([0, 0], [45, 90], [.5, .5], 45),
+    ])
+    def test_direction_positive_and_inactive_support_controls(heights, directions, weights, expected):
+&gt;       actual = estimator.blend_direction(heights, directions, weights)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+heights = [2, 0], directions = [90, inf], weights = [0.5, 0.5]
+
+    def blend_direction(heights: list, directions: list, weights: list) -&gt; Optional[float]:
+        """Height-weighted vector circular blend for wave direction."""
+        sum_u = 0.0
+        sum_v = 0.0
+        valid_weight_sum = 0.0
+    
+        for i in range(len(heights)):
+            h = heights[i]
+            d = directions[i]
+            w = weights[i]
+    
+            if h is not None and d is not None and not math.isnan(h) and not math.isnan(d) and w &gt; 0.0:
+                rad = d * math.pi / 180.0
+&gt;               u = -h * math.sin(rad)
+                         ^^^^^^^^^^^^^
+E               ValueError: expected a finite input, got inf
+
+services\weather_pipeline\estimator.py:81: ValueError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_direction_positive_and_inactive_support_controls[heights4-directions4-weights4-45]" time="0.004" /><testcase classname="tests.test_estimator_direction_support" name="test_served_missing_direction_refuses_each_partition[waves]" time="0.055"><failure message="AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001C76864BCE0&gt;
+layer = 'waves'
+
+    @pytest.mark.parametrize("layer", ["waves", "swell_1", "swell_2", "wind_waves"])
+    def test_served_missing_direction_refuses_each_partition(monkeypatch, layer):
+        rows, key, resolve, _ = prepare_point(monkeypatch, layer=layer)
+        rows["GFS"]["hourly"][key][-1] = None
+        result = resolve()
+&gt;       assert result.status_code == 404
+               ^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime...='degraded', directional_conflict=None, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None)
+item = 'status_code'
+
+    def __getattr__(self, item: str) -&gt; Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+&gt;                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'
+
+C:\Users\dprit\AppData\Roaming\Python\Python314\site-packages\pydantic\main.py:1042: AttributeError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_served_missing_direction_refuses_each_partition[swell_1]" time="0.029"><failure message="AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001C7687B4770&gt;
+layer = 'swell_1'
+
+    @pytest.mark.parametrize("layer", ["waves", "swell_1", "swell_2", "wind_waves"])
+    def test_served_missing_direction_refuses_each_partition(monkeypatch, layer):
+        rows, key, resolve, _ = prepare_point(monkeypatch, layer=layer)
+        rows["GFS"]["hourly"][key][-1] = None
+        result = resolve()
+&gt;       assert result.status_code == 404
+               ^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='swell_1', run_time=datetime.dateti...='degraded', directional_conflict=None, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None)
+item = 'status_code'
+
+    def __getattr__(self, item: str) -&gt; Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+&gt;                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'
+
+C:\Users\dprit\AppData\Roaming\Python\Python314\site-packages\pydantic\main.py:1042: AttributeError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_served_missing_direction_refuses_each_partition[swell_2]" time="0.023"><failure message="AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001C768793AD0&gt;
+layer = 'swell_2'
+
+    @pytest.mark.parametrize("layer", ["waves", "swell_1", "swell_2", "wind_waves"])
+    def test_served_missing_direction_refuses_each_partition(monkeypatch, layer):
+        rows, key, resolve, _ = prepare_point(monkeypatch, layer=layer)
+        rows["GFS"]["hourly"][key][-1] = None
+        result = resolve()
+&gt;       assert result.status_code == 404
+               ^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='swell_2', run_time=datetime.dateti...='degraded', directional_conflict=None, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None)
+item = 'status_code'
+
+    def __getattr__(self, item: str) -&gt; Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+&gt;                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'
+
+C:\Users\dprit\AppData\Roaming\Python\Python314\site-packages\pydantic\main.py:1042: AttributeError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_served_missing_direction_refuses_each_partition[wind_waves]" time="0.025"><failure message="AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001C768852580&gt;
+layer = 'wind_waves'
+
+    @pytest.mark.parametrize("layer", ["waves", "swell_1", "swell_2", "wind_waves"])
+    def test_served_missing_direction_refuses_each_partition(monkeypatch, layer):
+        rows, key, resolve, _ = prepare_point(monkeypatch, layer=layer)
+        rows["GFS"]["hourly"][key][-1] = None
+        result = resolve()
+&gt;       assert result.status_code == 404
+               ^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='wind_waves', run_time=datetime.dat...='degraded', directional_conflict=None, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None)
+item = 'status_code'
+
+    def __getattr__(self, item: str) -&gt; Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+&gt;                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'
+
+C:\Users\dprit\AppData\Roaming\Python\Python314\site-packages\pydantic\main.py:1042: AttributeError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_served_nonfinite_required_direction_refuses[nan-EURO]" time="0.029"><failure message="AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001C7688528B0&gt;
+source = 'EURO', direction = nan
+
+    @pytest.mark.parametrize("source", ["EURO", "GFS"])
+    @pytest.mark.parametrize("direction", [math.nan, math.inf])
+    def test_served_nonfinite_required_direction_refuses(monkeypatch, source, direction):
+        rows, key, resolve, _ = prepare_point(monkeypatch)
+        rows[source]["hourly"][key][-1] = direction
+&gt;       assert resolve().status_code == 404
+               ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime...t the height as an upper bound here."}, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None)
+item = 'status_code'
+
+    def __getattr__(self, item: str) -&gt; Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+&gt;                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'
+
+C:\Users\dprit\AppData\Roaming\Python\Python314\site-packages\pydantic\main.py:1042: AttributeError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_served_nonfinite_required_direction_refuses[nan-GFS]" time="0.030"><failure message="AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001C76885E150&gt;
+source = 'GFS', direction = nan
+
+    @pytest.mark.parametrize("source", ["EURO", "GFS"])
+    @pytest.mark.parametrize("direction", [math.nan, math.inf])
+    def test_served_nonfinite_required_direction_refuses(monkeypatch, source, direction):
+        rows, key, resolve, _ = prepare_point(monkeypatch)
+        rows[source]["hourly"][key][-1] = direction
+&gt;       assert resolve().status_code == 404
+               ^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime...t the height as an upper bound here."}, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None)
+item = 'status_code'
+
+    def __getattr__(self, item: str) -&gt; Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+&gt;                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'
+
+C:\Users\dprit\AppData\Roaming\Python\Python314\site-packages\pydantic\main.py:1042: AttributeError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_served_nonfinite_required_direction_refuses[inf-EURO]" time="0.027" /><testcase classname="tests.test_estimator_direction_support" name="test_served_nonfinite_required_direction_refuses[inf-GFS]" time="0.027" /><testcase classname="tests.test_estimator_direction_support" name="test_optional_icon_bad_target_direction_uses_existing_unavailable_weights[None]" time="0.024"><failure message="assert 2.8 == 2.7&#10; +  where 2.8 = NormalizedPointDetail(requested_lat=0.0, requested_lng=0.0, sampled_lat=0.0, sampled_lng=0.0, speed=2.8, direction=80....3, period=12.0, gust=None, value=None, speed_spread=None, interpolation_method='point_estimate_blend', wave_bands=None).speed&#10; +    where NormalizedPointDetail(requested_lat=0.0, requested_lng=0.0, sampled_lat=0.0, sampled_lng=0.0, speed=2.8, direction=80....3, period=12.0, gust=None, value=None, speed_spread=None, interpolation_method='point_estimate_blend', wave_bands=None) = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime...t the height as an upper bound here.&quot;}, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None).point">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001C768834410&gt;
+direction = None
+
+    @pytest.mark.parametrize("direction", [None, math.nan, math.inf])
+    def test_optional_icon_bad_target_direction_uses_existing_unavailable_weights(monkeypatch, direction):
+        rows, key, resolve, _ = prepare_point(monkeypatch, icon=True)
+        rows["ICON"]["hourly"][key][-1] = direction
+        result = resolve()
+&gt;       assert result.point.speed == 2.7
+E       assert 2.8 == 2.7
+E        +  where 2.8 = NormalizedPointDetail(requested_lat=0.0, requested_lng=0.0, sampled_lat=0.0, sampled_lng=0.0, speed=2.8, direction=80....3, period=12.0, gust=None, value=None, speed_spread=None, interpolation_method='point_estimate_blend', wave_bands=None).speed
+E        +    where NormalizedPointDetail(requested_lat=0.0, requested_lng=0.0, sampled_lat=0.0, sampled_lng=0.0, speed=2.8, direction=80....3, period=12.0, gust=None, value=None, speed_spread=None, interpolation_method='point_estimate_blend', wave_bands=None) = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime...t the height as an upper bound here."}, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None).point
+
+tests\test_estimator_direction_support.py:113: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_optional_icon_bad_target_direction_uses_existing_unavailable_weights[nan]" time="0.024"><failure message="assert 2.8 == 2.7&#10; +  where 2.8 = NormalizedPointDetail(requested_lat=0.0, requested_lng=0.0, sampled_lat=0.0, sampled_lng=0.0, speed=2.8, direction=90....0, period=12.0, gust=None, value=None, speed_spread=None, interpolation_method='point_estimate_blend', wave_bands=None).speed&#10; +    where NormalizedPointDetail(requested_lat=0.0, requested_lng=0.0, sampled_lat=0.0, sampled_lng=0.0, speed=2.8, direction=90....0, period=12.0, gust=None, value=None, speed_spread=None, interpolation_method='point_estimate_blend', wave_bands=None) = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime...t the height as an upper bound here.&quot;}, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None).point">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001C7686B99B0&gt;
+direction = nan
+
+    @pytest.mark.parametrize("direction", [None, math.nan, math.inf])
+    def test_optional_icon_bad_target_direction_uses_existing_unavailable_weights(monkeypatch, direction):
+        rows, key, resolve, _ = prepare_point(monkeypatch, icon=True)
+        rows["ICON"]["hourly"][key][-1] = direction
+        result = resolve()
+&gt;       assert result.point.speed == 2.7
+E       assert 2.8 == 2.7
+E        +  where 2.8 = NormalizedPointDetail(requested_lat=0.0, requested_lng=0.0, sampled_lat=0.0, sampled_lng=0.0, speed=2.8, direction=90....0, period=12.0, gust=None, value=None, speed_spread=None, interpolation_method='point_estimate_blend', wave_bands=None).speed
+E        +    where NormalizedPointDetail(requested_lat=0.0, requested_lng=0.0, sampled_lat=0.0, sampled_lng=0.0, speed=2.8, direction=90....0, period=12.0, gust=None, value=None, speed_spread=None, interpolation_method='point_estimate_blend', wave_bands=None) = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime...t the height as an upper bound here."}, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None).point
+
+tests\test_estimator_direction_support.py:113: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_optional_icon_bad_target_direction_uses_existing_unavailable_weights[inf]" time="0.028"><failure message="AttributeError: 'JSONResponse' object has no attribute 'point'">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001C7686BA7B0&gt;
+direction = inf
+
+    @pytest.mark.parametrize("direction", [None, math.nan, math.inf])
+    def test_optional_icon_bad_target_direction_uses_existing_unavailable_weights(monkeypatch, direction):
+        rows, key, resolve, _ = prepare_point(monkeypatch, icon=True)
+        rows["ICON"]["hourly"][key][-1] = direction
+        result = resolve()
+&gt;       assert result.point.speed == 2.7
+               ^^^^^^^^^^^^
+E       AttributeError: 'JSONResponse' object has no attribute 'point'
+
+tests\test_estimator_direction_support.py:113: AttributeError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_unconsumed_provider_anchor_bearings_do_not_remove_healthy_support" time="0.023" /><testcase classname="tests.test_estimator_direction_support" name="test_unresolved_point_cannot_reach_a_numeric_surf_rating[-1e-08]" time="0.026"><failure message="AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001C76862BC50&gt;
+delta = -1e-08
+
+    @pytest.mark.parametrize("delta", [-1e-8, 0, 1e-8])
+    def test_unresolved_point_cannot_reach_a_numeric_surf_rating(monkeypatch, delta):
+        rows, key, resolve, target = prepare_point(monkeypatch, target_h=2 + delta)
+        rows["EURO"]["hourly"][key][-1] = 0.
+        rows["GFS"]["hourly"][key][-1] = 180.
+        response = resolve()
+&gt;       assert response.status_code == 404
+               ^^^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:135: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime...='degraded', directional_conflict=None, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None)
+item = 'status_code'
+
+    def __getattr__(self, item: str) -&gt; Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+&gt;                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'
+
+C:\Users\dprit\AppData\Roaming\Python\Python314\site-packages\pydantic\main.py:1042: AttributeError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_unresolved_point_cannot_reach_a_numeric_surf_rating[0]" time="0.032"><failure message="AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001C76862ABD0&gt;
+delta = 0
+
+    @pytest.mark.parametrize("delta", [-1e-8, 0, 1e-8])
+    def test_unresolved_point_cannot_reach_a_numeric_surf_rating(monkeypatch, delta):
+        rows, key, resolve, target = prepare_point(monkeypatch, target_h=2 + delta)
+        rows["EURO"]["hourly"][key][-1] = 0.
+        rows["GFS"]["hourly"][key][-1] = 180.
+        response = resolve()
+&gt;       assert response.status_code == 404
+               ^^^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:135: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime...t the height as an upper bound here."}, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None)
+item = 'status_code'
+
+    def __getattr__(self, item: str) -&gt; Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+&gt;                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'
+
+C:\Users\dprit\AppData\Roaming\Python\Python314\site-packages\pydantic\main.py:1042: AttributeError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_unresolved_point_cannot_reach_a_numeric_surf_rating[1e-08]" time="0.025"><failure message="AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001C7688B6DB0&gt;
+delta = 1e-08
+
+    @pytest.mark.parametrize("delta", [-1e-8, 0, 1e-8])
+    def test_unresolved_point_cannot_reach_a_numeric_surf_rating(monkeypatch, delta):
+        rows, key, resolve, target = prepare_point(monkeypatch, target_h=2 + delta)
+        rows["EURO"]["hourly"][key][-1] = 0.
+        rows["GFS"]["hourly"][key][-1] = 180.
+        response = resolve()
+&gt;       assert response.status_code == 404
+               ^^^^^^^^^^^^^^^^^^^^
+
+tests\test_estimator_direction_support.py:135: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = NormalizedPointResponse(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime...t the height as an upper bound here."}, reference_size_m=None, geometry_missing=['fine_shore_normal'], partitions=None)
+item = 'status_code'
+
+    def __getattr__(self, item: str) -&gt; Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+&gt;                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'NormalizedPointResponse' object has no attribute 'status_code'
+
+C:\Users\dprit\AppData\Roaming\Python\Python314\site-packages\pydantic\main.py:1042: AttributeError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_actual_point_transform_and_rating_positive_controls[0.0-0.0-False]" time="0.026" /><testcase classname="tests.test_estimator_direction_support" name="test_actual_point_transform_and_rating_positive_controls[359.0-1.0-False]" time="0.031" /><testcase classname="tests.test_estimator_direction_support" name="test_actual_point_transform_and_rating_positive_controls[90.0-180.0-True]" time="0.032" /><testcase classname="tests.test_estimator_direction_support" name="test_grid_unresolved_direction_is_invalid_instead_of_valid_north[False]" time="0.003"><failure message="AssertionError: assert NormalizedProduct(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime(2026,...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False) is None">mixed = False
+
+    @pytest.mark.parametrize("mixed", [False, True])
+    def test_grid_unresolved_direction_is_invalid_instead_of_valid_north(mixed):
+        euro, ga, gt = product(3, 0, NOW), product(3, 180, NOW), product(2, 180, NOW + timedelta(hours=24))
+        if mixed:
+            gt.grid.vectors[0].v = -2.
+            gt.grid.vectors[0].u = 0.
+        result = estimator.estimate_euro_grid(264, 240, "waves", euro, gt, ga)
+        if not mixed:
+&gt;           assert result is None
+E           AssertionError: assert NormalizedProduct(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime(2026,...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False) is None
+
+tests\test_estimator_direction_support.py:189: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_grid_unresolved_direction_is_invalid_instead_of_valid_north[True]" time="0.002"><failure message="assert [True, True, True, True] == [True, False, False, False]&#10;  &#10;  At index 1 diff: True != False&#10;  Use -v to get more diff">mixed = True
+
+    @pytest.mark.parametrize("mixed", [False, True])
+    def test_grid_unresolved_direction_is_invalid_instead_of_valid_north(mixed):
+        euro, ga, gt = product(3, 0, NOW), product(3, 180, NOW), product(2, 180, NOW + timedelta(hours=24))
+        if mixed:
+            gt.grid.vectors[0].v = -2.
+            gt.grid.vectors[0].u = 0.
+        result = estimator.estimate_euro_grid(264, 240, "waves", euro, gt, ga)
+        if not mixed:
+            assert result is None
+        else:
+&gt;           assert [v.is_valid for v in result.grid.vectors] == [True, False, False, False]
+E           assert [True, True, True, True] == [True, False, False, False]
+E             
+E             At index 1 diff: True != False
+E             Use -v to get more diff
+
+tests\test_estimator_direction_support.py:191: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_grid_resampling_cancellation_cannot_be_amplified_back_to_full_height" time="0.003"><failure message="AssertionError: assert NormalizedProduct(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime(2026,...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False) is None&#10; +  where NormalizedProduct(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime(2026,...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False) = &lt;function estimate_euro_grid at 0x000001C768256C40&gt;(264, 240, 'waves', NormalizedProduct(model='EURO', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False), NormalizedProduct(model='EURO', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False), NormalizedProduct(model='EURO', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False))&#10; +    where &lt;function estimate_euro_grid at 0x000001C768256C40&gt; = estimator.estimate_euro_grid">def test_grid_resampling_cancellation_cannot_be_amplified_back_to_full_height():
+        euro, ga, gt = product(2, 90, NOW), product(2, 0, NOW), product(2, 0, NOW + timedelta(hours=24))
+        # Every EURO node samples the middle of a GFS stencil with equal opposite vectors.
+        for v in euro.grid.vectors:
+            v.lat = v.lng = .5
+        for v in gt.grid.vectors[2:]:
+            v.v = 2.
+        assert estimator.resample_from_grid(.5, .5, gt.grid)["speed"] == 2.
+&gt;       assert estimator.estimate_euro_grid(264, 240, "waves", euro, gt, ga) is None
+E       AssertionError: assert NormalizedProduct(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime(2026,...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False) is None
+E        +  where NormalizedProduct(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime(2026,...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False) = &lt;function estimate_euro_grid at 0x000001C768256C40&gt;(264, 240, 'waves', NormalizedProduct(model='EURO', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False), NormalizedProduct(model='EURO', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False), NormalizedProduct(model='EURO', provider='fixture', domain='marine', layer='waves', run_time=datetime.datetime(2026, 9...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False))
+E        +    where &lt;function estimate_euro_grid at 0x000001C768256C40&gt; = estimator.estimate_euro_grid
+
+tests\test_estimator_direction_support.py:204: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_invalid_icon_grid_direction_uses_existing_per_cell_redistribution" time="0.002"><failure message="assert False&#10; +  where False = all(&lt;generator object test_invalid_icon_grid_direction_uses_existing_per_cell_redistribution.&lt;locals&gt;.&lt;genexpr&gt; at 0x000001C76881A9B0&gt;)">def test_invalid_icon_grid_direction_uses_existing_per_cell_redistribution():
+        euro, ga, gt = product(3, 90, NOW), product(3, 90, NOW), product(2, 90, NOW + timedelta(hours=24))
+        ia, it = product(3, 90, NOW), product(4, 90, NOW + timedelta(hours=24), zero_vector=True)
+        result = estimator.estimate_euro_grid(96, 240, "waves", euro, gt, ga, it, ia)
+&gt;       assert all(v.is_valid and v.speed == 2.6 and v.direction == 90 for v in result.grid.vectors)
+E       assert False
+E        +  where False = all(&lt;generator object test_invalid_icon_grid_direction_uses_existing_per_cell_redistribution.&lt;locals&gt;.&lt;genexpr&gt; at 0x000001C76881A9B0&gt;)
+
+tests\test_estimator_direction_support.py:211: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_grid_positive_wrap_and_calm_controls[False]" time="0.002" /><testcase classname="tests.test_estimator_direction_support" name="test_grid_positive_wrap_and_calm_controls[True]" time="0.002" /><testcase classname="tests.test_estimator_direction_support" name="test_lattice_unresolved_direction_has_no_valid_north_fallback[False-marine]" time="0.002"><failure message="AssertionError: assert NormalizedProduct(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime(2026,...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False) is None">domain = 'marine', mixed = False
+
+    @pytest.mark.parametrize("domain", ["marine", "wind"])
+    @pytest.mark.parametrize("mixed", [False, True])
+    def test_lattice_unresolved_direction_has_no_valid_north_fallback(domain, mixed):
+        a = product(2, 0, NOW, domain=domain)
+        b = product(2, 180, NOW + timedelta(hours=6), domain=domain)
+        if mixed:
+            b.grid.vectors[0].u, b.grid.vectors[0].v = 0., -2.
+        result = interpolate_between(a, b, NOW + timedelta(hours=3))
+        if mixed:
+            assert [v.is_valid for v in result.grid.vectors] == [True, False, False, False]
+        else:
+&gt;           assert result is None
+E           AssertionError: assert NormalizedProduct(model='EURO', provider='estimated', domain='marine', layer='waves', run_time=datetime.datetime(2026,...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False) is None
+
+tests\test_estimator_direction_support.py:236: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_lattice_unresolved_direction_has_no_valid_north_fallback[False-wind]" time="0.002"><failure message="AssertionError: assert NormalizedProduct(model='EURO', provider='estimated', domain='wind', layer='wind', run_time=datetime.datetime(2026, 9,...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False) is None">domain = 'wind', mixed = False
+
+    @pytest.mark.parametrize("domain", ["marine", "wind"])
+    @pytest.mark.parametrize("mixed", [False, True])
+    def test_lattice_unresolved_direction_has_no_valid_north_fallback(domain, mixed):
+        a = product(2, 0, NOW, domain=domain)
+        b = product(2, 180, NOW + timedelta(hours=6), domain=domain)
+        if mixed:
+            b.grid.vectors[0].u, b.grid.vectors[0].v = 0., -2.
+        result = interpolate_between(a, b, NOW + timedelta(hours=3))
+        if mixed:
+            assert [v.is_valid for v in result.grid.vectors] == [True, False, False, False]
+        else:
+&gt;           assert result is None
+E           AssertionError: assert NormalizedProduct(model='EURO', provider='estimated', domain='wind', layer='wind', run_time=datetime.datetime(2026, 9,...=False, staleReason=None, fallbackReason=None, served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False) is None
+
+tests\test_estimator_direction_support.py:236: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_lattice_unresolved_direction_has_no_valid_north_fallback[True-marine]" time="0.002"><failure message="assert [True, True, True, True] == [True, False, False, False]&#10;  &#10;  At index 1 diff: True != False&#10;  Use -v to get more diff">domain = 'marine', mixed = True
+
+    @pytest.mark.parametrize("domain", ["marine", "wind"])
+    @pytest.mark.parametrize("mixed", [False, True])
+    def test_lattice_unresolved_direction_has_no_valid_north_fallback(domain, mixed):
+        a = product(2, 0, NOW, domain=domain)
+        b = product(2, 180, NOW + timedelta(hours=6), domain=domain)
+        if mixed:
+            b.grid.vectors[0].u, b.grid.vectors[0].v = 0., -2.
+        result = interpolate_between(a, b, NOW + timedelta(hours=3))
+        if mixed:
+&gt;           assert [v.is_valid for v in result.grid.vectors] == [True, False, False, False]
+E           assert [True, True, True, True] == [True, False, False, False]
+E             
+E             At index 1 diff: True != False
+E             Use -v to get more diff
+
+tests\test_estimator_direction_support.py:234: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_lattice_unresolved_direction_has_no_valid_north_fallback[True-wind]" time="0.002"><failure message="assert [True, True, True, True] == [True, False, False, False]&#10;  &#10;  At index 1 diff: True != False&#10;  Use -v to get more diff">domain = 'wind', mixed = True
+
+    @pytest.mark.parametrize("domain", ["marine", "wind"])
+    @pytest.mark.parametrize("mixed", [False, True])
+    def test_lattice_unresolved_direction_has_no_valid_north_fallback(domain, mixed):
+        a = product(2, 0, NOW, domain=domain)
+        b = product(2, 180, NOW + timedelta(hours=6), domain=domain)
+        if mixed:
+            b.grid.vectors[0].u, b.grid.vectors[0].v = 0., -2.
+        result = interpolate_between(a, b, NOW + timedelta(hours=3))
+        if mixed:
+&gt;           assert [v.is_valid for v in result.grid.vectors] == [True, False, False, False]
+E           assert [True, True, True, True] == [True, False, False, False]
+E             
+E             At index 1 diff: True != False
+E             Use -v to get more diff
+
+tests\test_estimator_direction_support.py:234: AssertionError</failure></testcase><testcase classname="tests.test_estimator_direction_support" name="test_lattice_positive_wrap_and_calm_controls[False]" time="0.001" /><testcase classname="tests.test_estimator_direction_support" name="test_lattice_positive_wrap_and_calm_controls[True]" time="0.002" /></testsuite></testsuites>

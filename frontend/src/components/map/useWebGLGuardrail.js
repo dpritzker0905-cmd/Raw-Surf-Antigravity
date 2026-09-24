@@ -114,6 +114,7 @@ export function useWebGLGuardrail({
       if (delta >= 2000) {
         frameCount = 0;
         lastTime = now;
+        lowFpsCount = 0; // An excluded scheduling gap breaks consecutive low-FPS evidence.
         return;
       }
 

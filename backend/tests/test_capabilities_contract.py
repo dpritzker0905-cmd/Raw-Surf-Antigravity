@@ -1,4 +1,6 @@
 import pytest
+from copy import deepcopy
+from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from server import app
 
@@ -145,12 +147,13 @@ def test_product_manifest_alignment_audit():
         prod_source_dataset = prod.get("source_dataset")
 
         # Hard fail on specific schema contradictions
-        # 1. EURO marine says copernicus but matching product says open-meteo without fallback labeling
+        # 1. Native EURO alternatives are declared per layer; provider is a dispatch key.
         if model.upper() == "EURO" and domain.lower() == "marine":
             if cap_provider == "copernicus" and prod_provider == "open-meteo":
-                # If product is open-meteo, verify it is explicitly estimated (is_estimated=True)
                 is_est = prod.get("is_estimated") or getattr(prod, "is_estimated", False)
-                assert is_est, "EURO marine capability says copernicus but matching product says open-meteo and is NOT estimated/fallback"
+                assert is_est or _native_source_matches(cap, prod), (
+                    "Native EURO product is absent from the declared per-layer grid sources"
+                )
 
         # 2. ICON swell_2 appears as supported
         if model.upper() == "ICON" and domain.lower() == "marine" and layer.lower() == "swell_2":
@@ -190,3 +193,119 @@ def test_product_manifest_alignment_audit():
 
     # The alignment test should report mismatches but not hard-fail on optional missing manifest files
     # Unless a contradiction check failed above, we pass the test.
+
+
+def _native_source_matches(row, product):
+    return any(
+        all(source.get(key) == product.get(key)
+            for key in ("provider", "upstream_model", "source_dataset"))
+        and product.get("upstream_provider") in source.get("upstream_providers", [])
+        for source in row.get("native_grid_sources", [])
+    )
+
+
+@pytest.mark.parametrize("layer,provider,fetched_by", [
+    ("waves", "open-meteo", "ecmwf"),
+    ("waves", "open-meteo", "open-meteo"),
+    ("waves", "copernicus", "copernicus"),
+    ("swell_1", "copernicus", "copernicus"),
+    ("swell_2", "copernicus", "copernicus"),
+    ("wind_waves", "copernicus", "copernicus"),
+])
+def test_euro_native_capability_matches_normalized_served_grid(
+        tmp_path, monkeypatch, layer, provider, fetched_by):
+    """Exercise the real normalizer -> disk/manifest -> HTTP grid resolver contract."""
+    from routes import weather
+    from services.weather_pipeline.normalizer import WeatherNormalizer
+    from services.weather_pipeline import store as store_module
+
+    monkeypatch.setenv("TESTING", "1")
+    monkeypatch.setattr(store_module, "_get_supabase_storage", lambda: None)
+    monkeypatch.setattr(store_module.ProductStore, "_product_cache", {})
+    monkeypatch.setattr(store_module.ProductStore, "_product_cache_vectors", {})
+    monkeypatch.setattr(store_module.ProductStore, "_cached_manifest", None)
+    local_store = store_module.ProductStore(cache_dir=tmp_path)
+    monkeypatch.setattr(weather, "store", local_store)
+    monkeypatch.setattr(weather.viewport_service, "is_viewport_enabled", lambda *a, **k: False)
+    valid = datetime(2035, 1, 1, 12, tzinfo=timezone.utc)
+    variables = WeatherNormalizer.LAYER_VARS[layer]
+    raw = [{
+        "latitude": lat, "longitude": lon, "__provider": fetched_by,
+        "hourly": {"time": [valid.strftime("%Y-%m-%dT%H:%M:%SZ")], variables["speed"]: [2.0],
+                   variables["direction"]: [180.0], variables["period"]: [10.0]},
+    } for lat in (26, 27) for lon in (-81, -80)]
+    product = WeatherNormalizer().normalize(
+        model="EURO", provider=provider, domain="marine", layer=layer,
+        raw_results=raw, bbox={"west": -81, "south": 26, "east": -80, "north": 27},
+        resolution=1.0, target_time=valid, run_time=valid,
+        region_id="capability_test", coverage_mode="regional_tile",
+    )
+    assert product is not None and product.is_estimated is False
+    filename = local_store.save_product(product, resolution=1.0)
+    assert filename
+    response = client.get("/api/weather/grid", params={
+        "model": "EURO", "domain": "marine", "layer": layer,
+        "valid_time": valid.isoformat(),
+    })
+    assert response.status_code == 200, response.text
+    served = response.json()
+    assert served["product_id"] == filename
+    assert served["provider"] == provider
+    assert served["upstream_provider"] == fetched_by
+    assert served["is_estimated"] is False
+    assert len(served["grid"]["vectors"]) == 4
+    row = next(row for row in client.get("/api/weather/capabilities").json()
+               if (row["model"], row["domain"], row["layer"]) == ("EURO", "marine", layer))
+    assert _native_source_matches(row, served), (row, served["upstream_model"])
+
+
+@pytest.mark.parametrize("layer", ["waves", "swell_1", "swell_2", "wind_waves"])
+def test_euro_source_policy_preserves_horizon_and_marks_response_authority(layer):
+    from services.weather_pipeline.capabilities import get_weather_capabilities
+    row = next(row for row in get_weather_capabilities()
+               if (row["model"], row["domain"], row["layer"]) == ("EURO", "marine", layer))
+    assert (row["native_horizon_hours"], row["estimated_horizon_hours"],
+            row["max_forecast_hours"]) == (240, 96, 336)
+    assert row["provenance_policy"] == {
+        "legacy_fields": "default_source_not_request_guarantee",
+        "native_grid": "native_grid_sources",
+        "effective_source": "product_response",
+        "estimated_grid": "product_response_and_estimate_basis",
+    }
+    assert all(source["upstream_model"] != "ecmwf_wam025"
+               for source in row["native_grid_sources"] if layer != "waves")
+    # Deliberately wrong source must never be accepted by the contract guard.
+    assert not _native_source_matches(row, {
+        "provider": "open-meteo", "upstream_provider": "noaa",
+        "upstream_model": "ncep_gfswave025", "source_dataset": "ncep_gfswave025",
+    })
+
+
+def test_euro_source_contract_rejects_missing_native_source_declaration():
+    from services.weather_pipeline.capabilities import get_weather_capabilities
+    rows = deepcopy(get_weather_capabilities())
+    row = next(row for row in rows if (row["model"], row["domain"], row["layer"])
+               == ("EURO", "marine", "waves"))
+    row.pop("native_grid_sources", None)
+    with pytest.raises(ValueError, match="native_grid_sources"):
+        validate_capabilities_contract(rows)
+
+
+@pytest.mark.parametrize("defect,error", [
+    ("incomplete_source", "incomplete source"),
+    ("missing_upstream", "needs upstream_providers"),
+    ("wrong_authority", "provenance_policy must use product_response"),
+])
+def test_euro_source_contract_rejects_unusable_provenance(defect, error):
+    from services.weather_pipeline.capabilities import get_weather_capabilities
+    rows = deepcopy(get_weather_capabilities())
+    row = next(row for row in rows if (row["model"], row["domain"], row["layer"])
+               == ("EURO", "marine", "waves"))
+    if defect == "incomplete_source":
+        row["native_grid_sources"][0].pop("source_dataset")
+    elif defect == "missing_upstream":
+        row["native_grid_sources"][0].pop("upstream_providers")
+    else:
+        row["provenance_policy"]["effective_source"] = "legacy_provider"
+    with pytest.raises(ValueError, match=error):
+        validate_capabilities_contract(rows)

@@ -26,12 +26,31 @@ DESIGN, and why it is shaped this way:
   vastly better than none — one CMEMS hiccup must not cost the other nineteen. The job returns True if
   ANY region saved, and logs a per-region roll-call so a silent partial is visible.
 
-  ⛔ IT WRITES PRODUCTS AND NOTHING ELSE. No resolver change lives here. Until a serving tier reads
-  region_id `island_*`, this lane is inert by construction — products accumulate and no viewport
-  behaviour changes. That is deliberate: the serving switch is the risky half (dropping a fallback tier
-  is what has produced marine blanks here before) and it deserves its own gate and its own harness.
+  ⛔ INGEST DEFAULTS OFF (COPERNICUS_ISLAND_INGEST=1 arms it). That is the COMPLETE stop: with no
+  products in the manifest, no selection site anywhere can pick an island tile. The serving switch is
+  the risky half (dropping a fallback tier is what has produced marine blanks here before) and has its
+  own gate, COPERNICUS_ISLAND_SERVE (default 0) in `island_gate.is_island_gated`, applied at ALL FIVE
+  manifest selection sites and covered by tests/test_island_serving_gate.py.
+  ✅ THE ENUMERATION IS NOW COMPLETE (2026-09-19). The five remaining direct `manifest.products`
+  consumers were audited: `grid_resolver_selection.find_candidates` and `grid_resolver`'s Step 6
+  overlap were TWO MORE HOLES — both on `/api/weather/grid`, and the first was the worst of all five
+  (its ranking breaks an intersection tie by SMALLEST COVERAGE AREA, so a 0.083° tile won
+  DETERMINISTICALLY when zoomed in at an island). Both are now gated. EXONERATED with cause:
+  `lattice_fill` (exact-match allowlist "global_coarse"/"global_mid"), `icon_marine_extension`
+  (region_id allowlist AND model ICON/GFS, while island tiles are EURO), `far_edge_hold` (requires
+  coverage_mode == "global_tile"; island writes "regional_tile").
 
-Kills: COPERNICUS_ISLAND_INGEST=0 disables the lane. COPERNICUS_ISLAND_REGION_LIMIT=N ingests only the
+  ⚠️⚠️ THIS HEADER ONCE CLAIMED THE LANE WAS "inert by construction — until a serving tier reads
+  region_id `island_*`". THAT WAS FALSE FOR A MONTH (2026-08-18 → 2026-09-19). No tier read region_id,
+  but none had to: the manifest selection sites rank candidates with `_selection_key` =
+  (time_diff, RESOLUTION, area), and these tiles are 0.083° — the finest resolution in the estate. So
+  at an island spot an island product did not merely leak into selection, it WON every time tie and
+  displaced whichever tier had been answering. ⇒ INERTNESS IS A PROPERTY OF THE SELECTOR, NEVER OF THE
+  WRITER. A lane is inert only when something on the READ path excludes it; "I only write products" is
+  not a safety property while the reader ranks on an attribute the new products dominate.
+
+Arming: COPERNICUS_ISLAND_INGEST=1 enables the lane (DEFAULT 0 since 2026-09-19 -- it was
+default-ON for a month behind the false inertness claim above). COPERNICUS_ISLAND_REGION_LIMIT=N ingests only the
 first N regions (they are ordered by spot count, so a limit degrades gracefully to the highest-value
 islands). COPERNICUS_ISLAND_DAYS overrides the horizon.
 """
@@ -86,8 +105,8 @@ async def ingest_copernicus_island_regions_impl(scheduler) -> bool:
     Ingests the 0.083° CMEMS wave field for each island region, one subset call per region.
     Returns True if any region saved a product.
     """
-    if os.environ.get("COPERNICUS_ISLAND_INGEST", "1") == "0":
-        logger.info("[Pipeline Scheduler] Copernicus island lane disabled (COPERNICUS_ISLAND_INGEST=0).")
+    if os.environ.get("COPERNICUS_ISLAND_INGEST", "0") != "1":
+        logger.info("[Pipeline Scheduler] Copernicus island lane NOT ARMED (set COPERNICUS_ISLAND_INGEST=1 to arm; default is off).")
         return False
 
     env = get_env_flags()

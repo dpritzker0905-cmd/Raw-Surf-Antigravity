@@ -24,7 +24,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, List, Optional, Tuple
 
 from services.weather_pipeline.schemas import NormalizedProduct, NormalizedGrid, GridVector
-from services.weather_pipeline.estimator import blend_direction, blend_period
+from services.weather_pipeline.estimator import blend_direction, blend_period, _direction_from_components, _finite_number
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +59,7 @@ def _on_lattice(dt: datetime, step_h: float = LATTICE_STEP_H) -> bool:
 def _vector_direction(v: GridVector) -> Optional[float]:
     """Direction extraction mirroring estimator.estimate_euro_grid: derive from u/v when present
     (products store direction=0.0 for 'none', so the stored field alone is ambiguous)."""
-    if v.u != 0.0 or v.v != 0.0:
-        val = math.atan2(-v.u, -v.v) * 180.0 / math.pi
-        return (val + 360.0) % 360.0
-    return None
+    return _direction_from_components(v.u, v.v, v.speed)
 
 
 def _grids_compatible(a: NormalizedProduct, b: NormalizedProduct) -> bool:
@@ -97,7 +94,8 @@ def interpolate_between(a: NormalizedProduct, b: NormalizedProduct,
     vectors: List[GridVector] = []
     valid_cells = 0
     for va, vb in zip(a.grid.vectors, b.grid.vectors):
-        if not (va.is_valid and vb.is_valid):
+        if not (va.is_valid and vb.is_valid and _finite_number(va.speed) and _finite_number(vb.speed)
+                and va.speed >= 0.0 and vb.speed >= 0.0):
             vectors.append(GridVector(lat=va.lat, lng=va.lng, speed=0.0, direction=0.0,
                                       u=0.0, v=0.0, period=None, is_valid=False))
             continue
@@ -106,6 +104,10 @@ def interpolate_between(a: NormalizedProduct, b: NormalizedProduct,
         period = blend_period([va.period, vb.period], [1.0 - w, w])
         direction = blend_direction([ha, hb], [_vector_direction(va), _vector_direction(vb)],
                                     [1.0 - w, w])
+        if h > 0.0 and direction is None:
+            vectors.append(GridVector(lat=va.lat, lng=va.lng, speed=0.0, direction=0.0,
+                                      u=0.0, v=0.0, period=None, is_valid=False))
+            continue
         u = v_ = 0.0
         if h > 0.0 and direction is not None:
             rad = direction * math.pi / 180.0

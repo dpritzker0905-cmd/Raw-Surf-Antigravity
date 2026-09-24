@@ -1,0 +1,7 @@
+ESLint gate — 1105 files linted, 154 errors, 923 warnings.
+✅ No never-zero rule fired and no rule exceeded its baseline.
+
+🎉 Debt reduced since the baseline was recorded:
+    unused-imports/no-unused-imports: 128 → 126 (-2) [warnings]
+
+    Lock it in:  node scripts/check_eslint.js --write-baseline

@@ -38,7 +38,7 @@ if (typeof window !== 'undefined') {
     const reason = "Direct Open-Meteo or weather-proxy JSON forecast fetch is quarantined in production in favor of backend-owned routes.";
 
     const isMarineOM = urlString.includes('marine-api.open-meteo.com');
-    const isForecastOM = urlString.includes('api.open-meteo.com') && !urlString.includes('map-tiles.open-meteo.com');
+    const isForecastOM = urlString.includes('api.open-meteo.com') && !urlString.includes('openmeteo.s3.amazonaws.com');
     const isWeatherProxy = (urlString.includes('/api/weather-proxy') || urlString.endsWith('weather-proxy')) && !urlString.includes('/api/weather/');
 
     if (isMarineOM || isForecastOM || isWeatherProxy) {

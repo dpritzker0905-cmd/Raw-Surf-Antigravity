@@ -177,6 +177,41 @@ def resolve_weather_proxy_url() -> str:
     # ("Request URL is missing an 'http://' or 'https://' protocol").
     return os.environ.get("WEATHER_PROXY_URL") or DEFAULT_WEATHER_PROXY_URL
 
+# ── Cold-toggle sharing: which marine layers ONE all_marine response may legitimately serve ──
+# ⛔⛔ MIRRORED FROM THE INGESTION LANE, NOT ASSUMED. The obvious "all four, every model" is WRONG:
+#   GFS  -> all four                    (marine_mid_res_ingestion.py:82)
+#   ICON -> NO swell_2                  (:200) -- gwam has no native secondary swell
+#   EURO -> nothing                     EURO is TWO UPSTREAMS UNDER ONE LABEL: `waves` is ECMWF WAM
+#           while swell_1/swell_2/wind_waves come from GFS results labelled EURO
+#           (euro_marine_coarse_ingestion.py:290-310). Sharing would publish GFS swell as ECMWF.
+_SHARED_MARINE_LAYERS = {
+    "GFS": ("waves", "swell_1", "swell_2", "wind_waves"),
+    "ICON": ("waves", "swell_1", "wind_waves"),
+}
+
+
+def _shared_marine_layers(model: str, domain: str, layer: str):
+    """
+    The sibling set this request may seed, or None to keep the per-layer behaviour exactly.
+
+    TOTAL BY CONSTRUCTION. This runs inside `fetch_grid` on every request, so an exception here
+    would break fetching outright — a latency optimisation that can take the data path down is a
+    bad trade at any speed. `str()` rather than `or ""`: a truthy non-string (an int model id)
+    passes the `or` and then dies on `.upper()`, which is exactly what the junk-input test caught.
+    """
+    try:
+        if os.environ.get("OM_MARINE_SHARE_COLD_FETCH") != "1":
+            return None                  # DARK by default -- needs a live A/B before enabling
+        if str(domain or "").lower() != "marine":
+            return None
+        group = _SHARED_MARINE_LAYERS.get(str(model or "").upper())
+        # Only when the REQUESTED layer is itself in the group: a layer outside it (ICON swell_2)
+        # must take the untouched path, not be quietly answered from a response that cannot serve it.
+        return group if group and layer in group else None
+    except Exception:
+        return None                      # any surprise falls back to the pre-existing behaviour
+
+
 class OpenMeteoProvider:
     """
     Open-Meteo API provider for the Weather Ingestion Pipeline.
@@ -303,6 +338,31 @@ class OpenMeteoProvider:
             else:
                 self._GRID_CACHE.pop(cache_key, None)
 
+        # ── COLD-TOGGLE SHARING (2026-09-21, DARK by default) ─────────────────────────────────
+        # Measured live: a cold (model, layer, bbox) costs 11-18 s and a warm one 2-5 s -- 3-5.6x,
+        # replicated on four independent pairs -- and EACH MARINE LAYER IS INDEPENDENTLY COLD, so
+        # toggling waves -> swell_1 -> swell_2 -> wind_waves pays that cold price FOUR times. That
+        # is the owner's "toggling between marine layers is slow".
+        # The upstream can already answer all of them in ONE request: `all_marine`. The ingestion
+        # lane has done exactly this for months -- one all_marine fetch, then a per-layer normalize
+        # loop (marine_mid_res_ingestion.py) -- so this shares a PROVEN path rather than inventing
+        # a second one.
+        # ⛔⛔ THE LAYER SETS ARE PER-MODEL AND ARE NOT INTERCHANGEABLE. Mirrored from the ingestion
+        # lane rather than assumed, because the obvious "share all four everywhere" is WRONG:
+        #   GFS  -> waves, swell_1, swell_2, wind_waves   (marine_mid_res_ingestion.py:82)
+        #   ICON -> waves, swell_1, wind_waves            (:200 -- swell_2 DELIBERATELY absent; gwam
+        #           has no native secondary swell, and its swell_2 falls back to swell_1)
+        #   EURO -> EXCLUDED ENTIRELY. Its `waves` comes from ECMWF WAM while swell_1/swell_2/
+        #           wind_waves come from GFS results labelled EURO (euro_marine_coarse_ingestion.py
+        #           :290-310). EURO is TWO UPSTREAMS UNDER ONE LABEL, so one response cannot serve
+        #           its four layers and sharing would publish GFS swell as ECMWF.
+        # ⚠️ DARK BY DEFAULT (`OM_MARINE_SHARE_COLD_FETCH=1` to enable). It trades a ~4x larger
+        # response on the first cold fetch for three avoided cold fetches, which is a win only if
+        # the user actually toggles -- and it cannot be A/B'd from a dev box. Enable, then read
+        # `/api/health` request_telemetry for grid_series avg/p90 before and after.
+        share_layers = _shared_marine_layers(model, domain, layer)
+        params_layer = "all_marine" if share_layers else layer
+
         # Build query parameters
         params = {
             "latitude": ",".join(f"{lat:.4f}" for lat in lats),
@@ -320,19 +380,19 @@ class OpenMeteoProvider:
                 # ecmwf_wam025 only supports significant wave height, direction, and period.
                 # All swell partitions/wind waves must be estimated using the fallback in normalizer.py.
                 params["hourly"] = "wave_height,wave_direction,wave_period"
-            elif layer == "waves":
+            elif params_layer == "waves":
                 params["hourly"] = "wave_height,wave_direction,wave_period"
-            elif layer == "swell_1":
+            elif params_layer == "swell_1":
                 params["hourly"] = "swell_wave_height,swell_wave_direction,swell_wave_period"
-            elif layer == "swell_2":
+            elif params_layer == "swell_2":
                 if api_model in ("gwam", "dwd_gwam"):
                     # ICON swell_2 doesn't have native secondary swell in gwam, fallback to swell
                     params["hourly"] = "swell_wave_height,swell_wave_direction,swell_wave_period"
                 else:
                     params["hourly"] = "secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period"
-            elif layer == "wind_waves":
+            elif params_layer == "wind_waves":
                 params["hourly"] = "wind_wave_height,wind_wave_direction,wind_wave_period"
-            elif layer == "all_marine":
+            elif params_layer == "all_marine":
                 if api_model in ("gwam", "dwd_gwam"):
                     # gwam (DWD ICON wave) has NO native secondary swell parameter. Including
                     # secondary_swell_wave_* makes Open-Meteo 400 the ENTIRE all_marine request,
@@ -480,11 +540,15 @@ class OpenMeteoProvider:
                     if i + batch_size < len(lats):
                         await asyncio.sleep(delay)
 
-                # Cache successful response
-                if len(self._GRID_CACHE) >= 50:
-                    oldest_key = next(iter(self._GRID_CACHE))
-                    self._GRID_CACHE.pop(oldest_key, None)
-                self._GRID_CACHE[cache_key] = (now + self._CACHE_TTL_SEC, aggregated_results)
+                # Cache successful response. When the request was upgraded to all_marine the ONE
+                # response answers every sibling layer, so seed their keys too -- that is the whole
+                # point: the next toggle is a cache HIT instead of another cold fetch.
+                for _l in (share_layers or [layer]):
+                    _k = (f"{model.upper()}_{domain.lower()}_{_l.lower()}_"
+                          f"{coords_key}_{resolution}_{forecast_days}")
+                    if len(self._GRID_CACHE) >= 50:
+                        self._GRID_CACHE.pop(next(iter(self._GRID_CACHE)), None)
+                    self._GRID_CACHE[_k] = (now + self._CACHE_TTL_SEC, aggregated_results)
                 return aggregated_results
                 
             except Exception as e:

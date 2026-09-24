@@ -7,6 +7,7 @@
 
 import { BACKEND_URL } from '../../lib/apiClient';
 import { getAvailableTilesFromManifest, PILOT_COVERAGE } from './backendWeatherServiceClientCoverage';
+import { reconcileMarineTimelineCoverage } from './marineTimelineCoverage';
 
 // Lazy accessors to break circular dependency with backendWeatherServiceClient
 function getMainClient() {
@@ -279,6 +280,7 @@ export function updateProjectionDiag(domain, details) {
     estimateBasis: details.estimateBasis !== undefined ? details.estimateBasis : prevTimelineDiag.estimateBasis || null,
     estimateSource: details.isEstimated !== undefined ? (details.isEstimated ? "backend" : "none") : prevTimelineDiag.estimateSource || "none"
   };
+  if (domain === 'marine') reconcileMarineTimelineCoverage(window);
 }
 
 /**

@@ -118,3 +118,37 @@ def test_partial_coverage_still_blends():
     assert est is not None
     valid = [v for v in est.grid.vectors if v.is_valid]
     assert len(valid) == 2
+
+
+def test_all_dry_gfs_target_cannot_publish_a_valid_estimate():
+    est = run_estimate(grid_2x2(2.0), grid_2x2(1.8), grid_2x2(0.0, is_valid=False))
+    assert est is None
+
+
+def test_nonfinite_euro_anchor_is_masked_while_healthy_cells_survive():
+    euro = grid_2x2(2.0)
+    euro.vectors[0].speed = float("nan")
+    euro.vectors[1].u = float("inf")
+    est = run_estimate(euro, grid_2x2(1.8), grid_2x2(2.2))
+    assert est is not None
+    assert [v.is_valid for v in est.grid.vectors] == [False, False, True, True]
+    assert all(abs(v.speed - 2.15) < .001 for v in est.grid.vectors if v.is_valid)
+
+
+def test_missing_gfs_target_period_preserves_anchor_without_inventing_a_trend():
+    target = grid_2x2(2.2)
+    for cell in target.vectors:
+        cell.period = None
+    est = run_estimate(grid_2x2(2.0), grid_2x2(1.8), target)
+    assert est is not None
+    assert all(v.period == 8.0 and abs(v.speed - 2.15) < .001 for v in est.grid.vectors)
+
+
+def test_missing_euro_period_cannot_anchor_a_two_second_synthetic_period():
+    euro = grid_2x2(2.0)
+    for cell in euro.vectors:
+        cell.period = None
+    est = run_estimate(euro, grid_2x2(1.8), grid_2x2(2.2))
+    assert est is not None
+    assert all(v.is_valid and v.period is None and abs(v.speed - 2.15) < .001
+               for v in est.grid.vectors)

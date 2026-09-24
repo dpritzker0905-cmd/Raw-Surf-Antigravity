@@ -85,7 +85,19 @@ jobs:
           // 2026-08-03 (audit v7): +1 suite / +14 tests (marineGridSeries.antimeridian.test.js).
           // Raised BY THE DELTA, not reset to today's absolute Windows figure — that preserves the
           // deliberate ubuntu margin above rather than silently spending it.
-          const MIN_SUITES = 185, MIN_TESTS = 1686;
+          // September 20: exact hosted run35487375744 at d82032f5 measured 257/2486.
+          // Retire the now-observed platform uncertainty and the stale 72/800 gap.
+          // Today's additional 2 suites / 56 tests pass locally; ratchet those only
+          // after the next hosted receipt, rather than labelling a projection observed.
+          // 2026-09-21 (F-15): local Windows now reads 272 suites / 2651 tests — the two new
+          // suites are openMeteoProtocolFailure.test.js (14) and truthOverlayLayerTruth.test.js
+          // (17). DELIBERATELY NOT RAISED, per the rule two lines up: a local figure is a
+          // projection, not a receipt. The pending gap is now 15 suites / 165 tests, and the
+          // NEXT hosted green run should be used to ratchet all of it at once.
+          // ⚠️ This lag is the documented cost of that rule, not an oversight — the backend lanes'
+          // "a floor that lags is not measuring anything" note argues the other way, and the two
+          // are reconciled by WHERE the number comes from: hosted receipt raises, local never does.
+          const MIN_SUITES = 257, MIN_TESTS = 2486;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -195,7 +207,7 @@ jobs:
         run: |
           set -o pipefail
           CI=true npx react-scripts test --watchAll=false \
-            --testPathPattern="marine-card-matrix-closure|forecast-card-swell-vs-surf" \
+            --testPathPattern="marine-card-matrix-closure|forecast-card-swell-vs-surf|marineGlobalPrewarm.seriesReuse|marineTimelineCoverage|useMarineOrchestratorScrubCache.timeline|backendWeatherServiceClient.readOnly|ForecastTimeStatus" \
             --json --outputFile=guard-results.json
         # NO continue-on-error. That is the entire point of this job.
 
@@ -219,7 +231,9 @@ jobs:
           // ⬆ 37 -> 48 (1a-2: the derived energy coefficient, the band ladder, coarsen-don't-hide,
           //             magnitude-based precision, and the live-fixture band-span anti-vacuity)
           // Measured from the run each time, never incremented by hand.
-          const MIN_SUITES = 2, MIN_TESTS = 48;
+          // Audit14: measured 7 suites / 96 tests, including exact-time reuse and timeline truth.
+          // This focused discovery floor supplements the blocking full frontend suite.
+          const MIN_SUITES = 7, MIN_TESTS = 96;
           let r;
           try { r = JSON.parse(fs.readFileSync('guard-results.json', 'utf8')); }
           catch (e) { console.error('✗ no guard-results.json — jest never wrote a result'); process.exit(1); }
@@ -628,7 +642,43 @@ jobs:
           # Candidate Linux CI must confirm 158 / 1874; keep the six-test margin.
           # dev run 34924124059 observed 159 files / 1877 passes; preserve six-test margin.
           # September 16: hosted CI35055272824 measured 160 files / 1883 passes.
-          MIN_FILES, MIN_PASSED = 160, 1877
+          # September 20 second check: 14 executed observation-pairing/finite-error controls
+          # in existing guard modules. Expected hosted reading 1883 + 14 = 1897, pending
+          # candidate CI; preserve the six-test margin. Local Python 3.14 has four separately
+          # reproduced baseline provider-ownership failures, so do not lower the hosted floor.
+          # September 20 continuation: run35485093918 at 74ca4f4e confirmed 1897.
+          # +15 executed scoring-validity controls in the same guard file -> expected 1912.
+          # Keep the six-test margin; _FLOOR_SET_FROM moves in this same commit.
+          # September 20, audit 14.0 F-01: run35538513375 at ed5e46c6 confirmed 160/1912.
+          # tests/test_grid_series_base_anchor.py adds 10 executed series-anchor controls in ONE
+          # new file selected by `--lane guards` only (verified: chain and estate do not select
+          # it), so files 160 -> 161 EXACT and the expected hosted reading is 1912 + 10 = 1922.
+          # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1922 in this commit.
+          # September 21, grid_series deadline bound: +1 file auto-claimed by `--lane guards`
+          # (selector run before and after `git add`: guards 161 -> 162, chain 102 and estate
+          # 266 unchanged). tests/test_grid_series_deadline_bound.py adds 13 executed controls,
+          # so files 161 -> 162 EXACT and the expected hosted reading is 1922 + 13 = 1935.
+          # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1935 in this commit.
+          # September 21, /api/surf-spots response cache: TWO more files, both auto-claimed by
+          # `--lane guards` the moment they were tracked (selector run before and after `git add`:
+          # guards 162 -> 164, chain 102 and estate unchanged).
+          #   tests/test_surf_spots_cache.py       23 tests -- cache semantics, TTL, kill switch,
+          #     and the PRIVACY restriction that a geofenced response is never cacheable
+          #   tests/test_surf_spots_cache_route.py 13 tests -- the route-level query COUNT, i.e.
+          #     that a hit acquires no pool connection and executes nothing
+          # So files 162 -> 164 EXACT and the expected hosted reading is 1935 + 36 = 1971.
+          # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1971 in this commit.
+          # ⭐ The 36-test delta RECONCILES against a full local guards run taken before the
+          # grid_series file existed (163 files, 20:50): "4 failed, 1954 passed", and 1958 - 1954 = 4
+          # is exactly the test_grid_series_provider_ownership.py set this block already records as
+          # reproduced on local Python 3.14 and absent from the hosted 3.12 reading. Two independent
+          # routes to the same delta is what makes this a projection worth banking, not a guess.
+          # September 21, marine cold-fetch sharing: +1 file auto-claimed by `--lane guards`
+          # (selector run before and after `git add`: guards 164 -> 165, chain 102 and estate
+          # 267 unchanged). tests/test_marine_cold_fetch_sharing.py adds 25 executed controls,
+          # so files 164 -> 165 EXACT and the expected hosted reading is 1971 + 25 = 1996.
+          # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1996 in this commit.
+          MIN_FILES, MIN_PASSED = 165, 1990
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -820,7 +870,37 @@ jobs:
           # PR31 CI35021160260 measured 96 files / 932 passes on the merged code.
           # Keep the six-test margin and the paired citation in sync.
           # September 16: hosted CI35055272824 measured 97 files / 940 passes.
-          MIN_FILES, MIN_PASSED = 97, 934
+          # ⬆ 97/934 → 98/940 on 2026-09-19 (the island SERVING gate). This commit adds
+          # test_island_serving_gate.py (6), selector-verified into this lane with
+          # `ci_test_lanes.py --lane chain` (97 → 98 files). 940 + 6 = 946; 946 - 6 = 940.
+          # MIN_FILES is EXACT; MIN_PASSED keeps the customary 6 below, and
+          # _FLOOR_SET_FROM["chain"] moves to 946 in the SAME commit.
+          # ⬆ 940 → 941 on 2026-09-19 (the grid-path half of the island gate). The same test FILE
+          # gains a 7th test (the /api/weather/grid ranking outcome), so MIN_FILES stays 98 while
+          # the reading moves 946 → 947; 947 - 6 = 941. _FLOOR_SET_FROM["chain"] moves with it.
+          # September 20 second check: selector-confirmed +1 file / +43 executed controls
+          # (grid estimator/periods +30, point periods +8, nonfinite spread +5). Expected hosted
+          # reading 947 + 43 = 990; retain six-test margin and paired provenance. CI confirms.
+          # September 20 continuation: run35485093918 at 74ca4f4e confirmed 990.
+          # +29 direct-height controls and +3 real-resolver cases -> expected 1022.
+          # No new files; retain six-test margin and move paired provenance together.
+          # Day-two direction support: hosted d82032f5 confirmed 1022/99; +57 executed
+          # controls in +1 selector-confirmed file. Full local chain: 1079/100.
+          # Retention adds 69 executed controls in one further selector-confirmed file.
+          # Expected final chain 1148/101; hosted receipt must confirm that projection.
+          # Retain the established six-test margin and paired reference.
+          # ⬆ 2026-09-20: that projection was NOT confirmed — hosted run35538513375 at ed5e46c6
+          # actually observed 102 files / 1194 passes (the weather-stabilization-14 batch landed
+          # its WP2/WP5 cases without moving this pair). A floor 52 below the reading cannot
+          # detect anything shrinking back to it, so it is corrected here from that receipt:
+          # files 102 EXACT, passes 1194 - 6 = 1188. Local `--lane chain` also selects 102.
+          # This lane is untouched by audit 14.0's F-01 work; the drift is pre-existing.
+          # September 21, Queue E#1 band-reference echo: +1 file auto-claimed by `--lane chain`
+          # (selector run before and after `git add`: chain 102 -> 103, guards 165 and estate
+          # 267 unchanged). tests/test_band_reference_echo.py adds 12 executed controls, so
+          # files 102 -> 103 EXACT and the expected hosted reading is 1194 + 12 = 1206.
+          # Retain the six-test margin; _FLOOR_SET_FROM["chain"] moves to 1206 in this commit.
+          MIN_FILES, MIN_PASSED = 103, 1200
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1110,7 +1190,23 @@ jobs:
           # This includes all 19 new census transport controls. Margin stays two.
           # September 16: PR35 run35038920152 job104614181006 observed488 passes;
           # retain the estate lane's two-test deletion margin.
-          MIN_PASSED = 486
+          # September 20 second check: PR46 run35482845900/job106003630843 read 488.
+          # Full local estate reads 514: subtract the 12 undeclared optional trevec tests
+          # (hosted importorskip), leaving 502 expected hosted passes including 14 new gate
+          # controls. Preserve THIS lane's two-test margin, not the other lanes' six.
+          # ⬆ 500→514 on 2026-09-21: +14 tests in the new tests/test_memory_trace.py, which
+          # `--lane estate` claims (estate 266→267; guards 161 and chain 102 unchanged,
+          # selector run before and after `git add`). CI-ANCHORED per the rule above, NOT a
+          # local reading: last CI-anchored value 502 + 14 = 516; 516 - 2 (this lane's budget)
+          # = 514, and _FLOOR_SET_FROM[estate] moves to 516 with it. The new module carries no
+          # importorskip, so it collects identically on both sides and does not add to this
+          # lane's structural local-high bias.
+          # ⬆ 514→519 on 2026-09-21: +5 tests in the EXISTING tests/test_memory_trace.py (no new
+          # file, so estate stays 267 and only the test count moves). They pin the boot-ramp fix
+          # this module's own first live reading exposed — it published a 400→752 MB STARTUP
+          # ramp as "rss_mb_per_hour: 2113.4". CI-ANCHORED per the rule above: 516 + 5 = 521;
+          # 521 - 2 (this lane's budget) = 519, and _FLOOR_SET_FROM[estate] moves to 521.
+          MIN_PASSED = 519
 
           try:
               root = ET.parse('estate.xml').getroot()

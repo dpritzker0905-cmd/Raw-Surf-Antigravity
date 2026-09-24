@@ -25,6 +25,17 @@ function mockSeriesResponse() {
   };
 }
 
+// ── hour-0-first paint lane (audit 14.0) ──────────────────────────────────────────────────────
+// `ensureWindSeries` now races a single-hour MINI request ahead of the multi-hour page when the
+// page is cold, because the page took a measured 25.9 s at z6 and nothing painted until it landed.
+// So a cold ensure legitimately issues TWO requests. These helpers keep the assertions about the
+// quantity that actually matters -- how many PAGE loads happened -- instead of a raw fetch count
+// that now conflates the two lanes. See windGridSeries.hour0First.test.js for the lane's own tests.
+const hoursOf = (url) => (new URLSearchParams(String(url).split('?')[1] || '')).get('hours') || '';
+const isMini = (url) => hoursOf(url).split(',').length === 1;
+const pageUrls = () => global.fetch.mock.calls.map((c) => c[0]).filter((u) => !isMini(u));
+const miniUrls = () => global.fetch.mock.calls.map((c) => c[0]).filter((u) => isMini(u));
+
 describe('windGridSeries — flag-gated wind time-series client', () => {
   beforeEach(() => {
     _resetWindSeriesForTest();
@@ -37,7 +48,8 @@ describe('windGridSeries — flag-gated wind time-series client', () => {
     expect(isWindSeriesEnabled()).toBe(true);
     global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
     await ensureWindSeries('GFS', bounds, 0);
-    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(pageUrls()).toHaveLength(1);        // exactly one PAGE load
+    expect(miniUrls()).toHaveLength(1);        // plus the hour-0-first mini
   });
 
   it('is OFF when window.__WIND_SERIES__ is false — ensure/get are no-ops, no fetch', async () => {
@@ -53,8 +65,8 @@ describe('windGridSeries — flag-gated wind time-series client', () => {
     global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
 
     await ensureWindSeries('GFS', bounds, 0);
-    expect(global.fetch).toHaveBeenCalledTimes(1);
-    const url = global.fetch.mock.calls[0][0];
+    expect(pageUrls()).toHaveLength(1);
+    const url = pageUrls()[0];
     expect(url).toContain('/weather/grid_series');
     expect(url).toContain('domain=wind');
     expect(url).toContain('model=GFS');
@@ -83,7 +95,7 @@ describe('windGridSeries — flag-gated wind time-series client', () => {
     }) });
 
     await ensureWindSeries('GFS', bounds, 300);
-    const url = global.fetch.mock.calls[0][0];
+    const url = pageUrls()[0];
     expect(url).toContain('hours=288');
     expect(url).not.toContain('hours=0,');
     expect(getWindSeriesFrame('GFS', bounds, 300).hourOffset).toBe(300);
@@ -98,8 +110,8 @@ describe('windGridSeries — flag-gated wind time-series client', () => {
     // Concurrency-capped (1-CPU backend): pages load ~2 at a time, not all synchronously — but
     // all 3 still complete as the queue drains.
     for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0));
-    expect(global.fetch).toHaveBeenCalledTimes(3);
-    const urls = global.fetch.mock.calls.map((c) => c[0]);
+    expect(pageUrls()).toHaveLength(3);
+    const urls = pageUrls();
     expect(urls.some((u) => u.includes('hours=0,'))).toBe(true);
     expect(urls.some((u) => u.includes('hours=144,'))).toBe(true);
     expect(urls.some((u) => u.includes('hours=288,'))).toBe(true);
@@ -113,6 +125,6 @@ describe('windGridSeries — flag-gated wind time-series client', () => {
     const b = ensureWindSeries('GFS', bounds, 0);
     resolve();
     await Promise.all([a, b]);
-    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(pageUrls()).toHaveLength(1);        // dedup is about PAGE loads
   });
 });

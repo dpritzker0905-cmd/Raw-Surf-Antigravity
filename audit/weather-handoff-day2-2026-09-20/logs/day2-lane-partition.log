@@ -1,0 +1,3 @@
+tracked 530  guards 160  chain 101  estate 266  fastmcp-excluded 2  quarantined 1
+  quarantined: tests/test_debug_consciousness.py -- needs a local Event Bus DB that a fresh checkout lacks
+partition OK: every tracked backend test file is claimed by exactly one lane.

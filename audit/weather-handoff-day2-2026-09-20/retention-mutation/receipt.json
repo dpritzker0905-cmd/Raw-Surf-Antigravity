@@ -1,0 +1,13 @@
+{
+  "head": "d82032f5cd5978967622721b8c9638da36a87f7d",
+  "mutation": "consume pending before archive writes acknowledge",
+  "original_sha256": "b595e4cd5bc5bec8cc864369a0dd85916049b94cc466f477451eb13c209d2290",
+  "mutated_sha256": "526a9cb0f8b2c1f1a40041595a509c8423af2e569e17799f415c831f3652d45a",
+  "checkout_source_unchanged": true,
+  "expected_failure": [
+    "test_failed_archive_write_preserves_pending_for_retry[503]"
+  ],
+  "healthy_control_passed": [
+    "test_success_preserves_old_rows_and_repeated_run_does_not_duplicate"
+  ]
+}

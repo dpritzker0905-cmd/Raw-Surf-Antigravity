@@ -1,0 +1,904 @@
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF.FFFFFFF..                               [100%]
+================================== FAILURES ===================================
+_ test_unreadable_history_aborts_without_any_write[503-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484A57B60>, run=<function wire.<locals>.run at 0x0000025484B42770>)
+key = 'calibration/skill/pending.json', mode = '503'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[503-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484B302D0>, run=<function wire.<locals>.run at 0x0000025484B43CC0>)
+key = 'calibration/skill/scored-2026-09.json', mode = '503'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[timeout-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x000002548450FED0>, run=<function wire.<locals>.run at 0x0000025484BE81A0>)
+key = 'calibration/skill/pending.json', mode = 'timeout'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[timeout-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x00000254846E2FD0>, run=<function wire.<locals>.run at 0x0000025484B43690>)
+key = 'calibration/skill/scored-2026-09.json', mode = 'timeout'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[bad_json-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484B20FC0>, run=<function wire.<locals>.run at 0x000002548472EE50>)
+key = 'calibration/skill/pending.json', mode = 'bad_json'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[bad_json-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484B63770>, run=<function wire.<locals>.run at 0x000002548472DE80>)
+key = 'calibration/skill/scored-2026-09.json', mode = 'bad_json'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[NoSuchBucket-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484B09590>, run=<function wire.<locals>.run at 0x000002548472D7A0>)
+key = 'calibration/skill/pending.json', mode = 'NoSuchBucket'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[NoSuchBucket-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484B0AF10>, run=<function wire.<locals>.run at 0x000002548472D850>)
+key = 'calibration/skill/scored-2026-09.json', mode = 'NoSuchBucket'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[TenantNotFound-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484B17450>, run=<function wire.<locals>.run at 0x000002548472E090>)
+key = 'calibration/skill/pending.json', mode = 'TenantNotFound'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[TenantNotFound-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484B17B50>, run=<function wire.<locals>.run at 0x000002548472D170>)
+key = 'calibration/skill/scored-2026-09.json', mode = 'TenantNotFound'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[not_found-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484BB4230>, run=<function wire.<locals>.run at 0x000002548472C670>)
+key = 'calibration/skill/pending.json', mode = 'not_found'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[not_found-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484BB57C0>, run=<function wire.<locals>.run at 0x00000254847CB1C0>)
+key = 'calibration/skill/scored-2026-09.json', mode = 'not_found'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[404_html-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484830590>, run=<function wire.<locals>.run at 0x00000254847CA820>)
+key = 'calibration/skill/pending.json', mode = '404_html'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[404_html-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484830670>, run=<function wire.<locals>.run at 0x00000254847C9E80>)
+key = 'calibration/skill/scored-2026-09.json', mode = '404_html'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[403-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x000002548454ADD0>, run=<function wire.<locals>.run at 0x0000025484BE85C0>)
+key = 'calibration/skill/pending.json', mode = '403'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_unreadable_history_aborts_without_any_write[403-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484B04D10>, run=<function wire.<locals>.run at 0x0000025484BE8CA0>)
+key = 'calibration/skill/scored-2026-09.json', mode = '403'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
+                                      "TenantNotFound", "not_found", "404_html", "403"])
+    def test_unreadable_history_aborts_without_any_write(wire, key, mode):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:108: Failed
+_ test_invalid_archive_shape_aborts_without_any_write[None-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484B05550>, run=<function wire.<locals>.run at 0x0000025484BE9380>)
+key = 'calibration/skill/pending.json', invalid = None
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("invalid", [None, {}, [None], 42, "rows"])
+    def test_invalid_archive_shape_aborts_without_any_write(wire, key, invalid):
+        wire.objects[key] = invalid
+        before = deepcopy(wire.objects)
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:119: Failed
+_ test_invalid_archive_shape_aborts_without_any_write[None-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484BE99C0>, run=<function wire.<locals>.run at 0x0000025484BE9A60>)
+key = 'calibration/skill/scored-2026-09.json', invalid = None
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("invalid", [None, {}, [None], 42, "rows"])
+    def test_invalid_archive_shape_aborts_without_any_write(wire, key, invalid):
+        wire.objects[key] = invalid
+        before = deepcopy(wire.objects)
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:119: Failed
+_ test_invalid_archive_shape_aborts_without_any_write[invalid1-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484BEA570>, run=<function wire.<locals>.run at 0x0000025484BEA610>)
+key = 'calibration/skill/pending.json', invalid = {}
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("invalid", [None, {}, [None], 42, "rows"])
+    def test_invalid_archive_shape_aborts_without_any_write(wire, key, invalid):
+        wire.objects[key] = invalid
+        before = deepcopy(wire.objects)
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:119: Failed
+_ test_invalid_archive_shape_aborts_without_any_write[invalid1-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484B6AA30>, run=<function wire.<locals>.run at 0x0000025484BEB110>)
+key = 'calibration/skill/scored-2026-09.json', invalid = {}
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("invalid", [None, {}, [None], 42, "rows"])
+    def test_invalid_archive_shape_aborts_without_any_write(wire, key, invalid):
+        wire.objects[key] = invalid
+        before = deepcopy(wire.objects)
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:119: Failed
+_ test_invalid_archive_shape_aborts_without_any_write[invalid2-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [None], 'calibration/skill/scored-2026-09.json': [{'source': 'raw...ther_pipeline.store.ProductStore object at 0x0000025484B6B2F0>, run=<function wire.<locals>.run at 0x0000025484BEB7F0>)
+key = 'calibration/skill/pending.json', invalid = [None]
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("invalid", [None, {}, [None], 42, "rows"])
+    def test_invalid_archive_shape_aborts_without_any_write(wire, key, invalid):
+        wire.objects[key] = invalid
+        before = deepcopy(wire.objects)
+        with pytest.raises(RuntimeError):
+>           wire.run()
+
+tests\test_forecast_skill_retention.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_forecast_skill_retention.py:97: in run
+    return asyncio.run(fs.run_skill_ledger(state.store, None, [], "GFS", report, now=NOW))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+services\weather_pipeline\forecast_skill.py:598: in run_skill_ledger
+    pending = merge_pending(pending, incoming, now=now, stats=merge_stats)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+existing = [None], incoming = []
+now = datetime.datetime(2026, 9, 1, 0, 15, tzinfo=datetime.timezone.utc)
+max_entries = 30000, stats = {}
+
+    def merge_pending(existing, incoming, now: Optional[datetime] = None,
+                      max_entries: int = PENDING_MAX_ENTRIES,
+                      stats: Optional[dict] = None) -> List[dict]:
+        """Append forecasts, keeping the EARLIEST row per dedupe key (the honest lead) and dropping
+        rows whose target passed more than PENDING_EXPIRY_H ago (a buoy gap nobody can score).
+    
+        \u26a0\ufe0f THE CAP EVICTS THE FURTHEST-FUTURE TARGETS FIRST (2026-08-08). It used to keep them \u2014
+        `out[-max_entries:]` after the ascending sort � which evicts each row exactly as its target
+        hour approaches, so once demand exceeded the cap NOTHING could ever score: production logged
+        scored=0 on every run from 08-04T12:36Z (the pre-fan-out control 30839909407 was healthy).
+        Keeping the EARLIEST targets makes overflow starve only the farthest lead � measured
+        100/95.4/9.5% per lead at the old cap versus 0/0/0% � a degradation instead of an outage.
+        `stats`, when given, is filled with {kept, expired, cap_evicted} so eviction is observable
+        rather than invisible for four days again."""
+        now = now or datetime.now(timezone.utc)
+        horizon = now - timedelta(hours=PENDING_EXPIRY_H)
+        out, seen = [], set()
+        expired = 0
+        for row in list(existing or []) + list(incoming or []):
+>           t = _parse_iso(row.get("target_time"))
+                           ^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'get'
+
+services\weather_pipeline\forecast_skill.py:283: AttributeError
+_ test_invalid_archive_shape_aborts_without_any_write[invalid2-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [None]}, reads=['cal...ther_pipeline.store.ProductStore object at 0x0000025484BB1D90>, run=<function wire.<locals>.run at 0x0000025484D780F0>)
+key = 'calibration/skill/scored-2026-09.json', invalid = [None]
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("invalid", [None, {}, [None], 42, "rows"])
+    def test_invalid_archive_shape_aborts_without_any_write(wire, key, invalid):
+        wire.objects[key] = invalid
+        before = deepcopy(wire.objects)
+        with pytest.raises(RuntimeError):
+>           wire.run()
+
+tests\test_forecast_skill_retention.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_forecast_skill_retention.py:97: in run
+    return asyncio.run(fs.run_skill_ledger(state.store, None, [], "GFS", report, now=NOW))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+services\weather_pipeline\forecast_skill.py:610: in run_skill_ledger
+    seen = {dedupe_key(r) for r in existing}
+            ^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+row = None
+
+    def dedupe_key(row) -> tuple:
+>       return (row.get("source"), row.get("buoy_id"), row.get("target_time"),
+                ^^^^^^^
+                _lead_bucket(row.get("lead_h") or 0))
+E       AttributeError: 'NoneType' object has no attribute 'get'
+
+services\weather_pipeline\forecast_skill.py:145: AttributeError
+_ test_invalid_archive_shape_aborts_without_any_write[42-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': 42, 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484C772D0>, run=<function wire.<locals>.run at 0x0000025484D78930>)
+key = 'calibration/skill/pending.json', invalid = 42
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("invalid", [None, {}, [None], 42, "rows"])
+    def test_invalid_archive_shape_aborts_without_any_write(wire, key, invalid):
+        wire.objects[key] = invalid
+        before = deepcopy(wire.objects)
+        with pytest.raises(RuntimeError):
+>           wire.run()
+
+tests\test_forecast_skill_retention.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_forecast_skill_retention.py:97: in run
+    return asyncio.run(fs.run_skill_ledger(state.store, None, [], "GFS", report, now=NOW))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+services\weather_pipeline\forecast_skill.py:598: in run_skill_ledger
+    pending = merge_pending(pending, incoming, now=now, stats=merge_stats)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+existing = 42, incoming = []
+now = datetime.datetime(2026, 9, 1, 0, 15, tzinfo=datetime.timezone.utc)
+max_entries = 30000, stats = {}
+
+    def merge_pending(existing, incoming, now: Optional[datetime] = None,
+                      max_entries: int = PENDING_MAX_ENTRIES,
+                      stats: Optional[dict] = None) -> List[dict]:
+        """Append forecasts, keeping the EARLIEST row per dedupe key (the honest lead) and dropping
+        rows whose target passed more than PENDING_EXPIRY_H ago (a buoy gap nobody can score).
+    
+        \u26a0\ufe0f THE CAP EVICTS THE FURTHEST-FUTURE TARGETS FIRST (2026-08-08). It used to keep them \u2014
+        `out[-max_entries:]` after the ascending sort � which evicts each row exactly as its target
+        hour approaches, so once demand exceeded the cap NOTHING could ever score: production logged
+        scored=0 on every run from 08-04T12:36Z (the pre-fan-out control 30839909407 was healthy).
+        Keeping the EARLIEST targets makes overflow starve only the farthest lead � measured
+        100/95.4/9.5% per lead at the old cap versus 0/0/0% � a degradation instead of an outage.
+        `stats`, when given, is filled with {kept, expired, cap_evicted} so eviction is observable
+        rather than invisible for four days again."""
+        now = now or datetime.now(timezone.utc)
+        horizon = now - timedelta(hours=PENDING_EXPIRY_H)
+        out, seen = [], set()
+        expired = 0
+>       for row in list(existing or []) + list(incoming or []):
+                   ^^^^^^^^^^^^^^^^^^^^
+E       TypeError: 'int' object is not iterable
+
+services\weather_pipeline\forecast_skill.py:282: TypeError
+_ test_invalid_archive_shape_aborts_without_any_write[42-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': 42}, reads=['calibra...ther_pipeline.store.ProductStore object at 0x0000025484E789D0>, run=<function wire.<locals>.run at 0x0000025484D78E00>)
+key = 'calibration/skill/scored-2026-09.json', invalid = 42
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("invalid", [None, {}, [None], 42, "rows"])
+    def test_invalid_archive_shape_aborts_without_any_write(wire, key, invalid):
+        wire.objects[key] = invalid
+        before = deepcopy(wire.objects)
+        with pytest.raises(RuntimeError):
+>           wire.run()
+
+tests\test_forecast_skill_retention.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_forecast_skill_retention.py:97: in run
+    return asyncio.run(fs.run_skill_ledger(state.store, None, [], "GFS", report, now=NOW))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+store = <services.weather_pipeline.store.ProductStore object at 0x0000025484E789D0>
+resolver = None, spots = [], model = 'GFS'
+report = {'spots': [{'buoy_id': 'new', 'buoy_time': '2026-09-01T00:15:00+00:00', 'residual': {'buoy_dpd_s': 12.0, 'buoy_wvht_m'... {'buoy_id': 'prior', 'buoy_time': '2026-09-01T00:15:00+00:00', 'residual': {'buoy_dpd_s': 12.0, 'buoy_wvht_m': 1.5}}]}
+now = datetime.datetime(2026, 9, 1, 0, 15, tzinfo=datetime.timezone.utc)
+
+    async def run_skill_ledger(store, resolver, spots, model: str, report,
+                               now: Optional[datetime] = None) -> Optional[dict]:
+        """The wired entry point (guarded by the caller): ledger new forecasts, score arrivals.
+        Returns {"ledgered": n, "scored": n, "summary": [...]} or None when disabled."""
+        if os.environ.get("FORECAST_SKILL", "1") == "0":
+            return None
+        from services.weather_pipeline.buoy_calibration import (
+            calibrate_spots, fetch_ndbc_station_coords, load_calibration_l2, upload_calibration_l2,
+        )
+        now = now or datetime.now(timezone.utc)
+        incoming: List[dict] = []
+        # The served model first, then any comparison models � each is an INDEPENDENT source, so one
+        # model failing a lead never removes another's row. See COMPARE_MODELS_DEFAULT for the cost.
+        for mdl in [model] + compare_models(model):
+            src = source_for(mdl, model)
+            for lead in LEADS_H:
+                target = (now + timedelta(hours=lead)).strftime("%Y-%m-%dT%H:00:00Z")
+                try:
+                    lead_report = await calibrate_spots(resolver, spots, mdl, target)
+                    incoming.extend(rows_from_calibration_report(lead_report, target, lead, source=src))
+                except Exception as e:
+                    logger.warning("[forecast-skill] %s lead +%dh resolve failed (%s)", src, lead, e)
+        if os.environ.get("FORECAST_SKILL_PERSISTENCE", "1") != "0":
+            incoming.extend(persistence_rows_from_report(report, now))
+        try:
+            coords = await fetch_ndbc_station_coords()
+            buoys = {}
+            for entry in (report or {}).get("spots") or []:
+                bid = entry.get("buoy_id")
+                if bid and bid in coords and bid not in buoys:
+                    buoys[bid] = coords[bid]
+            incoming.extend(fetch_om_forecast_rows(buoys, now))
+            # The SAME-MODEL CONTROL, in its OWN try so a failure here can never cost us the
+            # competitor lane that already works. One extra batched request per run, not per buoy.
+            if os.environ.get("FORECAST_SKILL_OM_CONTROL", "1") != "0":
+                try:
+                    incoming.extend(fetch_om_forecast_rows(
+                        buoys, now, model=OM_CONTROL_MODEL, source=SOURCE_OM_GFS))
+                except Exception as e:
+                    logger.warning("[forecast-skill] OM same-model control lane failed (%s)", e)
+        except Exception as e:
+            logger.warning("[forecast-skill] competitor lane failed (%s)", e)
+    
+        pending = load_calibration_l2(SKILL_PENDING_L2_KEY) or []
+        merge_stats: Dict[str, int] = {}
+        pending = merge_pending(pending, incoming, now=now, stats=merge_stats)
+        score_stats: Dict[str, int] = {}
+        still, scored = score_pending(pending, report, now=now, stats=score_stats)
+        upload_calibration_l2(store, still, SKILL_PENDING_L2_KEY)
+        if scored:
+            month_groups: Dict[str, List[dict]] = {}
+            for r in scored:
+                t = _parse_iso(r.get("target_time"))
+                month_groups.setdefault(t.strftime("%Y-%m"), []).append(r)
+            for month, rows in month_groups.items():
+                key = f"{SKILL_SCORED_PREFIX}{month}.json"
+                existing = load_calibration_l2(key) or []
+>               seen = {dedupe_key(r) for r in existing}
+                                               ^^^^^^^^
+E               TypeError: 'int' object is not iterable
+
+services\weather_pipeline\forecast_skill.py:610: TypeError
+_ test_invalid_archive_shape_aborts_without_any_write[rows-calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': 'rows', 'calibration/skill/scored-2026-09.json': [{'source': 'raw...ther_pipeline.store.ProductStore object at 0x0000025484D87150>, run=<function wire.<locals>.run at 0x0000025484D79850>)
+key = 'calibration/skill/pending.json', invalid = 'rows'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("invalid", [None, {}, [None], 42, "rows"])
+    def test_invalid_archive_shape_aborts_without_any_write(wire, key, invalid):
+        wire.objects[key] = invalid
+        before = deepcopy(wire.objects)
+        with pytest.raises(RuntimeError):
+>           wire.run()
+
+tests\test_forecast_skill_retention.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_forecast_skill_retention.py:97: in run
+    return asyncio.run(fs.run_skill_ledger(state.store, None, [], "GFS", report, now=NOW))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+services\weather_pipeline\forecast_skill.py:598: in run_skill_ledger
+    pending = merge_pending(pending, incoming, now=now, stats=merge_stats)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+existing = 'rows', incoming = []
+now = datetime.datetime(2026, 9, 1, 0, 15, tzinfo=datetime.timezone.utc)
+max_entries = 30000, stats = {}
+
+    def merge_pending(existing, incoming, now: Optional[datetime] = None,
+                      max_entries: int = PENDING_MAX_ENTRIES,
+                      stats: Optional[dict] = None) -> List[dict]:
+        """Append forecasts, keeping the EARLIEST row per dedupe key (the honest lead) and dropping
+        rows whose target passed more than PENDING_EXPIRY_H ago (a buoy gap nobody can score).
+    
+        \u26a0\ufe0f THE CAP EVICTS THE FURTHEST-FUTURE TARGETS FIRST (2026-08-08). It used to keep them \u2014
+        `out[-max_entries:]` after the ascending sort � which evicts each row exactly as its target
+        hour approaches, so once demand exceeded the cap NOTHING could ever score: production logged
+        scored=0 on every run from 08-04T12:36Z (the pre-fan-out control 30839909407 was healthy).
+        Keeping the EARLIEST targets makes overflow starve only the farthest lead � measured
+        100/95.4/9.5% per lead at the old cap versus 0/0/0% � a degradation instead of an outage.
+        `stats`, when given, is filled with {kept, expired, cap_evicted} so eviction is observable
+        rather than invisible for four days again."""
+        now = now or datetime.now(timezone.utc)
+        horizon = now - timedelta(hours=PENDING_EXPIRY_H)
+        out, seen = [], set()
+        expired = 0
+        for row in list(existing or []) + list(incoming or []):
+>           t = _parse_iso(row.get("target_time"))
+                           ^^^^^^^
+E           AttributeError: 'str' object has no attribute 'get'
+
+services\weather_pipeline\forecast_skill.py:283: AttributeError
+_ test_invalid_archive_shape_aborts_without_any_write[rows-calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': 'rows'}, reads=['cal...ther_pipeline.store.ProductStore object at 0x0000025484D864A0>, run=<function wire.<locals>.run at 0x0000025484D799B0>)
+key = 'calibration/skill/scored-2026-09.json', invalid = 'rows'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    @pytest.mark.parametrize("invalid", [None, {}, [None], 42, "rows"])
+    def test_invalid_archive_shape_aborts_without_any_write(wire, key, invalid):
+        wire.objects[key] = invalid
+        before = deepcopy(wire.objects)
+        with pytest.raises(RuntimeError):
+>           wire.run()
+
+tests\test_forecast_skill_retention.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_forecast_skill_retention.py:97: in run
+    return asyncio.run(fs.run_skill_ledger(state.store, None, [], "GFS", report, now=NOW))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\dprit\AppData\Local\Python\pythoncore-3.14-64\Lib\asyncio\base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+services\weather_pipeline\forecast_skill.py:610: in run_skill_ledger
+    seen = {dedupe_key(r) for r in existing}
+            ^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+row = 'r'
+
+    def dedupe_key(row) -> tuple:
+>       return (row.get("source"), row.get("buoy_id"), row.get("target_time"),
+                ^^^^^^^
+                _lead_bucket(row.get("lead_h") or 0))
+E       AttributeError: 'str' object has no attribute 'get'
+
+services\weather_pipeline\forecast_skill.py:145: AttributeError
+__________ test_missing_month_is_created_before_pending_is_consumed ___________
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484CF82F0>, run=<function wire.<locals>.run at 0x0000025484D7A6C0>)
+
+    def test_missing_month_is_created_before_pending_is_consumed(wire):
+        del wire.objects[MONTH]
+        result = wire.run()
+        assert result["scored"] == 1
+        assert wire.objects[PENDING] == []
+        assert [r["buoy_id"] for r in wire.objects[MONTH]] == ["new"]
+>       assert [(key, upsert) for key, _, upsert in wire.writes] == [(MONTH, "false"), (PENDING, "true")]
+E       AssertionError: assert [('calibratio...son', 'true')] == [('calibratio...son', 'true')]
+E         
+E         At index 0 diff: ('calibration/skill/pending.json', 'true') != ('calibration/skill/scored-2026-09.json', 'false')
+E         Use -v to get more diff
+
+tests\test_forecast_skill_retention.py:131: AssertionError
+_______________ test_missing_pending_is_created_without_upsert ________________
+
+wire = namespace(objects={'calibration/skill/scored-2026-09.json': [{'source': 'raw_surf', 'buoy_id': 'old', 'target_time': '...ther_pipeline.store.ProductStore object at 0x0000025484CF4B30>, run=<function wire.<locals>.run at 0x0000025484D7B060>)
+
+    def test_missing_pending_is_created_without_upsert(wire):
+        del wire.objects[PENDING]
+        wire.run()
+>       assert wire.writes == [(PENDING, [], "false")]
+E       AssertionError: assert [('calibratio..., [], 'true')] == [('calibratio... [], 'false')]
+E         
+E         At index 0 diff: ('calibration/skill/pending.json', [], 'true') != ('calibration/skill/pending.json', [], 'false')
+E         Use -v to get more diff
+
+tests\test_forecast_skill_retention.py:137: AssertionError
+_ test_false_missing_cannot_overwrite_an_existing_object[calibration/skill/pending.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484E1D370>, run=<function wire.<locals>.run at 0x0000025484D7B8A0>)
+key = 'calibration/skill/pending.json'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    def test_false_missing_cannot_overwrite_an_existing_object(wire, key):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = "NoSuchKey"
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:144: Failed
+_ test_false_missing_cannot_overwrite_an_existing_object[calibration/skill/scored-2026-09.json] _
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484CF8C50>, run=<function wire.<locals>.run at 0x0000025484BEA090>)
+key = 'calibration/skill/scored-2026-09.json'
+
+    @pytest.mark.parametrize("key", [PENDING, MONTH])
+    def test_false_missing_cannot_overwrite_an_existing_object(wire, key):
+        before = deepcopy(wire.objects)
+        wire.read_modes[key] = "NoSuchKey"
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:144: Failed
+_________ test_failed_archive_write_preserves_pending_for_retry[503] __________
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484CE7890>, run=<function wire.<locals>.run at 0x0000025484BE8F60>)
+mode = '503'
+
+    @pytest.mark.parametrize("mode", ["503", "timeout"])
+    def test_failed_archive_write_preserves_pending_for_retry(wire, mode):
+        before = deepcopy(wire.objects)
+        wire.write_modes[MONTH] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:154: Failed
+------------------------------ Captured log call ------------------------------
+WARNING  services.weather_pipeline.store:store.py:388 [Product Store] L2 upload failed for calibration/skill/scored-2026-09.json: HTTP 503: synthetic response
+_______ test_failed_archive_write_preserves_pending_for_retry[timeout] ________
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484CF4590>, run=<function wire.<locals>.run at 0x0000025484BEA770>)
+mode = 'timeout'
+
+    @pytest.mark.parametrize("mode", ["503", "timeout"])
+    def test_failed_archive_write_preserves_pending_for_retry(wire, mode):
+        before = deepcopy(wire.objects)
+        wire.write_modes[MONTH] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:154: Failed
+------------------------------ Captured log call ------------------------------
+WARNING  services.weather_pipeline.store:store.py:388 [Product Store] L2 upload failed for calibration/skill/scored-2026-09.json: synthetic timeout
+______ test_failed_pending_write_retries_without_duplicate_archive[503] _______
+
+wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x0000025484D1D0D0>, run=<function wire.<locals>.run at 0x000002548470C3B0>)
+mode = '503'
+
+    @pytest.mark.parametrize("mode", ["503", "timeout"])
+    def test_failed_pending_write_retries_without_duplicate_archive(wire, mode):
+        before_pending = deepcopy(wire.objects[PENDING])
+        wire.write_modes[PENDING] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:178: Failed
+------------------------------ Captured log call ------------------------------
+WARNING  services.weather_pipeline.store:store.py:388 [Product Store] L2 upload failed for calibration/skill/pending.json: HTTP 503: synthetic response
+____ test_failed_pending_write_retries_without_duplicate_archive[timeout] _____
+
+wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x0000025484CDE810>, run=<function wire.<locals>.run at 0x00000254847CA2A0>)
+mode = 'timeout'
+
+    @pytest.mark.parametrize("mode", ["503", "timeout"])
+    def test_failed_pending_write_retries_without_duplicate_archive(wire, mode):
+        before_pending = deepcopy(wire.objects[PENDING])
+        wire.write_modes[PENDING] = mode
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:178: Failed
+------------------------------ Captured log call ------------------------------
+WARNING  services.weather_pipeline.store:store.py:388 [Product Store] L2 upload failed for calibration/skill/pending.json: synthetic timeout
+________________ test_all_month_reads_finish_before_any_write _________________
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484D00050>, run=<function wire.<locals>.run at 0x00000254847CAA30>)
+
+    def test_all_month_reads_finish_before_any_write(wire):
+        wire.objects[PENDING].append(row("prior", "2026-08-31T23:00:00Z"))
+        wire.read_modes[PREVIOUS] = "503"
+        before = deepcopy(wire.objects)
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:192: Failed
+______________ test_month_boundary_partial_success_is_retryable _______________
+
+wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x0000025484CCC710>, run=<function wire.<locals>.run at 0x000002548472D010>)
+
+    def test_month_boundary_partial_success_is_retryable(wire):
+        wire.objects[PENDING].append(row("prior", "2026-08-31T23:00:00Z"))
+        before_pending = deepcopy(wire.objects[PENDING])
+        wire.write_modes[PREVIOUS] = "503"
+>       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'RuntimeError'>
+
+tests\test_forecast_skill_retention.py:201: Failed
+------------------------------ Captured log call ------------------------------
+WARNING  services.weather_pipeline.store:store.py:388 [Product Store] L2 upload failed for calibration/skill/scored-2026-08.json: HTTP 503: synthetic response
+_______ test_strict_serializer_requires_explicit_upload_acknowledgment ________
+
+    def test_strict_serializer_requires_explicit_upload_acknowledgment():
+        store = SimpleNamespace(_upload_to_supabase=lambda *args, **kwargs: None)
+        with pytest.raises(RuntimeError):
+>           bc.upload_calibration_l2(store, [], MONTH, strict=True)
+E           TypeError: upload_calibration_l2() got an unexpected keyword argument 'strict'
+
+tests\test_forecast_skill_retention.py:216: TypeError
+____ test_unconfigured_strict_read_refuses_but_legacy_read_stays_optional _____
+
+wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x0000025484D8E7B0>, run=<function wire.<locals>.run at 0x000002548454D380>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000254845743D0>
+
+    def test_unconfigured_strict_read_refuses_but_legacy_read_stays_optional(wire, monkeypatch):
+        monkeypatch.delenv("SUPABASE_URL")
+        assert bc.load_calibration_l2(MONTH) is None
+        with pytest.raises(RuntimeError):
+>           bc.load_calibration_l2(MONTH, strict=True)
+E           TypeError: load_calibration_l2() got an unexpected keyword argument 'strict'
+
+tests\test_forecast_skill_retention.py:223: TypeError
+__________ test_strict_upload_unavailable_storage_cannot_acknowledge __________
+
+wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x0000025484C712B0>, run=<function wire.<locals>.run at 0x000002548454C5C0>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000025484574590>
+
+    def test_strict_upload_unavailable_storage_cannot_acknowledge(wire, monkeypatch):
+        monkeypatch.setattr(storage, "_get_supabase_storage", lambda: None)
+        assert wire.store._upload_to_supabase(MONTH, b"[]") is None
+        with pytest.raises(RuntimeError):
+>           bc.upload_calibration_l2(wire.store, [], MONTH, strict=True)
+E           TypeError: upload_calibration_l2() got an unexpected keyword argument 'strict'
+
+tests\test_forecast_skill_retention.py:231: TypeError
+ENVIRONMENT IS NOT THE DECLARED ONE: python 3.14 != declared 3.12; 28 of 46 pins differ; 7 declared packages absent; not in a virtualenv
+  => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
+=========================== short test summary info ===========================
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[503-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[503-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[timeout-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[timeout-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[bad_json-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[bad_json-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[NoSuchBucket-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[NoSuchBucket-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[TenantNotFound-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[TenantNotFound-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[not_found-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[not_found-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[404_html-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[404_html-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[403-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_unreadable_history_aborts_without_any_write[403-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_invalid_archive_shape_aborts_without_any_write[None-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_invalid_archive_shape_aborts_without_any_write[None-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_invalid_archive_shape_aborts_without_any_write[invalid1-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_invalid_archive_shape_aborts_without_any_write[invalid1-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_invalid_archive_shape_aborts_without_any_write[invalid2-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_invalid_archive_shape_aborts_without_any_write[invalid2-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_invalid_archive_shape_aborts_without_any_write[42-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_invalid_archive_shape_aborts_without_any_write[42-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_invalid_archive_shape_aborts_without_any_write[rows-calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_invalid_archive_shape_aborts_without_any_write[rows-calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_missing_month_is_created_before_pending_is_consumed
+FAILED tests/test_forecast_skill_retention.py::test_missing_pending_is_created_without_upsert
+FAILED tests/test_forecast_skill_retention.py::test_false_missing_cannot_overwrite_an_existing_object[calibration/skill/pending.json]
+FAILED tests/test_forecast_skill_retention.py::test_false_missing_cannot_overwrite_an_existing_object[calibration/skill/scored-2026-09.json]
+FAILED tests/test_forecast_skill_retention.py::test_failed_archive_write_preserves_pending_for_retry[503]
+FAILED tests/test_forecast_skill_retention.py::test_failed_archive_write_preserves_pending_for_retry[timeout]
+FAILED tests/test_forecast_skill_retention.py::test_failed_pending_write_retries_without_duplicate_archive[503]
+FAILED tests/test_forecast_skill_retention.py::test_failed_pending_write_retries_without_duplicate_archive[timeout]
+FAILED tests/test_forecast_skill_retention.py::test_all_month_reads_finish_before_any_write
+FAILED tests/test_forecast_skill_retention.py::test_month_boundary_partial_success_is_retryable
+FAILED tests/test_forecast_skill_retention.py::test_strict_serializer_requires_explicit_upload_acknowledgment
+FAILED tests/test_forecast_skill_retention.py::test_unconfigured_strict_read_refuses_but_legacy_read_stays_optional
+FAILED tests/test_forecast_skill_retention.py::test_strict_upload_unavailable_storage_cannot_acknowledge
+39 failed, 3 passed in 2.21s

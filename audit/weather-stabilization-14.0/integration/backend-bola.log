@@ -1,0 +1,24 @@
+BOLA route scan: 196 bare-user_id route(s); baseline 219.
+
+[TIGHTEN] 23 baseline route(s) now clean � tighten the ratchet with `python scripts/check_bola_routes.py --write-baseline`:
+   - bookings/booking_lifecycle.py::cancel_booking
+   - bookings/booking_lifecycle.py::complete_booking
+   - bookings/booking_lifecycle.py::create_user_booking
+   - bookings/booking_lifecycle.py::leave_live_session
+   - bookings/booking_lifecycle.py::mark_content_delivered
+   - crew/crew_chat.py::get_crew_chat_messages
+   - crew/crew_chat.py::send_crew_chat_message
+   - crew/crew_chat_media.py::upload_crew_chat_file
+   - crew/crew_chat_media.py::upload_crew_chat_image
+   - crew/crew_chat_media.py::upload_crew_chat_voice
+   - gallery/gallery_purchases.py::claim_free_photo
+   - messages/conversations.py::get_conversation_messages
+   - messages/conversations.py::get_conversations
+   - profiles/user_media.py::create_user_media
+   - profiles/user_media.py::delete_user_media
+   - profiles/user_media.py::get_user_media
+   - profiles/user_media.py::get_user_purchased_media
+   - profiles/user_media.py::get_user_uploads
+   - profiles/user_media.py::transfer_purchased_media
+   - subscriptions_billing/credits.py::get_credit_history
+OK � no new unauthenticated user_id routes.

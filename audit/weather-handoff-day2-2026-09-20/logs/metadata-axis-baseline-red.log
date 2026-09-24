@@ -1,0 +1,68 @@
+  console.log
+    [MODEL] Marine variable wave_height unavailable on ncep_gfswave025 — transparent tile (no cross-model fallback)
+
+      at Object.resolveAllUrls [as current] (src/components/map/useOpenMeteoTileUrls.js:568:25)
+
+FakeTimers: cancelAnimationFrame was invoked to clear a native timer instead of one created by this library.
+To automatically clean-up native timers, use `shouldClearNativeTimers`.
+FAIL src/tests/om-metadata-demand.test.js
+  √ native marine does not request unrelated external raster metadata (89 ms)
+  √ activating a raster requests its actual model despite bootstrap cached axes (81 ms)
+  √ marine fallback still requests its required metadata (83 ms)
+  √ historical warm-cache fix: live raster URLs resolve in the same animation callback (3 ms)
+  × cold network failure publishes no guessed-axis URL and recovery selects the real forecast hour (9 ms)
+  × cold unfinished manifest publishes no guessed-axis URL and recovery selects the real forecast hour (4 ms)
+
+  ● cold network failure publishes no guessed-axis URL and recovery selects the real forecast hour
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+    -   "coldUrl": "om://transparent-tile",
+    -   "decodedAfterFailure": null,
+    +   "coldUrl": "om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/latest.json?time_step=valid_times_3&variable=wave_height&contours=true&_cb=1789916400000&webgl_fallback=true",
+    +   "decodedAfterFailure": "om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/2026/09/20/1200Z/2026-09-20T2100.om?variable=wave_height&contours=true&_cb=1789916400000&webgl_fallback=true",
+      }
+
+      119 |       const decodedAfterFailure = coldUrl && coldUrl !== 'om://transparent-tile'
+      120 |         ? await normalizeUrl(coldUrl) : null;
+    > 121 |       expect({ coldUrl, decodedAfterFailure }).toEqual({
+          |                                                ^
+      122 |         coldUrl: 'om://transparent-tile', decodedAfterFailure: null,
+      123 |       });
+      124 |       expect(transport).toHaveBeenCalledTimes(1);
+
+      at src/tests/om-metadata-demand.test.js:121:48
+
+  ● cold unfinished manifest publishes no guessed-axis URL and recovery selects the real forecast hour
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Object {
+    -   "coldUrl": "om://transparent-tile",
+    -   "decodedAfterFailure": null,
+    +   "coldUrl": "om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/latest.json?time_step=valid_times_3&variable=wave_height&contours=true&_cb=1789916400000&webgl_fallback=true",
+    +   "decodedAfterFailure": "om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/2026/09/20/1200Z/2026-09-20T2100.om?variable=wave_height&contours=true&_cb=1789916400000&webgl_fallback=true",
+      }
+
+      119 |       const decodedAfterFailure = coldUrl && coldUrl !== 'om://transparent-tile'
+      120 |         ? await normalizeUrl(coldUrl) : null;
+    > 121 |       expect({ coldUrl, decodedAfterFailure }).toEqual({
+          |                                                ^
+      122 |         coldUrl: 'om://transparent-tile', decodedAfterFailure: null,
+      123 |       });
+      124 |       expect(transport).toHaveBeenCalledTimes(1);
+
+      at src/tests/om-metadata-demand.test.js:121:48
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 4 passed, 6 total
+Snapshots:   0 total
+Time:        2.082 s
+Ran all test suites matching /om-metadata-demand.test.js/i.

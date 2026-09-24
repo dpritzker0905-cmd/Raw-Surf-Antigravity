@@ -1,0 +1,86 @@
+{
+  "file": "frontend/src/components/map/marineGlobalPrewarm.js",
+  "method": "AST fallback: graph stale, Trevec ask failed ONNX download; inspect found no symbol",
+  "topology": [
+    {
+      "type": "ImportDeclaration",
+      "name": "./marineGridSeries",
+      "from": 15,
+      "to": 15,
+      "imports": [
+        "ensureMarineSeries"
+      ]
+    },
+    {
+      "type": "ImportDeclaration",
+      "name": "./backendWeatherServiceClient",
+      "from": 16,
+      "to": 16,
+      "imports": [
+        "fetchBackendMarineGrid"
+      ]
+    },
+    {
+      "type": "ImportDeclaration",
+      "name": "./backendCopernicusServiceClient",
+      "from": 17,
+      "to": 17,
+      "imports": [
+        "fetchBackendCopernicusGrid"
+      ]
+    },
+    {
+      "type": "VariableDeclaration",
+      "name": null,
+      "from": 19,
+      "to": 19
+    },
+    {
+      "type": "ExportNamedDeclaration",
+      "name": "registerPrewarmDeps",
+      "from": 26,
+      "to": 28,
+      "imports": []
+    },
+    {
+      "type": "VariableDeclaration",
+      "name": null,
+      "from": 42,
+      "to": 42
+    },
+    {
+      "type": "VariableDeclaration",
+      "name": null,
+      "from": 43,
+      "to": 43
+    },
+    {
+      "type": "ExportNamedDeclaration",
+      "name": "_coarseBaseMatches",
+      "from": 57,
+      "to": 60,
+      "imports": []
+    },
+    {
+      "type": "ExportNamedDeclaration",
+      "name": "_stageCoarseBridgeSeed",
+      "from": 61,
+      "to": 77,
+      "imports": []
+    },
+    {
+      "type": "ExportNamedDeclaration",
+      "name": "_rewarmWashBaseIfStale",
+      "from": 84,
+      "to": 92,
+      "imports": []
+    },
+    {
+      "type": "ExportNamedDeclaration",
+      "name": "prewarmGlobalMarineGrid",
+      "from": 94,
+      "to": 168,
+      "imports": []
+    }
+  ]
+}
