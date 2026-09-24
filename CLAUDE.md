@@ -1,5 +1,16 @@
 ## Project Rules (binding)
 
+- **NO SECRET VALUES IN ANY TRACKED FILE (user mandate 2026-09-24):** this repository is PUBLIC.
+  Reference credentials by environment-variable NAME only (`QDRANT_API_KEY`,
+  `SUPABASE_SERVICE_ROLE_KEY`) — never paste a key, token, password or connection string into
+  code, docs, handoffs, instruction files (`BRAIN_RULES.md`, `.antigravityrules`), test fixtures or
+  tool output you commit (lint/test dumps included). Values live only in Render env, GitHub Actions
+  secrets, Netlify env and gitignored local `.env` files.
+  ⛔ Seven credentials leaked this way (2026-03 → 2026-09), and removing them from history did NOT
+  unpublish them — see `docs/runbooks/SECURITY-2026-09-19-committed-credentials.md`. If a value is
+  ever committed, treat it as compromised and rotate it at the provider; do not rewrite history
+  instead. GitHub push protection is on; do not bypass a block.
+
 - **ONE FORECAST COMPOSITION (user mandate 2026-07-28):** every surface that shows surf height or
   quality — spot hubs, infoboxes, map glyphs, the weather sim, alerts, notifications, any new
   endpoint — must go through the SAME chain: `surf_point.resolve_surf_geometry` +
