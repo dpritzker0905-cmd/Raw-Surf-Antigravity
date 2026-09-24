@@ -1,3 +1,13 @@
+## Project Rules (binding)
+
+- **No secret values in any tracked file.** This repository is PUBLIC. Reference credentials by
+  environment-variable name only (`QDRANT_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`); never write a key,
+  token, password or connection string into code, docs, handoffs, instruction files, fixtures or
+  committed tool output. Values live only in Render env, GitHub Actions secrets, Netlify env and
+  gitignored local `.env` files. A committed value is compromised: rotate it at the provider —
+  history rewriting does not unpublish it (`docs/runbooks/SECURITY-2026-09-19-committed-credentials.md`).
+  Never bypass a GitHub push-protection block. Full rules: `CLAUDE.md`.
+
 <!-- trevec:rules:start -->
 
 ## Trevec MCP Tools
