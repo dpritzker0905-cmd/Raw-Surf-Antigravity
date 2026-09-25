@@ -95,7 +95,7 @@ class WeatherPipelineScheduler:
         noaa_direct = os.environ.get("GFS_MARINE_NOAA_DIRECT", "1") != "0"
 
         from services.weather_pipeline.scheduler_helpers import (
-            flagship_pilot_days, get_all_pilot_regions)
+            flagship_pilot_days, get_gfs_marine_pilot_regions)
         from services.weather_pipeline.marine_mid_res_ingestion import (
             _GLOBAL_REGION, _save_marine_regional, gfs_mid_folds_into_pilot,
             gfs_mid_forecast_days, gfs_mid_resolution, save_gfs_marine_global_mid)
@@ -118,7 +118,10 @@ class WeatherPipelineScheduler:
         # exactly: one pass per distinct horizon, not one pass per region.
         # Kill switch: MARINE_PILOT_MULTI_BBOX=0 -> the per-region rotation path below.
         if noaa_direct and os.environ.get("MARINE_PILOT_MULTI_BBOX", "1") != "0":
-            regions_all = get_all_pilot_regions()
+            # + GFS_MARINE_EXTRA_REGIONS (F-08 Stage A): GFS-only boxes, free in this pass because the
+            # download is the whole globe either way. The per-region rotation fallback below does NOT
+            # carry them -- it downloads per region, which is exactly the cost the extras must not add.
+            regions_all = get_gfs_marine_pilot_regions()
             by_horizon = {}
             for rid, rcfg in regions_all.items():
                 days = flagship_pilot_days(

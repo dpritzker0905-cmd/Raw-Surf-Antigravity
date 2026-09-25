@@ -45,6 +45,11 @@ WORLDWIDE_REGIONS = ("hawaii", "iberia_west", "uk_ireland", "east_australia",
                      "indonesia", "brazil_east", "south_africa", "mexico_centralamerica_pac")
 # Lanes that ingest every region every cycle (get_all_pilot_regions) -> flagship cadence, not rotation.
 NO_ROTATION_LANES = {("ICON", "marine"), ("EURO", "marine")}
+# F-08 Stage A (2026-09-25): GFS-marine-only boxes, refreshed by the multi-bbox pass on EVERY pilots
+# fire (pilot_regions.GFS_MARINE_EXTRA_REGIONS). Held to the flagship 8 h cadence so a stalled box
+# pages -- left unknown, tier_of would grade it `worldwide` (72 h) and hide a dead new lane for 3 days.
+GFS_MARINE_EXTRA_REGIONS = ("canaries_madeira_morocco", "caribbean_pr_dr", "srilanka_maldives",
+                            "centralamerica_caribbean")
 
 # (warn_h, critical_h) per tier. Roughly 2x and 3x the expected cadence: one missed cycle is noise,
 # two is a signal, three is a defect.
@@ -104,6 +109,8 @@ def tier_of(region_id, model, domain):
         return "flagship"
     if r in WORLDWIDE_REGIONS:
         return "flagship" if (model, domain) in NO_ROTATION_LANES else "worldwide"
+    if r in GFS_MARINE_EXTRA_REGIONS:
+        return "flagship"
     return "worldwide"          # unknown region -> the most forgiving tier, never a false alarm
 
 
