@@ -107,7 +107,22 @@ def tier_of(region_id, model, domain):
     return "worldwide"          # unknown region -> the most forgiving tier, never a false alarm
 
 
-def census(products, now, strict=False):
+# ⛔ GATED LANES (2026-09-23, audit 14.1). The 0.083° Copernicus island lane was switched off on
+# 2026-09-19 (ingest stopped; serving gated by COPERNICUS_ISLAND_SERVE, default 0 -- island_gate.py,
+# RATIONALE-2026-09-19-island-serving-gate.md). Its 5,200 products (30.9% of the manifest) stay
+# listed until they age out, so this census graded them CRITICAL on every run: the monitor failed 4
+# runs in a row on a lane NO rider is served, burying any real outage behind a known one. A lane is
+# GATED only when the box being audited REPORTS that gate disarmed (`serving_gates` in /api/health).
+# Unknown gate state -> graded exactly as before; nothing is ever hidden blind.
+GATED_REGION_PREFIXES = {"island_": "island"}
+
+
+def gate_for(region):
+    r = region or ""
+    return next((g for pre, g in GATED_REGION_PREFIXES.items() if r.startswith(pre)), None)
+
+
+def census(products, now, strict=False, gates=None):
     """One row per (model, domain, layer, region) lane. Pure -- takes products, returns rows.
 
     Reports BOTH axes, because they fail independently and demand different responses:
@@ -143,7 +158,10 @@ def census(products, now, strict=False):
         covers_now = any(ve >= now for ve in ends) if ends else None
         horizon_h = round((max(ends) - now).total_seconds() / 3600.0, 1) if ends else None
 
-        if covers_now is False:
+        gate = gate_for(region)
+        if gate and isinstance(gates, dict) and gates.get(gate) is False:
+            verdict = "GATED"       # listed, not served: reported, never paged (see GATED LANES)
+        elif covers_now is False:
             verdict = "EXPIRED"     # strictly worse than stale: the tier is ABSENT, not merely old
         elif age_h > crit_h:
             verdict = "CRITICAL"
@@ -181,8 +199,17 @@ def main():
     with urllib.request.urlopen(req, timeout=180) as r:
         products = json.load(r).get("products", [])
 
+    gates = None   # unknown unless the audited box says so -> nothing is GATED blind
+    try:
+        hreq = urllib.request.Request(args.base + "/api/health", headers={"User-Agent": "product-run-age-census"})
+        with urllib.request.urlopen(hreq, timeout=60) as r:
+            g = json.load(r).get("serving_gates")
+        gates = g if isinstance(g, dict) else None
+    except Exception as e:
+        print(f"(serving gates unreadable: {type(e).__name__} -- every lane graded normally)")
+
     now = datetime.now(timezone.utc)
-    rows = census(products, now, strict=args.strict)
+    rows = census(products, now, strict=args.strict, gates=gates)
 
     # REFUSE TO ANSWER rather than report a confident zero: an empty or run_time-less manifest is a
     # failure of the instrument's precondition, not a clean bill of health. (Five false positives in
@@ -235,9 +262,13 @@ def main():
     expired = [r for r in rows if r["verdict"] == "EXPIRED"]
     crit = [r for r in rows if r["verdict"] == "CRITICAL"]
     warn = [r for r in rows if r["verdict"] == "warn"]
+    gated = [r for r in rows if r["verdict"] == "GATED"]
     if not args.json:
         print(f"\n{len(rows)} lanes: {len(expired)} EXPIRED, {len(crit)} CRITICAL, {len(warn)} warn, "
-              f"{len(rows) - len(expired) - len(crit) - len(warn)} ok")
+              f"{len(gated)} GATED, {len(rows) - len(expired) - len(crit) - len(warn) - len(gated)} ok")
+        if gated:
+            print(f"GATED: {len(gated)} lanes listed but not served (gate disarmed on the box: "
+                  f"{sorted({gate_for(r['region']) for r in gated})}) -- reported, not paged.")
         if expired:
             e = expired[0]
             print(f"EXPIRED means the tier is ABSENT, not stale -- the resolver falls through to a "
