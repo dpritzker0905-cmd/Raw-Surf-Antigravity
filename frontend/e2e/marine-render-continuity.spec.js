@@ -62,6 +62,33 @@ const { longestStall } = require('./continuityOracle');
 const GAP_BUDGET_MS = Number(process.env.RAW_E2E_GAP_BUDGET_MS || 1200);
 const POLL_MS = 100;
 
+// ⛔ `/map` is a ProtectedRoute (App.js). Without a seeded user an anonymous visitor is sent to
+// /auth, so the map controls this file waits on can never appear. That is why both describes here
+// had never passed on dev since they landed (audit 15.0, A15-06): they timed out on the auth page,
+// not on the map. Same test identity and consent keys weather-simulation.spec.js seeds; an init
+// script runs before any app code, so there is no /auth -> /feed redirect race to settle.
+const E2E_USER = {
+  id: 'test-surfer-id',
+  email: 'surfer@rawsurf.com',
+  full_name: 'Standard Surfer',
+  username: 'standardsurfer',
+  role: 'user',
+  subscription_tier: 'premium',
+  is_admin: false
+};
+
+async function openMapAsSurfer(page) {
+  await page.addInitScript((user) => {
+    localStorage.setItem('raw-surf-user', JSON.stringify(user));
+    localStorage.setItem(`tos-accepted-${user.id}-1.0`, Date.now().toString());
+    localStorage.setItem('raw-surf-cookie-consent', JSON.stringify({ accepted: true, timestamp: Date.now() }));
+    localStorage.setItem('rs-push-prompt-dismissed', Date.now().toString());
+  }, E2E_USER);
+  await page.goto('/map', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('[data-testid="featured-photographers-btn"]'))
+    .toBeVisible({ timeout: 65000 });
+}
+
 /** Start an in-page sampler that records draw-counter stalls until stopped. */
 async function startSampler(page) {
   await page.evaluate((pollMs) => {
@@ -104,9 +131,7 @@ async function clickLayer(page, name) {
 
 test.describe('Marine render continuity across real gestures', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/map', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('[data-testid="featured-photographers-btn"]'))
-      .toBeVisible({ timeout: 65000 });
+    await openMapAsSurfer(page);
   });
 
   test('the marine field keeps drawing while toggling layers, models, zoom and pan', async ({ page }) => {
@@ -228,9 +253,7 @@ const SEBASTIAN = { lat: 27.8608, lng: -80.4464, zoom: 12 };
 
 test.describe('Marine render continuity under a rapid zoom/pan burst', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/map', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('[data-testid="featured-photographers-btn"]'))
-      .toBeVisible({ timeout: 65000 });
+    await openMapAsSurfer(page);
   });
 
   test('the field and the band survive a fast burst at Sebastian Inlet z12', async ({ page }) => {

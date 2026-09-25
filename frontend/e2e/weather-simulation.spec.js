@@ -310,7 +310,13 @@ test.describe('Standard Surfer Map Controls', () => {
     await expect(playBtn).toBeVisible();
 
     // Verify time readout initially says "Live"
-    const timeReadout = page.locator('div.min-w-\\[50px\\]').filter({ visible: true });
+    // The chip holds two spans since 1cfc15fd (F-07): the visible time (aria-hidden) and a
+    // screen-reader sentence ("Showing the forecast for …"). Reading the whole div concatenated them
+    // ("LiveShowing the forecast for Fri 4 PM.") and failed on every run from then on (audit 15.0,
+    // A15-06). Assert the visible chip only; the sr-only sentence has its own unit tests.
+    const timeReadout = page
+      .locator('div.min-w-\\[50px\\] > span[aria-hidden="true"]')
+      .filter({ visible: true });
     await expect(timeReadout).toHaveText('Live');
 
     // 4. Toggle timeline play
@@ -441,111 +447,69 @@ test.describe('Standard Surfer Map Controls', () => {
     await expect(gfsBtn).toBeVisible();
     await gfsBtn.evaluate(el => el.click());
 
-    // Wait for GFS telemetry synchronization in window.__MARINE_PROJECTION_DIAG__.
+    // ⛔ WHICH DIAGNOSTIC (audit 15.0, A15-06 / A15-09). These gates read
+    // __MARINE_PROJECTION_DIAG__, which is written only by the `/grid` lane. This describe sets
+    // `force_marine_fallback`, and in that lane the diag is never written at all: measured locally
+    // at ca2c5520 it stayed `not_initialized / unsupported` for 20 s after Waves and after EURO,
+    // while the field was committed. So the gate failed on every run (CI 36153843638 printed exactly
+    // that initial state). __FORECAST_TIMELINE_COVERAGE_DIAG__ is written when a frame is committed
+    // in BOTH lanes and names the model, the product and the valid time, so the gates read it.
     //
-    // Switching the model requests a product this session has never fetched, so it is a marine
-    // cache MISS by construction — 18-35 s measured (see the canvas budget above). The old 15 s
-    // sat under that floor and timed out on 9 of 12 attempts.
-    //
-    // The bare timeout was also undiagnosable: this gate ANDs three terms and reported none of
-    // them, so a failure could not tell "the model never switched" from "it switched but never
-    // became renderable". Measured at the artifact 2026-08-06 the gate DOES pass
-    // (activeModel=GFS, renderable=true, renderDecision=clip_to_coverage), so on the next failure
-    // we need the term values, not another guess.
-    try {
-      await page.waitForFunction(() => {
-        const diag = window.__MARINE_PROJECTION_DIAG__;
-        return diag && diag.activeModel === 'GFS' &&
-               (diag.renderable === true || diag.renderDecision === 'render' || diag.renderDecision === 'clip_to_coverage');
-      }, null, { timeout: 45000 });
-    } catch (err) {
-      const seen = await page.evaluate(() => {
-        const d = window.__MARINE_PROJECTION_DIAG__;
-        if (!d) return { diagPresent: false };
-        return {
-          diagPresent: true,
-          activeModel: d.activeModel,
-          renderable: d.renderable,
-          renderDecision: d.renderDecision,
-          status: d.status,
-          reason: d.reason,
-          outsideCoverageReason: d.outsideCoverageReason,
-          productId: d.productId,
-        };
-      });
-      throw new Error(
-        `GFS telemetry gate never satisfied. Terms actually seen: ${JSON.stringify(seen)}\n${err.message}`
-      );
-    }
+    // Switching the model is a marine cache MISS by construction — 18-35 s measured — hence 45 s.
+    const readCommitted = () => page.evaluate(() => {
+      const t = window.__FORECAST_TIMELINE_COVERAGE_DIAG__;
+      if (!t) return { diagPresent: false };
+      return {
+        diagPresent: true,
+        activeModel: t.activeModel,
+        activeLayer: t.activeLayer,
+        status: t.status,
+        renderDecision: t.renderDecision,
+        gridProductId: t.gridProductId,
+        selectedValidTime: t.selectedValidTime,
+      };
+    });
+    const committedFor = async (model) => {
+      try {
+        await page.waitForFunction((m) => {
+          const t = window.__FORECAST_TIMELINE_COVERAGE_DIAG__;
+          return !!t && t.activeModel === m && t.activeLayer === 'waves' && t.status === 'active' &&
+                 (t.renderDecision === 'render' || t.renderDecision === 'clip_to_coverage') &&
+                 !!t.gridProductId && !!t.selectedValidTime;
+        }, model, { timeout: 45000 });
+      } catch (err) {
+        throw new Error(
+          `${model} commit gate never satisfied. Terms actually seen: ${JSON.stringify(await readCommitted())}
+${err.message}`
+        );
+      }
+      const seen = await readCommitted();
+      expect(seen.activeModel).toBe(model);
+      // The product must belong to the model the user picked, not the one before it.
+      // Committed ids seen live: `gfs_marine_waves_<region>_<t>.json`, `viewport_gfs_marine_…`,
+      // `series_GFS_waves_h0`. Each names the model; none may name a different one.
+      const pid = String(seen.gridProductId).toLowerCase();
+      const m = model.toLowerCase();
+      expect(pid.startsWith(`${m}_`) || pid.startsWith(`viewport_${m}_`) || pid.startsWith(`series_${m}_`)).toBe(true);
+      return seen;
+    };
 
-    // Assert GFS telemetry is fully synchronized
-    const gfsDiag = await page.evaluate(() => window.__MARINE_PROJECTION_DIAG__);
-    expect(gfsDiag.activeModel).toBe('GFS');
-    const isGfsRenderable = gfsDiag.renderable === true || gfsDiag.renderDecision === 'render' || gfsDiag.renderDecision === 'clip_to_coverage';
-    expect(isGfsRenderable).toBe(true);
+    await committedFor('GFS');
 
     // 3. Switch to "EURO" model selector (Copernicus)
     const euroBtn = page.locator('button').filter({ hasText: 'EURO' }).filter({ visible: true }).first();
     await expect(euroBtn).toBeVisible();
     await euroBtn.evaluate(el => el.click());
 
-    // Wait for Copernicus (EURO) telemetry synchronization.
-    //
-    // Another model switch, so another marine cache MISS — same 18-35 s budget as the GFS gate.
-    // This gate ANDs FIVE terms and reported none of them on timeout. Measured at the artifact
-    // 2026-08-06 all five pass: activeModel=EURO, diag present, provider=open-meteo,
-    // fallbackReason=null, renderable=true.
-    // ⚠️ `skipped` and `nonzeroCount` are NOT keys of __COPERNICUS_GRID_DIAG__ (measured), so the
-    // last two clauses of the renderable term are dead — only `renderable === true` can satisfy it.
-    try {
-      await page.waitForFunction(() => {
-        const marineDiag = window.__MARINE_PROJECTION_DIAG__;
-        const copernicusDiag = window.__COPERNICUS_GRID_DIAG__;
-        return marineDiag && marineDiag.activeModel === 'EURO' &&
-               copernicusDiag &&
-               (copernicusDiag.provider === 'copernicus' || copernicusDiag.provider === 'backend-weather-service' || copernicusDiag.provider === 'open-meteo' || copernicusDiag.provider === 'estimated') &&
-               (!copernicusDiag.fallbackReason || copernicusDiag.fallbackReason === null) &&
-               (copernicusDiag.renderable === true || copernicusDiag.skipped === false || (copernicusDiag.nonzeroCount !== undefined && copernicusDiag.nonzeroCount > 0));
-      }, null, { timeout: 45000 });
-    } catch (err) {
-      const seen = await page.evaluate(() => {
-        const m = window.__MARINE_PROJECTION_DIAG__;
-        const c = window.__COPERNICUS_GRID_DIAG__;
-        return {
-          term1_activeModel: m ? m.activeModel : '<no marine diag>',
-          term2_copernicusDiagPresent: !!c,
-          term3_provider: c ? c.provider : null,
-          term4_fallbackReason: c ? c.fallbackReason : null,
-          term5_renderable: c ? c.renderable : null,
-          gridMode: c ? c.gridMode : null,
-          is_estimated: c ? c.is_estimated : null,
-        };
-      });
-      throw new Error(
-        `EURO/Copernicus telemetry gate never satisfied. Terms actually seen: ${JSON.stringify(seen)}\n${err.message}`
-      );
-    }
+    await committedFor('EURO');
 
-    // Assert Copernicus/EURO telemetry is fully synchronized and valid
-    const finalDiag = await page.evaluate(() => {
-      return {
-        marine: window.__MARINE_PROJECTION_DIAG__,
-        copernicus: window.__COPERNICUS_GRID_DIAG__
-      };
-    });
-
-    expect(finalDiag.marine.activeModel).toBe('EURO');
-    expect(finalDiag.copernicus.fallbackReason || null).toBeNull();
-    // ⚠️ The last clause read `finalDiag.nonzeroCount` while its own guard read
-    // `finalDiag.copernicus.nonzeroCount` — an undefined that could never be > 0, so the clause
-    // was dead code masquerading as a fallback. (It stays inert either way: `nonzeroCount` is not
-    // a key of __COPERNICUS_GRID_DIAG__ at all, measured 2026-08-06. Corrected so it reads what it
-    // guards rather than silently never firing.)
-    const isCopernicusRenderable = finalDiag.copernicus.renderable === true ||
-                                   finalDiag.copernicus.skipped === false ||
-                                   (finalDiag.copernicus.nonzeroCount !== undefined && finalDiag.copernicus.nonzeroCount > 0);
-    expect(isCopernicusRenderable).toBe(true);
-    expect(['copernicus', 'backend-weather-service', 'open-meteo', 'estimated']).toContain(finalDiag.copernicus.provider);
+    // The Copernicus grid diag is still published on this lane (measured: provider open-meteo,
+    // renderable true, no fallback reason) — keep its provider/fallback contract.
+    const copernicus = await page.evaluate(() => window.__COPERNICUS_GRID_DIAG__ || null);
+    expect(copernicus).not.toBeNull();
+    expect(copernicus.fallbackReason || null).toBeNull();
+    expect(copernicus.renderable).toBe(true);
+    expect(['copernicus', 'backend-weather-service', 'open-meteo', 'estimated']).toContain(copernicus.provider);
   });
 });
 
