@@ -8,6 +8,10 @@ from services.weather_pipeline.schemas import (
 
 logger = logging.getLogger(__name__)
 
+# Marine layers that are spectral PARTITIONS of the sea state. An invalid cell in one of these means
+# "no energy in this partition here", not "land" — see the reach rule in sample_point.
+PARTITION_LAYERS = frozenset({"swell_1", "swell_2", "wind_waves"})
+
 
 def deduce_grid_resolution(grid) -> float:
     """Grid spacing in degrees, or 0.0 when it cannot be deduced.
@@ -441,7 +445,17 @@ class PointSampler:
                 nearest = self._find_nearest_vector(valid_vectors, lat, lng)
                 pos_diffs = [lats[i + 1] - lats[i] for i in range(len(lats) - 1)]
                 grid_res = min(pos_diffs) if pos_diffs else 10.0
-                max_dist = max(grid_res * 1.5, 1.0)
+                # ⛔ PARTITIONS ARE NOT COASTLINE (audit 15.0, A15-02). A swell/wind-sea cell is
+                # invalid where WW3 put no energy in that partition — open ocean, not land. The 1°
+                # floor below exists for the TOTAL field at a coast; applied to a partition it reached
+                # four 0.25° cells away and reported another place's swell train: Sebastian Inlet
+                # published primary swell 2.45 m against a 1.72 m TOTAL sea (impossible: Hs² = Σ
+                # partitions²) while upstream had no swell partition there. Partitions keep only the
+                # cell-scale reach; a farther train is somewhere else's sea, so the answer is absent.
+                if product.domain.lower() == "marine" and product.layer.lower() in PARTITION_LAYERS:
+                    max_dist = grid_res * 1.5
+                else:
+                    max_dist = max(grid_res * 1.5, 1.0)
                 d = math.hypot(nearest.lat - lat, nearest.lng - lng)
                 if d <= max_dist:
                     detail = NormalizedPointDetail(

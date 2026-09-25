@@ -67,11 +67,26 @@ def swell_height_ft(value):
     return round(height * M_TO_FT, 1) if height is not None else None
 
 
-async def cached_primary_swell(resolver, model, lat, lng, dt):
+# Sampler outcomes that carry NO measurement although their payload says speed=0.0. Read as a
+# swell they published "0 ft" for a cell nobody measured (audit 15.0, A15-02).
+_NO_SAMPLE_METHODS = frozenset({"unavailable", "out_of_bounds_fallback"})
+# A partition cannot exceed the sea it partitions (Hs² = Σ partitionsᵢ²). The slack covers the swell
+# and total lanes being read from different cells or products plus rounding — not physics.
+PARTITION_OVER_TOTAL_TOLERANCE = 1.05
+PARTITION_OVER_TOTAL_SLACK_M = 0.05
+_UNKNOWN_SWELL = {"swell_height": None, "swell_direction": None}
+
+
+async def cached_primary_swell(resolver, model, lat, lng, dt, total_hs_m=None):
     """Sample the existing swell_1 cache lane. No provider fetch or total-sea substitution.
 
     Used by the hub and rating-frame producer. Reconciled physics partitions are not raw
     primary swell observations and must not be reused for this display field.
+
+    Returns None only when there is no usable cached product (the caller's cache-miss path). A
+    product that exists but has no measurement here — or a swell larger than ``total_hs_m``, the
+    offshore total the caller already holds — returns an UNKNOWN swell, so neither a fabricated
+    0 ft nor another cell's train is published, and no provider fallback is triggered.
     """
     prod = await resolver.find_cached_grid_product(model, "marine", "swell_1", lat, lng, dt)
     if not prod or getattr(prod, "value_unit", "m") != "m":
@@ -81,9 +96,16 @@ async def cached_primary_swell(resolver, model, lat, lng, dt):
         return None
     res = resolver.sampler.sample_point(prod, lat, lng)
     point = getattr(res, "point", None)
+    if getattr(point, "interpolation_method", None) in _NO_SAMPLE_METHODS:
+        return dict(_UNKNOWN_SWELL)
     height = swell_height_m(getattr(point, "speed", None))
     if height is None:
         return None
+    total = swell_height_m(total_hs_m)
+    if total is not None and height > total * PARTITION_OVER_TOTAL_TOLERANCE + PARTITION_OVER_TOTAL_SLACK_M:
+        logger.debug(f"[spot-conditions] swell {height:.2f} m exceeds total {total:.2f} m at ({lat},{lng}); "
+                     f"reporting unknown")
+        return dict(_UNKNOWN_SWELL)
     return {"swell_height": height, "swell_direction": getattr(point, "direction", None)}
 
 
@@ -286,7 +308,8 @@ async def resolve_spot_conditions_impl(
             cache_misses = True
             
         # Swell
-        cached_swell = await cached_primary_swell(self, model, lat, lng, dt)
+        cached_swell = await cached_primary_swell(
+            self, model, lat, lng, dt, total_hs_m=(waves_data.get(dt) or {}).get("wave_height"))
         if cached_swell is not None:
             swell_data[dt] = cached_swell
         else:

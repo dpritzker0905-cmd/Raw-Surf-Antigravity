@@ -143,7 +143,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         try:
             from services.weather_pipeline.spot_conditions import cached_primary_swell
             dt = datetime.fromisoformat(valid_time.replace("Z", "+00:00"))
-            swell = await cached_primary_swell(resolver, model, lat, lng, dt)
+            swell = await cached_primary_swell(resolver, model, lat, lng, dt, total_hs_m=offshore_h)
             if swell is not None:
                 primary_swell_h = swell["swell_height"]
         except Exception as e:
