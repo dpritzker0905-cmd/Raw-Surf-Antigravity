@@ -203,6 +203,40 @@ def flagship_pilot_days(region_id: str, flagship_days: int, worldwide_days: int)
     return flagship_days if is_flagship_pilot_region(region_id) else worldwide_days
 
 
+# ── F-08 STAGE A (audit 14.1, 2026-09-25): GFS-MARINE-ONLY coverage expansion ──────────────────
+# Census on the live catalogue (1,773 spots): 732 (41.3%) sit outside every 0.25 deg box above, so
+# their marine scrub is either the live Open-Meteo series (GFS_ICON_SERIES_FASTPATH) or a 2 deg
+# global cell. These are the four densest greedy 10x8 deg windows over that uncovered set
+# (audit/weather-simulation-14.1/F08-COVERAGE-PROPOSAL.md), re-measured on the live list: +186 spots.
+# ⭐ KEPT OUT OF WORLDWIDE_COASTAL_REGIONS ON PURPOSE. That dict also feeds the ICON/EURO marine
+#   pilots (get_all_pilot_regions) and the rotation, so adding here would triple the product cost
+#   and stretch the 32 h cadence. The GFS pass is a single whole-globe NOAA download sliced per box,
+#   so these cost only normalize/save + manifest rows (~220 products each) -- the binding constraint
+#   is Render RSS (proposal §3), which is why Stage A is four boxes and must be measured before B.
+# A4's west edge is trimmed -85 -> -84 so it ABUTS mexico_centralamerica_pac instead of overlapping
+# it; the trim loses no uncovered spot (29 either way).
+# Kill switch: GFS_MARINE_EXTRA_REGIONS=0.
+GFS_MARINE_EXTRA_REGIONS = {
+    "canaries_madeira_morocco": {"west": -19.0, "south": 26.0, "east": -9.0,  "north": 34.0, "resolution": 0.25},  # 64 spots
+    "caribbean_pr_dr":          {"west": -71.0, "south": 12.0, "east": -61.0, "north": 20.0, "resolution": 0.25},  # 55 spots
+    "srilanka_maldives":        {"west": 72.0,  "south": 2.0,  "east": 82.0,  "north": 10.0, "resolution": 0.25},  # 38 spots
+    "centralamerica_caribbean": {"west": -84.0, "south": 3.0,  "east": -75.0, "north": 11.0, "resolution": 0.25},  # 29 spots
+}
+
+
+def get_gfs_marine_pilot_regions() -> dict:
+    """Regions for the GFS marine multi-bbox pass ONLY: everything get_all_pilot_regions() returns plus
+    GFS_MARINE_EXTRA_REGIONS (F-08 Stage A). ICON/EURO marine and the wind pilots keep calling
+    get_all_pilot_regions()/get_pilot_regions() and never see the extras. Same gates as the parent:
+    WORLDWIDE_COASTAL=0 / test env -> flagship-only; GFS_MARINE_EXTRA_REGIONS=0 drops only the extras."""
+    regions = get_all_pilot_regions()
+    if len(regions) == len(REGIONAL_CONFIGS):      # flagship-only (test env or WORLDWIDE_COASTAL=0)
+        return regions
+    if os.environ.get("GFS_MARINE_EXTRA_REGIONS", "1") == "0":
+        return regions
+    return {**regions, **GFS_MARINE_EXTRA_REGIONS}
+
+
 def get_all_pilot_regions() -> dict:
     """Flagship + ALL worldwide coastal regions — NO rotation (2026-07-13, multi-bbox arc): for the
     single-download-pass fetchers (GWAM/ECMWF wave stream), extra regions cost only in-memory

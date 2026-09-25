@@ -72,3 +72,68 @@ def test_expansion_boxes_are_well_formed_and_share_edges_without_interior_overla
             assert not interior_overlap, (
                 f"{ra} and {rb} overlap in the interior — the same cells would ingest twice "
                 f"every cycle. Abut on an edge or shrink one.")
+
+
+# ─── F-08 STAGE A: GFS-MARINE-ONLY EXTRA REGIONS (audit 14.1, 2026-09-25) ──────────────────────
+
+def _prod_env(monkeypatch):
+    from services.weather_pipeline import copernicus_validator
+    monkeypatch.setattr(copernicus_validator, "is_test_environment", lambda: False)
+    monkeypatch.setenv("WORLDWIDE_COASTAL", "1")
+    monkeypatch.delenv("GFS_MARINE_EXTRA_REGIONS", raising=False)
+
+
+def test_gfs_extra_boxes_are_well_formed_and_never_overlap_any_box():
+    """Every box the GFS pass slices — flagship, worldwide AND the extras — must be interior-disjoint,
+    or the same cells ingest twice per cycle. centralamerica_caribbean was trimmed -85 -> -84 to ABUT
+    mexico_centralamerica_pac; widen it back and this fails."""
+    from services.weather_pipeline.pilot_regions import (
+        REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS, GFS_MARINE_EXTRA_REGIONS)
+    assert not (set(GFS_MARINE_EXTRA_REGIONS) & (set(REGIONAL_CONFIGS) | set(WORLDWIDE_COASTAL_REGIONS)))
+    boxes = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS, **GFS_MARINE_EXTRA_REGIONS}
+    for rid, b in GFS_MARINE_EXTRA_REGIONS.items():
+        assert b["west"] < b["east"] and b["south"] < b["north"] and b["resolution"] == 0.25, rid
+    items = list(boxes.items())
+    for i, (ra, a) in enumerate(items):
+        for rb, b in items[i + 1:]:
+            assert not (a["west"] < b["east"] and b["west"] < a["east"]
+                        and a["south"] < b["north"] and b["south"] < a["north"]), (ra, rb)
+
+
+def test_gfs_extras_reach_only_the_gfs_marine_pass(monkeypatch):
+    """⭐ The whole point of a separate dict: get_all_pilot_regions() also feeds ICON/EURO marine, so an
+    extra that leaked into it would triple the product cost Stage A was priced at. Positive control:
+    the GFS function DOES carry them, so this cannot pass by the extras being empty."""
+    from services.weather_pipeline.pilot_regions import (
+        GFS_MARINE_EXTRA_REGIONS, get_all_pilot_regions, get_gfs_marine_pilot_regions)
+    _prod_env(monkeypatch)
+    assert GFS_MARINE_EXTRA_REGIONS
+    assert not (set(GFS_MARINE_EXTRA_REGIONS) & set(get_all_pilot_regions())), "extras leaked to ICON/EURO"
+    gfs = get_gfs_marine_pilot_regions()
+    assert set(GFS_MARINE_EXTRA_REGIONS) <= set(gfs)
+    assert set(get_all_pilot_regions()) <= set(gfs), "the GFS pass must not LOSE any existing region"
+
+
+def test_gfs_extras_kill_switch_and_test_env(monkeypatch):
+    from services.weather_pipeline.pilot_regions import (
+        REGIONAL_CONFIGS, GFS_MARINE_EXTRA_REGIONS, get_all_pilot_regions, get_gfs_marine_pilot_regions)
+    _prod_env(monkeypatch)
+    monkeypatch.setenv("GFS_MARINE_EXTRA_REGIONS", "0")
+    assert get_gfs_marine_pilot_regions() == get_all_pilot_regions()
+    monkeypatch.setenv("GFS_MARINE_EXTRA_REGIONS", "1")
+    monkeypatch.setenv("WORLDWIDE_COASTAL", "0")          # the parent gate still wins
+    assert set(get_gfs_marine_pilot_regions()) == set(REGIONAL_CONFIGS)
+    monkeypatch.undo()                                     # real pytest env -> flagship only
+    assert set(get_gfs_marine_pilot_regions()) == set(REGIONAL_CONFIGS)
+    assert not (set(GFS_MARINE_EXTRA_REGIONS) & set(get_gfs_marine_pilot_regions()))
+
+
+def test_census_holds_the_extras_to_the_flagship_cadence():
+    """The census keeps region names as literals (runnable without the backend path), so the two
+    lists are one fact written twice: a box added to the dict but not the census would be graded
+    `worldwide` (72 h) and a dead new lane would hide for three days."""
+    from services.weather_pipeline.pilot_regions import GFS_MARINE_EXTRA_REGIONS
+    from scripts import product_run_age_census as C
+    assert set(C.GFS_MARINE_EXTRA_REGIONS) == set(GFS_MARINE_EXTRA_REGIONS)
+    for rid in GFS_MARINE_EXTRA_REGIONS:
+        assert C.tier_of(rid, "GFS", "marine") == "flagship", rid
