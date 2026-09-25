@@ -2,6 +2,83 @@
 
 **Written so a fresh session can continue WITHOUT rereading the 12+ audits.**
 
+## 2026-09-22 — The blank map was SILENT, not frozen (PR #63)
+
+Owner report: "logged into the app, the map is frozen with blank map area" on
+`dev--rawsurf.netlify.app`. **Reproduced and root-caused.** Not frozen — silent.
+
+**Ruled out by evidence, not assumption:** deployed build (map renders correctly in a clean
+session at the same commit, screenshot captured) · backend (healthy, HEAD `2ac7ec6f`,
+0.26-0.53 s) · service worker (`skipWaiting()` + `clients.claim()`, cache key matches HEAD
+exactly, so it cannot sit on an old version) · lazy-chunk hang (`/map` is properly wrapped in
+`ErrorBoundary` + `Suspense`, and a hang shows a loader, not a blank) · the 1.47 MB
+`rawsurf_cached_feed` localStorage blob, which **I suspected for "frozen" and measured at
+2.1 ms** — not the cause.
+
+**Cause:** `@vis.gl/react-maplibre` 8.1.1 `dist/components/map.js:42-55` calls `props.onError`
+IF PRESENT, else a bare `console.error`. `MapWebGL` passed none, so `setMapInstance` never ran,
+children never mounted, NOTHING threw, no ErrorBoundary fired. Reproduced on demand by
+disabling WebGL in a working session: shell intact, map area empty, zero errors surfaced.
+
+⭐ **The `GL_VENDOR/GL_RENDERER Disabled` reading from 2026-09-18 was a REAL observation, not
+a stale artifact** — it is the trigger, and this is the defect it exposed. The in-app browser
+now reports working WebGL (ANGLE/Intel D3D11), so that browser is no longer a blocker.
+
+⚠️ **`onError` alone would have been WORSE than the bug.** `@vis.gl` maps the map's ONGOING
+`error` event onto the same prop (`dist/maplibre/maplibre.js:60`), so a naive wiring blanks a
+healthy map on one tile 404. `isMapStartupFailure()` discriminates on two independent signals
+(`target: null` from the init catch, plus `innerMapRef.current`) and is extracted so it is
+testable. Runtime errors return early — the existing `mapInstance.on('error')` effect already
+calls `trackMapError`, and claiming them twice would corrupt the counts.
+
+PR #63 targets `dev`. 25 new tests; map 169 suites/1802 tests; full frontend 275/2688; lint
+ratchet passes (debt -2); production build clean. **NOT verified: the rendered panel in a real
+browser at a real viewport** — jsdom proves roles/themes/copy, not pixels. Check the deploy
+preview signed in, across all three themes and on mobile, before merge.
+
+### Open threads, in priority order
+
+1. ~~Six 3.12-only backend failures~~ **RETRACTED SAME DAY — they were my harness, not the
+   code.** I reported `test_dynamic_viewport*` failing on 3.12 but not 3.11. **False.** The
+   two full runs differed in the interpreter AND in the `PYTEST_DEBUG_TEMPROOT` I had set,
+   and I attributed the delta to the variable I meant to change. With a SHORT root the file
+   is **15/15 green on BOTH interpreters**; with a deep root it fails 5-7 times on either,
+   varying with the length of the directory name. Cause: fixture filenames like
+   `viewport_gfs_marine_waves_20260602T120000Z_179.00_24.00_-179.00_30.00.json` under a deep
+   root exceed Windows MAX_PATH (260), so `open()`/`os.replace()` raise `[WinError 3]`.
+   ⭐ The log said `WinError 3` on a 260-char path from the start — a path-length error, not
+   a logic error. **There is no viewport/grid defect here. Do not re-open this.**
+2. **Backend latency peaks** — over 14 h: `/api/weather/grid_series` max **26.3 s**,
+   `/api/photographers/featured` **62.6 s**, 81 requests over 10 s. ~79% of all 18,955
+   requests are background polls (unread-counts, notifications, dispatch, friends/map).
+   Not the blank-map cause; a real problem sitting next to one.
+3. **PR #59** (per-cell geometry dump, Queue E#1) — green, CLEAN, awaiting merge. Its live
+   candidate is `shore_normal_deg`: 68.2 deg ETOPO at the spot vs 77.47 deg coarse at the
+   cell. Still NOT tuned.
+
+### Machine note (Windows secondary, 2026-09-22)
+
+Now on declared **Python 3.12.10** (parity 44/46; only `pygrib`/`uvloop` absent, both
+Windows-impossible — verified by attempting them, not assumed). The 3.11 venv is retained and
+untouched at `backend/.venv`; the 3.12 venv is OUTSIDE the repo at
+`C:/Users/13218/venvs/raw-surf-py312`.
+⚠️ `C:/Users/13218/AppData/Local/Temp/pytest-of-13218` is ACL-locked (even `icacls` is denied)
+and was silently erroring **289 backend tests** at fixture setup. Set `PYTEST_DEBUG_TEMPROOT`
+to a writable path, or clear that directory from an elevated prompt.
+⛔ **That path MUST BE SHORT — use `C:/t1`, never a scratchpad path.** A deep root pushes
+fixture filenames past Windows MAX_PATH (260) and manufactures failures that look exactly
+like product bugs in the viewport/grid lane. That trap cost a false finding on 2026-09-22.
+**True clean baseline, Python 3.12 + short root: 9 failed / 3745 passed / 2937 skipped / 0
+errors.** All nine are environmental and stable across both interpreters: `test_debug_
+consciousness` x5 (no Event Bus DB), `test_password_hashing_py313` (the `crypt` module is
+Unix-only and absent on Windows at any version), `test_weather_sim_mcp` x2 (empty local
+sqlite from a missing DATABASE_URL), `test_weather_sim_mcp_server_startup` (MCP handshake).
+Earlier figures of 13 and 18 failures are CONTAMINATED by the long root; ignore them.
+⚠️ CI runs pytest in **exactly two scoped lanes** — per `ci.yml:727`, 309 of 411 test files are
+CI-orphans. A full `pytest tests/` run is NOT a CI-equivalent check.
+
+---
+
 ## 2026-09-20 — Codex second check continuation
 
 The active weather lane is `codex/weather-handoff-second-check` in the isolated

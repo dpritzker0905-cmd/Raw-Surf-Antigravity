@@ -1,7 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
-import { WeatherTelemetry } from './WeatherTelemetry';
 import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
 import { useTheme } from '../../contexts/ThemeContext';
 import { MarineParticleCanvas } from './GPUMarineLayer';
@@ -16,6 +15,8 @@ import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import MarineAnimTuner from './MarineAnimTuner';
+import MapInitFailureNotice from './MapInitFailureNotice';
+import { useMapErrorSurface } from './useMapErrorSurface';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
 import { radarForecastTileUrl, rainviewerTileTemplate } from './radarForecastSources';
 
@@ -95,6 +96,7 @@ const MapWebGL = ({
   const [webglWindFailed, setWebglWindFailed] = useState(() => typeof window !== 'undefined' && (window.__FORCE_WIND_FALLBACK__ === true || localStorage.getItem('force_wind_fallback') === 'true'));
   const [webglMarineFailed, setWebglMarineFailed] = useState(() => typeof window !== 'undefined' && (window.__FORCE_MARINE_FALLBACK__ === true || localStorage.getItem('force_marine_fallback') === 'true'));
 
+
   // Reset temporary WebGL failure flags when model or active layers change
   useEffect(() => {
     const forceWind = typeof window !== 'undefined' && (window.__FORCE_WIND_FALLBACK__ === true || localStorage.getItem('force_wind_fallback') === 'true');
@@ -111,6 +113,11 @@ const MapWebGL = ({
 
   // 1. Map Initialization and Async Abort Interceptions
   const { mapInstance } = useMapInitialization({ innerMapRef, mapInstanceRef });
+
+  // Map rendering failures, startup AND runtime, in one hook (see useMapErrorSurface).
+  // Before 2026-09-22 a map that never started rendered an empty rectangle in silence.
+  const { mapUnavailableReason, mapInitError, mapMountAttempt, onMapError, onRetryMapInit } =
+    useMapErrorSurface({ mapInstance, innerMapRef, setWebglWindFailed, setWebglMarineFailed });
 
   const activeMarineLayer = useMemo(() => {
     return ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayers.includes(l));
@@ -693,53 +700,6 @@ const MapWebGL = ({
     };
   }, [mapInstance, userTier]);
 
-  // Self-healing observability for MapLibre errors and WebGL context events
-  useEffect(() => {
-    if (!mapInstance) return;
-
-    const onError = (e) => {
-      console.error('[MapWebGL] Map instance error event:', e);
-      WeatherTelemetry.trackMapError(e.error?.message || 'MapError', e.error?.stack || '');
-    };
-
-    mapInstance.on('error', onError);
-
-    const canvas = mapInstance.getCanvas();
-    let onContextLost = null;
-    let onContextRestored = null;
-
-    if (canvas) {
-      onContextLost = (e) => {
-        e.preventDefault();
-        console.error('[MapWebGL] WebGL context lost detected! Triggering safety fallbacks.');
-        WeatherTelemetry.trackWebGLContextLost();
-        setWebglWindFailed(true);
-        setWebglMarineFailed(true);
-      };
-
-      onContextRestored = () => {
-        console.log('[MapWebGL] WebGL context restored successfully! Recovering WebGL renderers.');
-        WeatherTelemetry.trackWebGLContextRestored();
-        
-        const forceWind = typeof window !== 'undefined' && (window.__FORCE_WIND_FALLBACK__ === true || localStorage.getItem('force_wind_fallback') === 'true');
-        const forceMarine = typeof window !== 'undefined' && (window.__FORCE_MARINE_FALLBACK__ === true || localStorage.getItem('force_marine_fallback') === 'true');
-        
-        if (!forceWind) setWebglWindFailed(false);
-        if (!forceMarine) setWebglMarineFailed(false);
-      };
-
-      canvas.addEventListener('webglcontextlost', onContextLost);
-      canvas.addEventListener('webglcontextrestored', onContextRestored);
-    }
-
-    return () => {
-      mapInstance.off('error', onError);
-      if (canvas) {
-        if (onContextLost) canvas.removeEventListener('webglcontextlost', onContextLost);
-        if (onContextRestored) canvas.removeEventListener('webglcontextrestored', onContextRestored);
-      }
-    };
-  }, [mapInstance]);
 
   useWebGLGuardrail({
     mapInstance,
@@ -973,9 +933,19 @@ const MapWebGL = ({
       {/* Dev-only live marine-animation tuner (renders null unless ?tuner=1 / localStorage.__RAW_TUNER__). */}
       <MarineAnimTuner />
 
+      {mapUnavailableReason ? (
+        <MapInitFailureNotice
+          reason={mapUnavailableReason}
+          detail={mapInitError}
+          onRetry={onRetryMapInit}
+        />
+      ) : null}
+
       <Map
+        key={mapMountAttempt}
         ref={innerMapRef}
         mapLib={maplibregl}
+        onError={onMapError}
         {...viewState}
         onMove={onMove}
         onMoveEnd={onMoveEnd}
