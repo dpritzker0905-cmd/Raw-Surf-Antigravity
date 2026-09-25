@@ -913,7 +913,12 @@ jobs:
           # hosted run 36138912467 @ a0c0d5e2 (dev, after the nine audit-14.1 PRs #63-#70, #72) observed 104 files / 1209 passed; tests/test_pilot_regions.py (claimed by
           # `--lane chain`) gains 4 executed tests, no new file, so the expected hosted reading is
           # 1209 + 4 = 1213. 1213 - 6 = 1207; files stay 104 EXACT; _FLOOR_SET_FROM["chain"] -> 1213.
-          MIN_FILES, MIN_PASSED = 104, 1207
+          # ⬆ MIN_PASSED 1207→1218 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (L2 upload retry):
+          # hosted run 36153843410 @ fb8d861c (dev, after F-08 Stage A) observed 104 files / 1213 passed,
+          # confirming Stage A's projection exactly. tests/test_l2_writer_gate.py (claimed by `--lane
+          # chain`) gains 11 executed tests (8 -> 19), no new file: 1213 + 11 = 1224, 1224 - 6 = 1218; files stay
+          # 104 EXACT; _FLOOR_SET_FROM["chain"] -> 1224.
+          MIN_FILES, MIN_PASSED = 104, 1218
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
