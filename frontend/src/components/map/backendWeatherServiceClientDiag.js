@@ -107,10 +107,19 @@ export function computeServedExtent(details) {
   };
 }
 
+function spanDeg(b) {
+  return (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
+}
+
+// The prewarm's _GLOBAL_BOUNDS (-180..180) — any request spanning ~the whole globe.
+export function isWorldBbox(b) {
+  return !!b && Number.isFinite(b.west) && Number.isFinite(b.east) && spanDeg(b) >= 340;
+}
+
 export function updateProjectionDiag(domain, details) {
   if (typeof window === 'undefined') return;
 
-  const diagKey = domain === 'wind' 
+  let diagKey = domain === 'wind' 
     ? '__WIND_PROJECTION_DIAG__' 
     : domain === 'weather' || domain === 'pressure'
       ? '__WEATHER_GRID_PROJECTION_DIAG__' 
@@ -126,7 +135,19 @@ export function updateProjectionDiag(domain, details) {
         east: b.getEast(),
         north: b.getNorth()
       };
-    } catch (e) {}
+    } catch (e) { /* map not ready: viewport unknown */ }
+  }
+
+  // F-11 (audit 14.0/14.1): the world PREWARM (marineGlobalPrewarm, a whole-globe fetch) wrote here
+  // too, and last-writer-wins meant this diag named the 2° world product while a regional 0.25°
+  // field was drawn. Readers are NOT only debug: the legend's "~N km grid" notice (legendTicks) and
+  // point-query product matching read it — live 2026-09-23 at z9 the legend said "~223 km grid (2°)"
+  // over a 221-vector regional field. A world-bbox write while the map shows a REGIONAL view
+  // (< 60° wide, the series lane's threshold) is the prewarm: give it its own key. At world zoom
+  // the global grid IS the drawn field, so it still lands here.
+  if (diagKey === '__MARINE_PROJECTION_DIAG__' && isWorldBbox(details.requestedViewportBounds)
+      && mapViewportBounds && spanDeg(mapViewportBounds) < 60) {
+    diagKey = '__MARINE_PREWARM_PROJECTION_DIAG__';
   }
 
   // Compute coverage percent of viewport (guaranteed number, never NaN/undefined)
