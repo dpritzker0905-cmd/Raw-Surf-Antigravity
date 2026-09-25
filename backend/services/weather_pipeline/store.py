@@ -374,11 +374,28 @@ class ProductStore:
                 # caching them hard is right; the manifest must always revalidate.
                 "cache-control": manifest_cache_control(filename),
             }
-            resp = requests.post(url, headers=headers, data=data_bytes, timeout=30)
+            # Transient Supabase rejections (429 SlowDown, 5xx, dropped connections) are retried with
+            # jittered backoff -- 7.5% of a pilots run's uploads were silently lost to 429 without it
+            # (l2_retry.py). Non-transient answers still surface on the first attempt.
+            # ⛔ SCOPE: pipeline artifacts only -- product files and manifest.json (top-level keys) plus
+            #   the run-keyed `manifests/...` copies. That is where the 429s landed at scale, and every
+            #   one of those writes is an x-upsert by key, so repeating it is idempotent.
+            #   Namespaced state blobs (`calibration/...`, `spot_ratings/...`) are EXCLUDED: several are
+            #   create-only (overwrite=False) where a retry after a lost ack manufactures a duplicate,
+            #   and all of them sit behind their callers' own pending/redo protocols
+            #   (test_forecast_skill_retention pins exact write attempts). Leave those alone.
+            send = lambda: requests.post(url, headers=headers, data=data_bytes, timeout=30)  # noqa: E731
+            if overwrite and ("/" not in filename or filename.startswith("manifests/")):
+                from services.weather_pipeline.l2_retry import post_with_retry
+                resp, retries = post_with_retry(send, filename)
+            else:
+                resp, retries = send(), 0
             if resp.status_code not in (200, 201):
-                raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}")
+                raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}"
+                                   + (f" (after {retries} retries)" if retries else ""))
             ProductStore._last_upload_time = datetime.now(timezone.utc).isoformat()
-            logger.info(f"[Product Store] L2 upload OK: {filename} ({len(data_bytes)} bytes)")
+            logger.info(f"[Product Store] L2 upload OK: {filename} ({len(data_bytes)} bytes)"
+                        + (f" after {retries} retries" if retries else ""))
             # S2 run-keyed manifest + pointer CAS: every successful legacy manifest.json upload
             # also publishes an immutable run-keyed copy and CAS-advances the Postgres pointer.
             # This site runs on the serial _manifest_executor and is behind the designated-writer
