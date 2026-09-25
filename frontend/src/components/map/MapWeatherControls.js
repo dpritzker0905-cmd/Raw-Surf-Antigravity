@@ -10,6 +10,7 @@ import { windLegendGradientCSS, windLegendStops } from './WindColorRamp';
 import { valueTicks, evenTicks, dropCollisions, LegendTicks } from './legendTicks';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
 import ForecastTimeStatus from './ForecastTimeStatus';
+import { forecastReadout } from './forecastReadout';
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 
@@ -331,12 +332,8 @@ export var MapWeatherControls = ({
       if (!frame?.time) return '--:--';
       const d = new Date(frame.time * 1000);
       return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    } else {
-      if (sliderVal === 0) return 'Live';
-      const d = new Date();
-      d.setHours(d.getHours() + sliderVal);
-      return `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${d.toLocaleTimeString('en-US', { hour: 'numeric' })}`;
     }
+    return forecastReadout(sliderVal, activeLayer, activeModel).text;   // F-07: the DISPLAYED instant
   };
 
   const progress = isRadar
@@ -549,7 +546,7 @@ export var MapWeatherControls = ({
 
           {/* Time Readout */}
           <div className={`text-[10px] font-bold shrink-0 text-right min-w-[50px] ${textClass}`}>
-            {formatTime()}
+            <span aria-hidden={!isRadar}>{formatTime()}</span>{!isRadar && <span className="sr-only">{forecastReadout(sliderVal, activeLayer, activeModel).srText}</span>}
           </div>
         </div>
 
