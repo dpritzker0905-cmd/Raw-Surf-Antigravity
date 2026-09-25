@@ -684,7 +684,11 @@ jobs:
           # ⬆ MIN_FILES 165→166, MIN_PASSED 1999→2023 on 2026-09-25, from hosted run 36138912467 @ a0c0d5e2 (dev, after the nine audit-14.1 PRs #63-#70, #72):
           # 166 files / 2029 passed. Files EXACT at 166; 2029 - 6 = 2023; _FLOOR_SET_FROM["guards"]
           # moves to 2029 in this commit.
-          MIN_FILES, MIN_PASSED = 166, 2023
+          # ⬆ MIN_FILES 166→167, MIN_PASSED 2023→2036 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (A15-02):
+          # hosted run 36169668729 @ ca2c5520 observed 166 files / 2029 passed. The new
+          # tests/test_partition_absent_not_elsewhere.py (claimed by `--lane guards`) adds 13 executed
+          # tests: 2029 + 13 = 2042, 2042 - 6 = 2036; files 167 EXACT; _FLOOR_SET_FROM["guards"] -> 2042.
+          MIN_FILES, MIN_PASSED = 167, 2036
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
