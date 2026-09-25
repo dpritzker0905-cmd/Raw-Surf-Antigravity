@@ -359,17 +359,20 @@ async def trigger_photographer_alert(
     
     # Send OneSignal notifications
     onesignal_app_id = os.environ.get('ONESIGNAL_APP_ID')
-    onesignal_api_key = os.environ.get('ONESIGNAL_API_KEY')
-    
+    # Same credential + scheme as services/onesignal_service.py. OneSignal's App API keys
+    # (the only kind that can be created since Nov 2024) authenticate with `Key`, not the
+    # legacy `Basic` scheme, and are served from api.onesignal.com.
+    onesignal_api_key = os.environ.get('ONESIGNAL_REST_API_KEY') or os.environ.get('ONESIGNAL_API_KEY')
+
     if onesignal_app_id and onesignal_api_key:
         user_ids = [sub.user_id for sub in subscribers]
         
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    'https://onesignal.com/api/v1/notifications',
+                    'https://api.onesignal.com/notifications',
                     headers={
-                        'Authorization': f'Basic {onesignal_api_key}',
+                        'Authorization': f'Key {onesignal_api_key}',
                         'Content-Type': 'application/json'
                     },
                     json={
