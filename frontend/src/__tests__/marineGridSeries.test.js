@@ -31,6 +31,10 @@ function mockSeriesResponse() {
 
 describe('marineGridSeries — flag-gated time-series client', () => {
   beforeEach(() => {
+    // T-01 (audit 14.1): series offsets now follow the anchor's UTC grid phase. This suite tests paging
+    // mechanics on the historic 0,3,6 lattice, so pin a phase-0 anchor; phases 1/2 are covered by
+    // components/map/marineGridSeries.cadenceGrid.test.js. Also removes a wall-clock dependence.
+    window.__MOCK_DATE_NOW__ = Date.UTC(2026, 8, 23, 3, 10, 0);
     window.__RAW_DISABLE_HOUR0_FIRST__ = true; // these suites test the PAGE lane in isolation (hour-0 lane has its own suite)
     _resetMarineSeriesForTest();
     delete window.__MARINE_SERIES__;
@@ -322,6 +326,10 @@ describe('coarseRevalDelayMs — exponential backoff for the coarse-preview reva
 
 describe('coarse-preview revalidation keeps re-driving past the old 8-attempt budget', () => {
   beforeEach(() => {
+    // T-01 (audit 14.1): series offsets now follow the anchor's UTC grid phase. This suite tests paging
+    // mechanics on the historic 0,3,6 lattice, so pin a phase-0 anchor; phases 1/2 are covered by
+    // components/map/marineGridSeries.cadenceGrid.test.js. Also removes a wall-clock dependence.
+    window.__MOCK_DATE_NOW__ = Date.UTC(2026, 8, 23, 3, 10, 0);
     window.__RAW_DISABLE_HOUR0_FIRST__ = true; // these suites test the PAGE lane in isolation (hour-0 lane has its own suite)
     _resetMarineSeriesForTest();
     window.__MARINE_SERIES__ = true;
@@ -401,3 +409,7 @@ describe('coarse-preview revalidation keeps re-driving past the old 8-attempt bu
     expect(global.fetch).toHaveBeenCalledTimes(15);
   });
 });
+
+
+// Release the T-01 phase pin for any suite that runs after this file in the same worker.
+afterEach(() => { delete window.__MOCK_DATE_NOW__; });

@@ -38,6 +38,10 @@ function responseForUrl(url) {
 
 describe('marineGridSeries — per-cost-class page spans (proxy-window fit)', () => {
   beforeEach(() => {
+    // T-01 (audit 14.1): series offsets now follow the anchor's UTC grid phase. This suite tests paging
+    // mechanics on the historic 0,3,6 lattice, so pin a phase-0 anchor; phases 1/2 are covered by
+    // components/map/marineGridSeries.cadenceGrid.test.js. Also removes a wall-clock dependence.
+    window.__MOCK_DATE_NOW__ = Date.UTC(2026, 8, 23, 3, 10, 0);
     window.__RAW_DISABLE_HOUR0_FIRST__ = true; // these suites test the PAGE lane in isolation (hour-0 lane has its own suite)
     _resetMarineSeriesForTest();
     window.__MARINE_SERIES__ = true;
@@ -126,3 +130,7 @@ describe('marineGridSeries — per-cost-class page spans (proxy-window fit)', ()
     expect(getMarineSeriesFrame('GFS', 'waves', { west: -81.0, south: 28.0, east: -80.0, north: 28.6 }, 0)).toBeNull();
   });
 });
+
+
+// Release the T-01 phase pin for any suite that runs after this file in the same worker.
+afterEach(() => { delete window.__MOCK_DATE_NOW__; });

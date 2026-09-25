@@ -39,6 +39,10 @@ const flush = () => waitFor(() => false, 4); // ~4 macrotasks, used for "nothing
 
 describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm', () => {
   beforeEach(() => {
+    // T-01 (audit 14.1): series offsets now follow the anchor's UTC grid phase. This suite tests paging
+    // mechanics on the historic 0,3,6 lattice, so pin a phase-0 anchor; phases 1/2 are covered by
+    // components/map/marineGridSeries.cadenceGrid.test.js. Also removes a wall-clock dependence.
+    window.__MOCK_DATE_NOW__ = Date.UTC(2026, 8, 23, 3, 10, 0);
     _resetMarineSeriesForTest();
     getPerModelHourCache().clear();
     delete window.__MARINE_SIBLING_PREWARM__;
@@ -135,3 +139,7 @@ describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm
     expect(getModelSafeMarine('ICON', 0, 'swell_2', bounds)).toBeNull(); // never warmed for ICON
   });
 });
+
+
+// Release the T-01 phase pin for any suite that runs after this file in the same worker.
+afterEach(() => { delete window.__MOCK_DATE_NOW__; });
