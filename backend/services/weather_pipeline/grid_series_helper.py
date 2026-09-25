@@ -744,8 +744,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             "provider": getattr(product, "provider", None),
             "is_estimated": getattr(product, "is_estimated", False),
             "rating_mode": _frame_rating_mode(g),
-            # Present only on frames this build actually strided, so a client can tell a
-            # decimated frame from a natively-small one (they are otherwise identical).
+            # Only on frames this build strided: tells a decimated frame from a natively-small one.
             **({"decimated_stride": bound["stride"]} if h in bound["hours"] else {}),
             # §0c SERVING HONESTY: valid_time above echoes the per-hour ask (resolve_grid's
             # contract); these carry the frame actually served — stamped by stamp_frame_honesty
@@ -754,6 +753,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             "frame_offset_hours": getattr(product, "frame_offset_hours", 0.0),
             "frame_substituted": getattr(product, "frame_substituted", False),
             **_frame_provenance(product),
+            **{k: getattr(product, k, None) for k in ("product_id", "region_id", "upstream_model")},  # STORED id (A15-09)
         })
 
     # Merge the EURO native fast-path frames (<=240h) with the per-hour-built estimated frames

@@ -269,8 +269,12 @@ class PointResolutionService:
                 grid_product_id = None
 
             if not product or not product.grid or not product.grid.vectors:
-                return make_grid_miss_point_response(model, layer, lat, lng, valid_time_str, grid_product_id or "unknown", "grid_product_not_found")
+                # A15-09: the client now sends the id of the frame it DREW. A file that is not (yet)
+                # on this box must not blank the infobox — fall through like the temporal swap does.
+                logger.warning(f"[Point Resolution] {grid_product_id} not loadable; using automatic selection.")
+                product = grid_product_id = None
 
+        if grid_product_id and product is not None:
             # Let's ensure coverage_mode is set correctly!
             if not getattr(product, "coverage_mode", None):
                 if "global_coarse" in grid_product_id:

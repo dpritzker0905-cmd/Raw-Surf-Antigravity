@@ -90,10 +90,40 @@ export function publishMarineTimelineFrame({ data, model, layer, hour, requested
     ...previous, domain: 'marine', activeModel: model, activeLayer: layer,
     timeOffsetHours: hour, requestedValidTime, selectedValidTime,
     gridProductId: data.product_id || data.productId || grid.productId || grid.product_id || null,
+    servedProductId: data.served_product_id || grid.__servedProductId || null,
     model_run_time: data.model_run_time ?? grid.model_run_time ?? null,
     model_run_time_status: data.model_run_time_status || grid.model_run_time_status || 'missing',
     commitRevision: data.__commitRevision ?? previous.commitRevision ?? 0,
     cacheStatus: 'committed_cache_frame',
   };
+  if (data.__fromSeries || grid.__fromSeries) publishCommittedIdentityToProjection(win, data, model, layer, selectedValidTime);
   return reconcileMarineTimelineCoverage(win);
+}
+
+/**
+ * A15-09 (audit 15.0): `__MARINE_PROJECTION_DIAG__` was written only by the `/grid` lane, so on the
+ * series path it kept naming a previous model/product (measured: GFS/florida 18Z for 30 s after a
+ * switch to EURO, and `not_initialized` forever in the fallback lane). It is read by the HUD, the
+ * E2E gates and the infobox's point fallback. Series commits now bring its IDENTITY fields current.
+ * The /grid lane's geometry fields (servedCols, backendRequestBbox, …) are left as they were, and
+ * `identitySource` says which lane last wrote identity.
+ */
+function publishCommittedIdentityToProjection(win, data, model, layer, validTime) {
+  const grid = data.grid || {};
+  const renderable = !!(grid.__renderable ?? data.__renderable);
+  win.__MARINE_PROJECTION_DIAG__ = {
+    ...(win.__MARINE_PROJECTION_DIAG__ || {}),
+    activeModel: model, activeLayer: layer,
+    productId: data.served_product_id || grid.__servedProductId || null,
+    regionId: grid.__regionId || null,
+    validTime: validTime || null,
+    provider: data.__provider || grid.provider || null,          // the dispatch key, as before
+    upstreamProvider: grid.__upstreamProvider || null,          // the origin (noaa/dwd/ecmwf/copernicus)
+    status: renderable ? 'active' : 'empty',
+    renderable,
+    renderDecision: renderable ? 'render' : 'unsupported',
+    reason: 'series_commit',
+    identitySource: 'series_commit',
+    timestamp: new Date().toISOString(),
+  };
 }

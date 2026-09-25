@@ -198,7 +198,10 @@ export function useExactPointFetch({
       }, resolveExactPointTimeoutMs(activeModel, typeof window !== 'undefined' ? window : null));
 
       const grid = marineDataRef.current?.grid;
-      const gridProductId = grid?.productId || grid?.product_id || null;
+      // A15-09: a series-committed grid carries the STORED product it came from; without it the
+      // point client fell back to a projection diag that went stale on the series path, and the
+      // infobox sampled a different product from the one on screen.
+      const gridProductId = grid?.productId || grid?.product_id || grid?.__servedProductId || null;
       let gridBbox = null;
       if (grid?.bounds) {
         const b = grid.bounds;

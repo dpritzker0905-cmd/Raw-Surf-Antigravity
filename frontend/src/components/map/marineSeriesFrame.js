@@ -77,6 +77,13 @@ export function frameToMarineData(frame, model, layer) {
     served_valid_time: frame.served_valid_time || null,
     frame_offset_hours: frame.frame_offset_hours ?? 0,
     frame_substituted: !!frame.frame_substituted,
+    // A15-09 (audit 15.0): the STORED product this frame came from, as the backend names it
+    // (`gfs_marine_waves_florida_east_coast_<t>.json`, `viewport_…`), or null for a live-fetched
+    // frame. Kept apart from `product_id` below, which is the truth tracker's STABLE lineage key
+    // (`series_*_h0`) and must not change. The infobox sends THIS to /point so it samples the
+    // frame on screen.
+    __servedProductId: frame.product_id || null,
+    __regionId: frame.region_id || null,
   };
   const product_id = `series_${model}_${layer}_h${frame.hour_offset}`;
   // Audit #18/A3: mint the lineage tag ONCE here — recordTruthStage PRESERVES an existing tag, so
@@ -127,6 +134,7 @@ export function frameToMarineData(frame, model, layer) {
     hourOffset: frame.hour_offset,
     ...(truthTag ? { truthTag } : {}),
     product_id,
+    served_product_id: frame.product_id || null,
     region_id: 'series',
     is_dynamic_viewport_product: true,
   };

@@ -402,7 +402,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       activeModel: activeModelRef.current, activeLayer: activeMarineLayer,
       timeOffsetHours: timeOffsetHoursRef.current, provider: grid?.__provider || 'none',
       gridProvider, sourceModel: gridModel, componentLayer,
-      vectorCount: grid.vectors.length, nonzeroCount: diffResult.nonzeroCount, renderAccepted: true,
+      vectorCount: grid.vectors.length, nonzeroCount: diffResult.nonzeroCount, renderAccepted: true, servedProductId: grid.__servedProductId || grid.productId || grid.product_id || null,
       rejectionReason: null, elapsedMs: uploadElapsed,
       timestamp: new Date().toISOString()
     };
