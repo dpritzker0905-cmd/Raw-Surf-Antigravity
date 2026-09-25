@@ -678,7 +678,10 @@ jobs:
           # 267 unchanged). tests/test_marine_cold_fetch_sharing.py adds 25 executed controls,
           # so files 164 -> 165 EXACT and the expected hosted reading is 1971 + 25 = 1996.
           # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1996 in this commit.
-          MIN_FILES, MIN_PASSED = 165, 1990
+          # ⬆ MIN_PASSED 1990→1999 on 2026-09-25, from hosted run 36082196820 @ 4c307031 (dev, after PRs #71 and #74):
+          # 165 files / 2005 passed (PR #71's census + health-gate tests). 2005 - 6 = 1999, files
+          # unchanged at 165 EXACT; _FLOOR_SET_FROM["guards"] moves to 2005 in this commit.
+          MIN_FILES, MIN_PASSED = 165, 1999
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -900,7 +903,10 @@ jobs:
           # 267 unchanged). tests/test_band_reference_echo.py adds 12 executed controls, so
           # files 102 -> 103 EXACT and the expected hosted reading is 1194 + 12 = 1206.
           # Retain the six-test margin; _FLOOR_SET_FROM["chain"] moves to 1206 in this commit.
-          MIN_FILES, MIN_PASSED = 103, 1200
+          # ⬆ MIN_FILES 103→104, MIN_PASSED 1200→1203 on 2026-09-25, from hosted run 36082196820 @ 4c307031 (dev, after PRs #71 and #74):
+          # 104 files / 1209 passed. Files EXACT at 104; 1209 - 6 = 1203; _FLOOR_SET_FROM["chain"]
+          # moves to 1209 in this commit.
+          MIN_FILES, MIN_PASSED = 104, 1203
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1206,7 +1212,9 @@ jobs:
           # this module's own first live reading exposed — it published a 400→752 MB STARTUP
           # ramp as "rss_mb_per_hour: 2113.4". CI-ANCHORED per the rule above: 516 + 5 = 521;
           # 521 - 2 (this lane's budget) = 519, and _FLOOR_SET_FROM[estate] moves to 521.
-          MIN_PASSED = 519
+          # ⬆ 519→520 on 2026-09-25, CI-ANCHORED on hosted run 36082196820 @ 4c307031 (dev, after PRs #71 and #74):
+          # 522 passed. 522 - 2 (this lane's budget) = 520; _FLOOR_SET_FROM[estate] moves to 522.
+          MIN_PASSED = 520
 
           try:
               root = ET.parse('estate.xml').getroot()
