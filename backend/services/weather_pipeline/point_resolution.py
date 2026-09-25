@@ -32,7 +32,7 @@ from services.weather_pipeline.point_direct_fallbacks import (  # noqa: E402
 # `surf_height_m` is produced.
 from services.weather_pipeline.point_surf_augment import augment_with_surf  # noqa: E402
 from services.weather_pipeline import wave_physics  # noqa: E402
-from services.weather_pipeline.dynamic_cycle_policy import superseded_dynamic
+from services.weather_pipeline.dynamic_cycle_policy import superseded_dynamic, prefers_scheduled_native
 
 def _selection_key(pair):
     """Candidate ranking for the point resolver's manifest selection, ONE definition for both
@@ -320,6 +320,9 @@ class PointResolutionService:
             if replacement:
                 filename, product = replacement
                 dynamic_match = {"product_id": filename, "coverage_mode": "regional_tile"}
+            elif product and prefers_scheduled_native(
+                    await asyncio.to_thread(self.store.get_manifest), product, lat, lng, target_dt):
+                product = None            # A15-04: 2b answers from the scheduled native tile
             if product:
                 # Ensure coverage_mode is set!
                 if not getattr(product, "coverage_mode", None):

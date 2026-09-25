@@ -688,7 +688,12 @@ jobs:
           # hosted run 36169668729 @ ca2c5520 observed 166 files / 2029 passed. The new
           # tests/test_partition_absent_not_elsewhere.py (claimed by `--lane guards`) adds 13 executed
           # tests: 2029 + 13 = 2042, 2042 - 6 = 2036; files 167 EXACT; _FLOOR_SET_FROM["guards"] -> 2042.
-          MIN_FILES, MIN_PASSED = 167, 2036
+          # ⬆ MIN_FILES 167→168, MIN_PASSED 2036→2050 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (A15-04):
+          # hosted run 36180221724 (PR #79, merged as d820a82f) observed 167 files / 2042 passed, confirming
+          # the A15-02 projection exactly. The new tests/test_point_prefers_scheduled_native.py (claimed by
+          # `--lane guards`) adds 14 executed tests: 2042 + 14 = 2056, 2056 - 6 = 2050; files 168 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2056.
+          MIN_FILES, MIN_PASSED = 168, 2050
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
