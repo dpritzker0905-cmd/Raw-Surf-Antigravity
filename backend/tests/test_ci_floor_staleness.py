@@ -309,7 +309,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #   controls in tests/test_grid_series_base_anchor.py, selected by `--lane guards` ONLY.
 # chain 1194: the SAME hosted run actually read 1194, not the 1148 previously projected here.
 #   The projection was never confirmed, so this is corrected to the receipt (see ci.yml).
-_FLOOR_SET_FROM = {"guards": 2078, "chain": 1284, "estate": 536}
+_FLOOR_SET_FROM = {"guards": 2078, "chain": 1293, "estate": 536}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
