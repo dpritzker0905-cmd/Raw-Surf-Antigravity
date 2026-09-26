@@ -387,6 +387,9 @@ _RATING_SURFACES = (
     "services/weather_pipeline/sim_rating.py",
     "services/weather_pipeline/grid_resolver_surf.py",
     "services/weather_pipeline/point_surf_augment.py",
+    # ADDED 2026-09-26 (A15-05(b)): the infobox's rating surface. It owns the per-coordinate size
+    # reference that point_surf_augment now imports, so RATING_LOCAL_SIZE is read HERE.
+    "services/weather_pipeline/point_rating.py",
     "services/weather_pipeline/surf_rating.py",
     "services/weather_pipeline/surf_transform.py",
     "routes/weather.py",

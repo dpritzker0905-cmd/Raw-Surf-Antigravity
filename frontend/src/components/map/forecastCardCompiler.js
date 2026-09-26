@@ -351,7 +351,8 @@ export function compileForecastCards({
     });
     // Surf-quality RATING badge (very_poor..epic) — the headline "how good is it?": size + period + wind
     // (offshore/onshore via shore_normal). Same coastal-break geography gate as the Surf row; colored pill
-    // by level (backend surf_rating.py is the source of truth, this shows the JS-mirror result).
+    // by level. `surfRating` is the BACKEND's verdict (/api/weather/point-rating via usePointRating,
+    // A15-05(b)); nothing here grades.
     {
       const _reg = useExactPoint?.surf_regime;
       const _coastal = _reg && _reg !== 'open_ocean' && _reg !== 'calm' && _reg !== 'unknown';
