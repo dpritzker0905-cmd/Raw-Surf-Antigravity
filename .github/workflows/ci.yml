@@ -1274,7 +1274,11 @@ jobs:
           # select it) adds 5 executed tests (it imports yaml HARD; PyYAML is transitive via copernicusmarine ->
           # dask, so losing it errors loudly instead of skipping). 529 is a RECEIPT, not a projection: hosted run
           # 36209648226 on PR #89 read 268 files / 529 passed. 529 + 5 = 534; 534 - 2 (this lane's budget) = 532; _FLOOR_SET_FROM[estate] -> 534.
-          MIN_PASSED = 532
+          # ⬆ 532→534 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (spot-hub quality passthrough): hosted run
+          # 36252492528 on PR #95 observed 269 files / 534 passed, confirming the A15-15 projection exactly.
+          # tests/test_conditions_route_wire_contract.py (claimed by `--lane estate`) gains 2 executed tests, no
+          # new file: 534 + 2 = 536; 536 - 2 (this lane's budget) = 534; _FLOOR_SET_FROM[estate] -> 536.
+          MIN_PASSED = 534
 
           try:
               root = ET.parse('estate.xml').getroot()
