@@ -17,7 +17,6 @@ service — and so the re-entrancy guard stays where it belongs: the caller pass
 `self._resolve_partitions`, which goes through `_resolve_point_internal` and therefore cannot
 recurse back into this augmentation.
 """
-import asyncio
 import logging
 import os
 
@@ -60,11 +59,11 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             # Behaviour here is unchanged; test_surf_point_parity.py pins that.
             from services.weather_pipeline.surf_point import resolve_surf_geometry, estimate_surf_at
             _geo = resolve_surf_geometry(lat, lng)
-            # The frontend pairs the shore normal with the already-fetched wind point + surf
-            # height/period to compute the rating badge ([[surf_rating]]).
+            # Carried on the payload for the rating surfaces that read this response. The infobox's
+            # badge no longer grades it in the browser: /api/weather/point-rating answers (A15-05(b)).
             response.shore_normal_deg = _geo.shore_normal_deg
-            # ...and, since 2026-08-01, the LOCAL SIZE REFERENCE it must grade against. Without it
-            # the badge keeps the global 1.2 m curve while the glyph uses the spot's own good day —
+            # ...and, since 2026-08-01, the LOCAL SIZE REFERENCE a rating must grade against. Without it
+            # the badge kept the global 1.2 m curve while the glyph uses the spot's own good day —
             # the ONE FORECAST COMPOSITION split that flipping RATING_LOCAL_SIZE would otherwise
             # have opened on a surface the frontend renders beside the glyph.
             # ⚠️ Its own try, for the recorded reason the partitions block has one: this whole
@@ -72,54 +71,18 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             # `surf_height_m` ENTIRELY rather than merely drop the reference. Fail-open by
             # contract — no reference means the global curve, which is exactly the pre-flip
             # behaviour and never a wrong NUMBER, only a less local one.
-            # ★ THE CELL BLOB IS THE FALLBACK, NOT THE ANSWER — CORRECTED 2026-08-01 (queue E#1).
-            # This endpoint is keyed by a COORDINATE, so it took the per-cell reference
-            # `grid_resolver_surf` gives the BAND at that coordinate. The justification was a
-            # docstring — grid_size_climatology.reference_for says "band and glyph saturate
-            # identically where they overlap" — and that sentence is about the FORMULA (same
-            # percentile, min-samples, clamps), NOT the VALUES. It was never measured. When it was,
-            # a 0.25 deg cell aggregates many spots and the two disagree:
-            #     |cell - spot| reference: median 21.3%, max 52.5%, 4 of 10 over 25%
-            #     score impact at the badge: -11.4 to +9.6 points, LEVEL differs at 2 of 6
-            # ⇒ AT A CATALOGUED SPOT THE PER-SPOT REFERENCE WINS, because that is the number the
-            # glyph rendered beside this box graded with, and the two must be ONE composition.
-            # Away from a catalogued spot the cell value is still right — there is no glyph there to
-            # disagree with — so the fallback is kept, not replaced.
-            # ⚠️ NOT a "second forecast path for one screen" (the old comment's objection): it is
-            # the SAME per-spot reference the glyph and hub already use, reached by the SAME 2 km
-            # proximity tolerance `rating_confirmation.confirmation_for` uses on this very lane.
-            # ⚠️ spot_size_climatology has NO `reference_for` — only `reference_map(clim)` /
-            # `reference_for_spot(id)` / `reference_for_coordinate(lat,lng)`. A first pass imported
-            # the wrong name anyway; the ImportError would have been swallowed by this very except,
-            # leaving the badge silently on the global curve with the fix apparently shipped.
-            # Fail-open hides its own failure — verify the symbol exists.
-            if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
-                try:
-                    from services.weather_pipeline.grid_size_climatology import (
-                        load_grid_size_climatology_l2_cached, reference_for)
-                    from services.weather_pipeline.spot_size_climatology import (
-                        reference_for_coordinate)
-                    # Spot first; None (no blob, no coordinates yet, nothing within 2 km, or too
-                    # little climatology) falls through to the cell value, which is the behaviour
-                    # this lane shipped with. That is why this can land BEFORE the precompute has
-                    # written coordinates into the blob: inert until the data arrives.
-                    # ⛔ OFF THE EVENT LOOP — `load_grid_size_climatology_l2_cached` is a
-                    # `requests.get(timeout=10)` behind a 600 s TTL. This is the SINGLE INJECTION
-                    # POINT, so a bare call here froze the worker on the ratings precompute, the
-                    # spot hub AND /api/weather/point. Only the `or` branch pays it, and only on a
-                    # cache miss — which is exactly why it survived review.
-                    # ⚠️ THE SHORT-CIRCUIT IS PRESERVED DELIBERATELY. The original was
-                    # `a or reference_for(loader(), ...)`, so the loader ran ONLY when `a` was
-                    # falsy. Hoisting it above the `or` would offload it correctly and still be a
-                    # regression — it would start paying a cache-miss round trip on every point
-                    # that already had a per-coordinate reference.
-                    _ref = reference_for_coordinate(lat, lng)
-                    if not _ref:
-                        _clim = await asyncio.to_thread(load_grid_size_climatology_l2_cached)
-                        _ref = reference_for(_clim, lat, lng)
+            # ★ RESOLVED BY `point_rating.local_reference_at` since 2026-09-26 (A15-05(b)), moved
+            # there verbatim so the infobox's backend rating and this payload read ONE reference: at
+            # a catalogued spot the per-spot value (the one the glyph graded with; the per-cell one
+            # sat a median 21.3% away and moved the badge -11.4 to +9.6 points), else the cell. It
+            # keeps the off-loop loader and the short-circuit that were documented here.
+            try:
+                from services.weather_pipeline.point_rating import local_reference_at
+                _ref = await local_reference_at(lat, lng)
+                if _ref is not None:
                     response.reference_size_m = _ref
-                except Exception as _ref_err:
-                    logger.debug(f"[point-surf] local size reference unavailable: {_ref_err}")
+            except Exception as _ref_err:
+                logger.debug(f"[point-surf] local size reference unavailable: {_ref_err}")
             # SPECTRAL (opt-in): transform each swell train on its own period instead of shoaling
             # one blended field. Resolved HERE, at the single injection point, because
             # `surf_height_m` is produced here — computing it anywhere else would give the spot

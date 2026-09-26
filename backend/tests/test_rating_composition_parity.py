@@ -480,6 +480,9 @@ POST_STEP_SURFACES = {
     "map rating band":             ("services.weather_pipeline.grid_resolver_surf", None),
     "spot hub":                    ("services.weather_pipeline.spot_conditions", None),
     "weather sim":                 ("services.weather_pipeline.sim_rating", None),
+    # 2026-09-26 (A15-05(b)): the map infobox. Its live lane is `rate_one_spot` + the hub's gate;
+    # its precomputed lane serves the glyph's already-gated frame item.
+    "map infobox (point rating)":  ("services.weather_pipeline.point_rating", None),
     # ⚠️ THE FIFTH SURFACE — `weather_sim_mcp.get_weather_forecast` — IS DELIBERATELY NOT HERE, and
     # the reason is the finding of 2026-08-03. It DELEGATES the gate to `sim_rating` rather than
     # referencing it, so "does this module name the symbol?" is the wrong question and adding it
