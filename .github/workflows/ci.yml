@@ -698,7 +698,11 @@ jobs:
           # projection exactly. The new tests/test_series_frame_stored_identity.py (claimed by `--lane guards`)
           # adds 5 executed tests: 2056 + 5 = 2061, 2061 - 6 = 2055; files 169 EXACT;
           # _FLOOR_SET_FROM["guards"] -> 2061.
-          MIN_FILES, MIN_PASSED = 169, 2055
+          # ⬆ MIN_FILES 169→170, MIN_PASSED 2055→2063 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (manifest
+          # retention holds across uploads): hosted CI on PR #97 (merged as d7932f3e) observed 169 files / 2061
+          # passed. The new tests/test_manifest_retention_holds.py (claimed by `--lane guards`) adds 8 executed
+          # tests: 2061 + 8 = 2069, 2069 - 6 = 2063; files 170 EXACT; _FLOOR_SET_FROM["guards"] -> 2069.
+          MIN_FILES, MIN_PASSED = 170, 2063
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

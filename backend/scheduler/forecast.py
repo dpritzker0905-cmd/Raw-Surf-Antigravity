@@ -242,8 +242,8 @@ def ingest_marine_forecast_task():
             # runs accumulate and re-bloat manifest.json -> startup/parse memory spikes -> OOM.
             # Prune everything whose valid time is >2 days old after each ingestion cycle.
             try:
-                from datetime import datetime, timezone, timedelta
-                cutoff = datetime.now(timezone.utc) - timedelta(days=2)
+                from services.weather_pipeline.store import manifest_retention_cutoff
+                cutoff = manifest_retention_cutoff()   # the same policy every upload now enforces
                 logger.info(f"[Scheduler] Pruning products older than {cutoff.isoformat()}...")
                 await asyncio.to_thread(store.prune_old_products, cutoff)
                 logger.info("[Scheduler] Manifest pruning complete.")
