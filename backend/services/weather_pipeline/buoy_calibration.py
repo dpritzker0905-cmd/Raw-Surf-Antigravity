@@ -528,7 +528,19 @@ def load_calibration_l2(l2_key: str = None, *, strict: bool = False):
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{l2_key or BUOY_CALIBRATION_L2_KEY}"
-        resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=10)
+        headers = {"Authorization": f"Bearer {key}", "apikey": key}
+        if strict:
+            # A15-19 (audit 15.0): the precompute job reads calibration/skill/pending.json (~20k rows)
+            # while its own prefetch is being throttled (429 too_many_connections), and one
+            # unretried rejection skipped the whole skill ledger: 2 of the last 3 precompute runs
+            # uploaded a report without forecast_skill_ops and the accuracy monitor paged
+            # "SKILL LEDGER DEAD". A GET is idempotent, so transient answers are retried with the
+            # same jittered backoff the upload path uses (l2_retry.py), with room for a large object.
+            from services.weather_pipeline.l2_retry import post_with_retry
+            resp, _retries = post_with_retry(lambda: requests.get(url, headers=headers, timeout=30),
+                                             l2_key or BUOY_CALIBRATION_L2_KEY)
+        else:
+            resp = requests.get(url, headers=headers, timeout=10)
         if resp.status_code == 200:
             obj = resp.json()
             if strict and obj is None:
@@ -541,7 +553,10 @@ def load_calibration_l2(l2_key: str = None, *, strict: bool = False):
         raise CalibrationReadError(f"L2 read returned HTTP {resp.status_code}")
     except Exception as e:
         if strict:
-            raise CalibrationReadError(f"L2 read failed for {l2_key or BUOY_CALIBRATION_L2_KEY}") from e
+            # Name the cause in the message: the skip log prints only str(e), and "L2 read failed"
+            # alone made this outage undiagnosable from the Actions log (A15-19).
+            raise CalibrationReadError(f"L2 read failed for {l2_key or BUOY_CALIBRATION_L2_KEY}: "
+                                       f"{type(e).__name__}: {str(e)[:200]}") from e
         logger.debug(f"[buoy-calibration] L2 load failed: {e}")
         return None
 

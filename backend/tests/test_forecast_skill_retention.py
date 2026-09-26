@@ -22,6 +22,14 @@ MONTH = fs.SKILL_SCORED_PREFIX + "2026-09.json"
 PREVIOUS = fs.SKILL_SCORED_PREFIX + "2026-08.json"
 
 
+@pytest.fixture(autouse=True)
+def _no_retry_sleep(monkeypatch):
+    # Strict calibration reads now retry transient answers (A15-19). These cases feed 503s and
+    # timeouts on purpose to prove fail-closed behaviour; the backoff delay itself is not under test.
+    from services.weather_pipeline import l2_retry
+    monkeypatch.setattr(l2_retry.time, "sleep", lambda s: None)
+
+
 def row(buoy="new", target="2026-09-01T00:00:00Z"):
     return {"source": fs.SOURCE_OURS, "buoy_id": buoy, "target_time": target,
             "lead_h": 24, "hs_m": 1.6, "tp_s": 12.0}

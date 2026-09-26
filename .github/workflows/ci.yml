@@ -936,7 +936,11 @@ jobs:
           # hosted CI on PR #81 (merged as 21a91c1c) observed 104 files / 1224 passed. The new
           # tests/test_capabilities_served_upstream.py (claimed by `--lane chain`) adds 16 executed tests:
           # 1224 + 16 = 1240, 1240 - 6 = 1234; files 105 EXACT; _FLOOR_SET_FROM["chain"] -> 1240.
-          MIN_FILES, MIN_PASSED = 105, 1234
+          # ⬆ MIN_FILES 105→106, MIN_PASSED 1234→1239 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (A15-19):
+          # hosted CI on PR #87 (merged as b0985ca8) observed 105 files / 1240 passed, confirming the A15-10
+          # projection exactly. The new tests/test_calibration_read_retry.py (claimed by `--lane chain`) adds
+          # 5 executed tests: 1240 + 5 = 1245, 1245 - 6 = 1239; files 106 EXACT; _FLOOR_SET_FROM["chain"] -> 1245.
+          MIN_FILES, MIN_PASSED = 106, 1239
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
