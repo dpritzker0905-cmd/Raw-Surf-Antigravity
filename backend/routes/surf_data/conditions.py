@@ -28,6 +28,13 @@ point_resolution_service = PointResolutionService(
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# Producer fields `/conditions/{spot_id}` passes through into `current` (absent unless set). The hub
+# is a surface that shows surf HEIGHT, so it must also carry QUALITY: "a size without a quality is
+# also incomplete" (CLAUDE.md, ONE FORECAST COMPOSITION). `surf_regime` + `offshore_height_ft` let the
+# UI mark the rare fail-open where the breaking transform threw and the offshore value stood in.
+_HUB_PASSTHROUGH = ("rating", "rating_level", "rating_confirmed", "surf_regime", "offshore_height_ft",
+                    "wind_speed_kts", "wind_direction")
+
 OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 NOAA_TIDES_URL = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
 
@@ -276,6 +283,11 @@ async def get_spot_conditions(
                     # Absent-unless-it-binds, mirroring the producer's own contract.
                     **({"forecast_confidence": current["forecast_confidence"]}
                        if current.get("forecast_confidence") else {}),
+                    # ★ THE SAME DEFECT, ONE FIELD OVER (audit 15.0, 2026-09-26). The producer resolves
+                    # a wind sample and runs compute_surf_rating on EVERY request, and this whitelist
+                    # threw the result away: 24 live hub responses carried exactly the eight names
+                    # above, so the hub showed a size and never a quality.
+                    **{k: current[k] for k in _HUB_PASSTHROUGH if current.get(k) is not None},
                 },
                 "forecast": forecast
             }

@@ -11,6 +11,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
+import SpotQualityBadge from './SpotQualityBadge';
 
 // Emoji constants -- using String.fromCodePoint to prevent encoding corruption
 const E = {
@@ -227,6 +228,8 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
         <Badge className={`text-[10px] ${conditionColors[label] || 'bg-gray-500'}`}>
           {label}
         </Badge>
+        {/* Quality beside size, mirrored from the full layout (three themes, all layouts). */}
+        <SpotQualityBadge current={conditions?.current} compact textClass={tSecondary} />
         {/* MIRRORED INTO THE COMPACT LAYOUT — the three-themes/all-devices mandate is explicit that
             a component with separate layouts must have the change in BOTH, and this repo's recorded
             defect is a signal that reaches one surface and not its sibling. Abbreviated to a dot +
@@ -274,7 +277,10 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
             {/* Wave Height */}
             <div className={`${cellBg} rounded-lg p-3 text-center`}>
               <p className={`text-3xl font-bold ${tPrimary}`}>{current.wave_height_ft}<span className="text-lg">ft</span></p>
-              <p className={`text-xs ${tSecondary}`}>Wave Height</p>
+              <p className={`text-xs ${tSecondary}`}>
+                {/* The breaking transform failed open and the OFFSHORE height stands in: say so. */}
+                {current.surf_regime === 'offshore_estimate' ? 'Offshore height (surf estimate unavailable)' : 'Wave Height'}
+              </p>
             </div>
             
             {/* Swell */}
@@ -282,6 +288,8 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               <p className={`text-3xl font-bold ${tPrimary}`}>{current.swell_height_ft ?? '—'}<span className="text-lg">ft</span></p>
               <p className={`text-xs ${tSecondary}`}>Swell</p>
             </div>
+
+            <SpotQualityBadge current={current} textClass={tPrimary} mutedClass={tSecondary} cellBg={cellBg} />
 
             {/* Forecast confidence — absent unless the forecast carries an ensemble */}
             {current.forecast_confidence && (
