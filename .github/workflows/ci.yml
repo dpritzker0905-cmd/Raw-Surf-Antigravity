@@ -707,7 +707,13 @@ jobs:
           # passed, confirming the retention projection exactly. The new tests/test_surf_conditions_one_composition.py
           # (claimed by `--lane guards`) adds 9 executed tests: 2069 + 9 = 2078, 2078 - 6 = 2072; files 171 EXACT;
           # _FLOOR_SET_FROM["guards"] -> 2078.
-          MIN_FILES, MIN_PASSED = 171, 2072
+          # ⬆ MIN_FILES 171→172, MIN_PASSED 2072→2084 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (infobox
+          # rating from the backend, A15-05(b)): hosted CI on PR #102 (merged as e648ae37) observed 171 files / 2078
+          # passed, confirming the #101 projection exactly. The new tests/test_point_rating.py (claimed by
+          # `--lane guards`) adds 11 executed tests and the infobox's POST_STEP_SURFACES entry in
+          # test_rating_composition_parity.py adds 1: 2078 + 12 = 2090, 2090 - 6 = 2084; files 172 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2090.
+          MIN_FILES, MIN_PASSED = 172, 2084
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
