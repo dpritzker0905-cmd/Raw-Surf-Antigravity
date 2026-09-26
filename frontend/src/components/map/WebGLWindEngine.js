@@ -18,7 +18,7 @@ import {
   unbindTexture,
   createFBO,
   bindTexture,
-  encodeWindTexture
+  encodeWindTexture, frameTimeScale, perFrameFade
 } from './WebGLWindUtils';
 import {
   initEngine,
@@ -545,7 +545,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // exploding in speed. Also, we scale the tile coordinate size to increase precision.
   const stableSpeedScale = ((z > 6.0)
     ? (this.speedFactor * Math.pow(0.5, z) * 0.00025)
-    : Math.max(2.5e-6, this.speedFactor * Math.pow(0.5, z) * 0.00025)) * _rmScale;
+    : Math.max(2.5e-6, this.speedFactor * Math.pow(0.5, z) * 0.00025)) * _rmScale * (this._dtScale = frameTimeScale(this)); // A15-18: per 60 Hz frame
 
   // v3.22: Compute camera center and tile origin for high-precision advection
   var vb = viewportBounds || [-180, -80, 180, 85];
@@ -742,6 +742,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate_bump'), this.dropRateBump);
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_dt_scale'), this._dtScale || 1); // A15-18: respawn per 60 Hz frame
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), dataBoundsMinX, bounds.south);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), dataBoundsMaxX, bounds.north);
@@ -828,7 +829,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // v3.12.2: No blend for fade shader outputs alpha=1.0, straight overwrite
   gl.disable(gl.BLEND);
   gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
-  gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), this.fadeOpacity);
+  gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), perFrameFade(this.fadeOpacity, this._dtScale || 1)); // A15-18
   bindTexture(gl, this.screenA.tex, 0);
   if (this.fadeVAO) {
     gl.bindVertexArray(this.fadeVAO);
