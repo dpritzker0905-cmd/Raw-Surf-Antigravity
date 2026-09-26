@@ -6,6 +6,7 @@
  * Exposes real-time insights to the Admin Diagnostics Panel.
  */
 import { BUILD_VERSION } from '../../buildVersion';
+import { OPEN_METEO_SPATIAL_BASE_URL } from './openMeteoEndpoints';
 
 class WeatherTelemetryEngine {
   constructor() {
@@ -51,12 +52,12 @@ class WeatherTelemetryEngine {
     this.failureKnowledgebase = [];
     this.topologyMap = {
       sources: {
-        GFS: 'https://openmeteo.s3.amazonaws.com/data_spatial/ncep_gfs013',
-        EURO: 'https://openmeteo.s3.amazonaws.com/data_spatial/ecmwf_ifs025',
-        ICON: 'https://openmeteo.s3.amazonaws.com/data_spatial/dwd_icon',
-        GFS_Wave: 'https://openmeteo.s3.amazonaws.com/data_spatial/ncep_gfswave025',
-        EURO_Wave: 'https://openmeteo.s3.amazonaws.com/data_spatial/ecmwf_wam025',
-        ICON_Wave: 'https://openmeteo.s3.amazonaws.com/data_spatial/dwd_gwam'
+        GFS: `${OPEN_METEO_SPATIAL_BASE_URL}/ncep_gfs013`,
+        EURO: `${OPEN_METEO_SPATIAL_BASE_URL}/ecmwf_ifs025`,
+        ICON: `${OPEN_METEO_SPATIAL_BASE_URL}/dwd_icon`,
+        GFS_Wave: `${OPEN_METEO_SPATIAL_BASE_URL}/ncep_gfswave025`,
+        EURO_Wave: `${OPEN_METEO_SPATIAL_BASE_URL}/ecmwf_wam025`,
+        ICON_Wave: `${OPEN_METEO_SPATIAL_BASE_URL}/dwd_gwam`
       },
       layers: {
         rain: { engine: 'MapLibre Raster Layer', sync: '3-hourly Ring Buffer' },

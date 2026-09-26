@@ -25,6 +25,7 @@
 import { useEffect, useRef } from 'react';
 import { LAYER_REGISTRY, MARINE_MODEL_MAP, WIND_MODEL_MAP, PRECIP_MODEL_MAP, MODEL_METADATA_CACHE } from './LayerRegistry';
 import { LIVE_FETCHED_MODELS } from './mapUtils';
+import { OPEN_METEO_SPATIAL_BASE_URL } from './openMeteoEndpoints';
 
 var OM_MODEL_MAP = { GFS: 'ncep_gfs025', EURO: 'ecmwf_ifs025', ICON: 'dwd_icon' };
 var PRELOAD_STEPS = 3;    // number of future valid model steps to preload
@@ -147,7 +148,7 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
         cacheRef.current.add(cacheKey);
 
         var darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
-        var url = 'https://openmeteo.s3.amazonaws.com/data_spatial/' + model
+        var url = OPEN_METEO_SPATIAL_BASE_URL + '/' + model
           + '/latest.json?time_step=valid_times_' + targetIdx + '&variable=' + resolvedVar + darkParam;
         fetch(url, { signal: signal }).catch(function () { /* best-effort */ });
       }

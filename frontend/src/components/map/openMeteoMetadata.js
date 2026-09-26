@@ -1,3 +1,5 @@
+import { OPEN_METEO_SPATIAL_BASE_URL } from './openMeteoEndpoints';
+
 export const MODEL_METADATA_PROMISES = {};
 export const LIVE_FETCHED_MODELS = new Set();
 
@@ -13,7 +15,7 @@ function isUsableManifest(data) {
 export async function fetchModelMetadata(modelToCheck, MODEL_METADATA_CACHE, onMetadataChanged) {
   const cached = MODEL_METADATA_CACHE[modelToCheck];
   if (!LIVE_FETCHED_MODELS.has(modelToCheck) && !MODEL_METADATA_PROMISES[modelToCheck]) {
-    MODEL_METADATA_PROMISES[modelToCheck] = fetch(`https://openmeteo.s3.amazonaws.com/data_spatial/${modelToCheck}/latest.json?skip_intercept=true`)
+    MODEL_METADATA_PROMISES[modelToCheck] = fetch(`${OPEN_METEO_SPATIAL_BASE_URL}/${modelToCheck}/latest.json?skip_intercept=true`)
       .then(res => {
         if (!res.ok) throw new Error('Fetch failed');
         return res.json();
