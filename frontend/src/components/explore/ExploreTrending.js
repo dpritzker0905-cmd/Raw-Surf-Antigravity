@@ -4,6 +4,7 @@
  * Includes: Broadcasting Now, Popular Spots, Trending Posts, Ad Card, Empty State
  */
 import React from 'react';
+import SpotQualityBadge from '../SpotQualityBadge';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, MapPin, Image, TrendingUp, Radio, Waves, Play
@@ -147,6 +148,7 @@ const ExploreTrending = ({
                     <div className="absolute top-2 right-2 z-20 flex items-center gap-1 bg-blue-700 rounded-full px-2 py-1">
                       <Waves className="w-3 h-3 text-white" />
                       <span className="text-xs font-bold text-white">{conditions.wave_height_ft}ft</span>
+                      <SpotQualityBadge current={conditions} compact textClass="text-white" />
                     </div>
                   )}
                   

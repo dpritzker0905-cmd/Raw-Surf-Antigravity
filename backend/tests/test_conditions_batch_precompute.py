@@ -113,8 +113,12 @@ def test_a_fresh_frame_answers_without_touching_resolver_or_db(app_client, monke
     body = r.json()
     assert calls["live"] == [], "a fresh frame hit must cost ZERO live resolutions"
     a = body["conditions"]["a"]
+    # ⚠️ WIDENED 2026-09-26 (audit 15.0): a rated frame entry now also carries the quality pair. The six
+    # base keys stay exactly as they were; the addition is optional and identical across both lanes
+    # (see test_both_lanes_carry_the_same_quality_pair), and the frozen client spreads entries.
     assert set(a) == {"wave_height_ft", "wave_direction", "wave_period", "swell_height_ft",
-                      "label", "updated_at"}, "the per-spot shape is frozen (the client spreads it)"
+                      "label", "updated_at", "rating", "rating_level"}, "the per-spot shape changed"
+    assert (a["rating"], a["rating_level"]) == (61.0, "fair_good")
     assert a["wave_height_ft"] == pytest.approx(round(1.2 * 3.28084, 1))
     assert a["wave_direction"] == 245.0 and a["wave_period"] == 10.0
     assert a["swell_height_ft"] == pytest.approx(round(0.4 * 3.28084, 1))
@@ -329,3 +333,30 @@ def test_cached_swell_rejects_wrong_units_and_fabricated_components(unit, basis)
 
     resolver = NS(find_cached_grid_product=find, sampler=NS(sample_point=forbidden))
     assert asyncio.run(cached_primary_swell(resolver, 'GFS', 0, 0, datetime.now(timezone.utc))) is None
+
+
+def test_both_lanes_carry_the_same_quality_pair(app_client, monkeypatch):
+    """Frame lane and live lane must agree on shape: a rated spot carries rating + rating_level on
+    both, so the client cannot tell which lane answered."""
+    monkeypatch.delenv("CONDITIONS_BATCH_PRECOMPUTED", raising=False)
+
+    async def rated_resolve(model, lat, lng, forecast_days, spot_id):
+        return {"current_conditions": {
+            "wave_height_ft": 3.9, "wave_direction": 245.0, "wave_period": 10.0,
+            "swell_height_ft": 3.0, "label": "Waist High", "updated_at": "live-ts",
+            "rating": 44.2, "rating_level": "fair"}}
+    monkeypatch.setattr(C.point_resolution_service, "resolve_spot_conditions", rated_resolve, raising=True)
+    client, _ = app_client(_blob([_frame_spot("a")]), _DBWith(["b"]))
+    body = client.get("/conditions/batch", params={"spot_ids": "a,b"}).json()["conditions"]
+    assert set(body["a"]) == set(body["b"]), "the two lanes answer in different shapes"
+    assert (body["b"]["rating"], body["b"]["rating_level"]) == (44.2, "fair")
+
+
+def test_an_unrated_spot_carries_no_quality_keys(app_client, monkeypatch):
+    """A frame entry without a level (or a live spot whose rating did not run) must not invent one."""
+    monkeypatch.delenv("CONDITIONS_BATCH_PRECOMPUTED", raising=False)
+    spot = _frame_spot("a")
+    spot["level"] = "unknown"
+    client, _ = app_client(_blob([spot]), _NoDB())
+    a = client.get("/conditions/batch", params={"spot_ids": "a"}).json()["conditions"]["a"]
+    assert "rating" not in a and "rating_level" not in a
