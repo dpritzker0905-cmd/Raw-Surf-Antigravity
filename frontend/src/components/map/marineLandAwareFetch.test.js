@@ -142,7 +142,8 @@ describe('HEATMAP_FS wiring', () => {
   });
 
   it('declares both uniforms and honours the disable path inside the shader', () => {
-    expect(HEATMAP_FS).toContain('uniform vec2 u_waveTexel;');
+    // GEO_P since A15-13: texel-space positions need high precision on fp16 phone GPUs.
+    expect(HEATMAP_FS).toMatch(/uniform (GEO_P )?vec2 u_waveTexel;/);
     expect(HEATMAP_FS).toContain('uniform float u_landAwareFetch;');
     expect(HEATMAP_FS).toContain('if (u_landAwareFetch < 0.5');
     expect(HEATMAP_FS).toContain('return plain;');
