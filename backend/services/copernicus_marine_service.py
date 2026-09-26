@@ -625,6 +625,12 @@ def _fetch_sync(
                         "hourly": {"time": []},
                     })
             nc.close()
+            if valid_time is None:
+                # F-05: an ingestion window reaches the served horizon, so the bulletin can be proven
+                # (services/cmems_run_identity.py); a +-3 h client window never can, so it never asks.
+                from services.cmems_run_identity import stamp_run
+                run_iso, run_reason = stamp_run(results, times, payload["dataset_id"])
+                logger.info(f"[Copernicus In-Process API] run={run_iso} ({run_reason})")
         except Exception as e:
             logger.error(f"[Copernicus In-Process API] Ingestion failed: {e}")
             raise

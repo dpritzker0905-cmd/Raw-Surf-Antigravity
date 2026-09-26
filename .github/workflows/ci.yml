@@ -949,7 +949,11 @@ jobs:
           # F-05 projection exactly. The new tests/test_cmems_run_identity.py (claimed by `--lane chain` through its
           # cycle_provenance import) adds 13 executed tests: 1248 + 13 = 1261, 1261 - 6 = 1255; files 108 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1261.
-          MIN_FILES, MIN_PASSED = 108, 1255
+          # ⬆ MIN_PASSED 1255→1260 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (F-05 part 3, the in-process
+          # CMEMS lane): hosted CI on PR #91 (merged as 38c838c3) observed 108 files / 1261 passed, confirming
+          # the part-2 projection exactly. tests/test_cmems_run_identity.py gains 5 executed tests (13 -> 18),
+          # no new file: 1261 + 5 = 1266, 1266 - 6 = 1260; files stay 108 EXACT; _FLOOR_SET_FROM["chain"] -> 1266.
+          MIN_FILES, MIN_PASSED = 108, 1260
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

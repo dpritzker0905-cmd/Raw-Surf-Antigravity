@@ -23,12 +23,30 @@ None and the products stay 'missing', never a guessed run. Kill: CMEMS_RUN_IDENT
 """
 import os
 import re
+import time
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 _NATIVE_NAME = re.compile(r"_(\d{10})_R(\d{8})_(\d{2})H\.nc$")
 _S3_NS = "{http://s3.amazonaws.com/doc/2006-03-01/}"
+
+# Per-process memo. The in-process lane (`copernicus_marine_service._fetch_sync`) runs once per island
+# region and once per ~5 deg spot box (107 boxes in a precompute run), and each would otherwise pay
+# a catalogue read plus a listing. A stale memo cannot mis-stamp: a listing that misses a newer
+# bulletin still has to match the horizon ARCO actually served, which moves 12 h per bulletin.
+URI_TTL_S = 3600.0
+LISTING_TTL_S = 300.0
+_memo = {}
+
+
+def _memoized(key, ttl, compute):
+    hit = _memo.get(key)
+    if hit is not None and time.monotonic() - hit[0] < ttl:
+        return hit[1]
+    value = compute()
+    _memo[key] = (time.monotonic(), value)
+    return value
 
 
 def parse_native_key(key):
@@ -117,13 +135,15 @@ def resolve_run(dataset_id, times, describe=None, session=None):
         if not times:
             return None, "no_times"
         first, last = (datetime.fromisoformat(t.replace("Z", "+00:00")) for t in (times[0], times[-1]))
-        uri = native_files_uri(dataset_id, describe)
+        uri = _memoized(("uri", dataset_id), URI_TTL_S, lambda: native_files_uri(dataset_id, describe))
         if not uri:
             return None, "no_original_files_service"
         if session is None:
             import requests
             session = requests.Session()
-        run, reason = run_from_native_keys(list_native_keys(uri, first, last, session), first, last)
+        months = tuple(_months(first - timedelta(days=1), last))
+        keys = _memoized(("keys", uri, months), LISTING_TTL_S, lambda: list_native_keys(uri, first, last, session))
+        run, reason = run_from_native_keys(keys, first, last)
         return (run.isoformat() if run else None), reason
     except Exception as e:  # identity is metadata; losing it must never cost the fetch
         return None, f"error:{type(e).__name__}"
