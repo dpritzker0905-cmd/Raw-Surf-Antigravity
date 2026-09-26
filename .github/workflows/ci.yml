@@ -944,7 +944,12 @@ jobs:
           # hosted CI on PR #88 (merged as e5306df3) observed 106 files / 1245 passed, confirming the A15-19
           # projection exactly. The new tests/test_ecmwf_cycle_identity.py (claimed by `--lane chain`) adds 3
           # executed tests: 1245 + 3 = 1248, 1248 - 6 = 1242; files 107 EXACT; _FLOOR_SET_FROM["chain"] -> 1248.
-          MIN_FILES, MIN_PASSED = 107, 1242
+          # ⬆ MIN_FILES 107→108, MIN_PASSED 1242→1255 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (F-05 part 2,
+          # CMEMS run identity): hosted run 36210532124 on PR #90 observed 107 files / 1248 passed, confirming the
+          # F-05 projection exactly. The new tests/test_cmems_run_identity.py (claimed by `--lane chain` through its
+          # cycle_provenance import) adds 13 executed tests: 1248 + 13 = 1261, 1261 - 6 = 1255; files 108 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1261.
+          MIN_FILES, MIN_PASSED = 108, 1255
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

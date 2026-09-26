@@ -55,9 +55,11 @@ DIR_TO_HEIGHT = {
 try:
     from _fetch_common import (energy_mean_direction_lonspan, energy_mean_direction_lonspan_conf,
                                energy_mean_height_lonspan)      # script-by-path
+    from cmems_run_identity import stamp_run
 except ImportError:
     from services._fetch_common import (energy_mean_direction_lonspan, energy_mean_direction_lonspan_conf,
                                         energy_mean_height_lonspan)  # package context
+    from services.cmems_run_identity import stamp_run
 
 # HEIGHT vars — block-meaned (longitudinally, like the directions) so an enclosed-sea coarse cell whose
 # exact point-sample column is masked land survives (the Gulf/Med/... dropout fix, 2026-07-22 — parity
@@ -251,6 +253,8 @@ def main():
 
     t0 = time.time()
     points, ok, failed, times = fetch_global_coarse(payload)
+    # F-05: the bulletin these numbers came from, proven against the served horizon or not claimed.
+    run_iso, run_reason = stamp_run(points, times, DATASET_ID)
     elapsed = time.time() - t0
 
     out_path = payload.get("output_path", "")
@@ -268,7 +272,7 @@ def main():
         sample_max = max(wh) if wh else None
     print(f"SUMMARY: points={len(points)} bands_ok={ok} bands_failed={failed} "
           f"timesteps={len(times) if times else 0} forecast_end={times[-1] if times else '?'} "
-          f"wave_height_nonzero={nz} wave_height_max={sample_max} elapsed={elapsed:.1f}s "
+          f"wave_height_nonzero={nz} wave_height_max={sample_max} run={run_iso} ({run_reason}) elapsed={elapsed:.1f}s "
           f"wrote={'yes:'+out_path if out_path else 'no(standalone)'}")
 
 
