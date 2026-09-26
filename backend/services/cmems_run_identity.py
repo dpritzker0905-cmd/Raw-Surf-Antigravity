@@ -156,3 +156,27 @@ def stamp_run(points, times, dataset_id, **kw):
         for p in points:
             p["__model_run_time"] = iso
     return iso, reason
+
+
+def latest_native_bulletin(dataset_id, now=None, describe=None, session=None):
+    """NEVER RAISES: the newest bulletin the native store holds (a datetime), or None.
+
+    A cheap listing, no data. It lets a lane ask "has CMEMS published anything new?" before
+    spending ~20 minutes of subsets on data it already has (roadmap stage 1). It is NOT proof that
+    ARCO serves this bulletin yet; entries cached under it were each proven by `stamp_run` when
+    they were fetched."""
+    now = now or datetime.now(timezone.utc)
+    try:
+        uri = _memoized(("uri", dataset_id), URI_TTL_S, lambda: native_files_uri(dataset_id, describe))
+        if not uri:
+            return None
+        if session is None:
+            import requests
+            session = requests.Session()
+        first, last = now - timedelta(days=2), now + timedelta(days=11)
+        months = tuple(_months(first - timedelta(days=1), last))
+        keys = _memoized(("keys", uri, months), LISTING_TTL_S, lambda: list_native_keys(uri, first, last, session))
+        runs = [p[1] for p in map(parse_native_key, keys) if p]
+        return max(runs) if runs else None
+    except Exception:
+        return None

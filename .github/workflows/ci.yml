@@ -961,7 +961,12 @@ jobs:
           # on PR #96 (merged as a7e6f6ca) observed 108 files / 1266 passed, confirming the F-05 part-3 projection
           # exactly. tests/test_conditions_batch_precompute.py (claimed by `--lane chain`) gains 2 executed tests,
           # no new file: 1266 + 2 = 1268, 1268 - 6 = 1262; files stay 108 EXACT; _FLOOR_SET_FROM["chain"] -> 1268.
-          MIN_FILES, MIN_PASSED = 108, 1262
+          # ⬆ MIN_FILES 108→109, MIN_PASSED 1262→1278 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (roadmap
+          # stage 1, CMEMS spot series once per bulletin): hosted CI on PR #98 (merged as a139d0e8) observed 108
+          # files / 1268 passed, confirming the batch-quality projection exactly. The new
+          # tests/test_cmems_spot_series_cache.py (claimed by `--lane chain`) adds 16 executed tests:
+          # 1268 + 16 = 1284, 1284 - 6 = 1278; files 109 EXACT; _FLOOR_SET_FROM["chain"] -> 1284.
+          MIN_FILES, MIN_PASSED = 109, 1278
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
