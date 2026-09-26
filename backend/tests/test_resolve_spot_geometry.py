@@ -299,7 +299,9 @@ def test_a_depth_only_entry_leaves_the_COARSE_bearing_standing():
     head-on — mean LEVEL error 4.12 vs 1.04 for a merely-coarse bearing."""
     import inspect
     from services.weather_pipeline import surf_point
-    src = inspect.getsource(surf_point.resolve_surf_geometry)
+    # The precedence lives in `_shore_normal_precedence` since 2026-09-26 (shared with the rating band).
+    src = (inspect.getsource(surf_point.resolve_surf_geometry)
+           + inspect.getsource(surf_point._shore_normal_precedence))
     assert "if _fine is not None:" in src, \
         "the asset now overwrites the coarse normal unconditionally — a depth-only entry would " \
         "BLANK the bearing, which measurement says is far worse than a coarse one"

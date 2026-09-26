@@ -971,7 +971,12 @@ jobs:
           # files / 1268 passed, confirming the batch-quality projection exactly. The new
           # tests/test_cmems_spot_series_cache.py (claimed by `--lane chain`) adds 16 executed tests:
           # 1268 + 16 = 1284, 1284 - 6 = 1278; files 109 EXACT; _FLOOR_SET_FROM["chain"] -> 1284.
-          MIN_FILES, MIN_PASSED = 109, 1278
+          # ⬆ MIN_FILES 109→110, MIN_PASSED 1278→1287 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (band on the
+          # chain's shore normal, Queue E#1): hosted CI on PR #101 (merged as 2a7ae5f6) observed 109 files / 1284
+          # passed (unchanged since #100). The new tests/test_band_chain_shore_normal.py (claimed
+          # by `--lane chain`) adds 9 executed tests: 1284 + 9 = 1293, 1293 - 6 = 1287; files 110 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1293.
+          MIN_FILES, MIN_PASSED = 110, 1287
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
