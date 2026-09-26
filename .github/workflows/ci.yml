@@ -1244,7 +1244,11 @@ jobs:
           # 521 - 2 (this lane's budget) = 519, and _FLOOR_SET_FROM[estate] moves to 521.
           # ⬆ 519→520 on 2026-09-25, CI-ANCHORED on hosted run 36082196820 @ 4c307031 (dev, after PRs #71 and #74):
           # 522 passed. 522 - 2 (this lane's budget) = 520; _FLOOR_SET_FROM[estate] moves to 522.
-          MIN_PASSED = 520
+          # ⬆ 520→525 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (heap_trim): hosted run
+          # 36205116666 @ 0c638257 observed 267 files / 522 passed; tests/test_memory_trace.py (claimed
+          # by `--lane estate`) gains 5 tests, all executed on Linux (the glibc positive control only
+          # skips on Windows). 522 + 5 = 527; 527 - 2 (this lane's budget) = 525; _FLOOR_SET_FROM[estate] -> 527.
+          MIN_PASSED = 525
 
           try:
               root = ET.parse('estate.xml').getroot()
