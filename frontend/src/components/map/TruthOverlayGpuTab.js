@@ -18,7 +18,7 @@ export const TruthOverlayGpuTab = ({
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span style={{ color: '#94a3b8' }}>Frame Rate:</span>
         <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#10b981' }}>
-          {gpuFps || 60} FPS
+          {gpuFps == null ? '—' : gpuFps} FPS
         </span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
