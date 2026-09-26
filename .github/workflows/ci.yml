@@ -1240,7 +1240,11 @@ jobs:
           # 521 - 2 (this lane's budget) = 519, and _FLOOR_SET_FROM[estate] moves to 521.
           # ⬆ 519→520 on 2026-09-25, CI-ANCHORED on hosted run 36082196820 @ 4c307031 (dev, after PRs #71 and #74):
           # 522 passed. 522 - 2 (this lane's budget) = 520; _FLOOR_SET_FROM[estate] moves to 522.
-          MIN_PASSED = 520
+          # ⬆ 520→522 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (A15-16): hosted CI on PR #82 (merged as
+          # 0c638257) observed 267 files / 522 passed. The new tests/test_products_response_no_disk_listing.py
+          # (claimed by `--lane estate`) adds 2 executed tests: 522 + 2 = 524; 524 - 2 (this lane's budget)
+          # = 522, and _FLOOR_SET_FROM[estate] moves to 524.
+          MIN_PASSED = 522
 
           try:
               root = ET.parse('estate.xml').getroot()
