@@ -1260,7 +1260,12 @@ jobs:
           # tests/test_memory_trace.py (claimed by `--lane estate`) gains 5 tests, all executed on Linux (the
           # glibc positive control only skips on Windows). A15-16's projected 524 + 5 = 529; 529 - 2 (this
           # lane's budget) = 527; _FLOOR_SET_FROM[estate] -> 529.
-          MIN_PASSED = 527
+          # ⬆ 527→532 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (A15-15): the new
+          # tests/test_precompute_follows_pilots.py (claimed by `--lane estate`; guards and chain do not
+          # select it) adds 5 executed tests (it imports yaml HARD; PyYAML is transitive via copernicusmarine ->
+          # dask, so losing it errors loudly instead of skipping). 529 is a RECEIPT, not a projection: hosted run
+          # 36209648226 on PR #89 read 268 files / 529 passed. 529 + 5 = 534; 534 - 2 (this lane's budget) = 532; _FLOOR_SET_FROM[estate] -> 534.
+          MIN_PASSED = 532
 
           try:
               root = ET.parse('estate.xml').getroot()
