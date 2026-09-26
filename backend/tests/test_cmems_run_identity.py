@@ -53,6 +53,13 @@ SERVED_FIRST = _t(2026, 9, 25, 18)        # production window: now - 6 h
 ARCO_END = _t(2026, 10, 5, 0)             # the STAC end_datetime read 2026-09-26
 
 
+@pytest.fixture(autouse=True)
+def _fresh_memo():
+    cri._memo.clear()
+    yield
+    cri._memo.clear()
+
+
 def test_parse_native_key_reads_the_producer_name():
     assert cri.parse_native_key(_key(_t(2026, 10, 4, 12), _t(2026, 9, 25, 12))) == (
         _t(2026, 10, 4, 12), _t(2026, 9, 25, 12))
@@ -196,3 +203,85 @@ def test_global_fetcher_subprocess_stamps_its_output(monkeypatch, tmp_path, caps
     cgf.main()
     assert json.loads(out.read_text())[0]["__model_run_time"] == "2026-09-25T12:00:00+00:00"
     assert "run=2026-09-25T12:00:00+00:00 (ok)" in capsys.readouterr().out
+
+
+def test_memo_serves_repeat_lanes_without_refetching():
+    calls = {"describe": 0}
+
+    def describe(**kw):
+        calls["describe"] += 1
+        return _describe_dict()
+    sess = _Session(_listing_2026_09_26())
+    for _ in range(3):
+        assert cri.resolve_run(DS, _axis(SERVED_FIRST, ARCO_END), describe=describe, session=sess)[1] == "ok"
+    first_pass = len(sess.calls)
+    assert calls["describe"] == 1 and first_pass > 0
+    cri.resolve_run(DS, _axis(SERVED_FIRST, ARCO_END), describe=describe, session=sess)
+    assert len(sess.calls) == first_pass            # listing reused inside its TTL
+
+
+def test_stale_memo_cannot_mis_stamp_a_newer_served_horizon():
+    """ARCO rebuilt onto a newer bulletin while the memo still holds the old listing: the served
+    horizon moved +12 h, so the old bulletin is refused rather than claimed."""
+    kw = dict(describe=lambda **k: _describe_dict(), session=_Session(_listing_2026_09_26()))
+    assert cri.resolve_run(DS, _axis(SERVED_FIRST, ARCO_END), **kw)[1] == "ok"
+    iso, reason = cri.resolve_run(DS, _axis(SERVED_FIRST, ARCO_END + timedelta(hours=12)), **kw)
+    assert iso is None and reason.startswith("horizon_mismatch")
+
+
+def test_memo_expires(monkeypatch):
+    monkeypatch.setattr(cri, "LISTING_TTL_S", 0.0)
+    sess = _Session(_listing_2026_09_26())
+    kw = dict(describe=lambda **k: _describe_dict(), session=sess)
+    cri.resolve_run(DS, _axis(SERVED_FIRST, ARCO_END), **kw)
+    n = len(sess.calls)
+    cri.resolve_run(DS, _axis(SERVED_FIRST, ARCO_END), **kw)
+    assert len(sess.calls) == 2 * n
+
+
+def _fake_cmems_subprocess(times):
+    """Stands in for `copernicus_fetcher.py`: writes a real netCDF subset where the payload says."""
+    import netCDF4
+
+    def run(args, **kw):
+        payload = json.loads(args[-1])
+        path = f"{payload['output_directory']}/{payload['output_filename']}"
+        with netCDF4.Dataset(path, "w") as nc:
+            nc.createDimension("time", len(times))
+            nc.createDimension("latitude", 2)
+            nc.createDimension("longitude", 2)
+            t = nc.createVariable("time", "f8", ("time",))
+            t.units = "hours since 1970-01-01 00:00:00"
+            t[:] = [(datetime.fromisoformat(x.replace("Z", "+00:00")) - _t(1970, 1, 1)).total_seconds() / 3600
+                    for x in times]
+            nc.createVariable("latitude", "f4", ("latitude",))[:] = [10.0, 10.1]
+            nc.createVariable("longitude", "f4", ("longitude",))[:] = [-30.0, -29.9]
+            nc.createVariable("VHM0", "f4", ("time", "latitude", "longitude"))[:, :, :] = 1.0
+
+        class R:
+            returncode, stdout, stderr = 0, "", ""
+        return R()
+    return run
+
+
+@pytest.mark.parametrize("valid_time, expect_stamp", [(None, True), ("2026-09-27T12:00:00Z", False)])
+def test_in_process_lane_stamps_ingestion_windows_only(monkeypatch, valid_time, expect_stamp):
+    """`_fetch_sync` feeds island ingestion and the spot-box pre-warm (valid_time=None, 10-day windows
+    that reach the horizon). A +-3 h client window can never prove a bulletin, so it must not even ask."""
+    pytest.importorskip("netCDF4")
+    import subprocess
+    from services import copernicus_marine_service as cms
+    times = _axis(SERVED_FIRST, ARCO_END)
+    seen = []
+    monkeypatch.setattr(cms, "_check_credentials", lambda: ("u", "p"))
+    monkeypatch.setattr(subprocess, "run", _fake_cmems_subprocess(times))
+    monkeypatch.setattr(cri, "resolve_run", lambda ds, t, **kw: (seen.append((ds, t)) or
+                                                                  ("2026-09-25T12:00:00+00:00", "ok")))
+    pts = cms._fetch_sync([10.0, 10.1], [-30.0, -29.9], 10, None, valid_time=valid_time)
+    assert len(pts) == 2 and pts[0]["hourly"]["wave_height"][0] == 1.0
+    if expect_stamp:
+        assert seen == [(DS, times)]
+        assert cycle_from_points(pts)["model_run_time_status"] == "known"
+    else:
+        assert seen == []
+        assert all("__model_run_time" not in p for p in pts)
