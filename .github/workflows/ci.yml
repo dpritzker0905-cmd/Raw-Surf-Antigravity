@@ -982,7 +982,12 @@ jobs:
           # passed (unchanged since #100). The new tests/test_band_chain_shore_normal.py (claimed
           # by `--lane chain`) adds 9 executed tests: 1284 + 9 = 1293, 1293 - 6 = 1287; files 110 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1293.
-          MIN_FILES, MIN_PASSED = 110, 1287
+          # ⬆ MIN_FILES 110→111, MIN_PASSED 1287→1293 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (the band's
+          # wind follows the point resolver's pick, Queue E#1 data half): hosted CI on PR #103 (merged as d096c5eb)
+          # observed 110 files / 1293 passed, confirming the #102 projection exactly. The new
+          # tests/test_band_wind_follows_the_point.py (claimed by `--lane chain`) adds 6 executed tests:
+          # 1293 + 6 = 1299, 1299 - 6 = 1293; files 111 EXACT; _FLOOR_SET_FROM["chain"] -> 1299.
+          MIN_FILES, MIN_PASSED = 111, 1293
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
