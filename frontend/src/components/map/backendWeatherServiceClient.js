@@ -421,7 +421,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
           euro_weight: EURO_WEIGHT,
           gfs_vectors: gfsVectors.length,
           euro_vectors: euroVectors.length,
-          source_model: 'ncep_gfswave025+ecmwf_wam025'
+          source_model: `${gfsGrid?.grid?.__sourceDataset || 'ncep_gfswave025'}+${euroGrid?.grid?.__sourceDataset || 'cmems_mod_glo_wav_anfc_0.083deg_PT3H-i'}` // A15-01: EURO swell_2 is CMEMS, not WAM
         }
       };
 
