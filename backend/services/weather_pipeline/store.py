@@ -144,6 +144,30 @@ def _fetch_remote_manifest_products() -> Optional[list]:
         return None
 
 
+def manifest_retention_cutoff(now=None):
+    """THE ONE retention policy for manifest products: a product whose valid_time_start is older than
+    this is dead. MANIFEST_RETENTION_DAYS (default 2, the cadence prune's historical value)."""
+    try:
+        days = float(os.environ.get("MANIFEST_RETENTION_DAYS", "2"))
+    except ValueError:
+        days = 2.0
+    return (now or datetime.now(timezone.utc)) - timedelta(days=days)
+
+
+def _past_retention(valid_time_start, cutoff) -> bool:
+    """True when a product (a ManifestProduct datetime or a raw ISO string) is past the cutoff.
+    Unparseable -> False: retention must never delete what it cannot read."""
+    try:
+        vt = valid_time_start
+        if isinstance(vt, str):
+            vt = datetime.fromisoformat(vt.replace("Z", "+00:00"))
+        if vt.tzinfo is None:
+            vt = vt.replace(tzinfo=timezone.utc)
+        return vt < cutoff
+    except Exception:
+        return False
+
+
 def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
     """MANIFEST CONCURRENCY (2026-07-14, next-phase queue #1): manifest.json has no If-Match/CAS
     precondition, so two ingest processes (core + pilots) racing the upload each re-serialize
@@ -182,6 +206,23 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
         remote_products = _fetch_remote_manifest_products()
         if not remote_products:
             return 0
+        # ⛔ RETENTION MUST HOLD ACROSS UPLOADS (audit 15.0, 2026-09-26). The cadence prune removes
+        # products past MANIFEST_RETENTION_DAYS and passes exclude_keys, but its upload is only QUEUED;
+        # the same lane's next save reconciles WITHOUT exclusions while the remote still holds the
+        # pruned entries, and folds them straight back. Measured on core ingest 36244160502: prune at
+        # 14:22:27, then "folded in 1135 concurrent-writer entries" at 14:22:30, and the live manifest
+        # carried 1,324 products older than the cutoff (15,901 total) the same afternoon. A lane whose
+        # snapshot was restored before another lane's prune re-uploads them the same way. So no upload
+        # folds in a past-retention entry, and none carries one of its own.
+        # Kill: MANIFEST_RETENTION_ON_UPLOAD=0.
+        cutoff = None
+        if os.environ.get("MANIFEST_RETENTION_ON_UPLOAD", "1") != "0":
+            cutoff = manifest_retention_cutoff()
+            before = len(manifest.products)
+            manifest.products = [p for p in manifest.products if not _past_retention(p.valid_time_start, cutoff)]
+            if len(manifest.products) != before:
+                logger.info(f"[Product Store] Retention dropped {before - len(manifest.products)} past-cutoff "
+                            f"entries from this upload (cutoff {cutoff.isoformat()}).")
         from services.weather_pipeline.schemas import ManifestProduct
         from services.weather_pipeline.store_helpers import raw_run_time_newer as _raw_run_time_newer
         ours = {(p.product_id or p.filename): p for p in manifest.products if (p.product_id or p.filename)}
@@ -192,6 +233,8 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
             pid = raw.get("product_id") or raw.get("filename")
             if not pid or pid in excl:
                 continue
+            if cutoff is not None and _past_retention(raw.get("valid_time_start"), cutoff):
+                continue  # a pruned entry the remote still holds: never resurrect it
             mine = ours.get(pid)
             if mine is not None and not (prefer_newer and _raw_run_time_newer(raw, mine.run_time)):
                 continue  # key collision, ours is current (or the guard is off) — pre-fix behaviour
