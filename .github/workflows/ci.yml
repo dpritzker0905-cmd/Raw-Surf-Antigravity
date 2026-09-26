@@ -693,7 +693,12 @@ jobs:
           # the A15-02 projection exactly. The new tests/test_point_prefers_scheduled_native.py (claimed by
           # `--lane guards`) adds 14 executed tests: 2042 + 14 = 2056, 2056 - 6 = 2050; files 168 EXACT;
           # _FLOOR_SET_FROM["guards"] -> 2056.
-          MIN_FILES, MIN_PASSED = 168, 2050
+          # ⬆ MIN_FILES 168→169, MIN_PASSED 2050→2055 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (A15-09):
+          # hosted CI on PR #80 (merged as fe3a5462) observed 168 files / 2056 passed, confirming the A15-04
+          # projection exactly. The new tests/test_series_frame_stored_identity.py (claimed by `--lane guards`)
+          # adds 5 executed tests: 2056 + 5 = 2061, 2061 - 6 = 2055; files 169 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2061.
+          MIN_FILES, MIN_PASSED = 169, 2055
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
