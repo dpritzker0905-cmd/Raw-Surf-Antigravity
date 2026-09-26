@@ -61,17 +61,16 @@ async def get_products():
     """
     GET /api/weather/products
     Returns the current manifest registry listing available prepared weather products.
+
+    A15-16 (audit 15.0): this public, unauthenticated response also carried the server's absolute
+    cache path and a listing of every file in it (2,717 names, measured 2026-09-25), re-read from
+    disk on each call. Nothing read either field over HTTP; the diagnostics scripts use the store
+    directly. Both are gone.
     """
-    import os
     manifest = await asyncio.to_thread(store.get_manifest)
-    def get_disk_files():
-        return os.listdir(store.cache_dir) if os.path.exists(store.cache_dir) else []
-    files = await asyncio.to_thread(get_disk_files)
     return {
         "last_manifest_update": manifest.last_manifest_update,
         "products": manifest.products,
-        "files_on_disk": files,
-        "cache_dir": str(store.cache_dir)
     }
 
 
