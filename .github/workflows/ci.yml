@@ -932,7 +932,11 @@ jobs:
           # confirming Stage A's projection exactly. tests/test_l2_writer_gate.py (claimed by `--lane
           # chain`) gains 11 executed tests (8 -> 19), no new file: 1213 + 11 = 1224, 1224 - 6 = 1218; files stay
           # 104 EXACT; _FLOOR_SET_FROM["chain"] -> 1224.
-          MIN_FILES, MIN_PASSED = 104, 1218
+          # ⬆ MIN_FILES 104→105, MIN_PASSED 1218→1234 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (A15-10):
+          # hosted CI on PR #81 (merged as 21a91c1c) observed 104 files / 1224 passed. The new
+          # tests/test_capabilities_served_upstream.py (claimed by `--lane chain`) adds 16 executed tests:
+          # 1224 + 16 = 1240, 1240 - 6 = 1234; files 105 EXACT; _FLOOR_SET_FROM["chain"] -> 1240.
+          MIN_FILES, MIN_PASSED = 105, 1234
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
