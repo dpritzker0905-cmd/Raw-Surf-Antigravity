@@ -387,13 +387,16 @@ async def get_conditions_for_spot(
             "error": f"Unknown spot: {spot_name}. Try providing coordinates."
         }
     
-    # Get full conditions including tide
+    # Get full conditions including tide (current hour: the hub's composition, as in the coordinate path)
+    pipeline = (await pipeline_current_conditions(spot_info["lat"], spot_info["lon"])
+                if target_datetime is None else None)
     conditions = await get_full_conditions(
         spot_info["lat"],
         spot_info["lon"],
         spot_info["name"],
         spot_info.get("noaa_station"),
-        target_datetime=target_datetime
+        target_datetime=target_datetime,
+        current_override=pipeline
     )
     
     conditions["coordinates"] = {"lat": spot_info["lat"], "lon": spot_info["lon"]}
@@ -470,12 +473,54 @@ async def get_wind_conditions(
         return {"source": "error", "error": str(e)}
 
 
+async def pipeline_current_conditions(latitude: float, longitude: float, resolver=None,
+                                      model: str = "GFS") -> Optional[Dict[str, Any]]:
+    """NEVER RAISES: current surf + wind from the SAME producer the spot hub serves, or None.
+
+    ONE FORECAST COMPOSITION (audit 15.0 A15-05(c), 2026-09-26). The post composer auto-fills a
+    session from `/api/surf-conditions`, whose breaking height already runs `estimate_surf_at` (the
+    08-01 fix below) but from its OWN Open-Meteo marine fetch. So the post and the hub could record
+    different numbers for the same spot and hour, and the post carried no quality at all. This asks
+    the hub's producer (`resolve_spot_conditions`: pipeline products, `estimate_surf_at`,
+    `compute_surf_rating`) and maps it onto this module's field names. None falls back to the
+    provider path, unchanged."""
+    try:
+        if resolver is None:
+            from routes.surf_data.conditions import point_resolution_service as resolver
+        data = await resolver.resolve_spot_conditions(model=model, lat=latitude, lng=longitude, forecast_days=1)
+        cur = (data or {}).get("current_conditions") or {}
+        if cur.get("wave_height_ft") is None:
+            return None
+        out = {"source": "pipeline", "model": model,
+               "wave_height_ft": cur.get("wave_height_ft"),
+               "offshore_height_ft": cur.get("offshore_height_ft"),
+               "surf_regime": cur.get("surf_regime"),
+               "swell_height_ft": cur.get("swell_height_ft")}
+        if cur.get("wave_period") is not None:
+            out["wave_period_sec"] = int(cur["wave_period"])
+        if cur.get("wave_direction") is not None:
+            out["wave_direction"] = degrees_to_direction(cur["wave_direction"])
+            out["wave_direction_degrees"] = cur["wave_direction"]
+        if cur.get("wind_speed_kts") is not None:
+            out["wind_speed_mph"] = round(cur["wind_speed_kts"] * 1.15078, 1)
+        if cur.get("wind_direction") is not None:
+            out["wind_direction"] = degrees_to_direction(cur["wind_direction"])
+        for k in ("rating", "rating_level"):
+            if cur.get(k) is not None:
+                out[k] = cur[k]
+        return out
+    except Exception as e:
+        logger.info(f"[surf-conditions] pipeline current conditions unavailable, using provider: {type(e).__name__}")
+        return None
+
+
 async def get_full_conditions(
     latitude: float,
     longitude: float,
     spot_name: Optional[str] = None,
     noaa_station: Optional[str] = None,
-    target_datetime: Optional[datetime] = None
+    target_datetime: Optional[datetime] = None,
+    current_override: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Get combined surf, wind, and tide conditions
@@ -496,11 +541,13 @@ async def get_full_conditions(
                            else target_datetime.astimezone(timezone.utc))
         target_datetime = target_datetime.replace(minute=0, second=0, microsecond=0)
         target_args = {"target_datetime": target_datetime}
-    # Default current-mode callers retain their existing provider behavior.
-    surf = await get_surf_conditions(latitude, longitude, **target_args)
-    
-    # Get wind conditions
-    wind = await get_wind_conditions(latitude, longitude, **target_args)
+    # Current-mode callers that pass `current_override` (pipeline_current_conditions) read the spot hub's
+    # composition; an explicit hour, or no override, keeps the provider path exactly as before.
+    if current_override and target_datetime is None:
+        surf = wind = current_override
+    else:
+        surf = await get_surf_conditions(latitude, longitude, **target_args)
+        wind = await get_wind_conditions(latitude, longitude, **target_args)
     
     # Get tide conditions (if NOAA station available)
     tide = {}
@@ -529,6 +576,9 @@ async def get_full_conditions(
         "next_high": tide.get("next_high"),
         "next_low": tide.get("next_low"),
         "source": "auto",
+        "surf_source": surf.get("source"),                     # 'pipeline' = the hub's chain; else the provider
+        "rating": surf.get("rating"),                          # quality, from the same chain (pipeline only)
+        "rating_level": surf.get("rating_level"),
         "tide_source": "noaa" if tide.get("source") == "noaa" else None,
         "fetched_at": datetime.now(timezone.utc).isoformat()
     }

@@ -702,7 +702,12 @@ jobs:
           # retention holds across uploads): hosted CI on PR #97 (merged as d7932f3e) observed 169 files / 2061
           # passed. The new tests/test_manifest_retention_holds.py (claimed by `--lane guards`) adds 8 executed
           # tests: 2061 + 8 = 2069, 2069 - 6 = 2063; files 170 EXACT; _FLOOR_SET_FROM["guards"] -> 2069.
-          MIN_FILES, MIN_PASSED = 170, 2063
+          # ⬆ MIN_FILES 170→171, MIN_PASSED 2063→2072 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (composer on
+          # the hub's composition, A15-05(c)): hosted CI on PR #100 (merged as 0829207c) observed 170 files / 2069
+          # passed, confirming the retention projection exactly. The new tests/test_surf_conditions_one_composition.py
+          # (claimed by `--lane guards`) adds 9 executed tests: 2069 + 9 = 2078, 2078 - 6 = 2072; files 171 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2078.
+          MIN_FILES, MIN_PASSED = 171, 2072
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
