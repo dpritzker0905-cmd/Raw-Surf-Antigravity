@@ -29,6 +29,10 @@ HALF_WIDTHS = [0.08, 0.15, 0.3, 0.6, 1.2, 2.5, 5.0, 10.0]
 # The owner then reported (a) ICON band colour not matching the glyphs and (b) the EURO band not
 # turning on at close zoom -- two model-specific claims this instrument was structurally blind to.
 # ⛔ Queue E#1 stands: the binding sub-term is NOT isolated and NEITHER LANE MAY BE TUNED yet.
+# ✅ 2026-09-26: the COMPOSITION half is isolated (scripts/band_glyph_attribution.py): with the data held
+#    identical, the band's coarse shore normal was the whole composition gap, and the band now uses the
+#    chain's (surf_point.chain_shore_normal_at). This sweep still owns the DATA half (cell vs point
+#    sampling, the wind sampler, the tier by zoom); re-run it after deploy to size what is left.
 # What this addition can do is SPLIT the question: if the gap differs by model, the binding term is
 # something model-dependent (the wind field co-sampled at the cell, or which tier/cell answers);
 # if it is identical across models, it is not, and that eliminates a whole family in one run.

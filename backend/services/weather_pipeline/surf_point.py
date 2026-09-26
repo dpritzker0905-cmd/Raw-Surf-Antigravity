@@ -62,18 +62,16 @@ class SurfGeometry(NamedTuple):
     shore_normal_match_km: Optional[float] = None
 
 
-def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
-    """Resolve every geometric input for a coordinate, in production precedence order.
+def _shore_normal_precedence(lat: float, lng: float):
+    """(normal, src, match_km) in production precedence: coarse -> ETOPO asset -> hand override.
 
-    Mirrors `point_resolution.resolve_point`'s surf block exactly — it was extracted from there, and
-    `test_surf_point_parity.py` pins that the two agree."""
-    from services.weather_pipeline.bathymetry import (
-        shelf_depth_at, is_coastal, shelf_width_km, shore_normal_at)
-
-    # ── BASE: no honest estimate exists without these, so they are allowed to raise. ──
-    depth = shelf_depth_at(lat, lng)
-    coastal = bool(is_coastal(lat, lng))
-    width = shelf_width_km(lat, lng) or 0.0
+    ONE implementation for both the point geometry (`resolve_surf_geometry`) and the rating BAND
+    (`chain_shore_normal_at`). Measured 2026-09-26 (scripts/band_glyph_attribution.py,
+    60 spots x 12 sea states): with the data held identical, the band's coarse
+    `bathymetry.shore_normal_at` was the WHOLE composition gap to the glyph (|gap| p50 4.7, p90 40.3
+    points, 39% of cases over 10), and swapping this precedence in closed it to 0 at p50 and p90. Swapping
+    the height transform or the break depth changed nothing. ~0.03 ms per call."""
+    from services.weather_pipeline.bathymetry import shore_normal_at
 
     # ── Shore normal, weakest source first; each stronger source overwrites. ──
     normal, src, match_km = None, "none", None
@@ -126,6 +124,29 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
             # the geometry chain. Non-fatal stays the contract; silence does not.
             logger.warning(f"[Surf] shore-normal OVERRIDE lookup failed at ({lat},{lng}): "
                            f"{type(_e).__name__}: {_e}")
+
+    return normal, src, match_km
+
+
+def chain_shore_normal_at(lat: float, lng: float):
+    """The shore normal the ONE FORECAST COMPOSITION chain uses at (lat, lng): the same bearing
+    `resolve_surf_geometry` would return. For the rating band's `shore_normal_fn`."""
+    return _shore_normal_precedence(lat, lng)[0]
+
+
+def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
+    """Resolve every geometric input for a coordinate, in production precedence order.
+
+    Mirrors `point_resolution.resolve_point`'s surf block exactly — it was extracted from there, and
+    `test_surf_point_parity.py` pins that the two agree."""
+    from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km
+
+    # ── BASE: no honest estimate exists without these, so they are allowed to raise. ──
+    depth = shelf_depth_at(lat, lng)
+    coastal = bool(is_coastal(lat, lng))
+    width = shelf_width_km(lat, lng) or 0.0
+
+    normal, src, match_km = _shore_normal_precedence(lat, lng)
 
     # Sub-grid inlet/jetty focusing. Inert unless SURF_V3_MAGNETS is on inside estimate_surf.
     try:

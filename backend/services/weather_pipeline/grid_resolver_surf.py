@@ -52,7 +52,10 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
 
     _copied = False
     try:
-        from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km, shore_normal_at
+        from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km
+        # The band's shore normal is the CHAIN's (coarse -> ETOPO asset -> override), not the coarse raster
+        # alone: that one term was the band-vs-glyph composition gap (surf_point._shore_normal_precedence).
+        from services.weather_pipeline.surf_point import chain_shore_normal_at
         # Keep the AMBIENT field honest at global/coarse zoom (rating plan §1): a ~10° coarse frame can't
         # resolve a trustworthy shore-normal / exposure, surf is a coastline property, and a blocky
         # world-zoom rating band isn't the experience — the per-spot rating GLYPHS (P1) are the accuracy
@@ -154,7 +157,7 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
 
                 n_t, n_masked = await asyncio.to_thread(
                     rating_transform_grid,
-                    product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, shore_normal_at,
+                    product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, chain_shore_normal_at,
                     reference_fn=(_recording_reference_fn if reference_fn else None), gate_fn=gate_fn)
                 tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn),
                        "local_size": bool(reference_fn), "obs_gate": bool(gate_fn)}

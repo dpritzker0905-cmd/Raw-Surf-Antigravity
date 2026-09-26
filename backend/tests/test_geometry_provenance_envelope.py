@@ -240,7 +240,10 @@ def _emitted_src_values():
     import ast
     import inspect
     from services.weather_pipeline import surf_point
-    tree = ast.parse(inspect.getsource(surf_point.resolve_surf_geometry))
+    # The shore-normal precedence moved into `_shore_normal_precedence` (2026-09-26) so the rating band
+    # shares it; the two together are the old function body, so the extraction covers both.
+    tree = ast.parse(inspect.getsource(surf_point.resolve_surf_geometry) + "\n"
+                     + inspect.getsource(surf_point._shore_normal_precedence))
     out = set()
 
     def _lits(node):
