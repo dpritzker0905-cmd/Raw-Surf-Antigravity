@@ -251,6 +251,13 @@ def start_scheduler():
             memory_trace.sample()
         except Exception as e:
             logger.warning(f"[Scheduler] Memory trace sample failed: {e}")
+        # AFTER the sample, so the trace keeps recording the un-trimmed ratchet and heap_trim's own
+        # before/after says how much of it was reclaimable arena free-space. Kill: HEAP_TRIM=0.
+        try:
+            from services import heap_trim
+            heap_trim.trim()
+        except Exception as e:
+            logger.warning(f"[Scheduler] heap trim failed: {e}")
 
     scheduler.add_job(
         tracked('memory_trace', 'Sample RSS and cache sizes for leak detection', 'Every 5 minutes', _sample_memory),

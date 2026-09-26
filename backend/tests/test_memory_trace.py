@@ -208,3 +208,60 @@ class TestTheSummaryTellsTheTruth:
         assert len(h) == 2 and all("uptime_s" in s and "sizes" in s for s in h), (
             "growth_summary() is two endpoints; the series is what lets a reader disagree with it"
         )
+
+
+# ─── heap_trim: hand freed arena space back after grid_series churn (2026-09-26) ────────────────
+class TestHeapTrim:
+    @pytest.fixture(autouse=True)
+    def _fresh(self, monkeypatch):
+        from services import heap_trim
+        heap_trim._reset_for_test()
+        monkeypatch.delenv("HEAP_TRIM", raising=False)
+        yield
+        heap_trim._reset_for_test()
+
+    def test_the_kill_switch_makes_it_a_no_op(self, monkeypatch):
+        from services import heap_trim
+        called = []
+        monkeypatch.setattr(heap_trim, "_malloc_trim", lambda: called.append(1) or (lambda n: 1))
+        monkeypatch.setenv("HEAP_TRIM", "0")
+        assert heap_trim.trim()["available"] is False and called == []
+        assert heap_trim.stats()["trims"] == 0
+
+    def test_no_glibc_is_a_harmless_no_op(self, monkeypatch):
+        """Windows dev box / musl: no malloc_trim symbol. Must report, never raise."""
+        from services import heap_trim
+        monkeypatch.setattr(heap_trim, "_malloc_trim", lambda: None)
+        out = heap_trim.trim()
+        assert out["available"] is False and "glibc" in out["reason"]
+        assert heap_trim.stats()["available"] is False
+
+    def test_it_records_what_each_trim_gave_back(self, monkeypatch):
+        """The instrument half: released_mb is before - after, and it accumulates, so /api/health
+        can answer "is the ratchet reclaimable arena space" with a number."""
+        from services import heap_trim
+        calls = []
+        monkeypatch.setattr(heap_trim, "_malloc_trim", lambda: (lambda n: calls.append(n) or 1))
+        rss = iter([1400.0, 1100.0, 1150.0, 1150.0])
+        monkeypatch.setattr(heap_trim, "_rss_mb", lambda: next(rss))
+        first, second = heap_trim.trim(), heap_trim.trim()
+        assert calls == [0, 0], "malloc_trim(0): trim every arena, keep no padding"
+        assert (first["released_mb"], second["released_mb"]) == (300.0, 0.0)
+        s = heap_trim.stats()
+        assert s["trims"] == 2 and s["released_mb_total"] == 300.0 and s["max_released_mb"] == 300.0
+
+    def test_a_failing_trim_never_breaks_the_sampler(self, monkeypatch):
+        from services import heap_trim
+
+        def boom(n):
+            raise OSError("synthetic")
+        monkeypatch.setattr(heap_trim, "_malloc_trim", lambda: boom)
+        assert heap_trim.trim() == {"available": False, "reason": "OSError"}
+
+    @pytest.mark.skipif(not __import__("sys").platform.startswith("linux"), reason="glibc only")
+    def test_the_real_symbol_is_found_and_called_on_linux(self):
+        """Positive control on the CI/Render platform: the ctypes lookup resolves the real glibc
+        malloc_trim and a call returns a measured before/after, not a silent no-op."""
+        from services import heap_trim
+        out = heap_trim.trim()
+        assert out["available"] is True and out["rss_before_mb"] is not None and out["released_mb"] >= 0

@@ -154,6 +154,12 @@ async def health_check(
         memory["trace"] = memory_trace.growth_summary()
     except Exception as e:
         logger.warning(f"[health] memory trace summary failed: {e}")
+    # heap_trim (2026-09-26): how much freed arena space each 5-minute malloc_trim hands back.
+    try:
+        from services import heap_trim
+        memory["trim"] = heap_trim.stats()
+    except Exception as e:
+        logger.warning(f"[health] heap trim stats failed: {e}")
 
     # ── the configuration fingerprint (MC-09, 2026-08-15) ────────────────────────────────────────
     # A redacted identity for the resolved flag registry: hash + counts, never values. Two boxes

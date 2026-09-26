@@ -1248,7 +1248,11 @@ jobs:
           # 0c638257) observed 267 files / 522 passed. The new tests/test_products_response_no_disk_listing.py
           # (claimed by `--lane estate`) adds 2 executed tests: 522 + 2 = 524; 524 - 2 (this lane's budget)
           # = 522, and _FLOOR_SET_FROM[estate] moves to 524.
-          MIN_PASSED = 522
+          # ⬆ 522→527 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (heap_trim, merged over A15-16):
+          # tests/test_memory_trace.py (claimed by `--lane estate`) gains 5 tests, all executed on Linux (the
+          # glibc positive control only skips on Windows). A15-16's projected 524 + 5 = 529; 529 - 2 (this
+          # lane's budget) = 527; _FLOOR_SET_FROM[estate] -> 529.
+          MIN_PASSED = 527
 
           try:
               root = ET.parse('estate.xml').getroot()
