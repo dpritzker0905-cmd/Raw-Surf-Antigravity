@@ -21,7 +21,7 @@ uniform vec2 u_wind_res;          // wind grid resolution (cols, rows)
 uniform float u_speed_scale;      // scale-invariant speed scale (float for Mercator)
 uniform float u_rand_seed;        // per-frame random seed for respawn
 uniform float u_drop_rate;        // base particle drop rate
-uniform float u_drop_rate_bump;   // speed-dependent drop rate increase
+uniform float u_drop_rate_bump; uniform float u_dt_scale; // bump: speed-dependent drop increase; dt_scale: A15-18 elapsed 60 Hz frames (0 = unset -> 1)
 uniform float u_edgeFeatherEnabled; // regional edge feather flag
 uniform vec2 u_dataBounds_min;    // regional bounds min [west, south]
 uniform vec2 u_dataBounds_max;    // regional bounds max [east, north]
@@ -264,7 +264,7 @@ void main() {
   // bounded to the vortex's small screen area; the 0.002 floor (== the base drop rate) keeps
   // particles mortal. gate 0 -> dropRate unchanged.
   dropRate = max(dropRate * mix(1.0, 0.35, vortexGate), 0.002);
-  float drop = step(1.0 - dropRate, rand(seed));
+  float drop = step(pow(1.0 - dropRate, u_dt_scale > 0.0 ? u_dt_scale : 1.0), rand(seed));   // A15-18
 
   // If regional grid and exits bounding box, drop it. For global grid, only drop if it exits latitude bounds.
   bool isOob = false;

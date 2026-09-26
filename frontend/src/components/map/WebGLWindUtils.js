@@ -293,3 +293,25 @@ export function safeDeleteTexture(gl, tex, engine) {
     }
   }
 }
+
+// ── FRAME-TIME SCALING (audit 15.0, A15-18) ────────────────────────────────────────────────────
+// The wind step, trail fade and particle respawn were applied once PER FRAME, so a 120 Hz screen
+// ran the field twice as fast, with half-length trails, as a 60 Hz one. Each is now scaled by the
+// elapsed time against a 60 Hz reference frame, so per-SECOND behaviour matches the tuned 60 Hz
+// look on every display. Clamped so a hidden tab's long pause cannot fling particles on return.
+export const REFERENCE_FRAME_MS = 1000 / 60;
+export const FRAME_SCALE_MIN = 0.25;
+export const FRAME_SCALE_MAX = 3.0;
+
+/** Elapsed time since this engine's previous frame, in 60 Hz frames (1 on the first frame). */
+export function frameTimeScale(engine, nowMs = (typeof performance !== 'undefined' ? performance.now() : Date.now())) {
+  const last = engine._lastWindFrameAt;
+  engine._lastWindFrameAt = nowMs;
+  if (!Number.isFinite(last) || nowMs <= last) return 1;
+  return Math.min(FRAME_SCALE_MAX, Math.max(FRAME_SCALE_MIN, (nowMs - last) / REFERENCE_FRAME_MS));
+}
+
+/** A per-frame multiplicative fade applied over `scale` reference frames. */
+export function perFrameFade(fade, scale) {
+  return Math.pow(fade, scale > 0 ? scale : 1);
+}
