@@ -940,7 +940,11 @@ jobs:
           # hosted CI on PR #87 (merged as b0985ca8) observed 105 files / 1240 passed, confirming the A15-10
           # projection exactly. The new tests/test_calibration_read_retry.py (claimed by `--lane chain`) adds
           # 5 executed tests: 1240 + 5 = 1245, 1245 - 6 = 1239; files 106 EXACT; _FLOOR_SET_FROM["chain"] -> 1245.
-          MIN_FILES, MIN_PASSED = 106, 1239
+          # ⬆ MIN_FILES 106→107, MIN_PASSED 1239→1242 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (F-05):
+          # hosted CI on PR #88 (merged as e5306df3) observed 106 files / 1245 passed, confirming the A15-19
+          # projection exactly. The new tests/test_ecmwf_cycle_identity.py (claimed by `--lane chain`) adds 3
+          # executed tests: 1245 + 3 = 1248, 1248 - 6 = 1242; files 107 EXACT; _FLOOR_SET_FROM["chain"] -> 1248.
+          MIN_FILES, MIN_PASSED = 107, 1242
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

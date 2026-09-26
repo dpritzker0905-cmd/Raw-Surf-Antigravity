@@ -33,6 +33,7 @@ import time
 import math
 import uuid
 import tempfile
+from datetime import timezone
 from pathlib import Path
 
 try:
@@ -357,6 +358,10 @@ def fetch_global_coarse(payload):
     spread = {}    # rid -> kind -> vt -> (sds, counts); populated only in ensemble mode
     ensemble_on = (layer == "waves") and wave_ensemble_enabled()
     idx_by = None    # rid -> [(r, c), ...]
+    # F-05 (audit 14.0/15.0): the client resolves the latest cycle itself and the fetcher used to drop
+    # it, so 98.4% of EURO products said model_run_time "missing". Every GRIB message carries its own
+    # analysis time; one consistent value becomes the cycle, exactly as the NOAA/DWD fetchers stamp it.
+    cycles = set()
     try:
         grbs = pygrib.open(str(target))
         for m in grbs:
@@ -375,6 +380,8 @@ def fetch_global_coarse(payload):
                           for rid, (lats, lons) in axes.items()}
             arr = np.ma.filled(np.ma.asarray(m.values, dtype=float), np.nan)
             vt = m.validDate
+            if getattr(m, "analDate", None) is not None:
+                cycles.add(m.analDate)
             kind = (sn if sn in want_bands else
                     "u" if sn in want_u else "v" if sn in want_v else "p" if sn in want_p else
                     "h" if sn in want_h else "pk" if sn in want_pk else "mp" if sn in want_mp else "d")
@@ -563,10 +570,16 @@ def fetch_global_coarse(payload):
         pi = 0
         for la in lats:
             for lo in lons:
-                points.append(make_point_dict(la, lo, "ecmwf", units, hourly_of(pi)))
+                pt = make_point_dict(la, lo, "ecmwf", units, hourly_of(pi))
+                if cycle_iso:
+                    pt["__model_run_time"] = cycle_iso   # F-05; cycle_from_points reads it
+                points.append(pt)
                 pi += 1
         return points
 
+    # Exactly one analysis time -> the cycle (UTC; pygrib's analDate is naive UTC). Zero or several ->
+    # no claim at all: cycle_from_points then reports 'missing', never a guessed run.
+    cycle_iso = (next(iter(cycles)).replace(tzinfo=timezone.utc).isoformat() if len(cycles) == 1 else None)
     if multi:
         return {rid: _assemble(rid) for rid in regions}, len(times_dt), 0, times
     return _assemble("__single__"), len(times_dt), 0, times
