@@ -93,9 +93,17 @@ def test_all_FIVE_manifest_selection_sites_carry_the_gate():
     from services.weather_pipeline import grid_resolver_selection as GRS
     from services.weather_pipeline import grid_resolver as GR
 
+    # 2026-09-26: both point-resolver sites (and the rating band's wind sampler, which never gated)
+    # pick through manifest_point_selection.point_candidates, so the gate lives there ONCE.
+    from services.weather_pipeline import grid_resolver_surf as GRSURF
+    from services.weather_pipeline import manifest_point_selection as MPS
+    assert "if is_island_gated(p):" in inspect.getsource(MPS.point_candidates), (
+        "manifest_point_selection.point_candidates does not gate island products")
     for fn_name in ("_resolve_point_internal", "find_cached_grid_product"):
         src = inspect.getsource(getattr(PR.PointResolutionService, fn_name))
-        assert "if _island_gated(p):" in src, f"{fn_name} does not gate island products"
+        assert "point_candidates(" in src, f"{fn_name} bypasses the gated shared pick"
+    assert "point_candidates(" in inspect.getsource(GRSURF._build_wind_sampler), (
+        "the rating band's wind sampler bypasses the gated shared pick")
 
     assert "if _island_gated(p):" in inspect.getsource(VH.find_any_cached_product_helper), (
         "viewport_helper.find_any_cached_product_helper does not gate island products")

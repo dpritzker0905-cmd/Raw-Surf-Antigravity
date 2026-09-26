@@ -34,22 +34,10 @@ from services.weather_pipeline.point_surf_augment import augment_with_surf  # no
 from services.weather_pipeline import wave_physics  # noqa: E402
 from services.weather_pipeline.dynamic_cycle_policy import superseded_dynamic, prefers_scheduled_native
 
-def _selection_key(pair):
-    """Candidate ranking for the point resolver's manifest selection, ONE definition for both
-    sites (resolve_point + find_cached_grid_product — they had drifted into four identical
-    lambdas). ⭐ RESOLUTION BREAKS TIME TIES (2026-08-09, MASTER-AUDIT-11.0 resolution F7): the
-    old key was (time_diff, bbox_area), and two GLOBAL products at the same hour tie on BOTH
-    terms — manifest order decided, so a 10° product could answer a point a 2° product covered.
-    55.22% of served spots depend on a global tier, and this tie-break is the gate the audit put
-    in front of any 0.25° coverage expansion. Finer resolution wins within a time tie; area stays
-    the final term. Kill: POINT_RES_TIEBREAK=0 restores (diff, area) exactly."""
-    from services.weather_pipeline.product_selection import get_bbox_area
-    p, diff = pair
-    area = get_bbox_area(p.coverage.west, p.coverage.south, p.coverage.east, p.coverage.north)
-    if os.environ.get("POINT_RES_TIEBREAK", "1") != "0":
-        from services.weather_pipeline.selection_identity import selection_identity
-        return (diff, float(p.resolution), area, *selection_identity(p))
-    return (diff, area)
+# The candidate ranking and the manifest pick moved to manifest_point_selection (2026-09-26) — the
+# two loops below were verbatim copies and the rating band's wind sampler a wrong third. The
+# name stays importable here for the tests and callers that use it.
+from services.weather_pipeline.manifest_point_selection import selection_key as _selection_key  # noqa: E402,F401
 
 
 # The island SERVING gate now lives in island_gate.py -- there are FIVE selection sites, so a
@@ -354,44 +342,11 @@ class PointResolutionService:
         # 2b. Check scheduled products in the manifest — via the identity-keyed lane index
         # (manifest_view). The old full scan was O(16,132) x 22 per hub request, on the loop.
         manifest = await asyncio.to_thread(self.store.get_manifest)
-        authoritative_candidates = []
-        estimated_candidates = []
-
-        from services.weather_pipeline.manifest_view import products_for
-        for p in products_for(manifest, model, domain, layer):
-            if _island_gated(p):
-                continue
-            # Check point containment (0.0001 snapping-tolerant margin, antimeridian aware)
-            actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
-            if is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
-                t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start
-                t2 = target_dt.replace(tzinfo=timezone.utc) if target_dt.tzinfo is None else target_dt
-                diff = abs(t1.timestamp() - t2.timestamp())
-                if diff <= 3 * 3600:
-                    if getattr(p, "is_estimated", False):
-                        estimated_candidates.append((p, diff))
-                    else:
-                        authoritative_candidates.append((p, diff))
-
-        best_auth = None
-        best_est = None
-        if authoritative_candidates:
-            best_auth = min(authoritative_candidates, key=_selection_key)
-        if estimated_candidates:
-            best_est = min(estimated_candidates, key=_selection_key)
-
-        matching_item = None
-        if best_auth and best_est:
-            auth_p, auth_diff = best_auth
-            est_p, est_diff = best_est
-            if est_diff <= 1800 and auth_diff > 1800:
-                matching_item = est_p
-            else:
-                matching_item = auth_p
-        elif best_auth:
-            matching_item = best_auth[0]
-        elif best_est:
-            matching_item = best_est[0]
+        # The pick is manifest_point_selection's, shared with the other point site and the rating
+        # band's wind sampler, so all three answer a coordinate from the same product.
+        from services.weather_pipeline.manifest_point_selection import choose_for_point, point_candidates
+        matching_item = choose_for_point(
+            point_candidates(manifest, model, domain, layer, target_dt), lat, lng)
 
         coarse_last_resort = None
         if matching_item:
@@ -724,44 +679,11 @@ class PointResolutionService:
 
         # 2. Check scheduled products in the manifest — same lane index as resolve_point above.
         manifest = await asyncio.to_thread(self.store.get_manifest)
-        authoritative_candidates = []
-        estimated_candidates = []
-
-        from services.weather_pipeline.manifest_view import products_for
-        from services.weather_pipeline.route_helpers import is_inside_bounds, get_actual_grid_bounds
-        for p in products_for(manifest, model, domain, layer):
-            if _island_gated(p):
-                continue
-            actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
-            if is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
-                t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start
-                t2 = target_dt.replace(tzinfo=timezone.utc) if target_dt.tzinfo is None else target_dt
-                diff = abs(t1.timestamp() - t2.timestamp())
-                if diff <= 3 * 3600:
-                    if getattr(p, "is_estimated", False):
-                        estimated_candidates.append((p, diff))
-                    else:
-                        authoritative_candidates.append((p, diff))
-
-        best_auth = None
-        best_est = None
-        if authoritative_candidates:
-            best_auth = min(authoritative_candidates, key=_selection_key)
-        if estimated_candidates:
-            best_est = min(estimated_candidates, key=_selection_key)
-
-        matching_item = None
-        if best_auth and best_est:
-            auth_p, auth_diff = best_auth
-            est_p, est_diff = best_est
-            if est_diff <= 1800 and auth_diff > 1800:
-                matching_item = est_p
-            else:
-                matching_item = auth_p
-        elif best_auth:
-            matching_item = best_auth[0]
-        elif best_est:
-            matching_item = best_est[0]
+        # The pick is manifest_point_selection's, shared with the other point site and the rating
+        # band's wind sampler, so all three answer a coordinate from the same product.
+        from services.weather_pipeline.manifest_point_selection import choose_for_point, point_candidates
+        matching_item = choose_for_point(
+            point_candidates(manifest, model, domain, layer, target_dt), lat, lng)
 
         if matching_item:
             product = await asyncio.to_thread(self.store.load_product, matching_item.filename)
