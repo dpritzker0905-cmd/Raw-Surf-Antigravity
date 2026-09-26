@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { classifyMapInitError, isMapStartupFailure } from './mapWebglSupport';
+import { basemapStyleFailure, hasMapboxToken, publishBasemapDiag } from './basemapFallback';
 
 /**
  * Everything the map does when its rendering goes wrong, in one place.
@@ -27,6 +28,10 @@ export const useMapErrorSurface = ({ mapInstance, innerMapRef, setWebglWindFaile
   // mapWebglSupport.js. The map now simply tries, and onError reports what really happened.
   const [mapInitError, setMapInitError] = useState(null);
   const [mapMountAttempt, setMapMountAttempt] = useState(0);
+  // A15-17: the basemap style is a third kind of failure — not startup (the map exists) and not
+  // harmless runtime noise (without a style nothing draws). It swaps in the local fallback style.
+  const [basemapFallbackReason, setBasemapFallbackReason] = useState(() => (hasMapboxToken() ? null : 'no_token'));
+  useEffect(() => { publishBasemapDiag(basemapFallbackReason); }, [basemapFallbackReason]);
 
   /**
    * ⚠️ `onError` is NOT only an init hook. @vis.gl/react-maplibre maps the map's ongoing
@@ -39,6 +44,12 @@ export const useMapErrorSurface = ({ mapInstance, innerMapRef, setWebglWindFaile
    * exactly those, and claiming them here too would double every runtime map error.
    */
   const onMapError = useCallback((event) => {
+    const styleFailure = basemapStyleFailure(event);
+    if (styleFailure) {
+      // The first cause wins; a retry on the fallback cannot fail this way again.
+      setBasemapFallbackReason((prev) => prev || styleFailure);
+      return;
+    }
     if (!isMapStartupFailure(event, Boolean(innerMapRef?.current))) return;
 
     const err = event?.error || event;
@@ -118,6 +129,7 @@ export const useMapErrorSurface = ({ mapInstance, innerMapRef, setWebglWindFaile
 
   return {
     mapUnavailableReason,
+    basemapFallbackReason,
     mapInitError: mapInitError ? mapInitError.message : null,
     mapMountAttempt,
     onMapError,

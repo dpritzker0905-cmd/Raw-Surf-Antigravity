@@ -16,6 +16,8 @@ import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import MarineAnimTuner from './MarineAnimTuner';
 import MapInitFailureNotice from './MapInitFailureNotice';
+import BasemapFallbackNotice from './BasemapFallbackNotice';
+import { getFallbackMapStyle } from './basemapFallback';
 import { useMapErrorSurface } from './useMapErrorSurface';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
 import { radarForecastTileUrl, rainviewerTileTemplate } from './radarForecastSources';
@@ -116,7 +118,7 @@ const MapWebGL = ({
 
   // Map rendering failures, startup AND runtime, in one hook (see useMapErrorSurface).
   // Before 2026-09-22 a map that never started rendered an empty rectangle in silence.
-  const { mapUnavailableReason, mapInitError, mapMountAttempt, onMapError, onRetryMapInit } =
+  const { mapUnavailableReason, basemapFallbackReason, mapInitError, mapMountAttempt, onMapError, onRetryMapInit } =
     useMapErrorSurface({ mapInstance, innerMapRef, setWebglWindFailed, setWebglMarineFailed });
 
   const activeMarineLayer = useMemo(() => {
@@ -617,7 +619,8 @@ const MapWebGL = ({
   }, [mapInstance, activeLayers]);
 
   // Memoize map style to prevent full map re-render on ViewState change
-  const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', getMapStyle(theme, false)), [theme]);
+  const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', basemapFallbackReason // A15-17: tokenless local style
+    ? getFallbackMapStyle(theme) : getMapStyle(theme, false)), [theme, basemapFallbackReason]);
 
   // Canvas fade effects for marine layer
   useEffect(() => {
@@ -940,6 +943,7 @@ const MapWebGL = ({
           onRetry={onRetryMapInit}
         />
       ) : null}
+      {basemapFallbackReason && !mapUnavailableReason ? <BasemapFallbackNotice reason={basemapFallbackReason} /> : null}
 
       <Map
         key={mapMountAttempt}

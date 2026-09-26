@@ -49,6 +49,9 @@ export function isBasemapWaterSourceReady(mapInstance) {
     let waterSource = 'composite';
     const baseWater = mapInstance.getStyle()?.layers?.find(l => l.id === 'water');
     if (baseWater && baseWater.source) waterSource = baseWater.source;
+    // No basemap water source at all (the A15-17 fallback style): fail open WITHOUT asking, because
+    // isSourceLoaded fires a map `error` event for an unknown source id on every mask refresh.
+    if (typeof mapInstance.getSource === 'function' && !mapInstance.getSource(waterSource)) return true;
     if (typeof mapInstance.isSourceLoaded === 'function') {
       const v = mapInstance.isSourceLoaded(waterSource);
       if (typeof v === 'boolean' && !v) return false;
