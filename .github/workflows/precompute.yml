@@ -6,18 +6,29 @@ name: Precompute Spot Ratings (decoupled)
 
 on:
   workflow_dispatch: {}
+  # ★ RATINGS FOLLOW THE REGIONAL INGEST (2026-09-25, audit 15.0 A15-15). Three of the six cron slots below
+  # used to be 03:45/11:45/19:45 — THE SAME MINUTE as forecast-ingest-pilots.yml ('45 3,11,19'), which moved
+  # there on 2026-07-13 (ba894c3d) and silently voided the old "pilots finish ~03:12" assumption. GitHub
+  # drifts both lanes together, so they STARTED 1-2 min apart and this lane FINISHED FIRST every time —
+  # measured 2026-09-24/25 over 6 paired slots: precompute done 23:35 / 16:44 / 09:48 / 23:31 / 16:51 /
+  # 09:32 vs pilots 23:50 / 17:58 / 12:26 / 23:52 / 17:00 / 10:54. /point prefers the known-cycle regional
+  # tile (#80), so every glyph frame was rated on the PREVIOUS pilot cycle while the heatmap drew the new
+  # one, for up to 4 h. Those three slots are now this trigger: the rating runs when the tiles exist.
+  # 'completed' is any conclusion ON PURPOSE — a cancelled pilot run still uploads its early tiles, and a
+  # failed one leaves this lane exactly where the old cron slot did. Runs/day unchanged (3 + 3).
+  # Guard: backend/tests/test_precompute_follows_pilots.py.
+  workflow_run:
+    workflows: ["Forecast Ingestion Pilots (regional tiles)"]
+    types: [completed]
   schedule:
-    # 6x/day INTERLEAVED with the core ingest (2026-07-13 melt hardening, round-12 §1). Each run writes ONE
-    # frame per model (SPOT_RATINGS_PRECOMPUTE_HOURS default '0') served with a ±2h tolerance, so coverage
-    # dies 3h after a frame's top-of-hour stamp. Core-ingest tails (00:15+~1h50 → frames ~02/06/10/14/18/22Z)
-    # cover to {04,08,12,16,20,00}:59; the old 4x/day slots (1:45/7:45/13:45/19:45) landed mid-hole ~45 min
-    # late and skipped 2 of 6 cycles → a PROBED ~60-min src=live window every 4h (e.g. 13:00Z probe = live
-    # while 12:00Z = precomputed, 2026-07-13). :45 past 3,7,11,... stamps frames {03,07,11,15,19,23}:00 →
-    # a frame every ~2h → continuous current-hour coverage, AND if a core run is evicted from the shared
-    # forecast-ingest pending slot (the 07-13 melt root) this lane still refreshes every 4h on its own group
-    # (worst-case ~110 min degraded, self-healing — no manual dispatch needed). 03:45 also clears the
-    # settled-manifest window: pilots (01:45 + ~67 min, queued behind core until ~02:05) finish ~03:12.
-    - cron: '45 3-23/4 * * *'
+    # INTERLEAVED with the core ingest (2026-07-13 melt hardening, round-12 §1): each run writes frames
+    # {+0,+3}h per model (SPOT_RATINGS_PRECOMPUTE_HOURS '0,3') served ±2h fresh, then ±6h labelled stale,
+    # and core-ingest tails write frames every 4h too. If a core run is evicted from the shared pending slot
+    # (the 07-13 melt root) this lane still refreshes on its own group. The cron slots that remain are the
+    # ones pilots never collide with; if GitHub DROPS a scheduled pilot run (it has — startedAt null), the
+    # 8 h gap between them stays inside the stale ladder (3 h frame span + 6 h bound), so glyphs degrade to
+    # labelled-stale, never to the live cliff.
+    - cron: '45 7,15,23 * * *'
 
 permissions:
   contents: read
@@ -45,7 +56,8 @@ jobs:
     # — second consecutive timeout at a second consecutive cap. Its trace: first checkpoint landed
     # 2m50s in, then ~72 min inside the next model without completing (CMEMS-throttle shape). 110
     # keeps 130 min clear of the 240-min cron spacing (own concurrency group, cancel-in-progress
-    # false → worst case one queued run, never a cascade). If a run exceeds ~100 min the fix is
+    # false → worst case one queued run, never a cascade; still true since 2026-09-25, when half the runs
+    # became workflow_run-triggered and the spacing stopped being a fixed 240 min). If a run exceeds ~100 min the fix is
     # per-FRAME checkpoints or dropping the '3' offset — not a bigger cap.
     timeout-minutes: 110
     steps:
