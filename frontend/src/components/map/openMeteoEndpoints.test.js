@@ -68,20 +68,31 @@ describe('F-13 Open-Meteo spatial endpoint', () => {
     expect(isOpenMeteoSpatialUrl(42)).toBe(false);
   });
 
-  it('every live URL builder and protocol guard uses the live host', () => {
-    // The files that actually construct or gate spatial URLs. If one of them still named a host
-    // of its own, six layers could break again from a single upstream move.
+  it('every live URL builder and protocol guard takes the host from this module', () => {
+    // ⚠️ CORRECTED 2026-09-26 (audit 15.0 A15-20). This test used to assert that each builder
+    // CONTAINED the live host literal, which pinned the very duplication this module exists to end:
+    // nothing imported openMeteoEndpoints.js, and the host stayed spelled out 14 times across six
+    // files, so a future move still needed fourteen edits, not one. The builders now import it.
     const builders = [
       'components/map/openMeteoMetadata.js',
       'components/map/openMeteoProtocol.js',
       'components/map/useOpenMeteoTileUrls.js',
       'components/map/useTemporalPreloader.js',
+      'components/map/WeatherTelemetry.js',
+      'index.js',
     ];
     for (const rel of builders) {
       const text = fs.readFileSync(path.join(SRC_ROOT, rel), 'utf8');
       expect({ file: rel, dead: text.includes(DEAD_HOST) }).toEqual({ file: rel, dead: false });
-      expect({ file: rel, live: text.includes(OPEN_METEO_SPATIAL_HOST) })
-        .toEqual({ file: rel, live: true });
+      expect({ file: rel, imports: /from '\.\/(components\/map\/)?openMeteoEndpoints'/.test(text) })
+        .toEqual({ file: rel, imports: true });
     }
+  });
+
+  it('the live host is spelled out in exactly one module, so a move is one edit', () => {
+    const spelled = walkJs(SRC_ROOT)
+      .filter((f) => !/\.test\.js$/.test(f) && fs.readFileSync(f, 'utf8').includes(OPEN_METEO_SPATIAL_HOST))
+      .map((f) => path.relative(SRC_ROOT, f).split(path.sep).join('/'));
+    expect(spelled).toEqual(['components/map/openMeteoEndpoints.js']);
   });
 });

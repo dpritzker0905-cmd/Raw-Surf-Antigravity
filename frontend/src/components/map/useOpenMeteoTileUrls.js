@@ -7,6 +7,7 @@ import {
   closestAxisIndex, effectiveCutoverH,
 } from './modelHorizons';
 import maplibregl from 'maplibre-gl';
+import { OPEN_METEO_SPATIAL_BASE_URL } from './openMeteoEndpoints';
 import { toast } from 'sonner';
 import { subscribeToProtocolFailure, OM_PROTOCOL_DEPENDENT_LAYERS } from './openMeteoProtocolFailure';
 import {
@@ -447,7 +448,7 @@ export function useOpenMeteoTileUrls({
       const cacheBuster = cacheBustRef.current ? `&_cb=${cacheBustRef.current}` : '';
       // wt-landmask heal: one-time URL rotation so cached pre-mask decodes get re-decoded masked.
       const wtHeal = (variable === 'surface_temperature' && wtLandmaskNudgeRef.current) ? '&wtlm=1' : '';
-      return `om://https://openmeteo.s3.amazonaws.com/data_spatial/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}${wtHeal}`;
+      return `om://${OPEN_METEO_SPATIAL_BASE_URL}/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}${wtHeal}`;
     };
 
     const resolveAllUrls = async () => {
