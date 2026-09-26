@@ -83,7 +83,17 @@ def _frame_conditions_entry(e, updated_at):
             "wave_period": e["period_s"],
             "swell_height_ft": swell_height_ft(e.get("primary_swell_hs_m")),
             "label": get_conditions_label(h_ft),
-            "updated_at": updated_at}
+            "updated_at": updated_at,
+            **_quality_pair(e.get("score"), e.get("level"))}
+
+
+def _quality_pair(score, level):
+    """`rating` + `rating_level`, or NOTHING (audit 15.0, 2026-09-26). Both lanes emit the same optional
+    pair, so the per-spot shape stays identical across them; the frozen client spreads entries, so an
+    additive pair is safe for it. The explore cards showed a size and never a quality."""
+    if score is None or not level or level == "unknown":
+        return {}
+    return {"rating": score, "rating_level": level}
 
 
 BATCH_MAX_SPOTS = 200
@@ -174,7 +184,8 @@ async def get_batch_conditions(
                         "wave_period": current["wave_period"],
                         "swell_height_ft": current["swell_height_ft"],
                         "label": current["label"],
-                        "updated_at": current["updated_at"]
+                        "updated_at": current["updated_at"],
+                        **_quality_pair(current.get("rating"), current.get("rating_level")),
                     }
             except Exception as e:
                 # WS-CAN-0009: the exception is LOGGED, never returned — `str(e)` on a wire any

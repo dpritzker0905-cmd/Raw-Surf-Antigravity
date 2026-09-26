@@ -953,7 +953,11 @@ jobs:
           # CMEMS lane): hosted CI on PR #91 (merged as 38c838c3) observed 108 files / 1261 passed, confirming
           # the part-2 projection exactly. tests/test_cmems_run_identity.py gains 5 executed tests (13 -> 18),
           # no new file: 1261 + 5 = 1266, 1266 - 6 = 1260; files stay 108 EXACT; _FLOOR_SET_FROM["chain"] -> 1266.
-          MIN_FILES, MIN_PASSED = 108, 1260
+          # ⬆ MIN_PASSED 1260→1262 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (batch quality pair): hosted CI
+          # on PR #96 (merged as a7e6f6ca) observed 108 files / 1266 passed, confirming the F-05 part-3 projection
+          # exactly. tests/test_conditions_batch_precompute.py (claimed by `--lane chain`) gains 2 executed tests,
+          # no new file: 1266 + 2 = 1268, 1268 - 6 = 1262; files stay 108 EXACT; _FLOOR_SET_FROM["chain"] -> 1268.
+          MIN_FILES, MIN_PASSED = 108, 1262
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
