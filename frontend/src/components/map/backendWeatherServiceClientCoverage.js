@@ -136,6 +136,61 @@ export function getProductCoverage(model = 'GFS', domain = 'marine', layer = 'wa
 /**
  * Clamps or intersects the requested viewport bbox coordinates with the dynamic coverage limits.
  */
+export const STRADDLE_MIN_INSIDE_FRACTION = 0.70;   // the backend's edge-retention threshold (777c2a02)
+export const STRADDLE_MAX_SPAN_DEG = 8.0;
+
+/**
+ * The request box for a viewport that STRADDLES a regional tile edge but lies mostly inside it, or
+ * null when the rule does not apply (see the STRADDLE CLIP note in clampViewportBbox). `raw` is the
+ * viewport, `padded` the gesture-padded box. Pure apart from the manifest-tile read.
+ */
+export function straddleTileClip(modelName, domainName, layerName, raw, padded, spanLng, spanLat) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_STRADDLE_TILE_CLIP__ === true) return null;
+  if (!(spanLng > 0 && spanLat > 0) || raw.east < raw.west) return null;
+  if (spanLng > STRADDLE_MAX_SPAN_DEG || spanLat > STRADDLE_MAX_SPAN_DEG) return null;
+  let tiles;
+  try { tiles = getAvailableTilesFromManifest(modelName, domainName, layerName).tiles || []; } catch (e) { return null; }
+  let best = null;
+  for (const t of tiles) {
+    const b = t.bounds;
+    if (!b || typeof b.west !== 'number' || b.east < b.west) continue;
+    if (b.east - b.west >= 30 || (t.id && /^(global|viewport_)/.test(String(t.id)))) continue;   // real regional tiles
+    const inside = (raw.west >= b.west && raw.east <= b.east && raw.south >= b.south && raw.north <= b.north);
+    // ≤2.5° fully inside is the manifest-tile clip's territory (and its kill switch); wider fully-inside
+    // viewports are ours at fraction 1 — the legacy snap would otherwise carry them across the edge.
+    if (inside && spanLng <= 2.5 && spanLat <= 2.5) return null;
+    const oLng = Math.max(0, Math.min(raw.east, b.east) - Math.max(raw.west, b.west));
+    const oLat = Math.max(0, Math.min(raw.north, b.north) - Math.max(raw.south, b.south));
+    const frac = (oLng * oLat) / (spanLng * spanLat);
+    if (frac >= STRADDLE_MIN_INSIDE_FRACTION && (!best || frac > best.frac)) best = { t, frac };
+  }
+  if (!best) return null;
+  const b = best.t.bounds;
+  // Per side: inside the tile → keep the pad but stop at the tile edge; crossing → the raw viewport edge.
+  const side = (rawV, padV, edge, isMin) => {
+    const crosses = isMin ? rawV < edge : rawV > edge;
+    if (crosses) return rawV;
+    return isMin ? Math.max(edge, padV) : Math.min(edge, padV);
+  };
+  const q = 0.25;
+  const w = Math.floor(side(raw.west, padded.west, b.west, true) / q) * q;
+  const s = Math.floor(side(raw.south, padded.south, b.south, true) / q) * q;
+  const e = Math.ceil(side(raw.east, padded.east, b.east, false) / q) * q;
+  const n = Math.ceil(side(raw.north, padded.north, b.north, false) / q) * q;
+  const rq = v => Number(v).toFixed(2);
+  return {
+    isInside: true,
+    clampedBbox: { west: w, south: s, east: e, north: n },
+    fallbackReason: null,
+    coverageBounds: PILOT_COVERAGE,
+    selectedTileId: `viewport_${rq(w)}_${rq(s)}_${rq(e)}_${rq(n)}`,
+    availableTileIds: tiles.map(t => t.id),
+    rejectedTileIds: [],
+    tileFallbackReason: null,
+    straddle: { tileId: best.t.id, insideFraction: Math.round(best.frac * 1000) / 1000 },
+  };
+}
+
 export function clampViewportBbox(requestedBbox, layerName = "waves", modelName = "GFS", domainName = null) {
   const inferredDomain = domainName || (layerName === 'wind' ? 'wind' : 'marine');
 
@@ -522,6 +577,21 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
         }
       } catch (e) { /* registry unavailable — legacy path */ }
     }
+
+    // STRADDLE CLIP (audit 15.0, A15-03 — measured live 2026-09-25 at Sebastian Inlet z8). A viewport
+    // MOSTLY inside a regional tile but crossing one edge (-82.15..-78.75 against florida's -79) fell to
+    // the legacy pad + 1° snap below: -84..-77 × 25..30. Against the product's served lattice that is
+    // 46% overlap, under the backend's 70% edge-retention rule (777c2a02), so /grid served the 2°
+    // global_mid and the GPU drew 42 vectors where a 0.25° field of 289 existed (the series lane's
+    // gentler box got it). The backend rule is right; this lane asked for a box it could not honour.
+    // Rule, mirroring the backend's own threshold: when ≥70% of the RAW viewport lies inside one
+    // regional tile (span ≤ 8°), keep the pan pad on sides that stay inside the tile (capped at its
+    // edge) and add NO pad past the viewport on a side that crosses the edge. The backend then serves
+    // the fine tile (regional_partial) and queues revalidation of the full box. Straddlers mostly
+    // OUTSIDE a tile keep the legacy covering snap. Kill: __RAW_DISABLE_STRADDLE_TILE_CLIP__.
+    const _straddle = straddleTileClip(modelName, inferredDomain, layerName,
+      { west, south, east, north }, { west: _padW, south: _padS, east: _padE, north: _padN }, spanLng, spanLat);
+    if (_straddle) return _straddle;
 
     const tileSize = (modelName || '').toUpperCase() === 'GFS' ? 1.0 : 2.0;
     const snapW = Math.floor(_padW / tileSize) * tileSize;
