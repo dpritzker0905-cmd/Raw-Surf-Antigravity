@@ -25,6 +25,10 @@ on:
         description: "Also grade CDIP's MOP nearshore forecast at the buoys beside the bulk arm (roadmap stage 4). One CDIP request per station."
         required: false
         default: '0'
+      mop_grid:
+        description: "Also grade the archived MOP sea+swell grid runs (the product stage 4 would serve) from the MOP ingest's artifacts."
+        required: false
+        default: '0'
   schedule:
     # Hourly is the accrual rate the packet assumes; GitHub cron is BEST-EFFORT (measured
     # delivery 5-32% on sibling lanes) — the report series is append-only, gaps are fine.
@@ -32,6 +36,7 @@ on:
 
 permissions:
   contents: read
+  actions: read       # the mop_grid arm reads the MOP ingest's run artifacts (no storage credentials)
 
 concurrency:
   group: nearshore-validation
@@ -102,6 +107,18 @@ jobs:
           echo "::warning::prod backend never answered /api/health — the runner will exit 2 (INFRA), not grade."
           echo "awake=0" >> "$GITHUB_OUTPUT"
 
+      - name: Fetch the archived MOP grid runs (stage 4)
+        if: github.event.inputs.mop_grid == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p mop_archive
+          for id in $(gh run list -R "${{ github.repository }}" --workflow mop-nearshore-ingest.yml \
+                        --status success --limit 16 --json databaseId -q '.[].databaseId'); do
+            gh run download "$id" -R "${{ github.repository }}" -n "mop-spot-series-$id" -D "mop_archive/$id" || true
+          done
+          echo "archived MOP runs fetched: $(find mop_archive -name '*.json' | wc -l)"
+
       - name: Run the nearshore outcome loop
         working-directory: backend
         env:
@@ -110,6 +127,7 @@ jobs:
           NEARSHORE_VAL_BACKFILL_H: ${{ github.event.inputs.backfill_hours || '0' }}
           NEARSHORE_VAL_TRAINS: ${{ github.event.inputs.trains || '0' }}
           NEARSHORE_VAL_MOP: ${{ github.event.inputs.mop || '0' }}
+          NEARSHORE_VAL_MOP_GRID_DIR: ${{ github.event.inputs.mop_grid == '1' && '../mop_archive' || '' }}
           # ⛔ deliberately NO SURF_* here: the runner must read the serving path's own defaults;
           # a flag set only in this lane would grade a transform nobody serves (test_flag_lane_parity
           # does not cover this workflow — do not make it need to).
@@ -121,7 +139,7 @@ jobs:
           python3 scripts/run_nearshore_validation.py --json nearshore_report.json \
             2>&1 | tee nearshore.txt | tail -40 || rc=$?
           echo "── decision lines (tail-proof) ──"
-          grep -E "^VERDICT|^TRAINS_AB|^MOP_AB|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
+          grep -E "^VERDICT|^TRAINS_AB|^MOP_AB|^MOP_GRID_AB|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
           if [ "$rc" -ge 2 ]; then
             echo "::error::INFRA, NOT A VERDICT (exit $rc): pair table, CDIP THREDDS, or the prod point API could not answer. Nothing was graded. preflight awake=${{ steps.warm.outputs.awake }}"
             exit 2
@@ -151,6 +169,9 @@ jobs:
           ab = r.get("obs_over_model")
           if ab:
               print(f"- observed / modelled median {ab['median']} (p10 {ab['p10']}, p90 {ab['p90']}, n {ab['n']})")
+          gm = r.get("mop_grid_ab")
+          if gm:
+              print(f"- archived MOP grid arm: bulk MAE {gm['bulk']['mae_m']} m vs grid {gm['arm']['mae_m']} m (bias {gm['arm']['bias_m']:+}) over {gm['n']} spot-hours / {gm['n_station_hours']} station-hours; grid closer on {gm['arm_closer_share']:.0%}")
           m = r.get("mop_ab")
           if m:
               print(f"- CDIP MOP arm: bulk MAE {m['bulk']['mae_m']} m (bias {m['bulk']['bias_m']:+}) vs MOP {m['arm']['mae_m']} m (bias {m['arm']['bias_m']:+}) over {m['n']} spot-hours / {m['n_station_hours']} station-hours; MOP closer on {m['arm_closer_share']:.0%}")
