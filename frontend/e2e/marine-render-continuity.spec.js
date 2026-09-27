@@ -54,6 +54,27 @@
 const { test, expect } = require('@playwright/test');
 // Extracted so it can be unit-tested against known answers — see continuityOracle.test.js.
 const { longestStall, stallAnatomy } = require('./continuityOracle');
+// A measured stall must not be retried away — see stallLedger.js.
+const { runKey, ledgerFile, readEarlierStalls, recordStall } = require('./stallLedger');
+
+/** Stalls earlier attempts of THIS test recorded in THIS run; records this attempt's if over budget. */
+function reconcileStalls(worst, anatomy) {
+  const info = test.info();
+  const file = ledgerFile(info.project.outputDir, [info.project.name, ...info.titlePath]);
+  const key = runKey();
+  const earlier = readEarlierStalls(file, key);
+  if (worst.ms > GAP_BUDGET_MS) recordStall(file, key, { attempt: info.retry, ms: worst.ms, label: worst.label, anatomy });
+  return earlier;
+}
+
+function expectNoEarlierStall(earlier) {
+  expect(
+    earlier,
+    `an earlier attempt of this test stalled over budget in this run: ${JSON.stringify(earlier)}. `
+    + `A measured stall is an observation of the app; a later clean attempt does not undo it `
+    + `(retries are for infrastructure, not for the defect this gate measures).`,
+  ).toEqual([]);
+}
 
 // A gap budget, not zero. The engine legitimately pauses drawing across a model switch and during
 // the documented coarse-bridge hold; the defect is a gap the user can SEE. 1200 ms is ~3x the
@@ -228,6 +249,7 @@ test.describe('Marine render continuity across real gestures', () => {
     const worst = longestStall(samples);
     const logs = await readMarineLogs(page);
     const anatomy = stallAnatomy(samples, worst, logs);
+    const earlierStalls = reconcileStalls(worst, anatomy);
 
     // Attached unconditionally — a PASS with its margin is as informative as a failure, and this
     // is the first continuity series this program has ever produced.
@@ -244,6 +266,7 @@ test.describe('Marine render continuity across real gestures', () => {
       + `The attached series and the retained video show which gesture produced it. `
       + `Inside the stall: ${JSON.stringify(anatomy)}.`,
     ).toBeLessThanOrEqual(GAP_BUDGET_MS);
+    expectNoEarlierStall(earlierStalls);
   });
 });
 
@@ -331,6 +354,7 @@ test.describe('Marine render continuity under a rapid zoom/pan burst', () => {
     const worst = longestStall(samples);
     const logs = await readMarineLogs(page);
     const anatomy = stallAnatomy(samples, worst, logs);
+    const earlierStalls = reconcileStalls(worst, anatomy);
     const bandSamples = samples.filter((s) => typeof s.bandMult === 'number');
     const bandDark = bandSamples.filter((s) => s.bandMult <= 0.01).length;
 
@@ -347,6 +371,7 @@ test.describe('Marine render continuity under a rapid zoom/pan burst', () => {
       + `(budget ${GAP_BUDGET_MS} ms) — the owner's reported burst defect, captured. `
       + `Inside the stall: ${JSON.stringify(anatomy)}.`,
     ).toBeLessThanOrEqual(GAP_BUDGET_MS);
+    expectNoEarlierStall(earlierStalls);
 
     // The band is only judged if it was ever measurable: a run where ratingBandFade never appeared
     // means the band was not engaged at all, which is a DIFFERENT finding and must not be silently
