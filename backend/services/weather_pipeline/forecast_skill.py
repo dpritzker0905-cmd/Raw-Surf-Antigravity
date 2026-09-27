@@ -625,9 +625,31 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
                 len(incoming), len(scored), len(still), merge_stats.get("cap_evicted", 0),
                 score_stats["invalid_forecasts"], score_stats["invalid_observations"],
                 summary if summary else "")
+    # ── SHADOW MOS (roadmap stage 5, step 1) — measurement only, after every write has landed ──
+    # Its own try and its own kill switch (FORECAST_SKILL_MOS=0): a read or fit failure here costs
+    # the shadow block and nothing else. See skill_mos.py.
+    mos = None
+    if os.environ.get("FORECAST_SKILL_MOS", "1") != "0":
+        try:
+            from services.weather_pipeline.skill_mos import shadow_report
+            mos = shadow_report(mos_history_rows(now, archives, load_calibration_rows_l2), now)
+        except Exception as e:
+            logger.warning("[forecast-skill] MOS shadow skipped (%s)", e)
     return {"ledgered": len(incoming), "scored": len(scored),
             "pending_kept": len(still), "pending_evicted_cap": merge_stats.get("cap_evicted", 0),
-            "summary": summary, "scoring_rejections": score_stats}
+            "summary": summary, "scoring_rejections": score_stats, "mos_shadow": mos}
+
+
+def mos_history_rows(now: datetime, archives, load_rows) -> List[dict]:
+    """The scored rows of this month and the previous one: the shadow MOS's training and held-out
+    window. A month this run just wrote is taken from `archives` rather than read back."""
+    prev = now.replace(day=1) - timedelta(days=1)
+    written = {key: rows for key, rows, _ in archives}
+    rows: List[dict] = []
+    for month in (prev, now):
+        key = f"{SKILL_SCORED_PREFIX}{month:%Y-%m}.json"
+        rows.extend(written[key] if key in written else load_rows(key)[0])
+    return rows
 
 
 def attach_to_report(report, skill) -> None:
@@ -643,3 +665,5 @@ def attach_to_report(report, skill) -> None:
                                     ("ledgered", "scored", "pending_kept", "pending_evicted_cap")}
     if "scoring_rejections" in skill:
         report["forecast_skill_ops"]["scoring_rejections"] = skill["scoring_rejections"]
+    if skill.get("mos_shadow") is not None:
+        report["forecast_skill_mos_shadow"] = skill["mos_shadow"]
