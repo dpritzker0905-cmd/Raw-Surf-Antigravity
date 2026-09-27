@@ -10,7 +10,7 @@
  * This is deliberately a Jest test rather than a Playwright one: it needs no browser, so it runs on
  * every push in the fast lane, and the E2E lane is left to do the thing only it can do.
  */
-const { longestStall, stallAnatomy } = require('../../e2e/continuityOracle');
+const { longestStall, stallAnatomy, EVENT_LEAD_MS } = require('../../e2e/continuityOracle');
 
 const s = (at, n, label = null) => ({ at, n, label });
 
@@ -138,5 +138,35 @@ describe('continuityOracle.stallAnatomy — what happened inside the worst stall
   it('no stall, no anatomy', () => {
     const samples = [s(0, 1), s(100, 2), s(200, 3)];
     expect(stallAnatomy(samples, longestStall(samples))).toBeNull();
+  });
+});
+
+describe('continuityOracle.stallAnatomy events — which clear or switch preceded the stall', () => {
+  const L = (at, n, layerN, skip = null) => ({ at, n, layerN, skip, label: 'burst' });
+  const samples = [L(10000, 5, 1), L(10100, 6, 2), L(10200, 6, 3, 'engine_no_data'),
+    L(15000, 6, 40, 'engine_no_data'), L(15100, 7, 41)];
+  const worst = longestStall(samples);
+
+  it('lists the clears and churn inside the lead window, timed from the stall start', () => {
+    const logs = {
+      clears: [{ reason: 'non_renderable_terminal', timestamp: 10050 },
+        { reason: 'too_early', timestamp: 10100 - EVENT_LEAD_MS - 1 },
+        { reason: 'after', timestamp: 20000 }],
+      churn: [{ kind: 'abort', t: 9000 }, { kind: 'recovery_grid_commit', t: 14950 }],
+    };
+    expect(stallAnatomy(samples, worst, logs).events).toEqual([
+      { type: 'churn', what: 'abort', dtMs: -1100 },
+      { type: 'clear', what: 'non_renderable_terminal', dtMs: -50 },
+      { type: 'churn', what: 'recovery_grid_commit', dtMs: 4850 },
+    ]);
+  });
+
+  it('omits events entirely when no logs are passed (an older caller)', () => {
+    expect(stallAnatomy(samples, worst)).not.toHaveProperty('events');
+  });
+
+  it('tolerates empty or malformed logs', () => {
+    expect(stallAnatomy(samples, worst, {}).events).toEqual([]);
+    expect(stallAnatomy(samples, worst, { clears: [{ reason: 'x' }], churn: [{ kind: 'y' }] }).events).toEqual([]);
   });
 });

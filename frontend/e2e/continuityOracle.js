@@ -78,10 +78,17 @@ function longestStall(samples) {
  *                   page, so a hole far above that means the MAIN THREAD was blocked (a long task),
  *                   not that the renderer skipped.
  *
+ *   events          (when `logs` is given) the engine clears (`window.__MARINE_CLEAR_LOG__`, with their
+ *                   reasons) and churn events (`window.__MARINE_CHURN__.log`) from EVENT_LEAD_MS before
+ *                   the stall to its end, each with `dtMs` relative to the stall's start — which clear
+ *                   or switch preceded the gap.
+ *
  * Returns null when there was no stall. Samples recorded before the stamp existed read as
  * `layerCalls: null` rather than 0, so an old series can never be misread as "not called".
  */
-function stallAnatomy(samples, worst) {
+const EVENT_LEAD_MS = 3000;
+
+function stallAnatomy(samples, worst, logs) {
   if (!worst || worst.start === null || worst.end === null) return null;
   const inside = samples.filter((s) => s.at >= worst.start && s.at <= worst.end);
   if (inside.length < 2) return null;
@@ -98,7 +105,17 @@ function stallAnatomy(samples, worst) {
   for (let i = 1; i < inside.length; i++) {
     maxSampleGapMs = Math.max(maxSampleGapMs, inside[i].at - inside[i - 1].at);
   }
-  return { layerCalls, skips, maxSampleGapMs };
+  const anatomy = { layerCalls, skips, maxSampleGapMs };
+  if (logs) {
+    const within = (t) => typeof t === 'number' && t >= worst.start - EVENT_LEAD_MS && t <= worst.end;
+    anatomy.events = [
+      ...(logs.clears || []).filter((c) => within(c.timestamp))
+        .map((c) => ({ type: 'clear', what: c.reason, dtMs: c.timestamp - worst.start })),
+      ...(logs.churn || []).filter((c) => within(c.t))
+        .map((c) => ({ type: 'churn', what: c.kind, dtMs: c.t - worst.start })),
+    ].sort((a, b) => a.dtMs - b.dtMs);
+  }
+  return anatomy;
 }
 
-module.exports = { longestStall, stallAnatomy };
+module.exports = { longestStall, stallAnatomy, EVENT_LEAD_MS };
