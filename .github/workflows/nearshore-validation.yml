@@ -11,7 +11,12 @@ name: Nearshore Validation (WS-CAN-0076)
 run-name: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && vars.NEARSHORE_VAL_ENABLED == '1')) && 'Nearshore requested - see validation verdict' || 'Nearshore NOT GRADED - ARMED OFF' }}
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      backfill_hours:
+        description: "Also grade the last N hours at 3-hourly steps (point calls = spots x (N/3+1)). 0 = this hour only, the cron's setting."
+        required: false
+        default: '0'
   schedule:
     # Hourly is the accrual rate the packet assumes; GitHub cron is BEST-EFFORT (measured
     # delivery 5-32% on sibling lanes) — the report series is append-only, gaps are fine.
@@ -94,6 +99,7 @@ jobs:
         env:
           NEARSHORE_VAL_MIN_MATCHED: ${{ vars.NEARSHORE_VAL_MIN_MATCHED || '1' }}
           NEARSHORE_VAL_MAX_STATIONS: ${{ vars.NEARSHORE_VAL_MAX_STATIONS || '20' }}
+          NEARSHORE_VAL_BACKFILL_H: ${{ github.event.inputs.backfill_hours || '0' }}
           # ⛔ deliberately NO SURF_* here: the runner must read the serving path's own defaults;
           # a flag set only in this lane would grade a transform nobody serves (test_flag_lane_parity
           # does not cover this workflow — do not make it need to).

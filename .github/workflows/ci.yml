@@ -1002,7 +1002,12 @@ jobs:
           # passed, confirming the #107 projection exactly. The new tests/test_skill_attribution.py (claimed by
           # `--lane chain`) adds 13 executed tests: 1315 + 13 = 1328, 1328 - 6 = 1322; files 113 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1328.
-          MIN_FILES, MIN_PASSED = 113, 1322
+          # ⬆ MIN_FILES 113→114, MIN_PASSED 1322→1328 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (nearshore
+          # validation backfill + attribution): hosted CI on PR #114 (merged as 7fddbb73) observed 113 files / 1328
+          # passed, confirming the #113 projection exactly. The new tests/test_nearshore_backfill.py (claimed by
+          # `--lane chain`) adds 6 executed tests: 1328 + 6 = 1334, 1334 - 6 = 1328; files 114 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1334.
+          MIN_FILES, MIN_PASSED = 114, 1328
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
