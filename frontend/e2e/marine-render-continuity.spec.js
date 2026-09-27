@@ -104,6 +104,14 @@ async function openMapAsSurfer(page) {
     localStorage.setItem(`tos-accepted-${user.id}-1.0`, Date.now().toString());
     localStorage.setItem('raw-surf-cookie-consent', JSON.stringify({ accepted: true, timestamp: Date.now() }));
     localStorage.setItem('rs-push-prompt-dismissed', Date.now().toString());
+    // ⛔ THE FPS GUARDRAIL MEASURES THE RUNNER HERE, NOT THE APP (2026-09-27). CI renders in software
+    // (SwiftShader, ~1 FPS), so useWebGLGuardrail's "< 20 FPS for 12 s" trips on every long Chrome run
+    // and swaps the WebGL marine engine for the Canvas2D fallback. Runs 36285144742 and 36290246940 were
+    // red for exactly that (layerCalls 0, engine_dispose x2 + foam_mount, no render error, no context
+    // loss): the gate was grading "is this runner a weak device", which a 1-FPS software rasteriser
+    // always is. This gate grades render CONTINUITY; the guardrail's own policy is unit-tested
+    // (useWebGLGuardrail.ratingBandLoss.test.js) and its trips are on the churn log for real devices.
+    window.__DISABLE_WEBGL_GUARDRAIL__ = true;
   }, E2E_USER);
   await page.goto('/map', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('[data-testid="featured-photographers-btn"]'))

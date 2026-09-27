@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { cancelTruthChains } from './weatherTruthTracker';
+import { recordChurn } from './marineTransitionCoordinator';
 
 /**
  * useWebGLGuardrail hook monitors the map's render loop frame rate.
@@ -212,6 +213,10 @@ export function useWebGLGuardrail({
               guardrailOwned = true;
               trippedAt = now;
               setWebglMarineFailedRef.current(true);
+              // On the churn log the continuity gate attaches (2026-09-27): dev E2E runs 36285144742 and
+              // 36290246940 showed this swap (engine_dispose x2 + foam_mount) with NO recorded cause,
+              // because only render errors, init failures and context loss were instrumented.
+              recordChurn('marine_webgl_fallback', { cause: 'fps_guardrail', fps });
               // R11-01(c): this flip unmounts WebGLMarineLayer — every in-flight truth chain is
               // being ABANDONED ON PURPOSE. Close them with the cancel terminal, or 30 s later
               // the absence watchdog reports each as "died after <stage>" (the false death that
@@ -262,6 +267,7 @@ export function useWebGLGuardrail({
       try {
         WeatherTelemetry.emit('webgl_marine_fallback_recovery', { attempt: attempts });
       } catch (e) { /* the retry must never fail on diagnostics */ }
+      recordChurn('marine_webgl_recover', { cause: 'guardrail_retry', attempt: attempts });
       setWebglMarineFailedRef.current(false);
     };
     const recoveryTimer = setInterval(recoveryTick, 5000);
