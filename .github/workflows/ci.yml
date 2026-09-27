@@ -1012,7 +1012,12 @@ jobs:
           # 114 files / 1334 passed, confirming the #116 projection exactly. The new tests/test_nearshore_trains_ab.py
           # (claimed by `--lane chain`) adds 11 executed tests: 1334 + 11 = 1345, 1345 - 6 = 1339; files 115 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1345.
-          MIN_FILES, MIN_PASSED = 115, 1339
+          # ⬆ MIN_FILES 115→116, MIN_PASSED 1339→1348 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (EURO's CMEMS
+          # swell periods near coasts): hosted CI on PR #117 (merged as b5a13d63) observed 115 files / 1345 passed,
+          # confirming the #117 projection exactly. The new tests/test_cmems_period_window.py (claimed by
+          # `--lane chain`) adds 9 executed tests: 1345 + 9 = 1354, 1354 - 6 = 1348; files 116 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1354.
+          MIN_FILES, MIN_PASSED = 116, 1348
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

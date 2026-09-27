@@ -66,6 +66,42 @@ except ImportError:
 # with the GWAM + ECMWF fetchers). Kill: COPERNICUS_SCALAR_BLOCKMEAN=0 -> legacy centre-point sampling.
 HEIGHT_VARS = {"wave_height", "swell_wave_height", "secondary_swell_wave_height", "wind_wave_height"}
 
+# PERIOD vars -> the height that weights them (E ∝ H²), block-meaned over the SAME window as the heights
+# (2026-09-27). The heights above were windowed and the periods were not, so a coarse node whose centre
+# column is land kept a height borrowed from its ocean columns and a MISSING period, which the normalizer
+# stores as 0.0 on a valid vector. The point sampler then averaged that zero in: EURO's swell_1 at Steamer
+# Lane read 3.79 s where its ocean corners give 8.5 s (the inland node 40N 120W carried 55% of the weight),
+# and wind waves read ~1 m at 1.2-2.2 s, steeper than a wave can stand. The NOAA and GWAM fetchers already
+# pair periods with heights this way (energy_mean_scalar_block). Same kill switch as the heights, so the two
+# can never be coarsened differently: COPERNICUS_SCALAR_BLOCKMEAN=0 -> legacy centre-point sampling.
+PERIOD_TO_HEIGHT = {
+    "wave_period": "wave_height",
+    "swell_wave_period": "swell_wave_height",
+    "secondary_swell_wave_period": "secondary_swell_wave_height",
+    "wind_wave_period": "wind_wave_height",
+}
+
+
+def energy_mean_period_lonspan(p_tyx, h_tyx, col: int, half_cols: int):
+    """Per-TIMESTEP energy-weighted (E ∝ H²) mean period over the longitude window (all band rows): the
+    lonspan sibling of `_fetch_common.energy_mean_scalar_block`, kept here because that file sits at the
+    800-line cap. Subcells without energy (h <= 0 / NaN) or without a period are excluded; a window with
+    no energy falls back to the point sample, as the direction window does. (T, Y, X) in, (T,) out."""
+    import numpy as np
+    T, Y, X = p_tyx.shape
+    c0, c1 = max(0, col - half_cols), min(X, col + half_cols)
+    p = p_tyx[:, :, c0:c1]
+    h = h_tyx[:, :, c0:c1]
+    ok = np.isfinite(p) & np.isfinite(h) & (h > 0.0)
+    e = np.where(ok, h, 0.0) ** 2
+    e_sum = np.sum(e, axis=(1, 2))
+    with np.errstate(invalid="ignore", divide="ignore"):
+        out = np.sum(e * np.where(ok, p, 0.0), axis=(1, 2)) / np.where(e_sum > 0.0, e_sum, 1.0)
+    empty = ~ok.any(axis=(1, 2))
+    if empty.any():
+        out = np.where(empty, p_tyx[:, 0, col], out)
+    return out
+
 # §0B-a render-confidence export for the TOTAL direction (parity with the NOAA coarse fetcher,
 # wired 2026-07-15): CMEMS VMDR is a MEAN direction, and in bimodal water a mean is a meaningless
 # residual — the FE fades crest rendering below ~0.65 confidence, but only when the field is
@@ -188,6 +224,10 @@ def fetch_global_coarse(payload):
                             hourly[DIR_CONFIDENCE_OM] = [round(float(c), 4) if c == c else None for c in confs]
                         else:
                             vals = energy_mean_direction_lonspan(a, arrs[DIR_TO_HEIGHT[om]], col, half_cols)
+                        hourly[om] = [_sanitize_om(om, x) for x in vals]
+                    elif scalar_blockmean and om in PERIOD_TO_HEIGHT and arrs.get(PERIOD_TO_HEIGHT[om]) is not None:
+                        # the period of the SAME sea the windowed height describes (see PERIOD_TO_HEIGHT)
+                        vals = energy_mean_period_lonspan(a, arrs[PERIOD_TO_HEIGHT[om]], col, half_cols)
                         hourly[om] = [_sanitize_om(om, x) for x in vals]
                     elif scalar_blockmean and om in HEIGHT_VARS:
                         # longitudinal RMS so an enclosed-sea cell whose exact column is masked land
