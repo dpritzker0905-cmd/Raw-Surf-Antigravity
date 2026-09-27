@@ -56,6 +56,8 @@ const { test, expect } = require('@playwright/test');
 const { longestStall, stallAnatomy, isAppStall } = require('./continuityOracle');
 // A measured stall must not be retried away — see stallLedger.js.
 const { runKey, ledgerFile, readEarlierStalls, recordStall } = require('./stallLedger');
+// What each gesture asks the 1-CPU backend for (A15-11) — see requestRecorder.js. Observation only.
+const { recordWeatherRequests, summarizeRequests } = require('./requestRecorder');
 
 /** Stalls earlier attempts of THIS test recorded in THIS run; records this attempt's if over budget. */
 function reconcileStalls(worst, anatomy) {
@@ -187,7 +189,11 @@ async function readMarineLogs(page) {
   }));
 }
 
+// The gesture in effect, Node-side, so the request recorder can attribute each request as it starts.
+let currentGesture = null;
+
 async function label(page, text) {
+  currentGesture = text;
   await page.evaluate((t) => { window.__RAW_CONTINUITY_LABEL__ = t; }, text);
 }
 
@@ -221,6 +227,9 @@ test.describe('Marine render continuity across real gestures', () => {
     const isMobile = await page.evaluate(() => window.innerWidth < 768);
     test.skip(isMobile, 'desktop layout only — the mobile bottom sheet adds motion this oracle misreads');
 
+    // From BEFORE the first activation: the cold activation is the audit's measured fan-out.
+    currentGesture = 'activate:Waves';
+    const weatherRequests = recordWeatherRequests(page, () => currentGesture);
     await clickLayer(page, 'Waves');
 
     // Wait for the engine to be DRAWING before judging continuity. Without this the test would
@@ -289,6 +298,16 @@ test.describe('Marine render continuity across real gestures', () => {
       body: JSON.stringify({ budgetMs: GAP_BUDGET_MS, worst, anatomy, count: samples.length, samples, logs }, null, 2),
       contentType: 'application/json',
     });
+    // A15-11 measurement: requests per gesture, the in-flight peak each met, world-extent fetches.
+    const fanout = summarizeRequests(weatherRequests, Date.now());
+    await test.info().attach('weather-requests.json', {
+      body: JSON.stringify({ summary: fanout, rows: weatherRequests }, null, 2),
+      contentType: 'application/json',
+    });
+    test.info().annotations.push({ type: 'weather fan-out', description:
+      `${fanout.total} requests, peak ${fanout.peakInFlight} in flight; `
+      + Object.entries(fanout.byLabel).map(([k, g]) => `${k}: ${g.n} (peak ${g.peakInFlight}, world ${g.world}, `
+        + `median ${g.medianMs} ms)`).join('; ') });
 
     expect(samples.length, 'the sampler produced no samples at all').toBeGreaterThan(10);
     expect(
