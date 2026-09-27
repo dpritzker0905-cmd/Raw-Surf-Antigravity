@@ -173,6 +173,13 @@ class NormalizedPointResponse(BaseModel):
     model_run_time_status: str = "missing"
     ingested_at: Optional[datetime] = None
     valid_time: datetime
+    # SERVING HONESTY on /point too (2026-09-27): `valid_time` echoes the ASK, exactly like /grid's,
+    # while the resolver answers an off-cycle hour from the nearest 3-hourly frame (measured live: 04Z
+    # answered from the 03Z product, labelled 04Z). Same additive fields and same stamp as /grid
+    # (grid_resolver.stamp_frame_honesty): the frame actually sampled, its signed offset, >30 min flag.
+    served_valid_time: Optional[str] = None
+    frame_offset_hours: float = 0.0
+    frame_substituted: bool = False
     is_forecast_authoritative: bool
     is_estimated: bool
     estimate_basis: Optional[Dict[str, Any]] = None
