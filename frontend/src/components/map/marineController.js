@@ -42,7 +42,7 @@ import {
 
 import { extractMarineAtOffset } from './marineControllerExtractor';
 
-import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
+import { ensureMarineSeries, getMarineSeriesFrame, runBackgroundWarm } from './marineGridSeries';
 import { publishServeDiag } from './marineServeDiag';
 import { prewarmGlobalMarineGrid, _rewarmWashBaseIfStale, registerPrewarmDeps } from './marineGlobalPrewarm';
 
@@ -122,7 +122,7 @@ export function prewarmSiblingMarineSeries(model, hourOffset, bounds, activeLaye
       }
       _siblingPrewarmInFlight.add(key);
       Promise.resolve()
-        .then(() => ensureMarineSeries(model, lyr, bounds, hourOffset, signal, true /* currentPageOnly */))
+        .then(() => ensureMarineSeries(model, lyr, bounds, hourOffset, signal, true /* currentPageOnly */, false, true /* background (A15-11) */))
         .then(() => {
           if (signal && signal.aborted) return;
           const frame = getMarineSeriesFrame(model, lyr, bounds, hourOffset);
@@ -167,7 +167,7 @@ export function prewarmZoomOutMarineGrid(model, hourOffset, bounds, activeLayer)
     if (_zoomOutPrewarmInFlight.has(key)) return;
     _zoomOutPrewarmInFlight.add(key);
     Promise.resolve()
-      .then(() => fetchBackendMarineGrid(exp, hourOffset, undefined, exp, activeLayer, m))
+      .then(() => runBackgroundWarm(() => fetchBackendMarineGrid(exp, hourOffset, undefined, exp, activeLayer, m)))  // A15-11 lane
       .then((result) => {
         const g = result && result.grid;
         if (g && Array.isArray(g.vectors) && g.vectors.length > 0) {
