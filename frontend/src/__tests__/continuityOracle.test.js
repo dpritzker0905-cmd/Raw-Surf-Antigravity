@@ -10,7 +10,7 @@
  * This is deliberately a Jest test rather than a Playwright one: it needs no browser, so it runs on
  * every push in the fast lane, and the E2E lane is left to do the thing only it can do.
  */
-const { longestStall, stallAnatomy, EVENT_LEAD_MS } = require('../../e2e/continuityOracle');
+const { longestStall, stallAnatomy, isAppStall, EVENT_LEAD_MS, MIN_OFFERED_FRAMES } = require('../../e2e/continuityOracle');
 
 const s = (at, n, label = null) => ({ at, n, label });
 
@@ -184,4 +184,59 @@ it('churn events carry the fallback cause and the render error message', () => {
     { type: 'churn', what: 'marine_webgl_fallback', dtMs: -5, cause: 'render_error_burst' },
     { type: 'churn', what: 'engine_dispose', dtMs: -1 },
   ]);
+});
+
+describe('continuityOracle.isAppStall — a gap counts only when the browser offered frames (2026-09-27)', () => {
+  // A sample with every counter: draw n, layer calls, browser rAF ticks, MapLibre render events.
+  const F = (at, n, layerN, rafN, mapN) => ({ at, n, layerN, skip: null, label: 'burst', rafN, mapN });
+
+  it('THE LIVE CASE: a runner presenting ~1 frame per second is not an app stall', () => {
+    // Dev run 36316250426, Desktop Safari at Sebastian z12: draws and layer calls rose together at ~1/s
+    // and every call drew. The 1,436 ms gap held ONE browser frame.
+    const samples = [F(0, 28, 42, 100, 50), F(112, 28, 42, 100, 50), F(700, 28, 42, 100, 50),
+      F(1436, 28, 42, 101, 50), F(2189, 29, 43, 102, 51)];
+    const worst = longestStall(samples);
+    const a = stallAnatomy(samples, worst);
+    expect(worst.ms).toBe(1436);
+    expect([a.rafTicks, a.mapFrames, a.layerCalls]).toEqual([1, 0, 0]);
+    expect(isAppStall(worst, a, 1200)).toBe(false);
+  });
+
+  it('frames offered and none drawn IS the defect, whatever the runner', () => {
+    const samples = [F(0, 5, 10, 0, 0), F(700, 5, 10, 42, 0), F(1400, 5, 10, 84, 0), F(1500, 6, 11, 90, 1)];
+    const worst = longestStall(samples);
+    const a = stallAnatomy(samples, worst);
+    expect([a.rafTicks, a.mapFrames]).toEqual([84, 0]);   // nothing requested a repaint
+    expect(isAppStall(worst, a, 1200)).toBe(true);
+  });
+
+  it('MapLibre painting without the marine layer is named, and is a stall', () => {
+    const samples = [F(0, 5, 10, 0, 0), F(1300, 5, 10, 78, 78), F(1400, 6, 11, 84, 84)];
+    const worst = longestStall(samples);
+    const a = stallAnatomy(samples, worst);
+    expect([a.layerCalls, a.mapFrames]).toEqual([0, 78]);
+    expect(isAppStall(worst, a, 1200)).toBe(true);
+  });
+
+  it('the threshold is inclusive at MIN_OFFERED_FRAMES', () => {
+    const worst = { ms: 1500 };
+    expect(isAppStall(worst, { rafTicks: MIN_OFFERED_FRAMES }, 1200)).toBe(true);
+    expect(isAppStall(worst, { rafTicks: MIN_OFFERED_FRAMES - 1 }, 1200)).toBe(false);
+  });
+
+  it('a series WITHOUT the rAF counter stays strict: over budget is a stall', () => {
+    // An old or broken sampler must never pass a gap it cannot explain.
+    const samples = [s(0, 1), s(100, 2), s(1500, 2), s(1600, 3)];
+    const worst = longestStall(samples);
+    const a = stallAnatomy(samples, worst);
+    expect(a).not.toHaveProperty('rafTicks');
+    expect(isAppStall(worst, a, 1200)).toBe(true);
+    expect(isAppStall(worst, null, 1200)).toBe(true);
+  });
+
+  it('under budget is never a stall, however many frames were offered', () => {
+    expect(isAppStall({ ms: 1200 }, { rafTicks: 500 }, 1200)).toBe(false);
+    expect(isAppStall({ ms: 0 }, null, 1200)).toBe(false);
+    expect(isAppStall(null, null, 1200)).toBe(false);
+  });
 });

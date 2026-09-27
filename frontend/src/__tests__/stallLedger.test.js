@@ -52,9 +52,12 @@ it('a missing or corrupt ledger reads as no earlier stall', () => {
   expect(readEarlierStalls(file(), 'run-1')).toEqual([]);
 });
 
-it('the spec records only over-budget stalls and fails a later attempt that saw one', () => {
+it('the spec records only APP stalls (over budget with frames offered) and fails a later attempt that saw one', () => {
   const src = fs.readFileSync(path.join(__dirname, '../../e2e/marine-render-continuity.spec.js'), 'utf8');
-  expect(src).toMatch(/if \(worst\.ms > GAP_BUDGET_MS\) recordStall\(/);
+  // Since 2026-09-27 the ledger records the same verdict the assertions use (continuityOracle.isAppStall):
+  // a gap the browser offered no frames for is annotated, not recorded — see isAppStall's measurement.
+  expect(src).toMatch(/if \(isAppStall\(worst, anatomy, GAP_BUDGET_MS\)\) \{\s*recordStall\(/);
+  expect((src.match(/isAppStall\(worst, anatomy, GAP_BUDGET_MS\)/g) || []).length).toBe(3);
   expect((src.match(/const earlierStalls = reconcileStalls\(worst, anatomy\);/g) || []).length).toBe(2);
   expect((src.match(/expectNoEarlierStall\(earlierStalls\);/g) || []).length).toBe(2);
 });
