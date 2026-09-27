@@ -123,6 +123,17 @@ async function stopSampler(page) {
   });
 }
 
+/** The engine's own clear and churn logs (marineTransitionCoordinator): which clear or switch preceded a stall. */
+async function readMarineLogs(page) {
+  return page.evaluate(() => ({
+    clears: Array.isArray(window.__MARINE_CLEAR_LOG__)
+      ? window.__MARINE_CLEAR_LOG__.map((c) => ({ reason: c.reason, timestamp: c.timestamp,
+        transitioning: c.transitioning, requested: c.requested, displayed: c.displayed })) : [],
+    churn: (window.__MARINE_CHURN__ && Array.isArray(window.__MARINE_CHURN__.log))
+      ? window.__MARINE_CHURN__.log.map((c) => ({ kind: c.kind, t: c.t })) : [],
+  }));
+}
+
 async function label(page, text) {
   await page.evaluate((t) => { window.__RAW_CONTINUITY_LABEL__ = t; }, text);
 }
@@ -215,12 +226,13 @@ test.describe('Marine render continuity across real gestures', () => {
 
     const samples = await stopSampler(page);
     const worst = longestStall(samples);
-    const anatomy = stallAnatomy(samples, worst);
+    const logs = await readMarineLogs(page);
+    const anatomy = stallAnatomy(samples, worst, logs);
 
     // Attached unconditionally — a PASS with its margin is as informative as a failure, and this
     // is the first continuity series this program has ever produced.
     await test.info().attach('continuity-samples.json', {
-      body: JSON.stringify({ budgetMs: GAP_BUDGET_MS, worst, anatomy, count: samples.length, samples }, null, 2),
+      body: JSON.stringify({ budgetMs: GAP_BUDGET_MS, worst, anatomy, count: samples.length, samples, logs }, null, 2),
       contentType: 'application/json',
     });
 
@@ -317,13 +329,14 @@ test.describe('Marine render continuity under a rapid zoom/pan burst', () => {
 
     const samples = await stopSampler(page);
     const worst = longestStall(samples);
-    const anatomy = stallAnatomy(samples, worst);
+    const logs = await readMarineLogs(page);
+    const anatomy = stallAnatomy(samples, worst, logs);
     const bandSamples = samples.filter((s) => typeof s.bandMult === 'number');
     const bandDark = bandSamples.filter((s) => s.bandMult <= 0.01).length;
 
     await test.info().attach('burst-samples.json', {
       body: JSON.stringify({ camera: SEBASTIAN, budgetMs: GAP_BUDGET_MS, worst, anatomy,
-                             bandSamples: bandSamples.length, bandDark, samples }, null, 2),
+                             bandSamples: bandSamples.length, bandDark, samples, logs }, null, 2),
       contentType: 'application/json',
     });
 
