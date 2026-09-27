@@ -1032,7 +1032,12 @@ jobs:
           # passed, confirming the #124 projection exactly. The new tests/test_mop_spot_cells.py (claimed by
           # `--lane chain`) adds 7 executed tests: 1361 + 7 = 1368, 1368 - 6 = 1362; files 118 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1368.
-          MIN_FILES, MIN_PASSED = 118, 1362
+          # ⬆ MIN_FILES 118→119, MIN_PASSED 1362→1369 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (the MOP
+          # ingest archives each sea+swell run at the spot and buoy cells, roadmap stage 4): hosted CI on PR #125
+          # (merged as c852abb3) observed 118 files / 1368 passed, confirming the #125 projection exactly. The new
+          # tests/test_mop_ingest.py (claimed by `--lane chain`) adds 7 executed tests: 1368 + 7 = 1375,
+          # 1375 - 6 = 1369; files 119 EXACT; _FLOOR_SET_FROM["chain"] -> 1375.
+          MIN_FILES, MIN_PASSED = 119, 1369
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

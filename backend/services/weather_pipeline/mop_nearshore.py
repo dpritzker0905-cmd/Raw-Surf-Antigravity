@@ -20,6 +20,8 @@ for a catalogue spot. The geometry is discovered from the files and committed wi
 (scripts/build_mop_spot_cells.py, data/mop_spot_cells.json); nothing here touches the network.
 """
 import math
+import re
+from datetime import datetime, timezone
 
 MOP_GRIDS_URL = "https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/model/MOP_grids"
 MOP_GRIDS_CATALOG = "https://thredds.cdip.ucsd.edu/thredds/catalog/cdip/model/MOP_grids/catalog.html"
@@ -70,7 +72,7 @@ def grids_containing(grids, lat, lng):
 
 
 def nearest_cell(grid, depth_at, lat, lng, max_km=CELL_MAX_KM, min_depth=CELL_MIN_DEPTH_M,
-                 max_depth=CELL_MAX_DEPTH_M):
+                 max_depth=CELL_MAX_DEPTH_M, preferred_band=PREFERRED_BAND_M, preferred_depth=PREFERRED_DEPTH_M):
     """The cell of `grid` that stands for (lat, lng): the closest wet cell in [min_depth, max_depth]
     within max_km, preferring cells in PREFERRED_BAND_M (then closest, then depth nearest
     PREFERRED_DEPTH_M). `depth_at(i, j)` returns the cell's depth
@@ -90,9 +92,67 @@ def nearest_cell(grid, depth_at, lat, lng, max_km=CELL_MAX_KM, min_depth=CELL_MI
             km = _km(float(lat), float(lng), clat, clng)
             if km > max_km:
                 continue
-            tier = 0 if PREFERRED_BAND_M[0] <= d <= PREFERRED_BAND_M[1] else 1
-            key = (tier, round(km, 6), abs(d - PREFERRED_DEPTH_M))
+            tier = 0 if preferred_band[0] <= d <= preferred_band[1] else 1
+            key = (tier, round(km, 6), abs(d - preferred_depth))
             if best is None or key < best[0]:
                 best = (key, {"i": i, "j": j, "lat": clat, "lng": clng, "depth_m": round(float(d), 2),
                               "km": round(km, 3)})
     return best[1] if best else None
+
+
+
+# ── A BUOY'S CELL (the ingest archives MOP at the CDIP buoys too, so the served product can be graded) ──
+STATION_MAX_KM = 1.0
+STATION_DEPTH_TOLERANCE = 0.3      # a buoy moored at 20 m is compared with a 14-26 m cell, nearest 20 m
+
+
+def station_cell(grid, depth_at, lat, lng, depth_m):
+    """The cell that stands for a CDIP buoy: within STATION_MAX_KM, depth within +-30% of the buoy's,
+    preferring the closest depth. The MOP value there is comparable to what the buoy measures."""
+    lo, hi = depth_m * (1 - STATION_DEPTH_TOLERANCE), depth_m * (1 + STATION_DEPTH_TOLERANCE)
+    return nearest_cell(grid, depth_at, lat, lng, max_km=STATION_MAX_KM, min_depth=lo, max_depth=hi,
+                        preferred_band=(depth_m * 0.9, depth_m * 1.1), preferred_depth=depth_m)
+
+
+# ── THE INGEST'S PURE PIECES ─────────────────────────────────────────────────────────────────────────
+LAND_OR_MISSING = -900.0           # MOP writes -999.99 where a value is absent
+
+
+def run_stamp(das_txt: str):
+    """The MOP run a grid file holds, from its net_model history (`-s YYYYMMDDHH`), as ISO; None if absent."""
+    m = re.search(r"-s (\d{10})\b", das_txt or "")
+    if not m:
+        return None
+    return datetime.strptime(m.group(1), "%Y%m%d%H").replace(tzinfo=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def parse_cell_series(txt: str) -> dict:
+    """One cell's forecast from an OPeNDAP ascii `waveTime,waveHs[..][i][j],waveTp[..],waveDp[..]` reply:
+    {times: [ISO], hs, tp, dp}, with MOP's -999.99 as None. PURE."""
+    t = re.search(r"^waveTime\[\d+\]\n([^\n]+)", txt, re.M)
+    times = [datetime.fromtimestamp(int(float(v)), tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+             for v in (t.group(1).split(",") if t else []) if v.strip()]
+    out = {"times": times}
+    for var, key in (("waveHs", "hs"), ("waveTp", "tp"), ("waveDp", "dp")):
+        sec = re.search(rf"^{var}\.{var}\[[^\n]*\n((?:\[\d+\]\[\d+\], [^\n]+\n?)+)", txt, re.M)
+        vals = [float(v) for v in re.findall(r"\], ([^\n]+)", sec.group(1))] if sec else []
+        out[key] = [None if v < LAND_OR_MISSING or v != v else round(v, 4) for v in vals]
+    return out
+
+
+def series_blob(table: dict, series: dict, runs: dict, generated_at: str) -> dict:
+    """The L2 blob: every spot and buoy with its cell's forecast. `series` maps (grid file, i, j) to a parsed
+    cell series; `runs` maps grid file to {run, created}. Rows whose cell was not fetched are left out, so a
+    partial ingest publishes what it has and says how much that is. PURE."""
+    def rows(entries, key):
+        out = {}
+        for e in entries or []:
+            s = series.get((e["grid"], e["cell"]["i"], e["cell"]["j"]))
+            if s and s.get("times"):
+                out[e[key]] = {"grid": e["grid"], **{k: e["cell"][k] for k in ("i", "j", "lat", "lng", "depth_m")}, **s}
+        return out
+    spots, stations = rows(table.get("cells"), "spot_id"), rows(table.get("stations"), "station")
+    return {"version": 1, "generated_at": generated_at, "product": "MOP_grids sea+swell forecast",
+            "grids": runs, "spots": spots, "stations": stations,
+            "coverage": {"spots": f"{len(spots)}/{len(table.get('cells') or [])}",
+                         "stations": f"{len(stations)}/{len(table.get('stations') or [])}"}}

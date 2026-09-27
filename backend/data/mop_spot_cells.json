@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-09-27T23:03:51.199640+00:00",
+ "generated_at": "2026-09-27T23:09:48.579013+00:00",
  "source": "https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/model/MOP_grids (*_seaswellfc.nc: sea + swell); spots from the production /api/surf-spots",
  "grids": [
   {
@@ -1297,6 +1297,203 @@
    "name": "Bolinas",
    "lat": 37.908,
    "lng": -122.702
+  }
+ ],
+ "stations": [
+  {
+   "station": "043p1",
+   "lat": 33.2198,
+   "lng": -117.4394,
+   "depth_m": 20.0,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 719,
+    "j": 159,
+    "lat": 33.219,
+    "lng": -117.44,
+    "depth_m": 18.19,
+    "km": 0.105
+   }
+  },
+  {
+   "station": "101p1",
+   "lat": 32.9297,
+   "lng": -117.2737,
+   "depth_m": 20.0,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 430,
+    "j": 325,
+    "lat": 32.93,
+    "lng": -117.274,
+    "depth_m": 18.47,
+    "km": 0.044
+   }
+  },
+  {
+   "station": "103p1",
+   "lat": 34.022068,
+   "lng": -118.5784,
+   "depth_m": 20.4,
+   "grid": "L_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 522,
+    "j": 421,
+    "lat": 34.022,
+    "lng": -118.578,
+    "depth_m": 19.58,
+    "km": 0.038
+   }
+  },
+  {
+   "station": "115p1",
+   "lat": 32.87565,
+   "lng": -117.257515,
+   "depth_m": 20.2,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 375,
+    "j": 339,
+    "lat": 32.875,
+    "lng": -117.26,
+    "depth_m": 20.61,
+    "km": 0.243
+   }
+  },
+  {
+   "station": "116p1",
+   "lat": 32.873272,
+   "lng": -117.25677,
+   "depth_m": 27.4,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 376,
+    "j": 341,
+    "lat": 32.876,
+    "lng": -117.258,
+    "depth_m": 27.78,
+    "km": 0.324
+   }
+  },
+  {
+   "station": "142p1",
+   "lat": 37.788,
+   "lng": -122.6318,
+   "depth_m": 14.9,
+   "grid": "SF_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 94,
+    "j": 33,
+    "lat": 37.788,
+    "lng": -122.632,
+    "depth_m": 14.77,
+    "km": 0.018
+   }
+  },
+  {
+   "station": "153p1",
+   "lat": 32.95654,
+   "lng": -117.27956,
+   "depth_m": 17.0,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 457,
+    "j": 319,
+    "lat": 32.957,
+    "lng": -117.28,
+    "depth_m": 16.61,
+    "km": 0.066
+   }
+  },
+  {
+   "station": "161p1",
+   "lat": 33.0029,
+   "lng": -117.2917,
+   "depth_m": 20.1,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 503,
+    "j": 307,
+    "lat": 33.003,
+    "lng": -117.292,
+    "depth_m": 18.29,
+    "km": 0.03
+   }
+  },
+  {
+   "station": "172p1",
+   "lat": 33.622932,
+   "lng": -118.01193,
+   "depth_m": 22.2,
+   "grid": "OC_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 323,
+    "j": 187,
+    "lat": 33.623,
+    "lng": -118.012,
+    "depth_m": 21.5,
+    "km": 0.01
+   }
+  },
+  {
+   "station": "254p1",
+   "lat": 36.93439,
+   "lng": -122.03384,
+   "depth_m": 20.0,
+   "grid": "SC_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 67,
+    "j": 182,
+    "lat": 36.934,
+    "lng": -122.034,
+    "depth_m": 21.36,
+    "km": 0.046
+   }
+  },
+  {
+   "station": "261p1",
+   "lat": 33.00083,
+   "lng": -117.29072,
+   "depth_m": 20.1,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 500,
+    "j": 308,
+    "lat": 33.0,
+    "lng": -117.291,
+    "depth_m": 18.71,
+    "km": 0.096
+   }
+  },
+  {
+   "station": "262p1",
+   "lat": 33.062077,
+   "lng": -117.31407,
+   "depth_m": 17.0,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 562,
+    "j": 285,
+    "lat": 33.062,
+    "lng": -117.314,
+    "depth_m": 15.56,
+    "km": 0.011
+   }
+  },
+  {
+   "station": "266p1",
+   "lat": 36.8449,
+   "lng": -121.8247,
+   "depth_m": 15.0,
+   "grid": "MO_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 572,
+    "j": 137,
+    "lat": 36.844,
+    "lng": -121.824,
+    "depth_m": 14.93,
+    "km": 0.118
+   }
   }
  ]
 }

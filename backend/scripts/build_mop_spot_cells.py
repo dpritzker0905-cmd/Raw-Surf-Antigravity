@@ -25,7 +25,7 @@ from scripts.build_nearshore_pairs import fetch_spots  # noqa: E402
 from services.weather_pipeline.mop_nearshore import (  # noqa: E402
     CELL_MAX_DEPTH_M, CELL_MAX_KM, CELL_MIN_DEPTH_M, MOP_GRIDS_CATALOG, MOP_GRIDS_URL, PREFERRED_BAND_M,
     PREFERRED_DEPTH_M,
-    SEASWELL_SUFFIX, grid_index, grids_containing, nearest_cell, search_window)
+    SEASWELL_SUFFIX, grid_index, grids_containing, nearest_cell, search_window, station_cell)
 
 OUT_DEFAULT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                            "data", "mop_spot_cells.json")
@@ -67,8 +67,14 @@ def discover_grids() -> list:
     return grids
 
 
-def cell_for_spot(grids, spot):
-    """The finest regional grid that yields a qualifying cell, with the cell; (None, None) otherwise."""
+PAIRS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data",
+                     "nearshore_validation_pairs.json")
+
+
+def cell_for_spot(grids, spot, choose=None):
+    """The finest regional grid that yields a qualifying cell, with the cell; (None, None) otherwise.
+    `choose(grid, depth_at, lat, lng)` picks the cell (default: a spot's `nearest_cell`)."""
+    choose = choose or nearest_cell
     for g in grids_containing(grids, spot["lat"], spot["lng"]):
         ci, cj = grid_index(g, spot["lat"], spot["lng"])
         di, dj = search_window(g, spot["lat"])
@@ -80,7 +86,7 @@ def cell_for_spot(grids, spot):
             r, c = i - i0, j - j0
             return rows[r][c] if 0 <= r < len(rows) and 0 <= c < len(rows[r]) else None
 
-        cell = nearest_cell(g, depth_at, spot["lat"], spot["lng"])
+        cell = choose(g, depth_at, spot["lat"], spot["lng"])
         if cell:
             return g, cell
     return None, None
@@ -102,6 +108,24 @@ def main() -> int:
         row = {"spot_id": s["id"], "name": s.get("name"), "lat": s["lat"], "lng": s["lng"]}
         (cells if cell else uncovered).append({**row, "grid": g["file"], "cell": cell} if cell else row)
 
+    # The CDIP buoys too, at a cell of the BUOY's depth, so archived MOP runs can be graded at the
+    # instruments the nearshore judge already reads (data/nearshore_validation_pairs.json).
+    stations = []
+    try:
+        with open(PAIRS, encoding="utf-8") as f:
+            pairs = json.load(f).get("pairs", [])
+    except (OSError, ValueError):
+        pairs = []
+    for p in pairs:
+        st = {"lat": p.get("station_lat"), "lng": p.get("station_lng")}
+        depth = float(p.get("station_depth_m") or 0)
+        if st["lat"] is None or st["lng"] is None or depth <= 0 or not grids_containing(grids, st["lat"], st["lng"]):
+            continue
+        g, cell = cell_for_spot(grids, st, lambda gg, da, la, lo, d=depth: station_cell(gg, da, la, lo, d))
+        if cell:
+            stations.append({"station": p["station"], "lat": st["lat"], "lng": st["lng"],
+                             "depth_m": depth, "grid": g["file"], "cell": cell})
+
     out = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source": f"{MOP_GRIDS_URL} (*{SEASWELL_SUFFIX}: sea + swell); spots from the production /api/surf-spots",
@@ -109,14 +133,14 @@ def main() -> int:
         "criteria": {"min_depth_m": CELL_MIN_DEPTH_M, "max_depth_m": CELL_MAX_DEPTH_M,
                      "max_km": CELL_MAX_KM, "preferred_band_m": list(PREFERRED_BAND_M),
                      "preferred_depth_m": PREFERRED_DEPTH_M},
-        "n_spots_in_grids": len(spots), "cells": cells, "uncovered": uncovered,
+        "n_spots_in_grids": len(spots), "cells": cells, "uncovered": uncovered, "stations": stations,
     }
     with open(args.out, "w", encoding="utf-8", newline="\n") as f:
         json.dump(out, f, indent=1, ensure_ascii=False)
         f.write("\n")
     kms = sorted(c["cell"]["km"] for c in cells)
     print(f"{len(grids)} regional sea+swell grids; {len(spots)} catalogue spots inside them: {len(cells)} matched, "
-          f"{len(uncovered)} uncovered" + (f"; cell distance median {kms[len(kms) // 2]} km, max {kms[-1]} km" if kms else ""))
+          f"{len(uncovered)} uncovered; {len(stations)} CDIP buoys mapped" + (f"; cell distance median {kms[len(kms) // 2]} km, max {kms[-1]} km" if kms else ""))
     return 0
 
 
