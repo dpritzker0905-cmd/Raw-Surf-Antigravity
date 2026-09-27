@@ -1,6 +1,6 @@
 import { registerMarineEngine } from '../../engine/RenderPlanDispatcher';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
-import { shouldHoldClearOnDeactivate, noteMarineActive } from './marineTransitionCoordinator';
+import { shouldHoldClearOnDeactivate, noteMarineActive, recordChurn } from './marineTransitionCoordinator';
 import { SKIP, stampLayerCall, stampSkip } from './marineLayerStamp';
 import { resolveCoarseBridgeGrace } from './marineCoarseBridgeGrace';
 import { resolveRejectedOpacity } from './marineZoomOutGate';
@@ -108,6 +108,9 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
         }
       } catch (e) {
         console.error('[WebGLMarine] Init failed:', e.message);
+        // WHY THE SESSION FELL BACK (2026-09-26): the continuity gate attaches the churn log, and a
+        // fallback with no recorded cause is how a 22-30 s marine blank stayed unexplained.
+        recordChurn('marine_webgl_fallback', { cause: 'init_failed', message: String((e && e.message) || e).slice(0, 160) });
         if (onErrorRef.current) onErrorRef.current();
       }
     },
@@ -362,11 +365,16 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       } catch (e) {
         errorCount++;
         lastErrorTime = Date.now();
+        // Each throw, with its message, on the churn log the continuity gate attaches. The Chrome
+        // burst at Sebastian z12 swapped this engine for the Canvas2D fallback (engine_dispose x2 +
+        // foam_mount at the stall start) with no record of what threw.
+        recordChurn('marine_render_error', { n: errorCount, message: String((e && e.message) || e).slice(0, 160) });
         if (errorCount <= 3) {
           console.warn(`[WebGLMarine] Render error (${errorCount}/3):`, e.message);
         }
         if (errorCount === 3) {
           console.error('[WebGLMarine] Too many errors, disabling GPU marine particles.');
+          recordChurn('marine_webgl_fallback', { cause: 'render_error_burst' });
           if (onErrorRef.current) onErrorRef.current();
         }
       } finally {

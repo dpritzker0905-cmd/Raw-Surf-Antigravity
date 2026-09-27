@@ -170,3 +170,18 @@ describe('continuityOracle.stallAnatomy events — which clear or switch precede
     expect(stallAnatomy(samples, worst, { clears: [{ reason: 'x' }], churn: [{ kind: 'y' }] }).events).toEqual([]);
   });
 });
+
+it('churn events carry the fallback cause and the render error message', () => {
+  const L = (at, n, layerN) => ({ at, n, layerN, skip: null, label: 'burst' });
+  const samples = [L(0, 5, 1), L(100, 6, 2), L(200, 6, 2), L(900, 6, 2), L(1000, 7, 3)];
+  const logs = { churn: [
+    { kind: 'marine_render_error', t: 90, message: 'texImage2D: size mismatch' },
+    { kind: 'marine_webgl_fallback', t: 95, cause: 'render_error_burst' },
+    { kind: 'engine_dispose', t: 99 },
+  ] };
+  expect(stallAnatomy(samples, longestStall(samples), logs).events).toEqual([
+    { type: 'churn', what: 'marine_render_error', dtMs: -10, message: 'texImage2D: size mismatch' },
+    { type: 'churn', what: 'marine_webgl_fallback', dtMs: -5, cause: 'render_error_burst' },
+    { type: 'churn', what: 'engine_dispose', dtMs: -1 },
+  ]);
+});

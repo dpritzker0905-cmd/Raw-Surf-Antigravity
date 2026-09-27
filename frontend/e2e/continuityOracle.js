@@ -112,7 +112,8 @@ function stallAnatomy(samples, worst, logs) {
       ...(logs.clears || []).filter((c) => within(c.timestamp))
         .map((c) => ({ type: 'clear', what: c.reason, dtMs: c.timestamp - worst.start })),
       ...(logs.churn || []).filter((c) => within(c.t))
-        .map((c) => ({ type: 'churn', what: c.kind, dtMs: c.t - worst.start })),
+        .map((c) => ({ type: 'churn', what: c.kind, dtMs: c.t - worst.start,
+          ...(c.cause ? { cause: c.cause } : {}), ...(c.message ? { message: c.message } : {}) })),
     ].sort((a, b) => a.dtMs - b.dtMs);
   }
   return anatomy;
