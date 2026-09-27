@@ -1022,7 +1022,12 @@ jobs:
           # confirming the #117 projection exactly. The new tests/test_cmems_period_window.py (claimed by
           # `--lane chain`) adds 9 executed tests: 1345 + 9 = 1354, 1354 - 6 = 1348; files 116 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1354.
-          MIN_FILES, MIN_PASSED = 116, 1348
+          # ⬆ MIN_FILES 116→117, MIN_PASSED 1348→1355 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge grades CDIP's MOP, roadmap stage 4): hosted CI on PR #122 (merged as 8e8ddeed) observed 116 files /
+          # 1354 passed, confirming the #118 projection exactly. The new tests/test_nearshore_mop_arm.py (claimed by
+          # `--lane chain`) adds 7 executed tests: 1354 + 7 = 1361, 1361 - 6 = 1355; files 117 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1361.
+          MIN_FILES, MIN_PASSED = 117, 1355
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

@@ -38,8 +38,8 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.nearshore_validation import (   # noqa: E402
-    Refusal, backfill_valid_times, build_report, fetch_station_hs, load_pairs, match, model_hs_at_station,
-    model_hs_at_station_trains, qc_filter, station_trains, transform_factors)
+    Refusal, backfill_valid_times, build_report, fetch_mop_hs, fetch_station_hs, load_pairs, match,
+    model_hs_at_station, model_hs_at_station_trains, qc_filter, station_trains, transform_factors)
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 UA = {"User-Agent": "raw-surf-nearshore-validation-runner"}
@@ -111,6 +111,10 @@ def main() -> int:
     # calls (the three partition layers per spot-hour), so it is off unless asked for.
     ap.add_argument("--trains", action="store_true",
                     default=os.environ.get("NEARSHORE_VAL_TRAINS", "0") == "1")
+    # THE MOP ARM (roadmap stage 4): CDIP's own spectral nearshore forecast AT the buoy, graded beside
+    # the bulk arm. One OPeNDAP slice per station, so it is cheap; off unless asked for all the same.
+    ap.add_argument("--mop", action="store_true",
+                    default=os.environ.get("NEARSHORE_VAL_MOP", "0") == "1")
     ap.add_argument("--max-stations", type=int,
                     default=int(os.environ.get("NEARSHORE_VAL_MAX_STATIONS", "20")))
     args = ap.parse_args()
@@ -195,6 +199,21 @@ def main() -> int:
         return 2
     assert all("station" in p for p in preds), "prediction rows must carry 'station' (L4)"
 
+    mop_status = {}
+    if args.mop:
+        for st in sorted({p["station"] for p in preds}):
+            rows = [p for p in preds if p["station"] == st]
+            try:
+                mop = fetch_mop_hs(st, [p["valid_time"] for p in rows])
+            except BaseException as e:                                # noqa: BLE001 — one station, never the run
+                mop_status[st] = ("no MOP site" if classify_station_failure(e) == "skip_404"
+                                  else f"unavailable: {str(e)[:80]}")
+                continue
+            for p in rows:
+                if p["valid_time"] in mop:
+                    p["mop_hs_m"] = mop[p["valid_time"]]
+            mop_status[st] = f"{len(mop)} hours"
+
     matched, n_obs = [], 0
     for entry in live_pairs:
         st = entry["station"]
@@ -210,6 +229,8 @@ def main() -> int:
     report["point_api"] = {"base": args.base, "valid_time": valid_times[0], "valid_times": len(valid_times),
                            "calls": (len(preds) * (1 + len(TRAIN_LAYERS) * bool(args.trains))) + point_fail,
                            "failed": point_fail, "trains": bool(args.trains)}
+    if args.mop:
+        report["mop"] = {"product": "MOP_validation forecast (WW3-driven)", "stations": mop_status}
     report["budget"] = {"wall_s": round(time.time() - t0, 1)}
     with open(args.json, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=1)
@@ -224,6 +245,11 @@ def main() -> int:
                     for s, v in sorted(report["stations"].items()))
     print(f"VERDICT GRADED n_matched={report['n_matched']} "
           f"(spot-hours {report['n_spot_hours']}, station-hours {report['n_station_hours']}) {per}")
+    mab = report.get("mop_ab")
+    if mab:
+        print(f"MOP_AB n={mab['n']} station_hours={mab['n_station_hours']} "
+              f"bulk={mab['bulk']['mae_m']}/{mab['bulk']['bias_m']:+} mop={mab['arm']['mae_m']}/{mab['arm']['bias_m']:+} "
+              f"closer={mab['arm_closer_share']}")
     ab = report.get("trains_ab")
     if ab:
         t = ab["trains_only"]
