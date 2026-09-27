@@ -187,3 +187,41 @@ def test_fit_shadow_model_reports_no_signal_when_shadow_is_constant():
 
 def test_fit_shadow_model_needs_enough_bins():
     assert vnt.fit_shadow_model({"0": 0.8, "90": 0.7}, 0.0, 0.0, _GRID, _META) is None
+
+
+# ── Kr AGAINST THE CHAIN IT MULTIPLIES (2026-09-27) ─────────────────────────────────────────────
+# The 2026-07-29 measurement divided observed(nearshore / deep) by SHOALING ALONE, so 0.797 absorbed
+# every loss between the buoys: shelf friction, directional blocking, refraction. It shipped on 2026-08-05
+# into a chain that already applied its own friction (since 2026-06-27) and swell-angle exposure (since
+# 2026-07-17). The composed measurement divides the same ratio by the chain's own station model instead.
+from types import SimpleNamespace  # noqa: E402
+
+from services.weather_pipeline import nearshore_validation as _NV  # noqa: E402
+
+_GEO = SimpleNamespace(shore_normal_deg=255.0, depth_m=60.0, shelf_width_km=15.0)
+
+
+def test_a_nearshore_reading_the_chain_predicts_implies_the_kr_in_use():
+    hs, tp, dp = 1.8, 14.0, 280.0
+    near = _NV.model_hs_at_station(hs, tp, dp, _GEO.shore_normal_deg, 20.0, _GEO.depth_m, _GEO.shelf_width_km)
+    (kr, d, t), = vnt.implied_kr_composed_samples({"t": (near,)}, {"t": (hs, tp, dp)}, 20.0, _GEO, 0.797)
+    assert kr == pytest.approx(0.797, rel=1e-12) and (d, t) == (dp, tp)
+
+
+def test_the_two_measurements_differ_by_exactly_the_chains_friction_and_exposure():
+    """On the same buoy hour, Ks-only Kr / chain Kr = Kf x exposure: the losses counted twice."""
+    hs, tp, dp = 2.0, 15.0, 300.0
+    near, deep = {"t": (1.4,)}, {"t": (hs, tp, dp)}
+    (ks_only, _, _), = vnt.implied_kr_samples(near, deep, 20.0)
+    (chain, _, _), = vnt.implied_kr_composed_samples(near, deep, 20.0, _GEO, 0.797)
+    f = _NV.transform_factors(tp, dp, _GEO.shore_normal_deg, 20.0, _GEO.depth_m, _GEO.shelf_width_km)
+    assert ks_only / chain == pytest.approx(f["friction"] * f["exposure"], rel=1e-3)
+    assert chain > ks_only, "applying friction and exposure first leaves LESS for Kr to explain"
+
+
+@pytest.mark.parametrize("deep", [(0.2, 14.0, 280.0), (1.5, 9.0, 280.0)])
+def test_the_composed_measurement_keeps_the_original_swell_filters(deep):
+    """Flat water and short-period sea are excluded exactly as in `implied_kr_samples`, so the two
+    medians are taken over the same hours."""
+    assert vnt.implied_kr_composed_samples({"t": (1.0,)}, {"t": deep}, 20.0, _GEO, 0.797) == []
+    assert vnt.implied_kr_samples({"t": (1.0,)}, {"t": deep}, 20.0) == []

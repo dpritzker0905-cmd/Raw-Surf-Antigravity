@@ -718,7 +718,12 @@ jobs:
           # #103 projection (and #113's chain 113/1328 exactly). The new tests/test_point_frame_honesty.py (claimed by
           # `--lane guards`) adds 4 executed tests: 2090 + 4 = 2094, 2094 - 6 = 2088; files 173 EXACT;
           # _FLOOR_SET_FROM["guards"] -> 2094.
-          MIN_FILES, MIN_PASSED = 173, 2088
+          # ⬆ MIN_PASSED 2088→2092 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (Kr measured against the chain it
+          # multiplies): hosted CI on PR #116 (merged as 37a40946) observed 173 files / 2094 passed, confirming the
+          # #114 projection exactly. tests/test_validate_nearshore_transform.py (already claimed by `--lane guards`)
+          # gains 4 executed tests: 2094 + 4 = 2098, 2098 - 6 = 2092; files 173 unchanged;
+          # _FLOOR_SET_FROM["guards"] -> 2098.
+          MIN_FILES, MIN_PASSED = 173, 2092
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
