@@ -195,6 +195,86 @@ def trains_ab(matched: list):
     return out
 
 
+# ── THE MOP ARM (roadmap stage 4, 2026-09-27) ────────────────────────────────────────────────────
+# Stage 4 replaces the parametric transform with a real nearshore model where one exists. For California
+# that is CDIP's MOP: a spectral refraction model, and CDIP publishes its forecast AT ITS OWN BUOYS
+# (MOP_validation/BPnnn_forecast.nc). The forecast is driven by WaveWatch III, the same model our GFS lane
+# serves, so graded beside the bulk arm on the same instrument hours it isolates the transform: MOP's
+# spectral refraction against our parametric chain. It decides whether stage 4 is worth building.
+MOP_VALIDATION = "https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/model/MOP_validation"
+MOP_EPOCH = 1648771200      # 2022-04-01T00Z: index 0 of every MOP_validation series (hourly, contiguous)
+
+
+def mop_station_id(station: str):
+    """'153p1' -> 'BP153' (MOP_validation names sites by the CDIP station number). None otherwise."""
+    m = re.fullmatch(r"(\d{3})p\d", station or "")
+    return f"BP{m.group(1)}" if m else None
+
+
+def _ascii_series(txt: str, name: str) -> list:
+    """One variable's values from an OPeNDAP .ascii response, in order. PURE."""
+    m = re.search(rf"^{name}(?:\.{name})?\[\d+\]\n([^\n]+)", txt, re.M) or re.search(rf"{name}\[\d+\]\s*\n([^\n]+)", txt)
+    out = []
+    for v in (m.group(1).split(",") if m else []):
+        try:
+            out.append(float(v.strip()))
+        except ValueError:
+            continue
+    return out
+
+
+def parse_mop_ascii(txt: str) -> dict:
+    """{epoch_s: hs_m} for QC-good MOP hours (waveFlagPrimary == 1; absent flags pass). PURE."""
+    times, hs, flags = _ascii_series(txt, "waveTime"), _ascii_series(txt, "waveHs"), _ascii_series(txt, "waveFlagPrimary")
+    out = {}
+    for i in range(min(len(times), len(hs))):
+        if flags and i < len(flags) and int(flags[i]) != 1:
+            continue
+        if hs[i] == hs[i] and hs[i] >= 0:
+            out[int(times[i])] = hs[i]
+    return out
+
+
+def fetch_mop_hs(station: str, valid_times: list, product: str = "forecast", timeout: float = 90.0) -> dict:
+    """MOP Hs at `station` for each ISO valid time ('YYYY-MM-DDTHH:00:00Z'), from the index slice that
+    covers them. Keys are only the hours the server's own waveTime confirms, so an axis that ever stops
+    being contiguous yields fewer matches, never a shifted one. Raises on transport errors (the caller
+    isolates per station; a 404 means MOP has no site at this buoy)."""
+    bp = mop_station_id(station)
+    stamps = sorted({int(_parse_dt(t).timestamp()) for t in valid_times if _parse_dt(t)})
+    if not bp or not stamps:
+        return {}
+    lo, hi = (max(0, (stamps[0] - MOP_EPOCH) // 3600), (stamps[-1] - MOP_EPOCH) // 3600)
+    rng = f"[{lo}:1:{hi}]"
+    url = (f"{MOP_VALIDATION}/{bp}_{product}.nc.ascii"
+           f"?waveTime{rng},waveHs{rng},waveFlagPrimary{rng}")
+    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout) as r:
+        by_epoch = parse_mop_ascii(r.read().decode("utf-8", "replace"))
+    fmt = lambda e: datetime.fromtimestamp(e, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
+    return {fmt(e): by_epoch[e] for e in stamps if e in by_epoch}
+
+
+def arm_ab(matched: list, key: str):
+    """Any second forecast graded beside the served (bulk) number on the SAME instrument hours: MAE,
+    bias and observed/modelled for both, the share of hours the arm was strictly closer, per station.
+    Counts spot-hours AND station-hours (an arm read at the buoy repeats across a station's spots)."""
+    rows = [m for m in matched or [] if m.get(key) is not None and m.get("model_hs_m") is not None]
+    if not rows:
+        return None
+    closer = sum(abs(float(m[key]) - float(m["obs_hs_m"])) < abs(float(m["model_hs_m"]) - float(m["obs_hs_m"]))
+                 for m in rows)
+    by_station = {}
+    for m in rows:
+        by_station.setdefault(m.get("station", "?"), []).append(m)
+    return {"n": len(rows), "n_station_hours": len({(m.get("station"), m.get("obs_time")) for m in rows}),
+            "bulk": _arm_stats(rows, "model_hs_m"), "arm": _arm_stats(rows, key),
+            "arm_closer_share": round(closer / len(rows), 4),
+            "by_station": {s: {"n": len(v), "bulk_mae_m": _arm_stats(v, "model_hs_m")["mae_m"],
+                               "arm_mae_m": _arm_stats(v, key)["mae_m"],
+                               "arm_bias_m": _arm_stats(v, key)["bias_m"]}
+                           for s, v in sorted(by_station.items())}}
+
+
 def backfill_valid_times(now: datetime, backfill_hours: float = 0.0, step_hours: float = 3.0) -> list:
     """Top-of-hour valid times to grade: the current hour first, then back over `backfill_hours` at
     `step_hours`. One hour per run graded ~7 station-hours; the recent past is still resident (2-day
@@ -293,6 +373,9 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
     ab = trains_ab(matched)
     if ab:
         extra["trains_ab"] = ab
+    mop = arm_ab(matched, "mop_hs_m")
+    if mop:
+        extra["mop_ab"] = mop
     return {**base, "available": True, "stations": stations, **extra}
 
 
