@@ -713,7 +713,12 @@ jobs:
           # `--lane guards`) adds 11 executed tests and the infobox's POST_STEP_SURFACES entry in
           # test_rating_composition_parity.py adds 1: 2078 + 12 = 2090, 2090 - 6 = 2084; files 172 EXACT;
           # _FLOOR_SET_FROM["guards"] -> 2090.
-          MIN_FILES, MIN_PASSED = 172, 2084
+          # ⬆ MIN_FILES 172→173, MIN_PASSED 2084→2088 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (/point frame
+          # honesty): hosted CI on PR #113 (merged as eaa5d432) observed 172 files / 2090 passed, confirming the
+          # #103 projection (and #113's chain 113/1328 exactly). The new tests/test_point_frame_honesty.py (claimed by
+          # `--lane guards`) adds 4 executed tests: 2090 + 4 = 2094, 2094 - 6 = 2088; files 173 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2094.
+          MIN_FILES, MIN_PASSED = 173, 2088
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

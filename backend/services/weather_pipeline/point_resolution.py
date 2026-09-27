@@ -38,6 +38,7 @@ from services.weather_pipeline.dynamic_cycle_policy import superseded_dynamic, p
 # two loops below were verbatim copies and the rating band's wind sampler a wrong third. The
 # name stays importable here for the tests and callers that use it.
 from services.weather_pipeline.manifest_point_selection import selection_key as _selection_key  # noqa: E402,F401
+from services.weather_pipeline.grid_resolver import stamp_frame_honesty  # noqa: E402  (/grid's honesty stamp, one definition)
 
 
 # The island SERVING gate now lives in island_gate.py -- there are FIVE selection sites, so a
@@ -284,6 +285,7 @@ class PointResolutionService:
 
             # Inside bounds - sample from product
             response = self.sampler.sample_point(product, lat, lng)
+            stamp_frame_honesty(response, target_dt, valid_time_str)  # the frame sampled, BEFORE the echo
             response.valid_time = target_dt
             response.product_id = grid_product_id
             response.source = "grid_file"
@@ -322,6 +324,7 @@ class PointResolutionService:
                 if grid_bbox and domain.lower() != "wind" and getattr(product, "coverage_mode", None) not in ("global_tile", "viewport"):
                     product = filter_grid_to_bbox(product, grid_bbox)
                 response = self.sampler.sample_point(product, lat, lng)
+                stamp_frame_honesty(response, target_dt, valid_time_str)  # the frame sampled, BEFORE the echo
                 response.valid_time = target_dt
                 response.product_id = dynamic_match["product_id"]
                 response.source = "grid_file"
@@ -363,6 +366,7 @@ class PointResolutionService:
                 if grid_bbox and domain.lower() != "wind" and getattr(product, "coverage_mode", None) not in ("global_tile", "viewport"):
                     product = filter_grid_to_bbox(product, grid_bbox)
                 response = self.sampler.sample_point(product, lat, lng)
+                stamp_frame_honesty(response, target_dt, valid_time_str)  # the frame sampled, BEFORE the echo
                 response.valid_time = target_dt
                 response.product_id = matching_item.filename
                 response.source = "grid_file"
