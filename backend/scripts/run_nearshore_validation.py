@@ -38,7 +38,8 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.nearshore_validation import (   # noqa: E402
-    Refusal, build_report, fetch_station_hs, load_pairs, match, model_hs_at_station, qc_filter)
+    Refusal, backfill_valid_times, build_report, fetch_station_hs, load_pairs, match, model_hs_at_station,
+    qc_filter, transform_factors)
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 UA = {"User-Agent": "raw-surf-nearshore-validation-runner"}
@@ -82,6 +83,12 @@ def main() -> int:
     ap.add_argument("--base", default=os.environ.get("NEARSHORE_VAL_BASE", DEFAULT_BASE))
     ap.add_argument("--stations", default="", help="comma list to restrict (debug)")
     ap.add_argument("--hours", type=float, default=26.0)
+    # BACKFILL (2026-09-27): grade the recent past too, not just this hour. One hour graded ~7
+    # station-hours per run; products stay resident 2 days and CDIP serves the same window. Default 0
+    # keeps the hourly cron exactly as it was; a manual dispatch sets it (point calls = spots x times).
+    ap.add_argument("--backfill-hours", type=float,
+                    default=float(os.environ.get("NEARSHORE_VAL_BACKFILL_H", "0") or 0))
+    ap.add_argument("--step-hours", type=float, default=3.0)
     ap.add_argument("--max-stations", type=int,
                     default=int(os.environ.get("NEARSHORE_VAL_MAX_STATIONS", "20")))
     args = ap.parse_args()
@@ -104,7 +111,7 @@ def main() -> int:
         pairs = [p for p in pairs if p["station"] in want]
     pairs = pairs[: max(1, args.max_stations)]
 
-    live_obs, dead_404, infra_stations = probe_stations(pairs, args.hours)
+    live_obs, dead_404, infra_stations = probe_stations(pairs, max(args.hours, args.backfill_hours + 2))
     if not live_obs:
         print(f"INFRA: 0 of {len(pairs)} CDIP stations answered "
               f"(404-dead {len(dead_404)}, infra {len(infra_stations)}) — THREDDS or network down")
@@ -113,14 +120,16 @@ def main() -> int:
     # The serving path's own offshore answer, at the top of the current hour (matches CDIP's
     # ~30-min cadence inside match()'s ±1800 s tolerance; one obs can serve several spots — see
     # the module header's spot-hour disclosure).
-    valid_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:00")
+    valid_times = backfill_valid_times(datetime.now(timezone.utc), args.backfill_hours, args.step_hours)
+    valid_time = valid_times[0]
     from services.weather_pipeline.surf_point import resolve_surf_geometry  # noqa: E402 — after path insert
 
     preds, point_fail = [], 0
     live_pairs = [p for p in pairs if p["station"] in live_obs]
+    geo = {}
     for entry in live_pairs:
         depth = float(entry.get("station_depth_m") or 0) or 20.0
-        for spot in entry.get("spots", []):
+        for spot, valid_time in ((sp, vt) for sp in entry.get("spots", []) for vt in valid_times):
             url = (f"{args.base}/api/weather/point?model=GFS&domain=marine&layer=waves"
                    f"&lat={spot['lat']}&lng={spot['lng']}&valid_time={valid_time}")
             try:
@@ -134,13 +143,17 @@ def main() -> int:
             if hs is None or tp is None or dr is None:
                 point_fail += 1
                 continue
-            g = resolve_surf_geometry(spot["lat"], spot["lng"])
+            key = (spot["lat"], spot["lng"])
+            if key not in geo:
+                geo[key] = resolve_surf_geometry(spot["lat"], spot["lng"])     # once per spot, not per hour
+            g = geo[key]
             preds.append({
                 "station": entry["station"], "spot": spot.get("name"),
                 "valid_time": valid_time + ":00Z",
                 "model_hs_m": model_hs_at_station(hs, tp, dr, g.shore_normal_deg,
                                                   depth, g.depth_m, g.shelf_width_km),
                 "offshore_hs_m": hs, "tp_s": tp, "swell_from_deg": dr,
+                "factors": transform_factors(tp, dr, g.shore_normal_deg, depth, g.depth_m, g.shelf_width_km),
                 "upstream_provider": d.get("upstream_provider"),
             })
     if not preds and point_fail:
@@ -161,7 +174,7 @@ def main() -> int:
                                "infra": infra_stations}
     report["n_spot_hours"] = len(matched)
     report["n_station_hours"] = len({(m["station"], m["obs_time"]) for m in matched})
-    report["point_api"] = {"base": args.base, "valid_time": valid_time,
+    report["point_api"] = {"base": args.base, "valid_time": valid_times[0], "valid_times": len(valid_times),
                            "calls": len(preds) + point_fail, "failed": point_fail}
     report["budget"] = {"wall_s": round(time.time() - t0, 1)}
     with open(args.json, "w", encoding="utf-8") as f:

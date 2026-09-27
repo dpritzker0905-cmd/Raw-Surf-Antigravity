@@ -87,6 +87,43 @@ def model_hs_at_station(hs_m: float, tp_s: float, swell_from_deg, shore_normal_d
     return float(h)
 
 
+def transform_factors(tp_s: float, swell_from_deg, shore_normal_deg, station_depth_m: float,
+                      shelf_depth_m: float, shelf_width_km: float) -> dict:
+    """The components `model_hs_at_station` multiplies, one by one — DIAGNOSTICS ONLY (2026-09-27).
+
+    The first graded run read LOW at every live station (bias -0.06 to -0.55 m), so the question is
+    which factor. The served number stays `model_hs_at_station` (pinned to `estimate_surf`); this
+    reports the same components separately so a report can attribute the bias instead of guessing."""
+    from services.weather_pipeline.surf_transform import (
+        REFRACTION_KR, _height_exposure_factor, shelf_dissipation, shoaling_coefficient)
+    try:
+        kr = float(os.environ.get("SURF_REFRACTION_KR", REFRACTION_KR))
+    except (TypeError, ValueError):
+        kr = REFRACTION_KR
+    f = {"friction": float(shelf_dissipation(tp_s, shelf_depth_m, shelf_width_km)),
+         "shoaling": float(shoaling_coefficient(tp_s, station_depth_m)),
+         "exposure": float(_height_exposure_factor(swell_from_deg, shore_normal_deg)),
+         "kr": float(kr) if kr > 0 else 1.0}
+    f["total"] = f["friction"] * f["shoaling"] * f["exposure"] * f["kr"]
+    return {k: round(v, 4) for k, v in f.items()}
+
+
+def backfill_valid_times(now: datetime, backfill_hours: float = 0.0, step_hours: float = 3.0) -> list:
+    """Top-of-hour valid times to grade: the current hour first, then back over `backfill_hours` at
+    `step_hours`. One hour per run graded ~7 station-hours; the recent past is still resident (2-day
+    product retention) and CDIP serves the same window, so a run can grade dozens. PURE."""
+    base = now.replace(minute=0, second=0, microsecond=0)
+    step = max(1.0, float(step_hours))
+    n = int(max(0.0, float(backfill_hours)) // step)
+    return [(base - timedelta(hours=k * step)).strftime("%Y-%m-%dT%H:00") for k in range(n + 1)]
+
+
+def _quantiles(values: list) -> dict:
+    v = sorted(values)
+    q = lambda p: v[min(len(v) - 1, int(p * (len(v) - 1) + 0.5))]  # noqa: E731
+    return {"n": len(v), "median": round(q(0.5), 4), "p10": round(q(0.1), 4), "p90": round(q(0.9), 4)}
+
+
 def qc_filter(rows: list) -> list:
     """CDIP's own 'good' flag only (waveFlagPrimary == 1) — everything else is discarded, the
     2026-07-29 study's discipline."""
@@ -149,7 +186,24 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
     for s in stations.values():
         s["mae_m"] = round(s.pop("_ae") / s["n"], 4)
         s["bias_m"] = round(s.pop("_err") / s["n"], 4)   # >0 = model above the instrument
-    return {**base, "available": True, "stations": stations}
+    # WHICH WAY AND BY HOW MUCH (2026-09-27): observed / modelled at the instrument — the multiplier
+    # the transform would need — overall and per station, and the median of each transform factor
+    # when the rows carry them. Additive keys; the per-station mae/bias above are unchanged.
+    extra = {}
+    ratios = [float(m["obs_hs_m"]) / float(m["model_hs_m"]) for m in matched
+              if float(m.get("model_hs_m") or 0) > 0]
+    if ratios:
+        extra["obs_over_model"] = _quantiles(ratios)
+        for name, st in stations.items():
+            r = [float(m["obs_hs_m"]) / float(m["model_hs_m"]) for m in matched
+                 if m.get("station", "?") == name and float(m.get("model_hs_m") or 0) > 0]
+            if r:
+                st["obs_over_model_median"] = _quantiles(r)["median"]
+    fac = [m["factors"] for m in matched if isinstance(m.get("factors"), dict)]
+    if fac:
+        extra["factors_median"] = {k: _quantiles([f[k] for f in fac if k in f])["median"]
+                                   for k in ("friction", "shoaling", "exposure", "kr", "total")}
+    return {**base, "available": True, "stations": stations, **extra}
 
 
 def fetch_station_hs(station: str, hours: float = 26.0, timeout: float = 90.0) -> list:
