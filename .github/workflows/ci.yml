@@ -1027,7 +1027,12 @@ jobs:
           # 1354 passed, confirming the #118 projection exactly. The new tests/test_nearshore_mop_arm.py (claimed by
           # `--lane chain`) adds 7 executed tests: 1354 + 7 = 1361, 1361 - 6 = 1355; files 117 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1361.
-          MIN_FILES, MIN_PASSED = 117, 1355
+          # ⬆ MIN_FILES 117→118, MIN_PASSED 1355→1362 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (the MOP
+          # spot -> cell table, roadmap stage 4): hosted CI on PR #124 (merged as 7fab53ec) observed 117 files / 1361
+          # passed, confirming the #124 projection exactly. The new tests/test_mop_spot_cells.py (claimed by
+          # `--lane chain`) adds 7 executed tests: 1361 + 7 = 1368, 1368 - 6 = 1362; files 118 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1368.
+          MIN_FILES, MIN_PASSED = 118, 1362
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

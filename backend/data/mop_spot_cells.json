@@ -1,0 +1,1302 @@
+{
+ "generated_at": "2026-09-27T23:03:51.199640+00:00",
+ "source": "https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/model/MOP_grids (*_seaswellfc.nc: sea + swell); spots from the production /api/surf-spots",
+ "grids": [
+  {
+   "file": "B_0.001_seaswellfc.nc",
+   "lat0": 34.3,
+   "lng0": -120.799,
+   "step": 0.001,
+   "nlat": 700,
+   "nlng": 1400
+  },
+  {
+   "file": "DN_0.002_seaswellfc.nc",
+   "lat0": 41.4,
+   "lng0": -124.398,
+   "step": 0.002,
+   "nlat": 300,
+   "nlng": 200
+  },
+  {
+   "file": "D_0.001_seaswellfc.nc",
+   "lat0": 32.5,
+   "lng0": -117.599,
+   "step": 0.001,
+   "nlat": 900,
+   "nlng": 500
+  },
+  {
+   "file": "HU_0.002_seaswellfc.nc",
+   "lat0": 39.9,
+   "lng0": -124.498,
+   "step": 0.002,
+   "nlat": 800,
+   "nlng": 300
+  },
+  {
+   "file": "L_0.001_seaswellfc.nc",
+   "lat0": 33.5,
+   "lng0": -118.999,
+   "step": 0.001,
+   "nlat": 600,
+   "nlng": 900
+  },
+  {
+   "file": "MA_0.002_seaswellfc.nc",
+   "lat0": 37.8,
+   "lng0": -123.098,
+   "step": 0.002,
+   "nlat": 300,
+   "nlng": 350
+  },
+  {
+   "file": "MO_0.002_seaswellfc.nc",
+   "lat0": 35.7,
+   "lng0": -122.098,
+   "step": 0.002,
+   "nlat": 600,
+   "nlng": 400
+  },
+  {
+   "file": "M_0.002_seaswellfc.nc",
+   "lat0": 38.7,
+   "lng0": -124.098,
+   "step": 0.002,
+   "nlat": 700,
+   "nlng": 300
+  },
+  {
+   "file": "OC_0.001_seaswellfc.nc",
+   "lat0": 33.3,
+   "lng0": -118.199,
+   "step": 0.001,
+   "nlat": 500,
+   "nlng": 700
+  },
+  {
+   "file": "SC_0.002_seaswellfc.nc",
+   "lat0": 36.8,
+   "lng0": -122.398,
+   "step": 0.002,
+   "nlat": 200,
+   "nlng": 300
+  },
+  {
+   "file": "SF_0.002_seaswellfc.nc",
+   "lat0": 37.6,
+   "lng0": -122.698,
+   "step": 0.002,
+   "nlat": 150,
+   "nlng": 150
+  },
+  {
+   "file": "SL_0.002_seaswellfc.nc",
+   "lat0": 34.9,
+   "lng0": -121.498,
+   "step": 0.002,
+   "nlat": 450,
+   "nlng": 450
+  },
+  {
+   "file": "SM_0.002_seaswellfc.nc",
+   "lat0": 37.0,
+   "lng0": -122.698,
+   "step": 0.002,
+   "nlat": 400,
+   "nlng": 250
+  },
+  {
+   "file": "SN_0.002_seaswellfc.nc",
+   "lat0": 38.2,
+   "lng0": -123.598,
+   "step": 0.002,
+   "nlat": 300,
+   "nlng": 350
+  },
+  {
+   "file": "VE_0.001_seaswellfc.nc",
+   "lat0": 33.9,
+   "lng0": -119.499,
+   "step": 0.001,
+   "nlat": 500,
+   "nlng": 500
+  }
+ ],
+ "criteria": {
+  "min_depth_m": 5.0,
+  "max_depth_m": 25.0,
+  "max_km": 1.5,
+  "preferred_band_m": [
+   8.0,
+   15.0
+  ],
+  "preferred_depth_m": 10.0
+ },
+ "n_spots_in_grids": 78,
+ "cells": [
+  {
+   "spot_id": "bcc8ba6a-21d4-4a41-b133-da15f9d9e076",
+   "name": "Camel Rock",
+   "lat": 41.058,
+   "lng": -124.138,
+   "grid": "HU_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 576,
+    "j": 178,
+    "lat": 41.052,
+    "lng": -124.142,
+    "depth_m": 8.56,
+    "km": 0.747
+   }
+  },
+  {
+   "spot_id": "652d9696-248c-4f1b-a9ab-b57ddc31bc62",
+   "name": "Moonstone Beach Humboldt",
+   "lat": 41.048,
+   "lng": -124.128,
+   "grid": "HU_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 573,
+    "j": 182,
+    "lat": 41.046,
+    "lng": -124.134,
+    "depth_m": 8.02,
+    "km": 0.55
+   }
+  },
+  {
+   "spot_id": "3a1682c3-7945-4416-b43f-bd6262d948b4",
+   "name": "Centerville Beach",
+   "lat": 40.568,
+   "lng": -124.358,
+   "grid": "HU_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 335,
+    "j": 68,
+    "lat": 40.57,
+    "lng": -124.362,
+    "depth_m": 9.13,
+    "km": 0.404
+   }
+  },
+  {
+   "spot_id": "bf9c64c4-9038-4053-83b9-b16bac12d000",
+   "name": "Shelter Cove",
+   "lat": 40.028,
+   "lng": -124.078,
+   "grid": "HU_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 63,
+    "j": 209,
+    "lat": 40.026,
+    "lng": -124.08,
+    "depth_m": 13.07,
+    "km": 0.28
+   }
+  },
+  {
+   "spot_id": "32707e87-0851-459f-a77b-eb8d23fbcf67",
+   "name": "Fort Bragg - Glass Beach",
+   "lat": 39.458,
+   "lng": -123.818,
+   "grid": "M_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 379,
+    "j": 141,
+    "lat": 39.458,
+    "lng": -123.816,
+    "depth_m": 9.9,
+    "km": 0.172
+   }
+  },
+  {
+   "spot_id": "705f75f7-a414-430f-875e-a7b54c8978af",
+   "name": "Caspar Headlands",
+   "lat": 39.358,
+   "lng": -123.828,
+   "grid": "M_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 330,
+    "j": 134,
+    "lat": 39.36,
+    "lng": -123.83,
+    "depth_m": 12.96,
+    "km": 0.281
+   }
+  },
+  {
+   "spot_id": "bdd11e3c-4fb4-4f60-9980-92d0d9b7eedf",
+   "name": "Big River Mouth",
+   "lat": 39.308,
+   "lng": -123.808,
+   "grid": "M_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 302,
+    "j": 142,
+    "lat": 39.304,
+    "lng": -123.814,
+    "depth_m": 8.81,
+    "km": 0.681
+   }
+  },
+  {
+   "spot_id": "29496286-0e8a-4b86-93ae-0e16d5a74792",
+   "name": "Arena Cove",
+   "lat": 38.918,
+   "lng": -123.718,
+   "grid": "M_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 106,
+    "j": 190,
+    "lat": 38.912,
+    "lng": -123.718,
+    "depth_m": 12.35,
+    "km": 0.667
+   }
+  },
+  {
+   "spot_id": "58145cd4-579f-4f55-8e19-4b4b2709d16f",
+   "name": "Goat Rock",
+   "lat": 38.448,
+   "lng": -123.128,
+   "grid": "SN_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 123,
+    "j": 233,
+    "lat": 38.446,
+    "lng": -123.132,
+    "depth_m": 9.17,
+    "km": 0.413
+   }
+  },
+  {
+   "spot_id": "5bcf341a-0fc8-47af-b561-d351e2593891",
+   "name": "Salmon Creek",
+   "lat": 38.358,
+   "lng": -123.078,
+   "grid": "MA_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 279,
+    "j": 10,
+    "lat": 38.358,
+    "lng": -123.078,
+    "depth_m": 12.92,
+    "km": 0.0
+   }
+  },
+  {
+   "spot_id": "232c45c1-71c7-4769-a846-68a756fd68b8",
+   "name": "Doran Beach",
+   "lat": 38.318,
+   "lng": -123.048,
+   "grid": "MA_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 254,
+    "j": 26,
+    "lat": 38.308,
+    "lng": -123.046,
+    "depth_m": 8.36,
+    "km": 1.126
+   }
+  },
+  {
+   "spot_id": "70beabff-a315-42c8-b3a0-c89236535b2e",
+   "name": "Stinson Beach",
+   "lat": 37.9008,
+   "lng": -122.6778,
+   "grid": "MA_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 49,
+    "j": 211,
+    "lat": 37.898,
+    "lng": -122.676,
+    "depth_m": 8.01,
+    "km": 0.349
+   }
+  },
+  {
+   "spot_id": "61c7af2d-9285-44f2-9809-1cedfbfa0ba2",
+   "name": "Muir Beach",
+   "lat": 37.868,
+   "lng": -122.578,
+   "grid": "MA_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 29,
+    "j": 255,
+    "lat": 37.858,
+    "lng": -122.588,
+    "depth_m": 11.7,
+    "km": 1.417
+   }
+  },
+  {
+   "spot_id": "d7a491e4-e486-4400-80f0-aa24518e66c2",
+   "name": "Rodeo Beach",
+   "lat": 37.838,
+   "lng": -122.548,
+   "grid": "MA_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 19,
+    "j": 272,
+    "lat": 37.838,
+    "lng": -122.554,
+    "depth_m": 8.44,
+    "km": 0.527
+   }
+  },
+  {
+   "spot_id": "0f7ee945-82cc-4388-97c6-2a62004791f5",
+   "name": "Fort Point",
+   "lat": 37.808,
+   "lng": -122.478,
+   "grid": "MA_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 5,
+    "j": 311,
+    "lat": 37.81,
+    "lng": -122.476,
+    "depth_m": 13.46,
+    "km": 0.283
+   }
+  },
+  {
+   "spot_id": "3992dbb3-f385-4e36-8bec-9223016b2c79",
+   "name": "Kelly's Cove",
+   "lat": 37.768,
+   "lng": -122.518,
+   "grid": "SF_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 84,
+    "j": 89,
+    "lat": 37.768,
+    "lng": -122.52,
+    "depth_m": 9.83,
+    "km": 0.176
+   }
+  },
+  {
+   "spot_id": "21157011-ccf1-477a-9dfc-226cafecf890",
+   "name": "Ocean Beach SF",
+   "lat": 37.758,
+   "lng": -122.515,
+   "grid": "SF_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 79,
+    "j": 89,
+    "lat": 37.758,
+    "lng": -122.52,
+    "depth_m": 8.83,
+    "km": 0.44
+   }
+  },
+  {
+   "spot_id": "39a12113-3441-463d-91e9-fb1bb94c010d",
+   "name": "Sloat Boulevard",
+   "lat": 37.738,
+   "lng": -122.508,
+   "grid": "SF_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 69,
+    "j": 91,
+    "lat": 37.738,
+    "lng": -122.516,
+    "depth_m": 8.67,
+    "km": 0.703
+   }
+  },
+  {
+   "spot_id": "65d0b368-f594-412a-af93-7c5c2c35be3e",
+   "name": "Pacifica - Rockaway",
+   "lat": 37.608,
+   "lng": -122.498,
+   "grid": "SF_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 5,
+    "j": 98,
+    "lat": 37.61,
+    "lng": -122.502,
+    "depth_m": 8.15,
+    "km": 0.417
+   }
+  },
+  {
+   "spot_id": "84e9c0aa-c650-4ed0-bb17-578a4c0b258a",
+   "name": "Pacifica - Linda Mar",
+   "lat": 37.5958,
+   "lng": -122.532,
+   "grid": "SM_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 296,
+    "j": 87,
+    "lat": 37.592,
+    "lng": -122.524,
+    "depth_m": 10.73,
+    "km": 0.822
+   }
+  },
+  {
+   "spot_id": "821faca1-1e2d-4eac-bb4b-97406aff7b92",
+   "name": "Montara State Beach",
+   "lat": 37.548,
+   "lng": -122.518,
+   "grid": "SM_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 274,
+    "j": 89,
+    "lat": 37.548,
+    "lng": -122.52,
+    "depth_m": 13.14,
+    "km": 0.176
+   }
+  },
+  {
+   "spot_id": "0b775e46-715f-491d-87d7-09a0aa0f3247",
+   "name": "Princeton Jetty",
+   "lat": 37.498,
+   "lng": -122.488,
+   "grid": "SM_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 247,
+    "j": 107,
+    "lat": 37.494,
+    "lng": -122.484,
+    "depth_m": 8.36,
+    "km": 0.568
+   }
+  },
+  {
+   "spot_id": "264de2b4-fefc-4101-bb2c-c0557b9ca190",
+   "name": "Mavericks",
+   "lat": 37.4915,
+   "lng": -122.5083,
+   "grid": "SM_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 246,
+    "j": 96,
+    "lat": 37.492,
+    "lng": -122.506,
+    "depth_m": 11.79,
+    "km": 0.21
+   }
+  },
+  {
+   "spot_id": "3981246b-2010-4753-ac88-2191f326631b",
+   "name": "Ross's Cove",
+   "lat": 37.488,
+   "lng": -122.498,
+   "grid": "SM_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 244,
+    "j": 99,
+    "lat": 37.488,
+    "lng": -122.5,
+    "depth_m": 10.72,
+    "km": 0.176
+   }
+  },
+  {
+   "spot_id": "2636f0f8-efb5-44c5-8a85-dbc4c10eb934",
+   "name": "Waddell Creek",
+   "lat": 37.0888,
+   "lng": -122.303,
+   "grid": "SC_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 149,
+    "j": 51,
+    "lat": 37.098,
+    "lng": -122.296,
+    "depth_m": 14.87,
+    "km": 1.197
+   }
+  },
+  {
+   "spot_id": "31579ade-026c-4a47-92b5-b956b4bfacf6",
+   "name": "Four Mile Beach",
+   "lat": 37.0088,
+   "lng": -122.205,
+   "grid": "SC_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 104,
+    "j": 97,
+    "lat": 37.008,
+    "lng": -122.204,
+    "depth_m": 9.79,
+    "km": 0.126
+   }
+  },
+  {
+   "spot_id": "e25e2940-5340-44d6-a88e-b9c0f9676f28",
+   "name": "Davenport Landing",
+   "lat": 37.0038,
+   "lng": -122.215,
+   "grid": "SC_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 104,
+    "j": 94,
+    "lat": 37.008,
+    "lng": -122.21,
+    "depth_m": 13.51,
+    "km": 0.644
+   }
+  },
+  {
+   "spot_id": "41f7c0e0-01c6-4bde-8f20-701972e4ea1c",
+   "name": "Capitola",
+   "lat": 36.978,
+   "lng": -121.958,
+   "grid": "SC_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 85,
+    "j": 224,
+    "lat": 36.97,
+    "lng": -121.95,
+    "depth_m": 5.18,
+    "km": 1.139
+   }
+  },
+  {
+   "spot_id": "f8b94dd9-9b5b-4467-9361-9a08aff27106",
+   "name": "New Brighton",
+   "lat": 36.978,
+   "lng": -121.938,
+   "grid": "SC_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 85,
+    "j": 230,
+    "lat": 36.97,
+    "lng": -121.938,
+    "depth_m": 8.15,
+    "km": 0.89
+   }
+  },
+  {
+   "spot_id": "5ffb6b8d-4b51-4d57-9c26-2c389db6d92f",
+   "name": "Pleasure Point",
+   "lat": 36.962,
+   "lng": -121.978,
+   "grid": "SC_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 77,
+    "j": 206,
+    "lat": 36.954,
+    "lng": -121.986,
+    "depth_m": 9.75,
+    "km": 1.139
+   }
+  },
+  {
+   "spot_id": "54ad0401-dceb-4992-9dff-7dd48fa4594c",
+   "name": "Cowell's Beach",
+   "lat": 36.958,
+   "lng": -122.028,
+   "grid": "SC_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 78,
+    "j": 189,
+    "lat": 36.956,
+    "lng": -122.02,
+    "depth_m": 8.16,
+    "km": 0.745
+   }
+  },
+  {
+   "spot_id": "617e5123-774e-4469-8ee1-0b7477ed9dd1",
+   "name": "The Hook",
+   "lat": 36.958,
+   "lng": -121.968,
+   "grid": "SC_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 77,
+    "j": 216,
+    "lat": 36.954,
+    "lng": -121.966,
+    "depth_m": 8.2,
+    "km": 0.479
+   }
+  },
+  {
+   "spot_id": "a0831e90-e082-4f2d-8aa4-922cf413ad24",
+   "name": "Steamer Lane",
+   "lat": 36.951,
+   "lng": -122.026,
+   "grid": "SC_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 75,
+    "j": 187,
+    "lat": 36.95,
+    "lng": -122.024,
+    "depth_m": 9.92,
+    "km": 0.21
+   }
+  },
+  {
+   "spot_id": "d27b500f-f3bc-4919-aa63-3ea68cdabad6",
+   "name": "Manresa",
+   "lat": 36.938,
+   "lng": -121.858,
+   "grid": "SC_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 65,
+    "j": 264,
+    "lat": 36.93,
+    "lng": -121.87,
+    "depth_m": 9.73,
+    "km": 1.389
+   }
+  },
+  {
+   "spot_id": "27be5b59-578e-4b66-bd14-403220a2f382",
+   "name": "Sunset State Beach",
+   "lat": 36.898,
+   "lng": -121.838,
+   "grid": "MO_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 597,
+    "j": 126,
+    "lat": 36.894,
+    "lng": -121.846,
+    "depth_m": 9.27,
+    "km": 0.839
+   }
+  },
+  {
+   "spot_id": "6f14cf3f-4e67-4775-93ea-a07c7cb3afd8",
+   "name": "Moss Landing",
+   "lat": 36.7968,
+   "lng": -121.815,
+   "grid": "MO_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 546,
+    "j": 147,
+    "lat": 36.792,
+    "lng": -121.804,
+    "depth_m": 14.09,
+    "km": 1.115
+   }
+  },
+  {
+   "spot_id": "efe348ef-9a48-4bd9-b599-f0cf7747d90e",
+   "name": "Carmel Beach",
+   "lat": 36.5418,
+   "lng": -121.953,
+   "grid": "MO_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 421,
+    "j": 80,
+    "lat": 36.542,
+    "lng": -121.938,
+    "depth_m": 10.93,
+    "km": 1.34
+   }
+  },
+  {
+   "spot_id": "2d61d58f-7d38-4e1f-b653-0dde2b1ceb68",
+   "name": "Big Sur - Andrew Molera",
+   "lat": 36.2878,
+   "lng": -121.8938,
+   "grid": "MO_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 294,
+    "j": 102,
+    "lat": 36.288,
+    "lng": -121.894,
+    "depth_m": 8.18,
+    "km": 0.029
+   }
+  },
+  {
+   "spot_id": "005226cd-af31-45a8-9054-54ac7abe9335",
+   "name": "Cayucos Pier",
+   "lat": 35.442,
+   "lng": -120.915,
+   "grid": "SL_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 271,
+    "j": 292,
+    "lat": 35.442,
+    "lng": -120.914,
+    "depth_m": 9.99,
+    "km": 0.091
+   }
+  },
+  {
+   "spot_id": "ec950634-775a-4c46-979a-8fd07fd76725",
+   "name": "Morro Bay",
+   "lat": 35.3668,
+   "lng": -120.897,
+   "grid": "SL_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 233,
+    "j": 308,
+    "lat": 35.366,
+    "lng": -120.882,
+    "depth_m": 24.48,
+    "km": 1.363
+   }
+  },
+  {
+   "spot_id": "7e5ea9cc-639d-41d7-bbd3-d0ad1b6216a8",
+   "name": "Pismo Beach Pier",
+   "lat": 35.138,
+   "lng": -120.648,
+   "grid": "SL_0.002_seaswellfc.nc",
+   "cell": {
+    "i": 119,
+    "j": 423,
+    "lat": 35.138,
+    "lng": -120.652,
+    "depth_m": 9.21,
+    "km": 0.364
+   }
+  },
+  {
+   "spot_id": "b5959a52-a22a-479b-ae7e-4eca72697343",
+   "name": "Jalama Beach",
+   "lat": 34.5122,
+   "lng": -120.534,
+   "grid": "B_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 219,
+    "j": 276,
+    "lat": 34.519,
+    "lng": -120.523,
+    "depth_m": 14.13,
+    "km": 1.26
+   }
+  },
+  {
+   "spot_id": "675526a0-fc63-4a29-8363-59f4e13f7df3",
+   "name": "Leadbetter Beach",
+   "lat": 34.4038,
+   "lng": -119.728,
+   "grid": "B_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 95,
+    "j": 1066,
+    "lat": 34.395,
+    "lng": -119.733,
+    "depth_m": 10.0,
+    "km": 1.081
+   }
+  },
+  {
+   "spot_id": "1c76a94d-6105-4a0a-a6d8-74d378ac156f",
+   "name": "Sands Beach",
+   "lat": 34.4025,
+   "lng": -119.878,
+   "grid": "B_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 103,
+    "j": 921,
+    "lat": 34.403,
+    "lng": -119.878,
+    "depth_m": 9.33,
+    "km": 0.056
+   }
+  },
+  {
+   "spot_id": "31224425-2f57-4129-9f69-089cd1205ac7",
+   "name": "Rincon",
+   "lat": 34.3781,
+   "lng": -119.4819,
+   "grid": "B_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 75,
+    "j": 1313,
+    "lat": 34.375,
+    "lng": -119.486,
+    "depth_m": 10.09,
+    "km": 0.51
+   }
+  },
+  {
+   "spot_id": "6ee47aa0-87d1-4946-a79f-9bf2c0626760",
+   "name": "Mondos",
+   "lat": 34.318,
+   "lng": -119.398,
+   "grid": "VE_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 418,
+    "j": 101,
+    "lat": 34.318,
+    "lng": -119.398,
+    "depth_m": 9.66,
+    "km": 0.0
+   }
+  },
+  {
+   "spot_id": "e4259b3d-a3a8-4736-8850-65d75888e2fe",
+   "name": "Emma Wood",
+   "lat": 34.292,
+   "lng": -119.345,
+   "grid": "VE_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 391,
+    "j": 152,
+    "lat": 34.291,
+    "lng": -119.347,
+    "depth_m": 8.4,
+    "km": 0.215
+   }
+  },
+  {
+   "spot_id": "9b4373eb-95e9-4eb2-b1ce-73e14c48e53b",
+   "name": "C Street Ventura",
+   "lat": 34.275,
+   "lng": -119.298,
+   "grid": "VE_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 369,
+    "j": 202,
+    "lat": 34.269,
+    "lng": -119.297,
+    "depth_m": 8.09,
+    "km": 0.673
+   }
+  },
+  {
+   "spot_id": "03c67a2b-486a-458f-a4af-bdd8cc39edb5",
+   "name": "County Line",
+   "lat": 34.0522,
+   "lng": -118.9838,
+   "grid": "L_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 553,
+    "j": 17,
+    "lat": 34.053,
+    "lng": -118.982,
+    "depth_m": 14.83,
+    "km": 0.188
+   }
+  },
+  {
+   "spot_id": "0d4b2204-229c-4163-99b0-66b578e4e7f2",
+   "name": "Topanga",
+   "lat": 34.0388,
+   "lng": -118.62,
+   "grid": "L_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 534,
+    "j": 379,
+    "lat": 34.034,
+    "lng": -118.62,
+    "depth_m": 8.94,
+    "km": 0.534
+   }
+  },
+  {
+   "spot_id": "dc4e8fea-f08a-455d-a9e0-a8fa72b76437",
+   "name": "Malibu First Point",
+   "lat": 34.0368,
+   "lng": -118.71,
+   "grid": "L_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 527,
+    "j": 287,
+    "lat": 34.027,
+    "lng": -118.712,
+    "depth_m": 8.2,
+    "km": 1.105
+   }
+  },
+  {
+   "spot_id": "18bd33c7-1213-44e2-9c6b-8d8c610566f1",
+   "name": "Malibu Second Point",
+   "lat": 34.0365,
+   "lng": -118.712,
+   "grid": "L_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 528,
+    "j": 283,
+    "lat": 34.028,
+    "lng": -118.716,
+    "depth_m": 8.16,
+    "km": 1.014
+   }
+  },
+  {
+   "spot_id": "07ce3cf2-66a7-4cdf-bf9d-760b298b88fa",
+   "name": "Malibu Third Point",
+   "lat": 34.036,
+   "lng": -118.714,
+   "grid": "L_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 528,
+    "j": 283,
+    "lat": 34.028,
+    "lng": -118.716,
+    "depth_m": 8.16,
+    "km": 0.908
+   }
+  },
+  {
+   "spot_id": "526a90b8-ba87-43cc-be19-7320976ffa56",
+   "name": "Zuma Beach",
+   "lat": 34.028,
+   "lng": -118.824,
+   "grid": "L_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 518,
+    "j": 166,
+    "lat": 34.018,
+    "lng": -118.833,
+    "depth_m": 8.27,
+    "km": 1.387
+   }
+  },
+  {
+   "spot_id": "043c051f-2e48-4666-9cd2-f0c4ec729ecb",
+   "name": "Venice Breakwater",
+   "lat": 33.9898,
+   "lng": -118.502,
+   "grid": "L_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 491,
+    "j": 499,
+    "lat": 33.991,
+    "lng": -118.5,
+    "depth_m": 14.95,
+    "km": 0.228
+   }
+  },
+  {
+   "spot_id": "8564794f-d631-460e-9032-8bf1d11d8ece",
+   "name": "El Porto",
+   "lat": 33.901,
+   "lng": -118.42,
+   "grid": "L_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 399,
+    "j": 573,
+    "lat": 33.899,
+    "lng": -118.426,
+    "depth_m": 8.03,
+    "km": 0.597
+   }
+  },
+  {
+   "spot_id": "fc97ffcd-97e1-4b01-bd50-3cc9d9a274e1",
+   "name": "Manhattan Beach Pier",
+   "lat": 33.885,
+   "lng": -118.412,
+   "grid": "L_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 381,
+    "j": 582,
+    "lat": 33.881,
+    "lng": -118.417,
+    "depth_m": 8.29,
+    "km": 0.641
+   }
+  },
+  {
+   "spot_id": "1d9e3ae3-b87c-4383-93d8-df857651e420",
+   "name": "Hermosa Beach",
+   "lat": 33.8622,
+   "lng": -118.434,
+   "grid": "L_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 364,
+    "j": 572,
+    "lat": 33.864,
+    "lng": -118.427,
+    "depth_m": 24.75,
+    "km": 0.677
+   }
+  },
+  {
+   "spot_id": "b6e20a3f-b0b1-4179-9579-fb073cce6f98",
+   "name": "Redondo Beach",
+   "lat": 33.843,
+   "lng": -118.396,
+   "grid": "L_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 342,
+    "j": 602,
+    "lat": 33.842,
+    "lng": -118.397,
+    "depth_m": 9.07,
+    "km": 0.145
+   }
+  },
+  {
+   "spot_id": "c84de5b4-bd84-4e3a-b96d-2a315b9774d0",
+   "name": "Huntington Beach Pier",
+   "lat": 33.655,
+   "lng": -117.999,
+   "grid": "OC_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 349,
+    "j": 196,
+    "lat": 33.649,
+    "lng": -118.003,
+    "depth_m": 8.39,
+    "km": 0.763
+   }
+  },
+  {
+   "spot_id": "b683d2ed-09f2-446c-b430-242930dad4fc",
+   "name": "54th Street Newport",
+   "lat": 33.6032,
+   "lng": -117.92,
+   "grid": "OC_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 301,
+    "j": 279,
+    "lat": 33.601,
+    "lng": -117.92,
+    "depth_m": 9.74,
+    "km": 0.245
+   }
+  },
+  {
+   "spot_id": "89a194d1-eca7-4a6a-820e-fcc64ca0cece",
+   "name": "The Wedge",
+   "lat": 33.593,
+   "lng": -117.878,
+   "grid": "OC_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 293,
+    "j": 318,
+    "lat": 33.593,
+    "lng": -117.881,
+    "depth_m": 8.26,
+    "km": 0.278
+   }
+  },
+  {
+   "spot_id": "b0dbef94-5e72-4c10-9959-8f320295aa39",
+   "name": "Newport Point",
+   "lat": 33.593,
+   "lng": -117.882,
+   "grid": "OC_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 293,
+    "j": 318,
+    "lat": 33.593,
+    "lng": -117.881,
+    "depth_m": 8.26,
+    "km": 0.093
+   }
+  },
+  {
+   "spot_id": "30066ba0-79db-4953-bfa9-be9ac9e1e418",
+   "name": "Upper Trestles",
+   "lat": 33.387,
+   "lng": -117.592,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 880,
+    "j": 2,
+    "lat": 33.38,
+    "lng": -117.597,
+    "depth_m": 8.05,
+    "km": 0.906
+   }
+  },
+  {
+   "spot_id": "981d82c5-cd71-4c10-a148-561006477991",
+   "name": "Trestles",
+   "lat": 33.384,
+   "lng": -117.59,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 879,
+    "j": 4,
+    "lat": 33.379,
+    "lng": -117.595,
+    "depth_m": 8.29,
+    "km": 0.724
+   }
+  },
+  {
+   "spot_id": "27ef0e02-542c-4202-8b2d-74aa3479528d",
+   "name": "Lower Trestles",
+   "lat": 33.3819,
+   "lng": -117.5885,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 877,
+    "j": 9,
+    "lat": 33.377,
+    "lng": -117.59,
+    "depth_m": 8.14,
+    "km": 0.562
+   }
+  },
+  {
+   "spot_id": "e40a9a9e-494f-40bf-b9c0-02a5a22dcf34",
+   "name": "San Onofre",
+   "lat": 33.372,
+   "lng": -117.568,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 871,
+    "j": 24,
+    "lat": 33.371,
+    "lng": -117.575,
+    "depth_m": 8.04,
+    "km": 0.659
+   }
+  },
+  {
+   "spot_id": "f954c3f5-34ec-4827-8b38-8fe630303c1a",
+   "name": "Oceanside Pier",
+   "lat": 33.1938,
+   "lng": -117.4218,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 698,
+    "j": 183,
+    "lat": 33.198,
+    "lng": -117.416,
+    "depth_m": 14.81,
+    "km": 0.714
+   }
+  },
+  {
+   "spot_id": "7e1299b0-e296-4ba0-a47e-05911d606505",
+   "name": "Swamis",
+   "lat": 33.0348,
+   "lng": -117.3248,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 539,
+    "j": 288,
+    "lat": 33.039,
+    "lng": -117.311,
+    "depth_m": 24.6,
+    "km": 1.369
+   }
+  },
+  {
+   "spot_id": "19d843e0-993a-4311-b4ce-3d36f78cd2b7",
+   "name": "Cardiff Reef",
+   "lat": 33.0228,
+   "lng": -117.3178,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 525,
+    "j": 295,
+    "lat": 33.025,
+    "lng": -117.304,
+    "depth_m": 24.63,
+    "km": 1.31
+   }
+  },
+  {
+   "spot_id": "7eb3a816-3e9d-41d1-ab08-392bdd19f8b0",
+   "name": "Blacks Beach",
+   "lat": 32.8925,
+   "lng": -117.2536,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 390,
+    "j": 340,
+    "lat": 32.89,
+    "lng": -117.259,
+    "depth_m": 8.28,
+    "km": 0.576
+   }
+  },
+  {
+   "spot_id": "9bdaed85-9db6-4b41-bc37-4828e094bc2a",
+   "name": "La Jolla Shores",
+   "lat": 32.8565,
+   "lng": -117.2585,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 359,
+    "j": 337,
+    "lat": 32.859,
+    "lng": -117.262,
+    "depth_m": 8.21,
+    "km": 0.429
+   }
+  },
+  {
+   "spot_id": "dcac30c9-0124-4f96-be32-612007bdf240",
+   "name": "Windansea",
+   "lat": 32.8312,
+   "lng": -117.2811,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 332,
+    "j": 312,
+    "lat": 32.832,
+    "lng": -117.287,
+    "depth_m": 8.75,
+    "km": 0.558
+   }
+  },
+  {
+   "spot_id": "24340718-5822-45b2-bdf3-cf05ba46586b",
+   "name": "Pacific Beach",
+   "lat": 32.7982,
+   "lng": -117.278,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 298,
+    "j": 323,
+    "lat": 32.798,
+    "lng": -117.276,
+    "depth_m": 14.95,
+    "km": 0.188
+   }
+  },
+  {
+   "spot_id": "bf89c80c-fac3-43ee-b8c9-8513c1f90d7d",
+   "name": "Mission Beach",
+   "lat": 32.7692,
+   "lng": -117.274,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 269,
+    "j": 333,
+    "lat": 32.769,
+    "lng": -117.266,
+    "depth_m": 14.71,
+    "km": 0.748
+   }
+  },
+  {
+   "spot_id": "28f09e5b-7821-40a3-b8d7-3f83e1873d70",
+   "name": "Ocean Beach SD",
+   "lat": 32.7495,
+   "lng": -117.276,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 247,
+    "j": 329,
+    "lat": 32.747,
+    "lng": -117.27,
+    "depth_m": 15.0,
+    "km": 0.626
+   }
+  },
+  {
+   "spot_id": "8e9790ee-406e-45ac-85b5-2ca1bc826324",
+   "name": "Sunset Cliffs",
+   "lat": 32.719,
+   "lng": -117.256,
+   "grid": "D_0.001_seaswellfc.nc",
+   "cell": {
+    "i": 219,
+    "j": 335,
+    "lat": 32.719,
+    "lng": -117.264,
+    "depth_m": 8.27,
+    "km": 0.748
+   }
+  }
+ ],
+ "uncovered": [
+  {
+   "spot_id": "73c2880a-7e9d-4f39-b9d1-136682b6281b",
+   "name": "Bolinas",
+   "lat": 37.908,
+   "lng": -122.702
+  }
+ ]
+}
