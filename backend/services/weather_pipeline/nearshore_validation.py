@@ -275,6 +275,51 @@ def arm_ab(matched: list, key: str):
                            for s, v in sorted(by_station.items())}}
 
 
+# ── THE ARCHIVED MOP-GRID ARM (stage 4, 2026-09-27) ──────────────────────────────────────────────────
+# The product stage 4 would SERVE is the regional sea+swell grid (ECMWF-driven), not the WW3-driven buoy
+# series the MOP arm grades, and it holds only future hours. The ingest (#126) archives every run at a
+# cell of each CDIP buoy's own depth; this grades those archives as a forecast would have been served.
+
+def load_mop_archives(root: str) -> list:
+    """Every archived ingest blob under `root` (the ingest workflow's artifacts, one per run). Unreadable
+    files are skipped: an archive that cannot be read is absent evidence, never an error."""
+    blobs = []
+    for dirpath, _dirs, files in os.walk(root or ""):
+        for name in files:
+            if name.endswith(".json"):
+                try:
+                    with open(os.path.join(dirpath, name), encoding="utf-8") as f:
+                        b = json.load(f)
+                    if isinstance(b, dict) and isinstance(b.get("stations"), dict):
+                        blobs.append(b)
+                except (OSError, ValueError):
+                    continue
+    return blobs
+
+
+def mop_grid_hours(blobs: list, station: str, now: datetime, lookback_hours: float) -> dict:
+    """{ISO hour: {hs, run, lead_h}} for a buoy over the last `lookback_hours`: each hour from the LATEST
+    archived run issued at or before it (the shortest lead, as the forecast would have been served), never
+    from a run issued after it. PURE."""
+    out = {}
+    lo = now - timedelta(hours=lookback_hours)
+    for b in blobs or []:
+        s = (b.get("stations") or {}).get(station)
+        run = _parse_dt(((b.get("grids") or {}).get((s or {}).get("grid")) or {}).get("run"))
+        if not s or run is None:
+            continue
+        for t_iso, hs in zip(s.get("times") or [], s.get("hs") or []):
+            t = _parse_dt(t_iso)
+            if hs is None or t is None or t < run or not (lo <= t <= now):
+                continue
+            key = t.strftime("%Y-%m-%dT%H:%M:%SZ")
+            prev = out.get(key)
+            if prev is None or run > _parse_dt(prev["run"]):
+                out[key] = {"hs": hs, "run": run.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                            "lead_h": round((t - run).total_seconds() / 3600.0, 1)}
+    return out
+
+
 def backfill_valid_times(now: datetime, backfill_hours: float = 0.0, step_hours: float = 3.0) -> list:
     """Top-of-hour valid times to grade: the current hour first, then back over `backfill_hours` at
     `step_hours`. One hour per run graded ~7 station-hours; the recent past is still resident (2-day
@@ -376,6 +421,9 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
     mop = arm_ab(matched, "mop_hs_m")
     if mop:
         extra["mop_ab"] = mop
+    grid = arm_ab(matched, "mop_grid_hs_m")
+    if grid:
+        extra["mop_grid_ab"] = grid
     return {**base, "available": True, "stations": stations, **extra}
 
 

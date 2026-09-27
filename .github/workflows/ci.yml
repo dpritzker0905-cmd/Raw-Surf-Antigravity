@@ -1037,7 +1037,12 @@ jobs:
           # (merged as c852abb3) observed 118 files / 1368 passed, confirming the #125 projection exactly. The new
           # tests/test_mop_ingest.py (claimed by `--lane chain`) adds 7 executed tests: 1368 + 7 = 1375,
           # 1375 - 6 = 1369; files 119 EXACT; _FLOOR_SET_FROM["chain"] -> 1375.
-          MIN_FILES, MIN_PASSED = 119, 1369
+          # ⬆ MIN_FILES 119→120, MIN_PASSED 1369→1374 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge grades the ARCHIVED MOP grid runs, stage 4): hosted CI on PR #126 (merged as ff0e3549) observed
+          # 119 files / 1375 passed, confirming the #126 projection exactly. The new
+          # tests/test_nearshore_mop_grid_arm.py (claimed by `--lane chain`) adds 5 executed tests: 1375 + 5 = 1380,
+          # 1380 - 6 = 1374; files 120 EXACT; _FLOOR_SET_FROM["chain"] -> 1380.
+          MIN_FILES, MIN_PASSED = 120, 1374
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
