@@ -240,6 +240,9 @@ class NormalizedPointResponse(BaseModel):
     # ±0.75° coastal gate, which kept the row visible for markers well offshore. Display-only tag; the
     # estimate itself is computed the same either way.
     surf_nearshore: Optional[bool] = None
+    # Which model `surf_height_m` stands on: "cdip_mop" (roadmap stage 4, SURF_NEARSHORE_MOP) or
+    # "parametric" (the offshore field through the chain). None where no surf height was produced.
+    surf_source: Optional[str] = None
     # ── PROVENANCE FOR THE SURF NUMBER ITSELF (2026-07-30) ──────────────────────────────────────
     # `shore_normal_deg` above was served bare, and a bearing off the COARSE 0.25° grid is
     # indistinguishable from a measured one — Bondi Beach served `111.54097591853844`, fourteen

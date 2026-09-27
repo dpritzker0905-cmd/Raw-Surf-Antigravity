@@ -156,3 +156,80 @@ def series_blob(table: dict, series: dict, runs: dict, generated_at: str) -> dic
             "grids": runs, "spots": spots, "stations": stations,
             "coverage": {"spots": f"{len(spots)}/{len(table.get('cells') or [])}",
                          "stations": f"{len(stations)}/{len(table.get('stations') or [])}"}}
+
+
+# ── SERVING: MOP'S NEARSHORE SEA AS THE INPUT TO THE BREAKING STEP (behind SURF_NEARSHORE_MOP) ────────
+
+def _dt(iso):
+    try:
+        return datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+
+
+def nearshore_at(entry: dict, when: datetime):
+    """A spot's MOP sea at `when`: Hs interpolated linearly between the 6-hourly steps that bracket it,
+    period and direction from the nearer step. None outside the run or where a bracketing value is
+    missing, so the caller keeps the parametric chain rather than extrapolating. PURE."""
+    times = [_dt(t) for t in (entry or {}).get("times") or []]
+    hs, tp, dp = entry.get("hs") or [], entry.get("tp") or [], entry.get("dp") or []
+    for k in range(len(times) - 1 if len(times) > 1 else 0):
+        a, b = times[k], times[k + 1]
+        if a is None or b is None or not (a <= when <= b) or k + 1 >= len(hs):
+            continue
+        if hs[k] is None or hs[k + 1] is None:
+            return None
+        f = (when - a).total_seconds() / max(1.0, (b - a).total_seconds())
+        near = k if f <= 0.5 else k + 1
+        if near >= len(tp) or tp[near] is None or tp[near] <= 0:
+            return None
+        return {"hs": hs[k] + f * (hs[k + 1] - hs[k]), "tp": tp[near],
+                "dp": dp[near] if near < len(dp) else None, "depth_m": entry.get("depth_m")}
+    if len(times) == 1 and times[0] == when and hs and hs[0] is not None and tp and tp[0]:
+        return {"hs": hs[0], "tp": tp[0], "dp": dp[0] if dp else None, "depth_m": entry.get("depth_m")}
+    return None
+
+
+def estimate_surf_from_nearshore(hs_m, tp_s, cell_depth_m, shelf_depth_m, shelf_width_km, break_depth_m,
+                                 water_level_m: float = 0.0):
+    """Breaking height + regime from MOP's Hs at the cell's depth. `estimate_surf`'s Komar branch, line for
+    line, with the offshore transform's losses REMOVED because MOP's spectral model already carries them:
+    no shelf friction, no swell-angle exposure, no refraction constant (MOP IS the refraction), no magnet.
+    The cell's height is taken back to its unrefracted deep-water equivalent (Hs / Ks at the cell depth),
+    which is the quantity Komar & Gaughan expect; the cap, the tide and the published statistic are the
+    chain's own. Parity-pinned to `estimate_surf` with those four neutralised. (None, 'unknown') on
+    unusable inputs, so the caller falls back to the parametric chain."""
+    import os
+    from services.weather_pipeline.surf_height_convention import publish_surf_height
+    from services.weather_pipeline.surf_transform import (
+        _MIN_CAP_DEPTH_M, _v3, breaker_index, komar_breaker_height, shoaling_coefficient)
+    if hs_m is None or tp_s is None or cell_depth_m is None or hs_m != hs_m or tp_s != tp_s:
+        return None, "unknown"
+    if hs_m <= 0:
+        return 0.0, "calm"
+    if tp_s <= 0 or cell_depth_m <= 0:
+        return None, "unknown"
+    ks = shoaling_coefficient(tp_s, cell_depth_m)
+    if not ks or ks <= 0:
+        return None, "unknown"
+    h0 = hs_m / ks
+    cap_depth = shelf_depth_m
+    if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
+        cap_depth = float(break_depth_m)
+    if cap_depth is None or cap_depth <= 0:
+        return None, "unknown"
+    if water_level_m and os.environ.get("SURF_TIDE_DEPTH", "0") != "0":
+        cap_depth = max(_MIN_CAP_DEPTH_M, cap_depth + float(water_level_m))
+    slope = (shelf_depth_m / (shelf_width_km * 1000.0)) if (shelf_depth_m and shelf_width_km and shelf_width_km > 0) else None
+    cap = breaker_index(tp_s, slope=slope) * cap_depth
+    legacy = shoaling_coefficient(tp_s, shelf_depth_m) * h0 if shelf_depth_m and shelf_depth_m > 0 else h0
+    if _v3("SURF_V3_KOMAR"):
+        try:
+            jack_max = float(os.environ.get("SURF_V3_JACK_MAX", "2.0"))
+        except (TypeError, ValueError):
+            jack_max = 2.0
+        hb = komar_breaker_height(h0, tp_s)
+        h = min(hb, jack_max * h0) if (hb is not None and hb > 0) else legacy
+    else:
+        h = legacy
+    return publish_surf_height(h, cap, "shelf" if h <= h0 else "shoaling")
