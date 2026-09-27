@@ -284,10 +284,14 @@ class PointSampler:
             interp_u = w11 * v11.u + w12 * v12.u + w21 * v21.u + w22 * v22.u
             interp_v = w11 * v11.v + w12 * v12.v + w21 * v21.v + w22 * v22.v
             
+            # A corner's period counts only when it is POSITIVE. The normalizer stores a missing period
+            # as 0.0 on an otherwise valid vector, and averaging that zero in dragged EURO's coastal swell
+            # periods toward nothing (3.79 s at Steamer Lane where the ocean corners give 8.5 s,
+            # 2026-09-27). A layer with no period anywhere still reads 0.0, as before.
             interp_period = 0.0
             p_sum_weights = 0.0
             for v, w in corner_weights:
-                if v is not None and v.period is not None:
+                if v is not None and v.period is not None and v.period > 0.0:
                     interp_period += w * v.period
                     p_sum_weights += w
             if p_sum_weights > 0.0:
@@ -341,7 +345,7 @@ class PointSampler:
                     norm_w = w / sum_w
                     interp_u += norm_w * v.u
                     interp_v += norm_w * v.v
-                    if v.period is not None:
+                    if v.period is not None and v.period > 0.0:     # see the 4-corner branch
                         interp_period += norm_w * v.period
                         p_sum_w += norm_w
                     vg = getattr(v, "gust", None)
