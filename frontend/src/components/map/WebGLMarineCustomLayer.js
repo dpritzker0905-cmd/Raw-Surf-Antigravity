@@ -1,6 +1,7 @@
 import { registerMarineEngine } from '../../engine/RenderPlanDispatcher';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { shouldHoldClearOnDeactivate, noteMarineActive } from './marineTransitionCoordinator';
+import { SKIP, stampLayerCall, stampSkip } from './marineLayerStamp';
 import { resolveCoarseBridgeGrace } from './marineCoarseBridgeGrace';
 import { resolveRejectedOpacity } from './marineZoomOutGate';
 
@@ -146,6 +147,8 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
         _gl = glOrArgs;
         _matrix = matrixArg;
       }
+      // WHY-NO-DRAW stamp (the desktop-Safari continuity gap) — see marineLayerStamp.js.
+      const _stamp = stampLayerCall();
       if (this._renderLogged === undefined) {
         this._renderLogged = true;
         console.log("[WebGLMarineLayer] render called! activeRef:", activeRef.current, "errorCount:", errorCount, "matrixType:", typeof _matrix, "matrixLen:", _matrix?.length);
@@ -156,6 +159,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       }
 
       if (!activeRef.current || errorCount > 3) {
+        let _held = false;
         if (this._wasActive) {
           // TRANSITION HOLD (2026-07-06): a model/layer switch blinks activeRef false for a
           // beat — keep the resident textures through it (see shouldHoldClearOnDeactivate);
@@ -164,8 +168,11 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
           if (!shouldHoldClearOnDeactivate()) {
             engine.clearBuffers(_gl);
             this._wasActive = false;
+          } else {
+            _held = true;
           }
         }
+        stampSkip(_stamp, errorCount > 3 ? SKIP.ERRORS : (_held ? SKIP.INACTIVE_HELD : SKIP.INACTIVE));
         return;
       }
 
@@ -180,7 +187,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       const _bgPrev = engine ? engine.__coarseBridgeGrace : null;
       if (engine) engine.__coarseBridgeGrace = null;
       const map = mapRef.current;
-      if (!map) return;
+      if (!map) { stampSkip(_stamp, SKIP.NO_MAP); return; }
 
       let viewportBounds = null;
       let opacityMultiplier = 1.0;
@@ -301,7 +308,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
                 isViewportZoomedOut, isGridRegional, hasCoarseBridge, isZoomingOrMoving,
                 currentZoom, overlapRatio,
               });
-              if (_rej.bail) { this._wasActive = false; return; }
+              if (_rej.bail) { this._wasActive = false; stampSkip(_stamp, SKIP.REJECTED_BAIL); return; }
               if (_rej.coarseBridge) {
                 // COARSE-BRIDGE GRACE (2026-08-15) — the bridge above is the only fade-to-zero in
                 // this family with NO time bound, and the nightly measured it holding 18.8 s. See
@@ -338,6 +345,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
             if (currentZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM && isGlobalSupported && gridWidth < 340.0) {
               if (!isZoomingOrMoving) {
                 this._wasActive = false;
+                stampSkip(_stamp, SKIP.ZOOMED_OUT_IDLE);
                 return;
               }
               opacityMultiplier = Math.max(0.0, Math.min(1.0, (currentZoom - 5.5) / (6.5 - 5.5)));
@@ -349,7 +357,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
-
+        if (!engine._initialized || !engine._waveData) stampSkip(_stamp, SKIP.ENGINE_NO_DATA);
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, viewportBounds, opacityMultiplier);
       } catch (e) {
         errorCount++;

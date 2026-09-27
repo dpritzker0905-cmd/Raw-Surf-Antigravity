@@ -37,11 +37,11 @@
  * the possible one keeps this a LOWER bound — a failure here is never an artefact of the sampler.
  *
  * @param {Array<{at:number, n:number|null, label:string|null}>} samples
- * @returns {{ms:number, label:string|null, from:number|null}} longest stall and the gesture label
- *          the stall STARTED under.
+ * @returns {{ms:number, label:string|null, from:number|null, start:number|null, end:number|null}}
+ *          longest stall, the gesture label it STARTED under, and its bracketing sample times.
  */
 function longestStall(samples) {
-  const worst = { ms: 0, label: null, from: null };
+  const worst = { ms: 0, label: null, from: null, start: null, end: null };
   let anchor = null;          // first sample carrying the current counter value
   for (const s of samples) {
     // A null counter is "never drew", not "stopped drawing" — it breaks the run rather than
@@ -59,9 +59,46 @@ function longestStall(samples) {
       worst.ms = ms;
       worst.label = anchor.label;
       worst.from = anchor.n;
+      worst.start = anchor.at;
+      worst.end = s.at;
     }
   }
   return worst;
 }
 
-module.exports = { longestStall };
+/**
+ * WHAT HAPPENED INSIDE THE WORST STALL (2026-09-26). The draw counter says THAT drawing stopped; the
+ * layer stamp (`__RAW_GPU__.layer`, src/components/map/marineLayerStamp.js) says why:
+ *
+ *   layerCalls      how many times MapLibre called the layer during the stall. 0 means nothing was
+ *                   driving frames at all (the animation clock stopped); > 0 means it was called and
+ *                   took an exit instead of drawing.
+ *   skips           {reason: samples} — the exit each sample saw (`null` = asked the engine to draw)
+ *   maxSampleGapMs  the largest spacing between samples. The sampler is a 100 ms setInterval on the
+ *                   page, so a hole far above that means the MAIN THREAD was blocked (a long task),
+ *                   not that the renderer skipped.
+ *
+ * Returns null when there was no stall. Samples recorded before the stamp existed read as
+ * `layerCalls: null` rather than 0, so an old series can never be misread as "not called".
+ */
+function stallAnatomy(samples, worst) {
+  if (!worst || worst.start === null || worst.end === null) return null;
+  const inside = samples.filter((s) => s.at >= worst.start && s.at <= worst.end);
+  if (inside.length < 2) return null;
+  const first = inside[0].layerN;
+  const last = inside[inside.length - 1].layerN;
+  const layerCalls = (typeof first === 'number' && typeof last === 'number') ? last - first : null;
+  const skips = {};
+  for (const s of inside) {
+    if (s.layerN === undefined || s.layerN === null) continue;
+    const key = s.skip === null || s.skip === undefined ? 'drew' : s.skip;
+    skips[key] = (skips[key] || 0) + 1;
+  }
+  let maxSampleGapMs = 0;
+  for (let i = 1; i < inside.length; i++) {
+    maxSampleGapMs = Math.max(maxSampleGapMs, inside[i].at - inside[i - 1].at);
+  }
+  return { layerCalls, skips, maxSampleGapMs };
+}
+
+module.exports = { longestStall, stallAnatomy };

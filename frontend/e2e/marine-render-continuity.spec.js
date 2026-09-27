@@ -53,7 +53,7 @@
  */
 const { test, expect } = require('@playwright/test');
 // Extracted so it can be unit-tested against known answers — see continuityOracle.test.js.
-const { longestStall } = require('./continuityOracle');
+const { longestStall, stallAnatomy } = require('./continuityOracle');
 
 // A gap budget, not zero. The engine legitimately pauses drawing across a model switch and during
 // the documented coarse-bridge hold; the defect is a gap the user can SEE. 1200 ms is ~3x the
@@ -107,6 +107,10 @@ async function startSampler(page) {
         // Sampling only the draw counter would call a vanished band a healthy frame.
         bandMult: bf && typeof bf.bandMult === 'number' ? bf.bandMult : null,
         label: w.__RAW_CONTINUITY_LABEL__ || null,
+        // WHY the draw counter stalled (src/components/map/marineLayerStamp.js): layer calls advance
+        // even when the engine does not draw, and `skip` names the exit taken instead.
+        layerN: g && g.layer ? g.layer.n : null,
+        skip: g && g.layer ? g.layer.skip : null,
       });
     }, pollMs);
   }, POLL_MS);
@@ -211,11 +215,12 @@ test.describe('Marine render continuity across real gestures', () => {
 
     const samples = await stopSampler(page);
     const worst = longestStall(samples);
+    const anatomy = stallAnatomy(samples, worst);
 
     // Attached unconditionally — a PASS with its margin is as informative as a failure, and this
     // is the first continuity series this program has ever produced.
     await test.info().attach('continuity-samples.json', {
-      body: JSON.stringify({ budgetMs: GAP_BUDGET_MS, worst, count: samples.length, samples }, null, 2),
+      body: JSON.stringify({ budgetMs: GAP_BUDGET_MS, worst, anatomy, count: samples.length, samples }, null, 2),
       contentType: 'application/json',
     });
 
@@ -224,7 +229,8 @@ test.describe('Marine render continuity across real gestures', () => {
       worst.ms,
       `the marine field stopped drawing for ${worst.ms} ms during "${worst.label}" `
       + `(budget ${GAP_BUDGET_MS} ms). That is the owner-reported gap, captured. `
-      + `The attached series and the retained video show which gesture produced it.`,
+      + `The attached series and the retained video show which gesture produced it. `
+      + `Inside the stall: ${JSON.stringify(anatomy)}.`,
     ).toBeLessThanOrEqual(GAP_BUDGET_MS);
   });
 });
@@ -311,11 +317,12 @@ test.describe('Marine render continuity under a rapid zoom/pan burst', () => {
 
     const samples = await stopSampler(page);
     const worst = longestStall(samples);
+    const anatomy = stallAnatomy(samples, worst);
     const bandSamples = samples.filter((s) => typeof s.bandMult === 'number');
     const bandDark = bandSamples.filter((s) => s.bandMult <= 0.01).length;
 
     await test.info().attach('burst-samples.json', {
-      body: JSON.stringify({ camera: SEBASTIAN, budgetMs: GAP_BUDGET_MS, worst,
+      body: JSON.stringify({ camera: SEBASTIAN, budgetMs: GAP_BUDGET_MS, worst, anatomy,
                              bandSamples: bandSamples.length, bandDark, samples }, null, 2),
       contentType: 'application/json',
     });
@@ -324,7 +331,8 @@ test.describe('Marine render continuity under a rapid zoom/pan burst', () => {
     expect(
       worst.ms,
       `the field stopped drawing for ${worst.ms} ms during "${worst.label}" at Sebastian Inlet z12 `
-      + `(budget ${GAP_BUDGET_MS} ms) — the owner's reported burst defect, captured.`,
+      + `(budget ${GAP_BUDGET_MS} ms) — the owner's reported burst defect, captured. `
+      + `Inside the stall: ${JSON.stringify(anatomy)}.`,
     ).toBeLessThanOrEqual(GAP_BUDGET_MS);
 
     // The band is only judged if it was ever measurable: a run where ratingBandFade never appeared

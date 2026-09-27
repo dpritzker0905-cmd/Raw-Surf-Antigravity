@@ -10,7 +10,7 @@
  * This is deliberately a Jest test rather than a Playwright one: it needs no browser, so it runs on
  * every push in the fast lane, and the E2E lane is left to do the thing only it can do.
  */
-const { longestStall } = require('../../e2e/continuityOracle');
+const { longestStall, stallAnatomy } = require('../../e2e/continuityOracle');
 
 const s = (at, n, label = null) => ({ at, n, label });
 
@@ -100,5 +100,43 @@ describe('continuityOracle.longestStall', () => {
     // contention that causes it.
     const samples = [s(0, 1), s(50, 1), s(1500, 1), s(1600, 2)];
     expect(longestStall(samples).ms).toBe(1500);
+  });
+});
+
+describe('continuityOracle.stallAnatomy — what happened inside the worst stall (2026-09-26)', () => {
+  // A sample carrying the layer stamp: layerN advances per render() call, skip names the exit.
+  const L = (at, n, layerN, skip = null, label = null) => ({ at, n, layerN, skip, label });
+
+  it('brackets the stall with its sample times', () => {
+    const w = longestStall([s(0, 1), s(100, 2), s(200, 2), s(900, 2), s(1000, 3)]);
+    expect([w.start, w.end, w.ms]).toEqual([100, 900, 800]);
+  });
+
+  it('called but not drawing: the layer kept being called and names its exit', () => {
+    const samples = [L(0, 5, 10), L(100, 6, 11), L(200, 6, 14, 'engine_no_data'),
+      L(300, 6, 17, 'engine_no_data'), L(400, 6, 20, 'inactive_held'), L(500, 7, 23)];
+    const a = stallAnatomy(samples, longestStall(samples));
+    expect(a).toEqual({ layerCalls: 9, skips: { drew: 1, engine_no_data: 2, inactive_held: 1 },
+      maxSampleGapMs: 100 });
+  });
+
+  it('not called at all: nothing was driving frames', () => {
+    const samples = [L(0, 5, 10), L(100, 6, 11), L(200, 6, 11), L(300, 6, 11), L(400, 7, 12)];
+    expect(stallAnatomy(samples, longestStall(samples)).layerCalls).toBe(0);
+  });
+
+  it('a main-thread block shows as a hole far above the 100 ms poll', () => {
+    const samples = [L(0, 5, 10), L(100, 6, 11), L(900, 6, 11), L(1000, 6, 12), L(1100, 7, 13)];
+    expect(stallAnatomy(samples, longestStall(samples)).maxSampleGapMs).toBe(800);
+  });
+
+  it('an old series without the stamp reads as unknown, never as "not called"', () => {
+    const samples = [s(0, 1), s(100, 2), s(200, 2), s(300, 2), s(400, 3)];
+    expect(stallAnatomy(samples, longestStall(samples))).toEqual({ layerCalls: null, skips: {}, maxSampleGapMs: 100 });
+  });
+
+  it('no stall, no anatomy', () => {
+    const samples = [s(0, 1), s(100, 2), s(200, 3)];
+    expect(stallAnatomy(samples, longestStall(samples))).toBeNull();
   });
 });
