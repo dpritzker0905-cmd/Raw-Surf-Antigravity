@@ -78,6 +78,14 @@ function longestStall(samples) {
  *                   page, so a hole far above that means the MAIN THREAD was blocked (a long task),
  *                   not that the renderer skipped.
  *
+ *   rafTicks        (when samples carry `rafN`) animation frames the BROWSER delivered during the stall,
+ *                   from a do-nothing requestAnimationFrame loop the sampler runs. The draw gap is only
+ *                   the app's when the browser was offering frames: ~1 tick means the runner itself was
+ *                   presenting ~1 frame per gap (CI WebKit renders in software), so there was no frame
+ *                   to draw on. See `isAppStall`.
+ *   mapFrames       (when samples carry `mapN`) MapLibre `render` events during the stall. rafTicks > 0
+ *                   with mapFrames 0 = nothing requested a repaint; mapFrames > 0 with layerCalls 0 =
+ *                   MapLibre painted without the marine layer.
  *   events          (when `logs` is given) the engine clears (`window.__MARINE_CLEAR_LOG__`, with their
  *                   reasons) and churn events (`window.__MARINE_CHURN__.log`) from EVENT_LEAD_MS before
  *                   the stall to its end, each with `dtMs` relative to the stall's start — which clear
@@ -106,6 +114,16 @@ function stallAnatomy(samples, worst, logs) {
     maxSampleGapMs = Math.max(maxSampleGapMs, inside[i].at - inside[i - 1].at);
   }
   const anatomy = { layerCalls, skips, maxSampleGapMs };
+  // Present only when the series carries the counters, so an older series reads exactly as before.
+  const span = (key) => {
+    const a = inside[0][key];
+    const b = inside[inside.length - 1][key];
+    return (typeof a === 'number' && typeof b === 'number') ? b - a : undefined;
+  };
+  const rafTicks = span('rafN');
+  const mapFrames = span('mapN');
+  if (rafTicks !== undefined) anatomy.rafTicks = rafTicks;
+  if (mapFrames !== undefined) anatomy.mapFrames = mapFrames;
   if (logs) {
     const within = (t) => typeof t === 'number' && t >= worst.start - EVENT_LEAD_MS && t <= worst.end;
     anatomy.events = [
@@ -119,4 +137,23 @@ function stallAnatomy(samples, worst, logs) {
   return anatomy;
 }
 
-module.exports = { longestStall, stallAnatomy, EVENT_LEAD_MS };
+/**
+ * IS THE WORST GAP THE APP'S? (2026-09-27). A draw gap over budget is a defect only when the browser was
+ * offering frames the layer did not draw on. Measured on dev run 36316250426, Desktop Safari at Sebastian
+ * z12: the draw counter and the layer-call counter rose TOGETHER at ~1 per second through the whole burst
+ * and every call drew, so the 1,436 ms "stall" was the gap between two frames of a runner presenting ~1
+ * frame per second. The same shape as the FPS guardrail (#115): the gate grading the runner, not the app.
+ *
+ * So: over budget AND at least MIN_OFFERED_FRAMES browser frames inside the gap. A real stall on a 60 Hz
+ * browser offers ~70 frames per 1.2 s; even a 5 fps runner offers 6. A series without the rAF counter
+ * stays STRICT (over budget = stall), so an old or broken sampler can never pass a gap it cannot explain.
+ */
+const MIN_OFFERED_FRAMES = 3;
+
+function isAppStall(worst, anatomy, budgetMs, minOfferedFrames = MIN_OFFERED_FRAMES) {
+  if (!worst || !(worst.ms > budgetMs)) return false;
+  if (!anatomy || typeof anatomy.rafTicks !== 'number') return true;
+  return anatomy.rafTicks >= minOfferedFrames;
+}
+
+module.exports = { longestStall, stallAnatomy, isAppStall, EVENT_LEAD_MS, MIN_OFFERED_FRAMES };
