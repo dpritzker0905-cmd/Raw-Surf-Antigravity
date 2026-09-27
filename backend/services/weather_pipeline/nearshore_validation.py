@@ -108,6 +108,93 @@ def transform_factors(tp_s: float, swell_from_deg, shore_normal_deg, station_dep
     return {k: round(v, 4) for k, v in f.items()}
 
 
+# ── THE SPECTRAL ARM (roadmap stage 3, 2026-09-27) ──────────────────────────────────────────────
+# SURF_PARTITIONS is built and off: with it on, the served height transforms each swell train on its
+# own period and bearing (`estimate_surf_partitioned`) instead of shoaling one blended sea. Offshore
+# buoys cannot judge that flip (it changes nothing offshore); these instruments can. The arm below is
+# what the station would read IF the flag were on, graded beside the bulk arm on the same hours.
+
+def train_from_point(kind: str, payload: dict):
+    """One /point partition answer -> a train, under `point_resolution._resolve_partitions`'s rules:
+    a ratio-derived train is the total re-weighted (skipped, never fed back as spectrum), a missing,
+    zero or NaN height/period is skipped, and a NaN bearing is nulled. PURE; parity-pinned."""
+    basis = (payload or {}).get("estimate_basis")
+    if isinstance(basis, dict) and basis.get("method") == "wave_component_ratio_estimation":
+        return None
+    p = (payload or {}).get("point") or {}
+    h, tp, d = p.get("speed"), p.get("period"), p.get("direction")
+    if not h or not tp or h != h or tp != tp or h <= 0 or tp <= 0:
+        return None
+    return {"h": float(h), "tp": float(tp), "dir": None if d is None or d != d else d, "kind": kind}
+
+
+def station_trains(answers: list, total_h, total_tp=None):
+    """[(kind, payload)] -> the reconciled trains the served lane would use, or None when they do not
+    represent the sea (the served lane then falls back to the total field, and so does this arm)."""
+    from services.weather_pipeline.surf_transform import partitions_represent, reconcile_partitions
+    parts = [t for t in (train_from_point(k, a) for k, a in answers or []) if t]
+    if not parts or not partitions_represent(parts, total_h, total_tp):
+        return None
+    return reconcile_partitions(parts, total_h)
+
+
+def model_hs_at_station_trains(trains, shore_normal_deg, station_depth_m: float,
+                               shelf_depth_m: float, shelf_width_km: float):
+    """Each train through `model_hs_at_station` on its own period and bearing, recombined in
+    quadrature: the station-depth mirror of `estimate_surf_partitioned` (no cap, as for the bulk arm).
+    None when no train transforms. Parity-pinned to the served function."""
+    energy, used = 0.0, 0
+    for t in trains or []:
+        h, tp = t.get("h"), t.get("tp")
+        if h is None or tp is None or h <= 0 or tp <= 0:
+            continue
+        hp = model_hs_at_station(h, tp, t.get("dir"), shore_normal_deg, station_depth_m,
+                                 shelf_depth_m, shelf_width_km)
+        if hp > 0:
+            energy += hp * hp
+            used += 1
+    return math.sqrt(energy) if used else None
+
+
+def _arm_stats(rows: list, key: str) -> dict:
+    errs = [float(r[key]) - float(r["obs_hs_m"]) for r in rows]
+    ratios = [float(r["obs_hs_m"]) / float(r[key]) for r in rows if float(r[key]) > 0]
+    out = {"mae_m": round(sum(abs(e) for e in errs) / len(errs), 4),
+           "bias_m": round(sum(errs) / len(errs), 4)}
+    if ratios:
+        out["obs_over_model_median"] = _quantiles(ratios)["median"]
+    return out
+
+
+def trains_ab(matched: list):
+    """Bulk vs spectral on the SAME instrument hours. `as_flipped` grades what the flag would serve
+    (spectral where the trains represent the sea, bulk elsewhere); `trains_only` isolates the hours
+    where the trains were actually used, which is where the flip can move anything. None when no row
+    carries the spectral arm (the runner's --trains was off)."""
+    rows = [m for m in matched or [] if m.get("model_hs_trains_m") is not None
+            and m.get("model_hs_m") is not None]
+    if not rows:
+        return None
+    out = {"n": len(rows), "bulk": _arm_stats(rows, "model_hs_m"),
+           "as_flipped": _arm_stats(rows, "model_hs_trains_m")}
+    used = [m for m in rows if m.get("trains_used")]
+    out["trains_only"] = {"n": len(used)}
+    if used:
+        better = sum(abs(float(m["model_hs_trains_m"]) - float(m["obs_hs_m"]))
+                     < abs(float(m["model_hs_m"]) - float(m["obs_hs_m"])) for m in used)
+        out["trains_only"].update({"bulk": _arm_stats(used, "model_hs_m"),
+                                   "trains": _arm_stats(used, "model_hs_trains_m"),
+                                   "trains_closer_share": round(better / len(used), 4)})
+    by_station = {}
+    for m in used:
+        by_station.setdefault(m.get("station", "?"), []).append(m)
+    out["trains_only"]["by_station"] = {
+        s: {"n": len(v), "bulk_mae_m": _arm_stats(v, "model_hs_m")["mae_m"],
+            "trains_mae_m": _arm_stats(v, "model_hs_trains_m")["mae_m"]}
+        for s, v in sorted(by_station.items())}
+    return out
+
+
 def backfill_valid_times(now: datetime, backfill_hours: float = 0.0, step_hours: float = 3.0) -> list:
     """Top-of-hour valid times to grade: the current hour first, then back over `backfill_hours` at
     `step_hours`. One hour per run graded ~7 station-hours; the recent past is still resident (2-day
@@ -203,6 +290,9 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
     if fac:
         extra["factors_median"] = {k: _quantiles([f[k] for f in fac if k in f])["median"]
                                    for k in ("friction", "shoaling", "exposure", "kr", "total")}
+    ab = trains_ab(matched)
+    if ab:
+        extra["trains_ab"] = ab
     return {**base, "available": True, "stations": stations, **extra}
 
 

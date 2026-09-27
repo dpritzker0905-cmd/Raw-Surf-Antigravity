@@ -17,6 +17,10 @@ on:
         description: "Also grade the last N hours at 3-hourly steps (point calls = spots x (N/3+1)). 0 = this hour only, the cron's setting."
         required: false
         default: '0'
+      trains:
+        description: "Also grade the swell-train arm (what SURF_PARTITIONS would serve) beside the bulk arm. 4x the point calls."
+        required: false
+        default: '0'
   schedule:
     # Hourly is the accrual rate the packet assumes; GitHub cron is BEST-EFFORT (measured
     # delivery 5-32% on sibling lanes) — the report series is append-only, gaps are fine.
@@ -100,6 +104,7 @@ jobs:
           NEARSHORE_VAL_MIN_MATCHED: ${{ vars.NEARSHORE_VAL_MIN_MATCHED || '1' }}
           NEARSHORE_VAL_MAX_STATIONS: ${{ vars.NEARSHORE_VAL_MAX_STATIONS || '20' }}
           NEARSHORE_VAL_BACKFILL_H: ${{ github.event.inputs.backfill_hours || '0' }}
+          NEARSHORE_VAL_TRAINS: ${{ github.event.inputs.trains || '0' }}
           # ⛔ deliberately NO SURF_* here: the runner must read the serving path's own defaults;
           # a flag set only in this lane would grade a transform nobody serves (test_flag_lane_parity
           # does not cover this workflow — do not make it need to).
@@ -111,7 +116,7 @@ jobs:
           python3 scripts/run_nearshore_validation.py --json nearshore_report.json \
             2>&1 | tee nearshore.txt | tail -40 || rc=$?
           echo "── decision lines (tail-proof) ──"
-          grep -E "^VERDICT|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
+          grep -E "^VERDICT|^TRAINS_AB|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
           if [ "$rc" -ge 2 ]; then
             echo "::error::INFRA, NOT A VERDICT (exit $rc): pair table, CDIP THREDDS, or the prod point API could not answer. Nothing was graded. preflight awake=${{ steps.warm.outputs.awake }}"
             exit 2
@@ -138,6 +143,15 @@ jobs:
               print(f"- ⚠️ {r['reason']}")
           for s, v in sorted(r.get("stations", {}).items()):
               print(f"- `{s}` n={v['n']} MAE {v['mae_m']} m bias {v['bias_m']:+} m")
+          ab = r.get("obs_over_model")
+          if ab:
+              print(f"- observed / modelled median {ab['median']} (p10 {ab['p10']}, p90 {ab['p90']}, n {ab['n']})")
+          t = r.get("trains_ab")
+          if t:
+              o = t["trains_only"]
+              print(f"- swell-train arm: bulk MAE {t['bulk']['mae_m']} m vs as-flipped {t['as_flipped']['mae_m']} m over {t['n']} rows; trains used on {o['n']}")
+              if o["n"]:
+                  print(f"  - where used: bulk {o['bulk']['mae_m']} m (bias {o['bulk']['bias_m']:+}) vs trains {o['trains']['mae_m']} m (bias {o['trains']['bias_m']:+}); trains closer on {o['trains_closer_share']:.0%}")
           print(f"- budget wall {r['budget']['wall_s']} s · point calls {r['point_api']['calls']} ({r['point_api']['failed']} failed)")
           PY
 

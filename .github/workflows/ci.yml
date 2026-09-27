@@ -1007,7 +1007,12 @@ jobs:
           # passed, confirming the #113 projection exactly. The new tests/test_nearshore_backfill.py (claimed by
           # `--lane chain`) adds 6 executed tests: 1328 + 6 = 1334, 1334 - 6 = 1328; files 114 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1334.
-          MIN_FILES, MIN_PASSED = 114, 1328
+          # ⬆ MIN_FILES 114→115, MIN_PASSED 1328→1339 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge grades the swell-train flip, roadmap stage 3): hosted CI on PR #116 (merged as 37a40946) observed
+          # 114 files / 1334 passed, confirming the #116 projection exactly. The new tests/test_nearshore_trains_ab.py
+          # (claimed by `--lane chain`) adds 11 executed tests: 1334 + 11 = 1345, 1345 - 6 = 1339; files 115 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1345.
+          MIN_FILES, MIN_PASSED = 115, 1339
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
