@@ -12,6 +12,7 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getFullUrl } from '../utils/media';
+import SpotQualityBadge from './SpotQualityBadge';
 
 // Conditions color mapping
 const conditionColors = {
@@ -237,11 +238,14 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
           </div>
         )}
         
-        {/* Current Conditions Badge */}
+        {/* Current Conditions Badge — size AND quality: the listing's current_conditions carries the
+            hub's rating (#96), and "a size without a quality is also incomplete" (CLAUDE.md). The card
+            is dark in every theme, so white text reads in light, dark and beach alike. */}
         {conditions && (
-          <div className="absolute top-2 right-2 flex items-center gap-1 bg-blue-500/90 backdrop-blur-sm rounded-full px-2 py-1">
-            <Waves className="w-3 h-3 text-white" />
+          <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-blue-500/90 backdrop-blur-sm rounded-full px-2 py-1">
+            <Waves className="w-3 h-3 text-white" aria-hidden="true" />
             <span className="text-xs font-bold text-white">{conditions.wave_height_ft}ft</span>
+            <SpotQualityBadge current={conditions} compact textClass="text-white" />
           </div>
         )}
         
@@ -274,6 +278,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
               <Badge className={`text-[10px] ${conditionColors[conditions.label] || 'bg-gray-500'}`}>
                 {conditions.label}
               </Badge>
+              <SpotQualityBadge current={conditions} compact textClass="text-white" />
             </div>
             
             {/* Period */}

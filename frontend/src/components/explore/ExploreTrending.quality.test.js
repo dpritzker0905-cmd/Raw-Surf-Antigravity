@@ -3,9 +3,11 @@
  *
  * `/conditions/batch` now carries `rating` + `rating_level` (absent unless rated). This mounts the
  * REAL ExploreTrending, which is the one live consumer of the batch (SpotConditionCard is only used by
- * _deprecated/, and ExploreSpotCard reads `current_conditions`, which the listing always sends as
- * null), and checks the quality renders as a word with a full aria sentence, and not at all when the
- * spot is unrated.
+ * _deprecated/), and checks the quality renders as a word with a full aria sentence, and not at all
+ * when the spot is unrated.
+ * ⚠️ CORRECTED 2026-09-26: this header used to say ExploreSpotCard's `current_conditions` is always
+ * null. It is not — `/explore/surf-spots` fills it from the hub producer, rating included; the card
+ * just never rendered the quality. ExploreSpotCard.quality.test.js covers that card.
  */
 import React from 'react';
 import { render, screen } from '@testing-library/react';
