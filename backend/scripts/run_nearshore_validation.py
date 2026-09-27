@@ -39,7 +39,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.nearshore_validation import (   # noqa: E402
     Refusal, backfill_valid_times, build_report, fetch_station_hs, load_pairs, match, model_hs_at_station,
-    qc_filter, transform_factors)
+    model_hs_at_station_trains, qc_filter, station_trains, transform_factors)
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 UA = {"User-Agent": "raw-surf-nearshore-validation-runner"}
@@ -49,6 +49,24 @@ def _fetch_json(url: str, timeout: float = 60.0) -> dict:
     req = urllib.request.Request(url, headers=UA)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8", "replace"))
+
+
+# The served lane's partition layers, in its order (`PointResolutionService._PARTITION_LAYERS`).
+TRAIN_LAYERS = (("swell_1", "swell"), ("swell_2", "swell"), ("wind_waves", "windsea"))
+
+
+def fetch_train_answers(fetch, base: str, lat, lng, valid_time: str) -> list:
+    """[(kind, payload)] for each partition layer that answered; a layer that fails is skipped, as the
+    served lane skips it. `fetch` is injected so the arm is testable without the network."""
+    out = []
+    for layer, kind in TRAIN_LAYERS:
+        url = (f"{base}/api/weather/point?model=GFS&domain=marine&layer={layer}"
+               f"&lat={lat}&lng={lng}&valid_time={valid_time}")
+        try:
+            out.append((kind, fetch(url)))
+        except BaseException:                                         # noqa: BLE001 — one layer, never the row
+            continue
+    return out
 
 
 def classify_station_failure(exc: BaseException) -> str:
@@ -89,6 +107,10 @@ def main() -> int:
     ap.add_argument("--backfill-hours", type=float,
                     default=float(os.environ.get("NEARSHORE_VAL_BACKFILL_H", "0") or 0))
     ap.add_argument("--step-hours", type=float, default=3.0)
+    # THE SPECTRAL ARM (roadmap stage 3): also grade what SURF_PARTITIONS would serve. 4x the point
+    # calls (the three partition layers per spot-hour), so it is off unless asked for.
+    ap.add_argument("--trains", action="store_true",
+                    default=os.environ.get("NEARSHORE_VAL_TRAINS", "0") == "1")
     ap.add_argument("--max-stations", type=int,
                     default=int(os.environ.get("NEARSHORE_VAL_MAX_STATIONS", "20")))
     args = ap.parse_args()
@@ -147,6 +169,16 @@ def main() -> int:
             if key not in geo:
                 geo[key] = resolve_surf_geometry(spot["lat"], spot["lng"])     # once per spot, not per hour
             g = geo[key]
+            row_trains = {}
+            if args.trains:
+                trains = station_trains(fetch_train_answers(_fetch_json, args.base, spot["lat"], spot["lng"],
+                                                            valid_time), hs, tp)
+                spectral = model_hs_at_station_trains(trains, g.shore_normal_deg, depth, g.depth_m,
+                                                      g.shelf_width_km) if trains else None
+                row_trains = {"trains_used": spectral is not None,
+                              "n_trains": len(trains or []),
+                              "model_hs_trains_m": spectral if spectral is not None else model_hs_at_station(
+                                  hs, tp, dr, g.shore_normal_deg, depth, g.depth_m, g.shelf_width_km)}
             preds.append({
                 "station": entry["station"], "spot": spot.get("name"),
                 "valid_time": valid_time + ":00Z",
@@ -155,6 +187,7 @@ def main() -> int:
                 "offshore_hs_m": hs, "tp_s": tp, "swell_from_deg": dr,
                 "factors": transform_factors(tp, dr, g.shore_normal_deg, depth, g.depth_m, g.shelf_width_km),
                 "upstream_provider": d.get("upstream_provider"),
+                **row_trains,
             })
     if not preds and point_fail:
         print(f"INFRA: the point API produced 0 usable answers in {point_fail} attempts "
@@ -175,7 +208,8 @@ def main() -> int:
     report["n_spot_hours"] = len(matched)
     report["n_station_hours"] = len({(m["station"], m["obs_time"]) for m in matched})
     report["point_api"] = {"base": args.base, "valid_time": valid_times[0], "valid_times": len(valid_times),
-                           "calls": len(preds) + point_fail, "failed": point_fail}
+                           "calls": (len(preds) * (1 + len(TRAIN_LAYERS) * bool(args.trains))) + point_fail,
+                           "failed": point_fail, "trains": bool(args.trains)}
     report["budget"] = {"wall_s": round(time.time() - t0, 1)}
     with open(args.json, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=1)
@@ -190,6 +224,13 @@ def main() -> int:
                     for s, v in sorted(report["stations"].items()))
     print(f"VERDICT GRADED n_matched={report['n_matched']} "
           f"(spot-hours {report['n_spot_hours']}, station-hours {report['n_station_hours']}) {per}")
+    ab = report.get("trains_ab")
+    if ab:
+        t = ab["trains_only"]
+        print(f"TRAINS_AB n={ab['n']} bulk_mae={ab['bulk']['mae_m']} as_flipped_mae={ab['as_flipped']['mae_m']} "
+              f"trains_used={t['n']}" + (f" bulk={t['bulk']['mae_m']}/{t['bulk']['bias_m']:+} "
+                                         f"trains={t['trains']['mae_m']}/{t['trains']['bias_m']:+} "
+                                         f"closer={t['trains_closer_share']}" if t["n"] else ""))
     return 0
 
 
