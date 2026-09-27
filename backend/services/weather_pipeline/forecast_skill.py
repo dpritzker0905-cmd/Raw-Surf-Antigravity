@@ -162,8 +162,13 @@ def rows_from_calibration_report(report, target_time: str, lead_h: float,
         if bid is None or bid in seen or hs in (None, 0.0):
             continue
         seen.add(bid)
+        # WHICH product, frame and cycle answered (skill_attribution): the paired gap to the same-model
+        # control can only be split by what the row records. Absent keys = unknown, never guessed.
+        from services.weather_pipeline.skill_attribution import serving_provenance
+        served = entry.get("served") or {}
         rows.append({"source": source, "buoy_id": bid, "target_time": target_time,
-                     "lead_h": round(lead_h, 1), "hs_m": hs, "tp_s": res.get("model_tp_s")})
+                     "lead_h": round(lead_h, 1), "hs_m": hs, "tp_s": res.get("model_tp_s"),
+                     **serving_provenance(served.get("product"), served.get("cycle"), target_time, lead_h)})
     return rows
 
 
@@ -628,16 +633,22 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     # ── SHADOW MOS (roadmap stage 5, step 1) — measurement only, after every write has landed ──
     # Its own try and its own kill switch (FORECAST_SKILL_MOS=0): a read or fit failure here costs
     # the shadow block and nothing else. See skill_mos.py.
-    mos = None
+    mos = attribution = None
     if os.environ.get("FORECAST_SKILL_MOS", "1") != "0":
         try:
+            from services.weather_pipeline.skill_attribution import same_model_attribution
             from services.weather_pipeline.skill_mos import shadow_report
-            mos = shadow_report(mos_history_rows(now, archives, load_calibration_rows_l2), now)
+            history = mos_history_rows(now, archives, load_calibration_rows_l2)
+            mos = shadow_report(history, now)
+            # WHERE the paired same-model gap comes from (tier / frame snap / cycle age). Same history,
+            # same guard: a failure costs these two blocks and nothing else.
+            attribution = same_model_attribution(history)
         except Exception as e:
             logger.warning("[forecast-skill] MOS shadow skipped (%s)", e)
     return {"ledgered": len(incoming), "scored": len(scored),
             "pending_kept": len(still), "pending_evicted_cap": merge_stats.get("cap_evicted", 0),
-            "summary": summary, "scoring_rejections": score_stats, "mos_shadow": mos}
+            "summary": summary, "scoring_rejections": score_stats, "mos_shadow": mos,
+            "same_model_attribution": attribution}
 
 
 def mos_history_rows(now: datetime, archives, load_rows) -> List[dict]:
@@ -667,3 +678,5 @@ def attach_to_report(report, skill) -> None:
         report["forecast_skill_ops"]["scoring_rejections"] = skill["scoring_rejections"]
     if skill.get("mos_shadow") is not None:
         report["forecast_skill_mos_shadow"] = skill["mos_shadow"]
+    if skill.get("same_model_attribution") is not None:
+        report["forecast_skill_same_model"] = skill["same_model_attribution"]

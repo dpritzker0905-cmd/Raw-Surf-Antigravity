@@ -992,7 +992,12 @@ jobs:
           # 1299 passed, confirming the #104 projection exactly. The new tests/test_skill_mos.py (claimed by
           # `--lane chain`) adds 16 executed tests: 1299 + 16 = 1315, 1315 - 6 = 1309; files 112 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1315.
-          MIN_FILES, MIN_PASSED = 112, 1309
+          # ⬆ MIN_FILES 112→113, MIN_PASSED 1309→1322 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (same-model gap
+          # attribution on the skill ledger): hosted CI on PR #112 (merged as be682591) observed 112 files / 1315
+          # passed, confirming the #107 projection exactly. The new tests/test_skill_attribution.py (claimed by
+          # `--lane chain`) adds 13 executed tests: 1315 + 13 = 1328, 1328 - 6 = 1322; files 113 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1328.
+          MIN_FILES, MIN_PASSED = 113, 1322
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

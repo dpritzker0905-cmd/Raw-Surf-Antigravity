@@ -432,7 +432,7 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
             station = coords.get(bid)
             lat, lng, at = ((station[0], station[1], "buoy") if station
                             else (spot.get("latitude"), spot.get("longitude"), "spot"))
-            model_hs = model_tp = None
+            model_hs = model_tp = served = None
             wind_kt = wind_from = None
             try:
                 marine = await resolver.resolve_point(
@@ -441,6 +441,7 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
                 if isinstance(marine, NormalizedPointResponse) and marine.point is not None:
                     model_hs = marine.point.speed      # offshore significant wave height (m)
                     model_tp = marine.point.period
+                    served = {"product": marine.product_id, "cycle": marine.model_run_time.strftime("%Y-%m-%dT%H:%M:%SZ") if marine.model_run_time else None}  # WHICH product/cycle answered (skill_attribution)
             except Exception as e:
                 logger.debug(f"[buoy-calibration] resolve failed for buoy {bid}: {e}")
             # WIND residual (2026-08-09): same coordinates, same per-buoy cache, zero upstream
@@ -458,14 +459,14 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
                         wind_from = wind.point.direction
                 except Exception as e:
                     logger.debug(f"[buoy-calibration] wind resolve failed for buoy {bid}: {e}")
-            _resolved[bid] = (model_hs, model_tp, wind_kt, wind_from, at)
-        model_hs, model_tp, wind_kt, wind_from, resolved_at = _resolved[bid]
+            _resolved[bid] = (model_hs, model_tp, wind_kt, wind_from, at, served)
+        model_hs, model_tp, wind_kt, wind_from, resolved_at, served = _resolved[bid]
         residual = compare_obs_to_model(obs, model_hs, model_tp) if obs else None
         wind_residual = (compare_wind_to_model(obs, wind_kt, wind_from)
                          if obs and os.environ.get("BUOY_WIND_RESIDUAL", "1") != "0" else None)
         rows.append({
             "spot_id": str(spot.get("id")), "name": spot.get("name"), "buoy_id": bid,
-            "buoy_time": obs.get("time") if obs else None, "resolved_at": resolved_at,
+            "buoy_time": obs.get("time") if obs else None, "resolved_at": resolved_at, "served": served,
             "residual": residual,
             "wind_residual": wind_residual,
         })
