@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { classifyMapInitError, isMapStartupFailure } from './mapWebglSupport';
 import { basemapStyleFailure, hasMapboxToken, publishBasemapDiag } from './basemapFallback';
+import { recordChurn } from './marineTransitionCoordinator';
 
 /**
  * Everything the map does when its rendering goes wrong, in one place.
@@ -93,6 +94,7 @@ export const useMapErrorSurface = ({ mapInstance, innerMapRef, setWebglWindFaile
         e.preventDefault();
         console.error('[MapWebGL] WebGL context lost detected! Triggering safety fallbacks.');
         WeatherTelemetry.trackWebGLContextLost();
+        recordChurn('marine_webgl_fallback', { cause: 'context_lost' });
         setWebglWindFailed(true);
         setWebglMarineFailed(true);
       };

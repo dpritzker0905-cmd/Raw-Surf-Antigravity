@@ -151,7 +151,7 @@ async function readMarineLogs(page) {
       ? window.__MARINE_CLEAR_LOG__.map((c) => ({ reason: c.reason, timestamp: c.timestamp,
         transitioning: c.transitioning, requested: c.requested, displayed: c.displayed })) : [],
     churn: (window.__MARINE_CHURN__ && Array.isArray(window.__MARINE_CHURN__.log))
-      ? window.__MARINE_CHURN__.log.map((c) => ({ kind: c.kind, t: c.t })) : [],
+      ? window.__MARINE_CHURN__.log.map((c) => ({ kind: c.kind, t: c.t, cause: c.cause, message: c.message })) : [],
   }));
 }
 
