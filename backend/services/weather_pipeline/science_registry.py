@@ -283,17 +283,22 @@ _add(Constant(
 
 _add(Constant(
     name="REFRACTION_KR",
-    value=0.797,
+    value=0.873,
     units="dimensionless (Kr, nearshore refraction coefficient)",
     what="Energy lost to refraction between offshore and the break. The transform assumed 1.0.",
     module="services.weather_pipeline.surf_transform",
-    source="validate_nearshore_transform.py measured against the CDIP instrument archive",
+    source="validate_nearshore_transform.py --composed, against the CDIP instrument archive",
     method="field",
-    sample="385,651 QC-good swell hours across 10 independent California CDIP sites",
+    sample="394,331 QC-good swell hours across 10 independent California CDIP sites (2026-09-27)",
     published_range=(0.75, 1.30),
     status=IN_RANGE,
     debt_reason="",
     applies_to=(
+        "RE-MEASURED 2026-09-27 AGAINST THE CHAIN IT MULTIPLIES: 0.797 was observed(near/deep) / Ks "
+        "ONLY, so it absorbed shelf friction and directional blocking that the chain ALSO applies "
+        "(shelf_dissipation, _height_exposure_factor) -- counted twice. Divided by the chain's own "
+        "friction x shoaling x exposure on the same pairs and hours: median 0.873 (per site "
+        "0.640-1.173); the Ks-only side reproduces 0.797 exactly. History of the 0.797 below. "
         "*** THE PARTNER OF SURF_HEIGHT_H110. NEITHER MAY SHIP ALONE. *** Assuming Kr = 1.0 "
         "over-predicted nearshore height by 1/0.797 = +25.5%; emitting Hs where the published surf "
         "standard is H1/10 (x1.27) left us -21.3% low. Net (1/0.797)/1.27 = 0.988 -- right by "

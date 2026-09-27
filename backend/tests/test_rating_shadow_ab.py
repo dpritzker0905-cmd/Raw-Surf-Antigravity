@@ -17,6 +17,7 @@ from scripts.science_shadow_ab import replay_frames                     # noqa: 
 from services.weather_pipeline.surf_point import (                       # noqa: E402
     estimate_surf_at, resolve_surf_geometry)
 from services.weather_pipeline.surf_rating import compute_surf_rating   # noqa: E402
+from services.weather_pipeline.surf_transform import REFRACTION_KR       # noqa: E402
 
 PIPELINE = (21.665, -158.051)
 
@@ -83,14 +84,16 @@ def test_a_height_flag_candidate_moves_the_height_and_the_score():
     (77.4 -> 96.0, good -> epic), while 2.0 m sits on the known PLATEAU (96.0 either way -- the
     same flat band as the sim's 1 m/4 m = 86.5/86.5). The candidate arm must re-run the height
     half on BOTH; only the rising-limb row may move the score."""
-    rep = replay_frames(_frames([_row(offshore=0.5), _row(offshore=2.0)]),
+    # 0.5 -> 0.45 m on 2026-09-27: at Kr 0.873 the 0.5 m row already reads epic (86.6), so it can no
+    # longer show a level change; 0.45 m is the same rising-limb case (good -> epic, 76.0 -> 89.8).
+    rep = replay_frames(_frames([_row(offshore=0.45), _row(offshore=2.0)]),
                         {"SURF_REFRACTION_KR": "1.0"})
     assert rep["rows_replayable"] == 2 and rep["disqualified"] == 0
     by_h = sorted(rep["biggest_upgrades"] + rep["biggest_downgrades"],
                   key=lambda m: m["surf_height_m"])
     limb, plateau = by_h[0], by_h[-1]
     for m in (limb, plateau):
-        assert m["cand_height_m"] == pytest.approx(m["surf_height_m"] / 0.797, rel=0.01), (
+        assert m["cand_height_m"] == pytest.approx(m["surf_height_m"] / REFRACTION_KR, rel=0.01), (
             "the candidate height must be the un-refracted height (1/Kr), recomputed from the "
             "offshore inputs -- not the persisted breaking height reused")
     assert limb["delta"] > 0 and limb["level_cand"] != limb["level_now"], (

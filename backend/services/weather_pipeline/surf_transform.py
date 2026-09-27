@@ -81,7 +81,9 @@ _GAMMA_MIN_LEGACY, _GAMMA_MAX_LEGACY, _GAMMA_MAX_STEEP_LEGACY = 0.62, 1.05, 1.25
 #    the implicit 1.0 it replaces; it is NOT a per-spot refraction model. That needs the shore normal
 #    plus the finer bathymetry asset, both of which now exist.
 # Kill: SURF_REFRACTION_KR=1.0 restores the pre-2026-08-05 no-refraction behaviour.
-REFRACTION_KR = 0.797
+# ★ 0.797 -> 0.873 (2026-09-27): 0.797 was observed/Ks ONLY, so it double-counted the chain's own friction
+#   and exposure; `validate_nearshore_transform.py --composed` on the same pairs gives 0.873. See science_registry.
+REFRACTION_KR = 0.873
 DEEP_RATIO = 0.5    # d/L0 > 0.5 == deep water (shoaling negligible) — standard linear-theory cutoff
 
 

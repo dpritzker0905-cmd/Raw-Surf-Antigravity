@@ -7,6 +7,7 @@ on the unsaturated branch and the UN-converted cap on the saturated one. Publish
 climbs to 1.27·cap and then falls onto cap as offshore Hs rises 0.01 m:
 
     steep shelf, Tp 10 s: Hs 9.40 → 9.41 m published 8.2294 → 6.4800 m  (−21.3%, = exactly 1/1.27)
+    (at Kr 0.873, 2026-09-27, the same seam sits at Hs 8.388 → 8.389 m: 8.2290 → 6.4800 m)
     38 of 48 probe traces contain such a drop; 6.48 = 0.81 × 8.0 m = the cap itself.
 
 THE REPAIR (`SURF_CAP_SEAM_MONOTONE`, default OFF — dark until the owner flips it): saturate in the
@@ -153,9 +154,11 @@ def test_fine_sweep_across_the_crossover_has_no_negative_step(flags):
     """The audit's exact reproduction, at 10× finer resolution around the crossover: the largest
     recorded jump was Hs 9.40→9.41 m on the steep shelf at Tp 10 s with a 45° swell offset
     (exposure 0.868 — the offset moves the crossover, so it is part of the reproduction).
-    Walk ±0.3 m in 1 mm steps."""
+    Walk ±0.3 m in 1 mm steps.
+    ⚠️ The crossover moves with Kr: at 0.873 (2026-09-27) it is Hs 8.388 → 8.389 m, so the window
+    follows it. A window that no longer contains the crossover passes without testing anything."""
     flags.setenv(FLAG, "1")
-    trace = _sweep(10.0, "steep_shelf", lo=9.10, hi=9.70, step=0.001, swell=135.0, normal=90.0)
+    trace = _sweep(10.0, "steep_shelf", lo=8.09, hi=8.69, step=0.001, swell=135.0, normal=90.0)
     drops = [(a, b) for a, b in zip(trace, trace[1:]) if b[1] - a[1] < -1e-9]
     assert not drops, f"negative step at the crossover survives the repair: {drops[0]}"
 
@@ -188,13 +191,13 @@ def test_flag_off_is_byte_identical_legacy_including_the_defect(flags):
     the legacy path drifted, which the dark rollout promised it cannot."""
     flags.setenv(FLAG, "0")
     depth, width, bd = GEOMETRIES["steep_shelf"]
-    before, r_before = estimate_surf(9.40, 10.0, depth, coastal=True, shelf_width_km=width,
+    before, r_before = estimate_surf(8.388, 10.0, depth, coastal=True, shelf_width_km=width,
                                      swell_from_deg=135.0, shore_normal_deg=90.0,
                                      break_depth_m=bd)
-    after, r_after = estimate_surf(9.41, 10.0, depth, coastal=True, shelf_width_km=width,
+    after, r_after = estimate_surf(8.389, 10.0, depth, coastal=True, shelf_width_km=width,
                                    swell_from_deg=135.0, shore_normal_deg=90.0,
                                    break_depth_m=bd)
-    assert before == pytest.approx(8.2294, abs=5e-4) and r_before == "shelf"
+    assert before == pytest.approx(8.2290, abs=5e-4) and r_before == "shelf"
     assert after == pytest.approx(6.4800, abs=5e-4) and r_after == "breaking"
     assert before / after == pytest.approx(SHC.H110_OVER_HS, abs=1e-3), (
         "the legacy drop is no longer exactly the H1/10 factor — the seam's mechanism changed")

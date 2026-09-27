@@ -64,8 +64,14 @@ def test_steep_coast_long_period_jacks_above_offshore():
     assert regime == "shoaling"
 
 
-def test_jack_is_bounded_for_short_period_chop():
-    """Komar over-amplification of tiny short-period chop is clamped by SURF_V3_JACK_MAX."""
+def test_jack_is_bounded_for_short_period_chop(monkeypatch):
+    """Komar over-amplification of tiny short-period chop is clamped by SURF_V3_JACK_MAX.
+
+    The clamp bounds the Hs statistic BEFORE refraction and the H1/10 conversion, so both are
+    neutralised here: at Kr 0.797 x 1.27 = 1.01 the published height happened to sit under 2 x Hs,
+    and at Kr 0.873 (2026-09-27) it does not, without the clamp having changed at all."""
+    monkeypatch.setenv("SURF_REFRACTION_KR", "1.0")
+    monkeypatch.setenv("SURF_HEIGHT_H110", "0")
     surf, _ = estimate_surf(0.10, 5.0, 30.0, coastal=True, shelf_width_km=2.0)
     assert surf <= 2.0 * 0.10 + 1e-9
 
