@@ -987,7 +987,12 @@ jobs:
           # observed 110 files / 1293 passed, confirming the #102 projection exactly. The new
           # tests/test_band_wind_follows_the_point.py (claimed by `--lane chain`) adds 6 executed tests:
           # 1293 + 6 = 1299, 1299 - 6 = 1293; files 111 EXACT; _FLOOR_SET_FROM["chain"] -> 1299.
-          MIN_FILES, MIN_PASSED = 111, 1293
+          # ⬆ MIN_FILES 111→112, MIN_PASSED 1293→1309 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (shadow MOS on
+          # the skill ledger, roadmap stage 5 step 1): hosted CI on PR #106 (merged as 547ec447) observed 111 files /
+          # 1299 passed, confirming the #104 projection exactly. The new tests/test_skill_mos.py (claimed by
+          # `--lane chain`) adds 16 executed tests: 1299 + 16 = 1315, 1315 - 6 = 1309; files 112 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1315.
+          MIN_FILES, MIN_PASSED = 112, 1309
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
