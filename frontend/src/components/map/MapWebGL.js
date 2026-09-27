@@ -60,6 +60,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import LongPressMarker from './LongPressMarker';
 import './scrubPerfProbe';   // installs window.__SCRUB_PROBE__ (dev scrub/animation re-render harness, backlog #1)
 import { planAnchorMoves } from './waterTempAnchor';
+import { useMarineWebglRecovery } from './useMarineWebglRecovery';
 
 const MapWebGL = ({
   effectiveLocation,
@@ -509,10 +510,9 @@ const MapWebGL = ({
   // timeline animation steps frames, so detected lightning animates with the radar sweep.
   // Stable identities so the memoized layers aren't re-rendered per radar frame step
   // (chip task_c5366c79 slices 2-3 — inline arrows here defeated the memos entirely).
-  const onMarineWebglError = useCallback(() => {
-    console.warn('[MapWebGL] Fallback to Canvas2D Marine overlay triggered');
-    setWebglMarineFailed(true);
-  }, []);
+  // Bounded, recoverable fallback — a transient render-error burst no longer costs the session
+  // its WebGL marine renderer (see useMarineWebglRecovery.js).
+  const onMarineWebglError = useMarineWebglRecovery(setWebglMarineFailed);
   const onWindWebglError = useCallback(() => {
     console.warn('[MapWebGL] Fallback to Canvas2D Wind overlay triggered');
     setWebglWindFailed(true);
