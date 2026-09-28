@@ -407,6 +407,38 @@ def test_the_tide_lever_is_now_EXERCISABLE_and_potent(monkeypatch, tmp_path, cap
         "delta means the probes stopped reaching the saturated regime where it binds.")
 
 
+def test_the_shelf_friction_lever_is_EXERCISABLE():
+    """2026-09-28: SURF_SHELF_CF_SCALE=0 was REFUSED as inert while the nearshore judge's shelf arm measured
+    cross-shelf friction as the largest error left. Two causes, both pinned here: the control probed only
+    Pipeline (bed friction 1.0 at every sea), and the replay re-derived heights only for 5 named flags."""
+    from scripts.science_shadow_ab import candidate_can_move
+    for flag, value in (("SURF_SHELF_CF_SCALE", "0"), ("SURF_V3_SHELF_RECAL", "0")):
+        ctl = candidate_can_move({flag: value})
+        assert ctl["can_move"] is True and ctl["max_abs_delta"] > 5.0, (flag, ctl)
+
+
+def test_every_SURF_setting_the_height_path_reads_re_derives_the_height():
+    """A hand list named 5 of 16; the rule is the prefix, so a new lever cannot fall behind it."""
+    import pathlib
+    import re as _re
+    from scripts.science_shadow_ab import is_height_flag
+    root = pathlib.Path(__file__).resolve().parents[1] / "services" / "weather_pipeline"
+    read = set()
+    for name in ("surf_transform.py", "surf_point.py", "surf_magnets.py"):
+        src = (root / name).read_text(encoding="utf-8")
+        read |= set(_re.findall(r'(?:os\.environ\.get|_v3)\("(SURF_[A-Z0-9_]+)"', src))
+    assert len(read) >= 10 and {"SURF_SHELF_CF_SCALE", "SURF_V3_SHELF_RECAL"} <= read
+    assert all(is_height_flag(f) for f in read), sorted(f for f in read if not is_height_flag(f))
+    assert not is_height_flag("RATING_LOCAL_SIZE") and not is_height_flag("REQUEST_TELEMETRY")
+
+
+def test_a_SURF_flag_the_replay_cannot_drive_still_refuses():
+    """The prefix does not certify anything: MOP serving needs a nearshore input the replay does not carry,
+    so its positive control must still fail rather than report a reassuring null."""
+    from scripts.science_shadow_ab import candidate_can_move
+    assert candidate_can_move({"SURF_NEARSHORE_MOP": "1"})["can_move"] is False
+
+
 def test_a_live_candidate_still_reports_normally(monkeypatch, tmp_path, capsys):
     """CONTROL OF THE CONTROL: the gate must not block candidates the harness CAN exercise, or it
     would convert every result into a refusal and look rigorous while measuring nothing."""

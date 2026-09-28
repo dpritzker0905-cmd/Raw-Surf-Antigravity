@@ -51,6 +51,18 @@ REPRODUCE_TOL = 0.25
 # the offshore inputs (+ static geometry) rather than reuse the persisted surf_height_m.
 HEIGHT_FLAGS = ("SURF_REFRACTION_KR", "SURF_HEIGHT_H110", "SURF_TIDE_DEPTH",
                 "SURF_COASTAL_FROM_SHORE_NORMAL", "SURF_COASTAL_FROM_LAND_BIT")
+# ANY SURF_* LEVER RE-DERIVES THE HEIGHT (2026-09-28). The list above named 5 of the 16 SURF_* settings the
+# height path reads (surf_transform / surf_point / surf_magnets); for the other 11 -- the shelf friction
+# (SURF_SHELF_CF_SCALE, SURF_V3_SHELF_RECAL, SURF_SHELF_KF_FLOOR), Komar, exposure, magnets, gamma, jack,
+# break depth, normal overrides -- the replay reused the stored height, so SURF_SHELF_CF_SCALE=0 was REFUSED
+# as inert while the nearshore judge measured it as the largest error left. A prefix cannot fall behind the
+# code; a SURF_* flag the replay still cannot drive (one guarded on an input it lacks) fails the positive
+# control and REFUSES, which is the right answer for it.
+HEIGHT_FLAG_PREFIX = "SURF_"
+
+
+def is_height_flag(name: str) -> bool:
+    return name in HEIGHT_FLAGS or str(name).startswith(HEIGHT_FLAG_PREFIX)
 # Candidates whose effect is GUARDED on an input. A row lacking that input cannot move, so
 # averaging it into the verdict dilutes a real effect toward "quiet" -- the denominator
 # lesson. When the dependency is only partly present the report says so AND reports the rate
@@ -143,20 +155,29 @@ def candidate_can_move(candidate: Dict[str, str], cell_ref_fn=None) -> dict:
     """
     from services.weather_pipeline.surf_point import estimate_surf_at, resolve_surf_geometry
     from services.weather_pipeline.surf_rating import compute_surf_rating
-    lat, lng = 21.665, -158.051                       # Pipeline: steep, cap-limited at big swell
-    g = resolve_surf_geometry(lat, lng)
+    # TWO SITES (2026-09-28). Pipeline alone (steep, narrow shelf, cap-limited at big swell) can never move
+    # a shelf-friction lever: its bed friction is 1.0 at every sea, so SURF_SHELF_CF_SCALE=0 was REFUSED
+    # as inert while the nearshore judge's shelf arm measured it as the largest error left (friction off:
+    # MAE 0.204 -> 0.122 m, closer on 82.5% of wide-shelf hours). Duck, NC (a judge station: 90 km shelf at
+    # 20.5 m, friction 0.77 at 10 s) is where it binds.
+    sites = ((21.665, -158.051, 315.0, 140.0,                     # Pipeline: steep, cap-limited
+              ((0.5, 14.0), (2.0, 14.0), (8.0, 14.0), (12.0, 14.0), (12.0, 20.0))),
+             (36.17, -75.755, 80.0, 260.0,                        # Duck: wide shallow shelf
+              ((0.5, 10.0), (1.5, 10.0), (3.0, 12.0))))
     probes = []
-    for off, tp in ((0.5, 14.0), (2.0, 14.0), (8.0, 14.0), (12.0, 14.0), (12.0, 20.0)):
-        h, _r = estimate_surf_at(lat, lng, off, tp, 315.0, geometry=g)
-        sc, _l = compute_surf_rating(h, tp, 3.0, wind_from_deg=140.0,
-                                     shore_normal_deg=g.shore_normal_deg, swell_from_deg=315.0,
-                                     break_depth_m=g.break_depth_m)
-        probes.append({"spot_id": "ctl", "latitude": lat, "longitude": lng, "score": sc,
-                       "level": _l, "surf_height_m": round(h, 3), "period_s": tp,
-                       "inputs": {"offshore_hs_m": off, "swell_from_deg": 315.0, "wind_ms": 3.0,
-                                  "wind_from_deg": 140.0, "water_level_m": 1.5,
-                                  "shore_normal_deg": g.shore_normal_deg,
-                                  "break_depth_m": g.break_depth_m}})
+    for lat, lng, swell_from, wind_from, seas in sites:
+        g = resolve_surf_geometry(lat, lng)
+        for off, tp in seas:
+            h, _r = estimate_surf_at(lat, lng, off, tp, swell_from, geometry=g)
+            sc, _l = compute_surf_rating(h, tp, 3.0, wind_from_deg=wind_from,
+                                         shore_normal_deg=g.shore_normal_deg, swell_from_deg=swell_from,
+                                         break_depth_m=g.break_depth_m)
+            probes.append({"spot_id": "ctl", "latitude": lat, "longitude": lng, "score": sc,
+                           "level": _l, "surf_height_m": round(h, 3), "period_s": tp,
+                           "inputs": {"offshore_hs_m": off, "swell_from_deg": swell_from, "wind_ms": 3.0,
+                                      "wind_from_deg": wind_from, "water_level_m": 1.5,
+                                      "shore_normal_deg": g.shore_normal_deg,
+                                      "break_depth_m": g.break_depth_m}})
     rep = replay_frames([{"spots": probes}], candidate, cell_ref_fn=cell_ref_fn)
     moved = max(abs(m["delta"]) for m in (rep["biggest_upgrades"] + rep["biggest_downgrades"]))         if rep["rows_replayable"] else 0.0
     return {"can_move": moved > REPRODUCE_TOL, "max_abs_delta": moved,
@@ -229,7 +250,7 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
     without the L2 blob); main() builds it via _cell_reference_fn and REFUSES if it is unavailable
     -- a missing climatology must never silently replay as "no reference", which would read as a
     band/glyph agreement that was never measured."""
-    height_replay = any(k in candidate for k in HEIGHT_FLAGS)
+    height_replay = any(is_height_flag(k) for k in candidate)
     _dep_key = next((CANDIDATE_INPUT_DEPS[k] for k in candidate
                      if k in CANDIDATE_INPUT_DEPS), None)
     structural_ref_off = candidate.get("RATING_LOCAL_SIZE") == "0"
