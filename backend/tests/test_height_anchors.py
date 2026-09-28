@@ -12,6 +12,11 @@ MEASURED AT HEAD ce9250a2 -- the basis for every assertion below. Pipeline 2 m /
     SURF_REFRACTION_KR=1.0      : 12.68 ft  (+25.5%)   the one-env-var revert, now visible
     SURF_HEIGHT_H110=0          :  7.96 ft  (-21.3%)
     both reverted               :  9.99 ft  ( -1.2%)   THE TRAP -- see below
+RE-ANCHORED 2026-09-27 (Kr 0.797 -> 0.873 on 2026-09-27 (measured against the chain it multiplies; validate_nearshore_transform.py --composed)):
+    shipped (Kr 0.873, H110 on) : 11.07 ft  shoaling   (+9.5%, = 0.873/0.797)
+    SURF_HEIGHT_H110=0          :  8.72 ft
+    SURF_REFRACTION_KR=1.0 and both reverted are unchanged (they override Kr). The pair no longer
+    nearly cancels (0.873 x 1.27 = 1.109), so the double revert now sits 1.08 ft from the anchor.
 
 (!) THE PAIR NEARLY CANCELS: (1/0.797) x (1/1.27) = 0.988, so a DOUBLE revert moves this anchor
 only 0.12 ft -- 2.4x the tolerance, thin margin. That is why each single revert's measured delta is
@@ -61,8 +66,8 @@ def _pipeline_ft(hs, tp):
 def test_the_nonsaturated_anchor_pins_the_shipped_pair(clean_flags):
     h, regime = _pipeline_ft(2.0, 14.0)
     assert regime == "shoaling", f"expected the non-saturated regime, got {regime}"
-    assert abs(h - 10.11) < TOL_FT, (
-        f"Pipeline 2 m/14 s = {h:.2f} ft, expected the 10.11 ft anchor measured at ce9250a2. "
+    assert abs(h - 11.07) < TOL_FT, (
+        f"Pipeline 2 m/14 s = {h:.2f} ft, expected the 11.07 ft anchor (Kr 0.873, 2026-09-27). "
         f"If a height constant moved DELIBERATELY, re-anchor this file in the same commit; "
         f"if not, a calibration constant has drifted silently.")
 
@@ -81,8 +86,8 @@ def test_the_anchor_SEES_the_refraction_revert(clean_flags):
 def test_the_anchor_SEES_the_convention_revert(clean_flags):
     clean_flags.setenv("SURF_HEIGHT_H110", "0")
     h, _ = _pipeline_ft(2.0, 14.0)
-    assert abs(h - 7.96) < TOL_FT, (
-        f"H110=0 gave {h:.2f} ft, expected 7.96 -- the anchor has gone blind to the height "
+    assert abs(h - 8.72) < TOL_FT, (
+        f"H110=0 gave {h:.2f} ft, expected 8.72 -- the anchor has gone blind to the height "
         f"convention (or the conversion moved off the single choke point)")
 
 
@@ -94,7 +99,7 @@ def test_the_double_revert_is_nearly_invisible_and_still_caught(clean_flags):
     clean_flags.setenv("SURF_HEIGHT_H110", "0")
     h, _ = _pipeline_ft(2.0, 14.0)
     assert abs(h - 9.99) < TOL_FT
-    assert abs(9.99 - 10.11) > 2 * TOL_FT, (
+    assert abs(9.99 - 11.07) > 2 * TOL_FT, (
         "the pair-cancellation margin shrank below 2x the tolerance -- the double revert is now "
         "genuinely invisible to the value assertion; tighten TOL_FT or add a third control")
 

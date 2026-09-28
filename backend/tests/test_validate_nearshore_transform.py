@@ -198,14 +198,16 @@ from types import SimpleNamespace  # noqa: E402
 
 from services.weather_pipeline import nearshore_validation as _NV  # noqa: E402
 
+from services.weather_pipeline.surf_transform import REFRACTION_KR as _KR  # noqa: E402
+
 _GEO = SimpleNamespace(shore_normal_deg=255.0, depth_m=60.0, shelf_width_km=15.0)
 
 
 def test_a_nearshore_reading_the_chain_predicts_implies_the_kr_in_use():
     hs, tp, dp = 1.8, 14.0, 280.0
     near = _NV.model_hs_at_station(hs, tp, dp, _GEO.shore_normal_deg, 20.0, _GEO.depth_m, _GEO.shelf_width_km)
-    (kr, d, t), = vnt.implied_kr_composed_samples({"t": (near,)}, {"t": (hs, tp, dp)}, 20.0, _GEO, 0.797)
-    assert kr == pytest.approx(0.797, rel=1e-12) and (d, t) == (dp, tp)
+    (kr, d, t), = vnt.implied_kr_composed_samples({"t": (near,)}, {"t": (hs, tp, dp)}, 20.0, _GEO, _KR)
+    assert kr == pytest.approx(_KR, rel=1e-12) and (d, t) == (dp, tp)
 
 
 def test_the_two_measurements_differ_by_exactly_the_chains_friction_and_exposure():
@@ -213,7 +215,7 @@ def test_the_two_measurements_differ_by_exactly_the_chains_friction_and_exposure
     hs, tp, dp = 2.0, 15.0, 300.0
     near, deep = {"t": (1.4,)}, {"t": (hs, tp, dp)}
     (ks_only, _, _), = vnt.implied_kr_samples(near, deep, 20.0)
-    (chain, _, _), = vnt.implied_kr_composed_samples(near, deep, 20.0, _GEO, 0.797)
+    (chain, _, _), = vnt.implied_kr_composed_samples(near, deep, 20.0, _GEO, _KR)
     f = _NV.transform_factors(tp, dp, _GEO.shore_normal_deg, 20.0, _GEO.depth_m, _GEO.shelf_width_km)
     assert ks_only / chain == pytest.approx(f["friction"] * f["exposure"], rel=1e-3)
     assert chain > ks_only, "applying friction and exposure first leaves LESS for Kr to explain"

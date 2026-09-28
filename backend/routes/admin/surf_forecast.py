@@ -246,10 +246,11 @@ _RATING_FLAGS = {
                                          "0 = the pre-2026-08-05 laboratory ceilings 1.05/1.25, "
                                          "which sat 54% above anything ever measured in the field",
                                     "Render env"),
-    "SURF_REFRACTION_KR":          ("0.797", "Nearshore refraction coefficient, measured against "
-                                             "CDIP instruments (385,651 QC-good swell hours, 10 CA "
-                                             "sites). The transform previously assumed 1.0 and so "
-                                             "over-predicted by +25.5%. ⛔ PARTNER OF "
+    "SURF_REFRACTION_KR":          ("0.873", "Nearshore refraction coefficient, measured against "
+                                             "CDIP instruments AND the chain it multiplies (394,331 "
+                                             "QC-good swell hours, 10 CA sites, 2026-09-27; was 0.797, "
+                                             "which double-counted shelf friction + exposure). The "
+                                             "transform once assumed 1.0. ⛔ PARTNER OF "
                                              "SURF_HEIGHT_H110 — setting this to 1.0 while H110 is "
                                              "on reinstates that +25.5%",
                                     "Render env"),

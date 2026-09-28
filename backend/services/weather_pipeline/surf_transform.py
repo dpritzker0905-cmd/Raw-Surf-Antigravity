@@ -81,7 +81,7 @@ _GAMMA_MIN_LEGACY, _GAMMA_MAX_LEGACY, _GAMMA_MAX_STEEP_LEGACY = 0.62, 1.05, 1.25
 #    the implicit 1.0 it replaces; it is NOT a per-spot refraction model. That needs the shore normal
 #    plus the finer bathymetry asset, both of which now exist.
 # Kill: SURF_REFRACTION_KR=1.0 restores the pre-2026-08-05 no-refraction behaviour.
-REFRACTION_KR = 0.797
+REFRACTION_KR = 0.873  # was 0.797 (obs/Ks only: double-counted friction + exposure); composed-chain fit 2026-09-27, science_registry
 DEEP_RATIO = 0.5    # d/L0 > 0.5 == deep water (shoaling negligible) — standard linear-theory cutoff
 
 
