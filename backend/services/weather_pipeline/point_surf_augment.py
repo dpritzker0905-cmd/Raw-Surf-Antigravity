@@ -155,9 +155,21 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
                         _eta = float(_ts["height_m"])
                 except Exception as _te:
                     logger.debug(f"[Surf v3] tide resolve failed at ({lat},{lng}); η=0: {_te!r}")
+            # ── ROADMAP STAGE 4: CDIP MOP'S NEARSHORE SEA (behind SURF_NEARSHORE_MOP, default OFF) ──
+            # Resolved HERE, at the one site `surf_height_m` is produced, for the reason tide and the
+            # partitions are: glyphs, the hub and the sim inherit one input. Its own try, fail-open.
+            _near = None
+            if os.environ.get("SURF_NEARSHORE_MOP", "0") == "1":
+                try:
+                    from services.weather_pipeline.mop_serving import nearshore_for_point
+                    _near = await nearshore_for_point(lat, lng, valid_time_str)
+                except Exception as _ne:
+                    logger.warning(f"[Surf v3] MOP nearshore unavailable at ({lat},{lng}); parametric kept: {_ne!r}")
             surf, regime = estimate_surf_at(lat, lng, response.point.speed, response.point.period,
                                             swell_from_deg=response.point.direction, geometry=_geo,
-                                            partitions=_parts, water_level_m=_eta)
+                                            partitions=_parts, water_level_m=_eta, nearshore=_near)
+            # Say which model the height stands on (the roadmap's "labelled nearshore-model driven").
+            response.surf_source = "cdip_mop" if (_near and surf is not None) else "parametric"
             # The rating half reads the SAME reconciled trains the height ran on. Carried on the
             # response so `rate_one_spot`, the hub and the sim's live lane cannot resolve a second,
             # disagreeing sea state for the same point (None when the flag is off / nothing usable).

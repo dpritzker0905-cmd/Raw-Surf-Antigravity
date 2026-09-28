@@ -215,6 +215,10 @@ _RATING_FLAGS = {
     # heights — the exact RATING_TIDE-class trap. 4x the marine point resolutions when on.
     "SURF_PARTITIONS":             ("0", "Spectral swell trains in the height AND the rating (all surfaces)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # Roadmap stage 4 (2026-09-27). DARK until the nearshore judge's archived-grid arm has the hours.
+    "SURF_NEARSHORE_MOP":          ("0", "California spots break from CDIP MOP's nearshore sea+swell forecast "
+                                         "instead of the offshore field + parametric transform (all surfaces)",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
     # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity
     # guard caught this one MISSING and it was right to, because an undeclared switch is invisible

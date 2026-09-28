@@ -1042,7 +1042,12 @@ jobs:
           # 119 files / 1375 passed, confirming the #126 projection exactly. The new
           # tests/test_nearshore_mop_grid_arm.py (claimed by `--lane chain`) adds 5 executed tests: 1375 + 5 = 1380,
           # 1380 - 6 = 1374; files 120 EXACT; _FLOOR_SET_FROM["chain"] -> 1380.
-          MIN_FILES, MIN_PASSED = 120, 1374
+          # ⬆ MIN_FILES 120→121, MIN_PASSED 1374→1384 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (stage 4
+          # serving, dark behind SURF_NEARSHORE_MOP): stacked on PR #127, whose projection is 120 files / 1380
+          # passed (#126's hosted 119 / 1375 + 5). The new tests/test_mop_nearshore_serving.py (claimed by
+          # `--lane chain`) adds 10 executed tests: 1380 + 10 = 1390, 1390 - 6 = 1384; files 121 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1390.
+          MIN_FILES, MIN_PASSED = 121, 1384
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
