@@ -54,12 +54,31 @@ def test_a_members_bias_is_learned_on_the_older_rows_and_removed():
     assert e["debiased_beats_best"]
 
 
+def test_a_noisy_member_counts_for_less_in_the_weighted_consensus():
+    """ICON-like: one member's errors are six times the others' (the held-out week read ICON ~40% worse)."""
+    errs = {"raw_surf": (0.1, -0.1, 0.0), "raw_surf:EURO": (0.0, 0.1, -0.1), "raw_surf:ICON": (0.6, -0.6, 0.0)}
+    bias = {"raw_surf:ICON": 0.3, "raw_surf:EURO": 0.1}
+    e = _lead(consensus_report(_rows(range(8, 40), 90, bias, errs) + _rows(range(0, 7), 30, bias, errs), NOW))
+    w = e["member_weight"]
+    assert w["raw_surf:ICON"] < 0.05 and w["raw_surf"] == pytest.approx(w["raw_surf:EURO"], abs=1e-3)
+    assert e["weighted"]["mae_m"] < e["equal"]["mae_m"] and e["weighted"]["mae_m"] < e["debiased"]["mae_m"]
+    assert e["weighted_beats_best"] and not e["equal_beats_best"]
+    assert abs(e["weighted"]["bias_m"]) < 0.02, "the weighted mean is of the DEBIASED members"
+
+
+def test_members_of_equal_skill_get_equal_weight():
+    e = _lead(consensus_report(_rows(range(8, 40), 90) + _rows(range(0, 7), 30), NOW))
+    assert sum(e["member_weight"].values()) == pytest.approx(1.0, abs=1e-3)
+    assert all(v == pytest.approx(1 / 3, abs=1e-3) for v in e["member_weight"].values())
+
+
 def test_the_held_out_week_never_trains_the_bias():
     bias = {"raw_surf:ICON": 0.3}
     wild = {"raw_surf:ICON": 5.0}
     a = _lead(consensus_report(_rows(range(8, 40), 90, bias) + _rows(range(0, 7), 30, bias), NOW))
     b = _lead(consensus_report(_rows(range(8, 40), 90, bias) + _rows(range(0, 7), 30, wild), NOW))
     assert a["member_bias_train_m"] == b["member_bias_train_m"]
+    assert a["member_weight"] == b["member_weight"], "weights are learned on the older rows only"
 
 
 def test_a_pair_missing_a_member_is_not_compared():

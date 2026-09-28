@@ -11,6 +11,10 @@ never saw. This is that measurement, from rows the ledger already scored: no fet
   * `debiased`: each member's mean error per lead, learned on rows whose target is older than the held-out week,
     removed before averaging. The members' biases differ a lot (at 48 h, one run: GFS -0.01, EURO +0.15,
     ICON +0.21 m), and a plain mean inherits them.
+  * `weighted` (2026-09-28): the debiased members weighted by 1 / their debiased MSE on the training rows, so a
+    weaker model counts for less. Measured the same day: over the held-out week our ICON lane's MAE is ~40%
+    above the GFS and EURO lanes (0.44 vs 0.33 m at 48 h) with a slope of 0.65, and it is DWD's GWAM itself
+    (ours 2.725 m vs Open-Meteo's dwd_gwam 2.70 m at 46086), not our pipeline, so it stays a member, weighted.
   * Graded on the held-out week against each member and the best of them. Thin leads refuse with a status.
 
 Changes no served number.
@@ -64,16 +68,24 @@ def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_
         obs = [p[members[0]][1] for p in g["test"]]
         equal = [sum(p[m][0] for m in members) / len(members) for p in g["test"]]
         debiased = [sum(p[m][0] - bias[m] for m in members) / len(members) for p in g["test"]]
+        mse = {m: (sum((p[m][0] - bias[m] - p[m][1]) ** 2 for p in g["train"]) / len(g["train"])
+                   if g["train"] else 1.0) for m in members}
+        inv = {m: 1.0 / max(v, 1e-6) for m, v in mse.items()}
+        weight = {m: inv[m] / sum(inv.values()) for m in members}
+        weighted = [sum(weight[m] * (p[m][0] - bias[m]) for m in members) for p in g["test"]]
         best = min(members, key=lambda m: per[m]["mae_m"])
         entry.update({
             "status": "scored", "members": per, "best_member": best,
             "member_bias_train_m": {m: round(b, 3) for m, b in bias.items()},
             "equal": _stats([f - o for f, o in zip(equal, obs)]),
             "debiased": _stats([max(0.0, f) - o for f, o in zip(debiased, obs)]),
+            "member_weight": {m: round(w, 3) for m, w in weight.items()},
+            "weighted": _stats([max(0.0, f) - o for f, o in zip(weighted, obs)]),
         })
         entry["equal_beats_best"] = entry["equal"]["mae_m"] < per[best]["mae_m"]
         entry["debiased_beats_best"] = entry["debiased"]["mae_m"] < per[best]["mae_m"]
+        entry["weighted_beats_best"] = entry["weighted"]["mae_m"] < per[best]["mae_m"]
         out.append(entry)
-    return {"method": "three_model_consensus_equal_and_debiased", "members": list(members),
+    return {"method": "three_model_consensus_equal_debiased_weighted", "members": list(members),
             "holdout_days": holdout_days, "cutoff": cutoff.isoformat(),
             "paired_keys": sum(e["n_train"] + e["n_test"] for e in out), "by_lead": out}

@@ -1088,7 +1088,11 @@ jobs:
           # three-model consensus scored at the buoys): #137's hosted merge run observed 124 files / 1421, confirming
           # its projection exactly. The new tests/test_skill_consensus.py (claimed by `--lane chain`) adds 11
           # executed tests: 1421 + 11 = 1432, 1432 - 6 = 1426; files 125 EXACT; _FLOOR_SET_FROM["chain"] -> 1432.
-          MIN_FILES, MIN_PASSED = 125, 1426
+          # ⬆ MIN_PASSED 1426→1428 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the skill-weighted consensus):
+          # #139's hosted merge run observed 125 files / 1432, confirming its projection exactly.
+          # tests/test_skill_consensus.py (claimed by `--lane chain`) gains 2 executed tests: 1432 + 2 = 1434,
+          # 1434 - 6 = 1428; files 125 unchanged; _FLOOR_SET_FROM["chain"] -> 1434.
+          MIN_FILES, MIN_PASSED = 125, 1428
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
