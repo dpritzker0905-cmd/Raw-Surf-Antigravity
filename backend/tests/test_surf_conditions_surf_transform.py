@@ -56,24 +56,29 @@ def test_the_transform_is_not_the_identity_on_a_deep_coast():
 
 
 def test_the_transform_reduces_on_a_wide_shallow_shelf():
-    """Galveston: ~166 km of shelf at ~16 m. Bottom friction must REDUCE the height.
+    """Galveston: ~166 km of shelf, a 3.6 m break. A big swell must come out SMALLER than offshore.
 
     ★ This is the negative-direction control. Without it a transform that only ever amplifies would
-    pass the test above and still be wrong — the measured error is signed BOTH ways."""
+    pass the test above and still be wrong — the measured error is signed BOTH ways.
+    Until 2026-09-28 the reduction came from cross-shelf friction (1.8 m -> 4.6 ft). Friction is off by
+    default since (SHELF_CF_SCALE_DEFAULT: the model field at a shelf cell already carries it), so the
+    control is now the depth-limited cap at the shallow break: 3.5 m / 13 s -> 9.6 ft vs 11.5 ft offshore."""
     lat, lng = SPOT_COORDINATES["galveston"]["lat"], SPOT_COORDINATES["galveston"]["lon"]
-    breaking, regime = _breaking_ft(lat, lng, 1.8, 13.0, None)
-    assert regime != "offshore_estimate"
-    assert breaking < _offshore_ft(1.8), (
-        f"a 166 km shelf must bleed energy; offshore {_offshore_ft(1.8)} ft -> got {breaking}"
+    breaking, regime = _breaking_ft(lat, lng, 3.5, 13.0, None)
+    assert regime == "breaking"
+    assert breaking < _offshore_ft(3.5), (
+        f"a 3.6 m break must cap a 3.5 m swell; offshore {_offshore_ft(3.5)} ft -> got {breaking}"
     )
 
 
 def test_the_two_directions_disagree_so_no_constant_could_fix_this():
     """The whole justification for routing through the geometry rather than scaling a number."""
-    deep, _ = _breaking_ft(21.6650, -158.0530, 1.8, 13.0, None)          # pipeline
+    # 3.5 m, not 1.8 m, since 2026-09-28: with cross-shelf friction off by default the two coasts only part
+    # where the geometry binds (Galveston's 3.6 m break caps it; Pipeline's deep break lets it jack up).
+    deep, _ = _breaking_ft(21.6650, -158.0530, 3.5, 13.0, None)          # pipeline
     g = SPOT_COORDINATES["galveston"]
-    shallow, _ = _breaking_ft(g["lat"], g["lon"], 1.8, 13.0, None)
-    off = _offshore_ft(1.8)
+    shallow, _ = _breaking_ft(g["lat"], g["lon"], 3.5, 13.0, None)
+    off = _offshore_ft(3.5)
     assert (deep - off) > 0 > (shallow - off), (
         f"expected signed-both-ways, got deep={deep} shallow={shallow} offshore={off}"
     )

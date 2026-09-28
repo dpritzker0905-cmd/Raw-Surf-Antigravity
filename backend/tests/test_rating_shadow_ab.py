@@ -412,7 +412,9 @@ def test_the_shelf_friction_lever_is_EXERCISABLE():
     cross-shelf friction as the largest error left. Two causes, both pinned here: the control probed only
     Pipeline (bed friction 1.0 at every sea), and the replay re-derived heights only for 5 named flags."""
     from scripts.science_shadow_ab import candidate_can_move
-    for flag, value in (("SURF_SHELF_CF_SCALE", "0"), ("SURF_V3_SHELF_RECAL", "0")):
+    # The candidate is the NON-default value: 0 until 2026-09-28, 0.25 (the legacy scale) since friction went
+    # off by default (SHELF_CF_SCALE_DEFAULT). A default-valued candidate is inert by definition.
+    for flag, value in (("SURF_SHELF_CF_SCALE", "0.25"), ("SURF_V3_SHELF_RECAL", "0")):
         ctl = candidate_can_move({flag: value})
         assert ctl["can_move"] is True and ctl["max_abs_delta"] > 5.0, (flag, ctl)
 

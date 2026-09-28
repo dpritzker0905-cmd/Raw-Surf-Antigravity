@@ -1102,7 +1102,11 @@ jobs:
           # swells): dev's hosted run 36376343655 (89b13a0a) observed 125 files / 1434, confirming #140's projection.
           # tests/test_skill_consensus.py (claimed by `--lane chain`) gains 3 executed tests: 1434 + 3 = 1437,
           # 1437 - 6 = 1431; files 125 unchanged; _FLOOR_SET_FROM["chain"] -> 1437.
-          MIN_FILES, MIN_PASSED = 125, 1431
+          # ⬆ MIN_PASSED 1431→1434 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (cross-shelf friction off by
+          # default + the cap-seam repair on, held for the owner): #145's hosted merge run observed 125 files / 1437,
+          # confirming its projection. tests/test_nearshore_shelf_arm.py (claimed by `--lane chain`) gains 3 executed
+          # tests: 1437 + 3 = 1440, 1440 - 6 = 1434; files 125 unchanged; _FLOOR_SET_FROM["chain"] -> 1440.
+          MIN_FILES, MIN_PASSED = 125, 1434
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

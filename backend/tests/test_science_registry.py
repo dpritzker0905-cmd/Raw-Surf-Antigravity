@@ -37,6 +37,7 @@ WIRED = {
     "H110_OVER_HS": ("services.weather_pipeline.surf_height_convention", "H110_OVER_HS"),
     "REFRACTION_KR": ("services.weather_pipeline.surf_transform", "REFRACTION_KR"),
     "SHELF_KF_FLOOR": ("services.weather_pipeline.surf_transform", "SHELF_KF_FLOOR"),
+    "SHELF_CF_SCALE_DEFAULT": ("services.weather_pipeline.surf_transform", "SHELF_CF_SCALE_DEFAULT"),
     "W_WIND": ("services.weather_pipeline.surf_rating", "W_WIND"),
     "W_PERIOD": ("services.weather_pipeline.surf_rating", "W_PERIOD"),
 }

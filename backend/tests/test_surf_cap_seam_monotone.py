@@ -187,6 +187,9 @@ def test_flag_off_is_byte_identical_legacy_including_the_defect(flags):
     regime label, and the 1/1.27 drop — pinned on the audit's headline case. If this ever fails
     the legacy path drifted, which the dark rollout promised it cannot."""
     flags.setenv(FLAG, "0")
+    # The headline case was measured with cross-shelf friction at 0.25; since 2026-09-28 the default is 0
+    # (SHELF_CF_SCALE_DEFAULT), which moves WHERE the seam falls, not the seam. Pin the legacy chain it was cut on.
+    flags.setenv("SURF_SHELF_CF_SCALE", "0.25")
     depth, width, bd = GEOMETRIES["steep_shelf"]
     before, r_before = estimate_surf(9.40, 10.0, depth, coastal=True, shelf_width_km=width,
                                      swell_from_deg=135.0, shore_normal_deg=90.0,
@@ -255,11 +258,12 @@ def _registry_default(name):
 
 def test_the_new_flag_is_declared_and_its_registry_default_matches_the_code(flags):
     """A new os.environ.get in a rating surface is a REGISTRY EDIT (2026-08-14 lesson, and the
-    2026-08-04 omission before it): declared, default OFF, and the panel's default == the code's."""
-    assert _registry_default(FLAG) == "0"
-    assert SHC.cap_seam_monotone_enabled() is False, "the repair must ship DARK (default OFF)"
-    flags.setenv(FLAG, "1")
-    assert SHC.cap_seam_monotone_enabled() is True
+    2026-08-04 omission before it): declared, and the panel's default == the code's. Shipped dark 2026-08-15;
+    DEFAULT ON since 2026-09-28 (owner), paired with cross-shelf friction off (SHELF_CF_SCALE_DEFAULT = 0)."""
+    assert _registry_default(FLAG) == "1"
+    assert SHC.cap_seam_monotone_enabled() is True, "the repair is ON by default since 2026-09-28"
+    flags.setenv(FLAG, "0")
+    assert SHC.cap_seam_monotone_enabled() is False, "the kill switch must restore the legacy seam"
 
 
 def test_the_h110_registry_default_matches_the_code_default(flags):
