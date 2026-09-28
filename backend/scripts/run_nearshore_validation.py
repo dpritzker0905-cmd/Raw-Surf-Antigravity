@@ -39,8 +39,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.nearshore_validation import (   # noqa: E402
     Refusal, backfill_valid_times, build_report, fetch_mop_hs, fetch_station_hs, load_mop_archives, load_pairs,
+    model_hs_from_nearshore_input,
     match, model_hs_at_station, model_hs_at_station_trains, mop_grid_hours, qc_filter, station_trains,
     transform_factors)
+from services.weather_pipeline.nwps_nearshore import attach_nwps  # noqa: E402
+from services.weather_pipeline.ndbc_nearshore import load_ndbc_pairs  # noqa: E402
+from services.weather_pipeline.nearshore_validation import LEGACY_SHELF_CF_SCALE  # noqa: E402
+from services.weather_pipeline.surf_transform import shelf_dissipation  # noqa: E402
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 UA = {"User-Agent": "raw-surf-nearshore-validation-runner"}
@@ -120,6 +125,10 @@ def main() -> int:
     # archived runs (a directory of its artifacts). The grid's hours depend on each region's run, so the
     # stations it covers are also graded at THOSE hours (extra point calls only for those spots).
     ap.add_argument("--mop-grid-archive", default=os.environ.get("NEARSHORE_VAL_MOP_GRID_DIR", ""))
+    # THE NWPS ARM (stage 4 outside California): NOAA's SWAN runs write a 2-D spectrum AT the buoys in
+    # each office's domain (data/nwps_buoy_points.json), hourly; ~1 MB per cycle per station.
+    ap.add_argument("--nwps", action="store_true",
+                    default=os.environ.get("NEARSHORE_VAL_NWPS", "0") == "1")
     ap.add_argument("--max-stations", type=int,
                     default=int(os.environ.get("NEARSHORE_VAL_MAX_STATIONS", "20")))
     args = ap.parse_args()
@@ -141,10 +150,14 @@ def main() -> int:
         want = {s.strip() for s in args.stations.split(",") if s.strip()}
         pairs = [p for p in pairs if p["station"] in want]
     pairs = pairs[: max(1, args.max_stations)]
+    # NDBC buoys where CDIP has no live station (the Gulf, 2026-09-28): hand-listed, appended AFTER the cap so a
+    # full CDIP table can never crowd them out. ndbc_nearshore.py has the pairing rule (the buoy's own cell).
+    pairs = pairs + [p for p in load_ndbc_pairs()
+                     if not args.stations or p["station"] in {s.strip() for s in args.stations.split(",")}]
 
     live_obs, dead_404, infra_stations = probe_stations(pairs, max(args.hours, args.backfill_hours + 2))
     if not live_obs:
-        print(f"INFRA: 0 of {len(pairs)} CDIP stations answered "
+        print(f"INFRA: 0 of {len(pairs)} stations answered "
               f"(404-dead {len(dead_404)}, infra {len(infra_stations)}) — THREDDS or network down")
         return 2
 
@@ -181,10 +194,19 @@ def main() -> int:
             if hs is None or tp is None or dr is None:
                 point_fail += 1
                 continue
+            # THE INSTRUMENT'S GEOMETRY (2026-09-28). The transform is graded at the buoy, so it takes the BUOY's
+            # shore normal (hence its swell exposure), not the spot's: at 153p1 the buoy's exposure factor was
+            # 0.892 while its spots used 0.74-0.85 (Blacks Beach faces 26 deg away), so the judge charged the
+            # chain for the beach's exposure and MOP/NWPS, read at the buoy, never paid it. The INPUT stays the
+            # served offshore field at the spot. The spot-geometry number is kept beside it (spot_geometry).
             key = (spot["lat"], spot["lng"])
             if key not in geo:
                 geo[key] = resolve_surf_geometry(spot["lat"], spot["lng"])     # once per spot, not per hour
-            g = geo[key]
+            gs = geo[key]
+            skey = (float(entry["station_lat"]), float(entry["station_lng"]))
+            if skey not in geo:
+                geo[skey] = resolve_surf_geometry(*skey)
+            g = geo[skey]
             row_trains = {}
             if args.trains:
                 trains = station_trains(fetch_train_answers(_fetch_json, args.base, spot["lat"], spot["lng"],
@@ -202,6 +224,17 @@ def main() -> int:
                                                   depth, g.depth_m, g.shelf_width_km),
                 "offshore_hs_m": hs, "tp_s": tp, "swell_from_deg": dr,
                 "factors": transform_factors(tp, dr, g.shore_normal_deg, depth, g.depth_m, g.shelf_width_km),
+                "model_hs_spot_geometry_m": model_hs_at_station(hs, tp, dr, gs.shore_normal_deg,
+                                                                depth, gs.depth_m, gs.shelf_width_km),
+                # THE SHELF ARM (2026-09-28): the chain with its cross-shelf friction OFF, on rows where friction
+                # applies (wide shelves). See `no_friction_ab` in nearshore_validation.build_report.
+                **({"model_hs_no_friction_m": model_hs_at_station(hs, tp, dr, g.shore_normal_deg, depth, g.depth_m, 0.0),
+                    "model_hs_nearshore_input_m": model_hs_from_nearshore_input(hs, tp, g.depth_m, depth)}
+                   if shelf_dissipation(tp, g.depth_m, g.shelf_width_km) < 0.999 else {}),
+                # THE LEGACY-FRICTION ARM: the chain at the pre-#146 scale, where that friction would have applied.
+                **({"model_hs_legacy_friction_m": model_hs_at_station(
+                    hs, tp, dr, g.shore_normal_deg, depth, g.depth_m, g.shelf_width_km, cf_scale=LEGACY_SHELF_CF_SCALE)}
+                   if shelf_dissipation(tp, g.depth_m, g.shelf_width_km, LEGACY_SHELF_CF_SCALE) < 0.999 else {}),
                 "upstream_provider": d.get("upstream_provider"),
                 **row_trains,
             })
@@ -230,6 +263,8 @@ def main() -> int:
         g = grid_hours.get(p["station"], {}).get(p["valid_time"])
         if g:
             p["mop_grid_hs_m"], p["mop_grid_lead_h"] = g["hs"], g["lead_h"]
+    nwps_status = (attach_nwps(preds, datetime.now(timezone.utc), args.backfill_hours + 1)
+                   if args.nwps else {})
 
     matched, n_obs = [], 0
     for entry in live_pairs:
@@ -252,6 +287,9 @@ def main() -> int:
         report["mop_grid"] = {"product": "MOP_grids sea+swell forecast (ECMWF-driven), archived runs",
                               "archives": len(grid_blobs),
                               "stations": {s: len(h) for s, h in sorted(grid_hours.items())}}
+    if args.nwps:
+        report["nwps"] = {"product": "NOAA NWPS SWAN (CG1) 2-D spectra at the buoy, WW3-bounded",
+                          "stations": nwps_status}
     report["budget"] = {"wall_s": round(time.time() - t0, 1)}
     with open(args.json, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=1)
@@ -266,11 +304,35 @@ def main() -> int:
                     for s, v in sorted(report["stations"].items()))
     print(f"VERDICT GRADED n_matched={report['n_matched']} "
           f"(spot-hours {report['n_spot_hours']}, station-hours {report['n_station_hours']}) {per}")
+    sg = report.get("spot_geometry")
+    if sg:
+        print(f"GEOMETRY station (graded) vs spot: mae {sg['station']['mae_m']} vs {sg['spot']['mae_m']}, "
+              f"obs/model {sg['station'].get('obs_over_model_median')} vs {sg['spot'].get('obs_over_model_median')}")
     gab = report.get("mop_grid_ab")
     if gab:
         print(f"MOP_GRID_AB n={gab['n']} station_hours={gab['n_station_hours']} "
               f"bulk={gab['bulk']['mae_m']}/{gab['bulk']['bias_m']:+} grid={gab['arm']['mae_m']}/{gab['arm']['bias_m']:+} "
               f"closer={gab['arm_closer_share']}")
+    iab = report.get("nearshore_input_ab")
+    if iab:
+        print(f"NEARSHORE_INPUT_AB n={iab['n']} station_hours={iab['n_station_hours']} "
+              f"bulk={iab['bulk']['mae_m']}/{iab['bulk']['bias_m']:+} nearshore_input={iab['arm']['mae_m']}/{iab['arm']['bias_m']:+} "
+              f"closer={iab['arm_closer_share']}")
+    fab = report.get("no_friction_ab")
+    if fab:
+        print(f"NO_FRICTION_AB n={fab['n']} station_hours={fab['n_station_hours']} "
+              f"bulk={fab['bulk']['mae_m']}/{fab['bulk']['bias_m']:+} no_friction={fab['arm']['mae_m']}/{fab['arm']['bias_m']:+} "
+              f"closer={fab['arm_closer_share']}")
+    lab = report.get("legacy_friction_ab")
+    if lab:
+        print(f"LEGACY_FRICTION_AB n={lab['n']} station_hours={lab['n_station_hours']} "
+              f"bulk={lab['bulk']['mae_m']}/{lab['bulk']['bias_m']:+} legacy_friction={lab['arm']['mae_m']}/{lab['arm']['bias_m']:+} "
+              f"closer={lab['arm_closer_share']}")
+    nab = report.get("nwps_ab")
+    if nab:
+        print(f"NWPS_AB n={nab['n']} station_hours={nab['n_station_hours']} "
+              f"bulk={nab['bulk']['mae_m']}/{nab['bulk']['bias_m']:+} nwps={nab['arm']['mae_m']}/{nab['arm']['bias_m']:+} "
+              f"closer={nab['arm_closer_share']}")
     mab = report.get("mop_ab")
     if mab:
         print(f"MOP_AB n={mab['n']} station_hours={mab['n_station_hours']} "

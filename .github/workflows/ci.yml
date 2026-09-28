@@ -97,7 +97,17 @@ jobs:
           // ⚠️ This lag is the documented cost of that rule, not an oversight — the backend lanes'
           // "a floor that lags is not measuring anything" note argues the other way, and the two
           // are reconciled by WHERE the number comes from: hosted receipt raises, local never does.
-          const MIN_SUITES = 257, MIN_TESTS = 2486;
+          // 2026-09-28 (A15-11 mini lane): raised to the HOSTED receipt of dev run 36361175254 at acd1f070
+          // (#129), which printed `suites 296/296  tests 2869/2869  failed 0` — the whole pending gap
+          // since September 20 (+39 suites / +383 tests), from a receipt, never a local figure. This
+          // change's own marineSeriesLimiter.miniLane.test.js (+1 suite / +8 tests) is NOT counted: the
+          // next hosted run is its receipt.
+          // 2026-09-28 (A15-11, one background request only when idle): raised to the hosted receipt of
+          // #131's own run (`suites 297/297  tests 2877/2877  failed 0`), which counted the mini-lane suite
+          // this change rewrites test-for-test (8 -> 8), so it adds no suite and no test.
+          // 2026-09-28 (recorder settled peak): raised to the hosted receipt of #138's run (`suites 297/297  tests
+          // 2879/2879  failed 0`, its +2 prewarm tests). This change's own +2 recorder tests are counted on its run.
+          const MIN_SUITES = 297, MIN_TESTS = 2879;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -723,7 +733,11 @@ jobs:
           # #114 projection exactly. tests/test_validate_nearshore_transform.py (already claimed by `--lane guards`)
           # gains 4 executed tests: 2094 + 4 = 2098, 2098 - 6 = 2092; files 173 unchanged;
           # _FLOOR_SET_FROM["guards"] -> 2098.
-          MIN_FILES, MIN_PASSED = 173, 2092
+          # ⬆ MIN_PASSED 2092→2095 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the science shadow A/B can
+          # exercise shelf-friction levers): dev's hosted run 36373600771 (d6638bf4) observed 173 files / 2098.
+          # tests/test_rating_shadow_ab.py (claimed by `--lane guards`) gains 3 executed tests: 2098 + 3 = 2101,
+          # 2101 - 6 = 2095; files 173 unchanged; _FLOOR_SET_FROM["guards"] -> 2101.
+          MIN_FILES, MIN_PASSED = 173, 2095
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1051,7 +1065,53 @@ jobs:
           # splits big swells out): stacked on PR #128 (projection 121 files / 1390; #127 hosted 120 / 1380
           # confirmed its own). tests/test_skill_attribution.py (already claimed by `--lane chain`) gains 3
           # executed tests: 1390 + 3 = 1393, 1393 - 6 = 1387; files 121 unchanged; _FLOOR_SET_FROM["chain"] -> 1393.
-          MIN_FILES, MIN_PASSED = 121, 1387
+          # ⬆ MIN_FILES 121→122, MIN_PASSED 1387→1402 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge's NOAA NWPS arm, stage 4 outside California): dev's hosted run 36361175254 (acd1f070, #129)
+          # observed 121 files / 1393 passed, confirming the #129 projection exactly. The new tests/test_nwps_arm.py
+          # (claimed by `--lane chain`) adds 15 executed tests: 1393 + 15 = 1408, 1408 - 6 = 1402; files 122 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1408.
+          # ⬆ MIN_PASSED 1402→1406 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (big swell selected by the
+          # forecast as well as by the observation): #130's hosted merge run observed 122 files / 1408 passed,
+          # confirming its projection exactly. tests/test_skill_mos.py (already claimed by `--lane chain`) gains 4
+          # executed tests: 1408 + 4 = 1412, 1412 - 6 = 1406; files 122 unchanged; _FLOOR_SET_FROM["chain"] -> 1412.
+          # ⬆ MIN_PASSED 1406→1407 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (an armed judge hour grades every
+          # cheap arm; the NWPS fetch stops at the cycle that covers the window): #132's hosted merge run observed
+          # 122 files / 1412 passed, confirming its projection exactly. tests/test_nwps_arm.py (claimed by `--lane
+          # chain`) gains 1 executed test: 1412 + 1 = 1413, 1413 - 6 = 1407; files 122 unchanged; _FLOOR_SET_FROM -> 1413.
+          # ⬆ MIN_FILES 122→123, MIN_PASSED 1407→1410 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge grades the transform with the BUOY's geometry): #133's hosted merge run observed 122 files / 1413,
+          # confirming its projection exactly. The new tests/test_nearshore_station_geometry.py (claimed by `--lane
+          # chain`) adds 3 executed tests: 1413 + 3 = 1416, 1416 - 6 = 1410; files 123 EXACT; _FLOOR_SET_FROM -> 1416.
+          # ⬆ MIN_FILES 123→124, MIN_PASSED 1410→1413 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge's shelf arm, cross-shelf friction off on wide shelves): #135's hosted merge run observed 123 files /
+          # 1416, confirming its projection exactly. The new tests/test_nearshore_shelf_arm.py (claimed by `--lane
+          # chain`) adds 3 executed tests: 1416 + 3 = 1419, 1419 - 6 = 1413; files 124 EXACT; _FLOOR_SET_FROM -> 1419.
+          # ⬆ MIN_PASSED 1413→1415 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore judge's
+          # nearshore-input arm): #136's hosted merge run observed 124 files / 1419, confirming its projection exactly.
+          # tests/test_nearshore_shelf_arm.py (claimed by `--lane chain`) gains 2 executed tests: 1419 + 2 = 1421,
+          # 1421 - 6 = 1415; files 124 unchanged; _FLOOR_SET_FROM["chain"] -> 1421.
+          # ⬆ MIN_FILES 124→125, MIN_PASSED 1415→1426 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the
+          # three-model consensus scored at the buoys): #137's hosted merge run observed 124 files / 1421, confirming
+          # its projection exactly. The new tests/test_skill_consensus.py (claimed by `--lane chain`) adds 11
+          # executed tests: 1421 + 11 = 1432, 1432 - 6 = 1426; files 125 EXACT; _FLOOR_SET_FROM["chain"] -> 1432.
+          # ⬆ MIN_PASSED 1426→1428 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the skill-weighted consensus):
+          # #139's hosted merge run observed 125 files / 1432, confirming its projection exactly.
+          # tests/test_skill_consensus.py (claimed by `--lane chain`) gains 2 executed tests: 1432 + 2 = 1434,
+          # 1434 - 6 = 1428; files 125 unchanged; _FLOOR_SET_FROM["chain"] -> 1434.
+          # ⬆ MIN_PASSED 1428→1431 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the consensus graded on big
+          # swells): dev's hosted run 36376343655 (89b13a0a) observed 125 files / 1434, confirming #140's projection.
+          # tests/test_skill_consensus.py (claimed by `--lane chain`) gains 3 executed tests: 1434 + 3 = 1437,
+          # 1437 - 6 = 1431; files 125 unchanged; _FLOOR_SET_FROM["chain"] -> 1437.
+          # ⬆ MIN_PASSED 1431→1434 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (cross-shelf friction off by
+          # default + the cap-seam repair on, held for the owner): #145's hosted merge run observed 125 files / 1437,
+          # confirming its projection. tests/test_nearshore_shelf_arm.py (claimed by `--lane chain`) gains 3 executed
+          # tests: 1437 + 3 = 1440, 1440 - 6 = 1434; files 125 unchanged; _FLOOR_SET_FROM["chain"] -> 1440.
+          # ⬆ MIN_FILES 125→126, MIN_PASSED 1434→1442 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge reaches the Gulf via NDBC 42035 and grades the legacy friction beside the friction-off chain): #146's
+          # hosted merge-candidate run observed 125 files / 1440, confirming its projection. The new
+          # tests/test_nearshore_gulf_ndbc.py (claimed by `--lane chain`) adds 8 executed tests: 1440 + 8 = 1448,
+          # 1448 - 6 = 1442; files 126 EXACT; _FLOOR_SET_FROM["chain"] -> 1448.
+          MIN_FILES, MIN_PASSED = 126, 1442
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1376,7 +1436,14 @@ jobs:
           # 36252492528 on PR #95 observed 269 files / 534 passed, confirming the A15-15 projection exactly.
           # tests/test_conditions_route_wire_contract.py (claimed by `--lane estate`) gains 2 executed tests, no
           # new file: 534 + 2 = 536; 536 - 2 (this lane's budget) = 534; _FLOOR_SET_FROM[estate] -> 536.
-          MIN_PASSED = 534
+          # ⬆ 534→537 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (an armed judge hour grades every cheap arm):
+          # #132's hosted run observed 269 files / 536 passed. tests/test_nearshore_workflow_eligibility.py (claimed
+          # by `--lane estate`) gains 3 executed tests: 536 + 3 = 539; 539 - 2 (this lane's budget) = 537;
+          # _FLOOR_SET_FROM[estate] -> 539.
+          # ⬆ 537→540 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the floor-staleness check reads the NEWEST of
+          # 20 runs): dev's hosted run 36373600771 (d6638bf4) observed 539 passed. tests/test_ci_floor_staleness.py
+          # (claimed by `--lane estate`) gains 3 executed tests: 539 + 3 = 542; 542 - 2 = 540; _FLOOR_SET_FROM -> 542.
+          MIN_PASSED = 540
 
           try:
               root = ET.parse('estate.xml').getroot()

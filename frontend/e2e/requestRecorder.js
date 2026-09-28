@@ -82,17 +82,27 @@ function median(xs) {
  * Per gesture: how many weather requests it started, the most that were in flight at once when one of
  * them started (its own and anyone else's: the contention it met), how many were world-extent, and
  * the median and worst duration. An unfinished request counts as open until `now`. PURE.
+ *
+ * SETTLED PEAKS (2026-09-28). A request the browser never reported finished (cut off when the test ended,
+ * or its page closed) has no end, so `peakInFlight` holds it open to `now`: three A15-11 reads in a row
+ * disagreed with the peak over COMPLETED requests (Chrome 5 vs 4, Safari 6 vs 4) and each had to be
+ * rebuilt by hand. `peakInFlightSettled` counts only requests with an end, and `unsettled` says how many
+ * were left out; both beside the conservative number, never instead of it.
  */
 function summarizeRequests(rows, now) {
   const endOf = (r) => (typeof r.end === 'number' ? r.end : now);
   const inFlightAt = (t) => rows.filter((r) => r.start <= t && endOf(r) > t).length;
+  const settled = rows.filter((r) => typeof r.end === 'number');
+  const inFlightSettledAt = (t) => settled.filter((r) => r.start <= t && r.end > t).length;
   const byLabel = {};
   for (const r of rows) {
     const key = r.label || '(none)';
-    const g = byLabel[key] || (byLabel[key] = { n: 0, peakInFlight: 0, world: 0, failed: 0,
-      endpoints: {}, _ms: [] });
+    const g = byLabel[key] || (byLabel[key] = { n: 0, peakInFlight: 0, peakInFlightSettled: 0, unsettled: 0,
+      world: 0, failed: 0, endpoints: {}, _ms: [] });
     g.n += 1;
     g.peakInFlight = Math.max(g.peakInFlight, inFlightAt(r.start));
+    if (typeof r.end === 'number') g.peakInFlightSettled = Math.max(g.peakInFlightSettled, inFlightSettledAt(r.start));
+    else g.unsettled += 1;
     if (isWorldExtent(r.url)) g.world += 1;
     if (r.failed || (typeof r.status === 'number' && r.status >= 400)) g.failed += 1;
     const ep = endpointOf(r.url);
@@ -105,7 +115,9 @@ function summarizeRequests(rows, now) {
     delete g._ms;
   }
   const peak = rows.reduce((m, r) => Math.max(m, inFlightAt(r.start)), 0);
-  return { total: rows.length, peakInFlight: peak, byLabel };
+  const peakSettled = settled.reduce((m, r) => Math.max(m, inFlightSettledAt(r.start)), 0);
+  return { total: rows.length, peakInFlight: peak, peakInFlightSettled: peakSettled,
+    unsettled: rows.length - settled.length, byLabel };
 }
 
 module.exports = { recordWeatherRequests, summarizeRequests, endpointOf, isWorldExtent };

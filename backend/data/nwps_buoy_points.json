@@ -1,0 +1,74 @@
+{
+ "version": 1,
+ "generated_at": "2026-09-28T00:31:18.616858+00:00",
+ "generator": "backend/scripts/build_nwps_buoy_points.py",
+ "params": {
+  "day": "20260927",
+  "grid": "CG1",
+  "match_km": 1.0,
+  "offices": 36,
+  "buoy_outputs": 205,
+  "judge_stations": 20
+ },
+ "stations": {
+  "043p1": {
+   "buoy": "46242",
+   "region": "wr",
+   "wfo": "sgx",
+   "lat": 33.220001,
+   "lng": -117.438995,
+   "distance_km": 0.04,
+   "alternates": []
+  },
+  "134p1": {
+   "buoy": "41114",
+   "region": "sr",
+   "wfo": "mlb",
+   "lat": 27.551001,
+   "lng": -80.225006,
+   "distance_km": 0.79,
+   "alternates": [
+    {
+     "region": "sr",
+     "wfo": "mfl"
+    }
+   ]
+  },
+  "142p1": {
+   "buoy": "46237",
+   "region": "wr",
+   "wfo": "mtr",
+   "lat": 37.785999,
+   "lng": -122.634003,
+   "distance_km": 0.29,
+   "alternates": []
+  },
+  "143p1": {
+   "buoy": "41113",
+   "region": "sr",
+   "wfo": "mlb",
+   "lat": 28.4,
+   "lng": -80.529999,
+   "distance_km": 0.33,
+   "alternates": []
+  },
+  "207p1": {
+   "buoy": "44094",
+   "region": "er",
+   "wfo": "okx",
+   "lat": 40.584999,
+   "lng": -73.105988,
+   "distance_km": 0.08,
+   "alternates": []
+  },
+  "433p1": {
+   "buoy": "44056",
+   "region": "er",
+   "wfo": "mhx",
+   "lat": 36.200001,
+   "lng": -75.713989,
+   "distance_km": 0.1,
+   "alternates": []
+  }
+ }
+}

@@ -172,6 +172,31 @@ _add(Constant(
 ))
 
 _add(Constant(
+    name="SHELF_CF_SCALE_DEFAULT",
+    value=0.0,
+    units="dimensionless (scale on SHELF_FRICTION_CF; 0 = the chain adds no cross-shelf friction)",
+    what="How much cross-shelf bottom friction the chain applies ON TOP of the model field at the spot.",
+    module="services.weather_pipeline.surf_transform",
+    source="OURS. Nearshore judge shelf arm (scripts/run_nearshore_validation.py, no_friction_ab) against "
+           "CDIP nearshore buoys on wide shelves; runs of 2026-09-28 (PR #136's first run, CI 36375348896, "
+           "CI 36432875668). Shadow A/B of the served frames: run 36462075711",
+    method="field",
+    sample="48 wide-shelf station-hours (Duck, Wrightsville, Cape Canaveral, Fort Pierce and neighbours): "
+           "friction off closer on 78% / 82.5% / 75% of hours, MAE -38% / -40% / -34%; the chain stays low "
+           "with it off (bias -0.10 / -0.06 m), so no scale in (0, 0.25] fits better than 0.",
+    published_range=None,
+    status=DERIVED,
+    debt_reason="",
+    applies_to=(
+        "The served field at a wide-shelf spot is already shelf water: GFS-Wave (WAVEWATCH III) applies "
+        "bottom friction in its own source terms, and /point at the spot read 0.44 (Duck) to 0.66 (Cape "
+        "Canaveral) of /point at the shelf edge. Friction across the whole shelf width from the edge therefore "
+        "counted the shelf twice. The previous 0.25 (2026-07-17) was fitted to forecaster reports, not "
+        "instruments. Narrow and deep shelves are unaffected (friction ~1.0 there). SHELF_KF_FLOOR only binds "
+        "while this is > 0. SURF_SHELF_CF_SCALE=0.25 restores the legacy chain."),
+))
+
+_add(Constant(
     name="GAMMA",
     value=0.78,
     units="dimensionless (H_b / h_b)",

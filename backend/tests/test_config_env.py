@@ -96,7 +96,7 @@ def test_the_fingerprint_is_stable_and_changes_with_a_flag(clean):
     assert len(a["config_fingerprint"]) == 12
     assert a["flags_declared"] > 20, "the declared registry should be the _RATING_FLAGS table"
     assert isinstance(a["flags_non_default"], int)
-    clean.setenv("SURF_CAP_SEAM_MONOTONE", "1")   # a declared flag, default "0"
+    clean.setenv("SURF_CAP_SEAM_MONOTONE", "0")   # a declared flag, default "1" since 2026-09-28
     c = CE.compute_config_fingerprint()
     assert c["config_fingerprint"] != a["config_fingerprint"], "a flipped flag must move the hash"
     assert c["flags_non_default"] == a["flags_non_default"] + 1

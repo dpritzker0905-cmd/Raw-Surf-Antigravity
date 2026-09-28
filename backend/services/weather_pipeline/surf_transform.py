@@ -11,8 +11,8 @@ WHY THIS IS THE RIGHT FIRST CUT:
     breaks. So a broad SHALLOW shelf caps even a big offshore swell to small surf (why Florida's east coast
     is much smaller than the offshore swell), while a STEEP shelf lets more energy through (much of the US
     West Coast). That depth-limited cap is the dominant physical effect, captured here.
-  - Bottom friction: IMPLEMENTED (`shelf_dissipation`, on by default) — a wide shallow shelf bleeds
-    real energy, Kf ~0.32 at Tp 16 s over a 200 km / 15 m shelf and ~0.95 over a narrow deep one.
+  - Bottom friction: IMPLEMENTED (`shelf_dissipation`), OFF by default since 2026-09-28 (SHELF_CF_SCALE_DEFAULT): the
+    model field at a shelf cell already carries WW3's bed friction. At the 0.25 lever: Kf ~0.32 (200 km/15 m, 16 s).
   - Directional exposure: IMPLEMENTED (`_height_exposure_factor`, applied to H inside
     `estimate_surf` since 2026-07-17) — how much of the swell is AIMED at this coast. Measured
     through the live function: 0° off-normal 0.0%, 45° -11.9%, 75° -30.0%, 90° -40.5% of height.
@@ -81,9 +81,7 @@ _GAMMA_MIN_LEGACY, _GAMMA_MAX_LEGACY, _GAMMA_MAX_STEEP_LEGACY = 0.62, 1.05, 1.25
 #    the implicit 1.0 it replaces; it is NOT a per-spot refraction model. That needs the shore normal
 #    plus the finer bathymetry asset, both of which now exist.
 # Kill: SURF_REFRACTION_KR=1.0 restores the pre-2026-08-05 no-refraction behaviour.
-# ★ 0.797 -> 0.873 (2026-09-27): 0.797 was observed/Ks ONLY, so it double-counted the chain's own friction
-#   and exposure; `validate_nearshore_transform.py --composed` on the same pairs gives 0.873. See science_registry.
-REFRACTION_KR = 0.873
+REFRACTION_KR = 0.873  # was 0.797 (obs/Ks only: double-counted friction + exposure); composed-chain fit 2026-09-27, science_registry
 DEEP_RATIO = 0.5    # d/L0 > 0.5 == deep water (shoaling negligible) — standard linear-theory cutoff
 
 
@@ -308,7 +306,7 @@ _CELL_KM = 27.75          # ~0.25 deg ≈ 27.75 km
 SHELF_KF_FLOOR = 0.316    # = sqrt(1 - 0.90). ⚠️ Ardhuin (2003) reports 93% => 0.265; see above
 
 
-def shelf_dissipation(Tp_s, depth_m, width_km):
+def shelf_dissipation(Tp_s, depth_m, width_km, cf_scale=None):
     """Fraction of offshore swell HEIGHT that survives crossing the shelf, lost to bottom friction. ~1.0 over a
     narrow/steep or deep shelf; << 1 over a WIDE SHALLOW shelf where swell crosses many wavelengths of shallow
     water and bleeds energy to the bed — up to 93% energy loss on the widest shelves (Ardhuin 2003, NC/VA
@@ -316,7 +314,7 @@ def shelf_dissipation(Tp_s, depth_m, width_km):
     nearshore effect (the surf-zone shoaling jump is sub-grid at 0.25°).
 
     Form: exp(-CF * shelf_width_in_cells * bed_feel), bed_feel = 1/sinh(kd) (near-bed orbital influence:
-    ~0 in deep water, large in shallow). Returns 1.0 (no loss) for deep water or zero shelf width."""
+    ~0 in deep water, large in shallow). 1.0 for deep water or zero width. `cf_scale` overrides the served scale."""
     if (Tp_s is None or Tp_s <= 0 or depth_m is None or depth_m <= 0
             or width_km is None or width_km <= 0):
         return 1.0
@@ -328,7 +326,7 @@ def shelf_dissipation(Tp_s, depth_m, width_km):
         return 1.0
     feel = 1.0 / math.sinh(kd)
     width_cells = width_km / _CELL_KM
-    kf = math.exp(-SHELF_FRICTION_CF * _shelf_cf_scale() * width_cells * feel)
+    kf = math.exp(-SHELF_FRICTION_CF * (_shelf_cf_scale() if cf_scale is None else cf_scale) * width_cells * feel)
     # Never claim more dissipation than the cited literature supports (see SHELF_KF_FLOOR).
     if os.environ.get("SURF_SHELF_KF_FLOOR", "1") != "0":
         return max(kf, SHELF_KF_FLOOR)
@@ -343,20 +341,24 @@ def shelf_dissipation(Tp_s, depth_m, width_km):
 #   SURF_V3_SHELF_RECAL=0  legacy full-strength shelf friction (the 2.5-3x FL underread)
 #   SURF_V3_EXPOSURE=0     no swell-angle factor on the HEIGHT (rating keeps its own)
 #   SURF_V3_MAGNETS=0      ignore per-spot wave-magnet factors (see surf_magnets.py)
-# Levers: SURF_SHELF_CF_SCALE (default 0.25 — calibrated so FL-class Kf lands ~0.85 instead of
-# ~0.5) and SURF_V3_JACK_MAX (default 2.0 — bounds Komar amplification; literature shoaling
-# amplification rarely exceeds ~1.6-2x without focusing).
+# Levers: SURF_SHELF_CF_SCALE (default SHELF_CF_SCALE_DEFAULT below) and SURF_V3_JACK_MAX (default 2.0 — bounds
+# Komar amplification; literature shoaling amplification rarely exceeds ~1.6-2x without focusing).
 def _v3(flag: str) -> bool:
     return os.environ.get(flag, "1") != "0"
+
+
+# ★ CROSS-SHELF FRICTION OFF BY DEFAULT (2026-09-28; was 0.25): the model field at a wide-shelf spot is already shelf
+# water (WW3 applies bed friction), so edge friction counted the shelf twice. Evidence: science_registry. 0.25 = legacy.
+SHELF_CF_SCALE_DEFAULT = 0.0
 
 
 def _shelf_cf_scale() -> float:
     if not _v3("SURF_V3_SHELF_RECAL"):
         return 1.0
     try:
-        return float(os.environ.get("SURF_SHELF_CF_SCALE", "0.25"))
+        return float(os.environ.get("SURF_SHELF_CF_SCALE", str(SHELF_CF_SCALE_DEFAULT)))
     except (TypeError, ValueError):
-        return 0.25
+        return SHELF_CF_SCALE_DEFAULT
 
 
 def _height_exposure_factor(swell_from_deg, shore_normal_deg) -> float:
@@ -387,7 +389,7 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
 
     Physics (literature-grounded):
       1. Cross-shelf bottom friction (Kf, ``shelf_dissipation``): swell crossing a WIDE SHALLOW shelf loses
-         energy to the bed (Ardhuin 2003; Kurian 1987). Scaled by shelf WIDTH and 1/sinh(kd).
+         energy to the bed (Ardhuin 2003; Kurian 1987). Scaled by shelf WIDTH and 1/sinh(kd); OFF by default (SHELF_CF_SCALE_DEFAULT).
       2. Local shoaling (Ks) from deep/intermediate water to the shelf-cell depth (linear wave theory).
       3. Depth-limited breaking: capped at breaker_index(Tp)*depth (period-dependent: long-period plunges taller).
       4. Surf only exists near a shore: an OPEN-OCEAN point (no nearby land) carries swell but no surf ->
@@ -521,7 +523,7 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     # neither the H1/10 convention nor the cap-seam repair can apply on one surface and not
     # another. γ·d stays UNconverted (already a maximum-wave statistic — rationale lives with the
     # helper); SURF_CAP_SEAM_MONOTONE converts BEFORE comparing so a rising sea cannot DROP the
-    # published height at the regime edge (11.0 §3.8 / MC-01). Default OFF = byte-identical legacy.
+    # published height at the regime edge (11.0 §3.8 / MC-01). Default ON since 2026-09-28 (see the helper).
     return publish_surf_height(H, cap, 'shelf' if H <= Hs_m else 'shoaling')
 
 

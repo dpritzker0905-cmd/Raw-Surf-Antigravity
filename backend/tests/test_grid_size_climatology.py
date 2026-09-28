@@ -55,9 +55,11 @@ def test_accumulate_folds_across_runs_and_skips_bad_points():
 
 
 def test_accumulate_excludes_subrideable_days():
-    # A trace 0.1 m offshore swell breaks below the 0.2 m rideability floor -> merge_samples drops it,
+    # A trace 0.06 m offshore swell breaks below the 0.2 m rideability floor -> merge_samples drops it,
     # so flat days never drag a coast's "good day" reference down (mirrors the spot blob's floor).
-    pts = [_pt(28.5, -80.5, 0.1)]
+    # (0.1 m until 2026-09-28: it only broke below the floor because cross-shelf friction, now off by
+    # default -- SHELF_CF_SCALE_DEFAULT -- shrank it first; without friction it breaks just above 0.2 m.)
+    pts = [_pt(28.5, -80.5, 0.06)]
     obj = gc.accumulate_points_into_grid_climatology(None, pts, **_fns())
     key = gc.cell_key(28.5, -80.5)
     assert key not in obj["cells"] or obj["cells"][key]["n"] == 0

@@ -27,6 +27,10 @@ import { seriesAnchorTag, seriesAnchorParam, seriesGridPhase, alignToCadenceGrid
 import { frameToMarineData } from './marineSeriesFrame';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { padRegionalBbox, normalizeRequestBbox, bboxContains } from './marineBboxGeometry';
+import {
+  acquireSeriesSlot, releaseSeriesSlot, promoteQueuedWarm, acquireMiniSlot, releaseMiniSlot,
+  _resetSeriesLimiterForTest,
+} from './marineSeriesLimiter';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
 const _seriesCache = new Map();
@@ -96,113 +100,9 @@ function scheduleFailRetry(model, layer, bounds, page, signal, key, reason) {
   armIdleTimer(() => { loadSeriesPage(model, layer, bounds, page, signal, true); }, coarseRevalDelayMs(n));
 }
 
-// Concurrency gate for grid_series fetches. The backend is 1-CPU: firing N series requests at
-// once (rapid model/layer toggling warms GFS+ICON+EURO × every layer × 3 pages) slams the box
-// into 503s/timeouts so NOTHING completes — the "bottleneck after scrubbing." Cap concurrent
-// fetches so the box serves them ~2 at a time and each finishes fast (no contention). Requests
-// queue client-side; a request whose signal aborts while queued is dropped (never hits the box),
-// so superseded model/layer warms don't pile up. Tune up once the backend has more CPU.
-const MARINE_SERIES_MAX_CONCURRENT = 2;
-// PRIORITY (A15-11, 2026-09-27). Background warms (sibling layers, the world series behind the zoom-out
-// bridge, adjacent-page idle prefetch) shared ONE FIFO with the loads the user is waiting on, so an
-// activation's own pages could queue behind them, and the world /grid warm bypassed the cap entirely.
-// Visible loads are now always served first; background warms hold at most ONE of the two slots and
-// never start while a visible load is waiting; a visible request for a page still QUEUED as a warm
-// promotes it. Nothing is dropped: every warm still runs, after what is on screen.
-// Kill: window.__RAW_DISABLE_FETCH_PRIORITY__ = true -> the single FIFO, every load treated as visible.
-const MARINE_SERIES_BG_MAX = 1;
-let _seriesActiveLoads = 0;
-let _bgActiveLoads = 0;
-const _seriesWaiters = []; // visible:    [{ resolve, signal, key, background: false }]
-const _bgWaiters = [];     // background: same shape, background: true
-
-function _priorityOn() {
-  return !(typeof window !== 'undefined' && window.__RAW_DISABLE_FETCH_PRIORITY__ === true);
-}
-
-function _canStart(background) {
-  if (_seriesActiveLoads >= MARINE_SERIES_MAX_CONCURRENT) return false;
-  return !background || _bgActiveLoads < MARINE_SERIES_BG_MAX;   // _pump serves waiting visible loads first
-}
-
-function _take(background) {
-  _seriesActiveLoads++;
-  if (background) _bgActiveLoads++;
-  return background ? 'background' : 'visible';
-}
-
-/** Resolves to the lane the slot was granted in ('visible' | 'background'), or false when dropped. */
-function acquireSeriesSlot(signal, background = false, key = null) {
-  const bg = !!background && _priorityOn();
-  if (_canStart(bg)) return Promise.resolve(_take(bg));
-  return new Promise((resolve) => {
-    const entry = { resolve, signal, key, background: bg };
-    (bg ? _bgWaiters : _seriesWaiters).push(entry);
-    if (signal) {
-      try {
-        signal.addEventListener('abort', () => {
-          const q = entry.background ? _bgWaiters : _seriesWaiters;  // it may have been promoted
-          const i = q.indexOf(entry);
-          if (i >= 0) { q.splice(i, 1); resolve(false); } // dropped while queued; no slot taken
-        }, { once: true });
-      } catch (e) { /* ignore */ }
-    }
-  });
-}
-
-function _nextLive(q) {
-  while (q.length) {
-    const w = q.shift();
-    if (w.signal && w.signal.aborted) { w.resolve(false); continue; } // drop aborted-while-queued
-    return w;
-  }
-  return null;
-}
-
-function _pump() {
-  while (_seriesActiveLoads < MARINE_SERIES_MAX_CONCURRENT) {
-    const v = _nextLive(_seriesWaiters);
-    if (v) { v.resolve(_take(false)); continue; }
-    if (_bgActiveLoads >= MARINE_SERIES_BG_MAX) break;
-    const b = _nextLive(_bgWaiters);
-    if (!b) break;
-    b.resolve(_take(true));
-  }
-}
-
-function releaseSeriesSlot(lane) {
-  if (_seriesActiveLoads > 0) _seriesActiveLoads--;
-  if (lane === 'background' && _bgActiveLoads > 0) _bgActiveLoads--;
-  _pump();
-}
-
-/** A visible request found its page still queued as a background warm: move it to the visible queue. */
-function promoteQueuedWarm(key) {
-  const i = _bgWaiters.findIndex((w) => w.key === key);
-  if (i < 0) return false;
-  const [w] = _bgWaiters.splice(i, 1);
-  w.background = false;
-  _seriesWaiters.push(w);
-  _pump();
-  return true;
-}
-
-/**
- * Run a background warm that is not a series page (the world /grid behind the zoom-out bridge, the
- * zoom-out anticipation grid) under the same budget, so it can no longer bypass the cap. Resolves
- * undefined when dropped (its signal aborted while queued).
- */
-export async function runBackgroundWarm(fn, signal) {
-  const lane = await acquireSeriesSlot(signal, true, null);
-  if (!lane) return undefined;
-  try { return await fn(); } finally { releaseSeriesSlot(lane); }
-}
-
-/** Test/diagnostic view of the limiter. */
-export function _seriesLimiterState() {
-  return { active: _seriesActiveLoads, background: _bgActiveLoads,
-    queuedVisible: _seriesWaiters.length, queuedBackground: _bgWaiters.length };
-}
+// The in-flight budget (the page lanes and the hour-0 mini lane) lives in marineSeriesLimiter.js;
+// runBackgroundWarm and _seriesLimiterState are re-exported so no importer moved.
+export { runBackgroundWarm, _seriesLimiterState } from './marineSeriesLimiter';
 
 // 3-hourly pages of at most 48 frames (the backend series cap). The span is per COST CLASS,
 // sized so ONE page always fits Netlify's ~26s /api/* proxy window — a page that runs past it
@@ -523,7 +423,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
 // backend absorbs the tiny request concurrently. Completion re-drive = the SAME
 // 'marine_series_revalidated' event the full page fires (event-driven sharpen, not the 3 s poll).
 // Kill: __RAW_DISABLE_HOUR0_FIRST__. Telemetry: __MARINE_SERIES_DIAG__.h0Loads/h0Served.
-async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
+async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, background = false) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_HOUR0_FIRST__ === true) return;
   if (!isMarineSeriesEnabled() || !bounds) return;
   const page = marineSeriesPageForHour(hourOffset, model);
@@ -544,9 +444,15 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
   const localController = new AbortController();
   const onCallerAbort = () => { try { localController.abort(); } catch (e) { /* ignore */ } };
   if (signal) { try { signal.addEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
-  const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 15000);
+  let timeoutId = null;
+  let lane = null;
   const p = (async () => {
     try {
+      // A15-11: a visible mini starts at once (counted, so background work waits for it); a background
+      // warm's mini waits for the one background request (marineSeriesLimiter.js). The timeout starts with the fetch.
+      lane = await acquireMiniSlot(localController.signal, background);
+      if (!lane) return;
+      timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 15000);
       const res = await fetch(url, { signal: localController.signal });
       if (!res.ok) return;                                   // silent: the full page is coming anyway
       const json = await res.json();
@@ -571,7 +477,8 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
         try { window.dispatchEvent(new Event('marine_series_revalidated')); } catch (e) { /* ignore */ }
       }
     } catch (e) { /* silent — full page is the safety net */ } finally {
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
+      if (lane) releaseMiniSlot(lane);
       _inFlight.delete(h0key);
       if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
     }
@@ -601,7 +508,7 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
   const _pk = pageKey(model, layer, bounds, page);
   const _pc = _seriesCache.get(_pk);
   if (!(_pc && _pc.frames && _pc.frames.size && Date.now() - _pc.ts < SERIES_TTL_MS)) {
-    loadSeriesHour0(model, layer, bounds, hourOffset, signal);
+    loadSeriesHour0(model, layer, bounds, hourOffset, signal, background);
   }
   await loadSeriesPage(model, layer, bounds, page, signal, force, background);
   // currentPageOnly: load just the page containing hourOffset, no adjacent prefetch. Used by the
@@ -634,8 +541,12 @@ export function prewarmMarineSeries(model, layer, bounds, signal) {
   // scrub+toggle. Skip the eager prewarm for EURO — its lazy current-page load handles it. GFS &
   // ICON just re-slice a cheap cached coarse product, so prewarming all pages is safe + fast.
   if ((model || 'GFS').toUpperCase() === 'EURO') return;
+  // BACKGROUND (A15-11, 2026-09-28). These pages are warmed for scrubbing, not shown: the page on screen is
+  // loaded visible by the caller's ensureMarineSeries, and a visible request for a page still queued here
+  // promotes it. Loaded visible, the next page took a slot 600 ms after every toggle (dev E2E 36367984954,
+  // Safari: the current page + this one + the gesture's mini + its world /grid beside a background request).
   for (let page = 0, last = lastPageFor(model); page <= last; page++) {
-    loadSeriesPage(model, layer, bounds, page, signal);
+    loadSeriesPage(model, layer, bounds, page, signal, false, true);
   }
 }
 
@@ -773,9 +684,6 @@ export function _resetMarineSeriesForTest() {
     try { clearTimeout(id); if (typeof window !== 'undefined' && window.cancelIdleCallback) window.cancelIdleCallback(id); } catch (e) { /* ignore */ }
   }
   _idleTimers.clear();
-  _seriesActiveLoads = 0;
-  _bgActiveLoads = 0;
-  _seriesWaiters.length = 0;
-  _bgWaiters.length = 0;
+  _resetSeriesLimiterForTest();
   _failRetries.clear();
 }

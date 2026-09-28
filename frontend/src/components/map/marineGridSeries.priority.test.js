@@ -11,7 +11,9 @@ jest.mock('./weatherTruthTracker', () => ({ buildTruthTag: () => null }));
  * with in-app series at 7.8-8.2 s against 0.7-1.8 s alone. These pin the lanes: visible first, at most
  * one background slot, no background start while a visible load waits, promotion, the kill switch.
  */
-import { ensureMarineSeries, runBackgroundWarm, _resetMarineSeriesForTest, _seriesLimiterState } from './marineGridSeries';
+import {
+  ensureMarineSeries, prewarmMarineSeries, runBackgroundWarm, _resetMarineSeriesForTest, _seriesLimiterState,
+} from './marineGridSeries';
 
 const box = (w) => ({ west: w, south: 27, east: w + 1, north: 28 });
 const response = () => ({ ok: true, json: async () => ({ frames: [] }) });
@@ -74,6 +76,9 @@ describe('marine series limiter priority lanes (A15-11)', () => {
     expect(started().map(Math.round)).toEqual([-90, -85, -75]);
     finish(-85);
     await flush();
+    expect(started().map(Math.round)).toEqual([-90, -85, -75]);   // -75 still loading: the warm waits for idle
+    finish(-75);
+    await flush();
     expect(started().map(Math.round)).toEqual([-90, -85, -75, -80]);
   });
 
@@ -111,6 +116,33 @@ describe('marine series limiter priority lanes (A15-11)', () => {
     await flush();
     expect(grid).toHaveBeenCalledTimes(1);
     await expect(p).resolves.toBe('world');
+  });
+
+  it('the scrub prewarm warms its pages in the background: after what is on screen, one at a time', async () => {
+    visible(-90);                                        // the page on screen
+    await flush();
+    prewarmMarineSeries('GFS', 'waves', box(-70));      // every page of another view, for scrubbing
+    await flush();
+    expect(requests).toHaveLength(1);                   // nothing warms while the visible page loads
+    finish(-90);
+    await flush();
+    expect(requests).toHaveLength(2);                   // then ONE page at a time
+    requests[1].finish();
+    await flush();
+    expect(requests).toHaveLength(3);
+    expect(_seriesLimiterState()).toMatchObject({ background: 1, queuedBackground: 1 });
+  });
+
+  it('a visible request for a page the prewarm still has queued goes first', async () => {
+    visible(-90); visible(-85);                          // both slots busy
+    await flush();
+    prewarmMarineSeries('GFS', 'waves', box(-70));      // three pages queued in the background
+    visible(-70);                                        // the user now looks at -70: its page 0 is promoted
+    await flush();
+    expect(_seriesLimiterState()).toMatchObject({ queuedVisible: 1, queuedBackground: 2 });
+    finish(-90);
+    await flush();
+    expect(requests[2].url).toContain('hours=0,');      // -70's current page, not a scrub page
   });
 
   it('the kill switch restores the single FIFO: warms count as visible', async () => {

@@ -254,19 +254,19 @@ _RATING_FLAGS = {
                                              "SURF_HEIGHT_H110 — setting this to 1.0 while H110 is "
                                              "on reinstates that +25.5%",
                                     "Render env"),
-    # ── 2026-08-15: THE CAP-SEAM REPAIR (11.0 §3.8 / Master Codex MC-01) — dark until flipped. ──
+    # ── 2026-08-15: THE CAP-SEAM REPAIR (11.0 §3.8 / Master Codex MC-01) — DEFAULT ON since 2026-09-28, ──
+    # paired with cross-shelf friction off (SHELF_CF_SCALE_DEFAULT = 0), which sends more wide-shelf seas to the cap.
     # Legacy compares the PRE-conversion height to the γ·d cap and converts only the unsaturated
     # branch, so the published height climbs to 1.27×cap then FALLS onto cap as offshore Hs rises
     # 0.01 m (largest probe drop −21.3%: 8.2294 m → 6.4800 m). The repair saturates the H1/10
     # statistic in its own space: min(converted, cap). Binds only where the depth cap binds
     # (0.145% of served spot-hours, n=227,088) — big-wave frames.
-    "SURF_CAP_SEAM_MONOTONE":      ("0", "Cap-seam repair: saturate the published H1/10 statistic "
+    "SURF_CAP_SEAM_MONOTONE":      ("1", "Cap-seam repair: saturate the published H1/10 statistic "
                                          "in its own space — min(converted, γ·d) — so a rising "
                                          "offshore sea can never DROP the published surf height at "
-                                         "the breaking-regime edge. OFF = legacy seam, "
-                                         "byte-identical. ⚠️ FLIP ALL LANES TOGETHER (precomputed "
-                                         "frames bake heights) after the band census is "
-                                         "owner-reviewed",
+                                         "the breaking-regime edge. ON since 2026-09-28 (paired "
+                                         "with cross-shelf friction off); OFF = legacy seam. ⚠️ "
+                                         "FLIP ALL LANES TOGETHER (precomputed frames bake heights)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
 }
 

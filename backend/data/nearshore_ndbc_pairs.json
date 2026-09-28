@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "reviewed_at": "2026-09-28",
+  "provenance": "Hand-listed NOAA NDBC buoys for the nearshore judge where CDIP has no live station. 42035: NDBC station page (29.235 N 94.410 W, water depth 15.5 m), realtime2 WVHT live 2026-09-28. Each buoy is paired with its OWN cell (the nearest spot, Galveston Seawall, is 37 km away, outside the 10 km CDIP rule). See services/weather_pipeline/ndbc_nearshore.py.",
+  "pairs": [
+    {
+      "station": "ndbc:42035",
+      "station_lat": 29.235,
+      "station_lng": -94.41,
+      "station_depth_m": 15.5,
+      "spots": [
+        {"name": "NDBC 42035 buoy cell (Galveston shelf)", "lat": 29.235, "lng": -94.41}
+      ]
+    }
+  ]
+}

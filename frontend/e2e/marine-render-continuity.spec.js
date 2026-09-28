@@ -107,7 +107,38 @@ const E2E_USER = {
   is_admin: false
 };
 
+// ⛔ WHERE THE MAP OPENS WAS THE RUNNER'S IP, NOT A CHOICE (2026-09-28). `/map` centres on the
+// visitor (MapPage `effectiveLocation`: GPS, else `/api/location/ip-geolocation` with coastal snap,
+// at z9), so each CI run started wherever its runner geolocated. Measured from the request recorder's
+// bboxes: run 36375100570 (green) opened on Virginia Beach, 36372270148 (green, the A15-11 "met"
+// baseline) on Chicago/Lake Michigan, and 36376343648 (red) on central Iowa, where no marine layer has
+// a single ocean cell in view. There wind_waves' viewport grid came back empty, the switch hold
+// expired, and the gate measured a 2.8 s "stall" of a field that has nothing to paint. The same app
+// build had passed 20 minutes earlier at Virginia Beach. So the gate, and every A15-11 fan-out number
+// taken with it, was graded at an uncontrolled place.
+// ★ Fixed by answering the app's OWN IP lookup with a fixed coast, rather than seeding the GPS cache:
+//   GPS opens at z12, while every run so far opened through the IP path at z9. Same code path, same
+//   zoom, one place. Sebastian Inlet is the burst test's camera and the owner's reported break.
+const START_COAST = { lat: 27.8608, lng: -80.4464, city: 'Sebastian', region: 'Florida' };
+// ⛔ WEBKIT ROUTES THROUGH THE SERVICE WORKER. The first run of the pin (36432722270) held on Desktop Chrome and
+// NOT on Desktop Safari: 0 lookups answered, the map on Des Moines. `public/service-worker.js` claims the page on
+// install and has a fetch listener, and in WebKit a request that passes through a controlling worker is invisible
+// to `page.route` (Playwright documents this; its remedy is to block workers). Blocking changes nothing this spec
+// measures: the worker skips every `/weather` and `/marine` request by design and only caches surf-spot lists.
+test.use({ serviceWorkers: 'block' });
+
+let ipLookups = 0;
+
 async function openMapAsSurfer(page) {
+  ipLookups = 0;
+  await page.route('**/api/location/ip-geolocation**', (route) => {
+    ipLookups += 1;
+    return route.fulfill({ json: {
+      success: true, latitude: START_COAST.lat, longitude: START_COAST.lng,
+      city: START_COAST.city, region: START_COAST.region, country: 'US', accuracy: 'city',
+      is_coastal: true, coastal_snapped: false, city_changed: false,
+    } });
+  });
   await page.addInitScript((user) => {
     localStorage.setItem('raw-surf-user', JSON.stringify(user));
     localStorage.setItem(`tos-accepted-${user.id}-1.0`, Date.now().toString());
@@ -125,6 +156,23 @@ async function openMapAsSurfer(page) {
   await page.goto('/map', { waitUntil: 'domcontentloaded' });
   await expect(page.locator('[data-testid="featured-photographers-btn"]'))
     .toBeVisible({ timeout: 65000 });
+}
+
+/** POSITIVE CONTROL for the pin: if the app stops asking, or another source outranks it, fail here by
+ *  name rather than quietly measuring the runner's city again. Called after the skips (mobile). */
+async function expectPinnedStart(page) {
+  const pinned = await page.waitForFunction(({ lat, lng }) => {
+    const m = window.__MAP_INSTANCE__;
+    if (!m || typeof m.getCenter !== 'function') return false;
+    const c = m.getCenter();
+    return Math.abs(c.lat - lat) < 0.5 && Math.abs(c.lng - lng) < 0.5;
+  }, START_COAST, { timeout: 30000 }).then(() => true, () => false);
+  const center = await page.evaluate(() => {
+    const m = window.__MAP_INSTANCE__;
+    return m && typeof m.getCenter === 'function' ? m.getCenter() : null;
+  });
+  expect(pinned, `the map must open on the pinned coast (${START_COAST.lat}, ${START_COAST.lng}); `
+    + `it is at ${JSON.stringify(center)}, IP lookups answered: ${ipLookups}`).toBe(true);
 }
 
 /** Start an in-page sampler that records draw-counter stalls until stopped. */
@@ -185,7 +233,11 @@ async function readMarineLogs(page) {
       ? window.__MARINE_CLEAR_LOG__.map((c) => ({ reason: c.reason, timestamp: c.timestamp,
         transitioning: c.transitioning, requested: c.requested, displayed: c.displayed })) : [],
     churn: (window.__MARINE_CHURN__ && Array.isArray(window.__MARINE_CHURN__.log))
-      ? window.__MARINE_CHURN__.log.map((c) => ({ kind: c.kind, t: c.t, cause: c.cause, message: c.message })) : [],
+      // `site`/`from`/`to` name WHICH fetch superseded which (detach) and the layer each flip left and
+      // entered. Without them, run 36432722270 could show that every toggle fetched the OUTGOING layer's
+      // world /grid 8 ms after a detach, but not which request source fired it.
+      ? window.__MARINE_CHURN__.log.map((c) => ({ kind: c.kind, t: c.t, cause: c.cause, message: c.message,
+        site: c.site, from: c.from, to: c.to })) : [],
   }));
 }
 
@@ -226,6 +278,7 @@ test.describe('Marine render continuity across real gestures', () => {
     test.skip(!hasWebGL, 'no WebGL on this runner — this would measure the runner, not the app');
     const isMobile = await page.evaluate(() => window.innerWidth < 768);
     test.skip(isMobile, 'desktop layout only — the mobile bottom sheet adds motion this oracle misreads');
+    await expectPinnedStart(page);
 
     // From BEFORE the first activation: the cold activation is the audit's measured fan-out.
     currentGesture = 'activate:Waves';
@@ -305,8 +358,9 @@ test.describe('Marine render continuity across real gestures', () => {
       contentType: 'application/json',
     });
     test.info().annotations.push({ type: 'weather fan-out', description:
-      `${fanout.total} requests, peak ${fanout.peakInFlight} in flight; `
-      + Object.entries(fanout.byLabel).map(([k, g]) => `${k}: ${g.n} (peak ${g.peakInFlight}, world ${g.world}, `
+      `${fanout.total} requests, peak ${fanout.peakInFlight} in flight (settled ${fanout.peakInFlightSettled}, `
+      + `${fanout.unsettled} never finished); `
+      + Object.entries(fanout.byLabel).map(([k, g]) => `${k}: ${g.n} (peak ${g.peakInFlight}/settled ${g.peakInFlightSettled}, world ${g.world}, `
         + `median ${g.medianMs} ms)`).join('; ') });
 
     expect(samples.length, 'the sampler produced no samples at all').toBeGreaterThan(10);
@@ -341,7 +395,7 @@ test.describe('Marine render continuity across real gestures', () => {
  * independently, and a gate watching only the draw counter would pass a run where the band
  * vanished. Both are asserted.
  */
-const SEBASTIAN = { lat: 27.8608, lng: -80.4464, zoom: 12 };
+const SEBASTIAN = { lat: START_COAST.lat, lng: START_COAST.lng, zoom: 12 };
 
 test.describe('Marine render continuity under a rapid zoom/pan burst', () => {
   test.beforeEach(async ({ page }) => {
@@ -360,6 +414,7 @@ test.describe('Marine render continuity under a rapid zoom/pan burst', () => {
     test.skip(!hasWebGL, 'no WebGL on this runner — this would measure the runner, not the app');
     const isMobile = await page.evaluate(() => window.innerWidth < 768);
     test.skip(isMobile, 'desktop layout only — the mobile bottom sheet adds motion this oracle misreads');
+    await expectPinnedStart(page);
 
     await clickLayer(page, 'Waves');
     await page.evaluate(({ lat, lng, zoom }) => {
