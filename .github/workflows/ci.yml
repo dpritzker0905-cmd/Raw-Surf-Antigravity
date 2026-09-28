@@ -1423,7 +1423,10 @@ jobs:
           # #132's hosted run observed 269 files / 536 passed. tests/test_nearshore_workflow_eligibility.py (claimed
           # by `--lane estate`) gains 3 executed tests: 536 + 3 = 539; 539 - 2 (this lane's budget) = 537;
           # _FLOOR_SET_FROM[estate] -> 539.
-          MIN_PASSED = 537
+          # ⬆ 537→540 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the floor-staleness check reads the NEWEST of
+          # 20 runs): dev's hosted run 36373600771 (d6638bf4) observed 539 passed. tests/test_ci_floor_staleness.py
+          # (claimed by `--lane estate`) gains 3 executed tests: 539 + 3 = 542; 542 - 2 = 540; _FLOOR_SET_FROM -> 542.
+          MIN_PASSED = 540
 
           try:
               root = ET.parse('estate.xml').getroot()
