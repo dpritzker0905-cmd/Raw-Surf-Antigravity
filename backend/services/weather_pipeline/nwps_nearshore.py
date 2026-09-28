@@ -236,31 +236,38 @@ def list_dir(get, url: str) -> list:
 
 
 def fetch_station_runs(entry: dict, now: datetime, lookback_hours: float, get=_get) -> list:
-    """[{cycle, times, hs}] for one station's buoy: every cycle that could grade an hour of the window
-    (those in it, and a day before it for the window's first hours). A cycle whose file is missing or
-    unreadable is skipped; transport failures raise (the caller isolates per station)."""
-    lo = now - timedelta(hours=lookback_hours + 24.0)
-    runs, day = [], lo.date()
+    """[{cycle, times, hs}] for one station's buoy: the cycles that can grade an hour of the window.
+    Newest first, stopping at the first one issued at or before the window's start: every hour of the
+    window takes the latest cycle at or before it, so an older cycle is never the one graded. An hourly
+    run therefore reads ~1 file per station, not every cycle of the last day. A cycle whose file is
+    missing or unreadable is skipped; transport failures raise (the caller isolates per station)."""
+    start = now - timedelta(hours=lookback_hours)
+    lo = start - timedelta(hours=24.0)            # a day before the window, for its first hours
+    candidates, day = [], lo.date()
     while day <= now.date():
         d = day.strftime("%Y%m%d")
         base = f"{NWPS_BASE}/{entry['region']}.{d}/{entry['wfo']}"
-        for hh in sorted(n.strip("/") for n in list_dir(get, f"{base}/") if re.fullmatch(r"\d\d/", n)):
+        for hh in (n.strip("/") for n in list_dir(get, f"{base}/") if re.fullmatch(r"\d\d/", n)):
             cyc = cycle_of(d, hh)
-            if cyc is None or not (lo <= cyc <= now):
-                continue
-            name = f"nwps.t{hh}z.spc2d_{entry['buoy']}_{GRID}.{entry['wfo']}.txt"
-            try:
-                spec = parse_swan_spec(get(f"{base}/{hh}/{GRID}/{name}"))
-            except urllib.error.HTTPError as e:
-                if e.code == 404:
-                    continue
-                raise
-            except ValueError:
-                continue
-            if spec["points"]:
-                runs.append({"cycle": cyc, "times": spec["times"], "hs": spec["points"][0]["hs"]})
+            if cyc is not None and lo <= cyc <= now:
+                candidates.append((cyc, base, hh))
         day += timedelta(days=1)
-    return runs
+    runs = []
+    for cyc, base, hh in sorted(candidates, reverse=True):
+        name = f"nwps.t{hh}z.spc2d_{entry['buoy']}_{GRID}.{entry['wfo']}.txt"
+        try:
+            spec = parse_swan_spec(get(f"{base}/{hh}/{GRID}/{name}"))
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                continue
+            raise
+        except ValueError:
+            continue
+        if spec["points"]:
+            runs.append({"cycle": cyc, "times": spec["times"], "hs": spec["points"][0]["hs"]})
+            if cyc <= start:
+                break
+    return sorted(runs, key=lambda r: r["cycle"])
 
 
 def attach_nwps(preds: list, now: datetime, lookback_hours: float, points: dict = None, get=_get) -> dict:

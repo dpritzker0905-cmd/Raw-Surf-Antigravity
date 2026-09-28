@@ -176,11 +176,28 @@ def test_the_fetch_reads_the_cycles_that_can_grade_the_window_and_skips_missing_
         # the 27th's 12Z listed but its spectrum missing: skipped, never an error
     }
     get, calls = _nomads(files)
-    # window 18 h back from 01Z on the 28th, plus a day of cycles before it: 26th 07Z onward
+    # window 27th 07Z .. 28th 01Z: its hours take the 27th's 12Z (missing, skipped) or 00Z, which covers
+    # the window's start, so the fetch stops there and the 26th's cycles are never read
     runs = NW.fetch_station_runs(ENTRY, NOW, lookback_hours=18, get=get)
-    assert [r["cycle"].strftime("%d %H") for r in runs] == ["26 12", "27 00"]
-    assert not any("sr.20260926/mlb/00/" in c for c in calls)     # the 26th's 00Z is before it: never fetched
+    assert [r["cycle"].strftime("%d %H") for r in runs] == ["27 00"]
+    assert not any("sr.20260926/mlb/" in c and "spc2d" in c for c in calls)
     assert len(runs[0]["times"]) == 48 and runs[0]["hs"][0] > 0
+
+
+def test_a_wider_window_reads_back_to_the_cycle_that_covers_its_start():
+    files = {
+        f"{_base('20260926')}/": _listing(["00/", "12/"]),
+        f"{_base('20260927')}/": _listing(["00/", "12/"]),
+        f"{_base('20260926')}/00/CG1/nwps.t00z.spc2d_41113_CG1.mlb.txt": _hourly("20260926", "00", 72, 1),
+        f"{_base('20260926')}/12/CG1/nwps.t12z.spc2d_41113_CG1.mlb.txt": _hourly("20260926", "12", 72, 1),
+        f"{_base('20260927')}/00/CG1/nwps.t00z.spc2d_41113_CG1.mlb.txt": _hourly("20260927", "00", 72, 1),
+        f"{_base('20260927')}/12/CG1/nwps.t12z.spc2d_41113_CG1.mlb.txt": _hourly("20260927", "12", 72, 1),
+    }
+    get, calls = _nomads(files)
+    # window 26th 19Z .. 28th 01Z: the 26th's 12Z covers its start; the 26th's 00Z is never needed
+    runs = NW.fetch_station_runs(ENTRY, NOW, lookback_hours=30, get=get)
+    assert [r["cycle"].strftime("%d %H") for r in runs] == ["26 12", "27 00", "27 12"]
+    assert not any("t00z" in c and "sr.20260926" in c for c in calls)
 
 
 def test_a_transport_failure_raises_to_the_caller():

@@ -106,6 +106,31 @@ def test_missing_or_bypassed_job_gate_is_rejected(before, after, tmp_path, monke
         _assert_eligibility(original.replace(before, after), "schedule", "0", False, tmp_path, monkeypatch)
 
 
+def _arms(text, event, inputs):
+    """Which arms the runner receives, from the validate job's ACTUAL env expressions."""
+    validate = _job(text, "validate")
+    ctx = {"github.event_name": event,
+           **{f"github.event.inputs.{k}": inputs.get(k) for k in ("mop", "nwps", "mop_grid", "trains")}}
+    env = {k: _expression(_scalar(validate, f"NEARSHORE_VAL_{k.upper()}", 10), ctx)
+           for k in ("mop", "nwps", "trains", "mop_grid_dir")}
+    fetch = validate.split("      - name: Fetch the archived MOP grid runs", 1)[1]
+    env["fetches_archive"] = bool(_expression(_scalar(fetch, "if", 8), ctx))
+    return env
+
+
+@pytest.mark.parametrize("event,inputs,want", [
+    # An armed hour grades every cheap arm (2026-09-28): with no inputs, every arm used to be off.
+    ("schedule", {}, {"mop": "1", "nwps": "1", "trains": "0", "mop_grid_dir": "../mop_archive",
+                      "fetches_archive": True}),
+    ("workflow_dispatch", {"mop": "0", "nwps": "0", "mop_grid": "0", "trains": "0"},
+     {"mop": "0", "nwps": "0", "trains": "0", "mop_grid_dir": "", "fetches_archive": False}),
+    ("workflow_dispatch", {"mop": "1", "nwps": "1", "mop_grid": "1", "trains": "1"},
+     {"mop": "1", "nwps": "1", "trains": "1", "mop_grid_dir": "../mop_archive", "fetches_archive": True}),
+])
+def test_an_armed_hour_grades_the_cheap_arms_and_a_dispatch_grades_what_it_asks(event, inputs, want):
+    assert _arms(WORKFLOW.read_text(encoding="utf-8"), event, inputs) == want
+
+
 def test_runner_and_artifact_are_only_in_gated_job():
     text = WORKFLOW.read_text(encoding="utf-8")
     assert re.findall(r"^  ([\w-]+):$", text, re.M)[-2:] == ["eligibility", "validate"]
