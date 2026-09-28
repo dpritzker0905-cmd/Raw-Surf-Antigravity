@@ -1061,7 +1061,11 @@ jobs:
           # observed 121 files / 1393 passed, confirming the #129 projection exactly. The new tests/test_nwps_arm.py
           # (claimed by `--lane chain`) adds 15 executed tests: 1393 + 15 = 1408, 1408 - 6 = 1402; files 122 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1408.
-          MIN_FILES, MIN_PASSED = 122, 1402
+          # ⬆ MIN_PASSED 1402→1406 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (big swell selected by the
+          # forecast as well as by the observation): #130's hosted merge run observed 122 files / 1408 passed,
+          # confirming its projection exactly. tests/test_skill_mos.py (already claimed by `--lane chain`) gains 4
+          # executed tests: 1408 + 4 = 1412, 1412 - 6 = 1406; files 122 unchanged; _FLOOR_SET_FROM["chain"] -> 1412.
+          MIN_FILES, MIN_PASSED = 122, 1406
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
