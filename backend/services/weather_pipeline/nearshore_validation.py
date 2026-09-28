@@ -424,6 +424,9 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
     grid = arm_ab(matched, "mop_grid_hs_m")
     if grid:
         extra["mop_grid_ab"] = grid
+    nwps = arm_ab(matched, "nwps_hs_m")
+    if nwps:
+        extra["nwps_ab"] = nwps
     return {**base, "available": True, "stations": stations, **extra}
 
 

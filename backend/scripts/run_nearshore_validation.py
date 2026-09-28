@@ -41,6 +41,7 @@ from services.weather_pipeline.nearshore_validation import (   # noqa: E402
     Refusal, backfill_valid_times, build_report, fetch_mop_hs, fetch_station_hs, load_mop_archives, load_pairs,
     match, model_hs_at_station, model_hs_at_station_trains, mop_grid_hours, qc_filter, station_trains,
     transform_factors)
+from services.weather_pipeline.nwps_nearshore import attach_nwps  # noqa: E402
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 UA = {"User-Agent": "raw-surf-nearshore-validation-runner"}
@@ -120,6 +121,10 @@ def main() -> int:
     # archived runs (a directory of its artifacts). The grid's hours depend on each region's run, so the
     # stations it covers are also graded at THOSE hours (extra point calls only for those spots).
     ap.add_argument("--mop-grid-archive", default=os.environ.get("NEARSHORE_VAL_MOP_GRID_DIR", ""))
+    # THE NWPS ARM (stage 4 outside California): NOAA's SWAN runs write a 2-D spectrum AT the buoys in
+    # each office's domain (data/nwps_buoy_points.json), hourly; ~1 MB per cycle per station.
+    ap.add_argument("--nwps", action="store_true",
+                    default=os.environ.get("NEARSHORE_VAL_NWPS", "0") == "1")
     ap.add_argument("--max-stations", type=int,
                     default=int(os.environ.get("NEARSHORE_VAL_MAX_STATIONS", "20")))
     args = ap.parse_args()
@@ -230,6 +235,8 @@ def main() -> int:
         g = grid_hours.get(p["station"], {}).get(p["valid_time"])
         if g:
             p["mop_grid_hs_m"], p["mop_grid_lead_h"] = g["hs"], g["lead_h"]
+    nwps_status = (attach_nwps(preds, datetime.now(timezone.utc), args.backfill_hours + 1)
+                   if args.nwps else {})
 
     matched, n_obs = [], 0
     for entry in live_pairs:
@@ -252,6 +259,9 @@ def main() -> int:
         report["mop_grid"] = {"product": "MOP_grids sea+swell forecast (ECMWF-driven), archived runs",
                               "archives": len(grid_blobs),
                               "stations": {s: len(h) for s, h in sorted(grid_hours.items())}}
+    if args.nwps:
+        report["nwps"] = {"product": "NOAA NWPS SWAN (CG1) 2-D spectra at the buoy, WW3-bounded",
+                          "stations": nwps_status}
     report["budget"] = {"wall_s": round(time.time() - t0, 1)}
     with open(args.json, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=1)
@@ -271,6 +281,11 @@ def main() -> int:
         print(f"MOP_GRID_AB n={gab['n']} station_hours={gab['n_station_hours']} "
               f"bulk={gab['bulk']['mae_m']}/{gab['bulk']['bias_m']:+} grid={gab['arm']['mae_m']}/{gab['arm']['bias_m']:+} "
               f"closer={gab['arm_closer_share']}")
+    nab = report.get("nwps_ab")
+    if nab:
+        print(f"NWPS_AB n={nab['n']} station_hours={nab['n_station_hours']} "
+              f"bulk={nab['bulk']['mae_m']}/{nab['bulk']['bias_m']:+} nwps={nab['arm']['mae_m']}/{nab['arm']['bias_m']:+} "
+              f"closer={nab['arm_closer_share']}")
     mab = report.get("mop_ab")
     if mab:
         print(f"MOP_AB n={mab['n']} station_hours={mab['n_station_hours']} "

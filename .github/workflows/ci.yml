@@ -1051,7 +1051,12 @@ jobs:
           # splits big swells out): stacked on PR #128 (projection 121 files / 1390; #127 hosted 120 / 1380
           # confirmed its own). tests/test_skill_attribution.py (already claimed by `--lane chain`) gains 3
           # executed tests: 1390 + 3 = 1393, 1393 - 6 = 1387; files 121 unchanged; _FLOOR_SET_FROM["chain"] -> 1393.
-          MIN_FILES, MIN_PASSED = 121, 1387
+          # ⬆ MIN_FILES 121→122, MIN_PASSED 1387→1402 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge's NOAA NWPS arm, stage 4 outside California): dev's hosted run 36361175254 (acd1f070, #129)
+          # observed 121 files / 1393 passed, confirming the #129 projection exactly. The new tests/test_nwps_arm.py
+          # (claimed by `--lane chain`) adds 15 executed tests: 1393 + 15 = 1408, 1408 - 6 = 1402; files 122 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1408.
+          MIN_FILES, MIN_PASSED = 122, 1402
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
