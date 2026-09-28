@@ -1098,7 +1098,11 @@ jobs:
           # #139's hosted merge run observed 125 files / 1432, confirming its projection exactly.
           # tests/test_skill_consensus.py (claimed by `--lane chain`) gains 2 executed tests: 1432 + 2 = 1434,
           # 1434 - 6 = 1428; files 125 unchanged; _FLOOR_SET_FROM["chain"] -> 1434.
-          MIN_FILES, MIN_PASSED = 125, 1428
+          # ⬆ MIN_PASSED 1428→1431 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the consensus graded on big
+          # swells): dev's hosted run 36376343655 (89b13a0a) observed 125 files / 1434, confirming #140's projection.
+          # tests/test_skill_consensus.py (claimed by `--lane chain`) gains 3 executed tests: 1434 + 3 = 1437,
+          # 1437 - 6 = 1431; files 125 unchanged; _FLOOR_SET_FROM["chain"] -> 1437.
+          MIN_FILES, MIN_PASSED = 125, 1431
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

@@ -93,6 +93,48 @@ def test_thin_leads_refuse_instead_of_printing_a_number():
     assert e["status"] == "insufficient" and "equal" not in e
 
 
+def _big_rows(n, errs, obs=3.5, buoy="46086"):
+    """n held-out BIG hours (obs >= 3 m) with a FIXED error per member (no rotation)."""
+    out = []
+    for i in range(n):
+        t = NOW - timedelta(days=i % 7, hours=3 + i % 20)
+        for m in MEMBERS:
+            out.append({"source": m, "buoy_id": buoy, "target_time": t.strftime("%Y-%m-%dT%H:00:00Z"),
+                        "lead_h": 48.0, "hs_m": obs + errs[m], "obs_hs_m": obs})
+    return out
+
+
+def test_a_consensus_that_wins_overall_but_shaves_the_big_days_is_caught():
+    """Small days: errors cancel (the mean is exact). Big days: GFS and EURO are right, ICON reads 0.9 m low, so the
+    mean reads 0.3 m low exactly where surf matters. The all-sea grade says 'consensus wins'; the big-swell grade
+    must say it loses to the best member."""
+    shave = {"raw_surf": 0.0, "raw_surf:ICON": -0.9, "raw_surf:EURO": 0.0}
+    e = _lead(consensus_report(_rows(range(8, 40), 90) + _rows(range(0, 7), 30) + _big_rows(12, shave), NOW))
+    assert e["weighted_beats_best"], "overall, the mean still wins"
+    b = e["big_swell"]
+    assert b["paired_n"] == 12 and b["paired_best_member"] in ("raw_surf", "raw_surf:EURO")
+    assert b["paired"]["weighted"]["bias_m"] == pytest.approx(-0.3, abs=1e-3)
+    assert b["paired"]["raw_surf:ICON"]["mae_m"] == pytest.approx(0.9, abs=1e-3)
+    assert b["weighted_beats_best"] is False
+
+
+def test_big_swell_by_forecast_selects_each_forecasts_own_big_calls():
+    """ICON over-calls: it says >= 3 m on 12 hours the others (and the sea) put at ~2.6 m."""
+    over = {"raw_surf": 0.0, "raw_surf:ICON": 0.9, "raw_surf:EURO": 0.0}
+    e = _lead(consensus_report(_rows(range(8, 40), 90) + _rows(range(0, 7), 30) + _big_rows(12, over, obs=2.6), NOW))
+    bf = e["big_swell"]["by_forecast"]
+    assert bf["raw_surf:ICON"]["n"] == 12 and bf["raw_surf:ICON"]["bias_m"] == pytest.approx(0.9, abs=1e-3)
+    assert bf["raw_surf"]["n"] == 0 and "bias_m" not in bf["raw_surf"]
+    assert bf["equal"]["n"] == 0, "the mean (2.9 m) does not call it big"
+    assert e["big_swell"]["paired_n"] == 0 and e["big_swell"]["status"] == "insufficient"
+
+
+def test_thin_big_swell_refuses_the_paired_grade():
+    e = _lead(consensus_report(_rows(range(8, 40), 90) + _rows(range(0, 7), 30)
+                               + _big_rows(4, {m: 0.0 for m in MEMBERS}), NOW))
+    assert e["big_swell"]["paired_n"] == 4 and "paired" not in e["big_swell"]
+
+
 @pytest.mark.parametrize("bad", [{"hs_m": float("nan")}, {"obs_hs_m": None}, {"hs_m": 0.0},
                                  {"target_time": "not a time"}, {"source": "open_meteo_marine"}])
 def test_unusable_rows_are_ignored(bad):

@@ -27,6 +27,12 @@ from services.weather_pipeline.skill_mos import HOLDOUT_DAYS, _lead, _parse
 
 MEMBERS = ("raw_surf", "raw_surf:ICON", "raw_surf:EURO")
 MIN_TEST = 10
+# BIG SWELL (2026-09-28): a mean is smoother than any member, so it can shave the peaks of the days that matter
+# most for surf, and the all-sea MAE would hide that behind the many small days. Two selections, as #132 taught:
+# `paired` takes the hours whose OBSERVED Hs >= 3 m and grades every forecast on those SAME hours (the selection
+# biases all of them low alike, so the comparison between them stays fair; a consensus that shaves peaks loses
+# here); `by_forecast` selects each forecast's own >= 3 m calls (its calibration where it claims big surf).
+BIG_SWELL_M = 3.0
 
 
 def _ok(v) -> bool:
@@ -35,6 +41,24 @@ def _ok(v) -> bool:
 
 def _stats(errs: List[float]) -> Dict[str, float]:
     return {"mae_m": round(sum(abs(e) for e in errs) / len(errs), 3), "bias_m": round(sum(errs) / len(errs), 3)}
+
+
+def _big_swell(fc: Dict[str, List[float]], obs: List[float], members, min_test: int) -> Dict:
+    """Held-out big-swell grades for each member and the equal/weighted consensus (see BIG_SWELL_M)."""
+    idx = [i for i, o in enumerate(obs) if o >= BIG_SWELL_M]
+    out: Dict = {"threshold_m": BIG_SWELL_M, "paired_n": len(idx)}
+    if len(idx) >= min_test:
+        out["paired"] = {k: _stats([f[i] - obs[i] for i in idx]) for k, f in fc.items()}
+        best = min(members, key=lambda m: out["paired"][m]["mae_m"])
+        out["paired_best_member"] = best
+        out["weighted_beats_best"] = out["paired"]["weighted"]["mae_m"] < out["paired"][best]["mae_m"]
+    else:
+        out["status"] = "insufficient"
+    out["by_forecast"] = {}
+    for k, f in fc.items():
+        sel = [f[i] - obs[i] for i in range(len(obs)) if f[i] >= BIG_SWELL_M]
+        out["by_forecast"][k] = {"n": len(sel), **(_stats(sel) if len(sel) >= min_test else {})}
+    return out
 
 
 def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_test: int = MIN_TEST,
@@ -85,6 +109,9 @@ def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_
         entry["equal_beats_best"] = entry["equal"]["mae_m"] < per[best]["mae_m"]
         entry["debiased_beats_best"] = entry["debiased"]["mae_m"] < per[best]["mae_m"]
         entry["weighted_beats_best"] = entry["weighted"]["mae_m"] < per[best]["mae_m"]
+        fc = {m: [p[m][0] for p in g["test"]] for m in members}
+        fc["equal"], fc["weighted"] = equal, [max(0.0, f) for f in weighted]
+        entry["big_swell"] = _big_swell(fc, obs, members, min_test)
         out.append(entry)
     return {"method": "three_model_consensus_equal_debiased_weighted", "members": list(members),
             "holdout_days": holdout_days, "cutoff": cutoff.isoformat(),
