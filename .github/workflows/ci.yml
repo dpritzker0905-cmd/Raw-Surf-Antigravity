@@ -105,7 +105,9 @@ jobs:
           // 2026-09-28 (A15-11, one background request only when idle): raised to the hosted receipt of
           // #131's own run (`suites 297/297  tests 2877/2877  failed 0`), which counted the mini-lane suite
           // this change rewrites test-for-test (8 -> 8), so it adds no suite and no test.
-          const MIN_SUITES = 297, MIN_TESTS = 2877;
+          // 2026-09-28 (recorder settled peak): raised to the hosted receipt of #138's run (`suites 297/297  tests
+          // 2879/2879  failed 0`, its +2 prewarm tests). This change's own +2 recorder tests are counted on its run.
+          const MIN_SUITES = 297, MIN_TESTS = 2879;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

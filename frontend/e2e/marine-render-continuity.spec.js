@@ -305,8 +305,9 @@ test.describe('Marine render continuity across real gestures', () => {
       contentType: 'application/json',
     });
     test.info().annotations.push({ type: 'weather fan-out', description:
-      `${fanout.total} requests, peak ${fanout.peakInFlight} in flight; `
-      + Object.entries(fanout.byLabel).map(([k, g]) => `${k}: ${g.n} (peak ${g.peakInFlight}, world ${g.world}, `
+      `${fanout.total} requests, peak ${fanout.peakInFlight} in flight (settled ${fanout.peakInFlightSettled}, `
+      + `${fanout.unsettled} never finished); `
+      + Object.entries(fanout.byLabel).map(([k, g]) => `${k}: ${g.n} (peak ${g.peakInFlight}/settled ${g.peakInFlightSettled}, world ${g.world}, `
         + `median ${g.medianMs} ms)`).join('; ') });
 
     expect(samples.length, 'the sampler produced no samples at all').toBeGreaterThan(10);

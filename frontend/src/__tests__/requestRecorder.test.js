@@ -60,6 +60,24 @@ describe('requestRecorder.summarizeRequests', () => {
   });
 
   it('nothing recorded is an empty summary, not a crash', () => {
-    expect(summarizeRequests([], 0)).toEqual({ total: 0, peakInFlight: 0, byLabel: {} });
+    expect(summarizeRequests([], 0)).toEqual({ total: 0, peakInFlight: 0, peakInFlightSettled: 0, unsettled: 0,
+      byLabel: {} });
+  });
+
+  it('SETTLED: a request that never finished is left out of the settled peak and counted instead', () => {
+    const rows = [row(series('0,0,1,1'), 0, null, 'x'), row(series('0,0,1,1'), 500, 600, 'x'),
+      row(series('0,0,1,1'), 550, 650, 'y')];
+    const s = summarizeRequests(rows, 1000);
+    expect(s).toMatchObject({ peakInFlight: 3, peakInFlightSettled: 2, unsettled: 1 });
+    expect(s.byLabel.x).toMatchObject({ peakInFlight: 2, peakInFlightSettled: 1, unsettled: 1 });
+    expect(s.byLabel.y).toMatchObject({ peakInFlight: 3, peakInFlightSettled: 2, unsettled: 0 });
+  });
+
+  it('THE MEASURED SHAPE (E2E 36372270148): one request cut off mid-flight beside four that finished', () => {
+    const rows = [row(series('-180,-80,180,85'), 0, null, 'toggle:Waves')]
+      .concat([10, 20, 30, 40].map((t) => row(series('-81,27,-80,28'), 5000 + t, 6000, 'model:ICON')));
+    const s = summarizeRequests(rows, 9000);
+    expect(s.byLabel['model:ICON']).toMatchObject({ peakInFlight: 5, peakInFlightSettled: 4 });
+    expect(s).toMatchObject({ peakInFlight: 5, peakInFlightSettled: 4, unsettled: 1 });
   });
 });
