@@ -29,6 +29,10 @@ on:
         description: "Also grade the archived MOP sea+swell grid runs (the product stage 4 would serve) from the MOP ingest's artifacts."
         required: false
         default: '0'
+      nwps:
+        description: "Also grade NOAA NWPS (SWAN) spectra at the buoys beside the bulk arm (stage 4 outside California). ~1 MB per cycle per station."
+        required: false
+        default: '0'
   schedule:
     # Hourly is the accrual rate the packet assumes; GitHub cron is BEST-EFFORT (measured
     # delivery 5-32% on sibling lanes) — the report series is append-only, gaps are fine.
@@ -128,6 +132,7 @@ jobs:
           NEARSHORE_VAL_TRAINS: ${{ github.event.inputs.trains || '0' }}
           NEARSHORE_VAL_MOP: ${{ github.event.inputs.mop || '0' }}
           NEARSHORE_VAL_MOP_GRID_DIR: ${{ github.event.inputs.mop_grid == '1' && '../mop_archive' || '' }}
+          NEARSHORE_VAL_NWPS: ${{ github.event.inputs.nwps || '0' }}
           # ⛔ deliberately NO SURF_* here: the runner must read the serving path's own defaults;
           # a flag set only in this lane would grade a transform nobody serves (test_flag_lane_parity
           # does not cover this workflow — do not make it need to).
@@ -139,7 +144,7 @@ jobs:
           python3 scripts/run_nearshore_validation.py --json nearshore_report.json \
             2>&1 | tee nearshore.txt | tail -40 || rc=$?
           echo "── decision lines (tail-proof) ──"
-          grep -E "^VERDICT|^TRAINS_AB|^MOP_AB|^MOP_GRID_AB|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
+          grep -E "^VERDICT|^TRAINS_AB|^MOP_AB|^MOP_GRID_AB|^NWPS_AB|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
           if [ "$rc" -ge 2 ]; then
             echo "::error::INFRA, NOT A VERDICT (exit $rc): pair table, CDIP THREDDS, or the prod point API could not answer. Nothing was graded. preflight awake=${{ steps.warm.outputs.awake }}"
             exit 2
@@ -172,6 +177,9 @@ jobs:
           gm = r.get("mop_grid_ab")
           if gm:
               print(f"- archived MOP grid arm: bulk MAE {gm['bulk']['mae_m']} m vs grid {gm['arm']['mae_m']} m (bias {gm['arm']['bias_m']:+}) over {gm['n']} spot-hours / {gm['n_station_hours']} station-hours; grid closer on {gm['arm_closer_share']:.0%}")
+          nw = r.get("nwps_ab")
+          if nw:
+              print(f"- NOAA NWPS arm: bulk MAE {nw['bulk']['mae_m']} m (bias {nw['bulk']['bias_m']:+}) vs NWPS {nw['arm']['mae_m']} m (bias {nw['arm']['bias_m']:+}) over {nw['n']} spot-hours / {nw['n_station_hours']} station-hours; NWPS closer on {nw['arm_closer_share']:.0%}")
           m = r.get("mop_ab")
           if m:
               print(f"- CDIP MOP arm: bulk MAE {m['bulk']['mae_m']} m (bias {m['bulk']['bias_m']:+}) vs MOP {m['arm']['mae_m']} m (bias {m['arm']['bias_m']:+}) over {m['n']} spot-hours / {m['n_station_hours']} station-hours; MOP closer on {m['arm_closer_share']:.0%}")
