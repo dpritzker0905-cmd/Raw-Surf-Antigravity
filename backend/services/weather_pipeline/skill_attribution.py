@@ -86,18 +86,35 @@ def same_model_attribution(scored_rows, ours: str = "raw_surf", control: str = S
         src = r.get("source")
         if src in by and _finite_number(r.get("err_m")):
             by[src][(r.get("buoy_id"), r.get("target_time"), _lead_bucket(r.get("lead_h") or 0))] = r
-    tier, frame, cycle = [], [], []
+    pairs = []
     for key, o in by[ours].items():
         c = by[control].get(key)
         if c is None or o.get("obs_time") != c.get("obs_time") or o.get("obs_hs_m") != c.get("obs_hs_m"):
             continue
-        eo, ec = abs(o["err_m"]), abs(c["err_m"])
-        tier.append((o.get("tier") or "unknown", eo, ec))
-        off = o.get("frame_off_h")
-        frame.append(("unknown" if off is None else ("on_frame" if abs(off) < 0.01 else "snapped"), eo, ec))
-        age = o.get("cycle_age_h")
-        cycle.append(("unknown" if age is None else ("stale" if age >= STALE_CYCLE_H else "fresh"), eo, ec))
-    n = len(tier)
-    return {"ours": ours, "control": control, "n_paired": n,
-            "gap_m": round(sum(eo - ec for _, eo, ec in tier) / n, 4) if n else None,
-            "by_tier": _group(tier), "by_frame": _group(frame), "by_cycle": _group(cycle)}
+        off, age = o.get("frame_off_h"), o.get("cycle_age_h")
+        pairs.append({"tier": o.get("tier") or "unknown",
+                      "frame": "unknown" if off is None else ("on_frame" if abs(off) < 0.01 else "snapped"),
+                      "cycle": "unknown" if age is None else ("stale" if age >= STALE_CYCLE_H else "fresh"),
+                      "eo": abs(o["err_m"]), "ec": abs(c["err_m"]), "so": o["err_m"], "sc": c["err_m"],
+                      "obs": o.get("obs_hs_m")})
+    out = {"ours": ours, "control": control, **_attribute(pairs)}
+    # BIG SWELLS, SEPARATELY (2026-09-27). The MOS shadow's 7-day holdout: our GFS lane under-forecasts
+    # swells >= 3 m by -0.43 / -0.54 / -0.84 m at 24/48/72 h where the SAME model via Open-Meteo reads
+    # -0.24 / -0.34 / -0.68, a ~0.2 m serving loss eight times the 0.027 m all-sea gap. Where that loss
+    # lives (tier, frame, cycle) is a different question from where the average one does.
+    from services.weather_pipeline.skill_mos import BIG_SWELL_M
+    big = [p for p in pairs if _finite_number(p["obs"]) and p["obs"] >= BIG_SWELL_M]
+    out["big_swell"] = {"threshold_m": BIG_SWELL_M, **_attribute(big)}
+    return out
+
+
+def _attribute(pairs: List[Dict]) -> Dict:
+    """n, the mean |error| gap, both signed biases, and the gap split by tier / frame / cycle. PURE."""
+    n = len(pairs)
+    mean = lambda k: round(sum(p[k] for p in pairs) / n, 4) if n else None  # noqa: E731
+    return {"n_paired": n,
+            "gap_m": round(sum(p["eo"] - p["ec"] for p in pairs) / n, 4) if n else None,
+            "bias_ours_m": mean("so"), "bias_control_m": mean("sc"),
+            "by_tier": _group([(p["tier"], p["eo"], p["ec"]) for p in pairs]),
+            "by_frame": _group([(p["frame"], p["eo"], p["ec"]) for p in pairs]),
+            "by_cycle": _group([(p["cycle"], p["eo"], p["ec"]) for p in pairs])}

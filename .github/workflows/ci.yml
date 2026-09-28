@@ -1047,7 +1047,11 @@ jobs:
           # passed (#126's hosted 119 / 1375 + 5). The new tests/test_mop_nearshore_serving.py (claimed by
           # `--lane chain`) adds 10 executed tests: 1380 + 10 = 1390, 1390 - 6 = 1384; files 121 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1390.
-          MIN_FILES, MIN_PASSED = 121, 1384
+          # ⬆ MIN_PASSED 1384→1387 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (the same-model attribution
+          # splits big swells out): stacked on PR #128 (projection 121 files / 1390; #127 hosted 120 / 1380
+          # confirmed its own). tests/test_skill_attribution.py (already claimed by `--lane chain`) gains 3
+          # executed tests: 1390 + 3 = 1393, 1393 - 6 = 1387; files 121 unchanged; _FLOOR_SET_FROM["chain"] -> 1393.
+          MIN_FILES, MIN_PASSED = 121, 1387
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
