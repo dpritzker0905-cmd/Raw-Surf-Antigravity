@@ -74,6 +74,9 @@ describe('marine series limiter priority lanes (A15-11)', () => {
     expect(started().map(Math.round)).toEqual([-90, -85, -75]);
     finish(-85);
     await flush();
+    expect(started().map(Math.round)).toEqual([-90, -85, -75]);   // -75 still loading: the warm waits for idle
+    finish(-75);
+    await flush();
     expect(started().map(Math.round)).toEqual([-90, -85, -75, -80]);
   });
 

@@ -102,7 +102,10 @@ jobs:
           // since September 20 (+39 suites / +383 tests), from a receipt, never a local figure. This
           // change's own marineSeriesLimiter.miniLane.test.js (+1 suite / +8 tests) is NOT counted: the
           // next hosted run is its receipt.
-          const MIN_SUITES = 296, MIN_TESTS = 2869;
+          // 2026-09-28 (A15-11, one background request only when idle): raised to the hosted receipt of
+          // #131's own run (`suites 297/297  tests 2877/2877  failed 0`), which counted the mini-lane suite
+          // this change rewrites test-for-test (8 -> 8), so it adds no suite and no test.
+          const MIN_SUITES = 297, MIN_TESTS = 2877;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

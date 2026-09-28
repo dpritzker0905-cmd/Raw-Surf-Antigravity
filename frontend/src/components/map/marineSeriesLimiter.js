@@ -1,6 +1,5 @@
 // marineSeriesLimiter.js — the in-flight budget for marine grid_series loads (A15-11).
-// Split out of marineGridSeries.js on 2026-09-28 (that file sits at its LOC-ratchet ceiling). The page
-// lanes below are the code #123 put there, moved unchanged; the hour-0 MINI lane is new.
+// Split out of marineGridSeries.js on 2026-09-28 (that file sat 19 lines under the 800 cap).
 //
 // Concurrency gate for grid_series fetches. The backend is 1-CPU: firing N series requests at
 // once (rapid model/layer toggling warms GFS+ICON+EURO × every layer × 3 pages) slams the box
@@ -9,40 +8,45 @@
 // queue client-side; a request whose signal aborts while queued is dropped (never hits the box),
 // so superseded model/layer warms don't pile up. Tune up once the backend has more CPU.
 const MARINE_SERIES_MAX_CONCURRENT = 2;
-// PRIORITY (A15-11, 2026-09-27). Background warms (sibling layers, the world series behind the zoom-out
-// bridge, adjacent-page idle prefetch) shared ONE FIFO with the loads the user is waiting on, so an
-// activation's own pages could queue behind them, and the world /grid warm bypassed the cap entirely.
-// Visible loads are now always served first; background warms hold at most ONE of the two slots and
-// never start while a visible load is waiting; a visible request for a page still QUEUED as a warm
-// promotes it. Nothing is dropped: every warm still runs, after what is on screen.
+// PRIORITY (A15-11, #123). Background warms (sibling layers, the world series behind the zoom-out bridge,
+// adjacent-page idle prefetch, the world /grid) shared ONE FIFO with the loads the user is waiting on.
+// Visible loads are always served first, and a visible request for a page still QUEUED as a warm promotes
+// it. Nothing is dropped: every warm still runs, after what is on screen.
 // Kill: window.__RAW_DISABLE_FETCH_PRIORITY__ = true -> the single FIFO, every load treated as visible.
-const MARINE_SERIES_BG_MAX = 1;
-// THE HOUR-0 MINI LANE (A15-11 residual, 2026-09-28). A cold series page also fires a one-hour "mini"
-// request that skips the page queue, so the first frame paints before the 48-frame page lands. For a
-// page the user is looking at that is the point. But every BACKGROUND warm fired one too: after #123 the
-// dev E2E (run 36361175283) still peaked at 5 in flight on both browsers, and every peak was the same
-// burst, 10-16 s after activation — the world warm's mini, three sibling warms' minis and the world
-// 48-frame page, launched within 3 ms (the page took 25 s on Chrome). The minis are what make a sibling
-// toggle instant (in those runs the sibling PAGES never ran: queued behind the world page, then
-// superseded), so they stay; a background mini now waits for this lane: one at a time, never while a
-// visible load is waiting. A visible mini still skips every queue. Series in flight: <= 2 pages, 1
-// background mini and the gesture's own mini.
-const MARINE_BG_MINI_MAX = 1;
+//
+// ONE BACKGROUND REQUEST, ONLY WHEN IDLE (A15-11, 2026-09-28, measured after #131). A cold page also fires
+// a one-hour "mini" so its first frame paints early; a visible mini skips every queue, and that stays. #131
+// gave background minis a lane of their own, which removed the activation burst (peak 5 -> 3/4; p90 Chrome
+// 12.5 -> 7.6 s, Safari 5.9 -> 3.5 s, dev E2E 36364803932) — but the overall peak stayed 5, on toggles and
+// model switches: a background PAGE and a background MINI ran together beside the visible page, the visible
+// mini and the visible /grid (which is outside this limiter). So background work now shares ONE request in
+// total (pages, minis and runBackgroundWarm alike, minis first: they are cheap and they are what make a
+// sibling toggle instant), and starts only while nothing visible is loading or waiting, the audit's "defer
+// sibling prefetch until idle". Worst case in flight: 2 visible pages + the gesture's mini + its /grid = 4.
+const MARINE_BG_MAX = 1;
 
-let _seriesActiveLoads = 0;
-let _bgActiveLoads = 0;
-let _bgMiniActive = 0;
-const _seriesWaiters = []; // visible:    [{ resolve, signal, key, background: false }]
-const _bgWaiters = [];     // background: same shape, background: true
-const _miniWaiters = [];   // background minis: [{ resolve, signal }]
+let _seriesActiveLoads = 0;  // pages in flight, visible and background
+let _bgActiveLoads = 0;      // background pages in flight
+let _bgMiniActive = 0;       // background minis in flight
+let _visibleMinis = 0;       // visible minis in flight: never queued, counted so background waits for them
+const _seriesWaiters = [];   // visible pages:    [{ resolve, signal, key, background: false }]
+const _bgWaiters = [];       // background pages: same shape, background: true
+const _miniWaiters = [];     // background minis: [{ resolve, signal }]
 
 function _priorityOn() {
   return !(typeof window !== 'undefined' && window.__RAW_DISABLE_FETCH_PRIORITY__ === true);
 }
 
+function _backgroundMayStart() {
+  // Idle = no visible page or mini in flight. (A visible page can only be WAITING while one is loading:
+  // background holds at most one of the two slots. And an idle limiter always has a free slot.)
+  const visibleLoading = _seriesActiveLoads - _bgActiveLoads > 0 || _visibleMinis > 0;
+  return !visibleLoading && _bgActiveLoads + _bgMiniActive < MARINE_BG_MAX;
+}
+
 function _canStart(background) {
   if (_seriesActiveLoads >= MARINE_SERIES_MAX_CONCURRENT) return false;
-  return !background || _bgActiveLoads < MARINE_SERIES_BG_MAX;   // _pump serves waiting visible loads first
+  return !background || _backgroundMayStart();
 }
 
 function _take(background) {
@@ -57,8 +61,8 @@ function _dropOnAbort(entry, queueOf) {
     entry.signal.addEventListener('abort', () => {
       const q = queueOf(entry);                            // it may have been promoted
       const i = q.indexOf(entry);
-      if (i >= 0) { q.splice(i, 1); entry.resolve(false); _pump(); } // dropped while queued; no slot taken
-    }, { once: true });                                    // (_pump: a mini may have waited on it)
+      if (i >= 0) { q.splice(i, 1); entry.resolve(false); } // dropped while queued; no slot taken
+    }, { once: true });
   } catch (e) { /* ignore */ }
 }
 
@@ -85,18 +89,14 @@ function _nextLive(q) {
 function _pump() {
   while (_seriesActiveLoads < MARINE_SERIES_MAX_CONCURRENT) {
     const v = _nextLive(_seriesWaiters);
-    if (v) { v.resolve(_take(false)); continue; }
-    if (_bgActiveLoads >= MARINE_SERIES_BG_MAX) break;
-    const b = _nextLive(_bgWaiters);
-    if (!b) break;
-    b.resolve(_take(true));
+    if (!v) break;
+    v.resolve(_take(false));
   }
-  while (_bgMiniActive < MARINE_BG_MINI_MAX && !_seriesWaiters.length) {
-    const m = _nextLive(_miniWaiters);
-    if (!m) break;
-    _bgMiniActive++;
-    m.resolve('mini');
-  }
+  if (!_backgroundMayStart()) return;
+  const m = _nextLive(_miniWaiters);
+  if (m) { _bgMiniActive++; m.resolve('mini'); return; }
+  const b = _nextLive(_bgWaiters);
+  if (b) b.resolve(_take(true));
 }
 
 export function releaseSeriesSlot(lane) {
@@ -106,15 +106,13 @@ export function releaseSeriesSlot(lane) {
 }
 
 /**
- * The lane for a background warm's hour-0 mini. Resolves 'mini' when it may fetch, or false when
- * dropped (its signal aborted while queued). With the kill switch on it resolves at once, as before.
+ * The lane for an hour-0 mini. A visible mini starts at once ('visible-mini', counted so background work
+ * waits for it); a background mini waits for the background request ('mini'), or resolves false when
+ * dropped (its signal aborted while queued). With the kill switch on every mini starts at once, as before.
  */
-export function acquireBackgroundMiniSlot(signal) {
-  if (!_priorityOn()) return Promise.resolve('bypass');
-  if (_bgMiniActive < MARINE_BG_MINI_MAX && !_seriesWaiters.length) {
-    _bgMiniActive++;
-    return Promise.resolve('mini');
-  }
+export function acquireMiniSlot(signal, background) {
+  if (!background || !_priorityOn()) { _visibleMinis++; return Promise.resolve('visible-mini'); }
+  if (_backgroundMayStart()) { _bgMiniActive++; return Promise.resolve('mini'); }
   return new Promise((resolve) => {
     const entry = { resolve, signal };
     _miniWaiters.push(entry);
@@ -122,8 +120,9 @@ export function acquireBackgroundMiniSlot(signal) {
   });
 }
 
-export function releaseBackgroundMiniSlot(lane) {
+export function releaseMiniSlot(lane) {
   if (lane === 'mini' && _bgMiniActive > 0) _bgMiniActive--;
+  if (lane === 'visible-mini' && _visibleMinis > 0) _visibleMinis--;
   _pump();
 }
 
@@ -152,13 +151,15 @@ export async function runBackgroundWarm(fn, signal) {
 /** Test/diagnostic view of the limiter. */
 export function _seriesLimiterState() {
   return { active: _seriesActiveLoads, background: _bgActiveLoads, backgroundMini: _bgMiniActive,
-    queuedVisible: _seriesWaiters.length, queuedBackground: _bgWaiters.length, queuedMini: _miniWaiters.length };
+    visibleMini: _visibleMinis, queuedVisible: _seriesWaiters.length, queuedBackground: _bgWaiters.length,
+    queuedMini: _miniWaiters.length };
 }
 
 export function _resetSeriesLimiterForTest() {
   _seriesActiveLoads = 0;
   _bgActiveLoads = 0;
   _bgMiniActive = 0;
+  _visibleMinis = 0;
   _seriesWaiters.length = 0;
   _bgWaiters.length = 0;
   _miniWaiters.length = 0;
