@@ -90,15 +90,15 @@ def _load_blob():
         return blob
 
 
-async def nearshore_for_point(lat, lng, valid_time_str):
-    """MOP's sea for this point and hour ({hs, tp, dp, depth_m, spot_id, run}), or None. Flag-gated; the
-    blob read runs off the event loop."""
-    if not enabled():
-        return None
+def sea_from_blob(blob, lat, lng, valid_time_str):
+    """MOP's sea for this point and hour from ONE ingest blob ({hs, tp, dp, depth_m, spot_id, run}), or None.
+
+    The single lookup both serving (`nearshore_for_point`, below) and the science shadow A/B's replay of
+    SURF_NEARSHORE_MOP use, so the replay cannot drift into a second path. No I/O beyond the committed spot
+    table; never raises on a malformed blob or time."""
     sid = spot_for_point(float(lat), float(lng))
     if not sid:
         return None
-    blob = await asyncio.to_thread(_load_blob)
     entry = ((blob or {}).get("spots") or {}).get(sid)
     try:
         when = datetime.fromisoformat(str(valid_time_str).replace("Z", "+00:00"))
@@ -112,6 +112,15 @@ async def nearshore_for_point(lat, lng, valid_time_str):
         return None
     run = ((blob.get("grids") or {}).get(entry.get("grid")) or {}).get("run")
     return {**sea, "spot_id": sid, "run": run}
+
+
+async def nearshore_for_point(lat, lng, valid_time_str):
+    """MOP's sea for this point and hour ({hs, tp, dp, depth_m, spot_id, run}), or None. Flag-gated; an
+    uncovered point reads nothing; the blob read runs off the event loop."""
+    if not enabled() or not spot_for_point(float(lat), float(lng)):
+        return None
+    blob = await asyncio.to_thread(_load_blob)
+    return sea_from_blob(blob, lat, lng, valid_time_str)
 
 
 def _reset_for_test():

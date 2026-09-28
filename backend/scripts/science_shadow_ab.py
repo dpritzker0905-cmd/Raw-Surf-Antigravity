@@ -67,7 +67,61 @@ def is_height_flag(name: str) -> bool:
 # averaging it into the verdict dilutes a real effect toward "quiet" -- the denominator
 # lesson. When the dependency is only partly present the report says so AND reports the rate
 # over the carrying subset, which is the number that actually answers the question.
-CANDIDATE_INPUT_DEPS = {"SURF_TIDE_DEPTH": "water_level_m"}
+CANDIDATE_INPUT_DEPS = {"SURF_TIDE_DEPTH": "water_level_m",
+                        # Only the ~77 California spots with a MOP cell can move; the rest of the estate
+                        # keeps the parametric chain, exactly as serving does.
+                        "SURF_NEARSHORE_MOP": "mop_sea"}
+MOP_FLAG = "SURF_NEARSHORE_MOP"
+
+
+def latest_blob_at(blobs, cutoff_iso=None):
+    """The MOP ingest blob the server held at `cutoff_iso`: the latest `generated_at` at or before it (the
+    newest overall when no cutoff is known). None when no archive was written by then. PURE."""
+    from services.weather_pipeline.nearshore_validation import _parse_dt
+    cut = _parse_dt(cutoff_iso) if cutoff_iso else None
+    best = None
+    for b in blobs or []:
+        g = _parse_dt((b or {}).get("generated_at"))
+        if g is None or (cut is not None and g > cut):
+            continue
+        if best is None or g > best[0]:
+            best = (g, b)
+    return best[1] if best else None
+
+
+class MopArchive:
+    """ROADMAP STAGE 4 IN THE REPLAY (2026-09-28): the MOP sea a served point would have read.
+
+    SURF_NEARSHORE_MOP feeds `estimate_surf_at(nearshore=...)` a sea read from the MOP ingest's blob, which
+    no persisted input carries, so the replay used to REFUSE it as inert (the positive control below). This
+    supplies it from ONE archived ingest run -- the one production held when the frames were rated (latest
+    `generated_at` at or before the frames' own) -- through `mop_serving.sea_from_blob`, the lookup serving
+    itself uses. Archives come from the MOP ingest's run artifacts, as the nearshore judge's MOP-grid arm
+    reads them."""
+
+    def __init__(self, blob):
+        self.blob = blob
+
+    def sea(self, lat, lng, valid_time):
+        from services.weather_pipeline.mop_serving import sea_from_blob
+        return sea_from_blob(self.blob, lat, lng, valid_time)
+
+    def probe(self):
+        """(lat, lng, valid_time) of a covered spot where this blob has a sea, for the positive control."""
+        from services.weather_pipeline.mop_serving import _spot_index
+        spots = (self.blob or {}).get("spots") or {}
+        for lat, lng, sid in _spot_index():
+            for t in (spots.get(sid) or {}).get("times") or []:
+                if self.sea(lat, lng, t):
+                    return lat, lng, t
+        return None
+
+    def describe(self):
+        b = self.blob or {}
+        return {"generated_at": b.get("generated_at"),
+                "runs": sorted({str(g.get("run")) for g in (b.get("grids") or {}).values()
+                                if isinstance(g, dict) and g.get("run")}),
+                "spots": len(b.get("spots") or {})}
 
 
 def _cell_reference_fn():
@@ -119,8 +173,9 @@ def _rate(surf_h, row, reference_size_m):
         break_depth_m=inp.get("break_depth_m"))
 
 
-def _height(row):
-    """The height half from offshore inputs + static geometry (only when a HEIGHT_FLAG differs)."""
+def _height(row, nearshore=None):
+    """The height half from offshore inputs + static geometry (only when a HEIGHT_FLAG differs).
+    `nearshore` is MOP's sea for the row (SURF_NEARSHORE_MOP's candidate arm only), as serving passes it."""
     from services.weather_pipeline.surf_point import estimate_surf_at, resolve_surf_geometry
     inp = row.get("inputs") or {}
     if inp.get("offshore_hs_m") is None or row.get("period_s") is None:
@@ -131,11 +186,11 @@ def _height(row):
     h, _regime = estimate_surf_at(row["latitude"], row["longitude"],
                                   inp["offshore_hs_m"], row["period_s"],
                                   inp.get("swell_from_deg"), geometry=g,
-                                  water_level_m=inp.get("water_level_m"))
+                                  water_level_m=inp.get("water_level_m"), nearshore=nearshore)
     return h
 
 
-def candidate_can_move(candidate: Dict[str, str], cell_ref_fn=None) -> dict:
+def candidate_can_move(candidate: Dict[str, str], cell_ref_fn=None, mop=None) -> dict:
     """POSITIVE CONTROL: can this harness exercise the candidate AT ALL?
 
     ⛔ WHY THIS EXISTS -- I shipped a false result without it. The first real run reported
@@ -164,6 +219,16 @@ def candidate_can_move(candidate: Dict[str, str], cell_ref_fn=None) -> dict:
               ((0.5, 14.0), (2.0, 14.0), (8.0, 14.0), (12.0, 14.0), (12.0, 20.0))),
              (36.17, -75.755, 80.0, 260.0,                        # Duck: wide shallow shelf
               ((0.5, 10.0), (1.5, 10.0), (3.0, 12.0))))
+    # SURF_NEARSHORE_MOP binds only at a covered California spot, and only with a MOP sea to read: the
+    # probe is a real covered spot at an hour the archive answers, looked up by the SAME `mop.sea` the replay
+    # uses. No archive => no probe => the candidate stays REFUSED as inert, which is the truth.
+    probe_vt = None
+    _p = mop.probe() if (mop is not None and candidate.get(MOP_FLAG) == "1") else None
+    if _p:
+        _plat, _plng, probe_vt = _p
+        _n = resolve_surf_geometry(_plat, _plng).shore_normal_deg
+        _n = 270.0 if _n is None else _n
+        sites += ((_plat, _plng, _n, (_n + 180.0) % 360.0, ((0.5, 10.0), (1.5, 13.0), (3.0, 15.0))),)
     probes = []
     for lat, lng, swell_from, wind_from, seas in sites:
         g = resolve_surf_geometry(lat, lng)
@@ -178,7 +243,8 @@ def candidate_can_move(candidate: Dict[str, str], cell_ref_fn=None) -> dict:
                                       "wind_from_deg": wind_from, "water_level_m": 1.5,
                                       "shore_normal_deg": g.shore_normal_deg,
                                       "break_depth_m": g.break_depth_m}})
-    rep = replay_frames([{"spots": probes}], candidate, cell_ref_fn=cell_ref_fn)
+    rep = replay_frames([{"spots": probes, "valid_time": probe_vt}], candidate, cell_ref_fn=cell_ref_fn,
+                        mop=mop)
     moved = max(abs(m["delta"]) for m in (rep["biggest_upgrades"] + rep["biggest_downgrades"]))         if rep["rows_replayable"] else 0.0
     return {"can_move": moved > REPRODUCE_TOL, "max_abs_delta": moved,
             "probes": len(probes), "replayable": rep["rows_replayable"]}
@@ -243,14 +309,17 @@ def _note(bucket, s, why, got, expected, cap=8):
                        "surf_height_m": s.get("surf_height_m")})
 
 
-def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=None) -> dict:
+def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=None, mop=None) -> dict:
     """Pure-ish core (touches os.environ transiently; static assets only). Returns the report.
 
     `cell_ref_fn` supplies the REFERENCE_LANE=cell yardstick (injected, so the core stays testable
     without the L2 blob); main() builds it via _cell_reference_fn and REFUSES if it is unavailable
     -- a missing climatology must never silently replay as "no reference", which would read as a
-    band/glyph agreement that was never measured."""
+    band/glyph agreement that was never measured. `mop` (a MopArchive) supplies SURF_NEARSHORE_MOP's
+    sea to the CANDIDATE arm only, at the frame's requested valid_time, as serving resolves it."""
     height_replay = any(is_height_flag(k) for k in candidate)
+    mop_arm = mop is not None and candidate.get(MOP_FLAG) == "1"
+    mop_rows = 0
     _dep_key = next((CANDIDATE_INPUT_DEPS[k] for k in candidate
                      if k in CANDIDATE_INPUT_DEPS), None)
     structural_ref_off = candidate.get("RATING_LOCAL_SIZE") == "0"
@@ -272,6 +341,10 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
     disq_rows = []
     up = down = same = 0
     deltas: List[float] = []
+    # THE HEIGHT'S OWN MOVE (the Jacobian of the served height to the candidate): candidate / served breaking
+    # height per replayed row. A score delta mixes the height move with the rating curve's slope there; a
+    # served-height flip is decided on how far the HEIGHT moves, so the ratio travels with the verdict.
+    h_ratios: List[float] = []
     level_flow: Dict[str, int] = {}
     movers: List[dict] = []
     inputs_present: Dict[str, int] = {}
@@ -327,6 +400,8 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
                 inputs_present[_k] = inputs_present.get(_k, 0) + 1
 
             # CANDIDATE arm under the patched environment.
+            sea = mop.sea(s["latitude"], s["longitude"], fr.get("valid_time")) if mop_arm else None
+            mop_rows += 1 if sea else 0
             try:
                 for k, v in env_patch.items():
                     os.environ[k] = v
@@ -336,7 +411,7 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
                     cand_ref = cell_ref_fn(s["latitude"], s["longitude"]) if cell_ref_fn else None
                 else:
                     cand_ref = ref
-                cand_h = _height(s) if height_replay else s["surf_height_m"]
+                cand_h = _height(s, nearshore=sea) if height_replay else s["surf_height_m"]
                 cand_score, cand_level = _rate(cand_h, s, cand_ref)
             finally:
                 for k, v in saved.items():
@@ -351,6 +426,12 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
 
             d = round(cand_score - s["score"], 1)
             deltas.append(d)
+            dep_present = ((sea is not None) if mop_arm else
+                           bool(_dep_key and (s.get("inputs") or {}).get(_dep_key) is not None))
+            # Over the rows the candidate CAN move when it is guarded on an input (the denominator rule).
+            if (height_replay and cand_h is not None and s["surf_height_m"] > 0
+                    and (dep_present or not (mop_arm or _dep_key))):
+                h_ratios.append(cand_h / s["surf_height_m"])
             if cand_level != s.get("level"):
                 key = "%s -> %s" % (s.get("level"), cand_level)
                 level_flow[key] = level_flow.get(key, 0) + 1
@@ -368,11 +449,12 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
                            # Both yardsticks, so a mover row can be read without re-deriving them
                            # (the E#1 question is exactly "which reference, and how far apart").
                            "ref_now": ref, "ref_cand": cand_ref,
-                           "dep_present": bool(_dep_key and (s.get("inputs") or {}).get(_dep_key)
-                                               is not None),
+                           "dep_present": dep_present,
+                           # MOP's own sea beside the heights, so a mover can be read without the blob.
+                           **({"mop_hs_m": round(sea["hs"], 3), "mop_tp_s": sea["tp"]} if sea else {}),
                            # For INFERRING the dependency from the data instead of a registry.
-                           "input_keys": sorted(k for k, v in (s.get("inputs") or {}).items()
-                                                if v is not None)})
+                           "input_keys": sorted([k for k, v in (s.get("inputs") or {}).items()
+                                                 if v is not None] + (["mop_sea"] if sea else []))})
 
     movers.sort(key=lambda m: m["delta"])
     n = len(deltas)
@@ -393,10 +475,13 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
         },
         "rows_seen": rows_seen, "rows_replayable": rows_replayable,
         "disqualified": disqualified, "disqualified_rows": disq_rows,
+        # Which MOP run the candidate arm read, and how many replayable rows it answered.
+        **({"mop": {**mop.describe(), "rows_with_sea": mop_rows}} if mop_arm else {}),
         "level_unchanged": same, "level_up": up, "level_down": down,
         "level_change_pct": round(100.0 * (up + down) / n, 1) if n else None,
         "delta_p10": pct(0.10), "delta_median": pct(0.50), "delta_p90": pct(0.90),
         "delta_min": ds[0] if n else None, "delta_max": ds[-1] if n else None,
+        **({"height_ratio": _ratio_quantiles(h_ratios)} if h_ratios else {}),
         "level_flow": dict(sorted(level_flow.items(), key=lambda kv: -kv[1])),
         # How many REPLAYABLE rows carried each input. Without this a verdict computed over
         # rows that mostly lack the candidate's guarded input reads as "quiet".
@@ -408,12 +493,21 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
     }
 
 
+def _ratio_quantiles(r):
+    v = sorted(r)
+    q = lambda f: round(v[min(len(v) - 1, int(f * len(v)))], 3)  # noqa: E731 -- the delta quantiles' own rule
+    return {"n": len(v), "p10": q(0.10), "median": q(0.50), "p90": q(0.90),
+            "min": round(v[0], 3), "max": round(v[-1], 3)}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--candidate", required=True,
                     help="comma-separated FLAG=value pairs, e.g. SURF_REFRACTION_KR=1.0")
     ap.add_argument("--frames-file", default=None)
     ap.add_argument("--json", default=None, help="write the full report here (the artifact)")
+    ap.add_argument("--mop-archive", default=os.environ.get("SHADOW_AB_MOP_DIR", ""),
+                    help="directory of MOP ingest run artifacts (SURF_NEARSHORE_MOP=1 needs it)")
     args = ap.parse_args()
     candidate = dict(p.split("=", 1) for p in args.candidate.split(",") if "=" in p)
     if not candidate:
@@ -434,9 +528,22 @@ def main():
                   " unreachable. Replaying without it would silently substitute 'no reference',"
                   " which reads as band/glyph AGREEMENT that was never measured.")
             return 3
+    mop = None
+    if candidate.get(MOP_FLAG) == "1":
+        from services.weather_pipeline.nearshore_validation import load_mop_archives
+        _blobs = load_mop_archives(args.mop_archive) if args.mop_archive else []
+        _blob = latest_blob_at(_blobs, (doc or {}).get("generated_at"))
+        if _blob is None:
+            print("REFUSED: %s=1 reads MOP's sea from the ingest blob the server held when the frames were"
+                  " rated, and none is available (%d archived runs in %r; frames generated %s). Replaying"
+                  " without it would re-rate every row on the parametric chain and report a null that was"
+                  " never measured." % (MOP_FLAG, len(_blobs), args.mop_archive or "",
+                                        (doc or {}).get("generated_at")))
+            return 3
+        mop = MopArchive(_blob)
     # THE POSITIVE CONTROL RUNS FIRST. A null verdict is only meaningful if the harness could
     # have produced a non-null one.
-    ctl = candidate_can_move(candidate, cell_ref_fn=cell_ref_fn)
+    ctl = candidate_can_move(candidate, cell_ref_fn=cell_ref_fn, mop=mop)
     if not ctl["can_move"]:
         print("REFUSED: this harness cannot exercise %s. Across %d control seas (trivial to"
               " cap-limited) the candidate moved the score by at most %.3f points -- below the"
@@ -446,7 +553,7 @@ def main():
               " evidence of a quiet lever."
               % (candidate, ctl["probes"], ctl["max_abs_delta"], REPRODUCE_TOL))
         return 3
-    rep = replay_frames(frames, candidate, cell_ref_fn=cell_ref_fn)
+    rep = replay_frames(frames, candidate, cell_ref_fn=cell_ref_fn, mop=mop)
     rep["control"] = ctl
 
     # NOT-SAMPLED vs BROKEN -- the repo's own rule is that a check which CANNOT tell them apart
@@ -481,6 +588,11 @@ def main():
           % (_c["frames"], ",".join(_c["models"]) or "?", _c["hour_offsets"] or "?",
              _c["hour_span"] if _c["hour_span"] is not None else "?",
              _c["valid_time_min"] or "?", _c["valid_time_max"] or "?"))
+    if rep.get("mop"):
+        _m = rep["mop"]
+        print("  MOP        ingest blob %s | runs %s | %d spots | a MOP sea for %d of %d replayable rows"
+              % (_m["generated_at"], ",".join(_m["runs"]) or "?", _m["spots"], _m["rows_with_sea"],
+                 rep["rows_replayable"]))
     # ⭐ THE UNKNOWN SPAN WARNS LOUDER THAN THE NARROW ONE, because it is strictly worse: a 3 h
     # window is at least a MEASURED 3 h, while a missing `hour_offset` means the window was never
     # established and may be a single hour. The original guard read
@@ -515,6 +627,11 @@ def main():
     print("  delta      p10 %s  median %s  p90 %s  (min %s, max %s)"
           % (rep["delta_p10"], rep["delta_median"], rep["delta_p90"],
              rep["delta_min"], rep["delta_max"]))
+    if rep.get("height_ratio"):
+        _h = rep["height_ratio"]
+        print("  HEIGHT     candidate / served breaking height over %d rows: p10 x%.3f  median x%.3f"
+              "  p90 x%.3f  (min x%.3f, max x%.3f)"
+              % (_h["n"], _h["p10"], _h["median"], _h["p90"], _h["min"], _h["max"]))
     if candidate.get("REFERENCE_LANE") == "cell":
         print("  SCOPE      band-vs-glyph REFERENCE lane only, height held fixed. The band also"
               " samples its height at the 2-deg CELL CENTRE, so this is a LOWER BOUND on the"
