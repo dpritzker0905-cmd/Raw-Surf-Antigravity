@@ -1,7 +1,7 @@
 {
   "version": 1,
   "reviewed_at": "2026-09-28",
-  "provenance": "Hand-listed NOAA NDBC buoys for the nearshore judge where CDIP has no live station. 42035: NDBC station page (29.235 N 94.410 W, water depth 15.5 m), realtime2 WVHT live 2026-09-28. Each buoy is paired with its OWN cell (the nearest spot, Galveston Seawall, is 37 km away, outside the 10 km CDIP rule). See services/weather_pipeline/ndbc_nearshore.py.",
+  "provenance": "Hand-listed NOAA NDBC buoys for the nearshore judge where CDIP has no live station in the pair table. Each buoy is paired with its OWN cell (nearest spots are 20-40 km away, outside the 10 km CDIP rule). 42035: NDBC station page (29.235 N 94.410 W, water depth 15.5 m), Galveston shelf (166 km), realtime2 WVHT live 2026-09-28. 42098: NDBC station page 'Egmont Channel Entrance, FL (214)', Scripps Waverider (CDIP 214), 27.590 N 82.931 W, water depth 14 m, West Florida shelf (185 km at the cell), realtime2 WVHT live 2026-09-28 -- added because #146's largest height increases (x2.1-2.25 at Fort Myers/Sanibel/Naples) sit on this shelf and nothing graded it. See services/weather_pipeline/ndbc_nearshore.py.",
   "pairs": [
     {
       "station": "ndbc:42035",
@@ -9,7 +9,24 @@
       "station_lng": -94.41,
       "station_depth_m": 15.5,
       "spots": [
-        {"name": "NDBC 42035 buoy cell (Galveston shelf)", "lat": 29.235, "lng": -94.41}
+        {
+          "name": "NDBC 42035 buoy cell (Galveston shelf)",
+          "lat": 29.235,
+          "lng": -94.41
+        }
+      ]
+    },
+    {
+      "station": "ndbc:42098",
+      "station_lat": 27.59,
+      "station_lng": -82.931,
+      "station_depth_m": 14.0,
+      "spots": [
+        {
+          "name": "NDBC 42098 buoy cell (West Florida shelf, Egmont Channel)",
+          "lat": 27.59,
+          "lng": -82.931
+        }
       ]
     }
   ]
