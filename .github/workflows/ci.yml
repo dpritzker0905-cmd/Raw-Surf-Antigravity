@@ -97,7 +97,12 @@ jobs:
           // ⚠️ This lag is the documented cost of that rule, not an oversight — the backend lanes'
           // "a floor that lags is not measuring anything" note argues the other way, and the two
           // are reconciled by WHERE the number comes from: hosted receipt raises, local never does.
-          const MIN_SUITES = 257, MIN_TESTS = 2486;
+          // 2026-09-28 (A15-11 mini lane): raised to the HOSTED receipt of dev run 36361175254 at acd1f070
+          // (#129), which printed `suites 296/296  tests 2869/2869  failed 0` — the whole pending gap
+          // since September 20 (+39 suites / +383 tests), from a receipt, never a local figure. This
+          // change's own marineSeriesLimiter.miniLane.test.js (+1 suite / +8 tests) is NOT counted: the
+          // next hosted run is its receipt.
+          const MIN_SUITES = 296, MIN_TESTS = 2869;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
