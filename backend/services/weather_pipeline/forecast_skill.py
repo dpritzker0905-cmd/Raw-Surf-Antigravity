@@ -633,7 +633,7 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     # ── SHADOW MOS (roadmap stage 5, step 1) — measurement only, after every write has landed ──
     # Its own try and its own kill switch (FORECAST_SKILL_MOS=0): a read or fit failure here costs
     # the shadow block and nothing else. See skill_mos.py.
-    mos = attribution = None
+    mos = attribution = consensus = None
     if os.environ.get("FORECAST_SKILL_MOS", "1") != "0":
         try:
             from services.weather_pipeline.skill_attribution import same_model_attribution
@@ -643,12 +643,15 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
             # WHERE the paired same-model gap comes from (tier / frame snap / cycle age). Same history,
             # same guard: a failure costs these two blocks and nothing else.
             attribution = same_model_attribution(history)
+            # The three-model consensus (stage 5) on the same scored history: measurement only.
+            from services.weather_pipeline.skill_consensus import consensus_report
+            consensus = consensus_report(history, now)
         except Exception as e:
             logger.warning("[forecast-skill] MOS shadow skipped (%s)", e)
     return {"ledgered": len(incoming), "scored": len(scored),
             "pending_kept": len(still), "pending_evicted_cap": merge_stats.get("cap_evicted", 0),
             "summary": summary, "scoring_rejections": score_stats, "mos_shadow": mos,
-            "same_model_attribution": attribution}
+            "same_model_attribution": attribution, "consensus": consensus}
 
 
 def mos_history_rows(now: datetime, archives, load_rows) -> List[dict]:
@@ -680,3 +683,5 @@ def attach_to_report(report, skill) -> None:
         report["forecast_skill_mos_shadow"] = skill["mos_shadow"]
     if skill.get("same_model_attribution") is not None:
         report["forecast_skill_same_model"] = skill["same_model_attribution"]
+    if skill.get("consensus") is not None:
+        report["forecast_skill_consensus"] = skill["consensus"]

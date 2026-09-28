@@ -1084,7 +1084,11 @@ jobs:
           # nearshore-input arm): #136's hosted merge run observed 124 files / 1419, confirming its projection exactly.
           # tests/test_nearshore_shelf_arm.py (claimed by `--lane chain`) gains 2 executed tests: 1419 + 2 = 1421,
           # 1421 - 6 = 1415; files 124 unchanged; _FLOOR_SET_FROM["chain"] -> 1421.
-          MIN_FILES, MIN_PASSED = 124, 1415
+          # ⬆ MIN_FILES 124→125, MIN_PASSED 1415→1426 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the
+          # three-model consensus scored at the buoys): #137's hosted merge run observed 124 files / 1421, confirming
+          # its projection exactly. The new tests/test_skill_consensus.py (claimed by `--lane chain`) adds 11
+          # executed tests: 1421 + 11 = 1432, 1432 - 6 = 1426; files 125 EXACT; _FLOOR_SET_FROM["chain"] -> 1432.
+          MIN_FILES, MIN_PASSED = 125, 1426
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
