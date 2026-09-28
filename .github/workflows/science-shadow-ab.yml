@@ -28,6 +28,7 @@ on:
 
 permissions:
   contents: read
+  actions: read       # SURF_NEARSHORE_MOP candidates read the MOP ingest's run artifacts (no storage credentials)
 
 concurrency:
   group: science-shadow-ab
@@ -51,6 +52,22 @@ jobs:
         working-directory: backend
         run: pip install -q -r requirements.txt
 
+      # ROADMAP STAGE 4 (2026-09-28): SURF_NEARSHORE_MOP feeds the breaking step MOP's sea from the ingest's
+      # blob, which no persisted rating input carries. Fetch the archived runs exactly as the nearshore
+      # judge's MOP-grid arm does; the replay picks the one the server held when the frames were rated and
+      # REFUSES if none was.
+      - name: Fetch the archived MOP runs (SURF_NEARSHORE_MOP candidates)
+        if: contains(inputs.candidate, 'SURF_NEARSHORE_MOP')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p mop_archive
+          for id in $(gh run list -R "${{ github.repository }}" --workflow mop-nearshore-ingest.yml \
+                        --status success --limit 16 --json databaseId -q '.[].databaseId'); do
+            gh run download "$id" -R "${{ github.repository }}" -n "mop-spot-series-$id" -D "mop_archive/$id" || true
+          done
+          echo "archived MOP runs fetched: $(find mop_archive -name '*.json' | wc -l)"
+
       - name: Replay served frames under the candidate
         working-directory: backend
         env:
@@ -58,6 +75,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           CANDIDATE: ${{ inputs.candidate }}
+          SHADOW_AB_MOP_DIR: ${{ contains(inputs.candidate, 'SURF_NEARSHORE_MOP') && '../mop_archive' || '' }}
         # Exit semantics preserved (0 report / 3 REFUSED / else crash) but the run page must
         # explain itself: on 08-09 the first dispatch REFUSED by design and a CI monitor read
         # the red as a code failure to fix. REFUSE stays red -- blind is never green -- the
