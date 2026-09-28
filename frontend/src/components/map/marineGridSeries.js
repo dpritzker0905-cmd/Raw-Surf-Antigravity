@@ -541,8 +541,12 @@ export function prewarmMarineSeries(model, layer, bounds, signal) {
   // scrub+toggle. Skip the eager prewarm for EURO — its lazy current-page load handles it. GFS &
   // ICON just re-slice a cheap cached coarse product, so prewarming all pages is safe + fast.
   if ((model || 'GFS').toUpperCase() === 'EURO') return;
+  // BACKGROUND (A15-11, 2026-09-28). These pages are warmed for scrubbing, not shown: the page on screen is
+  // loaded visible by the caller's ensureMarineSeries, and a visible request for a page still queued here
+  // promotes it. Loaded visible, the next page took a slot 600 ms after every toggle (dev E2E 36367984954,
+  // Safari: the current page + this one + the gesture's mini + its world /grid beside a background request).
   for (let page = 0, last = lastPageFor(model); page <= last; page++) {
-    loadSeriesPage(model, layer, bounds, page, signal);
+    loadSeriesPage(model, layer, bounds, page, signal, false, true);
   }
 }
 
