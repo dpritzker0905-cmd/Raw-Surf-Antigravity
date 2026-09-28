@@ -1076,7 +1076,11 @@ jobs:
           # judge grades the transform with the BUOY's geometry): #133's hosted merge run observed 122 files / 1413,
           # confirming its projection exactly. The new tests/test_nearshore_station_geometry.py (claimed by `--lane
           # chain`) adds 3 executed tests: 1413 + 3 = 1416, 1416 - 6 = 1410; files 123 EXACT; _FLOOR_SET_FROM -> 1416.
-          MIN_FILES, MIN_PASSED = 123, 1410
+          # ⬆ MIN_FILES 123→124, MIN_PASSED 1410→1413 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge's shelf arm, cross-shelf friction off on wide shelves): #135's hosted merge run observed 123 files /
+          # 1416, confirming its projection exactly. The new tests/test_nearshore_shelf_arm.py (claimed by `--lane
+          # chain`) adds 3 executed tests: 1416 + 3 = 1419, 1419 - 6 = 1413; files 124 EXACT; _FLOOR_SET_FROM -> 1419.
+          MIN_FILES, MIN_PASSED = 124, 1413
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
