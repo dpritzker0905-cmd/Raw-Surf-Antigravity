@@ -68,18 +68,19 @@ def clean_flags(monkeypatch):
         monkeypatch.delenv(k, raising=False)
 
 
-def _rounded_row():
+def _rounded_row(level_flip=False):
     """A served row as persisted: its stored height carries write rounding (+0.9%, inside the 1% height
     tolerance) and its score is the rating OF that stored height, so the reproduction checks pass. Picked
-    where the curve is steep enough that 0.9% of height is worth more than the 0.25-point tolerance."""
+    where the curve is steep enough that 0.9% of height is worth more than the 0.25-point tolerance -- or,
+    with `level_flip`, where that rounding alone crosses a LEVEL boundary (the 3 rows measured)."""
     g = resolve_surf_geometry(*PIPELINE)
-    for off in (0.4, 0.6, 0.8, 1.0, 1.3, 1.6, 2.0, 2.5, 3.0):
-        row = _row(offshore=off)
+    for k in range(40, 400):
+        row = _row(offshore=k / 100.0)
         stored = round(row["surf_height_m"] * 1.009, 3)
         score, level = compute_surf_rating(stored, 14.0, 2.0, wind_from_deg=140.0,
                                            shore_normal_deg=g.shore_normal_deg, swell_from_deg=315.0,
                                            break_depth_m=g.break_depth_m)
-        if abs(score - row["score"]) > 0.25:
+        if abs(score - row["score"]) > 0.25 and (level != row["level"] or not level_flip):
             return dict(row, surf_height_m=stored, score=score, level=level)
     pytest.skip("no steep enough point on the rating curve at Pipeline")
 
@@ -97,6 +98,14 @@ def test_a_null_HEIGHT_candidate_is_the_null_result_despite_write_rounding():
     m = rep["biggest_upgrades"][0]
     assert m["score_served"] == row["score"] and m["score_now"] != row["score"], (
         "the served score is reported beside the recomputed baseline the candidate was measured against")
+
+
+def test_write_rounding_across_a_level_boundary_is_not_a_level_change():
+    row = _rounded_row(level_flip=True)
+    rep = replay_frames(_frames([row]), {"SURF_REFRACTION_KR": str(REFRACTION_KR)})
+    assert rep["rows_replayable"] == 1 and rep["level_up"] == 0 and rep["level_down"] == 0
+    m = rep["biggest_upgrades"][0]
+    assert m["level_served"] == row["level"] and m["level_now"] == m["level_cand"] != row["level"]
 
 
 def test_the_null_candidate_is_the_null_result():
