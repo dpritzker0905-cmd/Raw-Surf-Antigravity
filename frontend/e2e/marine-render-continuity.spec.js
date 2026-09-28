@@ -233,7 +233,11 @@ async function readMarineLogs(page) {
       ? window.__MARINE_CLEAR_LOG__.map((c) => ({ reason: c.reason, timestamp: c.timestamp,
         transitioning: c.transitioning, requested: c.requested, displayed: c.displayed })) : [],
     churn: (window.__MARINE_CHURN__ && Array.isArray(window.__MARINE_CHURN__.log))
-      ? window.__MARINE_CHURN__.log.map((c) => ({ kind: c.kind, t: c.t, cause: c.cause, message: c.message })) : [],
+      // `site`/`from`/`to` name WHICH fetch superseded which (detach) and the layer each flip left and
+      // entered. Without them, run 36432722270 could show that every toggle fetched the OUTGOING layer's
+      // world /grid 8 ms after a detach, but not which request source fired it.
+      ? window.__MARINE_CHURN__.log.map((c) => ({ kind: c.kind, t: c.t, cause: c.cause, message: c.message,
+        site: c.site, from: c.from, to: c.to })) : [],
   }));
 }
 
