@@ -733,7 +733,11 @@ jobs:
           # #114 projection exactly. tests/test_validate_nearshore_transform.py (already claimed by `--lane guards`)
           # gains 4 executed tests: 2094 + 4 = 2098, 2098 - 6 = 2092; files 173 unchanged;
           # _FLOOR_SET_FROM["guards"] -> 2098.
-          MIN_FILES, MIN_PASSED = 173, 2092
+          # ⬆ MIN_PASSED 2092→2095 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the science shadow A/B can
+          # exercise shelf-friction levers): dev's hosted run 36373600771 (d6638bf4) observed 173 files / 2098.
+          # tests/test_rating_shadow_ab.py (claimed by `--lane guards`) gains 3 executed tests: 2098 + 3 = 2101,
+          # 2101 - 6 = 2095; files 173 unchanged; _FLOOR_SET_FROM["guards"] -> 2101.
+          MIN_FILES, MIN_PASSED = 173, 2095
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
