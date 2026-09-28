@@ -103,33 +103,105 @@ function scheduleFailRetry(model, layer, bounds, page, signal, key, reason) {
 // queue client-side; a request whose signal aborts while queued is dropped (never hits the box),
 // so superseded model/layer warms don't pile up. Tune up once the backend has more CPU.
 const MARINE_SERIES_MAX_CONCURRENT = 2;
+// PRIORITY (A15-11, 2026-09-27). Background warms (sibling layers, the world series behind the zoom-out
+// bridge, adjacent-page idle prefetch) shared ONE FIFO with the loads the user is waiting on, so an
+// activation's own pages could queue behind them, and the world /grid warm bypassed the cap entirely.
+// Visible loads are now always served first; background warms hold at most ONE of the two slots and
+// never start while a visible load is waiting; a visible request for a page still QUEUED as a warm
+// promotes it. Nothing is dropped: every warm still runs, after what is on screen.
+// Kill: window.__RAW_DISABLE_FETCH_PRIORITY__ = true -> the single FIFO, every load treated as visible.
+const MARINE_SERIES_BG_MAX = 1;
 let _seriesActiveLoads = 0;
-const _seriesWaiters = []; // [{ resolve, signal }]
+let _bgActiveLoads = 0;
+const _seriesWaiters = []; // visible:    [{ resolve, signal, key, background: false }]
+const _bgWaiters = [];     // background: same shape, background: true
 
-function acquireSeriesSlot(signal) {
-  if (_seriesActiveLoads < MARINE_SERIES_MAX_CONCURRENT) { _seriesActiveLoads++; return Promise.resolve(true); }
+function _priorityOn() {
+  return !(typeof window !== 'undefined' && window.__RAW_DISABLE_FETCH_PRIORITY__ === true);
+}
+
+function _canStart(background) {
+  if (_seriesActiveLoads >= MARINE_SERIES_MAX_CONCURRENT) return false;
+  return !background || _bgActiveLoads < MARINE_SERIES_BG_MAX;   // _pump serves waiting visible loads first
+}
+
+function _take(background) {
+  _seriesActiveLoads++;
+  if (background) _bgActiveLoads++;
+  return background ? 'background' : 'visible';
+}
+
+/** Resolves to the lane the slot was granted in ('visible' | 'background'), or false when dropped. */
+function acquireSeriesSlot(signal, background = false, key = null) {
+  const bg = !!background && _priorityOn();
+  if (_canStart(bg)) return Promise.resolve(_take(bg));
   return new Promise((resolve) => {
-    const entry = { resolve, signal };
-    _seriesWaiters.push(entry);
+    const entry = { resolve, signal, key, background: bg };
+    (bg ? _bgWaiters : _seriesWaiters).push(entry);
     if (signal) {
       try {
         signal.addEventListener('abort', () => {
-          const i = _seriesWaiters.indexOf(entry);
-          if (i >= 0) { _seriesWaiters.splice(i, 1); resolve(false); } // dropped while queued; no slot taken
+          const q = entry.background ? _bgWaiters : _seriesWaiters;  // it may have been promoted
+          const i = q.indexOf(entry);
+          if (i >= 0) { q.splice(i, 1); resolve(false); } // dropped while queued; no slot taken
         }, { once: true });
       } catch (e) { /* ignore */ }
     }
   });
 }
 
-function releaseSeriesSlot() {
-  if (_seriesActiveLoads > 0) _seriesActiveLoads--;
-  while (_seriesWaiters.length && _seriesActiveLoads < MARINE_SERIES_MAX_CONCURRENT) {
-    const w = _seriesWaiters.shift();
+function _nextLive(q) {
+  while (q.length) {
+    const w = q.shift();
     if (w.signal && w.signal.aborted) { w.resolve(false); continue; } // drop aborted-while-queued
-    _seriesActiveLoads++;
-    w.resolve(true);
+    return w;
   }
+  return null;
+}
+
+function _pump() {
+  while (_seriesActiveLoads < MARINE_SERIES_MAX_CONCURRENT) {
+    const v = _nextLive(_seriesWaiters);
+    if (v) { v.resolve(_take(false)); continue; }
+    if (_bgActiveLoads >= MARINE_SERIES_BG_MAX) break;
+    const b = _nextLive(_bgWaiters);
+    if (!b) break;
+    b.resolve(_take(true));
+  }
+}
+
+function releaseSeriesSlot(lane) {
+  if (_seriesActiveLoads > 0) _seriesActiveLoads--;
+  if (lane === 'background' && _bgActiveLoads > 0) _bgActiveLoads--;
+  _pump();
+}
+
+/** A visible request found its page still queued as a background warm: move it to the visible queue. */
+function promoteQueuedWarm(key) {
+  const i = _bgWaiters.findIndex((w) => w.key === key);
+  if (i < 0) return false;
+  const [w] = _bgWaiters.splice(i, 1);
+  w.background = false;
+  _seriesWaiters.push(w);
+  _pump();
+  return true;
+}
+
+/**
+ * Run a background warm that is not a series page (the world /grid behind the zoom-out bridge, the
+ * zoom-out anticipation grid) under the same budget, so it can no longer bypass the cap. Resolves
+ * undefined when dropped (its signal aborted while queued).
+ */
+export async function runBackgroundWarm(fn, signal) {
+  const lane = await acquireSeriesSlot(signal, true, null);
+  if (!lane) return undefined;
+  try { return await fn(); } finally { releaseSeriesSlot(lane); }
+}
+
+/** Test/diagnostic view of the limiter. */
+export function _seriesLimiterState() {
+  return { active: _seriesActiveLoads, background: _bgActiveLoads,
+    queuedVisible: _seriesWaiters.length, queuedBackground: _bgWaiters.length };
 }
 
 // 3-hourly pages of at most 48 frames (the backend series cap). The span is per COST CLASS,
@@ -239,7 +311,7 @@ function scheduleIdlePrefetch(fn) {
 }
 
 // Load ONE page of the series. Idempotent + TTL'd + deduped (keyed by page). Never throws.
-async function loadSeriesPage(model, layer, bounds, page, signal, force = false) {
+async function loadSeriesPage(model, layer, bounds, page, signal, force = false, background = false) {
   if (!isMarineSeriesEnabled() || !bounds || page < 0 || page > lastPageFor(model)) return;
   const key = pageKey(model, layer, bounds, page);
   // Padded request box (also used for the coverage-aware dedup below). Computed once here.
@@ -280,7 +352,12 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
     }
     if (!coarseRetryDue && !coverageBroken && Date.now() - existing.ts < SERIES_TTL_MS) return;
   }
-  if (_inFlight.has(key)) return;
+  if (_inFlight.has(key)) {
+    // Already loading. If it is still QUEUED as a background warm and someone now needs it on screen,
+    // it jumps the queue (A15-11); a load already running is left alone.
+    if (!background) promoteQueuedWarm(key);
+    return;
+  }
 
   const hours = buildPageHours(page, model);
   if (hours.length === 0) return;
@@ -321,11 +398,11 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
   const p = (async () => {
     // Wait for a concurrency slot before hitting the 1-CPU backend. If the signal aborts while
     // we're queued, acquireSeriesSlot resolves false and we never fetch (superseded warm dropped).
-    const gotSlot = await acquireSeriesSlot(localController.signal);
+    const gotSlot = await acquireSeriesSlot(localController.signal, background, key);
     if (!gotSlot || localController.signal.aborted) {
       // Cancellation can follow acquisition (including a queued handoff) before this
       // continuation runs. Return only an owned slot; queued drops own none.
-      if (gotSlot) releaseSeriesSlot();
+      if (gotSlot) releaseSeriesSlot(gotSlot);
       _inFlight.delete(key);
       if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } } // Preserve queued-drop listener cleanup; see RATIONALE-2026-08-09-observability-and-duplicate-load-fixes.md.
       return;
@@ -421,7 +498,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
         scheduleFailRetry(model, layer, bounds, page, signal, key, reason);
       }
     } finally {
-      releaseSeriesSlot(); // hand the slot to the next queued load
+      releaseSeriesSlot(gotSlot); // hand the slot to the next queued load (visible first)
       clearTimeout(timeoutId);
       _inFlight.delete(key);
       if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
@@ -508,7 +585,7 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
  * then prefetch adjacent page(s) during idle. Idempotent + TTL'd + deduped. No-op when the
  * flag is off. Never throws. hourOffset defaults to 0 (near page) for legacy callers.
  */
-export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, signal, currentPageOnly = false, force = false) {
+export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, signal, currentPageOnly = false, force = false, background = false) {
   if (!isMarineSeriesEnabled() || !bounds) return;
   const page = marineSeriesPageForHour(hourOffset, model);
   // HOUR-0-FIRST: when the current page is COLD, race a 1-hour mini load ahead of it
@@ -526,7 +603,7 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
   if (!(_pc && _pc.frames && _pc.frames.size && Date.now() - _pc.ts < SERIES_TTL_MS)) {
     loadSeriesHour0(model, layer, bounds, hourOffset, signal);
   }
-  await loadSeriesPage(model, layer, bounds, page, signal, force);
+  await loadSeriesPage(model, layer, bounds, page, signal, force, background);
   // currentPageOnly: load just the page containing hourOffset, no adjacent prefetch. Used by the
   // sibling-layer toggle prewarm — a toggle only needs the CURRENT hour, so fanning out to adjacent
   // pages (future-hour frames, for scrubbing) would be wasted 1-CPU backend load on the siblings.
@@ -537,7 +614,7 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
     const k = pageKey(model, layer, bounds, adj);
     const cached = _seriesCache.get(k);
     if ((cached && Date.now() - cached.ts < SERIES_TTL_MS) || _inFlight.has(k)) continue;
-    scheduleIdlePrefetch(() => { loadSeriesPage(model, layer, bounds, adj, signal); });
+    scheduleIdlePrefetch(() => { loadSeriesPage(model, layer, bounds, adj, signal, false, true); }); // a warm
   }
 }
 
@@ -697,6 +774,8 @@ export function _resetMarineSeriesForTest() {
   }
   _idleTimers.clear();
   _seriesActiveLoads = 0;
+  _bgActiveLoads = 0;
   _seriesWaiters.length = 0;
+  _bgWaiters.length = 0;
   _failRetries.clear();
 }

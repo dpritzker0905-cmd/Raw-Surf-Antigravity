@@ -38,8 +38,9 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.nearshore_validation import (   # noqa: E402
-    Refusal, backfill_valid_times, build_report, fetch_station_hs, load_pairs, match, model_hs_at_station,
-    model_hs_at_station_trains, qc_filter, station_trains, transform_factors)
+    Refusal, backfill_valid_times, build_report, fetch_mop_hs, fetch_station_hs, load_mop_archives, load_pairs,
+    match, model_hs_at_station, model_hs_at_station_trains, mop_grid_hours, qc_filter, station_trains,
+    transform_factors)
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 UA = {"User-Agent": "raw-surf-nearshore-validation-runner"}
@@ -111,6 +112,14 @@ def main() -> int:
     # calls (the three partition layers per spot-hour), so it is off unless asked for.
     ap.add_argument("--trains", action="store_true",
                     default=os.environ.get("NEARSHORE_VAL_TRAINS", "0") == "1")
+    # THE MOP ARM (roadmap stage 4): CDIP's own spectral nearshore forecast AT the buoy, graded beside
+    # the bulk arm. One OPeNDAP slice per station, so it is cheap; off unless asked for all the same.
+    ap.add_argument("--mop", action="store_true",
+                    default=os.environ.get("NEARSHORE_VAL_MOP", "0") == "1")
+    # THE ARCHIVED MOP-GRID ARM (stage 4): the product stage 4 would serve, read from the ingest's own
+    # archived runs (a directory of its artifacts). The grid's hours depend on each region's run, so the
+    # stations it covers are also graded at THOSE hours (extra point calls only for those spots).
+    ap.add_argument("--mop-grid-archive", default=os.environ.get("NEARSHORE_VAL_MOP_GRID_DIR", ""))
     ap.add_argument("--max-stations", type=int,
                     default=int(os.environ.get("NEARSHORE_VAL_MAX_STATIONS", "20")))
     args = ap.parse_args()
@@ -148,10 +157,17 @@ def main() -> int:
 
     preds, point_fail = [], 0
     live_pairs = [p for p in pairs if p["station"] in live_obs]
+    grid_hours, grid_blobs = {}, (load_mop_archives(args.mop_grid_archive) if args.mop_grid_archive else [])
+    for entry in live_pairs:
+        hrs = mop_grid_hours(grid_blobs, entry["station"], datetime.now(timezone.utc), args.backfill_hours + 1)
+        if hrs:
+            grid_hours[entry["station"]] = hrs
     geo = {}
     for entry in live_pairs:
         depth = float(entry.get("station_depth_m") or 0) or 20.0
-        for spot, valid_time in ((sp, vt) for sp in entry.get("spots", []) for vt in valid_times):
+        station_times = list(valid_times) + sorted(
+            {h[:13] + ":00" for h in grid_hours.get(entry["station"], {})} - {vt for vt in valid_times})
+        for spot, valid_time in ((sp, vt) for sp in entry.get("spots", []) for vt in station_times):
             url = (f"{args.base}/api/weather/point?model=GFS&domain=marine&layer=waves"
                    f"&lat={spot['lat']}&lng={spot['lng']}&valid_time={valid_time}")
             try:
@@ -195,6 +211,26 @@ def main() -> int:
         return 2
     assert all("station" in p for p in preds), "prediction rows must carry 'station' (L4)"
 
+    mop_status = {}
+    if args.mop:
+        for st in sorted({p["station"] for p in preds}):
+            rows = [p for p in preds if p["station"] == st]
+            try:
+                mop = fetch_mop_hs(st, [p["valid_time"] for p in rows])
+            except BaseException as e:                                # noqa: BLE001 — one station, never the run
+                mop_status[st] = ("no MOP site" if classify_station_failure(e) == "skip_404"
+                                  else f"unavailable: {str(e)[:80]}")
+                continue
+            for p in rows:
+                if p["valid_time"] in mop:
+                    p["mop_hs_m"] = mop[p["valid_time"]]
+            mop_status[st] = f"{len(mop)} hours"
+
+    for p in preds:
+        g = grid_hours.get(p["station"], {}).get(p["valid_time"])
+        if g:
+            p["mop_grid_hs_m"], p["mop_grid_lead_h"] = g["hs"], g["lead_h"]
+
     matched, n_obs = [], 0
     for entry in live_pairs:
         st = entry["station"]
@@ -210,6 +246,12 @@ def main() -> int:
     report["point_api"] = {"base": args.base, "valid_time": valid_times[0], "valid_times": len(valid_times),
                            "calls": (len(preds) * (1 + len(TRAIN_LAYERS) * bool(args.trains))) + point_fail,
                            "failed": point_fail, "trains": bool(args.trains)}
+    if args.mop:
+        report["mop"] = {"product": "MOP_validation forecast (WW3-driven)", "stations": mop_status}
+    if args.mop_grid_archive:
+        report["mop_grid"] = {"product": "MOP_grids sea+swell forecast (ECMWF-driven), archived runs",
+                              "archives": len(grid_blobs),
+                              "stations": {s: len(h) for s, h in sorted(grid_hours.items())}}
     report["budget"] = {"wall_s": round(time.time() - t0, 1)}
     with open(args.json, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=1)
@@ -224,6 +266,16 @@ def main() -> int:
                     for s, v in sorted(report["stations"].items()))
     print(f"VERDICT GRADED n_matched={report['n_matched']} "
           f"(spot-hours {report['n_spot_hours']}, station-hours {report['n_station_hours']}) {per}")
+    gab = report.get("mop_grid_ab")
+    if gab:
+        print(f"MOP_GRID_AB n={gab['n']} station_hours={gab['n_station_hours']} "
+              f"bulk={gab['bulk']['mae_m']}/{gab['bulk']['bias_m']:+} grid={gab['arm']['mae_m']}/{gab['arm']['bias_m']:+} "
+              f"closer={gab['arm_closer_share']}")
+    mab = report.get("mop_ab")
+    if mab:
+        print(f"MOP_AB n={mab['n']} station_hours={mab['n_station_hours']} "
+              f"bulk={mab['bulk']['mae_m']}/{mab['bulk']['bias_m']:+} mop={mab['arm']['mae_m']}/{mab['arm']['bias_m']:+} "
+              f"closer={mab['arm_closer_share']}")
     ab = report.get("trains_ab")
     if ab:
         t = ab["trains_only"]

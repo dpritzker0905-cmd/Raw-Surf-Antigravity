@@ -243,7 +243,7 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
 
 def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
                      geometry: Optional[SurfGeometry] = None, partitions=None,
-                     water_level_m: float = 0.0):
+                     water_level_m: float = 0.0, nearshore=None):
     """Breaking surf height (m) + regime at a coordinate, from offshore Hs/Tp/direction.
 
     The full production chain. Pass a pre-resolved ``geometry`` to avoid repeating the lookups when
@@ -257,6 +257,17 @@ def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
     contamination in `estimate_surf_partitioned`'s docstring."""
     from services.weather_pipeline.surf_transform import estimate_surf, estimate_surf_partitioned
     g = geometry if geometry is not None else resolve_surf_geometry(lat, lng)
+    # ``nearshore`` (roadmap stage 4, behind SURF_NEARSHORE_MOP): CDIP MOP's sea at the spot's cell
+    # ({hs, tp, depth_m}), from `mop_serving.nearshore_for_point`. Same composition, a better INPUT: the
+    # breaking step starts from a spectral nearshore model instead of the offshore field plus the
+    # parametric friction/exposure/Kr. Absent or unusable, the calls below run byte-identical to before.
+    if nearshore:
+        from services.weather_pipeline.mop_nearshore import estimate_surf_from_nearshore
+        h, regime = estimate_surf_from_nearshore(
+            nearshore.get("hs"), nearshore.get("tp"), nearshore.get("depth_m"), g.depth_m,
+            g.shelf_width_km, g.break_depth_m, water_level_m=water_level_m)
+        if h is not None:
+            return h, regime
     if partitions:
         h, regime = estimate_surf_partitioned(
             partitions, g.depth_m,

@@ -1,0 +1,77 @@
+# CDIP MOP nearshore ingest (roadmap stage 4, 2026-09-27).
+#
+# Archives each CDIP MOP sea+swell run at the California spot cells AND the CDIP buoy cells
+# (backend/data/mop_spot_cells.json) as a gzipped L2 blob: the latest, plus a per-run archive under
+# point_cache/mop_runs/. The regional sea+swell grids hold only FUTURE hours, so this archive is what lets
+# the nearshore judge grade the product stage 4 would serve (#124 graded MOP's WW3-driven buoy series at
+# 0.101 m MAE against our chain's 0.246 m; the served grids are ECMWF-driven and must earn it themselves).
+# Nothing serves from the blob yet.
+#
+# Cost: ~90 small CDIP requests and two uploads (~16 KB each), ~20 s. MOP regions publish every ~6 h.
+# Exit contract (scripts/ingest_mop_spot_series.py): 0 written · 1 PARTIAL (written, says so) · 2 INFRA.
+name: MOP Nearshore Ingest (stage 4)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '40 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mop-nearshore-ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          # 3.12 TO MATCH PRODUCTION — see artifact-interpreter-parity before any move.
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: Archive the current MOP runs at the spot and buoy cells
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          # `|| rc=$?` keeps the branches below reachable under bash -e (forecast-calibration-census lesson).
+          set -o pipefail
+          rc=0
+          python3 scripts/ingest_mop_spot_series.py --out mop_spot_series.json 2>&1 | tee mop_ingest.txt || rc=$?
+          if [ "$rc" -ge 2 ]; then
+            echo "::error::INFRA (exit $rc): the spot table is stale or no MOP cell answered. Nothing was archived."
+            exit 2
+          elif [ "$rc" -eq 1 ]; then
+            echo "::warning::PARTIAL: under half the MOP cells answered; the blob was still written and says so."
+          fi
+
+      - name: Summary
+        if: always()
+        working-directory: backend
+        run: |
+          {
+            echo "### MOP nearshore ingest"
+            grep -E "^MOP runs|^CELLS|^WROTE|^INFRA" mop_ingest.txt 2>/dev/null | sed 's/^/- /' || echo "- no log"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the blob with the run
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: mop-spot-series-${{ github.run_id }}
+          path: |
+            backend/mop_spot_series.json
+            backend/mop_ingest.txt
+          retention-days: 30
+          if-no-files-found: warn

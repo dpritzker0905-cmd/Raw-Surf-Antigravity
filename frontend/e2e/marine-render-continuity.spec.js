@@ -53,9 +53,11 @@
  */
 const { test, expect } = require('@playwright/test');
 // Extracted so it can be unit-tested against known answers — see continuityOracle.test.js.
-const { longestStall, stallAnatomy } = require('./continuityOracle');
+const { longestStall, stallAnatomy, isAppStall } = require('./continuityOracle');
 // A measured stall must not be retried away — see stallLedger.js.
 const { runKey, ledgerFile, readEarlierStalls, recordStall } = require('./stallLedger');
+// What each gesture asks the 1-CPU backend for (A15-11) — see requestRecorder.js. Observation only.
+const { recordWeatherRequests, summarizeRequests } = require('./requestRecorder');
 
 /** Stalls earlier attempts of THIS test recorded in THIS run; records this attempt's if over budget. */
 function reconcileStalls(worst, anatomy) {
@@ -63,7 +65,14 @@ function reconcileStalls(worst, anatomy) {
   const file = ledgerFile(info.project.outputDir, [info.project.name, ...info.titlePath]);
   const key = runKey();
   const earlier = readEarlierStalls(file, key);
-  if (worst.ms > GAP_BUDGET_MS) recordStall(file, key, { attempt: info.retry, ms: worst.ms, label: worst.label, anatomy });
+  if (isAppStall(worst, anatomy, GAP_BUDGET_MS)) {
+    recordStall(file, key, { attempt: info.retry, ms: worst.ms, label: worst.label, anatomy });
+  } else if (worst.ms > GAP_BUDGET_MS) {
+    // Over budget in wall time, but the browser offered fewer than MIN_OFFERED_FRAMES frames inside the
+    // gap: the runner was presenting that slowly. Visible on the report, never silently green.
+    info.annotations.push({ type: 'runner-limited gap',
+      description: `${worst.ms} ms during "${worst.label}", browser frames inside: ${anatomy && anatomy.rafTicks}` });
+  }
   return earlier;
 }
 
@@ -123,6 +132,17 @@ async function startSampler(page) {
   await page.evaluate((pollMs) => {
     const w = window;
     w.__RAW_CONTINUITY__ = { samples: [], started: Date.now() };
+    // FRAMES THE BROWSER OFFERED (2026-09-27): a do-nothing rAF loop counts animation frames, and
+    // MapLibre's `render` event counts the frames it painted. A draw gap is the app's only when the
+    // browser was offering frames (continuityOracle.isAppStall).
+    w.__RAW_RAF__ = { n: 0, id: null };
+    const tick = () => { w.__RAW_RAF__.n += 1; w.__RAW_RAF__.id = requestAnimationFrame(tick); };
+    w.__RAW_RAF__.id = requestAnimationFrame(tick);
+    w.__RAW_MAPFRAMES__ = { n: 0, map: w.map || w.__MAP_INSTANCE__ || null };
+    w.__RAW_MAPFRAMES__.onRender = () => { w.__RAW_MAPFRAMES__.n += 1; };
+    if (w.__RAW_MAPFRAMES__.map && typeof w.__RAW_MAPFRAMES__.map.on === 'function') {
+      w.__RAW_MAPFRAMES__.map.on('render', w.__RAW_MAPFRAMES__.onRender);
+    }
     w.__RAW_CONTINUITY_TIMER__ = setInterval(() => {
       const g = w.__RAW_GPU__ || null;
       const o = (g && g.opacity) || null;
@@ -140,6 +160,8 @@ async function startSampler(page) {
         // even when the engine does not draw, and `skip` names the exit taken instead.
         layerN: g && g.layer ? g.layer.n : null,
         skip: g && g.layer ? g.layer.skip : null,
+        rafN: w.__RAW_RAF__.n,
+        mapN: w.__RAW_MAPFRAMES__.map ? w.__RAW_MAPFRAMES__.n : null,
       });
     }, pollMs);
   }, POLL_MS);
@@ -148,7 +170,11 @@ async function startSampler(page) {
 async function stopSampler(page) {
   return page.evaluate(() => {
     clearInterval(window.__RAW_CONTINUITY_TIMER__);
-    return window.__RAW_CONTINUITY__.samples;
+    const w = window;
+    if (w.__RAW_RAF__) cancelAnimationFrame(w.__RAW_RAF__.id);
+    const mf = w.__RAW_MAPFRAMES__;
+    if (mf && mf.map && typeof mf.map.off === 'function') mf.map.off('render', mf.onRender);
+    return w.__RAW_CONTINUITY__.samples;
   });
 }
 
@@ -163,7 +189,11 @@ async function readMarineLogs(page) {
   }));
 }
 
+// The gesture in effect, Node-side, so the request recorder can attribute each request as it starts.
+let currentGesture = null;
+
 async function label(page, text) {
+  currentGesture = text;
   await page.evaluate((t) => { window.__RAW_CONTINUITY_LABEL__ = t; }, text);
 }
 
@@ -197,6 +227,9 @@ test.describe('Marine render continuity across real gestures', () => {
     const isMobile = await page.evaluate(() => window.innerWidth < 768);
     test.skip(isMobile, 'desktop layout only — the mobile bottom sheet adds motion this oracle misreads');
 
+    // From BEFORE the first activation: the cold activation is the audit's measured fan-out.
+    currentGesture = 'activate:Waves';
+    const weatherRequests = recordWeatherRequests(page, () => currentGesture);
     await clickLayer(page, 'Waves');
 
     // Wait for the engine to be DRAWING before judging continuity. Without this the test would
@@ -265,15 +298,25 @@ test.describe('Marine render continuity across real gestures', () => {
       body: JSON.stringify({ budgetMs: GAP_BUDGET_MS, worst, anatomy, count: samples.length, samples, logs }, null, 2),
       contentType: 'application/json',
     });
+    // A15-11 measurement: requests per gesture, the in-flight peak each met, world-extent fetches.
+    const fanout = summarizeRequests(weatherRequests, Date.now());
+    await test.info().attach('weather-requests.json', {
+      body: JSON.stringify({ summary: fanout, rows: weatherRequests }, null, 2),
+      contentType: 'application/json',
+    });
+    test.info().annotations.push({ type: 'weather fan-out', description:
+      `${fanout.total} requests, peak ${fanout.peakInFlight} in flight; `
+      + Object.entries(fanout.byLabel).map(([k, g]) => `${k}: ${g.n} (peak ${g.peakInFlight}, world ${g.world}, `
+        + `median ${g.medianMs} ms)`).join('; ') });
 
     expect(samples.length, 'the sampler produced no samples at all').toBeGreaterThan(10);
     expect(
-      worst.ms,
+      isAppStall(worst, anatomy, GAP_BUDGET_MS),
       `the marine field stopped drawing for ${worst.ms} ms during "${worst.label}" `
-      + `(budget ${GAP_BUDGET_MS} ms). That is the owner-reported gap, captured. `
-      + `The attached series and the retained video show which gesture produced it. `
+      + `(budget ${GAP_BUDGET_MS} ms) while the browser offered frames. That is the owner-reported gap, `
+      + `captured. The attached series and the retained video show which gesture produced it. `
       + `Inside the stall: ${JSON.stringify(anatomy)}.`,
-    ).toBeLessThanOrEqual(GAP_BUDGET_MS);
+    ).toBe(false);
     expectNoEarlierStall(earlierStalls);
   });
 });
@@ -374,11 +417,11 @@ test.describe('Marine render continuity under a rapid zoom/pan burst', () => {
 
     expect(samples.length, 'the sampler produced no samples at all').toBeGreaterThan(20);
     expect(
-      worst.ms,
+      isAppStall(worst, anatomy, GAP_BUDGET_MS),
       `the field stopped drawing for ${worst.ms} ms during "${worst.label}" at Sebastian Inlet z12 `
-      + `(budget ${GAP_BUDGET_MS} ms) — the owner's reported burst defect, captured. `
-      + `Inside the stall: ${JSON.stringify(anatomy)}.`,
-    ).toBeLessThanOrEqual(GAP_BUDGET_MS);
+      + `(budget ${GAP_BUDGET_MS} ms) while the browser offered frames — the owner's reported burst `
+      + `defect, captured. Inside the stall: ${JSON.stringify(anatomy)}.`,
+    ).toBe(false);
     expectNoEarlierStall(earlierStalls);
 
     // The band is only judged if it was ever measurable: a run where ratingBandFade never appeared

@@ -16,6 +16,7 @@
 jest.mock('./marineGridSeries', () => ({
   ensureMarineSeries: jest.fn(),
   getMarineSeriesFrame: jest.fn(() => null),   // force the fetch path; series reuse is WP3's test
+  runBackgroundWarm: jest.fn((fn) => fn()),    // the A15-11 lane, transparent here
 }));
 jest.mock('./backendCopernicusServiceClient', () => ({
   fetchBackendCopernicusGrid: jest.fn(),
@@ -26,6 +27,7 @@ jest.mock('./backendWeatherServiceClient', () => ({
 }));
 
 const { fetchBackendMarineGrid, getSharedValidTime } = require('./backendWeatherServiceClient');
+const { runBackgroundWarm } = require('./marineGridSeries');
 
 // 3-HOURLY resolution: the real marine cadence, and the whole reason an hourOffset key fails.
 // ⚠️ This MUST be (re)installed per test, not in the jest.mock factory: CRA's jest config sets
@@ -66,6 +68,8 @@ beforeEach(() => {
     isSiblingPrewarmEnabled: () => true,
   });
   fetchBackendMarineGrid.mockResolvedValue(worldGrid());
+  // resetMocks strips the factory implementation (see above): the A15-11 lane must be re-installed.
+  runBackgroundWarm.mockImplementation((fn) => fn());
 });
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
@@ -83,6 +87,7 @@ describe('F-03 world-grid prewarm dedupe', () => {
     await flush();
 
     expect(fetchBackendMarineGrid).toHaveBeenCalledTimes(1);   // was 3 before the repair
+    expect(runBackgroundWarm).toHaveBeenCalledTimes(1);        // A15-11: the world grid is a background warm
     // ...and every offset still gets the grid cached under ITS OWN offset, so the zoom-out
     // lookup keyed by offset is unaffected. Dedupe must not become a coverage regression.
     expect(cached.map((c) => c.hour).sort((a, b) => a - b)).toEqual([12, 13, 14]);

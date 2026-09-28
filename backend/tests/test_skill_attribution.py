@@ -115,3 +115,40 @@ def test_the_report_publishes_the_attribution():
     report = {}
     fs.attach_to_report(report, {"summary": [], "same_model_attribution": {"n_paired": 3}})
     assert report["forecast_skill_same_model"] == {"n_paired": 3}
+
+
+# ── BIG SWELLS, SEPARATELY (2026-09-27) ─────────────────────────────────────────────────────────────
+# The MOS shadow's holdout: our GFS lane under-forecasts swells >= 3 m by ~0.2 m more than the same model via
+# Open-Meteo, eight times the all-sea gap. The attribution now splits that population on its own.
+
+def _pair_hs(bid, obs_hs, ours_err, ctl_err, **prov):
+    base = {"buoy_id": bid, "target_time": "2026-09-28T03:00:00Z", "lead_h": 48.0,
+            "obs_time": "2026-09-28T03:00:00Z", "obs_hs_m": obs_hs}
+    return [{**base, "source": "raw_surf", "err_m": ours_err, **prov},
+            {**base, "source": SAME_MODEL_CONTROL, "err_m": ctl_err}]
+
+
+def test_big_swells_are_attributed_on_their_own():
+    rows = []
+    for i in range(20):                                   # everyday seas: we tie
+        rows += _pair_hs(f"s{i}", 1.2, 0.10, 0.10, tier="regional", frame_off_h=0.0, cycle_age_h=4.0)
+    for i in range(4):                                    # big swells: we under-read 0.3 m more, on global_mid
+        rows += _pair_hs(f"b{i}", 3.6, -0.50, -0.20, tier="global_mid", frame_off_h=1.0, cycle_age_h=10.0)
+    a = same_model_attribution(rows)
+    big = a["big_swell"]
+    assert big["threshold_m"] == 3.0 and big["n_paired"] == 4
+    assert (big["gap_m"], big["bias_ours_m"], big["bias_control_m"]) == (pytest.approx(0.3), -0.5, -0.2)
+    assert [g["group"] for g in big["by_tier"]] == ["global_mid"]
+    assert a["gap_m"] == pytest.approx(0.05), "the all-sea gap dilutes what the big-swell split isolates"
+    assert a["n_paired"] == 24 and "by_tier" in a, "the existing keys are unchanged"
+
+
+def test_the_threshold_is_the_mos_shadows_and_inclusive():
+    from services.weather_pipeline.skill_mos import BIG_SWELL_M
+    rows = _pair_hs("a", BIG_SWELL_M, -0.4, -0.1) + _pair_hs("b", BIG_SWELL_M - 0.01, -0.4, -0.1)
+    assert same_model_attribution(rows)["big_swell"]["n_paired"] == 1
+
+
+def test_no_big_swell_is_an_empty_block_not_a_zero():
+    big = same_model_attribution(_pair_hs("a", 1.0, 0.1, 0.1))["big_swell"]
+    assert (big["n_paired"], big["gap_m"], big["bias_ours_m"]) == (0, None, None)

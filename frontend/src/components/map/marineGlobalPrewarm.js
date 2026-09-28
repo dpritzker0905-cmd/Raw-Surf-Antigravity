@@ -12,7 +12,7 @@
 // depend on that tolerance. marineController calls registerPrewarmDeps once at module scope instead,
 // so the edges here point one way only: marineController -> marineGlobalPrewarm -> {series, clients}.
 
-import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
+import { ensureMarineSeries, getMarineSeriesFrame, runBackgroundWarm } from './marineGridSeries';
 import { fetchBackendMarineGrid, getSharedValidTime } from './backendWeatherServiceClient';
 import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
 
@@ -160,7 +160,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
         // No abort signal, matching the grid warm: a background best-effort warm must survive the
         // pan/zoom that would otherwise cancel it. ensureMarineSeries is idempotent, TTL'd, deduped
         // and capped at 2 concurrent, so a repeated moveend is cheap.
-        ensureMarineSeries(m, activeLayer, _GLOBAL_BOUNDS, hourOffset, undefined, true);
+        ensureMarineSeries(m, activeLayer, _GLOBAL_BOUNDS, hourOffset, undefined, true, false, true /* background (A15-11) */);
       } catch (e) { /* best-effort: a warm must never break the gesture that triggered it */ }
     }
 
@@ -223,15 +223,17 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
     // No abort signal: this is a background best-effort warm that must survive the pan/zoom which
     // would otherwise cancel it. The global-coarse is location-independent, so it warms once and
     // serves every subsequent zoom-out.
+    // A15-11: under the series limiter's BACKGROUND lane (one slot, after anything on screen) instead of
+    // beside it — this world /grid used to bypass the cap entirely at every activation.
     Promise.resolve()
-      .then(() => (m === 'ICON')
+      .then(() => runBackgroundWarm(() => (m === 'ICON')
         ? fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer, 'ICON')
         : (m === 'EURO')
           // EURO world-coarse is a manifest product like the others (decoupled era) but routes
           // through the Copernicus client — the GFS-shaped default would cache a GFS grid under
           // the EURO key (model poison). Added 2026-07-15 with the model-switch wash re-warm.
           ? fetchBackendCopernicusGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, 'controller-prewarm', activeLayer)
-          : fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer))
+          : fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer)))
       .then((result) => {
         const g = result && result.grid;
         if (g && Array.isArray(g.vectors) && g.vectors.length > 0) {
