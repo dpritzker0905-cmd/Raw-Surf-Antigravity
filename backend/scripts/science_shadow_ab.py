@@ -395,6 +395,19 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
                     disqualified += 1          # geometry/assets/code moved since the frame
                     _note(disq_rows, s, "height", h_check, s["surf_height_m"])
                     continue
+            # ⭐ THE CANDIDATE IS COMPARED WITH THE BASELINE RECOMPUTED FROM THE SAME INPUTS, not with the persisted
+            # score (2026-09-28). The persisted score is the REPRODUCTION check above; it carries the rounding of
+            # every input on write (height up to the 1% tolerance), so comparing a candidate with it adds that noise
+            # to every delta. Measured on 584 served rows with a NULL height candidate (SURF_REFRACTION_KR at its
+            # own default): 7 rows moved > 0.25 pts and 3 changed LEVEL, height ratios x0.995..x1.003 -- a 0.5-0.7%
+            # level-change floor under every height verdict, and enough stray movers to hide a real dependency
+            # (the first SURF_NEARSHORE_MOP run could not infer `mop_sea`). Both arms now run the same functions on
+            # the same inputs, so the flag delta is the ONLY difference -- the promise in this module's docstring.
+            if height_replay:
+                base_h = h_check
+                base_score, base_level = _rate(h_check, s, ref)
+            else:
+                base_h = s["surf_height_m"]
             rows_replayable += 1
             for _k in (s.get("inputs") or {}):
                 inputs_present[_k] = inputs_present.get(_k, 0) + 1
@@ -424,16 +437,16 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
                 _note(disq_rows, s, "candidate", None, s["score"])
                 continue
 
-            d = round(cand_score - s["score"], 1)
+            d = round(cand_score - base_score, 1)
             deltas.append(d)
             dep_present = ((sea is not None) if mop_arm else
                            bool(_dep_key and (s.get("inputs") or {}).get(_dep_key) is not None))
             # Over the rows the candidate CAN move when it is guarded on an input (the denominator rule).
-            if (height_replay and cand_h is not None and s["surf_height_m"] > 0
+            if (height_replay and cand_h is not None and base_h and base_h > 0
                     and (dep_present or not (mop_arm or _dep_key))):
-                h_ratios.append(cand_h / s["surf_height_m"])
-            if cand_level != s.get("level"):
-                key = "%s -> %s" % (s.get("level"), cand_level)
+                h_ratios.append(cand_h / base_h)
+            if cand_level != base_level:
+                key = "%s -> %s" % (base_level, cand_level)
                 level_flow[key] = level_flow.get(key, 0) + 1
                 if d > 0:
                     up += 1
@@ -442,9 +455,12 @@ def replay_frames(frames: List[dict], candidate: Dict[str, str], cell_ref_fn=Non
             else:
                 same += 1
             movers.append({"spot_id": s.get("spot_id"), "name": s.get("name"),
-                           "score_now": s["score"], "score_cand": round(cand_score, 1),
-                           "delta": d, "level_now": s.get("level"), "level_cand": cand_level,
+                           "score_now": round(base_score, 1), "score_cand": round(cand_score, 1),
+                           "delta": d, "level_now": base_level, "level_cand": cand_level,
+                           # What was SERVED (the reproduction target), beside the recomputed baseline.
+                           "score_served": s["score"], "level_served": s.get("level"),
                            "surf_height_m": s.get("surf_height_m"),
+                           "base_height_m": round(base_h, 3) if base_h is not None else None,
                            "cand_height_m": round(cand_h, 3) if cand_h is not None else None,
                            # Both yardsticks, so a mover row can be read without re-deriving them
                            # (the E#1 question is exactly "which reference, and how far apart").

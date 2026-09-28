@@ -68,6 +68,37 @@ def clean_flags(monkeypatch):
         monkeypatch.delenv(k, raising=False)
 
 
+def _rounded_row():
+    """A served row as persisted: its stored height carries write rounding (+0.9%, inside the 1% height
+    tolerance) and its score is the rating OF that stored height, so the reproduction checks pass. Picked
+    where the curve is steep enough that 0.9% of height is worth more than the 0.25-point tolerance."""
+    g = resolve_surf_geometry(*PIPELINE)
+    for off in (0.4, 0.6, 0.8, 1.0, 1.3, 1.6, 2.0, 2.5, 3.0):
+        row = _row(offshore=off)
+        stored = round(row["surf_height_m"] * 1.009, 3)
+        score, level = compute_surf_rating(stored, 14.0, 2.0, wind_from_deg=140.0,
+                                           shore_normal_deg=g.shore_normal_deg, swell_from_deg=315.0,
+                                           break_depth_m=g.break_depth_m)
+        if abs(score - row["score"]) > 0.25:
+            return dict(row, surf_height_m=stored, score=score, level=level)
+    pytest.skip("no steep enough point on the rating curve at Pipeline")
+
+
+def test_a_null_HEIGHT_candidate_is_the_null_result_despite_write_rounding():
+    """Measured 2026-09-28 on 584 served rows: with SURF_REFRACTION_KR at its own default, 7 rows moved
+    > 0.25 pts and 3 changed LEVEL, because the candidate was compared with the PERSISTED score, which
+    carries the rounding of every input. Both arms now run the same functions on the same inputs."""
+    row = _rounded_row()
+    rep = replay_frames(_frames([row]), {"SURF_REFRACTION_KR": str(REFRACTION_KR)})
+    assert rep["rows_replayable"] == 1, "the rounded row must still pass the reproduction checks"
+    assert rep["delta_min"] == 0.0 and rep["delta_max"] == 0.0
+    assert rep["level_up"] == 0 and rep["level_down"] == 0
+    assert rep["height_ratio"]["min"] == rep["height_ratio"]["max"] == 1.0
+    m = rep["biggest_upgrades"][0]
+    assert m["score_served"] == row["score"] and m["score_now"] != row["score"], (
+        "the served score is reported beside the recomputed baseline the candidate was measured against")
+
+
 def test_the_null_candidate_is_the_null_result():
     """A candidate identical to the baseline must change NOTHING -- the null control that proves
     the harness cannot manufacture deltas."""
