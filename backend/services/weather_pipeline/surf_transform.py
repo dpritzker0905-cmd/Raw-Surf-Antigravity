@@ -306,7 +306,7 @@ _CELL_KM = 27.75          # ~0.25 deg ≈ 27.75 km
 SHELF_KF_FLOOR = 0.316    # = sqrt(1 - 0.90). ⚠️ Ardhuin (2003) reports 93% => 0.265; see above
 
 
-def shelf_dissipation(Tp_s, depth_m, width_km):
+def shelf_dissipation(Tp_s, depth_m, width_km, cf_scale=None):
     """Fraction of offshore swell HEIGHT that survives crossing the shelf, lost to bottom friction. ~1.0 over a
     narrow/steep or deep shelf; << 1 over a WIDE SHALLOW shelf where swell crosses many wavelengths of shallow
     water and bleeds energy to the bed — up to 93% energy loss on the widest shelves (Ardhuin 2003, NC/VA
@@ -314,7 +314,7 @@ def shelf_dissipation(Tp_s, depth_m, width_km):
     nearshore effect (the surf-zone shoaling jump is sub-grid at 0.25°).
 
     Form: exp(-CF * shelf_width_in_cells * bed_feel), bed_feel = 1/sinh(kd) (near-bed orbital influence:
-    ~0 in deep water, large in shallow). Returns 1.0 (no loss) for deep water or zero shelf width."""
+    ~0 in deep water, large in shallow). 1.0 for deep water or zero width. `cf_scale` overrides the served scale."""
     if (Tp_s is None or Tp_s <= 0 or depth_m is None or depth_m <= 0
             or width_km is None or width_km <= 0):
         return 1.0
@@ -326,7 +326,7 @@ def shelf_dissipation(Tp_s, depth_m, width_km):
         return 1.0
     feel = 1.0 / math.sinh(kd)
     width_cells = width_km / _CELL_KM
-    kf = math.exp(-SHELF_FRICTION_CF * _shelf_cf_scale() * width_cells * feel)
+    kf = math.exp(-SHELF_FRICTION_CF * (_shelf_cf_scale() if cf_scale is None else cf_scale) * width_cells * feel)
     # Never claim more dissipation than the cited literature supports (see SHELF_KF_FLOOR).
     if os.environ.get("SURF_SHELF_KF_FLOOR", "1") != "0":
         return max(kf, SHELF_KF_FLOOR)

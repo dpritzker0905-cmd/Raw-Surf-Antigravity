@@ -43,6 +43,8 @@ from services.weather_pipeline.nearshore_validation import (   # noqa: E402
     match, model_hs_at_station, model_hs_at_station_trains, mop_grid_hours, qc_filter, station_trains,
     transform_factors)
 from services.weather_pipeline.nwps_nearshore import attach_nwps  # noqa: E402
+from services.weather_pipeline.ndbc_nearshore import load_ndbc_pairs  # noqa: E402
+from services.weather_pipeline.nearshore_validation import LEGACY_SHELF_CF_SCALE  # noqa: E402
 from services.weather_pipeline.surf_transform import shelf_dissipation  # noqa: E402
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
@@ -148,10 +150,14 @@ def main() -> int:
         want = {s.strip() for s in args.stations.split(",") if s.strip()}
         pairs = [p for p in pairs if p["station"] in want]
     pairs = pairs[: max(1, args.max_stations)]
+    # NDBC buoys where CDIP has no live station (the Gulf, 2026-09-28): hand-listed, appended AFTER the cap so a
+    # full CDIP table can never crowd them out. ndbc_nearshore.py has the pairing rule (the buoy's own cell).
+    pairs = pairs + [p for p in load_ndbc_pairs()
+                     if not args.stations or p["station"] in {s.strip() for s in args.stations.split(",")}]
 
     live_obs, dead_404, infra_stations = probe_stations(pairs, max(args.hours, args.backfill_hours + 2))
     if not live_obs:
-        print(f"INFRA: 0 of {len(pairs)} CDIP stations answered "
+        print(f"INFRA: 0 of {len(pairs)} stations answered "
               f"(404-dead {len(dead_404)}, infra {len(infra_stations)}) — THREDDS or network down")
         return 2
 
@@ -225,6 +231,10 @@ def main() -> int:
                 **({"model_hs_no_friction_m": model_hs_at_station(hs, tp, dr, g.shore_normal_deg, depth, g.depth_m, 0.0),
                     "model_hs_nearshore_input_m": model_hs_from_nearshore_input(hs, tp, g.depth_m, depth)}
                    if shelf_dissipation(tp, g.depth_m, g.shelf_width_km) < 0.999 else {}),
+                # THE LEGACY-FRICTION ARM: the chain at the pre-#146 scale, where that friction would have applied.
+                **({"model_hs_legacy_friction_m": model_hs_at_station(
+                    hs, tp, dr, g.shore_normal_deg, depth, g.depth_m, g.shelf_width_km, cf_scale=LEGACY_SHELF_CF_SCALE)}
+                   if shelf_dissipation(tp, g.depth_m, g.shelf_width_km, LEGACY_SHELF_CF_SCALE) < 0.999 else {}),
                 "upstream_provider": d.get("upstream_provider"),
                 **row_trains,
             })
@@ -313,6 +323,11 @@ def main() -> int:
         print(f"NO_FRICTION_AB n={fab['n']} station_hours={fab['n_station_hours']} "
               f"bulk={fab['bulk']['mae_m']}/{fab['bulk']['bias_m']:+} no_friction={fab['arm']['mae_m']}/{fab['arm']['bias_m']:+} "
               f"closer={fab['arm_closer_share']}")
+    lab = report.get("legacy_friction_ab")
+    if lab:
+        print(f"LEGACY_FRICTION_AB n={lab['n']} station_hours={lab['n_station_hours']} "
+              f"bulk={lab['bulk']['mae_m']}/{lab['bulk']['bias_m']:+} legacy_friction={lab['arm']['mae_m']}/{lab['arm']['bias_m']:+} "
+              f"closer={lab['arm_closer_share']}")
     nab = report.get("nwps_ab")
     if nab:
         print(f"NWPS_AB n={nab['n']} station_hours={nab['n_station_hours']} "

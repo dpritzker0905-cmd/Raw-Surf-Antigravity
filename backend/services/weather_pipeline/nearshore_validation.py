@@ -38,6 +38,11 @@ PAIRS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.pat
 PAIRS_MAX_AGE_DAYS = 90.0     # regenerate with build_nearshore_pairs.py; staleness REFUSES
 THREDDS_RT = "https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/realtime"
 UA = {"User-Agent": "raw-surf-nearshore-validation"}
+# THE LEGACY-FRICTION ARM (2026-09-28): cross-shelf friction went off by default (surf_transform.SHELF_CF_SCALE_DEFAULT,
+# #146), which made the shelf arm below silent by design (served == no friction). This keeps the evidence running
+# BOTH ways: on rows where the old scale would have applied, the chain at 0.25 rides beside the served one, so a
+# shelf where friction-off reads HIGH (the Gulf was ungraded when it flipped) shows up here, not in a complaint.
+LEGACY_SHELF_CF_SCALE = 0.25
 
 
 class Refusal(RuntimeError):
@@ -66,7 +71,7 @@ def load_pairs(path: str = None, max_age_days: float = None) -> dict:
 
 def model_hs_at_station(hs_m: float, tp_s: float, swell_from_deg, shore_normal_deg,
                         station_depth_m: float, shelf_depth_m: float,
-                        shelf_width_km: float) -> float:
+                        shelf_width_km: float, cf_scale: Optional[float] = None) -> float:
     """The served composition's own components, evaluated at the INSTRUMENT:
     friction over the SHELF (its correct scale) x linear shoaling to the STATION depth (where the
     buoy floats; linear, not Komar — a 20 m buoy is not at the break point) x the SAME directional
@@ -75,7 +80,7 @@ def model_hs_at_station(hs_m: float, tp_s: float, swell_from_deg, shore_normal_d
     from services.weather_pipeline.surf_transform import (
         REFRACTION_KR, _height_exposure_factor, shelf_dissipation, shoaling_coefficient)
     h = float(hs_m)
-    h *= shelf_dissipation(tp_s, shelf_depth_m, shelf_width_km)
+    h *= shelf_dissipation(tp_s, shelf_depth_m, shelf_width_km, cf_scale)   # None = the served scale
     h *= shoaling_coefficient(tp_s, station_depth_m)
     h *= _height_exposure_factor(swell_from_deg, shore_normal_deg)
     try:
@@ -449,6 +454,9 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
     fr = arm_ab(matched, "model_hs_no_friction_m")
     if fr:
         extra["no_friction_ab"] = fr
+    lf = arm_ab(matched, "model_hs_legacy_friction_m")   # see LEGACY_SHELF_CF_SCALE
+    if lf:
+        extra["legacy_friction_ab"] = lf
     # THE NEARSHORE-INPUT ARM (2026-09-28), same wide-shelf rows: it is not only friction the chain applies twice
     # there. The served value already crossed the shelf in the wave model, shoaling and refracting on the way,
     # so it enters as a nearshore value at the shelf depth: shoaling from that depth to the station, nothing else.
@@ -467,7 +475,11 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
 def fetch_station_hs(station: str, hours: float = 26.0, timeout: float = 90.0) -> list:
     """Recent Hs from a CDIP realtime deployment via the OPeNDAP ascii interface (no netCDF dep,
     the discovery script's own transport). Returns [{time, hs_m, flag}]. Failures raise — the
-    caller's per-station isolation decides what one dead buoy costs (one buoy, never the run)."""
+    caller's per-station isolation decides what one dead buoy costs (one buoy, never the run).
+    An `ndbc:<id>` station reads NOAA NDBC instead (ndbc_nearshore: the Gulf had no live CDIP station)."""
+    from services.weather_pipeline.ndbc_nearshore import fetch_ndbc_hs, is_ndbc
+    if is_ndbc(station):
+        return fetch_ndbc_hs(station, hours=hours, timeout=timeout)
     url = (f"{THREDDS_RT}/{station}_rt.nc.ascii"
            f"?waveTime,waveHs,waveFlagPrimary")
     req = urllib.request.Request(url, headers=UA)
