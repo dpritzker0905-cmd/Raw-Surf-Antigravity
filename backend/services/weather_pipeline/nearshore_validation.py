@@ -427,6 +427,14 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
     nwps = arm_ab(matched, "nwps_hs_m")
     if nwps:
         extra["nwps_ab"] = nwps
+    # THE SHELF ARM (2026-09-28). On a WIDE shelf the served field at the spot is already a shelf-water value:
+    # /point at the spot read 0.44 of /point at the shelf edge at Duck (90 km shelf), 0.60 at Wrightsville (124 km),
+    # 0.66 at Cape Canaveral (74 km), against 0.93-0.99 on California's narrow shelves. The chain then applies
+    # cross-shelf friction (0.67-0.80 there) as if the input came from the shelf edge; the Kr study never saw it
+    # (all 10 of its pairs are narrow-shelf California, friction 1.0). Graded on the rows where friction applies.
+    fr = arm_ab(matched, "model_hs_no_friction_m")
+    if fr:
+        extra["no_friction_ab"] = fr
     # The transform is graded with the BUOY's geometry (2026-09-28); the spot-geometry number rides beside it
     # on the same hours, so the change is measured rather than asserted.
     sg = [m for m in matched if m.get("model_hs_spot_geometry_m") is not None]

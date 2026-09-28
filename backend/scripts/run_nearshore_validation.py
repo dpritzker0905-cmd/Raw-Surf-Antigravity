@@ -42,6 +42,7 @@ from services.weather_pipeline.nearshore_validation import (   # noqa: E402
     match, model_hs_at_station, model_hs_at_station_trains, mop_grid_hours, qc_filter, station_trains,
     transform_factors)
 from services.weather_pipeline.nwps_nearshore import attach_nwps  # noqa: E402
+from services.weather_pipeline.surf_transform import shelf_dissipation  # noqa: E402
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 UA = {"User-Agent": "raw-surf-nearshore-validation-runner"}
@@ -218,6 +219,10 @@ def main() -> int:
                 "factors": transform_factors(tp, dr, g.shore_normal_deg, depth, g.depth_m, g.shelf_width_km),
                 "model_hs_spot_geometry_m": model_hs_at_station(hs, tp, dr, gs.shore_normal_deg,
                                                                 depth, gs.depth_m, gs.shelf_width_km),
+                # THE SHELF ARM (2026-09-28): the chain with its cross-shelf friction OFF, on rows where friction
+                # applies (wide shelves). See `no_friction_ab` in nearshore_validation.build_report.
+                **({"model_hs_no_friction_m": model_hs_at_station(hs, tp, dr, g.shore_normal_deg, depth, g.depth_m, 0.0)}
+                   if shelf_dissipation(tp, g.depth_m, g.shelf_width_km) < 0.999 else {}),
                 "upstream_provider": d.get("upstream_provider"),
                 **row_trains,
             })
@@ -296,6 +301,11 @@ def main() -> int:
         print(f"MOP_GRID_AB n={gab['n']} station_hours={gab['n_station_hours']} "
               f"bulk={gab['bulk']['mae_m']}/{gab['bulk']['bias_m']:+} grid={gab['arm']['mae_m']}/{gab['arm']['bias_m']:+} "
               f"closer={gab['arm_closer_share']}")
+    fab = report.get("no_friction_ab")
+    if fab:
+        print(f"NO_FRICTION_AB n={fab['n']} station_hours={fab['n_station_hours']} "
+              f"bulk={fab['bulk']['mae_m']}/{fab['bulk']['bias_m']:+} no_friction={fab['arm']['mae_m']}/{fab['arm']['bias_m']:+} "
+              f"closer={fab['arm_closer_share']}")
     nab = report.get("nwps_ab")
     if nab:
         print(f"NWPS_AB n={nab['n']} station_hours={nab['n_station_hours']} "
