@@ -120,6 +120,12 @@ const E2E_USER = {
 //   GPS opens at z12, while every run so far opened through the IP path at z9. Same code path, same
 //   zoom, one place. Sebastian Inlet is the burst test's camera and the owner's reported break.
 const START_COAST = { lat: 27.8608, lng: -80.4464, city: 'Sebastian', region: 'Florida' };
+// ⛔ WEBKIT ROUTES THROUGH THE SERVICE WORKER. The first run of the pin (36432722270) held on Desktop Chrome and
+// NOT on Desktop Safari: 0 lookups answered, the map on Des Moines. `public/service-worker.js` claims the page on
+// install and has a fetch listener, and in WebKit a request that passes through a controlling worker is invisible
+// to `page.route` (Playwright documents this; its remedy is to block workers). Blocking changes nothing this spec
+// measures: the worker skips every `/weather` and `/marine` request by design and only caches surf-spot lists.
+test.use({ serviceWorkers: 'block' });
 
 let ipLookups = 0;
 
