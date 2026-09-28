@@ -92,10 +92,12 @@ def to_surf_convention(height_m, regime):
 
 
 def cap_seam_monotone_enabled() -> bool:
-    """SURF_CAP_SEAM_MONOTONE — the cap-seam repair (2026-08-15). DEFAULT OFF: ships dark; the
-    flip is an owner decision with the band census in hand (11.0 §3.8's own disposition for this
-    seam). Kill: SURF_CAP_SEAM_MONOTONE=0. Declared in `_RATING_FLAGS` in the same commit."""
-    return os.environ.get("SURF_CAP_SEAM_MONOTONE", "0") == "1"
+    """SURF_CAP_SEAM_MONOTONE — the cap-seam repair (2026-08-15). DEFAULT ON since 2026-09-28 (owner decision),
+    paired with cross-shelf friction going off (surf_transform.SHELF_CF_SCALE_DEFAULT = 0): without friction far more
+    wide-shelf big swells reach the gamma*d cap, and the legacy seam published LESS surf for MORE swell there
+    (Cocoa 4.0 m -> 19.5 ft but 6.0 m -> 15.7 ft at 18 s; Galveston 2.5 m -> 11.8 ft, 3.0 m -> 9.6 ft at 13 s).
+    Alone it moves 0.4% of served levels (shadow A/B 36470467995). Kill: SURF_CAP_SEAM_MONOTONE=0."""
+    return os.environ.get("SURF_CAP_SEAM_MONOTONE", "1") == "1"
 
 
 def publish_surf_height(H, cap, unsaturated_regime):

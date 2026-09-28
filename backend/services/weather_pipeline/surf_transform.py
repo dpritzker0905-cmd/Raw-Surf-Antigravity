@@ -11,8 +11,8 @@ WHY THIS IS THE RIGHT FIRST CUT:
     breaks. So a broad SHALLOW shelf caps even a big offshore swell to small surf (why Florida's east coast
     is much smaller than the offshore swell), while a STEEP shelf lets more energy through (much of the US
     West Coast). That depth-limited cap is the dominant physical effect, captured here.
-  - Bottom friction: IMPLEMENTED (`shelf_dissipation`, on by default) — a wide shallow shelf bleeds
-    real energy, Kf ~0.32 at Tp 16 s over a 200 km / 15 m shelf and ~0.95 over a narrow deep one.
+  - Bottom friction: IMPLEMENTED (`shelf_dissipation`), OFF by default since 2026-09-28 (SHELF_CF_SCALE_DEFAULT): the
+    model field at a shelf cell already carries WW3's bed friction. At the 0.25 lever: Kf ~0.32 (200 km/15 m, 16 s).
   - Directional exposure: IMPLEMENTED (`_height_exposure_factor`, applied to H inside
     `estimate_surf` since 2026-07-17) — how much of the swell is AIMED at this coast. Measured
     through the live function: 0° off-normal 0.0%, 45° -11.9%, 75° -30.0%, 90° -40.5% of height.
@@ -341,20 +341,24 @@ def shelf_dissipation(Tp_s, depth_m, width_km):
 #   SURF_V3_SHELF_RECAL=0  legacy full-strength shelf friction (the 2.5-3x FL underread)
 #   SURF_V3_EXPOSURE=0     no swell-angle factor on the HEIGHT (rating keeps its own)
 #   SURF_V3_MAGNETS=0      ignore per-spot wave-magnet factors (see surf_magnets.py)
-# Levers: SURF_SHELF_CF_SCALE (default 0.25 — calibrated so FL-class Kf lands ~0.85 instead of
-# ~0.5) and SURF_V3_JACK_MAX (default 2.0 — bounds Komar amplification; literature shoaling
-# amplification rarely exceeds ~1.6-2x without focusing).
+# Levers: SURF_SHELF_CF_SCALE (default SHELF_CF_SCALE_DEFAULT below) and SURF_V3_JACK_MAX (default 2.0 — bounds
+# Komar amplification; literature shoaling amplification rarely exceeds ~1.6-2x without focusing).
 def _v3(flag: str) -> bool:
     return os.environ.get(flag, "1") != "0"
+
+
+# ★ CROSS-SHELF FRICTION OFF BY DEFAULT (2026-09-28; was 0.25): the model field at a wide-shelf spot is already shelf
+# water (WW3 applies bed friction), so edge friction counted the shelf twice. Evidence: science_registry. 0.25 = legacy.
+SHELF_CF_SCALE_DEFAULT = 0.0
 
 
 def _shelf_cf_scale() -> float:
     if not _v3("SURF_V3_SHELF_RECAL"):
         return 1.0
     try:
-        return float(os.environ.get("SURF_SHELF_CF_SCALE", "0.25"))
+        return float(os.environ.get("SURF_SHELF_CF_SCALE", str(SHELF_CF_SCALE_DEFAULT)))
     except (TypeError, ValueError):
-        return 0.25
+        return SHELF_CF_SCALE_DEFAULT
 
 
 def _height_exposure_factor(swell_from_deg, shore_normal_deg) -> float:
@@ -385,7 +389,7 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
 
     Physics (literature-grounded):
       1. Cross-shelf bottom friction (Kf, ``shelf_dissipation``): swell crossing a WIDE SHALLOW shelf loses
-         energy to the bed (Ardhuin 2003; Kurian 1987). Scaled by shelf WIDTH and 1/sinh(kd).
+         energy to the bed (Ardhuin 2003; Kurian 1987). Scaled by shelf WIDTH and 1/sinh(kd); OFF by default (SHELF_CF_SCALE_DEFAULT).
       2. Local shoaling (Ks) from deep/intermediate water to the shelf-cell depth (linear wave theory).
       3. Depth-limited breaking: capped at breaker_index(Tp)*depth (period-dependent: long-period plunges taller).
       4. Surf only exists near a shore: an OPEN-OCEAN point (no nearby land) carries swell but no surf ->
@@ -519,7 +523,7 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     # neither the H1/10 convention nor the cap-seam repair can apply on one surface and not
     # another. γ·d stays UNconverted (already a maximum-wave statistic — rationale lives with the
     # helper); SURF_CAP_SEAM_MONOTONE converts BEFORE comparing so a rising sea cannot DROP the
-    # published height at the regime edge (11.0 §3.8 / MC-01). Default OFF = byte-identical legacy.
+    # published height at the regime edge (11.0 §3.8 / MC-01). Default ON since 2026-09-28 (see the helper).
     return publish_surf_height(H, cap, 'shelf' if H <= Hs_m else 'shoaling')
 
 

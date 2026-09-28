@@ -33,7 +33,14 @@ def _runner():
     return mod
 
 
-def _run(monkeypatch, tmp_path, geometry):
+def _run(monkeypatch, tmp_path, geometry, legacy_friction=True):
+    """`legacy_friction` pins the chain the arm was built to grade: cross-shelf friction at the pre-2026-09-28
+    scale 0.25. Since then the served default is 0 (SHELF_CF_SCALE_DEFAULT), so served == no-friction and the arm
+    correctly has nothing to grade (pinned by the test below that passes False)."""
+    if legacy_friction:
+        monkeypatch.setenv("SURF_SHELF_CF_SCALE", "0.25")
+    else:
+        monkeypatch.delenv("SURF_SHELF_CF_SCALE", raising=False)
     runner = _runner()
     now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     table = {"generated_at": now.isoformat(), "pairs": [{
@@ -94,3 +101,34 @@ def test_the_report_carries_the_arm_only_when_rows_do():
     rows[0]["model_hs_no_friction_m"] = 0.75
     ab = build_report(rows, n_stations=1, n_obs=1, n_preds=1)["no_friction_ab"]
     assert ab["arm_closer_share"] == 1.0 and ab["arm"]["mae_m"] == pytest.approx(0.05)
+
+
+# ── THE SERVED DEFAULT (2026-09-28): the chain adds no cross-shelf friction; 0.25 restores the legacy chain. ──────
+# Three judge runs graded the arm above (48 wide-shelf station-hours: friction off closer on 78% / 82.5% / 75%, MAE
+# -34..-40%, the chain still low with it off), and the served field at a wide-shelf spot is already shelf water
+# (WW3 applies bed friction itself). Shadow A/B 36462075711: 2.9% of served levels move, 37 up / 2 down.
+
+def test_the_served_chain_adds_no_cross_shelf_friction_by_default(monkeypatch):
+    from services.weather_pipeline import surf_transform as st
+    monkeypatch.delenv("SURF_SHELF_CF_SCALE", raising=False)
+    assert st.SHELF_CF_SCALE_DEFAULT == 0.0
+    assert st.shelf_dissipation(9.0, WIDE.depth_m, WIDE.shelf_width_km) == 1.0
+    served = st.estimate_surf(0.8, 9.0, WIDE.depth_m, shelf_width_km=WIDE.shelf_width_km)[0]
+    monkeypatch.setenv("SURF_SHELF_CF_SCALE", "0.25")
+    legacy_kf = st.shelf_dissipation(9.0, WIDE.depth_m, WIDE.shelf_width_km)
+    assert 0.5 < legacy_kf < 0.95, "the lever must still restore the legacy friction on a wide shelf"
+    assert st.estimate_surf(0.8, 9.0, WIDE.depth_m, shelf_width_km=WIDE.shelf_width_km)[0] < served
+
+
+def test_a_narrow_deep_shelf_is_untouched_by_the_flip(monkeypatch):
+    from services.weather_pipeline import surf_transform as st
+    monkeypatch.delenv("SURF_SHELF_CF_SCALE", raising=False)
+    now = st.estimate_surf(1.5, 12.0, NARROW.depth_m, shelf_width_km=NARROW.shelf_width_km)
+    monkeypatch.setenv("SURF_SHELF_CF_SCALE", "0.25")
+    assert st.estimate_surf(1.5, 12.0, NARROW.depth_m, shelf_width_km=NARROW.shelf_width_km) == now
+
+
+def test_after_the_flip_the_shelf_arm_has_nothing_to_grade(monkeypatch, tmp_path):
+    """served == no-friction now, so the arm must stay silent rather than print a comparison of a thing with itself."""
+    report = _run(monkeypatch, tmp_path, WIDE, legacy_friction=False)
+    assert report["available"] and "no_friction_ab" not in report

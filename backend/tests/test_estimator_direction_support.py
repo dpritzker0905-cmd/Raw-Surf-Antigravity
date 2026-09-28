@@ -160,7 +160,8 @@ def test_actual_point_transform_and_rating_positive_controls(monkeypatch, euro_d
     response = resolve()
     assert response.point.speed == (0. if calm else 2.4)
     assert response.point.direction == (90. if calm else 0.)
-    assert response.surf_height_m == (0. if calm else 3.2975)
+    # 3.2975 -> 3.3728 on 2026-09-28: the chain adds no cross-shelf friction by default (SHELF_CF_SCALE_DEFAULT).
+    assert response.surf_height_m == (0. if calm else 3.3728)
     assert type(response).model_validate_json(response.model_dump_json()).point.direction == response.point.direction
 
     async def resolve_input(**kwargs):

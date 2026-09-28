@@ -9,8 +9,8 @@ WHY A TEST FOR PROSE
     "Refraction (Kr, needs a per-point shore-normal) and bottom friction are deliberate
      PHASE-2 refinements."
 
-Both had shipped. `shelf_dissipation()` implements bottom friction and is ON by default
-(`SURF_SHELF_KF_FLOOR`), and `_height_exposure_factor(swell_from_deg, shore_normal_deg)` has been
+Both had shipped. `shelf_dissipation()` implements bottom friction (ON by default until 2026-09-28, when its
+default scale went to 0: the model field at a shelf cell already carries bed friction), and `_height_exposure_factor(swell_from_deg, shore_normal_deg)` has been
 applied to the height inside `estimate_surf` since 2026-07-17.
 
 ⛔ THE COST IS NOT TIDINESS. Anyone implementing Kr would read that line, believe the chain is
@@ -67,11 +67,21 @@ def test_directional_exposure_is_actually_APPLIED_not_merely_defined():
     assert oblique < 0.75, f"exposure at 75 deg off-normal is {oblique} — expected a real reduction"
 
 
-def test_bottom_friction_is_on_by_default():
-    """`SURF_SHELF_KF_FLOOR` gates the FLOOR, not the dissipation itself — friction runs regardless.
-    A shelf that dissipates nothing would mean Kf == 1.0 everywhere."""
+def test_bottom_friction_is_built_and_the_header_states_its_default(monkeypatch):
+    """The header must say what the DEFAULT is, derived from the code. Since 2026-09-28 the default scale is 0
+    (SHELF_CF_SCALE_DEFAULT: the model field at a shelf cell already carries bed friction), so Kf == 1.0 by
+    default and the header must say OFF; the mechanism itself must still work behind the 0.25 lever."""
+    monkeypatch.delenv("SURF_SHELF_CF_SCALE", raising=False)
+    default_kf = st.shelf_dissipation(16.0, 30.0, 139.0)
+    doc = st.__doc__ or ""
+    if st.SHELF_CF_SCALE_DEFAULT == 0.0:
+        assert default_kf == 1.0
+        assert "OFF by default" in doc and "on by default" not in doc.split("Bottom friction")[1][:120]
+    else:
+        assert 0.0 < default_kf < 1.0 and "OFF by default" not in doc
+    monkeypatch.setenv("SURF_SHELF_CF_SCALE", "0.25")
     kf = st.shelf_dissipation(16.0, 30.0, 139.0)
-    assert 0.0 < kf < 1.0, f"shelf_dissipation returned {kf} — friction is not doing anything"
+    assert 0.0 < kf < 1.0, f"shelf_dissipation returned {kf} at the 0.25 lever — the mechanism is dead"
 
 
 def test_the_docstring_does_not_call_live_physics_unbuilt():
