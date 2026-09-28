@@ -28,7 +28,7 @@ import { frameToMarineData } from './marineSeriesFrame';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { padRegionalBbox, normalizeRequestBbox, bboxContains } from './marineBboxGeometry';
 import {
-  acquireSeriesSlot, releaseSeriesSlot, promoteQueuedWarm, acquireBackgroundMiniSlot, releaseBackgroundMiniSlot,
+  acquireSeriesSlot, releaseSeriesSlot, promoteQueuedWarm, acquireMiniSlot, releaseMiniSlot,
   _resetSeriesLimiterForTest,
 } from './marineSeriesLimiter';
 
@@ -448,9 +448,10 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
   let lane = null;
   const p = (async () => {
     try {
-      // A15-11: a background warm's mini waits for the mini lane (marineSeriesLimiter.js); a visible
-      // mini skips every queue, as it always has. The timeout starts when the fetch does.
-      if (background) { lane = await acquireBackgroundMiniSlot(localController.signal); if (!lane) return; }
+      // A15-11: a visible mini starts at once (counted, so background work waits for it); a background
+      // warm's mini waits for the one background request (marineSeriesLimiter.js). The timeout starts with the fetch.
+      lane = await acquireMiniSlot(localController.signal, background);
+      if (!lane) return;
       timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 15000);
       const res = await fetch(url, { signal: localController.signal });
       if (!res.ok) return;                                   // silent: the full page is coming anyway
@@ -477,7 +478,7 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
       }
     } catch (e) { /* silent — full page is the safety net */ } finally {
       if (timeoutId) clearTimeout(timeoutId);
-      if (lane) releaseBackgroundMiniSlot(lane);
+      if (lane) releaseMiniSlot(lane);
       _inFlight.delete(h0key);
       if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
     }
