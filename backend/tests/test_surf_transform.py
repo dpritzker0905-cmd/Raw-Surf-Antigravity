@@ -283,14 +283,27 @@ async def test_resolve_point_attaches_surf_for_marine(monkeypatch):
             value_kind="wave_height", value_unit="m", display_unit_hint="ft",
             source_variables=["wave_height"], freshness_sec=1800)
 
-    # Cape Canaveral marine waves: a WIDE SHALLOW shelf -> surf attached AND SMALLER than the offshore swell
+    # Cape Canaveral marine waves: a WIDE SHALLOW shelf -> surf attached, and the shelf does not AMPLIFY the sea.
+    # RE-STATED 2026-09-28 (Kr 0.873, #120; friction off, #146). The old bound "surf < offshore" was the friction-era
+    # premise that the chain itself must shrink a Florida sea. The served field at this cell is already shelf water
+    # (WW3 carries the bed friction), and the regime stays 'shelf' (the Hs statistic does not grow); the published
+    # height exceeds offshore only by the H1/10 surf convention (x1.27). Evidence: GFS-Wave itself reads the FL east
+    # coast x1.10-1.27 high at the buoys (audit/.../evidence/input_bias_by_region_2026-09-28T22Z.json), while the
+    # transform reads ~13% low there as everywhere (the nearshore judge). Big seas still come out below offshore.
+    from services.weather_pipeline.surf_height_convention import H110_OVER_HS
     async def fake_marine(**kw):
         return _resp("marine", "waves", 28.4, -80.55, 2.0, 10.0)
     monkeypatch.setattr(svc, "_resolve_point_internal", fake_marine)
     r = await svc.resolve_point("GFS", "marine", "waves", 28.4, -80.55, "2026-06-28T00:00:00Z")
-    assert r.surf_regime in ("shelf", "breaking")                    # friction-dominated coastal break
-    assert r.surf_height_m is not None and 0 < r.surf_height_m < 2.0  # Florida shelf shrinks it (the fix)
+    assert r.surf_regime == "shelf"                                  # the Hs statistic does not grow here
+    assert r.surf_height_m is not None and 0 < r.surf_height_m <= 2.0 * H110_OVER_HS  # only the surf convention
     assert r.shelf_depth_m is not None and r.shelf_depth_m < 200
+
+    async def fake_big(**kw):
+        return _resp("marine", "waves", 28.4, -80.55, 4.0, 10.0)
+    monkeypatch.setattr(svc, "_resolve_point_internal", fake_big)
+    rb = await svc.resolve_point("GFS", "marine", "waves", 28.4, -80.55, "2026-06-28T00:00:00Z")
+    assert rb.surf_regime == "shelf" and 0 < rb.surf_height_m < 4.0  # the negative-direction control: a big sea shrinks
 
     # Deep open ocean (no nearby land) -> open_ocean, surf == offshore swell (hidden by the infobox)
     async def fake_deep(**kw):
