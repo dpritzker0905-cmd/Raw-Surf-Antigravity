@@ -1065,7 +1065,11 @@ jobs:
           # forecast as well as by the observation): #130's hosted merge run observed 122 files / 1408 passed,
           # confirming its projection exactly. tests/test_skill_mos.py (already claimed by `--lane chain`) gains 4
           # executed tests: 1408 + 4 = 1412, 1412 - 6 = 1406; files 122 unchanged; _FLOOR_SET_FROM["chain"] -> 1412.
-          MIN_FILES, MIN_PASSED = 122, 1406
+          # ⬆ MIN_PASSED 1406→1407 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (an armed judge hour grades every
+          # cheap arm; the NWPS fetch stops at the cycle that covers the window): #132's hosted merge run observed
+          # 122 files / 1412 passed, confirming its projection exactly. tests/test_nwps_arm.py (claimed by `--lane
+          # chain`) gains 1 executed test: 1412 + 1 = 1413, 1413 - 6 = 1407; files 122 unchanged; _FLOOR_SET_FROM -> 1413.
+          MIN_FILES, MIN_PASSED = 122, 1407
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1390,7 +1394,11 @@ jobs:
           # 36252492528 on PR #95 observed 269 files / 534 passed, confirming the A15-15 projection exactly.
           # tests/test_conditions_route_wire_contract.py (claimed by `--lane estate`) gains 2 executed tests, no
           # new file: 534 + 2 = 536; 536 - 2 (this lane's budget) = 534; _FLOOR_SET_FROM[estate] -> 536.
-          MIN_PASSED = 534
+          # ⬆ 534→537 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (an armed judge hour grades every cheap arm):
+          # #132's hosted run observed 269 files / 536 passed. tests/test_nearshore_workflow_eligibility.py (claimed
+          # by `--lane estate`) gains 3 executed tests: 536 + 3 = 539; 539 - 2 (this lane's budget) = 537;
+          # _FLOOR_SET_FROM[estate] -> 539.
+          MIN_PASSED = 537
 
           try:
               root = ET.parse('estate.xml').getroot()
