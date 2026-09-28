@@ -1080,7 +1080,11 @@ jobs:
           # judge's shelf arm, cross-shelf friction off on wide shelves): #135's hosted merge run observed 123 files /
           # 1416, confirming its projection exactly. The new tests/test_nearshore_shelf_arm.py (claimed by `--lane
           # chain`) adds 3 executed tests: 1416 + 3 = 1419, 1419 - 6 = 1413; files 124 EXACT; _FLOOR_SET_FROM -> 1419.
-          MIN_FILES, MIN_PASSED = 124, 1413
+          # ⬆ MIN_PASSED 1413→1415 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore judge's
+          # nearshore-input arm): #136's hosted merge run observed 124 files / 1419, confirming its projection exactly.
+          # tests/test_nearshore_shelf_arm.py (claimed by `--lane chain`) gains 2 executed tests: 1419 + 2 = 1421,
+          # 1421 - 6 = 1415; files 124 unchanged; _FLOOR_SET_FROM["chain"] -> 1421.
+          MIN_FILES, MIN_PASSED = 124, 1415
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

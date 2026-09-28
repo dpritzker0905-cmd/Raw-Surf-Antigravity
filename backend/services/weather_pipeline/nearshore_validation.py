@@ -87,6 +87,20 @@ def model_hs_at_station(hs_m: float, tp_s: float, swell_from_deg, shore_normal_d
     return float(h)
 
 
+def model_hs_from_nearshore_input(hs_m: float, tp_s: float, input_depth_m, station_depth_m: float):
+    """The station Hs if the served value is ALREADY a nearshore value at `input_depth_m` (2026-09-28): linear
+    shoaling from the input's depth to the station's, and nothing else — no cross-shelf friction, no exposure,
+    no Kr, because the wave model has already carried the sea across the shelf (the entry #128 built for MOP,
+    `mop_nearshore.estimate_surf_from_nearshore`, at the instrument). None without a usable input depth. PURE."""
+    from services.weather_pipeline.surf_transform import shoaling_coefficient
+    if hs_m is None or tp_s is None or input_depth_m is None or float(input_depth_m) <= 0:
+        return None
+    ks_in = shoaling_coefficient(tp_s, float(input_depth_m))
+    if not ks_in or ks_in <= 0:
+        return None
+    return float(hs_m) * shoaling_coefficient(tp_s, station_depth_m) / ks_in
+
+
 def transform_factors(tp_s: float, swell_from_deg, shore_normal_deg, station_depth_m: float,
                       shelf_depth_m: float, shelf_width_km: float) -> dict:
     """The components `model_hs_at_station` multiplies, one by one — DIAGNOSTICS ONLY (2026-09-27).
@@ -435,6 +449,12 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
     fr = arm_ab(matched, "model_hs_no_friction_m")
     if fr:
         extra["no_friction_ab"] = fr
+    # THE NEARSHORE-INPUT ARM (2026-09-28), same wide-shelf rows: it is not only friction the chain applies twice
+    # there. The served value already crossed the shelf in the wave model, shoaling and refracting on the way,
+    # so it enters as a nearshore value at the shelf depth: shoaling from that depth to the station, nothing else.
+    ni = arm_ab(matched, "model_hs_nearshore_input_m")
+    if ni:
+        extra["nearshore_input_ab"] = ni
     # The transform is graded with the BUOY's geometry (2026-09-28); the spot-geometry number rides beside it
     # on the same hours, so the change is measured rather than asserted.
     sg = [m for m in matched if m.get("model_hs_spot_geometry_m") is not None]

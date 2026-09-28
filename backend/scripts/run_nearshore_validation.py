@@ -39,6 +39,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.nearshore_validation import (   # noqa: E402
     Refusal, backfill_valid_times, build_report, fetch_mop_hs, fetch_station_hs, load_mop_archives, load_pairs,
+    model_hs_from_nearshore_input,
     match, model_hs_at_station, model_hs_at_station_trains, mop_grid_hours, qc_filter, station_trains,
     transform_factors)
 from services.weather_pipeline.nwps_nearshore import attach_nwps  # noqa: E402
@@ -221,7 +222,8 @@ def main() -> int:
                                                                 depth, gs.depth_m, gs.shelf_width_km),
                 # THE SHELF ARM (2026-09-28): the chain with its cross-shelf friction OFF, on rows where friction
                 # applies (wide shelves). See `no_friction_ab` in nearshore_validation.build_report.
-                **({"model_hs_no_friction_m": model_hs_at_station(hs, tp, dr, g.shore_normal_deg, depth, g.depth_m, 0.0)}
+                **({"model_hs_no_friction_m": model_hs_at_station(hs, tp, dr, g.shore_normal_deg, depth, g.depth_m, 0.0),
+                    "model_hs_nearshore_input_m": model_hs_from_nearshore_input(hs, tp, g.depth_m, depth)}
                    if shelf_dissipation(tp, g.depth_m, g.shelf_width_km) < 0.999 else {}),
                 "upstream_provider": d.get("upstream_provider"),
                 **row_trains,
@@ -301,6 +303,11 @@ def main() -> int:
         print(f"MOP_GRID_AB n={gab['n']} station_hours={gab['n_station_hours']} "
               f"bulk={gab['bulk']['mae_m']}/{gab['bulk']['bias_m']:+} grid={gab['arm']['mae_m']}/{gab['arm']['bias_m']:+} "
               f"closer={gab['arm_closer_share']}")
+    iab = report.get("nearshore_input_ab")
+    if iab:
+        print(f"NEARSHORE_INPUT_AB n={iab['n']} station_hours={iab['n_station_hours']} "
+              f"bulk={iab['bulk']['mae_m']}/{iab['bulk']['bias_m']:+} nearshore_input={iab['arm']['mae_m']}/{iab['arm']['bias_m']:+} "
+              f"closer={iab['arm_closer_share']}")
     fab = report.get("no_friction_ab")
     if fab:
         print(f"NO_FRICTION_AB n={fab['n']} station_hours={fab['n_station_hours']} "

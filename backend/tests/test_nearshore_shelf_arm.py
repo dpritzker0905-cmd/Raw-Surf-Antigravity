@@ -17,7 +17,8 @@ from types import SimpleNamespace
 import pytest
 
 from services.weather_pipeline import surf_point
-from services.weather_pipeline.nearshore_validation import build_report, model_hs_at_station
+from services.weather_pipeline.nearshore_validation import (
+    build_report, model_hs_at_station, model_hs_from_nearshore_input)
 
 STATION, SPOT = (28.40, -80.53), (28.41, -80.59)
 WIDE = SimpleNamespace(shore_normal_deg=90.0, depth_m=24.0, shelf_width_km=74.0)      # Cape Canaveral's shelf
@@ -67,6 +68,24 @@ def test_on_a_wide_shelf_the_arm_is_the_chain_without_its_friction(monkeypatch, 
 def test_where_friction_does_not_apply_there_is_nothing_to_grade(monkeypatch, tmp_path):
     report = _run(monkeypatch, tmp_path, NARROW)
     assert report["available"] and "no_friction_ab" not in report
+
+
+def test_the_nearshore_input_is_shoaled_from_its_own_depth_and_nothing_else():
+    """Deep input -> the station's own Ks; input AT the station's depth -> unchanged; no depth -> no number."""
+    from services.weather_pipeline.surf_transform import shoaling_coefficient
+    assert model_hs_from_nearshore_input(1.0, 9.0, 4000.0, 9.8) == pytest.approx(shoaling_coefficient(9.0, 9.8))
+    assert model_hs_from_nearshore_input(0.8, 9.0, 9.8, 9.8) == pytest.approx(0.8)
+    assert model_hs_from_nearshore_input(0.8, 9.0, 24.0, 9.8) > 0.8     # shoals from 24 m in to 9.8 m
+    assert model_hs_from_nearshore_input(0.8, 9.0, None, 9.8) is None
+    assert model_hs_from_nearshore_input(0.8, 9.0, 0.0, 9.8) is None
+
+
+def test_on_a_wide_shelf_the_nearshore_input_arm_rides_the_same_rows(monkeypatch, tmp_path):
+    report = _run(monkeypatch, tmp_path, WIDE)
+    ab = report["nearshore_input_ab"]
+    assert ab["n"] == report["no_friction_ab"]["n"] == 1
+    assert ab["arm"]["bias_m"] == pytest.approx(model_hs_from_nearshore_input(0.8, 9.0, 24.0, 9.8) - 0.8, abs=1e-4)
+    assert "nearshore_input_ab" not in _run(monkeypatch, tmp_path, NARROW)
 
 
 def test_the_report_carries_the_arm_only_when_rows_do():
