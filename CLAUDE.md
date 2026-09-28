@@ -59,14 +59,22 @@
     2026-07-26. The sim's rating now lives in `services/weather_pipeline/sim_rating.py`, and
     `calculate_surf_rating` delegates BOTH halves to production — `surf_point.resolve_surf_geometry`
     + `estimate_surf_at` for the breaking height, then `surf_rating` for the 0-100 — which is the
-    ONE FORECAST COMPOSITION chain this file mandates above. Measured at HEAD, Pipeline, everything
-    held constant except swell height (14 s, 315°, 5 kt):
-      `0.5 m → 3.3 ft / 69.7 fair_good` · `1 m → 5.8 ft / 86.5 epic` · `4 m → 17.6 ft / 86.5 epic`
-      · `8 m → 30.6 ft / 57.0 fair_good` · `12 m → 29.5 ft / 61.2 fair_good`
-    Four distinct quality values across a 24× height range, so `swell_h` reaches the score at both
-    ends. The 12 m case reproducing **29.5 ft** is the control: it is the exact post-fix figure
-    recorded for the shipped γ/refraction pair, confirming the sim reads the live chain and that the
-    height saturates at the depth-limited ceiling rather than growing without bound.
+    ONE FORECAST COMPOSITION chain this file mandates above. **Re-measured 2026-09-28** at `dev`
+    `52e0ec53` (#146 cross-shelf friction off + cap-seam repair on, #120 Kr 0.873), Pipeline,
+    everything held constant except swell height (14 s, 315°, 5 kt wind FROM 45°):
+      `0.5 m → 3.6 ft / 78.0 good` · `1 m → 6.4 ft / 86.5 epic` · `4 m → 19.3 ft / 86.5 epic`
+      · `8 m → 29.5 ft / 61.2 fair_good` · `10 m → 29.5 ft / 61.2` · `12 m → 29.5 ft / 61.2 fair_good`
+    Three distinct quality values across a 24× height range, so `swell_h` reaches the score at both
+    ends, and the height saturates at the depth-limited ceiling (**29.5 ft**) from 8 m up rather than
+    growing without bound.
+    ⛔ The figures that stood here until 2026-09-28 (`8 m → 30.6 ft / 57.0`, `12 m → 29.5 ft / 61.2`,
+    measured 2026-08-06) were NOT saturation. They reproduce exactly with the legacy constants
+    (`SURF_REFRACTION_KR=0.797 SURF_SHELF_CF_SCALE=0.25 SURF_CAP_SEAM_MONOTONE=0`, wind from 45°),
+    and the same chain read `10 m → 36.6 ft / 34.6` between them: bigger swell, smaller surf above
+    10 m. That was the MC-01 cap seam, which #146 repaired. The 2026-09-28 Jacobian sweep of the
+    whole catalogue found it in 18% of spot/period traces before the repair and in none after
+    (audit 15.0). ⇒ A control that samples only the two ends of a range cannot see an inversion
+    inside it; sweep the interior.
     ★ **Still true, and now literal:** treat `surf_rating.py` as authoritative — the sim imports it
     rather than reimplementing it. **Do not re-derive either half for a sim surface.**
 
