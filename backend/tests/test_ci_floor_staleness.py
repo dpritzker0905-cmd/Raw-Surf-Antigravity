@@ -58,6 +58,35 @@ def test_local_history_requires_an_explicit_branch(monkeypatch):
     assert S.history_branch('main') == 'main'
 
 
+def _runs(*created):
+    return __import__("json").dumps([{"databaseId": 1000 + i, "headSha": f"sha{i}", "createdAt": c}
+                                     for i, c in enumerate(created)])
+
+
+def test_the_reading_is_the_newest_run_the_api_returns_not_the_first(monkeypatch):
+    """PR #140: `--limit=1` returned run 28712827566, months old, while the right run existed."""
+    from datetime import datetime, timezone
+    asked = []
+    monkeypatch.setattr(S, "_gh", lambda args, what: asked.append(args) or _runs(
+        "2026-05-01T10:00:00Z", "2026-09-28T03:04:45Z", "2026-09-28T02:54:55Z"))
+    run, sha, created = S.last_green_run("dev", now=datetime(2026, 9, 28, 4, tzinfo=timezone.utc))
+    assert (run, sha, created) == (1001, "sha1", "2026-09-28T03:04:45Z")
+    assert f"--limit={S.RUN_LOOKUP_LIMIT}" in asked[0] and S.RUN_LOOKUP_LIMIT > 1
+
+
+def test_a_newest_run_that_is_still_old_refuses_and_says_to_rerun(monkeypatch):
+    from datetime import datetime, timezone
+    monkeypatch.setattr(S, "_gh", lambda args, what: _runs("2026-05-01T10:00:00Z"))
+    with pytest.raises(S.Refusal, match="re-run this job"):
+        S.last_green_run("dev", now=datetime(2026, 9, 28, 4, tzinfo=timezone.utc))
+
+
+def test_an_empty_run_list_still_refuses(monkeypatch):
+    monkeypatch.setattr(S, "_gh", lambda args, what: "[]")
+    with pytest.raises(S.Refusal, match="never measured"):
+        S.last_green_run("dev")
+
+
 def test_the_floors_can_still_be_found_in_the_workflow():
     """THE ONE THAT ROTS. Each floor is located by a regex anchored on `ET.parse('<lane>.xml')`,
     because the assignment itself is identical across two lanes and the rationale between them runs
@@ -309,7 +338,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #   controls in tests/test_grid_series_base_anchor.py, selected by `--lane guards` ONLY.
 # chain 1194: the SAME hosted run actually read 1194, not the 1148 previously projected here.
 #   The projection was never confirmed, so this is corrected to the receipt (see ci.yml).
-_FLOOR_SET_FROM = {"guards": 2098, "chain": 1434, "estate": 539}
+_FLOOR_SET_FROM = {"guards": 2098, "chain": 1434, "estate": 542}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

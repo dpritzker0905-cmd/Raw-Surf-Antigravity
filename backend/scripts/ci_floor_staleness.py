@@ -69,6 +69,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CI_YML = os.path.join(REPO_ROOT, ".github", "workflows", "ci.yml")
@@ -212,10 +213,19 @@ def history_branch(explicit=None):
     return branch
 
 
-def last_green_run(branch):
-    """(run_id, sha) of the most recent successful ci.yml run on `branch`."""
+# THE NEWEST OF SEVERAL, NOT THE FIRST OF ONE (2026-09-28). `--limit=1` trusted the API's ordering, and on
+# PR #140 (run 36373686267) the one run it returned was 28712827566, months old, from before a lane existed:
+# the check refused ("no job named backend-sim-composition-guards") while the same query run minutes later
+# returned the right run. Asking for several and taking the newest by createdAt is identical when the order
+# is right and correct when it is not; a newest run that is still implausibly old refuses with that cause.
+RUN_LOOKUP_LIMIT = 20
+MAX_READING_AGE_DAYS = 14
+
+
+def last_green_run(branch, now=None):
+    """(run_id, sha, created) of the most recent successful ci.yml run on `branch`."""
     out = _gh(["run", "list", "--workflow=ci.yml", f"--branch={branch}", "--status=success",
-               "--limit=1", "--json", "databaseId,headSha,createdAt"], "listing runs")
+               f"--limit={RUN_LOOKUP_LIMIT}", "--json", "databaseId,headSha,createdAt"], "listing runs")
     try:
         runs = json.loads(out)
     except json.JSONDecodeError as exc:
@@ -223,7 +233,17 @@ def last_green_run(branch):
     if not runs:
         raise Refusal(f"no successful ci.yml run on '{branch}' to read a floor against. "
                       f"REFUSING -- 'never measured' is not 'measured and fine'.")
-    return runs[0]["databaseId"], runs[0]["headSha"], runs[0]["createdAt"]
+    newest = max(runs, key=lambda r: r.get("createdAt") or "")
+    try:
+        created = datetime.fromisoformat(str(newest["createdAt"]).replace("Z", "+00:00"))
+    except (KeyError, TypeError, ValueError):
+        raise Refusal(f"run {newest.get('databaseId')} has no parseable createdAt ({newest.get('createdAt')!r})")
+    age_d = ((now or datetime.now(timezone.utc)) - created).total_seconds() / 86400.0
+    if age_d > MAX_READING_AGE_DAYS:
+        raise Refusal(f"the newest successful ci.yml run on '{branch}' the API returned is {age_d:.0f} days old "
+                      f"(run {newest['databaseId']}, {newest['createdAt']}). GitHub's run list can answer "
+                      f"stale transiently: re-run this job. REFUSING -- an old reading is not a current one.")
+    return newest["databaseId"], newest["headSha"], newest["createdAt"]
 
 
 def observed(run_id, lane):
