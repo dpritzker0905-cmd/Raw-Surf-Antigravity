@@ -311,6 +311,9 @@ async def health_check(
             
             health_data["scheduler"]["job_count"] = len(jobs)
             health_data["scheduler"]["jobs"] = job_info
+            # Armed or dark, and each data lane's last decision (never the token).
+            from services.workflow_dispatch import status as _wd_status
+            health_data["scheduler"]["workflow_dispatch"] = _wd_status()
             health_data["checks"].append({"name": "scheduler", "status": "pass"})
         else:
             health_data["scheduler"]["running"] = False

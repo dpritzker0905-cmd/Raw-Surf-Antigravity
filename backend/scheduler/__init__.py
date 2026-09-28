@@ -238,6 +238,23 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # WORKFLOW DISPATCH FALLBACK (2026-09-28) — GitHub drops 44-75% of the data lanes' scheduled slots and runs
+    # the rest hours late; this fires a lane's workflow when its cron slot passed with no run. DARK until
+    # GITHUB_DISPATCH_TOKEN is set (a no-op pass otherwise). See services/workflow_dispatch.py. Kill:
+    # WORKFLOW_DISPATCH=0. Sync (requests), so tracked() runs it off the event loop.
+    def _workflow_dispatch():
+        from services import workflow_dispatch
+        workflow_dispatch.run_once()
+
+    from services.workflow_dispatch import INTERVAL_MIN as _wd_min
+    scheduler.add_job(
+        tracked('workflow_dispatch', 'Dispatch data-lane workflows GitHub did not run', f'Every {_wd_min} minutes',
+                _workflow_dispatch),
+        IntervalTrigger(minutes=_wd_min),
+        id='workflow_dispatch', name='Dispatch data-lane workflows GitHub did not run',
+        replace_existing=True
+    )
+
     # MEMORY TRACE (2026-09-21) — the instrument for "does the degradation track process uptime?"
     # A restart cleared a 4.6% 5xx rate, an 11.4% over-10s rate and 85.3% memory use, under HIGHER
     # load. That inference rests on two snapshots of two DIFFERENT processes, which is not a growth

@@ -1455,7 +1455,11 @@ jobs:
           # re-rates on a dev push to the composition chain): hosted CI on PR #120 (merged as 52e0ec53) observed 542
           # passed. tests/test_precompute_follows_pilots.py (claimed by `--lane estate`) gains 3 executed tests:
           # 542 + 3 = 545; 545 - 2 = 543; _FLOOR_SET_FROM[estate] -> 545.
-          MIN_PASSED = 543
+          # ⬆ 543→557 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the data lanes fire when GitHub's schedule
+          # does not): hosted CI on PR #150 (merged as 9c7ccaf0) observed 545 passed. The new
+          # tests/test_workflow_dispatch.py (claimed by `--lane estate`) adds 14 executed tests: 545 + 14 = 559;
+          # 559 - 2 = 557; _FLOOR_SET_FROM[estate] -> 559.
+          MIN_PASSED = 557
 
           try:
               root = ET.parse('estate.xml').getroot()
