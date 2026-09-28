@@ -356,6 +356,50 @@ def _run_main(monkeypatch, tmp_path, rows, capsys, candidate="SURF_REFRACTION_KR
     return code, capsys.readouterr().out
 
 
+def test_a_blob_with_no_frames_is_REFUSED_not_NOT_READY(monkeypatch, tmp_path, capsys):
+    """NOT READY means frames were read and none carried inputs; ZERO frames means nothing was read."""
+    from scripts import science_shadow_ab as mod
+    f = tmp_path / "frames.json"
+    f.write_text('{"frames": []}', encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["x", "--candidate", "SURF_REFRACTION_KR=1.0", "--frames-file", str(f)])
+    assert mod.main() == 3
+    out = capsys.readouterr().out
+    assert "REFUSED" in out and "held no frames" in out and "NOT READY" not in out
+
+
+def _l2(monkeypatch, answers):
+    """Stub the uncached L2 read with a script of answers; returns the call log."""
+    from scripts import science_shadow_ab as mod
+    from services.weather_pipeline import spot_ratings_precompute as pre
+    calls = []
+
+    def fake():
+        calls.append(1)
+        return answers[min(len(calls), len(answers)) - 1]
+
+    monkeypatch.setattr(pre, "load_spot_ratings_l2", fake)
+    monkeypatch.setattr(mod, "FRAMES_READ_WAIT_S", 0.0)
+    monkeypatch.setattr(sys, "argv", ["x", "--candidate", "SURF_REFRACTION_KR=1.0"])
+    return mod, calls
+
+
+def test_an_unreadable_blob_is_retried_then_REFUSED(monkeypatch, capsys):
+    """Run 36499867208 read NOTHING while a precompute was uploading (a run 5 s later read 6 frames) and
+    reported NOT READY with exit 0. An unread blob is blindness: retried, then red."""
+    mod, calls = _l2(monkeypatch, [None])
+    assert mod.main() == 3 and len(calls) == mod.FRAMES_READ_ATTEMPTS
+    out = capsys.readouterr().out
+    assert "could not be read after 3 attempts" in out and "NOT READY" not in out
+
+
+def test_one_failed_read_is_retried_and_the_replay_proceeds(monkeypatch, capsys):
+    bare = _row()
+    del bare["inputs"]
+    mod, calls = _l2(monkeypatch, [None, {"frames": _frames([bare])}])
+    assert mod.main() == 0 and len(calls) == 2
+    assert "NOT READY" in capsys.readouterr().out, "frames were read; none carried inputs"
+
+
 def test_no_inputs_anywhere_is_NOT_READY_and_exits_zero(monkeypatch, tmp_path, capsys):
     """Frames that predate the inputs persistence, or a blob where no row fell in the 5% sample,
     are ABSENCE. Nothing is wrong, nothing was measured, and it self-resolves on the next

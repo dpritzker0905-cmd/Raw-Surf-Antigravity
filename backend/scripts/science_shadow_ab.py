@@ -516,6 +516,24 @@ def _ratio_quantiles(r):
             "min": round(v[0], 3), "max": round(v[-1], 3)}
 
 
+FRAMES_READ_ATTEMPTS = 3
+FRAMES_READ_WAIT_S = 15.0
+
+
+def _load_frames_doc():
+    """The spot-ratings blob, read UNCACHED with retries: a replay is not latency-bound, and a precompute
+    uploading the same blob is exactly when a single 10 s read fails. None only after every attempt did."""
+    import time
+    from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2
+    for attempt in range(FRAMES_READ_ATTEMPTS):
+        doc = load_spot_ratings_l2()
+        if doc is not None:
+            return doc
+        if attempt + 1 < FRAMES_READ_ATTEMPTS:
+            time.sleep(FRAMES_READ_WAIT_S)
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--candidate", required=True,
@@ -533,9 +551,16 @@ def main():
     if args.frames_file:
         doc = json.load(open(args.frames_file, encoding="utf-8"))
     else:
-        from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached
-        doc = load_spot_ratings_l2_cached()
+        doc = _load_frames_doc()
     frames = (doc or {}).get("frames") or []
+    # ⛔ NO FRAMES IS BLINDNESS, NOT "NOT READY" (2026-09-28). The loader returns None on any non-200 or timeout
+    # (10 s on a multi-MB blob), and this used to fall through to NOT READY with exit 0 -- "0 of 0 rows carry
+    # inputs": run 36499867208 read nothing while a precompute was uploading, and a run 5 s later read 6 frames.
+    # NOT READY means frames were read and none carried inputs; an unread blob is a different, red state.
+    if not frames:
+        print("REFUSED: no frames to replay -- the spot-ratings blob %s. NOTHING WAS MEASURED; re-dispatch."
+              % ("held no frames" if doc else "could not be read after %d attempts" % FRAMES_READ_ATTEMPTS))
+        return 3
     cell_ref_fn = None
     if candidate.get("REFERENCE_LANE") == "cell":
         cell_ref_fn = _cell_reference_fn()
