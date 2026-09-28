@@ -1451,7 +1451,11 @@ jobs:
           # ⬆ 537→540 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the floor-staleness check reads the NEWEST of
           # 20 runs): dev's hosted run 36373600771 (d6638bf4) observed 539 passed. tests/test_ci_floor_staleness.py
           # (claimed by `--lane estate`) gains 3 executed tests: 539 + 3 = 542; 542 - 2 = 540; _FLOOR_SET_FROM -> 542.
-          MIN_PASSED = 540
+          # ⬆ 540→543 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (ratings follow the physics: precompute.yml
+          # re-rates on a dev push to the composition chain): hosted CI on PR #120 (merged as 52e0ec53) observed 542
+          # passed. tests/test_precompute_follows_pilots.py (claimed by `--lane estate`) gains 3 executed tests:
+          # 542 + 3 = 545; 545 - 2 = 543; _FLOOR_SET_FROM[estate] -> 545.
+          MIN_PASSED = 543
 
           try:
               root = ET.parse('estate.xml').getroot()

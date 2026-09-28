@@ -110,3 +110,63 @@ def test_field_expander_matches_the_forms_in_use():
     assert _field("3,11,19", 0, 23) == {3, 11, 19}
     assert _field("*/4", 0, 23) == {0, 4, 8, 12, 16, 20}
     assert _max_gap_min([7 * 60 + 45, 15 * 60 + 45, 23 * 60 + 45]) == 480
+
+
+# ── RATINGS FOLLOW THE PHYSICS (2026-09-28) ─────────────────────────────────────────────────────────────────
+# The frames are rated in the precompute job from the checked-out code; the hub, the sim and the live lanes run
+# what Render deployed. After #146/#120 merged, the hub served the new chain for 2.5 h while every glyph showed
+# the legacy one (Cocoa 0.789 vs 1.012 m) because no precompute ran in between. precompute.yml now re-rates on
+# a dev push to the composition chain; these keep that path list from falling behind the code.
+
+_WP = _REPO / "backend" / "services" / "weather_pipeline"
+_ROOTS = ("surf_point", "surf_transform", "surf_rating", "spot_ratings")      # CLAUDE.md ONE FORECAST COMPOSITION
+_IMPORT = re.compile(r"from services\.weather_pipeline(?:\.(\w+))? import ([\w, ()\n]+)")
+_LEVER = re.compile(r'(?:os\.environ\.get|_v3|getenv)\(\s*"(?:SURF|RATING)_')
+
+
+def _chain_closure():
+    """Every weather_pipeline module the four composition roots import, transitively (lazy imports included:
+    the chain imports inside functions on purpose, and those modules are the served number all the same)."""
+    seen, todo = set(), list(_ROOTS)
+    while todo:
+        name = todo.pop()
+        if name in seen or not (_WP / f"{name}.py").exists():
+            continue
+        seen.add(name)
+        for mod, names in _IMPORT.findall((_WP / f"{name}.py").read_text(encoding="utf-8")):
+            cands = [mod] if mod else [n.strip() for n in names.replace("(", "").replace(")", "").split(",")]
+            todo += [c for c in cands if c and (_WP / f"{c}.py").exists()]
+    return seen
+
+
+def _push_paths():
+    _, on = _load(_PRECOMPUTE)
+    push = on.get("push") or {}
+    return push, set(push.get("paths") or [])
+
+
+def test_a_dev_push_to_the_composition_chain_re_rates():
+    push, paths = _push_paths()
+    assert push.get("branches") == ["dev"], "the served backend deploys from dev; re-rate on dev pushes"
+    levers = sorted(m for m in _chain_closure()
+                    if _LEVER.search((_WP / f"{m}.py").read_text(encoding="utf-8")))
+    assert {"surf_point", "surf_transform", "surf_rating", "spot_ratings"} <= set(levers), (
+        "the derivation stopped seeing the chain's own levers; fix the regex before trusting this guard")
+    missing = [m for m in levers if f"backend/services/weather_pipeline/{m}.py" not in paths]
+    assert not missing, (f"{missing} read a SURF_/RATING_ lever inside the composition chain but a push to them "
+                         "does not re-rate: glyphs would keep the old physics while the hub serves the new")
+
+
+def test_the_data_behind_the_height_re_rates_too():
+    """The magnet table and the geometry assets move served heights without reading any env lever."""
+    _, paths = _push_paths()
+    assert "backend/services/weather_pipeline/surf_magnets.py" in paths
+    assert "backend/services/weather_pipeline/data/**" in paths
+    assert (_WP / "data" / "shore_normals.json").exists(), "the asset directory moved; update the path"
+
+
+def test_the_trigger_list_names_only_files_that_exist():
+    """A renamed module leaves a dead path that silently stops re-rating."""
+    _, paths = _push_paths()
+    dead = sorted(p for p in paths if not p.endswith("/**") and not (_REPO / p).exists())
+    assert not dead, f"precompute push paths name missing files: {dead}"
