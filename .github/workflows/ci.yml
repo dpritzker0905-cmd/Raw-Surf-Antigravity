@@ -1111,7 +1111,11 @@ jobs:
           # hosted merge-candidate run observed 125 files / 1440, confirming its projection. The new
           # tests/test_nearshore_gulf_ndbc.py (claimed by `--lane chain`) adds 8 executed tests: 1440 + 8 = 1448,
           # 1448 - 6 = 1442; files 126 EXACT; _FLOOR_SET_FROM["chain"] -> 1448.
-          MIN_FILES, MIN_PASSED = 126, 1442
+          # ⬆ MIN_PASSED 1442→1443 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (NDBC 42098, the West Florida shelf,
+          # joins the judge): #147's hosted merge-candidate run observed 126 files / 1448, confirming its projection.
+          # tests/test_nearshore_gulf_ndbc.py (claimed by `--lane chain`) gains 1 executed test (the committed-table pin
+          # is now parametrized over both buoys): 1448 + 1 = 1449, 1449 - 6 = 1443; files 126; _FLOOR_SET_FROM -> 1449.
+          MIN_FILES, MIN_PASSED = 126, 1443
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
