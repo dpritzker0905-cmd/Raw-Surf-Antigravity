@@ -424,6 +424,44 @@ _add(Constant(
         "IRIBARREN_SPILLING_PLUNGING applies."),
 ))
 
+# The swell-train gate (surf_partitions.py). Registered 2026-09-28, when the split out of surf_transform.py
+# turned their grandfather entries stale: both were placed in a MEASURED gap, so the debt was only the record.
+_add(Constant(
+    name="PARTITION_MIN_QUAD_FRAC",
+    value=0.5,
+    units="dimensionless (quadrature of the swell trains' Hs / the total Hs)",
+    what="Below this share of the total height the swell trains do not represent the sea, and the "
+         "height falls back to the total field instead of inflating a minority train.",
+    module="services.weather_pipeline.surf_partitions",
+    source="OURS. Review of 2026-07-30 (a lone cached swell_1 of 0.84 m against a 1.73 m total would have "
+           "been scaled x2.06 into a clean 10.25 s sea that never existed); "
+           "docs/research/AUDIT-2026-08-01-sota-architecture-and-zero-regression-upgrade-path.md section 2.7",
+    method="model",
+    sample="the measured deviations of the trains' quadrature from their own total (review 2026-07-30): the "
+           "largest LEGITIMATE under-read is Bondi -22.3% (0.777 of the total), far above the 0.5 floor",
+    published_range=None,
+    status=DERIVED,
+    applies_to="The served total Hs and its swell_1 / swell_2 / wind_waves partitions at one point and hour.",
+))
+
+_add(Constant(
+    name="PARTITION_MAX_TP_RATIO",
+    value=1.10,
+    units="dimensionless (total peak period / the longest partition period)",
+    what="Above this ratio the trains are missing a long swell the total's peak period comes from, so "
+         "they do not represent the sea and the height falls back to the total field.",
+    module="services.weather_pipeline.surf_partitions",
+    source="OURS. Measured live 2026-07-31 (the ratio's natural gap), recorded beside the constant and in "
+           "docs/research/AUDIT-2026-08-01-sota-architecture-and-zero-regression-upgrade-path.md section 2.7",
+    method="model",
+    sample="36 samples, 6 Florida sites x forecast hours 0/6/12/24/48/72, GFS: median ratio 0.999; the 7 above "
+           "1.0 split at a gap near 1.08 -- 1.002 / 1.048 / 1.050 (rounding on a tie) vs 1.116 / 1.131 / "
+           "1.171 / 1.330 (a total period no partition can produce); 1.10 admits the first three, rejects the four",
+    published_range=None,
+    status=DERIVED,
+    applies_to="GFS-Wave partitions at 6 Florida sites; the gap has not been re-measured on EURO or ICON trains.",
+))
+
 
 # --- accessors ----------------------------------------------------------------------------------
 

@@ -38,6 +38,8 @@ WIRED = {
     "REFRACTION_KR": ("services.weather_pipeline.surf_transform", "REFRACTION_KR"),
     "SHELF_KF_FLOOR": ("services.weather_pipeline.surf_transform", "SHELF_KF_FLOOR"),
     "SHELF_CF_SCALE_DEFAULT": ("services.weather_pipeline.surf_transform", "SHELF_CF_SCALE_DEFAULT"),
+    "PARTITION_MIN_QUAD_FRAC": ("services.weather_pipeline.surf_partitions", "PARTITION_MIN_QUAD_FRAC"),
+    "PARTITION_MAX_TP_RATIO": ("services.weather_pipeline.surf_partitions", "PARTITION_MAX_TP_RATIO"),
     "W_WIND": ("services.weather_pipeline.surf_rating", "W_WIND"),
     "W_PERIOD": ("services.weather_pipeline.surf_rating", "W_PERIOD"),
 }

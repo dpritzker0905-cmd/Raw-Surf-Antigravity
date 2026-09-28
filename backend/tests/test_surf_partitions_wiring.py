@@ -28,8 +28,8 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 from services.weather_pipeline.point_resolution import PointResolutionService
-from services.weather_pipeline.surf_transform import (
-    estimate_surf_partitioned, reconcile_partitions)
+from services.weather_pipeline.surf_transform import estimate_surf_partitioned
+from services.weather_pipeline.surf_partitions import reconcile_partitions
 
 import math
 

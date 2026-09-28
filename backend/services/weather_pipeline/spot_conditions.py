@@ -229,8 +229,7 @@ async def _spectral_partitions(self, model, lat, lng, dt, total_h, total_tp=None
                 logger.debug(f"[spot-conditions] partition {layer} at ({lat},{lng}) skipped: {e}")
         if not parts:
             return None
-        from services.weather_pipeline.surf_transform import (
-            partitions_represent, reconcile_partitions)
+        from services.weather_pipeline.surf_partitions import partitions_represent, reconcile_partitions
         # The REPRESENT gate (shared with the point lane): trains carrying under half the total Hs
         # in quadrature mean the dominant train is missing from the local cache — reconciling the
         # survivors would inflate a minority train to carry ALL the energy at its own period, a sea
