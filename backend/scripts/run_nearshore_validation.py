@@ -186,10 +186,19 @@ def main() -> int:
             if hs is None or tp is None or dr is None:
                 point_fail += 1
                 continue
+            # THE INSTRUMENT'S GEOMETRY (2026-09-28). The transform is graded at the buoy, so it takes the BUOY's
+            # shore normal (hence its swell exposure), not the spot's: at 153p1 the buoy's exposure factor was
+            # 0.892 while its spots used 0.74-0.85 (Blacks Beach faces 26 deg away), so the judge charged the
+            # chain for the beach's exposure and MOP/NWPS, read at the buoy, never paid it. The INPUT stays the
+            # served offshore field at the spot. The spot-geometry number is kept beside it (spot_geometry).
             key = (spot["lat"], spot["lng"])
             if key not in geo:
                 geo[key] = resolve_surf_geometry(spot["lat"], spot["lng"])     # once per spot, not per hour
-            g = geo[key]
+            gs = geo[key]
+            skey = (float(entry["station_lat"]), float(entry["station_lng"]))
+            if skey not in geo:
+                geo[skey] = resolve_surf_geometry(*skey)
+            g = geo[skey]
             row_trains = {}
             if args.trains:
                 trains = station_trains(fetch_train_answers(_fetch_json, args.base, spot["lat"], spot["lng"],
@@ -207,6 +216,8 @@ def main() -> int:
                                                   depth, g.depth_m, g.shelf_width_km),
                 "offshore_hs_m": hs, "tp_s": tp, "swell_from_deg": dr,
                 "factors": transform_factors(tp, dr, g.shore_normal_deg, depth, g.depth_m, g.shelf_width_km),
+                "model_hs_spot_geometry_m": model_hs_at_station(hs, tp, dr, gs.shore_normal_deg,
+                                                                depth, gs.depth_m, gs.shelf_width_km),
                 "upstream_provider": d.get("upstream_provider"),
                 **row_trains,
             })
@@ -276,6 +287,10 @@ def main() -> int:
                     for s, v in sorted(report["stations"].items()))
     print(f"VERDICT GRADED n_matched={report['n_matched']} "
           f"(spot-hours {report['n_spot_hours']}, station-hours {report['n_station_hours']}) {per}")
+    sg = report.get("spot_geometry")
+    if sg:
+        print(f"GEOMETRY station (graded) vs spot: mae {sg['station']['mae_m']} vs {sg['spot']['mae_m']}, "
+              f"obs/model {sg['station'].get('obs_over_model_median')} vs {sg['spot'].get('obs_over_model_median')}")
     gab = report.get("mop_grid_ab")
     if gab:
         print(f"MOP_GRID_AB n={gab['n']} station_hours={gab['n_station_hours']} "

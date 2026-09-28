@@ -427,6 +427,12 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
     nwps = arm_ab(matched, "nwps_hs_m")
     if nwps:
         extra["nwps_ab"] = nwps
+    # The transform is graded with the BUOY's geometry (2026-09-28); the spot-geometry number rides beside it
+    # on the same hours, so the change is measured rather than asserted.
+    sg = [m for m in matched if m.get("model_hs_spot_geometry_m") is not None]
+    if sg:
+        extra["spot_geometry"] = {"n": len(sg), "station": _arm_stats(sg, "model_hs_m"),
+                                  "spot": _arm_stats(sg, "model_hs_spot_geometry_m")}
     return {**base, "available": True, "stations": stations, **extra}
 
 

@@ -150,7 +150,7 @@ jobs:
           python3 scripts/run_nearshore_validation.py --json nearshore_report.json \
             2>&1 | tee nearshore.txt | tail -40 || rc=$?
           echo "── decision lines (tail-proof) ──"
-          grep -E "^VERDICT|^TRAINS_AB|^MOP_AB|^MOP_GRID_AB|^NWPS_AB|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
+          grep -E "^VERDICT|^GEOMETRY|^TRAINS_AB|^MOP_AB|^MOP_GRID_AB|^NWPS_AB|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
           if [ "$rc" -ge 2 ]; then
             echo "::error::INFRA, NOT A VERDICT (exit $rc): pair table, CDIP THREDDS, or the prod point API could not answer. Nothing was graded. preflight awake=${{ steps.warm.outputs.awake }}"
             exit 2
