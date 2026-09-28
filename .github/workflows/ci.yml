@@ -1072,7 +1072,11 @@ jobs:
           # cheap arm; the NWPS fetch stops at the cycle that covers the window): #132's hosted merge run observed
           # 122 files / 1412 passed, confirming its projection exactly. tests/test_nwps_arm.py (claimed by `--lane
           # chain`) gains 1 executed test: 1412 + 1 = 1413, 1413 - 6 = 1407; files 122 unchanged; _FLOOR_SET_FROM -> 1413.
-          MIN_FILES, MIN_PASSED = 122, 1407
+          # ⬆ MIN_FILES 122→123, MIN_PASSED 1407→1410 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge grades the transform with the BUOY's geometry): #133's hosted merge run observed 122 files / 1413,
+          # confirming its projection exactly. The new tests/test_nearshore_station_geometry.py (claimed by `--lane
+          # chain`) adds 3 executed tests: 1413 + 3 = 1416, 1416 - 6 = 1410; files 123 EXACT; _FLOOR_SET_FROM -> 1416.
+          MIN_FILES, MIN_PASSED = 123, 1410
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
