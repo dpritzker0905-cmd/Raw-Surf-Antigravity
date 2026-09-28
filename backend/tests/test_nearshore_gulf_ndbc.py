@@ -46,11 +46,17 @@ def test_an_ndbc_station_is_fetched_from_ndbc_and_a_cdip_one_is_not(monkeypatch)
     assert NB.is_ndbc("ndbc:42035") and not NB.is_ndbc("143p1")
 
 
-def test_the_committed_ndbc_table_puts_42035_on_the_galveston_shelf_at_its_own_cell():
-    pairs = NB.load_ndbc_pairs()
-    p = next(p for p in pairs if p["station"] == "ndbc:42035")
-    assert p["station_depth_m"] == 15.5 and (p["station_lat"], p["station_lng"]) == (29.235, -94.41)
-    assert [(s["lat"], s["lng"]) for s in p["spots"]] == [(29.235, -94.41)], "paired with its own cell"
+# The two widest graded shelves, from their NDBC station pages: 42035 Galveston (166 km at the cell) and 42098 Egmont
+# Channel = CDIP 214 (185 km, West Florida: where #146 raised heights most, x2.1-2.25 at Fort Myers/Sanibel/Naples).
+NDBC_EXPECTED = {"ndbc:42035": (29.235, -94.41, 15.5), "ndbc:42098": (27.59, -82.931, 14.0)}
+
+
+@pytest.mark.parametrize("station", sorted(NDBC_EXPECTED))
+def test_the_committed_ndbc_table_puts_each_buoy_on_its_shelf_at_its_own_cell(station):
+    lat, lng, depth = NDBC_EXPECTED[station]
+    p = next(p for p in NB.load_ndbc_pairs() if p["station"] == station)
+    assert p["station_depth_m"] == depth and (p["station_lat"], p["station_lng"]) == (lat, lng)
+    assert [(s["lat"], s["lng"]) for s in p["spots"]] == [(lat, lng)], "paired with its own cell"
 
 
 def test_the_ndbc_table_is_optional_and_only_ever_ndbc(tmp_path):
