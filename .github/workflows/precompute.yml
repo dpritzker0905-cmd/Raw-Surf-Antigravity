@@ -20,6 +20,37 @@ on:
   workflow_run:
     workflows: ["Forecast Ingestion Pilots (regional tiles)"]
     types: [completed]
+  # ★ RATINGS FOLLOW THE PHYSICS (2026-09-28). The frames are rated IN THIS JOB from the checked-out code, while
+  # the spot hub, the sim and the live lanes run whatever Render deployed. A served-height change merged to dev
+  # therefore split the product until the next precompute: measured 2026-09-28 22:50Z, #146 (friction off) and
+  # #120 (Kr 0.873) were live on the hub for 2.5 h while every glyph and infobox still showed the legacy chain --
+  # Cocoa Beach 0.789 m on the glyph vs 1.012 m on the hub (28%), up to x2.5 on wide shelves -- because the last
+  # run (a9d71e1c, 20:10Z) predated both, and GitHub was delaying scheduled slots by hours. A push that touches
+  # the composition chain now re-rates at once. PATHS = every module in the import closure of surf_point /
+  # surf_transform / surf_rating / spot_ratings that reads a SURF_* or RATING_* lever, plus the magnet table and
+  # the geometry assets -- derived from the code by backend/tests/test_precompute_follows_pilots.py, so a new
+  # lever module fails CI until it is listed here. Measured over 10 days of dev merges: 16 touched these paths
+  # (47 touched weather_pipeline at all), so ~1.6 extra runs a day; the concurrency group queues at most one.
+  push:
+    branches: [dev]
+    paths:
+      - 'backend/services/weather_pipeline/grid_resolver_selection.py'
+      - 'backend/services/weather_pipeline/mop_nearshore.py'
+      - 'backend/services/weather_pipeline/mop_serving.py'
+      - 'backend/services/weather_pipeline/point_rating.py'
+      - 'backend/services/weather_pipeline/point_resolution.py'
+      - 'backend/services/weather_pipeline/point_surf_augment.py'
+      - 'backend/services/weather_pipeline/product_selection.py'
+      - 'backend/services/weather_pipeline/spot_conditions.py'
+      - 'backend/services/weather_pipeline/spot_ratings.py'
+      - 'backend/services/weather_pipeline/spot_ratings_precompute.py'
+      - 'backend/services/weather_pipeline/surf_height_convention.py'
+      - 'backend/services/weather_pipeline/surf_magnets.py'
+      - 'backend/services/weather_pipeline/surf_point.py'
+      - 'backend/services/weather_pipeline/surf_rating.py'
+      - 'backend/services/weather_pipeline/surf_transform.py'
+      - 'backend/services/weather_pipeline/data/**'
+      - '.github/workflows/precompute.yml'
   schedule:
     # INTERLEAVED with the core ingest (2026-07-13 melt hardening, round-12 §1): each run writes frames
     # {+0,+3}h per model (SPOT_RATINGS_PRECOMPUTE_HOURS '0,3') served ±2h fresh, then ±6h labelled stale,
