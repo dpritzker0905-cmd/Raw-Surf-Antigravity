@@ -119,6 +119,11 @@ def compare_models(primary: str) -> List[str]:
         m = m.strip().upper()
         if m and m != (primary or "").strip().upper() and m not in out:
             out.append(m)
+    # THE CONSENSUS SHADOW LANE (2026-09-29, D-009): the switch that builds the shadow product also grades it,
+    # so the ledger scores `raw_surf:CONSENSUS` on the same buoys, hours and leads as every member.
+    from services.weather_pipeline.consensus_ingest import CONSENSUS_MODEL, enabled as consensus_enabled
+    if consensus_enabled() and CONSENSUS_MODEL not in out and CONSENSUS_MODEL != (primary or "").strip().upper():
+        out.append(CONSENSUS_MODEL)
     return out
 
 

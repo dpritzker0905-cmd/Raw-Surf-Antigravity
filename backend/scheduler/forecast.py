@@ -129,6 +129,8 @@ def ingest_marine_forecast_task():
             # flipped, and the failure mode is silent — the mid job registered here AND folded there
             # (two downloads, the thing being fixed), or neither (no mid tile at all).
             from services.weather_pipeline.marine_mid_res_ingestion import gfs_mid_folds_into_pilot
+            from services.weather_pipeline.consensus_ingest import (
+                enabled as consensus_ingest_enabled, ingest_consensus_shadow_impl)
 
             pilot_jobs = [
                 # Marine MID-RES globals (z6-7 quality tier, 2026-07-05): ~2° globals served CLIPPED by
@@ -202,6 +204,12 @@ def ingest_marine_forecast_task():
                 # worldwide regions (~3-6 min). Kill: EURO_MARINE_PILOT_INGEST=0.
                 *([("EURO Marine Pilot", weather_scheduler.ingest_euro_marine_pilot)]
                   if os.environ.get("EURO_MARINE_PILOT_INGEST", "1") != "0" else []),
+                # CONSENSUS SHADOW (2026-09-29, D-009): the equal GFS/EURO/ICON mean of every GFS regional
+                # waves frame, saved as its own `CONSENSUS` product for the skill ledger to grade before any
+                # flip. LAST in the marine group, after all three members' regional passes. Serves nothing.
+                # Arm: CONSENSUS_INGEST=1 (default 0). See services/weather_pipeline/consensus_ingest.py.
+                *([("Consensus Marine Shadow", lambda: ingest_consensus_shadow_impl(weather_scheduler))]
+                  if consensus_ingest_enabled() else []),
             ]
             # Regional WIND pilots (0.25° coastal tiles, all 3 models) — the zoomed-in-wind fix. Wind ships
             # ONLY a 10° global product, so the serve box did a ~20s synchronous live viewport fetch per

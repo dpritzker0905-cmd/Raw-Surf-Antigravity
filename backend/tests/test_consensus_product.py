@@ -241,9 +241,11 @@ def test_the_memo_builds_each_member_index_once(monkeypatch):
 
 def test_only_short_lived_samplers_memoize():
     """The memo holds every product it sees until the sampler is dropped, so the long-lived module-level samplers
-    (routes/, scheduler/) must stay unmemoized: memoize=True appears only in the consensus builder."""
+    (routes/, scheduler/) must stay unmemoized: memoize=True appears only where a sampler is built for one
+    job and dropped after it (the consensus builder and its per-hour ingest)."""
     assert PointSampler()._memo is None
     backend = Path(__file__).resolve().parents[1]
     hits = sorted(str(f.relative_to(backend)).replace("\\", "/") for f in backend.rglob("*.py")
                   if "tests" not in f.parts and ".venv" not in f.parts and "PointSampler(memoize=True" in f.read_text("utf-8", "ignore"))
-    assert hits == ["services/weather_pipeline/consensus_product.py"]
+    # consensus_ingest.build_hour: one sampler per forecast hour, dropped with it (2026-09-29, D-009).
+    assert hits == ["services/weather_pipeline/consensus_ingest.py", "services/weather_pipeline/consensus_product.py"]
