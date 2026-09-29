@@ -349,15 +349,28 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     # a small-wave spot but poor at a big-wave spot (Surfline's "relative to the spot's potential"). Gate
     # RATING_LOCAL_SIZE; an empty map (feature off, or a spot without enough climatology yet) → reference None →
     # the global 1.2 m default → unchanged. Auto-scales to any spot added (its reference builds from the model).
+    # ⛔ FAIL CLOSED when the climatology cannot be READ (2026-09-29): a 429 from Supabase Storage used to
+    # land here as None, and the pass rated every spot on the global default while the flag said local
+    # (load_size_climatology_for_rating has the measurement). A REFUSED pass bakes nothing, and the
+    # per-model loop keeps that model's previous frames, as it does for a coverage failure. A climatology
+    # that is ABSENT (never seeded) still rates on the global default, as designed.
     ref_map = {}
     if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
         try:
             from services.weather_pipeline.spot_size_climatology import (
-                load_size_climatology_l2_cached, reference_map as _size_reference_map)
-            ref_map = _size_reference_map(load_size_climatology_l2_cached())
-            logger.info("[spot-ratings] local size calibration ON: %d spots have a size reference.", len(ref_map))
+                load_size_climatology_for_rating, reference_map as _size_reference_map)
+            clim, clim_status = load_size_climatology_for_rating()
+            if clim_status == "unavailable":
+                raise RuntimeError("size climatology unreadable after retries")
+            ref_map = _size_reference_map(clim)
+            logger.info("[spot-ratings] local size calibration ON: %d spots have a size reference (climatology %s).",
+                        len(ref_map), clim_status)
         except Exception as _re:
-            logger.warning("[spot-ratings] size-reference load failed (global default): %s", _re)
+            logger.error("[spot-ratings] size-reference load FAILED (%s): refusing to rate %s without each spot's "
+                         "size reference.", _re, models)
+            refused = build_l2_object([])
+            refused["refused"] = "size_reference_unavailable"
+            return refused
 
     # SPATIAL-BATCHING pre-warm (2026-07-06, chip task_2d50cd81): the EURO pass below fires a
     # native CMEMS point per spot — one subset subprocess each, and CMEMS throttles under the
@@ -458,6 +471,10 @@ def run_spot_ratings_precompute() -> tuple:
         nonlocal n_frames_uploaded
         for model in models:
             obj_m = await precompute_spot_ratings(resolver, spots, [model], hours)
+            if obj_m.get("refused"):
+                logger.error("[spot-ratings] precompute %s REFUSED (%s) — keeping the previous %s frames.",
+                             model, obj_m["refused"], model)
+                continue
             frames_m = obj_m.get("frames", [])
             cov = frames_coverage(frames_m)
             # PER-MODEL coverage guard: an all-null model keeps its PREVIOUS frames (never stomp a

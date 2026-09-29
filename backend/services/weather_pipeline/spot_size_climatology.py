@@ -465,18 +465,78 @@ def load_size_climatology_l2_cached(ttl: float = 600.0) -> Optional[dict]:
 
 
 def load_size_climatology_l2(l2_key: str = None) -> Optional[dict]:
+    return load_size_climatology_l2_status(l2_key)[0]
+
+
+def _is_not_found(resp) -> bool:
+    """Supabase Storage spells a missing object two ways: HTTP 404, or HTTP 400 whose body says 404."""
+    if resp.status_code == 404:
+        return True
+    if resp.status_code != 400:
+        return False
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    return isinstance(body, dict) and (str(body.get("statusCode")) == "404" or body.get("error") == "not_found")
+
+
+def load_size_climatology_l2_status(l2_key: str = None) -> tuple:
+    """(obj, status) for ONE read. 'ok'; 'absent' (Supabase not configured, or the object does not exist);
+    'unavailable' (429, 5xx, auth, a timeout, an unparseable body): the read FAILED, which is not the same
+    as finding nothing, and a lane that bakes ratings must not treat the two alike (see
+    load_size_climatology_for_rating)."""
     base = os.environ.get("SUPABASE_URL", "").rstrip("/")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not base or not key:
-        return None
+        return None, "absent"
     try:
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{l2_key or SIZE_CLIMATOLOGY_L2_KEY}"
         resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=10)
-        if resp.status_code != 200:
-            return None
-        return resp.json()
     except Exception as e:
-        logger.debug(f"[size-climatology] L2 load failed: {e}")
-        return None
+        logger.warning(f"[size-climatology] L2 load failed: {type(e).__name__}: {str(e)[:160]}")
+        return None, "unavailable"
+    if resp.status_code == 200:
+        try:
+            obj = resp.json()
+        except ValueError:
+            obj = None
+        if isinstance(obj, dict):
+            return obj, "ok"
+        logger.warning("[size-climatology] L2 load returned an unreadable body")
+        return None, "unavailable"
+    if _is_not_found(resp):
+        return None, "absent"
+    logger.warning(f"[size-climatology] L2 load HTTP {resp.status_code}")
+    return None, "unavailable"
+
+
+def load_size_climatology_for_rating(attempts: int = 3, backoff_s: float = 3.0, sleep=None) -> tuple:
+    """(obj, status) for a lane that BAKES ratings from the climatology (the glyph precompute).
+
+    ⛔ THE READ-SIDE SELF-ERASE GUARD (2026-09-29). The write-back in run_spot_ratings_precompute has
+    refused to fold onto an unreadable base since 2026-07-30; the READ that rates every spot had no such
+    guard. At 02:48Z on 2026-09-29 the precompute's own prefetcher drew HTTP 429 "too many connections"
+    from Supabase Storage, this read got the same 429, returned None, and the GFS pass rated all 1,821
+    spots WITHOUT their size reference ("0 spots have a size reference"). Those frames were served until
+    the next precompute: the sim parity monitor measured 32 of 48 spots a level apart at 11Z, Trestles
+    63.4 served against 38.7 on its own reference. One pass in 90 over five days, silent every time.
+    ⇒ Retry 'unavailable' (backoff_s, then doubling), and hand the status back so the caller can REFUSE
+    to bake rather than bake on the global default. 'absent' is not retried: nothing is there to find.
+    Serves the shared cache when it is fresh; never caches a failure."""
+    import time
+    sleep = sleep or time.sleep
+    if _l2_cache["obj"] is not None and (time.time() - _l2_cache["ts"]) < 600.0:
+        return _l2_cache["obj"], "ok"
+    obj, status = None, "unavailable"
+    for i in range(max(1, int(attempts))):
+        obj, status = load_size_climatology_l2_status()
+        if status != "unavailable":
+            break
+        if i < attempts - 1:
+            sleep(backoff_s * (2 ** i))
+    if status == "ok":
+        _l2_cache["obj"], _l2_cache["ts"] = obj, time.time()
+    return obj, status

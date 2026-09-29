@@ -1143,7 +1143,11 @@ jobs:
           # consensus builder, dark): hosted CI on dev @ e82f59c8 (#153) observed 127 files / 1480. The new
           # tests/test_consensus_product.py (claimed by `--lane chain`) adds 21 executed tests: 1480 + 21 = 1501,
           # 1501 - 6 = 1495; files 128 EXACT; _FLOOR_SET_FROM["chain"] -> 1501.
-          MIN_FILES, MIN_PASSED = 128, 1495
+          # ⬆ MIN_FILES 128→129, MIN_PASSED 1495→1515 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the glyph
+          # precompute refuses to rate without the size climatology): hosted CI on PR #161 (merged as e4c27fd7)
+          # observed 128 files / 1501. The new tests/test_size_reference_fail_closed.py (claimed by `--lane chain`)
+          # adds 20 executed tests: 1501 + 20 = 1521, 1521 - 6 = 1515; files 129 EXACT; _FLOOR_SET_FROM -> 1521.
+          MIN_FILES, MIN_PASSED = 129, 1515
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
