@@ -300,17 +300,20 @@ def arm_ab(matched: list, key: str):
 # transform, and GFS-Wave's regional bias differs by coast (x1.10-1.27 on Florida's east coast, x0.85-0.89 in
 # SoCal, x0.54-0.85 in the Gulf), so a consensus INPUT has to be graded where the transform lands, too.
 CONSENSUS_MEMBERS = ("GFS", "EURO", "ICON")
+# The equal mean WITHOUT ICON (2026-09-29): #155's paired nearshore hours put ICON at 0.203 m MAE (+0.12 m high)
+# against GFS 0.156, EURO 0.102 and the three-model mean 0.117, so the pair is the next candidate to grade.
+PAIR_MEMBERS = ("GFS", "EURO")
 
 
-def equal_consensus(members: dict):
-    """The equal mean of the members' offshore Hs at one spot and hour, carrying the PRIMARY's (GFS, the served
-    lane) period and direction: the ingest-time design, the primary's sea scaled to the consensus height. None
-    unless EVERY member answered, so the arm is always the full equal mean (the ledger's pairing rule) and never
-    a two-model mean under the same name. PURE."""
-    if not isinstance(members, dict):
+def equal_consensus(members: dict, required=CONSENSUS_MEMBERS):
+    """The equal mean of the `required` members' offshore Hs at one spot and hour, carrying the PRIMARY's (GFS, the
+    served lane) period and direction: the ingest-time design, the primary's sea scaled to the consensus height.
+    None unless EVERY required member answered, so an arm is always its full equal mean (the ledger's pairing rule)
+    and never a smaller mean under the same name. PURE."""
+    if not isinstance(members, dict) or "GFS" not in required:
         return None
     vals = []
-    for m in CONSENSUS_MEMBERS:
+    for m in required:
         a = members.get(m) or {}
         try:
             v = float(a.get("hs"))
@@ -502,8 +505,14 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
         both = [m for m in matched if m.get("model_hs_consensus_m") is not None and m.get("model_hs_m") is not None]
         cons["same_rows"] = {"gfs": _arm_stats(both, "model_hs_m"), "consensus": _arm_stats(both, "model_hs_consensus_m"),
                              **{m.lower(): _arm_stats(both, f"model_hs_{m.lower()}_m")
-                                for m in CONSENSUS_MEMBERS if m != "GFS"}}
+                                for m in CONSENSUS_MEMBERS if m != "GFS"},
+                             # every consensus row has GFS and EURO, so the pair is on the same hours
+                             **({"pair_gfs_euro": _arm_stats(both, "model_hs_pair_m")}
+                                if all(m.get("model_hs_pair_m") is not None for m in both) else {})}
         extra["consensus_ab"] = cons
+    pair = arm_ab(matched, "model_hs_pair_m")
+    if pair:
+        extra["pair_ab"] = pair
     members = {m: arm_ab(matched, f"model_hs_{m.lower()}_m") for m in CONSENSUS_MEMBERS if m != "GFS"}
     if any(members.values()):
         extra["member_ab"] = {m: v for m, v in members.items() if v}
