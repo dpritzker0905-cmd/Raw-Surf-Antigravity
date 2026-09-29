@@ -23,7 +23,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 31, sha256 94b77a8b309367201e553b4f40159ad2b5c4b595846e9b025bb2b9bb8b076d13**
+  **Ledger head: seq 32, sha256 e932b71dd11584936a9f142dd7612db4df3b3b18de53e4a66be0c462e0909173**
 
 ## Next fixes, in order
 1. ~~**Accuracy monitor false alarm**~~ merged as #166 (`0b169692`): page on "no scored rows for N hours", not on one zero-score pass
