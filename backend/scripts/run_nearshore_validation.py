@@ -38,8 +38,8 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.nearshore_validation import (   # noqa: E402
-    CONSENSUS_MEMBERS, Refusal, backfill_valid_times, build_report, equal_consensus, fetch_mop_hs, fetch_station_hs,
-    load_mop_archives, load_pairs,
+    CONSENSUS_MEMBERS, PAIR_MEMBERS, Refusal, backfill_valid_times, build_report, equal_consensus, fetch_mop_hs,
+    fetch_station_hs, load_mop_archives, load_pairs,
     model_hs_from_nearshore_input,
     match, model_hs_at_station, model_hs_at_station_trains, mop_grid_hours, qc_filter, station_trains,
     transform_factors)
@@ -100,6 +100,9 @@ def consensus_fields(fetch, base: str, spot: dict, valid_time: str, gfs: dict, g
     if c:
         out["model_hs_consensus_m"] = at(c)
         out["consensus_offshore_hs_m"] = round(c["hs"], 4)
+    p = equal_consensus(members, PAIR_MEMBERS)
+    if p:
+        out["model_hs_pair_m"] = at(p)       # GFS + EURO: the equal mean without ICON
     out["member_offshore_hs_m"] = {m: a["hs"] for m, a in members.items()}
     return out
 
@@ -384,6 +387,11 @@ def main() -> int:
         print(f"MEMBER_AB {m} n={v['n']} station_hours={v['n_station_hours']} "
               f"gfs={v['bulk']['mae_m']}/{v['bulk']['bias_m']:+} {m.lower()}={v['arm']['mae_m']}/{v['arm']['bias_m']:+} "
               f"closer={v['arm_closer_share']}")
+    pab = report.get("pair_ab")
+    if pab:
+        print(f"PAIR_AB n={pab['n']} station_hours={pab['n_station_hours']} "
+              f"gfs={pab['bulk']['mae_m']}/{pab['bulk']['bias_m']:+} gfs_euro={pab['arm']['mae_m']}/{pab['arm']['bias_m']:+} "
+              f"closer={pab['arm_closer_share']}")
     ab = report.get("trains_ab")
     if ab:
         t = ab["trains_only"]

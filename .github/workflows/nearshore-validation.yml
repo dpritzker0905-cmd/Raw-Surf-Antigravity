@@ -40,7 +40,7 @@ on:
         required: false
         default: '0'
       consensus:
-        description: "Also grade the equal-mean GFS/EURO/ICON consensus input (stage 5) and each member through the same transform. 3x the point calls."
+        description: "Also grade the equal-mean GFS/EURO/ICON consensus input (stage 5), the GFS+EURO mean, and each member through the same transform. 3x the point calls."
         required: false
         default: '0'
   schedule:
@@ -155,7 +155,7 @@ jobs:
           python3 scripts/run_nearshore_validation.py --json nearshore_report.json \
             2>&1 | tee nearshore.txt | tail -40 || rc=$?
           echo "── decision lines (tail-proof) ──"
-          grep -E "^VERDICT|^GEOMETRY|^NO_FRICTION_AB|^LEGACY_FRICTION_AB|^NEARSHORE_INPUT_AB|^CONSENSUS_AB|^MEMBER_AB|^TRAINS_AB|^MOP_AB|^MOP_GRID_AB|^NWPS_AB|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
+          grep -E "^VERDICT|^GEOMETRY|^NO_FRICTION_AB|^LEGACY_FRICTION_AB|^NEARSHORE_INPUT_AB|^CONSENSUS_AB|^MEMBER_AB|^PAIR_AB|^TRAINS_AB|^MOP_AB|^MOP_GRID_AB|^NWPS_AB|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
           if [ "$rc" -ge 2 ]; then
             echo "::error::INFRA, NOT A VERDICT (exit $rc): pair table, CDIP THREDDS, or the prod point API could not answer. Nothing was graded. preflight awake=${{ steps.warm.outputs.awake }}"
             exit 2
@@ -197,6 +197,9 @@ jobs:
           ca = r.get("consensus_ab")
           if ca:
               print(f"- consensus arm (equal mean of GFS/EURO/ICON, GFS period and bearing): bulk MAE {ca['bulk']['mae_m']} m (bias {ca['bulk']['bias_m']:+}) vs {ca['arm']['mae_m']} m (bias {ca['arm']['bias_m']:+}) over {ca['n']} spot-hours / {ca['n_station_hours']} station-hours; closer on {ca['arm_closer_share']:.0%}")
+          pa = r.get("pair_ab")
+          if pa:
+              print(f"- GFS+EURO mean (the consensus without ICON): GFS MAE {pa['bulk']['mae_m']} m vs {pa['arm']['mae_m']} m (bias {pa['arm']['bias_m']:+}) over {pa['n']} spot-hours; closer on {pa['arm_closer_share']:.0%}")
           for mb, v in sorted((r.get("member_ab") or {}).items()):
               print(f"- {mb} alone through the same transform: GFS MAE {v['bulk']['mae_m']} m vs {mb} {v['arm']['mae_m']} m (bias {v['arm']['bias_m']:+}) over {v['n']} spot-hours; closer on {v['arm_closer_share']:.0%}")
           nw = r.get("nwps_ab")

@@ -15,6 +15,10 @@ never saw. This is that measurement, from rows the ledger already scored: no fet
     weaker model counts for less. Measured the same day: over the held-out week our ICON lane's MAE is ~40%
     above the GFS and EURO lanes (0.44 vs 0.33 m at 48 h) with a slope of 0.65, and it is DWD's GWAM itself
     (ours 2.725 m vs Open-Meteo's dwd_gwam 2.70 m at 46086), not our pipeline, so it stays a member, weighted.
+  * `pair_gfs_euro` (2026-09-29): the plain mean of the served GFS lane and EURO, i.e. the equal mean WITHOUT ICON.
+    The nearshore judge's consensus arm (#155) graded the members after the transform on identical hours: GFS 0.156,
+    equal mean 0.117, EURO alone 0.102, ICON 0.203 m (ICON +0.12 m high), so dropping ICON is the next candidate.
+    Scored on the SAME pairs as the equal mean (all three members present), so the two compare like with like.
   * Graded on the held-out week against each member and the best of them. Thin leads refuse with a status.
 
 Changes no served number.
@@ -26,6 +30,7 @@ from typing import Dict, List
 from services.weather_pipeline.skill_mos import HOLDOUT_DAYS, _lead, _parse
 
 MEMBERS = ("raw_surf", "raw_surf:ICON", "raw_surf:EURO")
+PAIR = ("raw_surf", "raw_surf:EURO")      # the served GFS lane + EURO: the equal mean without ICON
 MIN_TEST = 10
 # BIG SWELL (2026-09-28): a mean is smoother than any member, so it can shave the peaks of the days that matter
 # most for surf, and the all-sea MAE would hide that behind the many small days. Two selections, as #132 taught:
@@ -52,6 +57,8 @@ def _big_swell(fc: Dict[str, List[float]], obs: List[float], members, min_test: 
         best = min(members, key=lambda m: out["paired"][m]["mae_m"])
         out["paired_best_member"] = best
         out["weighted_beats_best"] = out["paired"]["weighted"]["mae_m"] < out["paired"][best]["mae_m"]
+        if "pair_gfs_euro" in out["paired"]:
+            out["pair_beats_best"] = out["paired"]["pair_gfs_euro"]["mae_m"] < out["paired"][best]["mae_m"]
     else:
         out["status"] = "insufficient"
     out["by_forecast"] = {}
@@ -111,6 +118,12 @@ def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_
         entry["weighted_beats_best"] = entry["weighted"]["mae_m"] < per[best]["mae_m"]
         fc = {m: [p[m][0] for p in g["test"]] for m in members}
         fc["equal"], fc["weighted"] = equal, [max(0.0, f) for f in weighted]
+        if all(m in members for m in PAIR):
+            pair = [sum(p[m][0] for m in PAIR) / len(PAIR) for p in g["test"]]
+            entry["pair_gfs_euro"] = _stats([f - o for f, o in zip(pair, obs)])
+            entry["pair_beats_best"] = entry["pair_gfs_euro"]["mae_m"] < per[best]["mae_m"]
+            entry["pair_beats_equal"] = entry["pair_gfs_euro"]["mae_m"] < entry["equal"]["mae_m"]
+            fc["pair_gfs_euro"] = pair
         entry["big_swell"] = _big_swell(fc, obs, members, min_test)
         out.append(entry)
     return {"method": "three_model_consensus_equal_debiased_weighted", "members": list(members),
