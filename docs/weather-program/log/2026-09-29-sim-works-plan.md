@@ -55,7 +55,8 @@ Live at 22:41Z: Render `cdd5cc7c`, healthy, 9/9 data lanes ok, 0 alerts, RSS 401
 - [x] W-00 Session start: `memory_audit.py` 0 FAIL / 2 WARN / 3 NOTE; ledger verify 87 OK; commitments 77 (overdue), 78, 79, 86.
 - [x] W-01 Second audit, live (section 2).
 - [x] W-02 Commitment seq 77 verified (F11; recorded by #180 seq 92).
-- [ ] W-03 This log + ledger lines (findings, corrections to the audit) in a docs PR stacked on #180.
+- [x] W-03 This log + ledger lines (findings, corrections to the audit) in a docs PR stacked on #180: #181, ledger
+  seq 97-101, `action_ledger.py verify` 101 OK, `memory_audit.py --docs-only` 0 FAIL / 0 WARN. Merge is the owner's.
 
 ### Phase 1 · Ship the sim to production (the Jacobian leader)
 - [ ] W-10 **Release-readiness report** for the owner's D-002 decision, measured on a PRODUCTION build of `dev`:
@@ -65,6 +66,21 @@ Live at 22:41Z: Render `cdd5cc7c`, healthy, 9/9 data lanes ok, 0 alerts, RSS 401
   the map page. R6 capacity: production map traffic moves from the Netlify Open-Meteo proxy onto the 1-CPU Render box
   (D-005): count production proxy invocations and price them in Render CPU/memory. R7 rollback: Netlify "publish
   previous deploy".
+  Measured 22:58-23:03Z on a production build of `dev` (`cdd5cc7c` + docs), served on localhost against the live
+  backend, fixture user from `e2e/weather-simulation.spec.js` (section 5 has the numbers):
+  - [x] R2 desktop 1280x800: Waves on 35.4 FPS (59.9 with no layer), worst frame 229-242 ms, 395 dropped frames.
+    Passes the floor of 30, narrowly, with visible hitches. One machine, n = 1.
+  - [x] R2 mobile emulation 375x812: Waves on 54.7 FPS, worst frame 137 ms. This PC's GPU, so a layout check only.
+  - [x] R3 desktop journey: map -> Waves (first grid 3.7 s) -> +1 d (new frame in 668 ms, readout "Wed 8 PM" =
+    00Z correct in EDT) -> spot drawer (1.8 s). 0 weather errors in the console; the 404 / WebSocket errors are the
+    fixture user absent from the backend, and one ChunkLoadError was my test server truncating a transfer
+    (130,560 of 149,400 bytes, reproduced by curl).
+  - [x] R1 E2E: the 9 skips are Mobile Safari + Firefox continuity (by design / no WebGL on the runner), Firefox
+    model switch (no WebGL), and **"the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels"
+    = `test.fixme` on all four browsers: it has never run**. See W-12.
+  - [ ] R4 three themes x desktop/mobile screenshots; R5 axe; R6 capacity; R7 rollback note.
+- [ ] W-12 Finish the pixel-truth test: its own finish line is "un-fixme once the latch wait passes 3 consecutive
+  local headed runs" (`weather-simulation.spec.js:563`). Needs Playwright browsers on this machine (none installed).
 - [ ] W-11 **Owner:** unfreeze decision with W-10 attached.
 
 ### Phase 2 · The shared backend survives a deploy
@@ -80,8 +96,19 @@ Live at 22:41Z: Render `cdd5cc7c`, healthy, 9/9 data lanes ok, 0 alerts, RSS 401
   and `RATING_TIDE=1`; a parity test on a "Low tide" spot; the S4 monitor samples the 18 banded spots.
 - [ ] W-31 Missing depth is a NAMED regime (`unknown_depth`), never `shelf` with the offshore height (audit 4.1); a
   null control proves no served change where numpy exists.
-- [ ] W-32 EMPTY_RENDER waits for the first fetch to settle before reporting (F4).
+- [ ] W-32 EMPTY_RENDER waits for the first fetch to settle before reporting (F4). **Mechanism measured**
+  (production build, 22:58Z, 50 ms probe): after Waves was switched on, all three suppression flags dropped at
+  3,037 ms (the fetch's `finally`, `useMarineDataFetcherCore.js:735-743`) and the grid reached the engine at
+  3,719 ms: ~680 ms in which the detector's condition is true on a healthy load.
 - [ ] W-33 The frontend trace field `infoboxDisplayedHeight: point.speed` is renamed to what it is (offshore Hs).
+- [ ] W-34 The spot drawer (`SpotConditions.js`) states its source as the literal "Data from Open-Meteo Marine API"
+  (`:345`) while `/api/conditions/{id}` served the GFS chain and returns no source field; and it prints the
+  direction as `${wave_direction}-` (`:325`, "65.61-" on screen: a lost degree sign, two decimals, no cardinal).
+  The HEIGHT is correct: `wave_height_ft 2.3` with `surf_regime: shoaling`, `offshore_height_ft 1.2` (Spanish
+  House, 23:01Z), so the ONE FORECAST COMPOSITION holds on this surface. Fix: the backend names its source; the
+  drawer reads it and formats the direction.
+- [x] W-35 Checked, no defect: the drawer's 2.3 ft equals the Florida tile's offshore maximum (0.6961 m) by
+  coincidence; the endpoint returns the breaking height and the offshore height separately.
 
 ### Phase 4 · Accuracy where the rating error lives
 - [ ] W-40 seq 78: regrid probe after the first flipped ingest (due 09-30 12Z); SCOREBOARD S6 row.
@@ -102,3 +129,7 @@ W-42; F12 (Stripe key).
 ## 5. Log
 
 - 22:38Z session start; 22:52Z plan written (this file). Next: W-03, then W-10.
+- 22:54Z #181 opened (ledger seq 101). 22:56-23:03Z W-10 measurements on a production build (above); the HUD on
+  that build read provider NOAA, source `ncep_gfswave025`, class AUTHORITATIVE NATIVE, no causal violations.
+  Build: `npx craco build` (NODE_OPTIONS=--openssl-legacy-provider), served by a scratchpad SPA server; the
+  temporary `.claude/launch.json` entry was reverted, nothing of it is committed.
