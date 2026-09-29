@@ -6,7 +6,7 @@ is a claim, not a measurement.
 ## Now
 - **`dev` = `9358324d`** (#163 at 14:31:20Z, after #164 `09cbca84` at 14:28:05Z). The Render backend auto-deploys
   from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the accountability PR (this ledger, `action_ledger.py`, `memory_audit.py`, BRAIN_RULES §23).
+- **Open PRs of ours:** #165, the accountability PR (this ledger, `action_ledger.py`, `memory_audit.py`, BRAIN_RULES §23).
   Codex drafts #15 #22 #23 #27 #43 #44 are not ours; leave them.
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
@@ -22,7 +22,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 20, sha256 468def2ea61feb13e559f9ddc90f8d1a7d1091746b44bf7d9f9d36994a140f77**
+  **Ledger head: seq 21, sha256 d0fd649a709730a5140c4c029bb04db1ef7a9468a633c92793f50617b056af30**
 
 ## Next fixes, in order
 1. **Accuracy monitor false alarm (in progress):** page on "no scored rows for N hours", not on one zero-score pass
