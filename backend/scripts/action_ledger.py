@@ -19,6 +19,12 @@ TAMPER-EVIDENT, NOT MERELY APPEND-BY-CONVENTION.
   * Every line must be in canonical form (sorted keys, compact separators, UTF-8), so `append` is the only writer
     format and a hand edit shows up even when it happens to preserve the JSON.
 
+COMMITMENTS (2026-09-29, the owner: "upgrade the memories abilities"). A follow-up a session promises ("verify the
+first post-flip ingest", "read the shadow's scored rows at 17Z") used to live only in that session's context, and a
+compaction or a new session lost it. Now it is a `commitment` line with `due_at` (UTC) and `check` (how it will be
+verified). A later line closes it with `fulfills: <seq>`, which must name an earlier commitment. `open` lists every
+unfulfilled commitment and marks the OVERDUE ones; memory_audit surfaces them at every session start.
+
 USAGE (from the repo root; standard library only):
   python backend/scripts/action_ledger.py append --kind pr_merge --target "#163" \
       --why "..." --authorized-by "owner (chat, 2026-09-29): 'Merge #163 and #164'" \
@@ -26,6 +32,7 @@ USAGE (from the repo root; standard library only):
       --outcome "merged as abc12345" --verified "gh pr view 163: MERGED" --rollback "git revert -m 1 abc12345"
   python backend/scripts/action_ledger.py verify [--base FILE]     # exit 1 on any break
   python backend/scripts/action_ledger.py head                     # the anchor line for STATE.md
+  python backend/scripts/action_ledger.py open                     # unfulfilled commitments (OVERDUE marked)
   python backend/scripts/action_ledger.py selftest                 # proves each tamper is caught
 """
 import argparse
@@ -44,7 +51,7 @@ GENESIS = "GENESIS"
 ANCHOR_RE = re.compile(r"Ledger head: seq (\d+), sha256 ([0-9a-f]{64})")
 KINDS = frozenset({
     "pr_open", "pr_merge", "push", "workflow_dispatch", "env_change", "flag_flip", "deploy", "data_write",
-    "memory_write", "doc_write", "decision", "finding", "correction", "owner_action",
+    "memory_write", "doc_write", "decision", "finding", "correction", "owner_action", "commitment",
 })
 TEXT_FIELDS = ("actor", "kind", "target", "why", "authorized_by", "outcome", "verified", "rollback")
 REQUIRED = ("seq", "at", "prev", "evidence") + TEXT_FIELDS
@@ -89,6 +96,15 @@ def check_entry(e: dict, seq: int) -> list:
     # `at` is when the line was WRITTEN (monotonic); `acted_at`, when present, is when a late-recorded action happened.
     if "acted_at" in e and (not AT_RE.match(str(e["acted_at"])) or str(e["acted_at"]) > str(e["at"])):
         errs.append(f"acted_at {e.get('acted_at')!r} must be UTC ISO and not after at")
+    if e["kind"] == "commitment":
+        if not AT_RE.match(str(e.get("due_at", ""))):
+            errs.append("a commitment needs `due_at` (UTC ISO): when it will be checked")
+        if not isinstance(e.get("check"), str) or not e["check"].strip():
+            errs.append("a commitment needs `check`: how it will be verified")
+    if "fulfills" in e:
+        f_ = e["fulfills"]
+        if not (isinstance(f_, int) and not isinstance(f_, bool) and 1 <= f_ < seq):
+            errs.append(f"fulfills {f_!r} must be an earlier seq")
     if e["kind"] == "correction":
         # What is corrected: an earlier ledger seq, or a named place a claim was written ("log/2026-09-29-x.md §…").
         c = e.get("corrects")
@@ -100,7 +116,7 @@ def check_entry(e: dict, seq: int) -> list:
 
 def verify(lines: list, anchor=None, base=None) -> list:
     """Every problem with a ledger given as its lines (no newlines). PURE."""
-    errs, prev, last_at = [], GENESIS, ""
+    errs, prev, last_at, kinds = [], GENESIS, "", {}
     if base is not None:
         if len(base) > len(lines):
             errs.append(f"the base ledger has {len(base)} lines and this one {len(lines)}: lines were removed")
@@ -121,6 +137,10 @@ def verify(lines: list, anchor=None, base=None) -> list:
         if canonical(e) != line:
             errs.append(f"line {i}: not canonical (written by hand?)")
         errs += [f"line {i}: {m}" for m in check_entry(e, i)]
+        kinds[i] = e.get("kind")
+        f_ = e.get("fulfills")
+        if isinstance(f_, int) and not isinstance(f_, bool) and 1 <= f_ < i and kinds.get(f_) != "commitment":
+            errs.append(f"line {i}: fulfills seq {f_}, which is not a commitment")
         if e.get("prev") != prev:
             errs.append(f"line {i}: prev does not match line {i - 1}'s hash (an edit, deletion or reorder)")
         at = str(e.get("at", ""))
@@ -169,6 +189,26 @@ def append(path: str, **fields) -> dict:
     return e
 
 
+def commitments(lines: list, now: str) -> list:
+    """Every commitment with its status at `now` (UTC ISO): {seq, target, due_at, check, status, fulfilled_by}, where
+    status is "fulfilled", "overdue" or "open". PURE."""
+    out, by_seq = [], {}
+    for line in lines:
+        e = json.loads(line)
+        if e.get("kind") == "commitment":
+            c = {"seq": e["seq"], "target": e["target"], "due_at": e.get("due_at"), "check": e.get("check"),
+                 "status": "open", "fulfilled_by": None}
+            by_seq[e["seq"]] = c
+            out.append(c)
+        f_ = e.get("fulfills")
+        if f_ in by_seq and by_seq[f_]["fulfilled_by"] is None:
+            by_seq[f_].update(status="fulfilled", fulfilled_by=e["seq"])
+    for c in out:
+        if c["status"] == "open" and str(c["due_at"]) < now:
+            c["status"] = "overdue"
+    return out
+
+
 def head(lines: list) -> str:
     return f"Ledger head: seq {len(lines)}, sha256 {line_hash(lines[-1])}" if lines else "Ledger head: empty"
 
@@ -194,6 +234,29 @@ def selftest() -> list:
             append(p, kind=kind, at=f"2026-09-29T0{i}:00:00Z", **base)
         append(p, kind="correction", corrects=3, at="2026-09-29T04:00:00Z", **base)
         good = read_lines(p)
+        # Commitments: a second ledger, so the tamper cases below keep their four-line shape.
+        pc = os.path.join(d, "COMMIT.jsonl")
+        append(pc, kind="commitment", due_at="2026-09-29T06:00:00Z", check="read X", at="2026-09-29T01:00:00Z",
+               **base)
+        append(pc, kind="commitment", due_at="2026-09-29T09:00:00Z", check="read Y", at="2026-09-29T02:00:00Z",
+               **base)
+        append(pc, kind="finding", fulfills=1, at="2026-09-29T03:00:00Z", **base)
+        cl = read_lines(pc)
+        st = {c["seq"]: c["status"] for c in commitments(cl, "2026-09-29T10:00:00Z")}
+        if verify(cl) or st != {1: "fulfilled", 2: "overdue"}:
+            fails.append(f"commitments: a clean ledger {verify(cl)} or wrong statuses {st}")
+        if {c["seq"]: c["status"] for c in commitments(cl, "2026-09-29T08:00:00Z")}.get(2) != "open":
+            fails.append("commitments: a commitment not yet due was not 'open'")
+
+        def cmut(*changes):
+            """(line index, {field: value or None to drop}) pairs applied, then the chain re-hashed."""
+            out = list(cl)
+            for i, change in changes:
+                e = {**json.loads(out[i]), **change}
+                for k in [k for k, v in change.items() if v is None]:
+                    e.pop(k)
+                out[i] = canonical(e)
+            return rechain(out)
         anchor = (4, line_hash(good[3]))
         if verify(good, anchor=anchor, base=good[:2]):
             fails.append(f"a clean ledger failed: {verify(good, anchor=anchor, base=good[:2])}")
@@ -232,6 +295,11 @@ def selftest() -> list:
             "an action dated after its line": (verify(mutate(0, acted_at="2026-09-29T09:00:00Z")), "acted_at"),
             "a line dated before its predecessor": (verify(mutate(2, at="2026-09-29T00:30:00Z")), "is earlier than"),
             "a skipped seq": (verify(mutate(2, seq=7)), "at position"),
+            "a commitment without a due time": (verify(cmut((0, {"due_at": None}))), "needs `due_at`"),
+            "a commitment without a check": (verify(cmut((1, {"check": " "}))), "needs `check`"),
+            "fulfilling a line that is not a commitment": (verify(cmut(
+                (1, {"kind": "finding", "due_at": None, "check": None}), (2, {"fulfills": 2}))), "not a commitment"),
+            "fulfilling a future line": (verify(cmut((2, {"fulfills": 9}))), "must be an earlier seq"),
         }
         for name, (errs, expect) in cases.items():
             if not any(expect in e for e in errs):
@@ -258,9 +326,13 @@ def main(argv=None) -> int:
     a.add_argument("--at", help="when the line is written (default now); must not precede the last line")
     a.add_argument("--acted-at", help="when the action happened, if it is recorded late")
     a.add_argument("--reconstructed", action="store_true", help="written after the fact from records")
+    a.add_argument("--due-at", help="commitment: when it will be checked (UTC ISO)")
+    a.add_argument("--check", help="commitment: how it will be verified")
+    a.add_argument("--fulfills", type=int, help="the seq of the commitment this line closes")
     v = sub.add_parser("verify")
     v.add_argument("--base", help="the base branch's ledger; it must be a prefix of this one")
     sub.add_parser("head")
+    sub.add_parser("open")
     sub.add_parser("selftest")
     args = ap.parse_args(argv)
     if args.cmd == "append":
@@ -276,12 +348,23 @@ def main(argv=None) -> int:
             fields["acted_at"] = args.acted_at
         if args.reconstructed:
             fields["reconstructed"] = True
+        for k in ("due_at", "check", "fulfills"):
+            if getattr(args, k) is not None:
+                fields[k] = getattr(args, k)
         e = append(LEDGER, **fields)
         print(f"appended seq {e['seq']} ({e['kind']} {e['target']})")
         print(head(read_lines(LEDGER)))
         return 0
     if args.cmd == "head":
         print(head(read_lines(LEDGER)))
+        return 0
+    if args.cmd == "open":
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        cs = [c for c in commitments(read_lines(LEDGER), now) if c["status"] != "fulfilled"]
+        for c in cs:
+            print(f"{c['status'].upper():8s} seq {c['seq']:>4} due {c['due_at']}  {c['target']}"
+                  f"  -- check: {c['check']}")
+        print(f"commitments: {len(cs)} open ({sum(c['status'] == 'overdue' for c in cs)} overdue)")
         return 0
     if args.cmd == "selftest":
         fails = selftest()

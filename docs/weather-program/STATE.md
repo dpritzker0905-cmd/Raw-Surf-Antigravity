@@ -1,15 +1,17 @@
 # Weather program: state
 
-**Updated 2026-09-29 21:24Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-29 21:39Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
-- **`dev` = `4c8c991d`** (#174 at 21:16:33Z). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the CONSENSUS SERVING SWITCH (dark; `CONSENSUS_SERVE` '0'; a serving view of the
-  store, D-009's one switch). Its flip waits on the shadow's first scored rows (~2026-09-30 17Z).
+- **`dev` = `f4590a3d`** (#175 at 21:39:05Z). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
+- **Open PRs of ours:** the memory upgrades (commitments, completeness, clock, seq references).
+- **Open commitments:** ledger seq 77-80 (`python backend/scripts/action_ledger.py open`).
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
   per-spot size references (`RATING_LOCAL_SIZE=1`), now fail-closed in the precompute (#162).
+- **BUILT, DARK (#175):** `CONSENSUS_SERVE` (consensus_serve.ServedStore; D-009's one switch). Flip on the
+  shadow's evidence: forecast-ingest.yml + precompute.yml + the live env together.
 - **FLIPPED 2026-09-29 (#174, D-010):** `REGRID_NATIVE_CELL` '1': regional wave tiles read their exact native
   cell (land nodes their centred 3x3). Effective per lane at its next ingest. Measure: the parity probe
   (node vs native 0.045 m before) and the ledger's same-model gap (S2 NCEP line).
@@ -27,9 +29,12 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 71, sha256 2ccad100ce69a8e80af413ce0b843f0dac6615ddc295f6bef4eb90dae368db66**
+  **Ledger head: seq 81, sha256 0658a8f8486087bd5be13302ee19097de1b4900ecaa86fb7a3e1748f3fdff2ee**
 
 ## Next fixes, in order
+- **NOW: a Pacific NW / NorCal regional tile.** The 2-deg global_mid tier reads +0.097 m high vs the same
+  model (38% of the squared gap), led by 46244 Humboldt (+0.50 m) and Oregon/Washington buoys that no
+  regional tile covers (us_west_coast_socal stops at 38N). Size it against Render memory (F-08).
 0. ~~**Regrid at native resolution**~~ FLIPPED by #174 (D-010); verify with the probe and the ledger: every 0.25-deg regional tile of GFS, ICON and EURO is a 2x2
    block mean shifted half a cell NW (`half = max(1, round(res/0.25/2))` = 1; ledger seq 43). Fix: the exact
    native cell at native resolution, one shared `block_half`, behind `REGRID_NATIVE_CELL` (default 0) in the
