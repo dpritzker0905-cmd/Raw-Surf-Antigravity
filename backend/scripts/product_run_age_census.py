@@ -50,6 +50,8 @@ NO_ROTATION_LANES = {("ICON", "marine"), ("EURO", "marine")}
 # pages -- left unknown, tier_of would grade it `worldwide` (72 h) and hide a dead new lane for 3 days.
 GFS_MARINE_EXTRA_REGIONS = ("canaries_madeira_morocco", "caribbean_pr_dr", "srilanka_maldives",
                             "centralamerica_caribbean")
+# F-08 Stage B (pilot_regions.GFS_MARINE_STAGE_B_REGIONS): the same GFS pass, the same flagship cadence.
+GFS_MARINE_STAGE_B_REGIONS = ("us_pacific_northwest",)
 
 # (warn_h, critical_h) per tier. Roughly 2x and 3x the expected cadence: one missed cycle is noise,
 # two is a signal, three is a defect.
@@ -109,7 +111,7 @@ def tier_of(region_id, model, domain):
         return "flagship"
     if r in WORLDWIDE_REGIONS:
         return "flagship" if (model, domain) in NO_ROTATION_LANES else "worldwide"
-    if r in GFS_MARINE_EXTRA_REGIONS:
+    if r in GFS_MARINE_EXTRA_REGIONS or r in GFS_MARINE_STAGE_B_REGIONS:
         return "flagship"
     return "worldwide"          # unknown region -> the most forgiving tier, never a false alarm
 
