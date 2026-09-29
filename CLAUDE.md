@@ -48,6 +48,12 @@
   `docs/runbooks/HANDOFF-2026-07-14-marathon-close-stability-arc.md` §0a for the debt inventory.
   New/touched code must not add to that debt.
 
+- **WEATHER PROGRAM MEMORY (user mandate 2026-09-29):** the weather program's state, decisions, scoreboard and
+  lessons live in `docs/weather-program/` (start at its `README.md`), tracked in git so every session on every
+  machine reads the same state and no session silently overwrites another's. Follow its write protocol: logs
+  and ledgers are append-only, one log file per session, shared files are edited by exact-string replacement
+  (never rewritten whole), and every fix that changes a served number adds a `SCOREBOARD.md` row.
+
 - **SECURITY/STABILITY RELEASE STATUS (2026-07-25):**
   - **Sensitive BOLA and payments:** The credit, payment, booking, and conversation routes touched in this release use strict JWT identity (`get_current_user_id`) and ownership checks; focused contract tests pass. Stripe webhook handling fails closed unless `STRIPE_WEBHOOK_SECRET` and a valid Stripe signature are present. Confirm that secret remains configured in Render. This does not certify the remaining BOLA backlog.
   - **Private chat media:** New writes use opaque refs plus member-authorized signed URLs and fail closed if private storage is unavailable. Production cutover completed on 2026-07-25: 36 direct-message legacy URLs were backfilled to opaque refs, and `chat_media`/`crew_chat` were made private. Do not change the remaining legacy local-media routes without an authenticated browser-delivery compatibility design.
