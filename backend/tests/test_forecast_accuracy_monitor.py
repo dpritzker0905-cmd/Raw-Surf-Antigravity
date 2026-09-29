@@ -300,3 +300,80 @@ def test_matching_observations_still_allow_the_real_skill_floor_verdict():
     code, lines = evaluate_scored_segment(rows, ARMED, cfg=cfg)
     assert code == OK
     assert any("we win" in line for line in lines)
+
+
+# ── LIVENESS ON THE ARCHIVE, NOT ON ONE PASS (2026-09-29, run 36533043356) ──────────────────────────────
+# The 06:48Z page called a healthy ledger dead: its last two passes ran 34-37 min after the one before and had
+# nothing new to score. Both directions are pinned: a zero pass with a fresh archive stays green, a stale archive
+# pages, and an unreadable archive keeps the old single-pass rule so the monitor is never blinder than it was.
+from scripts.forecast_accuracy_monitor import evaluate_scoring_liveness, scored_zero_verdict  # noqa: E402
+
+_ZERO = {"ledgered": 1017, "scored": 0, "pending_kept": 24957, "pending_evicted_cap": 0}
+
+
+def _rows(*hours_old):
+    return [{"target_time": (NOW - timedelta(hours=h)).isoformat()} for h in hours_old]
+
+
+def test_the_0648z_replay__a_zero_pass_with_the_archive_readable_does_not_page():
+    cfg = {**default_cfg(), "liveness_from_archive": True}
+    code, lines = evaluate_report(_report(ops=_ZERO), NOW, cfg)
+    assert code == OK and not any("::error::" in l for l in lines)
+    assert any("judged below on the scored archive" in l for l in lines)
+    live_code, live = evaluate_scoring_liveness(_rows(1.5, 3, 30), _ZERO, NOW, cfg)
+    assert live_code == OK and "1.5 h old" in live[0]
+
+
+def test_a_stale_archive_pages_and_a_fresh_one_does_not__both_directions():
+    cfg = default_cfg()
+    assert evaluate_scoring_liveness(_rows(10.6), _ZERO, NOW, cfg)[0] == OK        # the worst healthy age
+    code, lines = evaluate_scoring_liveness(_rows(16.5, 40), {"scored": 500}, NOW, cfg)
+    assert code == RED and any("STOPPED SCORING" in l for l in lines)             # even if a pass says 500
+
+
+def test_the_bound_is_the_measured_basis_and_is_tunable():
+    cfg = default_cfg()
+    assert cfg["scoring_stale_h"] == 16.0
+    assert evaluate_scoring_liveness(_rows(12), None, NOW, {**cfg, "scoring_stale_h": 11})[0] == RED
+
+
+def test_an_empty_archive_is_a_dead_ledger_not_a_quiet_one():
+    code, lines = evaluate_scoring_liveness([], _ZERO, NOW, default_cfg())
+    assert code == RED and any("NOT SCORING" in l for l in lines)
+
+
+def test_future_targets_are_not_evidence_of_scoring():
+    future = [{"target_time": (NOW + timedelta(hours=5)).isoformat()}]
+    assert evaluate_scoring_liveness(future, _ZERO, NOW, default_cfg())[0] == RED
+
+
+def test_an_unreadable_archive_falls_back_to_the_single_pass_rule():
+    cfg = default_cfg()
+    code, lines = evaluate_scoring_liveness(None, _ZERO, NOW, cfg)
+    assert code == RED and any("SCORED ZERO" in l for l in lines) and "unreadable" in lines[0]
+    assert evaluate_scoring_liveness(None, {"scored": 12}, NOW, cfg)[0] == OK
+    assert scored_zero_verdict(_ZERO, datetime(2026, 8, 10, tzinfo=timezone.utc), cfg)[0] == OK   # grace
+
+
+def test_without_credentials_the_report_keeps_the_old_rule():
+    code, lines = evaluate_report(_report(ops=_ZERO), NOW, default_cfg())      # liveness_from_archive False
+    assert code == RED and any("SCORED ZERO" in l for l in lines)
+
+
+def test_main_reads_last_months_archive_across_a_month_boundary(monkeypatch, capsys):
+    """00:30Z on the 1st: this month's archive is empty, last month's has a target scored 2.5 h ago."""
+    import scripts.forecast_accuracy_monitor as fam
+    now = datetime(2026, 10, 1, 0, 30, tzinfo=timezone.utc)
+    report = {**_report(ops=_ZERO), "generated_at": (now - timedelta(hours=1)).isoformat()}
+    l2 = {"calibration/skill/scored-2026-10.json": [],
+          "calibration/skill/scored-2026-09.json": [{"target_time": (now - timedelta(hours=2.5)).isoformat()}],
+          "calibration/history/residuals-2026-10.json": []}
+    monkeypatch.setenv("SUPABASE_URL", "https://storage.example.invalid")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-not-a-key")
+    monkeypatch.setattr(fam, "_fetch_json", lambda url, timeout=60: report)
+    monkeypatch.setattr(fam, "_fetch_l2", lambda key, timeout=30: l2.get(key))
+    monkeypatch.setattr("sys.argv", ["forecast_accuracy_monitor.py", "--as-of", now.isoformat()])
+    fam.main()
+    out = capsys.readouterr().out
+    assert "newest scored target 2026-09-30T22:00Z is 2.5 h old" in out
+    assert "STOPPED SCORING" not in out and "NOT SCORING" not in out and "SCORED ZERO" not in out
