@@ -312,13 +312,17 @@ def written_at(rel_path: str) -> str:
     return _utc(t).strftime("%Y-%m-%dT%H:%M:%SZ") if t else now
 
 
-def audit_completeness_and_clock(docs_dir: str = DOCS) -> list:
+def audit_completeness_and_clock(docs_dir: str = DOCS, require_history: bool = False) -> list:
     lines = action_ledger.read_lines(os.path.join(docs_dir, "ACTIONS.jsonl"))
     entries = [json.loads(x) for x in lines]
     res = []
     merges = git_merges()
     if merges is None:
-        res.append(("WARN", "cannot check ledger completeness: no full git history here (fetch-depth: 0 in CI)"))
+        # ⛔ In CI a blind check must FAIL, not warn: the first CI run of this check WARNed and passed because a
+        # later `git fetch --depth=1` had re-shallowed the clone (2026-09-29).
+        res.append(("FAIL" if require_history else "WARN",
+                    "cannot check ledger completeness: no full git history here "
+                    "(fetch-depth: 0, and no later --depth fetch)"))
     else:
         res += check_completeness(entries, merges)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -394,6 +398,8 @@ def main(argv=None) -> int:
     ap.add_argument("--docs-only", action="store_true")
     ap.add_argument("--stale-days", type=int, default=7)
     ap.add_argument("--selftest", action="store_true")
+    ap.add_argument("--require-history", action="store_true",
+                    help="CI: FAIL (not WARN) when the git history needed for completeness is missing")
     args = ap.parse_args(argv)
     if args.selftest:
         fails = selftest()
@@ -403,7 +409,7 @@ def main(argv=None) -> int:
         return 1 if fails else 0
     results = audit_docs()
     if not any(level == "FAIL" for level, _ in results):
-        results += audit_completeness_and_clock()
+        results += audit_completeness_and_clock(require_history=args.require_history)
     if not args.docs_only:
         if not args.memory_dir:
             ap.error("--memory-dir is required unless --docs-only")
