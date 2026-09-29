@@ -164,3 +164,14 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
   `copernicus_global_fetcher.py:210` is a longitude-only span on the coarse tier (half_cols >= 3), not this defect.
 - Flip evidence to gather after the owner's word: the parity probe's node-vs-native-cell MAE should fall from
   0.045 m to rounding, and the ledger's same-model gap to Open-Meteo should close by the same amount.
+
+## 18:58-19:04Z · #171 widened to ICON and EURO (ledger seq 47)
+- ICON (`dwd_gwam_fetcher.py`) carries the same half rule on all nine variables and the total-sea confidence; EURO
+  (`ecmwf_opendata_fetcher.py`) block-means only its heights, so under the defect a EURO point carried a height
+  from the NW 2x2 beside a direction and period from its own cell. Both now read the exact native cell under the
+  same switch: one flip for all three, because the consensus shadow averages them.
+- 7 more tests (21 in the file) on the real ICON and EURO loops, including the EURO member spread; 10/10 new
+  mutations red (22/22 for the PR); 139 neighbouring fetcher tests pass. Chain floor 132/1575.
+- CORRECTION (19:04Z): the section above headed `18:30-19:00Z` was written at 18:54Z; its end time, and the
+  `Updated 19:00Z` it put in STATE, were estimates, not clock readings. The ledger then refused an entry
+  whose guessed `acted_at` (19:05Z) was later than its own `at` (L-P10).

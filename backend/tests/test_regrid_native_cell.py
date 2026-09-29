@@ -10,7 +10,9 @@ an actual 0.25-deg grid:
     production reduction's single-cell answer (partition 0.0/1.0, total-sea from the multi-tier function);
   * flag ON off native (1.0 deg): byte-identical (the coarse tiers are not touched);
   * the vectorized and the per-point paths agree with the flag on;
-  * the doubled view equals the 1x1-slice oracle for every reduction (the module's core claim).
+  * the doubled view equals the 1x1-slice oracle for every reduction (the module's core claim);
+  * the SAME for ICON (dwd_gwam_fetcher: every variable and the total-sea confidence) and EURO
+    (ecmwf_opendata_fetcher: the height, deterministic and member spread, now shares its cell with the direction).
 """
 import sys
 import types
@@ -234,3 +236,249 @@ def test_both_fetch_lanes_declare_the_switch_dark_and_equal():
         assert len(found) == 1, wf
         values[wf] = found[0]
     assert set(values.values()) == {"0"}, values
+
+
+# ── ICON (DWD GWAM) ─────────────────────────────────────────────────────────────────────────────────────────────
+# The same rule at dwd_gwam_fetcher.py: one `half` per call. GWAM publishes 0..360 longitudes, so the patch is
+# 280..290 E (= 80..70 W) and the bbox is the same water.
+_GW_LON0 = 280.0
+_GW_VARS = ["swh", "mwd", "tm10", "shts", "mdts", "mpts", "shww", "mdww", "mpww"]
+_GW_OM = {"swh": "wave_height", "mwd": "wave_direction", "tm10": "wave_period", "shts": "swell_wave_height",
+          "mdts": "swell_wave_direction", "mpts": "swell_wave_period", "shww": "wind_wave_height",
+          "mdww": "wind_wave_direction", "mpww": "wind_wave_period"}
+
+
+def _gw_field(var):
+    rng = np.random.default_rng(700 + _GW_VARS.index(var))
+    lo, hi = {"mwd": (0.0, 360.0), "mdts": (0.0, 360.0), "mdww": (0.0, 360.0),
+              "tm10": (4.0, 18.0), "mpts": (4.0, 18.0), "mpww": (4.0, 18.0)}.get(var, (0.0, 5.0))
+    a = rng.uniform(lo, hi, size=(NLAT, NLON))
+    a[rng.uniform(size=a.shape) < 0.15] = np.nan
+    if var in ("shts", "shww"):
+        a[rng.uniform(size=a.shape) < 0.25] = 0.0
+    a[:, :3] = np.nan
+    return a
+
+
+GW_FIELDS = {v: _gw_field(v) for v in _GW_VARS}
+_GW_GLON = np.tile((_GW_LON0 + 0.25 * np.arange(NLON))[None, :], (NLAT, 1))
+
+
+class _GwPath:
+    """What the stubbed download hands pygrib: the URL names the variable, and there is no file to clean up."""
+
+    def __init__(self, url):
+        self.url = url
+
+    def __str__(self):
+        return self.url
+
+    def exists(self):
+        return False
+
+
+class _GwMsg:
+    def __init__(self, var):
+        self.values = GW_FIELDS[var]
+
+    def latlons(self):
+        return _GLAT, _GW_GLON
+
+
+def _gw_run(monkeypatch, native: str, vector: str = "1", resolution: float = 0.25):
+    import services.dwd_gwam_fetcher as fetcher
+
+    def _open(path):
+        var = str(path).split("/")[-2]                           # .../{run}/{var}/GWAM_...grib2.bz2
+        return types.SimpleNamespace(read=lambda: [_GwMsg(var)], close=lambda: None)
+
+    monkeypatch.setitem(sys.modules, "pygrib", types.SimpleNamespace(open=_open))
+    for k, v in {"FETCH_VECTOR_BLOCKMEAN": vector, "DWD_GWAM_DIR_BLOCKMEAN": "1", "DWD_GWAM_DIR_CONFIDENCE": "1",
+                 "DWD_GWAM_SCALAR_BLOCKMEAN": "1", "REGRID_NATIVE_CELL": native}.items():
+        monkeypatch.setenv(k, v)
+    t0 = datetime(2026, 9, 29, 12, tzinfo=timezone.utc)
+    monkeypatch.setattr(fetcher, "_pick_cycle", lambda _rq, _now, _mf: (t0, "20260929", "12"), raising=False)
+    monkeypatch.setattr(fetcher, "_download_grib", lambda _rq, url, _tmp: _GwPath(url), raising=False)
+    points, ok, failed, times = fetcher.fetch_global_coarse(
+        {"bbox": BBOX, "resolution": resolution, "forecast_days": 1, "output_path": ""})
+    assert ok > 0 and points
+    return points
+
+
+def _gw_rc(p):
+    return int(round((LAT0 - p["latitude"]) / 0.25)), int(round(((p["longitude"] % 360.0) - _GW_LON0) / 0.25))
+
+
+def test_icon_flag_off_pins_the_same_defect(monkeypatch):
+    h = GW_FIELDS["swh"]
+    checked = 0
+    for p in _gw_run(monkeypatch, "0"):
+        r, c = _gw_rc(p)
+        block = h[r - 1:r + 1, c - 1:c + 1]
+        got = p["hourly"]["wave_height"][0]
+        if got is None or not np.isfinite(block).any():
+            continue
+        assert got == pytest.approx(float(np.sqrt(np.nanmean(block ** 2))), abs=1e-4)
+        checked += 1
+    assert checked > 100
+
+
+def test_icon_flag_on_every_value_is_the_native_cell_and_the_confidence_its_single_cell_answer(monkeypatch):
+    import services.dwd_gwam_fetcher as fetcher
+    checked = 0
+    for p in _gw_run(monkeypatch, "1"):
+        r, c = _gw_rc(p)
+        for var, om in _GW_OM.items():
+            want = GW_FIELDS[var][r, c]
+            got = p["hourly"][om][0]
+            if np.isfinite(want):
+                assert got == pytest.approx(float(want), abs=1e-4), (om, r, c)
+                checked += 1
+            else:
+                assert got is None, (om, r, c)
+        d1, h1 = one_cell(GW_FIELDS["mwd"], r, c), one_cell(GW_FIELDS["swh"], r, c)
+        _x, conf = F.energy_mean_direction_block_multi_conf([(d1, h1)], d1, 0, 0, 1, True)
+        got_c = p["hourly"][fetcher.DIR_CONFIDENCE_OM][0]
+        assert (got_c is None) == (conf is None)
+        assert got_c is None or got_c == pytest.approx(round(conf, 4), abs=1e-4)
+    assert checked > 1000
+
+
+def test_icon_paths_agree_and_the_coarse_tier_is_untouched(monkeypatch):
+    with monkeypatch.context() as m:
+        vec = _gw_run(m, "1", vector="1")
+    with monkeypatch.context() as m:
+        scal = _gw_run(m, "1", vector="0")
+    assert vec == scal
+    with monkeypatch.context() as m:
+        off = _gw_run(m, "0", resolution=1.0)
+    with monkeypatch.context() as m:
+        on = _gw_run(m, "1", resolution=1.0)
+    assert off == on
+
+
+# ── EURO (ECMWF open data) ──────────────────────────────────────────────────────────────────────────────────────
+# Only the HEIGHT is block-meaned there; direction and periods are point-sampled at the node's own cell. So under
+# the defect one EURO point carried a height from the NW 2x2 beside a direction from its own cell.
+_EU_T0 = datetime(2026, 9, 29, 12, 0, 0)
+_EU_T1 = datetime(2026, 9, 29, 15, 0, 0)
+_EU_GLON = np.tile((LON0 + 0.25 * np.arange(NLON))[None, :], (NLAT, 1))
+
+
+def _eu_field(seed, lo, hi):
+    rng = np.random.default_rng(seed)
+    a = rng.uniform(lo, hi, size=(NLAT, NLON))
+    a[rng.uniform(size=a.shape) < 0.15] = np.nan
+    a[:, :3] = np.nan
+    return a
+
+
+EU = {"swh": _eu_field(901, 0.0, 5.0), "mwd": _eu_field(902, 0.0, 360.0), "pp1d": _eu_field(903, 4.0, 18.0),
+      "mwp": _eu_field(904, 3.0, 12.0)}
+EU_MEMBERS = {1: _eu_field(911, 0.0, 5.0), 2: _eu_field(912, 0.0, 5.0), 3: _eu_field(913, 0.0, 5.0)}
+
+
+class _EuMsg:
+    analDate = None
+
+    def __init__(self, short, vt, field, member=None):
+        self.shortName, self.validDate, self.values = short, vt, field
+        if member is not None:
+            self.perturbationNumber = member
+
+    def latlons(self):
+        return _GLAT, _EU_GLON
+
+
+class _EuGrbs:
+    def __init__(self, msgs):
+        self._m = msgs
+
+    def __iter__(self):
+        return iter(self._m)
+
+    def close(self):
+        pass
+
+
+def _eu_run(monkeypatch, native: str, resolution: float = 0.25, ensemble: str = "0"):
+    import services.ecmwf_opendata_fetcher as fetcher
+    det = [_EuMsg(s, vt, EU[s]) for vt in (_EU_T0, _EU_T1) for s in ("swh", "mwd", "pp1d", "mwp")]
+    mem = [_EuMsg("swh", vt, EU_MEMBERS[m], member=m) for vt in (_EU_T0, _EU_T1) for m in EU_MEMBERS]
+    monkeypatch.setitem(sys.modules, "pygrib",
+                        types.SimpleNamespace(open=lambda path: _EuGrbs(mem if "waef" in str(path) else det)))
+
+    class _Client:
+        def __init__(self, *a, **k):
+            pass
+
+        def retrieve(self, **kw):
+            with open(kw["target"], "wb") as fh:
+                fh.write(b"GRIB-stub")
+
+    od = types.ModuleType("ecmwf.opendata")
+    od.Client = _Client
+    monkeypatch.setitem(sys.modules, "ecmwf.opendata", od)
+    monkeypatch.setitem(sys.modules, "ecmwf", types.ModuleType("ecmwf"))
+    sys.modules["ecmwf"].opendata = od
+    monkeypatch.delenv("ECMWF_PERIOD_BANDS", raising=False)
+    monkeypatch.setenv("ECMWF_WAVE_SCALAR_BLOCKMEAN", "1")
+    monkeypatch.setenv("ECMWF_WAVE_ENSEMBLE", ensemble)
+    monkeypatch.setenv("REGRID_NATIVE_CELL", native)
+    points, ok, _failed, _times = fetcher.fetch_global_coarse(
+        {"bbox": BBOX, "resolution": resolution, "forecast_days": 1, "layer": "waves"})
+    assert ok and points
+    return points
+
+
+def test_euro_flag_off_pins_a_height_from_the_nw_2x2_beside_a_direction_from_the_own_cell(monkeypatch):
+    checked = 0
+    for p in _eu_run(monkeypatch, "0"):
+        r, c = _rc(p)
+        block = EU["swh"][r - 1:r + 1, c - 1:c + 1]
+        got_h, got_d = p["hourly"]["wave_height"][0], p["hourly"]["wave_direction"][0]
+        if got_h is None or got_d is None or not np.isfinite(block).any():
+            continue
+        assert got_h == pytest.approx(float(np.sqrt(np.nanmean(block ** 2))), abs=1e-3)
+        assert got_d == pytest.approx(float(EU["mwd"][r, c]), abs=1e-3)
+        checked += 1
+    assert checked > 100
+
+
+def test_euro_flag_on_the_height_is_the_same_cell_as_everything_else(monkeypatch):
+    checked = 0
+    for p in _eu_run(monkeypatch, "1"):
+        r, c = _rc(p)
+        want = EU["swh"][r, c]
+        got = p["hourly"]["wave_height"][0]
+        if np.isfinite(want):
+            assert got == pytest.approx(float(want), abs=1e-3), (r, c)
+            checked += 1
+        else:
+            assert got is None, (r, c)
+    assert checked > 100
+
+
+def test_euro_flag_on_the_member_spread_is_taken_at_the_same_cell(monkeypatch):
+    from services.ecmwf_opendata_fetcher import reduce_member_values
+    pts = _eu_run(monkeypatch, "1", ensemble="1")
+    assert any(p["hourly"].get("wave_height_spread") for p in pts), "SETUP BROKEN: no spread was served"
+    rcs = [_rc(p) for p in pts]
+    _m, sds, _n = reduce_member_values({m: [F.energy_mean_height_block(one_cell(a, r, c), 0, 0, 1, True)
+                                            for r, c in rcs] for m, a in EU_MEMBERS.items()})
+    checked = 0
+    for p, sd in zip(pts, sds):
+        got = p["hourly"]["wave_height_spread"][0]
+        if got is None or sd is None or sd != sd:
+            continue
+        assert got == pytest.approx(float(sd), abs=1e-3)
+        checked += 1
+    assert checked > 100
+
+
+def test_euro_coarse_tier_is_untouched(monkeypatch):
+    with monkeypatch.context() as m:
+        off = _eu_run(m, "0", resolution=1.0, ensemble="1")
+    with monkeypatch.context() as m:
+        on = _eu_run(m, "1", resolution=1.0, ensemble="1")
+    assert off == on

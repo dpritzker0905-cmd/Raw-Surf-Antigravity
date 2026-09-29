@@ -121,3 +121,7 @@ before starting it.
 - **L-P9 · An exit code with no count is not a result.** `ci_test_lanes.py` prints CRLF on Windows, so
   `pytest $(... --lane chain)` looked for `tests/x.py\r`; wrapped in `|| fallback | tail`, the run exited 0 and
   printed nothing. Strip `\r` (`| tr -d '\r'`) and read the "N passed" line before calling a lane green. (2026-09-29)
+- **L-P10 · Read times from the clock; never write an estimate as a timestamp.** Twice in one hour a time
+  was written ahead of the clock (a log header and STATE's `Updated`, then a ledger `acted_at`). The
+  ledger's own check (`acted_at` not after `at`) refused the second; the first went through unchecked.
+  Take `date -u` or `datetime.now(timezone.utc)` at the moment of writing. (2026-09-29)

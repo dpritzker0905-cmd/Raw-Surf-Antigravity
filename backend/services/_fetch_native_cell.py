@@ -20,6 +20,9 @@ single-cell answer" of five reductions by hand is exactly how a second compositi
     block at (0, 0, half=1) is that cell twice. It is the oracle the tests hold the view to, and the per-point path
     the scalar (non-vectorized) loop and the batch functions' edge fallback use.
 
+Used by the three wave fetchers: noaa_gfs_wave_fetcher (GFS), dwd_gwam_fetcher (ICON) and ecmwf_opendata_fetcher
+(EURO, whose heights alone were block-meaned: under the defect one EURO point carried a height from the NW 2x2
+beside a direction and period from its own cell). ONE switch for all three, because the consensus averages them.
 Gate: REGRID_NATIVE_CELL (default "0" = the legacy 2x2 NW block, byte-identical). Declared in the ingest lanes.
 """
 import os

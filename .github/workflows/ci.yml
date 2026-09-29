@@ -1171,7 +1171,9 @@ jobs:
           # regrid, REGRID_NATIVE_CELL, dark): hosted CI on PR #170 (the parity probe, this branch's base) observed
           # 131 files / 1560. The new tests/test_regrid_native_cell.py (claimed by `--lane chain`) adds 14 executed
           # tests: 1560 + 14 = 1574, 1574 - 6 = 1568; files 132 EXACT; _FLOOR_SET_FROM["chain"] -> 1574.
-          MIN_FILES, MIN_PASSED = 132, 1568
+          # ⬆ MIN_PASSED 1568→1575 in the same PR, IN THE COMMIT THAT CAUSES IT: the ICON and EURO halves add 7 tests to
+          # that same file (21 in all): 1560 + 21 = 1581, 1581 - 6 = 1575; files 132 unchanged; _FLOOR_SET_FROM -> 1581.
+          MIN_FILES, MIN_PASSED = 132, 1575
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
