@@ -185,3 +185,12 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
   its flip, failed at the first fetch: `No module named 'services'`. Production spawns the fetchers by path;
   #171's inline `from services._fetch_native_cell` import breaks every GFS/ICON/EURO fetch, flag on or off.
   Impact so far zero (no ingest since the merge; no Render error). Hotfix PR with a test that is red on dev.
+
+## 20:10-20:21Z · #172 merged before ingest; the flip priced on real GRIB; the land fallback
+- #172 merged 20:10:50Z (owner: "merge when green"), four minutes before the 20:15Z core ingest slot.
+- **Priced the flip on real GRIB (run 36622286406):** vector == scalar on 115,600 values; heights move mean 0.022 m
+  (p90 0.052), directions 5.2 deg (p90 10). **It would blank 20 of 425 coastal nodes** (own cell land). Not offered.
+- **Fix, dark:** a land node answers from its centred 3x3 (symmetric; a superset of the legacy 2x2). The first
+  version used a second batch pass at half=3 and differed from the scalar path on 1 real value in 115,600 (a
+  rounding tie on quantized data, run 36624144116); land nodes now use the same scalar reduction in both paths,
+  pinned by a structural test that is red on the old code. Gate run 36625244679: success: vector == scalar on 115,600 values (IDENTICAL); FLIP_COVERAGE OK (0 total-height values lost; 544 gained at 32 coastal nodes); wave_height mean|d| 0.0244 m p90 0.0552 max 0.6127; direction mean 5.93 deg p90 12.0; swell 207 values empty at sea cells GFS reports without a swell partition.
