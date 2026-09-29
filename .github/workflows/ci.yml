@@ -1131,7 +1131,11 @@ jobs:
           # ledger and the judge): hosted CI on PR #155 (merged as 322d1f20) observed 127 files / 1461.
           # tests/test_nearshore_consensus_arm.py and tests/test_skill_consensus.py (both claimed by `--lane chain`)
           # gain 2 executed tests each: 1461 + 4 = 1465, 1465 - 6 = 1459; files 127 unchanged; _FLOOR_SET_FROM -> 1465.
-          MIN_FILES, MIN_PASSED = 127, 1459
+          # ⬆ MIN_PASSED 1459→1471 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the ledger's consensus split by
+          # coast): hosted CI on PR #157 (merged as a9bf2ac2) observed 127 files / 1465. tests/test_skill_consensus.py
+          # (claimed by `--lane chain`) gains 12 executed tests: 1465 + 12 = 1477, 1477 - 6 = 1471; files 127
+          # unchanged; _FLOOR_SET_FROM["chain"] -> 1477.
+          MIN_FILES, MIN_PASSED = 127, 1471
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

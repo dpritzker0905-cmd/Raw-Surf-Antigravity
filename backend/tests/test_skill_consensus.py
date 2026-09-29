@@ -14,7 +14,7 @@ import pytest
 
 from services.weather_pipeline import buoy_calibration as bc
 from services.weather_pipeline import forecast_skill as fs
-from services.weather_pipeline.skill_consensus import MEMBERS, PAIR, consensus_report
+from services.weather_pipeline.skill_consensus import MEMBERS, PAIR, consensus_report, region_of
 
 NOW = datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc)
 ERR = {"raw_surf": (0.3, -0.3, 0.0), "raw_surf:ICON": (-0.3, 0.0, 0.3), "raw_surf:EURO": (0.0, 0.3, -0.3)}
@@ -192,3 +192,35 @@ def test_the_pair_is_graded_on_the_big_swell_days_too():
     assert b["paired"]["equal"]["bias_m"] == pytest.approx(-0.3, abs=1e-3)
     assert b["pair_beats_best"] is False, "ties the best member (GFS/EURO are exact), never beats it"
     assert b["by_forecast"]["pair_gfs_euro"]["n"] == 12
+
+
+@pytest.mark.parametrize("bid,region", [("41113", "atlantic_se"), ("42035", "gulf"), ("44025", "atlantic_ne"),
+                                        ("46232", "pacific_ne"), ("51201", "hawaii"), ("52200", "other"),
+                                        ("LJPC1", "other"), ("4623", "other"), (None, "other"), (46232, "pacific_ne")])
+def test_a_buoy_region_comes_from_its_ndbc_id(bid, region):
+    assert region_of(bid) == region
+
+
+def test_a_bias_that_changes_sign_by_coast_is_reported_per_coast_not_averaged_away():
+    """GFS-Wave reads HIGH on Florida's east coast and LOW in SoCal (2026-09-28): pooled, the two cancel and GFS looks
+    unbiased; per coast each sign stands, and the member that wins can differ."""
+    east = {"raw_surf": (0.3, 0.3, 0.3), "raw_surf:ICON": (0.0, 0.1, -0.1), "raw_surf:EURO": (0.1, 0.1, 0.1)}
+    west = {"raw_surf": (-0.3, -0.3, -0.3), "raw_surf:ICON": (0.0, 0.1, -0.1), "raw_surf:EURO": (-0.1, -0.1, -0.1)}
+    rows = (_rows(range(8, 40), 90, errs=east, buoy="41113") + _rows(range(0, 7), 30, errs=east, buoy="41113")
+            + _rows(range(8, 40), 90, errs=west, buoy="46232") + _rows(range(0, 7), 30, errs=west, buoy="46232"))
+    rep = consensus_report(rows, NOW)
+    reg = rep["by_region"]
+    assert _lead(rep)["members"]["raw_surf"]["bias_m"] == pytest.approx(0.0, abs=1e-3), "pooled, the signs cancel"
+    assert reg["atlantic_se"]["members"]["raw_surf"]["bias_m"] == pytest.approx(0.3, abs=1e-3)
+    assert reg["pacific_ne"]["members"]["raw_surf"]["bias_m"] == pytest.approx(-0.3, abs=1e-3)
+    assert reg["atlantic_se"]["n"] == reg["pacific_ne"]["n"] == 30, "held-out pairs only, never the training weeks"
+    assert reg["atlantic_se"]["best_member"] == "raw_surf:ICON"
+    assert reg["pacific_ne"]["pair_gfs_euro"]["bias_m"] == pytest.approx(-0.2, abs=1e-3)
+
+
+def test_a_thin_region_refuses_instead_of_printing_a_number():
+    rows = (_rows(range(8, 40), 90) + _rows(range(0, 7), 30)
+            + _rows(range(0, 7), 4, buoy="42035"))
+    reg = consensus_report(rows, NOW)["by_region"]
+    assert reg["gulf"] == {"n": 4, "status": "insufficient"}
+    assert reg["pacific_ne"]["status"] == "scored"

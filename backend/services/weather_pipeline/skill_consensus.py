@@ -19,6 +19,10 @@ never saw. This is that measurement, from rows the ledger already scored: no fet
     The nearshore judge's consensus arm (#155) graded the members after the transform on identical hours: GFS 0.156,
     equal mean 0.117, EURO alone 0.102, ICON 0.203 m (ICON +0.12 m high), so dropping ICON is the next candidate.
     Scored on the SAME pairs as the equal mean (all three members present), so the two compare like with like.
+  * `by_region` (2026-09-29): the same held-out pairs, pooled over the leads, split by coast. GFS-Wave's input bias
+    changes SIGN by region (Florida east x1.10-1.27 HIGH; SoCal x0.85-0.89 and the Gulf x0.54-0.85 LOW, measured
+    2026-09-28), so which consensus helps depends on where, and one global MAE can hide a candidate that wins on
+    one coast and loses on another.
   * Graded on the held-out week against each member and the best of them. Thin leads refuse with a status.
 
 Changes no served number.
@@ -31,6 +35,15 @@ from services.weather_pipeline.skill_mos import HOLDOUT_DAYS, _lead, _parse
 
 MEMBERS = ("raw_surf", "raw_surf:ICON", "raw_surf:EURO")
 PAIR = ("raw_surf", "raw_surf:EURO")      # the served GFS lane + EURO: the equal mean without ICON
+# NDBC's WMO numbering carries the region in the first two digits of a five-digit station id.
+NDBC_REGIONS = {"41": "atlantic_se", "42": "gulf", "44": "atlantic_ne", "46": "pacific_ne", "51": "hawaii"}
+
+
+def region_of(buoy_id) -> str:
+    """The coast a ledger buoy sits on, from its NDBC id; "other" for anything that is not a five-digit id in a
+    listed region (CDIP-only ids, the western Pacific, Europe). PURE."""
+    s = str(buoy_id or "")
+    return NDBC_REGIONS.get(s[:2], "other") if len(s) == 5 and s.isdigit() else "other"
 MIN_TEST = 10
 # BIG SWELL (2026-09-28): a mean is smoother than any member, so it can shave the peaks of the days that matter
 # most for surf, and the all-sea MAE would hide that behind the many small days. Two selections, as #132 taught:
@@ -82,11 +95,14 @@ def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_
             continue
         keys.setdefault((r.get("buoy_id"), t.isoformat(), lead), {})[src] = (float(x), float(y), t)
     by_lead: Dict[int, Dict[str, list]] = {}
-    for (_, _, lead), got in keys.items():
+    held_out_by_region: Dict[str, list] = {}
+    for (buoy, _, lead), got in keys.items():
         if len(got) != len(members):
             continue                                   # like with like: every member on every pair
         t = next(iter(got.values()))[2]
         by_lead.setdefault(lead, {"train": [], "test": []})["test" if t >= cutoff else "train"].append(got)
+        if t >= cutoff:
+            held_out_by_region.setdefault(region_of(buoy), []).append(got)
     out = []
     for lead, g in sorted(by_lead.items()):
         entry = {"lead_h": lead, "n_train": len(g["train"]), "n_test": len(g["test"])}
@@ -128,4 +144,26 @@ def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_
         out.append(entry)
     return {"method": "three_model_consensus_equal_debiased_weighted", "members": list(members),
             "holdout_days": holdout_days, "cutoff": cutoff.isoformat(),
-            "paired_keys": sum(e["n_train"] + e["n_test"] for e in out), "by_lead": out}
+            "paired_keys": sum(e["n_train"] + e["n_test"] for e in out), "by_lead": out,
+            "by_region": _by_region(held_out_by_region, members, min_test)}
+
+
+def _by_region(groups: Dict[str, list], members, min_test: int) -> Dict:
+    """Held-out pairs per coast, pooled over the leads: each member, the equal mean and (with GFS and EURO among the
+    members) the pair, as MAE and bias; the best member; and whether the equal mean or the pair beats it."""
+    out = {}
+    for region, pairs in sorted(groups.items()):
+        if len(pairs) < min_test:
+            out[region] = {"n": len(pairs), "status": "insufficient"}
+            continue
+        obs = [p[members[0]][1] for p in pairs]
+        per = {m: _stats([p[m][0] - p[m][1] for p in pairs]) for m in members}
+        best = min(members, key=lambda m: per[m]["mae_m"])
+        entry = {"n": len(pairs), "status": "scored", "members": per, "best_member": best,
+                 "equal": _stats([sum(p[m][0] for m in members) / len(members) - o for p, o in zip(pairs, obs)])}
+        entry["equal_beats_best"] = entry["equal"]["mae_m"] < per[best]["mae_m"]
+        if all(m in members for m in PAIR):
+            entry["pair_gfs_euro"] = _stats([sum(p[m][0] for m in PAIR) / len(PAIR) - o for p, o in zip(pairs, obs)])
+            entry["pair_beats_best"] = entry["pair_gfs_euro"]["mae_m"] < per[best]["mae_m"]
+        out[region] = entry
+    return out
