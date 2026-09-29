@@ -94,3 +94,15 @@ with a single line `Superseded by D-MMM (date)`. The newest entry is at the bott
   close by the same mechanism over 24-72 h of scored rows. Split ledger analyses at the flip time: the consensus
   shadow's members change with it.
 - **Revert:** `REGRID_NATIVE_CELL: '0'` in BOTH lanes (or revert the flip PR); the next cycle is legacy again.
+
+### D-011 · The Pacific NW / NorCal regional box is on (GFS_MARINE_STAGE_B)
+- **Decided:** by the owner, 2026-09-29 ("Merge #177 and flip the Stage B PNW box").
+- **Rule:** the GFS marine pass also slices F-08 Stage B's first box, `us_pacific_northwest` (38-49N, 128-122W), in
+  both fetch lanes; ICON/EURO are unchanged (GFS-only, like Stage A). The code default stays '0'.
+- **Why:** the 2-deg global_mid tier those 23 spots used reads +0.097 m high against the same model (38% of the
+  squared gap; 46244 Humboldt +0.50 m), because no 0.25-deg box covered 38-49N (probe, 2026-09-29 21:26Z).
+- **Cost accepted:** ~220 products per GFS run; Render memory was 55-65% of 2 GB over the prior 3 days (F-08's gate).
+- **Measure after:** the box's products in the manifest at the next pilots run; Render memory inside its 7-day band;
+  the parity probe moves 46244/46211/46243/46206/46213 from global_mid to regional and the tier's excess falls.
+- **Revert:** '0' in BOTH lanes (or revert the flip PR).
+

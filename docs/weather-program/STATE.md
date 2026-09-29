@@ -1,12 +1,12 @@
 # Weather program: state
 
-**Updated 2026-09-29 21:39Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-29 22:16Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
-- **`dev` = `f4590a3d`** (#175 at 21:39:05Z). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the memory upgrades (commitments, completeness, clock, seq references).
-- **Open commitments:** ledger seq 77-80 (`python backend/scripts/action_ledger.py open`).
+- **`dev` = `1e02df3f`** (#177 at 22:13:01Z). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
+- **Open PRs of ours:** the Stage B FLIP (GFS_MARINE_STAGE_B '1'; D-011; the owner's word).
+- **Open commitments:** `python backend/scripts/action_ledger.py open` (seq 77-79, 86).
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
   per-spot size references (`RATING_LOCAL_SIZE=1`), now fail-closed in the precompute (#162).
@@ -29,10 +29,10 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 82, sha256 9d29625bcd45f3fe5a74e4fe6713729c0ed722d5bef25148fca42cae9593c3a8**
+  **Ledger head: seq 87, sha256 ebd301c7c10fceab0bcd9352b59b3c6408f67645c3cd649d39b6244bf5044998**
 
 ## Next fixes, in order
-- **NOW: a Pacific NW / NorCal regional tile.** The 2-deg global_mid tier reads +0.097 m high vs the same
+- ~~**A Pacific NW / NorCal regional tile**~~ built (#177) and flipped (D-011); The 2-deg global_mid tier reads +0.097 m high vs the same
   model (38% of the squared gap), led by 46244 Humboldt (+0.50 m) and Oregon/Washington buoys that no
   regional tile covers (us_west_coast_socal stops at 38N). Size it against Render memory (F-08).
 0. ~~**Regrid at native resolution**~~ FLIPPED by #174 (D-010); verify with the probe and the ledger: every 0.25-deg regional tile of GFS, ICON and EURO is a 2x2
