@@ -741,7 +741,11 @@ jobs:
           # shadow A/B replays SURF_NEARSHORE_MOP): hosted CI on PR #120 (merged as 52e0ec53) observed 173 files / 2101.
           # The new tests/test_rating_shadow_ab_mop.py (claimed by `--lane guards`) adds 10 executed tests:
           # 2101 + 10 = 2111, 2111 - 6 = 2105; files 174 EXACT; _FLOOR_SET_FROM["guards"] -> 2111.
-          MIN_FILES, MIN_PASSED = 174, 2105
+          # ⬆ MIN_PASSED 2105→2110 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the shadow A/B measures against
+          # the recomputed baseline and refuses an unread blob): hosted CI on PR #150 (merged as 9c7ccaf0) observed
+          # 174 files / 2111. tests/test_rating_shadow_ab.py (claimed by `--lane guards`) gains 5 executed tests:
+          # 2111 + 5 = 2116, 2116 - 6 = 2110; files 174 unchanged; _FLOOR_SET_FROM["guards"] -> 2116.
+          MIN_FILES, MIN_PASSED = 174, 2110
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
