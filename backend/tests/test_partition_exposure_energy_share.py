@@ -142,8 +142,7 @@ def test_the_gate_is_REACHABLE_through_the_real_upstream_chain():
     """
     import math
     from services.weather_pipeline.point_resolution import PointResolutionService
-    from services.weather_pipeline.surf_transform import (
-        partitions_represent, reconcile_partitions)
+    from services.weather_pipeline.surf_partitions import partitions_represent, reconcile_partitions
 
     # 1. the windsea train is actually collected by the live builder
     kinds = {kind for _layer, kind in PointResolutionService._PARTITION_LAYERS}

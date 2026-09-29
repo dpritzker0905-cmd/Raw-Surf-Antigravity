@@ -150,7 +150,7 @@ def train_from_point(kind: str, payload: dict):
 def station_trains(answers: list, total_h, total_tp=None):
     """[(kind, payload)] -> the reconciled trains the served lane would use, or None when they do not
     represent the sea (the served lane then falls back to the total field, and so does this arm)."""
-    from services.weather_pipeline.surf_transform import partitions_represent, reconcile_partitions
+    from services.weather_pipeline.surf_partitions import partitions_represent, reconcile_partitions
     parts = [t for t in (train_from_point(k, a) for k, a in answers or []) if t]
     if not parts or not partitions_represent(parts, total_h, total_tp):
         return None
