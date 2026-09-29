@@ -41,7 +41,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/weather")
 
 # Instantiate Store and Sampler
-store = ProductStore()
+# The SERVING view (consensus_serve.ServedStore: a no-op unless CONSENSUS_SERVE=1); ingest keeps its own store.
+from services.weather_pipeline.consensus_serve import served_store  # noqa: E402
+store = served_store(ProductStore())
 dynamic_index = DynamicProductIndex()
 sampler = PointSampler()
 provider = OpenMeteoProvider()

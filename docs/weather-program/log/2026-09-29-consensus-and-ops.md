@@ -201,3 +201,12 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
 - After the merge, measure: the parity probe's node-vs-native gap (0.045 m before) once the regional tiles
   re-ingest (pilots every ~8 h; worldwide regions every ~32 h); the ledger's same-model gap (S2 NCEP line) over
   24-72 h of scored rows. Split ledger analyses at the flip: the consensus shadow's members change with it.
+
+## 21:16-21:24Z · #173 and #174 (the regrid FLIP) merged; the consensus serving switch
+- #173 merged 20:56:30Z, #174 21:16:33Z (`4c8c991d`): **REGRID_NATIVE_CELL is ON** in both fetch lanes.
+- **The next fix, built dark:** `consensus_serve.ServedStore`, a serving view of the store wrapped at
+  `routes.weather.store` and `_make_point_resolver` only. With CONSENSUS_SERVE=1 a GFS regional waves frame loads
+  as its same-run CONSENSUS twin (GFS kept at unblended cells); ingest keeps its own store, so the consensus is
+  never built from itself. A `raw_surf:GFS_RAW` ledger lane keeps the GFS baseline. End to end, /point GFS in
+  Florida: 0.8 m off, 1.0 m on, 0.8 m raw. 27 tests; 15/15 mutations (the first pass left 3 survivors; each got a
+  test). Ledger seq 69-71.

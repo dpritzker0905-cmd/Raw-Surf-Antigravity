@@ -330,8 +330,10 @@ def _make_point_resolver():
     from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
     from services.weather_pipeline.dynamic_index import DynamicProductIndex
     from services.weather_pipeline.store import ProductStore
-    return PointResolutionService(store=ProductStore(), sampler=PointSampler(), provider=OpenMeteoProvider(),
-                                  dynamic_index=DynamicProductIndex())
+    from services.weather_pipeline.consensus_serve import served_store
+    # The SERVING view: these ratings and calibrations describe what users are served (consensus_serve).
+    return PointResolutionService(store=served_store(ProductStore()), sampler=PointSampler(),
+                                  provider=OpenMeteoProvider(), dynamic_index=DynamicProductIndex())
 
 
 def _top_of_hour_utc():
