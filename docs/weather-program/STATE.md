@@ -6,7 +6,7 @@ is a claim, not a measurement.
 ## Now
 - **`dev` = `de72c81c`** (#168 at 15:30:45Z, after #167 `b16dbb5d` at 15:30:00Z). The Render backend
   auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** PR C (the shadow's instruments: ledger `shadow` block, judge SHADOW_AB, `/point`
+- **Open PRs of ours:** #169, PR C (the shadow's instruments: ledger `shadow` block, judge SHADOW_AB, `/point`
   accepts CONSENSUS).
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
@@ -25,7 +25,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 38, sha256 fba1c19c7f6928ef44ed2f0d9c557d20ca2c2e93174c5d8a58fbfcd5987beed3**
+  **Ledger head: seq 39, sha256 5bbd6a1d2e91f8c8429a23cd32cb1ca7e587d01181d1cf80f87259a181193943**
 
 ## Next fixes, in order
 1. ~~**Accuracy monitor false alarm**~~ merged as #166 (`0b169692`): page on "no scored rows for N hours", not on one zero-score pass
