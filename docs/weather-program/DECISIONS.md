@@ -68,6 +68,17 @@ with a single line `Superseded by D-MMM (date)`. The newest entry is at the bott
 - **Rule:** the write protocol in `README.md`. Agent-local memory keeps pointers and working-style facts.
 - **Reopen if:** the owner prefers another store.
 
+### D-009 · The consensus enters as a SHADOW product first
+- **Decided:** by the owner, 2026-09-29 ~14Z (asked with a recommendation; refines D-006's build plan).
+- **Rule:** consensus PR B builds the equal mean at ingest as its OWN product set (model `CONSENSUS`, never
+  requested by the frontend). The skill ledger grades it as a fourth lane on real buoy hours and the nearshore judge
+  grades it through `/point`, so the exact built product has evidence before any user sees it, and GFS-alone stays
+  intact as the baseline. The owner's flip then switches the served GFS waves to it: one switch, instant rollback.
+- **Why not rewrite GFS in place:** pre-flip evidence would come only from the judge's approximation, and the ledger
+  and judge would lose their GFS baseline (their equal-mean arm would count EURO and ICON twice).
+- **Cost accepted:** about +5% manifest entries (~850 regional wave frames) on the memory-tight box (D-005).
+- **Reopen if:** the manifest growth threatens Render memory headroom.
+
 ### D-010 · Regional wave tiles read their exact native cell (REGRID_NATIVE_CELL on)
 - **Decided:** by the owner's merge of the flip PR, 2026-09-29 (the merge is the word, as with #168).
 - **Rule:** every 0.25-deg regional wave node of GFS, ICON and EURO reads its own native cell; a node whose own
@@ -83,14 +94,3 @@ with a single line `Superseded by D-MMM (date)`. The newest entry is at the bott
   close by the same mechanism over 24-72 h of scored rows. Split ledger analyses at the flip time: the consensus
   shadow's members change with it.
 - **Revert:** `REGRID_NATIVE_CELL: '0'` in BOTH lanes (or revert the flip PR); the next cycle is legacy again.
-
-### D-009 · The consensus enters as a SHADOW product first
-- **Decided:** by the owner, 2026-09-29 ~14Z (asked with a recommendation; refines D-006's build plan).
-- **Rule:** consensus PR B builds the equal mean at ingest as its OWN product set (model `CONSENSUS`, never
-  requested by the frontend). The skill ledger grades it as a fourth lane on real buoy hours and the nearshore judge
-  grades it through `/point`, so the exact built product has evidence before any user sees it, and GFS-alone stays
-  intact as the baseline. The owner's flip then switches the served GFS waves to it: one switch, instant rollback.
-- **Why not rewrite GFS in place:** pre-flip evidence would come only from the judge's approximation, and the ledger
-  and judge would lose their GFS baseline (their equal-mean arm would count EURO and ICON twice).
-- **Cost accepted:** about +5% manifest entries (~850 regional wave frames) on the memory-tight box (D-005).
-- **Reopen if:** the manifest growth threatens Render memory headroom.

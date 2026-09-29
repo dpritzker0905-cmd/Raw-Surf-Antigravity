@@ -138,3 +138,6 @@ before starting it.
   scalar form under `allclose` everywhere and differed on real GRIB in 1 of 115,600 values after 4-decimal rounding:
   quantized inputs make ties common. When two paths must be identical, compare exactly, and prefer one shared
   function over two that agree. When a numeric test cannot reach the failure, pin the structure instead. (2026-09-29)
+- **L-P13 · A pipe hides the exit code it feeds.** `memory_audit ... | tail -1 && git commit && git push` pushed a
+  head whose audit FAILED: `&&` gated on `tail`, which always succeeds. Run a gate on its own (or `set -o
+  pipefail`) and read its verdict before the next step. Sibling of L-P9. (2026-09-29)
