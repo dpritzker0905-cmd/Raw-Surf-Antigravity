@@ -226,3 +226,9 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
 - #176 merged 22:02:05Z (the memory upgrades; its first CI run exposed that the completeness check
   was skipped in CI, fixed before merge, ledger seq 81). #177 merged 22:13:01Z (us_pacific_northwest,
   dark). The flip PR (D-011) is the owner's word: "flip the Stage B PNW box". Commitment seq 86 verifies it.
+
+## 22:37-22:38Z · #179 (Stage B flip) merged; commitment 77 met; the next fix measured first
+- #179 merged 22:37:30Z (`cdd5cc7c`): GFS_MARINE_STAGE_B '1' in both fetch lanes (D-011).
+- Commitment 77 met: the hotfix's first production run fetched all three models by path, 0 import errors.
+- Next fix: the ledger's big-swell bias (-0.59 m served, -0.44 m equal) is binned by OBSERVED height; re-measure by
+  FORECAST height before any calibration (commitment seq 94).
