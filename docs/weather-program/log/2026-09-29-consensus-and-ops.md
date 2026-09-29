@@ -122,3 +122,19 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
 - The arming change (`CONSENSUS_INGEST: '1'` in the three lanes + the parity test) is committed on
   `claude/arm-consensus-shadow`, stacked on the fix, unpushed: it goes up only after the fix merges and on the
   owner's word.
+
+## 15:00-15:40Z · the token works; #167 and #168 merged; the shadow is ARMED; the first armed pilots run queued
+- **The dispatch fallback works.** Its first pass after the owner's token fix (15:00:50Z) DISPATCHED the missed core
+  ingest 12:15Z and pilots 11:45Z slots (runs 36586921881 and 36586926594 on `f080ad90`, read back from GitHub); the
+  next pass (15:22:48Z, a fresh instance) declined to stack duplicates while they ran. The owner's later permission
+  update (~15:12Z) had no separate observable effect.
+- Pre-arming checks, done before merging #168: a ledger lane row with no forecast height is skipped (a CONSENSUS miss
+  is a skipped row, not a crash), and the consensus report averages a FIXED member list (the shadow never enters the
+  mean it is graded against).
+- #167 merged 15:30:00Z (`b16dbb5d`; hosted chain 130 / 1541 = projection). #168 merged 15:30:45Z (`de72c81c`)
+  WITHOUT a rebase: a trial `git merge-tree` onto the new dev changed exactly the 4 arming files and kept all 32
+  ledger lines (GitHub's own file list was stale). All three lanes read `CONSENSUS_INGEST: '1'` on dev.
+- Pilots run **36590800405** dispatched 15:31:05Z on `de72c81c`, pending behind the unarmed 36586926594. Its
+  `[Consensus] shadow build complete: N frames ...` line is the verification (ledger seq 38, pending).
+- PR C (the shadow's instruments) opened next: ledger `shadow` block with a construction check, judge SHADOW_AB with
+  BUILT_VS_COMPUTED, `/point` accepting CONSENSUS.

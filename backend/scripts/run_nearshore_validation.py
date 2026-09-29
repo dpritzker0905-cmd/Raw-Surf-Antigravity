@@ -103,6 +103,16 @@ def consensus_fields(fetch, base: str, spot: dict, valid_time: str, gfs: dict, g
     p = equal_consensus(members, PAIR_MEMBERS)
     if p:
         out["model_hs_pair_m"] = at(p)       # GFS + EURO: the equal mean without ICON
+    # THE BUILT SHADOW (D-009): what the CONSENSUS product itself serves here, through the same transform on its own
+    # period and bearing (GFS's, by construction). A spot no shadow tile covers answers 404 and costs only this arm.
+    try:
+        sp = fetch(f"{base}/api/weather/point?model=CONSENSUS&domain=marine&layer=waves"
+                   f"&lat={spot['lat']}&lng={spot['lng']}&valid_time={valid_time}").get("point") or {}
+        if sp.get("speed") is not None and sp.get("period") is not None and sp.get("direction") is not None:
+            out["model_hs_shadow_m"] = at({"hs": sp["speed"], "tp": sp["period"], "dir": sp["direction"]})
+            out["shadow_offshore_hs_m"] = round(float(sp["speed"]), 4)
+    except Exception:                                                 # noqa: BLE001 — one arm, never the row
+        pass
     out["member_offshore_hs_m"] = {m: a["hs"] for m, a in members.items()}
     return out
 
@@ -318,7 +328,7 @@ def main() -> int:
     report["n_station_hours"] = len({(m["station"], m["obs_time"]) for m in matched})
     report["point_api"] = {"base": args.base, "valid_time": valid_times[0], "valid_times": len(valid_times),
                            "calls": (len(preds) * (1 + len(TRAIN_LAYERS) * bool(args.trains)
-                                                   + (len(CONSENSUS_MEMBERS) - 1) * bool(args.consensus))) + point_fail,
+                                                   + len(CONSENSUS_MEMBERS) * bool(args.consensus))) + point_fail,
                            "failed": point_fail, "trains": bool(args.trains), "consensus": bool(args.consensus)}
     if args.mop:
         report["mop"] = {"product": "MOP_validation forecast (WW3-driven)", "stations": mop_status}
@@ -383,6 +393,13 @@ def main() -> int:
               f"bulk={cab['bulk']['mae_m']}/{cab['bulk']['bias_m']:+} consensus={cab['arm']['mae_m']}/{cab['arm']['bias_m']:+} "
               f"closer={cab['arm_closer_share']} SAME_ROWS "
               + " ".join(f"{k}={v['mae_m']}/{v['bias_m']:+}" for k, v in cab["same_rows"].items()))
+    sab = report.get("shadow_ab")
+    if sab:
+        print(f"SHADOW_AB n={sab['n']} station_hours={sab['n_station_hours']} "
+              f"bulk={sab['bulk']['mae_m']}/{sab['bulk']['bias_m']:+} shadow={sab['arm']['mae_m']}/{sab['arm']['bias_m']:+} "
+              f"closer={sab['arm_closer_share']} BUILT_VS_COMPUTED offshore |shadow-consensus| "
+              f"median={sab['built_vs_computed']['median_m']} p90={sab['built_vs_computed']['p90_m']} "
+              f"n={sab['built_vs_computed']['n']}")
     for m, v in sorted((report.get("member_ab") or {}).items()):
         print(f"MEMBER_AB {m} n={v['n']} station_hours={v['n_station_hours']} "
               f"gfs={v['bulk']['mae_m']}/{v['bulk']['bias_m']:+} {m.lower()}={v['arm']['mae_m']}/{v['arm']['bias_m']:+} "
