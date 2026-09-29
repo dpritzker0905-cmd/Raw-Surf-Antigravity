@@ -81,6 +81,30 @@ Live at 22:41Z: Render `cdd5cc7c`, healthy, 9/9 data lanes ok, 0 alerts, RSS 401
   - [ ] R4 three themes x desktop/mobile screenshots; R5 axe; R6 capacity; R7 rollback note.
 - [ ] W-12 Finish the pixel-truth test: its own finish line is "un-fixme once the latch wait passes 3 consecutive
   local headed runs" (`weather-simulation.spec.js:563`). Needs Playwright browsers on this machine (none installed).
+  **2026-09-29 23:08-23:36Z, first real runs** (owner: "install Playwright"; the tool sandbox refuses to execute the
+  unsigned Playwright Chromium, "side-by-side configuration is incorrect", so the runs used signed system Chrome 154
+  via `channel: 'chrome'` with a fresh profile, against a production build of `dev` + the live backend):
+  - run 1 FAILED "sea moved on 76% of cells but only 2.60% of pixels changed": the clip graded land and the
+    Diagnostics HUD (the app now boots on the Space Coast, the test assumed open Atlantic). Fixed: the test sets its
+    own camera and shoots the canvas only.
+  - over open ocean (30N 66W z7) the gate never opened: the projection diag is written only by `/grid`, never by the
+    `grid_series` lane (W-36). Fixed: the gate reads the engine's committed truthTag. The 2-deg wash there is
+    near-uniform (varianceFraction 0.0008), so the camera moved into the 0.25-deg Florida tile (28.4N 80.4W z9).
+  - crest LIFECYCLE is not frozen by `__RAW_WAVE_SPEED__ = 0`: same-hour noise 19-29% of pixels; with
+    `__RAW_PART_TARGET__ = 1` (the engine's 2% density floor) 3-6%. The engine state was identical across frames
+    (product, hour 0, heatmap opacity 0.76, mult 1, coarseFade 1): no clear-and-recommit, no opacity flicker.
+  - **still open, why it stays fixme:** with crests at the floor, the +24 h step changed 2-5% of pixels, equal to
+    the noise, while the grid mean rose 0.279 -> 0.384 m and half the cells moved > 0.25 m (max 0.68 m). Either
+    the 0-20+ ft ramp cannot show a 1-2 ft day-to-day change on a calm sea, or the picture does not follow the
+    data. Next measurement: the colour the ramp PREDICTS per cell vs the pixel read back.
+  - ⚠️ correction: "the right ~37% of the sea is blank at +24 h" (said in chat at ~23:33Z) was React Scan's overlay
+    (`#react-scan-root`, attached outside `<body>`, loaded on localhost only) in the forensic script, which, unlike
+    the spec, did not mock unpkg. The spec's runs were clean of it.
+  Test-only PR: the improvements above, `test.fixme` kept with the measured blocker in its comment.
+- [ ] W-36 The marine projection diag (`updateProjectionDiag`, `backendWeatherServiceClientDiag.js:119`) is written
+  by the `/grid` path only; over open ocean the field arrives through `grid_series` and the diag stays at "Initial
+  state" with the last region's coverage. Readers: the legend's "~N km grid" notice (`legendTicks.js:99`) and the
+  infobox product match (`backendWeatherServiceClientPoint.js:352`). Measured 23:14Z, production build.
 - [ ] W-11 **Owner:** unfreeze decision with W-10 attached.
 
 ### Phase 2 · The shared backend survives a deploy
@@ -133,3 +157,5 @@ W-42; F12 (Stripe key).
   that build read provider NOAA, source `ncep_gfswave025`, class AUTHORITATIVE NATIVE, no causal violations.
   Build: `npx craco build` (NODE_OPTIONS=--openssl-legacy-provider), served by a scratchpad SPA server; the
   temporary `.claude/launch.json` entry was reverted, nothing of it is committed.
+- 23:04:57Z #180 merged (by the handoff session; ledgered seq 103). 23:08Z Playwright Chromium installed (owner's
+  word). 23:37:30Z #181 merged (owner's word) as `5f6120a6`. 23:08-23:36Z W-12 runs (above). Next fix: W-32.

@@ -568,6 +568,16 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
   // latch added after a transient commit was indistinguishable from none. Remaining: the +24h
   // commit is not yet reliably observed against the shared 1-CPU box under repeated runs.
   // Finish = un-fixme once the latch wait passes 3 consecutive local headed runs.
+  // ⭐ FIRST REAL RUNS (2026-09-29, headed system Chrome vs a production build of dev + the live backend):
+  // fixed here: (a) the clip graded land + the Diagnostics HUD because the app now boots on the Space
+  // Coast (the test sets its own sea); (b) the readiness gate read only the /grid diag, which the
+  // grid_series lane never writes (it stays 'Initial state' over open ocean): the engine's commit is the
+  // gate now; (c) crest lifecycle noise (above). STILL OPEN, why it stays fixme: on a calm sea the +24 h
+  // step moved the grid mean 0.279 -> 0.384 m (half the cells > 0.25 m) yet changed 2-5% of pixels,
+  // equal to the 3-6% noise. Either the 0-20+ ft ramp cannot show a 1-2 ft day-to-day change, or the
+  // picture does not follow the data; the data discriminator (0.039 m) cannot tell them apart. Next:
+  // grade against the colour the ramp PREDICTS for each cell, not a texture quantum
+  // (docs/weather-program/log/2026-09-29-sim-works-plan.md, W-12).
   test.fixme('the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels', async ({ page }) => {
     // Page load (8-20 s) + one marine cache miss (18-35 s) + a series-warm scrub commit — the
     // same measured budgets as the sibling tests.
@@ -589,16 +599,34 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     const isMobile = await page.evaluate(() => window.innerWidth < 768);
     test.skip(isMobile, 'pixel truth runs on the desktop layout — the bottom-sheet flow adds motion this oracle would misread');
 
+    // ⛔ OPEN OCEAN, SET BY THE TEST (2026-09-29, first real run of this oracle). The clip below was
+    // written for a boot view of open Atlantic; the app now boots on the Florida Space Coast at z9,
+    // so the clip graded land and the Diagnostics HUD: "sea moved on 76% of cells but only 2.60% of
+    // pixels changed". The oracle must choose its own sea, never inherit the app's default camera.
+    // ⚠️ Open ocean alone is not enough: at 30N 66W z7 the 2-deg mid tier paints a near-uniform wash
+    // (varianceFraction 0.0008) that the paint gate below cannot tell from no paint. The camera sits
+    // inside the 0.25-deg florida_east_coast tile (82-79W, 27-30N) and the clip (set below) covers only
+    // its sea side, 30-100 km offshore: real structure, no land, no tier seam.
+    await page.evaluate(() => {
+      const m = window.__MAP_INSTANCE__ || window.map;
+      if (m) m.jumpTo({ center: [-80.4, 28.4], zoom: 9 });
+    });
+
     // Activate Waves and wait for the engine (not the fallback) to be renderable.
     const wavesBtn = page.locator('button').filter({ hasText: 'Waves' }).filter({ visible: true }).first();
     await expect(wavesBtn).toBeVisible();
     await wavesBtn.evaluate(el => el.click());
     try {
+      // The ENGINE's own commit is the readiness oracle (its truthTag names the product it holds).
+      // The projection diag is written only by the /grid path; over open ocean the field arrives
+      // through the grid_series lane alone and the diag stays at "Initial state" (2026-09-29), so a
+      // diag-only gate never opens there even though the engine is painting.
       await page.waitForFunction(() => {
         const diag = window.__MARINE_PROJECTION_DIAG__;
         const eng = window.__MARINE_ENGINE__;
-        return diag && (diag.renderable === true || diag.renderDecision === 'render' || diag.renderDecision === 'clip_to_coverage')
-               && eng && eng._waveData && eng._waveData.waveGrid;
+        const committed = eng && eng._waveData && eng._waveData.waveGrid;
+        const diagSaysRender = diag && (diag.renderable === true || diag.renderDecision === 'render' || diag.renderDecision === 'clip_to_coverage');
+        return committed && (diagSaysRender || !!(eng._waveData.truthTag && eng._waveData.truthTag.product_id));
       }, null, { timeout: 45000 });
     } catch (err) {
       const seen = await page.evaluate(() => ({
@@ -615,6 +643,11 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     // without it (measured on this oracle's fourth live run: engineHour null at timeout).
     await page.evaluate(() => {
       window.__RAW_WAVE_SPEED__ = 0;
+      // Crest LIFECYCLE is not frozen by the drift lever: crests are born and fade on the wall clock.
+      // Measured 2026-09-29 (0.25-deg Florida tile, z9, canvas only): same-hour noise 19-29% of pixels
+      // at the default 1650 crests, 3-6% with the target at 1 (the engine's 2% density floor,
+      // WebGLMarineEngine.js densityBase). The heatmap wash is the subject; crests only add noise.
+      window.__RAW_PART_TARGET__ = 1;
       window.__E2E_MAX_HOUR__ = 0;
       if (!window.__E2E_HOUR_POLLER__) {
         window.__E2E_HOUR_POLLER__ = setInterval(() => {
@@ -633,19 +666,31 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     // CLIP = the central-ocean region only: hard-inset away from the right-side weather panel,
     // the bottom timeline wheel, and the left rail — none of that UI may vote in a FIELD oracle
     // (first live run: the +1d readout repaint alone measured 0.16% and could masquerade as
-    // field change). At the default boot viewport this window is open Atlantic.
+    // field change). With the camera set above, x 55-90% of the canvas is sea inside the tile
+    // (about 80.25-79.2W at 28.2-29.0N; the coast is at 80.6-80.95W there).
     const clip = {
-      x: box.x + box.width * 0.08,
+      x: box.x + box.width * 0.55,
       y: box.y + box.height * 0.15,
-      width: Math.max(64, box.width * 0.50),
+      width: Math.max(64, box.width * 0.35),
       height: Math.max(64, box.height * 0.45),
+    };
+    // CANVAS ONLY for the instant of each shot: every element but the map canvas is made invisible
+    // (visibility keeps layout, so nothing moves), so no panel, HUD, readout or marker can vote in a
+    // FIELD oracle, whatever the build shows. The same helper takes all three shots.
+    const CANVAS_ONLY = 'body * { visibility: hidden !important; } canvas.maplibregl-canvas { visibility: visible !important; }';
+    const shoot = async () => {
+      const style = await page.addStyleTag({ content: CANVAS_ONLY });
+      await page.waitForTimeout(150);
+      const png = await page.screenshot({ clip });
+      await style.evaluate(el => el.remove());
+      return png;
     };
 
     // CONTROL PAIR — same hour, ~1.2 s apart: measures residual animation noise (foam phase is
     // wall-clock and cannot be frozen; that is WHY the threshold is self-calibrated).
-    const shotA1 = await page.screenshot({ clip });
+    const shotA1 = await shoot();
     await page.waitForTimeout(1200);
-    const shotA2 = await page.screenshot({ clip });
+    const shotA2 = await shoot();
     const noise = diffFraction(shotA1, shotA2);
 
     // PAINT GATE (first live run, 2026-08-09): this spec's route mocks blank the basemap, so ANY
@@ -727,13 +772,17 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     test.skip(seaMovedFrac < 0.10,
       `the sea itself moved on only ${(seaMovedFrac * 100).toFixed(1)}% of sampled cells across the step — the renderer cannot be graded on an unchanged input; becalmed frame, re-run later`);
 
-    const shotB = await page.screenshot({ clip });
+    const shotB = await shoot();
     const change = diffFraction(shotA1, shotB);
 
     // THE ASSERTION: the +24h field must differ from the +0h field by clearly more than the
     // same-hour animation noise. A frozen frame under an advancing readout — the four-mechanism
     // composite failure — fails here and nowhere else in the estate.
     const floor = Math.max(3 * noise, 0.005);
+    // The measurement travels with the verdict: a pass with no numbers is not evidence (LESSONS L-P9).
+    const measured = `seaMoved=${(seaMovedFrac * 100).toFixed(1)}% change=${(change * 100).toFixed(2)}% noise=${(noise * 100).toFixed(2)}% floor=${(floor * 100).toFixed(2)}% structure=${structure.toFixed(4)}`;
+    test.info().annotations.push({ type: 'pixel-truth', description: measured });
+    console.log(`[pixel-truth] ${measured}`);
     expect(change, `the sea moved on ${(seaMovedFrac * 100).toFixed(0)}% of cells but only ${(change * 100).toFixed(2)}% of pixels changed (noise ${(noise * 100).toFixed(2)}%, floor ${(floor * 100).toFixed(2)}%) — the readout and the DATA advanced but the picture did not`).toBeGreaterThan(floor);
   });
 });
