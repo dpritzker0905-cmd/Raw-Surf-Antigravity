@@ -5,8 +5,9 @@ is a claim, not a measurement.
 
 ## Now
 - **`dev` = `bdef3be2`** (#172 at 20:10:50Z). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the regrid LAND FALLBACK (dark; a land node answers from its centred 3x3, so the
-  flip blanks no coastal node), then the regrid FLIP stacked on it (the owner's merge is the word).
+- **Open PRs of ours:** #173, the regrid LAND FALLBACK (dark; a land node answers from its centred 3x3, so
+  the flip blanks no coastal node). The FLIP itself is the owner's to make (ledger seq 61): REGRID_NATIVE_CELL '1'
+  in forecast-ingest.yml AND forecast-ingest-pilots.yml, and the lane test's expected value.
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
   per-spot size references (`RATING_LOCAL_SIZE=1`), now fail-closed in the precompute (#162).
@@ -24,7 +25,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 59, sha256 e2660e9b48d29e95ccb8280b6011b6340b0c6b3efaf32975df6003660afafd6f**
+  **Ledger head: seq 61, sha256 ac9aee2886353d62b0733fa2880e4e2fdef4e9c5aab8b4a79ecc8677eaa52fcc**
 
 ## Next fixes, in order
 0. **Regrid at native resolution (#171, all three fetchers, dark; flip on the owner's word):** every 0.25-deg regional tile of GFS, ICON and EURO is a 2x2
