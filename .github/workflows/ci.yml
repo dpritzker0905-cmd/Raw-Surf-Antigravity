@@ -1135,7 +1135,11 @@ jobs:
           # coast): hosted CI on PR #157 (merged as a9bf2ac2) observed 127 files / 1465. tests/test_skill_consensus.py
           # (claimed by `--lane chain`) gains 12 executed tests: 1465 + 12 = 1477, 1477 - 6 = 1471; files 127
           # unchanged; _FLOOR_SET_FROM["chain"] -> 1477.
-          MIN_FILES, MIN_PASSED = 127, 1471
+          # ⬆ MIN_PASSED 1471→1474 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the ledger's consensus split by
+          # observed sea state): hosted CI on PR #158 (merged as ef1ba246) observed 127 files / 1477; #159 added none.
+          # tests/test_skill_consensus.py (claimed by `--lane chain`) gains 3 executed tests: 1477 + 3 = 1480,
+          # 1480 - 6 = 1474; files 127 unchanged; _FLOOR_SET_FROM["chain"] -> 1480.
+          MIN_FILES, MIN_PASSED = 127, 1474
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
