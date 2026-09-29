@@ -257,7 +257,8 @@ def test_all_three_lanes_declare_the_switch_at_the_same_value():
                  if isinstance(st, dict) and "CONSENSUS_INGEST" in (st.get("env") or {})]
         assert len(found) == 1, wf
         values[wf] = found[0]
-    assert set(values.values()) == {"0"}, values                   # dark until the owner arms all three
+    # ARMED by the owner's merge of the arming PR (D-009): all three lanes move together, never one alone.
+    assert set(values.values()) == {"1"}, values
 
 
 def test_a_consensus_point_reads_the_shadow_and_never_calls_an_upstream():
