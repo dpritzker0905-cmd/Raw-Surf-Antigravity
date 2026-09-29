@@ -188,7 +188,9 @@ def test_census_holds_stage_b_to_the_flagship_cadence():
         assert C.tier_of(rid, "GFS", "marine") == "flagship", rid
 
 
-def test_both_fetch_lanes_declare_stage_b_dark_and_equal():
+def test_both_fetch_lanes_declare_stage_b_flipped_and_equal():
+    """FLIPPED by the owner (D-011): '1' in both fetch lanes, never one. The CODE default stays '0' (dark), so a
+    lane that forgets the declaration ingests nothing new. To revert: '0' in BOTH."""
     from pathlib import Path
 
     import yaml
@@ -200,4 +202,4 @@ def test_both_fetch_lanes_declare_stage_b_dark_and_equal():
                  if isinstance(st, dict) and "GFS_MARINE_STAGE_B" in (st.get("env") or {})]
         assert len(found) == 1, wf
         vals[wf] = found[0]
-    assert set(vals.values()) == {"0"}, vals
+    assert set(vals.values()) == {"1"}, vals

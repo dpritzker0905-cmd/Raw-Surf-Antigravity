@@ -221,3 +221,8 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
   Four open commitments: ledger seq 77-80.
 - **Next fix, by measurement:** the parity probe (21:26Z) puts the largest same-model loss on the 2-deg global_mid
   tier (+0.097 m, 38% of the squared gap), led by uncovered Pacific NW / NorCal buoys (46244 Humboldt +0.50 m).
+
+## 22:00-22:16Z · #176 and #177 merged; the Stage B flip
+- #176 merged 22:02:05Z (the memory upgrades; its first CI run exposed that the completeness check
+  was skipped in CI, fixed before merge, ledger seq 81). #177 merged 22:13:01Z (us_pacific_northwest,
+  dark). The flip PR (D-011) is the owner's word: "flip the Stage B PNW box". Commitment seq 86 verifies it.

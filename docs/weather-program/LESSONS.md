@@ -148,3 +148,8 @@ before starting it.
 - **L-A6 · Integrity is not completeness.** A hash chain proves nothing was changed; it cannot see what was never
   written. The audit now reads git for every PR merge since the ledger began and FAILs a missing `pr_merge` line.
   On the day it was added it found none missing (14 of 14), and the selftest proves it fires. (2026-09-29)
+- **L-P14 · A worktree is not yours because you started in it.** Another session checked out its own branch in
+  raw-surf-wt mid-afternoon, and my next `git rebase` rewrote ITS branch; a script then wrote my ledger lines into its
+  tree, twice (the second time because a failed step was joined with `;`, not `&&`). Before any git write, assert
+  the branch (`test "$(git branch --show-current)" = <expected>`); scripts that write refuse on the wrong branch;
+  with two sessions, one worktree each (`git worktree add`). (2026-09-29)
