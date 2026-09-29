@@ -16,6 +16,8 @@ is a claim, not a measurement.
 - **Armed switches:** the workflow-dispatch fallback (#153), armed 2026-09-29 13:30Z. It dispatches a data lane's
   workflow when GitHub drops its cron slot. Audit it at `/api/health` → `scheduler.workflow_dispatch.last`. Kill:
   `WORKFLOW_DISPATCH=0`.
+  ⚠️ **Its dispatches fail with HTTP 403 (13:46Z)**: the token reads Actions but cannot write them. Owner: give the
+  token **Actions: Read and write** (same token value; no Render change). Durable record: Render log `[workflow-dispatch]`.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 129 / 1515 (1521), estate 568 (570). #164 moves chain to
   130 / 1531 (1537).
 
