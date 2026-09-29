@@ -1180,7 +1180,11 @@ jobs:
           # serving switch, CONSENSUS_SERVE, dark): hosted CI on PR #174 observed 132 files / 1586. The new
           # tests/test_consensus_serve.py (claimed by `--lane chain`) adds 27 executed tests: 1586 + 27 = 1613,
           # 1613 - 6 = 1607; files 133 EXACT; _FLOOR_SET_FROM["chain"] -> 1613.
-          MIN_FILES, MIN_PASSED = 133, 1607
+          # ⬆ MIN_PASSED 1607→1612 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (F-08 Stage B's first box,
+          # us_pacific_northwest, dark): hosted CI on PR #175 (merged as f4590a3d) observed 133 files / 1613.
+          # tests/test_pilot_regions.py (claimed by `--lane chain`) gains 5 executed tests: 1613 + 5 = 1618,
+          # 1618 - 6 = 1612; files 133 unchanged; _FLOOR_SET_FROM["chain"] -> 1618.
+          MIN_FILES, MIN_PASSED = 133, 1612
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

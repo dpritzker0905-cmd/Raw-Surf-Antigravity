@@ -224,6 +224,25 @@ GFS_MARINE_EXTRA_REGIONS = {
 }
 
 
+# ── F-08 STAGE B, BOX 1 (2026-09-29): the US Pacific Northwest + Northern California, BUILT DARK ────────────────
+# MEASURED FIRST (same_model_parity_probe, 21:26Z, n=240 at 56 buoys): the 2-deg global_mid tier reads +0.097 m
+# HIGH against the same model (38% of our whole squared gap to Open-Meteo's GFS-Wave), and its worst buoys are the
+# ones no 0.25-deg box covers: 46244 Humboldt +0.50 m (ours 2.39 vs 1.90), 46211 Grays Harbor +0.12, 46243 Clatsop
+# Spit +0.07, 46206 La Perouse +0.03. us_west_coast_socal stops at 38N, so NorCal, Oregon and Washington (23 active
+# spots) are served from a 2-deg block whose energy mean pulls in offshore seas.
+# COST, priced against F-08's gate: a GFS-only box is sliced from the same whole-globe download (~220 products);
+# Render memory held 55-65% of 2 GB over 2026-09-27..29 (7-day chart), Stage A's four boxes cost ~55 MB.
+# It abuts us_west_coast_socal at 38.0N (edge-touch is legal; interior overlap is test-banned).
+# DARK: GFS_MARINE_STAGE_B (default "0"); flip in forecast-ingest-pilots.yml AND forecast-ingest.yml together.
+GFS_MARINE_STAGE_B_REGIONS = {
+    "us_pacific_northwest": {"west": -128.0, "south": 38.0, "east": -122.0, "north": 49.0, "resolution": 0.25},  # 23 spots
+}
+
+
+def stage_b_enabled() -> bool:
+    return os.environ.get("GFS_MARINE_STAGE_B", "0") == "1"
+
+
 def get_gfs_marine_pilot_regions() -> dict:
     """Regions for the GFS marine multi-bbox pass ONLY: everything get_all_pilot_regions() returns plus
     GFS_MARINE_EXTRA_REGIONS (F-08 Stage A). ICON/EURO marine and the wind pilots keep calling
@@ -232,9 +251,10 @@ def get_gfs_marine_pilot_regions() -> dict:
     regions = get_all_pilot_regions()
     if len(regions) == len(REGIONAL_CONFIGS):      # flagship-only (test env or WORLDWIDE_COASTAL=0)
         return regions
+    stage_b = GFS_MARINE_STAGE_B_REGIONS if stage_b_enabled() else {}
     if os.environ.get("GFS_MARINE_EXTRA_REGIONS", "1") == "0":
-        return regions
-    return {**regions, **GFS_MARINE_EXTRA_REGIONS}
+        return {**regions, **stage_b}
+    return {**regions, **GFS_MARINE_EXTRA_REGIONS, **stage_b}
 
 
 def get_all_pilot_regions() -> dict:

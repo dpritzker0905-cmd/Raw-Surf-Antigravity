@@ -29,7 +29,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 81, sha256 0658a8f8486087bd5be13302ee19097de1b4900ecaa86fb7a3e1748f3fdff2ee**
+  **Ledger head: seq 82, sha256 9d29625bcd45f3fe5a74e4fe6713729c0ed722d5bef25148fca42cae9593c3a8**
 
 ## Next fixes, in order
 - **NOW: a Pacific NW / NorCal regional tile.** The 2-deg global_mid tier reads +0.097 m high vs the same
