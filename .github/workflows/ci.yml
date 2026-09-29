@@ -1147,7 +1147,11 @@ jobs:
           # precompute refuses to rate without the size climatology): hosted CI on PR #161 (merged as e4c27fd7)
           # observed 128 files / 1501. The new tests/test_size_reference_fail_closed.py (claimed by `--lane chain`)
           # adds 20 executed tests: 1501 + 20 = 1521, 1521 - 6 = 1515; files 129 EXACT; _FLOOR_SET_FROM -> 1521.
-          MIN_FILES, MIN_PASSED = 129, 1515
+          # ⬆ MIN_FILES 129→130, MIN_PASSED 1515→1531 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the consensus
+          # SHADOW at ingest, D-009): hosted CI on PR #162 (merged as f18c7ab8) observed 129 files / 1521. The new
+          # tests/test_consensus_ingest.py (claimed by `--lane chain`) adds 16 executed tests: 1521 + 16 = 1537,
+          # 1537 - 6 = 1531; files 130 EXACT; _FLOOR_SET_FROM["chain"] -> 1537.
+          MIN_FILES, MIN_PASSED = 130, 1531
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

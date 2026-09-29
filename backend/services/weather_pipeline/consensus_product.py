@@ -30,7 +30,7 @@ PURE: no I/O and no environment reads. Changes no served number: nothing calls i
 behind CONSENSUS_INGEST, default off) and the owner's flip.
 """
 import math
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 
 from services.weather_pipeline.sampler import PointSampler
 from services.weather_pipeline.schemas import NormalizedProduct
@@ -79,20 +79,29 @@ def _identity(p: NormalizedProduct) -> dict:
             "upstream_model": p.upstream_model}
 
 
-def _check(gfs: NormalizedProduct, members: Dict[str, NormalizedProduct]) -> None:
+def _check_primary(gfs: NormalizedProduct) -> None:
     if gfs is None or gfs.grid is None or not gfs.grid.vectors:
         raise ValueError("consensus: the GFS product has no grid")
-    for name, p in {"GFS": gfs, **members}.items():
-        if p is None:
-            raise ValueError(f"consensus: {name} product missing")
-        if (p.model or "").upper() != name:
-            raise ValueError(f"consensus: expected a {name} product, got {p.model!r}")
-        if (p.domain or "").lower() != "marine" or (p.layer or "").lower() != "waves":
-            raise ValueError(f"consensus: {name} is {p.domain}/{p.layer}, not marine/waves")
-        if p.valid_time != gfs.valid_time:
-            raise ValueError(f"consensus: {name} valid_time {_iso(p.valid_time)} != GFS {_iso(gfs.valid_time)}")
-        if p.value_unit != gfs.value_unit:
-            raise ValueError(f"consensus: {name} unit {p.value_unit!r} != GFS {gfs.value_unit!r}")
+    _check_lane("GFS", gfs, gfs, strict_time=True)
+
+
+def _check_lane(name: str, p: NormalizedProduct, gfs: NormalizedProduct, strict_time: bool) -> None:
+    if p is None:
+        raise ValueError(f"consensus: {name} product missing")
+    if (p.model or "").upper() != name:
+        raise ValueError(f"consensus: expected a {name} product, got {p.model!r}")
+    if (p.domain or "").lower() != "marine" or (p.layer or "").lower() != "waves":
+        raise ValueError(f"consensus: {name} is {p.domain}/{p.layer}, not marine/waves")
+    if strict_time and p.valid_time != gfs.valid_time:
+        raise ValueError(f"consensus: {name} valid_time {_iso(p.valid_time)} != GFS {_iso(gfs.valid_time)}")
+    if p.value_unit != gfs.value_unit:
+        raise ValueError(f"consensus: {name} unit {p.value_unit!r} != GFS {gfs.value_unit!r}")
+
+
+def _check(gfs: NormalizedProduct, members: Dict[str, NormalizedProduct]) -> None:
+    _check_primary(gfs)
+    for name, p in members.items():
+        _check_lane(name, p, gfs, strict_time=True)
 
 
 def _ratio_quantiles(ratios) -> Optional[dict]:
@@ -105,15 +114,46 @@ def _ratio_quantiles(ratios) -> Optional[dict]:
 
 
 def build_equal_mean(gfs: NormalizedProduct, euro: NormalizedProduct, icon: NormalizedProduct,
-                     sampler: Optional[PointSampler] = None) -> NormalizedProduct:
+                     sampler: Optional[PointSampler] = None, unblended: str = "keep") -> NormalizedProduct:
     """A copy of `gfs` carrying the equal GFS/EURO/ICON mean wherever all three answer (module docstring). PURE."""
     others = {"EURO": euro, "ICON": icon}
     _check(gfs, others)
+    out = _build(gfs, {n: (lambda lat, lng, p=p: p) for n, p in others.items()}, sampler, unblended)
+    out.grid.diagnostics["consensus"]["member_products"] = {
+        "GFS": _identity(gfs), **{n: _identity(p) for n, p in others.items()}}
+    return out
+
+
+def build_equal_mean_from_choosers(gfs: NormalizedProduct, choosers: Dict[str, Callable],
+                                   sampler: Optional[PointSampler] = None,
+                                   unblended: str = "keep") -> NormalizedProduct:
+    """The same equal mean, each member answered at each cell by the product `choosers[name](lat, lng)` returns:
+    the product the point resolver itself would answer that cell from (consensus_ingest builds the choosers on
+    manifest_point_selection), so the member value is what /point serves there. That pick may be a frame up to
+    the resolver's MAX_TIME_DIFF_S from the GFS hour, exactly as /point would serve it; such cells are counted in
+    `member_frame_offset_cells`. A chooser that returns None means the member cannot answer the cell. PURE given
+    pure choosers."""
+    _check_primary(gfs)
+    if set(choosers) != {"EURO", "ICON"}:
+        raise ValueError(f"consensus: choosers for EURO and ICON required, got {sorted(choosers)}")
+    return _build(gfs, choosers, sampler, unblended)
+
+
+def _build(gfs: NormalizedProduct, choosers: Dict[str, Callable], sampler: Optional[PointSampler],
+           unblended: str) -> NormalizedProduct:
+    """The cell loop behind both entry points. `unblended`: "keep" leaves a cell the members could not all
+    answer as GFS's own; "mask" marks it invalid, so a SHADOW product (D-009) never serves a GFS-only value under
+    the consensus name."""
+    if unblended not in ("keep", "mask"):
+        raise ValueError(f"consensus: unblended must be 'keep' or 'mask', got {unblended!r}")
     sampler = sampler or PointSampler(memoize=True)
     out = gfs.model_copy(deep=True)
     cells = {"blended": 0, "kept_primary": 0, "not_ocean": 0}
-    missing = {name: 0 for name in others}
-    primary_zero = 0
+    missing = {name: 0 for name in choosers}
+    sources = {name: {} for name in choosers}
+    offsets = {name: 0 for name in choosers}
+    checked = set()
+    primary_zero = masked = 0
     ratios = []
     for vec in out.grid.vectors:
         if not sampler._is_vector_valid(vec, gfs.domain, gfs.layer):
@@ -121,16 +161,28 @@ def build_equal_mean(gfs: NormalizedProduct, euro: NormalizedProduct, icon: Norm
             continue
         hs_primary = math.hypot(vec.u, vec.v)
         members = {"GFS": {"hs": hs_primary, "tp": vec.period, "dir": vec.direction}}
-        for name, product in others.items():
-            answer = member_answer(sampler, product, vec.lat, vec.lng)
+        for name, choose in choosers.items():
+            product = choose(vec.lat, vec.lng)
+            answer = None
+            if product is not None:
+                if id(product) not in checked:
+                    _check_lane(name, product, gfs, strict_time=False)
+                    checked.add(id(product))
+                answer = member_answer(sampler, product, vec.lat, vec.lng)
             if answer is None:
                 missing[name] += 1
-            else:
-                members[name] = answer
+                continue
+            members[name] = answer
+            pid = product.product_id or "?"
+            sources[name][pid] = sources[name].get(pid, 0) + 1
+            offsets[name] += product.valid_time != gfs.valid_time
         c = equal_consensus(members)
         if c is None or not hs_primary > 0:     # a member did not answer, or GFS has no sea here to scale
             primary_zero += c is not None
             cells["kept_primary"] += 1
+            if unblended == "mask":
+                vec.is_valid = False
+                masked += 1
             continue
         k = c["hs"] / hs_primary
         vec.u, vec.v, vec.speed = round(vec.u * k, 4), round(vec.v * k, 4), round(c["hs"], 4)
@@ -138,8 +190,9 @@ def build_equal_mean(gfs: NormalizedProduct, euro: NormalizedProduct, icon: Norm
         ratios.append(k)
     out.grid.diagnostics = {**(gfs.grid.diagnostics or {}), "consensus": {
         "method": "equal_mean", "members": list(CONSENSUS_MEMBERS), "carried_from_primary": ["period", "direction"],
-        "valid_time": _iso(gfs.valid_time),
-        "member_products": {"GFS": _identity(gfs), **{n: _identity(p) for n, p in others.items()}},
+        "valid_time": _iso(gfs.valid_time), "primary_product": _identity(gfs),
         "cells": cells, "member_missing": missing, "primary_zero": primary_zero,
+        "unblended": unblended, "masked": masked,
+        "member_sources": sources, "member_frame_offset_cells": offsets,
         "consensus_over_primary": _ratio_quantiles(ratios)}}
     return out
