@@ -135,26 +135,16 @@ jobs:
       #   deployed" beats 15 rotating browser timeouts that look like flaky tests. `retries: 2` in
       #   playwright.config.js is what turned that race into an alternating failed/flaky signal —
       #   3 attempts vs a probabilistic timeout gives "failed" at 3/3 over and "flaky" at 1-2/3.
-      - name: Wait for the Render backend to serve THIS commit
+      # ★ READY = serving THIS commit AND finished with its first L2 restore (2026-09-29). Serving the commit is only
+      #   half: a freshly booted box then downloads the L2 manifest, and `weather_readiness.restore_status` reads
+      #   "pending" until that finishes. Run 36505096034 started its tests the second the new SHA answered and failed
+      #   its first spot-hub load mid-restore; the re-run on a restored box passed in 10 s. The decision lives in
+      #   backend/scripts/e2e_backend_ready.py (stdlib, unit-tested by tests/test_e2e_backend_ready.py).
+      - name: Wait for the Render backend to serve THIS commit and finish restoring
         if: github.event_name == 'push'
         env:
           API: https://raw-surf-antigravity.onrender.com
-        run: |
-          full="$(git rev-parse HEAD)"
-          echo "waiting for $API/api/health to report $full"
-          for i in $(seq 1 60); do
-            # /api/health embeds the deployed SHA as `"version":"<...>-<40-hex>"`.
-            got="$(curl -fsS --max-time 25 "$API/api/health" 2>/dev/null \
-                   | sed -nE 's/.*"version":"[^"]*[-]([0-9a-f]{40})".*/\1/p')" || got=""
-            if [ "$got" = "$full" ]; then
-              echo "backend is serving the commit under test after ~$(( (i-1) * 15 ))s"; exit 0
-            fi
-            echo "  attempt $i: backend serving '${got:-<unreachable>}'"
-            sleep 15
-          done
-          echo "::error::$API never reported $full after 15 minutes."
-          echo "::error::The backend did not deploy. E2E is NOT run against a backend that is still booting."
-          exit 1
+        run: python3 backend/scripts/e2e_backend_ready.py "$(git rev-parse HEAD)" "$API" 60 15
 
       - name: Run E2E tests
         working-directory: frontend
