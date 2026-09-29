@@ -1176,7 +1176,11 @@ jobs:
           # ⬆ MIN_PASSED 1575→1580 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (a land node answers from its
           # centred 3x3): hosted CI on PR #172 (merged as bdef3be2) observed 132 files / 1581. The same file gains 5
           # executed tests (26 in all): 1581 + 5 = 1586, 1586 - 6 = 1580; files 132 unchanged; _FLOOR_SET_FROM -> 1586.
-          MIN_FILES, MIN_PASSED = 132, 1580
+          # ⬆ MIN_FILES 132→133, MIN_PASSED 1580→1607 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the consensus
+          # serving switch, CONSENSUS_SERVE, dark): hosted CI on PR #174 observed 132 files / 1586. The new
+          # tests/test_consensus_serve.py (claimed by `--lane chain`) adds 27 executed tests: 1586 + 27 = 1613,
+          # 1613 - 6 = 1607; files 133 EXACT; _FLOOR_SET_FROM["chain"] -> 1613.
+          MIN_FILES, MIN_PASSED = 133, 1607
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

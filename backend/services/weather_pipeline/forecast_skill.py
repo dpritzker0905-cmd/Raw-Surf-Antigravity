@@ -124,7 +124,14 @@ def compare_models(primary: str) -> List[str]:
     from services.weather_pipeline.consensus_ingest import CONSENSUS_MODEL, enabled as consensus_enabled
     if consensus_enabled() and CONSENSUS_MODEL not in out and CONSENSUS_MODEL != (primary or "").strip().upper():
         out.append(CONSENSUS_MODEL)
+    # THE RAW GFS BASELINE while the consensus is SERVED (consensus_serve, D-009): the primary lane then scores the
+    # served consensus, so raw GFS keeps its own lane, resolved under serve_raw().
+    if os.environ.get("CONSENSUS_SERVE", "0") == "1" and (primary or "").strip().upper() == "GFS":
+        out.append(GFS_RAW)
     return out
+
+
+GFS_RAW = "GFS_RAW"
 
 
 def source_for(model: str, primary: str) -> str:
@@ -578,7 +585,12 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
         for lead in LEADS_H:
             target = (now + timedelta(hours=lead)).strftime("%Y-%m-%dT%H:00:00Z")
             try:
-                lead_report = await calibrate_spots(resolver, spots, mdl, target)
+                if mdl == GFS_RAW:                   # raw GFS, not the served consensus (compare_models)
+                    from services.weather_pipeline.consensus_serve import serve_raw
+                    with serve_raw():
+                        lead_report = await calibrate_spots(resolver, spots, "GFS", target)
+                else:
+                    lead_report = await calibrate_spots(resolver, spots, mdl, target)
                 incoming.extend(rows_from_calibration_report(lead_report, target, lead, source=src))
             except Exception as e:
                 logger.warning("[forecast-skill] %s lead +%dh resolve failed (%s)", src, lead, e)
