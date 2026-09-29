@@ -99,3 +99,11 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
   BRAIN_RULES §22 (no authorized main-push exception): recorded, not changed.
 - **Correction** (ledger line 16): this log's first two headings are 4 h off (local EDT read as UTC).
 - Verified at 14:39Z: `action_ledger.py verify` → 20 entries OK; `memory_audit.py --memory-dir …` → 0 FAIL, 0 WARN.
+
+## ~14:42Z · #166 opened: the accuracy monitor judges liveness on the archive
+- The 06:48Z page came from judging only the latest ledger pass. Measured basis for the new bound: 127 successful
+  calibration passes (precompute + core ingest) over 14 days, gap p50 2.0 h / p90 5.2 h / p99 7.1 h / max 8.6 h,
+  so dead = no scored target newer than 16 h (~1.5x the worst healthy ~10.6 h). The archive unreadable keeps the
+  old rule; last month's archive is read near a month boundary. 8 tests, 7/7 mutations, guards floor 174/2118.
+- After merge, verify by dispatching the monitor and reading its new `skill ledger liveness:` line (the real
+  newest-target age, which the 16 h bound assumes is ~2 h behind the last pass).
