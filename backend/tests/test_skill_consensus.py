@@ -14,7 +14,7 @@ import pytest
 
 from services.weather_pipeline import buoy_calibration as bc
 from services.weather_pipeline import forecast_skill as fs
-from services.weather_pipeline.skill_consensus import MEMBERS, consensus_report
+from services.weather_pipeline.skill_consensus import MEMBERS, PAIR, consensus_report
 
 NOW = datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc)
 ERR = {"raw_surf": (0.3, -0.3, 0.0), "raw_surf:ICON": (-0.3, 0.0, 0.3), "raw_surf:EURO": (0.0, 0.3, -0.3)}
@@ -168,3 +168,27 @@ def test_the_ledger_run_publishes_the_consensus_on_the_report(ledger):
     report = {}
     fs.attach_to_report(report, skill)
     assert report["forecast_skill_consensus"]["members"] == list(MEMBERS)
+
+
+def test_the_gfs_euro_pair_is_graded_on_the_same_pairs_as_the_equal_mean():
+    """ICON-like noise (the nearshore judge's #155 finding: ICON 0.203 m vs EURO 0.102 on identical hours): the pair
+    without ICON must be scored on exactly the equal mean's pairs and must beat it when ICON is the noisy member."""
+    errs = {"raw_surf": (0.1, -0.1, 0.0), "raw_surf:EURO": (-0.1, 0.1, 0.0), "raw_surf:ICON": (0.9, 0.9, 0.9)}
+    e = _lead(consensus_report(_rows(range(8, 40), 90, errs=errs) + _rows(range(0, 7), 30, errs=errs), NOW))
+    assert PAIR == ("raw_surf", "raw_surf:EURO")
+    assert e["pair_gfs_euro"]["mae_m"] == pytest.approx(0.0, abs=1e-3), "GFS and EURO errors cancel exactly"
+    assert e["equal"]["bias_m"] == pytest.approx(0.3, abs=1e-3), "ICON drags the three-model mean high"
+    assert e["pair_beats_equal"] and e["pair_beats_best"]
+    missing = _rows(range(0, 7), 30, errs=errs, members=("raw_surf", "raw_surf:EURO"))   # no ICON: not paired
+    e2 = _lead(consensus_report(_rows(range(8, 40), 90, errs=errs) + _rows(range(0, 7), 30, errs=errs) + missing, NOW))
+    assert e2["n_test"] == 30, "hours without ICON are not scored, so pair and equal share every pair"
+
+
+def test_the_pair_is_graded_on_the_big_swell_days_too():
+    shave = {"raw_surf": 0.0, "raw_surf:ICON": -0.9, "raw_surf:EURO": 0.0}
+    e = _lead(consensus_report(_rows(range(8, 40), 90) + _rows(range(0, 7), 30) + _big_rows(12, shave), NOW))
+    b = e["big_swell"]
+    assert b["paired"]["pair_gfs_euro"]["bias_m"] == pytest.approx(0.0, abs=1e-3), "no ICON, no shaved peak"
+    assert b["paired"]["equal"]["bias_m"] == pytest.approx(-0.3, abs=1e-3)
+    assert b["pair_beats_best"] is False, "ties the best member (GFS/EURO are exact), never beats it"
+    assert b["by_forecast"]["pair_gfs_euro"]["n"] == 12
