@@ -1,13 +1,16 @@
 # Weather program: state
 
-**Updated 2026-09-29 22:38Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-29 23:07Z** (logs: `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-29.md`** (reading order, what is live or dark, open
   commitments, next fixes, owner-only items, the day's report audit). Read it after this file.
-- **`dev` = `cdd5cc7c`** (#179 at 22:37:30Z). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** this docs PR (the record of #179 and commitment 77).
+- **`dev` = `132ef9bc`** (#180 at 23:04:57Z; docs only, the backend still runs `cdd5cc7c`, #179). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
+- **Open PRs of ours:** #181 (the second audit and the plan of action W-00..W-50,
+  `log/2026-09-29-sim-works-plan.md`; docs only).
+- **The weather sim does not reach production map users** (#181 F1): `fc140024` is 3,283 commits behind `dev` and its
+  map reads a Netlify Open-Meteo proxy. The plan's Phase 1 is the release-readiness evidence for D-002.
 - **Open commitments:** `python backend/scripts/action_ledger.py open` (seq 78, 79, 86, 94).
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
@@ -31,7 +34,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 96, sha256 42717ba5d62e47390eb94113d5eabcde3e58a644558c2366ef5cdcf131d2a0f8**
+  **Ledger head: seq 103, sha256 b8f49066bdc44d70bf44dec66101375b60de8431b952135c7fa2d62a2bb5a786**
 
 ## Next fixes, in order
 - ~~**A Pacific NW / NorCal regional tile**~~ built (#177) and flipped (D-011); The 2-deg global_mid tier reads +0.097 m high vs the same
