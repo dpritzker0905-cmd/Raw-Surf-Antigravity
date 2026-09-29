@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { marineEmptyVerdict } from './marineEmptyGrace';
 
 function groupBy(arr, keyFn) {
   return arr.reduce((acc, item) => {
@@ -23,6 +24,10 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
   const mountTimeRef = useRef(Date.now());
   // Throttle render event to avoid 60fps getStyle() serialization penalty
   const lastRenderCheck = useRef(0);
+  // W-32: when the current "marine active, no vectors" spell began, and the one re-check that fires
+  // when its grace ends (a map that goes idle would otherwise never look again). See marineEmptyGrace.
+  const marineEmptySinceRef = useRef(null);
+  const marineEmptyTimerRef = useRef(null);
 
   useEffect(() => {
     if (!mapInstance) return;
@@ -141,14 +146,28 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
         !!window.__MARINE_FETCH_DEBOUNCING__
       );
       const activeMarineLayers = ["waves","swell_1","swell_2","wind_waves"].filter(l => s.activeLayersAll.includes(l));
-      if (activeMarineLayers.length) {
-        if (!s.marine?.grid?.vectors?.length && !isTransitioning) {
-          violations.push({
-            layerId: activeMarineLayers[0],
-            type: "MARINE_EMPTY_RENDER",
-            hint: "Marine layer active but no vector data present"
-          });
-        }
+      // W-32: the flags above clear in the fetch's `finally`, ~0.7 s before the grid commits, so the
+      // condition must HOLD for the grace before it is a violation (marineEmptyGrace.js).
+      const emptyVerdict = marineEmptyVerdict({
+        empty: activeMarineLayers.length > 0 && !s.marine?.grid?.vectors?.length,
+        transitioning: isTransitioning,
+        since: marineEmptySinceRef.current,
+        now: Date.now(),
+        disabled: typeof window !== 'undefined' && window.__RAW_DISABLE_MARINE_EMPTY_GRACE__ === true,
+      });
+      marineEmptySinceRef.current = emptyVerdict.since;
+      if (emptyVerdict.recheckInMs !== null && !marineEmptyTimerRef.current) {
+        marineEmptyTimerRef.current = setTimeout(() => {
+          marineEmptyTimerRef.current = null;
+          captureSnapshot("empty-grace");
+        }, emptyVerdict.recheckInMs + 50);
+      }
+      if (emptyVerdict.report) {
+        violations.push({
+          layerId: activeMarineLayers[0],
+          type: "MARINE_EMPTY_RENDER",
+          hint: "Marine layer active but no vector data present"
+        });
       }
 
       // RULE 4: raster layers must never share same visible source
@@ -218,6 +237,11 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
       mapInstance.off("render", onRender);
       mapInstance.off("idle", onIdle);
       mapInstance.off("moveend", onMoveEnd);
+      // The re-check closes over THIS effect's captureSnapshot; the next run arms its own.
+      if (marineEmptyTimerRef.current) {
+        clearTimeout(marineEmptyTimerRef.current);
+        marineEmptyTimerRef.current = null;
+      }
     };
   }, [mapInstance, activeLayers, activeRenderType, windData, marineData]);
 

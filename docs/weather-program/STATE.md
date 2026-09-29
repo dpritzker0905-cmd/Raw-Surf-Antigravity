@@ -1,13 +1,14 @@
 # Weather program: state
 
-**Updated 2026-09-29 23:40Z** (logs: `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-29 23:57Z** (logs: `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-29.md`** (reading order, what is live or dark, open
   commitments, next fixes, owner-only items, the day's report audit). Read it after this file.
 - **`dev` = `5f6120a6`** (#181 at 23:37:30Z; docs only, the backend still runs `cdd5cc7c`, #179). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #182, the W-12 pixel-truth test PR (test only; the test stays `test.fixme` with its measured
+- **Open PRs of ours:** the W-32 fix PR (stacked on #182: the false MARINE_EMPTY_RENDER report waits out the
+  commit gap; dev site only); #182, the W-12 pixel-truth test PR (test only; the test stays `test.fixme` with its measured
   blocker). The plan of action W-00..W-50 lives in `log/2026-09-29-sim-works-plan.md` (#181, merged).
 - **The weather sim does not reach production map users** (#181 F1): `fc140024` is 3,283 commits behind `dev` and its
   map reads a Netlify Open-Meteo proxy. The plan's Phase 1 is the release-readiness evidence for D-002.
@@ -34,7 +35,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 108, sha256 a5d448c2748a9817975be6015d2d31309e2fb459397aa3a44b5a2962d0b7ad1f**
+  **Ledger head: seq 111, sha256 09ade6c9c64423d4b822be27f11837a856e78724507f36c539e852685c92c049**
 
 ## Next fixes, in order
 - ~~**A Pacific NW / NorCal regional tile**~~ built (#177) and flipped (D-011); The 2-deg global_mid tier reads +0.097 m high vs the same
