@@ -1123,7 +1123,11 @@ jobs:
           # joins the judge): #147's hosted merge-candidate run observed 126 files / 1448, confirming its projection.
           # tests/test_nearshore_gulf_ndbc.py (claimed by `--lane chain`) gains 1 executed test (the committed-table pin
           # is now parametrized over both buoys): 1448 + 1 = 1449, 1449 - 6 = 1443; files 126; _FLOOR_SET_FROM -> 1449.
-          MIN_FILES, MIN_PASSED = 126, 1443
+          # ⬆ MIN_FILES 126→127, MIN_PASSED 1443→1455 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge grades the three-model consensus input): hosted CI on PR #152 (merged as efc9d89a) observed 126 files /
+          # 1449 passed. The new tests/test_nearshore_consensus_arm.py (claimed by `--lane chain`) adds 12 executed
+          # tests: 1449 + 12 = 1461, 1461 - 6 = 1455; files 127 EXACT; _FLOOR_SET_FROM["chain"] -> 1461.
+          MIN_FILES, MIN_PASSED = 127, 1455
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
