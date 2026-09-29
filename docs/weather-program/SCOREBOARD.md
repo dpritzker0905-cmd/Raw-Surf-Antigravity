@@ -36,3 +36,4 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-09-29 06:49Z | `e82f59c8` | S1 | buoy height MAE, served | 0.289 m over 59 buoys (bias −0.016 m) | same |
 | 2026-09-29 11Z | `e82f59c8` | S1 | `by_band` MAE, equal vs served GFS | big 0.501 vs 0.635 · rideable 0.342 vs 0.375 · small 0.251 vs 0.253 · flat 0.139 vs 0.245 m | ledger `by_band` (first publication) |
 | 2026-09-29 11:24Z | `e82f59c8` | S4 | spots a level apart | **32 of 48**: glyphs baked without size references after a Supabase 429 at 02:48Z (fixed by #162) | sim parity run 36561587061 |
+| 2026-09-29 13:46Z | `e4c27fd7` | S5 | dispatch fallback's first decisions | core ingest 12:15Z slot and pilots 11:45Z slot had no run → both dispatches **HTTP 403** (token lacks Actions write); MOP 12:40Z slot served | Render log `[workflow-dispatch]` |

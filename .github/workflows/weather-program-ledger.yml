@@ -1,0 +1,57 @@
+# The weather program's ACTION LEDGER and memory record, verified on every change (BRAIN_RULES §23, 2026-09-29).
+# The owner: "the only way is for you to be accountable for every action you do." docs/weather-program/ACTIONS.jsonl
+# is hash-chained; this proves the chain, the STATE.md anchor and, on a pull request, that the base branch's ledger
+# is a byte-exact PREFIX of the new one (history can only be appended to). `selftest` first proves the verifier
+# catches every tamper it claims to (positive and null controls, LESSONS L-S4).
+# ⚠️ ADVISORY: the `paths:` filter is deliberate, so this must NEVER become a required status check (a path-filtered
+#   required check reports MISSING and blocks the branch; measured on `loc-check`). Standard library only.
+name: Weather Program Ledger
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'docs/weather-program/**'
+      - 'backend/scripts/action_ledger.py'
+      - 'backend/scripts/memory_audit.py'
+      - '.github/workflows/weather-program-ledger.yml'
+  pull_request:
+    paths:
+      - 'docs/weather-program/**'
+      - 'backend/scripts/action_ledger.py'
+      - 'backend/scripts/memory_audit.py'
+      - '.github/workflows/weather-program-ledger.yml'
+  workflow_dispatch: {}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Prove the verifier catches every tamper
+        run: python backend/scripts/action_ledger.py selftest
+
+      - name: Verify the ledger (chain, schema, STATE anchor; append-only against the base on a PR)
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -e
+          if [ -n "$BASE_REF" ]; then
+            git fetch --depth=1 origin "$BASE_REF"
+            if git cat-file -e FETCH_HEAD:docs/weather-program/ACTIONS.jsonl 2>/dev/null; then
+              git show FETCH_HEAD:docs/weather-program/ACTIONS.jsonl > /tmp/base_actions.jsonl
+              python backend/scripts/action_ledger.py verify --base /tmp/base_actions.jsonl
+              exit 0
+            fi
+            echo "The base branch has no ledger yet: verifying without a prefix check."
+          fi
+          python backend/scripts/action_ledger.py verify
+
+      - name: Audit the git memory record
+        run: python backend/scripts/memory_audit.py --docs-only

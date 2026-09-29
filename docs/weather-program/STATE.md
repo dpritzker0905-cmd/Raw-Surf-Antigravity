@@ -1,32 +1,34 @@
 # Weather program: state
 
-**Updated 2026-09-29 ~14:00Z** (log: `log/2026-09-29-consensus-and-ops.md`). Verify live before acting: this file
+**Updated 2026-09-29 14:40Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
-- **`dev` = `f18c7ab8`** (#162, merged 2026-09-29 ~13:57Z). The Render backend auto-deploys from `dev`. The
-  production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #163 (this folder) and #164 (consensus PR B, the shadow; dark). Codex drafts #15 #22 #23
-  #27 #43 #44 are not ours; leave them.
+- **`dev` = `9358324d`** (#163 at 14:31:20Z, after #164 `09cbca84` at 14:28:05Z). The Render backend auto-deploys
+  from `dev`. The production frontend is frozen at `fc140024` (D-002).
+- **Open PRs of ours:** the accountability PR (this ledger, `action_ledger.py`, `memory_audit.py`, BRAIN_RULES §23).
+  Codex drafts #15 #22 #23 #27 #43 #44 are not ours; leave them.
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
   per-spot size references (`RATING_LOCAL_SIZE=1`), now fail-closed in the precompute (#162).
-- **Built but dark:** the equal-mean consensus builder (#161, no caller yet); MOP nearshore
+- **Built but dark:** the consensus SHADOW at ingest (#164: model `CONSENSUS`, `CONSENSUS_INGEST` '0' in all three
+  lanes; one switch builds it and adds the `raw_surf:CONSENSUS` ledger lane); MOP nearshore
   (`SURF_NEARSHORE_MOP`, graded, flip waits on spot observations).
 - **Armed switches:** the workflow-dispatch fallback (#153), armed 2026-09-29 13:30Z. It dispatches a data lane's
   workflow when GitHub drops its cron slot. Audit it at `/api/health` → `scheduler.workflow_dispatch.last`. Kill:
   `WORKFLOW_DISPATCH=0`.
   ⚠️ **Its dispatches fail with HTTP 403 (13:46Z)**: the token reads Actions but cannot write them. Owner: give the
   token **Actions: Read and write** (same token value; no Render change). Durable record: Render log `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 129 / 1515 (1521), estate 568 (570). #164 moves chain to
-  130 / 1531 (1537).
+- **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
+- **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
+  verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
+  **Ledger head: seq 20, sha256 468def2ea61feb13e559f9ddc90f8d1a7d1091746b44bf7d9f9d36994a140f77**
 
 ## Next fixes, in order
-1. **Consensus PR B, as a SHADOW product (D-009):** a pilots-lane job behind `CONSENSUS_INGEST` (default 0) builds
-   the equal mean for each GFS regional waves frame as its own `CONSENSUS` product, choosing each member's product
-   per cell with the point resolver's own `manifest_point_selection`; the skill ledger grades it as a fourth lane
-   (`FORECAST_SKILL_COMPARE_MODELS`). Nothing served changes until the owner's flip points GFS waves at it.
-2. **Accuracy monitor false alarm:** page on "no scored rows for N hours", not on one zero-score pass (LESSONS L-F4).
+1. **Accuracy monitor false alarm (in progress):** page on "no scored rows for N hours", not on one zero-score pass
+   (LESSONS L-F4).
+2. **Arm the consensus shadow (owner's word):** `CONSENSUS_INGEST: '1'` in forecast-ingest-pilots.yml,
+   forecast-ingest.yml and precompute.yml (+~5% manifest, D-009). Then PR C reads `raw_surf:CONSENSUS`.
 3. **Consensus PR C:** evidence for the flip: judge `CONSENSUS_AB`, ledger `by_band`/`by_region`, a before/after
    catalogue sweep of displayed heights. Then the owner's flip.
 4. **MOP for California:** needs spot observations for the sheltered spots (Fort Point, Rincon, Leadbetter, Sands).

@@ -216,6 +216,43 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 * **Exclusive Dev Branch Target**: AI assistants are strictly forbidden from staging, committing, or pushing any codebase modifications directly to the `main` branch. All branch targets for git push operations must be explicitly set to `dev` (`git push origin dev`).
 * **Dev Environment Targeting**: All production build verifications, local Netlify previews, and local server actions must explicitly target the `dev` environment or branch state. The `main` branch remains locked for manual gatekeeper verification and staging release controls.
 
+### 23. Accountability: Every Action Ledgered, Every Claim Evidenced (owner mandate 2026-09-29)
+> "We need to be state of the art, and the only way is for you to be accountable for every action you do." — the owner
+
+* **Scope — "every action".** Anything that changes state outside a scratch directory: opening or merging a PR, a
+  push, a workflow dispatch, an env var or flag change, a deploy, a database or storage write, a memory or doc write,
+  a file deletion, and any message sent on the owner's behalf. Also every owner action a session learns of (a token
+  set, a manual deploy), and every **correction** of an earlier claim.
+* **Record it in the ACTION LEDGER before the turn ends** — one line of `docs/weather-program/ACTIONS.jsonl` via
+  `python backend/scripts/action_ledger.py append …`, never by hand. Each line carries: `actor`, `kind`, `target`,
+  `why`, `authorized_by` (the owner's exact words, or the standing rule that permits it), `evidence` (run ids, PR
+  links, log lines, measurements), `outcome`, `verified` (how the result was READ BACK from the live system, or
+  `pending: <what will verify it>`), and `rollback` (the exact undo).
+* **The ledger is tamper-evident.** Each line holds the SHA-256 of the previous line; STATE.md publishes the head
+  (`Ledger head: seq N, sha256 H`); CI (`weather-program-ledger.yml`) runs `action_ledger.py selftest` and `verify`
+  and, on a pull request, requires the base branch's ledger to be a byte-exact prefix. Editing, deleting,
+  reordering or truncating history fails CI. There is no "fix the ledger" — there is only a new correction line.
+* **Authorization before irreversible or outward-facing actions.** Merge only the PRs the owner names, only with
+  every check green and the hosted test counts matching the projection. Never flip a served number without the
+  owner's word (D-001). When the next step is genuinely the owner's call, ask once, with a recommendation.
+* **Verify after acting.** Read the result back from the live system (`gh pr view`, `/api/health`, Render deploys,
+  the workflow run) and record what was seen. "Done" without a read-back is `verified: pending`.
+* **Every claim to the owner cites its evidence** (a run id, a log line, a measured number with its instrument).
+  A claim without evidence is labelled unverified. Numbers carry their conditions (sample, window, lead).
+* **Own mistakes early.** A wrong claim is corrected in the same turn it is found: a `correction` ledger line
+  naming the seq it corrects, a dated correction note where the claim was written (never a silent rewrite), and a
+  plain statement at the top of the reply.
+* **Memory is checked, not trusted.** `docs/weather-program/` in git is the memory of record (D-008): STATE,
+  DECISIONS, SCOREBOARD, LESSONS, per-session logs and the ledger. Agent-local memories are pointers and carry
+  `metadata.verified: YYYY-MM-DD`; run `python backend/scripts/memory_audit.py` at session start and end, and
+  re-check any STALE or UNVERIFIED fact before relying on it. §21's MCP memories (Mind, Memstate, Trevec) are used
+  when the session actually has them — checked 2026-09-29 in the Claude desktop Code sessions on the owner's
+  Windows machine, none were configured — and the git record is the one memory every session and machine shares.
+* **Progress is measured.** Every fix that changes a served number adds a `SCOREBOARD.md` row (before and after,
+  same instrument). A fix without a measured effect says so. Regressions are recorded, never hidden.
+* **Times are UTC**, from `date -u` or the platform's own timestamps; a local clock misread as UTC cost a 4-hour
+  error on 2026-09-29.
+
 ---
 
 > [!IMPORTANT]
