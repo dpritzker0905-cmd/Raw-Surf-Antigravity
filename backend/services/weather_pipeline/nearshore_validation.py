@@ -33,6 +33,8 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from services.weather_pipeline.consensus_product import CONSENSUS_MEMBERS, equal_consensus  # noqa: F401 (re-export)
+
 PAIRS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                           "data", "nearshore_validation_pairs.json")
 PAIRS_MAX_AGE_DAYS = 90.0     # regenerate with build_nearshore_pairs.py; staleness REFUSES
@@ -299,33 +301,11 @@ def arm_ab(matched: list, key: str):
 # swells: bias -0.10 / -0.03 / -0.02 m at 24 / 48 / 72 h). What the app shows is the NEARSHORE height after the
 # transform, and GFS-Wave's regional bias differs by coast (x1.10-1.27 on Florida's east coast, x0.85-0.89 in
 # SoCal, x0.54-0.85 in the Gulf), so a consensus INPUT has to be graded where the transform lands, too.
-CONSENSUS_MEMBERS = ("GFS", "EURO", "ICON")
+# The equal mean (`equal_consensus`) and CONSENSUS_MEMBERS live in consensus_product since 2026-09-29, so this arm
+# grades the SAME function the ingest builder serves; imported at the top and re-exported for the runner and tests.
 # The equal mean WITHOUT ICON (2026-09-29): #155's paired nearshore hours put ICON at 0.203 m MAE (+0.12 m high)
 # against GFS 0.156, EURO 0.102 and the three-model mean 0.117, so the pair is the next candidate to grade.
 PAIR_MEMBERS = ("GFS", "EURO")
-
-
-def equal_consensus(members: dict, required=CONSENSUS_MEMBERS):
-    """The equal mean of the `required` members' offshore Hs at one spot and hour, carrying the PRIMARY's (GFS, the
-    served lane) period and direction: the ingest-time design, the primary's sea scaled to the consensus height.
-    None unless EVERY required member answered, so an arm is always its full equal mean (the ledger's pairing rule)
-    and never a smaller mean under the same name. PURE."""
-    if not isinstance(members, dict) or "GFS" not in required:
-        return None
-    vals = []
-    for m in required:
-        a = members.get(m) or {}
-        try:
-            v = float(a.get("hs"))
-        except (TypeError, ValueError):
-            return None
-        if not math.isfinite(v) or v < 0:
-            return None
-        vals.append(v)
-    p = members["GFS"]
-    if p.get("tp") is None or p.get("dir") is None:
-        return None
-    return {"hs": sum(vals) / len(vals), "tp": float(p["tp"]), "dir": float(p["dir"])}
 
 
 # ── THE ARCHIVED MOP-GRID ARM (stage 4, 2026-09-27) ──────────────────────────────────────────────────

@@ -47,11 +47,80 @@ def resolution_or_none(grid):
     return res if res and res > 0 else None
 
 
+def _to_monotonic_lng(x: float, west: float) -> float:
+    """Longitude mapped onto a monotonic axis starting at `west`, for antimeridian-crossing grids."""
+    val = x - west
+    if val < 0:
+        val += 360.0
+    return west + val
+
+
+def _from_monotonic_lng(mono_x: float) -> float:
+    wrapped = mono_x % 360.0
+    if wrapped > 180.0:
+        wrapped -= 360.0
+    return wrapped
+
+
 class PointSampler:
     """
     Samples point forecasts from NormalizedProduct grid files
     using high-fidelity Bilinear Interpolation.
     """
+
+    def __init__(self, memoize: bool = False):
+        # OPT-IN GRID-INDEX MEMO (2026-09-29). sample_point rebuilds a product's sorted axes, its
+        # coordinate map, its resolution and (on the coastal fallbacks) its valid-vector list on EVERY
+        # call, so one sample costs O(grid): measured 0.21 ms on a 725-cell Florida tile and 2.66 ms on
+        # a 5,917-cell Brazil tile. The ingest consensus builder samples every GFS cell against EURO and
+        # ICON: ~25 s per Brazil frame unmemoized, 0.15 s memoized (1.5 s when the members' land masks
+        # disagree everywhere and every sample takes the nearest-ocean scan). The math is untouched:
+        # the SAME index, built the same way, once (tests/test_consensus_product.py pins memoized ==
+        # fresh on every branch).
+        # ⛔ Never on a long-lived instance (the module-level samplers in routes/): the memo holds
+        # every product it has seen until the sampler itself is dropped.
+        self._memo = {} if memoize else None
+
+    def _grid_index(self, product: NormalizedProduct):
+        """(lats, bounds, lons_mono, coordinate_map) of a non-empty grid, or None when its coordinate
+        lists are unusable. Memoized per product object when the sampler was built with memoize=True."""
+        entry = self._memo.get(id(product)) if self._memo is not None else None
+        if entry is not None and entry["product"] is product:
+            return entry["index"]
+        grid = product.grid
+        lats = sorted(list(set(v.lat for v in grid.vectors)))
+        index = None
+        if lats:
+            bounds = grid.bounds
+            if not bounds:
+                lons_fallback = sorted(list(set(v.lng for v in grid.vectors)))
+                from services.weather_pipeline.schemas import CoverageBounds
+                bounds = CoverageBounds(west=lons_fallback[0], south=lats[0], east=lons_fallback[-1], north=lats[-1])
+            lons_mono = sorted(list(set(_to_monotonic_lng(v.lng, bounds.west) for v in grid.vectors)))
+            index = (lats, bounds, lons_mono, {(v.lat, v.lng): v for v in grid.vectors})
+        if self._memo is not None:
+            self._memo[id(product)] = {"product": product, "index": index, "valid": None}
+        return index
+
+    def _valid_vectors(self, product: NormalizedProduct) -> List[Any]:
+        """The grid's valid vectors (the fallback branches' candidate list), memoized like the index."""
+        entry = self._memo.get(id(product)) if self._memo is not None else None
+        if entry is not None and entry["product"] is product and entry["valid"] is not None:
+            return entry["valid"]
+        valid = [v for v in product.grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+        if entry is not None and entry["product"] is product:
+            entry["valid"] = valid
+        return valid
+
+    def _resolution(self, product: NormalizedProduct):
+        """resolution_or_none(product.grid), memoized like the index: it sorts every latitude of the grid, and on a
+        memoized sampler it was the largest remaining per-sample cost (8.8 of 9.7 s building a Brazil frame)."""
+        entry = self._memo.get(id(product)) if self._memo is not None else None
+        if entry is None or entry["product"] is not product:
+            return resolution_or_none(product.grid)
+        if "resolution" not in entry:
+            entry["resolution"] = resolution_or_none(product.grid)
+        return entry["resolution"]
 
     def sample_point(
         self,
@@ -74,33 +143,13 @@ class PointSampler:
         if not grid or not grid.vectors:
             return self._build_unavailable_response(product, lat, lng, "Empty or missing grid data")
 
-        lats = sorted(list(set(v.lat for v in grid.vectors)))
-        if not lats:
+        index = self._grid_index(product)
+        if index is None:
             return self._build_unavailable_response(product, lat, lng, "Invalid grid coordinates list")
+        lats, bounds, lons_mono, coordinate_map = index
 
-        bounds = grid.bounds
-        if not bounds:
-            lons_fallback = sorted(list(set(v.lng for v in grid.vectors)))
-            if not lons_fallback:
-                return self._build_unavailable_response(product, lat, lng, "Invalid grid coordinates list")
-            from services.weather_pipeline.schemas import CoverageBounds
-            bounds = CoverageBounds(west=lons_fallback[0], south=lats[0], east=lons_fallback[-1], north=lats[-1])
-
-        # Monotonic longitude mapping helpers for antimeridian crossing
-        def to_monotonic_lng(x: float, west: float) -> float:
-            val = x - west
-            if val < 0:
-                val += 360.0
-            return west + val
-
-        def from_monotonic_lng(mono_x: float) -> float:
-            wrapped = mono_x % 360.0
-            if wrapped > 180.0:
-                wrapped -= 360.0
-            return wrapped
-
-        lons_mono = sorted(list(set(to_monotonic_lng(v.lng, bounds.west) for v in grid.vectors)))
-        lng_mono = to_monotonic_lng(lng, bounds.west)
+        # Monotonic longitude mapping (antimeridian crossing): module-level _to/_from_monotonic_lng.
+        lng_mono = _to_monotonic_lng(lng, bounds.west)
 
         min_lat, max_lat = bounds.south, bounds.north
         min_lon_mono, max_lon_mono = lons_mono[0], lons_mono[-1]
@@ -135,7 +184,7 @@ class PointSampler:
                 interpolation_method="out_of_bounds_fallback"
             )
             return NormalizedPointResponse(
-                resolution=resolution_or_none(product.grid),
+                resolution=self._resolution(product),
                 model=product.model,
                 provider=product.provider,
                 domain=product.domain,
@@ -160,9 +209,7 @@ class PointSampler:
                 upstream_model=product.upstream_model
             )
 
-        # 2. Build coordinate map for constant-time lookup
-        coordinate_map = {(v.lat, v.lng): v for v in grid.vectors}
-
+        # 2. Coordinate map for constant-time lookup (built by _grid_index)
         def get_vector_safe(lat_val: float, lon_val: float):
             vec = coordinate_map.get((lat_val, lon_val))
             if vec is not None:
@@ -174,8 +221,8 @@ class PointSampler:
         # 3. Locate bounding box coordinates
         lat0, lat1 = self._find_surrounding_brackets(lats, lat)
         lon0_mono, lon1_mono = self._find_surrounding_brackets(lons_mono, lng_mono)
-        lon0 = from_monotonic_lng(lon0_mono)
-        lon1 = from_monotonic_lng(lon1_mono)
+        lon0 = _from_monotonic_lng(lon0_mono)
+        lon1 = _from_monotonic_lng(lon1_mono)
 
         # Exact match path
         if lat0 == lat1 and lon0 == lon1:
@@ -227,7 +274,7 @@ class PointSampler:
                 return self._build_unavailable_response(product, lat, lng, f"No valid {product.layer} data in grid")
                 
             if len(corners) < 4:
-                valid_scalar = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+                valid_scalar = self._valid_vectors(product)
                 if valid_scalar:
                     nearest = self._find_nearest_vector(valid_scalar, lat, lng)
                     detail = NormalizedPointDetail(
@@ -381,7 +428,7 @@ class PointSampler:
                 return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
             else:
                 # Fallback to nearest ocean vector if sum of weights is zero
-                valid_vectors = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+                valid_vectors = self._valid_vectors(product)
                 if valid_vectors:
                     nearest = self._find_nearest_vector(valid_vectors, lat, lng)
                     detail = NormalizedPointDetail(
@@ -415,7 +462,7 @@ class PointSampler:
 
         elif len(valid_ocean_corners) == 1:
             # 3. Fallback to Nearest Ocean Vector (exactly 1 valid ocean corner exists)
-            valid_vectors = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+            valid_vectors = self._valid_vectors(product)
             if valid_vectors:
                 nearest = self._find_nearest_vector(valid_vectors, lat, lng)
                 detail = NormalizedPointDetail(
@@ -444,7 +491,7 @@ class PointSampler:
             # The heatmap interpolates from farther valid ocean cells, so the infobox showed a misleading
             # "0 ft / 0 dir" where the map shows waves. Fall back to the nearest valid ocean vector IF it's
             # within ~1.5 grid cells; deep-inland points (nearest ocean farther) stay unavailable.
-            valid_vectors = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+            valid_vectors = self._valid_vectors(product)
             if valid_vectors:
                 nearest = self._find_nearest_vector(valid_vectors, lat, lng)
                 pos_diffs = [lats[i + 1] - lats[i] for i in range(len(lats) - 1)]
@@ -556,7 +603,7 @@ class PointSampler:
             interpolation_method="unavailable"
         )
         return NormalizedPointResponse(
-            resolution=resolution_or_none(product.grid),
+            resolution=self._resolution(product),
             model=product.model,
             provider=product.provider,
             domain=product.domain,
@@ -591,7 +638,7 @@ class PointSampler:
         warnings: List[str]
     ) -> NormalizedPointResponse:
         return NormalizedPointResponse(
-            resolution=resolution_or_none(product.grid),
+            resolution=self._resolution(product),
             model=product.model,
             provider=product.provider,
             domain=product.domain,
