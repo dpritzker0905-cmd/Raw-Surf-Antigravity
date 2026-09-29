@@ -295,9 +295,9 @@ def test_only_the_native_resolution_is_native(res, native):
     assert is_native(res) is native
 
 
-def test_both_fetch_lanes_declare_the_switch_dark_and_equal():
+def test_both_fetch_lanes_declare_the_switch_flipped_and_equal():
     """The two workflows that run the wave fetch move together, never one (the same coast regridded two ways by
-    cycle). DARK until the owner's word: the value is '0' in both."""
+    cycle). FLIPPED by the owner's merge of the flip PR (D-010): the value is '1' in both. To revert: '0' in BOTH."""
     from pathlib import Path
 
     import yaml
@@ -309,7 +309,7 @@ def test_both_fetch_lanes_declare_the_switch_dark_and_equal():
                  if isinstance(st, dict) and "REGRID_NATIVE_CELL" in (st.get("env") or {})]
         assert len(found) == 1, wf
         values[wf] = found[0]
-    assert set(values.values()) == {"0"}, values
+    assert set(values.values()) == {"1"}, values
 
 
 # ── ICON (DWD GWAM) ─────────────────────────────────────────────────────────────────────────────────────────────

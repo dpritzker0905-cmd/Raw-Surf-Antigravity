@@ -194,3 +194,10 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
   version used a second batch pass at half=3 and differed from the scalar path on 1 real value in 115,600 (a
   rounding tie on quantized data, run 36624144116); land nodes now use the same scalar reduction in both paths,
   pinned by a structural test that is red on the old code. Gate run 36625244679: success: vector == scalar on 115,600 values (IDENTICAL); FLIP_COVERAGE OK (0 total-height values lost; 544 gained at 32 coastal nodes); wave_height mean|d| 0.0244 m p90 0.0552 max 0.6127; direction mean 5.93 deg p90 12.0; swell 207 values empty at sea cells GFS reports without a swell partition.
+
+## 20:47Z · the regrid flip prepared (owner: "Merge #173 and prepare the regrid flip PR")
+- The flip PR: `REGRID_NATIVE_CELL: '1'` in forecast-ingest.yml and forecast-ingest-pilots.yml, the lane test's
+  expected value, D-010 and a SCOREBOARD row with the priced movement (run 36626767710). Its merge is the flip.
+- After the merge, measure: the parity probe's node-vs-native gap (0.045 m before) once the regional tiles
+  re-ingest (pilots every ~8 h; worldwide regions every ~32 h); the ledger's same-model gap (S2 NCEP line) over
+  24-72 h of scored rows. Split ledger analyses at the flip: the consensus shadow's members change with it.

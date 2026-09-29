@@ -68,6 +68,22 @@ with a single line `Superseded by D-MMM (date)`. The newest entry is at the bott
 - **Rule:** the write protocol in `README.md`. Agent-local memory keeps pointers and working-style facts.
 - **Reopen if:** the owner prefers another store.
 
+### D-010 · Regional wave tiles read their exact native cell (REGRID_NATIVE_CELL on)
+- **Decided:** by the owner's merge of the flip PR, 2026-09-29 (the merge is the word, as with #168).
+- **Rule:** every 0.25-deg regional wave node of GFS, ICON and EURO reads its own native cell; a node whose own
+  cell is land answers from the sea cells of its centred 3x3. Coarser tiers are unchanged.
+- **Why:** the legacy block (`half = max(1, round(res/0.25/2))` = 1) was the 2x2 of cells NORTH-WEST of every node,
+  a mean placed half a cell (~14 km) off its water: our node matched Open-Meteo's NW 2x2 to 1 cm on 72% of rows
+  (#170). EURO also mixed cells within one point (NW-2x2 height, own-cell direction).
+- **Evidence before the flip (real GRIB, Florida east coast, run 36626767710 on #173's final code):** vector == scalar on 115,600
+  values; 0 total-height values lost, 544 gained at 32 coastal nodes; heights move mean 0.024 m (p90 0.055),
+  directions 5.9 deg (p90 12). Lane: `forecast-ingest.yml` + `forecast-ingest-pilots.yml` together.
+- **Measure after:** the parity probe's node-vs-native gap (0.045 m before) should fall to rounding once the
+  regional tiles re-ingest; the ledger's same-model gap to Open-Meteo GFS-Wave (+0.020/+0.026/+0.027 m, S2) should
+  close by the same mechanism over 24-72 h of scored rows. Split ledger analyses at the flip time: the consensus
+  shadow's members change with it.
+- **Revert:** `REGRID_NATIVE_CELL: '0'` in BOTH lanes (or revert the flip PR); the next cycle is legacy again.
+
 ### D-009 · The consensus enters as a SHADOW product first
 - **Decided:** by the owner, 2026-09-29 ~14Z (asked with a recommendation; refines D-006's build plan).
 - **Rule:** consensus PR B builds the equal mean at ingest as its OWN product set (model `CONSENSUS`, never
