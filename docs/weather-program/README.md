@@ -18,6 +18,7 @@ history stays where it is: it is frozen, and new state lives here.
 | `SCOREBOARD.md` | Measured skill over time: the numbers that say whether we are getting closer to state of the art | **Append-only rows.** Every fix adds its measured effect, or a row saying it changes no served number |
 | `LESSONS.md` | Method and process lessons learned the hard way (science, CI, operations) | Append new lessons. Correct a wrong one with a dated note under it; never delete it silently |
 | `log/YYYY-MM-DD-<session>.md` | One running log per session per day: what was measured, merged, found, corrected | **Only the session that owns the file writes to it.** One file per session means no two writers ever share one |
+| `ACTIONS.jsonl` | **The action ledger** (BRAIN_RULES §23): one line per state-changing action or correction, with the authorizing words, evidence, read-back verification and rollback | **Only via `backend/scripts/action_ledger.py append`.** Hash-chained; STATE publishes the head; CI proves the chain and, on a PR, that history was only appended to |
 
 ## Write rules (the anti-overwrite protocol)
 
@@ -35,10 +36,26 @@ history stays where it is: it is frozen, and new state lives here.
    update with the next PR, or as a docs-only commit if nothing else is in flight.
 7. **No secret values here, ever** (the repo is public). Name credentials by environment variable only. Service IDs
    and project identifiers stay in agent-local memory, not in this folder.
+8. **Every action is accountable** (owner, 2026-09-29; BRAIN_RULES §23). Each state-changing action, and each owner
+   action a session learns of, gets a ledger line before the turn ends: who, what, the owner's authorizing words,
+   evidence, how the result was READ BACK live (or `pending: …`), and the exact rollback. A wrong claim gets a
+   `correction` line and a dated note where it was written. Move STATE's `Ledger head` anchor with each update.
+9. **Facts carry their freshness.** Agent-local memories record `metadata.verified: YYYY-MM-DD`, the day the fact was
+   last checked against reality. `backend/scripts/memory_audit.py` flags STALE and UNVERIFIED facts; re-check
+   before relying on one.
+10. **Times are UTC**, from `date -u` or the platform's own timestamps; never a local clock read as UTC.
 
 ## Starting a session
 
-1. Read `STATE.md`, then the newest file in `log/`, then any `DECISIONS.md` entry that touches your task.
+1. Run `python backend/scripts/memory_audit.py --memory-dir <agent memory folder>` (or `--docs-only`); fix or
+   re-check what it flags. Then read `STATE.md`, the newest file in `log/`, the ledger's recent lines
+   (`ACTIONS.jsonl`), and any `DECISIONS.md` entry that touches your task.
 2. Verify STATE's claims live before acting on them (they drift): `git fetch`, `gh pr list --state open`, and the
    backend's `/api/health` and `/api/health/data`.
-3. Open your own log file for the day and append to it as you go.
+3. Open your own log file for the day and append to it as you go; ledger each action as you take it.
+
+## Ending a session
+
+1. Every action of the session is in the ledger, and every `verified: pending` has been read back or says why not.
+2. STATE is true, including its `Ledger head` line (`python backend/scripts/action_ledger.py head`).
+3. `python backend/scripts/action_ledger.py verify` and `memory_audit.py` pass.

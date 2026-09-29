@@ -79,3 +79,18 @@ before starting it.
 - **L-P6 · Windows shells.** Multi-line edits go through Python with exact-string asserts (heredocs mangle `\`
   continuations). In Git Bash, `git show origin/dev:path` needs `MSYS_NO_PATHCONV=1`. `grep -E "\t"` does not match
   a tab.
+
+## Accountability and memory (2026-09-29)
+
+- **L-A1 · A local clock is not UTC.** This machine runs EDT (UTC-4), and git prints local offsets; the session log
+  put #161 at "~09:00Z" when GitHub says 13:06:13Z. Take times from `date -u` or the platform's timestamps.
+  (correction: ledger line 16)
+- **L-A2 · "Armed" is not "working".** The dispatch fallback reported `armed: true` while every dispatch it attempted
+  failed with HTTP 403 (the token could read Actions but not write them). Verify an action by its first real
+  effect, not by its own status flag. (Render log, 2026-09-29 13:46Z)
+- **L-A3 · A memory without a verified date is a rumour.** The first memory audit found 12 of 12 local memories
+  with no record of when their facts were last checked. Facts now carry `metadata.verified`, and the audit flags
+  stale ones.
+- **L-A4 · A rule that names tools a session does not have is a rule nobody can follow.** BRAIN_RULES §21 requires
+  Mind/Memstate/Trevec checkpoints; none were configured in this session. §23 records that and names the git record
+  as the memory every session actually shares.

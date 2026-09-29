@@ -76,3 +76,34 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
 - Owner action: edit the fine-grained token → Repository permissions → **Actions: Read and write** (the token value
   does not change, so Render needs no update). `last` in /api/health is in memory and resets on each deploy; the
   Render log lines `[workflow-dispatch]` are the durable record.
+
+## 14:30Z · CORRECTION: the first two headings of this log are 4 hours off
+- "~08:30Z · start-of-context checks" was really **~12:30Z**, and "~09:00Z · #161 opened" was really **13:06:13Z**
+  (`gh pr view 161` createdAt). I read this machine's local clock (EDT, UTC-4) as UTC. The headings from 13:27Z on
+  came from `date -u` and GitHub and are right. The wrong headings stay as written (append-only); this entry, and
+  ledger line 16, correct them.
+
+## 14:28-14:40Z · #164 and #163 merged; accountability built (owner: "be accountable for every action you do")
+- #164 merged on the owner's word at 14:28:05Z (`09cbca84`; hosted chain 130 / 1537 = projection); #163 at 14:31:20Z
+  (`9358324d`, docs only). Both read back with `gh pr view`.
+- **The action ledger** (`ACTIONS.jsonl`, BRAIN_RULES §23): one line per state-changing action or correction, with
+  the authorizing words, evidence, read-back verification and rollback; SHA-256 chained; STATE publishes the head;
+  CI (`weather-program-ledger.yml`) runs a selftest (15 tamper cases, each caught by its OWN check, including a
+  re-chained rewrite of history that only the anchor or the base prefix can catch), verifies the chain and, on a PR,
+  requires the base ledger to be a byte-exact prefix. Removing any of the verifier's 11 checks fails the selftest.
+  Seeded with today's 17 actions, reconstructed from GitHub, Render and the logs (flagged `reconstructed`).
+- **The memory check-over** (`memory_audit.py`, first run 14:24Z): 12 of 12 local memories had no record of when
+  their facts were last checked → each now carries an honest `metadata.verified` (today only where re-checked
+  today). The index, links and frontmatter were sound. BRAIN_RULES §21 mandates Mind/Memstate/Trevec, none of which
+  this session has (§23 names the git record as the shared memory). `.antigravityrules` §22 has drifted from
+  BRAIN_RULES §22 (no authorized main-push exception): recorded, not changed.
+- **Correction** (ledger line 16): this log's first two headings are 4 h off (local EDT read as UTC).
+- Verified at 14:39Z: `action_ledger.py verify` → 20 entries OK; `memory_audit.py --memory-dir …` → 0 FAIL, 0 WARN.
+
+## ~14:42Z · #166 opened: the accuracy monitor judges liveness on the archive
+- The 06:48Z page came from judging only the latest ledger pass. Measured basis for the new bound: 127 successful
+  calibration passes (precompute + core ingest) over 14 days, gap p50 2.0 h / p90 5.2 h / p99 7.1 h / max 8.6 h,
+  so dead = no scored target newer than 16 h (~1.5x the worst healthy ~10.6 h). The archive unreadable keeps the
+  old rule; last month's archive is read near a month boundary. 8 tests, 7/7 mutations, guards floor 174/2118.
+- After merge, verify by dispatching the monitor and reading its new `skill ledger liveness:` line (the real
+  newest-target age, which the 16 h bound assumes is ~2 h behind the last pass).
