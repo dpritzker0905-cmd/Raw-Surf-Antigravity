@@ -150,3 +150,17 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
   thing at a time: no coordinate shift (9-offset scan), and our 0.25-deg node equals Open-Meteo's north-west 2x2
   mean to 1 cm on 72% of rows. Cause in code: `half = max(1, round(res/0.25/2))` = 1 at native resolution, and the
   block is rows [r-1, r+1) x cols [c-1, c+1), in all three wave fetchers (ledger seq 43).
+
+## 18:30-19:00Z · the GFS native-cell regrid, built dark
+- `services/_fetch_native_cell.py` + `noaa_gfs_wave_fetcher.py`: with `REGRID_NATIVE_CELL=1`, a region whose
+  resolution IS the native 0.25 deg reads its exact cell through the unchanged production reductions (a doubled
+  view for the batch forms, a 1x1 slice for the scalar ones). Coarser tiers are untouched; the flag off is
+  byte-identical (the 16 existing loop/parity tests pass unchanged). Design and the rejected half=0: ledger seq 45.
+- Tests on the REAL `fetch_global_coarse` loop over a stub 0.25-deg GRIB: flag off pins the defect (a node = the
+  NW 2x2 RMS); flag on, every height/period/direction is the native cell and every confidence the reductions'
+  single-cell answer; the 1.0-deg tier is byte-identical; vector and per-point paths agree. 14 tests, 12/12
+  mutations red. Chain floor 131/1554 -> 132/1568 from #170's hosted 131 / 1560; local lane 132 files / 1574 passed (= projection).
+- Scope checked: the same rule is in `dwd_gwam_fetcher.py:224` and `ecmwf_opendata_fetcher.py:305` (next);
+  `copernicus_global_fetcher.py:210` is a longitude-only span on the coarse tier (half_cols >= 3), not this defect.
+- Flip evidence to gather after the owner's word: the parity probe's node-vs-native-cell MAE should fall from
+  0.045 m to rounding, and the ledger's same-model gap to Open-Meteo should close by the same amount.
