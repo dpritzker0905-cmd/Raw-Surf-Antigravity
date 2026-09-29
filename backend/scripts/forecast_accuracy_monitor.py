@@ -57,6 +57,7 @@ OK, RED, REFUSED = 0, 1, 3
 
 OPS_GRACE_DEFAULT = "2026-08-10T12:00:00Z"      # first post-fix calibration cron + margin
 SCORED_GRACE_DEFAULT = "2026-08-12T06:00:00Z"   # fix deploy 08-09T00:26Z + 72h recovery + margin
+SCORING_STALE_H_DEFAULT = 16.0                 # newest scored target older than this = dead (2026-09-29)
 # WS-CAN-0026: this file's own §evaluate_scored_segment docstring set the revisit at "~2026-08-22"
 # (~2 weeks of post-fix rows). That date now ARMS the gate instead of reminding a person to.
 PAIRED_GRACE_DEFAULT = "2026-08-22T00:00:00Z"
@@ -109,6 +110,9 @@ def default_cfg():
         # ⚠️ This accepts the STANDING gap on purpose. It does not hide it: every losing reference
         # row emits a ::warning:: on every run.
         "paired_reference_margin_m": 0.10,
+        # Liveness on the scored archive (2026-09-29): see evaluate_scoring_liveness for the measured basis.
+        "scoring_stale_h": SCORING_STALE_H_DEFAULT,
+        "liveness_from_archive": False,     # main() sets it when the archive is readable
     }
 
 
@@ -192,16 +196,67 @@ def evaluate_report(report, now, cfg):
                          "outage never surfaced -- act before scoring dies, not after."
                          % ops.get("pending_evicted_cap"))
         if (ops.get("scored") or 0) == 0:
-            if now > cfg["scored_grace"]:
-                code = max(code, RED)
-                lines.append("::error::SKILL LEDGER SCORED ZERO past the recovery window (%s) -- "
-                             "every healthy pre-fan-out run scored >0. The instrument is dead "
-                             "again; read the pending object's target spread first."
-                             % cfg["scored_grace"].strftime("%Y-%m-%dT%H:%MZ"))
+            if cfg.get("liveness_from_archive"):
+                # ONE PASS IS NOT A LIVENESS SIGNAL (2026-09-29). With the archive readable, the verdict is the
+                # age of the newest scored target, graded by evaluate_scoring_liveness.
+                lines.append("::warning::the latest ledger pass scored 0 -- a pass run minutes after another "
+                             "legitimately scores 0; liveness is judged below on the scored archive")
             else:
-                lines.append("::warning::scored=0 -- inside the post-fix recovery window (until %s)"
-                             % cfg["scored_grace"].strftime("%Y-%m-%dT%H:%MZ"))
+                zc, zl = scored_zero_verdict(ops, now, cfg)
+                code = max(code, zc)
+                lines.append(zl)
     return code, lines
+
+
+def scored_zero_verdict(ops, now, cfg):
+    """The single-pass rule, kept for when the archive cannot be read (no credentials, or the read failed):
+    then one zero-score pass is the only signal there is. Pure."""
+    if (ops or {}).get("scored") or 0:
+        return OK, "latest ledger pass scored %s" % ops.get("scored")
+    if now > cfg["scored_grace"]:
+        return RED, ("::error::SKILL LEDGER SCORED ZERO past the recovery window (%s) -- "
+                     "every healthy pre-fan-out run scored >0. The instrument is dead "
+                     "again; read the pending object's target spread first."
+                     % cfg["scored_grace"].strftime("%Y-%m-%dT%H:%MZ"))
+    return OK, ("::warning::scored=0 -- inside the post-fix recovery window (until %s)"
+                % cfg["scored_grace"].strftime("%Y-%m-%dT%H:%MZ"))
+
+
+def evaluate_scoring_liveness(rows, ops, now, cfg):
+    """(code, lines): is the skill ledger still SCORING? Judged on the newest scored target in the archive, not
+    on the latest pass. Pure.
+
+    WHY (2026-09-29, run 36533043356). This monitor paged RED whenever the LATEST ledger pass scored 0. A pass
+    scores a forecast once its buoy observation is in, so a pass run minutes after another has nothing new to
+    score. Measured that night, scored vs the gap since the previous pass: 1,282 at 3 h, 36 at 66 min, 651 at
+    42 min, 105 at 38 min, 0 at 34 min, 0 at 37 min, then 1,005 at 11:57Z. The 06:48Z page said "the instrument
+    is dead" while it was healthy, and back-to-back precomputes (one per `dev` merge since #150) make that the
+    common case. A permanently red monitor trains red-blindness.
+    THE RULE. Dead = no scored target newer than `scoring_stale_h` (default 16 h). BASIS, measured over the 14
+    days to 2026-09-29 (127 successful calibration passes, precompute + core ingest): the gap between passes was
+    p50 2.0 h, p90 5.2 h, p99 7.1 h, max 8.6 h; with ~2 h for the observation to arrive the worst healthy age is
+    ~10.6 h, and 16 h is ~1.5x that (the method this file uses for red_mae_m and the reference margin). A real
+    death is detected within 16 h plus one monitor slot.
+    `rows` None (archive unreadable) falls back to the single-pass rule, so the monitor is never blinder than it
+    was. Near a month boundary the caller passes the previous month's rows too."""
+    if rows is None:
+        code, line = scored_zero_verdict(ops, now, cfg)
+        return code, ["skill ledger liveness: scored archive unreadable -- falling back to the single-pass rule",
+                      line]
+    targets = [t for r in rows if (t := _parse_iso(r.get("target_time"))) and t <= now]
+    if not targets:
+        return RED, ["::error::SKILL LEDGER NOT SCORING -- the scored archive holds no scored target at or "
+                     "before now. The instrument is dead (or was never alive); read the pending object's "
+                     "target spread first."]
+    newest = max(targets)
+    age_h = (now - newest).total_seconds() / 3600.0
+    line = ("skill ledger liveness: newest scored target %s is %.1f h old (pages past %.0f h)"
+            % (newest.strftime("%Y-%m-%dT%H:%MZ"), age_h, cfg["scoring_stale_h"]))
+    if age_h > cfg["scoring_stale_h"]:
+        return RED, [line, "::error::SKILL LEDGER STOPPED SCORING -- no target scored in %.1f h (bound %.0f h, "
+                           "~1.5x the worst healthy age measured). The instrument is dead again; read the "
+                           "pending object's target spread first." % (age_h, cfg["scoring_stale_h"])]
+    return OK, [line]
 
 
 def evaluate_residual_history(rows, now):
@@ -407,6 +462,7 @@ def main():
                     default=d["paired_persistence_margin_m"])
     ap.add_argument("--paired-reference-margin", type=float,
                     default=d["paired_reference_margin_m"])
+    ap.add_argument("--scoring-stale-h", type=float, default=d["scoring_stale_h"])
     ap.add_argument("--as-of", default=None, help="Grade as if it were this UTC instant "
                     "(replay/dry-run only; does not change what is read).")
     args = ap.parse_args()
@@ -418,26 +474,37 @@ def main():
            "paired_grace": _parse_iso(args.paired_grace) or d["paired_grace"],
            "paired_min_n": args.paired_min_n,
            "paired_persistence_margin_m": args.paired_persistence_margin,
-           "paired_reference_margin_m": args.paired_reference_margin}
+           "paired_reference_margin_m": args.paired_reference_margin,
+           "scoring_stale_h": args.scoring_stale_h}
     now = _parse_iso(args.as_of) or datetime.now(timezone.utc)
     if args.as_of:
         print("::warning::REPLAY MODE -- grading as of %s, not now. Not a live verdict." % now)
     month = now.strftime("%Y-%m")
 
+    has_creds = bool(os.environ.get("SUPABASE_URL")) and bool(
+        os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY"))
+    cfg["liveness_from_archive"] = has_creds      # the archive, not one pass, then judges scoring liveness
     report = _fetch_json(args.base.rstrip("/") + "/api/weather/buoy-calibration")
     code, lines = evaluate_report(report, now, cfg)
     print("\n".join(lines))
 
-    has_creds = bool(os.environ.get("SUPABASE_URL")) and bool(
-        os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY"))
     if has_creds:
         rc, rl = evaluate_residual_history(_fetch_l2("calibration/history/residuals-%s.json" % month), now)
         print("\n".join(rl))
         code = combine(code, rc)
-        sc, sl = evaluate_scored_segment(_fetch_l2("calibration/skill/scored-%s.json" % month),
-                                         now, cfg=cfg)
+        scored_rows = _fetch_l2("calibration/skill/scored-%s.json" % month)
+        sc, sl = evaluate_scored_segment(scored_rows, now, cfg=cfg)
         print("\n".join(sl))
         code = combine(code, sc)
+        live_rows = scored_rows
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if scored_rows is not None and now - month_start < timedelta(hours=cfg["scoring_stale_h"] + 24):
+            prev_month = (month_start - timedelta(days=1)).strftime("%Y-%m")
+            live_rows = (_fetch_l2("calibration/skill/scored-%s.json" % prev_month) or []) + scored_rows
+        ops = report.get("forecast_skill_ops") if isinstance(report, dict) else None
+        lc, ll = evaluate_scoring_liveness(live_rows, ops, now, cfg)
+        print("\n".join(ll))
+        code = combine(code, lc)
     else:
         print("archive readers skipped (no SUPABASE credentials) -- the report gates above still page")
 
