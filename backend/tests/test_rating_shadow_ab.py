@@ -68,6 +68,46 @@ def clean_flags(monkeypatch):
         monkeypatch.delenv(k, raising=False)
 
 
+def _rounded_row(level_flip=False):
+    """A served row as persisted: its stored height carries write rounding (+0.9%, inside the 1% height
+    tolerance) and its score is the rating OF that stored height, so the reproduction checks pass. Picked
+    where the curve is steep enough that 0.9% of height is worth more than the 0.25-point tolerance -- or,
+    with `level_flip`, where that rounding alone crosses a LEVEL boundary (the 3 rows measured)."""
+    g = resolve_surf_geometry(*PIPELINE)
+    for k in range(40, 400):
+        row = _row(offshore=k / 100.0)
+        stored = round(row["surf_height_m"] * 1.009, 3)
+        score, level = compute_surf_rating(stored, 14.0, 2.0, wind_from_deg=140.0,
+                                           shore_normal_deg=g.shore_normal_deg, swell_from_deg=315.0,
+                                           break_depth_m=g.break_depth_m)
+        if abs(score - row["score"]) > 0.25 and (level != row["level"] or not level_flip):
+            return dict(row, surf_height_m=stored, score=score, level=level)
+    pytest.skip("no steep enough point on the rating curve at Pipeline")
+
+
+def test_a_null_HEIGHT_candidate_is_the_null_result_despite_write_rounding():
+    """Measured 2026-09-28 on 584 served rows: with SURF_REFRACTION_KR at its own default, 7 rows moved
+    > 0.25 pts and 3 changed LEVEL, because the candidate was compared with the PERSISTED score, which
+    carries the rounding of every input. Both arms now run the same functions on the same inputs."""
+    row = _rounded_row()
+    rep = replay_frames(_frames([row]), {"SURF_REFRACTION_KR": str(REFRACTION_KR)})
+    assert rep["rows_replayable"] == 1, "the rounded row must still pass the reproduction checks"
+    assert rep["delta_min"] == 0.0 and rep["delta_max"] == 0.0
+    assert rep["level_up"] == 0 and rep["level_down"] == 0
+    assert rep["height_ratio"]["min"] == rep["height_ratio"]["max"] == 1.0
+    m = rep["biggest_upgrades"][0]
+    assert m["score_served"] == row["score"] and m["score_now"] != row["score"], (
+        "the served score is reported beside the recomputed baseline the candidate was measured against")
+
+
+def test_write_rounding_across_a_level_boundary_is_not_a_level_change():
+    row = _rounded_row(level_flip=True)
+    rep = replay_frames(_frames([row]), {"SURF_REFRACTION_KR": str(REFRACTION_KR)})
+    assert rep["rows_replayable"] == 1 and rep["level_up"] == 0 and rep["level_down"] == 0
+    m = rep["biggest_upgrades"][0]
+    assert m["level_served"] == row["level"] and m["level_now"] == m["level_cand"] != row["level"]
+
+
 def test_the_null_candidate_is_the_null_result():
     """A candidate identical to the baseline must change NOTHING -- the null control that proves
     the harness cannot manufacture deltas."""
@@ -314,6 +354,50 @@ def _run_main(monkeypatch, tmp_path, rows, capsys, candidate="SURF_REFRACTION_KR
     monkeypatch.setattr(sys, "argv", ["x", "--candidate", candidate, "--frames-file", str(f)])
     code = mod.main()
     return code, capsys.readouterr().out
+
+
+def test_a_blob_with_no_frames_is_REFUSED_not_NOT_READY(monkeypatch, tmp_path, capsys):
+    """NOT READY means frames were read and none carried inputs; ZERO frames means nothing was read."""
+    from scripts import science_shadow_ab as mod
+    f = tmp_path / "frames.json"
+    f.write_text('{"frames": []}', encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["x", "--candidate", "SURF_REFRACTION_KR=1.0", "--frames-file", str(f)])
+    assert mod.main() == 3
+    out = capsys.readouterr().out
+    assert "REFUSED" in out and "held no frames" in out and "NOT READY" not in out
+
+
+def _l2(monkeypatch, answers):
+    """Stub the uncached L2 read with a script of answers; returns the call log."""
+    from scripts import science_shadow_ab as mod
+    from services.weather_pipeline import spot_ratings_precompute as pre
+    calls = []
+
+    def fake():
+        calls.append(1)
+        return answers[min(len(calls), len(answers)) - 1]
+
+    monkeypatch.setattr(pre, "load_spot_ratings_l2", fake)
+    monkeypatch.setattr(mod, "FRAMES_READ_WAIT_S", 0.0)
+    monkeypatch.setattr(sys, "argv", ["x", "--candidate", "SURF_REFRACTION_KR=1.0"])
+    return mod, calls
+
+
+def test_an_unreadable_blob_is_retried_then_REFUSED(monkeypatch, capsys):
+    """Run 36499867208 read NOTHING while a precompute was uploading (a run 5 s later read 6 frames) and
+    reported NOT READY with exit 0. An unread blob is blindness: retried, then red."""
+    mod, calls = _l2(monkeypatch, [None])
+    assert mod.main() == 3 and len(calls) == mod.FRAMES_READ_ATTEMPTS
+    out = capsys.readouterr().out
+    assert "could not be read after 3 attempts" in out and "NOT READY" not in out
+
+
+def test_one_failed_read_is_retried_and_the_replay_proceeds(monkeypatch, capsys):
+    bare = _row()
+    del bare["inputs"]
+    mod, calls = _l2(monkeypatch, [None, {"frames": _frames([bare])}])
+    assert mod.main() == 0 and len(calls) == 2
+    assert "NOT READY" in capsys.readouterr().out, "frames were read; none carried inputs"
 
 
 def test_no_inputs_anywhere_is_NOT_READY_and_exits_zero(monkeypatch, tmp_path, capsys):
