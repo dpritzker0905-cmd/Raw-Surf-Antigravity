@@ -155,8 +155,7 @@ class PointResolutionService:
                 logger.debug(f"[Surf partitions] {part_layer} at ({lat},{lng}) skipped: {_pe}")
         if not parts:
             return None
-        from services.weather_pipeline.surf_transform import (
-            partitions_represent, reconcile_partitions)
+        from services.weather_pipeline.surf_partitions import partitions_represent, reconcile_partitions
         # The REPRESENT gate: if the surviving trains carry under half the total Hs in quadrature,
         # the dominant train is missing and reconciling would inflate a minority train to carry all
         # the energy at its own period — fall back to the total field instead.

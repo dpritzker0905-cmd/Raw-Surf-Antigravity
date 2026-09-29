@@ -166,7 +166,7 @@ def test_the_output_is_consumable_by_the_production_spectral_transform():
 def test_it_survives_the_production_reconciler_unchanged():
     """`reconcile_partitions` is the SCALE half — the total stays authoritative. A band list must
     pass through it without special-casing."""
-    from services.weather_pipeline.surf_transform import reconcile_partitions
+    from services.weather_pipeline.surf_partitions import reconcile_partitions
     parts, _ = bands_to_partitions(_GROUNDSWELL, total_h_m=1.8, mean_period_s=7.0)
     out = reconcile_partitions(parts, 1.8)
     assert len(out) == len(parts)

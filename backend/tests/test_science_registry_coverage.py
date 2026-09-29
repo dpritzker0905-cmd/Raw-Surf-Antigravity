@@ -76,6 +76,7 @@ CHAIN_MODULES = [
     CLIMATOLOGY,
     WAVE_PHYSICS,
     "services/weather_pipeline/grid_resolver_selection.py",  # WP-2 registered coverage policy
+    "services/weather_pipeline/surf_partitions.py",  # the swell-train gate, split from surf_transform 2026-09-28
 ]
 
 # (module, name) -> (category, why). SHRINK-ONLY. Frozen 2026-08-08 at 42 entries.
@@ -95,8 +96,10 @@ GRANDFATHERED = {
     # showed the comment's figure was wrong (90% vs the paper's 93%). The ratchet forced this
     # deletion on its first real use: registering the constant turned the grandfather entry stale
     # and `test_the_grandfather_set_is_shrink_only` failed until it was removed.
-    (SURF_TRANSFORM, "PARTITION_MIN_QUAD_FRAC"): (DEBT, "swell-partition quadrant heuristic"),
-    (SURF_TRANSFORM, "PARTITION_MAX_TP_RATIO"): (DEBT, "swell-partition period-ratio heuristic"),
+    # ✅ PARTITION_MIN_QUAD_FRAC and PARTITION_MAX_TP_RATIO left this set on 2026-09-28 -- REGISTERED (DERIVED)
+    # when the swell-train gate moved to surf_partitions.py. The move turned both entries stale and the
+    # shrink-only test refused to let them follow the code under a new key; both sat in a measured gap
+    # already, so paying the debt was only writing the record down.
     (SURF_TRANSFORM, "_CELL_KM"): (EXACT, "0.25 deg in km -- geometry, not a measurement"),
     (SURF_TRANSFORM, "_MIN_CAP_DEPTH_M"): (STRUCTURAL, "floor so the depth cap cannot go <= 0"),
     # -- surf_rating: 24 constants, ZERO registered ----------------------------------------------
