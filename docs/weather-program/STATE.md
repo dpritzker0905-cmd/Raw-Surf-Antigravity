@@ -25,7 +25,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 61, sha256 ac9aee2886353d62b0733fa2880e4e2fdef4e9c5aab8b4a79ecc8677eaa52fcc**
+  **Ledger head: seq 63, sha256 65c2b0f03cd6a9e16754c48590a72b1acac258fca5c6ae4b440c8df4c6b3b08b**
 
 ## Next fixes, in order
 0. **Regrid at native resolution (#171, all three fetchers, dark; flip on the owner's word):** every 0.25-deg regional tile of GFS, ICON and EURO is a 2x2
