@@ -1139,7 +1139,11 @@ jobs:
           # observed sea state): hosted CI on PR #158 (merged as ef1ba246) observed 127 files / 1477; #159 added none.
           # tests/test_skill_consensus.py (claimed by `--lane chain`) gains 3 executed tests: 1477 + 3 = 1480,
           # 1480 - 6 = 1474; files 127 unchanged; _FLOOR_SET_FROM["chain"] -> 1480.
-          MIN_FILES, MIN_PASSED = 127, 1474
+          # ⬆ MIN_FILES 127→128, MIN_PASSED 1474→1495 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the equal-mean
+          # consensus builder, dark): hosted CI on dev @ e82f59c8 (#153) observed 127 files / 1480. The new
+          # tests/test_consensus_product.py (claimed by `--lane chain`) adds 21 executed tests: 1480 + 21 = 1501,
+          # 1501 - 6 = 1495; files 128 EXACT; _FLOOR_SET_FROM["chain"] -> 1501.
+          MIN_FILES, MIN_PASSED = 128, 1495
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
