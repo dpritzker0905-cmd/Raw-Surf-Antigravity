@@ -106,6 +106,44 @@ def native_first(run, rs, cs, land, at_land):
     return tuple(out)
 
 
+def native_reduce(batch, fn, grids, rs, cs, land, kind="value"):
+    """One variable at every point's exact native cell: the fetcher's batch reduction `batch` and its scalar form
+    `fn`, which take the same arguments (the `grids`, then indices, half, wrap), handed in by the fetcher so it keeps
+    calling its own functions. The batch runs on Doubled views at half=1; LAND points are answered by `fn` on their
+    centred 3x3. Returns the batch's tuple of per-point arrays."""
+    doubled = [Doubled(g) for g in grids]
+
+    def run(R2, C2):
+        out = batch(*doubled, R2, C2, 1, True, lambda r2, c2: fn(*views(r2 // 2, c2 // 2, 1, *grids), True))
+        return out if isinstance(out, tuple) else (out,)
+    return native_first(run, rs, cs, land,
+                        lambda r, c: batch_row(fn(*views(r, c, LAND_HALF, *grids), True), kind))
+
+
+def multi_conf_at(fn, r: int, c: int, hb: int, pairs, fallback_dir, total_h=None):
+    """The multi-tier total-sea reduction `fn` (energy_mean_direction_block_multi_conf) on what native cell (r, c)'s
+    block sees at doubled-view half `hb`."""
+    flat = [x for pair in pairs for x in pair]
+    v = views(r, c, hb, *flat, fallback_dir, total_h)
+    n = len(flat)
+    return fn([(v[i], v[i + 1]) for i in range(0, n, 2)], v[n], v[n + 2], v[n + 3], v[n + 4], True, v[n + 1])
+
+
+def native_multi(batch, fn, pairs, fallback_dir, total_h, rs, cs, land, **kw):
+    """`native_reduce` for the multi-tier total-sea direction: `batch` is multi_dir_conf_batch, `fn` its scalar form;
+    `kw` passes the fetcher's ramp constants. Returns (directions, confidences, conf_present)."""
+    dp = [(Doubled(d), Doubled(h)) for d, h in pairs]
+    dt = Doubled(total_h) if total_h is not None else None
+
+    def run(R2, C2):
+        return batch(dp, Doubled(fallback_dir), R2, C2, 1, True,
+                     lambda r2, c2: multi_conf_at(fn, r2 // 2, c2 // 2, 1, pairs, fallback_dir, total_h),
+                     total_h_arr=dt, **kw)
+    return native_first(run, rs, cs, land,
+                        lambda r, c: batch_row(
+                            multi_conf_at(fn, r, c, LAND_HALF, pairs, fallback_dir, total_h), "multi"))
+
+
 def batch_row(result, kind: str):
     """A SCALAR reduction's answer as the row its batch form holds, by the batch functions' own `_finalize` rules:
     "multi" (direction, confidence or None) -> (d, conf or 0.0, conf is not None); "partition" -> (d, conf);

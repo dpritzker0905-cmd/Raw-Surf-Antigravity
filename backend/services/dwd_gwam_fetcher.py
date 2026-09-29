@@ -94,11 +94,11 @@ except ImportError:
 # Module top, in the script/package idiom: production spawns this file by path (hotfix 2026-09-29; see the GFS
 # fetcher's note and tests/test_fetcher_script_imports.py).
 try:
-    from _fetch_native_cell import (Doubled, LAND_HALF, batch_row, enabled as _native_enabled,  # script
-                                    is_native, native_first, views)
+    from _fetch_native_cell import (LAND_HALF, enabled as _native_enabled, is_native, multi_conf_at,  # script
+                                    native_multi, native_reduce, views)
 except ImportError:
-    from services._fetch_native_cell import (Doubled, LAND_HALF, batch_row, enabled as _native_enabled,  # package
-                                             is_native, native_first, views)
+    from services._fetch_native_cell import (LAND_HALF, enabled as _native_enabled, is_native,  # package
+                                             multi_conf_at, native_multi, native_reduce, views)
 
 
 def _vector_blockmean() -> bool:
@@ -294,18 +294,12 @@ def fetch_global_coarse(payload):
                         _reduces = h_arr is not None or is_height or p_h_arr is not None
                         # A native cell whose total sea height is missing is LAND (swh decodes first in VAR_MAP).
                         _hs = height_arrs.get("wave_height")
-                        if nat and _reduces:
-                            # The variable's own reduction on what a native cell's block sees (see `nat` above).
-                            def _at(r_, c_, hb_):
-                                if h_arr is not None and _conf_here:
-                                    v_ = views(r_, c_, hb_, arr, h_arr)
-                                    return energy_mean_direction_block_multi_conf(
-                                        [(v_[0], v_[1])], v_[0], *v_[2:], True)
-                                if h_arr is not None:
-                                    return energy_mean_direction_block(*views(r_, c_, hb_, arr, h_arr), True)
-                                if is_height:
-                                    return energy_mean_height_block(*views(r_, c_, hb_, arr), True)
-                                return energy_mean_scalar_block(*views(r_, c_, hb_, arr, p_h_arr), True)
+                        if nat and _reduces:   # this variable's own batch + scalar pair, for _fetch_native_cell
+                            _multi = h_arr is not None and _conf_here
+                            _bt, _fn, _gr = ((direction_block_batch, energy_mean_direction_block, (arr, h_arr))
+                                             if h_arr is not None else
+                                             (height_block_batch, energy_mean_height_block, (arr,)) if is_height else
+                                             (scalar_block_batch, energy_mean_scalar_block, (arr, p_h_arr)))
 
                             def _land(rs_, cs_):
                                 return (~np.isfinite(_hs[rs_, cs_]) if _hs is not None
@@ -314,24 +308,12 @@ def fetch_global_coarse(payload):
                             _rs = np.fromiter((p[0] for p in im), dtype=np.intp, count=len(im))
                             _cs = np.fromiter((p[1] for p in im), dtype=np.intp, count=len(im))
                             _vals = _confs = _present = None
-                            if nat and _reduces:  # the exact native cell; a LAND cell answers from its centred 3x3
-                                _A, _H, _P = (Doubled(x_) if x_ is not None else None for x_ in (arr, h_arr, p_h_arr))
-
-                                def _run(R2, C2):
-                                    fb = (lambda _r, _c: _at(_r // 2, _c // 2, 1))
-                                    if h_arr is not None and _conf_here:
-                                        return multi_dir_conf_batch([(_A, _H)], _A, R2, C2, 1, True, fb)
-                                    if h_arr is not None:
-                                        return (direction_block_batch(_A, _H, R2, C2, 1, True, fb),)
-                                    if is_height:
-                                        return (height_block_batch(_A, R2, C2, 1, True, fb),)
-                                    return (scalar_block_batch(_A, _P, R2, C2, 1, True, fb),)
-                                _kind = "multi" if (h_arr is not None and _conf_here) else "value"
-                                _out = native_first(_run, _rs, _cs, _land(_rs, _cs),
-                                                    lambda r_, c_: batch_row(_at(r_, c_, LAND_HALF), _kind))
-                                _vals = _out[0]
-                                if len(_out) == 3:
-                                    _confs, _present = _out[1], _out[2]
+                            if nat and _reduces and _multi:  # the exact native cell; LAND: its centred 3x3
+                                _vals, _confs, _present = native_multi(
+                                    multi_dir_conf_batch, energy_mean_direction_block_multi_conf, [(arr, h_arr)], arr,
+                                    None, _rs, _cs, _land(_rs, _cs))
+                            elif nat and _reduces:
+                                _vals = native_reduce(_bt, _fn, _gr, _rs, _cs, _land(_rs, _cs))[0]
                             elif h_arr is not None and _conf_here:
                                 _vals, _confs, _present = multi_dir_conf_batch(
                                     [(arr, h_arr)], arr, _rs, _cs, half, True,
@@ -377,11 +359,14 @@ def fetch_global_coarse(payload):
                                 continue
                         for pi, (r, c) in enumerate(im):
                             if nat and _reduces:  # the exact native cell, or a LAND cell's centred 3x3
-                                x = _at(r, c, LAND_HALF if bool(_land(r, c)) else 1)
-                                if h_arr is not None and _conf_here:
-                                    x, conf = x
+                                _hb = LAND_HALF if bool(_land(r, c)) else 1
+                                if _multi:
+                                    x, conf = multi_conf_at(energy_mean_direction_block_multi_conf, r, c, _hb,
+                                                            [(arr, h_arr)], arr)
                                     series[pi][DIR_CONFIDENCE_OM].append(
                                         round(float(conf), 4) if conf is not None else None)
+                                else:
+                                    x = _fn(*views(r, c, _hb, *_gr), True)
                             elif h_arr is not None and _conf_here:
                                 x, conf = energy_mean_direction_block_multi_conf([(arr, h_arr)], arr, r, c, half, True)
                                 series[pi][DIR_CONFIDENCE_OM].append(round(float(conf), 4) if conf is not None else None)
