@@ -44,11 +44,19 @@ history stays where it is: it is frozen, and new state lives here.
    last checked against reality. `backend/scripts/memory_audit.py` flags STALE and UNVERIFIED facts; re-check
    before relying on one.
 10. **Times are UTC**, from `date -u` or the platform's own timestamps; never a local clock read as UTC.
+11. **A promised follow-up is a `commitment` line** (`action_ledger.py append --kind commitment --due-at … --check
+    …`), never a sentence that lives only in one session's context. The line that does it carries
+    `--fulfills <seq>`. `action_ledger.py open` lists what is owed; the audit WARNs on every OVERDUE one.
+12. **The ledger is complete, and the audit proves it**: every PR merge since the ledger began needs its `pr_merge
+    #N` line (the newest may wait for the next PR). Timestamps in STATE and the log headers may not be later than
+    when they were committed, and every "ledger seq N" cited must exist.
+13. **Read the gate's own exit code.** `memory_audit.py … | tail -1 && git push` gates on `tail` (LESSONS L-P13):
+    run the audit on its own line and check `$?` before the next step.
 
 ## Starting a session
 
 1. Run `python backend/scripts/memory_audit.py --memory-dir <agent memory folder>` (or `--docs-only`); fix or
-   re-check what it flags. Then read `STATE.md`, the newest file in `log/`, the ledger's recent lines
+   re-check what it flags, and do what its OVERDUE / open commitments owe (`action_ledger.py open`) first. Then read `STATE.md`, the newest file in `log/`, the ledger's recent lines
    (`ACTIONS.jsonl`), and any `DECISIONS.md` entry that touches your task.
 2. Verify STATE's claims live before acting on them (they drift): `git fetch`, `gh pr list --state open`, and the
    backend's `/api/health` and `/api/health/data`.

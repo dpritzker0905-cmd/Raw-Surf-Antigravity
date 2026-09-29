@@ -252,6 +252,11 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
   same instrument). A fix without a measured effect says so. Regressions are recorded, never hidden.
 * **Times are UTC**, from `date -u` or the platform's own timestamps; a local clock misread as UTC cost a 4-hour
   error on 2026-09-29.
+* **Follow-ups are commitments, and completeness is checked** (owner, 2026-09-29: "upgrade the memories
+  abilities"). A promised check-back is a `commitment` ledger line with `due_at` and `check`; the line that does it
+  carries `fulfills`. `memory_audit.py` FAILs a PR merge with no `pr_merge` line (after a one-merge grace), a
+  timestamp later than its commit, and a cited ledger seq past the head; it WARNs on an OVERDUE commitment and on a
+  local project memory over 60 lines (history belongs in the git logs). Read a gate's own exit code, never a pipe's.
 
 ---
 

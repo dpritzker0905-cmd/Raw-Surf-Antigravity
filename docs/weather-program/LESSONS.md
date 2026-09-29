@@ -141,3 +141,10 @@ before starting it.
 - **L-P13 · A pipe hides the exit code it feeds.** `memory_audit ... | tail -1 && git commit && git push` pushed a
   head whose audit FAILED: `&&` gated on `tail`, which always succeeds. Run a gate on its own (or `set -o
   pipefail`) and read its verdict before the next step. Sibling of L-P9. (2026-09-29)
+- **L-A5 · A follow-up that lives in context dies at compaction.** This session held four promised checks (the
+  hotfix's first production run, the post-flip probe, the shadow's first scored rows, the next fix's sizing) only in
+  its own context. They are now `commitment` ledger lines with a due time and a check; the audit lists them at every
+  session start and WARNs when one is overdue. (2026-09-29)
+- **L-A6 · Integrity is not completeness.** A hash chain proves nothing was changed; it cannot see what was never
+  written. The audit now reads git for every PR merge since the ledger began and FAILs a missing `pr_merge` line.
+  On the day it was added it found none missing (14 of 14), and the selftest proves it fires. (2026-09-29)

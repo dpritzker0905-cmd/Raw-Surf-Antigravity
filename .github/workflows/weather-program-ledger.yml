@@ -29,6 +29,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0              # the audit's completeness check reads every PR merge since the ledger began
 
       - uses: actions/setup-python@v6
         with:
@@ -52,6 +54,9 @@ jobs:
             echo "The base branch has no ledger yet: verifying without a prefix check."
           fi
           python backend/scripts/action_ledger.py verify
+
+      - name: Prove the audit's own checks fire (completeness, commitments, clock, seq references, long memories)
+        run: python backend/scripts/memory_audit.py --selftest
 
       - name: Audit the git memory record
         run: python backend/scripts/memory_audit.py --docs-only

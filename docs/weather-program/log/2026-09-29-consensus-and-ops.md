@@ -210,3 +210,14 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
   never built from itself. A `raw_surf:GFS_RAW` ledger lane keeps the GFS baseline. End to end, /point GFS in
   Florida: 0.8 m off, 1.0 m on, 0.8 m raw. 27 tests; 15/15 mutations (the first pass left 3 survivors; each got a
   test). Ledger seq 69-71.
+
+## 21:20-21:39Z · #175 merged; the memory upgrades; the next fix measured
+- #175 merged 21:39:05Z (`f4590a3d`; hosted chain 133 / 1613 = projection): the consensus serving switch,
+  dark.
+- **Memory upgrades** (owner: "upgrade the memories abilities"): commitments in the ledger (`due_at`, `check`,
+  `fulfills`, `open`); the audit now checks COMPLETENESS (every PR merge since the ledger began has its
+  `pr_merge` line: 14 of 14), OVERDUE commitments, the CLOCK (timestamps not later than their commit), cited seq
+  numbers, and LONG local memories; both tools selftest in CI. The hub memory was pruned to a pointer (69 -> 38).
+  Four open commitments: ledger seq 77-80.
+- **Next fix, by measurement:** the parity probe (21:26Z) puts the largest same-model loss on the 2-deg global_mid
+  tier (+0.097 m, 38% of the squared gap), led by uncovered Pacific NW / NorCal buoys (46244 Humboldt +0.50 m).

@@ -10,6 +10,16 @@ WHAT IT CHECKS
     * STATE.md's "Updated" date is not older than the newest session log;
     * DECISIONS ids are unique and increasing; SCOREBOARD rows have six columns and non-decreasing dates;
     * no secret-shaped or infrastructure-identifier text (the repo is public).
+  COMPLETENESS AND CLOCK (2026-09-29, "upgrade the memories abilities"; each is a failure the integrity checks above
+  could not see, and each happened in the session that added it):
+    * every PR merge on this history since the ledger began has its `pr_merge #N` line. The NEWEST merge may still
+      be pending (it is ledgered by the next PR), so it only WARNs; every older one FAILs. From git, so a shallow
+      clone WARNs that it cannot check;
+    * COMMITMENTS (action_ledger `commitment` lines): each OVERDUE one WARNs, and open ones are listed (NOTE), so a
+      session starts with what the last one promised;
+    * CLOCK: STATE's `Updated` time and the session logs' section-header times are not later than the moment they
+      were committed (or now, for uncommitted edits): an estimate written as a timestamp FAILs (LESSONS L-P10);
+    * every "ledger seq N" cited in the docs exists (no reference past the head).
   agent-local memory (--memory-dir; skipped with --docs-only, as in CI):
     * MEMORY.md indexes every memory file and links only to files that exist;
     * each memory has name / description / metadata.type (user, feedback, project, reference), and its name matches
@@ -18,17 +28,23 @@ WHAT IT CHECKS
     * FRESHNESS: `metadata.verified: YYYY-MM-DD` records when the fact was last checked against reality. A project
       or reference fact older than --stale-days (default 7) is STALE; user and feedback facts, 30 days. A memory
       with no `verified` date is UNVERIFIED. Stale is a warning, not a failure: it says "re-check before relying".
+    * LONG: a project or reference memory over 60 lines WARNs. History belongs in the git logs; a local memory
+      that accumulates dated blocks turns into a second, drifting STATE.
 
 USAGE (repo root; standard library only):
   python backend/scripts/memory_audit.py --memory-dir "C:/Users/<you>/.claude/projects/<project>/memory"
   python backend/scripts/memory_audit.py --docs-only          # CI
-Exit 1 on any FAIL; WARN lines never fail the run.
+  python backend/scripts/memory_audit.py --selftest           # proves each new check fires
+Exit 1 on any FAIL; WARN lines never fail the run. NOTE lines are information.
+⛔ Read the exit code of THIS command. `memory_audit ... | tail -1 && git push` gates on `tail` (LESSONS L-P13).
 """
 import argparse
+import json
 import os
 import re
+import subprocess
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import action_ledger  # noqa: E402
@@ -38,6 +54,10 @@ DOCS = os.path.join(ROOT, "docs", "weather-program")
 REQUIRED_DOCS = ("README.md", "STATE.md", "DECISIONS.md", "SCOREBOARD.md", "LESSONS.md", "ACTIONS.jsonl")
 MEMORY_TYPES = {"user", "feedback", "project", "reference"}
 SLOW_TYPES = {"user", "feedback"}
+LONG_LINES = 60
+CLOCK_SLACK = timedelta(minutes=5)
+MERGE_RE = re.compile(r"^Merge pull request #(\d+) ")
+SEQ_REF_RE = re.compile(r"(?i)\bledger seq (\d+)(?:\s*[-\u2013]\s*(\d+))?")
 # Credential shapes and infrastructure identifiers that must never reach this PUBLIC repo (CLAUDE.md, first rule).
 SECRET_RES = [re.compile(p) for p in (
     r"sb_secret_[A-Za-z0-9_]{6,}", r"sb_publishable_[A-Za-z0-9_]{6,}", r"eyJ[A-Za-z0-9_-]{20,}\.",
@@ -114,6 +134,9 @@ def audit_memory(memory_dir: str, today: date, stale_days: int = 7) -> list:
         limit = 30 if mtype in SLOW_TYPES else stale_days
         if age > limit:
             res.append(("WARN", f"{f}: STALE, last verified {verified} ({age} d > {limit} d): re-check before relying"))
+        body_lines = text.split("\n---", 2)[-1].count("\n") if text.startswith("---") else text.count("\n")
+        if mtype in ("project", "reference") and body_lines > LONG_LINES:
+            res.append(("WARN", f"{f}: LONG ({body_lines} lines > {LONG_LINES}): move its history to the git logs"))
     for level, text in scan_secrets({f: _read(os.path.join(memory_dir, f)) for f in files}, allow_infra=True):
         res.append((level, text))
     return res
@@ -184,13 +207,203 @@ def audit_docs(docs_dir: str = DOCS, state_path: str = None, ledger_path: str = 
     return res
 
 
+# ── completeness, commitments, clock, seq references ─────────────────────────────────────────────────────────────
+def check_completeness(entries: list, merges: list) -> list:
+    """`merges`: [(pr_number, commit_time_iso)] on this history, NEWEST FIRST, excluding HEAD itself. Every merge at
+    or after the ledger's first line needs a `pr_merge #N` line; the newest may be pending (WARN). PURE."""
+    if not entries:
+        return []
+    genesis = entries[0]["at"]
+    ledgered = {str(e["target"]).strip() for e in entries if e.get("kind") == "pr_merge"}
+    res = []
+    for i, (n, t) in enumerate(merges):
+        if t < genesis or f"#{n}" in ledgered:
+            continue
+        res.append(("WARN" if i == 0 else "FAIL",
+                    f"PR #{n} (merged {t}) has no `pr_merge #{n}` ledger line"
+                    + (" yet: the next PR records it" if i == 0 else "")))
+    return res
+
+
+def check_commitments(entries_lines: list, now: str) -> list:
+    """OVERDUE commitments WARN; open ones are NOTEs. PURE."""
+    res = []
+    for c in action_ledger.commitments(entries_lines, now):
+        if c["status"] == "overdue":
+            res.append(("WARN", f"OVERDUE commitment seq {c['seq']} (due {c['due_at']}): {c['target']}"
+                                f" -- {c['check']}"))
+        elif c["status"] == "open":
+            res.append(("NOTE", f"open commitment seq {c['seq']} (due {c['due_at']}): {c['target']}"))
+    return res
+
+
+def _utc(s: str):
+    return datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone(timezone.utc)
+
+
+def check_clock(state_text: str, state_ref: str, logs: dict) -> list:
+    """STATE's `Updated YYYY-MM-DD HH:MMZ` and each log's section-header times must not be later than their reference
+    moment (`state_ref`; logs: {filename: (text, ref_iso)}), the commit that wrote them or now. PURE."""
+    res = []
+    m = re.search(r"\*\*Updated (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})Z\*\*", state_text)
+    if m and state_ref:
+        t = _utc(f"{m.group(1)}T{m.group(2)}:00Z")
+        if t > _utc(state_ref) + CLOCK_SLACK:
+            res.append(("FAIL", f"STATE.md says Updated {m.group(1)} {m.group(2)}Z, later than when it was written "
+                                f"({state_ref}): an estimate, not a clock reading"))
+    for name, (text, ref) in logs.items():
+        day = name[:10]
+        for h in re.findall(r"^## ([^\n]*?)\s\u00b7", text, re.M):
+            times = re.findall(r"(\d{2}):(\d{2})Z?", h)
+            if not times or not ref:
+                continue
+            hh, mm = times[-1]
+            t = _utc(f"{day}T{hh}:{mm}:00Z")
+            if t > _utc(ref) + CLOCK_SLACK:
+                res.append(("FAIL", f"log/{name}: the header '{h.strip()}' ends at {hh}:{mm}Z, later than when it was "
+                                    f"written ({ref})"))
+    return res
+
+
+def check_seq_refs(texts: dict, head_seq: int) -> list:
+    """Every 'ledger seq N' (or 'N-M') cited in the docs is at or before the head. PURE."""
+    res = []
+    for name, text in texts.items():
+        for a, b in SEQ_REF_RE.findall(text):
+            top = int(b or a)
+            if top > head_seq:
+                res.append(("FAIL", f"{name} cites ledger seq {top}, but the ledger ends at seq {head_seq}"))
+    return res
+
+
+def _git(*args):
+    try:
+        r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=60)
+        return r.stdout if r.returncode == 0 else None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def git_merges():
+    """[(pr_number, commit_time)] newest first, excluding HEAD itself (a dev push's HEAD is the merge being made);
+    None when git cannot see the history (not a repo, or a shallow clone)."""
+    if (_git("rev-parse", "--is-shallow-repository") or "").strip() != "false":
+        return None
+    headsha = (_git("rev-parse", "HEAD") or "").strip()
+    out = _git("log", "--merges", "--format=%H|%cI|%s", "HEAD")
+    if out is None:
+        return None
+    merges = []
+    for line in out.splitlines():
+        sha, t, subject = line.split("|", 2)
+        m = MERGE_RE.match(subject)
+        if m and sha != headsha:
+            merges.append((int(m.group(1)), _utc(t).strftime("%Y-%m-%dT%H:%M:%SZ")))
+    return merges
+
+
+def written_at(rel_path: str) -> str:
+    """When a tracked file's current content was written: now if it has uncommitted changes, else the time of the
+    last commit that touched it."""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if _git("status", "--porcelain", "--", rel_path):
+        return now
+    t = (_git("log", "-1", "--format=%cI", "--", rel_path) or "").strip()
+    return _utc(t).strftime("%Y-%m-%dT%H:%M:%SZ") if t else now
+
+
+def audit_completeness_and_clock(docs_dir: str = DOCS) -> list:
+    lines = action_ledger.read_lines(os.path.join(docs_dir, "ACTIONS.jsonl"))
+    entries = [json.loads(x) for x in lines]
+    res = []
+    merges = git_merges()
+    if merges is None:
+        res.append(("WARN", "cannot check ledger completeness: no full git history here (fetch-depth: 0 in CI)"))
+    else:
+        res += check_completeness(entries, merges)
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    res += check_commitments(lines, now)
+    rel = os.path.relpath(docs_dir, ROOT).replace("\\", "/")
+    logs = {}
+    logdir = os.path.join(docs_dir, "log")
+    for f in sorted(os.listdir(logdir)) if os.path.isdir(logdir) else []:
+        if re.match(r"\d{4}-\d{2}-\d{2}-.+\.md$", f):
+            logs[f] = (_read(os.path.join(logdir, f)), written_at(f"{rel}/log/{f}"))
+    res += check_clock(_read(os.path.join(docs_dir, "STATE.md")), written_at(f"{rel}/STATE.md"), logs)
+    texts = {}
+    for dirpath, _, fs in os.walk(docs_dir):
+        for f in fs:
+            if f.endswith(".md"):
+                texts[os.path.relpath(os.path.join(dirpath, f), docs_dir)] = _read(os.path.join(dirpath, f))
+    res += check_seq_refs(texts, len(lines))
+    return res
+
+
+def selftest() -> list:
+    """Each new check fires on its failure and stays quiet on the clean case. Returns failures (empty = pass)."""
+    fails = []
+    ents = [{"at": "2026-09-29T10:00:00Z", "kind": "finding", "target": "x"},
+            {"at": "2026-09-29T11:00:00Z", "kind": "pr_merge", "target": "#5"}]
+    got = check_completeness(ents, [(7, "2026-09-29T12:00:00Z"), (6, "2026-09-29T11:30:00Z"),
+                                    (5, "2026-09-29T10:30:00Z"), (4, "2026-09-29T09:00:00Z")])
+    if [lv for lv, _ in got] != ["WARN", "FAIL"] or "#7" not in got[0][1] or "#6" not in got[1][1]:
+        fails.append(f"completeness: expected WARN #7 (newest), FAIL #6, nothing for #5 (ledgered) or #4 (before "
+                     f"the ledger); got {got}")
+    if check_completeness(ents, [(5, "2026-09-29T10:30:00Z")]):
+        fails.append("completeness: a fully ledgered history was flagged")
+    st = ("**Updated 2026-09-29 19:00Z** (log...)")
+    if not any(lv == "FAIL" for lv, _ in check_clock(st, "2026-09-29T18:54:00Z", {})):
+        fails.append("clock: STATE dated 19:00Z but written 18:54Z was not caught (the L-P10 case)")
+    if check_clock(st, "2026-09-29T19:02:00Z", {}):
+        fails.append("clock: STATE written after its Updated time was flagged")
+    log = "# x\n\n## 18:30-19:00Z \u00b7 a section\n- body\n"
+    if not check_clock("", "", {"2026-09-29-x.md": (log, "2026-09-29T18:54:00Z")}):
+        fails.append("clock: a log header ending after its commit was not caught")
+    if check_clock("", "", {"2026-09-29-x.md": (log, "2026-09-29T19:10:00Z")}):
+        fails.append("clock: a log header before its commit was flagged")
+    if not check_seq_refs({"STATE.md": "see ledger seq 70-72"}, 71) or check_seq_refs({"a": "ledger seq 69-71"}, 71):
+        fails.append("seq refs: a reference past the head was missed, or one inside it was flagged")
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        pth = os.path.join(d, "L.jsonl")
+        base = dict(actor="t", target="t", why="w", authorized_by="a", outcome="o", verified="v", rollback="r",
+                    evidence=["e"])
+        action_ledger.append(pth, kind="commitment", due_at="2026-09-29T06:00:00Z", check="c",
+                             at="2026-09-29T01:00:00Z", **base)
+        levels = [lv for lv, _ in check_commitments(action_ledger.read_lines(pth), "2026-09-29T07:00:00Z")]
+        if levels != ["WARN"]:
+            fails.append(f"commitments: an overdue commitment gave {levels}, not one WARN")
+        md = os.path.join(d, "mem")
+        os.mkdir(md)
+        fm = ("---\nname: {n}\ndescription: d\nmetadata:\n  type: project\n  verified: 2026-09-29\n---\n")
+        with open(os.path.join(md, "long-one.md"), "w", encoding="utf-8") as f:
+            f.write(fm.format(n="long-one") + "x\n" * (LONG_LINES + 5))
+        with open(os.path.join(md, "short-one.md"), "w", encoding="utf-8") as f:
+            f.write(fm.format(n="short-one") + "x\n" * 5)
+        with open(os.path.join(md, "MEMORY.md"), "w", encoding="utf-8") as f:
+            f.write("- [L](long-one.md) - l\n- [S](short-one.md) - s\n")
+        longs = [m for lv, m in audit_memory(md, date(2026, 9, 29)) if "LONG" in m]
+        if len(longs) != 1 or "long-one.md" not in longs[0]:
+            fails.append(f"long: expected one LONG warning for long-one.md, got {longs}")
+    return fails
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--memory-dir")
     ap.add_argument("--docs-only", action="store_true")
     ap.add_argument("--stale-days", type=int, default=7)
+    ap.add_argument("--selftest", action="store_true")
     args = ap.parse_args(argv)
+    if args.selftest:
+        fails = selftest()
+        for f in fails:
+            print(f"SELFTEST FAIL: {f}")
+        print("memory audit selftest: every check fires" if not fails else f"selftest: {len(fails)} failure(s)")
+        return 1 if fails else 0
     results = audit_docs()
+    if not any(level == "FAIL" for level, _ in results):
+        results += audit_completeness_and_clock()
     if not args.docs_only:
         if not args.memory_dir:
             ap.error("--memory-dir is required unless --docs-only")
@@ -199,7 +412,8 @@ def main(argv=None) -> int:
         print(f"{level}: {msg}")
     n_fail = sum(level == "FAIL" for level, _ in results)
     n_warn = sum(level == "WARN" for level, _ in results)
-    print(f"memory audit: {n_fail} FAIL, {n_warn} WARN{' (docs only)' if args.docs_only else ''}")
+    n_note = sum(level == "NOTE" for level, _ in results)
+    print(f"memory audit: {n_fail} FAIL, {n_warn} WARN, {n_note} NOTE{' (docs only)' if args.docs_only else ''}")
     return 1 if n_fail else 0
 
 
