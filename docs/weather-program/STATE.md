@@ -6,8 +6,8 @@ is a claim, not a measurement.
 ## Now
 - **`dev` = `f080ad90`** (#165 at 14:59:05Z, after #166 `0b169692` at 14:58:11Z). The Render backend auto-deploys
   from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #167, the upstream gate (no shadow model reaches an upstream, on any domain). The arming change
-  is prepared on branch `claude/arm-consensus-shadow`, unpushed, waiting for the owner.
+- **Open PRs of ours:** #167, the upstream gate (no shadow model reaches an upstream, on any domain), and #168,
+  which arms the shadow (stacked on #167; merge #167 first; merging #168 IS the owner's word to arm).
   Codex drafts #15 #22 #23 #27 #43 #44 are not ours; leave them.
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
@@ -23,7 +23,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 29, sha256 50a17c419b44d65bd83d6459fe000a8438f1345cb54ada864c2bb0ebde64fcbd**
+  **Ledger head: seq 31, sha256 94b77a8b309367201e553b4f40159ad2b5c4b595846e9b025bb2b9bb8b076d13**
 
 ## Next fixes, in order
 1. ~~**Accuracy monitor false alarm**~~ merged as #166 (`0b169692`): page on "no scored rows for N hours", not on one zero-score pass
