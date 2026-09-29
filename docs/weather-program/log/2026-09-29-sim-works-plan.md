@@ -1,0 +1,104 @@
+# 2026-09-29 · "Make the weather sim work": second audit + plan of action (session log)
+
+Session opened 2026-09-29 22:38Z (UTC, from `date -u`) in worktree `raw-surf-wt`, branch `claude/sim-works-plan`,
+stacked on #180 (the other session's handoff). One writer: this session. Owner's brief (chat, 2026-09-29): "Lets move
+forward on the fixes. I want you to read the audit and also do your own audit again first, to make sure we're on
+track. Follow the brain rules. Study all of our memory. Use forensics and Jacobian lens. We need to make the weather
+sim feature of the raw surf app work finally. Its been to long. I want to see a plan of action and tasks we need to
+take, plus check the tasks off. Accountability."
+
+Read first: `log/2026-09-29-audit-sim-forensic-jacobian.md` (the audit this re-checks), `HANDOFF-2026-09-29.md` (#180).
+
+## 1. What "the weather sim works" has to mean
+
+Four things share the name (audit §1): ingest, serve, the map render, and the agent-facing sim MCP. Users meet only
+the map (heatmap, crests, wind, scrubber, infobox) and the numbers on glyphs and the spot hub. So "works" = a user on
+the PRODUCTION site sees the program's forecast, correctly, quickly, on every device, and keeps seeing it through a
+deploy. By that bar the sim does not work yet, and the reason is not physics (section 2, finding F1).
+
+## 2. Second audit: forensics (each claim re-checked live, 22:38-22:52Z)
+
+| # | Finding | Evidence |
+|---|---|---|
+| F1 | **Production map users get none of the program.** `rawsurf.netlify.app` serves `fc140024` (deploy locked) = `3bd38a83` (2026-05-20) + one security commit: **3,283 commits behind `dev`**. Its map fetches weather from `/api/weather-proxy`, a Netlify function that proxies **Open-Meteo directly**; no `/api/weather/grid`, `/grid_series` or `/point` string appears in its 92 JS chunks (control needle `onrender.com` present in 9). The backend reaches production only through `/surf-conditions`, `/conditions/batch`, `/explore/*` (D-002). The 2026-08-05 handoff already ranked the unfreeze #1 "in Jacobian order". | Netlify deploy `6ab6b4f1…` (commit_ref fc140024, locked); `git merge-base --is-ancestor 3bd38a83 fc140024` true; `git rev-list --count 3bd38a83..origin/dev` = 3283; chunk scan via asset-manifest.json; `OPTIONS/POST https://rawsurf.netlify.app/api/weather-proxy` = 204/400 "Missing body" |
+| F2 | The dev map sim works end to end from a clean local build against the live backend: Waves on → real `gfs_marine_waves_florida_east_coast_20260930T000000Z` (13x13, 0.25 deg, `ncep_gfswave025`, max 0.63 m) on the GPU with provenance intact. | localhost:3000 `/map`, `__MARINE_ENGINE__._waveData.truthTag` at 22:43:55Z |
+| F3 | **Every deploy cold-starts the backend that production also uses.** 8 `dev` deploys on 09-29. After `f4590a3d` went live (21:42Z) CPU hit 1.0 at 21:48Z; E2E "clicking a spot opens its spot hub" timed out 3x on Desktop Chrome 21:47-21:49Z (run 36634686190, the only red E2E of the last 6 completed). The spot hub is a PRODUCTION surface. | Render metrics instance fm47w; E2E log |
+| F4 | `TRUTH_VIOLATION_MARINE_EMPTY_RENDER` ("waves active but no vector data") is reported on **every build today** (13 builds from e4c27fd7 to 1e02df3f) and by this session's own local build at 22:43:53Z, **2 s before** its grid arrived (22:43:55Z). The detector fires during normal loading, so the channel cannot show a real empty render. | Render error log 10:45-22:45Z |
+| F5 | `[grid_series] stored-coverage lookup failed` is a **0.5 s timeout** on `store.get_manifest()` (`series_source_policy.py:45`), which re-parses 13.5k manifest entries whenever the file's mtime moves. ~13 failures in 12 h, clustered after boots, against >100 successes in the last hour alone. ⚠️ Corrected in-session: first read as "the stored path is skipped"; it works ~98% of the time. | Render traceback 22:43:13Z; `store.py:547` |
+| F6 | Supabase Storage returned HTTP 429 on 14% of requests in the 21Z hour (2,378 / 16,833). Ingest uploads retry (#77); **452 backend reads** (supabase-py GETs, 8.8%) were also refused, 21:00-22:50Z. Browsers saw ~0. | Supabase edge_logs query |
+| F7 | Render has **no health-check path**. ⚠️ Corrected in-session: this is NOT the cold-box cause; the lazy L2 restore finishes 3 s after startup and warm-on-boot loads 120 products in 13 s; the saturation is traffic-driven lazy loads. A path still buys crash protection (Render keeps the old instance if a new one never passes). | Render service config `healthCheckPath: ""`; boot log 22:15:33-22:15:49Z; Render docs (health checks, 15 min) |
+| F8 | The sim's tide blind spot touches **18 spots, not 38**: 38 carry `best_tide` text but "All tides" (17) and "Incoming" (3) parse to no band. At the wrong water level the served score is x0.57 ("Mid tide", 9 spots) to x0.5 ("Low", "Low to mid", 9 spots), so the sim can read up to **2x** the served quality there. Analytic from `tide_fit` (`surf_rating.py:527`, slope -1.3/unit, floor 0.5). | `select best_tide, count(*) from surf_spots …` (read-only) |
+| F9 | The audit's "3bd38a83 vs fc140024 conflict" is not one: fc140024 is 3bd38a83 plus the Emergent purge, on `prod-frozen-3bd38a83`. Both memory notes are true. | git ancestry |
+| F10 | Ledger CI was red on `19e6597f` (#178's merge) for 11 min: #176 had no `pr_merge` line until #179 carried it. Merge-order effect; `cdd5cc7c` green. | run 36639598778 |
+| F11 | Commitment seq 77 holds: pilots run 36626628299 (`bdef3be2`) success, 0 `No module named`, GFS/ICON/EURO pilots saved 3,415/714/238 products. (#180 records it as seq 92.) | `gh run view --log` |
+| F12 | Not weather, for the owner: every boot logs `CRITICAL [STRIPE] LIVE key detected! Refusing to use it`. | Render log, each instance |
+
+Live at 22:41Z: Render `cdd5cc7c`, healthy, 9/9 data lanes ok, 0 alerts, RSS 401 MB at 84 s uptime.
+
+## 3. Jacobian (what moves the outcome most per unit of work)
+
+- **Reach dominates.** d(user-visible sim)/d(anything on dev) = 0 for production map users until the frontend ships
+  (F1). Every physics gain of the last four months is multiplied by that zero.
+- **Availability next.** The backend is shared, so each code merge costs production users a cold window on the
+  spot hub (F3). 8 merges/day = 8 windows.
+- **Rating error lives in direction and wind, not height** (audit §2.4: +-15 deg swell direction ~10 pts,
+  +-3 kt wind ~7 pts, +-0.3 m height ~0 median). No SCOREBOARD instrument measures them yet.
+- **The served lanes run the observation gate** (`RATING_OBS_GATE=1`) and local size references
+  (`RATING_LOCAL_SIZE=1`); the audit's sweep ran with both off (its §8). On an unconfirmed hour the DISPLAYED
+  quality is capped at 69.9, so the audit's "1-4 m all 86.0 epic" plateau displays as 69.9 fair_good there:
+  the displayed Jacobian above 69.9 is zero until two models agree. Re-sweep with served flags before quoting
+  displayed-quality sensitivities (task W-45).
+
+## 4. Plan of action (checked off as done; each done item cites its evidence)
+
+### Phase 0 · The record is true
+- [x] W-00 Session start: `memory_audit.py` 0 FAIL / 2 WARN / 3 NOTE; ledger verify 87 OK; commitments 77 (overdue), 78, 79, 86.
+- [x] W-01 Second audit, live (section 2).
+- [x] W-02 Commitment seq 77 verified (F11; recorded by #180 seq 92).
+- [ ] W-03 This log + ledger lines (findings, corrections to the audit) in a docs PR stacked on #180.
+
+### Phase 1 · Ship the sim to production (the Jacobian leader)
+- [ ] W-10 **Release-readiness report** for the owner's D-002 decision, measured on a PRODUCTION build of `dev`:
+  R1 E2E: name the 9 skipped tests; 3 consecutive green `dev` merges. R2 FPS with waves+wind on, desktop and mobile
+  emulation (BRAIN_RULES section 12 floor: 30). R3 0 uncaught console errors on the journey map -> layers -> scrub
+  14 d -> spot -> hub. R4 light/dark/beach x desktop/mobile screenshots of the map controls (CLAUDE.md). R5 axe on
+  the map page. R6 capacity: production map traffic moves from the Netlify Open-Meteo proxy onto the 1-CPU Render box
+  (D-005): count production proxy invocations and price them in Render CPU/memory. R7 rollback: Netlify "publish
+  previous deploy".
+- [ ] W-11 **Owner:** unfreeze decision with W-10 attached.
+
+### Phase 2 · The shared backend survives a deploy
+- [ ] W-20 Measure each 09-29 deploy's cold window (CPU at 1.0 duration; hub, batch and series latency from request logs).
+- [ ] W-21 Warm what the spot hub needs before it is asked (F3), sized by W-20.
+- [ ] W-22 Coverage check reads the cached manifest instead of a 0.5 s-budgeted re-parse (F5).
+- [ ] W-23 Name the backend readers refused by Supabase 429 (F6); each retries or refuses, never silently falls back (L-F1).
+- [ ] W-24 **Owner:** Render health-check path (crash protection only, F7).
+- [ ] W-25 Process: batch CODE merges (docs-only merges do not redeploy: Render's build filter ignores `docs/**`, `**/*.md`).
+
+### Phase 3 · One composition, no blind spots
+- [ ] W-30 Sim tide parity (F8): the sim resolves tide exactly as `rate_one_spot` does when it has a `valid_time`
+  and `RATING_TIDE=1`; a parity test on a "Low tide" spot; the S4 monitor samples the 18 banded spots.
+- [ ] W-31 Missing depth is a NAMED regime (`unknown_depth`), never `shelf` with the offshore height (audit 4.1); a
+  null control proves no served change where numpy exists.
+- [ ] W-32 EMPTY_RENDER waits for the first fetch to settle before reporting (F4).
+- [ ] W-33 The frontend trace field `infoboxDisplayedHeight: point.speed` is renamed to what it is (offshore Hs).
+
+### Phase 4 · Accuracy where the rating error lives
+- [ ] W-40 seq 78: regrid probe after the first flipped ingest (due 09-30 12Z); SCOREBOARD S6 row.
+- [ ] W-41 seq 86: Stage B live (due 09-30 12Z).
+- [ ] W-42 seq 79: consensus shadow scored rows -> a CONSENSUS_SERVE recommendation (due 09-30 18Z), then the owner's flip.
+- [ ] W-43 seq 94: big-swell bias by FORECAST-height bin (#180's; due 09-30 18Z).
+- [ ] W-44 S7-S9 instruments: period, swell-direction and wind skill vs NDBC, each translated into rating points
+  (`validate_period_vs_ndbc.py`, `validate_wind_forecast.py`, `lane_swell_direction_probe.py` exist).
+- [ ] W-45 Re-run the audit's quality sweep with the served flags (obs gate, local size, tide).
+
+### Phase 5 · Drift
+- [ ] W-50 `frontend/system-brain/weather-simulation-system.md` and BRAIN_RULES section 12 still say 512 MB (D-005: 2 GB).
+
+### Owner-only, in order
+Merge #180, then this docs PR; W-11 (unfreeze, after W-10); W-24 (health-check path); the CONSENSUS_SERVE flip after
+W-42; F12 (Stripe key).
+
+## 5. Log
+
+- 22:38Z session start; 22:52Z plan written (this file). Next: W-03, then W-10.
