@@ -1155,7 +1155,11 @@ jobs:
           # SHADOW at ingest, D-009): hosted CI on PR #162 (merged as f18c7ab8) observed 129 files / 1521. The new
           # tests/test_consensus_ingest.py (claimed by `--lane chain`) adds 16 executed tests: 1521 + 16 = 1537,
           # 1537 - 6 = 1531; files 130 EXACT; _FLOOR_SET_FROM["chain"] -> 1537.
-          MIN_FILES, MIN_PASSED = 130, 1531
+          # ⬆ MIN_PASSED 1531→1535 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (no shadow model reaches an
+          # upstream): hosted CI on PR #166 (merged as 0b169692) observed 130 files / 1537 passed.
+          # tests/test_consensus_ingest.py (claimed by `--lane chain`) gains 4 executed tests: 1537 + 4 = 1541,
+          # 1541 - 6 = 1535; files 130 unchanged; _FLOOR_SET_FROM["chain"] -> 1541.
+          MIN_FILES, MIN_PASSED = 130, 1535
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

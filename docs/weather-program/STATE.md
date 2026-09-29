@@ -1,12 +1,13 @@
 # Weather program: state
 
-**Updated 2026-09-29 14:40Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-29 15:05Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
-- **`dev` = `9358324d`** (#163 at 14:31:20Z, after #164 `09cbca84` at 14:28:05Z). The Render backend auto-deploys
+- **`dev` = `f080ad90`** (#165 at 14:59:05Z, after #166 `0b169692` at 14:58:11Z). The Render backend auto-deploys
   from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #166 (accuracy-monitor liveness) and #165, the accountability PR (this ledger, `action_ledger.py`, `memory_audit.py`, BRAIN_RULES §23).
+- **Open PRs of ours:** #167, the upstream gate (no shadow model reaches an upstream, on any domain), and #168,
+  which arms the shadow (stacked on #167; merge #167 first; merging #168 IS the owner's word to arm).
   Codex drafts #15 #22 #23 #27 #43 #44 are not ours; leave them.
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
@@ -22,12 +23,14 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 23, sha256 123ce8c79befd6c5da2d122dc810ebb70ebd2df328e07c8787c69c80b88b4c86**
+  **Ledger head: seq 32, sha256 e932b71dd11584936a9f142dd7612db4df3b3b18de53e4a66be0c462e0909173**
 
 ## Next fixes, in order
-1. **Accuracy monitor false alarm (#166, open):** page on "no scored rows for N hours", not on one zero-score pass
+1. ~~**Accuracy monitor false alarm**~~ merged as #166 (`0b169692`): page on "no scored rows for N hours", not on one zero-score pass
    (LESSONS L-F4).
-2. **Arm the consensus shadow (owner's word):** `CONSENSUS_INGEST: '1'` in forecast-ingest-pilots.yml,
+2. **No shadow model reaches an upstream (open PR):** the wind fallback was ungated, so the armed `CONSENSUS`
+   ledger lane would have scored real GFS wind under its name (ledger seq 27-28). Must merge BEFORE arming.
+3. **Arm the consensus shadow (owner's word):** `CONSENSUS_INGEST: '1'` in forecast-ingest-pilots.yml,
    forecast-ingest.yml and precompute.yml (+~5% manifest, D-009). Then PR C reads `raw_surf:CONSENSUS`.
 3. **Consensus PR C:** evidence for the flip: judge `CONSENSUS_AB`, ledger `by_band`/`by_region`, a before/after
    catalogue sweep of displayed heights. Then the owner's flip.

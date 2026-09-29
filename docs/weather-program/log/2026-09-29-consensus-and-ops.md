@@ -107,3 +107,18 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
   old rule; last month's archive is read near a month boundary. 8 tests, 7/7 mutations, guards floor 174/2118.
 - After merge, verify by dispatching the monitor and reading its new `skill ledger liveness:` line (the real
   newest-target age, which the 16 h bound assumes is ~2 h behind the last pass).
+
+## 14:50-15:05Z · #166 and #165 merged; a pre-arming bug; the arming change prepared
+- #166 merged 14:58:11Z (`0b169692`; hosted guards 174 / 2124 = projection), #165 14:59:05Z (`f080ad90`; the ledger's
+  own `verify` job green). The ledger is on `dev`.
+- The owner reported the dispatch token fixed (~14:50Z). The last pass before it (14:45:48Z) still got HTTP 403; the
+  merges redeployed the backend, so the first verifying pass is ~15:18Z (ledger seq 26, `verified: pending`).
+- **Asked what arming the consensus shadow needs, I checked the real consumer first**: the ledger's CONSENSUS lane
+  also resolves WIND at every buoy, and the wind direct fallback was the one branch not gated on GFS/ICON/EURO, while
+  the provider maps an unknown model to gfs_seamless. Arming as-is would have scored real GFS wind as consensus wind
+  (~177 upstream calls a pass). Fix: one `UPSTREAM_MODELS` membership read by all three fallbacks; 4 tests (incl. an
+  end-to-end `calibrate_spots` for the CONSENSUS lane and a GFS positive control), 4/4 mutations, 420 resolver tests
+  pass, chain floor 130/1535. My #164 claim is corrected in ledger seq 28.
+- The arming change (`CONSENSUS_INGEST: '1'` in the three lanes + the parity test) is committed on
+  `claude/arm-consensus-shadow`, stacked on the fix, unpushed: it goes up only after the fix merges and on the
+  owner's word.
