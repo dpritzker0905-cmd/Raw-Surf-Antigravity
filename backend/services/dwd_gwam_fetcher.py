@@ -91,6 +91,13 @@ except ImportError:
                                         energy_mean_height_block, energy_mean_scalar_block)  # package context
     from services._fetch_blockmean_vec import (direction_block_batch, height_block_batch,
                                                multi_dir_conf_batch, scalar_block_batch)
+# Module top, in the script/package idiom: production spawns this file by path (hotfix 2026-09-29; see the GFS
+# fetcher's note and tests/test_fetcher_script_imports.py).
+try:
+    from _fetch_native_cell import Doubled, doubled_indices, enabled as _native_enabled, is_native, one_cell  # script
+except ImportError:
+    from services._fetch_native_cell import (Doubled, doubled_indices, enabled as _native_enabled,  # package
+                                             is_native, one_cell)
 
 
 def _vector_blockmean() -> bool:
@@ -227,8 +234,6 @@ def fetch_global_coarse(payload):
     # water (same_model_parity_probe; services/_fetch_native_cell.py). With the flag on, a native-resolution call
     # reads its EXACT cell through the SAME reductions (doubled views for the batch forms, 1x1 slices for the scalar
     # ones), so the direction confidence keeps its meaning. The GFS lane has the same switch.
-    from services._fetch_native_cell import (Doubled, doubled_indices, enabled as _native_enabled, is_native,
-                                             one_cell)
     nat = _native_enabled() and is_native(resolution)
     # The confidence series is initialized WITH the variables so failed steps keep it time-aligned.
     series_keys = OM_ORDER + ([DIR_CONFIDENCE_OM] if export_confidence else [])

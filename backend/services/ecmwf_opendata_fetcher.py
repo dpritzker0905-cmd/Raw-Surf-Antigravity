@@ -48,6 +48,12 @@ except ImportError:  # pragma: no cover - package-context fallback
         sanitize_direction_deg, sanitize_height_m, sanitize_period_s,
         meteo_wind_dir, make_point_dict, energy_mean_height_block,
     )
+# Module top, in the script/package idiom: production spawns this file by path for waves, wind AND pressure
+# (hotfix 2026-09-29; see the GFS fetcher's note and tests/test_fetcher_script_imports.py).
+try:
+    from _fetch_native_cell import enabled as _native_enabled, is_native, one_cell  # script
+except ImportError:  # pragma: no cover - package-context fallback
+    from services._fetch_native_cell import enabled as _native_enabled, is_native, one_cell
 
 LAYER_PARAMS = {"wind": ["10u", "10v"], "pressure": ["msl"], "waves": ["swh", "mwp", "pp1d", "mwd"]}
 # Wave params live in their own stream ("wave"; the client maps 06/18 cycles to scwv itself).
@@ -308,7 +314,6 @@ def fetch_global_coarse(payload):
     # point-sampled at the node's OWN cell, so one EURO point carried a height from one place and a direction and
     # period from another (same_model_parity_probe; services/_fetch_native_cell.py). With the flag on, a
     # native-resolution call reads the height of its EXACT cell through the same reduction (its 1x1 slice).
-    from services._fetch_native_cell import enabled as _native_enabled, is_native, one_cell
     _nat = _native_enabled() and is_native(resolution)
 
     def _height_at(a, r, c):
