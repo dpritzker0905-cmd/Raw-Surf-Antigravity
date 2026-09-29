@@ -8,6 +8,12 @@
   history rewriting does not unpublish it (`docs/runbooks/SECURITY-2026-09-19-committed-credentials.md`).
   Never bypass a GitHub push-protection block. Full rules: `CLAUDE.md`.
 
+- **WEATHER PROGRAM MEMORY (user mandate 2026-09-29):** the weather program's state, decisions, scoreboard and
+  lessons live in `docs/weather-program/` (start at its `README.md`), tracked in git so every session on every
+  machine reads the same state and no session silently overwrites another's. Follow its write protocol: logs
+  and ledgers are append-only, one log file per session, shared files are edited by exact-string replacement
+  (never rewritten whole), and every fix that changes a served number adds a `SCOREBOARD.md` row.
+
 <!-- trevec:rules:start -->
 
 ## Trevec MCP Tools
