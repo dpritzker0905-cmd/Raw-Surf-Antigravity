@@ -1517,7 +1517,11 @@ jobs:
           # does not; re-derived after #159 merged the other estate bump): hosted CI on PR #159 (merged as d3c8676e)
           # observed 556 passed. The new tests/test_workflow_dispatch.py (claimed by `--lane estate`) adds 14 executed
           # tests: 556 + 14 = 570; 570 - 2 = 568; _FLOOR_SET_FROM[estate] -> 570.
-          MIN_PASSED = 568
+          # ⬆ 568→580 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the fetchers' by-path import hotfix): hosted
+          # CI on PR #171 (merged as 7e81347f) observed 271 files / 570 passed. The new
+          # tests/test_fetcher_script_imports.py (claimed by `--lane estate`) adds 12 executed tests: 570 + 12 = 582;
+          # 582 - 2 = 580; _FLOOR_SET_FROM[estate] -> 582.
+          MIN_PASSED = 580
 
           try:
               root = ET.parse('estate.xml').getroot()

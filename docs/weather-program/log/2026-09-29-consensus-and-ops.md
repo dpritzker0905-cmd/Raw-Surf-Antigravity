@@ -175,3 +175,13 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
 - CORRECTION (19:04Z): the section above headed `18:30-19:00Z` was written at 18:54Z; its end time, and the
   `Updated 19:00Z` it put in STATE, were estimates, not clock readings. The ledger then refused an entry
   whose guessed `acted_at` (19:05Z) was later than its own `at` (L-P10).
+
+## 19:40-19:51Z · #170 and #171 merged; a churn audit; #171's by-path import regression caught pre-ingest
+- #170 merged 19:40:14Z, #171 19:40:24Z (hosted chain 132 / 1581 = projection; dev's tree == #171's head).
+- **Churn audit (owner's ask), ledger seq 50:** 11 PRs merged today, ONE changed a served number (#162). S2 has not
+  moved since 2026-08-10. The biggest measured win (the equal mean, S1) has no serving switch yet, and its evidence
+  lands ~2026-09-30 17Z. Next: turn dark builds into served ones (regrid flip; consensus serving switch).
+- **Regression (ledger seq 52):** the real-GRIB parity job, dispatched to prove the regrid flag before offering
+  its flip, failed at the first fetch: `No module named 'services'`. Production spawns the fetchers by path;
+  #171's inline `from services._fetch_native_cell` import breaks every GFS/ICON/EURO fetch, flag on or off.
+  Impact so far zero (no ingest since the merge; no Render error). Hotfix PR with a test that is red on dev.

@@ -148,6 +148,17 @@ except ImportError:
         direction_block_batch, height_block_batch, scalar_block_batch,
     )
 
+# ⛔ MODULE TOP, IN THE SCRIPT/PACKAGE IDIOM, NOT INLINE (hotfix 2026-09-29). Production SPAWNS this file by path
+# (`python services/noaa_gfs_wave_fetcher.py`), where `services` is not importable. #171 put a bare
+# `from services._fetch_native_cell import ...` inside fetch_global_coarse, so every GFS wave fetch died on that
+# line whatever REGRID_NATIVE_CELL said; the real-GRIB parity job caught it before any ingest ran.
+# tests/test_fetcher_script_imports.py now refuses a `services.` import outside an `except ImportError`.
+try:
+    from _fetch_native_cell import Doubled, doubled_indices, enabled as _native_enabled, is_native, one_cell  # script
+except ImportError:
+    from services._fetch_native_cell import (Doubled, doubled_indices, enabled as _native_enabled,  # package
+                                             is_native, one_cell)
+
 # Scalar block aggregation (2026-07-04, wind_waves tri-model forensics): heights = block RMS,
 # periods = H²-weighted block mean — symmetric with the direction block means. PARTITIONED WW3
 # fields (WVHGT/SWELL_2) are exact-0 wherever a subcell classifies elsewhere; center-point
@@ -352,8 +363,6 @@ def fetch_global_coarse(payload):
     # mean placed half a cell south-east of its water (same_model_parity_probe; services/_fetch_native_cell.py).
     # With the flag on, a native-resolution region reads its EXACT cell through the SAME reductions (a doubled view
     # for the batch forms, a 1x1 slice for the scalar ones), so its direction confidences keep their meaning.
-    from services._fetch_native_cell import (Doubled, doubled_indices, enabled as _native_enabled, is_native,
-                                             one_cell)
     native_by = {rid: _native_enabled() and is_native(res_by[rid]) for rid in regions}
     f_hours = list(range(0, max_f + 1, 3))  # 3-hourly (all multiples of 3 exist 0..384)
 

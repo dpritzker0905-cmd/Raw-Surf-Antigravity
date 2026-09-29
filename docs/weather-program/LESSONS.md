@@ -125,3 +125,8 @@ before starting it.
   was written ahead of the clock (a log header and STATE's `Updated`, then a ledger `acted_at`). The
   ledger's own check (`acted_at` not after `at`) refused the second; the first went through unchecked.
   Take `date -u` or `datetime.now(timezone.utc)` at the moment of writing. (2026-09-29)
+- **L-P11 · Test code the way production runs it.** #171's 21 tests imported the fetchers as a package;
+  production spawns them BY PATH, where `services` is not importable. A bare `from services._fetch_native_cell`
+  inside `fetch_global_coarse` would have failed every GFS, ICON and EURO fetch, flag on or off. The real-GRIB
+  parity job (run by path) caught it 4 minutes after the merge, before any ingest ran. The rule is now a test
+  (`test_fetcher_script_imports.py`), and a new fetcher import follows the file's own try/except idiom. (2026-09-29)
