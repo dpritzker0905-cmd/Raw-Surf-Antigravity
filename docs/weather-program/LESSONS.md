@@ -113,3 +113,15 @@ before starting it.
   local `origin/dev`: a branch cut right after it started from the previous dev, and its three new ledger lines took
   seq 33-35 over dev's own 33-40. The ledger's append-only rule would have failed it in CI; `action_ledger.py head`
   caught it first (seq 35 where 43 was expected). (2026-09-29)
+- **L-S14 · To change what a function sees, change its input, not the function.** The native-cell fix needed five
+  block reductions (height, scalar, direction, partition confidence, multi-tier total sea) to return their
+  single-cell answer. Rewriting them would have been a second composition; half=0 would have zeroed the partition
+  confidence the frontend fades crests by. A doubled VIEW of the grid made the unchanged functions return exactly
+  the single-cell answer, and their own scalar forms on a 1x1 slice are the oracle. (2026-09-29)
+- **L-P9 · An exit code with no count is not a result.** `ci_test_lanes.py` prints CRLF on Windows, so
+  `pytest $(... --lane chain)` looked for `tests/x.py\r`; wrapped in `|| fallback | tail`, the run exited 0 and
+  printed nothing. Strip `\r` (`| tr -d '\r'`) and read the "N passed" line before calling a lane green. (2026-09-29)
+- **L-P10 · Read times from the clock; never write an estimate as a timestamp.** Twice in one hour a time
+  was written ahead of the clock (a log header and STATE's `Updated`, then a ledger `acted_at`). The
+  ledger's own check (`acted_at` not after `at`) refused the second; the first went through unchecked.
+  Take `date -u` or `datetime.now(timezone.utc)` at the moment of writing. (2026-09-29)

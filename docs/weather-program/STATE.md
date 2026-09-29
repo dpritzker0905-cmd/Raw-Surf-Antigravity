@@ -1,11 +1,14 @@
 # Weather program: state
 
-**Updated 2026-09-29 18:30Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-29 19:03Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
 - **`dev` = `afa19a52`** (#169 at 18:00:20Z). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #170, the same-model parity probe (an instrument; no served change).
+- **Open PRs of ours:** #170, the same-model parity probe (an instrument; no served change), and the
+  native-cell regrid #171 for GFS, ICON and EURO stacked on it (DARK: `REGRID_NATIVE_CELL` '0' in both fetch
+  lanes; one switch because the consensus averages all three).
+  Merge #170 first.
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
   per-spot size references (`RATING_LOCAL_SIZE=1`), now fail-closed in the precompute (#162).
@@ -23,10 +26,10 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 44, sha256 dbfebf1bc7998af42e6e74347fffca168705ce1badf5858a209c9c7e7f182d5e**
+  **Ledger head: seq 47, sha256 ccf234c99bcf855ee710c01dbd1bdc91c2b00c9aafd4a923b77808a045d68127**
 
 ## Next fixes, in order
-0. **Regrid at native resolution (dark, next PR):** every 0.25-deg regional tile of GFS, ICON and EURO is a 2x2
+0. **Regrid at native resolution (#171, all three fetchers, dark; flip on the owner's word):** every 0.25-deg regional tile of GFS, ICON and EURO is a 2x2
    block mean shifted half a cell NW (`half = max(1, round(res/0.25/2))` = 1; ledger seq 43). Fix: the exact
    native cell at native resolution, one shared `block_half`, behind `REGRID_NATIVE_CELL` (default 0) in the
    ingest lanes; evidence = the parity probe (node vs native cell -> rounding) and the ledger's same-model gap.

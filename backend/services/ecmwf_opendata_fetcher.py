@@ -303,6 +303,18 @@ def fetch_global_coarse(payload):
     # global 0.25° (longitude wraps). Kill: ECMWF_WAVE_SCALAR_BLOCKMEAN=0 -> legacy centre-point sampling.
     scalar_blockmean = os.environ.get("ECMWF_WAVE_SCALAR_BLOCKMEAN", "1") != "0"
     _half = max(1, int(round(resolution / 0.25 / 2.0)))
+    # ⛔ NATIVE-CELL REGRID (2026-09-29, REGRID_NATIVE_CELL, default off). At the native 0.25 deg the line above yields
+    # half=1: the height block is the 2x2 of native cells NORTH-WEST of the node, while every other EURO variable is
+    # point-sampled at the node's OWN cell, so one EURO point carried a height from one place and a direction and
+    # period from another (same_model_parity_probe; services/_fetch_native_cell.py). With the flag on, a
+    # native-resolution call reads the height of its EXACT cell through the same reduction (its 1x1 slice).
+    from services._fetch_native_cell import enabled as _native_enabled, is_native, one_cell
+    _nat = _native_enabled() and is_native(resolution)
+
+    def _height_at(a, r, c):
+        if _nat:
+            return energy_mean_height_block(one_cell(a, r, c), 0, 0, 1, True)
+        return energy_mean_height_block(a, r, c, _half, True)
 
     axes = {}    # rid -> (lats, lons)
     for rid, bb in regions.items():
@@ -393,7 +405,7 @@ def fetch_global_coarse(payload):
                 if kind == "h" and scalar_blockmean:
                     # block-mean the wave height so enclosed-sea cells whose centre lands on masked land
                     # survive (see the ECMWF_WAVE_SCALAR_BLOCKMEAN note); everything else point-samples.
-                    vals = [energy_mean_height_block(arr, r, c, _half, True) for (r, c) in im]
+                    vals = [_height_at(arr, r, c) for (r, c) in im]
                 else:
                     vals = [arr[r, c] for (r, c) in im]  # ~n_pts sampled values (tiny)
                 # A plain assignment is CORRECT here: this is the deterministic stream, one message
@@ -425,7 +437,7 @@ def fetch_global_coarse(payload):
                     evt = em.validDate
                     for rid, im in idx_by.items():
                         if scalar_blockmean:
-                            evals = [energy_mean_height_block(earr, r, c, _half, True) for (r, c) in im]
+                            evals = [_height_at(earr, r, c) for (r, c) in im]
                         else:
                             evals = [earr[r, c] for (r, c) in im]
                         ens.setdefault(rid, {}).setdefault("h", {}).setdefault(evt, {})[emember] = evals
