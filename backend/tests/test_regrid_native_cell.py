@@ -8,6 +8,9 @@ an actual 0.25-deg grid:
   * flag OFF: byte-identical to before, and the defect pinned as it is (a node = the NW 2x2 RMS);
   * flag ON at 0.25 deg: every height, period and direction is the native cell's, and every confidence is the
     production reduction's single-cell answer (partition 0.0/1.0, total-sea from the multi-tier function);
+  * ...except a LAND node (its own total height missing), which answers from its CENTRED 3x3 (an RMS checked by
+    hand here), so no node the legacy NW 2x2 covered is left empty. The real-GRIB job measured the exact cell alone
+    blanking 20 of 425 coastal nodes (4.7%) on Florida's east coast; a sea cell with no partition stays empty;
   * flag ON off native (1.0 deg): byte-identical (the coarse tiers are not touched);
   * the vectorized and the per-point paths agree with the flag on;
   * the doubled view equals the 1x1-slice oracle for every reduction (the module's core claim);
@@ -23,7 +26,7 @@ import pytest
 
 from services import _fetch_blockmean_vec as V
 from services import _fetch_common as F
-from services._fetch_native_cell import Doubled, doubled_indices, is_native, one_cell
+from services._fetch_native_cell import LAND_HALF, Doubled, doubled_indices, is_native, one_cell, views
 
 LAT0, LON0, NLAT, NLON = 40.0, -80.0, 41, 41                  # a real 0.25-deg patch: 40..30 N, 80..70 W
 _GLAT = np.tile((LAT0 - 0.25 * np.arange(NLAT))[:, None], (1, NLON))
@@ -104,6 +107,17 @@ def _f(var):
     return FIELDS[[om for om in __import__("services.noaa_gfs_wave_fetcher", fromlist=["x"]).OM_ORDER].index(var)]
 
 
+def _centred_rms(a, r, c):
+    """The land fallback's height, BY HAND: RMS over the finite cells of the centred 3x3 (cols wrap)."""
+    blk = a[max(0, r - 1):r + 2][:, [(c - 1) % a.shape[1], c, (c + 1) % a.shape[1]]]
+    f = blk[np.isfinite(blk)]
+    return float(np.sqrt(np.mean(f ** 2))) if f.size else float("nan")
+
+
+def _hb(total_h, r, c):
+    return LAND_HALF if not np.isfinite(total_h[r, c]) else 1
+
+
 def test_flag_off_pins_the_defect__a_node_is_the_north_west_2x2_rms(monkeypatch):
     h = _f("wave_height")
     checked = 0
@@ -118,10 +132,18 @@ def test_flag_off_pins_the_defect__a_node_is_the_north_west_2x2_rms(monkeypatch)
     assert checked > 100
 
 
-def test_flag_on_every_value_is_the_exact_native_cell(monkeypatch):
-    checked = 0
+def test_flag_on_every_value_is_the_exact_native_cell_and_a_land_node_its_centred_3x3(monkeypatch):
+    checked = land = 0
+    hs = _f("wave_height")
     for p in _run(monkeypatch, "1"):
         r, c = _rc(p)
+        if not np.isfinite(hs[r, c]):                        # LAND: every height is the centred 3x3 RMS
+            land += 1
+            for var in ("wave_height", "swell_wave_height", "wind_wave_height", "secondary_swell_wave_height"):
+                want, got = _centred_rms(_f(var), r, c), p["hourly"][var][0]
+                assert (got is None) == (want != want), (var, r, c)
+                assert got is None or got == pytest.approx(want, abs=1e-4), (var, r, c)
+            continue
         for var in ("wave_height", "wave_period", "swell_wave_height", "swell_wave_period", "wind_wave_height",
                     "secondary_swell_wave_height", "swell_wave_direction", "wind_wave_direction"):
             want = _f(var)[r, c]
@@ -130,22 +152,37 @@ def test_flag_on_every_value_is_the_exact_native_cell(monkeypatch):
                 assert got == pytest.approx(float(want), abs=1e-4), (var, r, c)
                 checked += 1
             else:
-                assert got is None, (var, r, c)
-    assert checked > 1000
+                assert got is None, (var, r, c)          # a SEA cell with no train stays empty
+    assert checked > 1000 and land > 20
+
+
+def test_flag_on_no_node_the_legacy_block_covered_is_left_empty(monkeypatch):
+    """The gate the real-GRIB job failed on (20 of 425 coastal nodes blank): total height coverage is a SUPERSET."""
+    with monkeypatch.context() as m:
+        off = {(p["latitude"], p["longitude"]): p["hourly"]["wave_height"][0] for p in _run(m, "0")}
+    with monkeypatch.context() as m:
+        on = {(p["latitude"], p["longitude"]): p["hourly"]["wave_height"][0] for p in _run(m, "1")}
+    lost = [k for k, v in off.items() if v is not None and on[k] is None]
+    assert lost == [] and sum(v is not None for v in off.values()) > 200
 
 
 def test_flag_on_confidences_are_the_reductions_single_cell_answers(monkeypatch):
     import services.noaa_gfs_wave_fetcher as fetcher
     pconf_keys = set(fetcher.PARTITION_DIR_CONFIDENCE_OM.values())
     pairs = [(_f(d), _f(h)) for d, h in fetcher.TOTAL_SEA_PARTITIONS]
+    hs = _f("wave_height")
     for p in _run(monkeypatch, "1"):
         r, c = _rc(p)
-        for key in pconf_keys:
-            v = p["hourly"][key][0]
-            assert v in (0.0, 1.0), (key, v)                   # one cell: the train is there, or it is not
+        hb = _hb(hs, r, c)
+        if hb == 1:
+            for key in pconf_keys:
+                v = p["hourly"][key][0]
+                assert v in (0.0, 1.0), (key, v)               # one cell: the train is there, or it is not
+        flat = [x for d, h in pairs for x in (d, h)]
+        v_ = views(r, c, hb, *flat, _f("wave_direction"), hs)
+        n = len(flat)
         x, conf = F.energy_mean_direction_block_multi_conf(
-            [(one_cell(d, r, c), one_cell(h, r, c)) for d, h in pairs], one_cell(_f("wave_direction"), r, c),
-            0, 0, 1, True, one_cell(_f("wave_height"), r, c))
+            [(v_[i], v_[i + 1]) for i in range(0, n, 2)], v_[n], v_[n + 2], v_[n + 3], v_[n + 4], True, v_[n + 1])
         got_d, got_c = p["hourly"]["wave_direction"][0], p["hourly"][fetcher.DIR_CONFIDENCE_OM][0]
         assert (got_d is None) == (x != x) and (got_d is None or got_d == pytest.approx(round(x, 4), abs=1e-4))
         assert (got_c is None) == (conf is None) and (got_c is None or got_c == pytest.approx(round(conf, 4), abs=1e-4))
@@ -205,6 +242,43 @@ def test_the_doubled_view_is_interior_everywhere__even_on_the_grid_edge():
     np.testing.assert_allclose(V.scalar_block_batch(Doubled(per), Doubled(h), R2, C2, 1, True, None),
                                [F.energy_mean_scalar_block(one_cell(per, r, c), one_cell(h, r, c), 0, 0, 1, True)
                                 for r, c in zip(rs, cs)])
+
+
+def test_the_land_view_is_the_centred_3x3_at_every_cell_edges_included():
+    """`views(..., LAND_HALF, ...)` is what a land node's scalar reduction sees: its centred 3x3, rows clamped at the
+    grid edge, columns wrapped. Checked against an RMS computed by hand at every cell of a small grid."""
+    rng = np.random.default_rng(21)
+    nr, nc = 9, 13
+    h = rng.uniform(0, 5, (nr, nc))
+    h[rng.uniform(size=h.shape) < 0.3] = np.nan
+    got = [F.energy_mean_height_block(*views(r, c, LAND_HALF, h), True) for r in range(nr) for c in range(nc)]
+    np.testing.assert_allclose(got, [_centred_rms(h, r, c) for r in range(nr) for c in range(nc)], equal_nan=True)
+
+
+@pytest.mark.parametrize("fetcher_name", ["noaa_gfs_wave_fetcher", "dwd_gwam_fetcher"])
+def test_under_the_flag_every_batch_reduction_runs_at_half_1(monkeypatch, fetcher_name):
+    """⛔ A land node must be answered by the SAME scalar reduction in the vectorized and the per-point paths, never
+    by a second batch pass at half=3: that summed the 36 duplicated subcells in a different order and, on QUANTIZED
+    real GRIB, differed in 1 of 115,600 values (run 36624144116: wind_wave_period 3.6257 vs 3.6258). Random stubs
+    cannot show the tie at this size (synthetic: 0 of 33,600 at 2 decimals, 9 of 33,600 at 1 decimal, and a
+    quantized copy of this harness did NOT catch the old code), so the guard is structural: spy on every batch
+    reduction the fetcher calls and require half == 1 whenever the flag is on at native resolution."""
+    import importlib
+    mod = importlib.import_module(f"services.{fetcher_name}")
+    halves = []
+    for name in ("multi_dir_conf_batch", "partition_dir_conf_batch", "direction_block_batch", "height_block_batch",
+                 "scalar_block_batch"):
+        if not hasattr(mod, name):
+            continue
+        orig = getattr(mod, name)
+
+        def spy(*a, _orig=orig, _name=name, **k):
+            halves.append((_name, a[3] if _name == "height_block_batch" else a[4]))
+            return _orig(*a, **k)
+        monkeypatch.setattr(mod, name, spy)
+    (_run if fetcher_name == "noaa_gfs_wave_fetcher" else _gw_run)(monkeypatch, "1", vector="1")
+    assert halves, "SETUP BROKEN: no batch reduction was called"
+    assert {h for _n, h in halves} == {1}, sorted(set(halves))
 
 
 def test_the_switch_is_off_unless_set_to_one(monkeypatch):
@@ -325,23 +399,31 @@ def test_icon_flag_off_pins_the_same_defect(monkeypatch):
 
 def test_icon_flag_on_every_value_is_the_native_cell_and_the_confidence_its_single_cell_answer(monkeypatch):
     import services.dwd_gwam_fetcher as fetcher
-    checked = 0
+    checked = land = 0
+    hs = GW_FIELDS["swh"]
     for p in _gw_run(monkeypatch, "1"):
         r, c = _gw_rc(p)
-        for var, om in _GW_OM.items():
-            want = GW_FIELDS[var][r, c]
-            got = p["hourly"][om][0]
-            if np.isfinite(want):
-                assert got == pytest.approx(float(want), abs=1e-4), (om, r, c)
-                checked += 1
-            else:
-                assert got is None, (om, r, c)
-        d1, h1 = one_cell(GW_FIELDS["mwd"], r, c), one_cell(GW_FIELDS["swh"], r, c)
-        _x, conf = F.energy_mean_direction_block_multi_conf([(d1, h1)], d1, 0, 0, 1, True)
+        hb = _hb(hs, r, c)
+        if hb == 1:
+            for var, om in _GW_OM.items():
+                want = GW_FIELDS[var][r, c]
+                got = p["hourly"][om][0]
+                if np.isfinite(want):
+                    assert got == pytest.approx(float(want), abs=1e-4), (om, r, c)
+                    checked += 1
+                else:
+                    assert got is None, (om, r, c)
+        else:                                                # LAND: the heights are the centred 3x3 RMS
+            land += 1
+            for var in ("swh", "shts", "shww"):
+                want, got = _centred_rms(GW_FIELDS[var], r, c), p["hourly"][_GW_OM[var]][0]
+                assert (got is None) == (want != want) and (got is None or got == pytest.approx(want, abs=1e-4))
+        v_ = views(r, c, hb, GW_FIELDS["mwd"], hs)
+        _x, conf = F.energy_mean_direction_block_multi_conf([(v_[0], v_[1])], v_[0], *v_[2:], True)
         got_c = p["hourly"][fetcher.DIR_CONFIDENCE_OM][0]
         assert (got_c is None) == (conf is None)
         assert got_c is None or got_c == pytest.approx(round(conf, 4), abs=1e-4)
-    assert checked > 1000
+    assert checked > 1000 and land > 20
 
 
 def test_icon_paths_agree_and_the_coarse_tier_is_untouched(monkeypatch):
@@ -446,17 +528,27 @@ def test_euro_flag_off_pins_a_height_from_the_nw_2x2_beside_a_direction_from_the
 
 
 def test_euro_flag_on_the_height_is_the_same_cell_as_everything_else(monkeypatch):
-    checked = 0
+    checked = land = 0
     for p in _eu_run(monkeypatch, "1"):
         r, c = _rc(p)
-        want = EU["swh"][r, c]
+        own = EU["swh"][r, c]
+        want = float(own) if np.isfinite(own) else _centred_rms(EU["swh"], r, c)   # LAND -> the centred 3x3
+        land += not np.isfinite(own)
         got = p["hourly"]["wave_height"][0]
-        if np.isfinite(want):
-            assert got == pytest.approx(float(want), abs=1e-3), (r, c)
+        assert (got is None) == (want != want), (r, c)
+        if got is not None:
+            assert got == pytest.approx(want, abs=1e-3), (r, c)
             checked += 1
-        else:
-            assert got is None, (r, c)
-    assert checked > 100
+    assert checked > 100 and land > 20
+
+
+def test_icon_and_euro_leave_no_legacy_covered_node_empty(monkeypatch):
+    for run, key in ((_gw_run, "wave_height"), (_eu_run, "wave_height")):
+        with monkeypatch.context() as m:
+            off = {(p["latitude"], p["longitude"]): p["hourly"][key][0] for p in run(m, "0")}
+        with monkeypatch.context() as m:
+            on = {(p["latitude"], p["longitude"]): p["hourly"][key][0] for p in run(m, "1")}
+        assert [k for k, v in off.items() if v is not None and on[k] is None] == [], run.__name__
 
 
 def test_euro_flag_on_the_member_spread_is_taken_at_the_same_cell(monkeypatch):
@@ -464,7 +556,7 @@ def test_euro_flag_on_the_member_spread_is_taken_at_the_same_cell(monkeypatch):
     pts = _eu_run(monkeypatch, "1", ensemble="1")
     assert any(p["hourly"].get("wave_height_spread") for p in pts), "SETUP BROKEN: no spread was served"
     rcs = [_rc(p) for p in pts]
-    _m, sds, _n = reduce_member_values({m: [F.energy_mean_height_block(one_cell(a, r, c), 0, 0, 1, True)
+    _m, sds, _n = reduce_member_values({m: [F.energy_mean_height_block(*views(r, c, _hb(a, r, c), a), True)
                                             for r, c in rcs] for m, a in EU_MEMBERS.items()})
     checked = 0
     for p, sd in zip(pts, sds):

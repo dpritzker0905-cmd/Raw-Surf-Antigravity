@@ -154,10 +154,11 @@ except ImportError:
 # line whatever REGRID_NATIVE_CELL said; the real-GRIB parity job caught it before any ingest ran.
 # tests/test_fetcher_script_imports.py now refuses a `services.` import outside an `except ImportError`.
 try:
-    from _fetch_native_cell import Doubled, doubled_indices, enabled as _native_enabled, is_native, one_cell  # script
+    from _fetch_native_cell import (LAND_HALF, enabled as _native_enabled, is_native, multi_conf_at,  # script
+                                    native_multi, native_reduce, views)
 except ImportError:
-    from services._fetch_native_cell import (Doubled, doubled_indices, enabled as _native_enabled,  # package
-                                             is_native, one_cell)
+    from services._fetch_native_cell import (LAND_HALF, enabled as _native_enabled, is_native,  # package
+                                             multi_conf_at, native_multi, native_reduce, views)
 
 # Scalar block aggregation (2026-07-04, wind_waves tri-model forensics): heights = block RMS,
 # periods = H²-weighted block mean — symmetric with the direction block means. PARTITIONED WW3
@@ -468,6 +469,8 @@ def fetch_global_coarse(payload):
             # says TO≈6) — the coherence-gated DIRPW tier in the _conf helper fixes exactly that.
             _partition_pairs = [(arrs[d], arrs[h]) for d, h in TOTAL_SEA_PARTITIONS]
             _total_h = arrs.get("wave_height") if total_field else None
+            # A native-resolution node whose own cell is LAND answers from its centred 3x3 (_fetch_native_cell).
+            _hs_native = arrs["wave_height"]
             # The decode + the block-mean inputs above are per-STEP and region-independent; only the
             # point iteration below is per-region. That asymmetry is the whole optimisation, and it
             # is why the BLOCK WIDTH (`half`) can differ per region for free — it is read inside the
@@ -494,20 +497,17 @@ def fetch_global_coarse(payload):
                                        _partition_pairs, arr, _r, _c, _h, True, _total_h))
                             _rs = np.fromiter((p[0] for p in rmap), dtype=np.intp, count=len(rmap))
                             _cs = np.fromiter((p[1] for p in rmap), dtype=np.intp, count=len(rmap))
-                            _pp, _a, _th = _partition_pairs, arr, _total_h
-                            if nat:          # the exact native cell (see native_by above)
-                                _rs, _cs, half = *doubled_indices(_rs, _cs), 1
-                                _pp = [(Doubled(dd), Doubled(hh)) for dd, hh in _partition_pairs]
-                                _a, _th = Doubled(arr), (Doubled(_total_h) if _total_h is not None else None)
-                                _sc = (lambda _r, _c: energy_mean_direction_block_multi_conf(
-                                    [(one_cell(dd, _r // 2, _c // 2), one_cell(hh, _r // 2, _c // 2))
-                                     for dd, hh in _partition_pairs], one_cell(arr, _r // 2, _c // 2), 0, 0, 1, True,
-                                    one_cell(_total_h, _r // 2, _c // 2) if _total_h is not None else None))
-                            _bd, _bc, _bp = multi_dir_conf_batch(
-                                _pp, _a, _rs, _cs, half, True, _sc,
-                                total_h_arr=_th,
-                                ramp_lo=DIR_TOTAL_COHERENCE_RAMP_LO,
-                                ramp_hi=DIR_TOTAL_COHERENCE_RAMP_HI)
+                            if nat:          # the exact native cell; a LAND cell answers from its centred 3x3
+                                _bd, _bc, _bp = native_multi(
+                                    multi_dir_conf_batch, energy_mean_direction_block_multi_conf, _partition_pairs,
+                                    arr, _total_h, _rs, _cs, ~np.isfinite(_hs_native[_rs, _cs]),
+                                    ramp_lo=DIR_TOTAL_COHERENCE_RAMP_LO, ramp_hi=DIR_TOTAL_COHERENCE_RAMP_HI)
+                            else:
+                                _bd, _bc, _bp = multi_dir_conf_batch(
+                                    _partition_pairs, arr, _rs, _cs, half, True, _sc,
+                                    total_h_arr=_total_h,
+                                    ramp_lo=DIR_TOTAL_COHERENCE_RAMP_LO,
+                                    ramp_hi=DIR_TOTAL_COHERENCE_RAMP_HI)
                             for pi in range(len(rmap)):
                                 _x = float(_bd[pi])
                                 series[pi][om].append(round(_x, 4) if _x == _x else None)
@@ -517,11 +517,10 @@ def fetch_global_coarse(payload):
                                     )
                             continue
                         for pi, (r, c) in enumerate(rmap):
-                            if nat:          # the exact native cell: the same reduction on its 1x1 slice
-                                x, conf = energy_mean_direction_block_multi_conf(
-                                    [(one_cell(dd, r, c), one_cell(hh, r, c)) for dd, hh in _partition_pairs],
-                                    one_cell(arr, r, c), 0, 0, 1, True,
-                                    one_cell(_total_h, r, c) if _total_h is not None else None)
+                            if nat:          # the exact native cell, or a LAND cell's centred 3x3
+                                x, conf = multi_conf_at(energy_mean_direction_block_multi_conf, r, c,
+                                                        LAND_HALF if not np.isfinite(_hs_native[r, c]) else 1,
+                                                        _partition_pairs, arr, _total_h)
                             else:
                                 x, conf = energy_mean_direction_block_multi_conf(
                                     _partition_pairs, arr, r, c, half, True, _total_h)
@@ -549,47 +548,42 @@ def fetch_global_coarse(payload):
                     # Bit-identical by construction: each batch form vectorizes only the interior and
                     # DELEGATES clamped edge rows to the scalar function handed to it.
                     # Kill: FETCH_VECTOR_BLOCKMEAN=0.
+                    _reduces = h_arr is not None or is_height or p_h_arr is not None
+                    if nat and _reduces:   # this variable's own batch + scalar pair, for _fetch_native_cell
+                        _bt, _fn, _gr = ((partition_dir_conf_batch, energy_mean_direction_block_partition_conf,
+                                          (arr, h_arr)) if h_arr is not None and part_conf_key else
+                                         (direction_block_batch, energy_mean_direction_block, (arr, h_arr))
+                                         if h_arr is not None else
+                                         (height_block_batch, energy_mean_height_block, (arr,)) if is_height else
+                                         (scalar_block_batch, energy_mean_scalar_block, (arr, p_h_arr)))
                     if _vector_blockmean() and rmap:
                         _rs = np.fromiter((p[0] for p in rmap), dtype=np.intp, count=len(rmap))
                         _cs = np.fromiter((p[1] for p in rmap), dtype=np.intp, count=len(rmap))
                         _vals = _pconfs = None
-                        _A, _H, _P = arr, h_arr, p_h_arr
-                        if nat:              # the exact native cell: doubled views, half=1 (see native_by)
-                            _rs, _cs, half = *doubled_indices(_rs, _cs), 1
-                            _A, _H, _P = (Doubled(x) if x is not None else None for x in (arr, h_arr, p_h_arr))
-                        if h_arr is not None and part_conf_key:
+                        if nat and _reduces:  # the exact native cell; a LAND cell answers from its centred 3x3
+                            _out = native_reduce(_bt, _fn, _gr, _rs, _cs, ~np.isfinite(_hs_native[_rs, _cs]),
+                                                 "partition" if (h_arr is not None and part_conf_key) else "value")
+                            _vals, _pconfs = _out[0], (_out[1] if len(_out) > 1 else None)
+                        elif h_arr is not None and part_conf_key:
                             _vals, _pconfs = partition_dir_conf_batch(
-                                _A, _H, _rs, _cs, half, True,
-                                (lambda _r, _c: energy_mean_direction_block_partition_conf(
-                                    one_cell(arr, _r // 2, _c // 2), one_cell(h_arr, _r // 2, _c // 2), 0, 0, 1, True))
-                                if nat else
-                                (lambda _r, _c, _h=half: energy_mean_direction_block_partition_conf(
-                                    arr, h_arr, _r, _c, _h, True)))
+                                arr, h_arr, _rs, _cs, half, True,
+                                lambda _r, _c, _h=half: energy_mean_direction_block_partition_conf(
+                                    arr, h_arr, _r, _c, _h, True))
                         elif h_arr is not None:
                             _vals = direction_block_batch(
-                                _A, _H, _rs, _cs, half, True,
-                                (lambda _r, _c: energy_mean_direction_block(
-                                    one_cell(arr, _r // 2, _c // 2), one_cell(h_arr, _r // 2, _c // 2), 0, 0, 1, True))
-                                if nat else
-                                (lambda _r, _c, _h=half: energy_mean_direction_block(
-                                    arr, h_arr, _r, _c, _h, True)))
+                                arr, h_arr, _rs, _cs, half, True,
+                                lambda _r, _c, _h=half: energy_mean_direction_block(
+                                    arr, h_arr, _r, _c, _h, True))
                         elif is_height:
                             _vals = height_block_batch(
-                                _A, _rs, _cs, half, True,
-                                (lambda _r, _c: energy_mean_height_block(
-                                    one_cell(arr, _r // 2, _c // 2), 0, 0, 1, True))
-                                if nat else
-                                (lambda _r, _c, _h=half: energy_mean_height_block(
-                                    arr, _r, _c, _h, True)))
+                                arr, _rs, _cs, half, True,
+                                lambda _r, _c, _h=half: energy_mean_height_block(
+                                    arr, _r, _c, _h, True))
                         elif p_h_arr is not None:
                             _vals = scalar_block_batch(
-                                _A, _P, _rs, _cs, half, True,
-                                (lambda _r, _c: energy_mean_scalar_block(
-                                    one_cell(arr, _r // 2, _c // 2), one_cell(p_h_arr, _r // 2, _c // 2),
-                                    0, 0, 1, True))
-                                if nat else
-                                (lambda _r, _c, _h=half: energy_mean_scalar_block(
-                                    arr, p_h_arr, _r, _c, _h, True)))
+                                arr, p_h_arr, _rs, _cs, half, True,
+                                lambda _r, _c, _h=half: energy_mean_scalar_block(
+                                    arr, p_h_arr, _r, _c, _h, True))
                         if _vals is not None:
                             for pi in range(len(rmap)):
                                 if _pconfs is not None:
@@ -600,24 +594,24 @@ def fetch_global_coarse(payload):
                                 series[pi][om].append(round(_x, 4) if _x == _x else None)
                             continue
                     for pi, (r, c) in enumerate(rmap):
-                        # The exact native cell: the same reductions on its 1x1 slice at (0, 0, half=1).
-                        a1, h1, p1, rr, cc, hh = arr, h_arr, p_h_arr, r, c, half
-                        if nat:
-                            a1, h1, p1 = (one_cell(x_, r, c) if x_ is not None else None
-                                          for x_ in (arr, h_arr, p_h_arr))
-                            rr, cc, hh = 0, 0, 1
-                        if h_arr is not None and part_conf_key:
+                        if nat and _reduces:  # the exact native cell, or a LAND cell's centred 3x3
+                            x = _fn(*views(r, c, LAND_HALF if not np.isfinite(_hs_native[r, c]) else 1, *_gr), True)
+                            if h_arr is not None and part_conf_key:
+                                x, _pconf = x
+                                series[pi][part_conf_key].append(
+                                    round(float(_pconf), 4) if _pconf is not None else None)
+                        elif h_arr is not None and part_conf_key:
                             x, _pconf = energy_mean_direction_block_partition_conf(
-                                a1, h1, rr, cc, hh, True)
+                                arr, h_arr, r, c, half, True)
                             series[pi][part_conf_key].append(
                                 round(float(_pconf), 4) if _pconf is not None else None)
                         elif h_arr is not None:
                             # global.0p25 grid → longitude always wraps
-                            x = energy_mean_direction_block(a1, h1, rr, cc, hh, True)
+                            x = energy_mean_direction_block(arr, h_arr, r, c, half, True)
                         elif is_height:
-                            x = energy_mean_height_block(a1, rr, cc, hh, True)
+                            x = energy_mean_height_block(arr, r, c, half, True)
                         elif p_h_arr is not None:
-                            x = energy_mean_scalar_block(a1, p1, rr, cc, hh, True)
+                            x = energy_mean_scalar_block(arr, p_h_arr, r, c, half, True)
                         else:
                             x = arr[r, c]
                         series[pi][om].append(round(float(x), 4) if x == x else None)  # x==x drops NaN

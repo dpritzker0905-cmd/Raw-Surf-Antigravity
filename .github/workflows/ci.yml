@@ -1173,7 +1173,10 @@ jobs:
           # tests: 1560 + 14 = 1574, 1574 - 6 = 1568; files 132 EXACT; _FLOOR_SET_FROM["chain"] -> 1574.
           # ⬆ MIN_PASSED 1568→1575 in the same PR, IN THE COMMIT THAT CAUSES IT: the ICON and EURO halves add 7 tests to
           # that same file (21 in all): 1560 + 21 = 1581, 1581 - 6 = 1575; files 132 unchanged; _FLOOR_SET_FROM -> 1581.
-          MIN_FILES, MIN_PASSED = 132, 1575
+          # ⬆ MIN_PASSED 1575→1580 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (a land node answers from its
+          # centred 3x3): hosted CI on PR #172 (merged as bdef3be2) observed 132 files / 1581. The same file gains 5
+          # executed tests (26 in all): 1581 + 5 = 1586, 1586 - 6 = 1580; files 132 unchanged; _FLOOR_SET_FROM -> 1586.
+          MIN_FILES, MIN_PASSED = 132, 1580
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

@@ -51,9 +51,9 @@ except ImportError:  # pragma: no cover - package-context fallback
 # Module top, in the script/package idiom: production spawns this file by path for waves, wind AND pressure
 # (hotfix 2026-09-29; see the GFS fetcher's note and tests/test_fetcher_script_imports.py).
 try:
-    from _fetch_native_cell import enabled as _native_enabled, is_native, one_cell  # script
+    from _fetch_native_cell import LAND_HALF, enabled as _native_enabled, is_native, views  # script
 except ImportError:  # pragma: no cover - package-context fallback
-    from services._fetch_native_cell import enabled as _native_enabled, is_native, one_cell
+    from services._fetch_native_cell import LAND_HALF, enabled as _native_enabled, is_native, views
 
 LAYER_PARAMS = {"wind": ["10u", "10v"], "pressure": ["msl"], "waves": ["swh", "mwp", "pp1d", "mwd"]}
 # Wave params live in their own stream ("wave"; the client maps 06/18 cycles to scwv itself).
@@ -318,7 +318,8 @@ def fetch_global_coarse(payload):
 
     def _height_at(a, r, c):
         if _nat:
-            return energy_mean_height_block(one_cell(a, r, c), 0, 0, 1, True)
+            # The exact native cell; a LAND cell (its own height missing) answers from its centred 3x3.
+            return energy_mean_height_block(*views(r, c, LAND_HALF if not np.isfinite(a[r, c]) else 1, a), True)
         return energy_mean_height_block(a, r, c, _half, True)
 
     axes = {}    # rid -> (lats, lons)

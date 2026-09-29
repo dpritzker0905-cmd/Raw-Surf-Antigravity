@@ -1,12 +1,13 @@
 # Weather program: state
 
-**Updated 2026-09-29 19:51Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-29 20:21Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
-- **`dev` = `7e81347f`** (#171 at 19:40:24Z). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the fetcher by-path import HOTFIX for #171 (URGENT: without it every GFS, ICON
-  and EURO fetch fails; ledger seq 52), then the regrid flip PR.
+- **`dev` = `bdef3be2`** (#172 at 20:10:50Z). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
+- **Open PRs of ours:** #173, the regrid LAND FALLBACK (dark; a land node answers from its centred 3x3, so
+  the flip blanks no coastal node). The FLIP itself is the owner's to make (ledger seq 61): REGRID_NATIVE_CELL '1'
+  in forecast-ingest.yml AND forecast-ingest-pilots.yml, and the lane test's expected value.
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
   per-spot size references (`RATING_LOCAL_SIZE=1`), now fail-closed in the precompute (#162).
@@ -24,7 +25,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 52, sha256 d1f9e4789eedc7c1ffe6727a22507573f7e8ad4e59e88e558a58c21e611834a5**
+  **Ledger head: seq 63, sha256 65c2b0f03cd6a9e16754c48590a72b1acac258fca5c6ae4b440c8df4c6b3b08b**
 
 ## Next fixes, in order
 0. **Regrid at native resolution (#171, all three fetchers, dark; flip on the owner's word):** every 0.25-deg regional tile of GFS, ICON and EURO is a 2x2

@@ -130,3 +130,11 @@ before starting it.
   inside `fetch_global_coarse` would have failed every GFS, ICON and EURO fetch, flag on or off. The real-GRIB
   parity job (run by path) caught it 4 minutes after the merge, before any ingest ran. The rule is now a test
   (`test_fetcher_script_imports.py`), and a new fetcher import follows the file's own try/except idiom. (2026-09-29)
+- **L-S15 · Price a flip on real data before offering it, and gate on what must not change.** The native-cell
+  regrid passed 21 stub tests and 22 mutations, then its first real-GRIB run showed it would blank 20 of 425 coastal
+  nodes (their own cell is land). A flip may move values; it may never remove one the old path served. The
+  real-GRIB job now fails on that. (2026-09-29)
+- **L-P12 · A tolerance in the oracle hides what bit-identity catches.** The land fallback's batch pass matched its
+  scalar form under `allclose` everywhere and differed on real GRIB in 1 of 115,600 values after 4-decimal rounding:
+  quantized inputs make ties common. When two paths must be identical, compare exactly, and prefer one shared
+  function over two that agree. When a numeric test cannot reach the failure, pin the structure instead. (2026-09-29)
