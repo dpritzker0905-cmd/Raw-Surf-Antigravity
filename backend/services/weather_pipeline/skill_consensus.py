@@ -23,6 +23,11 @@ never saw. This is that measurement, from rows the ledger already scored: no fet
     changes SIGN by region (Florida east x1.10-1.27 HIGH; SoCal x0.85-0.89 and the Gulf x0.54-0.85 LOW, measured
     2026-09-28), so which consensus helps depends on where, and one global MAE can hide a candidate that wins on
     one coast and loses on another.
+  * `by_band` (2026-09-29): the same held-out pairs split by the OBSERVED sea state (forecast_skill.OBS_BANDS: flat
+    <0.5 m, small 0.5-1.5, rideable 1.5-3, big >3), with `equal_over_primary` -- the median ratio of the equal mean to
+    the served lane's own forecast. The ratio is what a surfer would SEE move: on the Florida east tile at 06Z on
+    2026-09-29 (GFS 0.30 m, EURO 0.52, ICON 0.67 median) the equal mean was x1.31 the served height at the median cell
+    and x3.6 at p90, because calm-sea denominators are small. An all-sea MAE cannot show that.
   * Graded on the held-out week against each member and the best of them. Thin leads refuse with a status.
 
 Changes no served number.
@@ -96,6 +101,8 @@ def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_
         keys.setdefault((r.get("buoy_id"), t.isoformat(), lead), {})[src] = (float(x), float(y), t)
     by_lead: Dict[int, Dict[str, list]] = {}
     held_out_by_region: Dict[str, list] = {}
+    held_out_by_band: Dict[str, list] = {}
+    from services.weather_pipeline.forecast_skill import obs_band     # lazy: forecast_skill imports this module
     for (buoy, _, lead), got in keys.items():
         if len(got) != len(members):
             continue                                   # like with like: every member on every pair
@@ -103,6 +110,9 @@ def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_
         by_lead.setdefault(lead, {"train": [], "test": []})["test" if t >= cutoff else "train"].append(got)
         if t >= cutoff:
             held_out_by_region.setdefault(region_of(buoy), []).append(got)
+            band = obs_band(next(iter(got.values()))[1])
+            if band:
+                held_out_by_band.setdefault(band, []).append(got)
     out = []
     for lead, g in sorted(by_lead.items()):
         entry = {"lead_h": lead, "n_train": len(g["train"]), "n_test": len(g["test"])}
@@ -145,12 +155,14 @@ def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_
     return {"method": "three_model_consensus_equal_debiased_weighted", "members": list(members),
             "holdout_days": holdout_days, "cutoff": cutoff.isoformat(),
             "paired_keys": sum(e["n_train"] + e["n_test"] for e in out), "by_lead": out,
-            "by_region": _by_region(held_out_by_region, members, min_test)}
+            "by_region": _graded_groups(held_out_by_region, members, min_test),
+            "by_band": _graded_groups(held_out_by_band, members, min_test)}
 
 
-def _by_region(groups: Dict[str, list], members, min_test: int) -> Dict:
-    """Held-out pairs per coast, pooled over the leads: each member, the equal mean and (with GFS and EURO among the
-    members) the pair, as MAE and bias; the best member; and whether the equal mean or the pair beats it."""
+def _graded_groups(groups: Dict[str, list], members, min_test: int) -> Dict:
+    """Held-out pairs per group (a coast, a sea-state band), pooled over the leads: each member, the equal mean and
+    (with GFS and EURO among the members) the pair, as MAE and bias; the best member; whether the equal mean or the
+    pair beats it; and `equal_over_primary`, the median equal-mean / served-lane (members[0]) forecast ratio."""
     out = {}
     for region, pairs in sorted(groups.items()):
         if len(pairs) < min_test:
@@ -162,6 +174,10 @@ def _by_region(groups: Dict[str, list], members, min_test: int) -> Dict:
         entry = {"n": len(pairs), "status": "scored", "members": per, "best_member": best,
                  "equal": _stats([sum(p[m][0] for m in members) / len(members) - o for p, o in zip(pairs, obs)])}
         entry["equal_beats_best"] = entry["equal"]["mae_m"] < per[best]["mae_m"]
+        ratios = sorted(sum(p[m][0] for m in members) / len(members) / p[members[0]][0] for p in pairs)
+        entry["equal_over_primary"] = {"p10": round(ratios[len(ratios) // 10], 3),
+                                       "median": round(ratios[len(ratios) // 2], 3),
+                                       "p90": round(ratios[min(len(ratios) - 1, 9 * len(ratios) // 10)], 3)}
         if all(m in members for m in PAIR):
             entry["pair_gfs_euro"] = _stats([sum(p[m][0] for m in PAIR) / len(PAIR) - o for p, o in zip(pairs, obs)])
             entry["pair_beats_best"] = entry["pair_gfs_euro"]["mae_m"] < per[best]["mae_m"]

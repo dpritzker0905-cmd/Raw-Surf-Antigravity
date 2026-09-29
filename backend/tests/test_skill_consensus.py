@@ -224,3 +224,40 @@ def test_a_thin_region_refuses_instead_of_printing_a_number():
     reg = consensus_report(rows, NOW)["by_region"]
     assert reg["gulf"] == {"n": 4, "status": "insufficient"}
     assert reg["pacific_ne"]["status"] == "scored"
+
+
+def _band_rows(obs, fc, n, days=range(0, 7), buoy="46232"):
+    """n held-out target hours at one observed height, each member forecasting its fixed value."""
+    out = []
+    for i in range(n):
+        t = NOW - timedelta(days=days[i % len(days)], hours=1 + i % 20)
+        for m, x in fc.items():
+            out.append({"source": m, "buoy_id": buoy, "target_time": t.strftime("%Y-%m-%dT%H:00:00Z"),
+                        "lead_h": 24.0, "hs_m": x, "obs_hs_m": obs})
+    return out
+
+
+def test_pairs_are_graded_by_the_observed_sea_state():
+    calm = {"raw_surf": 0.3, "raw_surf:EURO": 0.5, "raw_surf:ICON": 0.7}      # GFS low, ICON high, obs 0.4
+    big = {"raw_surf": 3.0, "raw_surf:EURO": 3.4, "raw_surf:ICON": 3.2}       # everyone low, obs 3.8
+    rep = consensus_report(_band_rows(0.4, calm, 12) + _band_rows(3.8, big, 12, buoy="46086"), NOW)
+    bands = rep["by_band"]
+    assert set(bands) == {"flat <0.5m", "big >3m"}, "grouped by the OBSERVED height, not the forecast"
+    flat = bands["flat <0.5m"]
+    assert flat["n"] == 12 and flat["members"]["raw_surf"]["bias_m"] == pytest.approx(-0.1)
+    assert flat["equal"]["bias_m"] == pytest.approx(0.1) and flat["best_member"] == "raw_surf"
+    assert bands["big >3m"]["equal"]["bias_m"] == pytest.approx(-0.6)
+
+
+def test_the_band_reports_how_far_the_served_height_would_move():
+    """The equal mean is 0.5 m where the served lane said 0.3 m: x1.667 on a flat day, which an all-sea MAE hides."""
+    calm = {"raw_surf": 0.3, "raw_surf:EURO": 0.5, "raw_surf:ICON": 0.7}
+    flat = consensus_report(_band_rows(0.4, calm, 12), NOW)["by_band"]["flat <0.5m"]
+    assert flat["equal_over_primary"] == {"p10": 1.667, "median": 1.667, "p90": 1.667}
+    assert "equal_over_primary" in consensus_report(_band_rows(0.4, calm, 12), NOW)["by_region"]["pacific_ne"]
+
+
+def test_a_thin_band_refuses():
+    calm = {"raw_surf": 0.3, "raw_surf:EURO": 0.5, "raw_surf:ICON": 0.7}
+    bands = consensus_report(_band_rows(0.4, calm, 12) + _band_rows(2.0, calm, 3), NOW)["by_band"]
+    assert bands["rideable 1.5-3m"] == {"n": 3, "status": "insufficient"}
