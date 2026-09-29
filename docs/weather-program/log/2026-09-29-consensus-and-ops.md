@@ -138,3 +138,15 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
   `[Consensus] shadow build complete: N frames ...` line is the verification (ledger seq 38, pending).
 - PR C (the shadow's instruments) opened next: ledger `shadow` block with a construction check, judge SHADOW_AB with
   BUILT_VS_COMPUTED, `/point` accepting CONSENSUS.
+
+## 18:00-18:30Z · #169 merged; the shadow verified; the same-model gap located
+- #169 merged 18:00:20Z (`afa19a52`; hosted chain 130 / 1549 = projection).
+- **The shadow works:** the first armed pilots run built 874/882 frames across 18 regions in 8.5 min, and the next
+  precompute ledgered +137 CONSENSUS rows (ledger seq 42).
+- **The next fix, found by measurement.** The same-model gap (Open-Meteo's GFS-Wave 0.25 beats our GFS lane by
+  +0.020..0.027 m against buoys) is pipeline loss by definition. The ledger's attribution is 98% `unknown`, so I built
+  a forecast-to-forecast probe. Its first draft re-derived the control and reported +0.128 m (wrong: coastal 0.0s);
+  mirroring the ledger's own control lane gave bias +0.008, MAE 0.074 at 56 buoys, same 12Z cycle. Varying one
+  thing at a time: no coordinate shift (9-offset scan), and our 0.25-deg node equals Open-Meteo's north-west 2x2
+  mean to 1 cm on 72% of rows. Cause in code: `half = max(1, round(res/0.25/2))` = 1 at native resolution, and the
+  block is rows [r-1, r+1) x cols [c-1, c+1), in all three wave fetchers (ledger seq 43).

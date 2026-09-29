@@ -1,19 +1,17 @@
 # Weather program: state
 
-**Updated 2026-09-29 15:40Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-29 18:30Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
-- **`dev` = `de72c81c`** (#168 at 15:30:45Z, after #167 `b16dbb5d` at 15:30:00Z). The Render backend
-  auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #169, PR C (the shadow's instruments: ledger `shadow` block, judge SHADOW_AB, `/point`
-  accepts CONSENSUS).
+- **`dev` = `afa19a52`** (#169 at 18:00:20Z). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
+- **Open PRs of ours:** #170, the same-model parity probe (an instrument; no served change).
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
   per-spot size references (`RATING_LOCAL_SIZE=1`), now fail-closed in the precompute (#162).
 - **ARMED 15:30:45Z (#168):** the consensus SHADOW (model `CONSENSUS`, `CONSENSUS_INGEST` '1' in all three lanes).
-  Serves nothing to users. The first armed pilots run is 36590800405 (queued behind the unarmed 36586926594);
-  verify its `[Consensus] shadow build complete` line, then `raw_surf:CONSENSUS` rows in a precompute.
+  Serves nothing to users. VERIFIED: run 36590800405 built 874 frames across 18 regions (17:00Z); the 17:12Z
+  precompute ledgered +137 `raw_surf:CONSENSUS` rows. First scored rows ~24 h later; then read `shadow`.
 - **Built but dark:** MOP nearshore
   (`SURF_NEARSHORE_MOP`, graded, flip waits on spot observations).
 - **Armed switches:** the workflow-dispatch fallback (#153), armed 2026-09-29 13:30Z. It dispatches a data lane's
@@ -25,9 +23,15 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 40, sha256 f147f740c4e4f47adcd00158a79ae1d549e56937426842a5f52b3192cbb66ce2**
+  **Ledger head: seq 44, sha256 dbfebf1bc7998af42e6e74347fffca168705ce1badf5858a209c9c7e7f182d5e**
 
 ## Next fixes, in order
+0. **Regrid at native resolution (dark, next PR):** every 0.25-deg regional tile of GFS, ICON and EURO is a 2x2
+   block mean shifted half a cell NW (`half = max(1, round(res/0.25/2))` = 1; ledger seq 43). Fix: the exact
+   native cell at native resolution, one shared `block_half`, behind `REGRID_NATIVE_CELL` (default 0) in the
+   ingest lanes; evidence = the parity probe (node vs native cell -> rounding) and the ledger's same-model gap.
+   Then: GFS-Wave is ingested 3-hourly (`f_hours = range(0, max_f+1, 3)`) while it is published hourly to
+   f120 (Open-Meteo meta: temporal_resolution 3600 s): off-frame hours snap by 1 h.
 1. ~~**Accuracy monitor false alarm**~~ merged as #166 (`0b169692`): page on "no scored rows for N hours", not on one zero-score pass
    (LESSONS L-F4).
 2. ~~**No shadow model reaches an upstream**~~ merged as #167 (`b16dbb5d`): the wind fallback was ungated, so the armed `CONSENSUS`

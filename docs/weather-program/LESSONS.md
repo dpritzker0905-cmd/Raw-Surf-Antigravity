@@ -101,3 +101,15 @@ before starting it.
 - **L-A4 · A rule that names tools a session does not have is a rule nobody can follow.** BRAIN_RULES §21 requires
   Mind/Memstate/Trevec checkpoints; none were configured in this session. §23 records that and names the git record
   as the memory every session actually shares.
+- **L-S12 · A new instrument inherits the old instrument's rules, by calling it.** The same-model parity probe's
+  first draft fetched Open-Meteo itself and treated its coastal 0.0 as a forecast: it reported ours +0.128 m high,
+  every large row a land cell at Waimea, La Jolla or Juan de Fuca, the trap the ledger documented on 2026-08-10.
+  Calling the ledger's own `fetch_om_forecast_rows` gave +0.008. The result contradicted the ledger, which is what
+  stopped it being reported. (2026-09-29)
+- **L-S13 · Vary one thing at a time until the residual has a mechanism.** Same cycle, same hour, same node still
+  left 5 cm; scanning 9 offsets ruled out a shift, and scanning block means found the 2x2 NW mean at 72% exact.
+  The code then confirmed it in one line. (2026-09-29)
+- **L-P8 · `git fetch` before branching from `origin/dev`.** A merge made with `gh pr merge` does not move the
+  local `origin/dev`: a branch cut right after it started from the previous dev, and its three new ledger lines took
+  seq 33-35 over dev's own 33-40. The ledger's append-only rule would have failed it in CI; `action_ledger.py head`
+  caught it first (seq 35 where 43 was expected). (2026-09-29)

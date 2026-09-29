@@ -1163,7 +1163,11 @@ jobs:
           # in the ledger and the judge): hosted CI on PR #167 (merged as b16dbb5d) observed 130 files / 1541.
           # tests/test_skill_consensus.py (+5) and tests/test_nearshore_consensus_arm.py (+3), both claimed by
           # `--lane chain`: 1541 + 8 = 1549, 1549 - 6 = 1543; files 130 unchanged; _FLOOR_SET_FROM["chain"] -> 1549.
-          MIN_FILES, MIN_PASSED = 130, 1543
+          # ⬆ MIN_FILES 130→131, MIN_PASSED 1543→1554 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the same-model
+          # parity probe): hosted CI on PR #169 (merged as afa19a52) observed 130 files / 1549. The new
+          # tests/test_same_model_parity_probe.py (claimed by `--lane chain`) adds 11 executed tests: 1549 + 11 = 1560,
+          # 1560 - 6 = 1554; files 131 EXACT; _FLOOR_SET_FROM["chain"] -> 1560.
+          MIN_FILES, MIN_PASSED = 131, 1554
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

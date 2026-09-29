@@ -18,6 +18,7 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | S2 | Public-reference gap (Forecast Accuracy Monitor, paired head-to-head) | `forecast-accuracy-monitor.yml` | how far a public reference (Open-Meteo marine, NCEP GFS-Wave 0.25°) is ahead of us, in metres |
 | S3 | Nearshore judge (`nearshore-validation.yml`) | scheduled + dispatch | MAE of the served NEARSHORE height at nearshore buoys, with MOP / NWPS / consensus arms |
 | S4 | Sim parity (`sim-parity-monitor.yml`) | scheduled | spots whose served glyph and sim differ by a rating level (a composition break when attributed so) |
+| S6 | Same-model parity (`backend/scripts/same_model_parity_probe.py`) | on demand | our served GFS vs Open-Meteo's GFS-Wave 0.25 at the ledger's buoys, forecast to forecast: pipeline loss, no observation needed |
 | S5 | Data freshness | Actions run history, `/api/health` → `scheduler.workflow_dispatch` | missed ingest slots; runs per day per lane |
 
 ## Rows
@@ -37,3 +38,6 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-09-29 11Z | `e82f59c8` | S1 | `by_band` MAE, equal vs served GFS | big 0.501 vs 0.635 · rideable 0.342 vs 0.375 · small 0.251 vs 0.253 · flat 0.139 vs 0.245 m | ledger `by_band` (first publication) |
 | 2026-09-29 11:24Z | `e82f59c8` | S4 | spots a level apart | **32 of 48**: glyphs baked without size references after a Supabase 429 at 02:48Z (fixed by #162) | sim parity run 36561587061 |
 | 2026-09-29 13:46Z | `e4c27fd7` | S5 | dispatch fallback's first decisions | core ingest 12:15Z slot and pilots 11:45Z slot had no run → both dispatches **HTTP 403** (token lacks Actions write); MOP 12:40Z slot served | Render log `[workflow-dispatch]` |
+| 2026-09-29 17:00Z | `de72c81c` | S5 | first armed consensus shadow build | 874 of 882 frames across 18 regions (8 no member within 3 h, 0 refused), 8.5 min | pilots run 36590800405 |
+| 2026-09-29 18:09Z | `afa19a52` | S6 | same-model parity, ours vs Open-Meteo GFS-Wave 0.25 (same 12Z cycle) | n=240 at 56 buoys: bias +0.008 m, MAE 0.074; global_mid tier bias +0.100 (43% of sq. diff on 18% of rows); regional node vs native cell MAE 0.045 | same_model_parity_probe (new) |
+| 2026-09-29 18:24Z | `afa19a52` | S6 | regional node vs Open-Meteo NW 2x2 RMS-equivalent mean | MAE 0.0102 m, 72% within 0.011 m (own cell: 14%): nodes are 2x2 means shifted half a cell NW | offset + block scans |
