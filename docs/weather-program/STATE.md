@@ -5,7 +5,7 @@ is a claim, not a measurement.
 
 ## Now
 - **`dev` = `afa19a52`** (#169 at 18:00:20Z). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the same-model parity probe PR (an instrument; no served change).
+- **Open PRs of ours:** #170, the same-model parity probe (an instrument; no served change).
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
   per-spot size references (`RATING_LOCAL_SIZE=1`), now fail-closed in the precompute (#162).
@@ -23,7 +23,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 43, sha256 97524381efa18c1d20abaac51d570180a946041d75c7373e0c6ccced1f096a12**
+  **Ledger head: seq 44, sha256 dbfebf1bc7998af42e6e74347fffca168705ce1badf5858a209c9c7e7f182d5e**
 
 ## Next fixes, in order
 0. **Regrid at native resolution (dark, next PR):** every 0.25-deg regional tile of GFS, ICON and EURO is a 2x2
