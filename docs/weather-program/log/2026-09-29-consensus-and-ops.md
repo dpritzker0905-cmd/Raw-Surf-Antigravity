@@ -67,3 +67,12 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
 - 16 tests, 530 nearby pass, 11/11 mutations red, chain floor 130/1531. No served number changes, armed or not.
 - Next: arm it (all three lanes) on the owner's word, then PR C grades the shadow in the ledger against the served
   lane and the computed equal mean (a positive control), and widens `/point` for the judge arm.
+
+## ~14:15Z · the dispatch token lacks Actions WRITE (403)
+- Render logs, 13:46Z (the first pass after arming): `forecast-ingest.yml: error: RuntimeError: dispatch HTTP 403`,
+  `forecast-ingest-pilots.yml: … dispatch HTTP 403`, `mop-nearshore-ingest.yml: slot 12:40Z served by run 36574129754`.
+  The runs listing worked (the decision was reached), so the token reads Actions but cannot write them. The
+  dispatcher's decisions were right: the core 12:15Z slot and the pilots 11:45Z slot had no run.
+- Owner action: edit the fine-grained token → Repository permissions → **Actions: Read and write** (the token value
+  does not change, so Render needs no update). `last` in /api/health is in memory and resets on each deploy; the
+  Render log lines `[workflow-dispatch]` are the durable record.
