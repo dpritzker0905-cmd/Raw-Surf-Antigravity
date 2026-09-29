@@ -38,7 +38,8 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.nearshore_validation import (   # noqa: E402
-    Refusal, backfill_valid_times, build_report, fetch_mop_hs, fetch_station_hs, load_mop_archives, load_pairs,
+    CONSENSUS_MEMBERS, Refusal, backfill_valid_times, build_report, equal_consensus, fetch_mop_hs, fetch_station_hs,
+    load_mop_archives, load_pairs,
     model_hs_from_nearshore_input,
     match, model_hs_at_station, model_hs_at_station_trains, mop_grid_hours, qc_filter, station_trains,
     transform_factors)
@@ -72,6 +73,34 @@ def fetch_train_answers(fetch, base: str, lat, lng, valid_time: str) -> list:
             out.append((kind, fetch(url)))
         except BaseException:                                         # noqa: BLE001 — one layer, never the row
             continue
+    return out
+
+
+def consensus_fields(fetch, base: str, spot: dict, valid_time: str, gfs: dict, geom, station_depth_m: float) -> dict:
+    """THE CONSENSUS ARM (stage 5): the other members' served offshore answers at the same spot and hour, each
+    through the station transform on its own period and bearing (`model_hs_<member>_m`), and the equal-mean Hs
+    with the primary's period and bearing (`model_hs_consensus_m`, only when every member answered). A member
+    that cannot answer removes the consensus for that row and nothing else. `fetch` is injected for tests."""
+    members = {"GFS": gfs}
+    for model in CONSENSUS_MEMBERS:
+        if model == "GFS":
+            continue
+        url = (f"{base}/api/weather/point?model={model}&domain=marine&layer=waves"
+               f"&lat={spot['lat']}&lng={spot['lng']}&valid_time={valid_time}")
+        try:
+            pt = fetch(url).get("point") or {}
+        except Exception:                                             # noqa: BLE001 — one member, never the row
+            continue
+        if pt.get("speed") is not None and pt.get("period") is not None and pt.get("direction") is not None:
+            members[model] = {"hs": pt["speed"], "tp": pt["period"], "dir": pt["direction"]}
+    at = lambda a: model_hs_at_station(a["hs"], a["tp"], a["dir"], geom.shore_normal_deg,   # noqa: E731
+                                       station_depth_m, geom.depth_m, geom.shelf_width_km)
+    out = {f"model_hs_{m.lower()}_m": at(a) for m, a in members.items() if m != "GFS"}
+    c = equal_consensus(members)
+    if c:
+        out["model_hs_consensus_m"] = at(c)
+        out["consensus_offshore_hs_m"] = round(c["hs"], 4)
+    out["member_offshore_hs_m"] = {m: a["hs"] for m, a in members.items()}
     return out
 
 
@@ -129,6 +158,10 @@ def main() -> int:
     # each office's domain (data/nwps_buoy_points.json), hourly; ~1 MB per cycle per station.
     ap.add_argument("--nwps", action="store_true",
                     default=os.environ.get("NEARSHORE_VAL_NWPS", "0") == "1")
+    # THE CONSENSUS ARM (stage 5): EURO and ICON at every graded spot-hour, their equal mean with GFS through the
+    # same transform. Two extra point calls per row, so off unless asked for.
+    ap.add_argument("--consensus", action="store_true",
+                    default=os.environ.get("NEARSHORE_VAL_CONSENSUS", "0") == "1")
     ap.add_argument("--max-stations", type=int,
                     default=int(os.environ.get("NEARSHORE_VAL_MAX_STATIONS", "20")))
     args = ap.parse_args()
@@ -237,6 +270,8 @@ def main() -> int:
                    if shelf_dissipation(tp, g.depth_m, g.shelf_width_km, LEGACY_SHELF_CF_SCALE) < 0.999 else {}),
                 "upstream_provider": d.get("upstream_provider"),
                 **row_trains,
+                **(consensus_fields(_fetch_json, args.base, spot, valid_time, {"hs": hs, "tp": tp, "dir": dr},
+                                    g, depth) if args.consensus else {}),
             })
     if not preds and point_fail:
         print(f"INFRA: the point API produced 0 usable answers in {point_fail} attempts "
@@ -279,8 +314,9 @@ def main() -> int:
     report["n_spot_hours"] = len(matched)
     report["n_station_hours"] = len({(m["station"], m["obs_time"]) for m in matched})
     report["point_api"] = {"base": args.base, "valid_time": valid_times[0], "valid_times": len(valid_times),
-                           "calls": (len(preds) * (1 + len(TRAIN_LAYERS) * bool(args.trains))) + point_fail,
-                           "failed": point_fail, "trains": bool(args.trains)}
+                           "calls": (len(preds) * (1 + len(TRAIN_LAYERS) * bool(args.trains)
+                                                   + (len(CONSENSUS_MEMBERS) - 1) * bool(args.consensus))) + point_fail,
+                           "failed": point_fail, "trains": bool(args.trains), "consensus": bool(args.consensus)}
     if args.mop:
         report["mop"] = {"product": "MOP_validation forecast (WW3-driven)", "stations": mop_status}
     if args.mop_grid_archive:
@@ -338,6 +374,16 @@ def main() -> int:
         print(f"MOP_AB n={mab['n']} station_hours={mab['n_station_hours']} "
               f"bulk={mab['bulk']['mae_m']}/{mab['bulk']['bias_m']:+} mop={mab['arm']['mae_m']}/{mab['arm']['bias_m']:+} "
               f"closer={mab['arm_closer_share']}")
+    cab = report.get("consensus_ab")
+    if cab:
+        print(f"CONSENSUS_AB n={cab['n']} station_hours={cab['n_station_hours']} "
+              f"bulk={cab['bulk']['mae_m']}/{cab['bulk']['bias_m']:+} consensus={cab['arm']['mae_m']}/{cab['arm']['bias_m']:+} "
+              f"closer={cab['arm_closer_share']} SAME_ROWS "
+              + " ".join(f"{k}={v['mae_m']}/{v['bias_m']:+}" for k, v in cab["same_rows"].items()))
+    for m, v in sorted((report.get("member_ab") or {}).items()):
+        print(f"MEMBER_AB {m} n={v['n']} station_hours={v['n_station_hours']} "
+              f"gfs={v['bulk']['mae_m']}/{v['bulk']['bias_m']:+} {m.lower()}={v['arm']['mae_m']}/{v['arm']['bias_m']:+} "
+              f"closer={v['arm_closer_share']}")
     ab = report.get("trains_ab")
     if ab:
         t = ab["trains_only"]

@@ -294,6 +294,37 @@ def arm_ab(matched: list, key: str):
                            for s, v in sorted(by_station.items())}}
 
 
+# ── THE CONSENSUS ARM (roadmap stage 5, 2026-09-29) ──────────────────────────────────────────────────────
+# The skill ledger grades the three-model consensus at DEEP buoys (the equal mean was best-calibrated on big
+# swells: bias -0.10 / -0.03 / -0.02 m at 24 / 48 / 72 h). What the app shows is the NEARSHORE height after the
+# transform, and GFS-Wave's regional bias differs by coast (x1.10-1.27 on Florida's east coast, x0.85-0.89 in
+# SoCal, x0.54-0.85 in the Gulf), so a consensus INPUT has to be graded where the transform lands, too.
+CONSENSUS_MEMBERS = ("GFS", "EURO", "ICON")
+
+
+def equal_consensus(members: dict):
+    """The equal mean of the members' offshore Hs at one spot and hour, carrying the PRIMARY's (GFS, the served
+    lane) period and direction: the ingest-time design, the primary's sea scaled to the consensus height. None
+    unless EVERY member answered, so the arm is always the full equal mean (the ledger's pairing rule) and never
+    a two-model mean under the same name. PURE."""
+    if not isinstance(members, dict):
+        return None
+    vals = []
+    for m in CONSENSUS_MEMBERS:
+        a = members.get(m) or {}
+        try:
+            v = float(a.get("hs"))
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(v) or v < 0:
+            return None
+        vals.append(v)
+    p = members["GFS"]
+    if p.get("tp") is None or p.get("dir") is None:
+        return None
+    return {"hs": sum(vals) / len(vals), "tp": float(p["tp"]), "dir": float(p["dir"])}
+
+
 # ── THE ARCHIVED MOP-GRID ARM (stage 4, 2026-09-27) ──────────────────────────────────────────────────
 # The product stage 4 would SERVE is the regional sea+swell grid (ECMWF-driven), not the WW3-driven buoy
 # series the MOP arm grades, and it holds only future hours. The ingest (#126) archives every run at a
@@ -463,6 +494,19 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
     ni = arm_ab(matched, "model_hs_nearshore_input_m")
     if ni:
         extra["nearshore_input_ab"] = ni
+    # THE CONSENSUS ARM (stage 5): the equal-mean input through the same transform, and each other member alone.
+    cons = arm_ab(matched, "model_hs_consensus_m")
+    if cons:
+        # SAME ROWS: every member AND the consensus on exactly the hours where all three answered, so "the equal
+        # mean vs the best single model" is a paired comparison (the member arms below each cover their own rows).
+        both = [m for m in matched if m.get("model_hs_consensus_m") is not None and m.get("model_hs_m") is not None]
+        cons["same_rows"] = {"gfs": _arm_stats(both, "model_hs_m"), "consensus": _arm_stats(both, "model_hs_consensus_m"),
+                             **{m.lower(): _arm_stats(both, f"model_hs_{m.lower()}_m")
+                                for m in CONSENSUS_MEMBERS if m != "GFS"}}
+        extra["consensus_ab"] = cons
+    members = {m: arm_ab(matched, f"model_hs_{m.lower()}_m") for m in CONSENSUS_MEMBERS if m != "GFS"}
+    if any(members.values()):
+        extra["member_ab"] = {m: v for m, v in members.items() if v}
     # The transform is graded with the BUOY's geometry (2026-09-28); the spot-geometry number rides beside it
     # on the same hours, so the change is measured rather than asserted.
     sg = [m for m in matched if m.get("model_hs_spot_geometry_m") is not None]
