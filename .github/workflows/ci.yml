@@ -1471,7 +1471,11 @@ jobs:
           # re-rates on a dev push to the composition chain): hosted CI on PR #120 (merged as 52e0ec53) observed 542
           # passed. tests/test_precompute_follows_pilots.py (claimed by `--lane estate`) gains 3 executed tests:
           # 542 + 3 = 545; 545 - 2 = 543; _FLOOR_SET_FROM[estate] -> 545.
-          MIN_PASSED = 543
+          # ⬆ 543→554 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (E2E waits for the backend's first L2
+          # restore, not only its deploy): hosted CI on PR #158 (merged as ef1ba246) observed 545 passed. The new
+          # tests/test_e2e_backend_ready.py (claimed by `--lane estate`) adds 11 executed tests: 545 + 11 = 556;
+          # 556 - 2 = 554; _FLOOR_SET_FROM[estate] -> 556.
+          MIN_PASSED = 554
 
           try:
               root = ET.parse('estate.xml').getroot()
