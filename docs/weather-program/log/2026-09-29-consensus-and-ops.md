@@ -54,3 +54,16 @@ Owner: the worktree session (`raw-surf-wt`). Append-only; only this session writ
   the manifest or answers unavailable (no upstream calls); `/point` and `/grid` accept only GFS|ICON|EURO (the
   judge arm needs that widened in PR C); the ICON regional pilot covers 2 days and the four GFS-only regions have no
   EURO/ICON tiles, so members come from their coarser tiers via `manifest_point_selection`.
+
+## ~14:10Z · #164 opened: consensus PR B, the shadow (D-009)
+- `consensus_ingest.py`: a pilots-lane job after the three members' regional passes builds the equal mean of every
+  GFS regional waves frame (latest run per region) as model `CONSENSUS`. Each member is answered per cell by the
+  point resolver's own pick (`point_candidates` → `choose_for_point` → `load_product`, its 3 h window included,
+  offsets counted). Unanswerable cells are masked; frames that blend nothing are not saved. Hour-major, so a global
+  member file loads once per hour for every region (not once per region: the fan-out behind today's 429s).
+- One switch (`CONSENSUS_INGEST`, `'0'` in all three lanes) registers the job and adds the `raw_surf:CONSENSUS`
+  ledger lane; the prefetcher never warms shadows; a `CONSENSUS` point reads a stored product or answers 404
+  `no_backend_coverage` with no upstream call (pinned end to end).
+- 16 tests, 530 nearby pass, 11/11 mutations red, chain floor 130/1531. No served number changes, armed or not.
+- Next: arm it (all three lanes) on the owner's word, then PR C grades the shadow in the ledger against the served
+  lane and the computed equal mean (a positive control), and widens `/point` for the judge arm.

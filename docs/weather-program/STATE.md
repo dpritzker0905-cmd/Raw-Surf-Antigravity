@@ -6,7 +6,8 @@ is a claim, not a measurement.
 ## Now
 - **`dev` = `f18c7ab8`** (#162, merged 2026-09-29 ~13:57Z). The Render backend auto-deploys from `dev`. The
   production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the one carrying this folder. Codex drafts #15 #22 #23 #27 #43 #44 are not ours; leave them.
+- **Open PRs of ours:** #163 (this folder) and #164 (consensus PR B, the shadow; dark). Codex drafts #15 #22 #23
+  #27 #43 #44 are not ours; leave them.
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
   per-spot size references (`RATING_LOCAL_SIZE=1`), now fail-closed in the precompute (#162).
@@ -15,7 +16,8 @@ is a claim, not a measurement.
 - **Armed switches:** the workflow-dispatch fallback (#153), armed 2026-09-29 13:30Z. It dispatches a data lane's
   workflow when GitHub drops its cron slot. Audit it at `/api/health` → `scheduler.workflow_dispatch.last`. Kill:
   `WORKFLOW_DISPATCH=0`.
-- **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 129 / 1515 (1521), estate 568 (570).
+- **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 129 / 1515 (1521), estate 568 (570). #164 moves chain to
+  130 / 1531 (1537).
 
 ## Next fixes, in order
 1. **Consensus PR B, as a SHADOW product (D-009):** a pilots-lane job behind `CONSENSUS_INGEST` (default 0) builds
