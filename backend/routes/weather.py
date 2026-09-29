@@ -174,7 +174,9 @@ async def get_grid(
 
 @router.get("/point", response_model=NormalizedPointResponse)
 async def get_point(
-    model: str = Query(..., pattern="^(GFS|ICON|EURO)$"),
+    # CONSENSUS (2026-09-29, D-009): the shadow product, so the nearshore judge can grade the exact built product.
+    # It resolves from stored products only (point_resolution.UPSTREAM_MODELS); the frontend never requests it.
+    model: str = Query(..., pattern="^(GFS|ICON|EURO|CONSENSUS)$"),
     domain: str = Query(..., pattern="^(marine|wind|weather)$"),
     layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
     lat: float = Query(..., description="Latitude coordinate"),

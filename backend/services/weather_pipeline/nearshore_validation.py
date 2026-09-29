@@ -308,6 +308,23 @@ def arm_ab(matched: list, key: str):
 PAIR_MEMBERS = ("GFS", "EURO")
 
 
+def shadow_ab(matched: list):
+    """THE BUILT SHADOW ARM (D-009): the CONSENSUS product's own /point answer through the transform, graded like any
+    arm, plus the CONSTRUCTION check: at the offshore point, how far the built product is from the consensus this
+    judge computes from the members' answers (`built_vs_computed`, median and p90 |diff| on rows with both). The
+    shadow interpolates from grid nodes and the computed mean averages point answers, so a small gap is
+    interpolation and a large one a broken build. PURE."""
+    arm = arm_ab(matched, "model_hs_shadow_m")
+    if not arm:
+        return None
+    gaps = sorted(abs(float(m["shadow_offshore_hs_m"]) - float(m["consensus_offshore_hs_m"])) for m in matched
+                  if m.get("shadow_offshore_hs_m") is not None and m.get("consensus_offshore_hs_m") is not None)
+    arm["built_vs_computed"] = {"n": len(gaps),
+                                "median_m": round(gaps[len(gaps) // 2], 4) if gaps else None,
+                                "p90_m": round(gaps[min(len(gaps) - 1, 9 * len(gaps) // 10)], 4) if gaps else None}
+    return arm
+
+
 # ── THE ARCHIVED MOP-GRID ARM (stage 4, 2026-09-27) ──────────────────────────────────────────────────
 # The product stage 4 would SERVE is the regional sea+swell grid (ECMWF-driven), not the WW3-driven buoy
 # series the MOP arm grades, and it holds only future hours. The ingest (#126) archives every run at a
@@ -493,6 +510,9 @@ def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
     pair = arm_ab(matched, "model_hs_pair_m")
     if pair:
         extra["pair_ab"] = pair
+    shadow = shadow_ab(matched)
+    if shadow:
+        extra["shadow_ab"] = shadow
     members = {m: arm_ab(matched, f"model_hs_{m.lower()}_m") for m in CONSENSUS_MEMBERS if m != "GFS"}
     if any(members.values()):
         extra["member_ab"] = {m: v for m, v in members.items() if v}

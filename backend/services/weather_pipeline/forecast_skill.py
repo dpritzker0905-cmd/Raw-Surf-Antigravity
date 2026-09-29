@@ -649,8 +649,10 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
             # same guard: a failure costs these two blocks and nothing else.
             attribution = same_model_attribution(history)
             # The three-model consensus (stage 5) on the same scored history: measurement only.
-            from services.weather_pipeline.skill_consensus import consensus_report
+            from services.weather_pipeline.skill_consensus import consensus_report, shadow_report as consensus_shadow
             consensus = consensus_report(history, now)
+            # The BUILT shadow (D-009) beside what it was built from: published inside the same block.
+            consensus["shadow"] = consensus_shadow(history, now)
         except Exception as e:
             logger.warning("[forecast-skill] MOS shadow skipped (%s)", e)
     return {"ledgered": len(incoming), "scored": len(scored),

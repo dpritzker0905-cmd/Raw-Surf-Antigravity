@@ -183,3 +183,64 @@ def _graded_groups(groups: Dict[str, list], members, min_test: int) -> Dict:
             entry["pair_beats_best"] = entry["pair_gfs_euro"]["mae_m"] < per[best]["mae_m"]
         out[region] = entry
     return out
+
+
+# ── THE BUILT SHADOW (D-009, 2026-09-29) ────────────────────────────────────────────────────────────────
+SHADOW = "raw_surf:CONSENSUS"
+
+
+def shadow_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_test: int = MIN_TEST,
+                  members=MEMBERS, shadow: str = SHADOW) -> Dict:
+    """PURE: the BUILT consensus shadow (model CONSENSUS, consensus_ingest) graded beside what it was built from, on
+    held-out pairs where the three members AND the shadow were all scored (like with like). Two questions:
+
+      * CONSTRUCTION (a positive control): does the built product answer at the buoy what this ledger's own equal
+        mean of the members' answers is? `shadow_minus_equal_m` (median and p90 of |shadow - equal|). The shadow is
+        bilinear from grid nodes while the ledger averages point answers, so small differences are interpolation;
+        large ones mean the build is wrong, and then nothing below may be trusted.
+      * SKILL: the shadow, the computed equal mean and the served lane (members[0]), MAE and bias against the buoy;
+        and `shadow_over_served`, the height ratio a surfer would SEE move if the flip happened (LESSONS L-S5).
+    Pairs exist only where a shadow product covers the buoy (the regional tiles), so `n` is smaller than the main
+    report's. Thin leads refuse with a status."""
+    cutoff = now - timedelta(days=holdout_days)
+    need = tuple(members) + (shadow,)
+    keys: Dict[tuple, Dict[str, tuple]] = {}
+    for r in rows or []:
+        src = str(r.get("source"))
+        if src not in need:
+            continue
+        x, y, t, lead = r.get("hs_m"), r.get("obs_hs_m"), _parse(r.get("target_time")), _lead(r.get("lead_h"))
+        if not (_ok(x) and _ok(y)) or x <= 0 or y < 0 or t is None or lead is None or t > now or t < cutoff:
+            continue
+        keys.setdefault((r.get("buoy_id"), t.isoformat(), lead), {})[src] = (float(x), float(y))
+    by_lead: Dict[int, list] = {}
+    for (_, _, lead), got in keys.items():
+        if len(got) == len(need):
+            by_lead.setdefault(lead, []).append(got)
+    out = []
+    for lead, pairs in sorted(by_lead.items()):
+        entry = {"lead_h": lead, "n": len(pairs)}
+        if len(pairs) < min_test:
+            out.append({**entry, "status": "insufficient"})
+            continue
+        obs = [p[members[0]][1] for p in pairs]
+        equal = [sum(p[m][0] for m in members) / len(members) for p in pairs]
+        built = [p[shadow][0] for p in pairs]
+        served = [p[members[0]][0] for p in pairs]
+        gap = sorted(abs(b - e) for b, e in zip(built, equal))
+        ratio = sorted(b / s for b, s in zip(built, served) if s > 0)
+        entry.update({
+            "status": "scored",
+            "shadow": _stats([b - o for b, o in zip(built, obs)]),
+            "equal": _stats([e - o for e, o in zip(equal, obs)]),
+            "served": _stats([s - o for s, o in zip(served, obs)]),
+            "shadow_minus_equal_m": {"median": round(gap[len(gap) // 2], 3),
+                                     "p90": round(gap[min(len(gap) - 1, 9 * len(gap) // 10)], 3)},
+            "shadow_over_served": ({"p10": round(ratio[len(ratio) // 10], 3), "median": round(ratio[len(ratio) // 2], 3),
+                                    "p90": round(ratio[min(len(ratio) - 1, 9 * len(ratio) // 10)], 3)}
+                                   if ratio else None),
+        })
+        entry["shadow_beats_served"] = entry["shadow"]["mae_m"] < entry["served"]["mae_m"]
+        out.append(entry)
+    return {"source": shadow, "members": list(members), "holdout_days": holdout_days, "cutoff": cutoff.isoformat(),
+            "by_lead": out}

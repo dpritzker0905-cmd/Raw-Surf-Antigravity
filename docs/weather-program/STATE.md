@@ -1,36 +1,38 @@
 # Weather program: state
 
-**Updated 2026-09-29 15:05Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-29 15:40Z** (log: `log/2026-09-29-consensus-and-ops.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
-- **`dev` = `f080ad90`** (#165 at 14:59:05Z, after #166 `0b169692` at 14:58:11Z). The Render backend auto-deploys
-  from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #167, the upstream gate (no shadow model reaches an upstream, on any domain), and #168,
-  which arms the shadow (stacked on #167; merge #167 first; merging #168 IS the owner's word to arm).
-  Codex drafts #15 #22 #23 #27 #43 #44 are not ours; leave them.
+- **`dev` = `de72c81c`** (#168 at 15:30:45Z, after #167 `b16dbb5d` at 15:30:00Z). The Render backend
+  auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
+- **Open PRs of ours:** PR C (the shadow's instruments: ledger `shadow` block, judge SHADOW_AB, `/point`
+  accepts CONSENSUS).
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
   per-spot size references (`RATING_LOCAL_SIZE=1`), now fail-closed in the precompute (#162).
-- **Built but dark:** the consensus SHADOW at ingest (#164: model `CONSENSUS`, `CONSENSUS_INGEST` '0' in all three
-  lanes; one switch builds it and adds the `raw_surf:CONSENSUS` ledger lane); MOP nearshore
+- **ARMED 15:30:45Z (#168):** the consensus SHADOW (model `CONSENSUS`, `CONSENSUS_INGEST` '1' in all three lanes).
+  Serves nothing to users. The first armed pilots run is 36590800405 (queued behind the unarmed 36586926594);
+  verify its `[Consensus] shadow build complete` line, then `raw_surf:CONSENSUS` rows in a precompute.
+- **Built but dark:** MOP nearshore
   (`SURF_NEARSHORE_MOP`, graded, flip waits on spot observations).
 - **Armed switches:** the workflow-dispatch fallback (#153), armed 2026-09-29 13:30Z. It dispatches a data lane's
   workflow when GitHub drops its cron slot. Audit it at `/api/health` → `scheduler.workflow_dispatch.last`. Kill:
   `WORKFLOW_DISPATCH=0`.
-  ⚠️ **Its dispatches fail with HTTP 403 (13:46Z)**: the token reads Actions but cannot write them. Owner: give the
-  token **Actions: Read and write** (same token value; no Render change). Durable record: Render log `[workflow-dispatch]`.
+  ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
+  (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
+  `[workflow-dispatch]`.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 32, sha256 e932b71dd11584936a9f142dd7612db4df3b3b18de53e4a66be0c462e0909173**
+  **Ledger head: seq 38, sha256 fba1c19c7f6928ef44ed2f0d9c557d20ca2c2e93174c5d8a58fbfcd5987beed3**
 
 ## Next fixes, in order
 1. ~~**Accuracy monitor false alarm**~~ merged as #166 (`0b169692`): page on "no scored rows for N hours", not on one zero-score pass
    (LESSONS L-F4).
-2. **No shadow model reaches an upstream (open PR):** the wind fallback was ungated, so the armed `CONSENSUS`
+2. ~~**No shadow model reaches an upstream**~~ merged as #167 (`b16dbb5d`): the wind fallback was ungated, so the armed `CONSENSUS`
    ledger lane would have scored real GFS wind under its name (ledger seq 27-28). Must merge BEFORE arming.
-3. **Arm the consensus shadow (owner's word):** `CONSENSUS_INGEST: '1'` in forecast-ingest-pilots.yml,
+3. ~~**Arm the consensus shadow**~~ merged as #168 (`de72c81c`), 15:30:45Z: `CONSENSUS_INGEST: '1'` in forecast-ingest-pilots.yml,
    forecast-ingest.yml and precompute.yml (+~5% manifest, D-009). Then PR C reads `raw_surf:CONSENSUS`.
 3. **Consensus PR C:** evidence for the flip: judge `CONSENSUS_AB`, ledger `by_band`/`by_region`, a before/after
    catalogue sweep of displayed heights. Then the owner's flip.

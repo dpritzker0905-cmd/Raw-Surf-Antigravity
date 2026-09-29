@@ -261,3 +261,53 @@ def test_a_thin_band_refuses():
     calm = {"raw_surf": 0.3, "raw_surf:EURO": 0.5, "raw_surf:ICON": 0.7}
     bands = consensus_report(_band_rows(0.4, calm, 12) + _band_rows(2.0, calm, 3), NOW)["by_band"]
     assert bands["rideable 1.5-3m"] == {"n": 3, "status": "insufficient"}
+
+
+# ── THE BUILT SHADOW (D-009): graded beside the computed mean it was built from ─────────────────────────
+from services.weather_pipeline.skill_consensus import SHADOW, shadow_report  # noqa: E402
+
+
+def _with_shadow(rows, offset=0.0, drop_every=0):
+    """Add a raw_surf:CONSENSUS row per key: the members' equal mean (+ `offset`), as a correct build would be."""
+    by_key = {}
+    for r in rows:
+        by_key.setdefault((r["buoy_id"], r["target_time"], r["lead_h"]), []).append(r)
+    out = list(rows)
+    for i, (k, rs) in enumerate(sorted(by_key.items())):
+        if drop_every and i % drop_every == 0:
+            continue                                            # no shadow product covers this buoy-hour
+        mean = sum(r["hs_m"] for r in rs) / len(rs)
+        out.append({**rs[0], "source": SHADOW, "hs_m": mean + offset})
+    return out
+
+
+def test_a_correct_build_matches_the_computed_mean__the_construction_control():
+    e = _lead(shadow_report(_with_shadow(_rows(range(0, 7), 30)), NOW))
+    assert e["status"] == "scored" and e["n"] == 30
+    assert e["shadow_minus_equal_m"] == {"median": 0.0, "p90": 0.0}
+    assert e["shadow"]["mae_m"] == pytest.approx(e["equal"]["mae_m"], abs=1e-6)
+    assert e["shadow_beats_served"] and e["shadow_over_served"]["median"] == pytest.approx(1.0, abs=0.35)
+
+
+def test_a_wrong_build_shows_as_a_gap_not_as_skill():
+    e = _lead(shadow_report(_with_shadow(_rows(range(0, 7), 30), offset=0.4), NOW))
+    assert e["shadow_minus_equal_m"]["median"] == pytest.approx(0.4, abs=1e-6)
+    assert e["shadow"]["mae_m"] > e["equal"]["mae_m"]
+
+
+def test_only_pairs_with_all_three_members_and_the_shadow_count():
+    e = _lead(shadow_report(_with_shadow(_rows(range(0, 7), 30), drop_every=3), NOW))
+    assert e["n"] == 20                                      # 10 of 30 buoy-hours had no shadow product
+
+
+def test_older_than_the_holdout_and_thin_leads_refuse():
+    old = shadow_report(_with_shadow(_rows(range(8, 20), 30)), NOW)
+    assert old["by_lead"] == []                              # nothing held out
+    thin = _lead(shadow_report(_with_shadow(_rows(range(0, 7), 5)), NOW))
+    assert thin["status"] == "insufficient" and thin["n"] == 5
+
+
+def test_the_shadow_block_is_published_inside_the_consensus_report():
+    import inspect
+    src = inspect.getsource(fs)
+    assert 'consensus["shadow"] = consensus_shadow(history, now)' in src
