@@ -294,3 +294,76 @@ def test_a_chooser_that_returns_the_wrong_lane_is_refused_not_blended():
             build_equal_mean_from_choosers(gfs, {"EURO": lambda la, ln, w=wrong: w, "ICON": lambda la, ln: icon})
     with pytest.raises(ValueError, match="choosers"):
         build_equal_mean_from_choosers(gfs, {"EURO": lambda la, ln: None})
+
+
+# ── no shadow model reaches an upstream, on ANY domain (2026-09-29, found before arming) ────────────────
+# The wind direct-point fallback was the one branch not gated on GFS/ICON/EURO, and the provider maps an unknown model
+# to gfs_seamless: the ledger's raw_surf:CONSENSUS lane would have carried REAL GFS wind under the consensus name.
+
+class _CountingUpstream:
+    """Records every provider call; raises unless it was given an answer. Carries the real provider's model tables."""
+    from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider as _P
+    FORECAST_MODELS, MARINE_MODELS = _P.FORECAST_MODELS, _P.MARINE_MODELS
+
+    def __init__(self, answer=None):
+        self.calls, self.answer = [], answer
+
+    async def fetch_point(self, *a, **k):
+        self.calls.append(k.get("model") or (a[0] if a else None))
+        if self.answer is None:
+            raise AssertionError("a shadow model reached the upstream provider")
+        return self.answer
+
+
+def test_a_consensus_wind_point_never_reaches_the_upstream():
+    from services.weather_pipeline.point_resolution import PointResolutionService
+    up = _CountingUpstream()
+    svc = PointResolutionService(store=_scene(), sampler=PointSampler(), provider=up)
+    for domain, layer in (("wind", "wind"), ("marine", "waves"), ("weather", "pressure")):
+        r = asyncio.run(svc.resolve_point("CONSENSUS", domain, layer, 28.0, -80.0, T0.isoformat()))
+        assert getattr(r, "status_code", None) == 404, (domain, r)
+    assert up.calls == []
+
+
+def test_gfs_wind_still_falls_back_to_the_upstream__positive_control():
+    from services.weather_pipeline.point_resolution import PointResolutionService
+    times = [(T0 + timedelta(hours=h)).strftime("%Y-%m-%dT%H:%M") for h in range(-2, 3)]
+    up = _CountingUpstream({"hourly": {"time": times, "wind_speed_10m": [11.0] * 5,
+                                       "wind_direction_10m": [270.0] * 5, "wind_gusts_10m": [15.0] * 5}})
+    svc = PointResolutionService(store=_scene(), sampler=PointSampler(), provider=up)
+    r = asyncio.run(svc.resolve_point("GFS", "wind", "wind", 28.0, -80.0, T0.isoformat()))
+    assert up.calls == ["GFS"] and r.point is not None and r.point.speed == pytest.approx(11.0)
+
+
+def test_the_three_fallbacks_read_one_membership():
+    from services.weather_pipeline import point_resolution as pr
+    src = inspect.getsource(pr)
+    assert pr.UPSTREAM_MODELS == ("GFS", "ICON", "EURO")
+    assert src.count("model.upper() in UPSTREAM_MODELS") == 3
+    assert 'model.upper() in ("GFS", "ICON", "EURO")' not in src
+
+
+def test_the_ledgers_consensus_lane_makes_no_upstream_call_and_scores_no_borrowed_wind(monkeypatch):
+    """The real consumer, end to end: calibrate_spots for the CONSENSUS lane at a buoy the shadow covers."""
+    from services.weather_pipeline import buoy_calibration as bc
+    from services.weather_pipeline.point_resolution import PointResolutionService
+    store = _scene()
+    shadow = next(p for p, _ in _build(store)[1][T0][0] if p.region_id == "florida_east_coast")
+    fn = _build_product_filename(shadow)
+    shadow.product_id = fn
+    store.files[fn] = shadow
+    store.manifest.products.append(_build_manifest_item(shadow, fn, 0.25, False))
+    up = _CountingUpstream()
+
+    async def coords(client=None):
+        return {"41009": (28.5, -80.2)}
+
+    async def latest(bid, client=None):
+        return {"time": T0.isoformat(), "wvht_m": 1.1, "dpd_s": 9.0, "wspd_kt": 12.0, "wdir_deg": 250.0}
+
+    monkeypatch.setattr(bc, "fetch_ndbc_station_coords", coords)
+    monkeypatch.setattr(bc, "fetch_ndbc_latest", latest)
+    svc = PointResolutionService(store=store, sampler=PointSampler(), provider=up)
+    spots = [{"id": "s1", "name": "Cocoa", "noaa_buoy_id": "41009", "latitude": 28.3, "longitude": -80.6}]
+    asyncio.run(bc.calibrate_spots(svc, spots, "CONSENSUS", T0.isoformat()))
+    assert up.calls == []                                      # neither the waves nor the wind resolve went out

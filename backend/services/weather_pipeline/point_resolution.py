@@ -49,6 +49,15 @@ from services.weather_pipeline.island_gate import (  # noqa: E402
 )
 
 
+# ⛔ ONLY THE THREE UPSTREAM MODELS MAY REACH AN UPSTREAM (2026-09-29). The direct-point fallbacks below call the
+# provider with `model`, and the provider maps a name it does not know to a DEFAULT (open_meteo_provider:
+# FORECAST_MODELS.get(model, "gfs_seamless")). The marine and weather branches were gated on this membership; the WIND
+# branch was not, so a shadow model such as CONSENSUS (D-009, stored products only) would have been answered with
+# real GFS wind under its own name: the skill ledger's `raw_surf:CONSENSUS` lane resolves wind for every buoy at every
+# lead, ~177 mislabelled upstream calls a pass. One membership, read by all three branches.
+UPSTREAM_MODELS = ("GFS", "ICON", "EURO")
+
+
 class PointResolutionService:
     """
     Service responsible for sampling weather points from grids or falling back
@@ -405,12 +414,12 @@ class PointResolutionService:
                     return response
 
         # 2c. Fallback to direct point query
-        if domain.lower() == "wind" and layer.lower() == "wind":
+        if domain.lower() == "wind" and layer.lower() == "wind" and model.upper() in UPSTREAM_MODELS:
             wind_resp = await build_wind_direct_point_response(self.provider, model, lat, lng, target_dt)
             if wind_resp is not None:
                 return wind_resp
 
-        elif domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves") and model.upper() in ("GFS", "ICON", "EURO"):
+        elif domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves") and model.upper() in UPSTREAM_MODELS:
             try:
                 # Use model-appropriate forecast_days for point fallback
                 point_forecast_days = {"ICON": 7, "EURO": 10, "GFS": 16}.get(model.upper(), 2)
@@ -644,7 +653,7 @@ class PointResolutionService:
                 # an error. A systematic outage still surfaces via volume + the ratings coverage guard.
                 logger.warning(f"[Point Fallback] Failed fetching point for {model} marine at ({lat}, {lng}): {ex!r} (serving coarse/no-coverage fallback)")
 
-        elif domain.lower() == "weather" and layer.lower() in ("pressure", "precipitation") and model.upper() in ("GFS", "ICON", "EURO"):
+        elif domain.lower() == "weather" and layer.lower() in ("pressure", "precipitation") and model.upper() in UPSTREAM_MODELS:
             scalar_resp = await build_scalar_direct_point_response(self.provider, model, layer, lat, lng, target_dt)
             if scalar_resp is not None:
                 return scalar_resp

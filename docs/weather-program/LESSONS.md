@@ -50,6 +50,11 @@ before starting it.
 - **L-F5 · A physics merge without a rebake serves two compositions.** Glyph frames stay on the old chain until the
   next precompute; #150 re-runs precompute on a `dev` push that touches the composition chain. (2026-09-28)
 
+- **L-F6 · A safety claim covers every branch, or it names the one it covers.** "A CONSENSUS point never reaches
+  an upstream" (#164) was pinned for marine only; the wind fallback had no model gate, and the provider maps an
+  unknown model to gfs_seamless, so the armed shadow lane would have scored real GFS wind under its own name.
+  Found by checking the real consumer (the ledger resolves wind too) before arming. (ledger seq 27-28)
+
 ## Operations
 
 - **L-O1 · The one-CPU box saturates easily.** A fresh instance sat at CPU 1.0 for ~12 min under E2E's map specs on
@@ -76,6 +81,8 @@ before starting it.
   local guards lane takes 15-25 min without xdist.
 - **L-P5 · Squash WIP with `git reset --soft <merge-base>`**, never onto a newer `origin/dev`, or the commit reverts
   everything merged since.
+- **L-P7 · Commit before switching branches.** `git checkout` carries uncommitted edits to the new branch: arming
+  edits made on one branch followed me onto another (2026-09-29, caught by `git status` before any commit).
 - **L-P6 · Windows shells.** Multi-line edits go through Python with exact-string asserts (heredocs mangle `\`
   continuations). In Git Bash, `git show origin/dev:path` needs `MSYS_NO_PATHCONV=1`. `grep -E "\t"` does not match
   a tab.
