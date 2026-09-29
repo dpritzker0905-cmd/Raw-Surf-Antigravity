@@ -6,7 +6,8 @@ is a claim, not a measurement.
 ## Now
 - **`dev` = `afa19a52`** (#169 at 18:00:20Z). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
 - **Open PRs of ours:** #170, the same-model parity probe (an instrument; no served change), and the
-  GFS native-cell regrid stacked on it (DARK: `REGRID_NATIVE_CELL` '0' in both fetch lanes).
+  GFS native-cell regrid #171 stacked on it (DARK: `REGRID_NATIVE_CELL` '0' in both fetch lanes).
+  Merge #170 first.
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
   per-spot size references (`RATING_LOCAL_SIZE=1`), now fail-closed in the precompute (#162).
@@ -24,7 +25,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 45, sha256 1bcea40dca6ecab3963ba3d1977231de454cf67d51b0c4716b42b9ed2904c54d**
+  **Ledger head: seq 46, sha256 c0422e81db37bb7a561682c553141ad43612a4520990233a12005ff920f65891**
 
 ## Next fixes, in order
 0. **Regrid at native resolution (GFS in review, dark; ICON + EURO next on the same module):** every 0.25-deg regional tile of GFS, ICON and EURO is a 2x2
