@@ -94,3 +94,22 @@ Every check-enforced lesson: zero recurrences. The prose-only L-P10: three. **LE
   2.2 s. CLAUDE.md's Trevec claim is now TRUE on this machine for sessions started after the 13:49Z registration; the
   index is a snapshot until `trevec index` is re-run or `trevec watch` runs (seq 166).
 - #191 merged 14:07:22Z (`d8aa6640`) on the owner's "merge #191 when it's green", once all checks were green.
+
+## 14:33-14:40Z · #192 merged; the next fix: period and direction graded in the skill ledger (S7/S8)
+- Owner (chat): "merge #192 and move to the next fix". #192 merged 14:33:02Z (`bcec209e`) once green.
+- The audit's ordered path: items 2-3 are owner flips waiting on evidence (the consensus shadow: `shadow.by_lead` still
+  empty at the 14:05Z pass, as expected before its first +24 h rows can score near 18Z; the scalar lane: 2026-10-03),
+  so the next buildable fix is item 4. The live queue also showed why #189's cap raise mattered: pending 29,640 at the
+  first post-merge pass, **30,545** at the second (evicted 0; the old 30,000 cap would have started dropping +72 h rows).
+- **Found while building:** the ledger already RECORDED period on both sides (`tp_s` on each forecast row, `obs_dpd_s`
+  on each scored row) and never summarized it; direction was recorded on neither side, although the buoy parser read
+  MWD and APD and the point resolver returned a direction. So S7 is a missing summary and S8 a missing field.
+- **Built:** `calibrate_spots` keeps the resolved direction; `compare_obs_to_model` carries `model_dir_deg`,
+  `buoy_mwd_deg`, `buoy_apd_s`; ledger rows gain `dir_deg` (persistence: the buoy's current MWD, S8's no-skill
+  reference) and scored rows `obs_mwd_deg`/`obs_apd_s`, each only when present (old rows byte-identical). A pure
+  `skill_direction_period.direction_period_report` grades each lane and lead over the held-out week on the same history
+  the consensus block reads: period MAE/bias vs DPD, direction circular MAE/median/RMS/p90 vs MWD where the observed
+  Hs >= 0.3 m, a unimodal split (|DPD - APD| <= 3 s), refusal below n = 10, and a `status` that says
+  `no_direction_rows` rather than 0. Published as `forecast_skill_direction_period` on `/api/weather/buoy-calibration`.
+- Evidence: 10 tests; mutations 12 of 12 caught (the first run left the unimodal DIRECTION split unpinned; the test now
+  asserts it); 726 nearby tests pass; chain floor 135 / 1634 (1640). No served number changes; no new fetch.

@@ -1192,7 +1192,11 @@ jobs:
           # interpolated as a scalar, SAMPLER_SCALAR_HEIGHT, dark): hosted CI on origin/dev @ 8fd1b948 (run 36658691020)
           # observed 133 files / 1618. The new tests/test_sampler_scalar_marine_height.py (claimed by `--lane chain`)
           # adds 12 executed tests: 1618 + 12 = 1630, 1630 - 6 = 1624; files 134 EXACT; _FLOOR_SET_FROM["chain"] -> 1630.
-          MIN_FILES, MIN_PASSED = 134, 1624
+          # ⬆ MIN_FILES 134→135, MIN_PASSED 1624→1634 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (S7/S8: period
+          # and direction in the skill ledger): hosted CI on #192 observed 134 files / 1630. The new
+          # tests/test_skill_direction_period.py (claimed by `--lane chain`) adds 10 executed tests: 1630 + 10 = 1640,
+          # 1640 - 6 = 1634; files 135 EXACT; _FLOOR_SET_FROM["chain"] -> 1640.
+          MIN_FILES, MIN_PASSED = 135, 1634
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

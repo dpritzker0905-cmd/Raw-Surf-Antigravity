@@ -224,13 +224,15 @@ def compare_wind_to_model(obs: dict, model_wind_kt, model_wind_from_deg=None) ->
     return out
 
 
-def compare_obs_to_model(obs: dict, model_hs_m, model_tp_s) -> Optional[dict]:
+def compare_obs_to_model(obs: dict, model_hs_m, model_tp_s, model_dir_deg=None) -> Optional[dict]:
     """PURE: residuals (model − buoy) for one spot. Returns None when the buoy has no wave height to compare.
-    height_err_m / period_err_s are signed (model minus observed); abs_* are the magnitudes for MAE."""
+    height_err_m / period_err_s are signed (model minus observed); abs_* are the magnitudes for MAE. The ledger's S7/S8
+    lanes (skill_direction_period) also read the model direction and the buoy's MWD and APD (APD flags bimodal seas)."""
     if not obs or obs.get("wvht_m") is None:
         return None
     out = {"buoy_wvht_m": obs["wvht_m"], "model_hs_m": model_hs_m,
-           "buoy_dpd_s": obs.get("dpd_s"), "model_tp_s": model_tp_s,
+           "buoy_dpd_s": obs.get("dpd_s"), "model_tp_s": model_tp_s, "buoy_apd_s": obs.get("apd_s"),
+           "buoy_mwd_deg": obs.get("mwd_deg"), "model_dir_deg": model_dir_deg,
            "height_err_m": None, "abs_height_err_m": None, "period_err_s": None, "abs_period_err_s": None}
     if model_hs_m is not None:
         out["height_err_m"] = round(model_hs_m - obs["wvht_m"], 3)
@@ -432,7 +434,7 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
             station = coords.get(bid)
             lat, lng, at = ((station[0], station[1], "buoy") if station
                             else (spot.get("latitude"), spot.get("longitude"), "spot"))
-            model_hs = model_tp = served = None
+            model_hs = model_tp = model_dir = served = None
             wind_kt = wind_from = None
             try:
                 marine = await resolver.resolve_point(
@@ -441,6 +443,7 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
                 if isinstance(marine, NormalizedPointResponse) and marine.point is not None:
                     model_hs = marine.point.speed      # offshore significant wave height (m)
                     model_tp = marine.point.period
+                    model_dir = marine.point.direction   # mean wave direction FROM (deg), graded by S8
                     served = {"product": marine.product_id, "cycle": marine.model_run_time.strftime("%Y-%m-%dT%H:%M:%SZ") if marine.model_run_time else None}  # WHICH product/cycle answered (skill_attribution)
             except Exception as e:
                 logger.debug(f"[buoy-calibration] resolve failed for buoy {bid}: {e}")
@@ -459,9 +462,9 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
                         wind_from = wind.point.direction
                 except Exception as e:
                     logger.debug(f"[buoy-calibration] wind resolve failed for buoy {bid}: {e}")
-            _resolved[bid] = (model_hs, model_tp, wind_kt, wind_from, at, served)
-        model_hs, model_tp, wind_kt, wind_from, resolved_at, served = _resolved[bid]
-        residual = compare_obs_to_model(obs, model_hs, model_tp) if obs else None
+            _resolved[bid] = (model_hs, model_tp, model_dir, wind_kt, wind_from, at, served)
+        model_hs, model_tp, model_dir, wind_kt, wind_from, resolved_at, served = _resolved[bid]
+        residual = compare_obs_to_model(obs, model_hs, model_tp, model_dir) if obs else None
         wind_residual = (compare_wind_to_model(obs, wind_kt, wind_from)
                          if obs and os.environ.get("BUOY_WIND_RESIDUAL", "1") != "0" else None)
         rows.append({

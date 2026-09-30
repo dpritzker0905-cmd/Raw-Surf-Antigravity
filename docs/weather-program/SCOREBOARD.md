@@ -20,8 +20,8 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | S4 | Sim parity (`sim-parity-monitor.yml`) | scheduled | spots whose served glyph and sim differ by a rating level (a composition break when attributed so) |
 | S6 | Same-model parity (`backend/scripts/same_model_parity_probe.py`) | on demand | our served GFS vs Open-Meteo's GFS-Wave 0.25 at the ledger's buoys, forecast to forecast: pipeline loss, no observation needed |
 | S5 | Data freshness | Actions run history, `/api/health` → `scheduler.workflow_dispatch` | missed ingest slots; runs per day per lane |
-| S7 | Period skill vs NDBC DPD (`backend/scripts/validate_period_vs_ndbc.py`) | on demand (snapshot); ledger lane planned (W-44) | our peak period against the buoy's dominant period, by regime |
-| S8 | Swell-direction skill vs NDBC MWD | on demand (scratch, 2026-09-30); ledger lane planned (W-44) | angular error of the served mean direction (and each member's) |
+| S7 | Period skill vs NDBC DPD (`backend/scripts/validate_period_vs_ndbc.py`) | the skill ledger, `forecast_skill_direction_period` (built 2026-09-30; snapshots before) | our peak period against the buoy's dominant period, by regime |
+| S8 | Swell-direction skill vs NDBC MWD | the skill ledger, `forecast_skill_direction_period` (built 2026-09-30; scratch snapshot before) | angular error of the served mean direction (and each member's) |
 | S9 | Wind skill vs NDBC (`backend/scripts/validate_wind_forecast.py`) | on demand (snapshot); the ledger's `wind_n` is 0 | speed/direction error per model, and how often swapping in the observed wind moves the served LEVEL |
 | S10 | Rating error budget (the Jacobian with measured sigmas) | on demand (log 2026-09-30-audit-sota §3.3) | share of the displayed rating's variance owed to each input's forecast error, served flags |
 
