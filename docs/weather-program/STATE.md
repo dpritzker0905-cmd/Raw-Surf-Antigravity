@@ -53,7 +53,7 @@ is a claim, not a measurement.
   restarts, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the marker PR (branch `claude/map-marker-a11y`; ContentMarker, axe nested-interactive
+- **Open PRs of ours:** #205, the marker PR (branch `claude/map-marker-a11y`; ContentMarker, axe nested-interactive
   -> 0). Merged 2026-09-30: #204 (22:15:26Z, the map chrome in three themes), #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
   W-31 `unknown_depth`), #200 (20:44:00Z, commitment 203:
   the probe grades with the glyph's tide; the A/B dispatch pair follows), #199 (20:25:43Z, W-30 DARK
@@ -102,7 +102,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 229, sha256 e1ba0350269771b1b84d9103a661cc368533cdb3fd8a14edc048c899c7a1c1d6**
+  **Ledger head: seq 230, sha256 5566b6898150827344cbb060883bfff5333fee10ea78b789e10da3b5c3109774**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
