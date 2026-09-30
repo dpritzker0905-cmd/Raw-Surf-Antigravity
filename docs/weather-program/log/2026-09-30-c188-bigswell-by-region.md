@@ -126,3 +126,17 @@ same condition and arguments, so it costs zero new I/O (a test counts one reques
   catalogue path (positive control: red with the mapping line reverted). Correction ledgered (seq 205); LESSONS
   L-P17. Merging #199 as opened would have shipped a dark switch that could never have turned on.
 - Guards floor 176 / 2140 (reading 2146).
+
+### The next fix: commitment 203, W-30's evidence lane (branch `claude/c203-probe-tide`, stacked on #199)
+- `sim_observed.glyph_tide(item)`: one gated reader of a served glyph's tide, for the tool and the probe.
+- The probe grades both composition calls with it; `--tide-banded` samples one pseudo-region per banded spot;
+  the summary's `tide_banded` block grades them apart. The monitor gets dispatch inputs `tide_banded` and
+  `sim_served_tide` (defaults false / '0', so the cron is unchanged). 5 tests; mutations 11/11.
+- LIVE PREMISE CHECK (public API, read between the 20:14:25Z and 20:15:22Z clock reads, valid_time 20:00Z): `/api/surf-spots` has 1,773 active
+  spots, 38 with `best_tide`, **18 banded** (Mid tide 9, Low to mid 5, Low tide 3, Low to mid incoming 1): F8's
+  count exactly. `/api/weather/spot-ratings` at 6 of them (Florida): 4 carry the glyph's `tide` (norm 0.27-0.33,
+  falling), 2 carry none (Butler Beach, Flagler Beach Pier: the glyph graded tide-neutral there). Under the
+  observation design the sim is neutral exactly where the glyph was; a sim fetching its own tide would have
+  diverged on those two.
+- #199 MERGED 20:25:43Z as `3937c145` at head `a317cf74` (with the catalogue fix; ledger seq 206): hosted guards
+  176 / 2146 and chain 136 / 1661 = the projections.

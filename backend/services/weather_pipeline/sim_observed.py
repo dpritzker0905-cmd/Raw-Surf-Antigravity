@@ -163,7 +163,18 @@ def served_tide(spot: Dict[str, Any], provenance: Dict[str, Any], baseline_sourc
         return None
     observed = fetch_served_rating(spot.get("latitude"), spot.get("longitude"),
                                    provenance.get("valid_time") or hour, spot_id=spot.get("id"))
-    tide = (observed or {}).get("tide")
+    return glyph_tide(observed)
+
+
+def glyph_tide(item: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """A served glyph row's tide state, sanitized for `tide_fit`, or None; gated SIM_SERVED_TIDE (W-30).
+
+    ★ ONE READER for the forecast tool (`served_tide`, above) and the S4 parity probe
+    (`scripts/sim_health_probe.py`), so the instrument that decides the flip grades exactly the input the
+    tool would serve with it on (commitment 203)."""
+    if os.environ.get("SIM_SERVED_TIDE", "0") != "1":
+        return None
+    tide = (item or {}).get("tide")
     norm = tide.get("norm") if isinstance(tide, dict) else None
     # A served payload is a remote deploy's JSON: a NaN or out-of-range norm must never reach tide_fit.
     # The range test alone rejects NaN and +-inf (every comparison with NaN is False); a mutation run

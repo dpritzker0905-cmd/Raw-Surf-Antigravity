@@ -1217,7 +1217,11 @@ jobs:
           # the weeks that did not choose it): hosted CI on #197 observed 136 files / 1657.
           # tests/test_skill_consensus.py gains 4 executed tests: 1657 + 4 = 1661, 1661 - 6 = 1655; files 136
           # unchanged; _FLOOR_SET_FROM["chain"] -> 1661.
-          MIN_FILES, MIN_PASSED = 136, 1655
+          # ⬆ MIN_FILES 136→137, MIN_PASSED 1655→1660 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (commitment 203:
+          # the parity probe grades with the glyph's tide and samples the banded spots): hosted CI on #198 (run
+          # 36767046299) observed 136 files / 1661. The new tests/test_probe_tide_banded.py (claimed by `--lane chain`)
+          # adds 5 executed tests: 1661 + 5 = 1666, 1666 - 6 = 1660; files 137 EXACT; _FLOOR_SET_FROM["chain"] -> 1666.
+          MIN_FILES, MIN_PASSED = 137, 1660
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
