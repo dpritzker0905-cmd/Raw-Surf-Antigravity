@@ -18,7 +18,8 @@ WHAT IT CHECKS
     * COMMITMENTS (action_ledger `commitment` lines): each OVERDUE one WARNs, and open ones are listed (NOTE), so a
       session starts with what the last one promised;
     * CLOCK: STATE's `Updated` time and the session logs' section-header times are not later than the moment they
-      were committed (or now, for uncommitted edits): an estimate written as a timestamp FAILs (LESSONS L-P10);
+      were committed (or now, for uncommitted edits): an estimate written as a timestamp FAILs (LESSONS L-P10).
+      Every `## ` log header carrying an HH:MM(:SS)Z time is read (its last one), whatever its shape;
     * every "ledger seq N" cited in the docs exists (no reference past the head).
   agent-local memory (--memory-dir; skipped with --docs-only, as in CI):
     * MEMORY.md indexes every memory file and links only to files that exist;
@@ -244,9 +245,18 @@ def _utc(s: str):
     return datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone(timezone.utc)
 
 
+# A UTC clock time in a log header: HH:MM or HH:MM:SS, then Z ('19:11:09Z' is one time: matching is leftmost). A
+# time with no Z ('12:31-12:40Z' opens with one) is not read on its own.
+LOG_TIME_RE = re.compile(r"(\d{2}):(\d{2})(?::(\d{2}))?Z")
+
+
 def check_clock(state_text: str, state_ref: str, logs: dict) -> list:
     """STATE's `Updated YYYY-MM-DD HH:MMZ` and each log's section-header times must not be later than their reference
-    moment (`state_ref`; logs: {filename: (text, ref_iso)}), the commit that wrote them or now. PURE."""
+    moment (`state_ref`; logs: {filename: (text, ref_iso)}), the commit that wrote them or now. PURE.
+    ⬇ EVERY `## ` header (2026-09-30). Until then only the 'HH:MM-HH:MMZ · title' shape was read (the regex needed
+    ' ·'), so '## PR and ledger (23:14Z-23:17Z)', committed at 23:15:52Z (0b057d3d, #206's log), passed, as did
+    every header of the '## Start (19:11:09Z)' shape most session logs use. The last time in the header counts; in
+    the 'time · title' shape, the last one before the ' ·', so a time named in the title is not read as the header's."""
     res = []
     m = re.search(r"\*\*Updated (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})Z\*\*", state_text)
     if m and state_ref:
@@ -256,15 +266,16 @@ def check_clock(state_text: str, state_ref: str, logs: dict) -> list:
                                 f"({state_ref}): an estimate, not a clock reading"))
     for name, (text, ref) in logs.items():
         day = name[:10]
-        for h in re.findall(r"^## ([^\n]*?)\s\u00b7", text, re.M):
-            times = re.findall(r"(\d{2}):(\d{2})Z?", h)
+        for h in re.findall(r"^## (.*)$", text, re.M):
+            times = LOG_TIME_RE.findall(re.split(r"\s\u00b7", h, maxsplit=1)[0])
             if not times or not ref:
                 continue
-            hh, mm = times[-1]
-            t = _utc(f"{day}T{hh}:{mm}:00Z")
+            hh, mm, ss = times[-1]
+            t = _utc(f"{day}T{hh}:{mm}:{ss or '00'}Z")
             if t > _utc(ref) + CLOCK_SLACK:
-                res.append(("FAIL", f"log/{name}: the header '{h.strip()}' ends at {hh}:{mm}Z, later than when it was "
-                                    f"written ({ref})"))
+                res.append(("FAIL", f"log/{name}: the header '{h.strip()}' ends at {hh}:{mm}{':' + ss if ss else ''}Z, "
+                                    f"later than when it was written ({ref}): an estimate, not a clock reading "
+                                    f"(LESSONS L-P10)"))
     return res
 
 
@@ -394,6 +405,19 @@ def selftest() -> list:
         fails.append("clock: a log header ending after its commit was not caught")
     if check_clock("", "", {"2026-09-29-x.md": (log, "2026-09-29T19:10:00Z")}):
         fails.append("clock: a log header before its commit was flagged")
+    # A header with no ' ·' (0b057d3d, #206's log: this header, committed 23:15:52Z, passed the ' ·'-only regex).
+    pr = "# x\n\n## PR and ledger (23:14Z-23:17Z)\n- body\n"
+    if not check_clock("", "", {"2026-09-30-x.md": (pr, "2026-09-30T23:15:52Z")}):
+        fails.append("clock: '## PR and ledger (23:14Z-23:17Z)' committed 23:15:52Z (0b057d3d) was not caught")
+    if check_clock("", "", {"2026-09-30-x.md": (pr, "2026-09-30T23:17:00Z")}):
+        fails.append("clock: a header with no ' ·' that ends when it was committed was flagged")
+    start = "## Start (19:11:09Z)\n"
+    if not check_clock("", "", {"2026-09-30-x.md": (start, "2026-09-30T19:10:00Z")}) \
+            or check_clock("", "", {"2026-09-30-x.md": (start, "2026-09-30T19:11:09Z")}):
+        fails.append("clock: an HH:MM:SSZ header was misread (19:11:09Z is 69 s after 19:10:00Z, past the slack)")
+    titled = "## 12:00-12:04Z · why the 18:00Z cron missed\n## Census (method and numbers)\n## at 23:59 local\n"
+    if check_clock("", "", {"2026-09-30-x.md": (titled, "2026-09-30T12:05:00Z")}):
+        fails.append("clock: a time in a 'time · title' title, a header with no time, or one with no Z was read")
     ho = "# Weather program handoff — 2026-09-30 (written 2026-09-30 ~01:45Z by the session x)\n\nbody\n"
     if not check_handoff_clock({"HANDOFF-2026-09-30.md": (ho, "2026-09-30T01:40:18Z")}):
         fails.append("clock: the seq-135 handoff header (~01:45Z, committed 01:40:18Z) was not caught")
