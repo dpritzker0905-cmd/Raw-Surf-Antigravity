@@ -160,3 +160,24 @@ before starting it.
   mutant predicted to survive came out red. Invoke the tool without a shell (`node .../react-scripts.js test`),
   and take the verdict from the tool's own summary line ("N failed"), never from an exit code. Siblings: L-P9,
   L-P13. (2026-09-30, #183 correction)
+- **L-S16 · A scalar interpolated as a vector can only shrink.** `/point` averaged the corners' (u, v) and served
+  sqrt(u^2+v^2) as the wave height; |sum w_i h_i e_i| <= sum w_i h_i, so every served height was biased low wherever
+  the corners' directions diverge, which is where spots are (NDBC 51202: served 0.98 m, corners 1.39-1.57, buoy 2.0).
+  In the code since Stage 1.5 and invisible to every guard, because each compared the sampler with itself. Interpolate
+  a quantity in the space it is defined in: heights as scalars, directions as vectors. (2026-09-30, audit-sota §3.1)
+- **L-S17 · An instrument that runs the default configuration measures a system nobody serves.** Twice in one day:
+  the 2026-09-29 Jacobian swept with `RATING_LOCAL_SIZE` off and ranked height last (served flags: first, 37%); the
+  ledger's cap test counted the code-default lanes and stayed green while the live queue sat at 29,477 of 30,000.
+  Set every armed or armable switch the way production (or the next flip) runs it, and say which you used.
+  (2026-09-30, audit-sota §3.3, §3.4)
+- **L-S18 · A replay sees only what it persisted.** The science shadow A/B replays each spot-hour's stored rating
+  INPUTS, which already hold the sampled height, so a sampler candidate would read "0 changes": L-S4's blindness in a
+  new shape. Price a change upstream of the persisted inputs by re-sampling the products (and grade it with a ledger
+  lane). (2026-09-30)
+- **L-F7 · The serve path has the failed-vs-absent trap too.** A Supabase 429 on a regional tile made `/grid` answer
+  from the 2-degree tier with `coverage_scope: regional`, `fallbackReason: null`, and the log called it
+  "regional-quality at zoom-out" at INFO: 9 of 57 requests in one burst. A refused read must retry, then name its
+  fallback in the payload. Sibling of L-F1, L-F2. (2026-09-30, W-23)
+- **L-O4 · A measurement's fan-out is load on what it measures.** 0.5 s-spaced `/grid` fetches during a core ingest
+  drew 9 Supabase 429s; 1.5 s spacing drew none in 60 requests. Space audit fetches, and ledger the load you added
+  when it touches production. (2026-09-30)

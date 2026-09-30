@@ -1,5 +1,8 @@
+import contextlib
+import contextvars
 import math
 import logging
+import os
 from services.weather_pipeline.cycle_provenance import time_provenance
 from typing import Optional, Dict, Any, Tuple, List
 from services.weather_pipeline.schemas import (
@@ -45,6 +48,62 @@ def resolution_or_none(grid):
     """
     res = deduce_grid_resolution(grid)
     return res if res and res > 0 else None
+
+
+def scalar_marine_height_enabled(domain: str) -> bool:
+    """SAMPLER_SCALAR_HEIGHT (default '0', dark): interpolate a MARINE height as the scalar it is.
+
+    ⛔ WHY (audit 2026-09-30). The bilinear branches below average the corners' (u, v) and report
+    sqrt(u^2 + v^2) as the height. That is right for wind, a vector, and wrong for a significant wave
+    height: WAVEWATCH III, WAM and every downstream consumer treat Hs as a scalar field, and a vector
+    mean can only SHRINK it (|sum w_i h_i e_i| <= sum w_i h_i), by as much as the corners' directions
+    diverge. They diverge exactly where surf spots are: around islands, headlands and swell shadows.
+    Measured on production products, 2026-09-30:
+      * NDBC 51202 Mokapu Point: corners 1.39-1.57 m from 75-189 deg; served 0.9795 m (the sampler's
+        own answer to the digit), scalar 1.455 m, Open-Meteo's same-model cell 1.44 m, buoy 2.0 m.
+      * same-model parity (245 rows, 57 buoys): MAE 0.055 -> 0.043 m, RMSE 0.104 -> 0.071 m.
+      * 1,662 rated spots: 11% under-read offshore by > 5%, 7% by > 10% (Thurso East 2.8 -> 7.0 ft).
+      * NDBC truth, one hour: where the two differ, scalar is closer on 11 of 12 rows.
+    Direction keeps the energy-weighted vector mean (the right estimator for a mean direction); u/v
+    are re-derived from the scalar height and that direction so the point stays self-consistent.
+    Wind and weather domains are untouched. It changes served numbers on every surface that samples
+    a point (glyphs, hub, sim, the consensus builder, the skill ledger), so it flips ONLY on the
+    owner's word, in every lane together: Render env, forecast-ingest.yml, forecast-ingest-pilots.yml
+    and precompute.yml.
+    """
+    return (domain or "").lower() == "marine" and (
+        os.environ.get("SAMPLER_SCALAR_HEIGHT", "0") == "1" or _FORCE_SCALAR.get())
+
+
+# The skill ledger's shadow lane (forecast_skill.GFS_SCALAR) grades the scalar answer beside the served one while the
+# switch is dark, the pattern consensus_serve.serve_raw() set: a context, not an env write, so the served lane in
+# the same process is never affected. contextvars are copied into tasks created inside the block.
+_FORCE_SCALAR = contextvars.ContextVar("sampler_force_scalar_height", default=False)
+
+
+@contextlib.contextmanager
+def force_scalar_height():
+    token = _FORCE_SCALAR.set(True)
+    try:
+        yield
+    finally:
+        _FORCE_SCALAR.reset(token)
+
+
+def _scalar_height_point(corner_weights, interp_u: float, interp_v: float):
+    """(speed, direction, u, v) for a marine point: the weighted SCALAR mean of the corners' heights,
+    the vector mean's direction, and u/v rebuilt from the two. Weights are normalised here, so the
+    ocean-masked branch can pass its surviving corners as they are. A cancelling vector mean (numerically
+    zero next to the height: atan2 of float residue is an arbitrary bearing) has no direction, so the
+    heaviest corner's is used instead."""
+    sum_w = sum(w for _, w in corner_weights)
+    speed = sum(w * v.speed for v, w in corner_weights) / sum_w
+    if math.hypot(interp_u, interp_v) <= 1e-9 * max(1.0, speed):
+        direction = float(max(corner_weights, key=lambda cw: cw[1])[0].direction)
+    else:
+        direction = math.degrees(math.atan2(-interp_u, -interp_v)) % 360.0
+    rad = math.radians(direction)
+    return speed, direction, -speed * math.sin(rad), -speed * math.cos(rad)
 
 
 def _to_monotonic_lng(x: float, west: float) -> float:
@@ -360,6 +419,9 @@ class PointSampler:
             interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
             if interp_dir < 0.0:
                 interp_dir += 360.0
+            if scalar_marine_height_enabled(product.domain):     # dark: see the helper's docstring
+                interp_speed, interp_dir, interp_u, interp_v = _scalar_height_point(
+                    corner_weights, interp_u, interp_v)
 
             detail = NormalizedPointDetail(
                 requested_lat=lat,
@@ -411,6 +473,9 @@ class PointSampler:
                 interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
                 if interp_dir < 0.0:
                     interp_dir += 360.0
+                if scalar_marine_height_enabled(product.domain):     # dark: the same rule as above
+                    interp_speed, interp_dir, interp_u, interp_v = _scalar_height_point(
+                        valid_ocean_corners, interp_u, interp_v)
 
                 detail = NormalizedPointDetail(
                     requested_lat=lat,

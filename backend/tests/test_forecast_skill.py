@@ -373,9 +373,19 @@ def test_the_cap_holds_headroom_over_the_documented_production_demand(monkeypatc
     the module's own fan-out config, so adding a compare model without re-sizing fails HERE
     instead of as scored=0 in production four days later."""
     monkeypatch.delenv("FORECAST_SKILL_COMPARE_MODELS", raising=False)
+    # ⛔ EVERY LANE A SWITCH CAN ADD, ARMED (2026-09-30 audit). This test read the code-DEFAULT lanes (5) while
+    # production ran 7 (the armed CONSENSUS shadow and the Open-Meteo same-model control it never counted), and the
+    # live report showed pending_kept 29,477 of 30,000: the cap had bound under a green test. A lane that a switch
+    # adds is demand the moment an owner flips it, so it is sized for here, before the flip.
+    for switch in ("CONSENSUS_INGEST", "CONSENSUS_SERVE", "SAMPLER_SCALAR_LEDGER"):
+        monkeypatch.setenv(switch, "1")
+    monkeypatch.delenv("SAMPLER_SCALAR_HEIGHT", raising=False)
     from services.weather_pipeline.forecast_skill import (
-        LEADS_H, PENDING_MAX_ENTRIES, compare_models)
-    lanes = 1 + len(compare_models("GFS")) + 1 + 1    # ours + compares + Open-Meteo + persistence
+        GFS_RAW, GFS_SCALAR, LEADS_H, PENDING_MAX_ENTRIES, compare_models)
+    assert {"CONSENSUS", GFS_RAW, GFS_SCALAR} <= set(compare_models("GFS"))
+    # ours + compares (ICON, EURO, CONSENSUS, GFS_RAW, GFS_SCALAR) + Open-Meteo marine + its same-model control
+    # + persistence
+    lanes = 1 + len(compare_models("GFS")) + 1 + 1 + 1
     buoys, runs_per_day = 60, 12                      # NDBC map size; forecast-ingest 6 + precompute 6
     demand = buoys * lanes * runs_per_day * sum(h // 24 for h in LEADS_H)
     assert PENDING_MAX_ENTRIES >= demand * 1.3, (

@@ -1,20 +1,30 @@
 # Weather program: state
 
-**Updated 2026-09-30 01:39Z** (logs: `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 03:13Z** (logs: `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- **AUDIT 2026-09-30, read first: `log/2026-09-30-audit-sota.md`.** Four new findings, each priced on production:
+  (1) `/point` interpolated marine HEIGHT as a vector (served heights low wherever corner directions diverge: 11% of
+  spots > 5% low; same-model MAE 0.055 -> 0.043 with scalar) -> fix built DARK (`SAMPLER_SCALAR_HEIGHT`);
+  (2) the measured error budget: offshore Hs 37% of rating variance, swell direction 33%, wind speed 19%, period
+  10% (corrects the 2026-09-29 audit's flags-off ranking); (3) the skill ledger's queue sat at 29,477 of its 30,000
+  cap and the `CONSENSUS_SERVE` flip would have evicted every lane's +72 h rows -> cap 54,000 in the same PR;
+  (4) a Supabase 429 on a regional tile silently serves the 2-degree tier labelled `regional` (W-23). The ordered
+  path is its section 4.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `79b7ef66`** (#186 at 2026-09-30 01:38:21Z; backend + frontend + docs). ⚠️ Every frontend merge still
+- **`dev` = `8fd1b948`** (#188 at 2026-09-30 02:11:33Z, docs only; Render serves `79b7ef66`, #186). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #188, a one-line docs fix (the handoff header's time; ledgers #187's merge). #187 (the handoff) merged. Merged 2026-09-29/30: #181 (the plan), #182 (W-12), #183 (W-32),
+- **Open PRs of ours:** the 2026-09-30 audit PR (branch `claude/audit-sota-2026-09-30`: the audit record + the dark
+  scalar height + its armed ledger shadow + the ledger cap). #187 and #188 merged. Merged 2026-09-29/30: #181 (the plan), #182 (W-12), #183 (W-32),
   #184 (W-36), #185 (W-37), #186 (W-34).
 - **The weather sim does not reach production map users** (#181 F1): `fc140024` is 3,283 commits behind `dev` and its
   map reads a Netlify Open-Meteo proxy. The plan's Phase 1 is the release-readiness evidence for D-002.
-- **Open commitments:** `python backend/scripts/action_ledger.py open` (seq 78, 79, 86, 94).
+- **Open commitments:** `python backend/scripts/action_ledger.py open` (seq 79, 94, 149). 78, 86, 128 fulfilled early
+  on 2026-09-30 (seq 139, 140, 138).
 - **Live science:** one forecast composition (`surf_point.resolve_surf_geometry` + `estimate_surf_at` →
   `surf_rating.compute_surf_rating`); #146 cross-shelf friction off + cap-seam repair; #120 refraction Kr 0.873;
   per-spot size references (`RATING_LOCAL_SIZE=1`), now fail-closed in the precompute (#162).
@@ -23,6 +33,13 @@ is a claim, not a measurement.
 - **FLIPPED 2026-09-29 (#174, D-010):** `REGRID_NATIVE_CELL` '1': regional wave tiles read their exact native
   cell (land nodes their centred 3x3). Effective per lane at its next ingest. Measure: the parity probe
   (node vs native 0.045 m before) and the ledger's same-model gap (S2 NCEP line).
+  ✅ VERIFIED 2026-09-30 (seq 139): nodes 98% within 0.011 m of Open-Meteo's own cell; probe MAE 0.076 -> 0.051.
+- **FLIPPED 2026-09-29 (#179, D-011):** `GFS_MARINE_STAGE_B` '1'. ✅ VERIFIED 2026-09-30 (seq 140): 205
+  `us_pacific_northwest` products; the five named buoys serve regionally; Render memory 54-62% of 2 GB.
+- **BUILT, DARK (the 2026-09-30 audit PR):** `SAMPLER_SCALAR_HEIGHT` '0' in forecast-ingest.yml,
+  forecast-ingest-pilots.yml, precompute.yml (+ Render env on the flip): marine heights interpolated as scalars.
+  **ARMED with it (serves nothing):** `SAMPLER_SCALAR_LEDGER` '1' (forecast-ingest.yml + precompute.yml): the
+  ledger grades `raw_surf:GFS_SCALAR` beside `raw_surf`; commitment 149 reads it. Ledger cap 30,000 -> 54,000.
 - **ARMED 15:30:45Z (#168):** the consensus SHADOW (model `CONSENSUS`, `CONSENSUS_INGEST` '1' in all three lanes).
   Serves nothing to users. VERIFIED: run 36590800405 built 874 frames across 18 regions (17:00Z); the 17:12Z
   precompute ledgered +137 `raw_surf:CONSENSUS` rows. First scored rows ~24 h later; then read `shadow`.
@@ -34,12 +51,22 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
+- **CI floors on `dev`:** guards 175 files / 2124 (reading 2130), chain 133 / 1612 (1618; 134 / 1624 (1630) with
+  the audit PR), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 136, sha256 a8cfbbfdad5f6e956ba8f440cc6fc6caa1dc9b4a85d0d411344a6c6fd2838b4f**
+  **Ledger head: seq 150, sha256 65917fb5992cd3bfcba02882a31f1c0d4ee0d067ab15170688f75b67a0373233**
 
 ## Next fixes, in order
+**The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 merge the audit PR (dark);
+2 the consensus flip on commitment 79's evidence (its ledger-cap precondition is met by that PR); 3 the
+scalar-height flip on 48-72 h of `raw_surf:GFS_SCALAR` rows (commitment 149); 4 an S8 swell-direction (and period)
+lane in the ledger (33% of rating variance, no instrument), then test a consensus direction/period; 5 S9 wind in
+the ledger (19%; the observed-wind swap moves 30% of GFS levels), then coastal high-resolution wind; 6 W-23 (the
+serve path retries a 429 and names its fallback); 7 W-10/W-11 (release). Deprioritised by measurement: item 5 below
+(big-swell calibration: forecast-binned bias on the equal mean is -0.10/-0.04/-0.03 m) and partitions as a
+direction fix (not supported by a bulk-buoy instrument; needs spectral truth).
+
 - ~~**A Pacific NW / NorCal regional tile**~~ built (#177) and flipped (D-011); The 2-deg global_mid tier reads +0.097 m high vs the same
   model (38% of the squared gap), led by 46244 Humboldt (+0.50 m) and Oregon/Washington buoys that no
   regional tile covers (us_west_coast_socal stops at 38N). Size it against Render memory (F-08).
@@ -65,6 +92,8 @@ is a claim, not a measurement.
    2026-08-10). Steps 1, 3 and 5 are the planned attack; re-read S2 after each.
 
 ## Open, not yet diagnosed
+- Supabase 429 bursts on the SERVE box that are not ours: 02:25:58-02:26:24Z hit ~20 12Z-frame waves/swell_1
+  products no audit request asked for (a prewarm? a client scrub?). n = 1 (log 2026-09-30-audit-sota §3.5).
 - Marine Nightly zoomlab: 12 MULT0 animation frames (2026-09-29) and 15 s API timeouts (2026-09-28). n = 2.
 - The live `/spot-ratings` fallback still rates on the global default when its climatology read fails (#162
   residual; failing closed there needs a frontend decision).
