@@ -5,7 +5,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import React from 'react';
 import { render, screen } from '@testing-library/react';
 
 // A stand-in for react-map-gl's Marker that does what MapLibre 5.x Marker.addTo does in ITS effect: set the
@@ -24,7 +24,6 @@ jest.mock('react-map-gl/maplibre', () => {
   return { Marker: FakeMarker };
 });
 
-// eslint-disable-next-line import/first
 import { ContentMarker, makeWrapperPresentational } from './ContentMarker';
 
 test('after MapLibre sets role=button and "Map marker", the wrapper ends up presentational', () => {
