@@ -125,6 +125,10 @@ before starting it.
   was written ahead of the clock (a log header and STATE's `Updated`, then a ledger `acted_at`). The
   ledger's own check (`acted_at` not after `at`) refused the second; the first went through unchecked.
   Take `date -u` or `datetime.now(timezone.utc)` at the moment of writing. (2026-09-29)
+  ⬆ 2026-09-30, late: the log half of the clock check read only headers ending in ` ·`, which was 31 of the 41
+  timed headers on `dev`. So #206's `## PR and ledger (23:14Z-23:17Z)`, committed at 23:15:52Z (`0b057d3d`),
+  passed. The check now reads every `## ` header (`log/2026-09-30-clock-every-header.md`). For a check built from
+  one case's shape, count how much of the population it can read.
 - **L-P11 · Test code the way production runs it.** #171's 21 tests imported the fetchers as a package;
   production spawns them BY PATH, where `services` is not importable. A bare `from services._fetch_native_cell`
   inside `fetch_global_coarse` would have failed every GFS, ICON and EURO fetch, flag on or off. The real-GRIB
