@@ -34,7 +34,7 @@ Changes no served number.
 """
 import math
 from datetime import datetime, timedelta
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from services.weather_pipeline.skill_mos import HOLDOUT_DAYS, _lead, _parse
 
@@ -56,6 +56,12 @@ MIN_TEST = 10
 # biases all of them low alike, so the comparison between them stays fair; a consensus that shaves peaks loses
 # here); `by_forecast` selects each forecast's own >= 3 m calls (its calibration where it claims big surf).
 BIG_SWELL_M = 3.0
+# `by_forecast_by_region` (2026-09-30, commitment 188): `by_forecast` split by coast for the served lane and the equal
+# mean, the two candidates a per-region serve rule picks between. Pooled, the equal mean read -0.09/-0.04/-0.02 m on
+# its own >= 3 m calls at 24/48/72 h (the 16:31Z pass), but GFS-Wave's bias changes sign by coast (`by_region`), so a
+# pooled near-zero can hide a coast that needs calibrating: the regional calibration is built only if one reads
+# beyond ~0.2 m with n >= 30.
+BIG_SWELL_REGION_KEYS = ("equal",)          # after members[0], the served lane
 
 
 def _ok(v) -> bool:
@@ -66,8 +72,10 @@ def _stats(errs: List[float]) -> Dict[str, float]:
     return {"mae_m": round(sum(abs(e) for e in errs) / len(errs), 3), "bias_m": round(sum(errs) / len(errs), 3)}
 
 
-def _big_swell(fc: Dict[str, List[float]], obs: List[float], members, min_test: int) -> Dict:
-    """Held-out big-swell grades for each member and the equal/weighted consensus (see BIG_SWELL_M)."""
+def _big_swell(fc: Dict[str, List[float]], obs: List[float], members, min_test: int,
+               regions: Optional[List[str]] = None) -> Dict:
+    """Held-out big-swell grades for each member and the equal/weighted consensus (see BIG_SWELL_M); with `regions`
+    (each pair's coast, aligned with `obs`), `by_forecast` split by coast too (see BIG_SWELL_REGION_KEYS)."""
     idx = [i for i, o in enumerate(obs) if o >= BIG_SWELL_M]
     out: Dict = {"threshold_m": BIG_SWELL_M, "paired_n": len(idx)}
     if len(idx) >= min_test:
@@ -83,7 +91,24 @@ def _big_swell(fc: Dict[str, List[float]], obs: List[float], members, min_test: 
     for k, f in fc.items():
         sel = [f[i] - obs[i] for i in range(len(obs)) if f[i] >= BIG_SWELL_M]
         out["by_forecast"][k] = {"n": len(sel), **(_stats(sel) if len(sel) >= min_test else {})}
+    if regions is not None:
+        out["by_forecast_by_region"] = _by_forecast_by_region(fc, obs, regions, (members[0],) + BIG_SWELL_REGION_KEYS,
+                                                              min_test)
     return out
+
+
+def _by_forecast_by_region(fc: Dict[str, List[float]], obs: List[float], regions: List[str], keys,
+                           min_test: int) -> Dict:
+    """Each key's own >= 3 m calls per coast: a coast where any key calls big lists every key (n 0 where that one
+    never does, so the two read side by side); a thin cell prints its n and no number."""
+    errs: Dict[str, Dict[str, List[float]]] = {}
+    for k in keys:
+        for f, o, region in zip(fc[k], obs, regions):
+            if f >= BIG_SWELL_M:
+                errs.setdefault(region, {}).setdefault(k, []).append(f - o)
+    return {region: {k: {"n": len(e.get(k, [])), **(_stats(e[k]) if len(e.get(k, [])) >= min_test else {})}
+                     for k in keys}
+            for region, e in sorted(errs.items())}
 
 
 def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_test: int = MIN_TEST,
@@ -107,8 +132,10 @@ def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_
         if len(got) != len(members):
             continue                                   # like with like: every member on every pair
         t = next(iter(got.values()))[2]
-        by_lead.setdefault(lead, {"train": [], "test": []})["test" if t >= cutoff else "train"].append(got)
+        g = by_lead.setdefault(lead, {"train": [], "test": [], "region": []})
+        g["test" if t >= cutoff else "train"].append(got)
         if t >= cutoff:
+            g["region"].append(region_of(buoy))                  # aligned with "test": the big-swell split by coast
             held_out_by_region.setdefault(region_of(buoy), []).append(got)
             band = obs_band(next(iter(got.values()))[1])
             if band:
@@ -150,7 +177,7 @@ def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_
             entry["pair_beats_best"] = entry["pair_gfs_euro"]["mae_m"] < per[best]["mae_m"]
             entry["pair_beats_equal"] = entry["pair_gfs_euro"]["mae_m"] < entry["equal"]["mae_m"]
             fc["pair_gfs_euro"] = pair
-        entry["big_swell"] = _big_swell(fc, obs, members, min_test)
+        entry["big_swell"] = _big_swell(fc, obs, members, min_test, g["region"])
         out.append(entry)
     return {"method": "three_model_consensus_equal_debiased_weighted", "members": list(members),
             "holdout_days": holdout_days, "cutoff": cutoff.isoformat(),

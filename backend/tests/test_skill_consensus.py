@@ -226,6 +226,37 @@ def test_a_thin_region_refuses_instead_of_printing_a_number():
     assert reg["pacific_ne"]["status"] == "scored"
 
 
+def test_big_calls_whose_bias_changes_sign_by_coast_are_split_per_coast_not_averaged_away():
+    """Commitment 188: pooled, the equal mean's own >= 3 m calls read unbiased while Florida's east coast reads +0.4 m
+    and the NE Pacific -0.4 m; per coast each sign stands, for the served lane and the equal mean. The Gulf rows are
+    training weeks listed FIRST: counted, they would shift every held-out pair onto the wrong coast."""
+    east = {"raw_surf": 0.3, "raw_surf:ICON": 0.6, "raw_surf:EURO": 0.3}      # equal +0.4
+    west = {"raw_surf": -0.3, "raw_surf:ICON": -0.6, "raw_surf:EURO": -0.3}   # equal -0.4 (3.1 m: still a big call)
+    rows = _rows(range(8, 40), 90, buoy="42035") + _big_rows(12, east, buoy="41113") + _big_rows(12, west)
+    b = _lead(consensus_report(rows, NOW))["big_swell"]
+    assert b["by_forecast"]["equal"]["n"] == 24 and b["by_forecast"]["equal"]["bias_m"] == pytest.approx(0.0, abs=1e-3)
+    reg = b["by_forecast_by_region"]
+    assert set(reg) == {"atlantic_se", "pacific_ne"}, "held-out pairs only, each on its own coast"
+    assert reg["atlantic_se"]["equal"] == {"n": 12, "mae_m": 0.4, "bias_m": 0.4}
+    assert reg["pacific_ne"]["equal"]["bias_m"] == pytest.approx(-0.4, abs=1e-3)
+    assert reg["atlantic_se"]["raw_surf"]["bias_m"] == pytest.approx(0.3, abs=1e-3)
+    assert reg["pacific_ne"]["raw_surf"]["bias_m"] == pytest.approx(-0.3, abs=1e-3)
+    assert set(reg["pacific_ne"]) == {"raw_surf", "equal"}, "the served lane and the equal mean, the rule's two choices"
+
+
+def test_a_coast_lists_both_candidates_and_a_thin_cell_prints_no_number():
+    """In the Gulf the served lane calls big 12 times where the mean (and the sea) do not; in Hawaii only 4 hours are
+    big at all; the NE Pacific buoy's small seas make no big call, so that coast is absent."""
+    over = {"raw_surf": 0.9, "raw_surf:ICON": 0.0, "raw_surf:EURO": 0.0}      # GFS 3.5 m on a 2.6 m sea; mean 2.9
+    rows = (_rows(range(0, 7), 30) + _big_rows(12, over, obs=2.6, buoy="42035")
+            + _big_rows(4, {m: 0.0 for m in MEMBERS}, buoy="51201"))
+    reg = _lead(consensus_report(rows, NOW))["big_swell"]["by_forecast_by_region"]
+    assert set(reg) == {"gulf", "hawaii"}
+    assert reg["gulf"]["raw_surf"] == {"n": 12, "mae_m": 0.9, "bias_m": 0.9}
+    assert reg["gulf"]["equal"] == {"n": 0}, "listed beside the served lane, at n 0: the mean never calls it big"
+    assert reg["hawaii"] == {"raw_surf": {"n": 4}, "equal": {"n": 4}}
+
+
 def _band_rows(obs, fc, n, days=range(0, 7), buoy="46232"):
     """n held-out target hours at one observed height, each member forecasting its fixed value."""
     out = []

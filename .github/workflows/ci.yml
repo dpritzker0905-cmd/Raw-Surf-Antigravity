@@ -1204,7 +1204,11 @@ jobs:
           # read is retried, held for seconds not cached as absent, and labelled): hosted CI on #194 observed 135 files /
           # 1644. The new tests/test_l2_read_refusal.py (claimed by `--lane chain`) adds 11 executed tests: 1644 + 11 =
           # 1655, 1655 - 6 = 1649; files 136 EXACT; _FLOOR_SET_FROM["chain"] -> 1655.
-          MIN_FILES, MIN_PASSED = 136, 1649
+          # ⬆ MIN_PASSED 1649→1651 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (commitment 188: the big-swell bias
+          # by forecast bin, split by coast): hosted CI on #196 (run 36760791018 @ 14961798) observed 136 files / 1655.
+          # tests/test_skill_consensus.py gains 2 executed tests: 1655 + 2 = 1657, 1657 - 6 = 1651; files 136
+          # unchanged; _FLOOR_SET_FROM["chain"] -> 1657.
+          MIN_FILES, MIN_PASSED = 136, 1651
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
