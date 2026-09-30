@@ -10,7 +10,7 @@ is a claim, not a measurement.
 - **`dev` = `79b7ef66`** (#186 at 2026-09-30 01:38:21Z; backend + frontend + docs). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the handoff docs PR. Merged 2026-09-29/30: #181 (the plan), #182 (W-12), #183 (W-32),
+- **Open PRs of ours:** #187, the handoff docs PR. Merged 2026-09-29/30: #181 (the plan), #182 (W-12), #183 (W-32),
   #184 (W-36), #185 (W-37), #186 (W-34).
 - **The weather sim does not reach production map users** (#181 F1): `fc140024` is 3,283 commits behind `dev` and its
   map reads a Netlify Open-Meteo proxy. The plan's Phase 1 is the release-readiness evidence for D-002.
@@ -37,7 +37,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 132, sha256 a17cf4f0469e9af6262c303804ad5910703a3622b84f8188a483973280de0be0**
+  **Ledger head: seq 133, sha256 ff5d3350ba14c7e4ccb3f060b8501c25d2d901c91b228d51ed4bf7e9a3a9d14e**
 
 ## Next fixes, in order
 - ~~**A Pacific NW / NorCal regional tile**~~ built (#177) and flipped (D-011); The 2-deg global_mid tier reads +0.097 m high vs the same
