@@ -213,7 +213,7 @@ export const useGalleryFolderActions = ({
          `/galleries/${thumbnailPickerGallery.id}/set-thumbnail?photographer_id=${user.id}`,
          { item_id: itemId }
       );
-      toast.success('+++G-+ Folder thumbnail updated!');
+      toast.success('Folder thumbnail updated!');
       setShowThumbnailPicker(false);
       setThumbnailPickerGallery(null);
       setBrokenCoverImages(prev => {
@@ -235,7 +235,7 @@ export const useGalleryFolderActions = ({
       await apiClient.patch(
         `/galleries/${galleryId}/clear-thumbnail?photographer_id=${user.id}`
       );
-      toast.success('Thumbnail reset +GG will auto-select on next load');
+      toast.success('Thumbnail reset -- will auto-select on next load');
       setShowThumbnailPicker(false);
       setThumbnailPickerGallery(null);
       fetchGalleries();
@@ -251,7 +251,7 @@ export const useGalleryFolderActions = ({
         `/galleries/${selectedGallery.id}/set-thumbnail?photographer_id=${user.id}`,
         { item_id: itemId }
       );
-      toast.success('+++G-+ Set as folder cover!');
+      toast.success('Set as folder cover!');
       setBrokenCoverImages(prev => {
         const newSet = new Set(prev);
         newSet.delete(selectedGallery.id);
