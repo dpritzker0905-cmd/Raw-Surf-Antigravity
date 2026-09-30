@@ -236,3 +236,11 @@ cp1252 decode of Jest's output, fixed with an explicit utf-8 decoder; nothing wa
   theme and device (rebuilt production bundle); 4 tests, mutations 5/5; 195 suites / 2,047 tests pass.
 - ⛔ OWNER REPORT (22:18Z, ledger seq 227, commitment 228): on the live dev site the marine heatmap does not show the
   swell at further-out zooms until zooming in, on forecast hours. A regression; priority over everything else.
+- Commitment 228, first investigation (ledger seq 229): NOT reproduced warm (z2/z3 at 0, +1, +2, +5 days all drew).
+  The zoomed-out world `grid_series` drops frames past ~+90 h at its deadline (32/48 then 31/48; 22-25 s), and the
+  client's per-hour `/grid` lane fills them. The report came right after Render's 22:18:10Z restart (#204, a frontend
+  merge restarts the backend: W-26). Hypothesis: the cold window. Harness for the test: `repro_heatmap*.cjs` (engine
+  truthTag + grid size + screenshots per step, zoomed out then in); run it in the next restart's cold window.
+- ⚠️ At about 22:31Z another session checked out `claude/mojibake-debris-cleanup` in the shared worktree
+  (`raw-surf-wt`) with uncommitted changes; my branch-guarded command refused to write there. This session continues
+  in its own worktree `C:/Users/David/App/rs-c188` (LESSONS L-P14).

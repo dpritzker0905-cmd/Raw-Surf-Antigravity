@@ -6,8 +6,9 @@ is a claim, not a measurement.
 ## Now
 - ⛔ **OWNER REPORT 2026-09-30 22:18Z (seq 227; commitment 228, due 2026-10-01 18Z): marine heatmap regression on
   the live dev site: at further-out zooms the swell does not show on forecast hours until zooming in.** Not yet
-  reproduced. First suspect by reach: #195 W-23 (the mid/global tier's refused-read path); every backend merge
-  today also restarted Render (cold caches). Priority over every other item.
+  reproduced WARM (seq 229): z2/z3 at 0/+1/+2/+5 d all drew; the world series drops frames past ~+90 h at its
+  deadline and the per-hour /grid lane fills them. The report followed Render's 22:18:10Z restart (#204; W-26).
+  Hypothesis: the cold window. Next: capture it in the next restart's cold window. Priority over every other item.
 - **W-10 R4-R7 measured (seq 224; log c188):** the release evidence for D-002. R4/R5 found four single-theme map
   controls, a label cut to "Request a " since 2026-05-18 (production too), and light-chip contrast under AA: fixed in
   #204 (axe light 14 -> 0, mobile sheet 13 -> 0). Still open for the release: nested-interactive map
@@ -101,7 +102,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 228, sha256 bf5c22c01b16bd16805de89aca3810eabaeb419c2bfa5ed152438c76be784a47**
+  **Ledger head: seq 229, sha256 e1ba0350269771b1b84d9103a661cc368533cdb3fd8a14edc048c899c7a1c1d6**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
