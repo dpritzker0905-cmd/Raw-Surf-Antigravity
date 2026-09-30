@@ -101,7 +101,29 @@ Live at 22:41Z: Render `cdd5cc7c`, healthy, 9/9 data lanes ok, 0 alerts, RSS 401
     (`#react-scan-root`, attached outside `<body>`, loaded on localhost only) in the forensic script, which, unlike
     the spec, did not mock unpkg. The spec's runs were clean of it.
   Test-only PR: the improvements above, `test.fixme` kept with the measured blocker in its comment.
-- [x] W-36 (fix built 2026-09-30; PR open) **Mechanism measured live:** over open ocean (30N 66W z7) the engine drew
+- [x] W-37 (2026-09-30 00:47-00:59Z) **Does the picture follow the data? Yes, on the evidence available; the oracle
+  was measuring wrong three ways.** Two dense traces (every 250 ms for 60 s after a +1 d scrub, production build):
+  every committed frame carried the target valid time (2026-10-01T00Z). An earlier single probe that saw the
+  engine back on the hour-0 world product did not reproduce (n = 1, recorded, not claimed). Predicted vs painted
+  colour, 11 offshore cells matched by position, crests at the floor: painted green tracked the colour the app's
+  ramp predicts (r = 0.77, slope 0.45 ~ the 0.76 heatmap opacity) in the clean run; the day's offshore change was
+  only 0.055 m (0.555 -> 0.609 m), ~10 green units, inside the noise, which is why the scrub looked unchanged.
+  ⚠️ Correction to W-12's note: "0.279 -> 0.384 m, half the cells > 0.25 m" was over the whole 17x17 tile
+  (near-shore cells included) and an earlier cycle, not the clipped sea. The oracle's three defects, fixed
+  (test-only PR): (1) its commit latch keyed on `hourOffset`, which counts from a floating series base_time (the
+  correct frame read 23, so the latch never closed: very likely the fixme's original "the +24h commit is not
+  reliably observed"); (2) it compared the two hours BY INDEX across different lattices (17x17 tile vs a
+  viewport series frame); (3) "the sea moved" used a 0.039 m quantum, not the colour `getThemedWaveColorJS` (the
+  app's JS mirror of the shader ramp) predicts. Three runs after the fix: all REFUSED honestly (two: same-hour
+  noise 37-38%, a commit landing between the control shots; one: 2 matched cells, a coarser +24 h frame). It
+  stays fixme; the refusals point at W-38.
+- [ ] W-38 **Commit thrash after activation / a scrub.** Trace run 1 (00:4xZ): 6 commits in 45 s after one +1 d
+  step, alternating a series frame (11 cols), the 0.25-deg regional tile (17), a coarser series frame (7), the
+  2-deg world product (8), and back; two from the `moveend` lane while the requested bbox grew 2.5 -> 7.6 deg
+  (the camera zoom was not recorded in that run; the re-run with zoom recorded showed one commit and a still
+  camera). The W-37 refusals (a commit between two shots 1.2 s apart) are the same symptom. A user sees the map
+  change sharpness several times after a scrub. Measure it properly (N runs, camera recorded) before any fix.
+- [x] W-36 (fix built 2026-09-30; merged as #184) **Mechanism measured live:** over open ocean (30N 66W z7) the engine drew
   `gfs_marine_waves_global_mid` (the /grid world product) while the main diag stayed "Initial state" and the
   PREWARM diag held the drawn product: F-11 (`updateProjectionDiag`) filed EVERY world-bbox write under the prewarm
   key whenever the view was < 60 deg wide, which is right only while a regional field is drawn. Fix: redirect only
@@ -189,3 +211,5 @@ W-42; F12 (Stripe key).
   jest never ran and every mutant exited 255 ("RED"). Found when a W-36 mutant I expected to survive came out
   "RED" and, run by hand, passed 11/11. Re-run without a shell (jest via node, verdict from jest's own summary):
   W-32 M1-M6 = 2/1/2/1/2/1 failed of 11, **6/6 genuinely caught**. #183's description carries a dated note.
+- 00:46:50Z #184 merged (owner: "Merge #184 and move to the next fix"; CLEAN). It redeployed the backend (W-26
+  not yet set). 00:47-00:59Z W-37 measured (above); the oracle fix is a test-only PR. Next: W-38.

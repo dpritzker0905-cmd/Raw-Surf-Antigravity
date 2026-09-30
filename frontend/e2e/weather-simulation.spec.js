@@ -530,6 +530,9 @@ ${err.message}`
 // sampled" from "broken" must refuse.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 const { diffFraction, varianceFraction } = require('./pngPixels');
+// The app's own JS mirror of the heatmap ramp (WebGLMarineShaders.js getThemedWaveColor): the discriminator
+// predicts each cell's colour with it rather than re-deriving the ramp here (LESSONS L-S11).
+const { getThemedWaveColorJS } = require('../src/components/map/colorScales');
 
 test.describe('Rendered-field pixel truth (executed GL)', () => {
   test.beforeEach(async ({ page }) => {
@@ -648,12 +651,17 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
       // at the default 1650 crests, 3-6% with the target at 1 (the engine's 2% density floor,
       // WebGLMarineEngine.js densityBase). The heatmap wash is the subject; crests only add noise.
       window.__RAW_PART_TARGET__ = 1;
-      window.__E2E_MAX_HOUR__ = 0;
+      // ⛔ LATCH ON VALID TIME (W-37, 2026-09-30). This latched `hourOffset >= 24`, but hourOffset counts
+      // from a series base_time that floats with the clock: at 00:47Z the correct +24 h frame
+      // (valid 2026-10-01T00Z) carried hourOffset 23, so the latch never closed. The valid time is the
+      // invariant; the target is set just before the step.
+      window.__E2E_TARGET_VALID__ = null;
+      window.__E2E_SEEN_TARGET__ = false;
       if (!window.__E2E_HOUR_POLLER__) {
         window.__E2E_HOUR_POLLER__ = setInterval(() => {
           const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
-          if (g && typeof g.hourOffset === 'number' && g.hourOffset > window.__E2E_MAX_HOUR__) {
-            window.__E2E_MAX_HOUR__ = g.hourOffset;
+          if (g && window.__E2E_TARGET_VALID__ && (g.valid_time || g.validTime) === window.__E2E_TARGET_VALID__) {
+            window.__E2E_SEEN_TARGET__ = true;
           }
         }, 250);
       }
@@ -705,15 +713,26 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     // REFUSE arm: if animation dominates even with drift frozen, the oracle cannot measure.
     test.skip(noise > 0.25, `residual animation noise ${(noise * 100).toFixed(1)}% of pixels — the hour-change signal cannot be separated; raise the freeze levers before re-enabling`);
 
-    // Snapshot the h0 sea from the engine's own grid — the data-delta discriminator below needs it.
-    const seaBefore = await page.evaluate(() => {
-      const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
-      if (!g || !g.vectors) return null;
-      const step = Math.max(1, Math.floor(g.vectors.length / 200));
+    // Snapshot the h0 sea from the engine's own grid: the cells that project INTO THE CLIP, with their position.
+    // ⛔ (W-37) The old sampler took every Nth vector and compared the two hours BY INDEX, but the +0 h grid (the
+    // 17x17 regional tile) and the +24 h grid (a viewport-clipped series frame) are different lattices: index i
+    // was a different place in each, and 'the sea moved on 76% of cells' compared unrelated cells.
+    const seaInClip = (c) => page.evaluate((clipRect) => {
+      const m = window.__MAP_INSTANCE__ || window.map;
+      const w = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = w && w.waveGrid;
+      if (!m || !g || !g.vectors) return null;
+      const cv = document.querySelector('canvas.maplibregl-canvas').getBoundingClientRect();
       const out = [];
-      for (let i = 0; i < g.vectors.length; i += step) out.push(g.vectors[i] ? (g.vectors[i].speed || 0) : 0);
-      return out;
-    });
+      for (const v of g.vectors) {
+        const h = v ? (v.height ?? v.speed) : null;
+        if (!v || typeof v.lat !== 'number' || !(h > 0) || v.isOcean === false) continue;
+        const p = m.project([v.lng, v.lat]); const x = cv.left + p.x, y = cv.top + p.y;
+        if (x >= clipRect.x && x <= clipRect.x + clipRect.width && y >= clipRect.y && y <= clipRect.y + clipRect.height) out.push({ lat: v.lat, lng: v.lng, h });
+      }
+      const b = g.bounds; const cell = b && g.cols > 1 ? (b.east - b.west) / (g.cols - 1) : 0.25;
+      return { cells: out, cell, valid: g.valid_time || g.validTime };
+    }, c);
+    const seaBefore = await seaInClip(clip);
     expect(seaBefore, 'engine grid unreadable for the data-delta discriminator').not.toBeNull();
 
     // TREATMENT — +1 day via the accessible wheel (PageUp = +1 day, the house a11y contract),
@@ -721,17 +740,19 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     const scrubber = page
       .locator('[role="slider"][aria-label="Forecast timeline wheel"]')
       .filter({ visible: true }).first();
+    const targetValid = new Date(Date.parse(seaBefore.valid) + 24 * 3600 * 1000).toISOString().replace('.000Z', 'Z');
+    await page.evaluate((t) => { window.__E2E_TARGET_VALID__ = t; window.__E2E_SEEN_TARGET__ = false; }, targetValid);
     await scrubber.focus();
     await scrubber.press('PageUp');
     try {
       // The LATCH is the commit oracle (a transient commit counts); the stable-read loop below
       // is the read oracle. 90 s: the cold grid_series miss is 18-35 s alone and this shared
       // 1-CPU box is also serving production.
-      await page.waitForFunction(() => window.__E2E_MAX_HOUR__ >= 24, null, { timeout: 90000 });
+      await page.waitForFunction(() => window.__E2E_SEEN_TARGET__ === true, null, { timeout: 90000 });
     } catch (err) {
       const seen = await page.evaluate(() => {
         const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
-        return { latchedMaxHour: window.__E2E_MAX_HOUR__, engineHour: g ? g.hourOffset : null,
+        return { target: window.__E2E_TARGET_VALID__, seenTarget: window.__E2E_SEEN_TARGET__, engineValid: g ? (g.valid_time || g.validTime) : null, engineHour: g ? g.hourOffset : null,
                  scrub: window.isScrubbingTimeline || false };
       });
       throw new Error(`engine never committed the +24h frame (latch never saw it). Seen: ${JSON.stringify(seen)}\n${err.message}`);
@@ -744,33 +765,44 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     // renderer — wait for a STABLE resident at the new hour, then read, with a bounded retry.
     let seaAfter = null;
     for (let attempt = 0; attempt < 3 && !seaAfter; attempt++) {
-      await page.waitForFunction(() => {
+      await page.waitForFunction((t) => {
         const eng = window.__MARINE_ENGINE__;
         const g = eng && eng._waveData && eng._waveData.waveGrid;
-        return g && g.vectors && typeof g.hourOffset === 'number' && g.hourOffset >= 24;
-      }, null, { timeout: 30000 });
+        return g && g.vectors && (g.valid_time || g.validTime) === t;
+      }, targetValid, { timeout: 30000 });
       await page.waitForTimeout(800);
-      seaAfter = await page.evaluate(() => {
-        const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
-        if (!g || !g.vectors || g.hourOffset < 24) return null;
-        const step = Math.max(1, Math.floor(g.vectors.length / 200));
-        const out = [];
-        for (let i = 0; i < g.vectors.length; i += step) out.push(g.vectors[i] ? (g.vectors[i].speed || 0) : 0);
-        return out;
-      });
+      const s = await seaInClip(clip);
+      seaAfter = s && s.valid === targetValid ? s : null;
     }
     // DATA-DELTA DISCRIMINATOR: never grade the renderer on an unchanged input. If the sea
     // itself barely moved across the step (possible on a becalmed frame), REFUSE — a pixel
     // no-change would then be correct behaviour, not a defect. Calibration (live, 2026-08-09,
     // wide-Atlantic default view): h0→h24 moved 64% of cells by more than one 8-bit texture
     // quantum (0.039 m) and crossed a colour band on 20.3% — so 10% is a conservative floor.
-    expect(seaAfter, 'engine grid never stabilised at the new hour (3 stable-read attempts)').not.toBeNull();
-    const n = Math.min(seaBefore.length, seaAfter.length);
-    let moved = 0;
-    for (let i = 0; i < n; i++) if (Math.abs(seaBefore[i] - seaAfter[i]) > 0.039) moved++;
-    const seaMovedFrac = moved / Math.max(1, n);
+    expect(seaAfter, 'engine grid never stabilised at the target valid time (3 stable-read attempts)').not.toBeNull();
+    // ⛔ VISIBLE change, predicted by the app's own ramp (W-37). A 0.039 m texture quantum is not a visible
+    // change: measured 2026-09-30 offshore at 28.4N 80.4W, a +24 h step moved these cells by 0.055 m on
+    // average, which the ramp paints about 10 green units apart, inside the rendering noise. A cell
+    // 'visibly moved' when its predicted colour moves by more than diffFraction's own threshold (30 of 765)
+    // after the heatmap opacity. Cells are matched by position (nearest within 0.6 of a cell).
+    const themeName = await page.evaluate(() => { const c = document.documentElement.classList; return c.contains('beach-mode') ? 'beach' : c.contains('light') ? 'light' : 'dark'; });
+    const surfMode = await page.evaluate(() => window.__SURF_MODE__ === true);
+    const opacity = await page.evaluate(() => (window.__RAW_GPU__ && window.__RAW_GPU__.opacity && window.__RAW_GPU__.opacity.heatmap) || 0.76);
+    const tol = 0.6 * Math.max(seaBefore.cell, seaAfter.cell);
+    let matched = 0, visiblyMoved = 0;
+    for (const a of seaBefore.cells) {
+      let best = null, bd = Infinity;
+      for (const b of seaAfter.cells) { const d = Math.hypot(a.lat - b.lat, a.lng - b.lng); if (d < bd) { bd = d; best = b; } }
+      if (!best || bd > tol) continue;
+      matched++;
+      const c0 = getThemedWaveColorJS(a.h, themeName, surfMode), c1 = getThemedWaveColorJS(best.h, themeName, surfMode);
+      const d = opacity * (Math.abs(c0[0] - c1[0]) + Math.abs(c0[1] - c1[1]) + Math.abs(c0[2] - c1[2]));
+      if (d > 30) visiblyMoved++;
+    }
+    test.skip(matched < 8, `only ${matched} sea cells of both hours fall in the clip — too few to grade; check the camera`);
+    const seaMovedFrac = visiblyMoved / matched;
     test.skip(seaMovedFrac < 0.10,
-      `the sea itself moved on only ${(seaMovedFrac * 100).toFixed(1)}% of sampled cells across the step — the renderer cannot be graded on an unchanged input; becalmed frame, re-run later`);
+      `the ramp predicts a visible colour change on only ${(seaMovedFrac * 100).toFixed(1)}% of ${matched} sea cells across the step — a calm, unchanged sea cannot grade the renderer; re-run on a changing sea`);
 
     const shotB = await shoot();
     const change = diffFraction(shotA1, shotB);
@@ -780,10 +812,10 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     // composite failure — fails here and nowhere else in the estate.
     const floor = Math.max(3 * noise, 0.005);
     // The measurement travels with the verdict: a pass with no numbers is not evidence (LESSONS L-P9).
-    const measured = `seaMoved=${(seaMovedFrac * 100).toFixed(1)}% change=${(change * 100).toFixed(2)}% noise=${(noise * 100).toFixed(2)}% floor=${(floor * 100).toFixed(2)}% structure=${structure.toFixed(4)}`;
+    const measured = `cells=${matched} visiblyMoved=${(seaMovedFrac * 100).toFixed(1)}% change=${(change * 100).toFixed(2)}% noise=${(noise * 100).toFixed(2)}% floor=${(floor * 100).toFixed(2)}% structure=${structure.toFixed(4)}`;
     test.info().annotations.push({ type: 'pixel-truth', description: measured });
     console.log(`[pixel-truth] ${measured}`);
-    expect(change, `the sea moved on ${(seaMovedFrac * 100).toFixed(0)}% of cells but only ${(change * 100).toFixed(2)}% of pixels changed (noise ${(noise * 100).toFixed(2)}%, floor ${(floor * 100).toFixed(2)}%) — the readout and the DATA advanced but the picture did not`).toBeGreaterThan(floor);
+    expect(change, `the ramp predicts a visible change on ${(seaMovedFrac * 100).toFixed(0)}% of ${matched} sea cells but only ${(change * 100).toFixed(2)}% of pixels changed (noise ${(noise * 100).toFixed(2)}%, floor ${(floor * 100).toFixed(2)}%) — the readout and the DATA advanced but the picture did not`).toBeGreaterThan(floor);
   });
 });
 
