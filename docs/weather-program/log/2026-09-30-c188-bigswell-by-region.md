@@ -223,3 +223,16 @@ cp1252 decode of Jest's output, fixed with an explicit utf-8 decoder; nothing wa
   right-hand buttons 0 px, the top band changed only at the "Request a Pro" label (plus ~50 px of basemap
   anti-aliasing near the SFB airport icon). Only write blocked in all runs: the PostHog flags POST.
 - ⚠️ This PR changes `frontend/**`, so its merge restarts the Render backend (W-26).
+
+## Owner (chat, after 21:59Z): "merge #204 when it's green and move to the next fix"
+- #204 MERGED 22:15:26Z as `0d8e587a` (seq 226): 18 pass, 1 skipped, the Netlify deploy preview built.
+- The emoji sweep (da30f15d) census: 357 mojibake-origin code lines across the app (CrewChat 22, StokedTab 14, ...),
+  visible debris such as CheckInModal "+++G- Within range". Out of the weather program's scope: flagged as a separate
+  task for the owner (task chip "Audit the text the May emoji sweep broke").
+- The live map's basemap is Mapbox with `attributionControl={false}` since 3a384c4d (2026-05-11, "hide mapbox
+  attribution"), production included; no component renders "(c) Mapbox (c) OpenStreetMap". A licence question for
+  the owner; not changed.
+- The next fix: ContentMarker (branch `claude/map-marker-a11y`): axe nested-interactive 8-9 -> 0 nodes on every
+  theme and device (rebuilt production bundle); 4 tests, mutations 5/5; 195 suites / 2,047 tests pass.
+- ⛔ OWNER REPORT (22:18Z, ledger seq 227, commitment 228): on the live dev site the marine heatmap does not show the
+  swell at further-out zooms until zooming in, on forecast hours. A regression; priority over everything else.

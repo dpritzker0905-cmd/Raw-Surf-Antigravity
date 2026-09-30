@@ -1,9 +1,13 @@
 # Weather program: state
 
-**Updated 2026-09-30 21:58Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 22:19Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- ⛔ **OWNER REPORT 2026-09-30 22:18Z (seq 227; commitment 228, due 2026-10-01 18Z): marine heatmap regression on
+  the live dev site: at further-out zooms the swell does not show on forecast hours until zooming in.** Not yet
+  reproduced. First suspect by reach: #195 W-23 (the mid/global tier's refused-read path); every backend merge
+  today also restarted Render (cold caches). Priority over every other item.
 - **W-10 R4-R7 measured (seq 224; log c188):** the release evidence for D-002. R4/R5 found four single-theme map
   controls, a label cut to "Request a " since 2026-05-18 (production too), and light-chip contrast under AA: fixed in
   #204 (axe light 14 -> 0, mobile sheet 13 -> 0). Still open for the release: nested-interactive map
@@ -44,13 +48,12 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `19121802`** (#203 at 2026-09-30 21:43:10Z, the keep-GFS switch, dark; backend). Render served
-  `2c081589` (#201) from 21:16:50Z (uptime 973.9 s at 21:33:04Z); the #203 deploy follows. ⚠️ Every frontend merge still
+- **`dev` = `0d8e587a`** (#204 at 2026-09-30 22:15:26Z, the map chrome in three themes; frontend, so Render
+  restarts, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #204, the map-chrome PR (branch `claude/w10-map-chrome-themes`; the map's floating chrome in
-  three themes, "Request a Pro", AA contrast on light chips: W-10 R4/R5's defects; frontend, restarts Render).
-  Merged 2026-09-30: #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
+- **Open PRs of ours:** the marker PR (branch `claude/map-marker-a11y`; ContentMarker, axe nested-interactive
+  -> 0). Merged 2026-09-30: #204 (22:15:26Z, the map chrome in three themes), #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
   W-31 `unknown_depth`), #200 (20:44:00Z, commitment 203:
   the probe grades with the glyph's tide; the A/B dispatch pair follows), #199 (20:25:43Z, W-30 DARK
   behind `SIM_SERVED_TIDE` '0', with the catalogue fix; as opened it was inert, seq 205), #198
@@ -98,7 +101,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 225, sha256 0c8faa8c08b5591a01866fb755be469ba3f255ed2e9ad3874f20430a3d172134**
+  **Ledger head: seq 228, sha256 bf5c22c01b16bd16805de89aca3810eabaeb419c2bfa5ed152438c76be784a47**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
