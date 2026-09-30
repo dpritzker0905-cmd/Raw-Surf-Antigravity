@@ -130,6 +130,12 @@ before starting it.
   inside `fetch_global_coarse` would have failed every GFS, ICON and EURO fetch, flag on or off. The real-GRIB
   parity job (run by path) caught it 4 minutes after the merge, before any ingest ran. The rule is now a test
   (`test_fetcher_script_imports.py`), and a new fetcher import follows the file's own try/except idiom. (2026-09-29)
+  > Recurred 2026-09-30, and for 52 days: the calibration loop's buoy-wind residual (`11fcebdf`, 2026-08-09, "the
+  > wind residual is finally scored") read `wind_n` 0 in production from the day it shipped, because
+  > `fetch_ndbc_latest` parsed waves only. Its test REPLACED that fetch with a fake that merged the wave and wind
+  > parses, i.e. the fake did what production did not. Now only the network is faked (the real fetch and parser
+  > run), and reverting the fetch fails the test. Sharper rule: never monkeypatch the function whose behaviour the
+  > test claims; fake the transport beneath it.
 - **L-S15 · Price a flip on real data before offering it, and gate on what must not change.** The native-cell
   regrid passed 21 stub tests and 22 mutations, then its first real-GRIB run showed it would blank 20 of 425 coastal
   nodes (their own cell is land). A flip may move values; it may never remove one the old path served. The

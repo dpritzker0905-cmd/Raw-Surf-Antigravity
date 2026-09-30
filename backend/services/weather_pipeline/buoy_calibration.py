@@ -323,6 +323,13 @@ async def fetch_ndbc_station_coords(client=None) -> dict:
         return {}
 
 
+def parse_ndbc_obs(text: str, now: Optional[datetime] = None) -> Optional[dict]:
+    """PURE: the wave obs plus the newest FRESH wind obs from ONE realtime2 payload; `time` stays the WAVE row's (the
+    ledger scores on it), the wind row's is `wind_time`. Until 2026-09-30 the fetch parsed waves only: wind_n read 0."""
+    obs, wind = parse_ndbc_realtime(text), parse_ndbc_wind(text, now=now)
+    return obs if obs is None or not wind else {**obs, **{k: v for k, v in wind.items() if k != "time"}, "wind_time": wind["time"]}
+
+
 async def fetch_ndbc_latest(station_id: str, client=None) -> Optional[dict]:
     """Fetch + parse the latest NDBC observation for a station. Uses an injected httpx-like async client when
     given (tests), else a short-lived httpx.AsyncClient. Returns the obs dict or None (missing/error)."""
@@ -338,7 +345,7 @@ async def fetch_ndbc_latest(station_id: str, client=None) -> Optional[dict]:
             async with httpx.AsyncClient(timeout=15) as c:
                 resp = await c.get(url)
                 text = resp.text if resp.status_code == 200 else None
-        return parse_ndbc_realtime(text) if text else None
+        return parse_ndbc_obs(text) if text else None
     except Exception as e:
         logger.debug(f"[buoy-calibration] NDBC fetch failed for {station_id}: {e}")
         return None

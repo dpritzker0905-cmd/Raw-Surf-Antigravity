@@ -22,7 +22,7 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | S5 | Data freshness | Actions run history, `/api/health` → `scheduler.workflow_dispatch` | missed ingest slots; runs per day per lane |
 | S7 | Period skill vs NDBC DPD (`backend/scripts/validate_period_vs_ndbc.py`) | the skill ledger, `forecast_skill_direction_period` (built 2026-09-30; snapshots before) | our peak period against the buoy's dominant period, by regime |
 | S8 | Swell-direction skill vs NDBC MWD | the skill ledger, `forecast_skill_direction_period` (built 2026-09-30; scratch snapshot before) | angular error of the served mean direction (and each member's) |
-| S9 | Wind skill vs NDBC (`backend/scripts/validate_wind_forecast.py`) | on demand (snapshot); the ledger's `wind_n` is 0 | speed/direction error per model, and how often swapping in the observed wind moves the served LEVEL |
+| S9 | Wind skill vs NDBC (`backend/scripts/validate_wind_forecast.py`) | the skill ledger, `forecast_skill_direction_period` `wind_*` (built 2026-09-30; before: snapshots, and the calibration's `wind_n` read 0 because its fetch never parsed wind) | speed/direction error per model, and how often swapping in the observed wind moves the served LEVEL |
 | S10 | Rating error budget (the Jacobian with measured sigmas) | on demand (log 2026-09-30-audit-sota §3.3) | share of the displayed rating's variance owed to each input's forecast error, served flags |
 
 ## Rows
