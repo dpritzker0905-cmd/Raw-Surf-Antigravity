@@ -179,3 +179,10 @@ same condition and arguments, so it costs zero new I/O (a test counts one reques
 - 188: Hawaii's equal-mean big-day over-call (+0.44 to +0.67 m, n >= 62) is removed by the Hawaii-only serve rule;
   atlantic_ne sits at the 0.2 m threshold on one week (-0.201/-0.126/-0.205); atlantic_se is very low for both
   models but n < 30. No calibration build now; re-read on a disjoint week (commitment 217, due 2026-10-08).
+
+## Owner (chat, after 21:11Z): "merge #201 and #202 and move to the next fix"
+- #201 MERGED 21:14:06Z as `2c081589` (seq 220); #202 MERGED 21:28:24Z as `f1dddcda` (seq 221). The owner did not
+  answer the two recommendations (Hawaii-only consensus; SIM_SERVED_TIDE): neither is flipped.
+- The next fix, built DARK: `CONSENSUS_SERVE_KEEP_GFS` (branch `claude/consensus-hawaii-dark`), the Hawaii-only
+  rule's switch; unset/'' = D-006 unchanged; declared '' in both rating lanes. 10 tests; mutations 5/5 after
+  pinning the unset default (a 'hawaii' code default survived the first run). Chain 138 / 1678 (reading 1684).
