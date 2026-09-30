@@ -173,6 +173,13 @@ before starting it.
   Caught by `git status` after the run; restored from the committed WIP. A harness that saves and restores a file
   uses `read_bytes`/`write_bytes`, and checks `git status` is clean after. Siblings: L-P15, L-P6.
   (2026-09-30, #197)
+- **L-P17 · A test that builds its input by hand cannot see a field the real producer drops.** W-30 (#199) passed
+  15 tests and 13/14 mutations while inert on every real spot: the tests rated a synthetic spot carrying
+  `best_tide`, and `sim_forecast.fetch_catalog` (the producer of every real spot) mapped rows to five keys without
+  it. Found only by reading the producer while scoping the evidence lane. A fix that consumes a field needs one
+  test through the path that PRODUCES that field in the product (here: the catalogue response -> the resolver ->
+  the rating), and a positive control that reddens it with the producer line reverted. Sibling: L-S17 (an
+  instrument that runs a configuration nobody serves). (2026-09-30, #199)
 - **L-S16 · A scalar interpolated as a vector can only shrink.** `/point` averaged the corners' (u, v) and served
   sqrt(u^2+v^2) as the wave height; |sum w_i h_i e_i| <= sum w_i h_i, so every served height was biased low wherever
   the corners' directions diverge, which is where spots are (NDBC 51202: served 0.98 m, corners 1.39-1.57, buoy 2.0).

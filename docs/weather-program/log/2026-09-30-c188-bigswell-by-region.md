@@ -117,3 +117,12 @@ same condition and arguments, so it costs zero new I/O (a test counts one reques
 - `weather_sim_mcp.py` is at 800 lines, the ceiling: the new kwarg replaced a comment line.
 - Evidence lane (commitment 203, due 2026-10-02T18:00Z): the parity probe must pass the glyph's `item["tide"]` on its
   composition call under the flag and sample the banded spots; then a monitor dispatch 1 vs 0.
+
+## Owner (chat, after 19:58Z): "merge #199 when it's green and move to the next fix"
+- ⛔ #199 NOT merged yet, on purpose: scoping the next fix (commitment 203, the probe's tide) meant reading
+  `sim_forecast.fetch_catalog`, and it drops `best_tide`. Every real spot reached the sim with no tide prior, so
+  W-30 was inert on all of them even when flipped; its 15 tests passed on a synthetic spot built with the prior.
+  Fixed on #199's branch (475aece5): the catalogue carries `best_tide`, and a 16th test goes through the real
+  catalogue path (positive control: red with the mapping line reverted). Correction ledgered (seq 205); LESSONS
+  L-P17. Merging #199 as opened would have shipped a dark switch that could never have turned on.
+- Guards floor 176 / 2140 (reading 2146).

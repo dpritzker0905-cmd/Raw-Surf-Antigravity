@@ -35,7 +35,7 @@ is a claim, not a measurement.
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
 - **Open PRs of ours:** #199, the W-30 PR (branch `claude/w30-sim-tide`; the sim grades tide from the glyph's served
-  tide state, DARK behind `SIM_SERVED_TIDE` '0'; its evidence lane is commitment 203). Merged 2026-09-30: #198
+  tide state, DARK behind `SIM_SERVED_TIDE` '0'; as opened it was inert on real spots, the catalogue dropped `best_tide`, fixed in the same PR, seq 205; its evidence lane is commitment 203). Merged 2026-09-30: #198
   (19:56:30Z, the per-region rule graded on the training weeks: commitment 198 reads it), #197 (19:36:43Z,
   commitment 188's instrument: read it after the next precompute), #196 (19:17:15Z, the evening handoff),
   #195 (18:38:47Z, W-23), #194 (17:53:50Z, S9 wind), #193
@@ -76,11 +76,11 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 175 files / 2124 (reading 2130; 176 / 2139 (2145) with the W-30 PR), chain 136 /
+- **CI floors on `dev`:** guards 175 files / 2124 (reading 2130; 176 / 2140 (2146) with #199), chain 136 /
   1655 (1661), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 204, sha256 41ce507cbb9e1c9bc1c1e39273938d31e8672899c1c9c6db6d4dfd36c4bbbcb4**
+  **Ledger head: seq 205, sha256 24b999450cd7b200d18fb9650877a32b14a04c139dfdcd65dedb70c2557c785b**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
