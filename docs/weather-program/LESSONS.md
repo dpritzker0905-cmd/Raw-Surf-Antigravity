@@ -166,6 +166,13 @@ before starting it.
   mutant predicted to survive came out red. Invoke the tool without a shell (`node .../react-scripts.js test`),
   and take the verdict from the tool's own summary line ("N failed"), never from an exit code. Siblings: L-P9,
   L-P13. (2026-09-30, #183 correction)
+- **L-P16 · A harness that restores a file in text mode rewrites every line ending.** The #197 mutation script read
+  the source with `Path.read_text` and restored it with `write_text`; on Windows the restore wrote CRLF, so the
+  "restored" file differed from HEAD on every line with no content change (`git diff` empty, `git status` modified,
+  `file`: "with CRLF line terminators"). Committed, it would have been a whole-file churn under a one-line fix.
+  Caught by `git status` after the run; restored from the committed WIP. A harness that saves and restores a file
+  uses `read_bytes`/`write_bytes`, and checks `git status` is clean after. Siblings: L-P15, L-P6.
+  (2026-09-30, #197)
 - **L-S16 · A scalar interpolated as a vector can only shrink.** `/point` averaged the corners' (u, v) and served
   sqrt(u^2+v^2) as the wave height; |sum w_i h_i e_i| <= sum w_i h_i, so every served height was biased low wherever
   the corners' directions diverge, which is where spots are (NDBC 51202: served 0.98 m, corners 1.39-1.57, buoy 2.0).
