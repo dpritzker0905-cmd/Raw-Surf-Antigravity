@@ -120,7 +120,14 @@ Live at 22:41Z: Render `cdd5cc7c`, healthy, 9/9 data lanes ok, 0 alerts, RSS 401
   and `RATING_TIDE=1`; a parity test on a "Low tide" spot; the S4 monitor samples the 18 banded spots.
 - [ ] W-31 Missing depth is a NAMED regime (`unknown_depth`), never `shelf` with the offshore height (audit 4.1); a
   null control proves no served change where numpy exists.
-- [ ] W-32 EMPTY_RENDER waits for the first fetch to settle before reporting (F4). **Mechanism measured**
+- [x] W-32 (fix built; PR open, merge is the owner's) EMPTY_RENDER must HOLD for 3 s before it is a violation
+  (`marineEmptyGrace.js`, a pure helper; `useLayerTruthDiff` asks it and arms one re-check so an idle map is still
+  graded; kill `__RAW_DISABLE_MARINE_EMPTY_GRACE__`). 11 tests (7 helper, 4 hook wiring with fake timers), 6/6
+  mutations red. **Live A/B on a production build, diagnostics intercepted locally:** under 6x CPU throttling (the
+  slow-runner condition the Render reports carry, FPS 1-5) the old rule falsely reported a HEALTHY load in 2 of 2
+  runs (16.5 s, 21.9 s after the click) and the fix in 0 of 2; with the marine grid requests starved (a real empty
+  map) the fix still reported (8.0 s after the click; old 3.2 s). Unthrottled, neither reported (n = 1 each).
+  Reaches the dev site only (production frozen, D-002); no served number. Earlier note: **Mechanism measured**
   (production build, 22:58Z, 50 ms probe): after Waves was switched on, all three suppression flags dropped at
   3,037 ms (the fetch's `finally`, `useMarineDataFetcherCore.js:735-743`) and the grid reached the engine at
   3,719 ms: ~680 ms in which the detector's condition is true on a healthy load.
