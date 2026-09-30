@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-09-30 23:53Z** (logs: `log/2026-09-30-clock-every-header.md` (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 23:55Z** (logs: `log/2026-09-30-clock-every-header.md` (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
@@ -57,7 +57,7 @@ is a claim, not a measurement.
   header is read, and every clock claim (STATE, HANDOFFs, logs) is held to the commit that wrote THAT line (git
   blame). The 7 headers that ran ahead are corrected in the ledger (seq 233, 237-242) and listed in one NOTE; a
   blame fallback on a committed file WARNs (FAILs in CI). Auto-fix on; its merge restarts Render, W-26; seq 234-235,
-  243. #207 is open too, from session c188; it appends ledger lines from seq 230, so it re-appends after
+  243-244. #207 is open too, from session c188; it appends ledger lines from seq 230, so it re-appends after
   whichever merges first. Merged 2026-09-30: #206 (23:39:24Z as `1ff11a05`, the encoding-debris cleanup; seq 231,
   its merge seq 236), #205 (22:55:23Z as `8abc6e61`, the marker PR; seq 232), #204 (22:15:26Z, the map chrome in three themes), #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
   W-31 `unknown_depth`), #200 (20:44:00Z, commitment 203:
@@ -107,7 +107,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 243, sha256 97ca3ae44a8c906c88ffd972db04ab0ef357d0bc0092407901015e5be2f95c63**
+  **Ledger head: seq 244, sha256 39afb34af7f2e50d24c4dae2ec4cc05efb4debf3aa4f5307bdf5c17127ccd38b**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

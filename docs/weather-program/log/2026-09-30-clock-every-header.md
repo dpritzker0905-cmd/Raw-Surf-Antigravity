@@ -139,3 +139,12 @@ a follow-up (built here, on #208).
 | 2026-09-30 (#190) | the ledger refuses an estimated `verified`; HANDOFF headers read; slack 5 -> 1 min | the ledger and the handoffs |
 | #208, part 1 | every `## ` log header | 31 -> 41 of the 41 timed headers on `dev` |
 | #208, part 2 | each claim held to the commit that wrote it; corrections; a blind fallback is loud | 0 -> 7 of the 7 headers that ran ahead; 12/12 files per line |
+
+## Read-backs and close of this turn (23:55:26Z)
+- Pushed `d021ccd5` (#208's head per `git ls-remote` and gh). The PR title and description now cover both parts.
+- Ledger seq 243's pending read-back: the hosted `weather-program-ledger` run (`verify`: `--selftest`, then
+  `--docs-only --require-history` with full history, on Linux) concluded **success** on `d021ccd5` (run created
+  23:54:18Z). The other lanes were still running at that read; the app's Auto-fix monitor watches them.
+- Ledger seq 244: one line mirrored into agent-local memory (`pr-workflow-mechanics.md`): Windows
+  `subprocess(text=True)` decodes cp1252, so pass `encoding="utf-8"`. `memory_audit.py --memory-dir`: 0 FAIL / 0 WARN.
+- STATE's anchor moved to seq 244.
