@@ -34,7 +34,7 @@ is a claim, not a measurement.
   W-23) from 18:54:40Z (ledger seq 194); the #197-#199 deploys follow. ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the commitment-203 PR (branch `claude/c203-probe-tide`; the parity probe grades with the
+- **Open PRs of ours:** #200, the commitment-203 PR (branch `claude/c203-probe-tide`; the parity probe grades with the
   glyph's tide and samples the 18 banded spots; serves nothing). Merged 2026-09-30: #199 (20:25:43Z, W-30 DARK
   behind `SIM_SERVED_TIDE` '0', with the catalogue fix; as opened it was inert, seq 205), #198
   (19:56:30Z, the per-region rule graded on the training weeks: commitment 198 reads it), #197 (19:36:43Z,
@@ -81,7 +81,7 @@ is a claim, not a measurement.
   the commitment-203 PR), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 206, sha256 01f5913269c062dc843466607067ff98dc056676ecb8b347ef0ae28bd5a975ac**
+  **Ledger head: seq 207, sha256 f0c91103d1f7727f4fb9343465bf0f7eb2c5834a568eb76320ec845c23edfdb5**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
