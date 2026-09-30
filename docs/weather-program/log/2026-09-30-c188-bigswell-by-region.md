@@ -95,3 +95,25 @@ served rating diverge on every spot with a `best_tide` prior (38 of 1516 on 2026
   41065/41067/41070/41076/41110/41112/41113/41115/41117/41120/41121/41159 (mostly CDIP nearshore, North Carolina to
   Florida), so `atlantic_se` means the US Southeast coast, not the Florida tile alone; `51xxx` are 51201-51214 (Hawaii).
   The tile list must be derived from where those buoys sit, and graded per tile before any flip.
+
+## Owner (chat, after 19:38Z): "merge #198 when it's green and move to the next fix"
+- #198 MERGED 19:56:30Z as `78c568d9` (ledger seq 202): 15 pass, 3 skipped; chain 136 / 1661 = the projection;
+  guards 175 / 2130.
+
+### W-30 built DARK (branch `claude/w30-sim-tide`)
+The next fix in the handoff's order not waiting on data. The design turned on one recorded trap: the plan's wording
+("when it has a valid_time and RATING_TIDE=1") gates on the sim's own env, which is empty on the owner's machine, so
+the fix would have been inert where the sim runs. Instead the sim reads the tide state THE GLYPH graded with off the
+`/spot-ratings` response `sim_observed.parity` already fetches (`SpotRatingItem.tide` survives the wire), with the
+same condition and arguments, so it costs zero new I/O (a test counts one request for tide and parity together).
+- Effect, measured on a synthetic "Low" reef at high water (norm 0.95): sim 97.3 epic -> 48.7 fair, x tide_fit 0.5,
+  what the glyph grades. A spot with "All tides" is unchanged.
+- `SIM_SERVED_TIDE` default '0'; 15 tests; mutations 13/14, the survivor an equivalent mutant (a redundant isfinite()
+  that the range test covers), removed. The composition-parity registry marks the sim's tide SUPPLIED.
+- ⚠️ The first mutation run hit a Windows write error (errno 22, a file held just after a test read it) mid-run and
+  left a mutant in `sim_observed.py`; the committed WIP restored it (`git checkout HEAD --`). The harness now retries
+  a held write. Two local failures in the wider sim suite (`condition_reports` absent from the local sqlite; the stdio
+  handshake) fail identically at the base commit: environment, not this change.
+- `weather_sim_mcp.py` is at 800 lines, the ceiling: the new kwarg replaced a comment line.
+- Evidence lane (commitment 203, due 2026-10-02T18:00Z): the parity probe must pass the glyph's `item["tide"]` on its
+  composition call under the flag and sample the banded spots; then a monitor dispatch 1 vs 0.
