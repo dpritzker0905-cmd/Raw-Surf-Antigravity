@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-09-30 19:57Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 20:26Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
@@ -30,12 +30,13 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `78c568d9`** (#198 at 2026-09-30 19:56:30Z, the regional-rule grade; backend). Render served
-  `2123d70e` (#195, W-23) from 18:54:40Z (ledger seq 194); the #197/#198 deploys follow. ⚠️ Every frontend merge still
+- **`dev` = `3937c145`** (#199 at 2026-09-30 20:25:43Z, W-30 dark; backend). Render served `2123d70e` (#195,
+  W-23) from 18:54:40Z (ledger seq 194); the #197-#199 deploys follow. ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #199, the W-30 PR (branch `claude/w30-sim-tide`; the sim grades tide from the glyph's served
-  tide state, DARK behind `SIM_SERVED_TIDE` '0'; as opened it was inert on real spots, the catalogue dropped `best_tide`, fixed in the same PR, seq 205; its evidence lane is commitment 203). Merged 2026-09-30: #198
+- **Open PRs of ours:** the commitment-203 PR (branch `claude/c203-probe-tide`; the parity probe grades with the
+  glyph's tide and samples the 18 banded spots; serves nothing). Merged 2026-09-30: #199 (20:25:43Z, W-30 DARK
+  behind `SIM_SERVED_TIDE` '0', with the catalogue fix; as opened it was inert, seq 205), #198
   (19:56:30Z, the per-region rule graded on the training weeks: commitment 198 reads it), #197 (19:36:43Z,
   commitment 188's instrument: read it after the next precompute), #196 (19:17:15Z, the evening handoff),
   #195 (18:38:47Z, W-23), #194 (17:53:50Z, S9 wind), #193
@@ -76,15 +77,15 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 175 files / 2124 (reading 2130; 176 / 2140 (2146) with #199), chain 136 /
-  1655 (1661), estate 580 (582).
+- **CI floors on `dev`:** guards 176 files / 2140 (reading 2146), chain 136 / 1655 (1661; 137 / 1660 (1666) with
+  the commitment-203 PR), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 205, sha256 24b999450cd7b200d18fb9650877a32b14a04c139dfdcd65dedb70c2557c785b**
+  **Ledger head: seq 206, sha256 01f5913269c062dc843466607067ff98dc056676ecb8b347ef0ae28bd5a975ac**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
-done); 4 MERGED as #193 (its first graded rows: commitment 172, 2026-10-02); 5 (wind) MERGED as #194 (commitment 177); 6 (W-23) MERGED as #195 (commitment 182); commitments 79/94 checked (seq 185, 187), re-promised as 186/188; 188's instrument MERGED as #197; 186 read (seq 196): the per-region rule wins IN SAMPLE, its out-of-sample grade is #198 (merged; commitment 198); W-30 (sim tide parity) built DARK in #199, its evidence lane is commitment 203;
+done); 4 MERGED as #193 (its first graded rows: commitment 172, 2026-10-02); 5 (wind) MERGED as #194 (commitment 177); 6 (W-23) MERGED as #195 (commitment 182); commitments 79/94 checked (seq 185, 187), re-promised as 186/188; 188's instrument MERGED as #197; 186 read (seq 196): the per-region rule wins IN SAMPLE, its out-of-sample grade is #198 (merged; commitment 198); W-30 (sim tide parity) MERGED DARK as #199, its evidence lane is commitment 203;
 2 the consensus flip on commitment 79's evidence (its ledger-cap precondition is met by that PR); 3 the
 scalar-height flip on 48-72 h of `raw_surf:GFS_SCALAR` rows (commitment 149); 4 an S8 swell-direction (and period)
 lane in the ledger (33% of rating variance, no instrument), then test a consensus direction/period; 5 S9 wind in
