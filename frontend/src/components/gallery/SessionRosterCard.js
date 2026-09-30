@@ -15,6 +15,8 @@ import {
   Film,
   Bot,
   Hand,
+  Ticket,
+  CreditCard,
 } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
@@ -39,11 +41,11 @@ export const SessionRosterCard = ({
   if (!roster || roster.length === 0) return null;
 
   const sessionLabel = {
- live: { text: 'Live Session', color: '#10b981', emoji: '=+' },
- booking: { text: 'Booking', color: '#3b82f6', emoji: '=+' },
-    on_demand: { text: 'On-Demand', color: '#f59e0b', emoji: '?' },
- manual: { text: 'Manual', color: '#6b7280', emoji: '=+' }
- }[sessionType] || { text: 'Session', color: '#6b7280', emoji: '=+' };
+    live: { text: 'Live Session', color: '#10b981' },
+    booking: { text: 'Booking', color: '#3b82f6' },
+    on_demand: { text: 'On-Demand', color: '#f59e0b' },
+    manual: { text: 'Manual', color: '#6b7280' }
+  }[sessionType] || { text: 'Session', color: '#6b7280' };
 
   // -- COMPACT MODE --
   if (compact) {
@@ -71,7 +73,7 @@ export const SessionRosterCard = ({
           )}
         </div>
         <span className="text-[10px] text-muted-foreground font-medium ml-1">
-          {allDone ? <span className="text-emerald-500">? All delivered</span> : <span>{totalDelivered}/{totalSlots} sent</span>}
+          {allDone ? <span className="text-emerald-500">All delivered</span> : <span>{totalDelivered}/{totalSlots} sent</span>}
         </span>
       </div>
     );
@@ -96,7 +98,7 @@ export const SessionRosterCard = ({
           <div className="text-left">
             <h4 className="text-sm font-semibold text-foreground">Session Roster</h4>
             <p className="text-[11px] text-muted-foreground">
- {roster.length} surfer{roster.length !== 1 ? 's' : ''} +-+-+ {sessionLabel.emoji} {sessionLabel.text}
+              {roster.length} surfer{roster.length !== 1 ? 's' : ''} &middot; {sessionLabel.text}
             </p>
           </div>
         </div>
@@ -174,7 +176,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
       );
       setTaggedItems(prev => prev.filter(i => i.gallery_item_id !== item.gallery_item_id));
       const type = item.media_type === 'video' ? 'video' : 'photo';
- toast.success(`Untagged ${type} from ${full_name}${item.access_type === 'included' ? ' +-+-+ credit restored' : ''}`);
+      toast.success(`Untagged ${type} from ${full_name}${item.access_type === 'included' ? ' \u00B7 credit restored' : ''}`);
       if (onRosterUpdate) onRosterUpdate();
     } catch (err) {
       toast.error('Failed to untag item');
@@ -229,9 +231,9 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {isComplete ? (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981' }}>? Done</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(16,185,129,0.15)', color: '#10b981' }}>Done</span>
             ) : hasCredits ? (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>??? {credits_remaining} left</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>{credits_remaining} credits left</span>
             ) : items_delivered === 0 ? (
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(107,114,128,0.15)', color: '#9ca3af' }}>Waiting</span>
             ) : null}
@@ -253,7 +255,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                     <ZoomIn className="w-5 h-5 text-white" />
                   </div>
                   <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[8px] font-semibold px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 whitespace-nowrap">
-                    {selfie_url ? '?? Selfie' : '?? Avatar'}
+                    {selfie_url ? 'Selfie' : 'Avatar'}
                   </div>
                 </div>
               )}
@@ -270,7 +272,9 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                     delivered={items_delivered} included={photos_included} remaining={credits_remaining} color="#06b6d4" />
                 )}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
- <MiniPill icon={payment_method === 'credits' ? '?' : '=+'}
+                  <MiniPill icon={payment_method === 'credits'
+                      ? <Ticket className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
+                      : <CreditCard className="w-3 h-3 text-muted-foreground" aria-hidden="true" />}
                     text={amount_paid > 0 ? `$${amount_paid} paid` : 'Free'} />
                   <MiniPill icon={<Shield className="w-3 h-3" style={{ color: isComplete ? '#10b981' : '#f59e0b' }} />}
                     text={isComplete ? 'Fully delivered' : hasCredits ? `${credits_remaining} left` : 'Awaiting'} />
@@ -297,7 +301,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
                 </span>
                 {taggedItems.length > 0 && (
                   <span className="text-[10px] text-muted-foreground">
- {taggedItems.filter(i => i.media_type !== 'video').length} ?? +-+-+ {taggedItems.filter(i => i.media_type === 'video').length} ??
+                    {taggedItems.filter(i => i.media_type !== 'video').length} photos &middot; {taggedItems.filter(i => i.media_type === 'video').length} videos
                   </span>
                 )}
               </div>
@@ -340,10 +344,10 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
               {username && <p className="text-white/60 text-xs">@{username}</p>}
               <div className="flex items-center gap-2 mt-1.5">
                 <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: 'rgba(6,182,212,0.3)', color: '#67e8f9' }}>
-                  {selfie_url ? '?? Session Selfie' : '?? Profile Photo'}
+                  {selfie_url ? 'Session Selfie' : 'Profile Photo'}
                 </span>
                 <span className="text-[10px] text-white/50">
- ?? {photos_delivered}/{photos_included}{videos_included > 0 ? ` +-+-+ ?? ${videos_delivered}/${videos_included}` : ''}
+                  {photos_delivered}/{photos_included} photos{videos_included > 0 ? ` \u00B7 ${videos_delivered}/${videos_included} videos` : ''}
                 </span>
               </div>
             </div>
@@ -412,7 +416,7 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
         {/* Media type badge */}
         <div className="absolute bottom-0.5 left-0.5 text-[7px] px-1 py-0.5 rounded font-semibold"
           style={{ background: isVideo ? 'rgba(139,92,246,0.85)' : 'rgba(6,182,212,0.85)', color: 'white' }}>
- {isVideo ? '?? Vid' : '=+'}
+          {isVideo ? 'Video' : 'Photo'}
         </div>
         {/* Access indicator dot */}
         <div className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: accessColor, boxShadow: `0 0 4px ${accessColor}` }} />
@@ -423,7 +427,7 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
           </div>
         ) : (
           <div className="absolute top-0.5 left-0.5 flex items-center gap-0.5 px-1 py-0.5 rounded text-[7px] font-semibold" style={{ background: 'rgba(6,182,212,0.8)', color: 'white' }}>
-            <Hand className="w-2 h-2" /> ??
+            <Hand className="w-2 h-2" /> Manual
           </div>
         )}
       </div>

@@ -319,11 +319,11 @@ export const CrewPaymentStepPanel = ({ booking, crewMembers, getFullUrl: getFull
               </div>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
- <span className={textSecondary}>Your Share (Captain) G {totalPrice > 0 ? ((captainPayAmount / totalPrice) * 100).toFixed(0) : 0}%</span>
+                  <span className={textSecondary}>Your Share (Captain) &middot; {totalPrice > 0 ? ((captainPayAmount / totalPrice) * 100).toFixed(0) : 0}%</span>
                   <span className="font-medium text-yellow-400">${captainPayAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
- <span className={textSecondary}>Crew Covers G {totalPrice > 0 ? ((crewCoversAmount / totalPrice) * 100).toFixed(0) : 0}%</span>
+                  <span className={textSecondary}>Crew Covers &middot; {totalPrice > 0 ? ((crewCoversAmount / totalPrice) * 100).toFixed(0) : 0}%</span>
                   <span className={textPrimary}>${crewCoversAmount.toFixed(2)}</span>
                 </div>
               </div>

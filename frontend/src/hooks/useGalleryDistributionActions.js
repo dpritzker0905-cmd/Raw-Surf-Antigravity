@@ -79,7 +79,7 @@ export const useGalleryDistributionActions = ({
         const tierMsg = hasCredits 
           ? `${Math.min(count, participant.photos_credit_remaining)} included (full-res)` 
           : 'as previews';
-        toast.success(`++G Pushed ${count} items to ${surferName}'s Locker ${tierMsg}!`);
+        toast.success(`Pushed ${count} items to ${surferName}'s Locker ${tierMsg}!`);
       } else if (skipped > 0) {
         toast.info(`All items already in ${surferName}'s Locker`);
       } else {
@@ -109,7 +109,7 @@ export const useGalleryDistributionActions = ({
       );
       const total = response.data.total_distributed || 0;
       setDistributeProgress({ current: totalItems, total: totalItems });
-      toast.success(`++G Distributed ${total} locker items to all participants!`);
+      toast.success(`Distributed ${total} locker items to all participants!`);
       
       await fetchParticipants(selectedGallery.id);
     } catch (error) {
@@ -134,9 +134,9 @@ export const useGalleryDistributionActions = ({
       const matched = response.data.matches_found || 0;
       const processed = response.data.items_processed || 0;
       if (matched > 0) {
-        toast.success(`+++-G AI matched ${matched} items to surfers! (${processed} processed)`);
+        toast.success(`AI matched ${matched} items to surfers! (${processed} processed)`);
       } else {
-        toast.info(`+++-G AI processed ${processed} items +GG no confident matches found. Try manual tagging.`);
+        toast.info(`AI processed ${processed} items -- no confident matches found. Try manual tagging.`);
       }
       if (selectedGallery) {
         await fetchGalleryItems(selectedGallery.id);
@@ -182,9 +182,9 @@ export const useGalleryDistributionActions = ({
       if (alreadyTagged > 0) parts.push(`${alreadyTagged} already pending`);
       
       if (tagged > 0) {
-        toast.success(`++G ${parts.join(' +G- ')} +GG ${surferName}`);
+        toast.success(`${parts.join(' \u00B7 ')} for ${surferName}`);
       } else {
-        toast.info(`${parts.join(' +G- ')} for ${surferName}`);
+        toast.info(`${parts.join(' \u00B7 ')} for ${surferName}`);
       }
       await fetchGalleryItems(selectedGallery.id);
       await fetchParticipants(selectedGallery.id);

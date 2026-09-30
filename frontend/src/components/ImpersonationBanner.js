@@ -51,7 +51,7 @@ const ImpersonationBanner = () => {
             )}
             <div className="hidden sm:block">
               <p className="text-sm font-semibold leading-tight">{targetUser.full_name || targetUser.email}</p>
- <p className="text-xs opacity-80">{targetUser.role} G {targetUser.email}</p>
+              <p className="text-xs opacity-80">{targetUser.role} &middot; {targetUser.email}</p>
             </div>
           </div>
         </div>

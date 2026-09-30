@@ -80,3 +80,12 @@ on `origin/dev`, on #206's and #207's heads, and at `0b057d3d`. Each header had 
   moved to seq 232. Left open for the owner's word.
 - ⚠️ Render's build filter (`render.yaml`: it ignores `docs/**`, `audit/**` and `**/*.md`) does not ignore
   `backend/scripts/**`, so #208's merge restarts the Render backend (W-26), even though the script isn't served.
+
+## #206 merged; dev merged in; ledger re-appended (23:46:30Z)
+- The owner's account merged #206 at 23:39:24Z (`1ff11a05`, gh). Its ledger lines 231-233 are now `dev`'s, so this
+  branch's two lines were re-appended on top with their content kept, `acted_at` the first time and a note in
+  `outcome`. **Correction to the two sections above:** "ledger seq 231" (the measurement finding) is now **seq 234**,
+  and "ledger seq 232" (`pr_open #208`) is now **seq 235**. Seq 231-232 are #206's lines.
+- Seq 236: `pr_merge #206` (reconstructed; #208 is the next PR, as the completeness check expects). STATE: #206
+  moved to merged, `dev` = `1ff11a05`, #208's line updated, anchor moved to seq 236.
+- #206's log header `## PR and ledger (23:14Z-23:17Z)` is now on `dev`, and so is its correction line (seq 233).

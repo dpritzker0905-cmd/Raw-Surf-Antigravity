@@ -69,8 +69,8 @@ const DispatchChatBlock = ({
                 chatUnreadCount > 0 ? (isLight ? 'text-gray-900 font-medium' : 'text-white font-medium') : (isLight ? 'text-gray-500' : 'text-zinc-400')
               }`}>
                 {bgLatestMessage.message_type === 'voice_note'
- ? '=n+ Voice note'
- : (bgLatestMessage.content || '=+ Media')}
+                  ? 'Voice note'
+                  : (bgLatestMessage.content || 'Media')}
               </p>
             </div>
           </button>

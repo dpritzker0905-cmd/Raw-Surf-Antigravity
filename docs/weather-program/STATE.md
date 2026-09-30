@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-09-30 23:26Z** (logs: `log/2026-09-30-clock-every-header.md` (#208), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 23:46Z** (logs: `log/2026-09-30-clock-every-header.md` (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
@@ -49,15 +49,16 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `8abc6e61`** (#205 at 2026-09-30 22:55:23Z, the map markers' nested-interactive fix; frontend, so Render
+- **`dev` = `1ff11a05`** (#206 at 2026-09-30 23:39:24Z, the encoding-debris cleanup; frontend, so Render
   restarts, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
 - **Open PRs of ours:** #208, the log clock check reads every `## ` header (branch `claude/clock-check-every-header`;
   L-P10; measured first: 0 FAIL on every committed log; 7 headers written ahead of their commit by `git blame`,
-  an owner decision whether to move to a per-header reference and grandfather them; its merge restarts Render,
-  W-26; seq 231-232). #206 and #207 are open too, from other sessions; all three append ledger lines from seq 230,
-  so whichever merges later re-appends. Merged 2026-09-30: #205 (22:55:23Z as `8abc6e61`, the marker PR), #204 (22:15:26Z, the map chrome in three themes), #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
+  the owner said yes to a per-header reference; its merge restarts Render, W-26; seq 234-235, re-appended after
+  #206 merged). #207 is open too, from session c188; it appends ledger lines from seq 230, so it re-appends after
+  whichever merges first. Merged 2026-09-30: #206 (23:39:24Z as `1ff11a05`, the encoding-debris cleanup; seq 231,
+  its merge seq 236), #205 (22:55:23Z as `8abc6e61`, the marker PR; seq 232), #204 (22:15:26Z, the map chrome in three themes), #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
   W-31 `unknown_depth`), #200 (20:44:00Z, commitment 203:
   the probe grades with the glyph's tide; the A/B dispatch pair follows), #199 (20:25:43Z, W-30 DARK
   behind `SIM_SERVED_TIDE` '0', with the catalogue fix; as opened it was inert, seq 205), #198
@@ -105,7 +106,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 232, sha256 1f5c64df3fbaf4e41018088a78e692da06e8242189741419fadc368482e8fcf6**
+  **Ledger head: seq 236, sha256 f19bfb139f19e4cf07c2168ab69787a0953940b5c19ce16e91cffca2e3a775c7**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

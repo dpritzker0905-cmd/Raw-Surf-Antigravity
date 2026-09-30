@@ -3,7 +3,13 @@
  * Reduces CrewChat from 52.6KB to under 50KB.
  */
 import React from 'react';
+import { File as FileIcon, FileText, FileSpreadsheet, FileArchive, Presentation } from 'lucide-react';
 import { Badge } from '../ui/badge';
+
+// The backend (routes/crew/crew_chat_media.py) stores an uncaptioned file message as
+// "\U0001f4ce <original name>": paperclip + name. The bubble already shows the name, so that
+// generated content is hidden; a real caption is shown.
+export const FILE_MESSAGE_AUTO_PREFIX = '\u{1F4CE}';
 
 const formatFileSize = (bytes) => {
     if (bytes < 1024) return `${bytes}B`;
@@ -11,14 +17,16 @@ const formatFileSize = (bytes) => {
     return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
   };
 
-  const getFileIcon = (fileType) => {
- if (fileType?.includes('pdf')) return '=';
- if (fileType?.includes('word') || fileType?.includes('doc')) return '=';
- if (fileType?.includes('excel') || fileType?.includes('sheet')) return '=';
- if (fileType?.includes('powerpoint') || fileType?.includes('presentation')) return '=';
- if (fileType?.includes('zip') || fileType?.includes('archive')) return '=';
- if (fileType?.includes('text') || fileType?.includes('csv')) return '=';
- return '=';
+  // Decorative: the file name is always rendered beside the icon.
+  const getFileIcon = (fileType, className = 'w-8 h-8') => {
+    let Icon = FileIcon;
+    if (fileType?.includes('pdf')) Icon = FileText;
+    else if (fileType?.includes('word') || fileType?.includes('doc')) Icon = FileText;
+    else if (fileType?.includes('excel') || fileType?.includes('sheet')) Icon = FileSpreadsheet;
+    else if (fileType?.includes('powerpoint') || fileType?.includes('presentation')) Icon = Presentation;
+    else if (fileType?.includes('zip') || fileType?.includes('archive')) Icon = FileArchive;
+    else if (fileType?.includes('text') || fileType?.includes('csv')) Icon = FileText;
+    return <Icon className={className} aria-hidden="true" />;
   };
 
   const getTotalReactions = (reactions) => {
@@ -92,32 +100,32 @@ const formatFileSize = (bytes) => {
 
 export const QUICK_ACTIONS = [
   // Status updates
- { id: 'omw', text: 'On my way! +-+-++-+G++', category: 'status', icon: '+-+-++-+GG' },
- { id: 'late', text: 'Running 5 mins late', category: 'status', icon: '+-+-+-' },
- { id: 'arrived', text: 'Just arrived at the spot', category: 'status', icon: '+-+-++G++-' },
- { id: 'parking', text: 'Looking for parking', category: 'status', icon: '+-+-++G-+-++-+-++-' },
- { id: 'paddling', text: 'Paddling out now!', category: 'status', icon: '+-+-++-+-' },
- { id: 'ready', text: 'Ready when you are! +-+-++-+GP-', category: 'status', icon: '+-+G+G-' },
+  { id: 'omw', text: 'On my way!', category: 'status' },
+  { id: 'late', text: 'Running 5 mins late', category: 'status' },
+  { id: 'arrived', text: 'Just arrived at the spot', category: 'status' },
+  { id: 'parking', text: 'Looking for parking', category: 'status' },
+  { id: 'paddling', text: 'Paddling out now!', category: 'status' },
+  { id: 'ready', text: 'Ready when you are!', category: 'status' },
 
   // Wave conditions
- { id: 'pumping', text: 'Waves are pumping! +-+-++G+-', category: 'conditions', icon: '+-+-++G+-' },
- { id: 'glassy', text: "It's glassy out here! +-+-++G-+-", category: 'conditions', icon: '+-+G+-' },
- { id: 'choppy', text: 'Getting a bit choppy', category: 'conditions', icon: '+-+-++GG+-' },
- { id: 'crowded', text: 'Pretty crowded lineup', category: 'conditions', icon: '+-+-++G-+-' },
- { id: 'uncrowded', text: 'Lineup is empty! +-+-++-++G-', category: 'conditions', icon: '+-+-++-+GG+-+-++-' },
- { id: 'perfect', text: 'Conditions are PERFECT', category: 'conditions', icon: '+-+-++GG+-' },
+  { id: 'pumping', text: 'Waves are pumping!', category: 'conditions' },
+  { id: 'glassy', text: "It's glassy out here!", category: 'conditions' },
+  { id: 'choppy', text: 'Getting a bit choppy', category: 'conditions' },
+  { id: 'crowded', text: 'Pretty crowded lineup', category: 'conditions' },
+  { id: 'uncrowded', text: 'Lineup is empty!', category: 'conditions' },
+  { id: 'perfect', text: 'Conditions are PERFECT', category: 'conditions' },
 
   // Logistics
- { id: 'gear', text: 'Bringing extra gear', category: 'logistics', icon: '+-+-++-++GG' },
- { id: 'wax', text: 'Got extra wax if needed', category: 'logistics', icon: '+-+-++-+-' },
- { id: 'drinks', text: 'Bringing drinks/snacks', category: 'logistics', icon: '+-+-++-+-' },
- { id: 'camera', text: 'Camera is ready! +-+-++G++-+', category: 'logistics', icon: '+-+-++G++-+' },
+  { id: 'gear', text: 'Bringing extra gear', category: 'logistics' },
+  { id: 'wax', text: 'Got extra wax if needed', category: 'logistics' },
+  { id: 'drinks', text: 'Bringing drinks/snacks', category: 'logistics' },
+  { id: 'camera', text: 'Camera is ready!', category: 'logistics' },
 
   // Vibes
- { id: 'stoked', text: 'So stoked for this session!', category: 'vibes', icon: '+-+-++-+-' },
- { id: 'sunset', text: 'Staying for sunset +-+-++G+G-', category: 'vibes', icon: '+-+-++G+G-' },
- { id: 'thanks', text: 'Thanks for the session! +-+-++-+GP-', category: 'vibes', icon: '+-+-++GP-+-' },
- { id: 'again', text: "Let's do this again soon!", category: 'vibes', icon: '+-+-++G-+G++' },
+  { id: 'stoked', text: 'So stoked for this session!', category: 'vibes' },
+  { id: 'sunset', text: 'Staying for sunset', category: 'vibes' },
+  { id: 'thanks', text: 'Thanks for the session!', category: 'vibes' },
+  { id: 'again', text: "Let's do this again soon!", category: 'vibes' },
 ];
 
 export { formatFileSize, getFileIcon, getTotalReactions, hasUserReacted, getRoleBadge, getInitials, renderMessageContent };

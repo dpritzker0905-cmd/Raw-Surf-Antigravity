@@ -253,9 +253,9 @@ export const PhotographerGalleryManager = () => {
                   gallery.session_type === 'on_demand' ? 'border-orange-500/50 text-orange-400 text-[10px]' :
                   'border-zinc-500/50 text-zinc-400 text-[10px]'
                 }>
- {gallery.session_type === 'live' ? '++-+G+-++-+G-+G+G+-+ Live Session' : 
- gallery.session_type === 'booking' ? '++-+G+-++-+G-+G+-+G-+- Booking' : 
- gallery.session_type === 'on_demand' ? '++-+G+-+G+- On-Demand' : gallery.session_type}
+                  {gallery.session_type === 'live' ? 'Live Session' : 
+                   gallery.session_type === 'booking' ? 'Booking' : 
+                   gallery.session_type === 'on_demand' ? 'On-Demand' : gallery.session_type}
                 </Badge>
               )}
               {gallery.session_type === 'manual' && (
@@ -290,7 +290,7 @@ export const PhotographerGalleryManager = () => {
                   const willPublish = !gallery?.is_public;
                   await apiClient.post(`/gallery/${galleryId}/publish?photographer_id=${user?.profile_id}`, { is_published: willPublish });
                   setGallery(prev => ({ ...prev, is_public: willPublish, is_featured: willPublish }));
- toast.success(willPublish ? '++-+G+-++-+G-+G+G+-+ Gallery published to your Sessions tab!' : 'Gallery unpublished');
+                  toast.success(willPublish ? 'Gallery published to your Sessions tab!' : 'Gallery unpublished');
                 } catch (err) {
                   toast.error('Failed to publish gallery');
                 } finally {
@@ -308,7 +308,7 @@ export const PhotographerGalleryManager = () => {
               ) : (
                 <Globe className="w-4 h-4 mr-2" />
               )}
-              {gallery?.is_public ? '? Published' : 'Publish Gallery'}
+              {gallery?.is_public ? 'Published' : 'Publish Gallery'}
             </Button>
             {showPricing && (
               <Button aria-label="Dollar Sign"
@@ -496,9 +496,9 @@ export const PhotographerGalleryManager = () => {
               <SelectItem value="videos">Videos Only</SelectItem>
               <SelectItem value="tagged">Tagged</SelectItem>
               <SelectItem value="untagged">Untagged</SelectItem>
-              <SelectItem value="distributed">? Distributed</SelectItem>
-              <SelectItem value="undistributed">? Undistributed</SelectItem>
-                <SelectItem value="ai_pending">{String.fromCodePoint(0x1F916)} AI Pending</SelectItem>
+              <SelectItem value="distributed">Distributed</SelectItem>
+              <SelectItem value="undistributed">Undistributed</SelectItem>
+                <SelectItem value="ai_pending">AI Pending</SelectItem>
             </SelectContent>
           </Select>
           

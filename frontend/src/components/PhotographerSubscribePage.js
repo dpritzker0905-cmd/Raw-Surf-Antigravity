@@ -298,7 +298,7 @@ export const PhotographerSubscribePage = () => {
                   {/* Popular badge */}
                   {isPopular && (
                     <div className="bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-center text-xs font-bold py-1.5 tracking-wide">
-                      ? MOST POPULAR
+                      MOST POPULAR
                     </div>
                   )}
 
@@ -395,7 +395,7 @@ export const PhotographerSubscribePage = () => {
                       </p>
                     ) : activeSub ? (
                       <p className={`text-xs text-center text-emerald-400 py-2 font-medium`}>
-                        ? You already have an active subscription
+                        You already have an active subscription
                       </p>
                     ) : (
                       <div className="flex gap-2">

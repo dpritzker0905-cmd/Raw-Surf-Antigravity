@@ -228,7 +228,7 @@ const GoLiveModal = ({ isOpen, onClose, onStreamEnded }) => {
   // -- Initiate countdown then start stream --
   const handleGoLive = useCallback(() => {
     if (signalQuality === 'poor') {
- toast.warning('+-+-+-+-+-++- Poor signal detected. Your stream may be unstable.');
+      toast.warning('Poor signal detected. Your stream may be unstable.');
       // Don't block - let user decide
     }
     setPhase('countdown');

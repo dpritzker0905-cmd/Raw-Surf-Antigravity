@@ -74,7 +74,7 @@ export const ProfileQuickBookModal = ({
             <span className="text-2xl font-bold text-yellow-400">${quickBookTotal.toFixed(2)}</span>
           </div>
           <p className="text-sm text-gray-400">
- ${quickBookHourlyRate}/hr + {quickBookDuration} hr{quickBookDuration > 1 ? 's' : ''} = ${quickBookTotal.toFixed(2)}
+            ${quickBookHourlyRate}/hr &times; {quickBookDuration} hr{quickBookDuration > 1 ? 's' : ''} = ${quickBookTotal.toFixed(2)}
           </p>
         </div>
 
