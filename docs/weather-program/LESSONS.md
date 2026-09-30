@@ -181,3 +181,16 @@ before starting it.
 - **L-O4 · A measurement's fan-out is load on what it measures.** 0.5 s-spaced `/grid` fetches during a core ingest
   drew 9 Supabase 429s; 1.5 s spacing drew none in 60 requests. Space audit fetches, and ledger the load you added
   when it touches production. (2026-09-30)
+- **L-A7 · We learn what we mechanize.** The ledger's 17 corrections to 2026-09-30, sorted by the lesson each broke:
+  every lesson enforced by a check (the file-size CI, the by-path import test, `acted_at` <= `at`, the completeness
+  audit, the SCOREBOARD order check) had ZERO recurrences after it was written; the prose-only ones recurred:
+  estimated timestamps (L-P10) 3 times after the lesson (seq 109, 135, 145), and claims that outran what was checked
+  (L-F6, L-P11, L-S12, L-S17's family) in 8 of the 17. So: when a correction repeats a written lesson, the fix is a
+  check in the same session. L-P10 became two (2026-09-30): `action_ledger.py append` refuses an estimated time in
+  `verified`, and `memory_audit.py` reads HANDOFF headers; building the second exposed that the clock check's 5-minute
+  slack had been wider than the real mistake (4 min 42 s), so it is 1 minute now. Over-scoped claims resist a check;
+  their countermeasure stays the controls (L-S4) and stating the configuration (L-S17).
+- **L-O5 · Judge Render memory on the 7-day chart, never one post-restart reading.** The F-08 Stage A "baseline" of
+  820 MB was a fresh-restart outlier (38-45% of 2 GB); the normal level then was 70-80%. Every deploy restarts the box,
+  so a single `/api/health` RSS after a merge measures the restart, not the load. (2026-09-26, moved from local memory
+  2026-09-30)

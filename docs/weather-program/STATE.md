@@ -1,9 +1,14 @@
 # Weather program: state
 
-**Updated 2026-09-30 03:13Z** (logs: `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 12:41Z** (logs: `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- **MEMORY AUDIT 2026-09-30 (`log/2026-09-30-memory-audit.md`):** every store re-checked against reality; 5 local
+  memories were stale or wrong (fixed, dated); the Mem0 connector stores a plain-text API key (**owner: rotate it
+  at Mem0 and delete memory `623a983f-...`**); we learn only what we mechanize (LESSONS L-A7), so L-P10 is now two
+  checks (`action_ledger.py` refuses estimated times in `verified`; `memory_audit.py` reads HANDOFF headers; clock
+  slack 5 -> 1 min). W-50 (512 MB) corrected in BRAIN_RULES and the system-brain doc.
 - **AUDIT 2026-09-30, read first: `log/2026-09-30-audit-sota.md`.** Four new findings, each priced on production:
   (1) `/point` interpolated marine HEIGHT as a vector (served heights low wherever corner directions diverge: 11% of
   spots > 5% low; same-model MAE 0.055 -> 0.043 with scalar) -> fix built DARK (`SAMPLER_SCALAR_HEIGHT`);
@@ -18,7 +23,9 @@ is a claim, not a measurement.
 - **`dev` = `8fd1b948`** (#188 at 2026-09-30 02:11:33Z, docs only; Render serves `79b7ef66`, #186). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #189, the 2026-09-30 audit PR (branch `claude/audit-sota-2026-09-30`: the audit record + the dark
+- **Open PRs of ours:** the memory-audit PR (branch `claude/memory-audit-2026-09-30`, stacked on #189). #189, the
+  2026-09-30 audit PR, is ALL GREEN with hosted chain 134 / 1630 = the projection (read after 12:31:58Z); the
+  owner left it open overnight. (branch `claude/audit-sota-2026-09-30`: the audit record + the dark
   scalar height + its armed ledger shadow + the ledger cap). #187 and #188 merged. Merged 2026-09-29/30: #181 (the plan), #182 (W-12), #183 (W-32),
   #184 (W-36), #185 (W-37), #186 (W-34).
 - **The weather sim does not reach production map users** (#181 F1): `fc140024` is 3,283 commits behind `dev` and its
@@ -55,7 +62,7 @@ is a claim, not a measurement.
   the audit PR), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 152, sha256 9743bbe7c4a86035de03f78216cb7e584e5a4c6f7f172c845a4f0db4e3cc3d5e**
+  **Ledger head: seq 158, sha256 8ea4eda087a5d6d438299733eeed493107741964b06c23b598f158562e999717**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 merge the audit PR (dark);

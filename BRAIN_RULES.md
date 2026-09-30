@@ -125,7 +125,7 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
 
 ### 12. System Feedback Loop Telemetry Rules
 * **Low-Impact Ingestion**: Telemetry logs and behavior metrics must be enqueued asynchronously using non-blocking cycles (`requestIdleCallback` or background worker queues) to prevent UI frame rate drops.
-* **Performance Anomaly Thresholds**: Real-time warning alerts must trigger immediately if Map Renderer frame rate drops below $30\text{ FPS}$ or if container memory usage spikes above $512\text{ MB}$.
+* **Performance Anomaly Thresholds**: Real-time warning alerts must trigger immediately if Map Renderer frame rate drops below $30\text{ FPS}$ or if container memory usage spikes above ~~$512\text{ MB}$~~ **75% of the container limit (about 1.5 GB of the 2 GB plan, D-005)**. *(Corrected 2026-09-30, W-50: 512 MB was an old plan's size. The box degraded at 1,588 MB, 85.3% of 2,048 MB, on 2026-09-21 (`backend/services/memory_trace.py`), and ran at 54-62% on 2026-09-30, so 75% alerts before the known degradation point.)*
 * **Error Classification Levels**: Critical errors and fatal logs (`level in ('error', 'fatal')` or HTTP status $\ge 500$) must trigger real-time slack/webhook regression alerts immediately.
 * **Conversion Funnel Integrity**: Funnel conversion and dropoff percentages must strictly trace matching surfer session transitions from `booking_started` to `booking_completed` to guarantee conversion audit accuracy.
 

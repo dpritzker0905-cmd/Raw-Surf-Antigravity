@@ -55,7 +55,10 @@ REQUIRED_DOCS = ("README.md", "STATE.md", "DECISIONS.md", "SCOREBOARD.md", "LESS
 MEMORY_TYPES = {"user", "feedback", "project", "reference"}
 SLOW_TYPES = {"user", "feedback"}
 LONG_LINES = 60
-CLOCK_SLACK = timedelta(minutes=5)
+# ⬇ 5 min -> 1 min (2026-09-30 memory audit). An honest HH:MM reading can lead its commit only by minute rounding
+# (< 60 s). The real L-P10 case this check exists for, HANDOFF-2026-09-30's '~01:45Z' committed at 01:40:18Z, led by
+# 4 min 42 s and sat INSIDE the old 5-minute slack: the check could not have caught the mistake that motivated it.
+CLOCK_SLACK = timedelta(minutes=1)
 MERGE_RE = re.compile(r"^Merge pull request #(\d+) ")
 SEQ_REF_RE = re.compile(r"(?i)\bledger seq (\d+)(?:\s*[-\u2013]\s*(\d+))?")
 # Credential shapes and infrastructure identifiers that must never reach this PUBLIC repo (CLAUDE.md, first rule).
@@ -265,6 +268,29 @@ def check_clock(state_text: str, state_ref: str, logs: dict) -> list:
     return res
 
 
+HANDOFF_WRITTEN_RE = re.compile(r"written (\d{4}-\d{2}-\d{2})([^)\n]*)")
+
+
+def check_handoff_clock(handoffs: dict) -> list:
+    """A HANDOFF header's `written YYYY-MM-DD ... HH:MMZ` must not be later than the commit that wrote it
+    (`handoffs`: {filename: (text, ref_iso)}). Added 2026-09-30: the L-P10 estimate in HANDOFF-2026-09-30.md's header
+    ('~01:45Z', committed 01:40Z; ledger seq 135) passed because the clock check read only STATE and the logs. PURE."""
+    res = []
+    for name, (text, ref) in handoffs.items():
+        m = HANDOFF_WRITTEN_RE.search("\n".join(text.splitlines()[:3]))
+        if not m or not ref:
+            continue
+        times = re.findall(r"(\d{2}):(\d{2})Z", m.group(2))
+        if not times:
+            continue
+        hh, mm = times[-1]
+        t = _utc(f"{m.group(1)}T{hh}:{mm}:00Z")
+        if t > _utc(ref) + CLOCK_SLACK:
+            res.append(("FAIL", f"{name}: the header says written {m.group(1)} ...{hh}:{mm}Z, later than when it was "
+                                f"written ({ref}): an estimate, not a clock reading (LESSONS L-P10)"))
+    return res
+
+
 def check_seq_refs(texts: dict, head_seq: int) -> list:
     """Every 'ledger seq N' (or 'N-M') cited in the docs is at or before the head. PURE."""
     res = []
@@ -334,6 +360,9 @@ def audit_completeness_and_clock(docs_dir: str = DOCS, require_history: bool = F
         if re.match(r"\d{4}-\d{2}-\d{2}-.+\.md$", f):
             logs[f] = (_read(os.path.join(logdir, f)), written_at(f"{rel}/log/{f}"))
     res += check_clock(_read(os.path.join(docs_dir, "STATE.md")), written_at(f"{rel}/STATE.md"), logs)
+    handoffs = {f: (_read(os.path.join(docs_dir, f)), written_at(f"{rel}/{f}"))
+                for f in sorted(os.listdir(docs_dir)) if re.match(r"HANDOFF-.+\.md$", f)}
+    res += check_handoff_clock(handoffs)
     texts = {}
     for dirpath, _, fs in os.walk(docs_dir):
         for f in fs:
@@ -365,6 +394,12 @@ def selftest() -> list:
         fails.append("clock: a log header ending after its commit was not caught")
     if check_clock("", "", {"2026-09-29-x.md": (log, "2026-09-29T19:10:00Z")}):
         fails.append("clock: a log header before its commit was flagged")
+    ho = "# Weather program handoff — 2026-09-30 (written 2026-09-30 ~01:45Z by the session x)\n\nbody\n"
+    if not check_handoff_clock({"HANDOFF-2026-09-30.md": (ho, "2026-09-30T01:40:18Z")}):
+        fails.append("clock: the seq-135 handoff header (~01:45Z, committed 01:40:18Z) was not caught")
+    ok = "# Weather program handoff — 2026-09-30 (written 2026-09-30 01:30-01:40Z by the session x)\n"
+    if check_handoff_clock({"HANDOFF-2026-09-30.md": (ok, "2026-09-30T01:40:18Z")}):
+        fails.append("clock: a handoff header bounded by its commit was flagged")
     if not check_seq_refs({"STATE.md": "see ledger seq 70-72"}, 71) or check_seq_refs({"a": "ledger seq 69-71"}, 71):
         fails.append("seq refs: a reference past the head was missed, or one inside it was flagged")
     import tempfile
