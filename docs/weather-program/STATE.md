@@ -1,9 +1,17 @@
 # Weather program: state
 
-**Updated 2026-09-30 20:45Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 21:10Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- **2026-09-30 evening reads (session c188):** (1) **Commitment 198 (seq 215): the per-region consensus rule OUT OF
+  SAMPLE.** Hawaii CONFIRMED on the training weeks (GFS 0.313 < equal 0.345, n 6,817); atlantic_se REFUTED (equal
+  0.168 < GFS 0.181, n 11,942). Hawaii-only rule: train 0.192 vs equal 0.196 (-1.9%) vs GFS 0.229 (-16%). **Owner
+  decision pending: serve the equal mean everywhere except Hawaii** (amends D-006; build dark on the word).
+  (2) **Commitment 203 (seq 214): W-30's A/B** on the parity monitor: tide-blind sim max 9.6, 3 level differences at
+  the banded spots; SIM_SERVED_TIDE=1: 0.0 and 0. **Owner decision pending: flip SIM_SERVED_TIDE.**
+  (3) Commitment 188 (seq 216): no big-swell calibration now; atlantic_ne at the 0.2 m threshold on one week, re-read
+  on a disjoint week (commitment 217, due 2026-10-08).
 - **Commitment 186 READ (seq 196, corrected by 199), 2026-09-30T18:55:49Z pass:** the built consensus shadow matches
   its definition (abs(shadow - equal) median 0.000, p90 0.013 m; n 92 at +24 h) and beats served GFS on the same
   pairs (0.135 vs 0.175 m). The per-region rule (GFS in hawaii and atlantic_se, the equal mean elsewhere) reads 0.271
@@ -34,7 +42,8 @@ is a claim, not a measurement.
   `2123d70e` (#195, W-23) from 18:54:40Z (ledger seq 194); the #197-#200 deploys follow. ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #201, the W-31 PR (branch `claude/w31-unknown-depth`; a coastal point with no usable depth is the
+- **Open PRs of ours:** the findings PR (branch `claude/findings-198-188-203`, docs: the 198/188/203
+  reads), stacked on #201, the W-31 PR (branch `claude/w31-unknown-depth`; a coastal point with no usable depth is the
   named regime `unknown_depth`, not `shelf`; served-neutral). Merged 2026-09-30: #200 (20:44:00Z, commitment 203:
   the probe grades with the glyph's tide; the A/B dispatch pair follows), #199 (20:25:43Z, W-30 DARK
   behind `SIM_SERVED_TIDE` '0', with the catalogue fix; as opened it was inert, seq 205), #198
@@ -82,7 +91,7 @@ is a claim, not a measurement.
   #201), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 210, sha256 72f42e04ea0829da92d4a58edf34740c6e808d0c84d8ddef7dd53ee6e564902a**
+  **Ledger head: seq 218, sha256 aef3e551a93a86fadb96d9bcccdbed3f2dcc6d08b5ea8e9ded18904e2c4d6503**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

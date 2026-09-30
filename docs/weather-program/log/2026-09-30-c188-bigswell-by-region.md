@@ -154,3 +154,28 @@ same condition and arguments, so it costs zero new I/O (a test counts one reques
   serving producer `estimate_surf_at` per L-P17, the grid); mutations 4/4. 610 regime-touching tests pass.
 - #200 MERGED 20:44:00Z as `3048b481` (ledger seq 209): hosted chain 137 / 1666 = the projection. W-31's floor is set
   from it: chain 138 / 1668 (reading 1674).
+- #201's first CI run failed only `backend-floor-staleness`: GitHub's run list answered a 45-day-old "newest
+  successful dev run" (the known transient, handoff 7); every other job passed (chain 138 / 1674 = the projection);
+  the failed job was re-run after the run completed and passed: 15 pass, 3 skipped.
+
+### Commitment 203 FULFILLED (ledger seq 211-214): W-30's A/B
+- ⚠️ My first pair of dispatches ran concurrently and the workflow's `concurrency: cancel-in-progress` cancelled the
+  first (seq 211); re-run in sequence (seq 213). Read the concurrency block before dispatching a pair.
+- Same `dev` 3048b481, both arms 3 min apart, regions=hawaii + the 18 banded spots (Florida, low water, norm 0.11-0.17):
+  SIM_SERVED_TIDE=1: 21 rows, dScore 0.0 / 0.0, 0 level differences (tide applied at the 14 glyphs that carried it).
+  SIM_SERVED_TIDE=0: max 9.6, 3 level differences, all banded ('Mid tide' spots at low water read high).
+- Recommendation to the owner: flip SIM_SERVED_TIDE (the default in `sim_observed.glyph_tide` and the monitor's
+  dispatch default, together). SCOREBOARD S4 row added.
+
+### Commitments 198 and 188 READ (pass 2026-09-30T20:57:07Z, precompute 36771572110 at 78c568d9; ledger seq 215-217)
+- The first fetch after the precompute answered `{"available": false, "summary": null, "spots": []}` (HTTP 200); the
+  retry seconds later served the new report. n = 1; plausibly a read while the report object was being replaced.
+- 198: the two-coast rule passes the pre-registered out-of-sample test only on the letter (train rule 0.185/0.193/
+  0.206 vs equal 0.186/0.194/0.208). Per coast on the training weeks: hawaii CONFIRMED (GFS 0.313 < equal 0.345),
+  atlantic_se REFUTED (equal 0.168 < GFS 0.181). Hawaii-only: train 0.1922 vs equal 0.1959 (-1.9%) vs GFS 0.2288
+  (-16.0%); held-out -3.7% vs equal. Recommendation: the equal mean everywhere except Hawaii, built dark, then the
+  owner's flip (amends D-006). This is the instrument doing its job: the in-sample winner carried a coast that one
+  week had chosen.
+- 188: Hawaii's equal-mean big-day over-call (+0.44 to +0.67 m, n >= 62) is removed by the Hawaii-only serve rule;
+  atlantic_ne sits at the 0.2 m threshold on one week (-0.201/-0.126/-0.205); atlantic_se is very low for both
+  models but n < 30. No calibration build now; re-read on a disjoint week (commitment 217, due 2026-10-08).
