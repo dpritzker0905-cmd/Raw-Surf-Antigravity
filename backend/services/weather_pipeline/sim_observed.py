@@ -136,9 +136,42 @@ def fetch_served_rating(lat: float, lng: float, valid_time: str, model: str = "G
         # taken across that gap is measuring the clock, not the composition.
         "served_valid_time": payload.get("served_valid_time"),
         "frame_offset_hours": payload.get("frame_offset_hours"),
+        # The tide state the glyph graded with ({height_m, norm, trend}; None when its lane ran
+        # without RATING_TIDE). `served_tide` below hands it to the sim's rating (W-30).
+        "tide": best.get("tide"),
     }
     _remember(key, out)
     return out
+
+
+def served_tide(spot: Dict[str, Any], provenance: Dict[str, Any], baseline_source: str,
+                hour: Optional[str]) -> Optional[Dict[str, Any]]:
+    """The tide state THE GLYPH graded this spot-hour with, for the sim's rating, or None (W-30).
+
+    ★ AN OBSERVATION, NOT A FLAG. `rate_one_spot` applies `tide_fit` under RATING_TIDE, which is '1'
+    in the precompute lanes and absent from the sim's own process (the owner's MCP config carries no
+    env), so reading the flag here would leave the fix inert exactly where the sim runs: the
+    `served_reference` trap, one factor over. The glyph's own `tide` answers both questions at once,
+    whether production applies tide and at what level, for the same frame parity compares against.
+    ⚠️ ZERO NEW I/O: the same condition and arguments as `parity` below, so its fetch is this one's
+    cache hit. Only a live baseline: a what-if hour or a catalogue default was never rated by the app.
+    Gated SIM_SERVED_TIDE (default '0', dark): it changes the sim's quality where a spot's
+    `best_tide` parses to a band (18 of 1,773 in 2026-07; up to x0.5 at the wrong tide)."""
+    if os.environ.get("SIM_SERVED_TIDE", "0") != "1" or baseline_source != "live_forecast":
+        return None
+    if not (provenance or {}).get("served_surf_height_m"):
+        return None
+    observed = fetch_served_rating(spot.get("latitude"), spot.get("longitude"),
+                                   provenance.get("valid_time") or hour, spot_id=spot.get("id"))
+    tide = (observed or {}).get("tide")
+    norm = tide.get("norm") if isinstance(tide, dict) else None
+    # A served payload is a remote deploy's JSON: a NaN or out-of-range norm must never reach tide_fit.
+    # The range test alone rejects NaN and +-inf (every comparison with NaN is False); a mutation run
+    # proved a separate isfinite() check was dead.
+    if isinstance(norm, bool) or not isinstance(norm, (int, float)) or not 0.0 <= norm <= 1.0:
+        return None
+    return {"norm": float(norm), "trend": tide.get("trend"), "height_m": tide.get("height_m"),
+            "source": "served_glyph"}
 
 
 def score_parity(sim_score: float, served: Optional[Dict[str, Any]],

@@ -299,9 +299,9 @@ def get_weather_forecast(spot_name: str, valid_time: str = "") -> Dict[str, Any]
         # the global 1.2 m curve while the glyph grades locally, and the probe (which does look
         # up) would read GREEN over it — a false green on the path a user actually reads.
         allow_reference_lookup=True,
-        # ...and the curve the APP used, off that same response. The lookup above still needs
-        # RATING_LOCAL_SIZE in THIS process; this needs nothing but a reachable app.
-        served_reference_size_m=sim_forecast.served_reference(provenance))
+        # ...and the curve and tide the APP used (observed, no env; tide is W-30, SIM_SERVED_TIDE).
+        served_reference_size_m=sim_forecast.served_reference(provenance),
+        served_tide=sim_observed.served_tide(spot, provenance, source, hour))
 
     # PARITY, both halves. The app serves its own breaking height AND its own quality for this
     # coordinate; the sim computes both from the offshore vector through the production chain. A
