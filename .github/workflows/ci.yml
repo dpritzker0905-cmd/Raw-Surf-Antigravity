@@ -753,7 +753,12 @@ jobs:
           # hub names where its sea came from): hosted CI on PR #185 (run 36653165594 @ ed9d72dc) observed 174 files /
           # 2124 passed. The new tests/test_spot_hub_data_source.py (claimed by `--lane guards`) adds 6 executed tests:
           # 2124 + 6 = 2130, 2130 - 6 = 2124; files 175 EXACT; _FLOOR_SET_FROM["guards"] -> 2130.
-          MIN_FILES, MIN_PASSED = 175, 2124
+          # ⬆ MIN_FILES 175→176, MIN_PASSED 2124→2140 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (W-30: the sim
+          # grades tide from the glyph's own served tide state, dark): hosted CI on #197 (run 36764840449) observed 175
+          # files / 2130 passed. The new tests/test_sim_served_tide.py (claimed by `--lane guards`) adds 16 executed
+          # tests (the 16th, the catalogue path, found the fix inert): 2130 + 16 = 2146, 2146 - 6 = 2140; 176 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2146.
+          MIN_FILES, MIN_PASSED = 176, 2140
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
