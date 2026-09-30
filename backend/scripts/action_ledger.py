@@ -56,6 +56,21 @@ KINDS = frozenset({
 TEXT_FIELDS = ("actor", "kind", "target", "why", "authorized_by", "outcome", "verified", "rollback")
 REQUIRED = ("seq", "at", "prev", "evidence") + TEXT_FIELDS
 AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
+# LESSONS L-P10, MECHANIZED (2026-09-30 memory audit). `verified` says when and how a result was READ BACK, so an
+# estimated clock time there ("~02:21Z", "~23:55-00:05Z", "02:2xZ") is a claim nobody measured. The prose lesson did
+# not hold: it was broken three times after it was written (seq 109, seq 145, and a handoff header, seq 135, which
+# memory_audit now checks). Refused at APPEND, so history stays valid; a `pending:` note may forecast a time.
+ESTIMATED_TIME_RE = re.compile(r"~\s?\d{1,2}(?::\d{2})?(?:\s?[-–]\s?\d{1,2}(?::\d{2})?)?\s?Z"
+                               r"|\b\d{1,2}:\d?[xX]{1,2}Z|\b\d{1,2}[xX]{1,2}Z")
+
+
+def estimated_time_in_verified(verified: str):
+    """The estimated clock time in a `verified` field (or None). A `pending:` note is a forecast, not a reading. PURE."""
+    v = str(verified or "")
+    if v.lstrip().lower().startswith("pending"):
+        return None
+    m = ESTIMATED_TIME_RE.search(v)
+    return m.group(0) if m else None
 
 
 def canonical(entry: dict) -> str:
@@ -182,6 +197,10 @@ def append(path: str, **fields) -> dict:
     problems = check_entry(e, e["seq"])
     if problems:
         raise ValueError("refusing an invalid entry: " + "; ".join(problems))
+    est = estimated_time_in_verified(e.get("verified"))
+    if est:
+        raise ValueError(f"refusing an estimated time in `verified` ({est!r}): give the clock or platform reading "
+                         f"(`date -u`, a log timestamp) or a bound ('between 02:24:33Z and 02:31Z'); LESSONS L-P10")
     if lines and e["at"] < json.loads(lines[-1])["at"]:
         raise ValueError(f"at {e['at']} is earlier than the last entry's")
     with open(path, "a", encoding="utf-8", newline="") as f:
@@ -247,6 +266,21 @@ def selftest() -> list:
             fails.append(f"commitments: a clean ledger {verify(cl)} or wrong statuses {st}")
         if {c["seq"]: c["status"] for c in commitments(cl, "2026-09-29T08:00:00Z")}.get(2) != "open":
             fails.append("commitments: a commitment not yet due was not 'open'")
+        # L-P10 at append: the two real historical estimates are refused; a reading, a bound and a forecast are not.
+        pe = os.path.join(d, "EST.jsonl")
+        for bad in ("urllib reads 2026-09-30 ~02:21Z and 02:36Z", "a production build, 2026-09-29 ~23:55-00:05Z",
+                    "read at 02:2xZ"):
+            try:
+                append(pe, kind="finding", at="2026-09-29T05:00:00Z", **{**base, "verified": bad})
+                fails.append(f"estimated time: {bad!r} was accepted in `verified`")
+            except ValueError:
+                pass
+        for ok in ("date -u at the write: 23:56:24Z", "between 02:24:33Z and 02:31Z",
+                   "pending: the first pass after the deploy (~15:18Z)"):
+            try:
+                append(pe, kind="finding", at="2026-09-29T05:00:00Z", **{**base, "verified": ok})
+            except ValueError as ex:
+                fails.append(f"estimated time: {ok!r} was refused ({ex})")
 
         def cmut(*changes):
             """(line index, {field: value or None to drop}) pairs applied, then the chain re-hashed."""
