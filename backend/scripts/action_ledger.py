@@ -60,8 +60,9 @@ AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
 # estimated clock time there ("~02:21Z", "~23:55-00:05Z", "02:2xZ") is a claim nobody measured. The prose lesson did
 # not hold: it was broken three times after it was written (seq 109, seq 145, and a handoff header, seq 135, which
 # memory_audit now checks). Refused at APPEND, so history stays valid; a `pending:` note may forecast a time.
+# ⬆ Widened the same evening (seq 189 wrote "18:4x... bound"): an `HH:Mx` estimate is one with or without the Z.
 ESTIMATED_TIME_RE = re.compile(r"~\s?\d{1,2}(?::\d{2})?(?:\s?[-–]\s?\d{1,2}(?::\d{2})?)?\s?Z"
-                               r"|\b\d{1,2}:\d?[xX]{1,2}Z|\b\d{1,2}[xX]{1,2}Z")
+                               r"|\b\d{1,2}:\d?[xX]{1,2}(?![A-Za-z0-9])|\b\d{1,2}[xX]{1,2}Z")
 
 
 def estimated_time_in_verified(verified: str):
@@ -269,7 +270,7 @@ def selftest() -> list:
         # L-P10 at append: the two real historical estimates are refused; a reading, a bound and a forecast are not.
         pe = os.path.join(d, "EST.jsonl")
         for bad in ("urllib reads 2026-09-30 ~02:21Z and 02:36Z", "a production build, 2026-09-29 ~23:55-00:05Z",
-                    "read at 02:2xZ"):
+                    "read at 02:2xZ", "memory_audit.py 0 FAIL / 0 WARN at 18:4x... bound"):
             try:
                 append(pe, kind="finding", at="2026-09-29T05:00:00Z", **{**base, "verified": bad})
                 fails.append(f"estimated time: {bad!r} was accepted in `verified`")
