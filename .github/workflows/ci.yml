@@ -1208,7 +1208,11 @@ jobs:
           # by forecast bin, split by coast): hosted CI on #196 (run 36760791018 @ 14961798) observed 136 files / 1655.
           # tests/test_skill_consensus.py gains 2 executed tests: 1655 + 2 = 1657, 1657 - 6 = 1651; files 136
           # unchanged; _FLOOR_SET_FROM["chain"] -> 1657.
-          MIN_FILES, MIN_PASSED = 136, 1651
+          # ⬆ MIN_PASSED 1651→1655 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (the per-region serve rule graded on
+          # the weeks that did not choose it): hosted CI on #197 observed 136 files / 1657.
+          # tests/test_skill_consensus.py gains 4 executed tests: 1657 + 4 = 1661, 1661 - 6 = 1655; files 136
+          # unchanged; _FLOOR_SET_FROM["chain"] -> 1661.
+          MIN_FILES, MIN_PASSED = 136, 1655
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

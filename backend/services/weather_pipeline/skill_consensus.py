@@ -28,6 +28,11 @@ never saw. This is that measurement, from rows the ledger already scored: no fet
     the served lane's own forecast. The ratio is what a surfer would SEE move: on the Florida east tile at 06Z on
     2026-09-29 (GFS 0.30 m, EURO 0.52, ICON 0.67 median) the equal mean was x1.31 the served height at the median cell
     and x3.6 at p90, because calm-sea denominators are small. An all-sea MAE cannot show that.
+  * `regional_rule` + `by_region_train` (2026-09-30): the per-region serve rule (the served lane on the coasts in
+    RULE_GFS_REGIONS, the equal mean elsewhere) graded per lead on the held-out week AND on the training weeks, and
+    the coasts graded on the training weeks. The rule's coasts were CHOSEN on a held-out week, and passes hours apart
+    share nearly all of their 7 days (16:31Z and 18:55Z on 2026-09-30: 6.9), so agreeing passes are one sample, not
+    several; the older weeks never saw the choice, so they are the out-of-sample test (overlap is not independence).
   * Graded on the held-out week against each member and the best of them. Thin leads refuse with a status.
 
 Changes no served number.
@@ -62,6 +67,10 @@ BIG_SWELL_M = 3.0
 # pooled near-zero can hide a coast that needs calibrating: the regional calibration is built only if one reads
 # beyond ~0.2 m with n >= 30.
 BIG_SWELL_REGION_KEYS = ("equal",)          # after members[0], the served lane
+# THE PER-REGION SERVE RULE (2026-09-30): the coasts where the equal mean lost to the served GFS lane on the held-out
+# week of the 16:31Z pass (hawaii 0.443 -> 0.543 m, atlantic_se 0.222 -> 0.250; ledger seq 185) and again on the
+# 18:55Z pass (0.440 -> 0.538, 0.215 -> 0.243). A declared constant, so a later pass cannot quietly re-choose it.
+RULE_GFS_REGIONS = ("hawaii", "atlantic_se")
 
 
 def _ok(v) -> bool:
@@ -126,20 +135,26 @@ def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_
         keys.setdefault((r.get("buoy_id"), t.isoformat(), lead), {})[src] = (float(x), float(y), t)
     by_lead: Dict[int, Dict[str, list]] = {}
     held_out_by_region: Dict[str, list] = {}
+    train_by_region: Dict[str, list] = {}
     held_out_by_band: Dict[str, list] = {}
     from services.weather_pipeline.forecast_skill import obs_band     # lazy: forecast_skill imports this module
     for (buoy, _, lead), got in keys.items():
         if len(got) != len(members):
             continue                                   # like with like: every member on every pair
         t = next(iter(got.values()))[2]
-        g = by_lead.setdefault(lead, {"train": [], "test": [], "region": []})
-        g["test" if t >= cutoff else "train"].append(got)
-        if t >= cutoff:
-            g["region"].append(region_of(buoy))                  # aligned with "test": the big-swell split by coast
-            held_out_by_region.setdefault(region_of(buoy), []).append(got)
-            band = obs_band(next(iter(got.values()))[1])
-            if band:
-                held_out_by_band.setdefault(band, []).append(got)
+        region = region_of(buoy)
+        g = by_lead.setdefault(lead, {"train": [], "test": [], "region": [], "train_region": []})
+        if t < cutoff:
+            g["train"].append(got)
+            g["train_region"].append(region)                     # aligned with "train": the rule's older weeks
+            train_by_region.setdefault(region, []).append(got)
+            continue
+        g["test"].append(got)
+        g["region"].append(region)                               # aligned with "test": the big-swell split by coast
+        held_out_by_region.setdefault(region, []).append(got)
+        band = obs_band(next(iter(got.values()))[1])
+        if band:
+            held_out_by_band.setdefault(band, []).append(got)
     out = []
     for lead, g in sorted(by_lead.items()):
         entry = {"lead_h": lead, "n_train": len(g["train"]), "n_test": len(g["test"])}
@@ -179,11 +194,33 @@ def consensus_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_
             fc["pair_gfs_euro"] = pair
         entry["big_swell"] = _big_swell(fc, obs, members, min_test, g["region"])
         out.append(entry)
+    rule = [{"lead_h": lead, "held_out": _rule_grade(g["test"], g["region"], members, min_test),
+             "train": _rule_grade(g["train"], g["train_region"], members, min_test)}
+            for lead, g in sorted(by_lead.items())]
     return {"method": "three_model_consensus_equal_debiased_weighted", "members": list(members),
             "holdout_days": holdout_days, "cutoff": cutoff.isoformat(),
             "paired_keys": sum(e["n_train"] + e["n_test"] for e in out), "by_lead": out,
             "by_region": _graded_groups(held_out_by_region, members, min_test),
-            "by_band": _graded_groups(held_out_by_band, members, min_test)}
+            "by_region_train": _graded_groups(train_by_region, members, min_test),
+            "by_band": _graded_groups(held_out_by_band, members, min_test),
+            "regional_rule": {"gfs_regions": list(RULE_GFS_REGIONS), "by_lead": rule}}
+
+
+def _rule_grade(pairs: list, regions: List[str], members, min_test: int) -> Dict:
+    """The per-region serve rule on these pairs (each pair's coast in `regions`, aligned): the served lane
+    (members[0]) on RULE_GFS_REGIONS, the equal mean elsewhere, beside both as MAE and bias."""
+    if len(pairs) < min_test:
+        return {"n": len(pairs), "status": "insufficient"}
+    obs = [p[members[0]][1] for p in pairs]
+    served = [p[members[0]][0] for p in pairs]
+    equal = [sum(p[m][0] for m in members) / len(members) for p in pairs]
+    rule = [s if r in RULE_GFS_REGIONS else e for s, e, r in zip(served, equal, regions)]
+    out = {"n": len(pairs), "n_rule_regions": sum(r in RULE_GFS_REGIONS for r in regions), "status": "scored",
+           "served": _stats([f - o for f, o in zip(served, obs)]), "equal": _stats([f - o for f, o in zip(equal, obs)]),
+           "rule": _stats([f - o for f, o in zip(rule, obs)])}
+    out["rule_beats_equal"] = out["rule"]["mae_m"] < out["equal"]["mae_m"]
+    out["rule_beats_served"] = out["rule"]["mae_m"] < out["served"]["mae_m"]
+    return out
 
 
 def _graded_groups(groups: Dict[str, list], members, min_test: int) -> Dict:
@@ -241,9 +278,11 @@ def shadow_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_tes
             continue
         keys.setdefault((r.get("buoy_id"), t.isoformat(), lead), {})[src] = (float(x), float(y))
     by_lead: Dict[int, list] = {}
-    for (_, _, lead), got in keys.items():
+    by_region: Dict[str, list] = {}
+    for (buoy, _, lead), got in keys.items():
         if len(got) == len(need):
             by_lead.setdefault(lead, []).append(got)
+            by_region.setdefault(region_of(buoy), []).append(got)
     out = []
     for lead, pairs in sorted(by_lead.items()):
         entry = {"lead_h": lead, "n": len(pairs)}
@@ -270,4 +309,20 @@ def shadow_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_tes
         entry["shadow_beats_served"] = entry["shadow"]["mae_m"] < entry["served"]["mae_m"]
         out.append(entry)
     return {"source": shadow, "members": list(members), "holdout_days": holdout_days, "cutoff": cutoff.isoformat(),
-            "by_lead": out}
+            "by_lead": out,
+            "by_region": {region: _shadow_region(pairs, members, shadow, min_test)
+                          for region, pairs in sorted(by_region.items())}}
+
+
+def _shadow_region(pairs: list, members, shadow: str, min_test: int) -> Dict:
+    """The built shadow on one coast, pooled over the leads, beside the served lane and the computed equal mean: the
+    per-region serve rule's question asked of the product that would actually be served."""
+    if len(pairs) < min_test:
+        return {"n": len(pairs), "status": "insufficient"}
+    obs = [p[members[0]][1] for p in pairs]
+    out = {"n": len(pairs), "status": "scored",
+           "shadow": _stats([p[shadow][0] - o for p, o in zip(pairs, obs)]),
+           "equal": _stats([sum(p[m][0] for m in members) / len(members) - o for p, o in zip(pairs, obs)]),
+           "served": _stats([p[members[0]][0] - o for p, o in zip(pairs, obs)])}
+    out["shadow_beats_served"] = out["shadow"]["mae_m"] < out["served"]["mae_m"]
+    return out
