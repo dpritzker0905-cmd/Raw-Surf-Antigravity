@@ -113,3 +113,23 @@ Every check-enforced lesson: zero recurrences. The prose-only L-P10: three. **LE
   `no_direction_rows` rather than 0. Published as `forecast_skill_direction_period` on `/api/weather/buoy-calibration`.
 - Evidence: 10 tests; mutations 12 of 12 caught (the first run left the unimodal DIRECTION split unpinned; the test now
   asserts it); 726 nearby tests pass; chain floor 135 / 1634 (1640). No served number changes; no new fetch.
+
+## 17:20-17:30Z · #193 merged; the next fix: wind (S9), and a 52-day-old blind instrument
+- Owner (chat): "merge #193 when it's green and move to the next fix". #193 merged 17:20:49Z (`e1c70d99`) once green,
+  hosted chain 135 / 1640 = the projection.
+- **Forensics first.** The calibration summary read `wind_n: 0` / `wind_mae_kt: null`, yet `calibrate_spots` has
+  computed a buoy-wind residual since `11fcebdf` (2026-08-09). Cause: `fetch_ndbc_latest` returned
+  `parse_ndbc_realtime(text)`, the WAVE parse; the separate `parse_ndbc_wind` was never called on that path, so `obs`
+  had no `wspd_kt` and `compare_wind_to_model` returned None for 52 days. Its test passed because it monkeypatched
+  `fetch_ndbc_latest` with a fake that merged both parses (and let the wind row's time overwrite the wave row's).
+  Nothing consumed the residual to change a served number ("additive; never changes a rating").
+- **Built:** `parse_ndbc_obs` (pure) merges the wave obs with the newest FRESH wind obs from the same payload, keeping
+  the wave row's `time` (the ledger scores on it) and the wind row's as `wind_time`; `fetch_ndbc_latest` uses it. The
+  ledger records each lane's forecast `wind_kt`/`wind_from_deg` (from the wind resolve at the target hour),
+  persistence the buoy's current wind, and scoring attaches `obs_wind_kt`/`obs_wind_from_deg`. The S7/S8 report gains
+  `wind_speed` (MAE/bias, kt), `wind_direction` (circular, only where the observed wind >= 5 kt) and `wind_status`.
+- Evidence: the rewritten calibration test fakes only the network; 4 new tests; mutations 10 of 10 caught, including
+  W1 (revert to the wave-only fetch: the test now fails); a live positive control through the production parse
+  (urllib transport; `httpx` fails TLS only inside this tool sandbox) merged fresh wind at 6 of 8 NDBC stations with
+  the wave time kept (51202 has no anemometer; 44025's is stale and was refused); 677 nearby tests pass. Chain floor
+  135 / 1638 (1644). `buoy_calibration.py` is at 800 lines, the ceiling: its next change must extract first.

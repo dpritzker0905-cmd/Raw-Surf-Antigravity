@@ -143,3 +143,67 @@ def test_a_forecast_row_travels_from_the_calibration_report_to_the_published_blo
     report = {}
     fs.attach_to_report(report, {"summary": [], "direction_period": block})
     assert report["forecast_skill_direction_period"] is block
+
+
+# ── S9: wind, and the calibration fetch that never parsed it ──────────────────────────────────────────────────────
+
+def _payload(rows):
+    head = ("#YY MM DD hh mm WDIR WSPD GST WVHT DPD APD MWD PRES ATMP WTMP DEWP VIS PTDY TIDE\n"
+            "#yr mo dy hr mn degT m/s m/s m sec sec degT hPa degC degC degC nmi hPa ft\n")
+    return head + "".join(f"{t:%Y %m %d %H %M} {w}\n" for t, w in rows)
+
+
+def test_the_fetch_parse_keeps_the_wave_time_and_adds_the_newest_fresh_wind():
+    from services.weather_pipeline.buoy_calibration import parse_ndbc_obs
+    now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+    text = _payload([(now, "300 6.2 8.0 MM MM MM MM 1015.0 22.0 21.0 18.0 99 +0.0 0.0"),          # wind only, newest
+                     (now - timedelta(minutes=30), "280 5.0 7.0 1.5 10 8.0 290 1015.0 22.0 21.0 18.0 99 +0.0 0.0")])
+    obs = parse_ndbc_obs(text)
+    assert obs["wvht_m"] == 1.5 and obs["time"].startswith((now - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M"))
+    assert obs["wdir_deg"] == 300.0 and obs["wspd_kt"] > 0 and obs["wind_time"].startswith(now.strftime("%Y-%m-%dT%H:%M"))
+
+
+def test_a_stale_anemometer_is_not_merged_and_a_wave_less_payload_stays_none():
+    from services.weather_pipeline.buoy_calibration import parse_ndbc_obs
+    old = datetime.now(timezone.utc) - timedelta(hours=5)
+    obs = parse_ndbc_obs(_payload([(old, "280 5.0 7.0 1.5 10 8.0 290 1015.0 22.0 21.0 18.0 99 +0.0 0.0")]))
+    assert obs is not None and "wspd_kt" not in obs          # the wave obs survives; the 5 h old wind does not
+    assert parse_ndbc_obs(_payload([(datetime.now(timezone.utc), "300 6.2 8.0 MM MM MM MM 1015.0 22.0 21.0 18.0 99 +0.0 0.0")])) is None
+
+
+def test_ledger_rows_persistence_and_scoring_carry_wind_only_when_present():
+    rep = {"spots": [{"buoy_id": "46086", "residual": {"model_hs_m": 1.2, "model_tp_s": 11.0},
+                      "wind_residual": {"model_wspd_kt": 12.0, "model_wdir_deg": 310.0}},
+                     {"buoy_id": "46025", "residual": {"model_hs_m": 0.9}}]}
+    rows = {r["buoy_id"]: r for r in fs.rows_from_calibration_report(rep, "2026-10-03T12:00:00Z", 24)}
+    assert (rows["46086"]["wind_kt"], rows["46086"]["wind_from_deg"]) == (12.0, 310.0)
+    assert "wind_kt" not in rows["46025"] and "wind_from_deg" not in rows["46025"]
+    prep = {"spots": [{"buoy_id": "46086", "residual": {"buoy_wvht_m": 1.5},
+                       "wind_residual": {"buoy_wspd_kt": 9.0, "buoy_wdir_deg": 290.0}}]}
+    assert all((r["wind_kt"], r["wind_from_deg"]) == (9.0, 290.0) for r in fs.persistence_rows_from_report(prep, NOW))
+    target = (NOW - timedelta(hours=1)).strftime("%Y-%m-%dT%H:00:00Z")
+    bt = (NOW - timedelta(hours=1)).isoformat()
+    obs_rep = {"spots": [{"buoy_id": "46086", "buoy_time": bt, "residual": {"buoy_wvht_m": 1.5},
+                          "wind_residual": {"buoy_wspd_kt": 9.0, "buoy_wdir_deg": 290.0}},
+                         {"buoy_id": "46025", "buoy_time": bt, "residual": {"buoy_wvht_m": 1.0}}]}
+    pend = [{**rows["46086"], "target_time": target}, {**rows["46025"], "target_time": target}]
+    by = {r["buoy_id"]: r for r in fs.score_pending(pend, obs_rep, now=NOW)[1]}
+    assert (by["46086"]["obs_wind_kt"], by["46086"]["obs_wind_from_deg"]) == (9.0, 290.0)
+    assert "obs_wind_kt" not in by["46025"]
+
+
+def test_wind_is_graded_per_lane_and_direction_only_above_the_light_wind_floor():
+    from services.weather_pipeline.skill_direction_period import WIND_DIR_MIN_KT
+
+    def w(src="raw_surf", fk=12.0, ok=9.0, fd=310.0, od=290.0):
+        return {**_scored(src=src), "wind_kt": fk, "obs_wind_kt": ok, "wind_from_deg": fd, "obs_wind_from_deg": od}
+    rows = [w() for _ in range(MIN_N)]                                              # +3 kt, 20 deg
+    rows += [w(ok=WIND_DIR_MIN_KT - 1, fk=WIND_DIR_MIN_KT - 1, fd=0.0, od=180.0) for _ in range(MIN_N)]   # light: speed only
+    rows += [_scored(src="raw_surf:ICON") for _ in range(MIN_N)]                    # no wind recorded
+    rep = direction_period_report(rows, NOW)
+    gfs = rep["by_source"]["raw_surf"]["24"]
+    assert gfs["wind_status"] == "scored"
+    assert gfs["wind_speed"] == {"n": 2 * MIN_N, "mae_kt": 1.5, "bias_kt": 1.5}
+    assert gfs["wind_direction"]["n"] == MIN_N and gfs["wind_direction"]["mae_deg"] == pytest.approx(20.0)
+    icon = rep["by_source"]["raw_surf:ICON"]["24"]
+    assert icon["wind_status"] == "no_wind_rows" and icon["wind_speed"]["mae_kt"] is None

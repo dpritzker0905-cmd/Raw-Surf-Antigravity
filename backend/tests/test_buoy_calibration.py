@@ -500,19 +500,25 @@ async def test_wind_residual_is_attached_knots_unconverted_and_cached_per_buoy(m
     import services.weather_pipeline.buoy_calibration as BC
     monkeypatch.delenv("BUOY_WIND_RESIDUAL", raising=False)
 
-    async def fake_fetch(bid, client=None):
-        return BC.parse_ndbc_realtime(_wind_obs_payload()) | (
-            BC.parse_ndbc_wind(_wind_obs_payload()) or {})
+    # ⛔ Until 2026-09-30 this test REPLACED fetch_ndbc_latest with a fake that merged the wave and wind parses, which
+    # the real fetch never did: the test passed while production's wind_n read 0 for 52 days (LESSONS L-P11, again).
+    # Now only the NETWORK is faked; the production fetch and parser run.
+    class _Resp:
+        status_code = 200
+        text = _wind_obs_payload()
+
+    class _Client:
+        async def get(self, url):
+            return _Resp()
 
     async def fake_coords(client=None):
         return {"46012": (37.36, -122.88)}
 
-    monkeypatch.setattr(BC, "fetch_ndbc_latest", fake_fetch)
     monkeypatch.setattr(BC, "fetch_ndbc_station_coords", fake_coords)
     resolver = _FakeResolver(wind_kt=14.6, wind_from=310.0)
     spots = [{"id": "a", "name": "A", "latitude": 37.0, "longitude": -122.9, "noaa_buoy_id": "46012"},
              {"id": "b", "name": "B", "latitude": 37.1, "longitude": -122.8, "noaa_buoy_id": "46012"}]
-    report = await BC.calibrate_spots(resolver, spots, "GFS", "2026-08-09T12:00:00Z")
+    report = await BC.calibrate_spots(resolver, spots, "GFS", "2026-08-09T12:00:00Z", client=_Client())
 
     rows = report["spots"]
     assert len(rows) == 2 and all(r["wind_residual"] is not None for r in rows)

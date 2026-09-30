@@ -198,6 +198,11 @@ def rows_from_calibration_report(report, target_time: str, lead_h: float,
                **serving_provenance(served.get("product"), served.get("cycle"), target_time, lead_h)}
         if res.get("model_dir_deg") is not None:    # S8 (skill_direction_period); absent = not recorded
             row["dir_deg"] = res["model_dir_deg"]
+        wres = entry.get("wind_residual") or {}      # S9: the lane's forecast wind at the target hour (knots)
+        if wres.get("model_wspd_kt") is not None:
+            row["wind_kt"] = wres["model_wspd_kt"]
+        if wres.get("model_wdir_deg") is not None:
+            row["wind_from_deg"] = wres["model_wdir_deg"]
         rows.append(row)
     return rows
 
@@ -214,6 +219,7 @@ def persistence_rows_from_report(report, now: datetime, leads_h=LEADS_H) -> List
             continue
         seen.add(bid)
         mwd = (entry.get("residual") or {}).get("buoy_mwd_deg")
+        wres = entry.get("wind_residual") or {}
         for lead in leads_h:
             target = (now + timedelta(hours=lead)).strftime("%Y-%m-%dT%H:00:00Z")
             row = {"source": SOURCE_PERSISTENCE, "buoy_id": bid, "target_time": target,
@@ -221,6 +227,10 @@ def persistence_rows_from_report(report, now: datetime, leads_h=LEADS_H) -> List
                    "tp_s": (entry.get("residual") or {}).get("buoy_dpd_s")}
             if mwd is not None:                        # persistence is S8's no-skill reference too
                 row["dir_deg"] = mwd
+            if wres.get("buoy_wspd_kt") is not None:   # ... and S9's
+                row["wind_kt"] = wres["buoy_wspd_kt"]
+                if wres.get("buoy_wdir_deg") is not None:
+                    row["wind_from_deg"] = wres["buoy_wdir_deg"]
             rows.append(row)
     return rows
 
@@ -356,7 +366,9 @@ def score_pending(pending, report, now: Optional[datetime] = None, stats: Option
         if not _finite_number(height) or height < 0.0:
             invalid_observations += 1
             continue
-        obs.setdefault(bid, []).append((bt, height, res.get("buoy_dpd_s"), res.get("buoy_mwd_deg"), res.get("buoy_apd_s")))
+        wres = entry.get("wind_residual") or {}         # fresh anemometer reading (age-gated upstream), S9
+        obs.setdefault(bid, []).append((bt, height, res.get("buoy_dpd_s"), res.get("buoy_mwd_deg"), res.get("buoy_apd_s"),
+                                        wres.get("buoy_wspd_kt"), wres.get("buoy_wdir_deg")))
     still, scored = [], []
     for row in pending or []:
         t = _parse_iso(row.get("target_time"))
@@ -368,10 +380,10 @@ def score_pending(pending, report, now: Optional[datetime] = None, stats: Option
             continue
         candidates = obs.get(row.get("buoy_id")) or []
         best = None
-        for bt, wvht, dpd, mwd, apd in candidates:
+        for bt, wvht, dpd, mwd, apd, wkt, wdir in candidates:
             dt_s = abs((bt - t).total_seconds())
             if dt_s <= SCORE_JOIN_TOLERANCE_S and (best is None or dt_s < best[0]):
-                best = (dt_s, bt, wvht, dpd, mwd, apd)
+                best = (dt_s, bt, wvht, dpd, mwd, apd, wkt, wdir)
         if best is not None:
             done = {**row, "obs_time": best[1].isoformat(),
                     "obs_hs_m": best[2], "obs_dpd_s": best[3],
@@ -380,6 +392,10 @@ def score_pending(pending, report, now: Optional[datetime] = None, stats: Option
                 done["obs_mwd_deg"] = best[4]
             if best[5] is not None:
                 done["obs_apd_s"] = best[5]
+            if best[6] is not None:                    # S9's verifying wind (knots, direction FROM)
+                done["obs_wind_kt"] = best[6]
+                if best[7] is not None:
+                    done["obs_wind_from_deg"] = best[7]
             scored.append(done)
         elif t > now - timedelta(hours=PENDING_EXPIRY_H):
             still.append(row)

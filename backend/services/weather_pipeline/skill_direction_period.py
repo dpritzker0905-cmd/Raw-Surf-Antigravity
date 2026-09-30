@@ -20,6 +20,11 @@ attaches the buoy's `obs_dpd_s`, `obs_mwd_deg` and `obs_apd_s`. No fetch, no new
   * `persistence` carries the buoy's CURRENT direction as its forecast: S8's no-skill reference.
   * THE REFUSAL (forecast_skill's rule): a metric is None below MIN_N, never 0; a lane with no direction rows yet says
     so in `status` (the first `dir_deg` rows score 24 h after this change deploys).
+  * WIND, S9 (2026-09-30): forecast `wind_kt` / `wind_from_deg` vs the buoy's anemometer (`obs_wind_kt`, age-gated
+    upstream): speed MAE/bias in knots; direction only where the observed wind >= WIND_DIR_MIN_KT (a light wind's
+    bearing is noise). Wind was 19% of the rating's variance and the ledger had never graded it: the calibration
+    loop's own wind residual read wind_n 0 from 2026-08-09 to 2026-09-30, because its fetch parsed waves only
+    (buoy_calibration.parse_ndbc_obs fixes that). `wind_status` says scored / insufficient / no_wind_rows.
 
 Changes no served number.
 """
@@ -32,6 +37,7 @@ from services.weather_pipeline.skill_mos import HOLDOUT_DAYS, _lead, _parse
 MIN_N = 10
 DIR_MIN_OBS_HS_M = 0.3
 BIMODAL_GAP_S = 3.0
+WIND_DIR_MIN_KT = 5.0
 
 
 def _num(v) -> bool:
@@ -72,6 +78,13 @@ def _dir_stats(errs: List[float]) -> Dict:
             "rms_deg": round(math.sqrt(sum(e * e for e in s) / len(s)), 2), "p90_deg": round(_pct(s, 0.9), 2)}
 
 
+def _wind_stats(errs: List[float]) -> Dict:
+    if len(errs) < MIN_N:
+        return {"n": len(errs), "mae_kt": None, "bias_kt": None}
+    return {"n": len(errs), "mae_kt": round(sum(abs(e) for e in errs) / len(errs), 3),
+            "bias_kt": round(sum(errs) / len(errs), 3)}
+
+
 def direction_period_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS) -> Dict:
     """{holdout_days, cutoff, by_source: {source: {lead: {period, period_unimodal, direction, direction_unimodal,
     status}}}} over the scored rows whose target falls in the held-out week. PURE."""
@@ -82,7 +95,15 @@ def direction_period_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAY
         if t is None or lead is None or t > now or t < cutoff or not r.get("source"):
             continue
         cell = acc.setdefault(r["source"], {}).setdefault(
-            lead, {"p": [], "pu": [], "d": [], "du": [], "dir_recorded": []})
+            lead, {"p": [], "pu": [], "d": [], "du": [], "dir_recorded": [], "w": [], "wd": [], "wind_recorded": []})
+        fw, ow = r.get("wind_kt"), r.get("obs_wind_kt")
+        if _num(fw):
+            cell["wind_recorded"].append(1.0)
+        if _num(fw) and _num(ow) and fw >= 0 and ow >= 0:
+            cell["w"].append(fw - ow)
+            werr = circular_error_deg(r.get("wind_from_deg"), r.get("obs_wind_from_deg"))
+            if werr is not None and ow >= WIND_DIR_MIN_KT:
+                cell["wd"].append(werr)
         uni = unimodal(r)
         tp, dpd = r.get("tp_s"), r.get("obs_dpd_s")
         if _num(tp) and _num(dpd) and tp > 0 and dpd > 0:
@@ -104,8 +125,14 @@ def direction_period_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAY
             d = _dir_stats(c["d"])
             status = ("scored" if d["mae_deg"] is not None else
                       "no_direction_rows" if not c["dir_recorded"] else "insufficient")
+            w = _wind_stats(c["w"])
+            wind_status = ("scored" if w["mae_kt"] is not None else
+                           "no_wind_rows" if not c["wind_recorded"] else "insufficient")
             by_source[src][str(lead)] = {"status": status,
                                          "period": _period_stats(c["p"]), "period_unimodal": _period_stats(c["pu"]),
-                                         "direction": d, "direction_unimodal": _dir_stats(c["du"])}
+                                         "direction": d, "direction_unimodal": _dir_stats(c["du"]),
+                                         "wind_status": wind_status, "wind_speed": w,
+                                         "wind_direction": _dir_stats(c["wd"])}
     return {"holdout_days": holdout_days, "cutoff": cutoff.isoformat(), "min_n": MIN_N,
-            "dir_min_obs_hs_m": DIR_MIN_OBS_HS_M, "bimodal_gap_s": BIMODAL_GAP_S, "by_source": by_source}
+            "dir_min_obs_hs_m": DIR_MIN_OBS_HS_M, "bimodal_gap_s": BIMODAL_GAP_S,
+            "wind_dir_min_kt": WIND_DIR_MIN_KT, "by_source": by_source}
