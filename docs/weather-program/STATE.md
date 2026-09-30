@@ -1,9 +1,13 @@
 # Weather program: state
 
-**Updated 2026-09-30 17:55Z** (logs: `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 18:42Z** (logs: `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- **HANDOFF for a fresh context: `HANDOFF-2026-09-30-b.md`** (evening; supersedes `HANDOFF-2026-09-30.md` for what
+  next). Consensus evidence at the 16:31Z pass: the computed equal mean beats served GFS all-sea (24/48/72 h
+  0.286/0.312/0.373 -> 0.262/0.290/0.323) and in every band, but LOSES in `hawaii` (0.443 -> 0.543) and
+  `atlantic_se` (0.222 -> 0.250): the recommendation is a per-region serve rule, built dark (seq 185).
 - **MEMORY AUDIT 2026-09-30 (`log/2026-09-30-memory-audit.md`):** every store re-checked against reality; 5 local
   memories were stale or wrong (fixed, dated); the Mem0 connector stores a plain-text API key (**owner: rotate it
   at Mem0 and delete memory `623a983f-...`**); we learn only what we mechanize (LESSONS L-A7), so L-P10 is now two
@@ -20,11 +24,11 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `b1e5e50d`** (#194 at 2026-09-30 17:53:50Z; backend; Render redeploys from it). ⚠️ Every frontend merge still
+- **`dev` = `2123d70e`** (#195 at 2026-09-30 18:38:47Z; backend; at 18:40:40Z Render still served `b1e5e50d`). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #195, the W-23 PR (branch `claude/w23-serve-429`: a refused L2 read is retried, held for seconds
-  not cached as absent, and labelled `l2_read_refused`). Merged 2026-09-30: #194 (17:53:50Z, S9 wind), #193
+- **Open PRs of ours:** the evening handoff PR (branch `claude/handoff-2026-09-30-b`, docs only). Merged 2026-09-30:
+  #195 (18:38:47Z, W-23), #194 (17:53:50Z, S9 wind), #193
   (17:20:49Z, S7/S8), #192 (14:33:02Z, the Mem0/Trevec record), #191 (14:07:22Z, the ledger for #189/#190 + the Trevec registration), #189 (12:48:23Z, the audit + dark scalar height + its
   ARMED ledger shadow + the ledger cap), #190 (13:47:39Z, the memory audit + the L-P10 checks + W-50). Merged
   2026-09-29/30 before them: #181-#188.
@@ -66,11 +70,11 @@ is a claim, not a measurement.
   the audit PR), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 183, sha256 55329ecfd26facbea910904411e630caf7bd3dca49202142013734b7a7359716**
+  **Ledger head: seq 191, sha256 3d6b9e6da826de828220fbd37f83e9ec272cc95ba16fca79ae44a4227c16f242**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
-done); 4 MERGED as #193 (its first graded rows: commitment 172, 2026-10-02); 5 (wind) MERGED as #194 (commitment 177); 6 (W-23) BUILT in its PR;
+done); 4 MERGED as #193 (its first graded rows: commitment 172, 2026-10-02); 5 (wind) MERGED as #194 (commitment 177); 6 (W-23) MERGED as #195 (commitment 182); commitments 79/94 checked (seq 185, 187), re-promised as 186/188;
 2 the consensus flip on commitment 79's evidence (its ledger-cap precondition is met by that PR); 3 the
 scalar-height flip on 48-72 h of `raw_surf:GFS_SCALAR` rows (commitment 149); 4 an S8 swell-direction (and period)
 lane in the ledger (33% of rating variance, no instrument), then test a consensus direction/period; 5 S9 wind in

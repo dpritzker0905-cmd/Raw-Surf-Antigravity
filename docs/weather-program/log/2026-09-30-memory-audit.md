@@ -154,3 +154,19 @@ Every check-enforced lesson: zero recurrences. The prose-only L-P10: three. **LE
 - Evidence: 11 tests driving the REAL `load_product_helper` with only the storage client faked; mutations 10 of 10
   caught (the first run left nested-call isolation unpinned; a test now pins it); 580 nearby tests pass. Chain floor
   136 / 1649 (1655).
+
+## 18:38-18:42Z · #195 merged; commitments 79 and 94 checked; the evening handoff
+- Owner (chat): "merge #195 when it's green and check 79 and 94, then write a hand off". #195 merged 18:38:47Z
+  (`2123d70e`), hosted chain 136 / 1655 = the projection.
+- **79:** the built shadow has no scored rows yet (the 16:31Z pass predates its first +24 h targets; precompute
+  36759469454, started 18:33:50Z, scores them). The computed equal mean (same pass) wins all-sea and in every band but
+  loses in hawaii and atlantic_se; the judge is armed off. Fulfilled with that result (seq 185); re-promised as 186.
+  Recommendation: a per-region serve rule built dark, then the owner's flip.
+- **94:** by forecast bin the equal mean's big-swell bias is -0.09/-0.04/-0.02 m (no calibration needed); the region
+  split is not published and the archive is not anon-readable, so the rest is seq 188 (an instrument change).
+- Handoff: `HANDOFF-2026-09-30-b.md`. Its report-audit counts were first drafted from memory ("11 commitments opened,
+  7 fulfilled") and corrected from the ledger (5 opened, 2 fulfilled this session) before commit.
+- Correction (after the section above was written): seq 189's `verified` said "18:4x... bound", an estimate; the
+  append check missed it (its pattern required a trailing Z). Corrected by seq 190; the pattern now catches `HH:Mx`
+  with or without the Z, with that exact text as a refused selftest case (it flags seq 109, 145, 189 and nothing else).
+  L-A7 in one evening: a check that misses a real case gets tightened, not re-explained.
