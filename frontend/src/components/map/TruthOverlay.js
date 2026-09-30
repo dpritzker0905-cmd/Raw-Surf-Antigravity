@@ -6,6 +6,7 @@ import { BUILD_VERSION } from '../../buildVersion';
 import { TruthOverlayVisualTab } from './TruthOverlayVisualTab';
 import { TruthOverlayGpuTab } from './TruthOverlayGpuTab';
 import { resolveTruthVerdict } from './truthVerdict';
+import { basicSourceName } from './dataOrigin';
 import {
   isOpenMeteoProtocolFailed, subscribeToProtocolFailure, getOpenMeteoProtocolFailure,
   OM_PROTOCOL_DEPENDENT_LAYERS,
@@ -310,20 +311,10 @@ var TruthOverlay = ({
             : resolutionDeg > 0.5
               ? { label: `COARSE ${resolutionDeg}° GRID`, color: '#fbbf24' }
               : { label: 'AUTHORITATIVE NATIVE', color: '#10b981' };
-  // Map the data's source_dataset to its basic origin name so the HUD shows where the data ACTUALLY came
-  // from (NOAA / DWD / Copernicus / ECMWF) instead of the 'open-meteo' capabilities-contract channel key.
-  const __basicSourceName = (sd) => {
-    if (!sd) return null;
-    const s = String(sd).toLowerCase();
-    if (s.includes('gfs') || s.startsWith('ncep')) return 'NOAA';
-    if (s.includes('gwam') || s.includes('dwd')) return 'DWD';
-    if (s.includes('copernicus') || s.includes('cmems')) return 'Copernicus';
-    if (s.includes('ecmwf')) return 'ECMWF';
-    if (s.includes('open') && s.includes('meteo')) return 'Open-Meteo';
-    return null;
-  };
+  // Where the data ACTUALLY came from (NOAA / DWD / Copernicus / ECMWF), not the 'open-meteo' channel
+  // key. One definition, shared with the spot hub's source line (dataOrigin.js, W-34).
   const gridSourceDataset = marineData?.grid?.__sourceDataset || marineData?.grid?.sourceDataset || null;
-  const displayProvider = __basicSourceName(gridSourceDataset) || gridProvider;
+  const displayProvider = basicSourceName(gridSourceDataset) || gridProvider;
   const showExtendedWarning = activeModel === 'EURO' && timeOffsetHours > 240;
 
   // GPU metrics from window

@@ -749,7 +749,11 @@ jobs:
           # scoring liveness on the archive, not on one pass): hosted CI on PR #164 (merged as 09cbca84) observed
           # 174 files / 2116 passed. tests/test_forecast_accuracy_monitor.py (claimed by `--lane guards`) gains 8
           # executed tests: 2116 + 8 = 2124, 2124 - 6 = 2118; files 174 unchanged; _FLOOR_SET_FROM["guards"] -> 2124.
-          MIN_FILES, MIN_PASSED = 174, 2118
+          # ⬆ MIN_FILES 174→175, MIN_PASSED 2118→2124 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (W-34: the spot
+          # hub names where its sea came from): hosted CI on PR #185 (run 36653165594 @ ed9d72dc) observed 174 files /
+          # 2124 passed. The new tests/test_spot_hub_data_source.py (claimed by `--lane guards`) adds 6 executed tests:
+          # 2124 + 6 = 2130, 2130 - 6 = 2124; files 175 EXACT; _FLOOR_SET_FROM["guards"] -> 2130.
+          MIN_FILES, MIN_PASSED = 175, 2124
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

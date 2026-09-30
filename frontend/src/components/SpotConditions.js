@@ -12,6 +12,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
 import SpotQualityBadge from './SpotQualityBadge';
+import { hubSourceLabel, formatWaveDirection } from './spotConditionsFormat';
 
 // Emoji constants -- using String.fromCodePoint to prevent encoding corruption
 const E = {
@@ -325,7 +326,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               <div className="flex items-center gap-2">
                 <Compass className="w-4 h-4 text-yellow-400" />
                 <span className={`text-sm ${tSecondary}`}>
-                  {current.wave_direction ? `${current.wave_direction}-` : 'N/A'}
+                  {formatWaveDirection(current.wave_direction) || 'N/A'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -342,7 +343,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
         {/* Source attribution */}
         <p className={`text-[10px] ${tMuted} mt-3`}>
-          Data from Open-Meteo Marine API - Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
+          {hubSourceLabel(current?.data_source)} - Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
         </p>
       </div>
 
