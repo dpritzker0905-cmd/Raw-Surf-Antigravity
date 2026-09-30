@@ -25,6 +25,13 @@ it (forecast_skill.compare_models).
 
 Flip: CONSENSUS_SERVE '1' in forecast-ingest.yml and precompute.yml (both write spot ratings and run the ledger)
 AND the live service's env, together. Kill: '0' in all three.
+
+PER REGION (2026-09-30, dark). `CONSENSUS_SERVE_KEEP_GFS` lists regional-tile `region_id`s that keep serving GFS while
+the switch is on (comma-separated; default '' = none, D-006's global equal mean). Measured out of sample (ledger seq
+215): at the Hawaii buoys the equal mean loses to GFS on the week that chose it AND on the ~6 weeks before it (GFS
+0.313 vs equal 0.345, n 6,817), while the other coast that week chose (atlantic_se) was refuted there; the
+Hawaii-only rule reads -1.9% vs the equal mean and -16% vs GFS on 57,992 training pairs. The recommendation is
+'hawaii'; adopting it amends D-006, so it flips on the owner's word, with CONSENSUS_SERVE, in the same three places.
 """
 import contextvars
 import logging
@@ -37,11 +44,17 @@ from typing import Dict, Optional
 logger = logging.getLogger(__name__)
 
 SERVE_FLAG = "CONSENSUS_SERVE"
+KEEP_GFS_FLAG = "CONSENSUS_SERVE_KEEP_GFS"
 _RAW = contextvars.ContextVar("consensus_serve_raw", default=False)
 
 
 def enabled() -> bool:
     return os.environ.get(SERVE_FLAG, "0") == "1" and not _RAW.get()
+
+
+def keep_gfs_regions() -> frozenset:
+    """The regional-tile region_ids that keep GFS while the consensus is served (module docstring, PER REGION)."""
+    return frozenset(r.strip() for r in os.environ.get(KEEP_GFS_FLAG, "").split(",") if r.strip())
 
 
 @contextmanager
@@ -55,18 +68,21 @@ def serve_raw():
         _RAW.reset(token)
 
 
-_index = None   # (products list object, length, {GFS filename: CONSENSUS manifest item})
+_index = None   # (products list object, length, {GFS filename: CONSENSUS manifest item}, keep_gfs_regions())
 
 
 def twin_index(manifest) -> Dict[str, object]:
-    """{GFS marine waves regional_tile filename: its CONSENSUS twin}: same region, valid time and run. Keyed by the
-    products list's identity plus its length (manifest_view's rule, for the same reasons)."""
+    """{GFS marine waves regional_tile filename: its CONSENSUS twin}: same region, valid time and run, for every
+    region not in `keep_gfs_regions()` (a kept region has no twin, so it serves GFS). Keyed by the products list's
+    identity plus its length (manifest_view's rule, for the same reasons) and the keep list, so a changed list is
+    never answered from an index built under the old one."""
     global _index
     from services.weather_pipeline.consensus_ingest import CONSENSUS_MODEL
     from services.weather_pipeline.manifest_view import products_for
     products = manifest.products
+    keep = keep_gfs_regions()
     cached = _index
-    if cached is not None and cached[0] is products and cached[1] == len(products):
+    if cached is not None and cached[0] is products and cached[1] == len(products) and cached[3] == keep:
         return cached[2]
     twins = {}
     for c in products_for(manifest, CONSENSUS_MODEL, "marine", "waves"):
@@ -74,12 +90,12 @@ def twin_index(manifest) -> Dict[str, object]:
             twins[(c.region_id, c.valid_time_start, c.run_time)] = c
     out = {}
     for g in products_for(manifest, "GFS", "marine", "waves"):
-        if (g.coverage_mode or "") != "regional_tile" or not g.region_id:
+        if (g.coverage_mode or "") != "regional_tile" or not g.region_id or g.region_id in keep:
             continue
         t = twins.get((g.region_id, g.valid_time_start, g.run_time))
         if t is not None:
             out[g.filename] = t
-    _index = (products, len(products), out)
+    _index = (products, len(products), out, keep)
     return out
 
 

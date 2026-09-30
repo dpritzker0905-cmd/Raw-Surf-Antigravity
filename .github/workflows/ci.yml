@@ -1225,7 +1225,11 @@ jobs:
           # point with no usable depth is the named regime unknown_depth): hosted CI on #200 (run 36772678148 @ 41ac3a23)
           # observed 137 files / 1666. The new tests/test_unknown_depth_regime.py (claimed by `--lane chain`) adds 8
           # executed tests: 1666 + 8 = 1674, 1674 - 6 = 1668; files 138 EXACT; _FLOOR_SET_FROM["chain"] -> 1674.
-          MIN_FILES, MIN_PASSED = 138, 1668
+          # ⬆ MIN_PASSED 1668→1678 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (CONSENSUS_SERVE_KEEP_GFS, the
+          # Hawaii-only consensus rule's switch, dark): hosted CI on #201 (run 36774878323) observed 138 files / 1674.
+          # tests/test_consensus_serve.py gains 10 executed tests (27 -> 37): 1674 + 10 = 1684, 1684 - 6 = 1678; files
+          # 138 unchanged; _FLOOR_SET_FROM["chain"] -> 1684.
+          MIN_FILES, MIN_PASSED = 138, 1678
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
