@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-09-30 13:51Z** (logs: `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 14:08Z** (logs: `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
@@ -20,16 +20,17 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `994b3f4e`** (#190 at 2026-09-30 13:47:39Z; Render serves #189's `f432d4fd` or later: read `/api/health`). ⚠️ Every frontend merge still
+- **`dev` = `d8aa6640`** (#191 at 2026-09-30 14:07:22Z, docs only; Render serves #190's `994b3f4e` or later: read `/api/health`). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #191, the ledger PR for #189/#190 and the Trevec registration (branch
-  `claude/ledger-189-190-trevec`, docs only). Merged 2026-09-30: #189 (12:48:23Z, the audit + dark scalar height + its
+- **Open PRs of ours:** the Mem0/Trevec close-out record (branch `claude/mem0-trevec-done`, docs only). Merged
+  2026-09-30: #191 (14:07:22Z, the ledger for #189/#190 + the Trevec registration), #189 (12:48:23Z, the audit + dark scalar height + its
   ARMED ledger shadow + the ledger cap), #190 (13:47:39Z, the memory audit + the L-P10 checks + W-50). Merged
   2026-09-29/30 before them: #181-#188.
 - **Trevec (code-graph MCP):** registered in Claude Code (user scope) on this machine, index OUTSIDE the repo
-  (`C:\Users\David\.trevec\data\raw-surf-wt`); the index is NOT built yet (its embedding-model download fails TLS
-  in the tool sandbox). Until it is, CLAUDE.md's Trevec block describes tools that do not answer (log 2026-09-30-memory-audit).
+  (`C:\Users\David\.trevec\data\raw-surf-wt`), INDEXED 2026-09-30 (424 s; `trevec ask` answered in 2.2 s). Its tools
+  load in sessions started after 13:49Z. The index is a snapshot: re-run `trevec index` (or `trevec watch`) after big changes.
+- **Mem0:** the owner revoked the old keys; the leaked key was redacted from memory `623a983f...` (seq 164-165).
 - **The weather sim does not reach production map users** (#181 F1): `fc140024` is 3,283 commits behind `dev` and its
   map reads a Netlify Open-Meteo proxy. The plan's Phase 1 is the release-readiness evidence for D-002.
 - **Open commitments:** `python backend/scripts/action_ledger.py open` (seq 79, 94, 149). 78, 86, 128 fulfilled early
@@ -64,7 +65,7 @@ is a claim, not a measurement.
   the audit PR), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 163, sha256 1447e43ce1474bf0b586a96532f14339aca3f430d9b4fdde045a07af39d42003**
+  **Ledger head: seq 167, sha256 5bd152cb3daf837e237473169c5d548f5f19889ce556923c630a17db555fc2e9**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 merge the audit PR (dark);
