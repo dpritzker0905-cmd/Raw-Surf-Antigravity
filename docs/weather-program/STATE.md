@@ -23,7 +23,7 @@ is a claim, not a measurement.
 - **`dev` = `994b3f4e`** (#190 at 2026-09-30 13:47:39Z; Render serves #189's `f432d4fd` or later: read `/api/health`). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the ledger PR for #189/#190 and the Trevec registration (branch
+- **Open PRs of ours:** #191, the ledger PR for #189/#190 and the Trevec registration (branch
   `claude/ledger-189-190-trevec`, docs only). Merged 2026-09-30: #189 (12:48:23Z, the audit + dark scalar height + its
   ARMED ledger shadow + the ledger cap), #190 (13:47:39Z, the memory audit + the L-P10 checks + W-50). Merged
   2026-09-29/30 before them: #181-#188.
@@ -64,7 +64,7 @@ is a claim, not a measurement.
   the audit PR), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 162, sha256 bb76e371ecb3b8ec5701dcc19f8b2bb49e9bff89e23da59ca93156803b6792eb**
+  **Ledger head: seq 163, sha256 1447e43ce1474bf0b586a96532f14339aca3f430d9b4fdde045a07af39d42003**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 merge the audit PR (dark);
