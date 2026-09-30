@@ -107,7 +107,7 @@ const useGalleryActions = ({
         {}
       );
       const data = response.data;
-      toast.success(`+++G- ${data.message}`);
+      toast.success(String(data.message));
       if (folderActions && folderActions.fetchConditionsStatus) {
         await folderActions.fetchConditionsStatus(selectedGallery.id);
       }
@@ -301,7 +301,7 @@ const useGalleryActions = ({
       );
       const typeLabel = session.session_type === 'live' ? 'Live Session' :
         session.session_type === 'booking' ? 'Booking' : 'On-Demand';
-      toast.success(`++G Folder linked to ${typeLabel}! Participants and distribution are now available.`);
+      toast.success(`Folder linked to ${typeLabel}! Participants and distribution are now available.`);
       setShowLinkSessionModal(false);
       setLinkSessionGallery(null);
       if (folderActions && folderActions.fetchGalleries) {

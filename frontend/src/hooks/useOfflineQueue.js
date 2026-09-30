@@ -70,7 +70,7 @@ const replayAction = async (action) => {
   } catch (err) {
     // 4xx = permanent failure, don't retry
     if (err.response && err.response.status >= 400 && err.response.status < 500) {
- console.warn(`[OfflineQueue] Dropping action (${type}) G ${err.response.status}`);
+      console.warn(`[OfflineQueue] Dropping action (${type}) -- ${err.response.status}`);
       return true;
     }
     return false; // Retry on 5xx / network errors
@@ -129,7 +129,7 @@ export const useOfflineQueue = () => {
     setIsSyncing(false);
 
     if (synced > 0) {
- toast.success(`G Synced ${synced} offline action${synced !== 1 ? 's' : ''}`);
+      toast.success(`Synced ${synced} offline action${synced !== 1 ? 's' : ''}`);
     }
   }, [queue]);
 
@@ -148,7 +148,7 @@ export const useOfflineQueue = () => {
       return next;
     });
 
- toast.info('= Saved offline -- will sync when back online');
+    toast.info('Saved offline -- will sync when back online');
   }, []);
 
   return {

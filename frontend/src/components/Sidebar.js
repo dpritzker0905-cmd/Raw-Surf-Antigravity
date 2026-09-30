@@ -222,7 +222,7 @@ export const Sidebar = () => {
               <>
                 <span className={`text-[10px] ${textSecondaryClass}`}>Your Role</span>
                 <div className="mt-0.5 flex items-center gap-1">
-                  <span className="text-sm">{getExpandedRoleInfo(user.role)?.icon || '='}</span>
+                  <span className="text-sm" aria-hidden="true">{getExpandedRoleInfo(user.role)?.icon}</span>
                   <span className={`text-[11px] font-medium ${getExpandedRoleInfo(user.role)?.color || 'text-cyan-400'}`}>
                     {getExpandedRoleInfo(user.role)?.label || user.role}
                   </span>

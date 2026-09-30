@@ -152,9 +152,9 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
       } else {
         const accessType = response.data.access_type;
         const accessLabel = accessType === 'included' 
-          ? '-+ Full resolution (included in buy-in ??)' 
-          : '-+ Added to Locker';
-        toast.success(`? Tagged to ${surferName} ${accessLabel}`);
+          ? '\u00B7 Full resolution (included in buy-in)'
+          : '\u00B7 Added to Locker';
+        toast.success(`Tagged to ${surferName} ${accessLabel}`);
         
         // Mark as tagged in local state
         setTaggedIds(prev => new Set([...prev, surferId]));
@@ -557,13 +557,13 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                           <p className="text-[11px] text-gray-400">
                             {isTagged ? (
                               <span className="text-emerald-400 font-medium">
-                                ? Tagged -+ {isAiMatch ? 'AI matched' : 'manually tagged'}
+                                Tagged &middot; {isAiMatch ? 'AI matched' : 'manually tagged'}
                                 {matchConfidence ? ` (${Math.round(matchConfidence * 100)}%)` : ''}
                               </span>
                             ) : hasCredits ? (
-                              <span className="text-emerald-400">??? {p.photos_credit_remaining} credits left -+ tap to tag</span>
+                              <span className="text-emerald-400">{p.photos_credit_remaining} credits left &middot; tap to tag</span>
                             ) : (
-                              <span>?? Extra item -+ tap to add to locker</span>
+                              <span>Extra item &middot; tap to add to locker</span>
                             )}
                           </p>
                         </div>

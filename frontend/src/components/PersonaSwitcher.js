@@ -1,7 +1,11 @@
 ﻿import React, { useState } from 'react';
 import { usePersona, ALL_PERSONAS, getExpandedRoleInfo } from '../contexts/PersonaContext';
+import { ROLES } from '../constants/roles';
 import { ChevronDown, Check, Eye, Shield } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
+
+// God Mode's glyph comes from PersonaContext, the one place role glyphs are defined.
+const GOD_MODE_ICON = getExpandedRoleInfo(ROLES.GOD).icon;
 
 const PersonaSwitcher = () => {
   const { activePersona, setPersona, exitPersonaMode, isGodMode, isPersonaBarActive } = usePersona();
@@ -11,7 +15,7 @@ const PersonaSwitcher = () => {
   
   const currentRoleInfo = activePersona 
     ? getExpandedRoleInfo(activePersona) 
- : { icon: '=', label: 'God Mode (Default)', color: 'text-red-500' };
+    : { icon: GOD_MODE_ICON, label: 'God Mode (Default)', color: 'text-red-500' };
   
   // Handle selecting "God Mode (Default)" - exit persona mode completely
   const handleExitToDefault = () => {
@@ -57,7 +61,7 @@ const PersonaSwitcher = () => {
                   !activePersona && !isPersonaBarActive ? 'bg-red-500/10 border-l-2 border-red-500' : ''
                 }`}
               >
- <span className="text-xl">=</span>
+                <span className="text-xl" aria-hidden="true">{GOD_MODE_ICON}</span>
                 <div className="flex-1 text-left">
                   <span className="text-white font-medium">God Mode (Default)</span>
                   <p className="text-xs text-gray-400">Exit persona mode - full admin view</p>

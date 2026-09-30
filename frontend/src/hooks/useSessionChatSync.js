@@ -102,13 +102,12 @@ export const useSessionChatSync = ({
           ) {
             // Toast notification
             const preview = latestFromOther.message_type === 'voice_note'
- ? '= Voice note'
- : (latestFromOther.content?.slice(0, 60) || '= Media');
+              ? 'Voice note'
+              : (latestFromOther.content?.slice(0, 60) || 'Media');
 
             toast.info(`${otherUserName || 'Session'}: ${preview}`, {
               id: `session-msg-${latestFromOther.id}`,
               duration: 4000,
- icon: '=',
             });
 
             // Audio alert

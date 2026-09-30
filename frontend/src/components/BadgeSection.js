@@ -44,7 +44,7 @@ export const BadgeSection = ({ gamificationStats }) => {
               title={badge.description}
             >
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
- {badge.icon_emoji || '='}
+                {badge.icon_emoji || <Award className="w-5 h-5 text-white" aria-hidden="true" />}
               </div>
               <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
             </div>
