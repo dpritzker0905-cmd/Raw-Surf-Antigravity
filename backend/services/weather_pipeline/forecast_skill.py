@@ -43,7 +43,14 @@ PENDING_EXPIRY_H = 96                  # unmatched past-target rows drop (buoy g
 # demand plus two more compare models (6 lanes -> 25,920) and bounds the object at ~3.6 MB; if it
 # ever binds, that is itself a pathology signal, and `merge_pending`'s keep-earliest order confines
 # the damage to the farthest lead instead of zeroing all three.
-PENDING_MAX_ENTRIES = 30000
+# ⬆ 30,000 -> 54,000 (2026-09-30 audit). It BOUND: production's armed lanes are ours, ICON, EURO, the CONSENSUS
+# shadow (armed 2026-09-29), Open-Meteo marine, the Open-Meteo same-model control and persistence = 7, i.e.
+# 59 buoys x 7 x 12 runs/day x 6 lead-days = 29,736 rows of demand; the live report read pending_kept 29,477 of
+# 30,000. The headroom test counted only the code-default lanes (5) and missed both. Two switch-added lanes are
+# queued behind it: GFS_RAW (added automatically by the CONSENSUS_SERVE flip) and GFS_SCALAR, which would have
+# started evicting every lane's +72 h rows. 9 lanes x 60 x 72 = 38,880; x1.3 = 50,544 <= 54,000 (~6.5 MB object,
+# read and written only in the Actions lanes).
+PENDING_MAX_ENTRIES = 54000
 OM_MARINE = "https://marine-api.open-meteo.com/v1/marine"
 
 SOURCE_OURS = "raw_surf"
@@ -128,10 +135,18 @@ def compare_models(primary: str) -> List[str]:
     # served consensus, so raw GFS keeps its own lane, resolved under serve_raw().
     if os.environ.get("CONSENSUS_SERVE", "0") == "1" and (primary or "").strip().upper() == "GFS":
         out.append(GFS_RAW)
+    # THE SCALAR-HEIGHT SHADOW (2026-09-30 audit): while SAMPLER_SCALAR_HEIGHT is dark, SAMPLER_SCALAR_LEDGER grades
+    # the served GFS product sampled with a SCALAR height (sampler.force_scalar_height) on the same buoys, hours and
+    # leads as the served lane, so the flip is decided on paired buoy truth. Once the switch serves, the primary lane
+    # IS the scalar answer and the shadow would count it twice, so it retires itself.
+    if (os.environ.get("SAMPLER_SCALAR_LEDGER", "0") == "1" and os.environ.get("SAMPLER_SCALAR_HEIGHT", "0") != "1"
+            and (primary or "").strip().upper() == "GFS"):
+        out.append(GFS_SCALAR)
     return out
 
 
 GFS_RAW = "GFS_RAW"
+GFS_SCALAR = "GFS_SCALAR"
 
 
 def source_for(model: str, primary: str) -> str:
@@ -588,6 +603,10 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
                 if mdl == GFS_RAW:                   # raw GFS, not the served consensus (compare_models)
                     from services.weather_pipeline.consensus_serve import serve_raw
                     with serve_raw():
+                        lead_report = await calibrate_spots(resolver, spots, "GFS", target)
+                elif mdl == GFS_SCALAR:              # the served GFS, sampled with a scalar height (compare_models)
+                    from services.weather_pipeline.sampler import force_scalar_height
+                    with force_scalar_height():
                         lead_report = await calibrate_spots(resolver, spots, "GFS", target)
                 else:
                     lead_report = await calibrate_spots(resolver, spots, mdl, target)
