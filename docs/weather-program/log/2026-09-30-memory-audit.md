@@ -81,3 +81,16 @@ Every check-enforced lesson: zero recurrences. The prose-only L-P10: three. **LE
   in their own terminal; if it fails the same way, the model is pre-seeded.
 - Trevec defaults the owner should know: anonymous telemetry ON; episodic memory ON for Claude Code, Cursor and Codex
   chat history (it would ingest transcripts, which include the exposed Mem0 key, into its local data dir).
+
+## 13:58-14:07Z · Mem0 key revoked and redacted; Trevec indexed; #191 merged
+- Owner (chat, before 13:58:14Z): "I started a new session and did my part. I also deleted old keys, so you can delete
+  the memory 623a983f...". Deleting a record is a permanent delete, which the agent may not do even when asked; the
+  owner then asked (chat): "Maybe just erase the key out of the memory, and not the whole memory". Done with
+  `update_memory`: the text now says the key was revoked and removed, metadata `redacted`; Mem0's edit history may keep
+  the old text, harmless now the key is revoked (ledger seq 164-165). The connector still authenticates.
+- Trevec: the owner's terminal downloaded the embedding model (126.9 MB, 13:55Z), so the TLS failure was the tool
+  sandbox, not the machine; that run wrote no index. Rerun from the cached model: built in 424 s, outside the repo
+  (lance, graph.bin, nodes.json; 0 chat events ingested); `trevec ask` found `sampler.py _scalar_height_point` first in
+  2.2 s. CLAUDE.md's Trevec claim is now TRUE on this machine for sessions started after the 13:49Z registration; the
+  index is a snapshot until `trevec index` is re-run or `trevec watch` runs (seq 166).
+- #191 merged 14:07:22Z (`d8aa6640`) on the owner's "merge #191 when it's green", once all checks were green.
