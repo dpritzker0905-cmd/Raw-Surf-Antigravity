@@ -140,3 +140,17 @@ same condition and arguments, so it costs zero new I/O (a test counts one reques
   diverged on those two.
 - #199 MERGED 20:25:43Z as `3937c145` at head `a317cf74` (with the catalogue fix; ledger seq 206): hosted guards
   176 / 2146 and chain 136 / 1661 = the projections.
+
+## Owner (chat, after 20:26Z): "merge #200 when it's green and move to the next fix"
+### W-31 built (branch `claude/w31-unknown-depth`, stacked on #200)
+- ⚠️ CORRECTION (2026-09-30, ledger seq 208) of "W-31 scoped (not started)" above: it said a bare rename "would
+  drop the factor there (a served change)". WRONG. `to_surf_convention` is called only inside
+  `publish_surf_height`, and the missing-depth branch returns before it, so the H1/10 factor never reached that
+  path under either label. The plain rename is served-neutral; listing `unknown_depth` as convertible (what the
+  note proposed) would have been the served change. Found by reading the call sites while building it.
+- The fix: `estimate_surf` names the regime `unknown_depth`; `_CONVERTIBLE` unchanged. Every consumer that hides
+  a regime lists only open_ocean/calm/unknown (backend grid/rating/climatology, frontend card + rating gates), so
+  the new label behaves exactly as `shelf` did there. 8 tests (a null control under SURF_HEIGHT_H110 0 and 1, the
+  serving producer `estimate_surf_at` per L-P17, the grid); mutations 4/4. 610 regime-touching tests pass.
+- #200 MERGED 20:44:00Z as `3048b481` (ledger seq 209): hosted chain 137 / 1666 = the projection. W-31's floor is set
+  from it: chain 138 / 1668 (reading 1674).
