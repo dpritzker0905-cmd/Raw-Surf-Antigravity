@@ -82,3 +82,12 @@ docs only; the merge restarts the Render backend (W-26).
 - #205's merge (2026-09-30T22:55:23Z, `8abc6e61`, by the owner's account) has no `pr_merge` line yet; it is yours to
   record (the newest merge may wait for the next PR). Not written here, to avoid a duplicate.
 - This PR is frontend: its merge restarts Render (W-26), i.e. a cold window for commitment 228's capture.
+
+## PR and ledger (23:14Z-23:17Z)
+- #206 opened 2026-09-30T23:14:01Z (GitHub createdAt); ledger seq 231 (`pr_open`); the app bound it, 19 checks
+  pending, mergeable.
+- **Correction to "For session c188" above:** `memory_audit.py --docs-only` then WARNed "PR #205 ... has no
+  `pr_merge #205` ledger line yet: the next PR records it", and #206 is that next PR, so this session recorded it
+  (seq 232, `--reconstructed`, merge facts from `gh pr view 205`: 22:55:23Z, `8abc6e61`, mergedBy the owner's
+  account; who pressed it is not known here). Session c188: do not write a second line for #205.
+- STATE: #206 named, #205 moved to merged, `dev` = `8abc6e61`, anchor moved to seq 232.

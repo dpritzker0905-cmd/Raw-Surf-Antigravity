@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-09-30 22:19Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 23:15Z** (logs: `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
@@ -49,12 +49,13 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `0d8e587a`** (#204 at 2026-09-30 22:15:26Z, the map chrome in three themes; frontend, so Render
+- **`dev` = `8abc6e61`** (#205 at 2026-09-30 22:55:23Z, the map markers' nested-interactive fix; frontend, so Render
   restarts, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #205, the marker PR (branch `claude/map-marker-a11y`; ContentMarker, axe nested-interactive
-  -> 0). Merged 2026-09-30: #204 (22:15:26Z, the map chrome in three themes), #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
+- **Open PRs of ours:** #206, the encoding-debris cleanup (branch `claude/mojibake-debris-cleanup`; the ASCII
+  debris `da30f15d` left in user-visible strings, a source guard; frontend, so its merge restarts Render, W-26;
+  no served number changes; seq 231). Merged 2026-09-30: #205 (22:55:23Z as `8abc6e61`, the marker PR; seq 232), #204 (22:15:26Z, the map chrome in three themes), #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
   W-31 `unknown_depth`), #200 (20:44:00Z, commitment 203:
   the probe grades with the glyph's tide; the A/B dispatch pair follows), #199 (20:25:43Z, W-30 DARK
   behind `SIM_SERVED_TIDE` '0', with the catalogue fix; as opened it was inert, seq 205), #198
@@ -102,7 +103,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 230, sha256 5566b6898150827344cbb060883bfff5333fee10ea78b789e10da3b5c3109774**
+  **Ledger head: seq 232, sha256 a98a19f98158a70ce9d29d392c78746b85e95a56bf8b4f6103c79db9ac7dc2dc**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
