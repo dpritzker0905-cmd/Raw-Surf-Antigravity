@@ -399,8 +399,9 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     SMALLER than the offshore swell; a STEEP/DEEP coast passes most of it through. Sub-grid reef shoaling /
     refraction amplification (surf > offshore) needs finer bathymetry + a shore-normal -> deferred to v3.
 
-    Returns ``(surf_height_m, regime)`` in: calm | unknown | open_ocean | shelf (friction-reduced) |
-    shoaling (locally raised) | breaking (depth-capped). ESTIMATE from bulk params — callers MUST tag is_estimated."""
+    Returns ``(surf_height_m, regime)`` in: calm | unknown | open_ocean | unknown_depth (coastal, no usable depth:
+    the offshore height, untransformed) | shelf (friction-reduced) | shoaling (locally raised) | breaking
+    (depth-capped). ESTIMATE from bulk params — callers MUST tag is_estimated."""
     if Hs_m is None or Tp_s is None:
         return None, 'unknown'
     if Hs_m != Hs_m or Tp_s != Tp_s:
@@ -412,7 +413,12 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     if not coastal:
         return float(Hs_m), 'open_ocean'           # swell with no shore to break on -> not surf
     if depth_m is None or depth_m <= 0:
-        return float(Hs_m), 'shelf'                # coastal but no usable depth -> pass through
+        # W-31 (audit 4.1): a coastal point with no usable depth passes the OFFSHORE height through untouched.
+        # It was labelled 'shelf', the regime of a friction-reduced height, so no reader could tell "the shelf
+        # took nothing off" from "there was no depth to ask". Named for what it is; the height is unchanged.
+        # ⚠️ This return precedes `publish_surf_height`, so no H1/10 conversion ever reached this path, under
+        # either label: `unknown_depth` is deliberately NOT in `surf_height_convention._CONVERTIBLE`.
+        return float(Hs_m), 'unknown_depth'
     Kf = shelf_dissipation(Tp_s, depth_m, shelf_width_km)   # v3 recal scales CF inside (kill-switched)
     Hs_surviving = Kf * Hs_m                       # the swell that makes it across the shelf
     # v3.2 SLOPE-AWARE CAP: shelf-scale slope proxy = depth / width. A flat wide shelf (FL:

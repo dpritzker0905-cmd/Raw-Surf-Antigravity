@@ -1221,7 +1221,11 @@ jobs:
           # the parity probe grades with the glyph's tide and samples the banded spots): hosted CI on #198 (run
           # 36767046299) observed 136 files / 1661. The new tests/test_probe_tide_banded.py (claimed by `--lane chain`)
           # adds 5 executed tests: 1661 + 5 = 1666, 1666 - 6 = 1660; files 137 EXACT; _FLOOR_SET_FROM["chain"] -> 1666.
-          MIN_FILES, MIN_PASSED = 137, 1660
+          # ⬆ MIN_FILES 137→138, MIN_PASSED 1660→1668 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (W-31: a coastal
+          # point with no usable depth is the named regime unknown_depth): hosted CI on #200 (run 36772678148 @ 41ac3a23)
+          # observed 137 files / 1666. The new tests/test_unknown_depth_regime.py (claimed by `--lane chain`) adds 8
+          # executed tests: 1666 + 8 = 1674, 1674 - 6 = 1668; files 138 EXACT; _FLOOR_SET_FROM["chain"] -> 1674.
+          MIN_FILES, MIN_PASSED = 138, 1668
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
