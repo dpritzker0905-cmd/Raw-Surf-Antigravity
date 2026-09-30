@@ -7,6 +7,7 @@ from typing import Optional, Any, Dict
 
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
+from services.weather_pipeline.l2_retry import label_l2_read_failures
 from services.weather_pipeline.store import ProductStore
 from services.weather_pipeline.dynamic_index import DynamicProductIndex
 from services.weather_pipeline.sampler import PointSampler
@@ -174,6 +175,7 @@ class PointResolutionService:
             return None
         return reconcile_partitions(parts, total_h)
 
+    @label_l2_read_failures        # W-23: an answer served around a refused L2 read says so
     async def resolve_point(
         self,
         model: str,

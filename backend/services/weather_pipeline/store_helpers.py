@@ -627,16 +627,30 @@ def load_product_helper(store, filename: str, stride: Optional[int] = None) -> O
                 sb = _get_supabase_storage()
                 if sb:
                     try:
-                        product_bytes = sb.storage.from_(WEATHER_BUCKET).download(filename)
+                        # W-23 (2026-09-30): a transient refusal (429/5xx/timeout) is retried with a short budget;
+                        # anything that means "no" (e.g. 404) fails on the first attempt, as before.
+                        from services.weather_pipeline.l2_retry import read_with_retry
+                        product_bytes = read_with_retry(
+                            lambda: sb.storage.from_(WEATHER_BUCKET).download(filename), filename)
                         if product_bytes:
                             temp_filepath = filepath.with_suffix(".tmp")
                             temp_filepath.write_bytes(product_bytes)
                             temp_filepath.rename(filepath)
                             logger.info(f"[Product Store] Dynamically restored {filename} from L2 to L1")
                     except Exception as e:
-                        logger.warning(f"[Product Store] Dynamic L2 download failed for {filename}: {e}")
+                        from services.weather_pipeline.l2_retry import note_read_failure, transient_storage_error
+                        transient = transient_storage_error(e)
+                        logger.warning(f"[Product Store] Dynamic L2 download failed for {filename}"
+                                       f"{' (transient, after retries)' if transient else ''}: {e}")
+                        # ⛔ A REFUSED read is not an ABSENT file (LESSONS L-F1, L-F7): a transient failure is
+                        # negative-cached for L2_TRANSIENT_NEGATIVE_TTL_S (5 s), not the TTL that means "absent",
+                        # and recorded so the resolver's answer can say it was served around a refused read.
+                        ttl = ProductStore._L2_NEGATIVE_CACHE_TTL
+                        hold = min(ttl, float(os.environ.get("L2_TRANSIENT_NEGATIVE_TTL_S", "5"))) if transient else ttl
+                        if transient:
+                            note_read_failure(filename, e)
                         with ProductStore._l2_negative_cache_lock:
-                            ProductStore._l2_negative_cache[filename] = time.time()
+                            ProductStore._l2_negative_cache[filename] = time.time() - (ttl - hold)
         
         # Re-check filepath existence after download attempt
         if not filepath.exists():
