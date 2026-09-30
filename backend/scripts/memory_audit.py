@@ -19,7 +19,9 @@ WHAT IT CHECKS
       session starts with what the last one promised;
     * CLOCK: STATE's `Updated` time and the session logs' section-header times are not later than the moment they
       were committed (or now, for uncommitted edits): an estimate written as a timestamp FAILs (LESSONS L-P10).
-      Every `## ` log header carrying an HH:MM(:SS)Z time is read (its last one), whatever its shape;
+      Every `## ` log header carrying an HH:MM(:SS)Z time is read (its last one), whatever its shape, and each
+      claim is held to the commit that wrote THAT line (git blame), not the file's last commit. A committed log
+      header that ran ahead passes only once a ledger `correction` names it (the log is append-only);
     * every "ledger seq N" cited in the docs exists (no reference past the head).
   agent-local memory (--memory-dir; skipped with --docs-only, as in CI):
     * MEMORY.md indexes every memory file and links only to files that exist;
@@ -250,32 +252,56 @@ def _utc(s: str):
 LOG_TIME_RE = re.compile(r"(\d{2}):(\d{2})(?::(\d{2}))?Z")
 
 
-def check_clock(state_text: str, state_ref: str, logs: dict) -> list:
+def _ref_at(ref, lineno: int):
+    """A reference is one ISO time for the whole file, or {line number: ISO}, when each line was written. PURE."""
+    return ref.get(lineno) if isinstance(ref, dict) else ref
+
+
+def check_clock(state_text: str, state_ref, logs: dict, corrected=()) -> list:
     """STATE's `Updated YYYY-MM-DD HH:MMZ` and each log's section-header times must not be later than their reference
-    moment (`state_ref`; logs: {filename: (text, ref_iso)}), the commit that wrote them or now. PURE.
+    moment (`state_ref`; logs: {filename: (text, ref)}), the commit that wrote them or now. PURE.
     ⬇ EVERY `## ` header (2026-09-30). Until then only the 'HH:MM-HH:MMZ · title' shape was read (the regex needed
     ' ·'), so '## PR and ledger (23:14Z-23:17Z)', committed at 23:15:52Z (0b057d3d, #206's log), passed, as did
     every header of the '## Start (19:11:09Z)' shape most session logs use. The last time in the header counts; in
-    the 'time · title' shape, the last one before the ' ·', so a time named in the title is not read as the header's."""
-    res = []
+    the 'time · title' shape, the last one before the ' ·', so a time named in the title is not read as the header's.
+    ⬇ PER LINE (2026-09-30, the owner: "yes"). A ref may be {line number: ISO}, the commit that wrote THAT line (git
+    blame). The file's last commit hid seven headers written 1-7 min ahead of their own commit: a later commit to the
+    same file moved the reference past them (log/2026-09-30-clock-every-header.md). A session log is append-only, so
+    such a header cannot be fixed in place: it passes only when the ledger holds a `correction` line naming its log
+    and the header's exact text (`corrected`: each correction's target and corrects), and is listed in one NOTE."""
+    res, excused = [], []
     m = re.search(r"\*\*Updated (\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})Z\*\*", state_text)
-    if m and state_ref:
+    ref = _ref_at(state_ref, state_text.count("\n", 0, m.start()) + 1) if m else None
+    if m and ref:
         t = _utc(f"{m.group(1)}T{m.group(2)}:00Z")
-        if t > _utc(state_ref) + CLOCK_SLACK:
+        if t > _utc(ref) + CLOCK_SLACK:
             res.append(("FAIL", f"STATE.md says Updated {m.group(1)} {m.group(2)}Z, later than when it was written "
-                                f"({state_ref}): an estimate, not a clock reading"))
-    for name, (text, ref) in logs.items():
+                                f"({ref}): an estimate, not a clock reading"))
+    for name, (text, refs) in logs.items():
         day = name[:10]
-        for h in re.findall(r"^## (.*)$", text, re.M):
+        for n, line in enumerate(text.split("\n"), 1):
+            if not line.startswith("## "):
+                continue
+            h = line[3:].strip()
             times = LOG_TIME_RE.findall(re.split(r"\s\u00b7", h, maxsplit=1)[0])
+            ref = _ref_at(refs, n)
             if not times or not ref:
                 continue
             hh, mm, ss = times[-1]
             t = _utc(f"{day}T{hh}:{mm}:{ss or '00'}Z")
-            if t > _utc(ref) + CLOCK_SLACK:
-                res.append(("FAIL", f"log/{name}: the header '{h.strip()}' ends at {hh}:{mm}{':' + ss if ss else ''}Z, "
-                                    f"later than when it was written ({ref}): an estimate, not a clock reading "
-                                    f"(LESSONS L-P10)"))
+            if t <= _utc(ref) + CLOCK_SLACK:
+                continue
+            if any(f"log/{name}" in c and h in c for c in corrected):
+                excused.append(f"log/{name}:{n}")
+                continue
+            res.append(("FAIL", f"log/{name}:{n}: the header '{h}' ends at {hh}:{mm}{':' + ss if ss else ''}Z, later "
+                                f"than when it was written ({ref}): an estimate, not a clock reading (LESSONS L-P10). "
+                                f"Before it is committed, fix the time; once committed, the log is append-only: add "
+                                f"a dated correction and a `correction` ledger line whose target names 'log/{name}' "
+                                f"and this header's exact text"))
+    if excused:
+        res.append(("NOTE", f"{len(excused)} log header(s) ran ahead of their commit and are corrected in the "
+                            f"ledger: {', '.join(excused)}"))
     return res
 
 
@@ -284,11 +310,14 @@ HANDOFF_WRITTEN_RE = re.compile(r"written (\d{4}-\d{2}-\d{2})([^)\n]*)")
 
 def check_handoff_clock(handoffs: dict) -> list:
     """A HANDOFF header's `written YYYY-MM-DD ... HH:MMZ` must not be later than the commit that wrote it
-    (`handoffs`: {filename: (text, ref_iso)}). Added 2026-09-30: the L-P10 estimate in HANDOFF-2026-09-30.md's header
-    ('~01:45Z', committed 01:40Z; ledger seq 135) passed because the clock check read only STATE and the logs. PURE."""
+    (`handoffs`: {filename: (text, ref)}, ref as in check_clock). Added 2026-09-30: the L-P10 estimate in
+    HANDOFF-2026-09-30.md's header ('~01:45Z', committed 01:40Z; ledger seq 135) passed because the clock check read
+    only STATE and the logs. PURE."""
     res = []
-    for name, (text, ref) in handoffs.items():
-        m = HANDOFF_WRITTEN_RE.search("\n".join(text.splitlines()[:3]))
+    for name, (text, refs) in handoffs.items():
+        head = "\n".join(text.splitlines()[:3])
+        m = HANDOFF_WRITTEN_RE.search(head)
+        ref = _ref_at(refs, head.count("\n", 0, m.start()) + 1) if m else None
         if not m or not ref:
             continue
         times = re.findall(r"(\d{2}):(\d{2})Z", m.group(2))
@@ -314,11 +343,45 @@ def check_seq_refs(texts: dict, head_seq: int) -> list:
 
 
 def _git(*args):
+    # ⬇ UTF-8 (2026-09-30): git writes UTF-8, and blame output carries file content. Decoded with the Windows locale
+    # (cp1252), the U+FE0F inside a '⚠️' (bytes EF B8 8F; 0x8F is undefined there) killed the reader thread, stdout
+    # came back None, and the per-line clock reference fell back to the file's time on 5 of 12 files without a word.
     try:
-        r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=60)
+        r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=60)
         return r.stdout if r.returncode == 0 else None
     except (OSError, subprocess.SubprocessError):
         return None
+
+
+BLAME_HEAD_RE = re.compile(r"^([0-9a-f]{40}) \d+ (\d+)")
+
+
+def parse_blame(porcelain: str, now: str) -> dict:
+    """{final line number: ISO time} from `git blame --line-porcelain`: the COMMITTER time of the commit that last
+    changed each line (a rebase, amend or squash can only move it later, so a header true when committed never
+    FAILs); a line not yet committed (the zero sha) was written `now`. PURE."""
+    out, cur = {}, None
+    for ln in porcelain.splitlines():
+        m = BLAME_HEAD_RE.match(ln)
+        if m:
+            cur = (m.group(1), int(m.group(2)))
+        elif ln.startswith("committer-time ") and cur:
+            out[cur[1]] = now if set(cur[0]) == {"0"} else \
+                datetime.fromtimestamp(int(ln.split()[1]), timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return out
+
+
+def lines_written_at(rel_path: str, text: str):
+    """(ref, blind). ref: {line number: when that line was written} (git blame of the working tree), or, when git
+    cannot blame every line, the file's time (`written_at`; now for a file not yet committed). blind: the file IS
+    committed but could not be blamed, so it is held to the weaker file-level reference; the caller says so aloud
+    (before the UTF-8 fix in _git, 5 of 12 files fell back here on Windows without a word)."""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    refs = parse_blame(_git("blame", "--line-porcelain", "--", rel_path) or "", now)
+    if refs and max(refs) >= text.count("\n"):
+        return refs, False
+    return written_at(rel_path), _git("cat-file", "-e", f"HEAD:{rel_path}") is not None
 
 
 def git_merges():
@@ -365,15 +428,28 @@ def audit_completeness_and_clock(docs_dir: str = DOCS, require_history: bool = F
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     res += check_commitments(lines, now)
     rel = os.path.relpath(docs_dir, ROOT).replace("\\", "/")
+    blind = []
+
+    def dated(rel_path):
+        text = _read(os.path.join(ROOT, rel_path))
+        ref, is_blind = lines_written_at(rel_path, text)
+        if is_blind:
+            blind.append(rel_path)
+        return text, ref
+
     logs = {}
     logdir = os.path.join(docs_dir, "log")
     for f in sorted(os.listdir(logdir)) if os.path.isdir(logdir) else []:
         if re.match(r"\d{4}-\d{2}-\d{2}-.+\.md$", f):
-            logs[f] = (_read(os.path.join(logdir, f)), written_at(f"{rel}/log/{f}"))
-    res += check_clock(_read(os.path.join(docs_dir, "STATE.md")), written_at(f"{rel}/STATE.md"), logs)
-    handoffs = {f: (_read(os.path.join(docs_dir, f)), written_at(f"{rel}/{f}"))
-                for f in sorted(os.listdir(docs_dir)) if re.match(r"HANDOFF-.+\.md$", f)}
+            logs[f] = dated(f"{rel}/log/{f}")
+    corrected = [f"{e.get('target', '')} {e.get('corrects', '')}" for e in entries if e.get("kind") == "correction"]
+    res += check_clock(*dated(f"{rel}/STATE.md"), logs, corrected)
+    handoffs = {f: dated(f"{rel}/{f}") for f in sorted(os.listdir(docs_dir)) if re.match(r"HANDOFF-.+\.md$", f)}
     res += check_handoff_clock(handoffs)
+    if blind:
+        res.append(("FAIL" if require_history else "WARN",
+                    f"clock: {len(blind)} committed file(s) held to their LAST commit, not per line (git blame "
+                    f"failed): {', '.join(blind)}"))
     texts = {}
     for dirpath, _, fs in os.walk(docs_dir):
         for f in fs:
@@ -418,7 +494,34 @@ def selftest() -> list:
     titled = "## 12:00-12:04Z · why the 18:00Z cron missed\n## Census (method and numbers)\n## at 23:59 local\n"
     if check_clock("", "", {"2026-09-30-x.md": (titled, "2026-09-30T12:05:00Z")}):
         fails.append("clock: a time in a 'time · title' title, a header with no time, or one with no Z was read")
-    ho = "# Weather program handoff — 2026-09-30 (written 2026-09-30 ~01:45Z by the session x)\n\nbody\n"
+    # PER LINE: log/2026-09-29-consensus-and-ops.md:154, written 18:54:13Z (d09b2ceb), passed for a day because a
+    # later line of the same file was committed at 22:39:02Z. Line 3 is the header; line 5 a later, honest one.
+    cao = ("# x\n\n## 18:30-19:00Z · the GFS native-cell regrid, built dark\n- body\n"
+           "## 22:37-22:38Z · later\n")
+    per_line = {3: "2026-09-29T18:54:13Z", 5: "2026-09-29T22:39:02Z"}
+    if not any(lv == "FAIL" and ":3:" in msg for lv, msg in check_clock("", "", {"2026-09-29-x.md": (cao, per_line)})):
+        fails.append("clock: a header written 18:54:13Z that ends 19:00Z was not held to the commit that wrote it")
+    fixed = ["log/2026-09-29-x.md, header '18:30-19:00Z · the GFS native-cell regrid, built dark'"]
+    got = check_clock("", "", {"2026-09-29-x.md": (cao, per_line)}, fixed)
+    if [lv for lv, _ in got] != ["NOTE"] or "log/2026-09-29-x.md:3" not in got[0][1]:
+        fails.append(f"clock: a header corrected in the ledger should give one NOTE and no FAIL; got {got}")
+    for other in ("log/2026-09-29-y.md, header '18:30-19:00Z · the GFS native-cell regrid, built dark'",
+                  "log/2026-09-29-x.md, header '22:37-22:38Z · later'"):
+        if not any(lv == "FAIL" for lv, _ in check_clock("", "", {"2026-09-29-x.md": (cao, per_line)}, [other])):
+            fails.append(f"clock: a correction naming another log or another header excused this one: {other!r}")
+    st2 = "# S\n\n**Updated 2026-09-29 19:00Z** (x)\nbody\n"
+    if not check_clock(st2, {1: "2026-09-29T22:00:00Z", 3: "2026-09-29T18:54:00Z", 4: "2026-09-29T22:00:00Z"}, {}):
+        fails.append("clock: STATE's Updated line was not held to the commit that wrote THAT line")
+    h2 = "# Weather program handoff (written 2026-09-30 01:30-01:45Z by x)\n\nbody\n"
+    if not check_handoff_clock({"HANDOFF-x.md": (h2, {1: "2026-09-30T01:40:18Z", 3: "2026-09-30T02:30:00Z"})}):
+        fails.append("clock: a HANDOFF header was not held to the commit that wrote its line")
+    # The blame parser: committer time (not author time), and an uncommitted line (the zero sha) is `now`.
+    porc = ("a" * 40 + " 1 1 1\nauthor A\nauthor-time 1790683200\ncommitter-time 1790708053\nsummary s\n\t## x\n"
+            + "0" * 40 + " 2 2 1\nauthor Not Committed Yet\ncommitter-time 1790683200\n\tnew line\n")
+    want = {1: "2026-09-29T18:54:13Z", 2: "2026-09-30T23:59:00Z"}
+    if parse_blame(porc, "2026-09-30T23:59:00Z") != want:
+        fails.append(f"blame: expected {want}, got {parse_blame(porc, '2026-09-30T23:59:00Z')}")
+    ho ="# Weather program handoff — 2026-09-30 (written 2026-09-30 ~01:45Z by the session x)\n\nbody\n"
     if not check_handoff_clock({"HANDOFF-2026-09-30.md": (ho, "2026-09-30T01:40:18Z")}):
         fails.append("clock: the seq-135 handoff header (~01:45Z, committed 01:40:18Z) was not caught")
     ok = "# Weather program handoff — 2026-09-30 (written 2026-09-30 01:30-01:40Z by the session x)\n"
