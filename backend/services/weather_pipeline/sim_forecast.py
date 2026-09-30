@@ -190,8 +190,12 @@ def fetch_catalog() -> Optional[list]:
                                      headers={"User-Agent": "raw-surf-weather-sim"})
         with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:
             rows = json.loads(resp.read().decode("utf-8"))
+        # `best_tide` (W-30): the spot's tide prior, which `tide_fit` grades the served tide against.
+        # Dropped here until 2026-09-30, so every catalogue spot reached the sim with no prior and the
+        # served tide could never move a score: the fix was inert on every real spot.
         spots = [{"id": r.get("id"), "name": r.get("name"), "region": r.get("region"),
-                  "latitude": float(r["latitude"]), "longitude": float(r["longitude"])}
+                  "latitude": float(r["latitude"]), "longitude": float(r["longitude"]),
+                  "best_tide": r.get("best_tide")}
                  for r in rows
                  if r.get("is_active") and r.get("latitude") is not None
                  and r.get("longitude") is not None]

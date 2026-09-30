@@ -116,6 +116,35 @@ def test_a_spot_without_a_usable_band_is_unchanged(served):
     assert math.isclose(a["quality_raw"], b["quality_raw"]) and a["quality_label"] == b["quality_label"]
 
 
+def test_a_real_catalogue_spot_carries_its_tide_prior_to_the_rating(served, monkeypatch):
+    """THE DEFECT FOUND BEFORE MERGE: `sim_forecast.fetch_catalog` kept only id/name/region/lat/lng, so every
+    real spot reached the sim with no `best_tide`, tide_fit stayed neutral, and the served tide could never
+    move a score. The synthetic SPOT above carried the prior by hand, which is how the tests missed it. This
+    one goes through the app's catalogue response and the name resolver, as the forecast tool does."""
+    from services.weather_pipeline import sim_forecast, sim_spots
+    row = {"id": "s-low", "name": "Test Low Reef", "region": "Oahu", "latitude": 21.5, "longitude": -158.2,
+           "is_active": True, "best_tide": "Low"}
+    calls, box = served
+
+    def urlopen(req, timeout=None):                 # ONE urllib.request serves both modules: route by URL
+        calls.append(req.full_url)
+        body = [row] if "/api/surf-spots" in req.full_url else _payload(box["tide"])
+        return io.BytesIO(json.dumps(body).encode())
+
+    monkeypatch.setattr(sim_forecast.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(sim_forecast, "_CATALOG_CACHE", {})
+    monkeypatch.setattr(sim_forecast, "_is_down", lambda: False)
+    monkeypatch.setenv("SIM_LIVE_CATALOG", "1")
+    monkeypatch.setenv("SIM_SPOT_CATALOG", "1")
+    spot = sim_spots.resolve("Test Low Reef").spot
+    assert spot is not None and spot.get("best_tide") == "Low", spot
+    spot = {**spot, "orientation": 250.0}           # geometry is off in this fixture; frame it as SPOT is
+    tide = sim_observed.served_tide(spot, PROV, "live_forecast", None)
+    a = sim_rating.calculate_surf_rating(spot, 2.0, 14.0, 250.0, 4.0, 70.0)
+    b = sim_rating.calculate_surf_rating(spot, 2.0, 14.0, 250.0, 4.0, 70.0, served_tide=tide)
+    assert b["quality_raw"] < a["quality_raw"], "a Low reef at high water must be graded down"
+
+
 def test_the_forecast_tool_passes_the_served_tide():
     import weather_sim_mcp
     src = inspect.getsource(weather_sim_mcp)
