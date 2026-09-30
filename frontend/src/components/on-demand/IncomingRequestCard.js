@@ -271,7 +271,7 @@ const IncomingRequestCard = ({
             {/* Surfer Identification Section */}
             {(request.requester_stance || request.requester_board_description) && (
               <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20 space-y-2">
-                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>?? Surfer ID</p>
+                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>Surfer ID</p>
                 {request.requester_stance && (
                   <div className="flex items-center gap-2 text-sm">
                     <span className={textSecondary}>Stance:</span>

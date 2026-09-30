@@ -308,7 +308,7 @@ export const PhotographerGalleryManager = () => {
               ) : (
                 <Globe className="w-4 h-4 mr-2" />
               )}
-              {gallery?.is_public ? '? Published' : 'Publish Gallery'}
+              {gallery?.is_public ? 'Published' : 'Publish Gallery'}
             </Button>
             {showPricing && (
               <Button aria-label="Dollar Sign"
@@ -496,9 +496,9 @@ export const PhotographerGalleryManager = () => {
               <SelectItem value="videos">Videos Only</SelectItem>
               <SelectItem value="tagged">Tagged</SelectItem>
               <SelectItem value="untagged">Untagged</SelectItem>
-              <SelectItem value="distributed">? Distributed</SelectItem>
-              <SelectItem value="undistributed">? Undistributed</SelectItem>
-                <SelectItem value="ai_pending">{String.fromCodePoint(0x1F916)} AI Pending</SelectItem>
+              <SelectItem value="distributed">Distributed</SelectItem>
+              <SelectItem value="undistributed">Undistributed</SelectItem>
+                <SelectItem value="ai_pending">AI Pending</SelectItem>
             </SelectContent>
           </Select>
           

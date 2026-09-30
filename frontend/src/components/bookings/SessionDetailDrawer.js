@@ -43,7 +43,7 @@ const OutcomeBadge = ({ session, isLight }) => {
   
   const config = {
     Completed: {
-      label: '? Completed',
+      label: 'Completed',
       className: isLight
         ? 'bg-green-100 text-green-700 border-green-200'
         : 'bg-green-500/15 text-green-400 border border-green-500/20',

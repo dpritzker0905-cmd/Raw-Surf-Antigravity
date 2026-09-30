@@ -126,7 +126,7 @@ export const GalleryLightbox = ({
   // Handle purchase with unlock animation
   const handlePurchaseClick = async () => {
     if (isGromUser) {
-      toast.info('?? Ask your parent to approve this purchase!');
+      toast.info('Ask your parent to approve this purchase!');
       return;
     }
     if (!onPurchase) return;
@@ -157,7 +157,7 @@ export const GalleryLightbox = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('?? Saved to device!');
+    toast.success('Saved to device!');
   };
 
   const mediaUrl = getFullUrl(
@@ -250,7 +250,7 @@ export const GalleryLightbox = ({
               <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/50">
                 <Check className="w-10 h-10 text-white" />
               </div>
-              <p className="text-white text-xl font-bold">?? Unlocked!</p>
+              <p className="text-white text-xl font-bold">Unlocked!</p>
               <p className="text-emerald-400 text-sm mt-1">Full resolution available</p>
             </div>
           </div>

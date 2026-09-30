@@ -61,8 +61,8 @@ const REGIONS = [
 // Sort options
 const SORT_OPTIONS = [
   { id: 'rating', label: 'Highest Rated' },
-  { id: 'price_asc', label: 'Price: Low ? High' },
-  { id: 'price_desc', label: 'Price: High ? Low' },
+  { id: 'price_asc', label: 'Price: Low to High' },
+  { id: 'price_desc', label: 'Price: High to Low' },
   { id: 'sessions', label: 'Most Sessions' },
   { id: 'distance', label: 'Nearest First' },
 ];

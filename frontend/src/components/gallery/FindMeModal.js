@@ -101,7 +101,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
       });
 
       if (data.matches_found > 0) {
-        toast.success(`?? Found ${data.matches_found} match${data.matches_found > 1 ? 'es' : ''}!`);
+        toast.success(`Found ${data.matches_found} match${data.matches_found > 1 ? 'es' : ''}!`);
       } else {
         toast.info('No matches found - try adjusting your details.');
       }
@@ -259,7 +259,7 @@ export const FindMeModal = ({ open, onClose, galleryId, userId }) => {
                 <p className="text-sm font-medium text-foreground">
                   {matches.length > 0
                     ? `?? ${matches.length} match${matches.length > 1 ? 'es' : ''} found`
-                    : '?? No matches found'}
+                    : 'No matches found'}
                 </p>
                 <p className="text-[10px] text-gray-500">
                   Scanned {scanMeta?.totalScanned || 0} photos - {scanMeta?.scansRemaining ?? '?'} scans left today

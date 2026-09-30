@@ -405,7 +405,7 @@ export const AdminCommunicationsDashboard = () => {
                             <p className="text-xs text-gray-500 mt-1">{camp.subject}</p>
                             {camp.total_sent > 0 && (
                               <p className="text-xs text-muted-foreground mt-1">
-                                Sent: {camp.total_sent} ? Open: {camp.total_opened} ({camp.open_rate}%)
+                                Sent: {camp.total_sent} &middot; Open: {camp.total_opened} ({camp.open_rate}%)
                               </p>
                             )}
                           </div>

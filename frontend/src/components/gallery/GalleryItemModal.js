@@ -227,7 +227,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success(`?? Saved! ${response.data.downloads_remaining} downloads remaining`);
+      toast.success(`Saved! ${response.data.downloads_remaining} downloads remaining`);
     } catch (error) {
       toast.error(getErrorMessage(error, 'Download failed'));
     }
@@ -335,7 +335,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                 <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/50">
                   <Check className="w-10 h-10 text-white" />
                 </div>
-                <p className="text-white text-xl font-bold">?? Unlocked!</p>
+                <p className="text-white text-xl font-bold">Unlocked!</p>
                 <p className="text-emerald-400 text-sm mt-1">Full resolution available</p>
               </div>
             </div>
@@ -482,15 +482,15 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                 {/* AI status badge */}
                 {item.ai_suggested_count > 0 ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-                    ?? AI matched to {item.ai_suggested_count} surfer{item.ai_suggested_count !== 1 ? 's' : ''}
+                    AI matched to {item.ai_suggested_count} surfer{item.ai_suggested_count !== 1 ? 's' : ''}
                   </span>
                 ) : item.distributed_count > 0 ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    ? Distributed to {item.distributed_count}
+                    Distributed to {item.distributed_count}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                    ?? Needs manual tagging
+                    Needs manual tagging
                   </span>
                 )}
               </div>
