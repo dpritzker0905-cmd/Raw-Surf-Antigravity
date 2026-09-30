@@ -1,15 +1,14 @@
 # Weather program: state
 
-**Updated 2026-09-29 23:57Z** (logs: `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 00:04Z** (logs: `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-29.md`** (reading order, what is live or dark, open
   commitments, next fixes, owner-only items, the day's report audit). Read it after this file.
-- **`dev` = `5f6120a6`** (#181 at 23:37:30Z; docs only, the backend still runs `cdd5cc7c`, #179). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #183, the W-32 fix (stacked on #182: the false MARINE_EMPTY_RENDER report waits out the
-  commit gap; dev site only); #182, the W-12 pixel-truth test PR (test only; the test stays `test.fixme` with its measured
-  blocker). The plan of action W-00..W-50 lives in `log/2026-09-29-sim-works-plan.md` (#181, merged).
+- **`dev` = `d50b4b50`** (#182 at 2026-09-30 00:04:15Z; test + docs only, the backend still runs `cdd5cc7c`, #179). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
+- **Open PRs of ours:** #183, the W-32 fix (the false MARINE_EMPTY_RENDER report waits out the commit gap; dev
+  site only). #182 (the W-12 pixel-truth oracle, still `test.fixme` with its measured blocker) merged. The plan of action W-00..W-50 lives in `log/2026-09-29-sim-works-plan.md` (#181, merged).
 - **The weather sim does not reach production map users** (#181 F1): `fc140024` is 3,283 commits behind `dev` and its
   map reads a Netlify Open-Meteo proxy. The plan's Phase 1 is the release-readiness evidence for D-002.
 - **Open commitments:** `python backend/scripts/action_ledger.py open` (seq 78, 79, 86, 94).
@@ -35,7 +34,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 112, sha256 7d1e7563b0df99820da1afb529faa5437494357c397928754ffffc2149317839**
+  **Ledger head: seq 113, sha256 696af73defdeb22a24d1f5f653786ff1062bba64e738be8ced16a6b2efd225da**
 
 ## Next fixes, in order
 - ~~**A Pacific NW / NorCal regional tile**~~ built (#177) and flipped (D-011); The 2-deg global_mid tier reads +0.097 m high vs the same
