@@ -1200,7 +1200,11 @@ jobs:
           # calibration fetch finally parses wind): hosted CI on #193 observed 135 files / 1640.
           # tests/test_skill_direction_period.py gains 4 executed tests: 1640 + 4 = 1644, 1644 - 6 = 1638; files 135
           # unchanged; _FLOOR_SET_FROM["chain"] -> 1644.
-          MIN_FILES, MIN_PASSED = 135, 1638
+          # ⬆ MIN_FILES 135→136, MIN_PASSED 1638→1649 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (W-23: a refused L2
+          # read is retried, held for seconds not cached as absent, and labelled): hosted CI on #194 observed 135 files /
+          # 1644. The new tests/test_l2_read_refusal.py (claimed by `--lane chain`) adds 11 executed tests: 1644 + 11 =
+          # 1655, 1655 - 6 = 1649; files 136 EXACT; _FLOOR_SET_FROM["chain"] -> 1655.
+          MIN_FILES, MIN_PASSED = 136, 1649
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

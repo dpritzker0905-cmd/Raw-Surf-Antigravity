@@ -133,3 +133,24 @@ Every check-enforced lesson: zero recurrences. The prose-only L-P10: three. **LE
   (urllib transport; `httpx` fails TLS only inside this tool sandbox) merged fresh wind at 6 of 8 NDBC stations with
   the wave time kept (51202 has no anemometer; 44025's is stale and was refused); 677 nearby tests pass. Chain floor
   135 / 1638 (1644). `buoy_calibration.py` is at 800 lines, the ceiling: its next change must extract first.
+
+## 17:45-17:55Z · #194 merged (after a transient CI refusal); the next fix: W-23, the silent 2-degree fallback
+- Owner (chat): "merge #194 when it's green and move to the next fix". #194's `backend-floor-staleness` failed at
+  first: the job REFUSED because GitHub's run list answered "newest successful dev run" with one from 2026-05-22
+  (132 days old), the transient its own message names ("re-run this job"). Run locally against dev it passed
+  (e1c70d99, every floor current). GitHub re-runs a job only after its run completes, so W-23 was built meanwhile;
+  the job was re-run at 17:52:06Z and passed; #194 merged 17:53:50Z (`b1e5e50d`), hosted chain 135 / 1644.
+- **W-23 (LESSONS L-F7; audit 2026-09-30 §3.5).** `load_product_helper`'s dynamic L2 download had no retry and put
+  EVERY failure, a transient 429 included, in the 60 s negative cache that means "absent", so the resolver answered
+  from the 2-degree tier while the payload said `regional`. Built: `l2_retry.read_with_retry` (transient-only,
+  L2_READ_MAX_ATTEMPTS 3, base 0.2 s, cap 1 s: at most ~0.9 s on a user's request; a 404 fails at once);
+  `transient_storage_error`; a transient failure is held L2_TRANSIENT_NEGATIVE_TTL_S = 5 s, an absent file keeps the
+  60 s; and `label_l2_read_failures` on `resolve_grid` and `PointResolutionService.resolve_point` stamps
+  `fallbackReason`/`fallback_reason` = "l2_read_refused" plus a warning naming the refused file when the answer was
+  served around it (a per-call contextvar registry; worker threads record into it; nested calls restore the outer).
+- It changes which product is served ONLY when a read is refused (the regional tile after a retry, instead of the
+  silent 2-degree one), like #162's failed-vs-absent fix, which also shipped live. No SCOREBOARD instrument sees it,
+  so the check is Render's own log after deploy (commitment below).
+- Evidence: 11 tests driving the REAL `load_product_helper` with only the storage client faked; mutations 10 of 10
+  caught (the first run left nested-call isolation unpinned; a test now pins it); 580 nearby tests pass. Chain floor
+  136 / 1649 (1655).

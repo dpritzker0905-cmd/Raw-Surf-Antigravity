@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
 from services.weather_pipeline.schemas import NormalizedProduct
+from services.weather_pipeline.l2_retry import label_l2_read_failures
 from services.weather_pipeline.route_helpers import (
     parse_valid_time, parse_bbox, filter_grid_to_bbox,
     make_unsupported_icon_swell2_grid_response, make_no_coverage_grid_response,
@@ -108,6 +109,7 @@ def _load_kw(series_stride) -> dict:
     return {"stride": s} if s > 1 else {}
 
 
+@label_l2_read_failures        # W-23: an answer served around a refused L2 read says so
 async def resolve_grid(
     store,
     viewport_service,
