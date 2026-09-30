@@ -265,3 +265,67 @@ def test_both_rating_lanes_declare_the_switch_dark_and_equal():
         assert len(found) == 1, wf
         values[wf] = found[0]
     assert set(values.values()) == {"0"}, values
+
+
+# ── PER REGION (2026-09-30, dark): CONSENSUS_SERVE_KEEP_GFS, the Hawaii-only rule's switch (ledger seq 215) ──────
+@pytest.mark.parametrize("raw,want", [("", frozenset()), ("hawaii", {"hawaii"}), (" hawaii , fl ,", {"hawaii", "fl"})])
+def test_the_keep_list_parses(monkeypatch, raw, want):
+    monkeypatch.setenv("CONSENSUS_SERVE_KEEP_GFS", raw)
+    assert S.keep_gfs_regions() == frozenset(want)
+
+
+def test_the_keep_list_is_empty_when_unset__dark_is_d006(monkeypatch):
+    """Unset (Render, a local run, any lane that never declares it) must mean D-006's global equal mean."""
+    monkeypatch.delenv("CONSENSUS_SERVE_KEEP_GFS", raising=False)
+    assert S.keep_gfs_regions() == frozenset()
+
+
+def test_on_a_kept_region_serves_gfs_and_never_reads_the_twin(monkeypatch):
+    monkeypatch.setenv("CONSENSUS_SERVE_KEEP_GFS", "fl")
+    view, raw = _view(monkeypatch)
+    got = view.load_product("gfs.json")
+    assert [v.speed for v in got.grid.vectors] == [1.0, 2.0, 3.0, 4.0] and got.upstream_model is None
+    assert raw.loads == ["gfs.json"] and "served_consensus" not in (got.grid.diagnostics or {})
+
+
+def test_on_a_region_not_kept_still_serves_its_twin(monkeypatch):
+    monkeypatch.setenv("CONSENSUS_SERVE_KEEP_GFS", "hawaii")
+    view, _raw = _view(monkeypatch)
+    assert [v.speed for v in view.load_product("gfs.json").grid.vectors] == [1.5, 2.5, 3.0, 4.5]
+
+
+def test_a_changed_keep_list_is_never_answered_from_the_old_index(monkeypatch):
+    """The twin index is cached per manifest; a list changed under a running process must re-index."""
+    monkeypatch.delenv("CONSENSUS_SERVE_KEEP_GFS", raising=False)
+    view, _raw = _view(monkeypatch)
+    assert view.load_product("gfs.json").upstream_model == "equal mean of GFS, EURO, ICON"
+    monkeypatch.setenv("CONSENSUS_SERVE_KEEP_GFS", "fl")
+    # the SAME view: neither the twin index nor this view's merged-frame cache may answer from before the change
+    assert view.load_product("gfs.json").upstream_model is None
+
+
+def test_off_the_keep_list_alone_changes_nothing(monkeypatch):
+    monkeypatch.setenv("CONSENSUS_SERVE_KEEP_GFS", "fl")
+    view, raw = _view(monkeypatch, on="0")
+    assert [v.speed for v in view.load_product("gfs.json").grid.vectors] == [1.0, 2.0, 3.0, 4.0]
+    assert raw.loads == ["gfs.json"]
+
+
+def test_both_rating_lanes_declare_the_keep_list_dark_and_equal():
+    values = {}
+    for wf in ("forecast-ingest.yml", "precompute.yml"):
+        d = yaml.safe_load((BACKEND.parent / ".github" / "workflows" / wf).read_text(encoding="utf-8"))
+        found = [st["env"]["CONSENSUS_SERVE_KEEP_GFS"] for j in d["jobs"].values() for st in j.get("steps", [])
+                 if isinstance(st, dict) and "CONSENSUS_SERVE_KEEP_GFS" in (st.get("env") or {})]
+        assert len(found) == 1, wf
+        values[wf] = found[0]
+    assert set(values.values()) == {""}, values
+
+
+def test_the_recommended_region_is_a_real_regional_tile():
+    """The flip will set 'hawaii': it must be a region_id the regional tiles actually carry, or the list keeps nothing."""
+    from services.weather_pipeline.pilot_regions import WORLDWIDE_COASTAL_REGIONS
+    assert "hawaii" in WORLDWIDE_COASTAL_REGIONS
+    b = WORLDWIDE_COASTAL_REGIONS["hawaii"]
+    for lat, lng in ((21.67, -158.12), (21.47, -157.76), (20.98, -156.43), (19.78, -154.97)):   # 51201/02/05/06
+        assert b["south"] <= lat <= b["north"] and b["west"] <= lng <= b["east"]
