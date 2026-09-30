@@ -1,4 +1,6 @@
 ﻿import React from 'react';
+import { useThemeName } from '../../contexts/ThemeContext';
+import { mapChromeTheme } from './mapChromeTheme';
 
 export var RequestProButton = ({
   userLocation,
@@ -9,6 +11,7 @@ export var RequestProButton = ({
   getUserLocation,
   setShowRequestProModal
 }) => {
+  const c = mapChromeTheme(useThemeName());     // three themes (W-10 R4): it was zinc-800 in every mode
   return (
     <div className="mt-2 pointer-events-auto">
       <button
@@ -26,7 +29,7 @@ export var RequestProButton = ({
         className={`px-4 py-2 rounded-full text-sm font-medium transition-all backdrop-blur-sm border border-cyan-500/50 ${
           requestProLocationLoading 
             ? 'bg-cyan-600/50 text-white cursor-wait' 
-            : 'bg-zinc-800/90 text-gray-300 hover:bg-zinc-700'
+            : c.requestIdle
         }`}
         data-testid="request-pro-btn"
       >
@@ -36,7 +39,9 @@ export var RequestProButton = ({
             Finding location...
           </span>
         ) : (
- 'Request a '
+          // 'Request a <camera emoji>' until da30f15d (2026-05-18) stripped the emoji and left 'Request a ',
+          // shipped to production that way. Named in words, as the modal it opens names itself.
+          'Request a Pro'
         )}
       </button>
     </div>

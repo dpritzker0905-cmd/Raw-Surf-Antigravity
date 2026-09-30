@@ -69,3 +69,10 @@ export const useTheme = () => {
   }
   return context;
 };
+
+// The theme NAME for leaf controls that are also rendered bare (unit tests, isolated previews): outside a
+// ThemeProvider it answers 'dark', the app's own default (readInitialTheme), instead of throwing.
+export const useThemeName = () => {
+  const context = useContext(ThemeContext);
+  return context ? context.theme : 'dark';
+};

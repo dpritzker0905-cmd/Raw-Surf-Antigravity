@@ -121,7 +121,9 @@ export var MapWeatherControls = ({
       ? 'bg-black/90 border-cyan-900/50 shadow-cyan-900/20'
       : 'bg-zinc-900/95 border-zinc-800 shadow-2xl';
   const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const textMuted = isLight ? 'text-gray-500' : 'text-gray-400';
+  // Light is gray-600, not -500: -500 on the chipBg gray-100 is ~4.4:1, under WCAG AA's 4.5:1 for this 12px text
+  // (axe on a production build, W-10 R5: 14 desktop / 13 mobile nodes, the unselected model and layer chips).
+  const textMuted = isLight ? 'text-gray-600' : 'text-gray-400';
   const btnHover = isLight ? 'hover:bg-gray-200' : 'hover:bg-zinc-700';
   const chipBg = isLight ? 'bg-gray-100 border-gray-200' : 'bg-zinc-800 border-zinc-700';
 
