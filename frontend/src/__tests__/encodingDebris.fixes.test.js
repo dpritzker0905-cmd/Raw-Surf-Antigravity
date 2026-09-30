@@ -96,7 +96,7 @@ describe('reactions', () => {
         const visit = (n) => {
           if (!n || typeof n.type !== 'string') return;
           if (n.type === 'CallExpression' && n.callee.type === 'Identifier' && n.callee.name === 'handleReaction') {
-            for (const a of n.arguments) if (a.type === 'StringLiteral') calls.push([path.relative(SRC, p), a.loc.start.line, a.value]);
+            for (const a of n.arguments) if (a.type === 'StringLiteral') calls.push([path.relative(SRC, p).split(path.sep).join('/'), a.loc.start.line, a.value]);
           }
           for (const k of Object.keys(n)) {
             if (k === 'loc') continue;
