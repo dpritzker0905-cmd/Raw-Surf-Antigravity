@@ -230,3 +230,6 @@ W-42; F12 (Stripe key).
   not yet set). 00:47-00:59Z W-37 measured (above); the oracle fix is a test-only PR. Next: W-38.
 - 01:21:18Z #185 merged (owner: "Merge #185 and move to the next fix"). W-38 resolved (no defect, above); W-34
   built as the next fix.
+- 01:38:21Z #186 merged (owner: "Merge #186 and create a handoff report and a fresh context"); hosted guards 175 /
+  2130 = the projection. 01:39Z `HANDOFF-2026-09-30.md` written for a fresh context; session closes here. Open:
+  commitments 78, 79, 86, 94, 128; next fix W-10 (R4-R7).
