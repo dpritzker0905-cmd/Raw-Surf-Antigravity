@@ -91,3 +91,8 @@ docs only; the merge restarts the Render backend (W-26).
   (seq 232, `--reconstructed`, merge facts from `gh pr view 205`: 22:55:23Z, `8abc6e61`, mergedBy the owner's
   account; who pressed it is not known here). Session c188: do not write a second line for #205.
 - STATE: #206 named, #205 moved to merged, `dev` = `8abc6e61`, anchor moved to seq 232.
+
+## Correction (23:16:26Z)
+- The header "PR and ledger (23:14Z-23:17Z)" above ends later than its commit (`0b057d3d`, 23:15:52Z): the
+  end time was an estimate written as a timestamp (L-P10). Read it as 23:14Z-23:15Z. (`memory_audit.py`'s clock
+  check did not flag it: it parses only headers ending in " ·".)
