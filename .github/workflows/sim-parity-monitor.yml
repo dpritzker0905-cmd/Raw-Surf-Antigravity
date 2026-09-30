@@ -49,6 +49,14 @@ on:
         description: 'spots per region'
         required: false
         default: '6'
+      tide_banded:
+        description: "also measure every spot whose best_tide parses to a band (W-30's spots, commitment 203): true/false"
+        required: false
+        default: 'false'
+      sim_served_tide:
+        description: "SIM_SERVED_TIDE for the sim side: '0' tide-blind (today), '1' the glyph's served tide (W-30's A/B)"
+        required: false
+        default: '0'
 
 permissions:
   contents: read
@@ -110,6 +118,10 @@ jobs:
           RAW_SURF_BASE_URL: ${{ vars.HEALTH_BASE || 'https://raw-surf-antigravity.onrender.com' }}
           REGIONS: ${{ github.event.inputs.regions }}
           PER_REGION: ${{ github.event.inputs.per_region || '6' }}
+          # W-30 (commitment 203): a SIM-side switch, not a lane flag (the sim reads the glyph's served tide),
+          # so it is a dispatch input: '0' on the cron keeps the monitor measuring the sim users run today.
+          TIDE_BANDED: ${{ github.event.inputs.tide_banded || 'false' }}
+          SIM_SERVED_TIDE: ${{ github.event.inputs.sim_served_tide || '0' }}
           # ⚠️⚠️ THESE MIRROR THE INGEST LANES AND ARE NOT OPTIONAL. The probe runs the SIM in this
           # runner and compares it against what the serve box PRECOMPUTED. Science flags are read
           # per-process from the environment (sim_rating.py:91 for local size), so a flag set in the
@@ -163,6 +175,7 @@ jobs:
           set -o pipefail
           ARGS="--json --attribute --fail-on-divergence --per-region ${PER_REGION}"
           if [ -n "$REGIONS" ]; then ARGS="$ARGS --regions $REGIONS"; fi
+          if [ "$TIDE_BANDED" = "true" ]; then ARGS="$ARGS --tide-banded"; fi
           echo "python3 scripts/sim_health_probe.py $ARGS"
           set +e
           python3 scripts/sim_health_probe.py $ARGS > parity.json 2> parity.err

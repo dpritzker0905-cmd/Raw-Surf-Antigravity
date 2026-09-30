@@ -80,6 +80,22 @@ REGIONS = {
     "australia": (143.4, -39.2, 145.2, -37.8),
     "south_africa": (24.2, -34.4, 25.6, -33.4),
 }
+TIDE_BBOX_PAD_DEG = 0.02        # sim_observed's own pad: the nearest rated row is this spot, not a neighbour
+
+
+def _tide_banded_targets(catalog):
+    """PURE (commitment 203): one pseudo-region per catalogue spot whose `best_tide` parses to a LEVEL band, as
+    (name, bbox, spot_id). Only these can move under `tide_fit` (F8: 18 of 1,773), and the regions above sample
+    each bbox's top-rated spots, so they almost never include one. Parsed by the engine's own `parse_best_tide`,
+    so the set is exactly the spots the W-30 flip (SIM_SERVED_TIDE) can touch."""
+    from services.weather_pipeline.surf_rating import parse_best_tide
+    out, p = [], TIDE_BBOX_PAD_DEG
+    for s in catalog or []:
+        la, ln = s.get("latitude"), s.get("longitude")
+        if la is None or ln is None or parse_best_tide(s.get("best_tide")) is None:
+            continue
+        out.append((f"tide:{s.get('name')}", (ln - p, la - p, ln + p, la + p), str(s.get("id"))))
+    return out
 
 
 def _fetch(url, timeout=120):
@@ -93,16 +109,20 @@ def _top_of_hour_utc():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:00:00Z")
 
 
-def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unknown_hour=False):
+def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unknown_hour=False,
+          tide_banded=False):
     from weather_sim_mcp import _baseline_with_source
-    from services.weather_pipeline import sim_forecast, sim_spots
+    from services.weather_pipeline import sim_forecast, sim_observed, sim_spots
     from services.weather_pipeline.sim_rating import (
         calculate_surf_rating, geometry_payload, reference_size_for)
+    from services.weather_pipeline.surf_rating import parse_best_tide
 
     rows, skipped, unresolved = [], [], []
     readiness = {}
-    for name in regions:
-        bbox = REGIONS.get(name)
+    targets = [(name, REGIONS.get(name), None) for name in regions]
+    if tide_banded:                       # commitment 203: every spot W-30 can touch, one pseudo-region each
+        targets += _tide_banded_targets(sim_forecast.fetch_catalog())
+    for name, bbox, only_id in targets:
         if bbox is None:
             skipped.append((name, "unknown region"))
             continue
@@ -133,6 +153,8 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
 
         rated = [s for s in served.get("spots", []) if s.get("score") is not None]
         rated.sort(key=lambda s: -(s.get("score") or 0))
+        if only_id is not None:           # a tide pseudo-region measures its own spot, never a neighbour
+            rated = [s for s in rated if str(s.get("spot_id")) == only_id]
         if verbose:
             print(f"\n=== {name}: {len(rated)} rated · source={served.get('source')} · "
                   f"asked {valid_time} · served {hour}"
@@ -165,11 +187,15 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
             # Older frames without the field keep the lookup lane (the skew stays visible in
             # the self-diagnosis vectors either way).
             glyph_ref = item.get("reference_size_m")
+            # ⭐ AND ON THE GLYPH'S OWN TIDE (commitment 203), for the same reason: tide is an input,
+            # and W-30's forecast tool grades with exactly this under SIM_SERVED_TIDE (one reader,
+            # `sim_observed.glyph_tide`). Off, it is None and this is the tide-blind sim it measured before.
+            _tide = sim_observed.glyph_tide(item)
             calc = calculate_surf_rating(
                 spot, baseline["swell_height_m"], baseline["swell_period_sec"],
                 baseline["swell_direction_deg"], baseline["wind_speed_knots"],
                 baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
-                allow_reference_lookup=True,
+                allow_reference_lookup=True, served_tide=_tide,
                 **({"served_reference_size_m": glyph_ref} if glyph_ref is not None else {}))
             # ⛔⛔ AND THE COMPOSITION THE TOOLS ACTUALLY PRODUCE, WHICH IS NO LONGER THIS ONE.
             # Since `5f19ac7d` every sim TOOL grades on the size curve the app SERVED — read off the
@@ -192,7 +218,7 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
                 spot, baseline["swell_height_m"], baseline["swell_period_sec"],
                 baseline["swell_direction_deg"], baseline["wind_speed_knots"],
                 baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
-                allow_reference_lookup=True,
+                allow_reference_lookup=True, served_tide=_tide,
                 served_reference_size_m=served_ref) if served_ref is not None else calc
             dt = time.time() - t0
 
@@ -258,6 +284,12 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
                 # False = the two sides MAY describe different hours. Carried per row so a JSON
                 # consumer cannot read a caveated number as a clean one.
                 "hour_verified": hour_verified,
+                # W-30 / commitment 203: which tide each side graded with. A banded row with
+                # `sim_tide_applied` False is the sim grading tide-neutral where the glyph did not.
+                "best_tide": spot.get("best_tide"),
+                "tide_band": parse_best_tide(spot.get("best_tide")) is not None,
+                "glyph_tide_norm": (item["tide"].get("norm") if isinstance(item.get("tide"), dict) else None),
+                "sim_tide_applied": _tide is not None,
             }
             # ⭐ SELF-DIAGNOSIS ON DIVERGENCE (2026-08-09). Three sessions could not name the
             # mechanism behind the rotating composition reds because the artefact recorded only
@@ -421,6 +453,16 @@ def summarize(rows, skipped, unresolved, readiness):
                 "n": len(served), "level_differences": sum(1 for r in served
                                                            if r["served_level_differs"])}
         out["served_lane"] = {"served_cell": len(served), "lookup_spot": len(rows) - len(served)}
+        # W-30'S FLIP EVIDENCE (commitment 203): the rows where tide_fit can move a score, graded apart so the
+        # many tide-neutral rows cannot dilute them. SIM_SERVED_TIDE 1 vs 0 on a dispatch is the A/B.
+        banded = [r for r in rows if r.get("tide_band")]
+        if banded:
+            db = sorted(abs(r["d_score"]) for r in banded)
+            out["tide_banded"] = {"n": len(banded),
+                                  "sim_tide_applied": sum(1 for r in banded if r.get("sim_tide_applied")),
+                                  "glyph_carried_tide": sum(1 for r in banded if r.get("glyph_tide_norm") is not None),
+                                  "d_score": {"median": round(statistics.median(db), 3), "max": round(db[-1], 3)},
+                                  "level_differences": sum(1 for r in banded if r["level_differs"])}
     return out
 
 
@@ -448,13 +490,16 @@ def main():
                     help="measure even when the deploy cannot report `served_valid_time`. Every "
                          "affected row is labelled `hour_verified: false` and the summary says so "
                          "— the number may include a time offset of up to the stale bound.")
+    ap.add_argument("--tide-banded", action="store_true",
+                    help="also measure every catalogue spot whose best_tide parses to a band (the spots "
+                         "W-30's SIM_SERVED_TIDE can move), one pseudo-region each (commitment 203)")
     args = ap.parse_args()
 
     vt = args.valid_time or _top_of_hour_utc()
     regions = [r.strip() for r in args.regions.split(",") if r.strip()]
     rows, skipped, unresolved, readiness = probe(
         regions, args.per_region, vt, args.model, verbose=not args.as_json,
-        allow_unknown_hour=args.allow_unknown_hour)
+        allow_unknown_hour=args.allow_unknown_hour, tide_banded=args.tide_banded)
     if args.attribute and any(r["level_differs"] for r in rows):
         attribute(rows, args.model)
     summary = summarize(rows, skipped, unresolved, readiness)
