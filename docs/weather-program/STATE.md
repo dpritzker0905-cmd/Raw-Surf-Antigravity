@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-09-30 20:26Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 20:45Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
@@ -30,12 +30,13 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `3937c145`** (#199 at 2026-09-30 20:25:43Z, W-30 dark; backend). Render served `2123d70e` (#195,
-  W-23) from 18:54:40Z (ledger seq 194); the #197-#199 deploys follow. ⚠️ Every frontend merge still
+- **`dev` = `3048b481`** (#200 at 2026-09-30 20:44:00Z, commitment 203's probe; backend). Render served
+  `2123d70e` (#195, W-23) from 18:54:40Z (ledger seq 194); the #197-#200 deploys follow. ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #200, the commitment-203 PR (branch `claude/c203-probe-tide`; the parity probe grades with the
-  glyph's tide and samples the 18 banded spots; serves nothing). Merged 2026-09-30: #199 (20:25:43Z, W-30 DARK
+- **Open PRs of ours:** #201, the W-31 PR (branch `claude/w31-unknown-depth`; a coastal point with no usable depth is the
+  named regime `unknown_depth`, not `shelf`; served-neutral). Merged 2026-09-30: #200 (20:44:00Z, commitment 203:
+  the probe grades with the glyph's tide; the A/B dispatch pair follows), #199 (20:25:43Z, W-30 DARK
   behind `SIM_SERVED_TIDE` '0', with the catalogue fix; as opened it was inert, seq 205), #198
   (19:56:30Z, the per-region rule graded on the training weeks: commitment 198 reads it), #197 (19:36:43Z,
   commitment 188's instrument: read it after the next precompute), #196 (19:17:15Z, the evening handoff),
@@ -77,11 +78,11 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 176 files / 2140 (reading 2146), chain 136 / 1655 (1661; 137 / 1660 (1666) with
-  the commitment-203 PR), estate 580 (582).
+- **CI floors on `dev`:** guards 176 files / 2140 (reading 2146), chain 137 / 1660 (1666; 138 / 1668 (1674) with
+  #201), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 207, sha256 f0c91103d1f7727f4fb9343465bf0f7eb2c5834a568eb76320ec845c23edfdb5**
+  **Ledger head: seq 210, sha256 72f42e04ea0829da92d4a58edf34740c6e808d0c84d8ddef7dd53ee6e564902a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
