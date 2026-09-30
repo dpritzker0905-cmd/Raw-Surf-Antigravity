@@ -1,9 +1,14 @@
 # Weather program: state
 
-**Updated 2026-09-30 21:29Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 21:58Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- **W-10 R4-R7 measured (seq 224; log c188):** the release evidence for D-002. R4/R5 found four single-theme map
+  controls, a label cut to "Request a " since 2026-05-18 (production too), and light-chip contrast under AA: fixed in
+  the map-chrome PR (axe light 14 -> 0, mobile sheet 13 -> 0). Still open for the release: nested-interactive map
+  markers, the viewport's disabled zoom, R6 (production proxy volume: owner data). R7: re-publish the locked
+  fc140024 deploy.
 - **2026-09-30 evening reads (session c188):** (1) **Commitment 198 (seq 215): the per-region consensus rule OUT OF
   SAMPLE.** Hawaii CONFIRMED on the training weeks (GFS 0.313 < equal 0.345, n 6,817); atlantic_se REFUTED (equal
   0.168 < GFS 0.181, n 11,942). Hawaii-only rule: train 0.192 vs equal 0.196 (-1.9%) vs GFS 0.229 (-16%). **Owner
@@ -39,12 +44,13 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `f1dddcda`** (#202 at 2026-09-30 21:28:24Z, docs; #201 W-31 at 21:14:06Z). Render served
-  `3048b481` (#200) from 20:46:29Z; the #201 deploy follows (#202 is docs, which the build filter ignores). ⚠️ Every frontend merge still
+- **`dev` = `19121802`** (#203 at 2026-09-30 21:43:10Z, the keep-GFS switch, dark; backend). Render served
+  `2c081589` (#201) from 21:16:50Z (uptime 973.9 s at 21:33:04Z); the #203 deploy follows. ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #203, the keep-GFS PR (branch `claude/consensus-hawaii-dark`; `CONSENSUS_SERVE_KEEP_GFS`, the
-  Hawaii-only rule's switch, DARK). Merged 2026-09-30: #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
+- **Open PRs of ours:** the map-chrome PR (branch `claude/w10-map-chrome-themes`; the map's floating chrome in
+  three themes, "Request a Pro", AA contrast on light chips: W-10 R4/R5's defects; frontend, restarts Render).
+  Merged 2026-09-30: #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
   W-31 `unknown_depth`), #200 (20:44:00Z, commitment 203:
   the probe grades with the glyph's tide; the A/B dispatch pair follows), #199 (20:25:43Z, W-30 DARK
   behind `SIM_SERVED_TIDE` '0', with the catalogue fix; as opened it was inert, seq 205), #198
@@ -92,7 +98,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 222, sha256 323708e1def0f979caf938bc3e57da37e635ba36707abfa7cf9d955dd939bd79**
+  **Ledger head: seq 224, sha256 4eb01c413a020df87b5983afd0a57403617e8703ccb81c268928c593776d5842**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
