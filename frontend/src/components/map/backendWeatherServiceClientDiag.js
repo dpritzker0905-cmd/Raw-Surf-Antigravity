@@ -8,6 +8,7 @@
 import { BACKEND_URL } from '../../lib/apiClient';
 import { getAvailableTilesFromManifest, PILOT_COVERAGE } from './backendWeatherServiceClientCoverage';
 import { reconcileMarineTimelineCoverage } from './marineTimelineCoverage';
+import { coverageFrac, ARBITER_MIN_COVER_DEFAULT } from './marineCommitArbiter';
 
 // Lazy accessors to break circular dependency with backendWeatherServiceClient
 function getMainClient() {
@@ -116,6 +117,20 @@ export function isWorldBbox(b) {
   return !!b && Number.isFinite(b.west) && Number.isFinite(b.east) && spanDeg(b) >= 340;
 }
 
+// W-36: does the main marine diag still describe a REGIONAL field that is drawn in this viewport?
+// Only then is a world-bbox write the prewarm. The served extent (`responseGridBounds`, else the
+// viewport the field was requested for) is used, never `coverageBounds`, which falls back to the
+// fixed PILOT_COVERAGE box. "Drawn here" = the commit arbiter's own coverage rule.
+export function mainDiagDescribesDrawnRegionalField(main, details, viewport) {
+  if (!main || main.status !== 'active' || !main.productId || !viewport) return false;
+  if ((main.activeModel || 'GFS') !== (details.activeModel || 'GFS')) return false;
+  if ((main.activeLayer || 'waves') !== (details.activeLayer || 'waves')) return false;
+  const extent = main.responseGridBounds || main.requestedViewportBounds;
+  if (!extent || isWorldBbox(extent)) return false;
+  const frac = coverageFrac({ bounds: extent }, [viewport.west, viewport.south, viewport.east, viewport.north]);
+  return frac != null && frac >= ARBITER_MIN_COVER_DEFAULT;
+}
+
 export function updateProjectionDiag(domain, details) {
   if (typeof window === 'undefined') return;
 
@@ -145,8 +160,14 @@ export function updateProjectionDiag(domain, details) {
   // over a 221-vector regional field. A world-bbox write while the map shows a REGIONAL view
   // (< 60° wide, the series lane's threshold) is the prewarm: give it its own key. At world zoom
   // the global grid IS the drawn field, so it still lands here.
+  // ⚠️ W-36 (2026-09-29): "regional view" is not "a regional field is drawn". Over open ocean no
+  // 0.25-deg tile exists, the world 2-deg product IS the drawn field, and routing it to the prewarm
+  // key left this diag at "Initial state" (legend: no resolution notice; the infobox's product
+  // match: null) while the engine drew gfs_marine_waves_global_mid. Redirect only when this diag
+  // still describes a regional field the arbiter would keep drawn here.
   if (diagKey === '__MARINE_PROJECTION_DIAG__' && isWorldBbox(details.requestedViewportBounds)
-      && mapViewportBounds && spanDeg(mapViewportBounds) < 60) {
+      && mapViewportBounds && spanDeg(mapViewportBounds) < 60
+      && mainDiagDescribesDrawnRegionalField(window.__MARINE_PROJECTION_DIAG__, details, mapViewportBounds)) {
     diagKey = '__MARINE_PREWARM_PROJECTION_DIAG__';
   }
 
