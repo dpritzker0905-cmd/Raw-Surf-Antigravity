@@ -1,9 +1,15 @@
 # Weather program: state
 
-**Updated 2026-09-30 19:18Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, commitment 188's instrument), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 19:37Z** (logs: `log/2026-09-30-c188-bigswell-by-region.md` (#197, commitment 188's instrument), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- **Commitment 186 READ (seq 196, corrected by 199), 2026-09-30T18:55:49Z pass:** the built consensus shadow matches
+  its definition (abs(shadow - equal) median 0.000, p90 0.013 m; n 92 at +24 h) and beats served GFS on the same
+  pairs (0.135 vs 0.175 m). The per-region rule (GFS in hawaii and atlantic_se, the equal mean elsewhere) reads 0.271
+  vs equal 0.287 vs GFS 0.319 over 8,750 held-out pairs, but IN SAMPLE (the window shares 6.9 of 7 days with the pass
+  that chose the coasts). Out of sample on the training weeks: the regional-rule PR, read by commitment 198 (due
+  2026-10-01 18Z); only then a recommendation. 177's first half met (`wind_n` 3, seq 197).
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30-b.md`** (evening; supersedes `HANDOFF-2026-09-30.md` for what
   next). Consensus evidence at the 16:31Z pass: the computed equal mean beats served GFS all-sea (24/48/72 h
   0.286/0.312/0.373 -> 0.262/0.290/0.323) and in every band, but LOSES in `hawaii` (0.443 -> 0.543) and
@@ -24,12 +30,13 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `50669cd5`** (#196 at 2026-09-30 19:17:15Z, docs + a check). Render serves `2123d70e` (#195, W-23) since
-  18:54:40Z (ledger seq 194). ⚠️ Every frontend merge still
+- **`dev` = `15188320`** (#197 at 2026-09-30 19:36:43Z, commitment 188's instrument; backend). Render served
+  `2123d70e` (#195, W-23) from 18:54:40Z (ledger seq 194); #197's deploy follows. ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #197, commitment 188's instrument (branch `claude/c188-bigswell-by-region`; the big-swell
-  bias by forecast bin per coast; serves nothing). Merged 2026-09-30: #196 (19:17:15Z, the evening handoff),
+- **Open PRs of ours:** the regional-rule PR (branch `claude/consensus-regional-rule`; the per-region serve rule
+  graded on the training weeks; serves nothing). Merged 2026-09-30: #197 (19:36:43Z, commitment 188's instrument:
+  read it after the next precompute), #196 (19:17:15Z, the evening handoff),
   #195 (18:38:47Z, W-23), #194 (17:53:50Z, S9 wind), #193
   (17:20:49Z, S7/S8), #192 (14:33:02Z, the Mem0/Trevec record), #191 (14:07:22Z, the ledger for #189/#190 + the Trevec registration), #189 (12:48:23Z, the audit + dark scalar height + its
   ARMED ledger shadow + the ledger cap), #190 (13:47:39Z, the memory audit + the L-P10 checks + W-50). Merged
@@ -68,15 +75,15 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 175 files / 2124 (reading 2130), chain 136 / 1649 (1655; 136 / 1651 (1657) with
-  #197), estate 580 (582).
+- **CI floors on `dev`:** guards 175 files / 2124 (reading 2130), chain 136 / 1651 (1657; 136 / 1655 (1661) with
+  the regional-rule PR), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 195, sha256 a1a34023d782b60d7944c70eee5ebdab39c75ca5be03fa2d8132fbfda20c5a76**
+  **Ledger head: seq 200, sha256 7949df898c9c2ad1a85938981970f2ef0f834fac8838a45f305c2fc9f459474f**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
-done); 4 MERGED as #193 (its first graded rows: commitment 172, 2026-10-02); 5 (wind) MERGED as #194 (commitment 177); 6 (W-23) MERGED as #195 (commitment 182); commitments 79/94 checked (seq 185, 187), re-promised as 186/188; 188's instrument opened as #197;
+done); 4 MERGED as #193 (its first graded rows: commitment 172, 2026-10-02); 5 (wind) MERGED as #194 (commitment 177); 6 (W-23) MERGED as #195 (commitment 182); commitments 79/94 checked (seq 185, 187), re-promised as 186/188; 188's instrument MERGED as #197; 186 read (seq 196): the per-region rule wins IN SAMPLE, its out-of-sample grade is the regional-rule PR (commitment 198);
 2 the consensus flip on commitment 79's evidence (its ledger-cap precondition is met by that PR); 3 the
 scalar-height flip on 48-72 h of `raw_surf:GFS_SCALAR` rows (commitment 149); 4 an S8 swell-direction (and period)
 lane in the ledger (33% of rating variance, no instrument), then test a consensus direction/period; 5 S9 wind in
