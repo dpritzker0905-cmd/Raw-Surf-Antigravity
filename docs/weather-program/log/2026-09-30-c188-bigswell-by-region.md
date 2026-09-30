@@ -186,3 +186,40 @@ same condition and arguments, so it costs zero new I/O (a test counts one reques
 - The next fix, built DARK: `CONSENSUS_SERVE_KEEP_GFS` (branch `claude/consensus-hawaii-dark`), the Hawaii-only
   rule's switch; unset/'' = D-006 unchanged; declared '' in both rating lanes. 10 tests; mutations 5/5 after
   pinning the unset default (a 'hawaii' code default survived the first run). Chain 138 / 1678 (reading 1684).
+
+## Owner (chat, after 21:29Z): "merge #203 when it's green and move to the next fix"
+- #203 MERGED 21:43:10Z as `19121802` (ledger seq 223): chain 138 / 1684 = the projection.
+
+### W-10 R4-R7, the release-readiness evidence for D-002 (ledger seq 224)
+Method (reusable; scripts in the session scratchpad): a production build of `dev` (`craco build`), a Node SPA
+server on localhost:4173, Playwright + signed Chrome headless; the fixture user of `e2e/weather-simulation.spec.js`;
+`raw-surf-theme` set per run; **every non-GET request leaving localhost answered locally with 204** (the only one
+seen: a PostHog flags POST; nothing reached the Raw Surf backend); React Scan (unpkg) mocked.
+- ⚠️ The first run was DISCARDED: it rendered the Marine Anim Tuner and the Diagnostics HUD, which are localhost-only
+  (`MarineAnimTuner.js:21`, `TruthOverlay.js:27-31`), so it measured chrome no production user sees. Re-run with
+  `__RAW_TUNER__='0'` and `__RAW_DIAG__='0'`.
+- R4: the weather controls (desktop panel, mobile sheet via "Weather layers") theme correctly. FOUR map controls
+  are single-theme: MapHeader (title `text-white`, invisible on the light and beach basemaps), MapFilterTabs,
+  RequestProButton, MapRightControls. RequestProButton renders "Request a " since da30f15d (2026-05-18, the
+  emoji-byte sweep of 305 files; production fc140024 too): that sweep may have cut other labels (unaudited).
+- R5 (axe WCAG 2 A/AA): color-contrast serious (light: 14 desktop / 13 mobile-sheet nodes, the unselected weather
+  chips, gray-500 on gray-100 ~4.4:1; beach 1), nested-interactive serious (8-9 map markers, every theme),
+  meta-viewport moderate (zoom disabled, every run). Console: fixture-user errors only; no weather error.
+- R6 NOT PRICED: production `weather-proxy` invocation counts are not readable with the tools here, and Render
+  metrics need the owner's Render workspace choice. Render: RSS 782 MB (peak 815, 39.8% of 2 GB) at 16 min uptime.
+- R7: production is a LOCKED Netlify branch deploy of fc140024 (published 2026-09-25T18:01:45Z; one function,
+  `weather-proxy`, 1024 MB; Netlify's Lighthouse perf 57 / a11y 91). Rollback after an unfreeze: re-publish that
+  deploy and lock again. The backend is not part of the rollback (Render already serves `dev`).
+
+### The next fix: the map chrome in three themes (branch `claude/w10-map-chrome-themes`)
+`mapChromeTheme(theme)` (dark byte-identical to the old classes), `ThemeContext.useThemeName()` (bare render ->
+'dark'), the four controls, "Request a Pro", light `textMuted` gray-600. 23 tests; mutations 9/9 (the first run hit a
+cp1252 decode of Jest's output, fixed with an explicit utf-8 decoder; nothing was mutated when it failed);
+194 suites / 2,043 tests pass. Before/after screenshots and axe on a rebuilt production bundle: below.
+- BEFORE/AFTER on a rebuilt production bundle (same method): axe color-contrast light desktop **14 -> 0**, light
+  mobile sheet **13 -> 0**; beach desktop 1 -> 1 (`.shadow-sm`, not the map chrome: plausibly the sidebar's orange
+  Search box; recorded, not in this PR). nested-interactive (map markers) and meta-viewport unchanged, not in scope.
+  Screenshots: the light title, pills, chips, "Request a Pro" and buttons now light; DARK desktop pixel-diff vs before:
+  right-hand buttons 0 px, the top band changed only at the "Request a Pro" label (plus ~50 px of basemap
+  anti-aliasing near the SFB airport icon). Only write blocked in all runs: the PostHog flags POST.
+- ⚠️ This PR changes `frontend/**`, so its merge restarts the Render backend (W-26).
