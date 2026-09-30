@@ -257,6 +257,54 @@ def test_a_coast_lists_both_candidates_and_a_thin_cell_prints_no_number():
     assert reg["hawaii"] == {"raw_surf": {"n": 4}, "equal": {"n": 4}}
 
 
+# ── THE PER-REGION SERVE RULE: graded on the weeks that did not choose it ──────────────────────────────
+from services.weather_pipeline.skill_consensus import RULE_GFS_REGIONS  # noqa: E402
+
+GFS_EXACT = {"raw_surf": (0.0, 0.0, 0.0), "raw_surf:ICON": (0.6, 0.6, 0.6), "raw_surf:EURO": (0.3, 0.3, 0.3)}
+
+
+def _rule(report, lead=48):
+    return next(e for e in report["regional_rule"]["by_lead"] if e["lead_h"] == lead)
+
+
+def test_the_rule_takes_gfs_on_its_coasts_and_the_mean_elsewhere_on_both_windows():
+    """Hawaii: GFS exact, the mean +0.3 m (EURO and ICON high, as on 2026-09-30). The NE Pacific: the mean exact, GFS
+    off by 0.2 m. The rule takes each coast's winner, on the held-out week and on the older weeks alike."""
+    rows = (_rows(range(8, 40), 90, errs=GFS_EXACT, buoy="51201") + _rows(range(0, 7), 30, errs=GFS_EXACT, buoy="51201")
+            + _rows(range(8, 40), 90) + _rows(range(0, 7), 30))
+    rep = consensus_report(rows, NOW)
+    assert rep["regional_rule"]["gfs_regions"] == list(RULE_GFS_REGIONS) == ["hawaii", "atlantic_se"]
+    r = _rule(rep)
+    for part, n in (("held_out", 60), ("train", 180)):
+        g = r[part]
+        assert g["n"] == n and g["n_rule_regions"] == n // 2
+        assert g["rule"]["mae_m"] == pytest.approx(0.0, abs=1e-3)
+        assert g["equal"]["mae_m"] == pytest.approx(0.15, abs=1e-3)
+        assert g["served"]["mae_m"] == pytest.approx(0.1, abs=1e-3)
+        assert g["rule_beats_equal"] and g["rule_beats_served"]
+
+
+def test_a_coast_the_older_weeks_contradict_is_caught_out_of_sample():
+    """The held-out week says GFS wins in Hawaii; the older weeks say the mean does. The rule wins in sample and loses
+    out of sample: the overfit a choice made on one week can be."""
+    rows = (_rows(range(8, 40), 90, buoy="51201") + _rows(range(0, 7), 30, errs=GFS_EXACT, buoy="51201")
+            + _rows(range(8, 40), 90) + _rows(range(0, 7), 30))
+    rep = consensus_report(rows, NOW)
+    r = _rule(rep)
+    assert r["held_out"]["rule_beats_equal"] is True
+    assert r["train"]["rule_beats_equal"] is False
+    assert r["train"]["rule"]["mae_m"] == pytest.approx(0.1, abs=1e-3), "GFS's 0.2 m on the Hawaii half"
+    train, held = rep["by_region_train"]["hawaii"], rep["by_region"]["hawaii"]
+    assert train["n"] == 90 and train["equal_beats_best"], "the older weeks, by coast"
+    assert held["n"] == 30 and held["best_member"] == "raw_surf" and not held["equal_beats_best"]
+
+
+def test_a_thin_window_of_the_rule_refuses():
+    r = _rule(consensus_report(_rows(range(8, 40), 5, buoy="51201") + _rows(range(0, 7), 30), NOW))
+    assert r["train"] == {"n": 5, "status": "insufficient"}
+    assert r["held_out"]["status"] == "scored" and r["held_out"]["n_rule_regions"] == 0
+
+
 def _band_rows(obs, fc, n, days=range(0, 7), buoy="46232"):
     """n held-out target hours at one observed height, each member forecasting its fixed value."""
     out = []
@@ -336,6 +384,18 @@ def test_older_than_the_holdout_and_thin_leads_refuse():
     assert old["by_lead"] == []                              # nothing held out
     thin = _lead(shadow_report(_with_shadow(_rows(range(0, 7), 5)), NOW))
     assert thin["status"] == "insufficient" and thin["n"] == 5
+
+
+def test_the_built_shadow_is_graded_per_coast():
+    """The rule's question asked of the product that would be served: in Hawaii the build (= the mean, +0.3 m) loses
+    to GFS; in the NE Pacific it wins; a coast with 4 pairs refuses."""
+    rows = _with_shadow(_rows(range(0, 7), 30, errs=GFS_EXACT, buoy="51201") + _rows(range(0, 7), 30)
+                        + _rows(range(0, 7), 4, buoy="41113"))
+    reg = shadow_report(rows, NOW)["by_region"]
+    assert reg["hawaii"]["n"] == 30 and reg["hawaii"]["shadow"]["mae_m"] == pytest.approx(0.3, abs=1e-3)
+    assert reg["hawaii"]["served"]["mae_m"] == pytest.approx(0.0, abs=1e-3) and not reg["hawaii"]["shadow_beats_served"]
+    assert reg["pacific_ne"]["shadow_beats_served"]
+    assert reg["atlantic_se"] == {"n": 4, "status": "insufficient"}
 
 
 def test_the_shadow_block_is_published_inside_the_consensus_report():

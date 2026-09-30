@@ -32,3 +32,66 @@ does); a thin cell (< 10) prints n only. The held-out pair's coast is carried al
 ## The read (commitment 188, due 2026-10-02 18Z)
 After #197 merges and a precompute runs: `forecast_skill_consensus.by_lead[*].big_swell.by_forecast_by_region`.
 Build a dark regional calibration only if a coast's forecast-binned bias exceeds ~0.2 m with n >= 30.
+
+## Owner (chat, after 19:20Z): "merge #197 when it's green and move to the next fix"
+- GitHub auto-merge refused ("Auto merge is not allowed for this repository"), as the handoff said; the merge waits
+  for the checks and is done by hand.
+- #197 MERGED 19:36:43Z as `15188320` (ledger seq 200): 15 pass, 3 skipped (Netlify), 0 failing; run 36764840449's
+  chain job collected 1657 tests across 136 files = the projection.
+- Precompute 36759469454 completed 19:17:37Z; the report it published reads `generated_at` 2026-09-30T18:55:49Z.
+
+### Commitment 186, read (ledger seq 196)
+- Built shadow at +24 h, n 92: MAE 0.135 / bias +0.014; computed equal 0.139 / +0.033; served GFS 0.175 / -0.125.
+  |shadow - equal| median 0.000, p90 0.013 m: the construction control passes. No 48/72 h shadow rows yet.
+- by_region, computed equal, held-out week pooled over leads (n): hawaii GFS 0.440 / equal 0.538 (946); atlantic_se
+  0.215 / 0.243 (1730); atlantic_ne 0.400 / 0.321 (1911); gulf 0.164 / 0.149 (322); pacific_ne 0.305 / 0.242 (3321);
+  other 0.327 / 0.223 (520). n-weighted: GFS 0.319, equal 0.287, the per-region rule 0.271.
+- Why no recommendation yet: this window (09-23T18:55Z..09-30T18:55Z) shares 6.9 of 7 days with the 16:31Z pass that
+  chose the two coasts (5.7 with the 09-29 11Z pass). Three agreeing passes are one sample. ⚠️ Ledger seq 196 first
+  said "~5.9"; corrected by seq 199 (re-derived before pushing). The training weeks
+  never saw the choice: they are the test. New commitment 198 reads it.
+
+### Commitment 177, first half met (ledger seq 197)
+`summary.wind_n` 3, `wind_mae_kt` 3.86 (was 0 since 2026-08-09). The ledger's wind grade reads `no_wind_rows` (24 h of
+new rows needed); it rides with 172.
+
+### The next fix: the per-region rule graded out of sample (branch `claude/consensus-regional-rule`)
+`RULE_GFS_REGIONS` declared; `regional_rule` (per lead, held-out AND training weeks: served, equal, rule) and
+`by_region_train`; the shadow's `by_region`. 4 tests; mutations 11/11 (bytes restore, `git status` clean after).
+No served number changes.
+
+### Commitment 149, early look (not its read)
+The 18:55Z report's `forecast_skill` has no `raw_surf:GFS_SCALAR` lead grades yet: the lane was armed by #189 at
+12:48Z, so its first +24 h targets score on 2026-10-01. Due 2026-10-03T18:00Z; nothing owed yet.
+
+### W-31 scoped (not started)
+`surf_transform.py:415` returns the offshore Hs labelled `shelf` when a coastal spot has no usable depth. The label is
+not cosmetic: `surf_height_convention._CONVERTIBLE = ("shelf", "shoaling")` applies the x1.27 H1/10 factor by regime,
+so a bare rename to `unknown_depth` would drop the factor there (a served change). The served-neutral fix: name the
+regime `unknown_depth` AND list it in `_CONVERTIBLE` (it is still a significant height presented as surf); the plan's
+null control then proves byte-identical heights. Consumers of the label to check first: `mop_nearshore.py:235`,
+`surf_transform.py:527`, and anything that branches on `regime` downstream (frontend included). Backend branches
+found: `surf_rating.py:740`, `surf_transform.py:645`, `grid_size_climatology.py:117` exclude only
+open_ocean/calm/unknown, so `unknown_depth` would rate like `shelf` there (served-neutral). 13 frontend files mention
+"shelf", but none branches on the literal regime string (non-test grep for the quoted value: 0 hits): shelf width and comments.
+
+### W-33 scoped (not started)
+`backendWeatherServiceClientPoint.js:666` writes `infoboxDisplayedHeight: point.speed` (the OFFSHORE Hs) into the
+debug trace `window.__GFS_WAVES_SINGLE_SLICE_TRACE__.exactPoint`; nothing else reads the field. The fix is a rename
+(e.g. `offshorePointHeight`), served-neutral, but any frontend merge restarts the Render backend (W-26): bundle it with
+other frontend work.
+
+### W-30 scoped (not started)
+`spot_ratings.rate_one_spot` applies tide (`tide_norm_at`, the `tide_fit` factor) under `RATING_TIDE`, which is '1' in
+forecast-ingest.yml, precompute.yml and sim-parity-monitor.yml; `sim_rating.py` has no tide path. So the sim and the
+served rating diverge on every spot with a `best_tide` prior (38 of 1516 on 2026-07-18; the plan's S4 monitor names
+18 banded spots, up to 2x quality). A served-number change for the SIM surface: dark flag, parity test on a
+"Low tide" spot, then the owner's flip.
+
+### For the dark build, if commitment 198 confirms the rule
+- The switch is small: `consensus_serve.twin_index` pairs GFS regional tiles with their CONSENSUS twins by
+  `region_id`; a rule is a region filter there, behind its own default-off flag, so a tile outside the rule keeps GFS.
+- ⚠️ The ledger's coasts are NDBC id prefixes, not tiles. The spot-matched `41xxx` buoys in the 18:55Z report are
+  41065/41067/41070/41076/41110/41112/41113/41115/41117/41120/41121/41159 (mostly CDIP nearshore, North Carolina to
+  Florida), so `atlantic_se` means the US Southeast coast, not the Florida tile alone; `51xxx` are 51201-51214 (Hawaii).
+  The tile list must be derived from where those buoys sit, and graded per tile before any flip.
