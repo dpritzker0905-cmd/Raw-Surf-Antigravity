@@ -18,7 +18,7 @@ is a claim, not a measurement.
 - **`dev` = `8fd1b948`** (#188 at 2026-09-30 02:11:33Z, docs only; Render serves `79b7ef66`, #186). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the 2026-09-30 audit PR (branch `claude/audit-sota-2026-09-30`: the audit record + the dark
+- **Open PRs of ours:** #189, the 2026-09-30 audit PR (branch `claude/audit-sota-2026-09-30`: the audit record + the dark
   scalar height + its armed ledger shadow + the ledger cap). #187 and #188 merged. Merged 2026-09-29/30: #181 (the plan), #182 (W-12), #183 (W-32),
   #184 (W-36), #185 (W-37), #186 (W-34).
 - **The weather sim does not reach production map users** (#181 F1): `fc140024` is 3,283 commits behind `dev` and its
@@ -55,7 +55,7 @@ is a claim, not a measurement.
   the audit PR), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 150, sha256 65917fb5992cd3bfcba02882a31f1c0d4ee0d067ab15170688f75b67a0373233**
+  **Ledger head: seq 151, sha256 d02c4fb96c97428a47119cadd31810415d173f97d2224831e4093fa010afe431**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 merge the audit PR (dark);
