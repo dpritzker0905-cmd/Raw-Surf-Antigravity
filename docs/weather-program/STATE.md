@@ -23,7 +23,7 @@ is a claim, not a measurement.
 - **`dev` = `8fd1b948`** (#188 at 2026-09-30 02:11:33Z, docs only; Render serves `79b7ef66`, #186). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the memory-audit PR (branch `claude/memory-audit-2026-09-30`, stacked on #189). #189, the
+- **Open PRs of ours:** #190, the memory-audit PR (branch `claude/memory-audit-2026-09-30`, stacked on #189; merge #189 first). #189, the
   2026-09-30 audit PR, is ALL GREEN with hosted chain 134 / 1630 = the projection (read after 12:31:58Z); the
   owner left it open overnight. (branch `claude/audit-sota-2026-09-30`: the audit record + the dark
   scalar height + its armed ledger shadow + the ledger cap). #187 and #188 merged. Merged 2026-09-29/30: #181 (the plan), #182 (W-12), #183 (W-32),
@@ -62,7 +62,7 @@ is a claim, not a measurement.
   the audit PR), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 158, sha256 8ea4eda087a5d6d438299733eeed493107741964b06c23b598f158562e999717**
+  **Ledger head: seq 159, sha256 ada063112e15d50cbdfbf39c7d797883a889169f37764d74e083c1595815052b**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 merge the audit PR (dark);
