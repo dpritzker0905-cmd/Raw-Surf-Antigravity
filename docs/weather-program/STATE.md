@@ -34,7 +34,7 @@ is a claim, not a measurement.
   `2123d70e` (#195, W-23) from 18:54:40Z (ledger seq 194); the #197-#200 deploys follow. ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the W-31 PR (branch `claude/w31-unknown-depth`; a coastal point with no usable depth is the
+- **Open PRs of ours:** #201, the W-31 PR (branch `claude/w31-unknown-depth`; a coastal point with no usable depth is the
   named regime `unknown_depth`, not `shelf`; served-neutral). Merged 2026-09-30: #200 (20:44:00Z, commitment 203:
   the probe grades with the glyph's tide; the A/B dispatch pair follows), #199 (20:25:43Z, W-30 DARK
   behind `SIM_SERVED_TIDE` '0', with the catalogue fix; as opened it was inert, seq 205), #198
@@ -79,10 +79,10 @@ is a claim, not a measurement.
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
 - **CI floors on `dev`:** guards 176 files / 2140 (reading 2146), chain 137 / 1660 (1666; 138 / 1668 (1674) with
-  the W-31 PR), estate 580 (582).
+  #201), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 209, sha256 69ed0ae2184dfb83cec40d809aa8b0a339b14d8bbc79ff23728583957233d556**
+  **Ledger head: seq 210, sha256 72f42e04ea0829da92d4a58edf34740c6e808d0c84d8ddef7dd53ee6e564902a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
