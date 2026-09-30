@@ -193,9 +193,12 @@ def rows_from_calibration_report(report, target_time: str, lead_h: float,
         # control can only be split by what the row records. Absent keys = unknown, never guessed.
         from services.weather_pipeline.skill_attribution import serving_provenance
         served = entry.get("served") or {}
-        rows.append({"source": source, "buoy_id": bid, "target_time": target_time,
-                     "lead_h": round(lead_h, 1), "hs_m": hs, "tp_s": res.get("model_tp_s"),
-                     **serving_provenance(served.get("product"), served.get("cycle"), target_time, lead_h)})
+        row = {"source": source, "buoy_id": bid, "target_time": target_time,
+               "lead_h": round(lead_h, 1), "hs_m": hs, "tp_s": res.get("model_tp_s"),
+               **serving_provenance(served.get("product"), served.get("cycle"), target_time, lead_h)}
+        if res.get("model_dir_deg") is not None:    # S8 (skill_direction_period); absent = not recorded
+            row["dir_deg"] = res["model_dir_deg"]
+        rows.append(row)
     return rows
 
 
@@ -210,11 +213,15 @@ def persistence_rows_from_report(report, now: datetime, leads_h=LEADS_H) -> List
         if bid is None or bid in seen or not isinstance(obs, (int, float)):
             continue
         seen.add(bid)
+        mwd = (entry.get("residual") or {}).get("buoy_mwd_deg")
         for lead in leads_h:
             target = (now + timedelta(hours=lead)).strftime("%Y-%m-%dT%H:00:00Z")
-            rows.append({"source": SOURCE_PERSISTENCE, "buoy_id": bid, "target_time": target,
-                         "lead_h": float(lead), "hs_m": obs,
-                         "tp_s": (entry.get("residual") or {}).get("buoy_dpd_s")})
+            row = {"source": SOURCE_PERSISTENCE, "buoy_id": bid, "target_time": target,
+                   "lead_h": float(lead), "hs_m": obs,
+                   "tp_s": (entry.get("residual") or {}).get("buoy_dpd_s")}
+            if mwd is not None:                        # persistence is S8's no-skill reference too
+                row["dir_deg"] = mwd
+            rows.append(row)
     return rows
 
 
@@ -349,7 +356,7 @@ def score_pending(pending, report, now: Optional[datetime] = None, stats: Option
         if not _finite_number(height) or height < 0.0:
             invalid_observations += 1
             continue
-        obs.setdefault(bid, []).append((bt, height, res.get("buoy_dpd_s")))
+        obs.setdefault(bid, []).append((bt, height, res.get("buoy_dpd_s"), res.get("buoy_mwd_deg"), res.get("buoy_apd_s")))
     still, scored = [], []
     for row in pending or []:
         t = _parse_iso(row.get("target_time"))
@@ -361,15 +368,19 @@ def score_pending(pending, report, now: Optional[datetime] = None, stats: Option
             continue
         candidates = obs.get(row.get("buoy_id")) or []
         best = None
-        for bt, wvht, dpd in candidates:
+        for bt, wvht, dpd, mwd, apd in candidates:
             dt_s = abs((bt - t).total_seconds())
             if dt_s <= SCORE_JOIN_TOLERANCE_S and (best is None or dt_s < best[0]):
-                best = (dt_s, bt, wvht, dpd)
+                best = (dt_s, bt, wvht, dpd, mwd, apd)
         if best is not None:
-            scored.append({**row,
-                           "obs_time": best[1].isoformat(),
-                           "obs_hs_m": best[2], "obs_dpd_s": best[3],
-                           "err_m": round(height - best[2], 4)})
+            done = {**row, "obs_time": best[1].isoformat(),
+                    "obs_hs_m": best[2], "obs_dpd_s": best[3],
+                    "err_m": round(height - best[2], 4)}
+            if best[4] is not None:                    # S8's verifying direction and the bimodal flag's APD
+                done["obs_mwd_deg"] = best[4]
+            if best[5] is not None:
+                done["obs_apd_s"] = best[5]
+            scored.append(done)
         elif t > now - timedelta(hours=PENDING_EXPIRY_H):
             still.append(row)
         # else: expired unmatched — dropped
@@ -669,7 +680,7 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     # ── SHADOW MOS (roadmap stage 5, step 1) — measurement only, after every write has landed ──
     # Its own try and its own kill switch (FORECAST_SKILL_MOS=0): a read or fit failure here costs
     # the shadow block and nothing else. See skill_mos.py.
-    mos = attribution = consensus = None
+    mos = attribution = consensus = dirper = None
     if os.environ.get("FORECAST_SKILL_MOS", "1") != "0":
         try:
             from services.weather_pipeline.skill_attribution import same_model_attribution
@@ -684,12 +695,18 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
             consensus = consensus_report(history, now)
             # The BUILT shadow (D-009) beside what it was built from: published inside the same block.
             consensus["shadow"] = consensus_shadow(history, now)
+            # S7/S8: period and direction on the same history (skill_direction_period); its own guard.
+            try:
+                from services.weather_pipeline.skill_direction_period import direction_period_report
+                dirper = direction_period_report(history, now)
+            except Exception as e:
+                logger.warning("[forecast-skill] direction/period block skipped (%s)", e)
         except Exception as e:
             logger.warning("[forecast-skill] MOS shadow skipped (%s)", e)
     return {"ledgered": len(incoming), "scored": len(scored),
             "pending_kept": len(still), "pending_evicted_cap": merge_stats.get("cap_evicted", 0),
             "summary": summary, "scoring_rejections": score_stats, "mos_shadow": mos,
-            "same_model_attribution": attribution, "consensus": consensus}
+            "same_model_attribution": attribution, "consensus": consensus, "direction_period": dirper}
 
 
 def mos_history_rows(now: datetime, archives, load_rows) -> List[dict]:
@@ -723,3 +740,5 @@ def attach_to_report(report, skill) -> None:
         report["forecast_skill_same_model"] = skill["same_model_attribution"]
     if skill.get("consensus") is not None:
         report["forecast_skill_consensus"] = skill["consensus"]
+    if skill.get("direction_period") is not None:
+        report["forecast_skill_direction_period"] = skill["direction_period"]
