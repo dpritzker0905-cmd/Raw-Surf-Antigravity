@@ -72,3 +72,11 @@ on `origin/dev`, on #206's and #207's heads, and at `0b057d3d`. Each header had 
     there, never a false FAIL.
   - The FILE reference (above).
 - No served number changes, so there is no SCOREBOARD row (README rule 5).
+
+## PR and ledger (23:26:54Z)
+- Two commits squashed from WIP onto `8abc6e61`: `14ad0d4d` (the check) and `c83b5d46` (this log, the L-P10 note,
+  ledger seq 231, the measurement finding). #208 opened at 23:26:38Z (gh `createdAt`) and was bound in the app; 18
+  checks pending at the read. Ledger seq 232 (`pr_open #208`). STATE: #208 named, `dev` = `8abc6e61` (#205), anchor
+  moved to seq 232. Left open for the owner's word.
+- ⚠️ Render's build filter (`render.yaml`: it ignores `docs/**`, `audit/**` and `**/*.md`) does not ignore
+  `backend/scripts/**`, so #208's merge restarts the Render backend (W-26), even though the script isn't served.
