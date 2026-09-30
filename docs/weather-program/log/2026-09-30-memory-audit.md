@@ -61,3 +61,23 @@ Every check-enforced lesson: zero recurrences. The prose-only L-P10: three. **LE
 ### Not done here
 - Commitments 79 and 94 are due at 18:00Z; not read early (the consensus shadow's rows need the full day).
 - The Mem0 key rotation and deletion, the Trevec block in CLAUDE.md, the secrets policy's open items: the owner's.
+
+## 12:48-13:50Z · #189 and #190 merged; Trevec registered, not yet indexed
+- Owner (chat): "Merge #189 and #190 and then give me better instructions to update mem0 and trevec", then "merge #190
+  and trevec mcp setup".
+- #189 merged 12:48:23Z (`f432d4fd`); Render served it by 12:51:17Z (uptime 44 s). #190: GitHub auto-merge was refused
+  (the repository does not allow it; owner setting), so it waited for its two backend lanes; merged 13:47:39Z (`994b3f4e`)
+  with chain 134 / 1630 and guards 175 / 2130 unchanged and the ledger workflow (both new selftests) green.
+- Trevec 1.5.0 is installed at `C:\Users\David\.trevec\bin\trevec.exe` (not on PATH in tool shells). `trevec mcp setup`
+  (all, claude-code, claude) found "no supported IDE configurations" on this Windows machine and changed nothing. The same
+  registration was made with the desktop app's bundled CLI (`%APPDATA%\Claude\claude-code\2.1.284\claude.exe mcp add
+  --scope user`), serving the worktree from an index OUTSIDE the repo (`C:\Users\David\.trevec\data\raw-surf-wt`), so no
+  `.trevec/` can ever be committed to the public repo; `trevec init` (which creates `.trevec/` in the repo) was not used,
+  and CLAUDE.md's rules block already exists. `claude mcp get trevec`: Connected.
+- The index did not build: after extracting 33,641 nodes and 953,553 edges from 3,719 files, trevec's embedder failed to
+  download `Xenova/bge-small-en-v1.5` `onnx/model.onnx` (133 MB) from Hugging Face: TLS "invalid peer certificate:
+  UnknownIssuer". curl (Windows certificate store) verifies the same host; no proxy variables are set. So something
+  re-signs TLS with a root only Windows trusts (the tool sandbox or a security product). Next: the owner runs the index
+  in their own terminal; if it fails the same way, the model is pre-seeded.
+- Trevec defaults the owner should know: anonymous telemetry ON; episodic memory ON for Claude Code, Cursor and Codex
+  chat history (it would ingest transcripts, which include the exposed Mem0 key, into its local data dir).
