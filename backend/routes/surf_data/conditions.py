@@ -33,7 +33,10 @@ logger = logging.getLogger(__name__)
 # also incomplete" (CLAUDE.md, ONE FORECAST COMPOSITION). `surf_regime` + `offshore_height_ft` let the
 # UI mark the rare fail-open where the breaking transform threw and the offshore value stood in.
 _HUB_PASSTHROUGH = ("rating", "rating_level", "rating_confirmed", "surf_regime", "offshore_height_ft",
-                    "wind_speed_kts", "wind_direction")
+                    "wind_speed_kts", "wind_direction",
+                    # W-34: where this hour's sea came from (a stored product or the point query). The
+                    # drawer printed a hard-coded "Open-Meteo" while the manifest lane served NOAA.
+                    "data_source")
 
 OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 NOAA_TIDES_URL = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"

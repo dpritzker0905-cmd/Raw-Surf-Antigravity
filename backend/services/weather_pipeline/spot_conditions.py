@@ -250,6 +250,23 @@ def safe_index_get(dict_obj: dict, key: str, index: int, default_val: Any = 0.0)
         return val if val is not None else default_val
     return default_val
 
+def stored_product_source(product, model):
+    """W-34: provenance of a sea sampled from a STORED grid product (the manifest lane)."""
+    return {"kind": "stored_product", "model": model,
+            "product_id": getattr(product, "product_id", None),
+            "upstream": getattr(product, "upstream_provider", None),
+            "dataset": getattr(product, "source_dataset", None)}
+
+
+_PROVIDER_LABELS = {"OpenMeteoProvider": "open-meteo"}
+
+
+def point_query_source(provider, model):
+    """W-34: provenance of a sea from the direct point query (the cache-miss fallback lane)."""
+    name = type(provider).__name__
+    return {"kind": "point_query", "model": model, "upstream": _PROVIDER_LABELS.get(name, name)}
+
+
 async def resolve_spot_conditions_impl(
     self,
     model: str,
@@ -294,6 +311,9 @@ async def resolve_spot_conditions_impl(
         if waves_prod:
             res = self.sampler.sample_point(waves_prod, lat, lng)
             waves_data[dt] = {
+                # W-34: WHERE this hour's sea came from, recorded where the value is taken, so the hub
+                # can say it instead of a hard-coded "Open-Meteo" (true only on the fallback lane).
+                "source": stored_product_source(waves_prod, model),
                 "wave_height": res.point.speed,
                 "wave_direction": res.point.direction,
                 "wave_period": res.point.period,
@@ -334,6 +354,7 @@ async def resolve_spot_conditions_impl(
                             wave_dir = safe_index_get(raw_point["hourly"], "wave_direction", idx, 0.0)
                             wave_per = safe_index_get(raw_point["hourly"], "wave_period", idx, 0.0)
                             waves_data[dt] = {
+                                "source": point_query_source(self.provider, model),
                                 "wave_height": wave_height,
                                 "wave_direction": wave_dir,
                                 "wave_period": wave_per,
@@ -426,6 +447,9 @@ async def resolve_spot_conditions_impl(
         "label": get_conditions_label(current_wave_height_ft),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
+    # Absent-unless-known, like forecast_confidence: an hour with no sea at all names no source.
+    if current_waves.get("source"):
+        current_conditions["data_source"] = current_waves["source"]
 
     # ── QUALITY, from the SAME engine the map glyphs use ──────────────────────────────────────
     # The hub showed a size and nothing about whether the wind was destroying it, so a blown-out

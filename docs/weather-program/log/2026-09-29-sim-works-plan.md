@@ -117,7 +117,16 @@ Live at 22:41Z: Render `cdd5cc7c`, healthy, 9/9 data lanes ok, 0 alerts, RSS 401
   app's JS mirror of the shader ramp) predicts. Three runs after the fix: all REFUSED honestly (two: same-hour
   noise 37-38%, a commit landing between the control shots; one: 2 matched cells, a coarser +24 h frame). It
   stays fixme; the refusals point at W-38.
-- [ ] W-38 **Commit thrash after activation / a scrub.** Trace run 1 (00:4xZ): 6 commits in 45 s after one +1 d
+- [x] W-38 **Resolved 2026-09-30 01:05-01:16Z: no app defect; my trace was confounded.** Five HEADLESS runs with
+  every MapLibre input handler disabled: after a +1 d scrub, exactly ONE commit per run (0.64-0.95 s, the target
+  valid time, camera still); after activation, the designed coarse-then-sharp sequence (world 2-deg preview at
+  ~4.2 s, then the 0.25-deg regional tile by ~6.5 s; 4 of 5 runs; one went straight to the regional tile).
+  ⚠️ **Correction:** the "6 commits in 45 s" and the zoom changes below came from stray mouse-wheel input on the
+  visible (headed) test window: a headed batch run at the same time recorded zoom 9 -> 8.21 -> 9.29 -> 10.07
+  while the script pressed only PageUp. The W-37 oracle's refusals are NOT that: with input disabled (and with a
+  3 s settle wait) they persisted (same-hour noise 38-39%, 2 matched cells); both experiments were reverted
+  unproven. The oracle's remaining blocker needs a per-shot diagnosis. Original note: **Commit thrash after
+  activation / a scrub.** Trace run 1 (00:4xZ): 6 commits in 45 s after one +1 d
   step, alternating a series frame (11 cols), the 0.25-deg regional tile (17), a coarser series frame (7), the
   2-deg world product (8), and back; two from the `moveend` lane while the requested bbox grew 2.5 -> 7.6 deg
   (the camera zoom was not recorded in that run; the re-run with zoom recorded showed one commit and a still
@@ -171,7 +180,13 @@ Live at 22:41Z: Render `cdd5cc7c`, healthy, 9/9 data lanes ok, 0 alerts, RSS 401
   3,037 ms (the fetch's `finally`, `useMarineDataFetcherCore.js:735-743`) and the grid reached the engine at
   3,719 ms: ~680 ms in which the detector's condition is true on a healthy load.
 - [ ] W-33 The frontend trace field `infoboxDisplayedHeight: point.speed` is renamed to what it is (offshore Hs).
-- [ ] W-34 The spot drawer (`SpotConditions.js`) states its source as the literal "Data from Open-Meteo Marine API"
+- [x] W-34 (fix built 2026-09-30; PR open) The producer (`spot_conditions.py`) records each hour's source where
+  the value is taken (`stored_product` + product id / upstream / dataset, or `point_query` + the provider); the
+  route's whitelist carries `data_source`; the drawer prints it through the HUD's own origin mapping (moved
+  verbatim to `map/dataOrigin.js`) and the direction as `66° ENE` (the old truthiness check also showed N/A for
+  a due-north swell). 6 backend + 10 frontend tests; 8/8 mutations caught (no-shell runner); 198 existing
+  conditions/hub tests pass; guards floor 175/2124. Earlier note: The spot drawer (`SpotConditions.js`) states its
+  source as the literal "Data from Open-Meteo Marine API"
   (`:345`) while `/api/conditions/{id}` served the GFS chain and returns no source field; and it prints the
   direction as `${wave_direction}-` (`:325`, "65.61-" on screen: a lost degree sign, two decimals, no cardinal).
   The HEIGHT is correct: `wave_height_ft 2.3` with `surf_regime: shoaling`, `offshore_height_ft 1.2` (Spanish
@@ -213,3 +228,5 @@ W-42; F12 (Stripe key).
   W-32 M1-M6 = 2/1/2/1/2/1 failed of 11, **6/6 genuinely caught**. #183's description carries a dated note.
 - 00:46:50Z #184 merged (owner: "Merge #184 and move to the next fix"; CLEAN). It redeployed the backend (W-26
   not yet set). 00:47-00:59Z W-37 measured (above); the oracle fix is a test-only PR. Next: W-38.
+- 01:21:18Z #185 merged (owner: "Merge #185 and move to the next fix"). W-38 resolved (no defect, above); W-34
+  built as the next fix.
