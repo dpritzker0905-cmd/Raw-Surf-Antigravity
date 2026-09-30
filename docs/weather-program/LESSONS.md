@@ -129,6 +129,11 @@ before starting it.
   timed headers on `dev`. So #206's `## PR and ledger (23:14Z-23:17Z)`, committed at 23:15:52Z (`0b057d3d`),
   passed. The check now reads every `## ` header (`log/2026-09-30-clock-every-header.md`). For a check built from
   one case's shape, count how much of the population it can read.
+  ⬆ Same night: each claim is now held to the commit that wrote THAT line (git blame). That found 7 headers, 1 to 7
+  minutes ahead, which the file's last commit had hidden since 2026-09-29. They are corrected in the ledger (ledger
+  seq 237-242, plus #206's own), since a log cannot be edited. A silent fallback is a weaker check that nobody
+  sees: until git's output was decoded as UTF-8, the blame fell back on 5 of 12 files on Windows. A fallback on a
+  committed file now WARNs, and FAILs in CI.
 - **L-P11 · Test code the way production runs it.** #171's 21 tests imported the fetchers as a package;
   production spawns them BY PATH, where `services` is not importable. A bare `from services._fetch_native_cell`
   inside `fetch_global_coarse` would have failed every GFS, ICON and EURO fetch, flag on or off. The real-GRIB

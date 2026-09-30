@@ -89,3 +89,53 @@ on `origin/dev`, on #206's and #207's heads, and at `0b057d3d`. Each header had 
 - Seq 236: `pr_merge #206` (reconstructed; #208 is the next PR, as the completeness check expects). STATE: #206
   moved to merged, `dev` = `1ff11a05`, #208's line updated, anchor moved to seq 236.
 - #206's log header `## PR and ledger (23:14Z-23:17Z)` is now on `dev`, and so is its correction line (seq 233).
+
+## The per-line reference: measured, built, the seven corrected (23:52:40Z)
+Owner (chat, after #208 opened): "yes and yes, I need this system to be state of the art. Give me feedback we are
+making progress". This answered two questions: Auto-fix on #208 (now on, in the app) and the per-line comparison as
+a follow-up (built here, on #208).
+- **Grandfathering, as built: no silent allowlist.** A committed log is append-only, so a header that ran ahead of
+  its commit cannot be fixed, only acknowledged. It passes when a `correction` ledger line names its log and its
+  exact header text, and every run lists it in one NOTE. #206's header already qualified (its correction, ledger
+  seq 233). The six 09-29 headers got ledger seq 237-242. Anything new and uncorrected FAILs.
+- **Dated correction, 2026-09-30, for `log/2026-09-29-consensus-and-ops.md` lines 71, 86, 111, 126, 142 and 154:**
+  each section ended no later than the commit that wrote its header (table above, ledger seq 237-242). Written
+  here and not in that log, because that log belongs to its session (README rule 4).
+- Measured first: the per-line (blame) reference on STATE's `Updated` line and on the three HANDOFF headers gave
+  0 FAIL at the heads of `dev`, #206 and #207 and on this branch. HANDOFF-2026-09-30's `~01:45Z` had been corrected
+  in place (ledger seq 135). So the per-line reference adds exactly the 7 log headers.
+- The change, in `memory_audit.py`:
+  - A reference may be `{line: time}` (`_ref_at`). `parse_blame` reads `git blame --line-porcelain`: the
+    committer time, which a rebase, amend or squash can only move later, and `now` for an uncommitted line.
+  - `lines_written_at` gives STATE, every HANDOFF and every log a per-line reference.
+  - `check_clock` takes the ledger's corrections.
+- **Found while building:** `_git` decoded git's output with the Windows locale (cp1252). On 5 of the 12 files the
+  blame died in subprocess's reader thread, and the check fell back to the file's last commit without a word. A
+  byte census confirmed which 5: exactly the files that hold U+FE0F, the invisible variation selector in `⚠️`
+  (UTF-8 `EF B8 8F`; 0x8F is undefined in cp1252). Fixed: git output is decoded as UTF-8. And a fallback
+  on a committed file is now loud: a WARN, or a FAIL under `--require-history` (CI), the house rule for a blind
+  check. Proof: with the decode fix reverted, the audit names those 5 files (WARN; FAIL and exit 1 in CI mode).
+  With it, 12/12 files are held per line.
+- Read back on this branch: before the corrections, 6 FAIL (the six headers) and a NOTE for #206's. After them,
+  0 FAIL, 0 WARN, and the NOTE lists all 7.
+- `--selftest`, 7 new cases:
+  - the 18:54:13Z header held to its own line while a later line was committed at 22:39Z;
+  - a correction gives one NOTE, and one naming another log or another header excuses nothing;
+  - STATE's and a HANDOFF's line held per line;
+  - the blame parser (committer time, not author time; the zero sha is `now`).
+- Mutations, 14/14 red: M1-M6 as above, then:
+  - M7 file-level reference;
+  - M8 and M9 a correction matched on file alone or on header alone;
+  - M10 author time;
+  - M11 an uncommitted line not read as `now`;
+  - M12 and M13 STATE's and a HANDOFF's line number off;
+  - M14 excused headers made silent.
+
+**Progress, measured (the L-P10 guard, "never write an estimate as a timestamp"):**
+
+| when | guard | what it could see |
+|---|---|---|
+| 2026-09-29 | the prose lesson | nothing mechanical; broken 3 times after it was written (ledger seq 109, 135, 145) |
+| 2026-09-30 (#190) | the ledger refuses an estimated `verified`; HANDOFF headers read; slack 5 -> 1 min | the ledger and the handoffs |
+| #208, part 1 | every `## ` log header | 31 -> 41 of the 41 timed headers on `dev` |
+| #208, part 2 | each claim held to the commit that wrote it; corrections; a blind fallback is loud | 0 -> 7 of the 7 headers that ran ahead; 12/12 files per line |
