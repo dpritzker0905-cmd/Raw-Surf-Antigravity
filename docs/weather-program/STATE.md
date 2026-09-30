@@ -1,14 +1,17 @@
 # Weather program: state
 
-**Updated 2026-09-30 00:04Z** (logs: `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-09-30 00:32Z** (logs: `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-29.md`** (reading order, what is live or dark, open
   commitments, next fixes, owner-only items, the day's report audit). Read it after this file.
-- **`dev` = `d50b4b50`** (#182 at 2026-09-30 00:04:15Z; test + docs only, the backend still runs `cdd5cc7c`, #179). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #183, the W-32 fix (the false MARINE_EMPTY_RENDER report waits out the commit gap; dev
-  site only). #182 (the W-12 pixel-truth oracle, still `test.fixme` with its measured blocker) merged. The plan of action W-00..W-50 lives in `log/2026-09-29-sim-works-plan.md` (#181, merged).
+- **`dev` = `89190e8e`** (#183 at 2026-09-30 00:26:47Z; its frontend reaches the dev site only). ⚠️ Render redeployed the
+  backend on #182 (00:04Z) AND #183 (00:26Z) with no backend change: its build filter ignores `docs/**`, `audit/**`,
+  `**/*.md` but not `frontend/**` (W-26, owner-only Render setting). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
+- **Open PRs of ours:** #184, the W-36 fix (the world product lands in the projection diag when it IS the drawn field;
+  legend + infobox over open ocean). Merged today: #181 (the plan W-00..W-50, `log/2026-09-29-sim-works-plan.md`),
+  #182 (the W-12 oracle, still fixme), #183 (W-32).
 - **The weather sim does not reach production map users** (#181 F1): `fc140024` is 3,283 commits behind `dev` and its
   map reads a Netlify Open-Meteo proxy. The plan's Phase 1 is the release-readiness evidence for D-002.
 - **Open commitments:** `python backend/scripts/action_ledger.py open` (seq 78, 79, 86, 94).
@@ -34,7 +37,7 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 174 files / 2110 (reading 2116), chain 130 / 1531 (1537), estate 568 (570).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 113, sha256 696af73defdeb22a24d1f5f653786ff1062bba64e738be8ced16a6b2efd225da**
+  **Ledger head: seq 119, sha256 ed50794f2db080d98cc88f02e629121ce07031c01f6643432f79b4f021633723**
 
 ## Next fixes, in order
 - ~~**A Pacific NW / NorCal regional tile**~~ built (#177) and flipped (D-011); The 2-deg global_mid tier reads +0.097 m high vs the same

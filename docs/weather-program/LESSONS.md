@@ -153,3 +153,10 @@ before starting it.
   tree, twice (the second time because a failed step was joined with `;`, not `&&`). Before any git write, assert
   the branch (`test "$(git branch --show-current)" = <expected>`); scripts that write refuse on the wrong branch;
   with two sessions, one worktree each (`git worktree add`). (2026-09-29)
+- **L-P15 · A shell between the runner and the tool turns a regex into a pipe.** A mutation script called
+  `npx.cmd` from Python; on Windows that goes through cmd.exe, which read the `|` in
+  `--testPathPattern=a|b` as a pipe. Jest never ran, every mutant exited 255, and the script counted 255 as
+  "RED (caught)": 13 void verdicts across two PRs, one of them already cited in a merged PR. Caught because a
+  mutant predicted to survive came out red. Invoke the tool without a shell (`node .../react-scripts.js test`),
+  and take the verdict from the tool's own summary line ("N failed"), never from an exit code. Siblings: L-P9,
+  L-P13. (2026-09-30, #183 correction)

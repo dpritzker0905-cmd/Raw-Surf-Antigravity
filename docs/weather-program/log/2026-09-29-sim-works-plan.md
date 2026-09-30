@@ -101,7 +101,20 @@ Live at 22:41Z: Render `cdd5cc7c`, healthy, 9/9 data lanes ok, 0 alerts, RSS 401
     (`#react-scan-root`, attached outside `<body>`, loaded on localhost only) in the forensic script, which, unlike
     the spec, did not mock unpkg. The spec's runs were clean of it.
   Test-only PR: the improvements above, `test.fixme` kept with the measured blocker in its comment.
-- [ ] W-36 The marine projection diag (`updateProjectionDiag`, `backendWeatherServiceClientDiag.js:119`) is written
+- [x] W-36 (fix built 2026-09-30; PR open) **Mechanism measured live:** over open ocean (30N 66W z7) the engine drew
+  `gfs_marine_waves_global_mid` (the /grid world product) while the main diag stayed "Initial state" and the
+  PREWARM diag held the drawn product: F-11 (`updateProjectionDiag`) filed EVERY world-bbox write under the prewarm
+  key whenever the view was < 60 deg wide, which is right only while a regional field is drawn. Fix: redirect only
+  when the main diag still describes an ACTIVE field of the same model/layer whose served extent
+  (`responseGridBounds`, else its requested viewport; never the PILOT_COVERAGE fallback) covers the view by the
+  commit arbiter's own rule (`coverageFrac` >= `ARBITER_MIN_COVER_DEFAULT` 0.6, now exported from
+  `marineCommitArbiter.js`, arbiter behaviour unchanged: its 3,000-fixture differential suite passes). **Live after
+  (production build):** open ocean: main diag = the drawn global_mid, the legend now shows "~223 km grid (2°)"
+  (before: nothing); Florida (null control): main diag = the 0.25-deg regional tile, the world product in the
+  prewarm key, legend silent (F-11 preserved). 7 tests; mutations 6/7 caught, the survivor (arbiter threshold
+  0.6 -> 0.5) is equivalent by design: the diag follows the arbiter's constant, and the arbiter's own suite does
+  not pin 0.6 (pre-existing gap). Earlier note:
+  The marine projection diag (`updateProjectionDiag`, `backendWeatherServiceClientDiag.js:119`) is written
   by the `/grid` path only; over open ocean the field arrives through `grid_series` and the diag stays at "Initial
   state" with the last region's coverage. Readers: the legend's "~N km grid" notice (`legendTicks.js:99`) and the
   infobox product match (`backendWeatherServiceClientPoint.js:352`). Measured 23:14Z, production build.
@@ -114,6 +127,10 @@ Live at 22:41Z: Render `cdd5cc7c`, healthy, 9/9 data lanes ok, 0 alerts, RSS 401
 - [ ] W-23 Name the backend readers refused by Supabase 429 (F6); each retries or refuses, never silently falls back (L-F1).
 - [ ] W-24 **Owner:** Render health-check path (crash protection only, F7).
 - [ ] W-25 Process: batch CODE merges (docs-only merges do not redeploy: Render's build filter ignores `docs/**`, `**/*.md`).
+- [ ] W-26 **Owner (Render setting):** add `frontend/**` to the service's build-filter ignored paths. Measured 2026-09-30:
+  #182 (an e2e test + docs) and #183 (frontend + docs) each redeployed the backend (Render deploys 00:04:17Z and
+  00:26:49Z), i.e. two cold starts of the box production shares (F3) for zero backend change. The backend never
+  reads `frontend/`. (render.yaml declares no buildFilter; the live filter is set on the service.)
 
 ### Phase 3 · One composition, no blind spots
 - [ ] W-30 Sim tide parity (F8): the sim resolves tide exactly as `rate_one_spot` does when it has a `valid_time`
@@ -166,3 +183,9 @@ W-42; F12 (Stripe key).
   temporary `.claude/launch.json` entry was reverted, nothing of it is committed.
 - 23:04:57Z #180 merged (by the handoff session; ledgered seq 103). 23:08Z Playwright Chromium installed (owner's
   word). 23:37:30Z #181 merged (owner's word) as `5f6120a6`. 23:08-23:36Z W-12 runs (above). Next fix: W-32.
+- 2026-09-30 00:04:15Z #182 merged, 00:26:47Z #183 merged (owner: "Merge #182 and #183 and move to the next fix").
+  ⚠️ **Correction:** the "6/6 mutations red" for W-32 (#183, ledger seq 109) was first backed by a VOID run: the
+  mutation script called `npx.cmd` through cmd.exe, which read the `|` in `--testPathPattern=a|b` as a shell pipe;
+  jest never ran and every mutant exited 255 ("RED"). Found when a W-36 mutant I expected to survive came out
+  "RED" and, run by hand, passed 11/11. Re-run without a shell (jest via node, verdict from jest's own summary):
+  W-32 M1-M6 = 2/1/2/1/2/1 failed of 11, **6/6 genuinely caught**. #183's description carries a dated note.

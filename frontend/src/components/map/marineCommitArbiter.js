@@ -36,9 +36,14 @@ function spanLngOf(grid) {
   return (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
 }
 
+// The share of the viewport a resident must cover to stay the drawn field (rule `subcover`).
+// Exported with coverageFrac so a diagnostic asking "is that field still the one drawn here?"
+// (the projection diag, W-36) answers with this module's definition, not a second one.
+export const ARBITER_MIN_COVER_DEFAULT = 0.6;
+
 // Fractional viewport coverage of a grid's bounds; null when unknowable.
 // viewportBounds is the engine's array form: [west, south, east, north].
-function coverageFrac(grid, viewportBounds) {
+export function coverageFrac(grid, viewportBounds) {
   if (!grid || !grid.bounds || !Array.isArray(viewportBounds) || viewportBounds.length < 4) return null;
   const [vw, vs, ve, vn] = viewportBounds;
   const b = grid.bounds;
@@ -59,7 +64,7 @@ function coverageFrac(grid, viewportBounds) {
  */
 export function arbiterDecide(resident, incoming, ctx = {}) {
   const zMax = typeof ctx.zoomedOutMaxZoom === 'number' ? ctx.zoomedOutMaxZoom : ZOOMED_OUT_MAX_ZOOM_DEFAULT;
-  const minCover = typeof ctx.coverFrac === 'number' ? ctx.coverFrac : 0.6;
+  const minCover = typeof ctx.coverFrac === 'number' ? ctx.coverFrac : ARBITER_MIN_COVER_DEFAULT;
 
   // 1. Nothing resident (or resident unrenderable/empty) — commit anything renderable.
   const residentLive = !!(resident && resident.vectors && resident.vectors.length && resident.__renderable !== false);
