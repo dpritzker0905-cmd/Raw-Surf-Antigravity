@@ -8,7 +8,7 @@ is a claim, not a measurement.
   SAMPLE.** Hawaii CONFIRMED on the training weeks (GFS 0.313 < equal 0.345, n 6,817); atlantic_se REFUTED (equal
   0.168 < GFS 0.181, n 11,942). Hawaii-only rule: train 0.192 vs equal 0.196 (-1.9%) vs GFS 0.229 (-16%). **Owner
   decision pending: serve the equal mean everywhere except Hawaii** (amends D-006); its switch is built DARK
-  (`CONSENSUS_SERVE_KEEP_GFS`, the keep-GFS PR): the flip is `CONSENSUS_SERVE` '1' + `CONSENSUS_SERVE_KEEP_GFS` 'hawaii'.
+  (`CONSENSUS_SERVE_KEEP_GFS`, #203): the flip is `CONSENSUS_SERVE` '1' + `CONSENSUS_SERVE_KEEP_GFS` 'hawaii'.
   (2) **Commitment 203 (seq 214): W-30's A/B** on the parity monitor: tide-blind sim max 9.6, 3 level differences at
   the banded spots; SIM_SERVED_TIDE=1: 0.0 and 0. **Owner decision pending: flip SIM_SERVED_TIDE.**
   (3) Commitment 188 (seq 216): no big-swell calibration now; atlantic_ne at the 0.2 m threshold on one week, re-read
@@ -43,7 +43,7 @@ is a claim, not a measurement.
   `3048b481` (#200) from 20:46:29Z; the #201 deploy follows (#202 is docs, which the build filter ignores). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the keep-GFS PR (branch `claude/consensus-hawaii-dark`; `CONSENSUS_SERVE_KEEP_GFS`, the
+- **Open PRs of ours:** #203, the keep-GFS PR (branch `claude/consensus-hawaii-dark`; `CONSENSUS_SERVE_KEEP_GFS`, the
   Hawaii-only rule's switch, DARK). Merged 2026-09-30: #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
   W-31 `unknown_depth`), #200 (20:44:00Z, commitment 203:
   the probe grades with the glyph's tide; the A/B dispatch pair follows), #199 (20:25:43Z, W-30 DARK
@@ -89,10 +89,10 @@ is a claim, not a measurement.
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
 - **CI floors on `dev`:** guards 176 files / 2140 (reading 2146), chain 138 / 1668 (1674; 138 / 1678 (1684) with
-  the keep-GFS PR), estate 580 (582).
+  #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 221, sha256 2e80f8c244cf53e1196f24411a75922146d41264635f8f292c74feacfce4ab06**
+  **Ledger head: seq 222, sha256 323708e1def0f979caf938bc3e57da37e635ba36707abfa7cf9d955dd939bd79**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
