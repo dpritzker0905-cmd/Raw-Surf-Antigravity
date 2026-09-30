@@ -5,6 +5,7 @@
  * Follows the project's glassmorphism design pattern with slide-up animation.
  */
 import React, { useState, useEffect } from 'react';
+import { Cookie } from 'lucide-react';
 
 const CONSENT_KEY = 'raw-surf-cookie-consent';
 
@@ -64,7 +65,7 @@ export const CookieConsentBanner = () => {
       >
         {/* Icon + text */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
- <span style={{ fontSize: 24, lineHeight: 1 }}>=</span>
+          <Cookie size={24} aria-hidden="true" style={{ flexShrink: 0 }} />
           <div>
             <p style={{
               margin: 0,

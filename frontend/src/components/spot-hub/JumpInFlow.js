@@ -494,7 +494,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               onClick={() => setStep('selfie')}
               className="w-full text-center text-gray-500 text-sm hover:text-gray-300"
             >
-              ? Back to selfie
+              &larr; Back to selfie
             </button>
           </div>
         )}

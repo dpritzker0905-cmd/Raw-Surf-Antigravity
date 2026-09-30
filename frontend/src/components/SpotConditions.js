@@ -196,7 +196,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
         spot_id: spotId,
         ...reportData
       });
- toast.success('Report submitted! Thanks for sharing =');
+      toast.success('Report submitted! Thanks for sharing');
       setShowReportModal(false);
       setReportData({ wave_height: '', conditions: '', wind_direction: '', crowd_level: '', rating: 0, notes: '' });
       fetchTodaysReports();

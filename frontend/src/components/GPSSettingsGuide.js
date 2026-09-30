@@ -210,7 +210,7 @@ export const GPSSettingsGuide = ({
               />
               {expandedSection === 'ios-precise' && (
                 <div className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700">
-                  <Step number="1" title="Open Settings ? Privacy & Security ? Location Services" />
+                  <Step number="1" title="Open Settings &rarr; Privacy & Security &rarr; Location Services" />
                   <Step number="2" title="Find Safari (or Chrome)" />
                   <Step number="3" title="Set to 'While Using'" />
                   <Step number="4" title="Turn ON 'Precise Location'" description="This is the key setting!" />
@@ -234,7 +234,7 @@ export const GPSSettingsGuide = ({
               />
               {expandedSection === 'android-high' && (
                 <div className="p-3 bg-zinc-800/50 rounded-lg border border-zinc-700">
-                  <Step number="1" title="Open Settings ? Location" />
+                  <Step number="1" title="Open Settings &rarr; Location" />
                   <Step number="2" title="Turn ON Location" />
                   <Step number="3" title="Tap 'Location Mode' or 'Improve Accuracy'" />
                   <Step number="4" title="Select 'High Accuracy'" description="Uses GPS + WiFi + Cell" />
@@ -242,7 +242,7 @@ export const GPSSettingsGuide = ({
                   <div className="mt-3 p-2 bg-yellow-500/10 rounded border border-yellow-500/30">
                     <p className="text-yellow-400 text-sm font-medium">Samsung Users:</p>
                     <p className="text-yellow-300 text-xs mt-1">
-                      Settings ? Apps ? Chrome ? Permissions ? Location ? "Allow all the time" + "Use Precise Location"
+                      Settings &rarr; Apps &rarr; Chrome &rarr; Permissions &rarr; Location &rarr; "Allow all the time" + "Use Precise Location"
                     </p>
                   </div>
                 </div>

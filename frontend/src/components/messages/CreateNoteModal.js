@@ -7,8 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { toast } from 'sonner';
-
-const SURF_EMOJIS = ['=', '=', '=', '=', '=', '=', '=', '=', '=', 'Gn+', '=', 'G'];
+import { NOTE_EMOJIS } from '../../constants/emojis';
 
 const CreateNoteModal = ({ isOpen, onClose, onSubmit }) => {
   const [noteText, setNoteText] = useState('');
@@ -54,11 +53,11 @@ const CreateNoteModal = ({ isOpen, onClose, onSubmit }) => {
         <p className="text-xs text-emerald-500 dark:text-emerald-400 mb-4 text-center">Notes disappear after 24 hours</p>
         
         <form onSubmit={handleSubmit}>
- <Input aria-label="What's on your mind? ="
+          <Input aria-label="What's on your mind?"
             ref={inputRef}
             value={noteText}
             onChange={(e) => setNoteText(e.target.value.slice(0, 60))}
- placeholder="What's on your mind? ="
+            placeholder="What's on your mind?"
             className="bg-muted border-border text-foreground text-lg text-center h-14 mb-2"
             maxLength={60}
             data-testid="note-input"
@@ -66,10 +65,11 @@ const CreateNoteModal = ({ isOpen, onClose, onSubmit }) => {
           
           {/* Emoji Picker */}
           <div className="flex justify-center flex-wrap gap-2 mb-3" data-testid="note-emoji-picker">
-            {SURF_EMOJIS.map((emoji) => (
+            {NOTE_EMOJIS.map((emoji) => (
               <button
                 key={emoji}
                 type="button"
+                aria-label={`Add ${emoji}`}
                 onClick={() => addEmoji(emoji)}
                 className="text-xl hover:scale-125 transition-transform p-1"
               >

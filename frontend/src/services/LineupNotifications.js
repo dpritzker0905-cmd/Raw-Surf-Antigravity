@@ -89,7 +89,6 @@ const sendPushNotification = (title, body, icon = '/favicon.ico') => {
 const NOTIFICATION_CONFIG = {
   // Session status changes
   session_opened: {
- icon: '=',
     title: 'Session Opened',
     getMessage: (data) => `${data.session_name || 'A session'} is now open for new surfers!`,
     toastType: 'success',
@@ -97,7 +96,6 @@ const NOTIFICATION_CONFIG = {
     sendPush: true
   },
   session_closed: {
- icon: '=',
     title: 'Session Closed',
     getMessage: (data) => `${data.session_name || 'The session'} is now closed to new bookings`,
     toastType: 'info',
@@ -105,7 +103,6 @@ const NOTIFICATION_CONFIG = {
     sendPush: true
   },
   session_locked: {
- icon: '=',
     title: 'Session Locked',
     getMessage: (data) => `${data.session_name || 'The session'} has been locked and finalized!`,
     toastType: 'warning',
@@ -115,7 +112,6 @@ const NOTIFICATION_CONFIG = {
   
   // Crew changes
   crew_joined: {
- icon: '=',
     title: 'New Crew Member!',
     getMessage: (data) => `${data.member_name || 'Someone'} joined ${data.session_name || 'your lineup'}!`,
     toastType: 'success',
@@ -123,7 +119,6 @@ const NOTIFICATION_CONFIG = {
     sendPush: true
   },
   crew_left: {
- icon: '=',
     title: 'Crew Member Left',
     getMessage: (data) => `${data.member_name || 'Someone'} left ${data.session_name || 'the lineup'}`,
     toastType: 'info',
@@ -131,7 +126,6 @@ const NOTIFICATION_CONFIG = {
     sendPush: true
   },
   crew_removed: {
- icon: 'G',
     title: 'Removed from Lineup',
     getMessage: (data) => `You've been removed from ${data.session_name || 'a lineup'}`,
     toastType: 'error',
@@ -141,7 +135,6 @@ const NOTIFICATION_CONFIG = {
   
   // Payment notifications
   payment_received: {
- icon: '=',
     title: 'Payment Received!',
     getMessage: (data) => `${data.member_name || 'A crew member'} paid $${data.amount || '0'} for ${data.session_name || 'the session'}`,
     toastType: 'success',
@@ -149,7 +142,6 @@ const NOTIFICATION_CONFIG = {
     sendPush: true
   },
   payment_pending: {
- icon: 'G',
     title: 'Payment Pending',
     getMessage: (data) => `Waiting for payment from ${data.member_name || 'crew members'}`,
     toastType: 'warning',
@@ -159,7 +151,6 @@ const NOTIFICATION_CONFIG = {
   
   // Invite notifications
   invite_received: {
- icon: 'Gn+',
     title: 'Lineup Invite!',
     getMessage: (data) => `${data.inviter_name || 'Someone'} invited you to join ${data.session_name || 'a session'}`,
     toastType: 'success',
@@ -167,7 +158,6 @@ const NOTIFICATION_CONFIG = {
     sendPush: true
   },
   invite_accepted: {
- icon: 'G',
     title: 'Invite Accepted',
     getMessage: (data) => `${data.member_name || 'Someone'} accepted your invite to ${data.session_name || 'the session'}!`,
     toastType: 'success',
@@ -175,7 +165,6 @@ const NOTIFICATION_CONFIG = {
     sendPush: true
   },
   invite_declined: {
- icon: '=P',
     title: 'Invite Declined',
     getMessage: (data) => `${data.member_name || 'Someone'} declined your invite`,
     toastType: 'info',
@@ -185,7 +174,6 @@ const NOTIFICATION_CONFIG = {
   
   // Session reminders
   session_reminder: {
- icon: 'G',
     title: 'Session Reminder',
     getMessage: (data) => `Your session at ${data.location || 'the spot'} starts in ${data.time_until || '1 hour'}!`,
     toastType: 'info',
@@ -193,7 +181,6 @@ const NOTIFICATION_CONFIG = {
     sendPush: true
   },
   lineup_closing_soon: {
- icon: 'Gn+',
     title: 'Lineup Closing Soon',
     getMessage: (data) => `Lineup for ${data.session_name || 'your session'} closes in ${data.time_until || '24 hours'}`,
     toastType: 'warning',
@@ -203,7 +190,6 @@ const NOTIFICATION_CONFIG = {
   
   // Session cancellation
   session_cancelled: {
- icon: '=',
     title: 'Session Cancelled',
     getMessage: (data) => `${data.session_name || 'A session'} has been cancelled. ${data.refund_info || 'Refund processing.'}`,
     toastType: 'error',
@@ -222,7 +208,7 @@ export const handleLineupNotification = (type, data, options = {}) => {
   }
   
   const message = config.getMessage(data);
-  const title = `${config.icon} ${config.title}`;
+  const title = config.title;
   
   // In-app toast notification
   const toastOptions = {

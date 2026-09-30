@@ -196,7 +196,7 @@ export const ThePeakHub = () => {
                     result.placing === 3 ? 'bg-amber-600 text-white' :
                     'bg-zinc-700 text-white'
                   }`}>
- {result.placing === 1 ? '=' : result.placing === 2 ? '=' : result.placing === 3 ? '=' : result.placing}
+                    {result.placing}
                   </div>
                   <div>
                     <div className={`font-medium ${textPrimary}`}>{result.event_name}</div>
