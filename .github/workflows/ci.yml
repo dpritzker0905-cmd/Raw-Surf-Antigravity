@@ -758,7 +758,12 @@ jobs:
           # files / 2130 passed. The new tests/test_sim_served_tide.py (claimed by `--lane guards`) adds 16 executed
           # tests (the 16th, the catalogue path, found the fix inert): 2130 + 16 = 2146, 2146 - 6 = 2140; 176 EXACT;
           # _FLOOR_SET_FROM["guards"] -> 2146.
-          MIN_FILES, MIN_PASSED = 176, 2140
+          # ⬆ MIN_FILES 176→177, MIN_PASSED 2140→2145 on 2026-10-01, IN THE SAME COMMIT THAT CAUSES IT (the coarse
+          # marine fill copies instead of writing into the shared L1 product): hosted CI on dev ac080442 (run
+          # 36795274173) observed 176 files / 2146 passed. The new tests/test_coarse_fill_shared_vectors.py (claimed by
+          # `--lane guards`) adds 5 executed tests: 2146 + 5 = 2151, 2151 - 6 = 2145; files 177 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2151.
+          MIN_FILES, MIN_PASSED = 177, 2145
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

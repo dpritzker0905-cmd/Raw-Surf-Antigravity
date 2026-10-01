@@ -163,6 +163,42 @@ def _l1(filename):
     return entry[0]
 
 
+# -- 0. THE CONTRACT, at the function: nothing it is handed is written ------------------------
+
+class _DonorStore:
+    def __init__(self, donor):
+        self._donor = donor
+
+    def get_manifest(self):
+        return types.SimpleNamespace(products=[_item("GFS", "global_coarse", GFS_COARSE)])
+
+    def load_product(self, filename):
+        return self._donor
+
+
+def test_the_fill_never_writes_to_any_object_it_was_handed():
+    """`handed` is built exactly as `load_product_helper` builds an L1 hit: product and grid
+    containers copied, the vector list and its objects shared with `cached`."""
+    from services.weather_pipeline.coarse_gulf_fill import fill_coarse_enclosed_sea_from_gfs_served
+    cached = _euro("global_coarse", EURO_COARSE, 10.0)
+    handed = cached.model_copy()
+    handed.grid = cached.grid.model_copy()
+    before = [v.model_dump() for v in cached.grid.vectors]
+    shared_list = handed.grid.vectors
+    assert shared_list is cached.grid.vectors, "fixture no longer shares the vectors; proves nothing"
+
+    out = asyncio.run(fill_coarse_enclosed_sea_from_gfs_served(
+        handed, _DonorStore(_gfs_donor()), "EURO", "marine", "waves"))
+
+    assert out.coarse_fill is not None and out.coarse_fill["cells_filled"] == len(_GULF)
+    assert out is not handed and out.grid is not handed.grid and out.grid.vectors is not shared_list
+    assert handed.grid.vectors is shared_list, "the input grid's vector list was rebound"
+    assert [v.model_dump() for v in cached.grid.vectors] == before, "a shared vector was written"
+    assert handed.coarse_fill is None and cached.coarse_fill is None, "the input product was stamped"
+    # Unfilled cells are still the very same objects (no needless copies of native cells).
+    assert _cell(out, 30.0, -60.0) is _cell(cached, 30.0, -60.0)
+
+
 # -- 1. THE REPORTED PATH: a world request served by the 2-degree mid tier --------------------
 
 def test_a_world_serve_leaves_the_cached_mid_product_untouched(served):
@@ -213,17 +249,26 @@ def test_the_world_serve_itself_is_unchanged_by_the_fix(served):
     _publish(served, _euro("global_mid", EURO_MID, 2.0), EURO_MID, "EURO", "global_mid")
     _publish(served, _gfs_donor(), GFS_COARSE, "GFS", "global_coarse")
 
+    from services.weather_pipeline import mid_res_tier
     first = _grid("-180,-80,180,85")
     second = _grid("-180,-80,180,85")   # served from the clip LRU (a deepcopy), filled again
+    # A world clip that does NOT come from the clip LRU re-clips the L1 entry. PR #210 (commitment
+    # 228) stops caching clips over 5,000 vectors, which makes this every world request; with the
+    # in-place fill the L1 entry had no masked cells left by then and this response lost its stamp.
+    if hasattr(mid_res_tier, "_CLIP_CACHE"):
+        mid_res_tier._CLIP_CACHE.clear()
+    third = _grid("-180,-80,180,85")
 
-    for out in (first, second):
+    for out in (first, second, third):
         for lat, lng in _GULF:
             c = _cell(out, lat, lng)
             assert c.is_valid is True
         assert _cell(out, 26.0, -90.0).speed == pytest.approx(_GFS_GULF_SPEED)
         assert _cell(out, 26.0, -90.0).period == pytest.approx(5.0)
         assert _cell(out, 30.0, -60.0).speed == pytest.approx(2.5), "a native cell was overwritten"
-    assert first.coarse_fill == second.coarse_fill
+    assert first.coarse_fill == second.coarse_fill == third.coarse_fill, (
+        f"stamps differ across identical requests: {first.coarse_fill!r} / {second.coarse_fill!r} "
+        f"/ {third.coarse_fill!r}")
     assert first.coarse_fill["donor_model"] == "GFS" and first.coarse_fill["layer"] == "waves"
 
 
