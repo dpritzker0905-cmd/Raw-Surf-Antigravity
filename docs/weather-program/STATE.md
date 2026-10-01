@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-01 11:53Z** (logs: `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
+**Updated 2026-10-01 12:13Z** (logs: `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
 (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
@@ -79,10 +79,10 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** none but #216 (this docs PR; seq 277). ⚠️ **Six old `codex/*` PRs are still open and NOT merged (owner
-  decision, seq 275):** all conflict with `dev` (488-549 commits behind); #23, #27, #43, #44 are drafts; #15 and #22
-  look partly superseded (add/add conflicts on files `dev` already has). Close them, or give each to a session to
-  rebase and prove what is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
+- **Open PRs of ours:** none but #216 (this docs PR; seq 277). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
+  CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
+  drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
+  anything in it is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
   249, 262, 267, 270, 271, 274 record them), #213
   (03:07:59Z as `454d96cb`; seq 240-243: `resolve_grid`'s step-4 and EURO->GFS fallback stamps wrote into the L1
   entry's diagnostics dict; fixed by a copy, plus an AST guard; no served number changes), #207 (00:15:39Z as
@@ -136,7 +136,7 @@ is a claim, not a measurement.
   580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 277, sha256 32c3cf1e93df2eddbd39f71ac4112b57fdd0f2cade6854d931ab305372049739**
+  **Ledger head: seq 278, sha256 6851708bb2caddd7f4bf9a49f4f1000087b347e5e34164c5ae3f8e27dd811dd0**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

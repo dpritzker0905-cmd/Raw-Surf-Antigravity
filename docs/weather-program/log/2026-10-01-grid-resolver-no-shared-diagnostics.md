@@ -218,3 +218,8 @@ number once the token works.
 - #215's deploy (seq 276): `63a70425` live from 11:54:36Z, healthy.
 - Local branches: nothing unpushed. This docs PR (STATE, the two ledger lines, this log, and #215's deploy read-back)
   is the last push.
+
+## 12:12:39-12:13:38Z · the codex/* PRs closed
+- Owner (chat): "close the codex PRs". All six closed with a comment citing seq 275, branches
+  kept (33 `codex/*` heads remain); seq 278 records the decision. A first draft of that line carried
+  `--corrects 275`, as if the finding had been wrong; it was rewritten before the push.
