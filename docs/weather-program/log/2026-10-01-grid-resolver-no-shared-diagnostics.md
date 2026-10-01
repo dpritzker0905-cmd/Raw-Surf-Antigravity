@@ -137,3 +137,68 @@ number once the token works.
   pre-fix `mid_res_tier.py`, the guard goes RED on exactly `mid_res_tier.py:260`. #212 and #214 now fork at seq 243;
   the second to merge re-chains. HANDOFF §4 and STATE updated to say so.
 
+## 03:29-03:53Z · #214 merged; the open PRs re-chained as a stack and merged in turn; the next fix (#215)
+- Owner (chat): "merge #214 and move to the next fix, and merge #208 or anything else needing merging, then push too",
+  then mid-turn "#210 has conflicts but needs to be merged as well". In scope: #208, #210, #211 and #212, the program's
+  open PRs. Out of scope: the six `codex/*` PRs (#15-#44, from 2026-09-09 to 09-18), not this program's sessions'.
+- **#214 merged at 03:29:54Z as `e2fd1d08`** (14 pass, 3 skipped).
+- **The plan came from the audit's rule, not habit.** `memory_audit.check_completeness`: on a `dev` push every earlier
+  merge needs its `pr_merge` line, except the newest, which may wait (WARN). So each PR only has to record the merge
+  BEFORE the previous one. That allows STACKING: each branch merges the previous one's re-chained head, so all CI
+  runs at once, and each merges into `dev` cleanly once the one below it has. The cost is one extra docs push per
+  PR, to record the merge two places back.
+- The #212 and #208 sessions held their pushes and handed their branches over; the #212 session relayed the owner's
+  "yes let it merge #212". The helper `rechain_branch.py` (scratchpad) takes the branch's own lines (beyond its merge
+  base), drops `pr_merge` duplicates of lines dev has, and re-appends each with `--acted-at`, a RE-SEQUENCED note
+  and `fulfills`/`corrects` remapped. It verified that every re-appended field is identical except time.
+- **#212** `bc9ce329`: its 3 lines -> seq 246-248; seq 249 `pr_merge #214`. Hosted chain lane 139 files / 1689 =
+  projection. **Merged at 03:48:58Z as `a8c90a42`**. Render served it by 03:51:36Z (uptime 28 s at 03:52:04Z).
+- **#208** `b92286c7`, stacked on #212: its 10 lines -> 250-259, its `pr_merge #213` dropped (dev seq 243). STATE took
+  dev's, plus its two logs and the anchor. Its own audit: 0 FAIL and the NOTE of 7 corrected headers, as its session
+  predicted. **Merged at 03:50:34Z as `c60d5bcd`**.
+- **#210**, stacked on #208 (`b2677cf4`, then `cb6e6f62`):
+  - `mid_res_tier.py` and `grid_resolver.py` auto-merged. Checked by hand: #210's `_stride_clipped_grid` runs before
+    #212's copy-then-stamp, and #213's two copies sit beside #210's `series_stride` and truthTag changes.
+  - The chain floor was COMBINED: #212's +5 and #210's +31 on #213's hosted reading of 138 files / 1684 (read from run
+    36807315007, not assumed) give 1720, floor 1714, 140 files.
+  - Ledger: its finding and `pr_open` -> 260-261; its duplicate `pr_merge #207` dropped; seq 262 `pr_merge #212`. STATE's
+    root-cause paragraph now cites seq 260. Its log and SCOREBOARD rows still say seq 240 (append-only): read 240 as 260
+    and 241 as 261.
+  - Locally: 363 passed across its 23 related test files.
+- **#211**, stacked on #210 (`833fdb05`, one merge commit built with `git commit-tree`; gitleaks run by hand since that
+  skips the hook):
+  - The guards floor was combined: 2164 + 5 = 2169, floor 2163, 178 files.
+  - **Two numbering collisions with #210**, resolved in #211 as the second to land: SCOREBOARD instrument S11 -> **S12**,
+    LESSONS L-F8 -> **L-F9** (both noted in place).
+  - Ledger: 263-266 its lines (commitment 242 -> **266**), 267 `pr_merge #208`, 268 a correction for the renumbering.
+  - Locally: both guards plus #211's tests, 54 passed.
+- **The next fix: #215** (03:52:55Z), the vector half of the shared-L1-object guard (HANDOFF §6.3):
+  - Built and measured before #211 landed. On the tree WITHOUT #211's fix it flags exactly the six writes #211 fixed
+    (`coarse_gulf_fill.py:134-143`) and nothing else; it goes green with #211's file.
+  - Mutation: deleting `grid_resolver_surf`'s per-vector copy flags both mutator calls.
+  - 12 controls; it reuses #213's dominance helpers.
+  - Floor 179 / 2177, projected from #211's 2169: to be confirmed on #215's hosted run.
+- Slips, each caught before anything was pushed:
+  - An `authorized_by` with "03:3xZ" in it. The tool checks only `verified`, so I caught it on re-read and re-wrote the
+    unpushed line with a bound.
+  - A second worktree for #215, which the session's hook refused to write into. It was removed, and the work was done
+    in this worktree.
+
+
+## 03:53-04:18Z · #210 and #211 merged; #215's docs push
+- Owner (chat): "yes merge #215 too when it's green, and 210, and 212, make sure everything needing merging is merged".
+  #212 had merged at 03:48:58Z.
+- At 04:12:17Z #210 (`cb6e6f62`), #211 (`833fdb05`) and #215 (`355ccac0`) were each 15 pass / 3 skipped, CLEAN. The
+  hosted readings EQUAL every projection, read from the job logs:
+  - #210: chain **140 / 1720**, guards 177 / 2164.
+  - #211: guards **178 / 2169**, chain 140 / 1720.
+  - #215: guards **179 / 2183**.
+- **#210 merged at 04:12:51Z as `33364453`; #211 at 04:13:07Z as `49e1d62d`** (both pinned to their heads). Nothing of
+  this program's is left open but #215. The six `codex/*` PRs stay out of scope.
+- #215's docs push: seq 270 `pr_merge #210`, 271 `pr_merge #211`, 272 `pr_open #215`, 269 the memory mirror of L-P21.
+  It also carries STATE (`dev` = `49e1d62d`, floors, open PRs) and HANDOFF-2026-10-01 §10 (§4's queue merged; S12/L-F9;
+  commitment 266).
+- Deploys read back (seq 273): `33364453` (#210) live from 04:15:20Z, `49e1d62d` (#211) from 04:18:00Z (health only;
+  commitments 228 and 266 measure the served effects).
+- L-P21 was first written as "merged within one CI window", before #210/#211 had merged. It was re-worded to what
+  happened (two CI windows for four PRs) before the push.

@@ -772,7 +772,12 @@ jobs:
           # #213 (by the grid-resolver session): hosted CI on #213 (run 36807315007 @ 33935bbf) observed 177 files / 2164
           # in this lane. #211's tests/test_coarse_fill_shared_vectors.py adds 5: 2164 + 5 = 2169, 2169 - 6 = 2163; files
           # 178 EXACT; _FLOOR_SET_FROM["guards"] -> 2169.
-          MIN_FILES, MIN_PASSED = 178, 2163
+          # ⬆ MIN_FILES 178→179, MIN_PASSED 2163→2177 on 2026-10-01, IN THE SAME COMMIT THAT CAUSES IT (the vector half of
+          # the shared-L1-object guard): projected from #211's line above (2169, not yet read hosted when this was
+          # written; confirm on this PR's run). The new tests/test_grid_vector_shared_writes.py (claimed by
+          # `--lane guards`) adds 14 executed tests: 2169 + 14 = 2183, 2183 - 6 = 2177; files 179 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2183.
+          MIN_FILES, MIN_PASSED = 179, 2177
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

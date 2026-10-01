@@ -261,3 +261,10 @@ before starting it.
   decided which far-zoom defect a page showed: every hour from a 15-deg 25x12 grid (won) or the stored 2-deg field
   cut at the deadline (lost). A probe counting returned hours called the first 100% healthy. Measure what was
   served (origin, resolution), not only how much; S11 counts hours from the stored field. (2026-10-01)
+- **L-P21 · Merge a queue of ledger-appending PRs as a STACK, not a line.** Every program PR appends to
+  `ACTIONS.jsonl`, so each merge forks the others and serial merging costs a full CI cycle (~20 min) per PR. The
+  completeness audit needs every merge recorded EXCEPT the newest, so a PR only has to record the merge two places
+  back. Stacked (each branch merges the previous one's re-chained head, so they all run CI at once), #212 and #208
+  merged at 03:48-03:50Z and #210 and #211 at 04:12-04:13Z (2026-10-01): two CI windows for four PRs, the only
+  extra push being #210's record of #212's merge. Read the rule from the checker
+  (`memory_audit.check_completeness`), not from habit. (log `2026-10-01-grid-resolver-no-shared-diagnostics.md`)

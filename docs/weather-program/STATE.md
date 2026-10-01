@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-01 03:11Z** (logs: `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
+**Updated 2026-10-01 04:14Z** (logs: `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
 (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
@@ -67,17 +67,20 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `454d96cb`** (#213 at 2026-10-01 03:07:59Z, backend code; Render serves it since ~03:10Z, read back at 03:11:40Z, seq 244). Before it
-  `ac080442` (#207 at 00:15:39Z, docs only; seq 239), and `e8321acc` (#209 at
+- **`dev` = `49e1d62d`** (#211 at 2026-10-01 04:13:07Z, backend). The same night, each on the owner's word, merged in a
+  STACK (LESSONS L-P21): #210 at 04:12:51Z as `33364453` (commitment 228's fix: far-zoom pages from the stored 2-deg
+  field), #208 at 03:50:34Z as `c60d5bcd` (memory_audit reads every log header), #212 at 03:48:58Z as `a8c90a42` (the
+  mid tier copies before stamping), #214 at 03:29:54Z as `e2fd1d08` (HANDOFF-2026-10-01), #213 at 03:07:59Z as
+  `454d96cb` (the resolver copies before stamping; Render read back at 03:11:40Z, seq 244). Render served `c60d5bcd`
+  from 03:54:18Z, `33364453` from 04:15:20Z and `49e1d62d` from 04:18:00Z (seq 273). Before them `ac080442` (#207 at 00:15:39Z, docs only;
+  seq 239), and `e8321acc` (#209 at
   2026-09-30 23:57:13Z, docs only; before it #206 at 23:39:24Z as `1ff11a05`, the
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours** (each re-chains the ledger on its `dev` merge; HANDOFF-2026-10-01 §4 lists what else each must
-  do): #210 (far-zoom pages from the stored 2-deg field, commitment 228; drop its duplicate `pr_merge #207`), #212
-  (mid-tier stamp; already merged `dev` and emptied the guard's `_KNOWN_UNFIXED`, head `bb3f9f27`), #211 (coarse fill;
-  re-derive the guards floor from 177 / 2164: 2163, 178 files), #208 (clock check), #214 (this handoff; seq 243-245
-  fork with #212's: the second to merge re-chains). Merged 2026-10-01: #213
+- **Open PRs of ours:** #215 (the vector half of the shared-L1-object guard; test-only; merging on the owner's word
+  when green). Merged 2026-10-01: #211, #210, #208, #212, #214 (see `dev` above; seq 249, 262, 267, 270, 271 record
+  them), #213
   (03:07:59Z as `454d96cb`; seq 240-243: `resolve_grid`'s step-4 and EURO->GFS fallback stamps wrote into the L1
   entry's diagnostics dict; fixed by a copy, plus an AST guard; no served number changes), #207 (00:15:39Z as
   `ac080442`, docs; seq 239). Merged 2026-09-30: #209 (23:57:13Z as
@@ -126,11 +129,11 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 177 files / 2158 (reading 2164, #213), chain 138 / 1668 (1674; 138 / 1678 (1684) with
-  #203), estate 580 (582).
+- **CI floors on `dev`:** guards 178 files / 2163 (reading 2169, #211), chain 140 / 1714 (reading 1720, #210), estate
+  580 (582). #215 moves guards to 179 / 2177 (its run read 2183).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 268, sha256 4d0f4ddf716e25e0dc26caa5c264ebb41f322683d76c292ae975339b00bcb574**
+  **Ledger head: seq 273, sha256 06f8eb90572efb56e5b82c8c70df68d922acd085e5a0c37b31c27754fab0bd37**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
