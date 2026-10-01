@@ -92,6 +92,10 @@ provenance in the `/grid` payload, and the cache it was written into. There is n
 ## 01:43:59Z · ledger
 - seq 239 `pr_merge #207` (reconstructed from the merge commit: `ac080442` at 2026-10-01T00:15:39Z, head `73736cc5`,
   docs only). No local session branch recorded it. `gh pr view` could not be run.
+  - ⚠️ **CORRECTED 2026-10-01 ~02:45Z (seq 241):** wrong. The check covered five branches but not
+    `claude/c228-world-series` (#210), which records the same merge as ITS seq 239 (00:20:28Z, session c188, the
+    merging session). `gh pr diff` on every open PR, run once gh worked, found it. Both lines stay; whichever of #210
+    and this PR merges second drops its duplicate when it re-chains.
 - seq 240 `finding`: this defect, the fix, the guard.
 
 ## The PR: blocked on the gh token
