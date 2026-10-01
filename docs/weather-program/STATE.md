@@ -1,7 +1,7 @@
 # Weather program: state
 
-**Updated 2026-10-01 01:44Z** (logs: `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
-diagnostics stamps), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-10-01 03:11Z** (logs: `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
+diagnostics stamps, #213), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
@@ -30,7 +30,9 @@ is a claim, not a measurement.
   vs equal 0.287 vs GFS 0.319 over 8,750 held-out pairs, but IN SAMPLE (the window shares 6.9 of 7 days with the pass
   that chose the coasts). Out of sample on the training weeks: the regional-rule PR, read by commitment 198 (due
   2026-10-01 18Z); only then a recommendation. 177's first half met (`wind_n` 3, seq 197).
-- **HANDOFF for a fresh context: `HANDOFF-2026-09-30-b.md`** (evening; supersedes `HANDOFF-2026-09-30.md` for what
+- **HANDOFF for a fresh context: `HANDOFF-2026-10-01.md`** (03:09Z; the shared-L1-object defect class, #213, the four
+  open PRs and what each must do on its `dev` merge; adds to `HANDOFF-2026-09-30-b.md`, which still holds).
+- **HANDOFF, previous: `HANDOFF-2026-09-30-b.md`** (evening; supersedes `HANDOFF-2026-09-30.md` for what
   next). Consensus evidence at the 16:31Z pass: the computed equal mean beats served GFS all-sea (24/48/72 h
   0.286/0.312/0.373 -> 0.262/0.290/0.323) and in every band, but LOSES in `hawaii` (0.443 -> 0.543) and
   `atlantic_se` (0.222 -> 0.250): the recommendation is a per-region serve rule, built dark (seq 185).
@@ -50,15 +52,19 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `ac080442`** (#207 at 2026-10-01 00:15:39Z, docs only; seq 239). Before it `e8321acc` (#209 at
+- **`dev` = `454d96cb`** (#213 at 2026-10-01 03:07:59Z, backend code; Render serves it since ~03:10Z, read back at 03:11:40Z, seq 244). Before it
+  `ac080442` (#207 at 00:15:39Z, docs only; seq 239), and `e8321acc` (#209 at
   2026-09-30 23:57:13Z, docs only; before it #206 at 23:39:24Z as `1ff11a05`, the
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #208 (the clock-check session's memory_audit fix; re-chains after dev's head). #213
-  (opened 2026-10-01 02:44:38Z; seq 240-242: `resolve_grid`'s step-4 and EURO->GFS fallback stamps wrote into the L1
-  entry's diagnostics dict; fixed by a copy, plus an AST guard; no served number changes; on the owner's word; it and
-  #210 both record `pr_merge #207`, so the second to merge drops its duplicate). Merged 2026-10-01: #207 (00:15:39Z as
+- **Open PRs of ours** (each re-chains the ledger on its `dev` merge; HANDOFF-2026-10-01 §4 lists what else each must
+  do): #210 (far-zoom pages from the stored 2-deg field, commitment 228; drop its duplicate `pr_merge #207`), #212
+  (mid-tier stamp; already merged `dev` and emptied the guard's `_KNOWN_UNFIXED`, head `bb3f9f27`), #211 (coarse fill;
+  re-derive the guards floor from 177 / 2164: 2163, 178 files), #208 (clock check), #214 (this handoff; seq 243-245
+  fork with #212's: the second to merge re-chains). Merged 2026-10-01: #213
+  (03:07:59Z as `454d96cb`; seq 240-243: `resolve_grid`'s step-4 and EURO->GFS fallback stamps wrote into the L1
+  entry's diagnostics dict; fixed by a copy, plus an AST guard; no served number changes), #207 (00:15:39Z as
   `ac080442`, docs; seq 239). Merged 2026-09-30: #209 (23:57:13Z as
   `e8321acc`, docs; seq 236), #206 (23:39:24Z as `1ff11a05`, the ASCII debris `da30f15d` left in user-visible strings + the
   `encodingDebris` source guard; no served number changes; seq 234), #205 (22:55:23Z as `8abc6e61`, the marker PR; seq 232), #204 (22:15:26Z, the map chrome in three themes), #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
@@ -105,11 +111,11 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 176 files / 2140 (reading 2146), chain 138 / 1668 (1674; 138 / 1678 (1684) with
+- **CI floors on `dev`:** guards 177 files / 2158 (reading 2164, #213), chain 138 / 1668 (1674; 138 / 1678 (1684) with
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 242, sha256 9ca2d16cde573c1cd01e27771a73af6df067623f083e6090b6dbde93265220b9**
+  **Ledger head: seq 245, sha256 325e9d1f265cc71eb93f871e8743b4ad610069c5072d3f314dede72d4c68c10c**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
