@@ -1,13 +1,25 @@
 # Weather program: state
 
-**Updated 2026-10-01 21:35Z** (logs: `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
-legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, and the failing-runs note), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
+**Updated 2026-10-01 22:32Z** (logs: `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
+legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, and the zoom-out grid diagnosis), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
 (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-01 22:32Z (seq 288-289; diagnosis only, NO product code changed): the zoom-out's world grid that was sometimes never requested has a cause: a series page landing in the
+  300 ms between the zoom-out's dispatch and its run cancels it** (owner: "go with 1, diagnose why the zoom-out grid isn't sent"). After a zoom-out `moveend` waits 900 ms (50 ms if cached),
+  enqueues `'moveend'` on `useMarineDataFetcherCore`'s single dispatch slot, which arms a 300 ms timer; any LATER enqueue clears that timer. A series page (regional or world, or the hour-0 mini) fires
+  `marine_series_revalidated` -> `enqueueMarineUpdate('series_upgrade')`, a CACHE-ONLY lane that returns before any network fetch; landing inside the 300 ms it cancels the pending `moveend` run and runs
+  in its place, and nothing re-arms the fetch, so the map keeps its frame until the next gesture. The lane's comment promises it never displaces a real fetch; the code guards only an in-flight one
+  (`locks.isFetching`), not a pending one. Since 2026-07-17 (`f74214fd`). Proof (offline, scratch build of `dd28a1dd` with the forensic ring recording enqueue, dispatch(cancels), run, fetch):
+  `moveend` cancelled by `series_upgrade` in 3 of 4 baseline runs; with ONE runtime switch (`series_upgrade` skips when a run is pending) the same landings inside the window lose 0 of
+  6 (committed behaviour: 6 of 6); 26 of 26 earlier cold-jump runs with no landing in the window sent their grid. Correction (seq 289): my guess
+  that it was "the state right after a restart" was wrong. Proposed fix, NOT built (the owner decides): a capability-aware dispatcher (a `series_upgrade` enqueue returns when a run is
+  pending; a fetch-capable enqueue that finds a cache-only run scheduled replaces its source), kill switch, forensic event, call-site tests for both orders. The second order never occurred in
+  26 natural traced runs; injected, the first part alone leaves it lost (0 of 2 sent) and both parts send it (2 of 2). Not shown live; the link to the
+  2026-09-30 reports (commitment 228) is a hypothesis. Log: `log/2026-10-01-far-zoom-max-thinning.md` (21:45Z section); LESSONS L-F12, L-P26.
 - **2026-10-01 21:35Z (seq 283-287; same branch, third local commit, NOT pushed): the wrong-hour far-zoom frame (F-21) is fixed in the CLIENT,
   ON BY DEFAULT** (owner: "keep it on, defer the flip, now fix the wrong-hour frame": the exact-frame fix stays on, `SERIES_DECIMATE_MODE=max`
   is NOT turned on in Render, nothing to do there). After a zoom-out the engine drew the world frame the page loaded with (hour 0: swell 0.78 m
@@ -23,7 +35,7 @@ is a claim, not a measurement.
   0 s after a 5 s stay, 0.07 s after 2.5 s, 0.32 s after 0.8 s (then dimmed 1.2 s); just-opened page: at most 0.3 s at full strength, then dimmed
   (2.9 to 3.6 s), the right hour unchanged (3.6 to 4.5 s). 112 new tests in 9 files, 69 mutations each turning a test red. Not tested live,
   in the owner's Chrome, on a phone, or for EURO/ICON at far zoom; the mock charges every world page 8 s while the earlier live runs read 1.1 to 2.4 s
-  (one-hour page) and 2 to 25 s (48-frame page), so the just-opened-page rows rest on that shape (re-run with live-like latencies (one-hour page 2.4 s, 48-frame page 20 s): after a 5 s stay the same picture (right hour at 4.5 s in both builds, the wrong hour dimmed instead of full strength); after 0.8 s the zoom-out's own world grid was not sent within 9 s in 2 of 3 runs of each build, so there the right hour had not arrived after 9 s and the fix only dims the wrong hour (not traced; present in both builds).). Cost: up to one 2.3 MB world `/grid` per settled hour at a regional zoom (GFS, ICON).
+  (one-hour page) and 2 to 25 s (48-frame page), so the just-opened-page rows rest on that shape (re-run with live-like latencies (one-hour page 2.4 s, 48-frame page 20 s): after a 5 s stay the same picture (right hour at 4.5 s in both builds, the wrong hour dimmed instead of full strength); after 0.8 s the zoom-out's own world grid was not sent within 9 s in 2 of 3 runs of each build, so there the right hour had not arrived after 9 s and the fix only dims the wrong hour (not traced when written, traced afterwards: first bullet of this section, seq 288; present in both builds).). Cost: up to one 2.3 MB world `/grid` per settled hour at a regional zoom (GFS, ICON).
   No served number changes (no SCOREBOARD row). Commitment seq 286 (due 2026-10-04T18:00Z): the three far-zoom commits reach dev and are read
   back there. Log: `log/2026-10-01-far-zoom-max-thinning.md`; DECISIONS D-012; LESSONS L-F11, L-P23, L-P24, L-P25.
 - **2026-10-01 18:59Z (seq 281-282; read-only, nothing changed): the owner reports runs failing in their email notifications; the 2:47 pm EDT one
@@ -193,7 +205,7 @@ is a claim, not a measurement.
   580 (582). #215 moves guards to 179 / 2177 (its run read 2183).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 287, sha256 c9b63f5995dddd44a6278068bc48a51d94d2a77eed6f3fe18e744c8c598bd53a**
+  **Ledger head: seq 289, sha256 287ffdd3cd78c7ead0cd6a54eb52962de30a027e953f2e8a62b766d94f79840e**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

@@ -317,3 +317,23 @@ before starting it.
   mock, where the half costs 8 s; live it costs 1 to 2.4 s (L-P24), so the same record read on the live site is what says whether
   a just-opened page behaves that way. A request that can wait must record in its own telemetry when it was asked for, when it
   started, when it finished and who asked, before anyone names the blocker. (2026-10-01, log `2026-10-01-far-zoom-max-thinning.md`)
+- **L-F12 · A cache-only lane in a latest-wins slot can cancel the fetch it was meant to leave alone: the guard must know what the
+  PENDING run can do, not only what is in flight.** `useMarineDataFetcherCore.enqueueMarineUpdate` has ONE dispatch slot and every
+  enqueue clears the pending timer and installs its own. The `series_upgrade` lane (2026-07-17, `f74214fd`) is cache-only by design
+  and its comment says it must never displace a real fetch, but it guards only `locks.isFetching`. A series page landing in the 300 ms
+  between a zoom-out's `moveend` dispatch and its run cancelled the pending `moveend` fetch and ran cache-only in its place; nothing
+  re-armed the fetch, so the world `/grid` was never requested (offline, 24 traced runs: landings inside the window lost it 6 of 6,
+  0 of 6 with one switch, 0 of 12 outside the window). The mirror order is a second hole: a fetch-capable enqueue that finds the slot
+  taken by a cache-only run is dropped at the slot check (injected: lost 2 of 2, and the one-switch fix does not cover it). Rule for any
+  coalescing dispatcher: carry a capability with every enqueue and keep the most capable pending run in BOTH orders, with a call-site
+  test per order under fake timers. Diagnosed, not yet fixed (the owner decides). (2026-10-01, log `2026-10-01-far-zoom-max-thinning.md`,
+  audit REPORT F-23)
+- **L-P26 · An intermittent loss in a harness is a question for the app's own event log, not for the environment: record the decisions,
+  then split the runs by the one collision you suspect.** I wrote that the unsent zoom-out grid "looks like the over 75 s after a
+  restart state" and told the owner it was "probably the state right after each hourly redeploy"; neither was supported (ledger seq 289).
+  One scratch build that recorded the scheduler's enqueue, dispatch (and which pending run it cancels), run and fetch in the app's
+  forensic ring showed the cause in the first failing run, and tabulating 24 traced runs by "did a series page land between the dispatch
+  and the run" separated them completely, where 34 untraced runs had only been consistent with it. Before attributing an intermittent
+  loss to a slow or stale live state, make the app write down each decision on the path; a guess about a state you cannot reproduce is
+  a claim that outran its check (L-A7). The mechanization is in the harness: `TRACE_APP=1` in `scn_wronghour.js` records the app's
+  console, every request the page issues and the forensic ring for any cell. (2026-10-01, same log)

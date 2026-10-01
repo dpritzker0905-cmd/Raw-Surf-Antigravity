@@ -432,3 +432,100 @@ a mid value), a world one-hour series page 1.1 to 2.4 s, a world 48-frame series
 stand-in inside the 48-frame range and 3 to 7 times too slow for the one-hour page; the live-like paragraph above re-runs the just-opened cells with
 2.4 s, 20 s and 3 s and says so. The other wrong claim of this work, "the live latency of the one-hour world page was never measured" (my uncommitted
 draft of LESSONS L-P24), never left the working tree and was fixed before the commit (ledger seq 285 item 3).
+
+## 21:45-22:26Z · why the zoom-out's world grid is not sent: the cause is found (owner: "go with 1, diagnose why the zoom-out grid isn't sent"); diagnosis only, NO product code changed
+
+**What was asked and what was done.** The owner picked the first item of my "not touched" list. Nothing in `frontend/` or `backend/` was edited. The tools: the offline
+harness (`scn_wronghour.js` gained `TRACE_APP=1`: the app's console, every weather request the PAGE issues, a 50 ms state sampler and the app's own forensic ring
+`window.__RAW_FORENSIC__`), and ONE scratch build of the committed frontend (`dd28a1dd`) plus a trace/intervention patch (`patch_trace.py`, `build_trace.sh`, never
+applied to the repo): it records every enqueue, dispatch (and which pending run it cancels), run and fetch of the marine fetcher in that ring, and has one runtime
+switch for the candidate fix (`window.__DIAG_NO_SU_CANCEL__`). Without the switch it behaves as committed. Every run is offline (mock backend, no live request).
+
+**Cause, in one paragraph.** After a zoom-out the grid fetch is not made directly: `moveend` waits a 900 ms debounce (50 ms if the viewport is cached), enqueues
+`'moveend'` on the fetcher's single dispatch slot, and the dispatch arms a 300 ms timer whose callback runs `updateMarineGrid` with THAT enqueue's source. Any LATER
+enqueue clears that pending timer and installs its own. A regional series page that lands in those 300 ms fires `marine_series_revalidated`, which enqueues
+`'series_upgrade'`: a cache-only lane that returns before any network request. It cancels the pending `moveend` run and runs in its place. Nothing re-arms the fetch
+(`moveend` already fired; the camera hash is unchanged), so the zoom-out's world `/grid` is never requested and the map keeps whatever frame it had until the next
+gesture. The lane's own comment says it is "opportunistic: never buffer against, release, or abort a real fetch" and the code honours that only for a fetch IN FLIGHT
+(`locks.isFetching`), not for one still PENDING.
+
+**The code path** (line numbers at `dd28a1dd`):
+- `useMarineOrchestrator.js:344-346` `onMoveEnd`: `debounceTime = isCached ? 50 : 900`, then `enqueueMarineUpdate('moveend')`.
+- `useMarineDataFetcherCore.js:808` `enqueueMarineUpdate`: one slot (`scheduledRef`, :899-901); `_runDispatch` (:913-943) does `if (timeoutIdRef.current) clearTimeout(...)` at :917,
+  then `timeoutIdRef.current = setTimeout(..., stableDelay)` (300 ms; 20 ms when cached, manual, flavor_toggle or timeline_scrub), and its callback calls `updateMarineGrid(source)`.
+- `useMarineDataFetcher.js:218-225`: `marine_series_revalidated` -> `enqueueMarineUpdate('series_upgrade')`.
+- `marineGridSeries.js:376-382` and `:470-477`: the event is dispatched whenever a non-coarse series page, or the hour-0 mini, lands (regional or world).
+- `useMarineDataFetcherCore.js:444-447`: `if (source === 'series_upgrade') return;` before any network fetch.
+- `useMarineDataFetcherCore.js:833-836`: the lane skips only `if (locks.isFetching)`.
+- Dating (`git blame`): the shared slot and its clear-on-dispatch since 2026-06-20 (`d697db43`), the 900 ms debounce since 2026-05-25, the `series_upgrade` lane since
+  2026-07-17 (`f74214fd`, "flavor-cache fast path + series-arrival upgrade lane"). The race has existed since that commit, about 2.5 months.
+
+**The proof (offline, traced build, live-like latencies, just-opened page, 0.8 s stay, jump zoom; times in ms after the zoom start).** A failing run
+(`wh2_diagB_rm250_sw0_r1`):
+`932 enq moveend (nothing pending)` -> `949 dispatch moveend (timer armed, 300 ms)` -> `1005 enq series_upgrade (a pending run exists: moveend)` -> `1017 dispatch series_upgrade,
+cancels "moveend"` -> `1317 run series_upgrade` -> `1318 returns, no fetch` (and no `dx_fetch` for `moveend` anywhere). A run that got its grid (`..._sw0_r4`): the series page
+landed at 852, BEFORE the dispatch; at 929 the `moveend` dispatch cancelled the pending `series_upgrade` (the harmless direction); `moveend` fetched at 1234.
+
+| switch | regional series page reached the app (ms) | a pending `moveend` run cancelled by `series_upgrade` at (ms) | `series_upgrade` skipped, run kept at (ms) | `moveend` world grid fetched at (ms) | outcome |
+|---|---|---|---|---|---|
+| committed behaviour | 1,006 | 1,017 | - | - | **grid NOT sent** |
+| committed behaviour | 1,056 | 1,065 | - | - | **grid NOT sent** |
+| committed behaviour | 1,066 | 1,081 | - | - | **grid NOT sent** |
+| committed behaviour | 852 | - | - | 1,234 | grid sent |
+| candidate fix ON | 953 | - | 948 | 1,249 | grid sent |
+| candidate fix ON | 1,095 | - | 1,139 | 1,337 | grid sent |
+| candidate fix ON | 965 | - | 964 | 1,252 | grid sent |
+| candidate fix ON | 899 | - | 920 | 1,267 | grid sent |
+
+The first column is the harness's request-finished time and the others the page's own clock; they differ by up to about 10 ms, which is why a skip can read a few ms before the landing.
+
+| regional series latency in the mock | series page reaches the app (median, ms) | committed behaviour: grids lost / runs | candidate fix ON: grids lost / runs |
+|---|---|---|---|
+| 800 ms | 632 | 0 / 2 | 0 / 2 |
+| 1,000 ms | 986 | 3 / 4 | 0 / 4 |
+| 1,080 ms | 1,201 | 2 / 2 | 0 / 2 |
+| 1,200 ms | 1,276 | 0 / 2 | 0 / 2 |
+| 1,360 ms | 1,356 | 1 / 2 | 0 / 2 |
+
+**The second order, injected (experiment D, 8 runs).** By reading `:899-901` a second order exists: a `series_upgrade` run scheduled FIRST takes the single slot, and a fetch-capable enqueue that arrives while the slot is taken is dropped silently by `if (scheduledRef.current) return;`. It never occurred naturally: in the 26 natural-order traced runs (experiments B and C, and the two natural-order runs of D) no `moveend` enqueue found the slot taken; the only slot-taken enqueues were `series_upgrade` finding another `series_upgrade`'s slot (two series pages landing a few ms apart; harmless, the lane is cache-only). So I injected it: `patch_trace2.py` makes the `moveend` debounce callback fire `marine_series_revalidated` synchronously just before it enqueues (`window.__DIAG_SU_FIRST__`), and adds the complete capability-aware dispatcher behind `window.__DIAG_FULL_FIX__`. Cold jump, live-like latencies, 0.8 s stay, ms after the zoom start:
+
+| variant | runs | what the trace shows | grid sent |
+|---|---|---|---|
+| committed behaviour, order injected | 2 | `moveend` dropped at the slot check (`dx_enq_dropped_sched`, at 911 and 914 ms); the cache-only run executes at 1,351 and 1,272 ms and returns without a fetch | 0 of 2 |
+| the one-switch fix of the first order, order injected | 2 | `moveend` dropped again (at 920 and 915 ms): the switch does not cover this order | 0 of 2 |
+| complete dispatcher, order injected | 2 | one run took the replace path (`dx_sched_replaced` at 908 ms; `moveend` run and fetch at 1,217 ms); in the other a natural landing at 755 ms had already dispatched, so the injection met a free slot, `series_upgrade` was skipped and the `moveend` dispatch at 962 ms cancelled the pending cache-only run (the harmless direction); fetch at 1,262 ms | 2 of 2 |
+| complete dispatcher, natural order | 2 | the series page landed inside the window (1,137 and 1,142 ms), `series_upgrade` skipped, `moveend` fetch at 1,222 and 1,239 ms | 2 of 2 |
+
+The injection is synthetic: it shows the second order is real code behaviour and that the one-switch fix would leave it open, not that it happens live. Its window is the time between an enqueue and its dispatch (one animation frame, longer when the thread stalls), against 300 ms for the first order, so by the code it should be much rarer.
+
+**Before the traced build, the same thing from the plain runs.** In 8 untraced runs of the same cell the grid was lost in exactly the 2 whose regional series page reached
+the page at 941 ms or later (`series_upgrade` ran its cache-only fast path at 1265 and 1391 in place of the fetch); the 6 that landed at 919 ms or earlier were sent. Across all 34
+cold jump runs of the F-21 work: 26 of 26 with no series landing in the window sent their grid; 6 of 8 with one in the window lost it. The two that did not: a run whose viewport was
+cached (a 50 ms debounce and a 20 ms stable delay put its window near 300 ms, not 1,000), and `fin800_r1_after_cold_jump` (flat mock, no trace): the skip on `locks.isFetching` may have
+protected it; not shown.
+
+**When it bites.** It needs (1) a zoom-out that needs a fetch (an uncached viewport: the 300 ms window; a cached one has about 20 ms) and (2) a series page landing in those
+300 ms. In the harness, at a 0.8 s stay on a just-opened page with live-like latencies, 6 of 14 zoom-outs lost the grid (4 of 6 in the F-21 matrix, 2 of 8 in the first traced set); at a 5 s stay 0 of 6, because the
+regional pages the selection triggers have landed long before. Not measured live. Any series page (regional or world) or hour-0 mini fires the event, and a page that is slow under load lands at a random moment, so it would hit the window now and then (live: the regional mini 0.2 s; the world pages 2 to 25 s). The same path serves a PAN at an uncached viewport (not tested). Effect: the map keeps its frame until the
+next gesture: with the previous hour that is the wrong-hour frame of F-21 (full strength before the F-21 fix, dimmed after it). It is consistent with, but NOT shown to be, the cause
+of the "far-zoom frame stays wrong or blank until I zoom in" reports of 2026-09-30 (commitment 228); the live read-back below is how to tell.
+
+**Proposed fix (NOT built; the owner decides).** Make the dispatcher capability-aware, so the opportunistic lane is opportunistic in BOTH orders: (1) a `'series_upgrade'` enqueue returns
+when a run is already pending (`scheduledRef.current || timeoutIdRef.current`): this is what the lane's comment already promises for an in-flight fetch (the next landing re-fires the event,
+so a skip costs nothing) and it closes the order observed here; (2) a fetch-capable enqueue that finds a cache-only run SCHEDULED but not yet dispatched (`scheduledRef.current`, :900)
+replaces its source instead of being dropped: by reading the code this second order is possible when a series page lands in the same frame, or during a main-thread stall, before the
+`moveend` enqueue (the jump zoom here stalls the thread about 300 ms); it did not occur in the 26 natural-order traced runs, and injected (above) it is NOT covered by
+(1) alone. About a dozen lines, default ON with a kill switch
+(`__RAW_DISABLE_SU_NO_CANCEL__`), a `series_upgrade_skipped_pending` event in the forensic ring for the read-back, and call-site tests with fake timers for both orders (`moveend` then
+`series_upgrade` inside the stable delay, and the reverse: `updateMarineGrid` must run with `moveend` each time). The scratch build has (1) as one switch (`__DIAG_NO_SU_CANCEL__`) and (1)+(2) as another (`__DIAG_FULL_FIX__`): with (1), 0 grids lost at
+landings inside the window; with (1)+(2), 2 of 2 sent in the injected order (above). Rejected: making `series_upgrade` fetch-capable (it exists to avoid re-serving the interim tier), and shortening the stable delay (narrows the window,
+does not close it).
+
+**Read-back after a deploy of the fix.** On the dev site, zoom out 1 to 2 s after picking a far hour on a page that has just opened, ten times: `__RAW_FORENSIC__.dump()` shows a
+`series_upgrade_skipped_pending` event whenever a page landed in the window and a `moveend` fetch after every zoom-out; without the fix a zoom-out with a landing in the window shows
+`flavor_fastpath_miss src:series_upgrade` and no `moveend` fetch.
+
+**Limits.** Offline only. The candidate fix was tested as a runtime switch in a scratch build, not as a code change in the repo. The mock's regional series latency (1 s) is
+slower than the live mini (0.2 s), so how often a landing falls in the window live is not known. Pans and other `moveend` sources were not run. The link to the owner's
+earlier reports is a hypothesis. The second order was injected (a synthetic hook fires the series event just before the `moveend` enqueue), not seen naturally: it shows the
+code behaves that way, not that it happens live, and its window (an enqueue to its dispatch, about one frame) is far narrower than the 300 ms of the first order.
