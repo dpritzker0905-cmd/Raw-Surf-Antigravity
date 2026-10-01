@@ -189,6 +189,11 @@ before starting it.
   test through the path that PRODUCES that field in the product (here: the catalogue response -> the resolver ->
   the rating), and a positive control that reddens it with the producer line reverted. Sibling: L-S17 (an
   instrument that runs a configuration nobody serves). (2026-09-30, #199)
+- **L-P18 · A frontend PR runs the lint gate BEFORE it is pushed, not after CI says so.** #205 failed
+  `frontend-lint`: its test file imported four unused hooks and an unneeded `eslint-disable`, +5 on the
+  shrink-only debt baseline (`frontend/scripts/eslint_baseline.json`). 195 suites had passed; Jest does not lint.
+  `node frontend/scripts/check_eslint.js` (the CI gate itself) caught it in one local run. In a worktree without
+  `node_modules`, a junction to an installed copy works (`mklink /J`; gitignored). (2026-09-30, #205)
 - **L-S16 · A scalar interpolated as a vector can only shrink.** `/point` averaged the corners' (u, v) and served
   sqrt(u^2+v^2) as the wave height; |sum w_i h_i e_i| <= sum w_i h_i, so every served height was biased low wherever
   the corners' directions diverge, which is where spots are (NDBC 51202: served 0.98 m, corners 1.39-1.57, buoy 2.0).

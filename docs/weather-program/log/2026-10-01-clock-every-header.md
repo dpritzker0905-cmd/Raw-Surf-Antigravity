@@ -30,3 +30,16 @@ Session `clock-every-header`, branch `claude/clock-check-every-header` (#208). I
   because those numbers are only fixed once a PR merges. That is the second renumbering tonight.
 - STATE: `dev` = `e8321acc` (#209), #209 moved to merged, #208's line renumbered, anchor at seq 245.
 - If #207 merges before #208, this repeats once more on top of #207's seq 238.
+
+## #207 merged; the ledger re-chained a third time (00:17:17Z)
+- The #206/#209 session reported that #207 had merged. Checked before acting: gh shows #207 MERGED at
+  2026-10-01T00:15:39Z as `ac080442` (the owner's account), and `origin/dev`'s ledger ends at seq 238
+  (`pr_open #207`), with its STATE anchor at 238. That session also passed on, as the owner's words to it, "merge
+  #208 when it's green".
+- Done as before: `dev`'s 1-238 were kept byte-identical, and this branch's ten lines were re-appended after them,
+  content kept, each noting the renumbering. **Correction to the table above:** the finding is now **239**,
+  `pr_open #208` **240**, the six 09-29 header corrections **241-246**, the `push` **247** and the `memory_write`
+  **248**. `pr_merge #207` is not written here: the c188 session's next PR records it (per the other session),
+  so #208's audit WARNs for it as expected.
+- LESSONS auto-merged (#207's L-P18 and this branch's L-P10 note do not touch). STATE: `dev` = `ac080442`, #207
+  merged, #208 the only open PR of ours, anchor at seq 248.
