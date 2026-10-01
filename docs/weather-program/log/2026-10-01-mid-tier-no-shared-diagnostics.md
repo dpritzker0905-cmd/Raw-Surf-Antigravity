@@ -72,3 +72,11 @@ follows a rebind of `X.grid.diagnostics` in the same function.
   branches, so this chain forks with theirs. Whichever merges later takes dev's `ACTIONS.jsonl` byte-for-byte and
   re-appends its own lines after dev's head with `--acted-at` (pr-workflow mechanics, 2026-09-30). `pr_merge #207` is
   #210's seq 239 and is not repeated here.
+
+## 01:14Z on · the machine reset, and what it blocked
+- The owner's machine reset mid-session. The WIP commits survived, and so did the uncommitted fix, which was committed
+  first. After the reset, `gh auth status` reports the stored token invalid. `~/.gitconfig` routes github.com
+  credentials through `gh auth git-credential`, so `git push` fails too ("could not read Username"; exit 128 with
+  prompts disabled). The PR waits on the owner's `gh auth login`. seq 240 `memory_write`: that fact added to agent-local
+  `pr-workflow-mechanics.md`.
+- The step-4 stamping defect from the audit was offered to the owner as a separate task (not in this PR).
