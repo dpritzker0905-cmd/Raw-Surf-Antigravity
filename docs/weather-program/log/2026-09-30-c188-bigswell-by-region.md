@@ -263,3 +263,35 @@ cp1252 decode of Jest's output, fixed with an explicit utf-8 decoder; nothing wa
   now **seq 237**; #207's opening (branch seq 233) is **seq 238**; #209's merge, which had no line, is **seq 236**
   (reconstructed, at the #206 session's request). Lesson: two open PRs that both append to ACTIONS.jsonl fork the
   chain; the one that merges second re-chains after dev's head (the #206 session's message named the steps).
+
+## Owner (chat, after 23:16Z): "merge #207 when it's green and move to the next fix, follow best practices, innovate, use forensics. Give me a detailed report when done"
+
+- #207 went CONFLICTING while its last lane ran: #206 and #209 merged first and took seq 231-235 (re-chained, note
+  above; the #206 session messaged the steps). Merged at 00:15:39Z as `ac080442` (seq 239). Docs only: no restart.
+- Commitment 228, ROOT CAUSE (seq 240), in three measurements:
+  1. REPRODUCED with the client's exact request (L-P19): world page 0 at 23:18:56Z returned 30/48 frames in 24.7 s,
+     16/48 beside page 1 (the client's two slots). Missing: the TAIL (+46..+139 h). The 6-hour monitor never saw it.
+  2. PROFILED (cProfile, live manifest of 13,292 rows, 16 real global_mid files fetched read-only through /grid):
+     10.3 of 12.9 s was `copy.deepcopy` in mid_res_tier's clip-cache store, a full ~15k-cell copy per world frame
+     (and per cache hit) because MAX_SPAN 400 made the world clip the whole grid (L-A8); 1.3 s truthTag hashing;
+     0.77 s island-gate env reads over every manifest row per hour. grid_series then kept 1 cell in 4 to 16.
+  3. THE LIVE LANE TAKES TURNS (L-F8): at 00:13Z every page-0 frame was Open-Meteo's live 25x12 grid at 15 deg
+     (172/300 valid, no model run time) instead of the stored 2-deg NOAA field. S11 00:17-00:19Z: pages alternate
+     between that grid (all hours) and stored pages cut at the deadline (22/48, 28/48, 32/48, 9/48 in 34.02 s, past
+     Netlify's 26 s). Stored share 8.0-43.4% (SCOREBOARD S11, new instrument).
+- THE FIX (branch `claude/c228-world-series`), four identity-preserving changes plus one routing change:
+  mid tier strides a series frame right after the clip with grid_series' own `decimate_vectors` (never surf, never
+  cached, `load_stride` on a private dict); clips over 5,000 cells skip the deep-copying cache; the island gate runs
+  after the model/domain/layer match; no truthTag for strided series frames; and the live lane is skipped when its
+  grid would be strictly coarser than stored products covering every hour (GFS pages 0-1 on all four layers, ICON
+  page 0; page 2 keeps it). Kill switches: MARINE_MID_SERIES_STRIDE=0, SERIES_LIVE_SKIP_COARSE=0.
+- VERIFIED: old vs new on the 16 real files at strides 2, 3, 4, three reps: 288 frames / 623,616 cells
+  byte-identical; only the `vectors_before_bound` diagnostic differs (the frames now arrive pre-strided, as the
+  load-time stride's already did). 16-frame world page 2.4-3.4 s vs 5.3-12.2 s (9 pairs, a busy machine). 31 new
+  tests (`test_world_series_cost.py`), 14/14 mutants killed after two weak tests were tightened (pydantic copies a
+  dict passed to a model, so the shared-diagnostics test was watching a copy); 22 related suites 262 passed.
+- Caught before commit: the first S11 row and seq 240 said "23:10Z" for a probe that ran 23:18:56-23:21:34Z, an
+  estimate (L-P10). Neither had been committed; both were rewritten from the probe's own timestamps.
+- Not changed, recorded: world /grid (the client's per-hour fallback) no longer deep-copies, but still loads and
+  clips the full 15k grid per request;
+  EURO/ICON world frames' gulf fill writes into vectors shared with the L1 product (pre-existing, idempotent).

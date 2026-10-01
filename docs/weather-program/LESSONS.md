@@ -219,3 +219,17 @@ before starting it.
   820 MB was a fresh-restart outlier (38-45% of 2 GB); the normal level then was 70-80%. Every deploy restarts the box,
   so a single `/api/health` RSS after a merge measures the restart, not the load. (2026-09-26, moved from local memory
   2026-09-30)
+- **L-P19 · Probe with the consumer's request, not a convenient one.** The far-zoom monitor asked grid_series for 6
+  hours and read 6/6 through a restart; the client asks for 48 offsets on a 3-hour grid at GLOBAL_REQUEST_BBOX, and
+  that page came back 30/48 alone, 16/48 beside its sibling. Build the probe from the client's own request builder
+  (`backend/scripts/series_page_probe.py` mirrors `marineGridSeries.buildPageHours`), then simplify. (2026-10-01,
+  commitment 228)
+- **L-A8 · A size word in a comment outlives the cap it was sized for.** mid_res_tier deep-copied every clip into
+  its cache because clips were "tiny, ~dozens of cells"; MAX_SPAN 40 -> 400 (2026-07-23) made the world clip the
+  whole ~15k-cell grid, and that deep copy became 10.3 of 12.9 s of a far-zoom page. When a cap or span is raised,
+  grep downstream for the size words (tiny, small, cheap, resident) and re-measure each. A profile found it in one
+  run, after two sessions of reasoning about load. (2026-10-01, commitment 228)
+- **L-F8 · One symptom can be two defects that take turns.** Whether the live Open-Meteo lane won its 2.5 s race
+  decided which far-zoom defect a page showed: every hour from a 15-deg 25x12 grid (won) or the stored 2-deg field
+  cut at the deadline (lost). A probe counting returned hours called the first 100% healthy. Measure what was
+  served (origin, resolution), not only how much; S11 counts hours from the stored field. (2026-10-01)
