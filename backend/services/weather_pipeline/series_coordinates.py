@@ -19,6 +19,23 @@ def _axis_count(start, end, step):
     return count
 
 
+def series_resolution(w, s, e, n):
+    """The ladder resolution generate_series_coords picks for this bbox, without allocating a coordinate.
+
+    Split out 2026-09-30 (commitment 228) so the series builder can ask what grid the live lane WOULD
+    fetch before deciding whether to fetch it at all. generate_series_coords calls this, so the two
+    cannot disagree.
+    """
+    if not all(math.isfinite(value) for value in (w, s, e, n)):
+        raise ValueError('Coordinates must be finite')
+    for resolution in RESOLUTIONS:
+        rows = _axis_count(s, n, resolution)
+        cols = (_axis_count(w, e, resolution) if w <= e else
+                _axis_count(w, 180., resolution) + _axis_count(-180., e, resolution))
+        if rows * cols <= POINT_LIMIT or resolution == RESOLUTIONS[-1]:
+            return resolution
+
+
 def generate_series_coords(w, s, e, n):
     """Return (resolution, latitudes, longitudes) with unchanged accepted coordinates.
 
@@ -28,12 +45,6 @@ def generate_series_coords(w, s, e, n):
     """
     from services.weather_pipeline.route_helpers import generate_bbox_coords
 
-    if not all(math.isfinite(value) for value in (w, s, e, n)):
-        raise ValueError('Coordinates must be finite')
-    for resolution in RESOLUTIONS:
-        rows = _axis_count(s, n, resolution)
-        cols = (_axis_count(w, e, resolution) if w <= e else
-                _axis_count(w, 180., resolution) + _axis_count(-180., e, resolution))
-        if rows * cols <= POINT_LIMIT or resolution == RESOLUTIONS[-1]:
-            lats, lons = generate_bbox_coords(w, s, e, n, resolution)
-            return resolution, lats, lons
+    resolution = series_resolution(w, s, e, n)
+    lats, lons = generate_bbox_coords(w, s, e, n, resolution)
+    return resolution, lats, lons

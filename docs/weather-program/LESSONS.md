@@ -125,6 +125,15 @@ before starting it.
   was written ahead of the clock (a log header and STATE's `Updated`, then a ledger `acted_at`). The
   ledger's own check (`acted_at` not after `at`) refused the second; the first went through unchecked.
   Take `date -u` or `datetime.now(timezone.utc)` at the moment of writing. (2026-09-29)
+  ⬆ 2026-09-30, late: the log half of the clock check read only headers ending in ` ·`, which was 31 of the 41
+  timed headers on `dev`. So #206's `## PR and ledger (23:14Z-23:17Z)`, committed at 23:15:52Z (`0b057d3d`),
+  passed. The check now reads every `## ` header (`log/2026-09-30-clock-every-header.md`). For a check built from
+  one case's shape, count how much of the population it can read.
+  ⬆ Same night: each claim is now held to the commit that wrote THAT line (git blame). That found 7 headers, 1 to 7
+  minutes ahead, which the file's last commit had hidden since 2026-09-29. Each is corrected by its own `correction`
+  ledger line (#206's included), since a log cannot be edited. A silent fallback is a weaker check that nobody
+  sees: until git's output was decoded as UTF-8, the blame fell back on 5 of 12 files on Windows. A fallback on a
+  committed file now WARNs, and FAILs in CI.
 - **L-P11 · Test code the way production runs it.** #171's 21 tests imported the fetchers as a package;
   production spawns them BY PATH, where `services` is not importable. A bare `from services._fetch_native_cell`
   inside `fetch_global_coarse` would have failed every GFS, ICON and EURO fetch, flag on or off. The real-GRIB
@@ -207,7 +216,8 @@ before starting it.
   from the 2-degree tier with `coverage_scope: regional`, `fallbackReason: null`, and the log called it
   "regional-quality at zoom-out" at INFO: 9 of 57 requests in one burst. A refused read must retry, then name its
   fallback in the payload. Sibling of L-F1, L-F2. (2026-09-30, W-23)
-- **L-F8 · An object a cache handed you is still the cache's.** `ProductStore.load_product` copies the product and
+- **L-F9 · An object a cache handed you is still the cache's.** (Written as L-F8 on #211's branch; #210's L-F8
+  merged first.) `ProductStore.load_product` copies the product and
   grid containers one level and SHARES the vector objects; `filter_grid_to_bbox` re-references them. The serve-time
   coarse fill assigned GFS values onto those vectors, so one world request rewrote the cached EURO product: live,
   119 of 399 cells of a later 40-degree clip went from masked to valid with no `coarse_fill` stamp, and a repeated
@@ -231,3 +241,23 @@ before starting it.
   820 MB was a fresh-restart outlier (38-45% of 2 GB); the normal level then was 70-80%. Every deploy restarts the box,
   so a single `/api/health` RSS after a merge measures the restart, not the load. (2026-09-26, moved from local memory
   2026-09-30)
+- **L-P20 · Mutate the fix and watch the guard, not only the tests.** The AST guard built for `grid_resolver`'s shared
+  diagnostics (2026-10-01) first accepted any copy on an EARLIER LINE of the same function. Reverting step 4's copy
+  turned four behavioural tests red and left the guard green: the EURO -> GFS fallback's copy, inside its own branch
+  ~180 lines up, "covered" the step-4 writes. The rule became structural dominance (an earlier statement of the
+  write's own or an enclosing block), with that shape as a control. A guard is a test of the next change, so its
+  mutation check is the same one the fix gets. (log `2026-10-01-grid-resolver-no-shared-diagnostics.md`)
+- **L-P19 · Probe with the consumer's request, not a convenient one.** The far-zoom monitor asked grid_series for 6
+  hours and read 6/6 through a restart; the client asks for 48 offsets on a 3-hour grid at GLOBAL_REQUEST_BBOX, and
+  that page came back 30/48 alone, 16/48 beside its sibling. Build the probe from the client's own request builder
+  (`backend/scripts/series_page_probe.py` mirrors `marineGridSeries.buildPageHours`), then simplify. (2026-10-01,
+  commitment 228)
+- **L-A8 · A size word in a comment outlives the cap it was sized for.** mid_res_tier deep-copied every clip into
+  its cache because clips were "tiny, ~dozens of cells"; MAX_SPAN 40 -> 400 (2026-07-23) made the world clip the
+  whole ~15k-cell grid, and that deep copy became 10.3 of 12.9 s of a far-zoom page. When a cap or span is raised,
+  grep downstream for the size words (tiny, small, cheap, resident) and re-measure each. A profile found it in one
+  run, after two sessions of reasoning about load. (2026-10-01, commitment 228)
+- **L-F8 · One symptom can be two defects that take turns.** Whether the live Open-Meteo lane won its 2.5 s race
+  decided which far-zoom defect a page showed: every hour from a 15-deg 25x12 grid (won) or the stored 2-deg field
+  cut at the deadline (lost). A probe counting returned hours called the first 100% healthy. Measure what was
+  served (origin, resolution), not only how much; S11 counts hours from the stored field. (2026-10-01)

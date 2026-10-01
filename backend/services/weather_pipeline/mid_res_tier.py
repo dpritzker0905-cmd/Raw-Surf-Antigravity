@@ -82,6 +82,69 @@ def pick_mid_item(mid_auth, mid_est):
     return None
 
 
+# ── THE WORLD-SCALE SERIES COST (2026-09-30, commitment 228) ─────────────────────────────────────
+# Owner report: "not showing the swell [at far zoom] until I zoom in, on forecasts". Replayed live with
+# the client's exact request (GLOBAL_REQUEST_BBOX, 48 three-hourly offsets): page 0 came back with 30 of
+# 48 frames in 24.7 s alone and 16 of 48 with its sibling page in flight -- OVERALL_DEADLINE (20 s)
+# drops the tail of every page, so +46..+139 h were missing and the client cached the partial page.
+# Profiled locally on the live manifest + 16 real global_mid files (cProfile, 16-frame world page):
+# 10.3 of 12.9 s was `copy.deepcopy` HERE -- the clip-cache store below deep-copies the whole clipped
+# product, sized in July for "tiny, ~dozens of cells". MAX_SPAN 400 (2026-07-23) made the world clip
+# the WHOLE ~15k-vector grid, so every world frame paid a 15k-model deepcopy (and every cache hit
+# another), then grid_series threw 8 of 9 cells away. Two changes, both serving byte-identical cells:
+#   1. A clip above MARINE_MID_CLIP_CACHE_MAX_VECTORS is not cached. The returned product is the same
+#      object as before (the clip, never the cache entry); only the useless deep copy goes. It also
+#      frees up to 24 x 15k deep-copied vectors (~150 MB) the cache could pin on the 2 GB box.
+#   2. A series frame (series_stride > 1) is strided right after the clip, with the SAME
+#      `decimate_vectors` call grid_series would make on the same grid a few steps later, so every
+#      per-cell step in between runs on 1/stride^2 of the cells. `load_stride` is stamped so the series
+#      does not stride twice (see grid_series_helper._load_stride_of).
+_CLIP_CACHE_MAX_VECTORS_DEFAULT = "5000"   # a 40 deg band clip with its 12 deg pad is ~1k cells
+
+
+def _clip_cacheable(product) -> bool:
+    """True when a clipped product is small enough for the deep-copying clip cache."""
+    try:
+        cap = int(os.environ.get("MARINE_MID_CLIP_CACHE_MAX_VECTORS", _CLIP_CACHE_MAX_VECTORS_DEFAULT))
+    except ValueError:
+        cap = int(_CLIP_CACHE_MAX_VECTORS_DEFAULT)
+    grid = getattr(product, "grid", None)
+    return len(getattr(grid, "vectors", None) or []) <= cap
+
+
+def _series_stride(series_stride) -> int:
+    """The series decimation to apply after the clip, or 1 (none). Fails open like grid_resolver._load_kw:
+    a stride that cannot be read serves the full clip, which is what the tier did before."""
+    if os.environ.get("MARINE_MID_SERIES_STRIDE", "1") == "0":
+        return 1
+    try:
+        s = int(series_stride)
+    except (TypeError, ValueError):
+        return 1
+    return s if s > 1 else 1
+
+
+def _stride_clipped_grid(product, stride: int) -> bool:
+    """Decimate the clip's OWN grid container exactly as grid_series._apply_build_stride would.
+
+    `filter_grid_to_bbox` returns a private grid container over SHARED vector objects, so rebinding
+    `vectors` here cannot reach the L1 product; `diagnostics` is still the shared dict, so it is copied
+    before `load_stride` is written (a stamp leaking into L1 would make a later full read look strided).
+    """
+    from services.weather_pipeline.series_vector_budget import decimate_vectors
+    grid = getattr(product, "grid", None)
+    if grid is None:
+        return False
+    out = decimate_vectors(grid.vectors, grid.cols, grid.rows, stride)
+    if out is None:
+        return False
+    grid.vectors, grid.cols, grid.rows = out
+    diagnostics = dict(grid.diagnostics or {})
+    diagnostics["load_stride"] = stride
+    grid.diagnostics = diagnostics
+    return True
+
+
 async def try_serve_mid_res_tier(
     store,
     *,
@@ -97,12 +160,16 @@ async def try_serve_mid_res_tier(
     valid_time=None,
     target_dt=None,
     background_tasks=None,
+    series_stride=None,
 ):
     """Serve (or replace with) the clipped global_mid when the request sits in the mid span band.
 
     Returns the mid product to use, or None to keep `current_product` / fall through. Never replaces
     a regional/finer product — only fills a hole (current_product None) or upgrades an UNCLIPPED
     GLOBAL-span grid (the 10° coarse the estimated-hour Step 3 shortcut serves).
+
+    ``series_stride`` (>1, grid_series frames only, never surf): the clip is decimated before it is
+    returned and never enters the clip cache, whose key does not carry a stride.
     """
     if not bbox or req_w is None:
         return None
@@ -199,7 +266,9 @@ async def try_serve_mid_res_tier(
         _LOAD_SEM = asyncio.Semaphore(max(1, int(os.environ.get("MARINE_MID_LOAD_CONCURRENCY", "2"))))
     _snap = get_snapped_bbox(bbox, model)
     _ckey = f"{mid_item.filename}|{_snap}"
-    _hit = _CLIP_CACHE.get(_ckey)
+    _stride = _series_stride(series_stride)
+    # A strided frame never reads the cache: a hit is a full-size deep copy, the cost this lane removes.
+    _hit = _CLIP_CACHE.get(_ckey) if _stride <= 1 else None
     if _hit is not None:
         import copy as _copy
         product = _copy.deepcopy(_hit)  # callers mutate (surf transform) — never hand out the cached object
@@ -254,10 +323,17 @@ async def try_serve_mid_res_tier(
         product = filter_grid_to_bbox(product, f"{_pw:.4f},{_ps:.4f},{_pe:.4f},{_pn:.4f}")
     except Exception:
         product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
+    _strided = _stride > 1 and _stride_clipped_grid(product, _stride)
     if product.grid:
-        if product.grid.diagnostics is None:
-            product.grid.diagnostics = {}
-        product.grid.diagnostics["mid_res_tier"] = True  # surf gate keeps this coarse-ish tier honest
+        # The clip's grid is its own container, but its `diagnostics` is still the L1 entry's dict
+        # (load_product and filter_grid_to_bbox copy one level), and stored grids carry a non-None
+        # one. Copy it before stamping, as #210's _stride_clipped_grid does for `load_stride`: an
+        # in-place write put this key, and the resolver's per-request stamps after it, into the
+        # cached global_mid, and one request's stamps into another's response (2026-10-01,
+        # tests/test_mid_tier_shared_diagnostics.py).
+        diagnostics = dict(product.grid.diagnostics or {})
+        diagnostics["mid_res_tier"] = True  # surf gate keeps this coarse-ish tier honest
+        product.grid.diagnostics = diagnostics
         if product.grid.bounds:
             product.served_bbox = (
                 f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},"
@@ -312,14 +388,17 @@ async def try_serve_mid_res_tier(
                         model, domain, layer, valid_time, target_dt, bbox, reval_key
                     )
                 )
-    # Store the fully-built CLIPPED product (tiny, ~dozens of cells) in the LRU; hits deepcopy it out.
-    try:
-        import copy as _copy2
-        _CLIP_CACHE[_ckey] = _copy2.deepcopy(product)
-        if len(_CLIP_CACHE) > int(os.environ.get("MARINE_MID_CLIP_CACHE_MAX", "24")):
-            _CLIP_CACHE.pop(next(iter(_CLIP_CACHE)))  # FIFO evict oldest
-    except Exception:
-        pass
+    # Store the fully-built CLIPPED product in the LRU; hits deepcopy it out. Only a SMALL clip: a world
+    # clip is the whole ~15k-vector grid, so its deep copy cost more than rebuilding it (see
+    # _clip_cacheable). A strided series frame never goes in -- the key has no stride, and /grid reads it.
+    if not _strided and _clip_cacheable(product):
+        try:
+            import copy as _copy2
+            _CLIP_CACHE[_ckey] = _copy2.deepcopy(product)
+            if len(_CLIP_CACHE) > int(os.environ.get("MARINE_MID_CLIP_CACHE_MAX", "24")):
+                _CLIP_CACHE.pop(next(iter(_CLIP_CACHE)))  # FIFO evict oldest
+        except Exception:
+            pass
     logger.info(
         f"[Grid Route] Mid-res tier: serving global_mid '{mid_item.filename}' clipped to viewport "
         f"({span:.1f}°) for {model} {layer}"

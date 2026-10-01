@@ -33,24 +33,28 @@ def find_candidates(manifest, model, domain, layer, target_dt):
     authoritative_candidates = []
     estimated_candidates = []
     for p in manifest.products:
+        if not (
+            p.model.upper() == model.upper()
+            and p.domain.lower() == domain.lower()
+            and p.layer.lower() == layer.lower()
+        ):
+            continue
         # ⛔ THE ISLAND GATE, and this was the WORST of the five sites. Ranking runs through
         # _select_best_from_list: largest intersection, then SMALLEST COVERAGE AREA. Zoomed in at
         # an island the request sits inside BOTH the island tile and the regional/global tile, so
         # intersection ties and the smallest bbox -- always the 0.083 deg island tile -- won
         # DETERMINISTICALLY on /api/weather/grid. Not order luck; it won by construction.
+        # Evaluated AFTER the model/domain/layer match (commitment 228, profiled 2026-09-30): the gate
+        # reads the environment per call, and ahead of the match it ran for all ~13k manifest rows on
+        # every resolve -- 212,672 calls for one 16-frame world page. Same set: both are pure filters.
         if is_island_gated(p):
             continue
-        if (
-            p.model.upper() == model.upper()
-            and p.domain.lower() == domain.lower()
-            and p.layer.lower() == layer.lower()
-        ):
-            diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
-            if diff <= 3 * 3600:
-                if getattr(p, "is_estimated", False):
-                    estimated_candidates.append((p, diff))
-                else:
-                    authoritative_candidates.append((p, diff))
+        diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
+        if diff <= 3 * 3600:
+            if getattr(p, "is_estimated", False):
+                estimated_candidates.append((p, diff))
+            else:
+                authoritative_candidates.append((p, diff))
     return authoritative_candidates, estimated_candidates
 
 

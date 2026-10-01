@@ -392,6 +392,9 @@ async def resolve_grid(
             # so dwelling viewports sharpen 2° → 0.25° — the pre-mid steady state restored.
             viewport_service=viewport_service, valid_time=valid_time, target_dt=target_dt,
             background_tasks=background_tasks,
+            # Commitment 228: a series frame is strided inside the tier, before the per-cell steps
+            # below. Never for surf -- apply_surf_overlay has not been shown to be per-cell.
+            series_stride=None if surf else _load_kw(series_stride).get("stride"),
         )
         if _mid_product is not None:
             product = _mid_product
@@ -512,8 +515,9 @@ async def resolve_grid(
                                         "source_model": "ncep_gfswave025",
                                     }
                             if product.grid:
-                                if product.grid.diagnostics is None:
-                                    product.grid.diagnostics = {}
+                                # COPY, never write in place: an in-flight WAITER's product holds the GFS
+                                # viewport product's L1 dict (see step 4 below; 2026-10-01).
+                                product.grid.diagnostics = dict(product.grid.diagnostics or {})
                                 product.grid.diagnostics["provider"] = product.provider
                                 product.grid.diagnostics["stale"] = False
                                 product.grid.diagnostics["renderable"] = len(product.grid.vectors) > 0 and any(v.speed > 0 for v in product.grid.vectors)
@@ -690,8 +694,12 @@ async def resolve_grid(
 
     # 4. Set diagnostics renderable property explicitly
     if product and product.grid:
-        if product.grid.diagnostics is None:
-            product.grid.diagnostics = {}
+        # COPY the dict before stamping it (2026-10-01). The grid container is this request's own, but
+        # its `diagnostics` is usually the ProductStore L1 entry's: load_product and filter_grid_to_bbox
+        # copy one level, and stored grids carry a non-None dict, so the old `is None` guard never
+        # rebound. The stamps landed in the cache, and `valid_time` (the REQUESTED hour) of a later
+        # request rewrote an earlier response. Pinned by tests/test_grid_resolver_shared_diagnostics.py.
+        product.grid.diagnostics = dict(product.grid.diagnostics or {})
         product.grid.diagnostics["renderable"] = len(product.grid.vectors) > 0 and any(v.speed > 0 for v in product.grid.vectors)
         product.grid.diagnostics["partial_coverage"] = getattr(product, "partial_coverage", False)
         product.grid.diagnostics["valid_time"] = product.valid_time.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -701,7 +709,9 @@ async def resolve_grid(
     # Attach truthTag for GFS marine waves and all wind forecast models
     is_gfs_marine_waves = (model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves")
     is_wind = (domain.lower() == "wind" and layer.lower() == "wind")
-    if is_gfs_marine_waves or is_wind:
+    # Not for a strided series frame (commitment 228): grid_series never serialises truthTag, and the
+    # hash is a Python loop over every cell (82 ms per 15k-cell frame, profiled) on the page's clock.
+    if (is_gfs_marine_waves or is_wind) and not _load_kw(series_stride):
         if isinstance(product, NormalizedProduct):
             product.truthTag = compute_truth_tag(
                 model=product.model,
