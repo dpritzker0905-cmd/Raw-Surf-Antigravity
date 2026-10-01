@@ -303,11 +303,7 @@ _EXEMPT = {
 }
 # Known in-place writes on `dev`, each with the change that removes it. An entry that no longer
 # violates FAILS the ratchet below: delete it in the commit (or merge) that fixes it.
-_KNOWN_UNFIXED = {
-    ("services/weather_pipeline/mid_res_tier.py", "try_serve_mid_res_tier",
-     "product.grid.diagnostics['mid_res_tier']"):
-        "the mid tier's stamp; fixed on branch claude/mid-tier-no-shared-diagnostics",
-}
+_KNOWN_UNFIXED = {}
 
 
 def _diag_owner(node):
