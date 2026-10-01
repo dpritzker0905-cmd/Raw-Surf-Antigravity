@@ -244,3 +244,22 @@ cp1252 decode of Jest's output, fixed with an explicit utf-8 decoder; nothing wa
 - ⚠️ At about 22:31Z another session checked out `claude/mojibake-debris-cleanup` in the shared worktree
   (`raw-surf-wt`) with uncommitted changes; my branch-guarded command refused to write there. This session continues
   in its own worktree `C:/Users/David/App/rs-c188` (LESSONS L-P14).
+
+## Owner (chat, after 22:33Z): "merge #205 when it's green and move to the next fix"
+- #205's first run FAILED frontend-lint (+4 unused imports and +1 unused eslint-disable in ContentMarker.test.js,
+  over the shrink-only baseline); reproduced with `scripts/check_eslint.js` (a node_modules junction in the new
+  worktree), fixed by fe3428c8; LESSONS L-P18. #205 MERGED 22:55:23Z as `8abc6e61` (ledger seq 231).
+- The next fix = commitment 228 (the far-zoom heatmap). The #205 restart was CLEAN: the cold monitor (every 20 s,
+  22:55-23:03Z) saw the new instance serve the world grid in ~1 s with all 10,457 valid cells from 28 s uptime; the
+  browser repro in that window drew z3 now/+5 d and the Swell layer at z2 now/+1/+3 d, the Pacific, zoom in and out.
+- The owner confirmed (AskUserQuestion) read-only Render logs. ROOT MECHANISM (ledger seq 232): no client ever
+  reported an empty render; in the report window the zoomed-out series logged 'GFS marine fast path failed
+  (TimeoutError)' then 'hour +Nh timed out after 10.0s' for many hours, near ones included. CHRONIC: the same on
+  2026-09-29 evening. The fix is capacity/architecture, not a flag: recommendation in the reply and commitment 228.
+- 23:59Z, RE-SEQUENCING (append-only note; the entries above keep their original wording): #206 and #209
+  (another session, on the owner's word) took ledger seq 231-235 on dev while #207 was open with its own 231-233.
+  dev's chain is the record, so on merging origin/dev into #207: the branch's `pr_merge #205` (branch seq 231) was
+  DROPPED, because dev's seq 232 records the same merge; the root-mechanism finding (branch seq 232, cited above) is
+  now **seq 237**; #207's opening (branch seq 233) is **seq 238**; #209's merge, which had no line, is **seq 236**
+  (reconstructed, at the #206 session's request). Lesson: two open PRs that both append to ACTIONS.jsonl fork the
+  chain; the one that merges second re-chains after dev's head (the #206 session's message named the steps).
