@@ -1,4 +1,4 @@
-"""SCOREBOARD S11: far-zoom series completeness. Replays the CLIENT'S exact world-scale grid_series page against a
+"""SCOREBOARD S11: far-zoom series completeness from the STORED field. Replays the CLIENT'S exact world-scale grid_series page against a
 serve API and reports, per page, how many of the requested forecast hours came back and how long it took.
 
 WHY (commitment 228, 2026-09-30): the owner saw no swell at far zoom on forecast hours until zooming in. A monitor
@@ -27,6 +27,9 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 
 BASE = os.environ.get("RAW_SURF_BASE_URL", "https://raw-surf-antigravity.onrender.com")
+# A frame from the STORED field names its direct-pipeline origin; the live Open-Meteo lane names open-meteo
+# (series_source_policy._STORED_UPSTREAMS is the server side of the same list).
+STORED_UPSTREAMS = ("noaa", "dwd", "ecmwf", "copernicus")
 GLOBAL_REQUEST_BBOX = "-180.0000,-80.0000,180.0000,85.0000"
 PAGE_SPAN_HOURS, MAX_HOURS, CADENCE = 144, 336, 3
 
@@ -63,6 +66,8 @@ def probe_page(page, anchor, model, layer, timeout=60):
         d = json.loads(body)
         got = {f.get("hour_offset") for f in d.get("frames") or [] if f.get("vectors")}
         row["frames"] = len(got)
+        row["stored"] = sum(1 for f in d.get("frames") or []
+                            if f.get("vectors") and f.get("upstream_provider") in STORED_UPSTREAMS)
         row["missing"] = [h for h in hours if h not in got]
         frames = d.get("frames") or []
         row["region"] = frames[0].get("region_id") if frames else None
@@ -98,10 +103,13 @@ def main():
     rows = run(a.mode, a.model, a.layer)
     for r in rows:
         print(f"{r['mode']} {r['model']} {r['layer']} page {r['page']}: {r.get('status')} {r['secs']} s, "
-              f"{r.get('frames')}/{r['requested']} frames, first missing {(r.get('missing') or [])[:6]}")
+              f"{r.get('frames')}/{r['requested']} frames ({r.get('stored')} stored, grid {r.get('grid')}), "
+              f"first missing {(r.get('missing') or [])[:6]}")
     done = sum(r.get("frames") or 0 for r in rows)
+    stored = sum(r.get("stored") or 0 for r in rows)
     asked = sum(r["requested"] for r in rows)
-    print(f"S11 completeness: {done}/{asked} = {done / asked:.1%}")
+    # S11 is the STORED share: a page can return every hour and still serve the 15-deg live grid (00:13Z 10-01).
+    print(f"returned {done}/{asked} = {done / asked:.1%}; S11 served from the stored field {stored}/{asked} = {stored / asked:.1%}")
     if a.out:
         with open(a.out, "a", encoding="utf-8") as fh:
             for r in rows:
