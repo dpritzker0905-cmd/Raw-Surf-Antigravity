@@ -182,6 +182,10 @@ before starting it.
   Caught by `git status` after the run; restored from the committed WIP. A harness that saves and restores a file
   uses `read_bytes`/`write_bytes`, and checks `git status` is clean after. Siblings: L-P15, L-P6.
   (2026-09-30, #197)
+  ⚠️ Note 2026-10-01 (coarse-fill session; it REPEATED this, caught by `git status`, restored from the committed
+  WIP): "committed, it would have been a whole-file churn" overstates it here. `.gitattributes` is
+  `* text=auto eol=lf`, so `git add` stores LF and a CRLF restore cannot reach a commit; the cost is a working tree
+  that reads modified with an empty `git diff`, which can still mislead the next step. The rule stands.
 - **L-P17 · A test that builds its input by hand cannot see a field the real producer drops.** W-30 (#199) passed
   15 tests and 13/14 mutations while inert on every real spot: the tests rated a synthetic spot carrying
   `best_tide`, and `sim_forecast.fetch_catalog` (the producer of every real spot) mapped rows to five keys without
@@ -212,6 +216,15 @@ before starting it.
   from the 2-degree tier with `coverage_scope: regional`, `fallbackReason: null`, and the log called it
   "regional-quality at zoom-out" at INFO: 9 of 57 requests in one burst. A refused read must retry, then name its
   fallback in the payload. Sibling of L-F1, L-F2. (2026-09-30, W-23)
+- **L-F9 · An object a cache handed you is still the cache's.** (Written as L-F8 on #211's branch; #210's L-F8
+  merged first.) `ProductStore.load_product` copies the product and
+  grid containers one level and SHARES the vector objects; `filter_grid_to_bbox` re-references them. The serve-time
+  coarse fill assigned GFS values onto those vectors, so one world request rewrote the cached EURO product: live,
+  119 of 399 cells of a later 40-degree clip went from masked to valid with no `coarse_fill` stamp, and a repeated
+  coarse request lost its stamp (the first had already emptied the masked set). The fill's tests were green because
+  they asserted the mutation itself, on objects no cache held. A serve-time step copies what it changes and rebinds
+  on containers it owns; its test goes through the real cache and asserts the L1 entry is unchanged afterwards and
+  that a second identical request answers identically. Siblings: L-F6, L-P17. (2026-10-01, coarse-fill PR)
 - **L-O4 · A measurement's fan-out is load on what it measures.** 0.5 s-spaced `/grid` fetches during a core ingest
   drew 9 Supabase 429s; 1.5 s spacing drew none in 60 requests. Space audit fetches, and ledger the load you added
   when it touches production. (2026-09-30)

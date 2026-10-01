@@ -1,11 +1,19 @@
 # Weather program: state
 
 **Updated 2026-10-01 03:11Z** (logs: `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
-diagnostics stamps, #213), `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
+diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
+`log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
 (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- ⛔ **2026-10-01 (seq 239; #211, open for the owner's word): the serve-time coarse marine fill wrote GFS values into
+  the CACHED EURO/ICON product** (`coarse_gulf_fill.py` mutated the L1 cache's shared vector objects). Live: a 40-deg
+  EURO `waves` clip had 119 of 399 cells flip masked -> valid (inland Texas among them, unstamped) after anyone's
+  world request; world `swell_1`/`wind_waves` lost their `coarse_fill` stamp on every repeat within the 5-min L1
+  TTL. #211 copies instead of mutating: world responses unchanged; later readers revert to the model's own mask
+  (a served-number change on that path; SCOREBOARD S12 before row (S11 on #211's branch); after row = commitment 266, written as 242 on #211's branch). Not fixed, owner's
+  call: on the 2-deg world clip the fill's 8-deg reach paints GFS heights inland on the world response itself.
 - ⛔ **OWNER REPORT 2026-09-30 22:18Z (seq 227; commitment 228): marine heatmap blank at far-out zooms on forecast
   hours until zooming in.** ROOT MECHANISM from the Render logs (seq 237): the zoomed-out grid_series' live
   fast path times out (2.5 s) and its per-hour loop (10 s/hour, 20 s deadline, 1 CPU) drops many hours under load,
@@ -122,7 +130,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 261, sha256 d9d8857ef0f9dfbc80461dfc9c552ee59bbf8054b8e231becd827683aa35bccd**
+  **Ledger head: seq 268, sha256 4d0f4ddf716e25e0dc26caa5c264ebb41f322683d76c292ae975339b00bcb574**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

@@ -763,7 +763,16 @@ jobs:
           # 36795274173, as read by #211 and the mid-tier branch) observed 176 files / 2146 passed. The new
           # tests/test_grid_resolver_shared_diagnostics.py (claimed by `--lane guards`) adds 18 executed tests:
           # 2146 + 18 = 2164, 2164 - 6 = 2158; files 177 EXACT; _FLOOR_SET_FROM["guards"] -> 2164.
-          MIN_FILES, MIN_PASSED = 177, 2158
+          # ⬆ MIN_FILES 176→177, MIN_PASSED 2140→2145 on 2026-10-01, IN THE SAME COMMIT THAT CAUSES IT (the coarse
+          # marine fill copies instead of writing into the shared L1 product): hosted CI on dev ac080442 (run
+          # 36795274173) observed 176 files / 2146 passed. The new tests/test_coarse_fill_shared_vectors.py (claimed by
+          # `--lane guards`) adds 5 executed tests: 2146 + 5 = 2151, 2151 - 6 = 2145; files 177 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2151.
+          # ⬆ MIN_FILES 177→178, MIN_PASSED 2158→2163 on 2026-10-01, the two lines above COMBINED when #211 merged dev after
+          # #213 (by the grid-resolver session): hosted CI on #213 (run 36807315007 @ 33935bbf) observed 177 files / 2164
+          # in this lane. #211's tests/test_coarse_fill_shared_vectors.py adds 5: 2164 + 5 = 2169, 2169 - 6 = 2163; files
+          # 178 EXACT; _FLOOR_SET_FROM["guards"] -> 2169.
+          MIN_FILES, MIN_PASSED = 178, 2163
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

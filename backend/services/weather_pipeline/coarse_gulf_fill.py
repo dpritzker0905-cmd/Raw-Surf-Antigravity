@@ -31,9 +31,28 @@ not touch. ⇒ porting #25 would repair ~3 cells. **Its symptom moved; the queue
 rests on models that measure clean.** The ingest fix remains the more general shape and is still
 worth porting on its own merits, but not as a fix for what users see today.
 
+⛔ COPY, NEVER MUTATE (2026-10-01). Until then the fill assigned GFS values onto the vector objects
+it was handed. Those objects are not its own: `ProductStore.load_product` hands out a SHALLOW copy
+of the L1 entry (vector objects shared) and `filter_grid_to_bbox` re-references them, so the fill
+wrote GFS numbers into the CACHED EURO/ICON product while stamping `coarse_fill` on the served copy
+only. Measured in `tests/test_coarse_fill_shared_vectors.py` through the real store and route: a
+world request (the mid tier's 360-degree clip of `global_mid`) left the cached cell
+`is_valid=True, speed=GFS`; a later Gulf clip of the same L1 entry served it as EURO with no stamp;
+on the coarse tier the second identical request found nothing masked and lost its stamp. Filled
+cells are now copies in a rebound vector list on a copied product and grid; served values and the
+stamp are unchanged.
+  Live on production the same day (read-only GETs): EURO `swell_1` and `wind_waves` world requests
+26 s apart served identical cells, stamped `cells_filled` 95 / 123 the first time and `None` the
+second; and a 40° EURO `waves` clip of the US Southeast had 119 of 399 cells flip from masked to
+valid between a request just before and one just after a world request (inland Texas, Mississippi,
+Georgia among them), unstamped. ⚠️ Those inland cells are filled on the world response itself too:
+the 8° reach was sized for 10° cells, and on the 2° world clip it reaches inland. That response is
+stamped, and narrowing the reach changes a served number, so it is the owner's call, not done here.
+
 Kill switch: MARINE_COARSE_GULF_FILL=0.
 """
 import asyncio
+import copy
 import logging
 import os
 
@@ -74,8 +93,11 @@ def _is_masked(v):
 
 async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain, layer):
     """If `product` is a EURO/ICON 10° global-coarse marine `waves` grid with masked enclosed-sea
-    cells, fill them from the SERVED GFS global-coarse `waves` product (valid Gulf). Mutates + returns
-    `product` (returns it unchanged on any guard miss / missing donor — never raises into the route)."""
+    cells, fill them from the SERVED GFS global-coarse `waves` product (valid Gulf). Returns a NEW
+    product whose grid and filled cells are copies; the input product, its grid, its vector list and
+    every vector in it are left untouched, because they may be the L1 cache's own objects (module
+    docstring). Returns `product` itself on any guard miss / missing donor / nothing filled, and
+    never raises into the route."""
     try:
         if os.environ.get("MARINE_COARSE_GULF_FILL", "1") == "0":
             return product
@@ -89,12 +111,15 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
         grid = getattr(product, "grid", None)
         if not grid or not getattr(grid, "vectors", None):
             return product
-        # Coarse-global only: a ~360° span product (the 10° world tier). Regional/mid grids are fine.
+        # A ~360° span product. ⚠️ CORRECTED 2026-10-01: this said "Coarse-global only (the 10° world
+        # tier). Regional/mid grids are fine." Since MARINE_MID_RES_MAX_SPAN=400 (2026-07-23) a world
+        # request is served by the mid tier as a 360° clip of the 2° `global_mid`, whose span is
+        # >= 350, so the fill runs on that too. Viewport clips of the mid (span < 350) still skip it.
         b = getattr(grid, "bounds", None)
         span = (b.east - b.west) if (b and b.east >= b.west) else ((b.east + 360.0 - b.west) if b else 0.0)
         if span < 350.0:
             return product
-        masked = [v for v in grid.vectors if _is_masked(v)]
+        masked = [i for i, v in enumerate(grid.vectors) if _is_masked(v)]
         if not masked:
             return product
 
@@ -119,8 +144,12 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
         for g in gvalid:
             buckets.setdefault((round(g.lat / 2.0), round(g.lng / 2.0)), []).append(g)
 
+        # ⛔ A NEW list, and a copy per filled cell: the input list and its vectors may be the L1
+        # cache's own objects (module docstring), so nothing below writes to either.
+        vectors = list(grid.vectors)
         filled = 0
-        for v in masked:
+        for i in masked:
+            v = vectors[i]
             best, bestd = None, _MAX_FILL_DIST_DEG
             bl, bo = round(v.lat / 2.0), round(v.lng / 2.0)
             for dla in (-2, -1, 0, 1, 2):
@@ -131,6 +160,7 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
                             bestd, best = d, g
             if best is None:
                 continue  # no GFS ocean cell nearby → genuine land, leave masked (nothing paints on land)
+            v = copy.copy(v)  # BaseModel.__copy__ == model_copy(); same assignments as before, on the copy
             v.speed = best.speed
             if getattr(best, "direction", None) is not None:
                 v.direction = best.direction
@@ -141,9 +171,16 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
             if getattr(best, "period", None) is not None:
                 v.period = best.period
             v.is_valid = True
+            vectors[i] = v
             filled += 1
 
         if filled:
+            # Rebind on copies of the product and grid containers too: the caller's product (and its
+            # grid) may be shared with a cache just like the vectors, so the new list and the stamp
+            # below land on objects this function owns.
+            product = copy.copy(product)
+            product.grid = copy.copy(grid)
+            product.grid.vectors = vectors
             # ★★ PROVENANCE — A SUBSTITUTED CELL USED TO BE INDISTINGUISHABLE FROM A NATIVE ONE.
             # The fill sets `is_valid = True` and copies GFS values onto a EURO/ICON vector, so the
             # served product claimed to be EURO at cells whose numbers came from GFS, and NOTHING
