@@ -758,7 +758,12 @@ jobs:
           # files / 2130 passed. The new tests/test_sim_served_tide.py (claimed by `--lane guards`) adds 16 executed
           # tests (the 16th, the catalogue path, found the fix inert): 2130 + 16 = 2146, 2146 - 6 = 2140; 176 EXACT;
           # _FLOOR_SET_FROM["guards"] -> 2146.
-          MIN_FILES, MIN_PASSED = 176, 2140
+          # ⬆ MIN_FILES 176→177, MIN_PASSED 2140→2158 on 2026-10-01, IN THE SAME COMMIT THAT CAUSES IT (the grid
+          # resolver copies a served grid's diagnostics dict before stamping it): hosted CI on dev ac080442 (run
+          # 36795274173, as read by #211 and the mid-tier branch) observed 176 files / 2146 passed. The new
+          # tests/test_grid_resolver_shared_diagnostics.py (claimed by `--lane guards`) adds 18 executed tests:
+          # 2146 + 18 = 2164, 2164 - 6 = 2158; files 177 EXACT; _FLOOR_SET_FROM["guards"] -> 2164.
+          MIN_FILES, MIN_PASSED = 177, 2158
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

@@ -84,3 +84,18 @@ follows a rebind of `X.grid.diagnostics` in the same function.
 ## 02:43:59Z · PR #212 opened
 - After the owner re-authenticated gh, the branch was pushed and PR #212 opened against dev (not merged). seq 241 is the
   `pr_open` line. Hosted CI is expected to read the chain lane at 139 files and to collect 1689 tests (floor 1683).
+
+## to 03:11:47Z · merged origin/dev 454d96cb (#213) into #212
+- Peer session "Copy grid.diagnostics before the resolver's step-4 stamps" reported #213 merged at 03:07:59Z; verified
+  with `gh pr view 213` (MERGED, `454d96cb`) and `gh pr view 212` (CONFLICTING, on ACTIONS.jsonl).
+- **Ledger re-sequenced** (correction to the seq numbers cited above): dev took seq 239-242 first (239 `pr_merge #207`,
+  240 #213's finding, 241 a correction, 242 `pr_open #213`). ACTIONS.jsonl was taken from dev byte-for-byte and this
+  branch's lines re-appended with `--acted-at`: branch **239 -> 243** (finding), **240 -> 244** (memory_write),
+  **241 -> 245** (pr_open #212). The seq 239-241 cited earlier in this log mean 243-245. #213's own `pr_merge` is left
+  to its session's handoff PR, as the peer asked.
+- #213's AST guard (`tests/test_grid_resolver_shared_diagnostics.py`, guards lane) listed this write in
+  `_KNOWN_UNFIXED`. The fix removes the violation, so its ratchet would fail on the stale entry; the entry is deleted
+  (`_KNOWN_UNFIXED = {}`). The test count is unchanged, so no guards floor moves.
+- Floors after the merge: `_FLOOR_SET_FROM = {"guards": 2164, "chain": 1689, "estate": 582}`, i.e. dev's guards and this
+  branch's chain. Local lanes select guards 177 and chain 139, and both floors are exact. Guard + mid-tier + floor tests:
+  45 passed.
