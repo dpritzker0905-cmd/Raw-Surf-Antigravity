@@ -17,7 +17,8 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException
 from starlette.background import BackgroundTasks
-from services.weather_pipeline.series_source_policy import has_stored_series_coverage, recover_missing_hours
+from services.weather_pipeline.series_source_policy import (
+    has_stored_series_coverage, live_lane_cannot_beat_stored, recover_missing_hours)
 
 from services.weather_pipeline.series_vector_budget import (
     decimate_vectors,
@@ -369,6 +370,9 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             and domain.lower() == "marine"
             and not surf
             and not await _client_gone())
+    # Commitment 228: a world-scale live grid (15 deg) cannot beat the stored 2 deg field; skip it outright.
+    if live_series and await live_lane_cannot_beat_stored(viewport_service, model, domain, layer, bbox, hour_list, base):
+        live_series = False
     prefer_stored = live_series and await has_stored_series_coverage(viewport_service, model, domain, layer, bbox, hour_list, base)
     if live_series and not prefer_stored:
         try:

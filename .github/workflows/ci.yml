@@ -1229,7 +1229,11 @@ jobs:
           # Hawaii-only consensus rule's switch, dark): hosted CI on #201 (run 36774878323) observed 138 files / 1674.
           # tests/test_consensus_serve.py gains 10 executed tests (27 -> 37): 1674 + 10 = 1684, 1684 - 6 = 1678; files
           # 138 unchanged; _FLOOR_SET_FROM["chain"] -> 1684.
-          MIN_FILES, MIN_PASSED = 138, 1678
+          # ⬆ MIN_FILES 138→139, MIN_PASSED 1678→1709 on 2026-10-01, IN THE SAME COMMIT THAT CAUSES IT (commitment
+          # 228, the world-scale series cost): hosted CI on dev e8321acc (run 36793705026) observed 138 files / 1684.
+          # The new tests/test_world_series_cost.py (claimed by `--lane chain` only) adds 31 executed tests:
+          # 1684 + 31 = 1715, 1715 - 6 = 1709; files 139 EXACT; _FLOOR_SET_FROM["chain"] -> 1715.
+          MIN_FILES, MIN_PASSED = 139, 1709
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

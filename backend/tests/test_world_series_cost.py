@@ -24,11 +24,13 @@ from types import SimpleNamespace as NS
 
 import pytest
 
-from services.weather_pipeline import mid_res_tier
-from services.weather_pipeline.grid_series_helper import _load_stride_of
+from services.weather_pipeline import grid_series_helper, mid_res_tier
+from services.weather_pipeline.grid_series_helper import _build_grid_series_impl, _load_stride_of
 from services.weather_pipeline.schemas import (
     CoverageBounds, GridVector, ManifestProduct, NormalizedGrid, NormalizedProduct,
 )
+from services.weather_pipeline.series_coordinates import generate_series_coords, series_resolution
+from services.weather_pipeline.series_source_policy import live_lane_cannot_beat_stored
 from services.weather_pipeline.series_vector_budget import decimate_vectors
 
 TARGET = datetime(2026, 9, 30, 21, 0, tzinfo=timezone.utc)
@@ -199,3 +201,66 @@ def test_find_candidates_gates_only_matching_rows_and_returns_the_same_set(monke
     auth, est = grid_resolver_selection.find_candidates(NS(products=rows), "GFS", "marine", "waves", TARGET)
     assert sorted(seen) == ["global_coarse", "global_mid", "island_x"], "the gate ran on non-matching rows"
     assert [p.region_id for p, _ in auth] == ["global_mid"] and est == [], "island and off-time rows must stay out"
+
+
+# ── 5. the live lane at a world bbox ────────────────────────────────────────────────────────────────
+BASE = datetime(2026, 9, 30, 21, tzinfo=timezone.utc)
+
+
+def _stored(hour, **changes):
+    fields = dict(model="GFS", domain="marine", layer="waves", provider="open-meteo", upstream_provider="noaa",
+                  is_test_fixture=False, is_estimated=False, is_forecast_authoritative=True, resolution=2.0,
+                  coverage=NS(west=-180, south=-80, east=180, north=85),
+                  valid_time_start=BASE + timedelta(hours=hour))
+    fields.update(changes)
+    return NS(**fields)
+
+
+def _vp(products):
+    return NS(store=NS(get_manifest=lambda: NS(products=products)), normalizer=None)
+
+
+def _cannot_beat(products, bbox=WORLD_BBOX, hours=(0, 3)):
+    return asyncio.run(live_lane_cannot_beat_stored(_vp(products), "GFS", "marine", "waves", bbox, list(hours), BASE))
+
+
+def test_a_world_live_grid_cannot_beat_stored_2deg_products_covering_every_hour():
+    assert series_resolution(-180, -80, 180, 85) == 15.0, "precondition: the live world grid is 15 deg"
+    assert _cannot_beat([_stored(0), _stored(3)])
+
+
+def test_any_doubt_keeps_the_live_lane(monkeypatch):
+    assert not _cannot_beat([_stored(0)]), "an hour without a stored product"
+    assert not _cannot_beat([_stored(0), _stored(3, upstream_provider="open-meteo")])
+    assert not _cannot_beat([_stored(0), _stored(3, resolution=20.0)]), "stored no finer than live"
+    assert not _cannot_beat([_stored(0), _stored(3)], bbox="-81,27,-80,28"), "a regional bbox is T-01's call"
+    assert series_resolution(-100, 0, -60, 40) == 2.0
+    assert not _cannot_beat([_stored(0), _stored(3, coverage=NS(west=-100, south=0, east=-60, north=40))],
+                            bbox="-100,0,-60,40"), "EQUAL resolution is not coarser"
+    monkeypatch.setenv("SERIES_LIVE_SKIP_COARSE", "0")
+    assert not _cannot_beat([_stored(0), _stored(3)])
+
+
+def test_a_world_series_page_never_waits_on_the_live_lane(monkeypatch):
+    calls = {"live": 0, "stored": 0}
+
+    async def live(*a, **k):
+        calls["live"] += 1
+        return None
+
+    async def resolve(*, model, domain, layer, valid_time, bbox, surf=False, background_tasks=None, request=None):
+        calls["stored"] += 1
+        return _world_product()
+
+    monkeypatch.setenv("GFS_ICON_SERIES_FASTPATH", "1")
+    monkeypatch.setattr(grid_series_helper, "_build_openmeteo_marine_series", live)
+    out = asyncio.run(_build_grid_series_impl(resolve, _vp([_stored(0), _stored(3)]), "GFS", "marine", "waves",
+                                              WORLD_BBOX, "0,3", base_anchor=BASE))
+    assert calls == {"live": 0, "stored": 2}
+    assert out["frame_count"] == 2
+
+
+@pytest.mark.parametrize("bbox", [(-180, -80, 180, 85), (-81, 27, -80, 28), (-100, 0, -60, 40), (170, -10, -170, 10),
+                                  (-84, 24, -76, 32), (0, 0, 0.1, 0.1)])
+def test_series_resolution_is_the_resolution_generate_series_coords_uses(bbox):
+    assert series_resolution(*bbox) == generate_series_coords(*bbox)[0]
