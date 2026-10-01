@@ -1239,7 +1239,16 @@ jobs:
           # @ ac080442) observed 138 files / 1684. The new tests/test_mid_tier_shared_diagnostics.py (claimed by
           # `--lane chain`) adds 5 executed tests: 1684 + 5 = 1689, 1689 - 6 = 1683; files 139 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1689.
-          MIN_FILES, MIN_PASSED = 139, 1683
+          # ⬆ MIN_FILES 138→139, MIN_PASSED 1678→1709 on 2026-10-01, IN THE SAME COMMIT THAT CAUSES IT (commitment
+          # 228, the world-scale series cost): hosted CI on dev e8321acc (run 36793705026) observed 138 files / 1684.
+          # The new tests/test_world_series_cost.py (claimed by `--lane chain` only) adds 31 executed tests:
+          # 1684 + 31 = 1715, 1715 - 6 = 1709; files 139 EXACT; _FLOOR_SET_FROM["chain"] -> 1715.
+          # ⬆ MIN_FILES 139→140, MIN_PASSED 1683→1714 on 2026-10-01, the two lines above COMBINED when #210 merged dev after
+          # #212 (by the grid-resolver session): hosted CI on #213 (run 36807315007 @ 33935bbf, dev 454d96cb's tree)
+          # observed 138 files / 1684 in this lane. #212's tests/test_mid_tier_shared_diagnostics.py adds 5 and #210's
+          # tests/test_world_series_cost.py adds 31: 1684 + 5 + 31 = 1720, 1720 - 6 = 1714; files 140 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1720.
+          MIN_FILES, MIN_PASSED = 140, 1714
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

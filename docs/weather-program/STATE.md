@@ -10,7 +10,13 @@ is a claim, not a measurement.
   hours until zooming in.** ROOT MECHANISM from the Render logs (seq 237): the zoomed-out grid_series' live
   fast path times out (2.5 s) and its per-hour loop (10 s/hour, 20 s deadline, 1 CPU) drops many hours under load,
   near ones included; a zoomed-in series has small frames and completes. CHRONIC (the same on 2026-09-29), worsened
-  by today's restarts. Not reproducible warm or across the clean #205 restart. Fix: see commitment 228.
+  by today's restarts. Not reproducible warm or across the clean #205 restart.
+  ROOT CAUSE (seq 260; written as seq 240 on #210's branch): the client's own 48-offset world page is over budget by construction (a mid-tier deep copy
+  of the whole 15k-cell world clip per frame, 10.3 of 12.9 s profiled), and the live Open-Meteo lane takes turns
+  with it: when it wins, every hour is a 25x12 grid at 15 deg; when it loses, the stored page is cut at the 20 s
+  deadline. SCOREBOARD S11 (new, `series_page_probe.py`): 8.0-43.4% of hours served from the stored field. FIX in
+  #210 (frames byte-identical; the live lane skipped only where strictly coarser). After the merge,
+  S11 on the new build closes or re-opens commitment 228.
 - **W-10 R4-R7 measured (seq 224; log c188):** the release evidence for D-002. R4/R5 found four single-theme map
   controls, a label cut to "Request a " since 2026-05-18 (production too), and light-chip contrast under AA: fixed in
   #204 (axe light 14 -> 0, mobile sheet 13 -> 0). Still open for the release: nested-interactive map
@@ -116,7 +122,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 259, sha256 eedf58724be6dff83185645d1615f8edb56637320efdeb250460b51fac2b77fb**
+  **Ledger head: seq 261, sha256 d9d8857ef0f9dfbc80461dfc9c552ee59bbf8054b8e231becd827683aa35bccd**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

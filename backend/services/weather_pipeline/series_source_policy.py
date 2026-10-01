@@ -25,9 +25,11 @@ to load are recovered from the live lane (`recover_missing_hours`) without repla
 """
 import asyncio
 import logging
+import os
 from datetime import timedelta
 
 from services.weather_pipeline.route_helpers import parse_bbox, is_bbox_covered_by
+from services.weather_pipeline.series_coordinates import RESOLUTIONS
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +37,11 @@ logger = logging.getLogger(__name__)
 _STORED_UPSTREAMS = ("noaa", "dwd", "ecmwf", "copernicus")
 
 
-async def has_stored_series_coverage(viewport_service, model, domain, layer, bbox, hours, base) -> bool:
-    """True only when EVERY requested hour has a stored authoritative <=0.25 deg product at EXACTLY that
-    valid time whose coverage contains the whole bbox. Any doubt returns False (the live lane runs)."""
+async def has_stored_series_coverage(viewport_service, model, domain, layer, bbox, hours, base,
+                                     max_resolution: float = 0.25) -> bool:
+    """True only when EVERY requested hour has a stored authoritative product no coarser than
+    `max_resolution` deg at EXACTLY that valid time whose coverage contains the whole bbox. Any doubt
+    returns False (the live lane runs)."""
     try:
         store = getattr(viewport_service, "store", None)
         if store is None or not hours:
@@ -54,7 +58,7 @@ async def has_stored_series_coverage(viewport_service, model, domain, layer, bbo
                     or getattr(product, "is_test_fixture", False)
                     or getattr(product, "is_estimated", False)
                     or not product.is_forecast_authoritative
-                    or not (0 < (product.resolution or 0) <= 0.25)
+                    or not (0 < (product.resolution or 0) <= max_resolution)
                     or not is_bbox_covered_by(*bounds, product.coverage, margin=0)):
                 continue
             # Exact valid time: a nearby product is a substitution, not coverage.
@@ -68,6 +72,31 @@ async def has_stored_series_coverage(viewport_service, model, domain, layer, bbo
     except Exception:
         logger.exception("[grid_series] stored-coverage lookup failed; keeping the live series lane")
         return False
+
+
+async def live_lane_cannot_beat_stored(viewport_service, model, domain, layer, bbox, hours, base) -> bool:
+    """True when the live series grid for this bbox would be COARSER than stored products that already
+    cover every hour -- so the live fetch could only replace a stored field with a blockier one.
+
+    WHY (commitment 228, 2026-09-30): the live lane sizes its grid to <=500 points (series_coordinates),
+    so a world bbox gets a 15 deg grid; the stored global_mid is 2 deg. The fetch still ran for every
+    world page, burned GFS_ICON_SERIES_FASTPATH_WAIT_SEC (2.5 s) of the 20 s page budget, and Render
+    logged it failing ("GFS marine fast path failed (TimeoutError)") before each far-zoom page in the
+    owner's report window. Resolution-only, no span threshold: a bbox whose live grid is finer than
+    every stored product keeps the live lane exactly as before. Kill: SERIES_LIVE_SKIP_COARSE=0."""
+    if os.environ.get("SERIES_LIVE_SKIP_COARSE", "1") == "0":
+        return False
+    try:
+        from services.weather_pipeline.series_coordinates import series_resolution
+        live_res = series_resolution(*parse_bbox(bbox))
+    except Exception:
+        return False
+    if live_res <= 0.25:
+        return False           # the regional case T-01 already decides (has_stored_series_coverage)
+    # Strictly coarser: at EQUAL resolution the two lanes are the T-01 question, not this one.
+    finer = max(r for r in RESOLUTIONS if r < live_res)
+    return await has_stored_series_coverage(viewport_service, model, domain, layer, bbox, hours, base,
+                                            max_resolution=finer)
 
 
 async def recover_missing_hours(build_live, frames, hour_list, wait_s) -> int:
