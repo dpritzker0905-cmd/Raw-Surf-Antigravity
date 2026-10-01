@@ -55,10 +55,10 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #208 (the clock-check session's memory_audit fix; re-chains after dev's head). Branch
-  `claude/grid-resolver-no-shared-diagnostics` (seq 240: `resolve_grid`'s step-4 and EURO->GFS fallback stamps wrote
-  into the L1 entry's diagnostics dict; fixed by a copy, plus an AST guard; no served number changes) is committed
-  but NOT pushed: the gh token is invalid, which also blocks `git push`. Merged 2026-10-01: #207 (00:15:39Z as
+- **Open PRs of ours:** #208 (the clock-check session's memory_audit fix; re-chains after dev's head). #213
+  (opened 2026-10-01 02:44:38Z; seq 240-242: `resolve_grid`'s step-4 and EURO->GFS fallback stamps wrote into the L1
+  entry's diagnostics dict; fixed by a copy, plus an AST guard; no served number changes; on the owner's word; it and
+  #210 both record `pr_merge #207`, so the second to merge drops its duplicate). Merged 2026-10-01: #207 (00:15:39Z as
   `ac080442`, docs; seq 239). Merged 2026-09-30: #209 (23:57:13Z as
   `e8321acc`, docs; seq 236), #206 (23:39:24Z as `1ff11a05`, the ASCII debris `da30f15d` left in user-visible strings + the
   `encodingDebris` source guard; no served number changes; seq 234), #205 (22:55:23Z as `8abc6e61`, the marker PR; seq 232), #204 (22:15:26Z, the map chrome in three themes), #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
@@ -109,7 +109,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 241, sha256 88a6d83c65d43983c370ebb8a16cf9188f54b29ef01ad7af3c4c907e6fca1d83**
+  **Ledger head: seq 242, sha256 9ca2d16cde573c1cd01e27771a73af6df067623f083e6090b6dbde93265220b9**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

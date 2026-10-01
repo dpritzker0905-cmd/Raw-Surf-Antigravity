@@ -103,3 +103,11 @@ provenance in the `/grid` payload, and the cache it was written into. There is n
 git-credential`, so `git push` fails as well (pr-workflow-mechanics memory, 2026-10-01). Only the owner can run
 `gh auth login`. Everything else is committed on the branch; push, open the PR (`pr_open` line), and set STATE's PR
 number once the token works.
+
+## 02:43:12-02:44:38Z · pushed; #213 opened
+- The owner re-authenticated (`gh auth status` at 02:43:12Z: logged in; scopes `gist`, `read:org`, `repo`,
+  `workflow`). The first browser attempt hit a GitHub 404 page; the `-p https -w -s workflow` login worked.
+- `gh pr diff` on every open PR before pushing found #210's own `pr_merge #207` (seq 241 corrects seq 239's claim).
+- Pushed `ae0b8c3c`; **#213** opened against dev at 02:44:38Z (seq 242), bound in the app's PR bar with 18 checks
+  pending. Not merged: the owner's word.
+
