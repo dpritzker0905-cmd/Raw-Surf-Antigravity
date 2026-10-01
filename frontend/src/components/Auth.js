@@ -705,7 +705,7 @@ export const Auth = () => {
 
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto px-6 py-4 text-sm auth-muted space-y-4" style={{ maxHeight: '60vh' }}>
-              <p className="text-xs auth-muted uppercase tracking-wider">Version {authTosContent.version || CURRENT_TOS_VERSION} \u00B7 Effective {authTosContent.effective_date || 'May 2026'}</p>
+              <p className="text-xs auth-muted uppercase tracking-wider">Version {authTosContent.version || CURRENT_TOS_VERSION} &middot; Effective {authTosContent.effective_date || 'May 2026'}</p>
               {(authTosContent.sections || []).map((section, idx) => (
                 <React.Fragment key={idx}>
                   <h3 className="text-foreground font-semibold text-base">{section.title}</h3>

@@ -89,11 +89,11 @@ const useFeedCheckInActions = ({
 
       setNearestSpot(nearest);
       if (nearest && minDistance < 10) {
- toast.success(`= At ${nearest.name} (${nearest.distance}km) - GPS verified, you'll earn XP!`);
+        toast.success(`At ${nearest.name} (${nearest.distance}km) - GPS verified, you'll earn XP!`);
       } else if (nearest) {
- toast.success(`= Location found. Nearest spot: ${nearest.name} (${nearest.distance}km)`);
+        toast.success(`Location found. Nearest spot: ${nearest.name} (${nearest.distance}km)`);
       } else {
- toast.success('= Location detected - select your spot to earn XP');
+        toast.success('Location detected - select your spot to earn XP');
       }
       setGpsLoading(false);
     };
@@ -136,7 +136,7 @@ const useFeedCheckInActions = ({
 
   const handleCheckIn = async () => {
     if (streak.checked_in_today) {
- toast.info('You already checked in today! Keep the streak going tomorrow =');
+      toast.info('You already checked in today! Keep the streak going tomorrow');
       return;
     }
     // Lazy-load spots + location hierarchy on first check-in open
@@ -224,7 +224,7 @@ const useFeedCheckInActions = ({
           checked_in_today: true
         });
 
- toast.success(`Checked in! = ${response.data.current_streak} day streak!`);
+        toast.success(`Checked in! ${response.data.current_streak} day streak!`);
         // Close immediately for manual check-in
         setShowCheckInModal(false);
         setCheckInData({ spot_id: '', conditions: '', wave_height: '', notes: '', latitude: null, longitude: null, use_gps: false });

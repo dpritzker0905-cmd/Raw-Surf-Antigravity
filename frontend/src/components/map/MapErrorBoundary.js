@@ -1,4 +1,5 @@
 ﻿import React from 'react';
+import { Map as MapIcon } from 'lucide-react';
 import logger from '../../utils/logger';
 
 /**
@@ -23,7 +24,7 @@ class MapErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <div className="flex flex-col items-center justify-center h-screen bg-zinc-900 text-white p-4">
- <div className="text-6xl mb-4"></div>
+          <MapIcon className="w-16 h-16 mb-4 text-cyan-400" aria-hidden="true" />
           <h2 className="text-xl font-bold mb-2">Map Error</h2>
           <p className="text-gray-400 text-center mb-4">
             Something went wrong loading the map.

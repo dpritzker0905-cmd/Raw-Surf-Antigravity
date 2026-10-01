@@ -21,9 +21,9 @@ import { useCallback } from 'react';
 
 // Supported languages with display names
 export const SUPPORTED_LANGUAGES = [
- { code: 'en', name: 'English', flag: '==+', nativeName: 'English' },
- { code: 'es', name: 'Spanish', flag: '==+', nativeName: 'Espa+ol' },
- { code: 'pt', name: 'Portuguese', flag: '==+', nativeName: 'Portugu+s' },
+  { code: 'en', name: 'English', nativeName: 'English' },
+  { code: 'es', name: 'Spanish', nativeName: 'Espa\u00F1ol' },
+  { code: 'pt', name: 'Portuguese', nativeName: 'Portugu\u00EAs' },
 ];
 
 export const useLocale = (namespace = 'common') => {

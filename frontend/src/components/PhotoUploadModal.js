@@ -268,7 +268,7 @@ export const PhotoUploadModal = ({
                   or click to browse
                 </p>
                 <p className={`text-xs ${textSecondaryClass} mt-2`}>
-                  Photos: JPG, PNG, HEIC (20MB) ? Videos: MP4, MOV, WebM (100MB)
+                  Photos: JPG, PNG, HEIC (20MB) &middot; Videos: MP4, MOV, WebM (100MB)
                 </p>
                 <input aria-label="Upload file"
                   ref={fileInputRef}

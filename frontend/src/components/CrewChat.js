@@ -33,7 +33,7 @@ import { getFullUrl } from '../utils/media';
 import { formatDuration } from '../utils/formatTime';
 
 import useCrewChat, { MAX_VOICE_DURATION } from '../hooks/useCrewChat';
-import { formatFileSize, getFileIcon, getTotalReactions, hasUserReacted, getRoleBadge, getInitials, renderMessageContent, QUICK_ACTIONS } from './messages/crewChatUtils';
+import { formatFileSize, getFileIcon, getTotalReactions, hasUserReacted, getRoleBadge, getInitials, renderMessageContent, QUICK_ACTIONS, FILE_MESSAGE_AUTO_PREFIX } from './messages/crewChatUtils';
 
 // Quick Action Categories with colors
 
@@ -135,7 +135,7 @@ export default function CrewChat() {
         <div className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
           <div className="bg-zinc-900 rounded-xl p-6 max-w-md w-full">
             <div className="text-center mb-4">
-              <div className="text-6xl mb-3">{getFileIcon(selectedFile.type)}</div>
+              <div className="mb-3 flex justify-center text-zinc-300">{getFileIcon(selectedFile.type, 'w-16 h-16')}</div>
               <h3 className="text-white font-medium text-lg truncate">{selectedFile.name}</h3>
               <p className="text-zinc-400 text-sm">{formatFileSize(selectedFile.size)}</p>
             </div>
@@ -384,9 +384,9 @@ export default function CrewChat() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{msg.file_name || 'File'}</p>
                       <p className={`text-xs ${isMe ? 'text-cyan-200' : 'text-zinc-400'}`}>
- {msg.file_size || 'Download'} +-+G-+- Tap to open
+                        {msg.file_size || 'Download'} &middot; Tap to open
                       </p>
- {msg.content && !msg.content.startsWith('+-+-++G++-+') && (
+                      {msg.content && !msg.content.startsWith(FILE_MESSAGE_AUTO_PREFIX) && (
                         <p className="text-sm mt-1">{msg.content}</p>
                       )}
                     </div>

@@ -93,7 +93,7 @@ export const useSessionTracker = (userId, spotId, isTracking) => {
       
       if (error) throw error;
       
- toast.success(`Session logged! Earned ${earnedXp} XP =`);
+      toast.success(`Session logged! Earned ${earnedXp} XP`);
       return data;
     } catch (err) {
       console.error(err);
