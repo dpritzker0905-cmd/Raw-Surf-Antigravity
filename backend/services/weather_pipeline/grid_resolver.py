@@ -512,8 +512,9 @@ async def resolve_grid(
                                         "source_model": "ncep_gfswave025",
                                     }
                             if product.grid:
-                                if product.grid.diagnostics is None:
-                                    product.grid.diagnostics = {}
+                                # COPY, never write in place: an in-flight WAITER's product holds the GFS
+                                # viewport product's L1 dict (see step 4 below; 2026-10-01).
+                                product.grid.diagnostics = dict(product.grid.diagnostics or {})
                                 product.grid.diagnostics["provider"] = product.provider
                                 product.grid.diagnostics["stale"] = False
                                 product.grid.diagnostics["renderable"] = len(product.grid.vectors) > 0 and any(v.speed > 0 for v in product.grid.vectors)
@@ -690,8 +691,12 @@ async def resolve_grid(
 
     # 4. Set diagnostics renderable property explicitly
     if product and product.grid:
-        if product.grid.diagnostics is None:
-            product.grid.diagnostics = {}
+        # COPY the dict before stamping it (2026-10-01). The grid container is this request's own, but
+        # its `diagnostics` is usually the ProductStore L1 entry's: load_product and filter_grid_to_bbox
+        # copy one level, and stored grids carry a non-None dict, so the old `is None` guard never
+        # rebound. The stamps landed in the cache, and `valid_time` (the REQUESTED hour) of a later
+        # request rewrote an earlier response. Pinned by tests/test_grid_resolver_shared_diagnostics.py.
+        product.grid.diagnostics = dict(product.grid.diagnostics or {})
         product.grid.diagnostics["renderable"] = len(product.grid.vectors) > 0 and any(v.speed > 0 for v in product.grid.vectors)
         product.grid.diagnostics["partial_coverage"] = getattr(product, "partial_coverage", False)
         product.grid.diagnostics["valid_time"] = product.valid_time.strftime("%Y-%m-%dT%H:%M:%SZ")
