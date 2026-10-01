@@ -111,3 +111,29 @@ number once the token works.
 - Pushed `ae0b8c3c`; **#213** opened against dev at 02:44:38Z (seq 242), bound in the app's PR bar with 18 checks
   pending. Not merged: the owner's word.
 
+## 03:07:44-03:11:04Z · #213 merged on the owner's word; the handoff
+- Owner (chat): "merge #213 when it's green then prepare a hand off report". At 03:07:44Z, head `33935bbf` had
+  15 checks passing and 3 skipped (Netlify rule checks), mergeStateStatus CLEAN, and `origin/dev` was still `ac080442`.
+- The hosted guards lane (run 36807315007, job 110194435189, log read with gh): `collected 2231 tests across 177 files
+  -> 2164 passed, 67 skipped, 0 failed, 0 errors`. That equals the projection (2146 + 18), and it confirms the
+  2146 baseline taken from the sibling notes.
+- `gh pr merge 213 --merge --match-head-commit 33935bbf...`: merged at **03:07:59Z as `454d96cb`** (seq 243, recorded
+  on the handoff branch). Backend code changed, so Render redeploys. At 03:09:40Z and 03:10:33Z `/api/health` still
+  served `ac080442`; the read-back follows below.
+- All four open PRs of the program (#208, #210, #211, #212) went CONFLICTING (they appended to the ledger after seq 238).
+  Messaged the #212 session at 03:09Z: on its `dev` merge it must delete the guard's `_KNOWN_UNFIXED` mid-tier entry.
+- `HANDOFF-2026-10-01.md` on branch `claude/handoff-2026-10-01-shared-diagnostics`: the defect class, what landed, each
+  open PR's job on its `dev` merge, the commitments, the next fixes, owner-only items, tonight's tooling facts, and the
+  report audit. STATE points at it.
+- A slip, caught before commit: STATE's header first said "03:12Z" against a 03:11:04Z clock read (an L-P10 estimate);
+  corrected to 03:11Z.
+- **Deploy read-back (seq 244):** `/api/health` at 03:11:40Z: healthy, version ends `454d96cb`, uptime 1 min 10 s.
+  `/grid` EURO waves at the world bbox, at 03Z and 04Z (two requests, both done by 03:12:02Z): both served the mid
+  tier's clip of `euro_marine_waves_global_mid_20261001T030000Z` (15,023 cells). Each carried its OWN stamps: 04Z read
+  `valid_time` 04Z, `served_valid_time` 03Z, offset -1.0. Both had 19 diagnostics keys, as before the fix. The served
+  values are unchanged, as designed. The cache's own dict is not visible from outside: the tests carry that claim.
+- **#214** (the handoff) opened at 03:13:46Z (seq 245). The #212 session replied: it had merged `dev` (head
+  `bb3f9f27`), emptied `_KNOWN_UNFIXED`, and re-chained its lines as seq 243-245. Its mutation check: with dev's
+  pre-fix `mid_res_tier.py`, the guard goes RED on exactly `mid_res_tier.py:260`. #212 and #214 now fork at seq 243;
+  the second to merge re-chains. HANDOFF §4 and STATE updated to say so.
+
