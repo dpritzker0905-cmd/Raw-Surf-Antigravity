@@ -8,7 +8,7 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
-- **2026-10-01 21:35Z (seq 283-286; same branch, third local commit, NOT pushed): the wrong-hour far-zoom frame (F-21) is fixed in the CLIENT,
+- **2026-10-01 21:35Z (seq 283-287; same branch, third local commit, NOT pushed): the wrong-hour far-zoom frame (F-21) is fixed in the CLIENT,
   ON BY DEFAULT** (owner: "keep it on, defer the flip, now fix the wrong-hour frame": the exact-frame fix stays on, `SERIES_DECIMATE_MODE=max`
   is NOT turned on in Render, nothing to do there). After a zoom-out the engine drew the world frame the page loaded with (hour 0: swell 0.78 m
   where Wednesday reads 2.33 m) at full strength for 3.2 to 3.8 s offline (3 to 9 s live) under a readout naming the selected hour. Causes: the
@@ -193,7 +193,7 @@ is a claim, not a measurement.
   580 (582). #215 moves guards to 179 / 2177 (its run read 2183).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 286, sha256 b9b44a7c50ba325347656694a5f02df705b9af8b5dff96403529628e4a7bcb5c**
+  **Ledger head: seq 287, sha256 c9b63f5995dddd44a6278068bc48a51d94d2a77eed6f3fe18e744c8c598bd53a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

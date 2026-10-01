@@ -424,3 +424,11 @@ call, which a source guard in `WebGLMarineCustomLayer.stamp.test.js` pins togeth
 draw; the warm gave up when the hour moved inside one frame (no new commit re-arms it); the prewarm's `in_flight` skip was invisible until the
 telemetry existed; a first A/B whose "unfixed" arm never fetched the exact grid inside 9 s turned out to be the mock's flat 8 s series page holding the
 lane (L-P24); and the re-drive described in mechanism 5, built, replayed, found inert and replaced by the swap (see the 2.5 s dwell cell).
+
+## 21:39Z · a correction to the section above (ledger seq 287)
+The sentence in its A/B intro, "mock latencies as measured live: world `/grid` 3 s, every world series page 8 s", is too strong. The live reads in
+the audit's own evidence (`runs/scn_farzoom_cold_result.json`, `scn_farzoom_result.json`, `scn_timeline_result.json`) are: world `/grid` 0.7 to 4.9 s (3 s is
+a mid value), a world one-hour series page 1.1 to 2.4 s, a world 48-frame series page 2 s on a fresh box and 15 to 25 s after a restart. The flat 8 s is a
+stand-in inside the 48-frame range and 3 to 7 times too slow for the one-hour page; the live-like paragraph above re-runs the just-opened cells with
+2.4 s, 20 s and 3 s and says so. The other wrong claim of this work, "the live latency of the one-hour world page was never measured" (my uncommitted
+draft of LESSONS L-P24), never left the working tree and was fixed before the commit (ledger seq 285 item 3).
