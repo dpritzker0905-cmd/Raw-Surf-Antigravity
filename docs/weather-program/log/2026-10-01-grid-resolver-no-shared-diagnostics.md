@@ -202,3 +202,19 @@ number once the token works.
   commitments 228 and 266 measure the served effects).
 - L-P21 was first written as "merged within one CI window", before #210/#211 had merged. It was re-worded to what
   happened (two CI windows for four PRs) before the push.
+
+## 11:51:55-11:55:10Z · #215 merged; the codex PRs assessed, not merged
+- Owner (chat): "merge #215 when green and push anything needing pushed, merge everything needing merging".
+- #215 at `a9c8f078`: 15 pass / 3 skipped, ledger `verify` pass, hosted guards 179 / 2183 = projection. **Merged at
+  11:52:12Z as `63a70425`** (seq 274).
+- **The six `codex/*` PRs are the only ones left, and they were checked rather than merged blind** (seq 275):
+  - All six conflict with `dev`: 488-549 commits behind, 3-11 conflicted files each.
+  - Four (#23, #27, #43, #44) are drafts.
+  - The two non-drafts look partly superseded. #15 (`+3123/-121`, 55 files) and #22 (`+260/-61`, 5 files) have add/add
+    conflicts on files `dev` already carries.
+  - #44 touches served heights and provenance, so the ONE FORECAST COMPOSITION mandate applies to anything taken from
+    it.
+  - Owner decision: close them, or one session per PR rebases and proves what is still missing.
+- #215's deploy (seq 276): `63a70425` live from 11:54:36Z, healthy.
+- Local branches: nothing unpushed. This docs PR (STATE, the two ledger lines, this log, and #215's deploy read-back)
+  is the last push.
