@@ -124,3 +124,115 @@ max-thinned frame on the scrub path. Run it once, on a quiet backend, or against
   thinned frame staying drawn after the exact one was fetched is the same arbiter keeping what it has.
 - The owner's real Chrome was not usable for frame-level tests (occluded window); a re-check there, with the window in
   view, is still the best final confirmation after a flip.
+
+## 13:12-14:45Z · the exact-frame fix for far zoom: built, and replayed offline (owner: "yes, build the exact-frame fix for far zoom")
+**Decision and scope.** The owner's answer (chat, 2026-10-01), after the max-thinning build above, was **"yes, build the exact-frame
+fix for far zoom"**. This is a CLIENT-ONLY change on this branch (the backend is untouched): at far zoom the app now draws the exact
+world frame, with the thinned series frame only as the instant placeholder. It is **default ON**, not dark: it chooses which
+already-served frame to draw, computes no forecast number differently, and the exact frame is the one the app already draws at the
+2-degree tier and zoomed in. No UI element was added or changed (themes and accessibility: no surface touched). Kill switch
+(both halves): `window.__RAW_DISABLE_EXACT_UPGRADE__ = true`. Telemetry: `window.__MARINE_EXACT_UPGRADE__` = `{ triggers, kept, last }`.
+
+**No live replay was run for this.** After the 12:39Z incident every replay used `harness/mock_backend.js` (in the untracked audit
+folder): a `page.route` mock of the four weather endpoints, built from ONE recorded exact world frame (Wed 2026-10-07 15Z, GFS 06Z
+run) plus four small GET captures taken with health probed between them (`capture_templates.py`), thinned with the repo's own stride
+rule (a 48-frame world page is 46 x 21, `decimated_stride` 4), latency set to the live-box measurements (world grid 3 s, world page
+8 s). The client under test is a local production build of this working tree; the unfixed arm is a build of `git archive HEAD`
+(`79a66131`, the commit before this one). Same mock, same seeds, one arm after the other, nothing else running.
+
+**Three mistakes made one defect (located this session; the first two I had put down to "the arbiter")**
+1. `frameToMarineData` dropped the backend's `decimated_stride`. A thinned frame has the same product id and valid time as the exact
+   frame it is a view of, so every identity check in the client reads "already showing this".
+2. The global prewarm reused a series frame as the world grid for an hour ("zero network, identical pixels"), true only for an
+   unthinned frame.
+3. **The scrub-settle check read the hour LABEL as the identity of the data.** Far-horizon model data is 3-hourly, so the selected hour
+   is usually between two frames and every frame that serves it carries a different `hourOffset` (the series page's own hour 145, the
+   exact `/grid` result's 144, the selection 146: all valid 15Z). `runScrubSettleCheck` reads "rendered label != selected hour" as a
+   stale frame and commits the warmed series frame, which at world zoom is the thinned one, OVER an exact frame of the same valid
+   time; the commit arbiter's rule 4 (`hour_change`) lets it through for the same reason (a label differs, so it commits before the
+   tier-downgrade rule is reached). With every engine commit traced (`setWaveData` wrapped, lane and dims per call), the unfixed
+   client handed the engine a thinned world frame 100 times in 25 trials, every call from the scrub-settle check (97 `series_settle`,
+   3 `recovery_2b`); 58 of them came straight after an exact 181 x 82 world frame, the rest after a regional one. The traces record
+   lane and dims, not valid time, so "same valid time" is the reading of the labels, and the evidence for it is the intervention:
+   comparing valid times instead of labels removed 89 of those 100 calls. This is the mechanism of "the bigger swell heat map
+   disappears from the FLA coast intermittently" while zooming at that timestamp (the exact frame is in the client's cache, and is
+   replaced anyway).
+
+**What was built** (`frontend/src/components/map/`: one new module, three small call sites; the engine is untouched)
+- `marineSeriesFrame.js`: keeps `decimated_stride` as `grid.__decimatedStride` (0 = exact).
+- `marineGlobalPrewarm.js`: a thinned series frame no longer stands in for the world grid (it still seeds the zoom-out bridge as a
+  placeholder; the exact world grid is fetched in the background like any other hour).
+- `marineExactUpgrade.js` (new, 250 lines):
+  - `tryExactUpgrade`: a settled, thinned WORLD frame for the selected hour at a wide view starts the exact fetch through the NORMAL
+    path (source `exact_upgrade`: the arbiter, the dedupe ledger and the truth tags see an ordinary commit). Bounded: >= 2.5 s apart
+    per hour, >= 1.5 s apart across hours, 3 per hour per 120 s, budget given back when an exact world frame lands.
+  - `useMarineExactUpgrade`: re-drives the settle check 1.5 s after a thinned frame lands (and once more at 4.5 s), and waits for the
+    selected hour to hold still (button steps move the hour under a frame that does not change). Keyed on the GRID, not on
+    `marineData`: the settle check re-commits the same cached grid in a fresh wrapper, and keyed on the wrapper the re-drive was a
+    1 Hz loop (caught in the first replay).
+  - `keepExactResident` / `exactResidentSupersedes`: a thinned world frame never replaces an exact world resident of the same served
+    valid time, same model run (compared as instants), same surf-rating flavor, and at least as fine a lattice.
+- `useMarineScrubSettle.js` (790 -> 792 lines, under the 800 ceiling): calls the upgrade before the zoom-out recovery, the keep in the
+  series-first branch, and mounts the hook.
+- Tests: 69 tests in 4 suites (`marineExactUpgrade.test.js`, `marineExactUpgrade.keepExact.test.js`,
+  `useMarineScrubSettle.exactUpgrade.test.js`, `marineGlobalPrewarm.thinnedFrame.test.js`), including the call sites (the recorded
+  "pure helper passes, call site untested" class): the real `useMarineScrubSettle` is mounted with the upgrade hook spied and read.
+  29 frontend mutations (an exact-string edit, run, restore), each turns at least one test red. ESLint clean on every touched
+  file.
+
+**Offline results.** Swell at three offshore Florida points interpolated from the committed grid, at Wed 2026-10-07 15Z (exact frame
+2.33 m). "Weak" = under 75% of that, i.e. the thinned or stale placeholder is what is drawn. A rendered frame is 16-25 ms, so a count
+of frames is a duration. Erratic zoom = 25 s of random eases and jumps between z3 and z9 (seeded), the exact world frame in the
+client's cache. Every row is a different alignment of the clock (the app's hour 0 is the current time rounded to the hour; the
+selected hour must sit BETWEEN two 3-hourly steps to show the defect, and the harness was re-aimed for that each time).
+| erratic zoom, A/B (thin commits = visible frame changes to a 46 x 20/21 frame) | unfixed client | fixed client | seeds where fixed is lower |
+|---|---|---|---|
+| batch 1, 5 seeds | 509 of 5,604 frames weak (9.1%), 17 thin commits | 65 of 6,181 (1.1%), 3 | 5 of 5 |
+| batch 2, 10 NEW seeds | 1,542 of 12,729 (12.1%), 51 | 28 of 12,736 (0.2%), 3 | 10 of 10 |
+| final build, clock re-aimed, 5 seeds | 694 of 6,458 (10.7%), 22 | 72 of 6,249 (1.2%), 3 | 5 of 5 |
+| **pooled, 25 trials** | **2,745 of 24,791 (11.1%), 90** | **165 of 25,166 (0.7%), 9** | 20 of 20 |
+The thin frames that remain are placeholders after a zoom-out from a regional tile (nothing exact resident to keep): they last
+0.6-1.7 s (the 1.5 s hold, then the exact frame from the cache), against the whole dwell before. The first build of this fix (the
+upgrade alone) scored 504 of 6,015 (8.4%) on batch 1 and 26 thin commits: it followed each thin commit with an upgrade and the
+settle check put the thin frame back, which is what found mistake 3.
+| far-zoom scrub (+6 d, then an hour between steps), far-hour pages cached | unfixed | fixed |
+|---|---|---|
+| committed frame | `series_GFS_waves_h148` 46 x 20 at 4.0 s, **never replaced** (12 s watched), 1.34 m | the same at 3.8 s, then **`global_mid_..T180000Z` 181 x 82 at 8.2 s (2.33 m)**: 1.5 s hold + the 3 s mock fetch |
+| legend | "~913 km grid (8.2 degrees)" | "~913 km" while thin, "~223 km grid (2 degrees)" once exact |
+| a zoom-out after selecting at z9 | thin frame at 0.35 s, exact at 4.5 s | **exact at 0.35 s** |
+| exact world `/grid` fetches | 1 (in the zoom-out part) | 1 (in the scrub part: the zoom-out then used the cache) |
+Network cost in the erratic scenario: 4 exact world `/grid` fetches in each arm, the same four. The one extra cost class is a far-zoom
+scrub that settles on hours the app has not fetched exactly: one exact world `/grid` (2.3 MB, about 3 s of the 1-CPU box) per
+settled hour, which the unfixed client never fetched on that path, and the prewarm now also fetches the exact grid for hours whose
+series frame it used to reuse.
+
+**Not fixed, and what the replays showed about it**
+- **The wrong-hour window (REPORT F-21) is a different mechanism and is untouched.** Right after a zoom-out on a cold page the engine
+  draws the hour-0 world frame (Oct 1 12Z, 0.78 m) while the readout names the new hour, for 4.4 s here (4.5 s unfixed; 3-9 s and
+  over 75 s after a restart live). Source maps place the commit in `WebGLMarineEngine.bridgeToCoarseGlobalIfHeld` (the zoom-out
+  bridge promoting the held coarse base, whatever hour it is). The engine file is grandfathered over the LOC ceiling; the fix
+  belongs in the bridge's hour check or in the readout, and is a separate packet. This replaces my earlier "the arbiter holds the
+  last frame" (seq 276), which named the wrong place.
+- **Whole-heat-map dropouts at z4.3-6.3 during a zoom** (heat opacity under 0.2 for 0.1-1.1 s while a regional frame is resident and the
+  next one has not landed) are unchanged: 4.9% of frames unfixed against 6.0% fixed, pooled; per batch 3.7 -> 5.8, 4.9 -> 6.4,
+  5.9 -> 5.3 (2 of 15 seeds in batches 1 and 2 worse by 100+ frames). The episode counts were identical in batch 2 (53 and 53), and none of those
+  episodes contains an `exact_upgrade` commit or a pending fetch (0 of 821 frames), so I do not attribute them to this change, but
+  15 seeds do not rule out a small effect. The crest-only dropouts (F-22) did not recur in any of these offline runs (0 frames; they were seen on the live backend on a cold page).
+- **An engine-empty blank** (no frame committed) was rare in both arms: unfixed 2 episodes (25 frames, about 0.5 s, and 1 frame),
+  fixed 2 (58 frames, about 1.2 s, and 6 frames). Not distinguishable.
+- **Not tested:** the live backend (by choice), the owner's own Chrome, a real phone, EURO and ICON at far zoom (the upgrade asks the
+  normal fetch path for the active model; the Copernicus transport was not exercised), and the surf-rating flavor end to end (unit
+  tests only; the replays ran with it off). The mock labels frames from the app's own hour arithmetic; the live backend's labels
+  were seen once ("selected 147 against warmed frame h146", valid 15Z) and the mechanism is read from code, so the live read-back
+  below is the check that matters.
+
+**Read-back after a deploy (owner flips nothing: it is on).** In the dev site's console at far zoom on a settled future hour:
+`__MARINE_EXACT_UPGRADE__` shows `triggers` rising by one per settled hour and `kept` rising during zooms; the Network tab shows one
+`/grid` with the world bbox per settled hour; Florida swell for Wed 15Z at far zoom steady at about 2.3 m (it read 1.34 m).
+Rollback: `__RAW_DISABLE_EXACT_UPGRADE__ = true` per session, or `git revert` of the commit.
+
+**Caught before any commit, by the replays (each is a test now)**: the upgrade never fired because the selected hour (147) never
+equals the warmed frame's label (146) (strict equality; now a 1.5 h tolerance); a 1 Hz re-commit loop (the hook keyed on a wrapper);
+the upgrade alone fighting the settle check (mistake 3); the upgrade budget spent by an erratic zoom whose exact frame was already in
+hand (now returned when an exact world frame lands); a first fetch for an hour the next click replaced (now waits for the hour to
+hold still); and a run-time comparison by string (now by instant).

@@ -215,9 +215,17 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
         sg.hourOffset === hourOffset && Date.parse(sg.valid_time) === targetTime &&
         (!sg.served_valid_time || Date.parse(sg.served_valid_time) === targetTime) &&
         !sg.frame_substituted) {
-      deps.cacheMarineResult(m, hourOffset, seriesFrame, activeLayer, true);
-      _stageCoarseBridgeSeed(sg, m, activeLayer, 'series_cache');
-      return;
+      if (sg.__decimatedStride > 1) {
+        // THINNED (2026-10-01, marineExactUpgrade.js): a stride-thinned series frame (46 x 21, an 8-degree lattice) is a VIEW
+        // of the world grid, not the grid. Standing it in for the world grid ("identical pixels") made the controller cache
+        // hand the thin frame to every zoom-out, and the exact frame was never fetched. It still seeds the bridge (right
+        // hour, placeholder quality, better than none); the exact world grid is fetched below and replaces it.
+        _stageCoarseBridgeSeed(sg, m, activeLayer, 'series_cache_thinned');
+      } else {
+        deps.cacheMarineResult(m, hourOffset, seriesFrame, activeLayer, true);
+        _stageCoarseBridgeSeed(sg, m, activeLayer, 'series_cache');
+        return;
+      }
     }
     _globalGridPrewarmInFlight.add(key);
     // No abort signal: this is a background best-effort warm that must survive the pan/zoom which

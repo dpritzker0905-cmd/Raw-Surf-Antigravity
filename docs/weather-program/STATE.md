@@ -1,13 +1,29 @@
 # Weather program: state
 
-**Updated 2026-10-01 12:42Z** (logs: `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
-legend, and a load incident), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
+**Updated 2026-10-01 15:06Z** (logs: `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
+legend, a load incident, and the exact-frame fix for far zoom), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
 (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-01 15:06Z (seq 278-280; same branch, second local commit, NOT pushed): the exact-frame fix for far zoom is built,
+  CLIENT ONLY and ON BY DEFAULT** (owner: "yes, build the exact-frame fix for far zoom"). At far zoom the app now draws the
+  exact 2-deg world frame; the thinned series frame is only the instant placeholder. Located first: the scrub-settle check
+  compares hour LABELS, not valid times, and at 3-hourly range the frames serving one hour carry different labels (series 145,
+  exact grid 144, selection 146, all valid 15Z), so it committed the thinned frame OVER an exact frame of the same valid time
+  (the unfixed client did so 100 times in 25 offline random-zoom trials: the "swell disappears from the FLA coast while
+  zooming" report). Built: `marineExactUpgrade.js` plus three small call sites (`useMarineScrubSettle.js` 790 -> 792 lines):
+  `decimated_stride` kept on the grid, the prewarm no longer stands a thinned frame in for the world grid, an upgrade to the
+  exact frame through the normal fetch path once the hour holds still (bounded), and a thinned frame never replaces an exact
+  one of the same valid time. Kill switch `window.__RAW_DISABLE_EXACT_UPGRADE__ = true`; telemetry
+  `window.__MARINE_EXACT_UPGRADE__`. **Offline A/B** (mock backend, NO live request; 25 seeded trials): frames with the
+  Florida swell under 75% of exact 11.1% -> 0.7%, lower in 20 of 20 seeds; a far-zoom scrub now ends on the exact frame about
+  4 s after the placeholder (it never did). NOT fixed: the wrong-hour window (the engine's `bridgeToCoarseGlobalIfHeld`
+  promotes the held hour-0 base for ~4.4 s: a different mechanism, seq 280 corrects my earlier "arbiter") and the whole-heat-map
+  dropouts at z4.3-6.3 (about 5% of frames, same before and after). Not tested live, in the owner's Chrome, or for EURO/ICON.
+  Recommendation: keep it on, defer the max-thinning flip. Log: `log/2026-10-01-far-zoom-max-thinning.md`.
 - **2026-10-01 12:42Z (seq 274; branch `claude/far-zoom-max-thinning`, committed locally, NOT pushed: the gh token is
   invalid and only the owner can `gh auth login`): the far-zoom thinned-frame fix is built DARK.** The world series page thins
   the 2-deg field by a pure stride (46 x 21, an 8-deg lattice) and a far-zoom scrub commits it: Wed 2026-10-07 15Z, swell at
@@ -19,8 +35,8 @@ is a claim, not a measurement.
   Florida 1.34 and 1.21 -> 2.37 and 2.29 m (exact 2.33 and 2.41); the first-built 5x5 window read the whole ocean 0.88 m
   high and was refuted. Flip = `SERIES_DECIMATE_MODE=max` in Render (owner-only), read back with the Florida check and S11.
   Still OPEN (seq 276): the far-zoom frame is the WRONG HOUR for 3-9 s (over 75 s right after a restart) after a zoom-out or a
-  far-zoom scrub, the thinned frame stays drawn after the exact one is fetched, and the crest layer drops out for 0.4-0.7 s at
-  z4.6-6.2. Incident (seq 275): this session's live replays saturated the 1-CPU box (health 7-8 s) and the owner saw "Couldn't
+  far-zoom scrub, the thinned frame stayed drawn (FIXED, the bullet above: it was committed over the exact one), and the crest layer drops
+  out for 0.4-0.7 s at z4.6-6.2. Incident (seq 275): this session's live replays saturated the 1-CPU box (health 7-8 s) and the owner saw "Couldn't
   load surf spots"; stopped 12:39:57Z. Log: `log/2026-10-01-far-zoom-max-thinning.md`.
 - ⛔ **2026-10-01 (seq 239; #211, open for the owner's word): the serve-time coarse marine fill wrote GFS values into
   the CACHED EURO/ICON product** (`coarse_gulf_fill.py` mutated the L1 cache's shared vector objects). Live: a 40-deg
@@ -148,7 +164,7 @@ is a claim, not a measurement.
   580 (582). #215 moves guards to 179 / 2177 (its run read 2183).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 277, sha256 b51877e52bf93052c2c3f322ef8c628177bdf947f8c6792c0bea1012e5e53c7d**
+  **Ledger head: seq 280, sha256 8f76579fd9658f0eb238fcf8653cc17dbf63b841ffc1056ebc9d8e236059e78d**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
