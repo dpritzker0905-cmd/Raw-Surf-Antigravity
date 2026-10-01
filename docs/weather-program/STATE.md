@@ -58,10 +58,11 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours, ALL CONFLICTING against `454d96cb`** (each re-chains the ledger on its `dev` merge; HANDOFF-2026-10-01
-  §4 lists what else each must do): #210 (far-zoom pages from the stored 2-deg field, commitment 228; drop its duplicate
-  `pr_merge #207`), #212 (mid-tier stamp; delete the guard's `_KNOWN_UNFIXED` entry), #211 (coarse fill; re-derive the
-  guards floor from 177 / 2164: 2163, 178 files), #208 (clock check), and this handoff's PR. Merged 2026-10-01: #213
+- **Open PRs of ours** (each re-chains the ledger on its `dev` merge; HANDOFF-2026-10-01 §4 lists what else each must
+  do): #210 (far-zoom pages from the stored 2-deg field, commitment 228; drop its duplicate `pr_merge #207`), #212
+  (mid-tier stamp; already merged `dev` and emptied the guard's `_KNOWN_UNFIXED`, head `bb3f9f27`), #211 (coarse fill;
+  re-derive the guards floor from 177 / 2164: 2163, 178 files), #208 (clock check), #214 (this handoff; seq 243-245
+  fork with #212's: the second to merge re-chains). Merged 2026-10-01: #213
   (03:07:59Z as `454d96cb`; seq 240-243: `resolve_grid`'s step-4 and EURO->GFS fallback stamps wrote into the L1
   entry's diagnostics dict; fixed by a copy, plus an AST guard; no served number changes), #207 (00:15:39Z as
   `ac080442`, docs; seq 239). Merged 2026-09-30: #209 (23:57:13Z as
@@ -114,7 +115,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 244, sha256 d09f266123466ccccf46c5637696e5f8b332c5b8ba2e385a2402c3efab5d585d**
+  **Ledger head: seq 245, sha256 325e9d1f265cc71eb93f871e8743b4ad610069c5072d3f314dede72d4c68c10c**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

@@ -132,4 +132,8 @@ number once the token works.
   tier's clip of `euro_marine_waves_global_mid_20261001T030000Z` (15,023 cells). Each carried its OWN stamps: 04Z read
   `valid_time` 04Z, `served_valid_time` 03Z, offset -1.0. Both had 19 diagnostics keys, as before the fix. The served
   values are unchanged, as designed. The cache's own dict is not visible from outside: the tests carry that claim.
+- **#214** (the handoff) opened at 03:13:46Z (seq 245). The #212 session replied: it had merged `dev` (head
+  `bb3f9f27`), emptied `_KNOWN_UNFIXED`, and re-chained its lines as seq 243-245. Its mutation check: with dev's
+  pre-fix `mid_res_tier.py`, the guard goes RED on exactly `mid_res_tier.py:260`. #212 and #214 now fork at seq 243;
+  the second to merge re-chains. HANDOFF §4 and STATE updated to say so.
 
