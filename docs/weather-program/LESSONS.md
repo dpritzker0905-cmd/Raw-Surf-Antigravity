@@ -125,6 +125,15 @@ before starting it.
   was written ahead of the clock (a log header and STATE's `Updated`, then a ledger `acted_at`). The
   ledger's own check (`acted_at` not after `at`) refused the second; the first went through unchecked.
   Take `date -u` or `datetime.now(timezone.utc)` at the moment of writing. (2026-09-29)
+  ⬆ 2026-09-30, late: the log half of the clock check read only headers ending in ` ·`, which was 31 of the 41
+  timed headers on `dev`. So #206's `## PR and ledger (23:14Z-23:17Z)`, committed at 23:15:52Z (`0b057d3d`),
+  passed. The check now reads every `## ` header (`log/2026-09-30-clock-every-header.md`). For a check built from
+  one case's shape, count how much of the population it can read.
+  ⬆ Same night: each claim is now held to the commit that wrote THAT line (git blame). That found 7 headers, 1 to 7
+  minutes ahead, which the file's last commit had hidden since 2026-09-29. Each is corrected by its own `correction`
+  ledger line (#206's included), since a log cannot be edited. A silent fallback is a weaker check that nobody
+  sees: until git's output was decoded as UTF-8, the blame fell back on 5 of 12 files on Windows. A fallback on a
+  committed file now WARNs, and FAILs in CI.
 - **L-P11 · Test code the way production runs it.** #171's 21 tests imported the fetchers as a package;
   production spawns them BY PATH, where `services` is not importable. A bare `from services._fetch_native_cell`
   inside `fetch_global_coarse` would have failed every GFS, ICON and EURO fetch, flag on or off. The real-GRIB
@@ -219,6 +228,12 @@ before starting it.
   820 MB was a fresh-restart outlier (38-45% of 2 GB); the normal level then was 70-80%. Every deploy restarts the box,
   so a single `/api/health` RSS after a merge measures the restart, not the load. (2026-09-26, moved from local memory
   2026-09-30)
+- **L-P20 · Mutate the fix and watch the guard, not only the tests.** The AST guard built for `grid_resolver`'s shared
+  diagnostics (2026-10-01) first accepted any copy on an EARLIER LINE of the same function. Reverting step 4's copy
+  turned four behavioural tests red and left the guard green: the EURO -> GFS fallback's copy, inside its own branch
+  ~180 lines up, "covered" the step-4 writes. The rule became structural dominance (an earlier statement of the
+  write's own or an enclosing block), with that shape as a control. A guard is a test of the next change, so its
+  mutation check is the same one the fix gets. (log `2026-10-01-grid-resolver-no-shared-diagnostics.md`)
 - **L-P19 · Probe with the consumer's request, not a convenient one.** The far-zoom monitor asked grid_series for 6
   hours and read 6/6 through a restart; the client asks for 48 offsets on a 3-hour grid at GLOBAL_REQUEST_BBOX, and
   that page came back 30/48 alone, 16/48 beside its sibling. Build the probe from the client's own request builder
