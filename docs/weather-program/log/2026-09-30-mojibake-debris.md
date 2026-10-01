@@ -96,3 +96,13 @@ docs only; the merge restarts the Render backend (W-26).
 - The header "PR and ledger (23:14Z-23:17Z)" above ends later than its commit (`0b057d3d`, 23:15:52Z): the
   end time was an estimate written as a timestamp (L-P10). Read it as 23:14Z-23:15Z. (`memory_audit.py`'s clock
   check did not flag it: it parses only headers ending in " ·".)
+
+## #206 merged (23:39:24Z)
+- Owner (chat): "it's green, merge #206". Read back first: 18 checks pass, 1 skipped (Netlify "Pages changed",
+  as on #204); head `a634f4d0` = the PR's; `dev` still `8abc6e61`. Hosted CI run 36790290663: frontend suite
+  305 suites / 2,996 tests passed, exactly the local projection; both `encodingDebris` suites ran on ubuntu.
+- `gh pr merge 206 --merge --match-head-commit a634f4d0`: merged as `1ff11a05` (a merge commit, so the three
+  change commits stay separately revertable). Ledger seq 234. A frontend merge: Render restarts (W-26).
+- Repo auto-merge is off (`allow_auto_merge: false`) and `dev` is unprotected, so merge-on-green could not be
+  delegated to GitHub; the app's Auto-fix watched the PR (one event: Netlify's preview comment, nothing to fix).
+- The ledger line rides on a docs-only branch, `claude/ledger-206-merge` (docs merges do not restart Render).
