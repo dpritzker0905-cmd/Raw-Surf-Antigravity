@@ -255,9 +255,15 @@ async def try_serve_mid_res_tier(
     except Exception:
         product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
     if product.grid:
-        if product.grid.diagnostics is None:
-            product.grid.diagnostics = {}
-        product.grid.diagnostics["mid_res_tier"] = True  # surf gate keeps this coarse-ish tier honest
+        # The clip's grid is its own container, but its `diagnostics` is still the L1 entry's dict
+        # (load_product and filter_grid_to_bbox copy one level), and stored grids carry a non-None
+        # one. Copy it before stamping, as #210's _stride_clipped_grid does for `load_stride`: an
+        # in-place write put this key, and the resolver's per-request stamps after it, into the
+        # cached global_mid, and one request's stamps into another's response (2026-10-01,
+        # tests/test_mid_tier_shared_diagnostics.py).
+        diagnostics = dict(product.grid.diagnostics or {})
+        diagnostics["mid_res_tier"] = True  # surf gate keeps this coarse-ish tier honest
+        product.grid.diagnostics = diagnostics
         if product.grid.bounds:
             product.served_bbox = (
                 f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},"

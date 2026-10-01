@@ -1234,7 +1234,12 @@ jobs:
           # Hawaii-only consensus rule's switch, dark): hosted CI on #201 (run 36774878323) observed 138 files / 1674.
           # tests/test_consensus_serve.py gains 10 executed tests (27 -> 37): 1674 + 10 = 1684, 1684 - 6 = 1678; files
           # 138 unchanged; _FLOOR_SET_FROM["chain"] -> 1684.
-          MIN_FILES, MIN_PASSED = 138, 1678
+          # ⬆ MIN_FILES 138→139, MIN_PASSED 1678→1683 on 2026-10-01, IN THE SAME COMMIT THAT CAUSES IT (the mid-res
+          # tier copies the cached global_mid's diagnostics dict before stamping it): hosted CI on dev (run 36795274173
+          # @ ac080442) observed 138 files / 1684. The new tests/test_mid_tier_shared_diagnostics.py (claimed by
+          # `--lane chain`) adds 5 executed tests: 1684 + 5 = 1689, 1689 - 6 = 1683; files 139 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1689.
+          MIN_FILES, MIN_PASSED = 139, 1683
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
