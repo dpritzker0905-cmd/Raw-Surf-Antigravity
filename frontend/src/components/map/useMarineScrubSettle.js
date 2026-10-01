@@ -4,6 +4,7 @@ import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { isTerminalNoCoverage } from './marineControllerCache';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { keepExactResident, tryExactUpgrade, useMarineExactUpgrade } from './marineExactUpgrade';
+import { useMarineWorldWarmOnSettle } from './marineWorldWarmOnSettle';
 
 // True if the grid bounds fully cover the viewport bounds (small epsilon for float jitter).
 function gridCoversViewport(gb, vb) {
@@ -511,6 +512,7 @@ export function useMarineScrubSettle({
   const checkScrubSettleRef = useRef(checkScrubSettle);
   checkScrubSettleRef.current = checkScrubSettle;
   useMarineExactUpgrade(marineData, checkScrubSettleRef, timeOffsetRef);   // re-drives the check shortly after a thinned world frame lands
+  useMarineWorldWarmOnSettle({ marineData, mapInstance, timeOffsetRef, activeModelRef, activeMarineLayerRef, activeMarineLayersRef });   // F-21: the base follows the selected hour
 
   // Drive checkScrubSettle when scrubbing ends.
   useEffect(() => {

@@ -32,6 +32,10 @@ import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import {
   isCoarseGlobalGrid, isRegionalBounds, shouldRejectResolutionDowngrade,
 } from './marineEngineDecisions';
+// The seed-consume question ("does this staged seed replace the held base?") now asks the HOUR too (2026-10-01, F-21). It rides
+// this module so the engine keeps ONE import line from the commit lane; the rule itself is pure and lives in marineStaleHour.js.
+export { coarseBaseStaleForSeed } from './marineStaleHour';
+import { staleResidentSwapWanted } from './marineStaleHour';
 
 // ZOOM-OUT BRIDGE (2026-07-15, user "heatmap clears for a quick second midway zooming out" AND
 // "green grid around FL"): on a fast/settling zoom-out the regional resident either CLEARS to a
@@ -69,10 +73,14 @@ function _midBandBridgeWide(vb, lastZoom, w) {
   return (vb[2] - vb[0]) > ceil || (vb[3] - vb[1]) > ceil;
 }
 
-export function shouldBridgeToCoarseGlobal(resident, coarse, lastZoom, viewportBounds, win) {
+export function shouldBridgeToCoarseGlobal(resident, coarse, lastZoom, viewportBounds, win, staleSwapMs) {
   const w = win || (typeof window !== 'undefined' ? window : undefined);
   if (w && w.__RAW_DISABLE_ZOOMOUT_BRIDGE__ === true) return false;
   if (!coarse || !isCoarseGlobalGrid(coarse)) return false;
+  // F-21 (2026-10-01, marineStaleHour.js): the resident is itself a WORLD frame, for another hour than the selected one, and the held
+  // base is the selected hour's: promote the base. `staleSwapMs` (the layer's selected instant, set only in the frame it judged the
+  // resident stale) is absent everywhere else, so this clause is inert for every other caller.
+  if (resident && typeof staleSwapMs === 'number' && isCoarseGlobalGrid(resident)) return staleResidentSwapWanted(resident, coarse, staleSwapMs, w);
   if (!resident || !resident.bounds || !isRegionalBounds(resident.bounds) || isCoarseGlobalGrid(resident)) return false;
   const vb = viewportBounds;
   if (!vb) return false;

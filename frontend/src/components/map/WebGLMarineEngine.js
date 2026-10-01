@@ -79,7 +79,7 @@ export {
 // `_arbiterGraceState` comes back too: the Phase B SHADOW verdict below (:175) must pass the SAME
 // grace object the live decision mutates, or it reports the rating-grace rule as a divergence
 // forever. It is shared mutable state, not a value — the identity is the point.
-import { decideMarineCommit, shouldBridgeToCoarseGlobal, _arbiterGraceState } from './marineCommitGate';
+import { decideMarineCommit, shouldBridgeToCoarseGlobal, _arbiterGraceState, coarseBaseStaleForSeed } from './marineCommitGate';
 
 export {
   shouldBridgeToCoarseGlobal, shouldRejectSubcoveringRegional, decideMarineCommit,
@@ -535,9 +535,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   if (this._pendingCoarseBaseGrid) {
     const _seed = this._pendingCoarseBaseGrid;
     const _b = this._coarseBaseData;
-    const _stale = !_b ||
-      (_b.__sourceModel || 'GFS') !== (_seed.__sourceModel || 'GFS') ||
-      (_b.__componentLayer || 'waves') !== (_seed.__componentLayer || 'waves');
+    const _stale = coarseBaseStaleForSeed(_b, _seed);   // no base, ANOTHER model/layer, or another HOUR (2026-10-01, F-21: marineStaleHour.js)
     this._pendingCoarseBaseGrid = null;
     if (_stale) {
       try {
@@ -3039,7 +3037,7 @@ WebGLMarineEngine.prototype.bridgeToCoarseGlobalIfHeld = function(gl) {
     const cbg = base && base.waveGrid;
     const rwg = this._waveData && this._waveData.waveGrid;
     if (!shouldBridgeToCoarseGlobal(rwg, cbg, this._lastZoom, this._lastViewportBounds,
-        typeof window !== 'undefined' ? window : undefined)) return false;
+        typeof window !== 'undefined' ? window : undefined, this.__staleSwapMs)) return false;   // F-21: the layer's selected instant while the resident is a stale world frame
     // Promotion commits a GLOBAL grid while the cached mask is still the regional's box — force the
     // full mask rebuild (the escaped-mask recipe, 64bd1ff6): left alone, the encoder's retain guards
     // (retain_patched / retain_res_no_downgrade) keep the crisp REGIONAL mask under the WORLD grid and

@@ -236,3 +236,191 @@ equals the warmed frame's label (146) (strict equality; now a 1.5 h tolerance); 
 the upgrade alone fighting the settle check (mistake 3); the upgrade budget spent by an erratic zoom whose exact frame was already in
 hand (now returned when an exact world frame lands); a first fetch for an hour the next click replaced (now waits for the hour to
 hold still); and a run-time comparison by string (now by instant).
+
+## 18:58Z · owner: "notate that I'm seeing runs fail in my email notifications, one just happened at 2:47pm EST"
+
+Read-only, from the repo's public Actions API and one GET of `/api/weather/buoy-calibration` (no `gh` auth, no secrets, nothing changed).
+- **The 2:47 pm email** (Eastern; October is EDT, UTC-4, so 18:47Z) matches **Forecast Accuracy Monitor run #205** (schedule, `dev` @
+  `63a70425`): created 18:49:02Z, failed 18:49:22Z in the step "Grade forecast accuracy against buoy truth". Run #204 (07:08:20Z) fails
+  with the same four annotations: *SKILL LEDGER SCORED ZERO past the recovery window (2026-08-12T06:00Z)*; *SKILL FLOOR UNMEASURED* (scored
+  segment not readable); *ARCHIVE READER BLIND* (credentials present, the residual history segment would not load); *SKILL LEDGER DEAD* (a
+  fresh calibration report carries no `forecast_skill_ops` block).
+- **Onset:** green on #199-#203 (2026-09-29 14:00Z to 09-30 22:58Z), red on #204 and #205, so it turned red between 22:58Z and 07:08Z and has
+  been red for at least 11.7 h. (#198, 09-29 06:49Z, was the known single-pass false alarm that #166 fixed: a different message.)
+- **The live report the monitor grades** (`GET /api/weather/buoy-calibration`, 18:50-18:58Z): `generated_at` 16:35:30Z (fresh, under 8 h),
+  height MAE 0.211 m over 59 spots (healthy), `archive.n_entries` 20,000 (a round number: check whether it is a cap), and **no
+  `forecast_skill_ops` key** (top-level keys: available, version, generated_at, summary, spots, archive). The monitor's "ledger dead" line is
+  literally true: the calibration run did not attach the skill ledger.
+- **Other red runs since 06:00Z today** (public run list, the last 40 runs; NOT diagnosed): E2E Tests on the push to `dev` (11:52Z, the #215
+  merge), CI on the PR branch `claude/ledger-215-merge` (12:14Z), MOP Nearshore Ingest stage 4 by workflow_dispatch (13:24Z), Marine Nightly's
+  zoomlab-battery step "Verdict (budgeted)" (13:46Z; the known item, REPORT 8.7), and the Accuracy Monitor twice.
+- **Not from this session.** Nothing here is pushed (gh auth is invalid), every replay since 12:39Z ran against the offline mock, and no secret
+  was touched. The audit's earlier live GETs (00:20Z-04:03Z) and the 12:00-12:39Z replays hit the serve path; the monitor reads its archives from
+  Supabase Storage inside Actions, so shared Storage pressure cannot be ruled out but is unproven.
+- **Leads, unverified, in the order I would check them:** (1) did the calibration step (`precompute.yml`, the forecast ingest) run and swallow
+  an error before attaching `forecast_skill_ops`? It needs the run log: `gh run view <id> --log` after `gh auth login`. (2) Supabase Storage:
+  the residual-history and scored-segment objects (429 "too many connections"; an object at a size cap, since `archive.n_entries` is exactly
+  20,000 and the ledger's pending queue sat at 29,477 of 30,000 on 09-30, which #189 raises). (3) The Actions secrets `SUPABASE_URL` and
+  `SUPABASE_SERVICE_ROLE_KEY` against the keys rotated after the 2026-09 leak ("credentials present" but the reads fail). (4) The merges in the
+  onset window: #208, #210, #211, #212 (03:48-04:13Z), #215 (11:52Z), and the backend redeploy at about 03:10Z.
+- **What it blocks:** commitments seq 149 (the GFS_SCALAR lane's first paired rows) and seq 172 (S7/S8's first graded rows) both need the skill
+  ledger to run; if it stays dead they cannot be fulfilled.
+
+### 19:43Z · addendum to the 18:58Z failing-runs note: the first lead, from the commit history (read-only)
+The skill ledger's code changed on 09-30, hours before the monitor turned red: S7/S8 (`aeb72670`, 14:41Z: period and direction graded per lane and lead),
+S9 (`e28b1031`, 17:30Z: wind graded; "the calibration fetch finally parses wind, wind_n read 0 for 52 days") and W-23 (`8fb511ad`, 17:55Z: a refused L2 read
+is retried). `PENDING_MAX_ENTRIES` was raised from 30,000 to 54,000 by #189 (03:15Z 09-30), so after S7/S8/S9 the pending object
+(`calibration/skill/pending.json`, read whole by the strict L2 GET with a 30 s timeout, retried on 429 since A15-19) can grow toward 54,000 rows.
+The monitor was still green at 22:58Z (#203) and red at the next report. **Lead 1, to check first:** did the pending object (or the residual-history
+segment, `archive.n_entries` 20,000) grow past what the strict read and the upload can move inside their timeouts, so the ledger was skipped and
+the report went out without `forecast_skill_ops`? It needs the precompute run log (`gh auth login`) or the object's size in Supabase Storage.
+Not verified; nothing was changed. (The forecast data lanes themselves are healthy: `/api/health/data` read all ten lanes ok at 19:17Z, freshest run 1.1 h.)
+
+## 17:10-21:35Z · the wrong-hour world frame (F-21): built, replayed offline, client only, ON by default
+
+Owner: "keep it on, defer the flip, now fix the wrong-hour frame." (Keep it on: the exact-frame fix stays the default. Defer the flip:
+`SERIES_DECIMATE_MODE=max` is not turned on in Render; nothing to do.) Third local commit on `claude/far-zoom-max-thinning`, NOT pushed (gh auth is
+invalid). It chooses what to draw and when a base is replaced; no served number changes, so no SCOREBOARD row. Every replay below ran against the
+offline mock (no live request) on the final local build, against a build of the previous commit (`a0323a5f`), the app's clock pinned.
+
+**The defect.** Select a far hour at a regional zoom and zoom out: the engine drew the world frame the page had loaded with (the "now" hour; swell
+0.78 m where Wednesday reads 2.33 m) at full strength, crest animation and all, for 3.2 to 3.8 s in every cell of the final offline matrix (once
+8.7 s, in a first-build just-opened run whose right hour had not arrived when the 9 s watch ended; 3 to 9 s live, over 75 s after a restart),
+under a readout that named Wednesday. The panel's own line "Forecast time does not match this selection." (`ForecastTimeStatus`, a `role="status"`
+line) was showing in both builds: the app knew, the picture did not say so.
+
+**Mechanism** (code, commit traces, source maps, and the interventions; this replaces "belongs in the bridge's hour check" in the entry above):
+1. At a zoom-out the engine promotes the coarse base it holds (`bridgeToCoarseGlobalIfHeld`) whatever hour that base is for. All 20 unfixed runs of
+   the final matrix show a `manual`-lane commit of the hour-0 frame: 12 to 822 ms after a jump zoom starts, 498 to 643 ms after a wheel zoom
+   starts (when it crosses the zoom-out gate).
+2. The base was refreshed only when a world frame COMMITTED. The prewarm's staging gate (`_coarseBaseMatches`) and the engine's seed consumption
+   (`_stale`) asked only "same model and layer?", so a seed for the selected hour was refused, and then discarded, for as long as the page-load
+   frame was held. Nothing asked the hour.
+3. When no right-hour world data exists yet, nothing marked the frame as the wrong hour: full strength until the exact grid arrived.
+4. (found with the read-back telemetry added during this work; I had not seen it from the code) The world grid that could arrive BEFORE the
+   zoom-out must pass the background lane's single slot ("after anything on screen"). On a page that has just opened it never did, in any
+   replay: the fetch path's own prewarm call (the old order: its world series half first, then the grid) had already claimed the in-flight key, so
+   a later call for the same valid time answers `in_flight` and cannot send the grid, and its grid stayed queued behind a world series page
+   (in all 16 (10 on the flat 8 s mock, 6 with live-like latencies) fixed just-opened runs `__MARINE_GLOBAL_PREWARM__.grid` read `gridFirst:false, queuedAt, no startedAt` at the END of the 9 s
+   watch). What it queued behind depends on the latencies: on the flat 8 s mock the one-hour half (8 s); with live-like latencies (one-hour page 2.4 s,
+   48-frame page 20 s: the earlier live runs read 1.1 to 2.4 s and 2 to 25 s) the 48-frame world page that the selection starts. With a free lane
+   (the map open a minute) the same grid goes out 1.5 s after the hour is set and lands 3 s later.
+5. (found in the 2.5 s dwell replay) A right-hour seed that lands AFTER the zoom-out replaces the base, but not the frame already drawn: that
+   is the earlier promotion of the old base, and the pipeline's own commit is a network round trip away. My first answer, re-driving the fetch
+   path when the warm landed, fired (`redrove: 1`) and changed nothing: the zoom-out's own fetch was already pending and the pipeline dedupes
+   it. It was removed.
+
+**Built** (client only; each piece default ON with its own kill switch; 112 new tests in 9 files, 69 mutations each turning a test red):
+- *Hour-aware base and seed* (`marineStaleHour.js`, pure and import-free; called from `marineGlobalPrewarm.js` and the engine's one seed line, which
+  went from 3 lines to 1, so `WebGLMarineEngine.js` 3207 -> 3205): a seed for another hour REPLACES a base made for the old one. The valid time
+  decides (served first, then the ask's echo, then the truth tag), never the label (L-F10); an unknown time fails open (nothing replaced).
+  Kill: `__RAW_DISABLE_BASE_HOUR_SYNC__`.
+- *A world frame for another hour than the selected one is drawn provisional* (`marineStaleHourLayer.js`, one multiplier in
+  `WebGLMarineCustomLayer.js`): 0.4 of its strength (the heat map settles at 0.265 against 0.662) once the hour has held still 0.6 s; never while
+  scrubbing; never for a regional frame; an unknown time fails open; the engine's own ease ramps it over about 0.5 s. The selected instant comes from
+  the readout's own `displayedForecastTime`, so the dim and the readout cannot disagree. Kill: `__RAW_DISABLE_STALE_HOUR_DIM__`; tune:
+  `__RAW_STALE_HOUR_DIM__` (0.4).
+- *A world warm that keeps the base on the selected hour* (`marineWorldWarmOnSettle.js`, one call line in `useMarineScrubSettle.js`, 792 -> 794 lines):
+  once the hour has held still 1.5 s at a regional zoom (GFS and ICON; not EURO, whose world product takes the slow Copernicus transport), ask the
+  existing prewarm for that hour's world grid, grid FIRST and the series half after it (opt-in `gridFirst`); a moved hour or a scrub in progress
+  re-arms the wait, so a commit that keeps the same grid cannot lose the warm; when the grid lands the seed replaces the stale base. Kill:
+  `__RAW_DISABLE_HOUR_WORLD_WARM__`, `__RAW_DISABLE_WORLD_GRID_FIRST__`.
+- *A stale world frame already drawn is replaced by the held base when that is the selected hour* (`staleResidentSwapWanted` in `marineStaleHour.js`;
+  `shouldBridgeToCoarseGlobal` in `marineCommitGate.js` gained an optional sixth argument, the selected instant, which is absent everywhere else and
+  makes the clause inert; the engine's existing per-frame bridge call passes `this.__staleSwapMs`, so the engine gained no line). The layer hands that
+  instant to the engine only in the frames it judged the drawn frame stale and the hour held still (the dim's own judgment, `judgeStaleWorld`), so a
+  seed landing after the zoom-out ends the wrong hour in the same frame instead of waiting for the zoom-out's own fetch. It never promotes an older
+  base over the right resident, and never across a model, layer or surf-rating switch. Kill: `__RAW_DISABLE_STALE_RESIDENT_SWAP__` (the dim's kill
+  switch does not stop it, and it does not stop the dim).
+- *Read-back telemetry*: `window.__MARINE_GLOBAL_PREWARM__` (what every prewarm call did: fetched, declined and why, in flight, cache; when the grid
+  was queued, started and done), `__MARINE_HOUR_WORLD_WARM__` ({fired}), `__RAW_GPU__.staleHour` (why the layer did or did not dim this frame, and
+  whether it asked for the swap).
+
+**Offline A/B** (final build against the previous commit; the app's clock pinned to hour 0 = Oct 1 17Z; the selected hour Oct 7 17Z, which snaps to the
+18Z model step, the "between two steps" case of the owner's Wed 15Z report; mock latencies as measured live: world `/grid` 3 s, every world series
+page 8 s; one run at a time, arm order alternating between repetitions). "Dwell" is how long the user stays on the selected hour at the regional zoom
+before zooming out, counted from the moment the harness sees that hour's regional frame committed: in the warm runs that was 1.65 to 1.92 s after the
+hour was set (the world warm's grid was queued 0.15 to 0.42 s before it), so a dwell of d here is about d + 1.8 s from the pick. "Just opened" cells
+select the hour about 10 s after the page loads; "map open a minute" cells wait 60 s first. Times are medians over the repetitions (range in brackets):
+
+| dwell | regime / zoom | build | wrong hour at full strength | wrong hour dimmed | right hour drawn after | blank |
+|---|---|---|---|---|---|---|
+| 5 s | cold / jump | unfixed | 3,204 ms (3 runs: 3,202-3,204) | 0 ms (3 runs: 0-0) | 3,564 ms (3 runs: 3,563-3,567) | 0 ms (3 runs: 0-0) |
+| 5 s | cold / jump | fixed | 316 ms (3 runs: 311-324) | 2,904 ms (3 runs: 2,887-2,905) | 3,556 ms (3 runs: 3,542-3,698) | 0 ms (3 runs: 0-0) |
+| 5 s | warm / jump | unfixed | 3,292 ms (3 runs: 3,215-3,704) | 0 ms (3 runs: 0-0) | 3,660 ms (3 runs: 3,478-4,544) | 0 ms (3 runs: 0-0) |
+| 5 s | warm / jump | fixed | 0 ms (3 runs: 0-0) | 0 ms (3 runs: 0-0) | 503 ms (3 runs: 316-832) | 0 ms (3 runs: 0-0) |
+| 2.5 s | warm / jump | unfixed | 3,224 ms (3 runs: 3,223-3,353) | 0 ms (3 runs: 0-0) | 3,640 ms (3 runs: 3,610-4,675) | 0 ms (3 runs: 0-0) |
+| 2.5 s | warm / jump | fixed | 71 ms (3 runs: 68-192) | 0 ms (3 runs: 0-0) | 653 ms (3 runs: 653-1,337) | 0 ms (3 runs: 0-0) |
+| 0.8 s | cold / jump | unfixed | 3,340 ms (3 runs: 3,250-3,664) | 0 ms (3 runs: 0-0) | 3,800 ms (3 runs: 3,764-4,238) | 0 ms (3 runs: 0-0) |
+| 0.8 s | cold / jump | fixed | 273 ms (3 runs: 208-317) | 3,007 ms (3 runs: 2,904-3,840) | 3,785 ms (3 runs: 3,678-4,600) | 0 ms (3 runs: 0-0) |
+| 0.8 s | cold / wheel | unfixed | 3,430 ms (4 runs: 3,273-3,656) | 0 ms (4 runs: 0-0) | 4,540 ms (4 runs: 4,114-4,631) | 284 ms (4 runs: 251-292) |
+| 0.8 s | cold / wheel | fixed | 16 ms (4 runs: 16-16) | 3,553 ms (4 runs: 3,311-4,429) | 4,523 ms (4 runs: 4,161-5,372) | 280 ms (4 runs: 276-288) |
+| 0.8 s | warm / jump | unfixed | 3,291 ms (2 runs: 3,273-3,309) | 0 ms (2 runs: 0-0) | 3,748 ms (2 runs: 3,561-3,936) | 0 ms (2 runs: 0-0) |
+| 0.8 s | warm / jump | fixed | 321 ms (2 runs: 318-324) | 1,238 ms (2 runs: 1,224-1,253) | 2,314 ms (2 runs: 1,993-2,636) | 0 ms (2 runs: 0-0) |
+| 0.8 s | warm / wheel | unfixed | 3,714 ms (2 runs: 3,658-3,770) | 0 ms (2 runs: 0-0) | 4,623 ms (2 runs: 4,376-4,870) | 298 ms (2 runs: 276-321) |
+| 0.8 s | warm / wheel | fixed | 16 ms (2 runs: 16-16) | 943 ms (2 runs: 687-1,199) | 2,722 ms (2 runs: 2,154-3,290) | 271 ms (2 runs: 266-276) |
+
+**Reading.**
+- *Unfixed* (20 runs in 7 cells): the previous hour's world frame is drawn at full strength for 3.2 to 3.8 s after the zoom-out, whatever the stay (0.8, 2.5 or 5 s), the zoom (jump or wheel) or the session (just opened, map open a minute): nothing the old build does while you wait changes what the zoom-out promotes.
+- *Fixed, map open a minute* (the background lane is free): the world warm's grid goes out about 1.5 s after the hour is set and lands about 3 s later, and its seed replaces the stale base. After a 5 s stay it has landed: 0 s of the wrong hour (all 3 runs), and the right hour is drawn 0.5 s after the zoom-out (unfixed 3.7 s). After 2.5 s it lands just after the zoom-out and the engine's per-frame bridge swaps it in: 0.07 s at full strength, right hour at 0.7 s (unfixed 3.6 s), and the zoom-out's own fetch goes out as well (one duplicate world /grid). After 0.8 s the grid is already in flight when you zoom out: 0.32 s at full strength, dimmed 1.2 s, right hour at 2.3 s (unfixed 3.7 s); the wheel cell reads the same (0.02 s at full strength, dimmed 0.9 s, right hour 2.7 s against 4.6 s).
+- *Fixed, just opened* (the lane is held: the fetch path's own prewarm call owns the world grid, queued behind its own world page): the right hour arrives when the zoom-out's own fetch delivers it, within noise of the unfixed build (3.6 to 4.5 s across the cells, both builds), and the wrong-hour frame is drawn at 40% instead of full strength: 0.02 to 0.3 s at full strength while the engine eases the opacity down (one frame in the wheel cells), then dimmed for 2.9 to 3.6 s.
+- *Unchanged by the fix:* the right hour's arrival in the just-opened cells; and the whole-heat-map blank of 0.25 to 0.32 s in the wheel cells, present in both builds (the known dropout, not caused by this change).
+
+**Live-like latencies, just-opened cells only.** The earlier live harness runs read a one-hour world page at 1.1 to 2.4 s, a 48-frame world page at 2 s on a
+fresh box and 15 to 25 s after a restart, and a world `/grid` at 0.7 to 4.9 s; the flat 8 s mock is too slow for the first and too fast for the second. The
+just-opened cells were run again with a one-hour world page of 2.4 s, a 48-frame world page of 20 s and a world `/grid` of 3 s (`MOCK_WORLD_MINI_MS`,
+`run_live_like.sh`; 3 runs per cell, arms alternating; for a run that never drew the right hour the harness's "settled level" is the dimmed one, so the
+table recomputes those against the reference level):
+
+| dwell | regime / zoom | build | wrong hour at full strength | wrong hour dimmed | right hour drawn after | blank |
+|---|---|---|---|---|---|---|
+| 5 s, live-like latencies | cold / jump | unfixed | 4,078 ms (3 runs: 4,035-4,081) | 0 ms (3 runs: 0-0) | 4,472 ms (3 runs: 4,464-4,486) | 0 ms (3 runs: 0-0) |
+| 5 s, live-like latencies | cold / jump | fixed | 209 ms (3 runs: 200-210) | 3,841 ms (3 runs: 3,833-3,890) | 4,460 ms (3 runs: 4,459-4,482) | 0 ms (3 runs: 0-0) |
+| 0.8 s, live-like latencies | cold / jump | unfixed | 8,623 ms (3 runs: 4,102-8,677) | 0 ms (3 runs: 0-0) | 4,411 ms (3 runs: 4,411-4,411, 2 n/a) | 0 ms (3 runs: 0-0) |
+| 0.8 s, live-like latencies | cold / jump | fixed | 120 ms (3 runs: 0-207) | 8,301 ms (3 runs: 3,783-8,509) | 4,492 ms (3 runs: 4,492-4,492, 2 n/a) | 0 ms (3 runs: 0-0) |
+
+- After a 5 s stay the picture is the flat-mock one with a longer window: the right hour at 4.5 s in both builds (the zoom-out's own world `/grid`
+  went out in 3 of 3 runs of each build); the wrong hour at full strength for 4.1 s unfixed, 0.2 s fixed and then dimmed for 3.8 s.
+- After 0.8 s the zoom-out's own world `/grid` was sent in only 1 of 3 runs of each build (the first 48-frame world page was already in flight and a
+  second went out at the zoom-out), so in the other two runs of each build the right hour had NOT arrived when the 9 s watch ended: unfixed, the wrong
+  hour at full strength for the whole watch; fixed, dimmed for it. The fix makes the wrong hour visible there; it does not bring the right one.
+  Why the request is not sent was not traced. It happens in both builds, so it is not from this change, and it looks like the "over 75 s after a
+  restart" state of the earlier live reads. It is the first thing I would look at next.
+- In all 6 fixed live-like runs the legacy grid stayed queued behind the 48-frame page the selection starts (`gridFirst:false`, queued, not started),
+  and the world warm's call answered `in_flight`.
+
+**What it does not do, and costs.**
+- It does not make the right hour arrive sooner when no right-hour data exists on the client. That is the backend's world `/grid` (3 s offline)
+  plus the zoom-out's own debounce (0.4 to 1.2 s), and a busy background lane can add more; with live-like latencies the zoom-out's own request can itself wait behind
+  the 20 s world pages (above). A faster right hour needs a cheaper right-hour world
+  product, or a fetch at the START of the zoom gesture that bypasses the single background lane (deferred: the lane is the box's protection, A15-11).
+- A dimmed wash is still the wrong hour: the dim says so, it does not fix it. The panel's line stays on during that window.
+- Cost: at most one world `/grid` (2.3 MB, about 3 s of the 1-CPU box) per settled valid time at a regional zoom, GFS and ICON, in the background
+  lane, deduped by valid time. In the 5 s warm cell it MOVED the fetch earlier (the zoom-out then fetched nothing); in the 2.5 s and 0.8 s cells BOTH went out (the
+  zoom-out's own request had left before the warm landed, and the pipeline does not look in the cache again before sending it): one duplicate world
+  `/grid` for that zoom-out. A user who never zooms out pays one extra fetch per settled hour.
+- Not built, possible later: a zoom-out that starts while the warm's grid is in flight could join that request instead of sending its own (it
+  saves the duplicate 2.3 MB and lands the right hour at the warm's pace); the fetch path has no lookup of the prewarm's in-flight key today (the
+  2.5 s and 0.8 s warm cells both sent two world grids).
+- A world frame at least 3.5 h from the selected instant is dimmed whatever the cause: that includes an hour-0 frame in a tab left open for hours
+  (the app has no periodic marine refresh), which `ForecastTimeStatus` already calls a mismatch.
+- Not tested: the live backend (by choice), the owner's Chrome, a real phone, EURO and ICON at far zoom, light and beach themes beyond the two
+  screenshots in `evidence/screenshots`, and the wash ring under a regional frame at z6 to 8: there the base is drawn undimmed (the dim is for world
+  frames only) and follows the selected hour only where the warm's seed landed, so on a just-opened page it is still the page-load hour until the
+  zoom-out commits a world frame. Expected from the code, not measured.
+- My mock's world-series latency decides how bad the unfixed window looks (L-P24): with a flat 8 s for every world page (live reads from the earlier
+  runs: one-hour page 1.1 to 2.4 s, 48-frame page 2 to 25 s, world `/grid` 0.7 to 4.9 s) the unfixed window is 3.2 to 3.8 s (once 8.7 s), inside
+  the live reads of 3 to 9 s; with latency proportional to the frames (a one-hour page 0.3 s) the same flow shows 0.1 to 0.5 s, and the fix changes little.
+
+**Read-back after a deploy.** In the dev site's console, on a page that has been open a minute or more, after selecting a far hour at a regional zoom and
+waiting 5 s: `__MARINE_GLOBAL_PREWARM__.grid` has `startedAt` and `doneAt` with `ok: true`; then zoom out: `__RAW_GPU__.staleHour.why` reads `same_step`,
+never `stale_world`, and the drawn frame is the selected hour's. With a short dwell, `staleHour.why` reads `stale_world` (mult 0.4) until the right hour is
+drawn (`swap: true` in the frame the engine may promote the base). On a page that has just opened the world grid may still be queued behind the fetch
+path's own world page (`grid` has `queuedAt` and no `startedAt`): the dim path then shows, which is the design, not a failure. Rollback: the kill switches above per session (`__RAW_DISABLE_STALE_HOUR_DIM__`, `__RAW_DISABLE_BASE_HOUR_SYNC__`,
+`__RAW_DISABLE_HOUR_WORLD_WARM__`, `__RAW_DISABLE_WORLD_GRID_FIRST__`, `__RAW_DISABLE_STALE_RESIDENT_SWAP__`), or `git revert` of the commit.
+
+**Caught before the commit, by the tests and the replays** (each is a test now): the dim call had been placed between the no-data stamp and the engine
+call, which a source guard in `WebGLMarineCustomLayer.stamp.test.js` pins together; a regional-frame test whose viewport made the layer bail instead of
+draw; the warm gave up when the hour moved inside one frame (no new commit re-arms it); the prewarm's `in_flight` skip was invisible until the
+telemetry existed; a first A/B whose "unfixed" arm never fetched the exact grid inside 9 s turned out to be the mock's flat 8 s series page holding the
+lane (L-P24); and the re-drive described in mechanism 5, built, replayed, found inert and replaced by the swap (see the 2.5 s dwell cell).

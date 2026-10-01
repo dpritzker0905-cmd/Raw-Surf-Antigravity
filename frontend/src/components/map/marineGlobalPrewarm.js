@@ -15,6 +15,7 @@
 import { ensureMarineSeries, getMarineSeriesFrame, runBackgroundWarm } from './marineGridSeries';
 import { fetchBackendMarineGrid, getSharedValidTime } from './backendWeatherServiceClient';
 import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
+import { coarseBaseOutdatedBy } from './marineStaleHour';
 
 let _prewarmDeps = null;
 
@@ -84,6 +85,18 @@ function _recallGlobalByValidTime(key) {
 export function _resetGlobalPrewarmDedupeForTest() {
   _globalGridByValidTime.clear();
   _globalGridPrewarmInFlight.clear();
+  if (typeof window !== 'undefined') delete window.__MARINE_GLOBAL_PREWARM__;
+}
+
+// READ-BACK TELEMETRY (2026-10-01, audit F-21): what each call did and when the world grid actually went out. A warm that "fired"
+// and fetched nothing was invisible (an offline replay saw the call and no request). window.__MARINE_GLOBAL_PREWARM__ =
+// { calls, reasons: { <outcome>: n }, last: { reason, hour, at, ... }, grid: { hour, vt, queuedAt, startedAt, doneAt, ok } }.
+function _note(reason, hour, extra) {
+  try {
+    if (typeof window === 'undefined') return;
+    const t = window.__MARINE_GLOBAL_PREWARM__ = window.__MARINE_GLOBAL_PREWARM__ || { calls: 0, reasons: {} };
+    t.calls++; t.reasons[reason] = (t.reasons[reason] || 0) + 1; t.last = { reason, hour, at: Date.now(), ...extra };
+  } catch (e) { /* telemetry only */ }
 }
 
 // Stage a global-width grid as the zoom-out bridge's coarse-base seed (engine snapshots it at its
@@ -98,16 +111,20 @@ export function _resetGlobalPrewarmDedupeForTest() {
 // then blocked the replacement forever (the user had to zoom far out so a world-coarse commit for
 // the new model landed organically). A base or pending seed only blocks staging when it MATCHES the
 // active (model, layer); a stale-identity base is treated as absent so the switch re-warms the wash.
-export function _coarseBaseMatches(o, m, activeLayer) {
+// HOUR (2026-10-01, marineStaleHour.js, audit F-21): `g`, the grid about to be staged, is optional. A base (or pending seed)
+// made for ANOTHER HOUR does not "match" it: the old identity-only test refused every right-hour seed for as long as the
+// page-load world frame (the "now" hour) was held, so the zoom-out bridge promoted the wrong hour. Kill: __RAW_DISABLE_BASE_HOUR_SYNC__.
+export function _coarseBaseMatches(o, m, activeLayer, g) {
   return !!o && (o.__sourceModel || 'GFS') === (m || 'GFS') &&
-         (o.__componentLayer || 'waves') === (activeLayer || 'waves');
+         (o.__componentLayer || 'waves') === (activeLayer || 'waves') &&
+         !(g && coarseBaseOutdatedBy(o, g));
 }
 export function _stageCoarseBridgeSeed(g, m, activeLayer, from) {
   try {
     const eng = (typeof window !== 'undefined') && window.__MARINE_ENGINE__;
     if (eng && g &&
-        !_coarseBaseMatches(eng._coarseBaseData, m, activeLayer) &&
-        !_coarseBaseMatches(eng._pendingCoarseBaseGrid, m, activeLayer) &&
+        !_coarseBaseMatches(eng._coarseBaseData, m, activeLayer, g) &&
+        !_coarseBaseMatches(eng._pendingCoarseBaseGrid, m, activeLayer, g) &&
         (typeof window === 'undefined' || window.__RAW_DISABLE_COARSE_BRIDGE__ !== true)) {
       if (!g.__sourceModel) g.__sourceModel = m;
       if (!g.__componentLayer) g.__componentLayer = activeLayer;
@@ -135,26 +152,21 @@ export function _rewarmWashBaseIfStale(m, hourOffset, bounds, activeLayer) {
   } catch (e) { /* best-effort */ }
 }
 
-export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) {
-  try {
-    // FAIL SOFT ON AN UNREGISTERED DEP (the seam, 2026-08-11): a warm must never break the gesture
-    // that triggered it, so a missing dependency RETURNS — it never throws and never half-runs.
-    const deps = _prewarmDeps;
-    if (!deps || typeof deps.isSiblingPrewarmEnabled !== 'function' ||
-        typeof deps.getModelSafeMarine !== 'function' || typeof deps.cacheMarineResult !== 'function') return;
-    if (!deps.isSiblingPrewarmEnabled()) return;
-    if (typeof window !== 'undefined' && window.isScrubbingTimeline) return;
-    if (!bounds || bounds.east === undefined || bounds.north === undefined) return;
-    // Only while ZOOMED IN (regional viewport ≤ 15°) — that's when a zoom-out is the next likely
-    // gesture and the global is cold. At a wide viewport we already hold or are actively fetching it.
-    const vw = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
-    const vh = Math.abs(bounds.north - bounds.south);
-    if (vw > 15 || vh > 15) return;
-    const m = model || 'GFS';
-
-    // THE SERIES HALF (audit v6) -- rationale relocated 2026-08-11 to keep marineController under the 800
-    // LOC ratchet (it was 853). NOTHING WAS DELETED: the full reasoning, verbatim, is in
-    // docs/research/FINDING-2026-08-11-marineController-rationale.md#series-half
+// `opts.gridFirst` (2026-10-01, audit F-21, marineStaleHour.js), optional and opt-in: the world warm (marineWorldWarmOnSettle.js) passes it,
+// every other caller keeps the old order. The exact world grid goes out BEFORE the world series half, which holds the background lane's
+// single slot while it loads. The series half then starts when the grid settles, or at once if there is nothing to fetch.
+// Kill: __RAW_DISABLE_WORLD_GRID_FIRST__.
+export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, opts) {
+  const gridFirst = !!(opts && opts.gridFirst) && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WORLD_GRID_FIRST__ === true);
+  let _seriesStarted = false;
+  let _deferSeries = false;
+  let _gatesPassed = false;
+  // THE SERIES HALF (audit v6) -- rationale relocated 2026-08-11 to keep marineController under the 800
+  // LOC ratchet (it was 853). NOTHING WAS DELETED: the full reasoning, verbatim, is in
+  // docs/research/FINDING-2026-08-11-marineController-rationale.md#series-half
+  const startSeriesHalf = (m) => {
+    if (_seriesStarted) return;
+    _seriesStarted = true;
     if (typeof window === 'undefined' || window.__RAW_DISABLE_GLOBAL_SERIES_PREWARM__ !== true) {
       try {
         // No abort signal, matching the grid warm: a background best-effort warm must survive the
@@ -163,6 +175,25 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
         ensureMarineSeries(m, activeLayer, _GLOBAL_BOUNDS, hourOffset, undefined, true, false, true /* background (A15-11) */);
       } catch (e) { /* best-effort: a warm must never break the gesture that triggered it */ }
     }
+  };
+  try {
+    // FAIL SOFT ON AN UNREGISTERED DEP (the seam, 2026-08-11): a warm must never break the gesture
+    // that triggered it, so a missing dependency RETURNS — it never throws and never half-runs.
+    const deps = _prewarmDeps;
+    if (!deps || typeof deps.isSiblingPrewarmEnabled !== 'function' ||
+        typeof deps.getModelSafeMarine !== 'function' || typeof deps.cacheMarineResult !== 'function') { _note('declined', hourOffset, { why: 'no_deps' }); return; }
+    if (!deps.isSiblingPrewarmEnabled()) { _note('declined', hourOffset, { why: 'disabled' }); return; }
+    if (typeof window !== 'undefined' && window.isScrubbingTimeline) { _note('declined', hourOffset, { why: 'scrubbing' }); return; }
+    if (!bounds || bounds.east === undefined || bounds.north === undefined) { _note('declined', hourOffset, { why: 'no_bounds' }); return; }
+    // Only while ZOOMED IN (regional viewport ≤ 15°) — that's when a zoom-out is the next likely
+    // gesture and the global is cold. At a wide viewport we already hold or are actively fetching it.
+    const vw = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
+    const vh = Math.abs(bounds.north - bounds.south);
+    if (vw > 15 || vh > 15) { _note('declined', hourOffset, { why: 'wide_view' }); return; }
+    const m = model || 'GFS';
+    _gatesPassed = true;
+
+    if (!gridFirst) startSeriesHalf(m);
 
     // F-03: dedupe on the RESOLVED valid_time, not the raw hourOffset -- three 1-hour steps share
     // one 3-hourly frame. Falls back to the offset key if the time cannot be resolved, which is
@@ -174,7 +205,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
     let _vt = null;
     try { _vt = getSharedValidTime(hourOffset, activeLayer, m, { readOnly: true }); } catch (e) { _vt = null; }
     const key = _vt ? _vtKey(m, activeLayer, _vt) : `${m}_${hourOffset}_${activeLayer}_GLOBALGRID`;
-    if (_globalGridPrewarmInFlight.has(key)) return;
+    if (_globalGridPrewarmInFlight.has(key)) { _note('in_flight', hourOffset, { vt: _vt }); return; }
     // An earlier offset that resolved to this same valid_time already fetched this exact world
     // grid. Re-cache it under THIS offset and seed the bridge -- zero network, identical pixels.
     if (_vt) {
@@ -183,6 +214,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
       if (sharedGrid && Array.isArray(sharedGrid.vectors) && sharedGrid.vectors.length > 0) {
         deps.cacheMarineResult(m, hourOffset, shared, activeLayer, true);
         _stageCoarseBridgeSeed(sharedGrid, m, activeLayer, 'valid_time_dedupe');
+        _note('valid_time_dedupe', hourOffset, { vt: _vt });
         return;
       }
     }
@@ -198,6 +230,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
       const cw = cb ? ((cb.east < cb.west) ? (cb.east + 360) - cb.west : cb.east - cb.west) : 0;
       if (cw >= 340) {
         _stageCoarseBridgeSeed(cached.grid, m, activeLayer, 'cache_warm');
+        _note('cache_warm', hourOffset, { vt: _vt });
         return;
       }
     }
@@ -224,17 +257,22 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
       } else {
         deps.cacheMarineResult(m, hourOffset, seriesFrame, activeLayer, true);
         _stageCoarseBridgeSeed(sg, m, activeLayer, 'series_cache');
+        _note('series_cache', hourOffset, { vt: _vt });
         return;
       }
     }
     _globalGridPrewarmInFlight.add(key);
+    _deferSeries = gridFirst;      // the series half waits for this grid (finally below)
+    const _gridT = { hour: hourOffset, vt: _vt, gridFirst, queuedAt: Date.now() };
+    _note('fetch', hourOffset, { vt: _vt, gridFirst });
+    if (typeof window !== 'undefined' && window.__MARINE_GLOBAL_PREWARM__) window.__MARINE_GLOBAL_PREWARM__.grid = _gridT;
     // No abort signal: this is a background best-effort warm that must survive the pan/zoom which
     // would otherwise cancel it. The global-coarse is location-independent, so it warms once and
     // serves every subsequent zoom-out.
     // A15-11: under the series limiter's BACKGROUND lane (one slot, after anything on screen) instead of
     // beside it — this world /grid used to bypass the cap entirely at every activation.
     Promise.resolve()
-      .then(() => runBackgroundWarm(() => (m === 'ICON')
+      .then(() => runBackgroundWarm(() => (_gridT.startedAt = Date.now(), m === 'ICON')
         ? fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer, 'ICON')
         : (m === 'EURO')
           // EURO world-coarse is a manifest product like the others (decoupled era) but routes
@@ -244,6 +282,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
           : fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer)))
       .then((result) => {
         const g = result && result.grid;
+        _gridT.doneAt = Date.now(); _gridT.ok = !!(g && Array.isArray(g.vectors) && g.vectors.length > 0);
         if (g && Array.isArray(g.vectors) && g.vectors.length > 0) {
           deps.cacheMarineResult(m, hourOffset, result, activeLayer, true /* silent: no truth-stage pollution */);
           // F-03: remember it under the RESOLVED valid_time so the sibling offsets that share this
@@ -257,7 +296,8 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
           _stageCoarseBridgeSeed(g, m, activeLayer);
         }
       })
-      .catch(() => { /* best-effort: a cold zoom-out just falls back to the live fetch */ })
-      .finally(() => { _globalGridPrewarmInFlight.delete(key); });
+      .catch(() => { _gridT.doneAt = _gridT.doneAt || Date.now(); _gridT.ok = false; /* best-effort: a cold zoom-out just falls back to the live fetch */ })
+      .finally(() => { _globalGridPrewarmInFlight.delete(key); if (gridFirst) startSeriesHalf(m); });
   } catch (e) { /* never let prewarm break the active fetch */ }
+  finally { if (gridFirst && _gatesPassed && !_deferSeries) startSeriesHalf(model || 'GFS'); }   // nothing to fetch: the series half starts at once, as it always did
 }

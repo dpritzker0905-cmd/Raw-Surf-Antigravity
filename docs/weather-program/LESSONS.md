@@ -281,3 +281,39 @@ before starting it.
   again and again, and the commit arbiter's `hour_change` rule has the same hole. Ask "is this the same data" with
   `served_valid_time` and the run, never with the label; `keepExactResident` is the one place that now does. Other
   label-based checks in the engine may share the flaw. (2026-10-01)
+- **L-F11 · A retained frame is a claim about an hour: check the claim when you DRAW it, not only when you store it.** The
+  zoom-out bridge keeps one coarse base per model|layer|flavor and promotes it whatever hour it was made for. The seed that
+  would have refreshed it was refused by an identity-only gate (model and layer) for as long as the page-load frame was held,
+  and the engine discarded it for the same reason, so a Wednesday selection zoomed out drew the hour-0 field at full strength
+  for 3.2 to 3.8 s offline (3 to 9 s in the live reads) under a readout that said Wed (the panel's own "Forecast time does not
+  match this selection" line was showing: the app knew). Any holder that keeps a frame and draws it later (the bridge base, the wash base, a resident frame after an
+  hour change) must carry the hour it was made for (valid time, never the label: L-F10) and be judged against the selection at
+  the moment of drawing. `coarseBaseStaleForSeed` (replace a base made for another hour) and `resolveStaleWorldDim` (draw a
+  world frame for another hour provisional) are the two places that now do. (2026-10-01, log `2026-10-01-far-zoom-max-thinning.md`)
+- **L-P23 · Re-aiming a replay by hand twice is the signal to mechanize it: pin the clock.** The app's hour 0 is the current
+  time rounded to the NEAREST hour, so a selected hour that was "Oct 7 16Z" at 18:20Z is another hour at 18:31Z, and an A/B
+  whose arms straddle :30 compares different hours (L-P22 re-aimed it by hand; this fix needed it again). The harness now pins
+  the app's anchor (`window.__MOCK_DATE_NOW__`, `PIN_NOW`) and states hour 0, the clicks and the target together, and the arms
+  alternate their order (the basemap tiles come from the internet, so the second arm of a pair always saw a warmer edge cache:
+  the first arm's 700 ms screenshots lacked basemap labels in both pairs I looked at). (2026-10-01)
+- **L-P24 · A mock's flat latency decides what a replay can see: calibrate it against a live measurement of the same request
+  class, and run both bounds.** The offline mock gave every world series request 8 s, including the one-hour "mini" the
+  prewarm sends. The bounded background lane then starved the world grid behind it, and the unfixed build drew the wrong hour
+  for 3.2 to 3.8 s (once 8.7 s), inside the live reads (3 to 9 s warm, over 75 s after a restart). With latency proportional to
+  the frames built (a one-hour mini 0.3 s) the same flow drew it for 0.1 to 0.5 s, because the cached thin frame arrived at once.
+  Live (the audit's own earlier harness runs, `scn_farzoom_cold`, `scn_farzoom`, `scn_timeline`): a regional one-hour mini 0.2 s,
+  a world one-hour page 1.1 to 2.4 s, a 48-frame world page 2 s on a fresh box and 15 to 25 s after a restart, a world `/grid`
+  0.7 to 4.9 s. So the flat 8 s is too slow for the mini and too fast for the big page, and the just-opened-page cells of the F-21
+  matrix depend on that shape (the fetch path's own world series half holds the lane's slot, with the world grid queued behind
+  it). I first wrote "the world mini was never measured" here: the measurement was already in the audit's evidence folder.
+  State which regime a number comes from (`MOCK_WORLD_PAGE_SCALE=1` is the proportional one, `MOCK_WORLD_MINI_MS` the live-like
+  mini), and grep the evidence you already hold for the live request class before saying it is unmeasured. (2026-10-01)
+- **L-P25 · Say what holds a queue from the call's own timestamps, not from the code or the first trace.** The F-21 fix needed
+  to know why the right-hour world grid had not arrived before a zoom-out. Reading the code and the first traces gave two
+  different answers at different times (a 48-frame world page that starts at the selection; the prewarm's own series half), and
+  neither was what the call's own record showed once it existed: `__MARINE_GLOBAL_PREWARM__.grid` carries `gridFirst`, `queuedAt`,
+  `startedAt` and `doneAt`, and on a page that has just opened it showed the fetch path's own call owning the in-flight key with its
+  grid queued behind its own world series half (`gridFirst:false`, queued, never started in 9 s). That is what happened on the
+  mock, where the half costs 8 s; live it costs 1 to 2.4 s (L-P24), so the same record read on the live site is what says whether
+  a just-opened page behaves that way. A request that can wait must record in its own telemetry when it was asked for, when it
+  started, when it finished and who asked, before anyone names the blocker. (2026-10-01, log `2026-10-01-far-zoom-max-thinning.md`)

@@ -1,13 +1,40 @@
 # Weather program: state
 
-**Updated 2026-10-01 15:06Z** (logs: `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
-legend, a load incident, and the exact-frame fix for far zoom), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
+**Updated 2026-10-01 21:35Z** (logs: `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
+legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, and the failing-runs note), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
 (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-01 21:35Z (seq 283-286; same branch, third local commit, NOT pushed): the wrong-hour far-zoom frame (F-21) is fixed in the CLIENT,
+  ON BY DEFAULT** (owner: "keep it on, defer the flip, now fix the wrong-hour frame": the exact-frame fix stays on, `SERIES_DECIMATE_MODE=max`
+  is NOT turned on in Render, nothing to do there). After a zoom-out the engine drew the world frame the page loaded with (hour 0: swell 0.78 m
+  where Wednesday reads 2.33 m) at full strength for 3.2 to 3.8 s offline (3 to 9 s live) under a readout naming the selected hour. Causes: the
+  zoom-out bridge promotes a held base that carries no hour; the seed gates (the prewarm's staging and the engine's seed line) asked only model and
+  layer, so a right-hour seed was refused then discarded; nothing marked a wrong-hour frame provisional; and on a just-opened page the fetch path's
+  own prewarm call owns the world grid behind its own world page, so no later call can send it. Built (`marineStaleHour.js`,
+  `marineStaleHourLayer.js`, `marineWorldWarmOnSettle.js` + small edits; engine 3207 -> 3205 lines, `useMarineScrubSettle.js` 792 -> 794): an
+  hour-aware seed and base, a wrong-hour world frame replaced by the held base or drawn at 0.4 strength beside the panel's existing "Forecast time
+  does not match this selection" line, and a grid-first world warm after a 1.5 s hold; five kill switches (`__RAW_DISABLE_BASE_HOUR_SYNC__`,
+  `_STALE_HOUR_DIM__`, `_STALE_RESIDENT_SWAP__`, `_HOUR_WORLD_WARM__`, `_WORLD_GRID_FIRST__`). **Offline A/B** (mock backend, NO live request, app
+  clock pinned, final build vs the previous commit, medians): the previous hour at full strength after a zoom-out, map open a minute: 3.3 s ->
+  0 s after a 5 s stay, 0.07 s after 2.5 s, 0.32 s after 0.8 s (then dimmed 1.2 s); just-opened page: at most 0.3 s at full strength, then dimmed
+  (2.9 to 3.6 s), the right hour unchanged (3.6 to 4.5 s). 112 new tests in 9 files, 69 mutations each turning a test red. Not tested live,
+  in the owner's Chrome, on a phone, or for EURO/ICON at far zoom; the mock charges every world page 8 s while the earlier live runs read 1.1 to 2.4 s
+  (one-hour page) and 2 to 25 s (48-frame page), so the just-opened-page rows rest on that shape (re-run with live-like latencies (one-hour page 2.4 s, 48-frame page 20 s): after a 5 s stay the same picture (right hour at 4.5 s in both builds, the wrong hour dimmed instead of full strength); after 0.8 s the zoom-out's own world grid was not sent within 9 s in 2 of 3 runs of each build, so there the right hour had not arrived after 9 s and the fix only dims the wrong hour (not traced; present in both builds).). Cost: up to one 2.3 MB world `/grid` per settled hour at a regional zoom (GFS, ICON).
+  No served number changes (no SCOREBOARD row). Commitment seq 286 (due 2026-10-04T18:00Z): the three far-zoom commits reach dev and are read
+  back there. Log: `log/2026-10-01-far-zoom-max-thinning.md`; DECISIONS D-012; LESSONS L-F11, L-P23, L-P24, L-P25.
+- **2026-10-01 18:59Z (seq 281-282; read-only, nothing changed): the owner reports runs failing in their email notifications; the 2:47 pm EDT one
+  (18:47Z) is the Forecast Accuracy Monitor, RED since 07:08Z.** Runs #205 (18:49Z) and #204 (07:08Z) fail with the same four gates: skill
+  ledger scored zero past its recovery window; skill floor unmeasured; archive reader blind (credentials present, the residual history
+  segment would not load); and "a fresh calibration report carries no `forecast_skill_ops` block". Green on #199-#203 (to 09-30 22:58Z). The
+  live `/api/weather/buoy-calibration` is fresh (16:35Z, height MAE 0.211 m over 59 spots) and has no `forecast_skill_ops` key, so the skill
+  ledger is not attaching: the instrument that grades the program is dead, and commitments seq 149 and 172 need it. Cause NOT determined
+  (the run logs need `gh auth login`); the leads and the other red runs today (E2E 11:52Z, CI on the ledger-215 PR 12:14Z, MOP ingest 13:24Z,
+  Marine Nightly 13:46Z) are in `log/2026-10-01-far-zoom-max-thinning.md` at 18:58Z. Not from this branch (nothing pushed; offline replays
+  only). Commitment seq 282, due 2026-10-02T14:00Z.
 - **2026-10-01 15:06Z (seq 278-280; same branch, second local commit, NOT pushed): the exact-frame fix for far zoom is built,
   CLIENT ONLY and ON BY DEFAULT** (owner: "yes, build the exact-frame fix for far zoom"). At far zoom the app now draws the
   exact 2-deg world frame; the thinned series frame is only the instant placeholder. Located first: the scrub-settle check
@@ -21,7 +48,8 @@ is a claim, not a measurement.
   `window.__MARINE_EXACT_UPGRADE__`. **Offline A/B** (mock backend, NO live request; 25 seeded trials): frames with the
   Florida swell under 75% of exact 11.1% -> 0.7%, lower in 20 of 20 seeds; a far-zoom scrub now ends on the exact frame about
   4 s after the placeholder (it never did). NOT fixed: the wrong-hour window (the engine's `bridgeToCoarseGlobalIfHeld`
-  promotes the held hour-0 base for ~4.4 s: a different mechanism, seq 280 corrects my earlier "arbiter") and the whole-heat-map
+  promotes the held hour-0 base for ~4.4 s: a different mechanism, seq 280 corrects my earlier "arbiter"; fixed later the same day, the first
+  bullet) and the whole-heat-map
   dropouts at z4.3-6.3 (about 5% of frames, same before and after). Not tested live, in the owner's Chrome, or for EURO/ICON.
   Recommendation: keep it on, defer the max-thinning flip. Log: `log/2026-10-01-far-zoom-max-thinning.md`.
 - **2026-10-01 12:42Z (seq 274; branch `claude/far-zoom-max-thinning`, committed locally, NOT pushed: the gh token is
@@ -34,7 +62,8 @@ is a claim, not a measurement.
   price:** nodes under by >1 m 454 -> 23, over by >1 m 173 -> 1,291, mean bias -0.08 -> +0.46 m, mean abs error 0.30 -> 0.51 m,
   Florida 1.34 and 1.21 -> 2.37 and 2.29 m (exact 2.33 and 2.41); the first-built 5x5 window read the whole ocean 0.88 m
   high and was refuted. Flip = `SERIES_DECIMATE_MODE=max` in Render (owner-only), read back with the Florida check and S11.
-  Still OPEN (seq 276): the far-zoom frame is the WRONG HOUR for 3-9 s (over 75 s right after a restart) after a zoom-out or a
+  Still OPEN (seq 276): the far-zoom frame is the WRONG HOUR for 3-9 s (over 75 s right after a restart) after a zoom-out (FIXED
+  locally later the same day: the first bullet) or a
   far-zoom scrub, the thinned frame stayed drawn (FIXED, the bullet above: it was committed over the exact one), and the crest layer drops
   out for 0.4-0.7 s at z4.6-6.2. Incident (seq 275): this session's live replays saturated the 1-CPU box (health 7-8 s) and the owner saw "Couldn't
   load surf spots"; stopped 12:39:57Z. Log: `log/2026-10-01-far-zoom-max-thinning.md`.
@@ -164,7 +193,7 @@ is a claim, not a measurement.
   580 (582). #215 moves guards to 179 / 2177 (its run read 2183).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 280, sha256 8f76579fd9658f0eb238fcf8653cc17dbf63b841ffc1056ebc9d8e236059e78d**
+  **Ledger head: seq 286, sha256 b9b44a7c50ba325347656694a5f02df705b9af8b5dff96403529628e4a7bcb5c**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
