@@ -1,7 +1,8 @@
 # Weather program: state
 
 **Updated 2026-10-01 03:11Z** (logs: `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
-diagnostics stamps, #213), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+diagnostics stamps, #213), `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
+(#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
@@ -115,7 +116,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 245, sha256 325e9d1f265cc71eb93f871e8743b4ad610069c5072d3f314dede72d4c68c10c**
+  **Ledger head: seq 259, sha256 eedf58724be6dff83185645d1615f8edb56637320efdeb250460b51fac2b77fb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
