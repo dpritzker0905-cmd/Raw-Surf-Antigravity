@@ -268,3 +268,16 @@ before starting it.
   merged at 03:48-03:50Z and #210 and #211 at 04:12-04:13Z (2026-10-01): two CI windows for four PRs, the only
   extra push being #210's record of #212's merge. Read the rule from the checker
   (`memory_audit.check_completeness`), not from habit. (log `2026-10-01-grid-resolver-no-shared-diagnostics.md`)
+- **L-P22 · Replay the owner's own pattern against the unfixed build, seeded, before saying "fixed".** The exact-frame
+  fix passed its unit tests and the one scrub replay that showed the bug, and was a no-op on the owner's actual pattern
+  (erratic zoom at one timestamp: 8.4% of frames weak against 9.1% unfixed): it followed every thin commit with an
+  upgrade, and the settle check put the thin frame back. Only a seeded A/B of that pattern against a build of the
+  previous commit (5 seeds, then 10 new ones) showed it, and only a per-commit trace (lane, grid, zoom) showed why. Build
+  the unfixed arm first, keep the seeds, trace every commit, and re-aim the harness when the clock moves it (the app's hour
+  0 is the current time rounded to the hour). (2026-10-01, log `2026-10-01-far-zoom-max-thinning.md`)
+- **L-F10 · A label is the identity of a request, not of the data.** At 3-hourly far range the frames serving one selected
+  hour carry different `hourOffset` labels (series 145, exact grid 144, selection 146, all valid 15Z). "Rendered label !=
+  selected hour" read as stale, so the settle check committed the thinned series frame over an exact frame of the same data
+  again and again, and the commit arbiter's `hour_change` rule has the same hole. Ask "is this the same data" with
+  `served_valid_time` and the run, never with the label; `keepExactResident` is the one place that now does. Other
+  label-based checks in the engine may share the flaw. (2026-10-01)
