@@ -43,3 +43,16 @@ Session `clock-every-header`, branch `claude/clock-check-every-header` (#208). I
   so #208's audit WARNs for it as expected.
 - LESSONS auto-merged (#207's L-P18 and this branch's L-P10 note do not touch). STATE: `dev` = `ac080442`, #207
   merged, #208 the only open PR of ours, anchor at seq 248.
+
+## #213 merged; the ledger re-chained a fourth time; #213's merge recorded (03:10:16Z)
+- The app's Auto-fix reported #208 conflicting at `db0b0c3e`. Cause: #213 (`claude/grid-resolver-no-shared-
+  diagnostics`, another session: `resolve_grid` copies a served grid's diagnostics dict before stamping it) was
+  merged by the owner's account at 2026-10-01T03:07:59Z as `454d96cb` (gh). `dev`'s ledger now ends at seq 242,
+  and `dev` already records #207's merge (seq 239, so nothing is left for c188's next PR there).
+- `dev`'s 1-242 kept byte-identical; this branch's ten lines re-appended. **Correction to the tables above:** the
+  finding is now **243**, `pr_open #208` **244**, the six 09-29 header corrections **245-250**, the `push` **251**
+  and the `memory_write` **252**.
+- **Seq 253: `pr_merge #213`** (reconstructed). Checked first that neither `dev` nor any open PR's ledger (#210,
+  #211, #212, read from their branches) carries it; README rule 8 has a session ledger every owner action it learns
+  of. If another PR lands first with the same line, #208 drops this one at its next re-chain.
+- STATE: `dev` = `454d96cb`, #213 merged, #210-#212 named as open from other sessions, anchor at seq 253.

@@ -228,3 +228,9 @@ before starting it.
   820 MB was a fresh-restart outlier (38-45% of 2 GB); the normal level then was 70-80%. Every deploy restarts the box,
   so a single `/api/health` RSS after a merge measures the restart, not the load. (2026-09-26, moved from local memory
   2026-09-30)
+- **L-P20 · Mutate the fix and watch the guard, not only the tests.** The AST guard built for `grid_resolver`'s shared
+  diagnostics (2026-10-01) first accepted any copy on an EARLIER LINE of the same function. Reverting step 4's copy
+  turned four behavioural tests red and left the guard green: the EURO -> GFS fallback's copy, inside its own branch
+  ~180 lines up, "covered" the step-4 writes. The rule became structural dominance (an earlier statement of the
+  write's own or an enclosing block), with that shape as a control. A guard is a test of the next change, so its
+  mutation check is the same one the fix gets. (log `2026-10-01-grid-resolver-no-shared-diagnostics.md`)

@@ -1,6 +1,7 @@
 # Weather program: state
 
-**Updated 2026-10-01 00:17Z** (logs: `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md` (#208), `log/2026-09-30-mojibake-debris.md` (#206, #209), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30, #207), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-10-01 03:10Z** (logs: `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
+diagnostics stamps, #213), `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md` (#208), `log/2026-09-30-mojibake-debris.md` (#206, #209), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30, #207), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
@@ -49,20 +50,23 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `ac080442`** (#207 at 2026-10-01 00:15:39Z, docs only: the far-zoom heatmap report's root mechanism,
-  L-P18; before it #209 at 2026-09-30 23:57:13Z as `e8321acc`, docs only, and #206 at 23:39:24Z as `1ff11a05`,
-  the encoding-debris cleanup and its source guard; frontend, so Render restarted, W-26). ⚠️ Every frontend
+- **`dev` = `454d96cb`** (#213 at 2026-10-01 03:07:59Z: `resolve_grid` copies a served grid's diagnostics dict
+  before stamping it, plus an AST guard; backend, so Render restarted, W-26; no served number changes). Before it
+  `ac080442` (#207 at 00:15:39Z, docs only), `e8321acc` (#209 at 2026-09-30 23:57:13Z, docs only) and #206 at
+  23:39:24Z as `1ff11a05`, the encoding-debris cleanup (frontend, so Render restarted, W-26). ⚠️ Every frontend
   merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
 - **Open PRs of ours:** #208, the clock check (branch `claude/clock-check-every-header`; L-P10): every `## ` log
   header is read, and every clock claim (STATE, HANDOFFs, logs) is held to the commit that wrote THAT line (git
-  blame). The 7 headers that ran ahead are corrected in the ledger (seq 233, 241-246) and listed in one NOTE; a
+  blame). The 7 headers that ran ahead are corrected in the ledger (seq 233, 245-250) and listed in one NOTE; a
   blame fallback on a committed file WARNs (FAILs in CI). Auto-fix on; its merge restarts Render, W-26; seq
-  239-240, 247-248 (re-chained three times, after #206, #209 and #207). `pr_merge #207` is left to the c188
-  session's next PR. Merged 2026-10-01: #207 (00:15:39Z as `ac080442`, docs: the heatmap root mechanism, L-P18;
-  seq 237-238). Merged 2026-09-30: #209 (23:57:13Z as `e8321acc`, docs only: #206's merge line; seq 234-236),
-  #206 (23:39:24Z as `1ff11a05`, the ASCII debris `da30f15d` left in user-visible strings + the
+  243-244, 251-253 (re-chained four times; seq 253 records #213's merge). #210, #211 and #212 are open from other
+  sessions (each re-chains after whichever merges before it; #210 also records `pr_merge #207`, which `dev` has as
+  seq 239, so it drops its duplicate). Merged 2026-10-01: #213 (03:07:59Z as `454d96cb`; seq 240-242, its merge
+  seq 253 on #208), #207 (00:15:39Z as `ac080442`, docs: the heatmap root mechanism, L-P18; seq 237-239). Merged
+  2026-09-30: #209 (23:57:13Z as `e8321acc`, docs only: #206's merge line; seq 234-236), #206 (23:39:24Z as
+  `1ff11a05`, the ASCII debris `da30f15d` left in user-visible strings + the
   `encodingDebris` source guard; no served number changes; seq 234), #205 (22:55:23Z as `8abc6e61`, the marker PR; seq 232), #204 (22:15:26Z, the map chrome in three themes), #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
   W-31 `unknown_depth`), #200 (20:44:00Z, commitment 203:
   the probe grades with the glyph's tide; the A/B dispatch pair follows), #199 (20:25:43Z, W-30 DARK
@@ -111,7 +115,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 248, sha256 762496687d81b272fd097b8c7570f1417b996c7550b352104f1841349e323519**
+  **Ledger head: seq 253, sha256 01ce6cbad44761bca48bfa7086bd4e6a99002f3bfe37021ec3f91346750877ad**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
