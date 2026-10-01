@@ -13,7 +13,7 @@ is a claim, not a measurement.
   of the whole 15k-cell world clip per frame, 10.3 of 12.9 s profiled), and the live Open-Meteo lane takes turns
   with it: when it wins, every hour is a 25x12 grid at 15 deg; when it loses, the stored page is cut at the 20 s
   deadline. SCOREBOARD S11 (new, `series_page_probe.py`): 8.0-43.4% of hours served from the stored field. FIX in
-  the commitment-228 PR (frames byte-identical; the live lane skipped only where strictly coarser). After the merge,
+  #210 (frames byte-identical; the live lane skipped only where strictly coarser). After the merge,
   S11 on the new build closes or re-opens commitment 228.
 - **W-10 R4-R7 measured (seq 224; log c188):** the release evidence for D-002. R4/R5 found four single-theme map
   controls, a label cut to "Request a " since 2026-05-18 (production too), and light-chip contrast under AA: fixed in
@@ -59,8 +59,8 @@ is a claim, not a measurement.
   2026-09-30 23:39:24Z, the encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** the commitment-228 fix (branch `claude/c228-world-series`; backend, so its merge restarts
-  Render), #208 (the clock-check session's memory_audit fix; re-chains after dev's head). Merged: #207 (2026-10-01
+- **Open PRs of ours:** #210, the commitment-228 fix (branch `claude/c228-world-series`; backend, so its merge
+  restarts Render; seq 241), #208 (the clock-check session's memory_audit fix; re-chains after dev's head). Merged: #207 (2026-10-01
   00:15:39Z as `ac080442`, docs; seq 239), #209 (23:57:13Z as
   `e8321acc`, docs; seq 236), #206 (23:39:24Z as `1ff11a05`, the ASCII debris `da30f15d` left in user-visible strings + the
   `encodingDebris` source guard; no served number changes; seq 234), #205 (22:55:23Z as `8abc6e61`, the marker PR; seq 232), #204 (22:15:26Z, the map chrome in three themes), #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
@@ -111,7 +111,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 240, sha256 df243366343dc3c1cb2e7c731c569006c82f88b530399ed2e0059e46a958b4d6**
+  **Ledger head: seq 241, sha256 adc64ae7c1440f95f185d42501ac6f7b99c7bb45ec0342664159390d67e95709**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
