@@ -104,3 +104,6 @@ no fixture can tell the cap is there. Pre-existing; not in scope.
 
 - seq 239 `finding` (the confirmation, test and live; acted 00:39:30Z), seq 240 `correction` (L-P16's churn claim).
 - Commits: `0e65e188` (the RED test), `ea3aa78d` (the fix, the reworked layer tests, the guards floor).
+- PR #211 opened 00:49:38Z (seq 241 `pr_open`); commitment seq 242 (due 2026-10-04 18Z): the S11 "after" row once
+  #211 is deployed. #207's `pr_merge` line is carried by #210 (its seq 239), so it is not duplicated here; the audit's
+  WARN for it clears when #210 merges. #208, #210 and #211 all append from seq 239: the second to merge re-chains.

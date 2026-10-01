@@ -1,9 +1,16 @@
 # Weather program: state
 
-**Updated 2026-09-30 23:59Z** (logs: `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
+**Updated 2026-10-01 00:50Z** (logs: `log/2026-10-01-coarse-fill-shared-vectors.md` (#211), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- ⛔ **2026-10-01 (seq 239; #211, open for the owner's word): the serve-time coarse marine fill wrote GFS values into
+  the CACHED EURO/ICON product** (`coarse_gulf_fill.py` mutated the L1 cache's shared vector objects). Live: a 40-deg
+  EURO `waves` clip had 119 of 399 cells flip masked -> valid (inland Texas among them, unstamped) after anyone's
+  world request; world `swell_1`/`wind_waves` lost their `coarse_fill` stamp on every repeat within the 5-min L1
+  TTL. #211 copies instead of mutating: world responses unchanged; later readers revert to the model's own mask
+  (a served-number change on that path; SCOREBOARD S11 before row; after row = commitment 242). Not fixed, owner's
+  call: on the 2-deg world clip the fill's 8-deg reach paints GFS heights inland on the world response itself.
 - ⛔ **OWNER REPORT 2026-09-30 22:18Z (seq 227; commitment 228): marine heatmap blank at far-out zooms on forecast
   hours until zooming in.** ROOT MECHANISM from the Render logs (seq 237): the zoomed-out grid_series' live
   fast path times out (2.5 s) and its per-hour loop (10 s/hour, 20 s deadline, 1 CPU) drops many hours under load,
@@ -53,7 +60,9 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #207 (docs: the heatmap root mechanism, L-P18; seq 237-238, merging on the owner's word), #208
+- **Open PRs of ours:** #211 (the coarse fill copies instead of writing into the L1 product; seq 239-242; moves the
+  guards floor to 177 / 2145 and `_FLOOR_SET_FROM["guards"]` -> 2151; conflicts with #210 on that line and with
+  #208/#210 on the ledger chain: the second to merge re-chains), #207 (docs: the heatmap root mechanism, L-P18; seq 237-238, merging on the owner's word), #208
   (the clock-check session's memory_audit fix; re-chains after dev's head). Merged 2026-09-30: #209 (23:57:13Z as
   `e8321acc`, docs; seq 236), #206 (23:39:24Z as `1ff11a05`, the ASCII debris `da30f15d` left in user-visible strings + the
   `encodingDebris` source guard; no served number changes; seq 234), #205 (22:55:23Z as `8abc6e61`, the marker PR; seq 232), #204 (22:15:26Z, the map chrome in three themes), #203 (21:43:10Z, `CONSENSUS_SERVE_KEEP_GFS`, dark), #202 (21:28:24Z, the 198/188/203 findings), #201 (21:14:06Z,
@@ -104,7 +113,7 @@ is a claim, not a measurement.
   #203), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 238, sha256 9a90ea3cef4dba9dfa644d1159a8da081b9a2caf69625bc3af4573ba251d0601**
+  **Ledger head: seq 242, sha256 6d0e825f4a92170aa759e1b483a49f52639848eb54ed2312df66af9dd46d94ae**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
