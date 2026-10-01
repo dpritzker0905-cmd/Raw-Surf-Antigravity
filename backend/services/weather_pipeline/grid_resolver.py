@@ -392,6 +392,9 @@ async def resolve_grid(
             # so dwelling viewports sharpen 2° → 0.25° — the pre-mid steady state restored.
             viewport_service=viewport_service, valid_time=valid_time, target_dt=target_dt,
             background_tasks=background_tasks,
+            # Commitment 228: a series frame is strided inside the tier, before the per-cell steps
+            # below. Never for surf -- apply_surf_overlay has not been shown to be per-cell.
+            series_stride=None if surf else _load_kw(series_stride).get("stride"),
         )
         if _mid_product is not None:
             product = _mid_product
@@ -701,7 +704,9 @@ async def resolve_grid(
     # Attach truthTag for GFS marine waves and all wind forecast models
     is_gfs_marine_waves = (model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves")
     is_wind = (domain.lower() == "wind" and layer.lower() == "wind")
-    if is_gfs_marine_waves or is_wind:
+    # Not for a strided series frame (commitment 228): grid_series never serialises truthTag, and the
+    # hash is a Python loop over every cell (82 ms per 15k-cell frame, profiled) on the page's clock.
+    if (is_gfs_marine_waves or is_wind) and not _load_kw(series_stride):
         if isinstance(product, NormalizedProduct):
             product.truthTag = compute_truth_tag(
                 model=product.model,
