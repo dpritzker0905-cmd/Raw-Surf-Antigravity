@@ -80,3 +80,7 @@ follows a rebind of `X.grid.diagnostics` in the same function.
   prompts disabled). The PR waits on the owner's `gh auth login`. seq 240 `memory_write`: that fact added to agent-local
   `pr-workflow-mechanics.md`.
 - The step-4 stamping defect from the audit was offered to the owner as a separate task (not in this PR).
+
+## 02:43:59Z · PR #212 opened
+- After the owner re-authenticated gh, the branch was pushed and PR #212 opened against dev (not merged). seq 241 is the
+  `pr_open` line. Hosted CI is expected to read the chain lane at 139 files and to collect 1689 tests (floor 1683).
