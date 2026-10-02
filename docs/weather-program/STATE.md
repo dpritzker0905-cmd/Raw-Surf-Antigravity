@@ -1,7 +1,7 @@
 # Weather program: state
 
-**Updated 2026-10-02 05:08Z** (logs: `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
-invariant; the guard PR), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
+**Updated 2026-10-02 12:53Z** (logs: `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
+invariant; #223), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
 228 closed on S11), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
 rollover; the fix is #217, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
@@ -10,7 +10,7 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
-- **2026-10-02 (seq 294-299; the guard PR, on the owner's word to open): one guard on the cached-product invariant.**
+- **2026-10-02 (seq 294-300; #223, open for the owner's word): one guard on the cached-product invariant.**
   Four serve paths shipped writes into the one-level copies `load_product` hands out (#211, #212, #213, #219); each fix
   guarded one attribute. A conftest autouse fixture now fails any backend test after which a product the L1 cache holds
   changed (`tests/l1_product_guard.py`). Measured: 0 guard errors across ~4,510 existing tests (no fifth instance in a
@@ -101,9 +101,10 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #220 (PR C, the consensus flip sweep; its ledger lines re-chain after the guard PR's) and the
-  cached-product guard PR (seq 294-299; to open on the owner's word). Agreed order: the guard, then #220, then the
-  far-zoom branch re-chains. #219 merged 2026-10-02T03:43:27Z as `c4a59c01` (seq 294); #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
+- **Open PRs of ours:** #223 (the cached-product guard, seq 294-300), #220 (PR C, the consensus flip sweep), #221
+  (the far-zoom fixes) and #222 (commitment 228's par2 residual). All four start their ledger lines at seq 294:
+  whichever merges first keeps its numbers, and each later one re-chains onto dev's head (#222 and #223 both carry
+  `pr_merge #219`; the second to merge drops its copy). Agreed order: #223, then #220, then #221. #219 merged 2026-10-02T03:43:27Z as `c4a59c01` (seq 294); #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
   CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
   drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
   anything in it is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
@@ -161,7 +162,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 299, sha256 9436a505a553933be4594541c87d2f9576805cf573941722981a22828052ccc1**
+  **Ledger head: seq 300, sha256 742a0fb4ed86eb7c33d33ee011b6fa124a0a7cc58c6354862c989d4454b994af**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

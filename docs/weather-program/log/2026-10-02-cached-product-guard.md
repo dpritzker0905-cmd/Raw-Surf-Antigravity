@@ -105,6 +105,14 @@ seq 294 (pr_merge #219), seq 295 (finding: the measurements above), seq 296 (dec
 (correction: four shipped instances, not five), seq 298 (commitment: lift independent coverage to 4 of 4, due
 2026-10-09) and seq 299 (commitment: hosted read-back and the guard's CI cost, due 2026-10-04).
 
+## PR #223 opened (12:53:04Z)
+
+The owner paused before the push, then said "push it and open the PR". dev was unchanged (`c4a59c01`, ledger head
+293), so no re-chain was needed. Pushed `claude/cached-product-guard` at `f1159411`, opened #223 against dev, ledger
+seq 300 (pr_open). Nothing is merged. Meanwhile #222 (the #219 session's commitment-228 branch) opened with its own
+seq 294-298, including its own `pr_merge #219`. Agreed with that session: whichever of #222 and #223 reaches dev
+second drops its `pr_merge #219` when it re-chains.
+
 Two local-only obstacles, recorded rather than fixed here:
 1. **A non-hermetic test path.** `scheduler._cleanup_and_pause` reaches `sim_forecast.fetch_catalog` (line 191), a live HTTP
    call with no timeout. On this machine DNS for the fake test host blocks for minutes (CI's network answers), so
