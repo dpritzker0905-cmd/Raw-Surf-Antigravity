@@ -1,7 +1,9 @@
 # Weather program: state
 
-**Updated 2026-10-02 12:51Z** (logs: `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
-228 closed on S11, its par2 residual fixed offline), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
+**Updated 2026-10-02 13:52Z** (logs: `log/2026-10-02-floor-staleness-retry.md` (the floor-staleness check asks
+again and asks REST before refusing; #224, the bottom of the stack dev <- #224 <- #222),
+`log/2026-10-02-cached-product-guard.md` (one guard on the cached-product invariant; #223), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
+228 closed on S11, its par2 residual fixed offline; #222), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
 rollover; the fix is #217, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
@@ -9,6 +11,17 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-02 (seq 301-304; #224, open for the owner's word): the floor-staleness check stops failing PRs on a stale
+  GitHub answer.** `backend-floor-staleness` refused on #220 (12:38Z), #221 (12:35Z) and #220's earlier run (06:09Z)
+  because `gh run list` returned a 15-day-old list; reproduced locally (stale on 2 of 26 calls, REST 0 of 22). It now
+  asks up to 3 times (5 s, 15 s backoff) and cross-checks the REST endpoint, still refusing when every answer is old.
+  CI-only; no served number.
+- **2026-10-02 (seq 294-300; #223, merged 13:24:08Z as `ca71acd1`, seq 304): one guard on the cached-product invariant.**
+  Four serve paths shipped writes into the one-level copies `load_product` hands out (#211, #212, #213, #219); each fix
+  guarded one attribute. A conftest autouse fixture now fails any backend test after which a product the L1 cache holds
+  changed (`tests/l1_product_guard.py`). Measured: 0 guard errors across ~4,510 existing tests (no fifth instance in a
+  tested path); the four real bugs re-introduced are seen 4 of 4 in their per-site tests, but only #213's path is
+  exercised by general tests (1 of 4; commitment seq 298 adds the scenario test). Test-side only; no served number.
 - **2026-10-02 (seq 279-285; FIXED by #217, merged 02:42:26Z as `f302c309`, live from 02:45:03Z, seq 288-289): the skill ledger
   has written nothing since 2026-09-30 22:45:05Z.** Supabase Storage answers a missing object with HTTP 400 and the
   strict L2 reader accepted only a 404, so the first read of the new month's segment (`scored-2026-10.json`) raised
@@ -26,10 +39,10 @@ is a claim, not a measurement.
   box: stored share 85.0% (the ceiling) for both layers page by page, 68.1% / 59.3% with both pages at once; before
   19.5 / 24.8 / 8.0 / 43.4%. RESIDUALS, the next fix: two concurrent world pages still overrun the 20 s deadline on
   the 1-CPU box (33-40 of 48 hours per page), and for some minutes after each deploy every page is cut (cold box:
-  12-23 of 48). **RESIDUAL 1 FIX, open as #222 (`claude/c228-series-par2-deadline`) (seq 295-296):** a world series frame reads
+  12-23 of 48). **RESIDUAL 1 FIX, open as #222 (`claude/c228-series-par2-deadline`) (seq 306-307; written as 295-296 on #222's branch):** a world series frame reads
   the global_mid pre-strided when the clip provably keeps every cell (every hour missed the 8-product L1 and
   validated 15,023 cells to keep 966). Offline on one core: 2.6-3.4 s -> 1.0-1.1 s CPU per cold 16-hour page,
-  0.2-0.3 s repeated, frames byte-identical (207,872 real cells). The deployed S11 read-back is commitment seq 296.
+  0.2-0.3 s repeated, frames byte-identical (207,872 real cells). The deployed S11 read-back is commitment seq 307 (296 on #222's branch).
   Residual 2 (the cold minutes after each deploy) stands. The original report, kept for context:
 - ⛔ **OWNER REPORT 2026-09-30 22:18Z (seq 227; commitment 228): marine heatmap blank at far-out zooms on forecast
   hours until zooming in.** ROOT MECHANISM from the Render logs (seq 237): the zoomed-out grid_series' live
@@ -84,9 +97,9 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `c4a59c01`** (#219 at 2026-10-02 03:43:27Z, the W-23 label kept out of the cached product and logged;
-  Render live from about 03:46:00Z; seq 297, 294). Before it `f302c309` (#217 at 02:42:26Z, the skill-ledger
-  reader; Render live from 02:45:03Z; seq 288-289), and before that `67fe4918` (#216 at 02:21:51Z, docs; seq 287), after `48460019` (#218 at 02:17:18Z, CLAUDE.md
+- **`dev` = `ca71acd1`** (#223 at 2026-10-02 13:24:08Z, test-only; seq 304). Before it `c4a59c01` (#219 at 03:43:27Z,
+  backend: the W-23 label; seq 294, re-recorded as target `#219` at seq 303). Before them `f302c309` (#217 at
+  2026-10-02 02:42:26Z, the skill-ledger reader; Render live from 02:45:03Z; seq 288-289). Before it `67fe4918` (#216 at 02:21:51Z, docs; seq 287), after `48460019` (#218 at 02:17:18Z, CLAUDE.md
   only; seq 286). Before them `63a70425` (#215 at 2026-10-01 11:52:12Z: the vector half of the shared-L1-object guard,
   test-only; seq 274; Render serves it from 11:54:36Z, seq 276). Before it `49e1d62d` (#211 at 04:13:07Z, backend). The same night, each on the owner's word, merged in a
   STACK (LESSONS L-P21): #210 at 04:12:51Z as `33364453` (commitment 228's fix: far-zoom pages from the stored 2-deg
@@ -99,10 +112,18 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #222 (`claude/c228-series-par2-deadline`) (commitment 228's par2 residual: the strided world read; seq 294-297). Also
-  open: #220 (consensus PR C) and #221 (far-zoom client fixes); all three fork the ledger at seq 294, and #220 and
-  this branch both move the chain floor: the later merge re-chains and re-derives (L-P21). #219 merged (seq 297),
-  as did #217 and #216 (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
+- **Open PRs of ours (read 13:50:26Z).** #224 and #222 are STACKED (L-P21; owner, 2026-10-02: "resolve the merge
+  #222 conflicts, and other merge conflicts you see, lets clean up our progress and streamline"): dev <- #224 <- #222.
+  Merge #224, then #222 (its lines are seq 305-308, written as 294-298 on its branch; its copy of
+  `pr_merge #219` is dropped as a duplicate of seq 303); the second needs no rework, because the ledger, the floors and this file are already resolved
+  on it. #224 (the floor-staleness retry, seq 301-304) goes first: every PR's CI runs its own copy of that check, and
+  the old copy failed #220 and #221 on a stale GitHub answer. #220 (PR C, the consensus flip sweep), #221 (the far-zoom
+  fixes) and #225 (the accuracy monitor's month seam, opened 13:50:04Z) are mergeable on their own. #220's and #221's
+  sessions re-chained them onto dev at 13:38:55Z and 13:35:00Z, each from seq 301, so any merge forks the others'
+  ledgers once more. Cheapest path: the stack first, then one of the others at a time with a re-chain between (or
+  each stacked on the previous head). That replaces the earlier agreed order (#223, then #220, then #221). ⚠️ The
+  completeness audit lets only the newest merge go unrecorded, so the first PR merged after the stack must carry
+  `pr_merge #224`. #223 merged 13:24:08Z as `ca71acd1` (seq 304); #219 2026-10-02T03:43:27Z as `c4a59c01` (seq 294, 303); #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
   CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
   drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
   anything in it is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
@@ -155,11 +176,15 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, #215), chain 140 / 1734 (reading 1740, #219; the
-  par2 branch moves it to 141 / 1774, projection 1780), estate 580 (582).
+- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, dev `c4a59c01`), chain 141 / 1748 (reading 1754:
+  #223's run 37009550311 read 141 / 1754 on its merge with `c4a59c01`), estate 580 (582). The stack moves them, each
+  level carrying the ones below: #224 estate 583 (585; its run 37011560800 read 585), #222 chain 142 / 1788 (1794 =
+  1740 + 14 for #223 + 40 for #222; its run 37009323668 read 1780 alone). Hosted CI on each stacked head must read
+  those projections. #220's own branch moves chain to 142 / 1771 (1777, re-derived by its session after #223);
+  whichever of #220 and #222 merges second re-derives from the hosted reading.
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 298, sha256 d5c15351f4b2242575185f04449230601b2cb06dacd86401e731aad23d6d4e7a**
+  **Ledger head: seq 308, sha256 9d4432e684b079c1c1f570578782267df0d0fe4acaea50e552c1073b2dec196e**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

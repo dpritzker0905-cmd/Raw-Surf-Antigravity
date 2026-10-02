@@ -69,7 +69,9 @@ import os
 import re
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CI_YML = os.path.join(REPO_ROOT, ".github", "workflows", "ci.yml")
@@ -221,29 +223,98 @@ def history_branch(explicit=None):
 RUN_LOOKUP_LIMIT = 20
 MAX_READING_AGE_DAYS = 14
 
+# ASKED AGAIN, AND OF A SECOND SOURCE, BEFORE IT REFUSES (2026-10-02). The newest of 20 was not enough: on PR
+# #220 (run 36972188156) and PR #221 (run 37007605637) the WHOLE list was stale -- its newest run 35183181239,
+# 15 days old -- while minutes later the same `gh run list` and the REST endpoint below both answered 36961412429
+# (c4a59c01, 2026-10-02T03:43:29Z), and a re-run of the job passed. So an old or failed answer is asked again,
+# up to RUN_LOOKUP_ATTEMPTS times with a short backoff, and every attempt also asks the REST endpoint; the
+# reading is the newest run ANY answer named. Nothing is relaxed: that run must still be under
+# MAX_READING_AGE_DAYS, every failed or old answer is named in the refusal, and when all of them are old it
+# refuses as before. A current first answer costs the one call it always did.
+RUN_LOOKUP_ATTEMPTS = 3
+RUN_LOOKUP_BACKOFF_S = (5, 15)      # seconds slept before attempts 2 and 3
+_sleep = time.sleep                 # the tests replace this, so none of them waits for real
 
-def last_green_run(branch, now=None):
-    """(run_id, sha, created) of the most recent successful ci.yml run on `branch`."""
+
+def _runs_from_run_list(branch):
     out = _gh(["run", "list", "--workflow=ci.yml", f"--branch={branch}", "--status=success",
                f"--limit={RUN_LOOKUP_LIMIT}", "--json", "databaseId,headSha,createdAt"], "listing runs")
     try:
         runs = json.loads(out)
     except json.JSONDecodeError as exc:
         raise Refusal(f"could not parse the run list as JSON: {exc}")
-    if not runs:
-        raise Refusal(f"no successful ci.yml run on '{branch}' to read a floor against. "
-                      f"REFUSING -- 'never measured' is not 'measured and fine'.")
-    newest = max(runs, key=lambda r: r.get("createdAt") or "")
+    if not isinstance(runs, list):
+        raise Refusal(f"the run list is not a JSON list: {out[:200]!r}")
+    return runs
+
+
+def _runs_from_rest(branch):
+    """The same question asked of the workflow-runs endpoint, renamed into the run list's fields."""
+    endpoint = (f"repos/{{owner}}/{{repo}}/actions/workflows/ci.yml/runs?branch={quote(branch, safe='')}"
+                f"&status=success&per_page={RUN_LOOKUP_LIMIT}")
+    out = _gh(["api", endpoint], "listing runs via the REST endpoint")
     try:
-        created = datetime.fromisoformat(str(newest["createdAt"]).replace("Z", "+00:00"))
+        return [{"databaseId": r["id"], "headSha": r["head_sha"], "createdAt": r["created_at"]}
+                for r in json.loads(out)["workflow_runs"]]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise Refusal(f"could not read workflow_runs from the REST answer: {exc!r}")
+
+
+_RUN_SOURCES = (("`gh run list`", _runs_from_run_list), ("the REST endpoint", _runs_from_rest))
+
+
+def _newest(runs):
+    return max(runs, key=lambda r: r.get("createdAt") or "")
+
+
+def _age_days(run, now):
+    try:
+        created = datetime.fromisoformat(str(run["createdAt"]).replace("Z", "+00:00"))
     except (KeyError, TypeError, ValueError):
-        raise Refusal(f"run {newest.get('databaseId')} has no parseable createdAt ({newest.get('createdAt')!r})")
-    age_d = ((now or datetime.now(timezone.utc)) - created).total_seconds() / 86400.0
-    if age_d > MAX_READING_AGE_DAYS:
-        raise Refusal(f"the newest successful ci.yml run on '{branch}' the API returned is {age_d:.0f} days old "
-                      f"(run {newest['databaseId']}, {newest['createdAt']}). GitHub's run list can answer "
-                      f"stale transiently: re-run this job. REFUSING -- an old reading is not a current one.")
-    return newest["databaseId"], newest["headSha"], newest["createdAt"]
+        raise Refusal(f"run {run.get('databaseId')} has no parseable createdAt ({run.get('createdAt')!r})")
+    return (now - created).total_seconds() / 86400.0
+
+
+def last_green_run(branch, now=None):
+    """(run_id, sha, created) of the most recent successful ci.yml run on `branch`."""
+    now = now or datetime.now(timezone.utc)
+    seen, doubts, answered = [], [], False
+    for attempt in range(1, RUN_LOOKUP_ATTEMPTS + 1):
+        if attempt > 1:
+            _sleep(RUN_LOOKUP_BACKOFF_S[attempt - 2])
+        for source, ask in _RUN_SOURCES:
+            try:
+                runs = ask(branch)
+            except Refusal as exc:
+                doubts.append(f"attempt {attempt}, {source} failed: {exc}")
+                continue
+            answered = True
+            if not runs:
+                doubts.append(f"attempt {attempt}, {source} listed no run")
+                continue
+            seen.extend(runs)
+            newest = _newest(seen)
+            if _age_days(newest, now) <= MAX_READING_AGE_DAYS:
+                if doubts:
+                    print(f"::notice::current reading from {source} on attempt {attempt}, after: "
+                          + "; ".join(doubts))
+                return newest["databaseId"], newest["headSha"], newest["createdAt"]
+            own = _newest(runs)
+            doubts.append(f"attempt {attempt}, {source}: newest run {own['databaseId']} is "
+                          f"{_age_days(own, now):.0f} days old")
+    answers = f" Answers: {'; '.join(doubts)}."
+    if not seen and not answered:
+        raise Refusal(f"no source could list the successful ci.yml runs on '{branch}'. "
+                      f"REFUSING -- an unanswered question is not a current reading.{answers}")
+    if not seen:
+        raise Refusal(f"no successful ci.yml run on '{branch}' to read a floor against. "
+                      f"REFUSING -- 'never measured' is not 'measured and fine'.{answers}")
+    newest = _newest(seen)
+    raise Refusal(f"the newest successful ci.yml run on '{branch}' the API returned is "
+                  f"{_age_days(newest, now):.0f} days old (run {newest['databaseId']}, {newest['createdAt']}), "
+                  f"asked {RUN_LOOKUP_ATTEMPTS} times of `gh run list` and the REST endpoint. GitHub's run "
+                  f"list can answer stale transiently: re-run this job. REFUSING -- an old reading is not a "
+                  f"current one.{answers}")
 
 
 def observed(run_id, lane):
