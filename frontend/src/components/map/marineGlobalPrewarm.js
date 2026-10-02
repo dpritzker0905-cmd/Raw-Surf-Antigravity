@@ -16,6 +16,7 @@ import { ensureMarineSeries, getMarineSeriesFrame, runBackgroundWarm } from './m
 import { fetchBackendMarineGrid, getSharedValidTime } from './backendWeatherServiceClient';
 import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
 import { coarseBaseOutdatedBy } from './marineStaleHour';
+import { bridgeCeilDeg } from './marineZoomOutGate';
 
 let _prewarmDeps = null;
 
@@ -37,7 +38,8 @@ export function registerPrewarmDeps({ getModelSafeMarine, cacheMarineResult, isS
 // _cacheMarineResult under the 'global_coarse' tile key. A zoomed-IN fetchMarineData keys by the
 // VIEWPORT tile (viewport_...), never global_coarse, so the cached global can only be RETRIEVED +
 // committed once the viewport is wide (zoomed out) — its correct context. Bounded: deduped, skipped
-// once cached, gated to zoomed-in viewports, rides the sibling-prewarm kill switch, silent (no
+// once cached, gated to zoomed-in viewports (the world warm's `opts.band` serves up to the bridge's
+// ceiling, grid only: see prewarmGlobalMarineGrid), rides the sibling-prewarm kill switch, silent (no
 // truth-stage pollution). No abort signal → the background warm survives the pan/zoom that would
 // otherwise cancel it (the global is location-independent, so a stray completion is harmless).
 const _globalGridPrewarmInFlight = new Set();
@@ -156,16 +158,22 @@ export function _rewarmWashBaseIfStale(m, hourOffset, bounds, activeLayer) {
 // every other caller keeps the old order. The exact world grid goes out BEFORE the world series half, which holds the background lane's
 // single slot while it loads. The series half then starts when the grid settles, or at once if there is nothing to fetch.
 // Kill: __RAW_DISABLE_WORLD_GRID_FIRST__.
+// `opts.band` (2026-10-02, the F-22 follow-up; owner: "keep the 2 degree frame for the selected hour at every zoom in that range"), optional and
+// opt-in, passed only by the world warm: serve a view the 15 degree gate below calls wide, up to the bridge's ceiling (bridgeCeilDeg, 40 by
+// default), where the F-22 bridge promotes a held 2-degree base for the selected hour but nothing asked for that frame: the per-fetch calls and
+// the warm itself were declined as `wide_view`. GRID ONLY from such a view: the world series half (three 48-frame pages, 10-13 s of box CPU
+// each) stays a regional-zoom activity. A view past the ceiling is a world view with its own fetch path. Kill: __RAW_DISABLE_WORLD_WARM_BAND__.
 export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, opts) {
   const gridFirst = !!(opts && opts.gridFirst) && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WORLD_GRID_FIRST__ === true);
   let _seriesStarted = false;
   let _deferSeries = false;
   let _gatesPassed = false;
+  let _bandView = false;
   // THE SERIES HALF (audit v6) -- rationale relocated 2026-08-11 to keep marineController under the 800
   // LOC ratchet (it was 853). NOTHING WAS DELETED: the full reasoning, verbatim, is in
   // docs/research/FINDING-2026-08-11-marineController-rationale.md#series-half
   const startSeriesHalf = (m) => {
-    if (_seriesStarted) return;
+    if (_seriesStarted || _bandView) return;
     _seriesStarted = true;
     if (typeof window === 'undefined' || window.__RAW_DISABLE_GLOBAL_SERIES_PREWARM__ !== true) {
       try {
@@ -187,9 +195,17 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
     if (!bounds || bounds.east === undefined || bounds.north === undefined) { _note('declined', hourOffset, { why: 'no_bounds' }); return; }
     // Only while ZOOMED IN (regional viewport ≤ 15°) — that's when a zoom-out is the next likely
     // gesture and the global is cold. At a wide viewport we already hold or are actively fetching it.
+    // (Except the world warm's band: opts.band, below, serves a view up to the bridge's ceiling, grid only.)
     const vw = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
     const vh = Math.abs(bounds.north - bounds.south);
-    if (vw > 15 || vh > 15) { _note('declined', hourOffset, { why: 'wide_view' }); return; }
+    if (vw > 15 || vh > 15) {
+      // The band (opts.band): a view over 15 degrees and inside the ceiling is served, grid only. (Only a view over 15 degrees gets here, so a
+      // ceiling tuned below 15 can never narrow the regional gate: it just leaves the band empty.)
+      const ceil = bridgeCeilDeg(typeof window !== 'undefined' ? window : undefined);
+      const bandOk = !!(opts && opts.band) && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WORLD_WARM_BAND__ === true);
+      if (!bandOk || vw > ceil || vh > ceil) { _note('declined', hourOffset, { why: 'wide_view' }); return; }
+      _bandView = true;
+    }
     const m = model || 'GFS';
     _gatesPassed = true;
 
@@ -205,7 +221,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
     let _vt = null;
     try { _vt = getSharedValidTime(hourOffset, activeLayer, m, { readOnly: true }); } catch (e) { _vt = null; }
     const key = _vt ? _vtKey(m, activeLayer, _vt) : `${m}_${hourOffset}_${activeLayer}_GLOBALGRID`;
-    if (_globalGridPrewarmInFlight.has(key)) { _note('in_flight', hourOffset, { vt: _vt }); return; }
+    if (_globalGridPrewarmInFlight.has(key)) { _note('in_flight', hourOffset, { vt: _vt, band: _bandView }); return; }
     // An earlier offset that resolved to this same valid_time already fetched this exact world
     // grid. Re-cache it under THIS offset and seed the bridge -- zero network, identical pixels.
     if (_vt) {
@@ -214,7 +230,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
       if (sharedGrid && Array.isArray(sharedGrid.vectors) && sharedGrid.vectors.length > 0) {
         deps.cacheMarineResult(m, hourOffset, shared, activeLayer, true);
         _stageCoarseBridgeSeed(sharedGrid, m, activeLayer, 'valid_time_dedupe');
-        _note('valid_time_dedupe', hourOffset, { vt: _vt });
+        _note('valid_time_dedupe', hourOffset, { vt: _vt, band: _bandView });
         return;
       }
     }
@@ -230,7 +246,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
       const cw = cb ? ((cb.east < cb.west) ? (cb.east + 360) - cb.west : cb.east - cb.west) : 0;
       if (cw >= 340) {
         _stageCoarseBridgeSeed(cached.grid, m, activeLayer, 'cache_warm');
-        _note('cache_warm', hourOffset, { vt: _vt });
+        _note('cache_warm', hourOffset, { vt: _vt, band: _bandView });
         return;
       }
     }
@@ -257,14 +273,14 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
       } else {
         deps.cacheMarineResult(m, hourOffset, seriesFrame, activeLayer, true);
         _stageCoarseBridgeSeed(sg, m, activeLayer, 'series_cache');
-        _note('series_cache', hourOffset, { vt: _vt });
+        _note('series_cache', hourOffset, { vt: _vt, band: _bandView });
         return;
       }
     }
     _globalGridPrewarmInFlight.add(key);
     _deferSeries = gridFirst;      // the series half waits for this grid (finally below)
-    const _gridT = { hour: hourOffset, vt: _vt, gridFirst, queuedAt: Date.now() };
-    _note('fetch', hourOffset, { vt: _vt, gridFirst });
+    const _gridT = { hour: hourOffset, vt: _vt, gridFirst, band: _bandView, queuedAt: Date.now() };
+    _note('fetch', hourOffset, { vt: _vt, gridFirst, band: _bandView });
     if (typeof window !== 'undefined' && window.__MARINE_GLOBAL_PREWARM__) window.__MARINE_GLOBAL_PREWARM__.grid = _gridT;
     // No abort signal: this is a background best-effort warm that must survive the pan/zoom which
     // would otherwise cancel it. The global-coarse is location-independent, so it warms once and

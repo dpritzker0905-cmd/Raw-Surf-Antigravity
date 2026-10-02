@@ -31,7 +31,7 @@
 import {
   shouldBridgeToCoarseGlobal, shouldRejectSubcoveringRegional, decideMarineCommit, __resetArbiterGraceForTests,
 } from './marineCommitGate';
-import { isGateWideView } from './marineZoomOutGate';
+import { isGateWideView, bridgeCeilDeg } from './marineZoomOutGate';
 import { isFineWorldBase, FINE_BASE_MAX_CELL_DEG, coverageWrapSafe } from './marineCommitArbiter';
 import { WORLD, viewport, clipFor as clip, gateHides, SPANS, ZOOMS, COVERS } from './marineBridgeGateOracle.testutil';
 
@@ -283,6 +283,18 @@ describe('isGateWideView (the gate\'s own wide test, shared by the layer and the
     expect(isGateWideView(undefined, 8, 6)).toBe(false);
     expect(isGateWideView(undefined, 20, 6)).toBe(true);
     expect(isGateWideView(NaN, 8, 6)).toBe(false);
+  });
+});
+
+describe('bridgeCeilDeg (the span past which a view is a world view: the bridge\'s ceiling and the band the world warm covers)', () => {
+  it('is 40 by default, follows a tuned __RAW_MARINE_GLOBAL_SPAN__, and ignores zero, NaN and a value that is not a number', () => {
+    expect(bridgeCeilDeg()).toBe(40);
+    expect(bridgeCeilDeg({})).toBe(40);
+    expect(bridgeCeilDeg({ __RAW_MARINE_GLOBAL_SPAN__: 25 })).toBe(25);
+    expect(bridgeCeilDeg({ __RAW_MARINE_GLOBAL_SPAN__: '60' })).toBe(60);       // an operator typing it in the console
+    expect(bridgeCeilDeg({ __RAW_MARINE_GLOBAL_SPAN__: 0 })).toBe(40);
+    expect(bridgeCeilDeg({ __RAW_MARINE_GLOBAL_SPAN__: 'wide' })).toBe(40);
+    expect(bridgeCeilDeg({ __RAW_MARINE_GLOBAL_SPAN__: NaN })).toBe(40);
   });
 });
 
