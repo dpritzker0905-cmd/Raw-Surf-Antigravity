@@ -8,7 +8,7 @@ instrument (README rule 5); a SCOREBOARD row follows its first reading.
 
 ## Ownership and order (02:50Z to 03:40Z)
 - "Concurrent models audit and work" confirmed it does not own PR C, and that #219 records `pr_merge #217` (seq 288).
-  Agreed order: dev -> #219 (seq 288-293; merged 03:43Z as `c4a59c01`) -> its cached-product guard (seq 294+) -> this
+  Agreed order: dev -> #219 (seq 288-293; merged 03:43Z as `c4a59c01`) -> its cached-product guard (stacked on #219) -> this
   PR; the far-zoom branch re-chains last (the owner approved that chain order at 02:20Z). This PR's ledger lines are
   re-chained onto dev's head when its turn comes (L-P21). It records neither #217 nor #219.
 

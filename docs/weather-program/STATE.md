@@ -15,7 +15,7 @@ is a claim, not a measurement.
   precompute over one manifest under today's lane and under `CONSENSUS_SERVE` '1' + `CONSENSUS_SERVE_KEEP_GFS`
   'hawaii', with a null re-run after both, and REFUSES on any control (Hawaii must not move; nothing may move without a
   swap). Flags come from `precompute.yml` at run time. No served number changes; the first reading is the PR's own run
-  of `consensus-flip-sweep.yml`. Its ledger lines re-chain after #219 (288-293) and the cached-product guard (294+).
+  of `consensus-flip-sweep.yml` (PR #220). Its ledger lines re-chain after the cached-product guard (stacked on #219).
   Log: `log/2026-10-02-consensus-flip-sweep.md`.
 - **2026-10-02 (seq 279-285; FIXED by #217, merged 02:42:26Z as `f302c309`, live from 02:45:03Z, seq 288-289): the skill ledger
   has written nothing since 2026-09-30 22:45:05Z.** Supabase Storage answers a missing object with HTTP 400 and the
@@ -160,7 +160,7 @@ is a claim, not a measurement.
   PR moves it to 1734, projection 1740), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 293, sha256 c92a600e5c57cc39978a774dceb754065ee3454204daabcf7ce8ab8c5d1c431d**
+  **Ledger head: seq 295, sha256 ce9944d032ebc0608d4624176c85fcd796a24c012b31dd05b8299d5d3806d9db**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
