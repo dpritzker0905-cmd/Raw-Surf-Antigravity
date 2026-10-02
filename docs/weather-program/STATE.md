@@ -1,12 +1,19 @@
 # Weather program: state
 
-**Updated 2026-10-01 12:13Z** (logs: `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
+**Updated 2026-10-02 01:36Z** (logs: `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
+rollover; the fix, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
 (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- ⛔ **2026-10-02 (seq 279-283; the fix is stacked on #216 and waits for the owner's word to open): the skill ledger
+  has written nothing since 2026-09-30 22:45:05Z.** Supabase Storage answers a missing object with HTTP 400 and the
+  strict L2 reader accepted only a 404, so the first read of the new month's segment (`scored-2026-10.json`) raised
+  and every precompute run skipped the ledger while the job stayed green; the residual roll-up shares the reader. The
+  Forecast Accuracy Monitor is red since 2026-10-01 07:08Z. Fix built and tested (`l2_retry.is_missing_object`, no
+  served number changes); seq 149, 172 and 217 wait on it; the monitor's own month-boundary window is seq 283.
 - ⛔ **2026-10-01 (seq 239; #211, open for the owner's word): the serve-time coarse marine fill wrote GFS values into
   the CACHED EURO/ICON product** (`coarse_gulf_fill.py` mutated the L1 cache's shared vector objects). Live: a 40-deg
   EURO `waves` clip had 119 of 399 cells flip masked -> valid (inland Texas among them, unstamped) after anyone's
@@ -79,7 +86,8 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** none but #216 (this docs PR; seq 277). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
+- **Open PRs of ours:** none but #216 (a docs PR; seq 277); the skill-ledger fix (seq 280) is a branch stacked on it,
+  to open on the owner's word, and #216 merges first. The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
   CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
   drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
   anything in it is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
@@ -132,11 +140,11 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, #215), chain 140 / 1714 (reading 1720, #210), estate
-  580 (582).
+- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, #215), chain 140 / 1714 (reading 1720, #210; the
+  skill-ledger fix moves it to 1732, projection 1738), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 278, sha256 6851708bb2caddd7f4bf9a49f4f1000087b347e5e34164c5ae3f8e27dd811dd0**
+  **Ledger head: seq 283, sha256 de2e0c46466768548b8f7addbf7ad91270f8f50d99393c79d1df7b3f457708a7**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
