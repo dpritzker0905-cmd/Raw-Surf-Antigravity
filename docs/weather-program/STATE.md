@@ -184,7 +184,7 @@ is a claim, not a measurement.
   whichever of #220 and #222 merges second re-derives from the hosted reading.
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 308, sha256 9d4432e684b079c1c1f570578782267df0d0fe4acaea50e552c1073b2dec196e**
+  **Ledger head: seq 309, sha256 546a03ae1e529f06ed36bcc55c2b88799fd962cf8d5d932230876ffac1459947**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
