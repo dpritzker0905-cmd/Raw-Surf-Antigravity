@@ -1,6 +1,7 @@
 # Weather program: state
 
-**Updated 2026-10-02 03:09Z** (logs: `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
+**Updated 2026-10-02 04:04Z** (logs: `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
+sweep, built), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
 228 closed on S11), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
 rollover; the fix is #217, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
@@ -9,6 +10,13 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-02 04:04Z (branch `claude/consensus-flip-sweep`; owner: "go, build PR C"): consensus PR C's missing third
+  part, the before/after sweep of DISPLAYED heights, is built.** `scripts/consensus_flip_sweep.py` runs the production
+  precompute over one manifest under today's lane and under `CONSENSUS_SERVE` '1' + `CONSENSUS_SERVE_KEEP_GFS`
+  'hawaii', with a null re-run after both, and REFUSES on any control (Hawaii must not move; nothing may move without a
+  swap). Flags come from `precompute.yml` at run time. No served number changes; the first reading is the PR's own run
+  of `consensus-flip-sweep.yml`. Its ledger lines re-chain after #219 (288-293) and the cached-product guard (294+).
+  Log: `log/2026-10-02-consensus-flip-sweep.md`.
 - **2026-10-02 (seq 279-285; FIXED by #217, merged 02:42:26Z as `f302c309`, live from 02:45:03Z, seq 288-289): the skill ledger
   has written nothing since 2026-09-30 22:45:05Z.** Supabase Storage answers a missing object with HTTP 400 and the
   strict L2 reader accepted only a 404, so the first read of the new month's segment (`scored-2026-10.json`) raised
@@ -181,7 +189,9 @@ direction fix (not supported by a bulk-buoy instrument; needs spectral truth).
 3. ~~**Arm the consensus shadow**~~ merged as #168 (`de72c81c`), 15:30:45Z: `CONSENSUS_INGEST: '1'` in forecast-ingest-pilots.yml,
    forecast-ingest.yml and precompute.yml (+~5% manifest, D-009). Then PR C reads `raw_surf:CONSENSUS`.
 3. **Consensus PR C:** evidence for the flip: judge `CONSENSUS_AB`, ledger `by_band`/`by_region`, a before/after
-   catalogue sweep of displayed heights. Then the owner's flip.
+   catalogue sweep of displayed heights. Then the owner's flip. (2026-10-02: the ledger and judge halves are #158,
+   #160, #169; the sweep is `scripts/consensus_flip_sweep.py` + `consensus-flip-sweep.yml`, built on
+   `claude/consensus-flip-sweep`; its first reading is that PR's own run, `log/2026-10-02-consensus-flip-sweep.md`.)
 4. **MOP for California:** needs spot observations for the sheltered spots (Fort Point, Rincon, Leadbetter, Sands).
 5. **Big-swell calibration on the served consensus:** quantile mapping by lead and coast, trained on the ledger's
    big-swell rows (every model reads 0.3-0.8 m low on 3 m+ days).

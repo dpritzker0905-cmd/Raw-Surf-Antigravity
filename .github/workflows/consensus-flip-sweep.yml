@@ -1,0 +1,77 @@
+# Consensus flip sweep (2026-10-02, consensus PR C): what CONSENSUS_SERVE would do to the DISPLAYED catalogue.
+#
+# WHY: the flip (CONSENSUS_SERVE '1' + CONSENSUS_SERVE_KEEP_GFS 'hawaii') is graded offshore by the skill ledger, but
+# nothing said how far it moves the breaking height and level a user reads on each spot glyph. The sweep rates the whole
+# catalogue twice through the PRODUCTION precompute (precompute_spot_ratings -> rate_one_spot) over one restored
+# manifest: today's lane, then the candidate, with a null re-run of today's lane after both. See the script's docstring
+# for the arms and the controls.
+#
+# FLAGS ARE NOT SET HERE, on purpose: the script reads precompute.yml's env literals at run time, so this lane cannot
+# drift from the one that writes the glyphs (tests/test_consensus_flip_sweep.py checks this file declares none).
+#
+# Runs on dispatch, and on a pull request that changes the sweep itself (so the PR carries its own first reading).
+# READ-ONLY: the script makes the store's upload and delete raise before it restores anything.
+# Exit 0 = report (read it; green is not approval, the flip is the owner's word). Exit 3 = REFUSED by a control.
+name: Consensus Flip Sweep
+
+on:
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: 'Forecast hours from now, comma-separated'
+        required: false
+        default: '0,24,48,72'
+        type: string
+      keep_gfs:
+        description: "Regions kept on GFS while the consensus is served ('none' = the global equal mean)"
+        required: false
+        default: 'hawaii'
+        type: string
+  pull_request:
+    paths:
+      - 'backend/scripts/consensus_flip_sweep.py'
+      - '.github/workflows/consensus-flip-sweep.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: consensus-flip-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: Sweep the catalogue (today vs the flip)
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WEATHER_PROXY_URL: ${{ secrets.WEATHER_PROXY_URL }}
+          SWEEP_HOURS: ${{ inputs.hours || '0,24,48,72' }}
+          SWEEP_KEEP: ${{ inputs.keep_gfs || 'hawaii' }}
+        run: >-
+          python scripts/consensus_flip_sweep.py --hours "$SWEEP_HOURS" --keep "$SWEEP_KEEP"
+          --json consensus-flip-sweep.json --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the sweep
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: consensus-flip-sweep
+          path: backend/consensus-flip-sweep.json
+          if-no-files-found: ignore
+          retention-days: 30
