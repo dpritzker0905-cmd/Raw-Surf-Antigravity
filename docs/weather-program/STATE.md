@@ -1,13 +1,25 @@
 # Weather program: state
 
-**Updated 2026-10-02 00:34Z** (logs: `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
-legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, and the scheduler slot fix), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
+**Updated 2026-10-02 02:15Z** (logs: `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
+legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, the scheduler slot fix, and the faded heat map diagnosis), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
 (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-02 02:15Z (no ledger entry yet, see below; same branch): why the heat map fades on a zoom-out (audit F-22) is DIAGNOSED; NO code changed** (owner: "go, diagnose the faded heat map next, also use the new plugins and connectors and skills I added to help us").
+  What the harness calls HEAT0 and the nightly calls `MULT0_FRAME` is the layer's zoom-out gate hiding a regional clip that covers under 60% of the viewport (`mult` 0: the regional pass AND the crest animation; the 2-degree wash stays, never a blank)
+  while the engine's promotion of the held world frame (`_midBandBridgeWide`, `marineCommitGate.js:66`) has fired only past a 40 degree span since `06b3dbc2` (2026-07-22): in the band zoom <= 7 and span <= 40 degrees (about z4.5 to 7 on a
+  1280 px map) nothing replaces the hidden clip until a wider one commits, so the invariant of `8625841b` ("no coverage band is resident-but-hidden") is broken. **Offline (mock backend, per-frame):** 2.4 to 3.6% of frames under erratic zoom, a hide of
+  about 1.3 s plus the fetch latency for an uncached viewport (0.08 to 0.5 s cached); with the existing kill switch `__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__` 0.0% of 6,042 frames; lowering the cover fraction (the known-bad fix, `b21cf29d`) only moves the dip
+  to the tiny-tile fade (5.5% of frames); the cold veil is not the cause. **Live:** the Marine Nightly's `MULT0_FRAME` is this state: 19 of the 70 runs since 08-24, over the budget of 2 on the last four (09-28: 4, 09-29: 12, 09-30: 9, 10-01: 12);
+  the 10-01 run (observable, no transport or console error) shows 2.5 s and 8.3 s episodes at z6.24 and z4.7 to 4.4 with the engine's promotion count 0 for the whole run. **Corrects** the audit's section 8.7 ("MULT0 = a frame drawn with no wave data") and this
+  program's earlier "heat map faded" wording for HEAT0 frames (the wash stays). **Recommended, NOT built (the owner's word):** a base-aware bridge: a held base of 2.5 degrees or finer uses the gate's own wide test (`zoom <= 7 or span > 15`), a 10-degree base keeps the
+  40-degree ceiling; default on, a kill switch, the invariant as a pure test, the arbiter's `subcover_at_wide` mirror; acceptance = the nightly's MULT0 at 2 or fewer and EURO/ICON replayed. Cost: the promoted frame is drawn as a world frame (Florida colour
+  spread 146, against 181 for a clip and 117 hidden). Not tested: EURO/ICON, a phone-width map, the live app. The existing dark `__RAW_COARSE_BRIDGE_GRACE__` (2026-08-15) would bound the hide at 4 s; it is not what I recommend instead. **Ledger:** nothing appended for this work until the order
+  with a peer's PR #216 (seq 274-278) and its stacked #217 (279-285) is agreed; then one `finding` (F-22), the `correction` for seq 291's "gh auth is invalid" (gh is authenticated now), the peer-review record of F-23's dedupe stamp, and the `pr_merge #218` line the CLAUDE.md session asked me to carry (PR #218 merged 2026-10-02T02:17:18Z, `48460019`; recorded once, by whichever PR lands next on dev). Log section
+  "00:40Z to 02:05Z (2026-10-02)" of `log/2026-10-01-far-zoom-max-thinning.md`; the evidence and the audit report (section 8.14) are in the untracked `audit/weather-direction-drift-2026-10-01/`.
 - **2026-10-02 00:33Z (seq 290-292; same branch, local commit e29cddde, NOT pushed): the zoom-out grid race (F-23) is FIXED in the CLIENT, ON BY DEFAULT** (owner: "go, build the scheduler fix").
   The dispatch slot of `useMarineDataFetcherCore.enqueueMarineUpdate` now knows what an enqueue can do (new `marineEnqueueSlot.js`, +3 net lines in the core, 962 of 966): the cache-only `series_upgrade` lane is
   SKIPPED while a run is pending or armed (it never displaces a fetch), and a fetch-capable enqueue SUPERSEDES a cache-only slot that is only scheduled. Kill `window.__RAW_DISABLE_SU_NO_CANCEL__ = true`; forensic

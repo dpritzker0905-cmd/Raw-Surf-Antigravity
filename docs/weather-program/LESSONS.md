@@ -344,3 +344,16 @@ before starting it.
   own event recorded it fired 12 times in six 25 s erratic-zoom trials. A pass that reads zero of something other runs of the same build read as nonzero is a reason to run it again, and a
   frequency predicted from the code is a hypothesis until the event is counted. Mechanized in the harness: `run_f23_erratic.sh` replicates seeds and records the fetcher's events per trial.
   (2026-10-02, log `2026-10-01-far-zoom-max-thinning.md`, ledger seq 292)
+- **L-F13 · When a fallback's trigger is narrowed, the invariant that pairs it with its gate must be a test, not a comment.** The layer's zoom-out gate hides a
+  regional clip that covers under 0.6 of the viewport when `zoom <= 7 || span > 15`; the engine's bridge promotes the held world frame in its place. `8625841b` (2026-07-16) wrote the pairing
+  down in a comment and a header: "gate shows >=0.6, bridge promotes <0.6 - no coverage band is resident-but-hidden". `06b3dbc2` (2026-07-22) narrowed the BRIDGE's trigger to `span > 40` (EURO's
+  10-degree flash) and left the gate alone. Ten weeks later the band zoom <= 7 and span <= 40 degrees hides a clip with nothing promoted: 2.4 to 3.6% of frames offline, 8.3 s live in the
+  10-01 nightly, the cause of its red on 09-28 to 10-01 (offline with the old rule restored: 0.0% of 6,042 frames). The change that broke it had a 3,000-fixture differential harness for the
+  guard and the arbiter, and no test file mentions both the gate (`resolveRejectedOpacity`) and the bridge predicate (grep, 2026-10-02). Rule: when two predicates share a threshold by design, write the implication as a pure test over the whole input grid
+  (gate hides => bridge fires), with the other side's constants in the grid. Mechanization: proposed with the F-22 fix (not built yet). (2026-10-02, log `2026-10-01-far-zoom-max-thinning.md`)
+- **L-P28 · Read one real instance of a finding type, with its state variables, before writing its cause: a name is not a measurement.** The nightly's verdict code names `MULT0_FRAME`
+  the "blank-flash class" and a comment there says a frame drawn with no data reports mult 0, and the audit's section 8.7 (2026-10-01) built its hypothesis (late data misread as a renderer
+  failure) on that comment without opening a failing run's frames; the program's own 08-15 work (`e17f0332`) had already measured the same frames as the coarse bridge's hold, wash drawn. The 10-01 artifact's per-frame engine state, five minutes to read, shows the same frames with
+  the wash drawn, heat 0 by the gate's own decision and a covering clip not yet committed, in a run the verdict itself calls observable. My own harness had the same flaw: "HEAT0" was reported as
+  "heat map faded" and read as vanished, while the wash stays. Say what a number is, not what its name suggests. Mechanized: `scn_heatfade.js` records the gate inputs and the pixels per frame;
+  `runs/f22/nightly_2026-10-01_mult0_frames.json` keeps the extract. (2026-10-02, same log)
