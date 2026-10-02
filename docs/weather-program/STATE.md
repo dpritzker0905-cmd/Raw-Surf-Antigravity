@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-02 16:17Z** (logs: `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
+**Updated 2026-10-02 16:32Z** (logs: `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
 legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, the scheduler slot fix, the faded heat map diagnosis, the faded heat map fix, and the held-base follow-up), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
 228 closed on S11), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
@@ -11,6 +11,9 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-02 16:32Z (ledger seq 326-335 appended; PR #227 open): the F-22 follow-up is PUSHED and OPENED** (owner: "push to dev", read as the repo flow: the branch `claude/base-hold-followup` was pushed, new on origin, at `205d0253` and PR #227 was opened against dev; nothing is pushed onto dev itself and nothing is merged, that waits for "merge #227"). The 16:17Z bullet below says "NOT pushed" and "no ledger entry yet": superseded by this one. The PR was created 16:30:02Z, 17 files (+1,236 -27), MERGEABLE; no CI check had reported when it was read (the session's PR bar watches it; auto-fix and auto-merge are off).
+  **Ledger (ten lines, one chain; dev's head was seq 325 and this branch was 0 behind origin/dev `abcc6355` when they were appended):** 326 finding (the F-22 diagnosis), 327 correction ("gh auth is invalid" in dev seq 317 and 318, HEAT0 and MULT0), 328 finding (a peer's F-23 review note), 329 decision (the F-22 build, merged in #221), 330 `pr_merge #223` and 331 `pr_merge #221` (README rule 12: no open PR carried them, the audit FAILed on #223 and WARNed on #221), 332 decision (D-015, this follow-up), 333 commitment (the F-22 fix and the follow-up read back on the Marine Nightly and the dev site, due 2026-10-06T18:00Z), 334 push, 335 pr_open. Lines 326-331 are `--reconstructed` with `--acted-at`. The open PRs 220, 222, 224, 225 and 226 each append their own lines from older bases, so whichever merges after another re-chains (LESSONS L-P21): take dev's ACTIONS.jsonl and re-append the branch's own lines after its head.
+  **Backend read-back that is possible now:** `/api/health` reports `2.0.0-stage-6f-v1-abcc6355...` (read between 16:30:44Z and 16:30:45Z, uptime 2 h 18 m), so #221's backend is deployed; the frontend read-back (the nightly's first scheduled run, `__MARINE_BASE_HOLD__` and the F-22 bridge on the dev site) is still owed (dev seq 313, 318 and 333).
 - **2026-10-02 16:17Z (no ledger entry yet, see below; NEW branch `claude/base-hold-followup` off dev `abcc6355`, local commit `3bddca3d`, NOT pushed): the engine now KEEPS the exact 2-degree base for the selected hour (F-22 follow-up), CLIENT ONLY, ON BY DEFAULT** (owner: "yes, keep the 2 degree frame for the selected hour at every zoom in that range"; D-015; LESSONS L-F16, L-F17).
   #221 (the five far-zoom fixes, F-22 included) merged at 14:10:02Z as `abcc6355`, so this is a new PR when the owner says so. The F-22 bridge acts only on a held 2-degree base for the selected hour, and the engine did not always hold one. **Rule 5** (`marineStaleHour.heldBaseKeeps`, asked first in `_captureCoarseBase`, the one function both capture paths use): an EXACT base is not
   replaced by a COARSER world frame (the thinned 46 x 21 series frame, or the 10-degree tier) of the SAME data (valid time within 1.5 h + 1 min; the same run: the verified cycle, else the ingest clock in WHOLE SECONDS because /grid and /grid_series spell it differently; the same model | layer | flavor). **Rule 6** (`coarseBaseOutdatedBy`): a 2-degree seed replaces a coarser base of the same data
@@ -282,7 +285,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 325, sha256 1c93a416c8b7035081b6761c128484f152ac6d58c0f7c4645c1dc6528e3913c9**
+  **Ledger head: seq 335, sha256 1907b33797e27c0b5dbe7b29ba8441b0714cce579d20cf23f1ee1a2271fb40cc**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
