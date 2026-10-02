@@ -79,6 +79,27 @@ async def auth_headers():
     return {"Authorization": "Bearer test-token-for-smoke-tests"}
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "l1_mutation_expected: the test changes a cached L1 product on purpose, so the cached-product guard stands down")
+
+
+@pytest.fixture(autouse=True)
+def l1_cached_products_stay_unchanged(request, monkeypatch):
+    """No serve path may change a product the ProductStore L1 cache holds (2026-10-02; four serve paths shipped
+    such writes: #211, #212, #213, #219). Every test is a probe: products are snapshotted when a serve path
+    first receives them and compared at teardown (tests/l1_product_guard.py, pinned by
+    tests/test_l1_cached_product_guard.py). A test that mutates a cached product on purpose carries
+    `@pytest.mark.l1_mutation_expected`."""
+    from tests.l1_product_guard import L1ProductGuard
+    guard = L1ProductGuard()
+    guard.install(monkeypatch)
+    yield
+    if request.node.get_closest_marker("l1_mutation_expected") is None:
+        guard.assert_unchanged()
+
+
 @pytest.fixture(autouse=True)
 def clean_viewport_service_registries():
     """Clears ViewportService's static/class-level registries to prevent cross-test loop leakage."""
