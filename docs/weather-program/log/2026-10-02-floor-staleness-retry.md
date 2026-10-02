@@ -80,3 +80,21 @@ Plus 3 executed tests gives a projection of 585, so `MIN_PASSED` moves 580 to 58
 `claude/floor-staleness-retry` pushed at `451bade0` (13:12:06Z) and opened as PR #224 against `dev` (createdAt
 13:12:28Z), ledger seq 295. Hosted CI must confirm the estate projection of 585; this log records the reading when it
 arrives.
+
+## Merged dev after #223, as the bottom of a stack (owner: "resolve the merge #222 conflicts, and other merge conflicts you see, lets clean up our progress and streamline")
+
+- #223 merged at 13:24:08Z (`ca71acd1`), and #220, #221, #222 and #224 all conflicted with dev on the shared files:
+  `ACTIONS.jsonl`, `STATE.md`, the floor pair (`ci.yml`, `_FLOOR_SET_FROM`). Merging them one at a time would
+  re-conflict every other PR on each merge, so they are STACKED (L-P21): dev <- #224 <- #222 <- #220. #224 goes at the
+  bottom because the PRs above run its fixed floor-staleness check in their own CI. That check failed a third time on
+  #220 at 12:38Z (run 37007886200, the same stale run 35183181239). #221 is left to its session, which is active: two
+  unpushed local commits, an uncommitted edit, and a new push at 13:35Z.
+- Hosted CI on #224 read estate 585 (run 37011560800 on `8c312c4a`), the projection exactly. After the merge,
+  `_FLOOR_SET_FROM` = guards 2183, chain 1754 (dev's, from #223), estate 585.
+- Ledger re-chained with a helper that remaps `fulfills`/`corrects` inside the moved block and keeps each original
+  time as `acted_at`. Branch seq 294 -> 301 (decision) and 295 -> 302 (pr_open). Seq 302's `why` still says "the seq
+  294 decision" in free text; that now means seq 301.
+- Seq 303 re-records #219's merge under the target `#219`. Dev's seq 294 records it as `PR #219 (claude/...)`, which
+  `memory_audit.check_completeness` does not match (it tests exact membership of `#N`), so #219 would FAIL as soon as
+  #223's merge is newest. Seq 304 records #223's merge (merged by the owner's account; this session did not see the
+  words). #222's own `#219` line becomes a duplicate and is dropped when #222 is re-chained onto this branch.
