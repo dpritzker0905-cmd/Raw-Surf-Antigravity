@@ -67,3 +67,23 @@ instrument (README rule 5); a SCOREBOARD row follows its first reading.
   in the report and in full in the artifact. 24 of 24 mutations red (4 new: both diagnostics blinded, the counter deaf,
   the counter left attached). Tests stay 23 (extended, not added), so the chain floor is unchanged. Commitment seq 295
   stays open until an instrumented run reads.
+
+## Second reading, instrumented: three causes named (run 36967271748 on `cf325b67`, 05:04-05:25Z; read 05:27Z)
+- **The 388 run-skew pairs and 97 of the 101 null differences are ONE class:** every one is
+  `coarse_gap_direct_point` / `backend_direct_point`, i.e. a spot outside every regional tile answered by a LIVE
+  upstream point query (point_resolution PATH 2c), not a stored product. A live query can return another run on the
+  next call. The flip cannot reach these spots (consensus_serve swaps only what a GFS regional tile loads as).
+  **Fixed in the instrument:** such answers are excluded from the pairs and the null control, counted and named in the
+  report (`upstream_direct`). Production meaning, for the owner: about 97 spots' glyphs (5.5% of spot-hours) come from
+  a live upstream point at precompute time, are not reproducible between passes, and will NOT change with the flip.
+- **Nothing swapped (0.0%):** the run's base hour was 05:00Z, after the 04:46Z forecast-ingest had begun publishing a
+  newer GFS run; the pilots lane had not built that run's CONSENSUS twins, so by consensus_serve's freshness rule every
+  frame served GFS. The positive control refused, correctly. Production meaning: after each GFS ingest the flip serves
+  NO consensus until the pilots lane builds that run's twins; the first two runs (04:07-04:53Z) swapped 71.6%. The
+  refusal text now says how many pairs were regional-tile answers and why none swapped.
+- **4 Florida hour-0 spot-hours moved with the same product and no swap** (Flagler Beach Pier among them). Arm A met
+  357 tide outages, B 3, A2 0, so tide (RATING_TIDE '1' moves the score at tide-banded spots; SURF_TIDE_DEPTH is not
+  set, so it cannot move the height) is the first suspect, but NOT shown: the instrument now prints each such row with
+  both sides' values and tide state. The next run reads it.
+- Tests stay 23 (extended: a live direct-point spot whose run changes on every call must be counted apart and refuse
+  nothing); 28 of 28 mutations red.

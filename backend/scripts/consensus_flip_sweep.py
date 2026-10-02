@@ -198,6 +198,14 @@ def arm_rows(obj: dict, seen: Dict[tuple, dict], regions: Dict[str, str]) -> Dic
     return out
 
 
+def is_direct(rec: dict) -> bool:
+    """Answered by a LIVE upstream point query, not a stored product (point_resolution PATH 2c, `backend_direct_point`):
+    the flip cannot reach it (consensus_serve swaps only what a GFS regional tile LOADS as), and a live query can return
+    another run on the next call. Run 36967271748: all 388 run-skew pairs and 97 of the 101 null-control differences."""
+    obs = rec.get("_obs") or {}
+    return obs.get("source") == "backend_direct_point" or str(obs.get("coverage_status") or "").endswith("direct_point")
+
+
 def _differs(a: dict, b: dict) -> bool:
     for k in COMPARED:
         x, y = a.get(k), b.get(k)
@@ -211,12 +219,15 @@ def _differs(a: dict, b: dict) -> bool:
 
 def pair(a_rows: dict, b_rows: dict, keep: frozenset) -> Tuple[List[dict], Dict[str, int]]:
     """Rows rated in both arms from the same marine run; the rest counted, never silently dropped."""
-    counts = {"unpaired": 0, "unrated": 0, "run_skew": 0}
+    counts = {"unpaired": 0, "upstream_direct": 0, "unrated": 0, "run_skew": 0}
     rows = []
     for key in sorted(set(a_rows) | set(b_rows)):
         a, b = a_rows.get(key), b_rows.get(key)
         if a is None or b is None:
             counts["unpaired"] += 1
+            continue
+        if is_direct(a) or is_direct(b):
+            counts["upstream_direct"] += 1
             continue
         if None in (a.get("score"), b.get("score"), a.get("surf_height_m"), b.get("surf_height_m")):
             counts["unrated"] += 1
@@ -227,24 +238,30 @@ def pair(a_rows: dict, b_rows: dict, keep: frozenset) -> Tuple[List[dict], Dict[
         rows.append({"spot_id": key[0], "valid_time": key[1], "name": a.get("name"), "region": a["region"],
                      "hour_offset": a.get("hour_offset"), "kept": a["region"] in keep,
                      "swapped": bool(b.get("swapped")), "a_swapped": bool(a.get("swapped")),
+                     "coverage": (b.get("_obs") or {}).get("coverage_status"),
                      "moved": _differs(a, b),
                      **{f"a_{k}": a.get(k) for k in COMPARED}, **{f"b_{k}": b.get(k) for k in COMPARED}})
     return rows, counts
 
 
 def null_control(a_rows: dict, a2_rows: dict) -> Dict[str, int]:
-    """A vs A2 on the hours A2 rated: every shared spot-hour must be identical, run included."""
+    """A vs A2 on the hours A2 rated: every shared product-served spot-hour must be identical, run included. Live
+    upstream answers are counted apart: the flip cannot move them, and a live query is not expected to repeat."""
     shared = [k for k in a2_rows if k in a_rows]
-    differ = sum(1 for k in shared if _differs(a_rows[k], a2_rows[k])
+    direct = [k for k in shared if is_direct(a_rows[k]) or is_direct(a2_rows[k])]
+    stored = [k for k in shared if k not in set(direct)]
+    differ = sum(1 for k in stored if _differs(a_rows[k], a2_rows[k])
                  or a_rows[k].get("run_time") != a2_rows[k].get("run_time"))
-    return {"compared": len(shared), "differ": differ}
+    return {"compared": len(stored), "differ": differ, "upstream_direct": len(direct)}
 
 
 def _diag_entry(key, x: dict, y: dict) -> dict:
     return {"spot_id": key[0], "valid_time": key[1], "name": x.get("name"), "region": x.get("region"),
             "fields": [k for k in COMPARED + ("run_time",) if x.get(k) != y.get(k)],
-            "x": dict(x.get("_obs") or {}, run_time_rated=x.get("run_time")),
-            "y": dict(y.get("_obs") or {}, run_time_rated=y.get("run_time"))}
+            "x": dict(x.get("_obs") or {}, run_time_rated=x.get("run_time"), tide=x.get("tide"),
+                      **{k: x.get(k) for k in COMPARED}),
+            "y": dict(y.get("_obs") or {}, run_time_rated=y.get("run_time"), tide=y.get("tide"),
+                      **{k: y.get(k) for k in COMPARED})}
 
 
 def _aggregate(entries: List[dict]) -> dict:
@@ -262,12 +279,22 @@ def _aggregate(entries: List[dict]) -> dict:
 def diagnose(a_rows: dict, b_rows: dict, a2_rows: dict, cap: int = 400) -> dict:
     """What the excluded pairs (run skew, A vs B) and the null control's differences (A vs A2) were made of: each
     side's product, run, coverage status and dynamic flag, so a refusal names its cause."""
+    def stored(x, y):
+        return not (is_direct(x) or is_direct(y))
     skew = [_diag_entry(k, a_rows[k], b_rows[k]) for k in sorted(a_rows) if k in b_rows
-            and a_rows[k].get("run_time") != b_rows[k].get("run_time")]
+            and stored(a_rows[k], b_rows[k]) and a_rows[k].get("run_time") != b_rows[k].get("run_time")]
     null = [_diag_entry(k, a_rows[k], a2_rows[k]) for k in sorted(a2_rows) if k in a_rows
+            and stored(a_rows[k], a2_rows[k])
             and (_differs(a_rows[k], a2_rows[k]) or a_rows[k].get("run_time") != a2_rows[k].get("run_time"))]
+    leak = [_diag_entry(k, a_rows[k], b_rows[k]) for k in sorted(a_rows) if k in b_rows
+            and stored(a_rows[k], b_rows[k]) and a_rows[k].get("run_time") == b_rows[k].get("run_time")
+            and not b_rows[k].get("swapped") and _differs(a_rows[k], b_rows[k])]
+    direct_spots = {k[0] for k, r in a_rows.items() if is_direct(r)}
     return {"run_skew": {"agg": _aggregate(skew), "rows": skew[:cap]},
-            "null_diff": {"agg": _aggregate(null), "rows": null[:cap]}}
+            "null_diff": {"agg": _aggregate(null), "rows": null[:cap]},
+            "moved_without_swap": {"agg": _aggregate(leak), "rows": leak[:cap]},
+            "upstream_direct": {"spot_hours": sum(is_direct(r) for r in a_rows.values()),
+                                "spots": len(direct_spots)}}
 
 
 def refusals(rows: List[dict], null: Dict[str, int], keep: frozenset) -> List[str]:
@@ -291,7 +318,10 @@ def refusals(rows: List[dict], null: Dict[str, int], keep: frozenset) -> List[st
         out.append(f"{len(leak)} spot-hours moved without a swap (e.g. {leak[0]['name']} {leak[0]['valid_time']}): "
                    f"something other than the switch differs between the arms")
     if not any(r["swapped"] for r in rows):
-        out.append("no spot-hour swapped: the positive control failed (no CONSENSUS twin of the served run?)")
+        tiles = sum(r.get("coverage") == "inside_regional_tile" for r in rows)
+        out.append(f"no spot-hour swapped ({tiles} of {len(rows)} pairs were answered from a GFS regional tile): the "
+                   f"positive control failed; no CONSENSUS twin matches the served GFS run (the pilots lane builds a "
+                   f"run's twins after its ingest, and until then the flip serves GFS)")
     return out
 
 
@@ -383,6 +413,12 @@ def _f(x, fmt="{:.2f}"):
     return "-" if x is None else fmt.format(x)
 
 
+def _tide(t) -> str:
+    if not isinstance(t, dict):
+        return "none"
+    return "/".join(str(t.get(k)) for k in ("state", "norm", "height_m") if t.get(k) is not None) or "present"
+
+
 def render(summary: dict, counts: dict, null: dict, refused: List[str], meta: dict) -> str:
     lines = [f"CONSENSUS FLIP SWEEP  keep={meta['keep'] or '(none)'}  hours={meta['hours']}  base={meta['base']}  "
              f"spots={meta['spots']}  sha={meta['sha']}",
@@ -409,14 +445,25 @@ def render(summary: dict, counts: dict, null: dict, refused: List[str], meta: di
     lines += ["", "-- arms (UTC, log signatures met while each ran)"]
     for name, m in (meta.get("arms") or {}).items():
         lines.append(f"  {name:<3}{m['start']} -> {m['end']}  " + "  ".join(f"{k}={m[k]}" for k in SIGNATURES))
-    for title, key in (("run skew, A vs B (excluded from the pairs)", "run_skew"),
-                       ("null control differences, A vs A2", "null_diff")):
+    direct = (meta.get("diag") or {}).get("upstream_direct")
+    if direct:
+        lines += ["", f"-- live upstream point answers (outside the flip's reach; excluded from pairs and the null "
+                      f"control): {direct['spot_hours']} spot-hours at {direct['spots']} spots"]
+    for title, key in (("run skew among stored products, A vs B (excluded)", "run_skew"),
+                       ("null control differences, A vs A2", "null_diff"),
+                       ("moved without a swap, A vs B", "moved_without_swap")):
         agg = (meta.get("diag") or {}).get(key)
-        if agg:
+        if agg and agg["n"]:
             lines += ["", f"-- {title}: n={agg['n']} same_product={agg['same_product']} "
                           f"dynamic_either={agg['dynamic_either']}",
                       f"   fields {agg['fields']}", f"   regions {agg['by_region']}",
                       f"   coverage {agg['status_pairs']}", f"   source {agg['source_pairs']}"]
+            for e in (meta.get("diag_rows") or {}).get(key, []):
+                x, y = e["x"], e["y"]
+                lines.append(f"   {str(e['name'])[:24]:<25}{e['valid_time']} {e['fields']}  "
+                             + "  ".join(f"{k} {x.get(k)}->{y.get(k)}" for k in COMPARED if x.get(k) != y.get(k))
+                             + f"  run {x.get('run_time_rated')}->{y.get('run_time_rated')}"
+                             + f"  tide {_tide(x.get('tide'))}->{_tide(y.get('tide'))}")
     lines += ["", "VERDICT: " + ("REFUSED" if refused else "report (the flip itself is the owner's word)")]
     lines += [f"  - {r}" for r in refused]
     return "\n".join(lines)
@@ -484,7 +531,8 @@ def main(argv=None) -> int:
         refused = refusals(rows, null, keep_set(keep))
         diag = diagnose(arms["A"], arms["B"], arms["A2"])
         meta["arms"] = arms["meta"]
-        meta["diag"] = {k: v["agg"] for k, v in diag.items()}
+        meta["diag"] = {k: v.get("agg", v) for k, v in diag.items()}
+        meta["diag_rows"] = {k: v["rows"][:15] for k, v in diag.items() if "rows" in v}
     except Refused as e:
         rows, counts, null, refused = [], {}, {"compared": 0, "differ": 0}, [str(e)]
     meta["writes_blocked"] = writes["n"]

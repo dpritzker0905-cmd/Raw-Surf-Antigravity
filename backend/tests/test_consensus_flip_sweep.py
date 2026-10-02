@@ -28,8 +28,10 @@ RUN = "2026-10-01T18:00:00Z"
 # lat -> (region served there, coverage); the third spot sits under the global tier, which the flip never swaps
 SPOTS = [{"id": "fl", "name": "Sebastian Inlet", "latitude": 27.86, "longitude": -80.45},
          {"id": "hi", "name": "Pipeline", "latitude": 21.66, "longitude": -158.05},
-         {"id": "gl", "name": "Somewhere Remote", "latitude": -40.0, "longitude": 100.0}]
-REGION_AT = {27.86: "florida_east_coast", 21.66: "hawaii", -40.0: None}
+         {"id": "gl", "name": "Somewhere Remote", "latitude": -40.0, "longitude": 100.0},
+         {"id": "dp", "name": "Galveston", "latitude": 29.3, "longitude": -94.8}]
+# "direct": a coarse-gap spot answered by a LIVE upstream point, whose run can change between calls (run 36967271748)
+REGION_AT = {27.86: "florida_east_coast", 21.66: "hawaii", -40.0: None, 29.3: "direct"}
 REGIONS = {"gfs_marine_waves_florida_east_coast": "florida_east_coast", "gfs_marine_waves_hawaii": "hawaii",
            "gfs_marine_waves_global_mid": "global_mid"}
 ENV_A = {"CONSENSUS_SERVE": "0", "CONSENSUS_SERVE_KEEP_GFS": "", "RATING_LOCAL_SIZE": "0", "RATING_TIDE": "0"}
@@ -54,6 +56,10 @@ class FakeResolver:
     async def resolve_point(self, *, model, domain, layer, lat, lng, valid_time_str):
         FakeResolver.calls += 1
         region = REGION_AT[lat]
+        if region == "direct":
+            return SimpleNamespace(product_id=None, hs=1.0 + 0.1 * (FakeResolver.calls % 3), source_dataset=None,
+                                   run_time=f"2026-10-02T{FakeResolver.calls % 24:02d}:00:00Z",
+                                   source="backend_direct_point", coverage_status="coarse_gap_direct_point")
         swapped = (not self.never_swap and consensus_serve.enabled() and region is not None
                    and region not in consensus_serve.keep_gfs_regions())
         hs = 1.0 + self.drift * FakeResolver.calls
@@ -130,10 +136,17 @@ def test_the_sweep_workflow_declares_no_flag_of_its_own_and_runs_on_its_own_chan
 
 # ── end to end through the real precompute, with the real switch ────────────────────────────────────────────────────
 def test_a_clean_sweep_swaps_only_unkept_regional_frames_and_refuses_nothing(monkeypatch):
-    rows, counts, null = sweep(monkeypatch)
-    assert counts == {"unpaired": 0, "unrated": 0, "run_skew": 0}
-    assert len(rows) == 6 and null == {"compared": 3, "differ": 0}
+    """A live upstream answer (its run changes per call) is counted apart, never paired, never a null difference."""
+    arms = sweep_arms(monkeypatch)
+    rows, counts = S.pair(arms["A"], arms["B"], KEEP)
+    null = S.null_control(arms["A"], arms["A2"])
+    assert counts == {"unpaired": 0, "upstream_direct": 2, "unrated": 0, "run_skew": 0}
+    assert len(rows) == 6 and null == {"compared": 3, "differ": 0, "upstream_direct": 1}
     assert S.refusals(rows, null, KEEP) == []
+    diag = S.diagnose(arms["A"], arms["B"], arms["A2"])
+    assert diag["upstream_direct"] == {"spot_hours": 2, "spots": 1}
+    assert (diag["run_skew"]["agg"]["n"], diag["null_diff"]["agg"]["n"], diag["moved_without_swap"]["agg"]["n"]) == \
+        (0, 0, 0)
     by_spot = {}
     for r in rows:
         by_spot.setdefault(r["spot_id"], []).append(r)
@@ -187,8 +200,14 @@ def test_inputs_that_drift_between_arms_fail_the_null_control(monkeypatch):
 
 
 def test_a_move_without_a_swap_is_refused(monkeypatch):
-    rows, _, null = sweep(monkeypatch, unswapped_noise=True)
+    """...and listed with both sides, so the refusal names the spot-hours and the fields that moved."""
+    arms = sweep_arms(monkeypatch, unswapped_noise=True)
+    rows, _ = S.pair(arms["A"], arms["B"], KEEP)
+    null = S.null_control(arms["A"], arms["A2"])
     assert any("moved without a swap" in r for r in S.refusals(rows, null, KEEP))
+    leak = S.diagnose(arms["A"], arms["B"], arms["A2"])["moved_without_swap"]
+    assert leak["agg"]["n"] == 2 and {e["spot_id"] for e in leak["rows"]} == {"gl"}
+    assert leak["rows"][0]["y"]["offshore_hs_m"] == pytest.approx(1.1 * leak["rows"][0]["x"]["offshore_hs_m"], abs=2e-3)
 
 
 def test_nothing_swapped_fails_the_positive_control(monkeypatch):
@@ -209,7 +228,8 @@ def test_pairing_counts_what_it_excludes():
     a = {("1", "t"): rec, ("2", "t"): dict(rec, score=None), ("3", "t"): rec, ("4", "t"): rec}
     b = {("1", "t"): rec, ("2", "t"): rec, ("3", "t"): dict(rec, run_time="2026-10-01T12:00:00Z")}
     rows, counts = S.pair(a, b, frozenset())
-    assert [r["spot_id"] for r in rows] == ["1"] and counts == {"unpaired": 1, "unrated": 1, "run_skew": 1}
+    assert [r["spot_id"] for r in rows] == ["1"]
+    assert counts == {"unpaired": 1, "upstream_direct": 0, "unrated": 1, "run_skew": 1}
     skew = S.diagnose(a, b, {})["run_skew"]
     assert [(e["spot_id"], e["fields"]) for e in skew["rows"]] == [("3", ["run_time"])]
     assert skew["rows"][0]["y"]["run_time_rated"] == "2026-10-01T12:00:00Z" and skew["agg"]["n"] == 1
