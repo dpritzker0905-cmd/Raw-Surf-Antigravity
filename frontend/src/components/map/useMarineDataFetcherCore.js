@@ -25,6 +25,7 @@ import {
   bufferPanMovedReplay
 } from './useMarineDataFetcherHelpers';
 import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
+import { claimEnqueueSlot } from './marineEnqueueSlot';
 
 /**
  * Release an abandoned in-flight marine fetch when a newer request supersedes it.
@@ -897,8 +898,9 @@ export function useMarineDataFetcherCore({
     }
 
     lastInvocationRef.current = { source, time: now };
-    if (scheduledRef.current) return;
-    scheduledRef.current = true;
+    // F-23: the cache-only lane never displaces a pending run; a fetch-capable enqueue supersedes a cache-only slot (marineEnqueueSlot.js).
+    const slot = claimEnqueueSlot(source, scheduledRef, timeoutIdRef);
+    if (!slot) return;
 
     if (typeof window !== 'undefined') {
       window.__MARINE_FETCH_DEBOUNCING__ = true;
@@ -906,13 +908,14 @@ export function useMarineDataFetcherCore({
 
     // Run the debounced dispatch on the next frame — but via rAF OR a setTimeout fallback, run-once.
     // rAF alone PAUSES when the tab is hidden, stranding scheduledRef true (which makes the
-    // `if (scheduledRef.current) return` guard above block every subsequent enqueue) and
+    // slot check above block every subsequent enqueue) and
     // __MARINE_FETCH_DEBOUNCING__ true. The setTimeout fallback fires even when hidden; whichever
     // fires first runs the body, the other no-ops (visible tab: rAF wins, timing unchanged).
     let _dispatchRan = false;
     const _runDispatch = () => {
       if (_dispatchRan) return;
       _dispatchRan = true;
+      if (scheduledRef.current !== slot) return; // superseded by a fetch-capable enqueue: that dispatch owns the slot now
       scheduledRef.current = false;
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       // 'flavor_toggle' rides the fast lane: the user just clicked the Rating toggle — a 300 ms
