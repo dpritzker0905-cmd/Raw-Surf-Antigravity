@@ -1,6 +1,7 @@
 # Weather program: state
 
-**Updated 2026-10-02 02:24Z** (logs: `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
+**Updated 2026-10-02 03:09Z** (logs: `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
+228 closed on S11), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
 rollover; the fix is #217, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
@@ -8,7 +9,7 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
-- ⛔ **2026-10-02 (seq 279-285; the fix is PR #217, stacked on #216, open for the owner's word): the skill ledger
+- **2026-10-02 (seq 279-285; FIXED by #217, merged 02:42:26Z as `f302c309`, live from 02:45:03Z, seq 288-289): the skill ledger
   has written nothing since 2026-09-30 22:45:05Z.** Supabase Storage answers a missing object with HTTP 400 and the
   strict L2 reader accepted only a 404, so the first read of the new month's segment (`scored-2026-10.json`) raised
   and every precompute run skipped the ledger while the job stayed green; the residual roll-up shares the reader. The
@@ -21,6 +22,11 @@ is a claim, not a measurement.
   TTL. #211 copies instead of mutating: world responses unchanged; later readers revert to the model's own mask
   (a served-number change on that path; SCOREBOARD S12 before row (S11 on #211's branch); after row = commitment 266, written as 242 on #211's branch). Not fixed, owner's
   call: on the 2-deg world clip the fill's 8-deg reach paints GFS heights inland on the world response itself.
+- **COMMITMENT 228 CLOSED 2026-10-02 (seq 292; SCOREBOARD S11): far-zoom pages now come from the stored field.** Warm
+  box: stored share 85.0% (the ceiling) for both layers page by page, 68.1% / 59.3% with both pages at once; before
+  19.5 / 24.8 / 8.0 / 43.4%. RESIDUALS, the next fix: two concurrent world pages still overrun the 20 s deadline on
+  the 1-CPU box (33-40 of 48 hours per page), and for some minutes after each deploy every page is cut (cold box:
+  12-23 of 48). The original report, kept for context:
 - ⛔ **OWNER REPORT 2026-09-30 22:18Z (seq 227; commitment 228): marine heatmap blank at far-out zooms on forecast
   hours until zooming in.** ROOT MECHANISM from the Render logs (seq 237): the zoomed-out grid_series' live
   fast path times out (2.5 s) and its per-hour loop (10 s/hour, 20 s deadline, 1 CPU) drops many hours under load,
@@ -74,7 +80,8 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `67fe4918`** (#216 at 2026-10-02 02:21:51Z, docs; seq 287), after `48460019` (#218 at 02:17:18Z, CLAUDE.md
+- **`dev` = `f302c309`** (#217 at 2026-10-02 02:42:26Z, the skill-ledger reader; Render live from 02:45:03Z; seq
+  288-289). Before it `67fe4918` (#216 at 02:21:51Z, docs; seq 287), after `48460019` (#218 at 02:17:18Z, CLAUDE.md
   only; seq 286). Before them `63a70425` (#215 at 2026-10-01 11:52:12Z: the vector half of the shared-L1-object guard,
   test-only; seq 274; Render serves it from 11:54:36Z, seq 276). Before it `49e1d62d` (#211 at 04:13:07Z, backend). The same night, each on the owner's word, merged in a
   STACK (LESSONS L-P21): #210 at 04:12:51Z as `33364453` (commitment 228's fix: far-zoom pages from the stored 2-deg
@@ -87,8 +94,8 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #217 (the skill-ledger fix, seq 280 and 284; it carries the merge lines of #218 and #216, seq
-  286-287, and merges on the owner's word once green). #216 merged at 02:21:51Z after its re-run job passed (seq 285). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
+- **Open PRs of ours:** #219 (seq 293; commitments 182 and 228; the W-23 label no longer lands in the cached product's
+  `warnings` and is logged; seq 288-292). #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
   CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
   drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
   anything in it is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
@@ -141,11 +148,11 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, #215), chain 140 / 1714 (reading 1720, #210; the
-  skill-ledger fix moves it to 1732, projection 1738), estate 580 (582).
+- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, #215), chain 140 / 1732 (reading 1738, #217; this
+  PR moves it to 1734, projection 1740), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 287, sha256 6d967c7137896ceefd947d95b07d42a5ab0c82000ea00c7b7cfdfc7d929256d5**
+  **Ledger head: seq 293, sha256 c92a600e5c57cc39978a774dceb754065ee3454204daabcf7ce8ab8c5d1c431d**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
