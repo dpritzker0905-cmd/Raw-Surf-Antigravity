@@ -8,6 +8,7 @@ breaks exactly the thing it guards and reads the refusal back.
 """
 import asyncio
 import inspect
+import logging
 import os
 import re
 from datetime import datetime, timezone
@@ -74,11 +75,15 @@ async def fake_rate(resolver, spot, model, valid_time, reference_size_m=None):
             "offshore_hs_m": round(m.hs, 3), "run_time": m.run_time, "wind_run_time": None}
 
 
-def sweep(monkeypatch, env_a=ENV_A, env_b=ENV_B, **resolver_kw):
+def sweep_arms(monkeypatch, env_a=ENV_A, env_b=ENV_B, **resolver_kw):
     FakeResolver.calls = 0
     monkeypatch.setattr(pc, "_make_point_resolver", lambda: FakeResolver(**resolver_kw))
     monkeypatch.setattr(pc, "rate_one_spot", fake_rate)
-    arms = asyncio.run(S.run_arms(SPOTS, [0, 24], env_a, env_b, BASE, REGIONS))
+    return asyncio.run(S.run_arms(SPOTS, [0, 24], env_a, env_b, BASE, REGIONS))
+
+
+def sweep(monkeypatch, env_a=ENV_A, env_b=ENV_B, **resolver_kw):
+    arms = sweep_arms(monkeypatch, env_a, env_b, **resolver_kw)
     rows, counts = S.pair(arms["A"], arms["B"], KEEP)
     return rows, counts, S.null_control(arms["A"], arms["A2"])
 
@@ -141,15 +146,22 @@ def test_a_clean_sweep_swaps_only_unkept_regional_frames_and_refuses_nothing(mon
 
 
 def test_the_null_arm_runs_after_the_candidate_so_it_brackets_it(monkeypatch):
+    """...and each arm's log signatures are counted against that arm alone (a 429 met in B is B's)."""
     built = []
 
     def make():
         built.append((os.environ.get("CONSENSUS_SERVE"), os.environ.get("CONSENSUS_SERVE_KEEP_GFS")))
+        if os.environ.get("CONSENSUS_SERVE") == "1":
+            logging.getLogger("services.weather_pipeline.store").warning(
+                "Dynamic L2 download failed for x.json: {'statusCode': 429, 'error': too_many_connections}")
         return FakeResolver()
     monkeypatch.setattr(pc, "_make_point_resolver", make)
     monkeypatch.setattr(pc, "rate_one_spot", fake_rate)
-    asyncio.run(S.run_arms(SPOTS, [0, 24], ENV_A, ENV_B, BASE, REGIONS))
+    arms = asyncio.run(S.run_arms(SPOTS, [0, 24], ENV_A, ENV_B, BASE, REGIONS))
     assert built == [("0", ""), ("1", "hawaii"), ("0", "")]
+    met = {name: (m["storage_429"], m["dynamic_l2_failed"]) for name, m in arms["meta"].items()}
+    assert met == {"A": (0, 0), "B": (1, 1), "A2": (0, 0)}
+    assert not any(isinstance(h, S.SignatureCounter) for h in logging.getLogger().handlers)
 
 
 def test_a_switch_left_on_in_todays_arm_is_refused(monkeypatch):
@@ -163,9 +175,15 @@ def test_a_kept_region_that_moves_is_refused(monkeypatch):
 
 
 def test_inputs_that_drift_between_arms_fail_the_null_control(monkeypatch):
-    rows, _, null = sweep(monkeypatch, drift_per_call=0.01)
+    """...and the diagnostics say what the differences were made of (same product, the height fields moved)."""
+    arms = sweep_arms(monkeypatch, drift_per_call=0.01)
+    rows, _ = S.pair(arms["A"], arms["B"], KEEP)
+    null = S.null_control(arms["A"], arms["A2"])
     assert null["differ"] > 0
     assert any(r.startswith("null control:") for r in S.refusals(rows, null, KEEP))
+    agg = S.diagnose(arms["A"], arms["B"], arms["A2"])["null_diff"]["agg"]
+    assert agg["n"] == null["differ"] and agg["same_product"] == agg["n"]
+    assert agg["fields"]["offshore_hs_m"] == agg["n"] and "run_time" not in agg["fields"]
 
 
 def test_a_move_without_a_swap_is_refused(monkeypatch):
@@ -192,6 +210,9 @@ def test_pairing_counts_what_it_excludes():
     b = {("1", "t"): rec, ("2", "t"): rec, ("3", "t"): dict(rec, run_time="2026-10-01T12:00:00Z")}
     rows, counts = S.pair(a, b, frozenset())
     assert [r["spot_id"] for r in rows] == ["1"] and counts == {"unpaired": 1, "unrated": 1, "run_skew": 1}
+    skew = S.diagnose(a, b, {})["run_skew"]
+    assert [(e["spot_id"], e["fields"]) for e in skew["rows"]] == [("3", ["run_time"])]
+    assert skew["rows"][0]["y"]["run_time_rated"] == "2026-10-01T12:00:00Z" and skew["agg"]["n"] == 1
 
 
 def test_stats_reads_levels_heights_and_scores():
@@ -225,7 +246,8 @@ def test_the_observer_passes_answers_through_untouched():
     asyncio.run(obs.resolve_point(model="GFS", domain="wind", layer="wind", lat=1.0, lng=2.0, valid_time_str="t"))
     assert got is answer and obs.tag == "inner"
     assert obs.seen == {S.point_key(1.0, 2.0, "t"): {"product_id": "p", "source_dataset": S.SWAPPED_DATASET,
-                                                    "source": "regional"}}
+                                                    "source": "regional", "run_time": None, "coverage_status": None,
+                                                    "dynamic": False, "fallback_reason": None}}
 
 
 def _product(model, run):

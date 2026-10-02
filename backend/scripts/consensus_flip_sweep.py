@@ -40,11 +40,14 @@ Exit 0 = report; 3 = REFUSED; 1 = setup failed (no credentials, nothing restored
 import argparse
 import asyncio
 import json
+import logging
 import math
 import os
 import re
 import sys
+from collections import Counter
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -62,6 +65,10 @@ OFFSHORE_BANDS = ((0.0, 0.5, "<0.5 m"), (0.5, 1.0, "0.5-1 m"), (1.0, 2.0, "1-2 m
 # quoted literals, so none is collected.
 LANE_LITERAL = re.compile(r"^\s+([A-Z][A-Z0-9_]*):\s*'([^']*)'")
 COMPARED = ("offshore_hs_m", "surf_height_m", "score", "level")
+# Log signatures counted per arm (run 36963244735 refused on its null control with Supabase and tide 429s in the log;
+# these say which arm met which failure, so a refusal can be attributed instead of guessed at).
+SIGNATURES = {"storage_429": "too_many_connections", "product_missing": "Stored product path not found",
+              "dynamic_l2_failed": "Dynamic L2 download failed", "tide_unavailable": "tide] acquisition unavailable"}
 
 
 class Refused(Exception):
@@ -135,11 +142,33 @@ class ObservedResolver:
     async def resolve_point(self, *args, **kwargs):
         resp = await self._inner.resolve_point(*args, **kwargs)
         if kwargs.get("domain") == "marine" and kwargs.get("layer") == "waves" and kwargs.get("lat") is not None:
+            run = getattr(resp, "run_time", None)
             self.seen[point_key(kwargs["lat"], kwargs["lng"], kwargs.get("valid_time_str"))] = {
                 "product_id": getattr(resp, "product_id", None),
                 "source_dataset": getattr(resp, "source_dataset", None),
-                "source": getattr(resp, "source", None)}
+                "source": getattr(resp, "source", None),
+                "run_time": run.isoformat() if isinstance(run, datetime) else run,
+                "coverage_status": getattr(resp, "coverage_status", None),
+                "dynamic": bool(getattr(resp, "is_dynamic_viewport_product", False)),
+                "fallback_reason": getattr(resp, "fallback_reason", None)}
         return resp
+
+
+class SignatureCounter(logging.Handler):
+    """Counts log records carrying each of SIGNATURES while attached (one arm)."""
+
+    def __init__(self):
+        super().__init__(level=logging.WARNING)
+        self.counts = dict.fromkeys(SIGNATURES, 0)
+
+    def emit(self, record):
+        try:
+            msg = record.getMessage()
+        except Exception:
+            return
+        for name, sig in SIGNATURES.items():
+            if sig in msg:
+                self.counts[name] += 1
 
 
 def manifest_regions(manifest) -> Dict[str, str]:
@@ -165,7 +194,7 @@ def arm_rows(obj: dict, seen: Dict[tuple, dict], regions: Dict[str, str]) -> Dic
             out[(str(rec.get("spot_id")), vt)] = dict(
                 rec, valid_time=vt, hour_offset=frame.get("hour_offset"),
                 region=regions.get(pid, "unattributed") if pid else "unattributed",
-                swapped=obs.get("source_dataset") == SWAPPED_DATASET)
+                swapped=obs.get("source_dataset") == SWAPPED_DATASET, _obs=obs)
     return out
 
 
@@ -209,6 +238,36 @@ def null_control(a_rows: dict, a2_rows: dict) -> Dict[str, int]:
     differ = sum(1 for k in shared if _differs(a_rows[k], a2_rows[k])
                  or a_rows[k].get("run_time") != a2_rows[k].get("run_time"))
     return {"compared": len(shared), "differ": differ}
+
+
+def _diag_entry(key, x: dict, y: dict) -> dict:
+    return {"spot_id": key[0], "valid_time": key[1], "name": x.get("name"), "region": x.get("region"),
+            "fields": [k for k in COMPARED + ("run_time",) if x.get(k) != y.get(k)],
+            "x": dict(x.get("_obs") or {}, run_time_rated=x.get("run_time")),
+            "y": dict(y.get("_obs") or {}, run_time_rated=y.get("run_time"))}
+
+
+def _aggregate(entries: List[dict]) -> dict:
+    return {"n": len(entries),
+            "same_product": sum(e["x"].get("product_id") == e["y"].get("product_id") for e in entries),
+            "dynamic_either": sum(bool(e["x"].get("dynamic") or e["y"].get("dynamic")) for e in entries),
+            "fields": dict(Counter(f for e in entries for f in e["fields"]).most_common()),
+            "by_region": dict(Counter(e["region"] for e in entries).most_common(12)),
+            "status_pairs": dict(Counter(f"{e['x'].get('coverage_status')} -> {e['y'].get('coverage_status')}"
+                                         for e in entries).most_common(8)),
+            "source_pairs": dict(Counter(f"{e['x'].get('source')} -> {e['y'].get('source')}"
+                                         for e in entries).most_common(8))}
+
+
+def diagnose(a_rows: dict, b_rows: dict, a2_rows: dict, cap: int = 400) -> dict:
+    """What the excluded pairs (run skew, A vs B) and the null control's differences (A vs A2) were made of: each
+    side's product, run, coverage status and dynamic flag, so a refusal names its cause."""
+    skew = [_diag_entry(k, a_rows[k], b_rows[k]) for k in sorted(a_rows) if k in b_rows
+            and a_rows[k].get("run_time") != b_rows[k].get("run_time")]
+    null = [_diag_entry(k, a_rows[k], a2_rows[k]) for k in sorted(a2_rows) if k in a_rows
+            and (_differs(a_rows[k], a2_rows[k]) or a_rows[k].get("run_time") != a2_rows[k].get("run_time"))]
+    return {"run_skew": {"agg": _aggregate(skew), "rows": skew[:cap]},
+            "null_diff": {"agg": _aggregate(null), "rows": null[:cap]}}
 
 
 def refusals(rows: List[dict], null: Dict[str, int], keep: frozenset) -> List[str]:
@@ -300,12 +359,20 @@ async def run_arms(spots: list, hours: List[int], env_a: dict, env_b: dict, base
                    concurrency: int = 8) -> Dict[str, dict]:
     """The three arms, in order A, B, A2, each on a fresh production resolver under its own env."""
     from services.weather_pipeline import spot_ratings_precompute as pc
-    out = {}
+    out: Dict[str, dict] = {"meta": {}}
     for name, env, hrs in (("A", env_a, hours), ("B", env_b, hours), ("A2", env_a, hours[:1])):
-        with patched_env(env):
-            resolver = ObservedResolver(pc._make_point_resolver())
-            obj = await pc.precompute_spot_ratings(resolver, spots, ["GFS"], hrs, base_dt=base_dt,
-                                                   concurrency=concurrency)
+        counter, root = SignatureCounter(), logging.getLogger()
+        root.addHandler(counter)
+        started = datetime.now(timezone.utc)
+        try:
+            with patched_env(env):
+                resolver = ObservedResolver(pc._make_point_resolver())
+                obj = await pc.precompute_spot_ratings(resolver, spots, ["GFS"], hrs, base_dt=base_dt,
+                                                       concurrency=concurrency)
+        finally:
+            root.removeHandler(counter)
+        out["meta"][name] = {"start": started.strftime("%H:%M:%SZ"),
+                             "end": datetime.now(timezone.utc).strftime("%H:%M:%SZ"), **counter.counts}
         if obj.get("refused"):
             raise Refused(f"arm {name}: the precompute refused ({obj['refused']})")
         out[name] = arm_rows(obj, resolver.seen, regions)
@@ -339,6 +406,17 @@ def render(summary: dict, counts: dict, null: dict, refused: List[str], meta: di
         lines.append(f"  {str(m['name'])[:30]:<31}{m['region']:<22}{m['valid_time']}  "
                      f"{_f(a_ft, '{:.1f}')} -> {_f(b_ft, '{:.1f}')} ft  {m['a_level']} -> {m['b_level']}  "
                      f"offshore {_f(m['a_offshore_hs_m'])} -> {_f(m['b_offshore_hs_m'])} m")
+    lines += ["", "-- arms (UTC, log signatures met while each ran)"]
+    for name, m in (meta.get("arms") or {}).items():
+        lines.append(f"  {name:<3}{m['start']} -> {m['end']}  " + "  ".join(f"{k}={m[k]}" for k in SIGNATURES))
+    for title, key in (("run skew, A vs B (excluded from the pairs)", "run_skew"),
+                       ("null control differences, A vs A2", "null_diff")):
+        agg = (meta.get("diag") or {}).get(key)
+        if agg:
+            lines += ["", f"-- {title}: n={agg['n']} same_product={agg['same_product']} "
+                          f"dynamic_either={agg['dynamic_either']}",
+                      f"   fields {agg['fields']}", f"   regions {agg['by_region']}",
+                      f"   coverage {agg['status_pairs']}", f"   source {agg['source_pairs']}"]
     lines += ["", "VERDICT: " + ("REFUSED" if refused else "report (the flip itself is the owner's word)")]
     lines += [f"  - {r}" for r in refused]
     return "\n".join(lines)
@@ -373,6 +451,8 @@ def main(argv=None) -> int:
     ap.add_argument("--summary", dest="summary_path", help="append the report here (GITHUB_STEP_SUMMARY)")
     args = ap.parse_args(argv)
     keep = "" if args.keep.strip().lower() == "none" else args.keep.strip()
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout,
+                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")   # precompute_ci's format
 
     env_a, env_b = arm_envs(lane_env(), keep, max(args.hours))
     os.environ.update(env_a)               # module imports and the prefetch below run under today's lane
@@ -396,11 +476,15 @@ def main(argv=None) -> int:
     base = pc._top_of_hour_utc()
     meta = {"keep": keep, "hours": ",".join(map(str, args.hours)), "base": base.strftime("%Y-%m-%dT%H:%MZ"),
             "spots": len(spots), "sha": (os.environ.get("GITHUB_SHA") or "local")[:8]}
+    diag: dict = {}
     try:
         arms = asyncio.run(run_arms(spots, args.hours, env_a, env_b, base, regions, args.concurrency))
         rows, counts = pair(arms["A"], arms["B"], keep_set(keep))
         null = null_control(arms["A"], arms["A2"])
         refused = refusals(rows, null, keep_set(keep))
+        diag = diagnose(arms["A"], arms["B"], arms["A2"])
+        meta["arms"] = arms["meta"]
+        meta["diag"] = {k: v["agg"] for k, v in diag.items()}
     except Refused as e:
         rows, counts, null, refused = [], {}, {"compared": 0, "differ": 0}, [str(e)]
     meta["writes_blocked"] = writes["n"]
@@ -413,8 +497,8 @@ def main(argv=None) -> int:
     if args.json_path:
         with open(args.json_path, "w", encoding="utf-8") as fh:
             json.dump({"meta": meta, "counts": counts, "null_control": null, "refused": refused,
-                       "lane_env_applied": {k: v for k, v in env_b.items()}, "summary": summary, "rows": rows},
-                      fh, indent=1, default=str)
+                       "lane_env_applied": {k: v for k, v in env_b.items()}, "summary": summary,
+                       "diagnostics": diag, "rows": rows}, fh, indent=1, default=str)
     return 3 if refused else 0
 
 

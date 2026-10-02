@@ -47,3 +47,23 @@ instrument (README rule 5); a SCOREBOARD row follows its first reading.
 - Chain floor 140 / 1734 -> 141 / 1757 in this commit: hosted run 36961412429 on dev `c4a59c01` read 140 files / 1740;
   + 23 = 1763, - 6 = 1757; `_FLOOR_SET_FROM["chain"]` -> 1763.
 - NOT yet run on live data: the PR's own run of `consensus-flip-sweep.yml` is the first reading.
+
+## First reading: REFUSED by the null control (runs read 04:55Z to 05:03Z)
+- Both PR runs refused, as designed: 36963098550 (`7d623b26`, 04:07-04:26Z) and 36963244735 (`7f9ec5de`,
+  04:27-04:53Z). 1,773 spots x 4 hours: 6,704 pairs, **388 excluded as run skew in BOTH runs** (A and B answered from
+  different model runs), and the null control (A vs A2, hour 0) differed on 101 and then 103 of 1,773 spot-hours.
+- What the refused report showed, recorded so it is not lost, NOT a verdict: swapped 71.6% of pairs, level changed
+  12.9% (up 11.0%, down 1.9%), height ratio p10/p50/p90 0.95 / 1.03 / 1.31, |dheight| p50 0.33 ft / p90 1.41 ft,
+  >= 1 ft on 18.2%; Hawaii unmoved (no kept-region refusal), and no pair from the same run moved without a swap.
+- Supabase `429 too_many_connections` met at each run's OWN prefetch (12 and 57 lines; 13 and 55 failed prewarms) and
+  Open-Meteo tide 429s (272, 446). The production precompute's 02:34Z run (36956225481) shows the same (28 lines, 29
+  failed prewarms, 438 tide-unavailable), so the bursts are this pipeline's, not the sweep's alone.
+- Not a mid-run ingest: run 1 ended before the 04:46Z forecast-ingest started, and `get_manifest()` reads the local
+  manifest (mtime-cached) without an L2 refresh. The skew count being identical (388) under different 429 counts argues
+  against load luck. Hypotheses, untested: product selection depends on in-process state an earlier arm built (the L1
+  cache, the dynamic index), or a product that fails to load falls back to another run.
+- Instrumented in this commit (no fix yet; the cause first): per-arm UTC windows and signature counts; every skewed and
+  null-differing spot-hour with both sides' product, run, coverage status, dynamic flag and fallback reason, aggregated
+  in the report and in full in the artifact. 24 of 24 mutations red (4 new: both diagnostics blinded, the counter deaf,
+  the counter left attached). Tests stay 23 (extended, not added), so the chain floor is unchanged. Commitment seq 295
+  stays open until an instrumented run reads.
