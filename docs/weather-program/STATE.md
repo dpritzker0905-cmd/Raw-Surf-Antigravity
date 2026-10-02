@@ -1,6 +1,7 @@
 # Weather program: state
 
-**Updated 2026-10-02 13:32Z** (logs: `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
+**Updated 2026-10-02 14:26Z** (logs: `log/2026-10-02-pr-merge-target-guard.md` (a `pr_merge` target is exactly
+`#N`, refused at append; #226), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
 legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, the scheduler slot fix, the faded heat map diagnosis, and the faded heat map fix), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
 228 closed on S11), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
@@ -11,6 +12,11 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-02 (seq 326-328; #226, open for the owner's word): a `pr_merge` target is exactly `#N`.** Seq 294
+  recorded #219's merge as `PR #219 (...)`, a target the completeness audit does not count, and nothing failed when it
+  was written. `action_ledger.append` now refuses any `pr_merge` target but `#[1-9][0-9]*`; `verify()` is unchanged,
+  so history stays valid; the audit credits seq 294 as #219 by its sha256 (a pin, not a parse of the text). Seq 327
+  records `pr_merge #223`. Ledger tooling only; no served number.
 - **2026-10-02 13:32Z (merge of `origin/dev` `ca71acd1` (#223) into `claude/far-zoom-max-thinning`, auto-fix on #221 for
   its merge conflict): the branch's ledger was RE-CHAINED AGAIN (L-P21).** #223 added dev seq 294-300, so this branch's
   own lines 294-317 (the first re-chain's 294-315 plus the push and PR lines 316-317) are now **dev seq 301-324 (+7)**,
@@ -213,10 +219,11 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #223 (the cached-product guard, seq 294-300), #220 (PR C, the consensus flip sweep), #221
-  (the far-zoom fixes) and #222 (commitment 228's par2 residual). All four start their ledger lines at seq 294:
-  whichever merges first keeps its numbers, and each later one re-chains onto dev's head (#222 and #223 both carry
-  `pr_merge #219`; the second to merge drops its copy). Agreed order: #223, then #220, then #221. #219 merged 2026-10-02T03:43:27Z as `c4a59c01` (seq 294); #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
+- **Open PRs of ours:** #226 (the `pr_merge` target guard, seq 326-328), #220 (PR C, the consensus flip sweep), #222
+  (commitment 228's par2 residual), #224 (the floor-staleness retry) and #225 (the accuracy monitor's month seam).
+  Each appends ledger lines after dev's head: whichever merges first keeps its numbers, and each later one re-chains
+  onto dev's head (L-P21). #223 merged 2026-10-02T13:24:08Z as `ca71acd1` (recorded at seq 327 on #226) and #221 at
+  14:10:02Z as `abcc6355` (its `pr_merge` line waits for the next PR). #219 merged 2026-10-02T03:43:27Z as `c4a59c01` (seq 294); #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
   CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
   drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
   anything in it is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
@@ -269,12 +276,12 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, dev `c4a59c01`), chain 140 / 1734 (reading 1740,
-  dev `c4a59c01` run 36961412429; the guard PR moves it to 141 / 1748, projection 1754; #220 re-derives after it),
-  estate 580 (582).
+- **CI floors on `dev`:** guards 180 files / 2242 (#221's move, projection 2248), chain 141 / 1748 (projection 1754;
+  #220 re-derives after it), estate 580 (reading 582, runs 37009550311 and 37013975876); #226 moves estate to 273
+  files / 604, projection 606.
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 325, sha256 1c93a416c8b7035081b6761c128484f152ac6d58c0f7c4645c1dc6528e3913c9**
+  **Ledger head: seq 328, sha256 857d47faa0aad26e45a6f21d6f7abb9efa3a9e0e3c56e122599ed547c46085cc**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

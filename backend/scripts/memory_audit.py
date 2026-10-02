@@ -214,13 +214,24 @@ def audit_docs(docs_dir: str = DOCS, state_path: str = None, ledger_path: str = 
 
 
 # ── completeness, commitments, clock, seq references ─────────────────────────────────────────────────────────────
-def check_completeness(entries: list, merges: list) -> list:
+# Seq 294 recorded #219's merge with its title in `target` ("PR #219 (claude/commitments-182-228 -> dev): ..."), before
+# `action_ledger.append` refused that shape (2026-10-02). The ledger is append-only and hash-chained, so that line can
+# never change: it is credited by its exact hash, and no other line can borrow the credit. Reading a leading `PR #N`
+# instead could not be shown safe: "PR #219's revert, merged as #226" would count as #219's record. {line sha256: PR}
+LEGACY_PR_MERGES = {"efbaa2bc77de6746547512ddd699a00e706bdf6afe8a39fef44080757fa2af4e": 219}
+
+
+def check_completeness(entries: list, merges: list, legacy: dict = LEGACY_PR_MERGES) -> list:
     """`merges`: [(pr_number, commit_time_iso)] on this history, NEWEST FIRST, excluding HEAD itself. Every merge at
-    or after the ledger's first line needs a `pr_merge #N` line; the newest may be pending (WARN). PURE."""
+    or after the ledger's first line needs a `pr_merge #N` line (or a `legacy` line, by its hash); the newest may be
+    pending (WARN). PURE."""
     if not entries:
         return []
     genesis = entries[0]["at"]
-    ledgered = {str(e["target"]).strip() for e in entries if e.get("kind") == "pr_merge"}
+    merged = [e for e in entries if e.get("kind") == "pr_merge"]
+    ledgered = {str(e["target"]).strip() for e in merged}
+    ledgered |= {f"#{legacy[h]}" for h in (action_ledger.line_hash(action_ledger.canonical(e)) for e in merged)
+                 if h in legacy}
     res = []
     for i, (n, t) in enumerate(merges):
         if t < genesis or f"#{n}" in ledgered:
@@ -471,6 +482,14 @@ def selftest() -> list:
                      f"the ledger); got {got}")
     if check_completeness(ents, [(5, "2026-09-29T10:30:00Z")]):
         fails.append("completeness: a fully ledgered history was flagged")
+    # A legacy line (seq 294's shape) is credited by its exact hash only; the same text in another line is not.
+    titled = {**ents[1], "target": "PR #6 (claude/x -> dev): a title"}
+    pin = {action_ledger.line_hash(action_ledger.canonical(titled)): 6}
+    two = [(7, "2026-09-29T12:00:00Z"), (6, "2026-09-29T11:30:00Z")]
+    if [lv for lv, _ in check_completeness([ents[0], titled], two, pin)] != ["WARN"] \
+            or [lv for lv, _ in check_completeness([ents[0], {**titled, "at": "2026-09-29T11:01:00Z"}], two, pin)] \
+            != ["WARN", "FAIL"]:
+        fails.append("completeness: a pinned legacy pr_merge line was not credited, or a copy borrowed its credit")
     st = ("**Updated 2026-09-29 19:00Z** (log...)")
     if not any(lv == "FAIL" for lv, _ in check_clock(st, "2026-09-29T18:54:00Z", {})):
         fails.append("clock: STATE dated 19:00Z but written 18:54Z was not caught (the L-P10 case)")

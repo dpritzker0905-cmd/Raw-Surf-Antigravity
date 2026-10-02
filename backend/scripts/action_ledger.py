@@ -63,6 +63,19 @@ AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
 # ⬆ Widened the same evening (seq 189 wrote "18:4x... bound"): an `HH:Mx` estimate is one with or without the Z.
 ESTIMATED_TIME_RE = re.compile(r"~\s?\d{1,2}(?::\d{2})?(?:\s?[-–]\s?\d{1,2}(?::\d{2})?)?\s?Z"
                                r"|\b\d{1,2}:\d?[xX]{1,2}(?![A-Za-z0-9])|\b\d{1,2}[xX]{1,2}Z")
+# A `pr_merge` target is the merged PR as `#N` and nothing else (2026-10-02): memory_audit's completeness check credits
+# a merge only to a line whose target is f"#{n}". Seq 294 wrote "PR #219 (claude/commitments-182-228 -> dev): ...",
+# #219 read as unrecorded, and nothing failed when the line was written. Refused at APPEND, so history stays valid.
+# [0-9], not \d: `\d` also matches other scripts' digits ('#٢١٩'), which f"#{n}" never produces; no leading zero either.
+PR_MERGE_TARGET_RE = re.compile(r"#[1-9][0-9]*")
+
+
+def pr_merge_target_problem(kind: str, target) -> str:
+    """Why `target` cannot be a `pr_merge` line's target, or None (always None for other kinds). PURE."""
+    if kind != "pr_merge" or PR_MERGE_TARGET_RE.fullmatch(str(target)):
+        return None
+    return (f"a pr_merge target must be exactly '#<PR number>' (e.g. '#219'), the form memory_audit's completeness "
+            f"check counts; got {target!r}. Put the branch and title in --why or --outcome")
 
 
 def estimated_time_in_verified(verified: str):
@@ -198,6 +211,9 @@ def append(path: str, **fields) -> dict:
     problems = check_entry(e, e["seq"])
     if problems:
         raise ValueError("refusing an invalid entry: " + "; ".join(problems))
+    bad_target = pr_merge_target_problem(e["kind"], e["target"])
+    if bad_target:
+        raise ValueError(f"refusing the entry: {bad_target}")
     est = estimated_time_in_verified(e.get("verified"))
     if est:
         raise ValueError(f"refusing an estimated time in `verified` ({est!r}): give the clock or platform reading "
@@ -251,7 +267,8 @@ def selftest() -> list:
     with tempfile.TemporaryDirectory() as d:
         p = os.path.join(d, "ACTIONS.jsonl")
         for i, kind in enumerate(("pr_open", "pr_merge", "finding"), 1):
-            append(p, kind=kind, at=f"2026-09-29T0{i}:00:00Z", **base)
+            target = "#2" if kind == "pr_merge" else "t"
+            append(p, kind=kind, at=f"2026-09-29T0{i}:00:00Z", **{**base, "target": target})
         append(p, kind="correction", corrects=3, at="2026-09-29T04:00:00Z", **base)
         good = read_lines(p)
         # Commitments: a second ledger, so the tamper cases below keep their four-line shape.
@@ -282,6 +299,23 @@ def selftest() -> list:
                 append(pe, kind="finding", at="2026-09-29T05:00:00Z", **{**base, "verified": ok})
             except ValueError as ex:
                 fails.append(f"estimated time: {ok!r} was refused ({ex})")
+        # pr_merge targets at append: seq 294's real shape is refused, `#219` is not, and the line the old script
+        # wrote still verifies (history stays valid).
+        pm = os.path.join(d, "MERGE.jsonl")
+        titled = "PR #219 (claude/commitments-182-228 -> dev): the W-23 label stays out of the cached product"
+        try:
+            append(pm, kind="pr_merge", at="2026-09-29T05:00:00Z", **{**base, "target": titled})
+            fails.append(f"pr_merge target: {titled!r} was accepted")
+        except ValueError:
+            pass
+        try:
+            append(pm, kind="pr_merge", at="2026-09-29T05:00:00Z", **{**base, "target": "#219"})
+        except ValueError as ex:
+            fails.append(f"pr_merge target: '#219' was refused ({ex})")
+        old = read_lines(pm)
+        old.append(canonical(make_entry(old, kind="pr_merge", at="2026-09-29T06:00:00Z", **{**base, "target": titled})))
+        if verify(old):
+            fails.append(f"pr_merge target: a titled line the old append wrote no longer verifies: {verify(old)}")
 
         def cmut(*changes):
             """(line index, {field: value or None to drop}) pairs applied, then the chain re-hashed."""
