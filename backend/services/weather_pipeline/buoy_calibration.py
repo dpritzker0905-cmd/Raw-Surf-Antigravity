@@ -547,7 +547,7 @@ def load_calibration_l2(l2_key: str = None, *, strict: bool = False):
             # uploaded a report without forecast_skill_ops and the accuracy monitor paged
             # "SKILL LEDGER DEAD". A GET is idempotent, so transient answers are retried with the
             # same jittered backoff the upload path uses (l2_retry.py), with room for a large object.
-            from services.weather_pipeline.l2_retry import post_with_retry
+            from services.weather_pipeline.l2_retry import is_missing_object, post_with_retry
             resp, _retries = post_with_retry(lambda: requests.get(url, headers=headers, timeout=30),
                                              l2_key or BUOY_CALIBRATION_L2_KEY)
         else:
@@ -559,7 +559,7 @@ def load_calibration_l2(l2_key: str = None, *, strict: bool = False):
             return obj
         if not strict:
             return None
-        if resp.status_code == 404 and resp.json().get("code") in ("NoSuchKey", "not_found"):
+        if is_missing_object(resp):  # Supabase answers a missing object with HTTP 400 (l2_retry.py)
             return None
         raise CalibrationReadError(f"L2 read returned HTTP {resp.status_code}")
     except Exception as e:

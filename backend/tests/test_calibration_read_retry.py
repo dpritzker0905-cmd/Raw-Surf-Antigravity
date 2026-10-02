@@ -68,6 +68,46 @@ def test_an_absent_object_is_not_retried(monkeypatch):
     assert len(calls) == 1
 
 
+# Supabase Storage answers a missing object with HTTP 400 and the real status in the body
+# (storage-api error-handler.ts + codes.ts; see test_forecast_skill_retention.py for the provenance).
+# On 2026-10-01 the strict reader raised on exactly this answer for the first new month's segment.
+SUPABASE_NO_SUCH_KEY = {"statusCode": "404", "code": "NoSuchKey", "error": "not_found",
+                        "message": "Object not found"}
+
+
+def test_supabase_missing_object_answer_is_absent_and_not_retried(monkeypatch):
+    calls = _script(monkeypatch, Resp(status_code=400, headers={}, body=dict(SUPABASE_NO_SUCH_KEY)))
+    assert bc.load_calibration_l2("calibration/skill/scored-2026-10.json", strict=True) is None
+    assert len(calls) == 1
+
+
+def test_older_supabase_missing_object_answer_without_code_is_absent(monkeypatch):
+    # storage-api releases before the `code` field carried only statusCode/error/message.
+    body = {k: v for k, v in SUPABASE_NO_SUCH_KEY.items() if k != "code"}
+    _script(monkeypatch, Resp(status_code=400, headers={}, body=body))
+    assert bc.load_calibration_l2("calibration/skill/scored-2026-10.json", strict=True) is None
+
+
+@pytest.mark.parametrize("body", [
+    {"statusCode": "404", "code": "NoSuchBucket", "error": "Bucket not found", "message": "Bucket not found"},
+    {"statusCode": "404", "code": "TenantNotFound", "error": "Tenant not found", "message": "Tenant not found"},
+    {"statusCode": "400", "code": "InvalidJWT", "message": "Invalid JWT"},
+    {"statusCode": "403", "code": "AccessDenied", "error": "Unauthorized", "message": "Access denied"},
+    "<html>Bad Request</html>",
+])
+def test_every_other_400_still_fails_closed(monkeypatch, body):
+    # Only a missing OBJECT may read as "absent": a missing bucket or tenant, a bad key or a
+    # non-JSON 400 must never let the ledger start a fresh, empty archive.
+    class HtmlResp(Resp):
+        def json(self):
+            if isinstance(self.body, str):
+                raise ValueError("not JSON")
+            return self.body
+    _script(monkeypatch, HtmlResp(status_code=400, headers={}, body=body))
+    with pytest.raises(bc.CalibrationReadError, match="HTTP 400"):
+        bc.load_calibration_l2("calibration/skill/scored-2026-10.json", strict=True)
+
+
 def test_legacy_non_strict_reads_are_unchanged(monkeypatch):
     calls = _script(monkeypatch, Resp(status_code=429, headers={}, body=None))
     assert bc.load_calibration_l2("calibration/buoy_latest.json") is None

@@ -21,6 +21,19 @@ PENDING = fs.SKILL_PENDING_L2_KEY
 MONTH = fs.SKILL_SCORED_PREFIX + "2026-09.json"
 PREVIOUS = fs.SKILL_SCORED_PREFIX + "2026-08.json"
 
+# What Supabase Storage actually answers. storage-api renders every StorageBackendError as HTTP 400
+# with the real status inside the body (src/http/error-handler.ts, unless a deployment sets
+# respectStatusCode), and src/internal/errors/codes.ts gives NoSuchKey -> error "not_found". A live
+# probe on 2026-10-02 returned HTTP 400 {"statusCode":"404","code":"NoSuchBucket",...} for a missing
+# bucket. This fake answered a missing object with HTTP 404 until then, so the month-rollover tests
+# passed while production's ledger died at the first new month: on 2026-10-01 the read of
+# calibration/skill/scored-2026-10.json returned "HTTP 400" and every run skipped the ledger.
+SUPABASE_NO_SUCH_KEY = {"statusCode": "404", "code": "NoSuchKey", "error": "not_found",
+                        "message": "Object not found"}
+SUPABASE_NO_SUCH_BUCKET = {"statusCode": "404", "code": "NoSuchBucket", "error": "Bucket not found",
+                           "message": "Bucket not found"}
+SUPABASE_INVALID_JWT = {"statusCode": "400", "code": "InvalidJWT", "message": "Invalid JWT"}
+
 
 @pytest.fixture(autouse=True)
 def _no_retry_sleep(monkeypatch):
@@ -74,11 +87,18 @@ def wire(monkeypatch):
             return response(200, "bad_json")
         if mode in ("NoSuchKey", "NoSuchBucket", "TenantNotFound", "not_found"):
             return response(404, {"code": mode})
+        if mode == "supabase_NoSuchKey":
+            return response(400, SUPABASE_NO_SUCH_KEY)
+        if mode == "supabase_NoSuchBucket":
+            return response(400, SUPABASE_NO_SUCH_BUCKET)
+        if mode == "supabase_InvalidJWT":
+            return response(400, SUPABASE_INVALID_JWT)
         if mode == "404_html":
             return response(404, "bad_json")
         if mode == "403":
             return response(403, {"code": "AccessDenied"})
-        return response(200, objects[key]) if key in objects else response(404, {"code": "NoSuchKey"})
+        # A missing object answers the way production's storage does (SUPABASE_NO_SUCH_KEY, HTTP 400).
+        return response(200, objects[key]) if key in objects else response(400, SUPABASE_NO_SUCH_KEY)
 
     def post(url, *, headers, data, **kwargs):
         key = object_key(url)
@@ -111,7 +131,8 @@ def wire(monkeypatch):
 
 @pytest.mark.parametrize("key", [PENDING, MONTH])
 @pytest.mark.parametrize("mode", ["503", "timeout", "bad_json", "NoSuchBucket",
-                                  "TenantNotFound", "404_html", "403"])
+                                  "TenantNotFound", "404_html", "403",
+                                  "supabase_NoSuchBucket", "supabase_InvalidJWT"])
 def test_unreadable_history_aborts_without_any_write(wire, key, mode):
     before = deepcopy(wire.objects)
     wire.read_modes[key] = mode
@@ -132,7 +153,7 @@ def test_invalid_archive_shape_aborts_without_any_write(wire, key, invalid):
     assert wire.objects == before
 
 
-@pytest.mark.parametrize("absence_code", ["NoSuchKey", "not_found"])
+@pytest.mark.parametrize("absence_code", ["NoSuchKey", "not_found", "supabase_NoSuchKey"])
 def test_missing_month_is_created_before_pending_is_consumed(wire, absence_code):
     del wire.objects[MONTH]
     wire.read_modes[MONTH] = absence_code
@@ -143,7 +164,7 @@ def test_missing_month_is_created_before_pending_is_consumed(wire, absence_code)
     assert [(key, upsert) for key, _, upsert in wire.writes] == [(MONTH, "false"), (PENDING, "true")]
 
 
-@pytest.mark.parametrize("absence_code", ["NoSuchKey", "not_found"])
+@pytest.mark.parametrize("absence_code", ["NoSuchKey", "not_found", "supabase_NoSuchKey"])
 def test_missing_pending_is_created_without_upsert(wire, absence_code):
     del wire.objects[PENDING]
     wire.read_modes[PENDING] = absence_code
@@ -153,7 +174,7 @@ def test_missing_pending_is_created_without_upsert(wire, absence_code):
 
 @pytest.mark.parametrize("key", [PENDING, MONTH])
 @pytest.mark.parametrize("conflict_status", [400, 409])
-@pytest.mark.parametrize("absence_code", ["NoSuchKey", "not_found"])
+@pytest.mark.parametrize("absence_code", ["NoSuchKey", "not_found", "supabase_NoSuchKey"])
 def test_false_missing_cannot_overwrite_an_existing_object(wire, key, conflict_status, absence_code):
     wire.conflict_status = conflict_status
     before = deepcopy(wire.objects)
@@ -389,3 +410,17 @@ def test_partial_residual_rollup_is_retryable(wire):
     touched = retention.roll_up_history(wire.store, hot, now=NOW)
     assert touched == {"2026-09": {"before": 0, "after": 1}}
     assert len(wire.objects[earlier]) == len(wire.objects[later]) == 1
+
+
+def test_residual_rollup_creates_the_first_new_month_when_storage_answers_400(wire):
+    """2026-10-01: the roll-up reads every segment it touches before writing any, so the missing
+    new-month segment (HTTP 400, SUPABASE_NO_SUCH_KEY) aborted it, and the old month's tail with it."""
+    from services.weather_pipeline import buoy_residual_retention as retention
+    earlier = retention.history_key_for_month("2026-08")
+    later = retention.history_key_for_month("2026-09")
+    wire.objects[earlier] = [residual("prior", "2026-08-31T22:00:00Z")]
+    hot = [residual("prior", "2026-08-31T22:00:00Z"), residual("prior", "2026-08-31T23:00:00Z"),
+           residual("new")]
+    touched = retention.roll_up_history(wire.store, hot, now=NOW)
+    assert touched == {"2026-08": {"before": 1, "after": 2}, "2026-09": {"before": 0, "after": 1}}
+    assert [(key, upsert) for key, _, upsert in wire.writes] == [(earlier, "true"), (later, "false")]

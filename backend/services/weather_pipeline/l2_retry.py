@@ -111,6 +111,32 @@ def transient_storage_error(exc) -> bool:
                                    "connection reset", "connecterror", "remoteprotocolerror", " 502", " 503", " 504"))
 
 
+# Supabase Storage renders every error as HTTP 400 and carries the real status in the JSON body
+# (storage-api src/http/error-handler.ts, unless a deployment sets respectStatusCode). A missing object:
+# {"statusCode": "404", "code": "NoSuchKey", "error": "not_found", "message": "Object not found"}
+# (src/internal/errors/codes.ts); a missing bucket is also statusCode "404" but code "NoSuchBucket".
+# 2026-10-01: the strict calibration reader accepted only an HTTP 404 here, so the first new month's
+# segment (calibration/skill/scored-2026-10.json) read as unreadable and the skill ledger died at the
+# rollover. Pinned by test_calibration_read_retry.py and test_forecast_skill_retention.py.
+def is_missing_object(resp) -> bool:
+    """True only when Storage says THIS OBJECT does not exist: a strict reader then returns None and its
+    caller writes create-only, so a false "missing" is caught by the create-only conflict. A missing bucket
+    or tenant, a bad key, or a body that is not JSON is NOT missing: that read must fail closed. PURE."""
+    if resp.status_code not in (400, 404):
+        return False
+    try:
+        body = resp.json()
+    except ValueError:  # an HTML error page from a proxy says nothing about the object
+        return False
+    if not isinstance(body, dict):
+        return False
+    if resp.status_code == 404:  # the S3-style answer (or a deployment that sets respectStatusCode)
+        return body.get("code") in ("NoSuchKey", "not_found")
+    # error "not_found" is NoSuchKey's own label; older storage-api releases send no `code` field
+    return body.get("code") == "NoSuchKey" or (
+        str(body.get("statusCode")) == "404" and body.get("error") == "not_found")
+
+
 def read_with_retry(read, label: str, *, sleep=None, rand=None):
     """`read()` until it succeeds or fails with a non-transient error; transient failures retry with jittered backoff
     (L2_READ_MAX_ATTEMPTS default 3, base 0.2 s, cap 1 s: at most ~0.9 s added on a user's request). Re-raises."""
