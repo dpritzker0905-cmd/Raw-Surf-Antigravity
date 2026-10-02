@@ -61,6 +61,7 @@ SCORING_STALE_H_DEFAULT = 16.0                 # newest scored target older than
 # WS-CAN-0026: this file's own §evaluate_scored_segment docstring set the revisit at "~2026-08-22"
 # (~2 weeks of post-fix rows). That date now ARMS the gate instead of reminding a person to.
 PAIRED_GRACE_DEFAULT = "2026-08-22T00:00:00Z"
+PAIRED_WINDOW_DAYS = 7      # the paired gate's trailing window (`evaluate_scored_segment`'s `week`)
 
 # WHICH COMPARISONS MAY PAGE, AND WHY THEY DIFFER (WS-CAN-0026, 2026-08-12)
 #   persistence  = THE SKILL FLOOR. "Tomorrow = today" is the reference every operational centre
@@ -493,14 +494,22 @@ def main():
         print("\n".join(rl))
         code = combine(code, rc)
         scored_rows = _fetch_l2("calibration/skill/scored-%s.json" % month)
-        sc, sl = evaluate_scored_segment(scored_rows, now, cfg=cfg)
+        # THE MONTH SEAM (2026-10-02): the archive is keyed by month but the paired gate grades the
+        # TRAILING SEVEN DAYS, so for the first week of a month its window reaches into last month's
+        # file. Handing it this month's alone read `n_paired=56 < 200` -> REFUSED on 2026-10-02, a
+        # day after every run was green. Fetched ONLY inside that week: the object is ~33 MB.
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        window_rows = scored_rows
+        if scored_rows is not None and now - month_start < timedelta(days=PAIRED_WINDOW_DAYS):
+            prev_month = (month_start - timedelta(days=1)).strftime("%Y-%m")
+            window_rows = (_fetch_l2("calibration/skill/scored-%s.json" % prev_month) or []) + scored_rows
+        sc, sl = evaluate_scored_segment(window_rows, now, cfg=cfg)
         print("\n".join(sl))
         code = combine(code, sc)
-        live_rows = scored_rows
-        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        if scored_rows is not None and now - month_start < timedelta(hours=cfg["scoring_stale_h"] + 24):
-            prev_month = (month_start - timedelta(days=1)).strftime("%Y-%m")
-            live_rows = (_fetch_l2("calibration/skill/scored-%s.json" % prev_month) or []) + scored_rows
+        # Liveness keeps its own, shorter seam, unchanged: last month counts only until a fresh
+        # scored target is expected in this one.
+        live_rows = window_rows if (scored_rows is not None and now - month_start < timedelta(
+            hours=cfg["scoring_stale_h"] + 24)) else scored_rows
         ops = report.get("forecast_skill_ops") if isinstance(report, dict) else None
         lc, ll = evaluate_scoring_liveness(live_rows, ops, now, cfg)
         print("\n".join(ll))
