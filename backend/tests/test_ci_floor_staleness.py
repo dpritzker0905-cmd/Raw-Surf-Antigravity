@@ -63,6 +63,57 @@ def _runs(*created):
                                      for i, c in enumerate(created)])
 
 
+@pytest.fixture(autouse=True)
+def backoff_sleeps(monkeypatch):
+    """Every backoff the lookup asks for, recorded instead of slept: no test here waits for real."""
+    slept = []
+    monkeypatch.setattr(S, "_sleep", slept.append)
+    return slept
+
+
+# The 2026-10-02 incident, verbatim: PR #220 (run 36972188156, 06:09Z) and PR #221 (run 37007605637,
+# 12:35Z) both refused on STALE, while `gh run list` and the REST endpoint returned CURRENT minutes later.
+STALE = (35183181239, "2026-09-17T04:46:22Z")
+CURRENT = (36961412429, "2026-10-02T03:43:29Z")
+OLDER = (34000000000, "2026-09-01T00:00:00Z")
+INCIDENT_NOW = (2026, 10, 2, 12, 35)
+
+
+def _cli(*runs):
+    """`gh run list --json databaseId,headSha,createdAt` as it answers."""
+    return __import__("json").dumps([{"databaseId": i, "headSha": f"cli{i}", "createdAt": c} for i, c in runs])
+
+
+def _rest(*runs):
+    """`actions/workflows/ci.yml/runs` as it answers: other field names, wrapped in workflow_runs."""
+    return __import__("json").dumps({"total_count": len(runs), "workflow_runs": [
+        {"id": i, "head_sha": f"rest{i}", "created_at": c} for i, c in runs]})
+
+
+class _ScriptedGh:
+    """Answers `gh run list` and `gh api` from separate queues; a queue's last answer repeats."""
+
+    def __init__(self, cli, rest):
+        self.queues = {"run": list(cli), "api": list(rest)}
+        self.calls = []
+
+    def __call__(self, args, what):
+        self.calls.append(args)
+        queue = self.queues[args[0]]
+        answer = queue.pop(0) if len(queue) > 1 else queue[0]
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    def count(self, source):
+        return sum(1 for args in self.calls if args[0] == source)
+
+
+def _at_incident():
+    from datetime import datetime, timezone
+    return datetime(*INCIDENT_NOW, tzinfo=timezone.utc)
+
+
 def test_the_reading_is_the_newest_run_the_api_returns_not_the_first(monkeypatch):
     """PR #140: `--limit=1` returned run 28712827566, months old, while the right run existed."""
     from datetime import datetime, timezone
@@ -74,17 +125,53 @@ def test_the_reading_is_the_newest_run_the_api_returns_not_the_first(monkeypatch
     assert f"--limit={S.RUN_LOOKUP_LIMIT}" in asked[0] and S.RUN_LOOKUP_LIMIT > 1
 
 
-def test_a_newest_run_that_is_still_old_refuses_and_says_to_rerun(monkeypatch):
-    from datetime import datetime, timezone
-    monkeypatch.setattr(S, "_gh", lambda args, what: _runs("2026-05-01T10:00:00Z"))
-    with pytest.raises(S.Refusal, match="re-run this job"):
-        S.last_green_run("dev", now=datetime(2026, 9, 28, 4, tzinfo=timezone.utc))
+def test_a_newest_run_that_is_still_old_refuses_and_says_to_rerun(monkeypatch, backoff_sleeps):
+    """Old on EVERY attempt from BOTH sources: still a refusal, naming the newest run any source gave."""
+    gh = _ScriptedGh(cli=[_cli(OLDER)], rest=[_rest(STALE, OLDER)])
+    monkeypatch.setattr(S, "_gh", gh)
+    with pytest.raises(S.Refusal, match="re-run this job") as refused:
+        S.last_green_run("dev", now=_at_incident())
+    assert "15 days old (run 35183181239, 2026-09-17T04:46:22Z)" in str(refused.value)
+    assert "an old reading is not a current one" in str(refused.value)
+    assert S.RUN_LOOKUP_ATTEMPTS > 1
+    assert gh.count("run") == gh.count("api") == S.RUN_LOOKUP_ATTEMPTS
+    assert backoff_sleeps == list(S.RUN_LOOKUP_BACKOFF_S)
 
 
 def test_an_empty_run_list_still_refuses(monkeypatch):
     monkeypatch.setattr(S, "_gh", lambda args, what: "[]")
     with pytest.raises(S.Refusal, match="never measured"):
         S.last_green_run("dev")
+
+
+def test_a_stale_first_answer_is_asked_again_and_the_current_one_is_read(monkeypatch, backoff_sleeps):
+    """2026-10-02, PRs #220 and #221: the first answer was 15 days old, the same query minutes later current."""
+    gh = _ScriptedGh(cli=[_cli(STALE), _cli(CURRENT, STALE)], rest=[_rest(STALE)])
+    monkeypatch.setattr(S, "_gh", gh)
+    assert S.last_green_run("dev", now=_at_incident()) == (36961412429, "cli36961412429", "2026-10-02T03:43:29Z")
+    assert backoff_sleeps == [S.RUN_LOOKUP_BACKOFF_S[0]]
+    assert gh.count("run") == 2
+
+
+def test_a_current_rest_answer_outvotes_a_stale_run_list(monkeypatch, backoff_sleeps):
+    """Taken as the newest across both sources, at once: the cross-check needs no backoff before it."""
+    gh = _ScriptedGh(cli=[_cli(STALE)], rest=[_rest(STALE, CURRENT)])
+    monkeypatch.setattr(S, "_gh", gh)
+    assert S.last_green_run("dev", now=_at_incident()) == (36961412429, "rest36961412429", "2026-10-02T03:43:29Z")
+    assert backoff_sleeps == []
+    endpoint = [args for args in gh.calls if args[0] == "api"][0][1]
+    assert endpoint.startswith("repos/{owner}/{repo}/actions/workflows/ci.yml/runs?")
+    for query in ("branch=dev", "status=success", f"per_page={S.RUN_LOOKUP_LIMIT}"):
+        assert query in endpoint
+
+
+def test_a_source_that_fails_is_named_in_the_refusal_not_swallowed(monkeypatch):
+    """A failing source may not decide the answer either way: the other one's reading is still judged."""
+    gh = _ScriptedGh(cli=[S.Refusal("`gh run list` failed while listing runs: HTTP 502")], rest=[_rest(STALE)])
+    monkeypatch.setattr(S, "_gh", gh)
+    with pytest.raises(S.Refusal, match="re-run this job") as refused:
+        S.last_green_run("dev", now=_at_incident())
+    assert "run 35183181239" in str(refused.value) and "HTTP 502" in str(refused.value)
 
 
 def test_the_floors_can_still_be_found_in_the_workflow():
@@ -338,7 +425,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #   controls in tests/test_grid_series_base_anchor.py, selected by `--lane guards` ONLY.
 # chain 1194: the SAME hosted run actually read 1194, not the 1148 previously projected here.
 #   The projection was never confirmed, so this is corrected to the receipt (see ci.yml).
-_FLOOR_SET_FROM = {"guards": 2248, "chain": 1754, "estate": 582}
+# estate 585: dev run 36961412429 (c4a59c01) read 582; this file gains 3 executed tests (22 -> 25), and PR #224's
+#   hosted run 37011560800 read exactly 585. guards 2248 and chain 1754 are dev's (#221, #223), unchanged here.
+_FLOOR_SET_FROM = {"guards": 2248, "chain": 1754, "estate": 585}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

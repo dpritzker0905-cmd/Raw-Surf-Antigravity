@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-02 13:32Z** (logs: `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
+**Updated 2026-10-02 14:18Z** (logs: `log/2026-10-02-floor-staleness-retry.md` (the floor-staleness check asks again and asks REST before refusing; #224), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
 legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, the scheduler slot fix, the faded heat map diagnosis, and the faded heat map fix), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
 228 closed on S11), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
@@ -11,6 +11,12 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-02 14:18Z (seq 326-329; #224, re-chained onto dev `abcc6355` after #221 merged): the floor-staleness check stops failing PRs on a stale
+  GitHub answer.** `backend-floor-staleness` refused on #220 (06:09Z, 12:38Z) and #221 (12:35Z) because `gh run list` returned a 15-day-old list; reproduced
+  locally (stale on 2 of 26 calls, the REST endpoint 0 of 22). It now asks up to 3 times (5 s, 15 s backoff) and cross-checks the REST endpoint, and still
+  refuses when every answer is old. CI-only; no served number. Ledger: this branch's decision and `pr_open` lines are dev seq 326-327; seq 328 records
+  `pr_merge #223` and seq 329 `pr_merge #221` (README rule 12: a ledger PR records the merges before the newest one); the branch's own duplicate
+  `pr_merge #219` was dropped because dev has it at seq 325. Floors: estate 585 (582 + 3 tests); guards 2248 and chain 1754 are dev's.
 - **2026-10-02 13:32Z (merge of `origin/dev` `ca71acd1` (#223) into `claude/far-zoom-max-thinning`, auto-fix on #221 for
   its merge conflict): the branch's ledger was RE-CHAINED AGAIN (L-P21).** #223 added dev seq 294-300, so this branch's
   own lines 294-317 (the first re-chain's 294-315 plus the push and PR lines 316-317) are now **dev seq 301-324 (+7)**,
@@ -274,7 +280,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 325, sha256 1c93a416c8b7035081b6761c128484f152ac6d58c0f7c4645c1dc6528e3913c9**
+  **Ledger head: seq 329, sha256 ed21943f001008efebc3d445333ccd617765986f41a3b2c651737e9765c33cce**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
