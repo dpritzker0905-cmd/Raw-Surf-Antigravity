@@ -169,3 +169,16 @@ instrument (README rule 5); a SCOREBOARD row follows its first reading.
   and #221 (331). This branch's own lines are now 336-343: the commitment to read the sweep is **337**, fulfilled by the
   first clean reading **343**; findings 338, 339, 340, 342; the floor-staleness re-run 341. Its #223/#221 merge copies
   are dropped; 344 records #227's merge. Floors unchanged.
+
+## Fifth reading refused, and why: a product that failed to load is not a moving value (run 37040224655 on `70017336`, 17:22-17:49Z; read 17:50Z)
+- The three runs before it read clean (`1db19cb9`, `b945f009`, `9a28d69a`). This one refused on its null control: 3 of
+  1,673 spot-hours. Arm A met 13 Supabase 429s on product downloads (`dynamic_l2_failed` 13, `product_missing` 13), B
+  2, A2 none; the pairing excluded 5 spot-hours as unrated. The diagnostics printed no null-difference rows although the
+  control counted 3, and `diagnose()` lists only spot-hours rated on both sides: so all 3 were rated in A2 and UNRATED in
+  A (no value, not a different value).
+- **Fixed, a consistency fix and not a looser control:** `pair()` already excluded unrated spot-hours from the
+  measurement and counted them; `null_control()` counted the same event as a disagreement. It now compares only
+  spot-hours rated in both passes, counts the rest (`unrated`) and the report shows it. A spot-hour rated in both passes
+  must still match exactly. Tests stay 23 (the pairing test gains the null-control case); 34 of 34 mutations red.
+- Production note, for the owner: a Supabase 429 on a product download leaves that spot unrated in a precompute pass
+  (the production precompute meets the same 429s, ~28 per run).

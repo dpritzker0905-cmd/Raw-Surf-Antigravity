@@ -264,9 +264,18 @@ def null_control(a_rows: dict, a2_rows: dict) -> Dict[str, int]:
     shared = [k for k in a2_rows if k in a_rows]
     direct = [k for k in shared if is_direct(a_rows[k]) or is_direct(a2_rows[k])]
     stored = [k for k in shared if k not in set(direct)]
-    differ = sum(1 for k in stored if _differs(a_rows[k], a2_rows[k])
+    # A spot-hour rated in only one pass has no value to compare: its product failed to load there (run 37040224655:
+    # arm A met 13 Supabase 429s on product downloads). pair() excludes it from the measurement and counts it; so does
+    # this, so the null control judges exactly the spot-hours the report measures.
+    rated = [k for k in stored if _rated(a_rows[k]) and _rated(a2_rows[k])]
+    differ = sum(1 for k in rated if _differs(a_rows[k], a2_rows[k])
                  or a_rows[k].get("run_time") != a2_rows[k].get("run_time"))
-    return {"compared": len(stored), "differ": differ, "upstream_direct": len(direct)}
+    return {"compared": len(rated), "differ": differ, "upstream_direct": len(direct),
+            "unrated": len(stored) - len(rated)}
+
+
+def _rated(rec: dict) -> bool:
+    return rec.get("score") is not None and rec.get("surf_height_m") is not None
 
 
 def _diag_entry(key, x: dict, y: dict) -> dict:
@@ -470,7 +479,8 @@ def _tide(t) -> str:
 def render(summary: dict, counts: dict, null: dict, refused: List[str], meta: dict) -> str:
     lines = [f"CONSENSUS FLIP SWEEP  keep={meta['keep'] or '(none)'}  hours={meta['hours']}  base={meta['base']}  "
              f"spots={meta['spots']}  sha={meta['sha']}",
-             f"pairs excluded: {counts}   null control (A vs A2): {null['differ']}/{null['compared']} differ   "
+             f"pairs excluded: {counts}   null control (A vs A2): {null['differ']}/{null['compared']} differ "
+             f"({null.get('unrated', 0)} unrated in one pass)   "
              f"write attempts blocked: {meta['writes_blocked']}", ""]
     hdr = (f"{'group':<26}{'n':>6}{'swap':>7}{'lvl chg':>8}{'up':>6}{'down':>6}{'ratio p10/p50/p90':>21}"
            f"{'|dft| p50/p90':>15}{'>=1ft':>7}")

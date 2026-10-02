@@ -182,7 +182,7 @@ def test_a_clean_sweep_swaps_only_unkept_regional_frames_and_refuses_nothing(mon
     rows, counts = S.pair(arms["A"], arms["B"], KEEP)
     null = S.null_control(arms["A"], arms["A2"])
     assert counts == {"unpaired": 0, "upstream_direct": 2, "unrated": 0, "run_skew": 0}
-    assert len(rows) == 6 and null == {"compared": 3, "differ": 0, "upstream_direct": 1}
+    assert len(rows) == 6 and null == {"compared": 3, "differ": 0, "upstream_direct": 1, "unrated": 0}
     assert S.refusals(rows, null, KEEP) == []
     diag = S.diagnose(arms["A"], arms["B"], arms["A2"])
     assert diag["upstream_direct"] == {"spot_hours": 2, "spots": 1}
@@ -273,6 +273,10 @@ def test_pairing_counts_what_it_excludes():
     rows, counts = S.pair(a, b, frozenset())
     assert [r["spot_id"] for r in rows] == ["1"]
     assert counts == {"unpaired": 1, "upstream_direct": 0, "unrated": 1, "run_skew": 1}
+    # the null control applies the same rule: a spot-hour unrated in one pass (its product failed to load) is counted
+    # apart, never a difference; one rated in both passes must still match exactly (run 37040224655)
+    a2 = {("1", "t"): dict(rec, score=None), ("2", "t"): rec, ("4", "t"): dict(rec, score=51.0)}
+    assert S.null_control(a, a2) == {"compared": 1, "differ": 1, "upstream_direct": 0, "unrated": 2}
     skew = S.diagnose(a, b, {})["run_skew"]
     assert [(e["spot_id"], e["fields"]) for e in skew["rows"]] == [("3", ["run_time"])]
     assert skew["rows"][0]["y"]["run_time_rated"] == "2026-10-01T12:00:00Z" and skew["agg"]["n"] == 1
