@@ -162,3 +162,30 @@ with a single line `Superseded by D-MMM (date)`. The newest entry is at the bott
   steps from z8 to z4.4 with `__RAW_GPU__.opacity.mult` sampled per frame: no frame at 0 while `__RAW_GPU__.blendBoth.haveCoarseBase` is true and the held base is for the selected hour; `__MARINE_ZOOMOUT_BRIDGE__.count`
   up by one per zoom-out through the band; `__RAW_ARBITER_SHADOW__.disagree` still 0 in guard mode.
 - **Revert:** the kill switch per session, or revert the commit.
+
+
+### D-015 · The engine keeps the exact 2-degree base for the selected hour: a coarser frame never replaces it, the exact frame comes back over a thin one, and the world warm reaches the band
+- **Decided:** by the owner, 2026-10-02 ("yes, keep the 2 degree frame for the selected hour at every zoom in that range", the answer to the one item recommended with the F-22 fix, D-014).
+- **Rule (client only, default ON, two kill switches, no served number changes):** (1) **rule 5, `heldBaseKeeps`** (`marineStaleHour.js`, asked first in `WebGLMarineEngine._captureCoarseBase`, the one place both capture paths go
+  through): a held EXACT base (`isFineWorldBase`: a world grid with a cell of 2.5 degrees or finer) is not replaced by a COARSER world frame (the backend's thinned 46 x 21 series frame, an 8-degree lattice, or the old 10-degree tier)
+  of the SAME DATA: the same valid time within the snapped step (1.5 h + 1 min), the same model run (the verified cycle when both name one, else the ingest clock compared in whole seconds because /grid serves it with microseconds and
+  /grid_series can cut it to whole seconds, else the data time alone), the same model | layer | rating-flavor slot. A frame of another step, an equal or finer lattice or another named run replaces it as before; an unknown time fails open.
+  (2) **rule 6, `coarseBaseOutdatedBy`** (so `coarseBaseStaleForSeed`, the engine's seed gate, and the prewarm's `_coarseBaseMatches`, the staging gate): a 2-degree seed REPLACES a coarser base of the same data (it used to be refused as
+  "same model, layer and hour"). Kill (1 and 2): `window.__RAW_DISABLE_BASE_HOLD__ = true`. (3) **the band:** the F-21 hour-settled world warm (`opts.band`) is no longer declined as `wide_view` between the 15-degree regional gate and the
+  bridge's ceiling (`bridgeCeilDeg`, 40 degrees, tunable `__RAW_MARINE_GLOBAL_SPAN__`; the bridge and the warm read the one helper), GRID ONLY from such a view (the world series pages stay a regional-zoom activity). Kill:
+  `window.__RAW_DISABLE_WORLD_WARM_BAND__ = true`. Rejected: refusing every thin capture (the thin frame is what serves a world view, and an empty base in a fresh session leaves the bridge nothing); a stride test instead of the cell
+  (the commit path's conform carries no `__decimatedStride`); starting the world series pages from the band (three 48-frame pages, 10-13 s of box CPU each); a veto by the selected hour inside the capture (a design extension, below).
+- **Why (offline, mock backend, no live request, two built apps: the pushed head `dd8616fa` against the final commit):** the F-22 bridge acts only on a held 2-degree base for the selected hour, and the engine did not always hold one. In the
+  first phone-width replay of the F-22 fix the thinned series frame replaced the exact base 3.1 s into a trial and stayed for 28 s (35 and 52 hidden frames where a 2-degree base for the selected hour had 0); the exact frame could not come back
+  because the seed gate refused it. In this build's A/B the owner's erratic zoom (three sets of five seeds per arm) on the pushed head held a thin base for 579 of 18,564 frames (3.1%) and hid 23 (0.12%, every one of them in that stretch); with the follow-up
+  0 of 18,489, no thin base ever held (the guard kept the exact base 5 and 3 times in two sets, 3 times in the first commit's run, 4 in its phone run). Everything else in the replays is unchanged, by design (below). Hand-checked in code: the offline mock cannot see the run spelling, the independent
+  review read it from recorded live samples (`"…:21.292482Z"` from /grid, `"…:21Z"` from /grid_series).
+- **Cost and limits:** one more world `/grid` (2.3 MB, about 3 s of the 1-CPU box) per settled valid time for a session that stays in the 15 to 40 degree band; in the replays, which return to z7 between trials, both builds made the same
+  number of world requests. **The band half changed no hidden-frame count in any of five band scenarios (0.00% in both builds); it changes which frame is held (a base for the selected hour in 73% of frames against 25%, desktop band; 70% against 49%,
+  phone band).** The remaining hidden frames in the zoom-out replays (0.35% desktop, 5.0% phone) are all in the class this follow-up cannot reach: the exact frame for the selected hour had not landed, because it waits in the background fetch
+  queue behind the world series pages (measured wait 33 s in the band replays, 42 to 56 s in the erratic and zoom-out replays, 89 to 91 s in the thin-visit replay, with a mock world page of 8 s; the live pages take 10 to 13 s). A frame for another
+  hour is still never promoted (F-21). A run named on one side only lets the data time decide (the commit path's conform carries no `model_run_time`), so an exact frame of the previous run can be held for the minutes the controller cache outlives a
+  new run. A late frame for ANOTHER step still replaces an exact base for the selected hour (the F-21 rule, unchanged). `__RAW_DISABLE_BASE_HOUR_SYNC__` alone no longer restores the identity-only seed gate: set both switches.
+- **Measure after (the dev site once it merges):** after an erratic zoom `window.__MARINE_BASE_HOLD__.kept` is above 0 and `__RAW_GPU__.blendBoth.haveCoarseBase` stays true; in a session that never leaves the band `__MARINE_GLOBAL_PREWARM__.last`
+  shows one `fetch` with `band: true` per settled valid time and no world series request from that view; the Marine Nightly's `MULT0_FRAME` stays at 2 or fewer (D-014's acceptance).
+- **Revert:** the two kill switches per session, or revert the commit.
