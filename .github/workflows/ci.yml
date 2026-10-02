@@ -1620,7 +1620,11 @@ jobs:
           # CI on PR #171 (merged as 7e81347f) observed 271 files / 570 passed. The new
           # tests/test_fetcher_script_imports.py (claimed by `--lane estate`) adds 12 executed tests: 570 + 12 = 582;
           # 582 - 2 = 580; _FLOOR_SET_FROM[estate] -> 582.
-          MIN_PASSED = 580
+          # ⬆ 580→583 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (the floor-staleness lookup asks again and
+          # cross-checks the REST endpoint before refusing on an old run): dev's hosted run 36961412429 (c4a59c01)
+          # observed 582 passed. tests/test_ci_floor_staleness.py (claimed by `--lane estate`) goes 22 -> 25
+          # collected, all executed: 582 + 3 = 585; 585 - 2 = 583; _FLOOR_SET_FROM[estate] -> 585.
+          MIN_PASSED = 583
 
           try:
               root = ET.parse('estate.xml').getroot()
