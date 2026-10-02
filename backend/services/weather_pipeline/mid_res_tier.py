@@ -32,6 +32,7 @@ import logging
 import os
 
 from services.weather_pipeline.route_helpers import filter_grid_to_bbox, get_snapped_bbox
+from services.weather_pipeline.series_vector_budget import thinning_mode
 from services.weather_pipeline.viewport_helper import _is_oversized_grid
 
 logger = logging.getLogger(__name__)
@@ -124,18 +125,21 @@ def _series_stride(series_stride) -> int:
     return s if s > 1 else 1
 
 
-def _stride_clipped_grid(product, stride: int) -> bool:
+def _stride_clipped_grid(product, stride: int, mode: str = "stride") -> bool:
     """Decimate the clip's OWN grid container exactly as grid_series._apply_build_stride would.
 
     `filter_grid_to_bbox` returns a private grid container over SHARED vector objects, so rebinding
     `vectors` here cannot reach the L1 product; `diagnostics` is still the shared dict, so it is copied
     before `load_stride` is written (a stamp leaking into L1 would make a later full read look strided).
+
+    `mode` is `thinning_mode(layer, domain)`, the SAME value grid_series passes: this is where the world
+    page's far-zoom frames are thinned, so 'max' here is what keeps the Florida swell on an 8-deg lattice.
     """
     from services.weather_pipeline.series_vector_budget import decimate_vectors
     grid = getattr(product, "grid", None)
     if grid is None:
         return False
-    out = decimate_vectors(grid.vectors, grid.cols, grid.rows, stride)
+    out = decimate_vectors(grid.vectors, grid.cols, grid.rows, stride, mode=mode)
     if out is None:
         return False
     grid.vectors, grid.cols, grid.rows = out
@@ -429,7 +433,7 @@ async def try_serve_mid_res_tier(
             product = filter_grid_to_bbox(product, _clip)
         except Exception:
             product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
-        _strided = _stride > 1 and _stride_clipped_grid(product, _stride)
+        _strided = _stride > 1 and _stride_clipped_grid(product, _stride, thinning_mode(layer, domain))
     if product.grid:
         # The clip's grid is its own container, but its `diagnostics` is still the L1 entry's dict
         # (load_product and filter_grid_to_bbox copy one level), and stored grids carry a non-None

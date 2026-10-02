@@ -3,7 +3,9 @@ import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { shouldHoldClearOnDeactivate, noteMarineActive, recordChurn } from './marineTransitionCoordinator';
 import { SKIP, stampLayerCall, stampSkip } from './marineLayerStamp';
 import { resolveCoarseBridgeGrace } from './marineCoarseBridgeGrace';
-import { resolveRejectedOpacity } from './marineZoomOutGate';
+import { resolveRejectedOpacity, isGateWideView } from './marineZoomOutGate';
+import { createStaleHourTracker } from './marineStaleHour';
+import { staleWorldDimMult } from './marineStaleHourLayer';
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -76,6 +78,8 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
   // turned into "the heatmap vanished and never came back" with only a console.warn. A THROW here is
   // a hidden off switch; the counter must measure a BURST, not a lifetime total.
   let lastErrorTime = 0;
+  // WRONG-HOUR WORLD FRAME (2026-10-01, audit F-21; marineStaleHour.js): how long the selected hour has held still.
+  const _staleHour = createStaleHourTracker();
   return {
     id: LAYER_ID,
     type: 'custom',
@@ -234,7 +238,8 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
             const vpHeight = en - es;
 
             const currentZoom = map.getZoom();
-            const isViewportZoomedOut = (currentZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vpWidth > 15.0 || vpHeight > 15.0);
+            // ONE definition (F-22, 2026-10-02): the engine's bridge promotes the held base under this same test (marineZoomOutGate.isGateWideView).
+            const isViewportZoomedOut = isGateWideView(currentZoom, vpWidth, vpHeight);
 
             const isGridRegional = gridWidth < 340.0;
             let isContained = true;
@@ -360,6 +365,11 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
+        // A WORLD frame made for another hour than the selected one (the page-load frame the zoom-out bridge promotes while the
+        // right hour is still on its way) is drawn provisional, not as the selected hour: a fraction of its strength, only once
+        // the hour has held still, never for a regional frame. Fail-open, kill: __RAW_DISABLE_STALE_HOUR_DIM__.
+        opacityMultiplier *= staleWorldDimMult(engine, _staleHour, timeOffsetHoursRef ? timeOffsetHoursRef.current : 0,
+          activeLayersRef ? activeLayersRef.current : null, activeModelRef ? activeModelRef.current : 'GFS');
         if (!engine._initialized || !engine._waveData) stampSkip(_stamp, SKIP.ENGINE_NO_DATA);
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, viewportBounds, opacityMultiplier);
       } catch (e) {

@@ -106,3 +106,59 @@ with a single line `Superseded by D-MMM (date)`. The newest entry is at the bott
   the parity probe moves 46244/46211/46243/46206/46213 from global_mid to regional and the tier's excess falls.
 - **Revert:** '0' in BOTH lanes (or revert the flip PR).
 
+### D-012 · Far zoom: the exact frame is the fix, max thinning stays dark, the wrong hour is fixed in the client
+- **Decided:** by the owner, 2026-10-01 ("yes, build the exact-frame fix for far zoom", then "keep it on, defer the flip, now fix the wrong-hour frame").
+- **Rule:** (1) At far zoom the client draws the exact 2-degree world frame; the thinned series frame is only the instant placeholder (default ON; kill
+  `window.__RAW_DISABLE_EXACT_UPGRADE__`). (2) `SERIES_DECIMATE_MODE=max` (the 3x3 max-pooled placeholder, built dark) is NOT turned on in Render.
+  (3) A world frame for another hour than the selected one is replaced when the right one is held or arrives, a seed for another hour replaces the
+  zoom-out bridge's base, and what cannot be replaced is drawn at 0.4 strength (default ON; kills `__RAW_DISABLE_BASE_HOUR_SYNC__`,
+  `__RAW_DISABLE_STALE_HOUR_DIM__`, `__RAW_DISABLE_STALE_RESIDENT_SWAP__`, `__RAW_DISABLE_HOUR_WORLD_WARM__`, `__RAW_DISABLE_WORLD_GRID_FIRST__`).
+- **Why (offline A/B, mock backend, no live request):** frames with the Florida swell under 75% of the exact frame fell from 11.1% to 0.7% over 25 seeded
+  random-zoom trials (the settle check compared hour labels and committed the thinned frame over an exact frame of the same valid time, 100 times in 25
+  trials). The previous hour's world frame, drawn at full strength for 3.2 to 3.8 s after a zoom-out, is gone after a dwell of 5 s, 0.07 s after
+  one of 2.5 s, and dimmed (not gone) after a short one. Log `2026-10-01-far-zoom-max-thinning.md`, REPORT sections 8.10 and 8.11.
+- **Cost, disclosed to the owner in the 2026-10-01 report (the owner kept the exact-frame fix on after reading its cost; the world warm's cost is
+  new and not yet weighed by them):** one exact world `/grid` (2.3 MB of JSON, about 3 s of the 1-CPU box) per settled far-zoom hour and per settled
+  regional hour (GFS, ICON), in the background lane, deduped by valid time; a dimmed wash while the right hour is on its way. If the dev read-back
+  shows box load: `__RAW_DISABLE_HOUR_WORLD_WARM__` turns the warm off per session (for testing); turning it off for everyone is deleting the one
+  hook call in `useMarineScrubSettle.js`, which keeps the rest of the fix.
+- **Measure after (the dev-site read-back once the PR merges):** the Florida swell for a far hour at far zoom steady at about 2.3 m (it read 1.34 m);
+  `__MARINE_EXACT_UPGRADE__.triggers` rises by one per settled hour; on a page open a minute or more, after a 5 s dwell and a zoom-out
+  `__RAW_GPU__.staleHour.why` is never `stale_world` and `__MARINE_GLOBAL_PREWARM__.grid.ok` is true.
+- **Revert:** the kill switches per session, or revert the commits.
+
+
+### D-013 · The marine fetcher's dispatch slot is capability-aware: the cache-only lane never displaces a fetch
+- **Decided:** by the owner, 2026-10-01 ("go, build the scheduler fix", after the diagnosis in REPORT section 8.12, finding F-23).
+- **Rule:** the fetcher's single dispatch slot (`enqueueMarineUpdate`) knows what an enqueue can do (`marineEnqueueSlot.js`). (1) A cache-only enqueue (`series_upgrade`) never displaces a
+  pending run: it is skipped while the slot is held or a stable-delay timer is armed. (2) A fetch-capable enqueue that finds the slot held by a cache-only enqueue supersedes it.
+  Everything else is as before. Client only, default ON; kill `window.__RAW_DISABLE_SU_NO_CANCEL__ = true`. Rejected: making `series_upgrade` fetch-capable (the lane exists so it never
+  re-serves the interim tier); shortening the 300 ms stable delay (narrows the window, does not close it).
+- **Why (offline, mock backend, no live request):** a series page landing in the 300 ms between a zoom-out's dispatch and its run cancelled the pending `moveend` fetch and ran cache-only in its
+  place, so the zoom-out's world `/grid` was never requested and the map kept its frame until the next gesture (the diagnosis: 6 of 6 landings inside the window lost it, 0 of 12 outside;
+  since 2026-07-17). Replayed in two built apps: where a series page landed inside the window the committed code lost the grid 7 of 7 times and the fix 0 of 6, outside the window 0 of 8 and 0 of 9; and in the owner's erratic-zoom set-up the committed code never requested the selected hour's world grid in 1 of 4 runs, the fix in 0 of 4.
+- **Cost:** where a page used to cancel the zoom-out's grid, the zoom-out now sends it: one world `/grid` (2.3 MB of JSON, about 3 s of the 1-CPU box), the request every zoom-out that needs one
+  already sends when no page happens to land in the window. No served number changes. The skipped lane runs nothing, so no upgrade is lost: the pending run reads the landed page from the cache.
+- **Measure after (the dev-site read-back once the PR merges):** ten zoom-outs 1 to 2 s after picking a far hour on a page that has just opened each issue the world `/grid`;
+  `__RAW_FORENSIC__.summary().counts.series_upgrade_skipped_pending` counts the landings that used to cancel it; no `flavor_fastpath_miss` with `src: 'series_upgrade'` without a grid request after it.
+- **Revert:** the kill switch per session, or revert the commit.
+
+### D-014 · The zoom-out bridge is base-aware: a clip the display gate hides is replaced by the held 2-degree base
+- **Decided:** by the owner, 2026-10-02 ("go, build the heat map fix", after the diagnosis in REPORT section 8.14, finding F-22, and the one recommendation made there).
+- **Rule:** the bridge (`shouldBridgeToCoarseGlobal`), its mirror (`shouldRejectSubcoveringRegional`) and the arbiter's rule 8 judge "wide" for a held 2-degree world base (`isFineWorldBase`: coarse-global by the engine's own
+  definition, a cell of 2.5 degrees or finer) by the display gate's own test (`isGateWideView` in `marineZoomOutGate.js`: z <= 7 or an axis over 15 degrees; the layer reads the same function) OR the 40-degree ceiling of
+  `06b3dbc2`, whichever is wider; a coarser base keeps the ceiling alone. In the band the ceiling used to leave, the base is promoted only when it is the same model and layer as the resident AND made for the selected hour
+  (valid time within 1.5 h of `engine.__selectedMs`, which the layer publishes every frame; an unknown hour fails CLOSED) AND the view is not at the antimeridian (`coverageWrapSafe`: the engine's coverage arithmetic has no
+  longitude wrap). Client only, default ON; kill `window.__RAW_DISABLE_BASE_AWARE_BRIDGE__ = true`; the older `__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__` still wins. Rejected: lowering the cover fraction (`b21cf29d`), routing the
+  no-bridge case into the fade branch (`89f61d87`), switching on the dark coarse-bridge grace (`e17f0332`: a 4 s bound, not the cure), a base-blind restore of the 15-degree rule (the 07-22 EURO flash of a 10-degree frame),
+  and promoting a base whatever its hour (a wrong hour at full strength: F-21).
+- **Why (offline, mock backend, no live request):** the gate hides a clip under 60% at z <= 7 or span > 15 degrees while the bridge only fired past 40 degrees, so the band between hid a clip with nothing replacing it (4.25% of
+  frames in the erratic replay; the nightly's `MULT0_FRAME` red of 09-28..10-01). Replayed in two built apps: 0.00% hidden in the fix's domain (a 2-degree base for the selected hour) in every replay, the nightly's verdict rules
+  on frames thinned to its rate 4 (max 7) -> 0 MULT0 and 0 -> 0 SETTLED_STEP, no wrong-hour cell changed, frame gaps no worse.
+- **Cost and limits:** the promoted frame is a world frame (Florida colourfulness 146 against 180 to 185 for a clip: a step of about 19% instead of 35% to 38%) until the clip commits (median 0.9 s); a rated clip over an unrated
+  base is committed and then handed back once (older: past the ceiling since 07-16); a base for another hour, a thinned 8-degree base (so, in the replays, a 390-px phone map) and the antimeridian keep the old rule, so the dip stays
+  there. No served number changes.
+- **Measure after (the nightly and the dev site once the PR merges):** the Marine Nightly's `MULT0_FRAME` at 2 or fewer on its first scheduled run (`SETTLED_STEP` included in the budget of 2); on the dev site a zoom-out by
+  steps from z8 to z4.4 with `__RAW_GPU__.opacity.mult` sampled per frame: no frame at 0 while `__RAW_GPU__.blendBoth.haveCoarseBase` is true and the held base is for the selected hour; `__MARINE_ZOOMOUT_BRIDGE__.count`
+  up by one per zoom-out through the band; `__RAW_ARBITER_SHADOW__.disagree` still 0 in guard mode.
+- **Revert:** the kill switch per session, or revert the commit.

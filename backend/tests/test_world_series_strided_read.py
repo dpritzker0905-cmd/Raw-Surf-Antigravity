@@ -323,3 +323,23 @@ def test_the_identity_bounds_are_the_bounds_the_clip_serves(tmp_path):
     assert mid_res_tier._identity_clip_bounds(strided, clip, 3) is None, "a stride the product was not read at"
     assert mid_res_tier._identity_clip_bounds(strided, "-60.0000,20.0000,-40.0000,40.0000", 4) is None
     assert decimate_vectors(full.grid.vectors, 181, 83, 4)[0] == strided.grid.vectors
+
+
+# ── max thinning (#221, dark) x the strided read (#222): the merge of the two ─────────────────────────
+# #221 made every thinning site ask `thinning_mode(layer, domain)` and #222 added a pre-strided world read; they met in
+# `try_serve_mid_res_tier`. The store's load-time stride is mode-aware (it reads the file's own layer/domain), and the
+# world clip keeps every cell, so the pre-strided read must pick the SAME cells as the old read-clip-thin path in
+# 'max' mode too. Without this pin the combination would only be checked the day SERIES_DECIMATE_MODE=max is turned on.
+
+@pytest.mark.parametrize("stride", [2, 4])
+def test_max_thinning_serves_the_same_frame_on_the_strided_read_and_the_old_path(tmp_path, monkeypatch, stride):
+    store = _store(tmp_path, _raw_world())
+    monkeypatch.setenv("SERIES_DECIMATE_MODE", "max")
+    old = _old_path(store, monkeypatch, series_stride=stride)
+    new = _serve(store, series_stride=stride)
+    assert _dump(new) == _dump(old)
+    assert set(ProductStore._product_cache) == {f"{FN}#s{stride}"}, "the lane was not taken: this compared old to old"
+    # NON-VACUITY: on this data block-maximum thinning really picks other values than the plain stride does.
+    monkeypatch.setenv("SERIES_DECIMATE_MODE", "stride")
+    plain = _old_path(store, monkeypatch, series_stride=stride)
+    assert [v.speed for v in plain.grid.vectors] != [v.speed for v in old.grid.vectors]

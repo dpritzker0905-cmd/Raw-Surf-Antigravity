@@ -268,6 +268,109 @@ before starting it.
   merged at 03:48-03:50Z and #210 and #211 at 04:12-04:13Z (2026-10-01): two CI windows for four PRs, the only
   extra push being #210's record of #212's merge. Read the rule from the checker
   (`memory_audit.check_completeness`), not from habit. (log `2026-10-01-grid-resolver-no-shared-diagnostics.md`)
+- **L-P22 · Replay the owner's own pattern against the unfixed build, seeded, before saying "fixed".** The exact-frame
+  fix passed its unit tests and the one scrub replay that showed the bug, and was a no-op on the owner's actual pattern
+  (erratic zoom at one timestamp: 8.4% of frames weak against 9.1% unfixed): it followed every thin commit with an
+  upgrade, and the settle check put the thin frame back. Only a seeded A/B of that pattern against a build of the
+  previous commit (5 seeds, then 10 new ones) showed it, and only a per-commit trace (lane, grid, zoom) showed why. Build
+  the unfixed arm first, keep the seeds, trace every commit, and re-aim the harness when the clock moves it (the app's hour
+  0 is the current time rounded to the hour). (2026-10-01, log `2026-10-01-far-zoom-max-thinning.md`)
+- **L-F10 · A label is the identity of a request, not of the data.** At 3-hourly far range the frames serving one selected
+  hour carry different `hourOffset` labels (series 145, exact grid 144, selection 146, all valid 15Z). "Rendered label !=
+  selected hour" read as stale, so the settle check committed the thinned series frame over an exact frame of the same data
+  again and again, and the commit arbiter's `hour_change` rule has the same hole. Ask "is this the same data" with
+  `served_valid_time` and the run, never with the label; `keepExactResident` is the one place that now does. Other
+  label-based checks in the engine may share the flaw. (2026-10-01)
+- **L-F11 · A retained frame is a claim about an hour: check the claim when you DRAW it, not only when you store it.** The
+  zoom-out bridge keeps one coarse base per model|layer|flavor and promotes it whatever hour it was made for. The seed that
+  would have refreshed it was refused by an identity-only gate (model and layer) for as long as the page-load frame was held,
+  and the engine discarded it for the same reason, so a Wednesday selection zoomed out drew the hour-0 field at full strength
+  for 3.2 to 3.8 s offline (3 to 9 s in the live reads) under a readout that said Wed (the panel's own "Forecast time does not
+  match this selection" line was showing: the app knew). Any holder that keeps a frame and draws it later (the bridge base, the wash base, a resident frame after an
+  hour change) must carry the hour it was made for (valid time, never the label: L-F10) and be judged against the selection at
+  the moment of drawing. `coarseBaseStaleForSeed` (replace a base made for another hour) and `resolveStaleWorldDim` (draw a
+  world frame for another hour provisional) are the two places that now do. (2026-10-01, log `2026-10-01-far-zoom-max-thinning.md`)
+- **L-P23 · Re-aiming a replay by hand twice is the signal to mechanize it: pin the clock.** The app's hour 0 is the current
+  time rounded to the NEAREST hour, so a selected hour that was "Oct 7 16Z" at 18:20Z is another hour at 18:31Z, and an A/B
+  whose arms straddle :30 compares different hours (L-P22 re-aimed it by hand; this fix needed it again). The harness now pins
+  the app's anchor (`window.__MOCK_DATE_NOW__`, `PIN_NOW`) and states hour 0, the clicks and the target together, and the arms
+  alternate their order (the basemap tiles come from the internet, so the second arm of a pair always saw a warmer edge cache:
+  the first arm's 700 ms screenshots lacked basemap labels in both pairs I looked at). (2026-10-01)
+- **L-P24 · A mock's flat latency decides what a replay can see: calibrate it against a live measurement of the same request
+  class, and run both bounds.** The offline mock gave every world series request 8 s, including the one-hour "mini" the
+  prewarm sends. The bounded background lane then starved the world grid behind it, and the unfixed build drew the wrong hour
+  for 3.2 to 3.8 s (once 8.7 s), inside the live reads (3 to 9 s warm, over 75 s after a restart). With latency proportional to
+  the frames built (a one-hour mini 0.3 s) the same flow drew it for 0.1 to 0.5 s, because the cached thin frame arrived at once.
+  Live (the audit's own earlier harness runs, `scn_farzoom_cold`, `scn_farzoom`, `scn_timeline`): a regional one-hour mini 0.2 s,
+  a world one-hour page 1.1 to 2.4 s, a 48-frame world page 2 s on a fresh box and 15 to 25 s after a restart, a world `/grid`
+  0.7 to 4.9 s. So the flat 8 s is too slow for the mini and too fast for the big page, and the just-opened-page cells of the F-21
+  matrix depend on that shape (the fetch path's own world series half holds the lane's slot, with the world grid queued behind
+  it). I first wrote "the world mini was never measured" here: the measurement was already in the audit's evidence folder.
+  State which regime a number comes from (`MOCK_WORLD_PAGE_SCALE=1` is the proportional one, `MOCK_WORLD_MINI_MS` the live-like
+  mini), and grep the evidence you already hold for the live request class before saying it is unmeasured. (2026-10-01)
+- **L-P25 · Say what holds a queue from the call's own timestamps, not from the code or the first trace.** The F-21 fix needed
+  to know why the right-hour world grid had not arrived before a zoom-out. Reading the code and the first traces gave two
+  different answers at different times (a 48-frame world page that starts at the selection; the prewarm's own series half), and
+  neither was what the call's own record showed once it existed: `__MARINE_GLOBAL_PREWARM__.grid` carries `gridFirst`, `queuedAt`,
+  `startedAt` and `doneAt`, and on a page that has just opened it showed the fetch path's own call owning the in-flight key with its
+  grid queued behind its own world series half (`gridFirst:false`, queued, never started in 9 s). That is what happened on the
+  mock, where the half costs 8 s; live it costs 1 to 2.4 s (L-P24), so the same record read on the live site is what says whether
+  a just-opened page behaves that way. A request that can wait must record in its own telemetry when it was asked for, when it
+  started, when it finished and who asked, before anyone names the blocker. (2026-10-01, log `2026-10-01-far-zoom-max-thinning.md`)
+- **L-F12 · A cache-only lane in a latest-wins slot can cancel the fetch it was meant to leave alone: the guard must know what the
+  PENDING run can do, not only what is in flight.** `useMarineDataFetcherCore.enqueueMarineUpdate` has ONE dispatch slot and every
+  enqueue clears the pending timer and installs its own. The `series_upgrade` lane (2026-07-17, `f74214fd`) is cache-only by design
+  and its comment says it must never displace a real fetch, but it guards only `locks.isFetching`. A series page landing in the 300 ms
+  between a zoom-out's `moveend` dispatch and its run cancelled the pending `moveend` fetch and ran cache-only in its place; nothing
+  re-armed the fetch, so the world `/grid` was never requested (offline, 24 traced runs: landings inside the window lost it 6 of 6,
+  0 of 6 with one switch, 0 of 12 outside the window). The mirror order is a second hole: a fetch-capable enqueue that finds the slot
+  taken by a cache-only run is dropped at the slot check (injected: lost 2 of 2, and the one-switch fix does not cover it). Rule for any
+  coalescing dispatcher: carry a capability with every enqueue and keep the most capable pending run in BOTH orders, with a call-site
+  test per order under fake timers. Diagnosed 2026-10-01 and fixed the same night (commit e29cddde, `marineEnqueueSlot.js`: the slot carries a capability per enqueue; kill `__RAW_DISABLE_SU_NO_CANCEL__`). (2026-10-01, log `2026-10-01-far-zoom-max-thinning.md`,
+  audit REPORT F-23)
+- **L-P26 · An intermittent loss in a harness is a question for the app's own event log, not for the environment: record the decisions,
+  then split the runs by the one collision you suspect.** I wrote that the unsent zoom-out grid "looks like the over 75 s after a
+  restart state" and told the owner it was "probably the state right after each hourly redeploy"; neither was supported (ledger seq 289).
+  One scratch build that recorded the scheduler's enqueue, dispatch (and which pending run it cancels), run and fetch in the app's
+  forensic ring showed the cause in the first failing run, and tabulating 24 traced runs by "did a series page land between the dispatch
+  and the run" separated them completely, where 34 untraced runs had only been consistent with it. Before attributing an intermittent
+  loss to a slow or stale live state, make the app write down each decision on the path; a guess about a state you cannot reproduce is
+  a claim that outran its check (L-A7). The mechanization is in the harness: `TRACE_APP=1` in `scn_wronghour.js` records the app's
+  console, every request the page issues and the forensic ring for any cell. (2026-10-01, same log)
+- **L-P27 · A zero from one pass is a sample, not a rate: replicate it before it goes in a table, and count a frequency before you predict it.** REPORT V41 said weak far-zoom frames
+  (the Florida swell under 75% of the exact frame) fell from 1.0% to 0% with the F-21 build, from one 5-seed pass (6,109 frames). The F-23 replays read that same build at 0.65% over 14,671 frames
+  (and the F-23 fix at 0.69% over 14,971): the 0% was a lucky sample, and the 0.7% residue is the placeholder windows of the F-19 work. The same replays contradicted a code-reading prediction: the
+  second ordering of the slot race (a fetch-capable enqueue dropped behind the cache-only lane in the same frame) was written up as "much rarer" because its window is one frame, and with the fix's
+  own event recorded it fired 12 times in six 25 s erratic-zoom trials. A pass that reads zero of something other runs of the same build read as nonzero is a reason to run it again, and a
+  frequency predicted from the code is a hypothesis until the event is counted. Mechanized in the harness: `run_f23_erratic.sh` replicates seeds and records the fetcher's events per trial.
+  (2026-10-02, log `2026-10-01-far-zoom-max-thinning.md`, ledger seq 292)
+- **L-F13 · When a fallback's trigger is narrowed, the invariant that pairs it with its gate must be a test, not a comment.** The layer's zoom-out gate hides a
+  regional clip that covers under 0.6 of the viewport when `zoom <= 7 || span > 15`; the engine's bridge promotes the held world frame in its place. `8625841b` (2026-07-16) wrote the pairing
+  down in a comment and a header: "gate shows >=0.6, bridge promotes <0.6 - no coverage band is resident-but-hidden". `06b3dbc2` (2026-07-22) narrowed the BRIDGE's trigger to `span > 40` (EURO's
+  10-degree flash) and left the gate alone. Ten weeks later the band zoom <= 7 and span <= 40 degrees hides a clip with nothing promoted: 2.4 to 3.6% of frames offline, 8.3 s live in the
+  10-01 nightly, the cause of its red on 09-28 to 10-01 (offline with the old rule restored: 0.0% of 6,042 frames). The change that broke it had a 3,000-fixture differential harness for the
+  guard and the arbiter, and no test file mentions both the gate (`resolveRejectedOpacity`) and the bridge predicate (grep, 2026-10-02). Rule: when two predicates share a threshold by design, write the implication as a pure test over the whole input grid
+  (gate hides => bridge fires), with the other side's constants in the grid. Mechanized with the F-22 fix (2026-10-02): `marineBridgeGateInvariant.test.js` (the layer's gate transcribed with its own constants: gate hides <=> bridge fires over a zoom x span x coverage grid, plus the mirror reject and the arbiter), `.wiring.test.js` (the REAL layer and the REAL engine method on one view, and the call sites) and `.sequence.test.js` (41,472 interleavings through both commit modes with the bridge in the loop: with the rule switched off 6,756 of them end with a clip the gate hides beside a held 2-degree base, with it on none); 12 mutations of the fix each turn a named test red. (2026-10-02, log `2026-10-01-far-zoom-max-thinning.md`)
+- **L-P28 · Read one real instance of a finding type, with its state variables, before writing its cause: a name is not a measurement.** The nightly's verdict code names `MULT0_FRAME`
+  the "blank-flash class" and a comment there says a frame drawn with no data reports mult 0, and the audit's section 8.7 (2026-10-01) built its hypothesis (late data misread as a renderer
+  failure) on that comment without opening a failing run's frames; the program's own 08-15 work (`e17f0332`) had already measured the same frames as the coarse bridge's hold, wash drawn. The 10-01 artifact's per-frame engine state, five minutes to read, shows the same frames with
+  the wash drawn, heat 0 by the gate's own decision and a covering clip not yet committed, in a run the verdict itself calls observable. My own harness had the same flaw: "HEAT0" was reported as
+  "heat map faded" and read as vanished, while the wash stays. Say what a number is, not what its name suggests. Mechanized: `scn_heatfade.js` records the gate inputs and the pixels per frame;
+  `runs/f22/nightly_2026-10-01_mult0_frames.json` keeps the extract. (2026-10-02, same log)
+- **L-F14 · An exhaustive sweep sees only what its fixtures contain: put the SERVED product in its alphabet, and read a divergence count against the rule switched off.** The 3,000-fixture guard-vs-arbiter
+  differential and the 37,268-interleaving sequence sweep both use a 10-degree world grid; the backend has served a 2-degree world frame since 2026-07-23. The F-22 sweep (a bridge in the loop, both commit modes,
+  41,472 interleavings) used the 2-degree frame and found two differences no earlier sweep could see, both older than this fix and not changed by it: the arbiter's rule 7 (`tier_downgrade`) rejects a 10-degree
+  world frame offered over a 2-degree world resident while the guard chain commits it (arbiter mode, off by default); and a stale RATED clip over an unrated world frame commits as a deliberate flavor switch and the
+  bridge hands the base back once (the same past the 40-degree ceiling since 07-16). My first run also diverged on thousands of sequences for a harness reason: the guard chain reads the GLOBAL `window.__SURF_MODE__`
+  (`shouldRejectResolutionDowngrade` takes no `win`), the arbiter reads the `w` it is given, and I had set only `w`. Rule: when a served product changes, put its real grid in every sweep's alphabet in the same
+  change; and before reading a divergence class as yours, run the sweep with the new rule's kill switch on, since classes present in both runs are not. Mechanized: `marineBridgeGateInvariant.sequence.test.js`
+  uses the 2-degree world, an antimeridian view and both modes, and its header names the one class it leaves out and why. (2026-10-02, log `2026-10-01-far-zoom-max-thinning.md`)
+- **L-F15 · When a rule's reach widens, read the arithmetic it now reaches for hidden assumptions before replaying anything.** The bridge's coverage math (and the guard's, and the arbiter's) has no longitude
+  wrap. It never mattered while the bridge reached only world zoom. The F-22 fix widened its reach to z <= 7, where a Fiji-style view is MapLibre-unwrapped (east 192) and the backend returns the clip WRAPPED
+  (west 170 > east -168, `marineBboxGeometry`): the engine reads that clip as covering 0 of a view the layer's wrap-aware gate sees it covering whole, so the first version would have promoted the world base over a
+  covering clip and then rejected every clip as sub-covering. Found by reading my own diff against the bbox code, before the A/B. Rule: for each change that widens when a rule fires, list the inputs the
+  newly reached region has that the old region never had (wrapped bounds, a view past +-180, unknown zoom, a different model) and give each one a test or a stated limit. Mechanized: `coverageWrapSafe` and its tests
+  (a wrapped clip, a view past +-180 and a view at the edge of the world each have a case); the antimeridian keeps the old rule, a documented limit. (2026-10-02, same log)
 - **L-S19 · An equivalence check that never ran the new path proves nothing; assert the path was taken.** The first
   real-file proof of the strided world read said "old == new" on 207,872 cells, and the new path was not taken once:
   the live files declare no `resolution`, the guard required one, and every hour fell back to the old path, so it

@@ -1,8 +1,8 @@
 # Weather program: state
 
-**Updated 2026-10-02 13:52Z** (logs: `log/2026-10-02-floor-staleness-retry.md` (the floor-staleness check asks
-again and asks REST before refusing; #224, the bottom of the stack dev <- #224 <- #222),
-`log/2026-10-02-cached-product-guard.md` (one guard on the cached-product invariant; #223), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
+**Updated 2026-10-02 14:22Z** (logs: `log/2026-10-02-floor-staleness-retry.md` (the floor-staleness check asks again and asks REST before refusing; #224), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
+invariant; #223), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
+legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, the scheduler slot fix, the faded heat map diagnosis, and the faded heat map fix), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
 228 closed on S11, its par2 residual fixed offline; #222), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
 rollover; the fix is #217, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
@@ -11,12 +11,129 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
-- **2026-10-02 (seq 301-304; #224, open for the owner's word): the floor-staleness check stops failing PRs on a stale
-  GitHub answer.** `backend-floor-staleness` refused on #220 (12:38Z), #221 (12:35Z) and #220's earlier run (06:09Z)
-  because `gh run list` returned a 15-day-old list; reproduced locally (stale on 2 of 26 calls, REST 0 of 22). It now
-  asks up to 3 times (5 s, 15 s backoff) and cross-checks the REST endpoint, still refusing when every answer is old.
-  CI-only; no served number.
-- **2026-10-02 (seq 294-300; #223, merged 13:24:08Z as `ca71acd1`, seq 304): one guard on the cached-product invariant.**
+- **2026-10-02 14:22Z (seq 330-336; #222, stacked on #224, re-chained after #221 merged): its ledger lines are dev seq 330-334, plus seq 335 and 336.** The one CODE conflict of the stack was in `mid_res_tier.py`: #221 made every thinning site take `thinning_mode(layer, domain)` while #222 restructured the same
+  lines into the pre-strided world read. Resolved as #222's structure plus the mode argument on the fallback stride; no guard on the fast path, because the store's
+  load-time stride is already mode-aware and the world clip keeps every cell (tested, not assumed: `test_max_thinning_serves_the_same_frame_on_the_strided_read_and_the_old_path`,
+  2 strides, with a non-vacuity check; a mutant taking #222's side blindly fails both). Floors: chain 142 files / MIN_PASSED 1790 (1794 stacked + 2), table chain 1796;
+  guards 2248 and estate 585 as in #224. Seq 335 is the decision, seq 336 records the #224 push (184f6678). Merge order: #224, then #222.
+- **2026-10-02 14:18Z (seq 326-329; #224, re-chained onto dev `abcc6355` after #221 merged): the floor-staleness check stops failing PRs on a stale
+  GitHub answer.** `backend-floor-staleness` refused on #220 (06:09Z, 12:38Z) and #221 (12:35Z) because `gh run list` returned a 15-day-old list; reproduced
+  locally (stale on 2 of 26 calls, the REST endpoint 0 of 22). It now asks up to 3 times (5 s, 15 s backoff) and cross-checks the REST endpoint, and still
+  refuses when every answer is old. CI-only; no served number. Ledger: this branch's decision and `pr_open` lines are dev seq 326-327; seq 328 records
+  `pr_merge #223` and seq 329 `pr_merge #221` (README rule 12: a ledger PR records the merges before the newest one); the branch's own duplicate
+  `pr_merge #219` was dropped because dev has it at seq 325. Floors: estate 585 (582 + 3 tests); guards 2248 and chain 1754 are dev's.
+- **2026-10-02 13:32Z (merge of `origin/dev` `ca71acd1` (#223) into `claude/far-zoom-max-thinning`, auto-fix on #221 for
+  its merge conflict): the branch's ledger was RE-CHAINED AGAIN (L-P21).** #223 added dev seq 294-300, so this branch's
+  own lines 294-317 (the first re-chain's 294-315 plus the push and PR lines 316-317) are now **dev seq 301-324 (+7)**,
+  action times kept, in-block "seq N" citations moved +7 (6 lines). Cumulatively: the far-zoom branch's original seq
+  274-292 are now 301-319, the CLAUDE.md lines 293-295 are 320-322, and #221's push / PR lines are 323-324 (the bullet
+  below that says +20 now reads +27). Floors: guards 180/2242 from this branch, chain 141/1748 from #223. Still merges
+  LAST, after #220.
+- **2026-10-02 12:30Z (merge of `origin/dev` `c4a59c01` into `claude/far-zoom-max-thinning`, owner: "push the far-zoom
+  branch and open its PR"): the branch's ledger was RE-CHAINED (L-P21).** dev's seq 1-293 are byte for byte, and this
+  branch's own lines 274-295 are re-appended as **dev seq 294-315 (+20)** with their action times kept; inside those
+  lines an in-block "seq N" was remapped to N+20 (6 lines), nothing else changed. Where the far-zoom bullets below
+  and `log/2026-10-01-far-zoom-max-thinning.md` cite this branch's own seq 274-295, add 20 (their prose is not
+  rewritten); where they cite #216/#217 (seq 274-285), the number is already dev's. The branch merges LAST (after the
+  cached-product guard and #220) and re-chains again then.
+- **2026-10-02 05:42Z (no ledger entry yet, see below; same branch, local commit `083fbd3c`, NOT pushed): the faded heat map (F-22) is FIXED in the CLIENT, ON BY DEFAULT** (owner: "go, build the heat map fix"). The engine's zoom-out bridge, its mirror reject and the arbiter's rule 8 are base-aware: a held 2-degree world base (`isFineWorldBase`) is judged by the display gate's own wide test (`isGateWideView`, one function the layer now shares) or the 40-degree ceiling's, whichever is wider; a 10-degree base keeps the ceiling. In the band the ceiling left (z <= 7, span <= 40) the base is promoted only when it is the same model and layer, made for the selected hour (valid time within 1.5 h of `engine.__selectedMs`, published by the layer every frame; an unknown hour fails closed) and the view is not at the antimeridian (the engine's coverage math has no wrap). Kill `window.__RAW_DISABLE_BASE_AWARE_BRIDGE__ = true`. Client only: no served number changes, no SCOREBOARD row; DECISIONS D-014; LESSONS L-F13 (now mechanized), L-F14, L-F15.
+  **Checked:** test-first; 45 new tests (the REAL layer swept over 7 zooms x 8 spans x 8 coverages for GFS, EURO and ICON against the real engine method; an 82,320-interleaving sweep of both commit modes with the bridge in the loop: 0 clips hidden beside a fine base, 0 bounces, 0 wedges, 0 wrong-hour promotions, and 10,064 interleavings reach that state with the switch on); 22 mutations, each caught; two independent reviews (`pr-review-toolkit` code and test agents, the owner's new plugins), every valid finding applied (the antimeridian regression, a base up to 3.5 h off at full strength, an unknown hour promoting, a tuned ceiling narrowed, the shadow context); `src/components/map` 211 suites / 2,282 tests and the whole frontend 324 / 3,271 green; lint and LOC ratchets clean. **Offline A/B in two BUILT apps** (the commit before the fix against the fix; mock backend, no live request): erratic zoom 4.25% of frames hidden -> 0.00%; with a 2-degree base for the selected hour 0.00% hidden in every replay (5,597 + 6,687 + 1,109 frames, against 4.25%, 1.14% and 1.79%); the nightly's verdict rules on frames thinned to its rate: MULT0 4 (max 7) -> 0, SETTLED_STEP 0 -> 0; the F-21 wrong-hour cells and the frame gaps unchanged.
+  **Limits, measured:** a base for ANOTHER hour and a thinned 8-degree world-series base keep the old rule by design, so the 390-px phone replays did NOT improve (hidden 1.76% -> 2.70%: the base was the thinned frame for 65% of the fixed run); the antimeridian keeps the old rule; EURO and ICON on the real backend, the rating flavor and the live app are untested. **Recommended next (ONE item, the owner's word):** make the held base the exact 2-degree frame for the selected hour at every zoom of the band: extend the F-21 world warm below the regional zoom and stop a thinned frame of the same hour replacing a held 2-degree base. **Read-back after a deploy:** the nightly's `MULT0_FRAME` at 2 or fewer on its first scheduled run.
+  **Ledger:** nothing appended. Prepared, not appended (scratchpad): the F-22 finding, the seq-291 correction, the F-23 review record, this build's decision and its read-back commitment; `pr_merge #218` is DROPPED (dev has it at seq 286). dev is `c4a59c01`, ledger head seq 293 (read from git); #219 is merged and #220 open, so this branch's lines are re-chained last, after dev's head at that moment, when the owner says go. **Waiting on the owner:** the word to push or open a PR (the pre-push `check_floor_before_push.py` blocks until the chain lane's floor moves), the ledger go-ahead and the chain order, whether to commit `audit/` (untracked), and whether to build the recommended next item. Log: `log/2026-10-01-far-zoom-max-thinning.md` (03:15Z to 05:42Z).
+- **2026-10-02 02:15Z (no ledger entry yet, see below; same branch): why the heat map fades on a zoom-out (audit F-22) is DIAGNOSED; NO code changed** (owner: "go, diagnose the faded heat map next, also use the new plugins and connectors and skills I added to help us").
+  What the harness calls HEAT0 and the nightly calls `MULT0_FRAME` is the layer's zoom-out gate hiding a regional clip that covers under 60% of the viewport (`mult` 0: the regional pass AND the crest animation; the 2-degree wash stays, never a blank)
+  while the engine's promotion of the held world frame (`_midBandBridgeWide`, `marineCommitGate.js:66`) has fired only past a 40 degree span since `06b3dbc2` (2026-07-22): in the band zoom <= 7 and span <= 40 degrees (about z4.5 to 7 on a
+  1280 px map) nothing replaces the hidden clip until a wider one commits, so the invariant of `8625841b` ("no coverage band is resident-but-hidden") is broken. **Offline (mock backend, per-frame):** 2.4 to 3.6% of frames under erratic zoom, a hide of
+  about 1.3 s plus the fetch latency for an uncached viewport (0.08 to 0.5 s cached); with the existing kill switch `__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__` 0.0% of 6,042 frames; lowering the cover fraction (the known-bad fix, `b21cf29d`) only moves the dip
+  to the tiny-tile fade (5.5% of frames); the cold veil is not the cause. **Live:** the Marine Nightly's `MULT0_FRAME` is this state: 19 of the 70 runs since 08-24, over the budget of 2 on the last four (09-28: 4, 09-29: 12, 09-30: 9, 10-01: 12);
+  the 10-01 run (observable, no transport or console error) shows 2.5 s and 8.3 s episodes at z6.24 and z4.7 to 4.4 with the engine's promotion count 0 for the whole run. **Corrects** the audit's section 8.7 ("MULT0 = a frame drawn with no wave data") and this
+  program's earlier "heat map faded" wording for HEAT0 frames (the wash stays). **Recommended there, BUILT 2026-10-02 (the bullet above):** a base-aware bridge: a held base of 2.5 degrees or finer uses the gate's own wide test (`zoom <= 7 or span > 15`), a 10-degree base keeps the
+  40-degree ceiling; default on, a kill switch, the invariant as a pure test, the arbiter's `subcover_at_wide` mirror; acceptance = the nightly's MULT0 at 2 or fewer and EURO/ICON replayed. Cost: the promoted frame is drawn as a world frame (Florida colour
+  spread 146, against 181 for a clip and 117 hidden). Not tested: EURO/ICON, a phone-width map, the live app. The existing dark `__RAW_COARSE_BRIDGE_GRACE__` (2026-08-15) would bound the hide at 4 s; it is not what I recommend instead. **Ledger:** nothing appended for this work until the order
+  with a peer's PR #216 (seq 274-278) and its stacked #217 (279-285) is agreed; then one `finding` (F-22), the `correction` for seq 291's "gh auth is invalid" (gh is authenticated now), the peer-review record of F-23's dedupe stamp, and the `pr_merge #218` line the CLAUDE.md session asked me to carry (PR #218 merged 2026-10-02T02:17:18Z, `48460019`; recorded once, by whichever PR lands next on dev). Log section
+  "00:40Z to 02:05Z (2026-10-02)" of `log/2026-10-01-far-zoom-max-thinning.md`; the evidence and the audit report (section 8.14) are in the untracked `audit/weather-direction-drift-2026-10-01/`.
+- **2026-10-02 00:33Z (seq 290-292; same branch, local commit e29cddde, NOT pushed): the zoom-out grid race (F-23) is FIXED in the CLIENT, ON BY DEFAULT** (owner: "go, build the scheduler fix").
+  The dispatch slot of `useMarineDataFetcherCore.enqueueMarineUpdate` now knows what an enqueue can do (new `marineEnqueueSlot.js`, +3 net lines in the core, 962 of 966): the cache-only `series_upgrade` lane is
+  SKIPPED while a run is pending or armed (it never displaces a fetch), and a fetch-capable enqueue SUPERSEDES a cache-only slot that is only scheduled. Kill `window.__RAW_DISABLE_SU_NO_CANCEL__ = true`; forensic
+  events `series_upgrade_skipped_pending`, `cache_only_slot_superseded`. 38 new tests (the REAL `enqueueMarineUpdate` under fake timers, both orders, a hidden tab, the switch), 17 mutations each turning them red,
+  the whole `src/components/map` folder 208 suites / 2,237 tests green. **Offline A/B in two BUILT apps** (the committed code vs the fix; mock backend, NO live request; the just-opened cell at a 0.8 s stay,
+  live-like latencies, the series page landing before, inside and after the dispatch window, 30 runs): where a page landed inside the window the committed code lost the zoom-out's world `/grid` 7 of
+  7 times (the right hour never drew in 9 s), the fix 0 of 6 (right hour at 4.4 to 4.5 s, the same as a run with no landing); outside the window neither lost one. The F-21 cells, the far-zoom scrub and the erratic frame metrics are unchanged; one unforced occurrence of the lost grid in the owner's erratic-zoom set-up (1 of 4 committed runs, 0 of 4 with the fix); it does NOT change the erratic-zoom disappearances (faded heat map, placeholder windows), which stay open. Not tested live; the
+  second order by the call-site tests and, with the fix on, 12 natural supersede events in the erratic runs (no frame difference shown); how often a landing falls in the window live is unknown. Cost: where a page used to cancel the grid the zoom-out now sends it (one 2.3 MB world `/grid`). No served number
+  changes (no SCOREBOARD row). Corrections (seq 292): the second order is NOT rare under erratic input (12 supersedes, 45 skips in six 25 s trials) and V41's weak frames 1.0% -> 0% was one lucky
+  sample (0.65% vs 0.69%). Commitment seq 291 (due 2026-10-04T18:00Z): the fix reaches dev and is read back there. Log: `log/2026-10-01-far-zoom-max-thinning.md`; DECISIONS D-013; LESSONS L-F12.
+- **2026-10-01 22:32Z (seq 288-289; diagnosis only, NO product code changed): the zoom-out's world grid that was sometimes never requested has a cause: a series page landing in the
+  300 ms between the zoom-out's dispatch and its run cancels it** (owner: "go with 1, diagnose why the zoom-out grid isn't sent"). After a zoom-out `moveend` waits 900 ms (50 ms if cached),
+  enqueues `'moveend'` on `useMarineDataFetcherCore`'s single dispatch slot, which arms a 300 ms timer; any LATER enqueue clears that timer. A series page (regional or world, or the hour-0 mini) fires
+  `marine_series_revalidated` -> `enqueueMarineUpdate('series_upgrade')`, a CACHE-ONLY lane that returns before any network fetch; landing inside the 300 ms it cancels the pending `moveend` run and runs
+  in its place, and nothing re-arms the fetch, so the map keeps its frame until the next gesture. The lane's comment promises it never displaces a real fetch; the code guards only an in-flight one
+  (`locks.isFetching`), not a pending one. Since 2026-07-17 (`f74214fd`). Proof (offline, scratch build of `dd28a1dd` with the forensic ring recording enqueue, dispatch(cancels), run, fetch):
+  `moveend` cancelled by `series_upgrade` in 3 of 4 baseline runs; with ONE runtime switch (`series_upgrade` skips when a run is pending) the same landings inside the window lose 0 of
+  6 (committed behaviour: 6 of 6); 26 of 26 earlier cold-jump runs with no landing in the window sent their grid. Correction (seq 289): my guess
+  that it was "the state right after a restart" was wrong. Proposed fix (BUILT the same night, see the bullet above; the owner said go): a capability-aware dispatcher (a `series_upgrade` enqueue returns when a run is
+  pending; a fetch-capable enqueue that finds a cache-only run scheduled replaces its source), kill switch, forensic event, call-site tests for both orders. The second order never occurred in
+  26 natural traced runs; injected, the first part alone leaves it lost (0 of 2 sent) and both parts send it (2 of 2). Not shown live; the link to the
+  2026-09-30 reports (commitment 228) is a hypothesis. Log: `log/2026-10-01-far-zoom-max-thinning.md` (21:45Z section); LESSONS L-F12, L-P26.
+- **2026-10-01 21:35Z (seq 283-287; same branch, third local commit, NOT pushed): the wrong-hour far-zoom frame (F-21) is fixed in the CLIENT,
+  ON BY DEFAULT** (owner: "keep it on, defer the flip, now fix the wrong-hour frame": the exact-frame fix stays on, `SERIES_DECIMATE_MODE=max`
+  is NOT turned on in Render, nothing to do there). After a zoom-out the engine drew the world frame the page loaded with (hour 0: swell 0.78 m
+  where Wednesday reads 2.33 m) at full strength for 3.2 to 3.8 s offline (3 to 9 s live) under a readout naming the selected hour. Causes: the
+  zoom-out bridge promotes a held base that carries no hour; the seed gates (the prewarm's staging and the engine's seed line) asked only model and
+  layer, so a right-hour seed was refused then discarded; nothing marked a wrong-hour frame provisional; and on a just-opened page the fetch path's
+  own prewarm call owns the world grid behind its own world page, so no later call can send it. Built (`marineStaleHour.js`,
+  `marineStaleHourLayer.js`, `marineWorldWarmOnSettle.js` + small edits; engine 3207 -> 3205 lines, `useMarineScrubSettle.js` 792 -> 794): an
+  hour-aware seed and base, a wrong-hour world frame replaced by the held base or drawn at 0.4 strength beside the panel's existing "Forecast time
+  does not match this selection" line, and a grid-first world warm after a 1.5 s hold; five kill switches (`__RAW_DISABLE_BASE_HOUR_SYNC__`,
+  `_STALE_HOUR_DIM__`, `_STALE_RESIDENT_SWAP__`, `_HOUR_WORLD_WARM__`, `_WORLD_GRID_FIRST__`). **Offline A/B** (mock backend, NO live request, app
+  clock pinned, final build vs the previous commit, medians): the previous hour at full strength after a zoom-out, map open a minute: 3.3 s ->
+  0 s after a 5 s stay, 0.07 s after 2.5 s, 0.32 s after 0.8 s (then dimmed 1.2 s); just-opened page: at most 0.3 s at full strength, then dimmed
+  (2.9 to 3.6 s), the right hour unchanged (3.6 to 4.5 s). 112 new tests in 9 files, 69 mutations each turning a test red. Not tested live,
+  in the owner's Chrome, on a phone, or for EURO/ICON at far zoom; the mock charges every world page 8 s while the earlier live runs read 1.1 to 2.4 s
+  (one-hour page) and 2 to 25 s (48-frame page), so the just-opened-page rows rest on that shape (re-run with live-like latencies (one-hour page 2.4 s, 48-frame page 20 s): after a 5 s stay the same picture (right hour at 4.5 s in both builds, the wrong hour dimmed instead of full strength); after 0.8 s the zoom-out's own world grid was not sent within 9 s in 2 of 3 runs of each build, so there the right hour had not arrived after 9 s and the fix only dims the wrong hour (not traced when written, traced afterwards: first bullet of this section, seq 288; present in both builds).). Cost: up to one 2.3 MB world `/grid` per settled hour at a regional zoom (GFS, ICON).
+  No served number changes (no SCOREBOARD row). Commitment seq 286 (due 2026-10-04T18:00Z): the three far-zoom commits reach dev and are read
+  back there. Log: `log/2026-10-01-far-zoom-max-thinning.md`; DECISIONS D-012; LESSONS L-F11, L-P23, L-P24, L-P25.
+- **2026-10-01 18:59Z (seq 281-282; read-only, nothing changed): the owner reports runs failing in their email notifications; the 2:47 pm EDT one
+  (18:47Z) is the Forecast Accuracy Monitor, RED since 07:08Z.** Runs #205 (18:49Z) and #204 (07:08Z) fail with the same four gates: skill
+  ledger scored zero past its recovery window; skill floor unmeasured; archive reader blind (credentials present, the residual history
+  segment would not load); and "a fresh calibration report carries no `forecast_skill_ops` block". Green on #199-#203 (to 09-30 22:58Z). The
+  live `/api/weather/buoy-calibration` is fresh (16:35Z, height MAE 0.211 m over 59 spots) and has no `forecast_skill_ops` key, so the skill
+  ledger is not attaching: the instrument that grades the program is dead, and commitments seq 149 and 172 need it. Cause NOT determined
+  (the run logs need `gh auth login`); the leads and the other red runs today (E2E 11:52Z, CI on the ledger-215 PR 12:14Z, MOP ingest 13:24Z,
+  Marine Nightly 13:46Z) are in `log/2026-10-01-far-zoom-max-thinning.md` at 18:58Z. Not from this branch (nothing pushed; offline replays
+  only). Commitment seq 282, due 2026-10-02T14:00Z.
+- **2026-10-01 15:06Z (seq 278-280; same branch, second local commit, NOT pushed): the exact-frame fix for far zoom is built,
+  CLIENT ONLY and ON BY DEFAULT** (owner: "yes, build the exact-frame fix for far zoom"). At far zoom the app now draws the
+  exact 2-deg world frame; the thinned series frame is only the instant placeholder. Located first: the scrub-settle check
+  compares hour LABELS, not valid times, and at 3-hourly range the frames serving one hour carry different labels (series 145,
+  exact grid 144, selection 146, all valid 15Z), so it committed the thinned frame OVER an exact frame of the same valid time
+  (the unfixed client did so 100 times in 25 offline random-zoom trials: the "swell disappears from the FLA coast while
+  zooming" report). Built: `marineExactUpgrade.js` plus three small call sites (`useMarineScrubSettle.js` 790 -> 792 lines):
+  `decimated_stride` kept on the grid, the prewarm no longer stands a thinned frame in for the world grid, an upgrade to the
+  exact frame through the normal fetch path once the hour holds still (bounded), and a thinned frame never replaces an exact
+  one of the same valid time. Kill switch `window.__RAW_DISABLE_EXACT_UPGRADE__ = true`; telemetry
+  `window.__MARINE_EXACT_UPGRADE__`. **Offline A/B** (mock backend, NO live request; 25 seeded trials): frames with the
+  Florida swell under 75% of exact 11.1% -> 0.7%, lower in 20 of 20 seeds; a far-zoom scrub now ends on the exact frame about
+  4 s after the placeholder (it never did). NOT fixed: the wrong-hour window (the engine's `bridgeToCoarseGlobalIfHeld`
+  promotes the held hour-0 base for ~4.4 s: a different mechanism, seq 280 corrects my earlier "arbiter"; fixed later the same day, the first
+  bullet) and the whole-heat-map
+  dropouts at z4.3-6.3 (about 5% of frames, same before and after). Not tested live, in the owner's Chrome, or for EURO/ICON.
+  Recommendation: keep it on, defer the max-thinning flip. Log: `log/2026-10-01-far-zoom-max-thinning.md`.
+- **2026-10-01 12:42Z (seq 274; branch `claude/far-zoom-max-thinning`, committed locally, NOT pushed: the gh token is
+  invalid and only the owner can `gh auth login`): the far-zoom thinned-frame fix is built DARK.** The world series page thins
+  the 2-deg field by a pure stride (46 x 21, an 8-deg lattice) and a far-zoom scrub commits it: Wed 2026-10-07 15Z, swell at
+  three offshore Florida points 1.34 m against 2.33 m exact (-42%), 454 of 10,378 ocean nodes more than 1 m low; the legend
+  was silent, or said 2 deg (audit finding F-19). Owner decision: max thinning plus the legend fix. Built:
+  `SERIES_DECIMATE_MODE=max` (default OFF; marine height layers only; a 3x3 window; the stride's own lattice;
+  `SERIES_MAX_POOL_HALF=2` gives the 5x5) at all four thinning sites, and a legend that reads the grid DRAWN. **Measured
+  price:** nodes under by >1 m 454 -> 23, over by >1 m 173 -> 1,291, mean bias -0.08 -> +0.46 m, mean abs error 0.30 -> 0.51 m,
+  Florida 1.34 and 1.21 -> 2.37 and 2.29 m (exact 2.33 and 2.41); the first-built 5x5 window read the whole ocean 0.88 m
+  high and was refuted. Flip = `SERIES_DECIMATE_MODE=max` in Render (owner-only), read back with the Florida check and S11.
+  Still OPEN (seq 276): the far-zoom frame is the WRONG HOUR for 3-9 s (over 75 s right after a restart) after a zoom-out (FIXED
+  locally later the same day: the first bullet) or a
+  far-zoom scrub, the thinned frame stayed drawn (FIXED, the bullet above: it was committed over the exact one), and the crest layer drops
+  out for 0.4-0.7 s at z4.6-6.2. Incident (seq 275): this session's live replays saturated the 1-CPU box (health 7-8 s) and the owner saw "Couldn't
+  load surf spots"; stopped 12:39:57Z. Log: `log/2026-10-01-far-zoom-max-thinning.md`.
+- **2026-10-02 (seq 294-300; #223, open for the owner's word): one guard on the cached-product invariant.**
   Four serve paths shipped writes into the one-level copies `load_product` hands out (#211, #212, #213, #219); each fix
   guarded one attribute. A conftest autouse fixture now fails any backend test after which a product the L1 cache holds
   changed (`tests/l1_product_guard.py`). Measured: 0 guard errors across ~4,510 existing tests (no fifth instance in a
@@ -39,10 +156,10 @@ is a claim, not a measurement.
   box: stored share 85.0% (the ceiling) for both layers page by page, 68.1% / 59.3% with both pages at once; before
   19.5 / 24.8 / 8.0 / 43.4%. RESIDUALS, the next fix: two concurrent world pages still overrun the 20 s deadline on
   the 1-CPU box (33-40 of 48 hours per page), and for some minutes after each deploy every page is cut (cold box:
-  12-23 of 48). **RESIDUAL 1 FIX, open as #222 (`claude/c228-series-par2-deadline`) (seq 306-307; written as 295-296 on #222's branch):** a world series frame reads
+  12-23 of 48). **RESIDUAL 1 FIX, open as #222 (`claude/c228-series-par2-deadline`) (seq 331-332):** a world series frame reads
   the global_mid pre-strided when the clip provably keeps every cell (every hour missed the 8-product L1 and
   validated 15,023 cells to keep 966). Offline on one core: 2.6-3.4 s -> 1.0-1.1 s CPU per cold 16-hour page,
-  0.2-0.3 s repeated, frames byte-identical (207,872 real cells). The deployed S11 read-back is commitment seq 307 (296 on #222's branch).
+  0.2-0.3 s repeated, frames byte-identical (207,872 real cells). The deployed S11 read-back is commitment seq 332.
   Residual 2 (the cold minutes after each deploy) stands. The original report, kept for context:
 - ⛔ **OWNER REPORT 2026-09-30 22:18Z (seq 227; commitment 228): marine heatmap blank at far-out zooms on forecast
   hours until zooming in.** ROOT MECHANISM from the Render logs (seq 237): the zoomed-out grid_series' live
@@ -97,9 +214,8 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `ca71acd1`** (#223 at 2026-10-02 13:24:08Z, test-only; seq 304). Before it `c4a59c01` (#219 at 03:43:27Z,
-  backend: the W-23 label; seq 294, re-recorded as target `#219` at seq 303). Before them `f302c309` (#217 at
-  2026-10-02 02:42:26Z, the skill-ledger reader; Render live from 02:45:03Z; seq 288-289). Before it `67fe4918` (#216 at 02:21:51Z, docs; seq 287), after `48460019` (#218 at 02:17:18Z, CLAUDE.md
+- **`dev` = `f302c309`** (#217 at 2026-10-02 02:42:26Z, the skill-ledger reader; Render live from 02:45:03Z; seq
+  288-289). Before it `67fe4918` (#216 at 02:21:51Z, docs; seq 287), after `48460019` (#218 at 02:17:18Z, CLAUDE.md
   only; seq 286). Before them `63a70425` (#215 at 2026-10-01 11:52:12Z: the vector half of the shared-L1-object guard,
   test-only; seq 274; Render serves it from 11:54:36Z, seq 276). Before it `49e1d62d` (#211 at 04:13:07Z, backend). The same night, each on the owner's word, merged in a
   STACK (LESSONS L-P21): #210 at 04:12:51Z as `33364453` (commitment 228's fix: far-zoom pages from the stored 2-deg
@@ -112,18 +228,10 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours (read 13:50:26Z).** #224 and #222 are STACKED (L-P21; owner, 2026-10-02: "resolve the merge
-  #222 conflicts, and other merge conflicts you see, lets clean up our progress and streamline"): dev <- #224 <- #222.
-  Merge #224, then #222 (its lines are seq 305-308, written as 294-298 on its branch; its copy of
-  `pr_merge #219` is dropped as a duplicate of seq 303); the second needs no rework, because the ledger, the floors and this file are already resolved
-  on it. #224 (the floor-staleness retry, seq 301-304) goes first: every PR's CI runs its own copy of that check, and
-  the old copy failed #220 and #221 on a stale GitHub answer. #220 (PR C, the consensus flip sweep), #221 (the far-zoom
-  fixes) and #225 (the accuracy monitor's month seam, opened 13:50:04Z) are mergeable on their own. #220's and #221's
-  sessions re-chained them onto dev at 13:38:55Z and 13:35:00Z, each from seq 301, so any merge forks the others'
-  ledgers once more. Cheapest path: the stack first, then one of the others at a time with a re-chain between (or
-  each stacked on the previous head). That replaces the earlier agreed order (#223, then #220, then #221). ⚠️ The
-  completeness audit lets only the newest merge go unrecorded, so the first PR merged after the stack must carry
-  `pr_merge #224`. #223 merged 13:24:08Z as `ca71acd1` (seq 304); #219 2026-10-02T03:43:27Z as `c4a59c01` (seq 294, 303); #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
+- **Open PRs of ours:** #223 (the cached-product guard, seq 294-300), #220 (PR C, the consensus flip sweep), #221
+  (the far-zoom fixes) and #222 (commitment 228's par2 residual). All four start their ledger lines at seq 294:
+  whichever merges first keeps its numbers, and each later one re-chains onto dev's head (#222 and #223 both carry
+  `pr_merge #219`; the second to merge drops its copy). Agreed order: #223, then #220, then #221. #219 merged 2026-10-02T03:43:27Z as `c4a59c01` (seq 294); #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
   CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
   drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
   anything in it is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
@@ -176,15 +284,12 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, dev `c4a59c01`), chain 141 / 1748 (reading 1754:
-  #223's run 37009550311 read 141 / 1754 on its merge with `c4a59c01`), estate 580 (582). The stack moves them, each
-  level carrying the ones below: #224 estate 583 (585; its run 37011560800 read 585), #222 chain 142 / 1788 (1794 =
-  1740 + 14 for #223 + 40 for #222; its run 37009323668 read 1780 alone). Hosted CI on each stacked head must read
-  those projections. #220's own branch moves chain to 142 / 1771 (1777, re-derived by its session after #223);
-  whichever of #220 and #222 merges second re-derives from the hosted reading.
+- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, dev `c4a59c01`), chain 140 / 1734 (reading 1740,
+  dev `c4a59c01` run 36961412429; the guard PR moves it to 141 / 1748, projection 1754; #220 re-derives after it),
+  estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 309, sha256 546a03ae1e529f06ed36bcc55c2b88799fd962cf8d5d932230876ffac1459947**
+  **Ledger head: seq 336, sha256 e29c56ca98bc6eeaaac2653d5480d2b4d67f0e57087b9142913fa7a9f21282cb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
@@ -224,7 +329,7 @@ direction fix (not supported by a bulk-buoy instrument; needs spectral truth).
 ## Open, not yet diagnosed
 - Supabase 429 bursts on the SERVE box that are not ours: 02:25:58-02:26:24Z hit ~20 12Z-frame waves/swell_1
   products no audit request asked for (a prewarm? a client scrub?). n = 1 (log 2026-09-30-audit-sota §3.5).
-- Marine Nightly zoomlab: 12 MULT0 animation frames (2026-09-29) and 15 s API timeouts (2026-09-28). n = 2.
+- Marine Nightly zoomlab: 12 MULT0 animation frames (2026-09-29) and 15 s API timeouts (2026-09-28). n = 2. The MULT0 frames are F-22: diagnosed and FIXED in the client 2026-10-02 (see Now); not yet read back on the nightly.
 - The live `/spot-ratings` fallback still rates on the global default when its climatology read fails (#162
   residual; failing closed there needs a frontend decision).
 

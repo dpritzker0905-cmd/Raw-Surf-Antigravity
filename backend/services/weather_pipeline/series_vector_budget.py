@@ -36,6 +36,11 @@ and is ASSERTED here rather than assumed. A frame whose vectors do not equal col
 sparse product) is LEFT ALONE: this module may only make a response smaller, never wrong.
 
 Kill switch: SERIES_VECTOR_BUDGET=0 (disables entirely).
+
+THINNING MODE (2026-10-01). A pure stride keeps every k-th cell and DROPS the rest, so a swell narrower
+than the stride's lattice can fall between kept cells and vanish at far zoom (the owner's "bigger swell
+for Florida is missing at the further-out zoom"). `SERIES_DECIMATE_MODE=max` thins marine height layers
+by block MAXIMUM on the SAME lattice instead -- see the section below `decimate_vectors`. Off by default.
 """
 import logging
 import os
@@ -43,6 +48,14 @@ import os
 logger = logging.getLogger(__name__)
 
 DEFAULT_VECTOR_BUDGET = 80_000
+
+# Layers whose scalar is a HEIGHT, where "the largest value near this cell" is the right one-number summary.
+# Wind, pressure and temperature are not in this set on purpose: a maximum would bias them.
+PEAK_PRESERVING_LAYERS = frozenset({"waves", "swell", "swell_1", "swell_2", "wind_waves"})
+
+# Above this many cells a grid is thinned by the plain stride even when max thinning is on: the pool reads every
+# cell, and the serve box has one CPU. A 2-deg world grid is ~15k cells; a 40-deg 0.25-deg tile is ~26k.
+_MAX_POOL_MAX_VECTORS_DEFAULT = 60_000
 
 
 def _budget() -> int:
@@ -84,8 +97,130 @@ def stride_for(cols, rows, frames, budget=None) -> int:
     return _stride_for(cols, rows, frames, b)
 
 
-def decimate_vectors(vectors, cols, rows, stride):
-    """Stride a rectangular vector grid. Returns (new_vectors, new_cols, new_rows), or None.
+# ── PEAK-PRESERVING THINNING (2026-10-01, the far-zoom Florida swell) ────────────────────────────
+# MEASURED (Wed 2026-10-07 15Z, the owner's "Next Wed"): the exact 2-deg frame reads 3.23 m at 30N 80W; the
+# stride-4 world page (an 8-deg lattice, 46 x 21) has NO cell inside the Florida box and reads 1.05 m there once
+# interpolated; 427 of 10,355 ocean nodes read more than 1 m low, up to 5 m (Southern Ocean). Zooming in fetches the
+# exact frame, which is why "closer up is right". Owner decision 2026-10-01: thin by block MAXIMUM instead.
+#
+# SAME LATTICE, DIFFERENT VALUES. The kept cells -- so cols, rows, every lat/lng and the bounds -- are exactly the
+# stride's. Only the VALUE at a kept cell changes: it becomes the cell holding the LARGEST valid `speed` in the window
+# around it (`_pool_half`; all of that cell's fields travel together, so speed/direction/period/u/v stay one coherent
+# sample, never a mix across cells). A kept cell that already holds the largest value comes back UNCHANGED (the same
+# object), so a calm or flat field is byte-identical to the stride, and an all-invalid window (land) keeps the kept
+# cell as it was.
+#
+# THE PRICE, MEASURED (live Wed 2026-10-07 15Z, stride 4, 10,378 ocean nodes, thinned lattice interpolated back to the
+# 2-deg nodes; audit evidence api/thinning_variants.json). A maximum cannot be free: every kept cell now speaks for its
+# whole neighbourhood, so the picture is a high envelope of the truth.
+#     thinning                   nodes under >1 m   nodes over >1 m   mean bias   mean abs err   30N 79.5W (exact 2.33)
+#     stride (today)                    454               173           -0.08 m       0.30 m          1.34 m
+#     max, 3x3 window (default)          23             1,291           +0.46 m       0.51 m          2.37 m
+#     max, 5x5 window (HALF=2)            3             3,403           +0.88 m       0.89 m          3.00 m
+# The 5x5 window fixes Florida and reads the whole ocean 0.9 m high; 3x3 puts Florida within 5% of exact at half the bias.
+#
+# DARK BY DEFAULT. A served number flips on the owner's word: `SERIES_DECIMATE_MODE=max` turns this on; unset or any
+# other value is the plain stride that has served since 2026-08-03. Only PEAK_PRESERVING_LAYERS qualify -- a maximum is
+# the right summary for a height, not for wind, pressure or temperature. Every site that thins a series frame (the mid
+# tier's clip, the build-time stride, the end-stage bound, the load-time raw-dict stride) asks `thinning_mode` for its
+# mode and passes it to `decimate_vectors`, so all of them still pick ONE set of cells and ONE set of values.
+def thinning_mode(layer=None, domain=None) -> str:
+    """'max' when a series frame of this layer should be thinned by block maximum, else 'stride'.
+
+    Never raises: anything unreadable means 'stride', the behaviour that existed before this switch.
+    """
+    try:
+        if os.environ.get("SERIES_DECIMATE_MODE", "stride").strip().lower() != "max":
+            return "stride"
+        if domain is not None and str(domain).strip().lower() not in ("", "marine"):
+            return "stride"
+        return "max" if str(layer or "").strip().lower() in PEAK_PRESERVING_LAYERS else "stride"
+    except Exception:  # noqa: BLE001 -- a thinning switch must never take a response down
+        return "stride"
+
+
+def _pool_half(stride: int) -> int:
+    """Half-width, in cells, of the window a kept cell pools over: the largest odd window not wider than the stride.
+
+    stride 2 -> 3x3, 3 -> 3x3, 4 -> 3x3, 5 -> 5x5, 8 -> 7x7. A window wider than the stride overlaps its neighbours and
+    only adds bias (see the measured table above); one much narrower leaves blind cells. `SERIES_MAX_POOL_HALF` (an int
+    >= 1) overrides it: 2 is the 5x5 window at stride 4, which keeps every narrow swell and reads the ocean high.
+    """
+    try:
+        h = int(os.environ.get("SERIES_MAX_POOL_HALF", ""))
+        if h >= 1:
+            return h
+    except (TypeError, ValueError):
+        pass
+    return max(1, (int(stride) - 1) // 2)
+
+
+def _max_pool_cap() -> int:
+    try:
+        return int(os.environ.get("SERIES_MAX_POOL_MAX_VECTORS", _MAX_POOL_MAX_VECTORS_DEFAULT))
+    except (TypeError, ValueError):
+        return _MAX_POOL_MAX_VECTORS_DEFAULT
+
+
+def _max_pool(vectors, cols, rows, stride):
+    """The stride's kept cells, each carrying the largest valid cell in the window around it. List, or None.
+
+    Returns None (the caller then strides) when it cannot be done safely: a grid over the cell cap, or cells that are
+    neither dicts (the response / raw-JSON paths) nor models (the build path) with a numeric `speed`. That direction is
+    the only safe one: a plain stride is only ever coarser, never wrong.
+
+    ⚠️ Never mutates a cell. A changed cell is a COPY of the winning cell with the kept cell's lat/lng, because the
+    input cells may be the very objects sitting in `_product_cache` (see decimate_vectors).
+    """
+    if len(vectors) > _max_pool_cap():
+        return None
+    first = vectors[0]
+    is_dict = isinstance(first, dict)
+    if not is_dict and not (hasattr(first, "speed") and hasattr(first, "model_copy")):
+        return None
+    neg = float("-inf")
+    speeds = []
+    put = speeds.append
+    if is_dict:
+        for v in vectors:
+            s = v.get("speed")
+            put(float(s) if (v.get("is_valid", True) is not False and isinstance(s, (int, float)) and s == s) else neg)
+    else:
+        for v in vectors:
+            s = v.speed
+            put(float(s) if (v.is_valid is not False and isinstance(s, (int, float)) and s == s) else neg)
+    half = _pool_half(stride)
+    out = []
+    for r in range(0, rows, stride):
+        ra, rb = max(0, r - half), min(rows - 1, r + half)
+        for c in range(0, cols, stride):
+            ca, cb = max(0, c - half), min(cols - 1, c + half)
+            best, bi = neg, -1
+            for rr in range(ra, rb + 1):
+                base = rr * cols
+                seg = speeds[base + ca: base + cb + 1]
+                m = max(seg)
+                if m > best:
+                    best, bi = m, base + ca + seg.index(m)
+            ki = r * cols + c
+            kept = vectors[ki]
+            if bi < 0 or speeds[ki] == best:
+                out.append(kept)           # an all-invalid window, or the kept cell already is the peak: untouched
+            elif is_dict:
+                cell = dict(vectors[bi])
+                cell["lat"], cell["lng"] = kept["lat"], kept["lng"]
+                out.append(cell)
+            else:
+                out.append(vectors[bi].model_copy(update={"lat": kept.lat, "lng": kept.lng}))
+    return out
+
+
+def decimate_vectors(vectors, cols, rows, stride, mode="stride"):
+    """Thin a rectangular vector grid. Returns (new_vectors, new_cols, new_rows), or None.
+
+    `mode` is 'stride' (every k-th cell, the default and the behaviour since 2026-08-03) or 'max' (the same kept cells,
+    each carrying the largest valid cell in the window around it: see the section above). A 'max' request that cannot be
+    honoured safely is served as the plain stride.
 
     ⚠️⚠️ RETURNS A NEW LIST — THE CALLER MUST REBIND, AND MUST NEVER MUTATE THE INPUT IN PLACE.
     `ProductStore.load_product` hands out `product.model_copy()` with `grid = grid.model_copy()`,
@@ -105,20 +240,25 @@ def decimate_vectors(vectors, cols, rows, stride):
         return None                                   # not a full grid — this module stays out
     kept_cols = range(0, cols, stride)
     kept_rows = range(0, rows, stride)
+    if mode == "max":
+        pooled = _max_pool(vectors, cols, rows, stride)
+        if pooled is not None:
+            assert len(pooled) == len(kept_cols) * len(kept_rows)   # same lattice as the stride, asserted
+            return pooled, len(kept_cols), len(kept_rows)
     out = [vectors[r * cols + c] for r in kept_rows for c in kept_cols]
     assert len(out) == len(kept_cols) * len(kept_rows)  # the invariant, asserted not assumed
     return out, len(kept_cols), len(kept_rows)
 
 
-def _decimate_frame(frame: dict, stride: int) -> bool:
-    """Stride a frame's rectangular vector grid in place. Returns True if it was rewritten.
+def _decimate_frame(frame: dict, stride: int, mode: str = "stride") -> bool:
+    """Thin a frame's rectangular vector grid in place. Returns True if it was rewritten.
 
     Leaves the frame untouched (returning False) whenever the rectangular invariant does not hold,
     so a masked/sparse product is never silently reshaped.
     """
     if not isinstance(frame, dict):
         return False
-    out = decimate_vectors(frame.get("vectors"), frame.get("cols"), frame.get("rows"), stride)
+    out = decimate_vectors(frame.get("vectors"), frame.get("cols"), frame.get("rows"), stride, mode=mode)
     if out is None:
         return False
     frame["vectors"], frame["cols"], frame["rows"] = out
@@ -126,7 +266,8 @@ def _decimate_frame(frame: dict, stride: int) -> bool:
     return True
 
 
-def stamp_build_time_bound(resp: dict, stride: int, frames_rewritten: int, vectors_before: int) -> dict:
+def stamp_build_time_bound(resp: dict, stride: int, frames_rewritten: int, vectors_before: int,
+                           mode: str = "stride") -> dict:
     """Stamp the bound diagnostics for a response already bounded DURING the build.
 
     The key set must match `apply_vector_budget`'s exactly — a client must never be asked to read
@@ -134,6 +275,9 @@ def stamp_build_time_bound(resp: dict, stride: int, frames_rewritten: int, vecto
     it distinguishes vectors that were NEVER ALLOCATED ('build') from vectors that were allocated
     in full and then thrown away ('response'). Those cost the same bytes on the wire and differ by
     ~4x in peak RSS, which is the difference between serving and OOM-killing the box.
+
+    `decimated_mode: "max"` is stamped ONLY when max thinning was in force, so a response served under the
+    default stride is byte-identical to what it was before the switch existed.
     """
     if not isinstance(resp, dict) or stride <= 1:
         return resp
@@ -142,6 +286,8 @@ def stamp_build_time_bound(resp: dict, stride: int, frames_rewritten: int, vecto
     resp["decimated_frames"] = frames_rewritten
     resp["vectors_before_bound"] = vectors_before
     resp["bounded_at"] = "build"
+    if mode == "max":
+        resp["decimated_mode"] = "max"
     first = next((f for f in (resp.get("frames") or [])
                   if isinstance(f, dict) and f.get("decimated_stride")), None)
     if first is not None:
@@ -185,9 +331,10 @@ def apply_vector_budget(resp: dict) -> dict:
     if stride <= 1:
         return resp
 
+    mode = thinning_mode(resp.get("layer"), resp.get("domain"))
     rewritten = 0
     for f in frames:
-        if isinstance(f, dict) and _decimate_frame(f, stride):
+        if isinstance(f, dict) and _decimate_frame(f, stride, mode):
             rewritten += 1
 
     after = sum(len(f["vectors"]) for f in frames
@@ -197,6 +344,8 @@ def apply_vector_budget(resp: dict) -> dict:
     resp["decimated_stride"] = stride
     resp["decimated_frames"] = rewritten
     resp["vectors_before_bound"] = total
+    if mode == "max" and rewritten:
+        resp["decimated_mode"] = "max"
     # ⚠️ 'response' means these vectors WERE materialised in full and then discarded — the wire got
     # smaller, peak RSS did not. Only 'build' (stamp_build_time_bound) means they never existed.
     resp["bounded_at"] = "response"
@@ -274,7 +423,8 @@ def stride_raw_grid_dicts(data, stride: int) -> bool:
     grid = data.get("grid")
     if not isinstance(grid, dict):
         return False
-    out = decimate_vectors(grid.get("vectors"), grid.get("cols"), grid.get("rows"), stride)
+    out = decimate_vectors(grid.get("vectors"), grid.get("cols"), grid.get("rows"), stride,
+                           mode=thinning_mode(data.get("layer"), data.get("domain")))
     if out is None:
         return False
     lattice = global_lattice(grid, data.get("resolution"))   # needs every cell: read BEFORE they are discarded
