@@ -142,3 +142,23 @@ with a single line `Superseded by D-MMM (date)`. The newest entry is at the bott
 - **Measure after (the dev-site read-back once the PR merges):** ten zoom-outs 1 to 2 s after picking a far hour on a page that has just opened each issue the world `/grid`;
   `__RAW_FORENSIC__.summary().counts.series_upgrade_skipped_pending` counts the landings that used to cancel it; no `flavor_fastpath_miss` with `src: 'series_upgrade'` without a grid request after it.
 - **Revert:** the kill switch per session, or revert the commit.
+
+### D-014 · The zoom-out bridge is base-aware: a clip the display gate hides is replaced by the held 2-degree base
+- **Decided:** by the owner, 2026-10-02 ("go, build the heat map fix", after the diagnosis in REPORT section 8.14, finding F-22, and the one recommendation made there).
+- **Rule:** the bridge (`shouldBridgeToCoarseGlobal`), its mirror (`shouldRejectSubcoveringRegional`) and the arbiter's rule 8 judge "wide" for a held 2-degree world base (`isFineWorldBase`: coarse-global by the engine's own
+  definition, a cell of 2.5 degrees or finer) by the display gate's own test (`isGateWideView` in `marineZoomOutGate.js`: z <= 7 or an axis over 15 degrees; the layer reads the same function) OR the 40-degree ceiling of
+  `06b3dbc2`, whichever is wider; a coarser base keeps the ceiling alone. In the band the ceiling used to leave, the base is promoted only when it is the same model and layer as the resident AND made for the selected hour
+  (valid time within 1.5 h of `engine.__selectedMs`, which the layer publishes every frame; an unknown hour fails CLOSED) AND the view is not at the antimeridian (`coverageWrapSafe`: the engine's coverage arithmetic has no
+  longitude wrap). Client only, default ON; kill `window.__RAW_DISABLE_BASE_AWARE_BRIDGE__ = true`; the older `__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__` still wins. Rejected: lowering the cover fraction (`b21cf29d`), routing the
+  no-bridge case into the fade branch (`89f61d87`), switching on the dark coarse-bridge grace (`e17f0332`: a 4 s bound, not the cure), a base-blind restore of the 15-degree rule (the 07-22 EURO flash of a 10-degree frame),
+  and promoting a base whatever its hour (a wrong hour at full strength: F-21).
+- **Why (offline, mock backend, no live request):** the gate hides a clip under 60% at z <= 7 or span > 15 degrees while the bridge only fired past 40 degrees, so the band between hid a clip with nothing replacing it (4.25% of
+  frames in the erratic replay; the nightly's `MULT0_FRAME` red of 09-28..10-01). Replayed in two built apps: 0.00% hidden in the fix's domain (a 2-degree base for the selected hour) in every replay, the nightly's verdict rules
+  on frames thinned to its rate 4 (max 7) -> 0 MULT0 and 0 -> 0 SETTLED_STEP, no wrong-hour cell changed, frame gaps no worse.
+- **Cost and limits:** the promoted frame is a world frame (Florida colourfulness 146 against 180 to 185 for a clip: a step of about 19% instead of 35% to 38%) until the clip commits (median 0.9 s); a rated clip over an unrated
+  base is committed and then handed back once (older: past the ceiling since 07-16); a base for another hour, a thinned 8-degree base (so, in the replays, a 390-px phone map) and the antimeridian keep the old rule, so the dip stays
+  there. No served number changes.
+- **Measure after (the nightly and the dev site once the PR merges):** the Marine Nightly's `MULT0_FRAME` at 2 or fewer on its first scheduled run (`SETTLED_STEP` included in the budget of 2); on the dev site a zoom-out by
+  steps from z8 to z4.4 with `__RAW_GPU__.opacity.mult` sampled per frame: no frame at 0 while `__RAW_GPU__.blendBoth.haveCoarseBase` is true and the held base is for the selected hour; `__MARINE_ZOOMOUT_BRIDGE__.count`
+  up by one per zoom-out through the band; `__RAW_ARBITER_SHADOW__.disagree` still 0 in guard mode.
+- **Revert:** the kill switch per session, or revert the commit.
