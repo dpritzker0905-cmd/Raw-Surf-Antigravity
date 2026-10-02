@@ -777,7 +777,12 @@ jobs:
           # written; confirm on this PR's run). The new tests/test_grid_vector_shared_writes.py (claimed by
           # `--lane guards`) adds 14 executed tests: 2169 + 14 = 2183, 2183 - 6 = 2177; files 179 EXACT;
           # _FLOOR_SET_FROM["guards"] -> 2183.
-          MIN_FILES, MIN_PASSED = 179, 2177
+          # ⬆ MIN_PASSED 2177→2179 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (the accuracy monitor's paired gate
+          # reads last month's archive inside the first week of a month): hosted CI on dev c4a59c01 (run 36961412429)
+          # observed 179 files / 2183 passed in this lane (#223 moved only the chain floor). The two new tests in the
+          # already-counted tests/test_forecast_accuracy_monitor.py (claimed by `--lane guards`) add 2 executed tests:
+          # 2183 + 2 = 2185, 2185 - 6 = 2179; files 179 EXACT (no new file); _FLOOR_SET_FROM["guards"] -> 2185.
+          MIN_FILES, MIN_PASSED = 179, 2179
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
