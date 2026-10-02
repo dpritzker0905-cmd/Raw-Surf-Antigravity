@@ -1,13 +1,22 @@
 # Weather program: state
 
-**Updated 2026-10-02 05:42Z** (logs: `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
-legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, the scheduler slot fix, the faded heat map diagnosis, and the faded heat map fix), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
+**Updated 2026-10-02 12:30Z** (logs: `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
+legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, the scheduler slot fix, the faded heat map diagnosis, and the faded heat map fix), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
+228 closed on S11), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
+rollover; the fix is #217, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
 (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-02 12:30Z (merge of `origin/dev` `c4a59c01` into `claude/far-zoom-max-thinning`, owner: "push the far-zoom
+  branch and open its PR"): the branch's ledger was RE-CHAINED (L-P21).** dev's seq 1-293 are byte for byte, and this
+  branch's own lines 274-295 are re-appended as **dev seq 294-315 (+20)** with their action times kept; inside those
+  lines an in-block "seq N" was remapped to N+20 (6 lines), nothing else changed. Where the far-zoom bullets below
+  and `log/2026-10-01-far-zoom-max-thinning.md` cite this branch's own seq 274-295, add 20 (their prose is not
+  rewritten); where they cite #216/#217 (seq 274-285), the number is already dev's. The branch merges LAST (after the
+  cached-product guard and #220) and re-chains again then.
 - **2026-10-02 05:42Z (no ledger entry yet, see below; same branch, local commit `083fbd3c`, NOT pushed): the faded heat map (F-22) is FIXED in the CLIENT, ON BY DEFAULT** (owner: "go, build the heat map fix"). The engine's zoom-out bridge, its mirror reject and the arbiter's rule 8 are base-aware: a held 2-degree world base (`isFineWorldBase`) is judged by the display gate's own wide test (`isGateWideView`, one function the layer now shares) or the 40-degree ceiling's, whichever is wider; a 10-degree base keeps the ceiling. In the band the ceiling left (z <= 7, span <= 40) the base is promoted only when it is the same model and layer, made for the selected hour (valid time within 1.5 h of `engine.__selectedMs`, published by the layer every frame; an unknown hour fails closed) and the view is not at the antimeridian (the engine's coverage math has no wrap). Kill `window.__RAW_DISABLE_BASE_AWARE_BRIDGE__ = true`. Client only: no served number changes, no SCOREBOARD row; DECISIONS D-014; LESSONS L-F13 (now mechanized), L-F14, L-F15.
   **Checked:** test-first; 45 new tests (the REAL layer swept over 7 zooms x 8 spans x 8 coverages for GFS, EURO and ICON against the real engine method; an 82,320-interleaving sweep of both commit modes with the bridge in the loop: 0 clips hidden beside a fine base, 0 bounces, 0 wedges, 0 wrong-hour promotions, and 10,064 interleavings reach that state with the switch on); 22 mutations, each caught; two independent reviews (`pr-review-toolkit` code and test agents, the owner's new plugins), every valid finding applied (the antimeridian regression, a base up to 3.5 h off at full strength, an unknown hour promoting, a tuned ceiling narrowed, the shadow context); `src/components/map` 211 suites / 2,282 tests and the whole frontend 324 / 3,271 green; lint and LOC ratchets clean. **Offline A/B in two BUILT apps** (the commit before the fix against the fix; mock backend, no live request): erratic zoom 4.25% of frames hidden -> 0.00%; with a 2-degree base for the selected hour 0.00% hidden in every replay (5,597 + 6,687 + 1,109 frames, against 4.25%, 1.14% and 1.79%); the nightly's verdict rules on frames thinned to its rate: MULT0 4 (max 7) -> 0, SETTLED_STEP 0 -> 0; the F-21 wrong-hour cells and the frame gaps unchanged.
   **Limits, measured:** a base for ANOTHER hour and a thinned 8-degree world-series base keep the old rule by design, so the 390-px phone replays did NOT improve (hidden 1.76% -> 2.70%: the base was the thinned frame for 65% of the fixed run); the antimeridian keeps the old rule; EURO and ICON on the real backend, the rating flavor and the live app are untested. **Recommended next (ONE item, the owner's word):** make the held base the exact 2-degree frame for the selected hour at every zoom of the band: extend the F-21 world warm below the regional zoom and stop a thinned frame of the same hour replacing a held 2-degree base. **Read-back after a deploy:** the nightly's `MULT0_FRAME` at 2 or fewer on its first scheduled run.
@@ -105,6 +114,12 @@ is a claim, not a measurement.
   far-zoom scrub, the thinned frame stayed drawn (FIXED, the bullet above: it was committed over the exact one), and the crest layer drops
   out for 0.4-0.7 s at z4.6-6.2. Incident (seq 275): this session's live replays saturated the 1-CPU box (health 7-8 s) and the owner saw "Couldn't
   load surf spots"; stopped 12:39:57Z. Log: `log/2026-10-01-far-zoom-max-thinning.md`.
+- **2026-10-02 (seq 279-285; FIXED by #217, merged 02:42:26Z as `f302c309`, live from 02:45:03Z, seq 288-289): the skill ledger
+  has written nothing since 2026-09-30 22:45:05Z.** Supabase Storage answers a missing object with HTTP 400 and the
+  strict L2 reader accepted only a 404, so the first read of the new month's segment (`scored-2026-10.json`) raised
+  and every precompute run skipped the ledger while the job stayed green; the residual roll-up shares the reader. The
+  Forecast Accuracy Monitor is red since 2026-10-01 07:08Z. Fix built and tested (`l2_retry.is_missing_object`, no
+  served number changes); seq 149, 172 and 217 wait on it; the monitor's own month-boundary window is seq 283.
 - ⛔ **2026-10-01 (seq 239; #211, open for the owner's word): the serve-time coarse marine fill wrote GFS values into
   the CACHED EURO/ICON product** (`coarse_gulf_fill.py` mutated the L1 cache's shared vector objects). Live: a 40-deg
   EURO `waves` clip had 119 of 399 cells flip masked -> valid (inland Texas among them, unstamped) after anyone's
@@ -112,6 +127,11 @@ is a claim, not a measurement.
   TTL. #211 copies instead of mutating: world responses unchanged; later readers revert to the model's own mask
   (a served-number change on that path; SCOREBOARD S12 before row (S11 on #211's branch); after row = commitment 266, written as 242 on #211's branch). Not fixed, owner's
   call: on the 2-deg world clip the fill's 8-deg reach paints GFS heights inland on the world response itself.
+- **COMMITMENT 228 CLOSED 2026-10-02 (seq 292; SCOREBOARD S11): far-zoom pages now come from the stored field.** Warm
+  box: stored share 85.0% (the ceiling) for both layers page by page, 68.1% / 59.3% with both pages at once; before
+  19.5 / 24.8 / 8.0 / 43.4%. RESIDUALS, the next fix: two concurrent world pages still overrun the 20 s deadline on
+  the 1-CPU box (33-40 of 48 hours per page), and for some minutes after each deploy every page is cut (cold box:
+  12-23 of 48). The original report, kept for context:
 - ⛔ **OWNER REPORT 2026-09-30 22:18Z (seq 227; commitment 228): marine heatmap blank at far-out zooms on forecast
   hours until zooming in.** ROOT MECHANISM from the Render logs (seq 237): the zoomed-out grid_series' live
   fast path times out (2.5 s) and its per-hour loop (10 s/hour, 20 s deadline, 1 CPU) drops many hours under load,
@@ -165,7 +185,10 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `49e1d62d`** (#211 at 2026-10-01 04:13:07Z, backend). The same night, each on the owner's word, merged in a
+- **`dev` = `f302c309`** (#217 at 2026-10-02 02:42:26Z, the skill-ledger reader; Render live from 02:45:03Z; seq
+  288-289). Before it `67fe4918` (#216 at 02:21:51Z, docs; seq 287), after `48460019` (#218 at 02:17:18Z, CLAUDE.md
+  only; seq 286). Before them `63a70425` (#215 at 2026-10-01 11:52:12Z: the vector half of the shared-L1-object guard,
+  test-only; seq 274; Render serves it from 11:54:36Z, seq 276). Before it `49e1d62d` (#211 at 04:13:07Z, backend). The same night, each on the owner's word, merged in a
   STACK (LESSONS L-P21): #210 at 04:12:51Z as `33364453` (commitment 228's fix: far-zoom pages from the stored 2-deg
   field), #208 at 03:50:34Z as `c60d5bcd` (memory_audit reads every log header), #212 at 03:48:58Z as `a8c90a42` (the
   mid tier copies before stamping), #214 at 03:29:54Z as `e2fd1d08` (HANDOFF-2026-10-01), #213 at 03:07:59Z as
@@ -176,9 +199,12 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #215 (the vector half of the shared-L1-object guard; test-only; merging on the owner's word
-  when green). Merged 2026-10-01: #211, #210, #208, #212, #214 (see `dev` above; seq 249, 262, 267, 270, 271 record
-  them), #213
+- **Open PRs of ours:** #219 (seq 293; commitments 182 and 228; the W-23 label no longer lands in the cached product's
+  `warnings` and is logged; seq 288-292). #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
+  CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
+  drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
+  anything in it is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
+  249, 262, 267, 270, 271, 274 record them), #213
   (03:07:59Z as `454d96cb`; seq 240-243: `resolve_grid`'s step-4 and EURO->GFS fallback stamps wrote into the L1
   entry's diagnostics dict; fixed by a copy, plus an AST guard; no served number changes), #207 (00:15:39Z as
   `ac080442`, docs; seq 239). Merged 2026-09-30: #209 (23:57:13Z as
@@ -227,11 +253,11 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 178 files / 2163 (reading 2169, #211), chain 140 / 1714 (reading 1720, #210), estate
-  580 (582). #215 moves guards to 179 / 2177 (its run read 2183).
+- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, #215), chain 140 / 1732 (reading 1738, #217; this
+  PR moves it to 1734, projection 1740), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 295, sha256 112fe63fd760313420442043378baa55b245cb97ba9aa6bbde6c06ee190caf98**
+  **Ledger head: seq 315, sha256 5305e0b3e815f0b5361ba8b246d1c9f6f21244cc6fa947cbc6e357f8df62982e**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

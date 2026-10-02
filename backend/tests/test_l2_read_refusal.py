@@ -8,6 +8,7 @@ cache that means "this file does not exist". These tests drive the REAL load pat
 storage client faked, the lesson of 2026-09-30's wind residual (L-P11): never mock the function under test.
 """
 import asyncio
+import logging
 import time
 from datetime import datetime, timezone
 
@@ -232,3 +233,52 @@ def test_both_production_resolvers_carry_the_label():
     from services.weather_pipeline.point_resolution import PointResolutionService
     assert getattr(resolve_grid, "__wrapped__", None) is not None
     assert getattr(PointResolutionService.resolve_point, "__wrapped__", None) is not None
+
+
+# ── the label stays on the answer: never in the cached product (2026-10-02) ──────────────────────────────────────
+
+MID = "gfs_marine_waves_global_mid_20261002T030000Z.json"
+
+
+def test_the_label_never_writes_into_the_cached_products_warnings(store):
+    """`load_product` copies a cached product ONE level, so the answer's `warnings` list is the L1 entry's own list.
+    Until 2026-10-02 `_stamp` appended the refusal warning to it, and every later reader of that entry, with no
+    refusal at all, was told "L2 read refused" (measured with the real ProductStore while reading commitment 182)."""
+    from services.weather_pipeline.store_helpers import load_product_helper
+    s, store_mod, PS = store
+    (s.cache_dir / FILE).write_bytes(_product_bytes())
+    served = load_product_helper(s, FILE)
+    cached = PS._product_cache[FILE][0]
+    assert served.warnings is cached.warnings, "fixture no longer shares the list; this test would prove nothing"
+
+    @R.label_l2_read_failures
+    async def resolve():
+        R.note_read_failure("gfs_marine_waves_uk_ireland_20261002T060000Z.json", _429())   # another tile refused
+        return served
+    out = asyncio.run(resolve())
+
+    assert out.fallbackReason == "l2_read_refused" and len(out.warnings) == 1 and "HTTP 429" in out.warnings[0]
+    assert cached.warnings == [], f"the label landed in the cached product: {cached.warnings}"
+    later = load_product_helper(s, FILE)
+    assert later.warnings == [] and later.fallbackReason is None, "a later reader with no refusal was labelled"
+
+
+def test_the_label_is_logged_so_the_logs_can_count_it(caplog):
+    """Commitment 182 asked for a log count of labelled answers; W-23 wrote the label only into the response, so the
+    logs could not confirm a single one. One INFO line per labelled answer, carrying the label's own name."""
+    caplog.set_level(logging.INFO, logger=R.logger.name)
+
+    @R.label_l2_read_failures
+    async def resolve():
+        R.note_read_failure(FILE, _429())
+        return _Answer(MID)
+    asyncio.run(resolve())
+
+    @R.label_l2_read_failures
+    async def clean():
+        return _Answer(MID)
+    asyncio.run(clean())
+
+    lines = [r.getMessage() for r in caplog.records if "l2_read_refused" in r.getMessage()]
+    assert len(lines) == 1, lines
+    assert MID in lines[0] and FILE in lines[0] and "HTTP 429" in lines[0]

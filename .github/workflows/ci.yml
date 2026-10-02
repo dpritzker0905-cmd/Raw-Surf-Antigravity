@@ -1262,7 +1262,17 @@ jobs:
           # observed 138 files / 1684 in this lane. #212's tests/test_mid_tier_shared_diagnostics.py adds 5 and #210's
           # tests/test_world_series_cost.py adds 31: 1684 + 5 + 31 = 1720, 1720 - 6 = 1714; files 140 EXACT;
           # _FLOOR_SET_FROM["chain"] -> 1720.
-          MIN_FILES, MIN_PASSED = 140, 1714
+          # ⬆ MIN_PASSED 1714→1732 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (the strict L2 reader treats
+          # Supabase's missing-object HTTP 400 as absent; the skill ledger died at the 2026-10-01 month rollover):
+          # hosted CI on dev 63a70425 (run 36858078858) observed 140 files / 1720, confirming #213's projection
+          # exactly. tests/test_calibration_read_retry.py gains 7 executed tests and
+          # tests/test_forecast_skill_retention.py gains 11 (both claimed by `--lane chain`): 1720 + 18 = 1738,
+          # 1738 - 6 = 1732; files 140 unchanged; _FLOOR_SET_FROM["chain"] -> 1738.
+          # ⬆ MIN_PASSED 1732→1734 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (the W-23 label never writes into a
+          # cached product's warnings, and it is logged): hosted CI on #217 (run 36955511157 @ 7b606f06) observed 140
+          # files / 1738. tests/test_l2_read_refusal.py (claimed by `--lane chain`) gains 2 executed tests: 1738 + 2 =
+          # 1740, 1740 - 6 = 1734; files 140 unchanged; _FLOOR_SET_FROM["chain"] -> 1740.
+          MIN_FILES, MIN_PASSED = 140, 1734
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
