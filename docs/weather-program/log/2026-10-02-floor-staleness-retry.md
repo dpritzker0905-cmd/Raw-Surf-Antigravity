@@ -74,3 +74,9 @@ Plus 3 executed tests gives a projection of 585, so `MIN_PASSED` moves 580 to 58
 - #219's `pr_merge` is NOT recorded here: #222 and #223 already carry it.
 - STATE.md is not edited. Four open PRs already edit it, and its seq-293 anchor stays valid while this branch appends.
   The estate floor is recorded here and in the ledger.
+
+## Pushed and opened (owner: "yes")
+
+`claude/floor-staleness-retry` pushed at `451bade0` (13:12:06Z) and opened as PR #224 against `dev` (createdAt
+13:12:28Z), ledger seq 295. Hosted CI must confirm the estate projection of 585; this log records the reading when it
+arrives.
