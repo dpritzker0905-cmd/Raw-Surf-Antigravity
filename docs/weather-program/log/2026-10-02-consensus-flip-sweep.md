@@ -108,3 +108,19 @@ instrument (README rule 5); a SCOREBOARD row follows its first reading.
   spots neutral on tide (Flagler Beach read fair instead of poor). Not this PR's to fix; recorded.
 - Tests stay 23 (the fakes now carry a live wind that never repeats and a tide outage-then-recovery; the clean sweep must
   stay clean); 31 of 31 mutations red (a first `wind not shared` survivor was the fake's periodic wind, fixed).
+
+## Fourth reading: one moving input left, the size reference (run 36972188101 on `5057332b`, 06:09-06:31Z; read 06:33Z)
+- Shared inputs held: 7,080 tide answers (868 without a tide) and 7,080 non-wave resolver answers fetched once and
+  replayed. 388 live upstream spot-hours (97 spots) excluded; run skew 0; swapped (the table, not repeated here: still a
+  refused report).
+- Left: 4 null-control differences and 3 moves without a swap, every one a score step of exactly 0.1 with the same
+  product, run, height, tide and wind. **Cause shown by timing:** production precompute 36969618212 (workflow_run after
+  the pilots lane) ended 06:12:25Z and its last step rewrites the size climatology (RATING_LOCAL_SIZE); arm A loaded the
+  reference at 06:11:12, B at 06:27:34, A2 at 06:30:08, so A rated against the old reference and B and A2 against the
+  new one, which is exactly the pattern read (B and A2 agree, A differs from both).
+- **Fixed by the same rule:** `spot_size_climatology.load_size_climatology_for_rating` is loaded once and replayed to
+  every arm (restored after); the diagnostic rows now carry `reference_size_m`. Tests: the fake lane runs with
+  RATING_LOCAL_SIZE '1' against a loader that answers a newer reference on every load; 33 of 33 mutations red.
+- Also this hour: `backend-floor-staleness` refused on a stale GitHub API answer (newest dev ci.yml success reported as
+  run 35183181239 of 2026-09-17; the same query at 06:26Z returned 36961412429 of 03:43Z today); re-run as the script
+  prescribes (seq 299), attempt 2 green at 06:27:59Z.

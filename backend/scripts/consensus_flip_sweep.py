@@ -273,9 +273,9 @@ def _diag_entry(key, x: dict, y: dict) -> dict:
     return {"spot_id": key[0], "valid_time": key[1], "name": x.get("name"), "region": x.get("region"),
             "fields": [k for k in COMPARED + ("run_time",) if x.get(k) != y.get(k)],
             "x": dict(x.get("_obs") or {}, run_time_rated=x.get("run_time"), tide=x.get("tide"),
-                      **{k: x.get(k) for k in COMPARED}),
+                      reference_size_m=x.get("reference_size_m"), **{k: x.get(k) for k in COMPARED}),
             "y": dict(y.get("_obs") or {}, run_time_rated=y.get("run_time"), tide=y.get("tide"),
-                      **{k: y.get(k) for k in COMPARED})}
+                      reference_size_m=y.get("reference_size_m"), **{k: y.get(k) for k in COMPARED})}
 
 
 def _aggregate(entries: List[dict]) -> dict:
@@ -418,7 +418,20 @@ async def run_arms(spots: list, hours: List[int], env_a: dict, env_b: dict, base
             tides[key] = await live_tide(lat, lng, valid_time, *args, **kwargs)
         return copy.deepcopy(tides[key])
 
+    from services.weather_pipeline import spot_size_climatology as size_module
+    live_size = size_module.load_size_climatology_for_rating
+    sizes: dict = {}
+
+    def shared_size(*args, **kwargs):
+        """Each spot's size reference (RATING_LOCAL_SIZE), loaded once and replayed. Run 36972188101: production
+        precompute 36969618212 rewrote the climatology at 06:12:25Z, between arm A's load (06:11:12) and B's
+        (06:27:34), and 7 spot-hours moved 0.1 point with every other input identical."""
+        if "loaded" not in sizes:
+            sizes["loaded"] = live_size(*args, **kwargs)
+        return copy.deepcopy(sizes["loaded"])
+
     tide_module.tide_norm_at = shared_tide
+    size_module.load_size_climatology_for_rating = shared_size
     try:
         for name, env, hrs in (("A", env_a, hours), ("B", env_b, hours), ("A2", env_a, hours[:1])):
             counter, root = SignatureCounter(), logging.getLogger()
@@ -438,8 +451,9 @@ async def run_arms(spots: list, hours: List[int], env_a: dict, env_b: dict, base
             out[name] = arm_rows(obj, resolver.seen, regions)
     finally:
         tide_module.tide_norm_at = live_tide
+        size_module.load_size_climatology_for_rating = live_size
     out["shared"] = {"tide_answers": len(tides), "tide_missing": sum(v is None for v in tides.values()),
-                     "other_answers": len(shared)}
+                     "other_answers": len(shared), "size_reference_loads": len(sizes)}
     return out
 
 
@@ -482,7 +496,8 @@ def render(summary: dict, counts: dict, null: dict, refused: List[str], meta: di
     sh = meta.get("shared")
     if sh:
         lines.append(f"  shared inputs, fetched once and replayed to every arm: {sh['tide_answers']} tide answers "
-                     f"({sh['tide_missing']} without a tide), {sh['other_answers']} non-wave resolver answers")
+                     f"({sh['tide_missing']} without a tide), {sh['other_answers']} non-wave resolver answers, "
+                     f"{sh['size_reference_loads']} size-reference load(s)")
     direct = (meta.get("diag") or {}).get("upstream_direct")
     if direct:
         lines += ["", f"-- live upstream point answers (outside the flip's reach; excluded from pairs and the null "
@@ -501,7 +516,8 @@ def render(summary: dict, counts: dict, null: dict, refused: List[str], meta: di
                 lines.append(f"   {str(e['name'])[:24]:<25}{e['valid_time']} {e['fields']}  "
                              + "  ".join(f"{k} {x.get(k)}->{y.get(k)}" for k in COMPARED if x.get(k) != y.get(k))
                              + f"  run {x.get('run_time_rated')}->{y.get('run_time_rated')}"
-                             + f"  tide {_tide(x.get('tide'))}->{_tide(y.get('tide'))}")
+                             + f"  tide {_tide(x.get('tide'))}->{_tide(y.get('tide'))}"
+                             + f"  ref {x.get('reference_size_m')}->{y.get('reference_size_m')}")
     lines += ["", "VERDICT: " + ("REFUSED" if refused else "report (the flip itself is the owner's word)")]
     lines += [f"  - {r}" for r in refused]
     return "\n".join(lines)

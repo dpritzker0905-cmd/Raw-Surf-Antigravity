@@ -34,7 +34,7 @@ SPOTS = [{"id": "fl", "name": "Sebastian Inlet", "latitude": 27.86, "longitude":
 REGION_AT = {27.86: "florida_east_coast", 21.66: "hawaii", -40.0: None, 29.3: "direct"}
 REGIONS = {"gfs_marine_waves_florida_east_coast": "florida_east_coast", "gfs_marine_waves_hawaii": "hawaii",
            "gfs_marine_waves_global_mid": "global_mid"}
-ENV_A = {"CONSENSUS_SERVE": "0", "CONSENSUS_SERVE_KEEP_GFS": "", "RATING_LOCAL_SIZE": "0", "RATING_TIDE": "0"}
+ENV_A = {"CONSENSUS_SERVE": "0", "CONSENSUS_SERVE_KEEP_GFS": "", "RATING_LOCAL_SIZE": "1", "RATING_TIDE": "0"}
 ENV_B = dict(ENV_A, CONSENSUS_SERVE="1", CONSENSUS_SERVE_KEEP_GFS="hawaii")
 KEEP = S.keep_set("hawaii")
 
@@ -81,10 +81,11 @@ async def fake_rate(resolver, spot, model, valid_time, reference_size_m=None):
                                      lng=spot["longitude"], valid_time_str=valid_time)
     t = await tide.tide_norm_at(spot["latitude"], spot["longitude"], valid_time)
     h = round(m.hs * 0.8, 3)
-    score = round(40 + 20 * h + (3 if t else 0) + round(w.point.speed, 1), 1)
+    score = round(40 + 20 * h + (3 if t else 0) + round(w.point.speed, 1) + 0.5 * (reference_size_m or 0), 1)
     return {"spot_id": spot["id"], "name": spot["name"], "latitude": spot["latitude"], "longitude": spot["longitude"],
             "score": score, "level": "fair" if score < 60 else "fair_good", "surf_height_m": h,
-            "offshore_hs_m": round(m.hs, 3), "run_time": m.run_time, "wind_run_time": None}
+            "offshore_hs_m": round(m.hs, 3), "run_time": m.run_time, "wind_run_time": None,
+            **({"reference_size_m": round(reference_size_m, 4)} if reference_size_m is not None else {})}
 
 
 def install_live_tide(monkeypatch):
@@ -98,9 +99,23 @@ def install_live_tide(monkeypatch):
     monkeypatch.setattr(tide, "tide_norm_at", live)
 
 
+def install_moving_size_reference(monkeypatch):
+    """Every load of the size climatology answers a NEWER reference, as when a production precompute rewrites it
+    mid-sweep (run 36972188101)."""
+    from services.weather_pipeline import spot_size_climatology as size
+    loads = []
+
+    def load():
+        loads.append(1)
+        return {"generation": len(loads)}, "ok"
+    monkeypatch.setattr(size, "load_size_climatology_for_rating", load)
+    monkeypatch.setattr(size, "reference_map", lambda clim: {s["id"]: 1.0 + 0.1 * clim["generation"] for s in SPOTS})
+
+
 def sweep_arms(monkeypatch, env_a=ENV_A, env_b=ENV_B, **resolver_kw):
     FakeResolver.calls = 0
     install_live_tide(monkeypatch)
+    install_moving_size_reference(monkeypatch)
     monkeypatch.setattr(pc, "_make_point_resolver", lambda: FakeResolver(**resolver_kw))
     monkeypatch.setattr(pc, "rate_one_spot", fake_rate)
     return asyncio.run(S.run_arms(SPOTS, [0, 24], env_a, env_b, BASE, REGIONS))
@@ -158,8 +173,12 @@ def test_a_clean_sweep_swaps_only_unkept_regional_frames_and_refuses_nothing(mon
     live wind and a tide outage-then-recovery are fetched once and replayed, so neither moves an arm."""
     from services.weather_pipeline import tide
     arms = sweep_arms(monkeypatch)
-    assert arms["shared"] == {"tide_answers": 8, "tide_missing": 2, "other_answers": 8}
+    from services.weather_pipeline import spot_size_climatology as size
+    assert arms["shared"] == {"tide_answers": 8, "tide_missing": 2, "other_answers": 8, "size_reference_loads": 1}
     assert tide.tide_norm_at.__name__ == "live", "run_arms did not restore the live tide function"
+    assert size.load_size_climatology_for_rating.__name__ == "load", "run_arms did not restore the size loader"
+    refs = {name: {rec.get("reference_size_m") for rec in arms[name].values()} for name in ("A", "B", "A2")}
+    assert refs == {"A": {1.1}, "B": {1.1}, "A2": {1.1}}, "an arm rated against a different size-reference load"
     rows, counts = S.pair(arms["A"], arms["B"], KEEP)
     null = S.null_control(arms["A"], arms["A2"])
     assert counts == {"unpaired": 0, "upstream_direct": 2, "unrated": 0, "run_skew": 0}
@@ -191,6 +210,7 @@ def test_the_null_arm_runs_after_the_candidate_so_it_brackets_it(monkeypatch):
                 "Dynamic L2 download failed for x.json: {'statusCode': 429, 'error': too_many_connections}")
         return FakeResolver()
     install_live_tide(monkeypatch)
+    install_moving_size_reference(monkeypatch)
     monkeypatch.setattr(pc, "_make_point_resolver", make)
     monkeypatch.setattr(pc, "rate_one_spot", fake_rate)
     arms = asyncio.run(S.run_arms(SPOTS, [0, 24], ENV_A, ENV_B, BASE, REGIONS))
