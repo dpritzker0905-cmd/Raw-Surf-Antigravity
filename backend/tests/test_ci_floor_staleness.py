@@ -338,7 +338,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #   controls in tests/test_grid_series_base_anchor.py, selected by `--lane guards` ONLY.
 # chain 1194: the SAME hosted run actually read 1194, not the 1148 previously projected here.
 #   The projection was never confirmed, so this is corrected to the receipt (see ci.yml).
-_FLOOR_SET_FROM = {"guards": 2183, "chain": 1754, "estate": 582}
+# estate 606 (2026-10-02): hosted run 37009550311 (#223, merged as ca71acd1) read 582; the new
+#   tests/test_action_ledger_pr_merge_target.py adds 24 executed tests, selected by `--lane estate` ONLY.
+_FLOOR_SET_FROM = {"guards": 2183, "chain": 1754, "estate": 606}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
