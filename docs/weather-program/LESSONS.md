@@ -268,3 +268,11 @@ before starting it.
   merged at 03:48-03:50Z and #210 and #211 at 04:12-04:13Z (2026-10-01): two CI windows for four PRs, the only
   extra push being #210's record of #212's merge. Read the rule from the checker
   (`memory_audit.check_completeness`), not from habit. (log `2026-10-01-grid-resolver-no-shared-diagnostics.md`)
+- **L-S19 · An equivalence check that never ran the new path proves nothing; assert the path was taken.** The first
+  real-file proof of the strided world read said "old == new" on 207,872 cells, and the new path was not taken once:
+  the live files declare no `resolution`, the guard required one, and every hour fell back to the old path, so it
+  compared the old path with itself. The CPU column caught it (no faster, and 7 full L1 entries in "new" mode). The
+  test now asserts the lane's own trace (its `#s{stride}` L1 key) beside each equality. Second point from the same
+  profile: profile a 1-CPU box on ONE core (`psutil.Process().cpu_affinity([n])`). Unpinned, the load threads'
+  GIL hand-offs across cores doubled and scattered every reading (5-10 s for a page that costs 2.1-2.9 s pinned).
+  (2026-10-02, commitment 228; log `2026-10-02-commitments-182-228.md`)

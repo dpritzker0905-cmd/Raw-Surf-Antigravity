@@ -1,7 +1,7 @@
 # Weather program: state
 
-**Updated 2026-10-02 03:09Z** (logs: `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
-228 closed on S11), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
+**Updated 2026-10-02 12:50Z** (logs: `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
+228 closed on S11, its par2 residual fixed offline), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
 rollover; the fix is #217, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
@@ -26,7 +26,11 @@ is a claim, not a measurement.
   box: stored share 85.0% (the ceiling) for both layers page by page, 68.1% / 59.3% with both pages at once; before
   19.5 / 24.8 / 8.0 / 43.4%. RESIDUALS, the next fix: two concurrent world pages still overrun the 20 s deadline on
   the 1-CPU box (33-40 of 48 hours per page), and for some minutes after each deploy every page is cut (cold box:
-  12-23 of 48). The original report, kept for context:
+  12-23 of 48). **RESIDUAL 1 FIX, open as `claude/c228-series-par2-deadline` (PR to open) (seq 295-296):** a world series frame reads
+  the global_mid pre-strided when the clip provably keeps every cell (every hour missed the 8-product L1 and
+  validated 15,023 cells to keep 966). Offline on one core: 2.6-3.4 s -> 1.0-1.1 s CPU per cold 16-hour page,
+  0.2-0.3 s repeated, frames byte-identical (207,872 real cells). The deployed S11 read-back is commitment seq 296.
+  Residual 2 (the cold minutes after each deploy) stands. The original report, kept for context:
 - ⛔ **OWNER REPORT 2026-09-30 22:18Z (seq 227; commitment 228): marine heatmap blank at far-out zooms on forecast
   hours until zooming in.** ROOT MECHANISM from the Render logs (seq 237): the zoomed-out grid_series' live
   fast path times out (2.5 s) and its per-hour loop (10 s/hour, 20 s deadline, 1 CPU) drops many hours under load,
@@ -80,8 +84,9 @@ is a claim, not a measurement.
 - **HANDOFF for a fresh context: `HANDOFF-2026-09-30.md`** (reading order, the production-reach finding, what
   landed #181-#186, open commitments, next fixes in order, owner-only items, measurement recipes, the report
   audit). Read it after this file; `HANDOFF-2026-09-29.md` still holds the switch table and science threads.
-- **`dev` = `f302c309`** (#217 at 2026-10-02 02:42:26Z, the skill-ledger reader; Render live from 02:45:03Z; seq
-  288-289). Before it `67fe4918` (#216 at 02:21:51Z, docs; seq 287), after `48460019` (#218 at 02:17:18Z, CLAUDE.md
+- **`dev` = `c4a59c01`** (#219 at 2026-10-02 03:43:27Z, the W-23 label kept out of the cached product and logged;
+  Render live from about 03:46:00Z; seq 297, 294). Before it `f302c309` (#217 at 02:42:26Z, the skill-ledger
+  reader; Render live from 02:45:03Z; seq 288-289), and before that `67fe4918` (#216 at 02:21:51Z, docs; seq 287), after `48460019` (#218 at 02:17:18Z, CLAUDE.md
   only; seq 286). Before them `63a70425` (#215 at 2026-10-01 11:52:12Z: the vector half of the shared-L1-object guard,
   test-only; seq 274; Render serves it from 11:54:36Z, seq 276). Before it `49e1d62d` (#211 at 04:13:07Z, backend). The same night, each on the owner's word, merged in a
   STACK (LESSONS L-P21): #210 at 04:12:51Z as `33364453` (commitment 228's fix: far-zoom pages from the stored 2-deg
@@ -94,8 +99,10 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #219 (seq 293; commitments 182 and 228; the W-23 label no longer lands in the cached product's
-  `warnings` and is logged; seq 288-292). #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
+- **Open PRs of ours:** `claude/c228-series-par2-deadline` (PR to open) (commitment 228's par2 residual: the strided world read; seq 294-297). Also
+  open: #220 (consensus PR C) and #221 (far-zoom client fixes); all three fork the ledger at seq 294, and #220 and
+  this branch both move the chain floor: the later merge re-chains and re-derives (L-P21). #219 merged (seq 297),
+  as did #217 and #216 (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
   CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
   drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
   anything in it is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
@@ -148,11 +155,11 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, #215), chain 140 / 1732 (reading 1738, #217; this
-  PR moves it to 1734, projection 1740), estate 580 (582).
+- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, #215), chain 140 / 1734 (reading 1740, #219; the
+  par2 branch moves it to 141 / 1774, projection 1780), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 293, sha256 c92a600e5c57cc39978a774dceb754065ee3454204daabcf7ce8ab8c5d1c431d**
+  **Ledger head: seq 297, sha256 c5f3739bdf42547b7327a853db2e5c3fd8b244db95f3b7566f8076b88d0a3253**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
