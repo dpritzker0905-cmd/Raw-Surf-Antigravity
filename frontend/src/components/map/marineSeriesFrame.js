@@ -84,6 +84,10 @@ export function frameToMarineData(frame, model, layer) {
     // frame on screen.
     __servedProductId: frame.product_id || null,
     __regionId: frame.region_id || null,
+    // THINNED FRAME (2026-10-01, marineExactUpgrade.js): the backend stamps `decimated_stride` on a frame it thinned to fit
+    // its vector budget (a 48-frame world page is 46 x 21, an 8-degree lattice). Same product id and valid time as the exact
+    // frame it is a view of, NOT the same information, so identity checks cannot tell them apart: this can. 0 = exact.
+    __decimatedStride: Number(frame.decimated_stride) > 1 ? Number(frame.decimated_stride) : 0,
   };
   const product_id = `series_${model}_${layer}_h${frame.hour_offset}`;
   // Audit #18/A3: mint the lineage tag ONCE here — recordTruthStage PRESERVES an existing tag, so

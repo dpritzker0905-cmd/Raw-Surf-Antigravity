@@ -49,7 +49,7 @@ export let latestTimeDiag = {
 // let a 10 deg resample of a 0.25 deg native dataset render as "AUTHORITATIVE NATIVE".
 // ★ Derive it from the served grid itself, which is always available and cannot be omitted
 //   upstream, and report HOW it was obtained so the number is never mistaken for a backend claim.
-function deriveResolutionDeg(bounds, cols, rows) {
+export function deriveResolutionDeg(bounds, cols, rows) {
   if (!bounds || typeof bounds !== 'object') return null;
   const { west, east, south, north } = bounds;
   if ([west, east, south, north].some(v => typeof v !== 'number' || !isFinite(v))) return null;
