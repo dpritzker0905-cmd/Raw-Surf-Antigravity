@@ -215,7 +215,7 @@ is a claim, not a measurement.
   580 (582). #215 moves guards to 179 / 2177 (its run read 2183).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 292, sha256 8bc0ad7fe687e3c82220a470ba6b6d911bde41ae7b8558848922fa01dfdec8ee**
+  **Ledger head: seq 293, sha256 74efdeb11e2dbd5bfc740d0224010cddeab7faa5d75a7796d48f381fe9d607be**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
