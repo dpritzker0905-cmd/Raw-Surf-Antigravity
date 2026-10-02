@@ -163,3 +163,9 @@ instrument (README rule 5); a SCOREBOARD row follows its first reading.
   it at 325); pr_merge "#223" is 334; 335 records #221's merge.
 - Floors: guards 180/2242 (#221), chain 142/1771 (this PR, from hosted 141/1754 + 23); `_FLOOR_SET_FROM` guards 2248,
   chain 1777.
+
+## Re-chained onto dev after #227 merged (17:21Z; auto-fix on #220 for its merge conflict)
+- #227 (the F-22 follow-up) merged at 17:19:08Z as `ed3a1b46`; dev's ledger runs to 335 and already records #223 (330)
+  and #221 (331). This branch's own lines are now 336-343: the commitment to read the sweep is **337**, fulfilled by the
+  first clean reading **343**; findings 338, 339, 340, 342; the floor-staleness re-run 341. Its #223/#221 merge copies
+  are dropped; 344 records #227's merge. Floors unchanged.

@@ -1,8 +1,9 @@
 /**
  * marineStaleHour.js — which hour a world frame was made for, against the hour that is selected
  * (2026-10-01; owner: "keep it on, defer the flip, now fix the wrong-hour frame"; audit finding F-21).
- * PURE and import-free on purpose: the engine imports it, and the engine's module graph must not grow a dependency on
- * the backend client (the manifest-reading half lives in marineStaleHourLayer.js, which only the custom layer imports).
+ * PURE on purpose: the engine imports it, and the engine's module graph must not grow a dependency on the backend client (the
+ * manifest-reading half lives in marineStaleHourLayer.js, which only the custom layer imports). Its one import, the arbiter's
+ * classifier of a 2-degree world base (marineCommitArbiter: isFineWorldBase and FINE_BASE_MAX_CELL_DEG), is itself pure and imports nothing.
  *
  * THE DEFECT. Select Wednesday at a regional zoom, zoom out: for 3 to 9 s live (3.2 to 3.8 s on the offline mock) the field on
  * screen is the world frame the page loaded with, the "now" hour (swell 0.78 m where Wednesday reads 2.33 m), at FULL strength
@@ -35,7 +36,24 @@
  * "The hour a frame is for" is its VALID TIME (served first, then the ask's echo, then the truth tag), never its hourOffset
  * label: at 3-hourly range the frames serving one hour carry different labels (marineExactUpgrade.js, L-F10). An unknown valid
  * time on either side fails OPEN (nothing replaced, nothing dimmed): the old behaviour, never a guess.
+ *
+ * TWO MORE RULES (2026-10-02; owner: "keep the 2 degree frame for the selected hour at every zoom in that range"; the follow-up to the F-22
+ * base-aware bridge, which only promotes a held 2-degree base for the selected hour, so WHAT THE ENGINE HOLDS decides whether it acts). The
+ * base was whatever coarse-global grid committed last (per model | layer | flavor slot), so on the F-22 build a thin 8-degree series frame
+ * (the backend's `decimated_stride`, 46 x 20) committed at a world view replaced the exact frame held for the same data, and once it was held
+ * the exact frame could not come back through the seed path. Both are judged on the DATA, never the label: the valid time within the snapped
+ * step (SAME_STEP_TOL_MS), the same model run when both name one, the same rating flavor; an unknown time fails open (the old behaviour).
+ *   5. `heldBaseKeeps`: an EXACT base (marineCommitArbiter.isFineWorldBase) is not replaced by a COARSER world frame of the same data (the
+ *      engine's `_captureCoarseBase` asks first). A frame of another step, of an equal or finer lattice, or of another model run replaces it.
+ *   6. `coarseBaseOutdatedBy` (so `coarseBaseStaleForSeed` and the prewarm's `_coarseBaseMatches`): a 2-degree seed REPLACES a coarser base of
+ *      the same data, so the world warm's landing, or the cached world grid, restores the exact base over a thin one.
+ * Kill (both): __RAW_DISABLE_BASE_HOLD__. Telemetry: window.__MARINE_BASE_HOLD__ { kept }. The world warm's band half is in marineGlobalPrewarm.js.
+ * (__RAW_DISABLE_BASE_HOUR_SYNC__ alone no longer restores the pre-F-21 identity-only seed gate: rule 6 still replaces a coarser base; set both to get it back.)
+ * KNOWN LIMITS: the grids the engine holds often name their run on one side only (the commit path's conform carries no `model_run_time`), and then the data time
+ * alone decides; a late frame for ANOTHER step still replaces an exact base for the selected hour (the F-21 rule, unchanged: `engine.__selectedMs` could veto it).
  */
+import { isFineWorldBase, FINE_BASE_MAX_CELL_DEG } from './marineCommitArbiter';
+
 export const HOUR_MS = 3600000;
 /** Two frames of the same model step (or one step and the nearest-step snap of it) differ by less than this. */
 export const SAME_STEP_TOL_MS = 1.5 * HOUR_MS + 60000;
@@ -61,12 +79,103 @@ export function gridValidMs(x) {
   return Number.isFinite(ms) ? ms : null;
 }
 
-/** True when a held base and a seed are made for different hours (both valid times known and further apart than a snap). */
+const gridOf = (x) => (x ? (x.waveGrid || x.grid || x) : null);
+
+/** The longitude cell of a grid that spans the world (359 degrees or more, the engine's coarse-global width), else null. */
+function worldCellDeg(g) {
+  if (!g || !g.bounds || !(g.cols > 0)) return null;
+  const span = lngSpan(g.bounds);
+  return span >= 359.0 ? span / g.cols : null;
+}
+
+/**
+ * The model run a grid (or a wrapper) names, as the best identity it carries: the VERIFIED cycle (`model_run_time` with `model_run_time_status` 'known', a
+ * series frame's provenance) and the INGEST clock (`run_time`, on the grid or its wrapper). Either may be null.
+ */
+function runOf(x) {
+  const g = gridOf(x);
+  const cycle = g && g.model_run_time && g.model_run_time_status === 'known' ? g.model_run_time : null;
+  const ingest = (x && x.run_time) || (g && g.run_time) || null;
+  return { cycle, ingest };
+}
+
+/**
+ * An instant in whole seconds since the epoch, fractions dropped: /grid serves the ingest clock with microseconds ("2026-09-30T23:34:21.292482Z"), /grid_series
+ * truncates it to whole seconds ("...:21Z", backend grid_series_viewport._frame_provenance), and both name ONE run. Null when it does not parse.
+ */
+function wholeSeconds(s) {
+  const ms = Date.parse(String(s).replace(/(\d\d:\d\d:\d\d)\.\d+/, '$1'));
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
+}
+function sameInstant(s, t) {
+  const a = wholeSeconds(s), b = wholeSeconds(t);
+  return a !== null && b !== null ? a === b : String(s) === String(t);
+}
+
+/**
+ * The same data: valid times known and within a snapped step, and the same model run: the verified cycle when BOTH name one, else the ingest clock when both
+ * name that (whole seconds), else (a run unnamed on one side, which the grids the engine holds often are) the data time alone decides. Another run may be the
+ * fresher data, so two named runs that differ are not the same data.
+ */
+function sameData(a, b) {
+  const ma = gridValidMs(a), mb = gridValidMs(b);
+  if (ma === null || mb === null || Math.abs(ma - mb) > SAME_STEP_TOL_MS) return false;
+  const ra = runOf(a), rb = runOf(b);
+  if (ra.cycle && rb.cycle) return sameInstant(ra.cycle, rb.cycle);
+  if (ra.ingest && rb.ingest) return sameInstant(ra.ingest, rb.ingest);
+  return true;
+}
+
+/** The same slot of the engine's base LRU: model, layer and rating flavor (the engine's coarseBaseLruKey; the finer coarseBaseKey also holds dims, bounds and the hour label). */
+function sameSlot(a, b) {
+  return (a.__sourceModel || 'GFS') === (b.__sourceModel || 'GFS') &&
+    (a.__componentLayer || 'waves') === (b.__componentLayer || 'waves') &&
+    !!a.ratingMode === !!b.ratingMode;
+}
+
+/** Rule 6: a 2-degree seed against a coarser base of the same data (a thin or 10-degree placeholder). */
+function seedUpgradesBase(base, seed, w) {
+  if (w && w.__RAW_DISABLE_BASE_HOLD__ === true) return false;
+  const bg = gridOf(base), sg = gridOf(seed);
+  if (!bg || !sg || !(worldCellDeg(bg) > FINE_BASE_MAX_CELL_DEG) || !isFineWorldBase(sg)) return false;
+  return sameSlot(bg, sg) && sameData(bg, sg);
+}
+
+/**
+ * True when the seed should REPLACE the held base: they are made for different hours (both valid times known and further apart than a snap), or the
+ * seed is a 2-degree frame of the same data as a coarser base (rule 6, 2026-10-02).
+ */
 export function coarseBaseOutdatedBy(base, seed, win) {
   const w = win || (typeof window !== 'undefined' ? window : null);
-  if (w && w.__RAW_DISABLE_BASE_HOUR_SYNC__ === true) return false;
   const a = gridValidMs(base), b = gridValidMs(seed);
-  return a !== null && b !== null && Math.abs(a - b) > SAME_STEP_TOL_MS;
+  if (!(w && w.__RAW_DISABLE_BASE_HOUR_SYNC__ === true) && a !== null && b !== null && Math.abs(a - b) > SAME_STEP_TOL_MS) return true;
+  return seedUpgradesBase(base, seed, w);
+}
+
+/**
+ * Rule 5, the engine's capture question (`_captureCoarseBase`): is a held EXACT base for this very data, so the incoming COARSER world frame must
+ * not replace it? `lru` is the engine's per-slot map of base sets (or null when the LRU is off), `pointer` the displayed base, `incoming` the
+ * grid about to be captured (a coarse-global grid: the only kind the engine ever holds as a base). Counted in window.__MARINE_BASE_HOLD__.kept.
+ */
+export function heldBaseKeeps(lru, pointer, incoming, win) {
+  try {
+    const w = win || (typeof window !== 'undefined' ? window : null);
+    if (w && w.__RAW_DISABLE_BASE_HOLD__ === true) return false;
+    const ig = gridOf(incoming);
+    if (!(worldCellDeg(ig) > FINE_BASE_MAX_CELL_DEG)) return false;      // only a coarser world lattice can be kept out
+    const held = [pointer];
+    if (lru && typeof lru.values === 'function') for (const b of lru.values()) held.push(b);
+    for (const b of held) {
+      const bg = gridOf(b);
+      if (bg && isFineWorldBase(bg) && sameSlot(bg, ig) && sameData(bg, ig)) {
+        if (w) { const t = w.__MARINE_BASE_HOLD__ = w.__MARINE_BASE_HOLD__ || { kept: 0 }; t.kept++; }
+        return true;
+      }
+    }
+    return false;
+  } catch (e) {
+    return false;                                                          // best effort: the old behaviour (the frame replaces the base)
+  }
 }
 
 /**

@@ -29,13 +29,14 @@
 
 import { arbiterDecide, isFineWorldBase, coverageWrapSafe } from './marineCommitArbiter';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
-import { isGateWideView } from './marineZoomOutGate';
+import { isGateWideView, bridgeCeilDeg } from './marineZoomOutGate';
 import {
   isCoarseGlobalGrid, isRegionalBounds, shouldRejectResolutionDowngrade,
 } from './marineEngineDecisions';
 // The seed-consume question ("does this staged seed replace the held base?") now asks the HOUR too (2026-10-01, F-21). It rides
 // this module so the engine keeps ONE import line from the commit lane; the rule itself is pure and lives in marineStaleHour.js.
-export { coarseBaseStaleForSeed } from './marineStaleHour';
+// The capture question ("is a held exact base for this very data, so this coarser frame must not replace it?", F-22 follow-up, 2026-10-02) rides the same line.
+export { coarseBaseStaleForSeed, heldBaseKeeps } from './marineStaleHour';
 import { staleResidentSwapWanted, isWorldGridForSelectedHour } from './marineStaleHour';
 
 // ZOOM-OUT BRIDGE (2026-07-15, user "heatmap clears for a quick second midway zooming out" AND
@@ -80,7 +81,7 @@ function _midBandBridgeWide(vb, lastZoom, w, fineBase) {
   if (!vb) return false;
   const gateWide = isGateWideView(lastZoom, vb[2] - vb[0], vb[3] - vb[1]);
   if (w && w.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true) return gateWide;
-  const ceil = (w && Number(w.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0;
+  const ceil = bridgeCeilDeg(w);
   const ceilWide = (vb[2] - vb[0]) > ceil || (vb[3] - vb[1]) > ceil;
   return fineBase ? (gateWide || ceilWide) : ceilWide;
 }

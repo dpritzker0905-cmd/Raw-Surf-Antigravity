@@ -218,8 +218,9 @@ describe('call sites (source pins)', () => {
 
   it('the commit gate reads the SAME function for the bridge\'s wide test (one definition, not a second copy)', () => {
     const src = read('marineCommitGate.js');
-    expect(src).toMatch(/import \{ isGateWideView \} from '\.\/marineZoomOutGate';/);
+    expect(src).toMatch(/import \{[^}]*\bisGateWideView\b[^}]*\} from '\.\/marineZoomOutGate';/);
     expect(src).toMatch(/const gateWide = isGateWideView\(lastZoom, vb\[2\] - vb\[0\], vb\[3\] - vb\[1\]\);/);
+    expect(src).toMatch(/const ceil = bridgeCeilDeg\(w\);/);        // the ceiling comes from the same module as the wide test (F-22 follow-up: the world warm reads it too)
   });
 
   it('the engine\'s Phase-B shadow decision carries the same base-aware switch as decideMarineCommit (else every band reject logs an arb_shadow_diverge)', () => {

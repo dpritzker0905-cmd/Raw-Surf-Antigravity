@@ -52,8 +52,18 @@ describe('useMarineWorldWarmOnSettle: when the world grid for the selected hour 
     const [model, hour, vb, layer, opts] = prewarmGlobalMarineGrid.mock.calls[0];
     expect([model, hour, layer]).toEqual(['GFS', 147, 'waves']);
     expect(vb).toEqual({ west: -80.75, south: 27.25, east: -79.25, north: 28.75 });     // the viewport the prewarm's own gates judge
-    expect(opts).toEqual({ gridFirst: true });                                          // before the world series half, which held the lane's single slot
+    expect(opts).toEqual({ gridFirst: true, band: true });                              // before the world series half, which held the lane's single slot; band: the prewarm may serve a 15-40 degree view (F-22 follow-up)
     expect(window.__MARINE_HOUR_WORLD_WARM__).toEqual({ fired: 1 });
+  });
+
+  it('hands a band-sized viewport (30 x 20 degrees) to the prewarm untouched: its own gate, not the hook, decides, and it is told the call is a band-capable warm', () => {
+    map = { getZoom: () => 5.4, getBounds: () => ({ getWest: () => -95, getEast: () => -65, getSouth: () => 15, getNorth: () => 35 }) };
+    mount();
+    jest.advanceTimersByTime(WORLD_WARM_HOLD_MS + 1);
+    expect(prewarmGlobalMarineGrid).toHaveBeenCalledTimes(1);
+    const [, , vb, , opts] = prewarmGlobalMarineGrid.mock.calls[0];
+    expect(vb).toEqual({ west: -95, south: 15, east: -65, north: 35 });
+    expect(opts).toEqual({ gridFirst: true, band: true });
   });
 
   it('passes the active layer and model through (ICON and a swell layer are not rewritten)', () => {
