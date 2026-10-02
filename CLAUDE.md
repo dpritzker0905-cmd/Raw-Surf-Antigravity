@@ -1,3 +1,44 @@
+# Raw Surf
+
+Surf forecasting + surf-trip marketplace. **This repository is PUBLIC.** PRs target `dev`; `main` only via the
+explicit-instruction + confirmation handshake (BRAIN_RULES §22).
+
+- `backend/`: FastAPI (`server.py`; Render runs `uvicorn server:app`), Python 3.12. ONE 1-CPU Render box serves
+  production AND dev, so anything heavy pointed at it degrades the live site.
+- `frontend/`: React (CRA via craco) + MapLibre GL, Node 18.20.2 (`frontend/.node-version`), deployed on Netlify.
+- Supabase: Postgres + Storage (weather products live in the `weather-products` bucket).
+- **History, not current architecture:** the root-level `*HANDOFF*`, `*AUDIT*` and `*FINDINGS*` files and
+  `MASTER_WEATHER_SIMULATION_REPORT_11.0.md` (Jun–Aug 2026), and `docs/README.md` (May 2026, "Open-Meteo raster
+  tiles"). Current weather state is `docs/weather-program/`.
+
+## Commands
+
+Backend: run from `backend/`. pytest from the repo root fails collection, and every mutation check then fakes RED.
+
+```bash
+python -m pytest tests/test_surf_point_parity.py -q --basetemp=<writable tmp dir>
+python scripts/ci_test_lanes.py --lane guards            # or chain | estate: the test files each CI lane runs
+flake8 --max-line-length=150 --select=E9,F63,F7,F82 .    # the CI lint gate
+python scripts/check_file_size.py --path . --max-lines 800
+```
+
+Frontend: run from `frontend/`. Tests sit beside the code (`src/components/map/*.test.js`).
+
+```bash
+CI=true npx react-scripts test --watchAll=false src/components/map
+npm run build
+node scripts/check_eslint.js   # CI's shrink-only lint-debt ratchet; a green Jest run says nothing about it
+```
+
+- **Test floors are shrink-only.** For a new backend test, `git add` it first (no lane claims an untracked file), then
+  move that lane's floor in `.github/workflows/ci.yml` AND `_FLOOR_SET_FROM` in
+  `backend/tests/test_ci_floor_staleness.py` in the same commit, and check that hosted CI's "collected N tests" equals
+  your projection. Hosted CI is the authority (the local guards lane takes 15-25 min).
+- **Fetchers run as subprocesses by path** (`services/_fetch_common.run_fetcher_subprocess`), where `services` is not
+  importable: sibling imports are `try: from _x import … except ImportError: from services._x import …`
+  (guard: `tests/test_fetcher_script_imports.py`).
+- More CI and PR pitfalls (ledger forks, Windows encoding, stacked merges): `docs/weather-program/LESSONS.md`.
+
 ## Project Rules (binding)
 
 - **NO SECRET VALUES IN ANY TRACKED FILE (user mandate 2026-09-24):** this repository is PUBLIC.
@@ -55,35 +96,59 @@
   (never rewritten whole), and every fix that changes a served number adds a `SCOREBOARD.md` row. Every
   state-changing action is recorded in the hash-chained action ledger (`ACTIONS.jsonl`, BRAIN_RULES §23).
 
-- **SECURITY/STABILITY RELEASE STATUS (2026-07-25):**
-  - **Sensitive BOLA and payments:** The credit, payment, booking, and conversation routes touched in this release use strict JWT identity (`get_current_user_id`) and ownership checks; focused contract tests pass. Stripe webhook handling fails closed unless `STRIPE_WEBHOOK_SECRET` and a valid Stripe signature are present. Confirm that secret remains configured in Render. This does not certify the remaining BOLA backlog.
-  - **Private chat media:** New writes use opaque refs plus member-authorized signed URLs and fail closed if private storage is unavailable. Production cutover completed on 2026-07-25: 36 direct-message legacy URLs were backfilled to opaque refs, and `chat_media`/`crew_chat` were made private. Do not change the remaining legacy local-media routes without an authenticated browser-delivery compatibility design.
-  - **Generic uploads:** Public delivery is restricted to the explicit `avatars`, `conditions`, `gallery`, `general`, `stories`, and `user-gallery` bucket allowlist. Production bucket provisioning completed on 2026-07-25; private chat buckets are excluded from that contract.
-  - **WebGL & marine:** The global-grid cache guard is caller-aware: normal close-zoom reuse rejects world grids, while the 429 cooldown fallback may reuse a covering one. Focused tests pass. Deactivation-retain still lacks a reactivation regression test.
-  - **Codebase Indexing Note:** `trevec` is active and synchronized for code discovery.
-    ⚠️ **CORRECTED 2026-08-06 — the "height-blind sim" note that stood here was STALE and is now
-    REFUTED BY EXECUTION.** It described the private physics copy that `0cae5d74` deleted on
-    2026-07-26. The sim's rating now lives in `services/weather_pipeline/sim_rating.py`, and
-    `calculate_surf_rating` delegates BOTH halves to production — `surf_point.resolve_surf_geometry`
-    + `estimate_surf_at` for the breaking height, then `surf_rating` for the 0-100 — which is the
-    ONE FORECAST COMPOSITION chain this file mandates above. **Re-measured 2026-09-28** at `dev`
-    `52e0ec53` (#146 cross-shelf friction off + cap-seam repair on, #120 Kr 0.873), Pipeline,
-    everything held constant except swell height (14 s, 315°, 5 kt wind FROM 45°):
-      `0.5 m → 3.6 ft / 78.0 good` · `1 m → 6.4 ft / 86.5 epic` · `4 m → 19.3 ft / 86.5 epic`
-      · `8 m → 29.5 ft / 61.2 fair_good` · `10 m → 29.5 ft / 61.2` · `12 m → 29.5 ft / 61.2 fair_good`
-    Three distinct quality values across a 24× height range, so `swell_h` reaches the score at both
-    ends, and the height saturates at the depth-limited ceiling (**29.5 ft**) from 8 m up rather than
-    growing without bound.
-    ⛔ The figures that stood here until 2026-09-28 (`8 m → 30.6 ft / 57.0`, `12 m → 29.5 ft / 61.2`,
-    measured 2026-08-06) were NOT saturation. They reproduce exactly with the legacy constants
-    (`SURF_REFRACTION_KR=0.797 SURF_SHELF_CF_SCALE=0.25 SURF_CAP_SEAM_MONOTONE=0`, wind from 45°),
-    and the same chain read `10 m → 36.6 ft / 34.6` between them: bigger swell, smaller surf above
-    10 m. That was the MC-01 cap seam, which #146 repaired. The 2026-09-28 Jacobian sweep of the
-    whole catalogue found it in 18% of spot/period traces before the repair and in none after
-    (audit 15.0). ⇒ A control that samples only the two ends of a range cannot see an inversion
-    inside it; sweep the interior.
-    ★ **Still true, and now literal:** treat `surf_rating.py` as authoritative — the sim imports it
-    rather than reimplementing it. **Do not re-derive either half for a sim surface.**
+- **SECURITY/STABILITY CONTRACTS (release 2026-07-25):**
+  - Credit, payment, booking and conversation routes use strict JWT identity (`get_current_user_id`) plus ownership
+    checks; the rest of the BOLA backlog is NOT certified. Stripe webhooks fail closed unless `STRIPE_WEBHOOK_SECRET`
+    and a valid Stripe signature are present.
+  - Private chat media (`chat_media`, `crew_chat`, private since 2026-07-25): opaque refs plus member-authorized signed
+    URLs, failing closed when private storage is unavailable. Do not change the remaining legacy local-media routes
+    without an authenticated browser-delivery compatibility design.
+  - Generic uploads: public delivery only for the `avatars`, `conditions`, `gallery`, `general`, `stories` and
+    `user-gallery` buckets; private chat buckets are excluded.
+  - The WebGL global-grid cache guard is caller-aware: normal close-zoom reuse rejects world grids; only the 429
+    cooldown fallback may reuse a covering one. As of 2026-07-25, deactivation-retain had no reactivation regression test.
+
+## Weather simulation (read before touching forecast, map or sim code)
+
+**Memory of record: `docs/weather-program/`** (its README holds the write protocol). Start every session with
+`python backend/scripts/memory_audit.py --docs-only` and do what its OVERDUE / open commitments owe, then read STATE
+("Now", "Next fixes"), the newest `log/` file and any `DECISIONS.md` entry touching your task. STATE is a claim, not a
+measurement: check `git fetch`, `gh pr list --state open` and `/api/health` before acting on it.
+
+- **Ingest:** `forecast-ingest.yml` (every 4 h) → `backend/scripts/ingest_forecast_ci.py` →
+  `weather_pipeline/scheduler.py` → fetchers in `backend/services/` (GFS `noaa_gfs_*`, EURO
+  `ecmwf_opendata_fetcher.py`, ICON `dwd_gwam_fetcher.py` / `dwd_icon_*`, Copernicus `copernicus_*`) →
+  `normalizer.py` → `store.py` (bucket + `manifest.json`). Precompute: `precompute.yml` → `scripts/precompute_ci.py`
+  → `spot_ratings_precompute.py`.
+- **Serve** (`backend/routes/weather.py`, under `/api/weather`): `/grid` (`grid_resolver.py`, `viewport_service.py`),
+  `/grid_series` (`grid_series_helper.py`), `/point` (`point_resolution.py` → `point_surf_augment.py`),
+  `/spot-ratings`, `/capabilities` (`capabilities.py`, the ONLY source of forecast horizons).
+- **Surf chain** (`backend/services/weather_pipeline/`): `surf_point.resolve_surf_geometry` / `estimate_surf_at`
+  (nearshore physics in `surf_transform.py`) → `surf_rating.compute_surf_rating`; reference
+  `spot_ratings.rate_one_spot`. The sim is NOT a second path: `sim_rating.py` delegates both halves to this chain (the
+  private physics copy was deleted in `0cae5d74`). Pipeline sweep at `dev` `52e0ec53` (2026-09-28; 14 s, 315°, 5 kt
+  wind from 45°, only swell height varied): `0.5 m → 3.6 ft / 78.0` · `1 m → 6.4 ft / 86.5` · `4 m → 19.3 ft / 86.5`
+  · `8, 10, 12 m → 29.5 ft / 61.2` (the depth-limited ceiling). The earlier `8 m → 30.6 ft` and
+  `10 m → 36.6 ft / 34.6` readings were the MC-01 cap seam (bigger swell, smaller surf), repaired by #146
+  (`SURF_CAP_SEAM_MONOTONE`, default on since 2026-09-28). Sweep the interior of a range, not its ends (LESSONS L-S10).
+- **Client** (`frontend/src/components/map/`, ~400 files): `marineGridSeries.js` (48-frame `/grid_series` pages) and
+  `backendWeatherServiceClient.js` → `useMarineDataFetcherCore.js` (ONE dispatch slot, `marineEnqueueSlot.js`) →
+  `useMarineOrchestrator.js` (hour/model/layer) → `marineCommitArbiter.js` / `marineTransitionCoordinator.js` →
+  `WebGLMarineLayer.js` → `WebGLMarineEngine.js` + `WebGLMarineShaders.js`. Scrubber: `ForecastWheel.js`. Tier
+  gating lives ONLY in `LayerAccessResolver.js`; diagnostics ONLY in the `TruthOverlay.js` HUD (`?diag=1`).
+- **Served numbers change dark.** Anything that moves a surf height, rating, glyph, hub or sim value ships behind a
+  default-off flag and is flipped only on the owner's explicit word with evidence (D-001), plus a `SCOREBOARD.md`
+  row. Backend flags are `os.environ` reads at call time, registered in `_RATING_FLAGS`
+  (`backend/routes/admin/surf_forecast.py`) and kept in parity by `tests/test_flag_lane_parity.py`. Client-only fixes
+  that change no served number ship on, with a `window.__RAW_DISABLE_<NAME>__ = true` kill switch.
+- **The 14-day horizon / subscription-tier contract is LOCKED** (BRAIN_RULES, "14-Day Forecast Horizon"): never cap
+  the scrubber to a model's native horizon, never rebuild the ICON/EURO extension blends, never gate tiers outside
+  `LayerAccessResolver.js`.
+- **Never load-test the live backend.** A fresh map load asks for three 48-frame world series pages (~10-13 s of CPU
+  each); headless replays starved the box on 2026-10-01 ("Couldn't load surf spots"). Replay offline against a mock
+  backend; at most ONE short live scenario, with `/api/health` probed before and after.
+- **Do not rewrite the system.** Map the pipeline, diff against a known-good commit, instrument, find the exact
+  mismatch, make the smallest fix, and cite the instrument for every number you claim.
 
 <!-- trevec:rules:start -->
 
