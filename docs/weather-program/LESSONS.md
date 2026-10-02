@@ -371,3 +371,11 @@ before starting it.
   covering clip and then rejected every clip as sub-covering. Found by reading my own diff against the bbox code, before the A/B. Rule: for each change that widens when a rule fires, list the inputs the
   newly reached region has that the old region never had (wrapped bounds, a view past +-180, unknown zoom, a different model) and give each one a test or a stated limit. Mechanized: `coverageWrapSafe` and its tests
   (a wrapped clip, a view past +-180 and a view at the edge of the world each have a case); the antimeridian keeps the old rule, a documented limit. (2026-10-02, same log)
+- **L-S19 · An equivalence check that never ran the new path proves nothing; assert the path was taken.** The first
+  real-file proof of the strided world read said "old == new" on 207,872 cells, and the new path was not taken once:
+  the live files declare no `resolution`, the guard required one, and every hour fell back to the old path, so it
+  compared the old path with itself. The CPU column caught it (no faster, and 7 full L1 entries in "new" mode). The
+  test now asserts the lane's own trace (its `#s{stride}` L1 key) beside each equality. Second point from the same
+  profile: profile a 1-CPU box on ONE core (`psutil.Process().cpu_affinity([n])`). Unpinned, the load threads'
+  GIL hand-offs across cores doubled and scattered every reading (5-10 s for a page that costs 2.1-2.9 s pinned).
+  (2026-10-02, commitment 228; log `2026-10-02-commitments-182-228.md`)

@@ -1282,7 +1282,23 @@ jobs:
           # lane): hosted CI on #219 (run 36959067942 @ 4d3848ce) observed 140 files / 1740, confirming its projection
           # exactly. The new tests/test_l1_cached_product_guard.py (claimed by `--lane chain` only) adds 14 executed
           # tests: 1740 + 14 = 1754, 1754 - 6 = 1748; files 141 EXACT; _FLOOR_SET_FROM["chain"] -> 1754.
-          MIN_FILES, MIN_PASSED = 141, 1748
+          # ⬆ MIN_FILES/MIN_PASSED 140/1734→141/1774 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (a world series
+          # frame reads the global_mid pre-strided when the clip provably keeps every cell; commitment 228's par2
+          # residual): hosted CI on #219 (run 36959067942 @ 4d3848ce) observed 140 files / 1740. The new
+          # tests/test_world_series_strided_read.py (claimed by `--lane chain`) adds 40 executed tests: 1740 + 40 =
+          # 1780, 1780 - 6 = 1774; files 140 + 1 = 141; _FLOOR_SET_FROM["chain"] -> 1780.
+          # ⬆ 141/1748 (dev, #223) and 141/1774 (#222) STACKED → 142/1788 on 2026-10-02 (dev <- #224 <- #222, L-P21): the
+          # two entries above each add ONE different chain file from the same base, c4a59c01, which read 140 files /
+          # 1740 (#219's run 36959067942). #222's own hosted run 37009323668 (@ 99672397) read 141 / 1780, its +40
+          # confirmed; #223's run 37009550311 read 141 / 1754, its +14 confirmed. 1740 + 14 + 40 = 1794, 1794 - 6 = 1788;
+          # files 140 + 2 = 142 EXACT (`--lane chain` selects 142); _FLOOR_SET_FROM["chain"] -> 1794. Hosted CI on this
+          # head must read 142 / 1794.
+          # ⬆ MIN_PASSED 1788→1790 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (#222 merged with dev after #221 landed, and the
+          # merge needed a test: #221's max thinning (`thinning_mode`) and #222's pre-strided world read meet in
+          # `try_serve_mid_res_tier`): the new test_max_thinning_serves_the_same_frame_on_the_strided_read_and_the_old_path is
+          # parametrized over 2 strides, so tests/test_world_series_strided_read.py (claimed by `--lane chain`) gains 2 executed
+          # tests: 1794 + 2 = 1796, 1796 - 6 = 1790; files 142 EXACT (no new file); _FLOOR_SET_FROM["chain"] -> 1796.
+          MIN_FILES, MIN_PASSED = 142, 1790
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1630,7 +1646,11 @@ jobs:
           # CI on PR #171 (merged as 7e81347f) observed 271 files / 570 passed. The new
           # tests/test_fetcher_script_imports.py (claimed by `--lane estate`) adds 12 executed tests: 570 + 12 = 582;
           # 582 - 2 = 580; _FLOOR_SET_FROM[estate] -> 582.
-          MIN_PASSED = 580
+          # ⬆ 580→583 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (the floor-staleness lookup asks again and
+          # cross-checks the REST endpoint before refusing on an old run): dev's hosted run 36961412429 (c4a59c01)
+          # observed 582 passed. tests/test_ci_floor_staleness.py (claimed by `--lane estate`) goes 22 -> 25
+          # collected, all executed: 582 + 3 = 585; 585 - 2 = 583; _FLOOR_SET_FROM[estate] -> 585.
+          MIN_PASSED = 583
 
           try:
               root = ET.parse('estate.xml').getroot()

@@ -1,9 +1,9 @@
 # Weather program: state
 
-**Updated 2026-10-02 13:32Z** (logs: `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
+**Updated 2026-10-02 14:22Z** (logs: `log/2026-10-02-floor-staleness-retry.md` (the floor-staleness check asks again and asks REST before refusing; #224), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
 legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, the scheduler slot fix, the faded heat map diagnosis, and the faded heat map fix), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
-228 closed on S11), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
+228 closed on S11, its par2 residual fixed offline; #222), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
 rollover; the fix is #217, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
@@ -11,6 +11,17 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-02 14:22Z (seq 330-336; #222, stacked on #224, re-chained after #221 merged): its ledger lines are dev seq 330-334, plus seq 335 and 336.** The one CODE conflict of the stack was in `mid_res_tier.py`: #221 made every thinning site take `thinning_mode(layer, domain)` while #222 restructured the same
+  lines into the pre-strided world read. Resolved as #222's structure plus the mode argument on the fallback stride; no guard on the fast path, because the store's
+  load-time stride is already mode-aware and the world clip keeps every cell (tested, not assumed: `test_max_thinning_serves_the_same_frame_on_the_strided_read_and_the_old_path`,
+  2 strides, with a non-vacuity check; a mutant taking #222's side blindly fails both). Floors: chain 142 files / MIN_PASSED 1790 (1794 stacked + 2), table chain 1796;
+  guards 2248 and estate 585 as in #224. Seq 335 is the decision, seq 336 records the #224 push (184f6678). Merge order: #224, then #222.
+- **2026-10-02 14:18Z (seq 326-329; #224, re-chained onto dev `abcc6355` after #221 merged): the floor-staleness check stops failing PRs on a stale
+  GitHub answer.** `backend-floor-staleness` refused on #220 (06:09Z, 12:38Z) and #221 (12:35Z) because `gh run list` returned a 15-day-old list; reproduced
+  locally (stale on 2 of 26 calls, the REST endpoint 0 of 22). It now asks up to 3 times (5 s, 15 s backoff) and cross-checks the REST endpoint, and still
+  refuses when every answer is old. CI-only; no served number. Ledger: this branch's decision and `pr_open` lines are dev seq 326-327; seq 328 records
+  `pr_merge #223` and seq 329 `pr_merge #221` (README rule 12: a ledger PR records the merges before the newest one); the branch's own duplicate
+  `pr_merge #219` was dropped because dev has it at seq 325. Floors: estate 585 (582 + 3 tests); guards 2248 and chain 1754 are dev's.
 - **2026-10-02 13:32Z (merge of `origin/dev` `ca71acd1` (#223) into `claude/far-zoom-max-thinning`, auto-fix on #221 for
   its merge conflict): the branch's ledger was RE-CHAINED AGAIN (L-P21).** #223 added dev seq 294-300, so this branch's
   own lines 294-317 (the first re-chain's 294-315 plus the push and PR lines 316-317) are now **dev seq 301-324 (+7)**,
@@ -145,7 +156,11 @@ is a claim, not a measurement.
   box: stored share 85.0% (the ceiling) for both layers page by page, 68.1% / 59.3% with both pages at once; before
   19.5 / 24.8 / 8.0 / 43.4%. RESIDUALS, the next fix: two concurrent world pages still overrun the 20 s deadline on
   the 1-CPU box (33-40 of 48 hours per page), and for some minutes after each deploy every page is cut (cold box:
-  12-23 of 48). The original report, kept for context:
+  12-23 of 48). **RESIDUAL 1 FIX, open as #222 (`claude/c228-series-par2-deadline`) (seq 331-332):** a world series frame reads
+  the global_mid pre-strided when the clip provably keeps every cell (every hour missed the 8-product L1 and
+  validated 15,023 cells to keep 966). Offline on one core: 2.6-3.4 s -> 1.0-1.1 s CPU per cold 16-hour page,
+  0.2-0.3 s repeated, frames byte-identical (207,872 real cells). The deployed S11 read-back is commitment seq 332.
+  Residual 2 (the cold minutes after each deploy) stands. The original report, kept for context:
 - ⛔ **OWNER REPORT 2026-09-30 22:18Z (seq 227; commitment 228): marine heatmap blank at far-out zooms on forecast
   hours until zooming in.** ROOT MECHANISM from the Render logs (seq 237): the zoomed-out grid_series' live
   fast path times out (2.5 s) and its per-hour loop (10 s/hour, 20 s deadline, 1 CPU) drops many hours under load,
@@ -274,7 +289,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 325, sha256 1c93a416c8b7035081b6761c128484f152ac6d58c0f7c4645c1dc6528e3913c9**
+  **Ledger head: seq 336, sha256 e29c56ca98bc6eeaaac2653d5480d2b4d67f0e57087b9142913fa7a9f21282cb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
