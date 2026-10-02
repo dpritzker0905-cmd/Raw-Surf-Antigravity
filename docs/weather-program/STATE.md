@@ -1,6 +1,7 @@
 # Weather program: state
 
-**Updated 2026-10-02 04:04Z** (logs: `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
+**Updated 2026-10-02 13:38Z** (logs: `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
+invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
 228 closed on S11), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
 rollover; the fix is #217, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
@@ -10,6 +11,14 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-02 13:38Z (merge of `origin/dev` `ca71acd1` (#223) into `claude/consensus-flip-sweep`, auto-fix on #220 for
+  its merge conflict): the branch's ledger was RE-CHAINED (L-P21).** #223 added dev seq 294-300, so this branch's own
+  lines 294-301 are now **dev seq 301-308 (+7)** (the commitment to read the sweep 295 -> 302, the four findings 296,
+  297, 298, 300 -> 303, 304, 305, 307, the floor-staleness re-run 299 -> 306, the first clean reading 301 -> 308, which
+  fulfils 302), action times kept. Then 309 = pr_merge "#219" in the form the completeness audit matches (dev seq 294
+  recorded it with a prose target) and 310 = pr_merge "#223". Chain floor re-derived from #223's hosted run
+  37009550311 (141 / 1754) + 23: 142 / 1771, `_FLOOR_SET_FROM["chain"]` 1777. The PR C bullet below cites the old
+  numbers (add 7).
 - **2026-10-02 04:04Z (branch `claude/consensus-flip-sweep`; owner: "go, build PR C"): consensus PR C's missing third
   part, the before/after sweep of DISPLAYED heights, is built.** `scripts/consensus_flip_sweep.py` runs the production
   precompute over one manifest under today's lane and under `CONSENSUS_SERVE` '1' + `CONSENSUS_SERVE_KEEP_GFS`
@@ -20,6 +29,12 @@ is a claim, not a measurement.
   the global tile, Hawaii (kept) or 97 live-upstream spots, and serves GFS between a GFS ingest and that run's twins.
   The flip stays the owner's word (PR #220). Its ledger lines re-chain after the cached-product guard (stacked on #219).
   Log: `log/2026-10-02-consensus-flip-sweep.md`.
+- **2026-10-02 (seq 294-300; #223, open for the owner's word): one guard on the cached-product invariant.**
+  Four serve paths shipped writes into the one-level copies `load_product` hands out (#211, #212, #213, #219); each fix
+  guarded one attribute. A conftest autouse fixture now fails any backend test after which a product the L1 cache holds
+  changed (`tests/l1_product_guard.py`). Measured: 0 guard errors across ~4,510 existing tests (no fifth instance in a
+  tested path); the four real bugs re-introduced are seen 4 of 4 in their per-site tests, but only #213's path is
+  exercised by general tests (1 of 4; commitment seq 298 adds the scenario test). Test-side only; no served number.
 - **2026-10-02 (seq 279-285; FIXED by #217, merged 02:42:26Z as `f302c309`, live from 02:45:03Z, seq 288-289): the skill ledger
   has written nothing since 2026-09-30 22:45:05Z.** Supabase Storage answers a missing object with HTTP 400 and the
   strict L2 reader accepted only a 404, so the first read of the new month's segment (`scored-2026-10.json`) raised
@@ -105,8 +120,10 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** #219 (seq 293; commitments 182 and 228; the W-23 label no longer lands in the cached product's
-  `warnings` and is logged; seq 288-292). #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
+- **Open PRs of ours:** #223 (the cached-product guard, seq 294-300), #220 (PR C, the consensus flip sweep), #221
+  (the far-zoom fixes) and #222 (commitment 228's par2 residual). All four start their ledger lines at seq 294:
+  whichever merges first keeps its numbers, and each later one re-chains onto dev's head (#222 and #223 both carry
+  `pr_merge #219`; the second to merge drops its copy). Agreed order: #223, then #220, then #221. #219 merged 2026-10-02T03:43:27Z as `c4a59c01` (seq 294); #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
   CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
   drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
   anything in it is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
@@ -159,11 +176,12 @@ is a claim, not a measurement.
   ✅ **Working since the owner's token fix:** at 15:00:50Z it dispatched the missed core-ingest (12:15Z) and pilots
   (11:45Z) slots, and at 15:22:48Z declined to stack duplicates while they ran. Durable record: Render log
   `[workflow-dispatch]`.
-- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, #215), chain 140 / 1732 (reading 1738, #217; this
-  PR moves it to 1734, projection 1740), estate 580 (582).
+- **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, dev `c4a59c01`), chain 140 / 1734 (reading 1740,
+  dev `c4a59c01` run 36961412429; the guard PR moves it to 141 / 1748, projection 1754; #220 re-derives after it),
+  estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 301, sha256 3be56743c7da3c9cf54707834ba97e5e927e1666d997017df8ff655d764e0245**
+  **Ledger head: seq 310, sha256 f1427cc1893a43ba48aaf6aae29c49016a4e7aa02bfecffae2a544f113fe22cb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

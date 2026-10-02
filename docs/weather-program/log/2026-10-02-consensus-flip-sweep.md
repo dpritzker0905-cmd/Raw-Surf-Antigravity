@@ -147,3 +147,10 @@ instrument (README rule 5); a SCOREBOARD row follows its first reading.
   upward in calm seas. Before flipping, the regional rows that move most (SoCal above all) want the nearshore judge's or
   the ledger's per-region grade, and the twin-freshness gap (second reading) wants a decision.
 - Commitment seq 295 fulfilled by ledger seq 301.
+
+## Re-chained onto dev after #223 (13:38Z; auto-fix on #220 for its merge conflict)
+- #223 (the cached-product guard) merged as `ca71acd1` and added dev seq 294-300. This branch's own ledger lines move +7:
+  every "seq 294" to "seq 301" cited in the sections above (295, 296, 297, 298, 299, 300, 301) now reads 301 to 308 on
+  dev; commitment 295 is 302 and the clean reading that fulfils it is 308. Added 309 (pr_merge "#219" in the audit's
+  exact form) and 310 (pr_merge "#223").
+- Chain floor re-derived after #223: hosted 141 / 1754 (run 37009550311) + 23 = 1777 -> MIN_PASSED 1771, files 142.
