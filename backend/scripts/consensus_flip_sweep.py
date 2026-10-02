@@ -39,6 +39,7 @@ Exit 0 = report; 3 = REFUSED; 1 = setup failed (no credentials, nothing restored
 """
 import argparse
 import asyncio
+import copy
 import json
 import logging
 import math
@@ -129,19 +130,32 @@ def point_key(lat, lng, valid_time) -> tuple:
 
 
 class ObservedResolver:
-    """Pass-through around the production resolver. Every call and attribute goes to it unchanged; each marine waves
-    answer is recorded on the way back as {point_key: {product_id, source_dataset, source}}."""
+    """Pass-through around the production resolver. Every attribute goes to it unchanged; each marine waves answer is
+    recorded on the way back as {point_key: {product_id, source_dataset, source, run_time, ...}}.
 
-    def __init__(self, inner):
+    SHARED INPUTS (run 36969307841). With `shared`, every answer the flip does NOT act on (any domain/layer other than
+    marine waves: the wind, partitions) is resolved ONCE, by the first arm, and every arm receives a deep copy of that
+    one answer. A live upstream wind point can differ between calls; held identical, the switch stays the only
+    difference between the arms (science_shadow_ab's shared-inputs rule)."""
+
+    def __init__(self, inner, shared: Optional[dict] = None):
         self._inner = inner
+        self._shared = shared
         self.seen: Dict[tuple, dict] = {}
 
     def __getattr__(self, name):
         return getattr(self._inner, name)
 
     async def resolve_point(self, *args, **kwargs):
+        waves = kwargs.get("domain") == "marine" and kwargs.get("layer") == "waves"
+        if self._shared is not None and not waves and kwargs.get("lat") is not None:
+            key = (kwargs.get("model"), kwargs.get("domain"), kwargs.get("layer"),
+                   point_key(kwargs["lat"], kwargs["lng"], kwargs.get("valid_time_str")))
+            if key not in self._shared:
+                self._shared[key] = await self._inner.resolve_point(*args, **kwargs)
+            return copy.deepcopy(self._shared[key])
         resp = await self._inner.resolve_point(*args, **kwargs)
-        if kwargs.get("domain") == "marine" and kwargs.get("layer") == "waves" and kwargs.get("lat") is not None:
+        if waves and kwargs.get("lat") is not None:
             run = getattr(resp, "run_time", None)
             self.seen[point_key(kwargs["lat"], kwargs["lng"], kwargs.get("valid_time_str"))] = {
                 "product_id": getattr(resp, "product_id", None),
@@ -279,8 +293,9 @@ def _aggregate(entries: List[dict]) -> dict:
 def diagnose(a_rows: dict, b_rows: dict, a2_rows: dict, cap: int = 400) -> dict:
     """What the excluded pairs (run skew, A vs B) and the null control's differences (A vs A2) were made of: each
     side's product, run, coverage status and dynamic flag, so a refusal names its cause."""
-    def stored(x, y):
-        return not (is_direct(x) or is_direct(y))
+    def stored(x, y):        # product-served and rated on both sides: what pair() and null_control() compare
+        return not (is_direct(x) or is_direct(y)) and None not in (
+            x.get("score"), y.get("score"), x.get("surf_height_m"), y.get("surf_height_m"))
     skew = [_diag_entry(k, a_rows[k], b_rows[k]) for k in sorted(a_rows) if k in b_rows
             and stored(a_rows[k], b_rows[k]) and a_rows[k].get("run_time") != b_rows[k].get("run_time")]
     null = [_diag_entry(k, a_rows[k], a2_rows[k]) for k in sorted(a2_rows) if k in a_rows
@@ -389,23 +404,42 @@ async def run_arms(spots: list, hours: List[int], env_a: dict, env_b: dict, base
                    concurrency: int = 8) -> Dict[str, dict]:
     """The three arms, in order A, B, A2, each on a fresh production resolver under its own env."""
     from services.weather_pipeline import spot_ratings_precompute as pc
+    from services.weather_pipeline import tide as tide_module
     out: Dict[str, dict] = {"meta": {}}
-    for name, env, hrs in (("A", env_a, hours), ("B", env_b, hours), ("A2", env_a, hours[:1])):
-        counter, root = SignatureCounter(), logging.getLogger()
-        root.addHandler(counter)
-        started = datetime.now(timezone.utc)
-        try:
-            with patched_env(env):
-                resolver = ObservedResolver(pc._make_point_resolver())
-                obj = await pc.precompute_spot_ratings(resolver, spots, ["GFS"], hrs, base_dt=base_dt,
-                                                       concurrency=concurrency)
-        finally:
-            root.removeHandler(counter)
-        out["meta"][name] = {"start": started.strftime("%H:%M:%SZ"),
-                             "end": datetime.now(timezone.utc).strftime("%H:%M:%SZ"), **counter.counts}
-        if obj.get("refused"):
-            raise Refused(f"arm {name}: the precompute refused ({obj['refused']})")
-        out[name] = arm_rows(obj, resolver.seen, regions)
+    shared: dict = {}
+    tides: dict = {}
+    live_tide = tide_module.tide_norm_at
+
+    async def shared_tide(lat, lng, valid_time, *args, **kwargs):
+        """rate_one_spot's tide, fetched once per spot-hour and replayed to every arm (run 36969307841: a tide outage
+        in arm A and none in A2 moved Flagler Beach 46.3 -> 23.2 with the same product and run)."""
+        key = point_key(lat, lng, valid_time)
+        if key not in tides:
+            tides[key] = await live_tide(lat, lng, valid_time, *args, **kwargs)
+        return copy.deepcopy(tides[key])
+
+    tide_module.tide_norm_at = shared_tide
+    try:
+        for name, env, hrs in (("A", env_a, hours), ("B", env_b, hours), ("A2", env_a, hours[:1])):
+            counter, root = SignatureCounter(), logging.getLogger()
+            root.addHandler(counter)
+            started = datetime.now(timezone.utc)
+            try:
+                with patched_env(env):
+                    resolver = ObservedResolver(pc._make_point_resolver(), shared)
+                    obj = await pc.precompute_spot_ratings(resolver, spots, ["GFS"], hrs, base_dt=base_dt,
+                                                           concurrency=concurrency)
+            finally:
+                root.removeHandler(counter)
+            out["meta"][name] = {"start": started.strftime("%H:%M:%SZ"),
+                                 "end": datetime.now(timezone.utc).strftime("%H:%M:%SZ"), **counter.counts}
+            if obj.get("refused"):
+                raise Refused(f"arm {name}: the precompute refused ({obj['refused']})")
+            out[name] = arm_rows(obj, resolver.seen, regions)
+    finally:
+        tide_module.tide_norm_at = live_tide
+    out["shared"] = {"tide_answers": len(tides), "tide_missing": sum(v is None for v in tides.values()),
+                     "other_answers": len(shared)}
     return out
 
 
@@ -445,6 +479,10 @@ def render(summary: dict, counts: dict, null: dict, refused: List[str], meta: di
     lines += ["", "-- arms (UTC, log signatures met while each ran)"]
     for name, m in (meta.get("arms") or {}).items():
         lines.append(f"  {name:<3}{m['start']} -> {m['end']}  " + "  ".join(f"{k}={m[k]}" for k in SIGNATURES))
+    sh = meta.get("shared")
+    if sh:
+        lines.append(f"  shared inputs, fetched once and replayed to every arm: {sh['tide_answers']} tide answers "
+                     f"({sh['tide_missing']} without a tide), {sh['other_answers']} non-wave resolver answers")
     direct = (meta.get("diag") or {}).get("upstream_direct")
     if direct:
         lines += ["", f"-- live upstream point answers (outside the flip's reach; excluded from pairs and the null "
@@ -531,6 +569,7 @@ def main(argv=None) -> int:
         refused = refusals(rows, null, keep_set(keep))
         diag = diagnose(arms["A"], arms["B"], arms["A2"])
         meta["arms"] = arms["meta"]
+        meta["shared"] = arms["shared"]
         meta["diag"] = {k: v.get("agg", v) for k, v in diag.items()}
         meta["diag_rows"] = {k: v["rows"][:15] for k, v in diag.items() if "rows" in v}
     except Refused as e:

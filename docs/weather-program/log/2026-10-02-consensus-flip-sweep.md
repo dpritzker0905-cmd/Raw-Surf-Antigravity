@@ -87,3 +87,24 @@ instrument (README rule 5); a SCOREBOARD row follows its first reading.
   both sides' values and tide state. The next run reads it.
 - Tests stay 23 (extended: a live direct-point spot whose run changes on every call must be counted apart and refuse
   nothing); 28 of 28 mutations red.
+
+## Third reading: the last null differences are live inputs the flip does not touch (run 36969307841 on `dc13c8a2`, 05:31-06:00Z; read 06:02Z)
+- The scope fix worked: 388 live upstream spot-hours (97 spots) excluded and named; run skew among stored products 1 (an
+  unrated spot-hour, Nosara +72 h, which `diagnose()` now skips as `pair()` does); swapped 71.9% (the twins were back).
+- The null control fell to **10 of 1,676**, every one score-only, same product, same run:
+  - 6 with tide `none` in A and a tide in A2 (an Open-Meteo outage in the first pass, A met 357): Flagler Beach -
+    Watertower 46.3 -> 23.2 (fair -> poor), Flagler Beach Pier 46.2 -> 37.6, Jensen Beach, Wabasso, Shark Pit,
+    Portinhos. **Cause shown: tide availability differs between passes.**
+  - 4 by +/-0.1 with the same printed tide (Silvalde, Diguisit, Sennen Cove, Salsa Brava): a continuous live input drifting
+    between passes (tide height past 3 decimals or a live wind); not separated, and it need not be: both are inputs the
+    flip does not act on.
+- **Fixed, by the instrument's own rule, not by loosening a control:** everything the flip does not act on is fetched
+  ONCE, by arm A, and replayed (deep copies) to B and A2: `rate_one_spot`'s tide (the tide module's `tide_norm_at`
+  wrapped for the arms' duration, restored after) and every non-wave resolver answer (the wind). Only marine waves, the
+  input the switch changes, are resolved per arm. The report states the shared counts and how many spot-hours had no
+  tide. science_shadow_ab's shared-inputs rule, applied to the live inputs.
+- Production meaning, for the owner: a glyph's score at a tide-banded spot depends on whether Open-Meteo's tide answered
+  in that precompute pass (438 tide-unavailable lines in the 02:34Z production run); a pass with an outage rates those
+  spots neutral on tide (Flagler Beach read fair instead of poor). Not this PR's to fix; recorded.
+- Tests stay 23 (the fakes now carry a live wind that never repeats and a tide outage-then-recovery; the clean sweep must
+  stay clean); 31 of 31 mutations red (a first `wind not shared` survivor was the fake's periodic wind, fixed).

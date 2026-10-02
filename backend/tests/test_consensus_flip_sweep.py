@@ -55,6 +55,8 @@ class FakeResolver:
 
     async def resolve_point(self, *, model, domain, layer, lat, lng, valid_time_str):
         FakeResolver.calls += 1
+        if domain == "wind":               # a LIVE wind: its speed changes on every call, never repeating
+            return SimpleNamespace(point=SimpleNamespace(speed=0.01 * FakeResolver.calls), run_time=RUN)
         region = REGION_AT[lat]
         if region == "direct":
             return SimpleNamespace(product_id=None, hs=1.0 + 0.1 * (FakeResolver.calls % 3), source_dataset=None,
@@ -72,17 +74,33 @@ class FakeResolver:
 
 
 async def fake_rate(resolver, spot, model, valid_time, reference_size_m=None):
+    from services.weather_pipeline import tide
     m = await resolver.resolve_point(model=model, domain="marine", layer="waves", lat=spot["latitude"],
                                      lng=spot["longitude"], valid_time_str=valid_time)
+    w = await resolver.resolve_point(model=model, domain="wind", layer="wind", lat=spot["latitude"],
+                                     lng=spot["longitude"], valid_time_str=valid_time)
+    t = await tide.tide_norm_at(spot["latitude"], spot["longitude"], valid_time)
     h = round(m.hs * 0.8, 3)
-    score = round(40 + 20 * h, 1)
+    score = round(40 + 20 * h + (3 if t else 0) + round(w.point.speed, 1), 1)
     return {"spot_id": spot["id"], "name": spot["name"], "latitude": spot["latitude"], "longitude": spot["longitude"],
             "score": score, "level": "fair" if score < 60 else "fair_good", "surf_height_m": h,
             "offshore_hs_m": round(m.hs, 3), "run_time": m.run_time, "wind_run_time": None}
 
 
+def install_live_tide(monkeypatch):
+    """A LIVE tide: Sebastian Inlet's first lookup per hour is an outage (None), every later one answers."""
+    from services.weather_pipeline import tide
+    asked = {}
+
+    async def live(lat, lng, valid_time):
+        asked[(lat, valid_time)] = asked.get((lat, valid_time), 0) + 1
+        return None if (lat == 27.86 and asked[(lat, valid_time)] == 1) else {"norm": 0.5, "height_m": 0.3}
+    monkeypatch.setattr(tide, "tide_norm_at", live)
+
+
 def sweep_arms(monkeypatch, env_a=ENV_A, env_b=ENV_B, **resolver_kw):
     FakeResolver.calls = 0
+    install_live_tide(monkeypatch)
     monkeypatch.setattr(pc, "_make_point_resolver", lambda: FakeResolver(**resolver_kw))
     monkeypatch.setattr(pc, "rate_one_spot", fake_rate)
     return asyncio.run(S.run_arms(SPOTS, [0, 24], env_a, env_b, BASE, REGIONS))
@@ -136,8 +154,12 @@ def test_the_sweep_workflow_declares_no_flag_of_its_own_and_runs_on_its_own_chan
 
 # ── end to end through the real precompute, with the real switch ────────────────────────────────────────────────────
 def test_a_clean_sweep_swaps_only_unkept_regional_frames_and_refuses_nothing(monkeypatch):
-    """A live upstream answer (its run changes per call) is counted apart, never paired, never a null difference."""
+    """A live upstream answer (its run changes per call) is counted apart, never paired, never a null difference; a
+    live wind and a tide outage-then-recovery are fetched once and replayed, so neither moves an arm."""
+    from services.weather_pipeline import tide
     arms = sweep_arms(monkeypatch)
+    assert arms["shared"] == {"tide_answers": 8, "tide_missing": 2, "other_answers": 8}
+    assert tide.tide_norm_at.__name__ == "live", "run_arms did not restore the live tide function"
     rows, counts = S.pair(arms["A"], arms["B"], KEEP)
     null = S.null_control(arms["A"], arms["A2"])
     assert counts == {"unpaired": 0, "upstream_direct": 2, "unrated": 0, "run_skew": 0}
@@ -168,6 +190,7 @@ def test_the_null_arm_runs_after_the_candidate_so_it_brackets_it(monkeypatch):
             logging.getLogger("services.weather_pipeline.store").warning(
                 "Dynamic L2 download failed for x.json: {'statusCode': 429, 'error': too_many_connections}")
         return FakeResolver()
+    install_live_tide(monkeypatch)
     monkeypatch.setattr(pc, "_make_point_resolver", make)
     monkeypatch.setattr(pc, "rate_one_spot", fake_rate)
     arms = asyncio.run(S.run_arms(SPOTS, [0, 24], ENV_A, ENV_B, BASE, REGIONS))
