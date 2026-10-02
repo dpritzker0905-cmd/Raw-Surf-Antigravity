@@ -36,8 +36,8 @@ describe('WebGLMarineEngine seed consume', () => {
     expect(block.indexOf('this._pendingCoarseBaseGrid = null;')).toBeGreaterThan(block.indexOf('coarseBaseStaleForSeed'));
   });
 
-  it('the per-frame bridge hands its decision the layer\'s selected instant (set only while a stale world frame is drawn), on the call it always made', () => {
-    expect(src).toMatch(/shouldBridgeToCoarseGlobal\(rwg, cbg, this\._lastZoom, this\._lastViewportBounds,\s*\r?\n\s*typeof window !== 'undefined' \? window : undefined, this\.__staleSwapMs\)\) return false;/);
+  it('the per-frame bridge hands its decision the layer\'s selected instant (set only while a stale world frame is drawn) and, since F-22 (2026-10-02), the selected instant every frame, on the call it always made', () => {
+    expect(src).toMatch(/shouldBridgeToCoarseGlobal\(rwg, cbg, this\._lastZoom, this\._lastViewportBounds,\s*\r?\n\s*typeof window !== 'undefined' \? window : undefined, this\.__staleSwapMs, this\.__selectedMs\)\) return false;/);
     // ...and the bridge is still asked every frame while a base is held (the swap rides that call: nothing else would ask it)
     expect(src).toMatch(/if \(this\._coarseBaseData && this\._coarseBaseData\.waveGrid && !this\._pendingDowngrade\) \{\s*\r?\n\s*this\.bridgeToCoarseGlobalIfHeld\(gl\);/);
   });

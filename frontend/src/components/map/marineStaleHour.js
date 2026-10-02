@@ -94,6 +94,17 @@ export function isStaleWorldGrid(resident, selectedMs) {
 }
 
 /**
+ * True when `grid` is a WORLD frame made for the selected hour: its valid time known and within a snapped step (SAME_STEP_TOL_MS) of `selectedMs`.
+ * Unknown on either side is FALSE (fails CLOSED): the base-aware bridge (marineCommitGate, audit F-22) promotes a held base only when this says yes,
+ * because a promotion is a new action and an unknown hour must keep the old rule. (isStaleWorldGrid above fails open, for the dim and the swap.)
+ */
+export function isWorldGridForSelectedHour(grid, selectedMs) {
+  if (!isWorldGrid(grid) || !Number.isFinite(selectedMs)) return false;
+  const ms = gridValidMs(grid);
+  return ms !== null && Math.abs(ms - selectedMs) <= SAME_STEP_TOL_MS;
+}
+
+/**
  * The engine's per-frame bridge question when the RESIDENT is itself a world frame (the half the seed rule cannot reach): a right-hour
  * seed that lands after the zoom-out replaces the held base, but the frame already DRAWN is the old promotion of the old base, and the
  * pipeline's own commit is a network round trip away. Promote the base over it when the resident is a world frame at least a step and a

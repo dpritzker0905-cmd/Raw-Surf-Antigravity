@@ -3,7 +3,7 @@ import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { shouldHoldClearOnDeactivate, noteMarineActive, recordChurn } from './marineTransitionCoordinator';
 import { SKIP, stampLayerCall, stampSkip } from './marineLayerStamp';
 import { resolveCoarseBridgeGrace } from './marineCoarseBridgeGrace';
-import { resolveRejectedOpacity } from './marineZoomOutGate';
+import { resolveRejectedOpacity, isGateWideView } from './marineZoomOutGate';
 import { createStaleHourTracker } from './marineStaleHour';
 import { staleWorldDimMult } from './marineStaleHourLayer';
 
@@ -238,7 +238,8 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
             const vpHeight = en - es;
 
             const currentZoom = map.getZoom();
-            const isViewportZoomedOut = (currentZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vpWidth > 15.0 || vpHeight > 15.0);
+            // ONE definition (F-22, 2026-10-02): the engine's bridge promotes the held base under this same test (marineZoomOutGate.isGateWideView).
+            const isViewportZoomedOut = isGateWideView(currentZoom, vpWidth, vpHeight);
 
             const isGridRegional = gridWidth < 340.0;
             let isContained = true;

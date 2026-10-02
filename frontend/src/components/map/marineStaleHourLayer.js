@@ -36,7 +36,9 @@ export function _resetSelectedMemoForTest() {
  * leaves the engine the selected instant (`engine.__staleSwapMs`) in the frames where the drawn world frame is for another hour and the
  * hour has held still, and null otherwise: the engine's per-frame zoom-out bridge reads it (marineCommitGate.shouldBridgeToCoarseGlobal)
  * to promote the held base when that is the selected hour. The two consumers have separate kill switches
- * (__RAW_DISABLE_STALE_HOUR_DIM__, __RAW_DISABLE_STALE_RESIDENT_SWAP__). `layers` is the active layer list. Never throws.
+ * (__RAW_DISABLE_STALE_HOUR_DIM__, __RAW_DISABLE_STALE_RESIDENT_SWAP__). A THIRD reader, the base-aware bridge (audit F-22, 2026-10-02), gets the
+ * selected instant EVERY frame as `engine.__selectedMs` (null when unknown, and with both switches on: the readout is then not consulted, and
+ * the bridge's new band keeps the old rule, because an unknown hour fails closed there). `layers` is the active layer list. Never throws.
  */
 export function staleWorldDimMult(engine, tracker, hour, layers, model, win, nowMs) {
   try {
@@ -44,10 +46,11 @@ export function staleWorldDimMult(engine, tracker, hour, layers, model, win, now
     const now = typeof nowMs === 'number' ? nowMs : Date.now();
     const held = tracker.heldMs(hour, now);
     const resident = engine && engine._waveData && engine._waveData.waveGrid;
-    if (!resident) { if (engine) engine.__staleSwapMs = null; return 1; }
+    if (!resident) { if (engine) { engine.__staleSwapMs = null; engine.__selectedMs = null; } return 1; }
     const layer = (layers || []).find((l) => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
     const bothKilled = !!(w && w.__RAW_DISABLE_STALE_HOUR_DIM__ === true && w.__RAW_DISABLE_STALE_RESIDENT_SWAP__ === true);
     const selectedMs = bothKilled ? NaN : selectedInstantMs(hour, layer, model || 'GFS', now);
+    engine.__selectedMs = Number.isFinite(selectedMs) ? selectedMs : null;   // F-22: the bridge's band rule asks whether the held base is THIS hour
     const ctx = { resident, selectedMs, hourHeldMs: held, win: w };
     const r = resolveStaleWorldDim(ctx);
     const swap = judgeStaleWorld(ctx).why === 'stale_world';
