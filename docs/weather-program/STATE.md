@@ -94,7 +94,7 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** this PR (commitments 182 and 228; the W-23 label no longer lands in the cached product's
+- **Open PRs of ours:** #219 (seq 293; commitments 182 and 228; the W-23 label no longer lands in the cached product's
   `warnings` and is logged; seq 288-292). #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
   CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
   drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
@@ -152,7 +152,7 @@ is a claim, not a measurement.
   PR moves it to 1734, projection 1740), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 292, sha256 4f00cb9520e53860f98a79d6166e3f5582a42c0b4bb7f0abcc58676a0874b9dd**
+  **Ledger head: seq 293, sha256 c92a600e5c57cc39978a774dceb754065ee3454204daabcf7ce8ab8c5d1c431d**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
