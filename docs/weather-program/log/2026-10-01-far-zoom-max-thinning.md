@@ -529,3 +529,62 @@ does not close it).
 slower than the live mini (0.2 s), so how often a landing falls in the window live is not known. Pans and other `moveend` sources were not run. The link to the owner's
 earlier reports is a hypothesis. The second order was injected (a synthetic hook fires the series event just before the `moveend` enqueue), not seen naturally: it shows the
 code behaves that way, not that it happens live, and its window (an enqueue to its dispatch, about one frame) is far narrower than the 300 ms of the first order.
+
+## 22:50Z to 00:33Z (2026-10-02) · the scheduler slot fix (F-23): built, tested, replayed offline; client only, ON by default (owner: "go, build the scheduler fix")
+
+**What was built (commit e29cddde, local, NOT pushed).** The fix proposed in the diagnosis section above, both parts, client only; nothing in `backend/`, no served number changes
+(no SCOREBOARD row). `enqueueMarineUpdate`'s single dispatch slot now knows what an enqueue can DO. The rules live in a new module, `marineEnqueueSlot.js` (62 lines), and
+`useMarineDataFetcherCore.js` calls it (+6 -3 lines, 959 -> 962; the LOC baseline is 966):
+- a cache-only enqueue (`series_upgrade`) never displaces a pending run: it is SKIPPED when the slot is taken or a stable-delay timer is armed (the order seen in the traces). A skip costs
+  nothing: the next landing re-fires the event, and a run that executes after the page landed reads it from the cache (`updateMarineGrid` applies the same gates to every source).
+- a fetch-capable enqueue that finds the slot taken by a cache-only enqueue SUPERSEDES it (the second order, injected in the diagnosis). `scheduledRef.current` now holds a slot object
+  `{cacheOnly}` instead of `true` (nothing else reads it), and a dispatch runs only while `scheduledRef.current` is still ITS slot; a superseded dispatch finds another slot there and does nothing.
+- everything else is as before: a second fetch-capable enqueue in a frame is dropped (the first one's run does the work), a fetch-capable enqueue in a later frame replaces the pending run.
+Kill: `window.__RAW_DISABLE_SU_NO_CANCEL__ = true` restores the previous slot exactly. Telemetry: `__RAW_FORENSIC__` events `series_upgrade_skipped_pending {slotted}` (a landing that used to
+cancel or be dropped) and `cache_only_slot_superseded {by}`. Rejected, as proposed: making `series_upgrade` fetch-capable (it exists so the lane never re-serves the interim tier) and
+shortening the 300 ms stable delay (narrows the window, does not close it).
+
+**Tests.** 38 new tests in 2 files. `marineEnqueueSlot.test.js` (25): the verdict for every state of the slot (source kind x slot held by what x timer armed x kill switch) and the claim
+(slot object stored, skipped/dropped/superseded return and the forensic events). `useMarineDataFetcherCore.enqueueSlot.test.js` (13): the REAL `enqueueMarineUpdate` under fake timers, with
+`updateMarineGrid` driven for real and observed through the source it logs at its first gate: first order (a page lands inside the stable delay, late in it, and in the slot's own frame),
+second order (the lane scheduled first; the superseded dispatch neither runs twice nor frees the slot; a hidden tab with no animation frames, where only the 1.5 s fallbacks fire), what did
+not change (the lane runs when nothing is pending and after the pending run has gone out; latest wins across frames; first wins within a frame; a fetch in flight still returns first),
+and the kill switch reproducing both old behaviours. **17 exact-string mutations** (`harness/mutation_check_su_no_cancel.py`: every rule, the capability stamp, both forensic events, the
+kill switch in two ways, the slot ownership check, the old slot check put back) **each turned the two suites red** (1 to 14 failing tests); the restored baseline is green. The whole
+`src/components/map` folder: 208 suites, 2,237 tests green. ESLint gate OK (4 pre-existing warnings in the touched file). LOC ratchet OK.
+
+**Offline replay in the BUILT apps (A/B).** BASE = the committed frontend (`git archive HEAD`, 5deb4e23) and FIX = the working tree, both built with the same flags (`CI=false GENERATE_SOURCEMAP=false craco build`)
+and served on :3101 and :3100; mock backend, NO live request, the app clock pinned (`PIN_NOW`). The just-opened cell (cold session, jump zoom-out, 0.8 s stay) with live-like latencies (one-hour world page 2.4 s,
+48-frame page 20 s, world `/grid` 3 s) and `TRACE_APP=1` (the page's own requests and the forensic ring). The mock's regional series latency is swept so the series page reaches the app before, inside and after the
+zoom-out's dispatch window (about 0.93 to 1.25 s after the zoom start); 3 reps per latency, arms alternating, one run at a time (`harness/run_f23.sh f23a 3 200 250 270 300 340`, `harness/f23_tables.py`).
+
+| regional series latency in the mock | series page reaches the app (median, ms): committed / fix | committed code: grids lost / runs | with the fix: grids lost / runs |
+|---|---|---|---|
+| 800 ms | 871 / 847 | 0 / 3 | 0 / 3 |
+| 1,000 ms | 1,089 / 1,057 | 3 / 3 | 0 / 3 |
+| 1,080 ms | 1,158 / 1,132 | 3 / 3 | 0 / 3 |
+| 1,200 ms | 1,268 / 1,261 | 1 / 3 | 0 / 3 |
+| 1,360 ms | 1,407 / 1,424 | 0 / 3 | 0 / 3 |
+
+Where a series page landed inside the window (the committed code's telltale: a `series_upgrade` run that missed the cache, `flavor_fastpath_miss` at 1.37 to 1.65 s; the fix's own: `series_upgrade_skipped_pending` at the
+landing) the committed code lost the zoom-out's world `/grid` 7 of 7 times and never drew the right hour inside the 9 s watch. The fix requested it 6 of 6 times
+(at 1.25 to 1.34 s, the moment the runs with no landing in the window request it, 1.24 to 1.31 s) and drew the right hour at 4.44 to 4.53 s (median 4.48 s; the runs outside the window: 4.45 s).
+Outside the window neither build lost one (0 of 8, 0 of 9). Page errors 0, blocked writes 0.
+
+**Regression replays in the same two built apps.**
+- *The F-21 cells at a 5 s stay* (live-like latencies, no trace sampler; `harness/run_f23_reg.sh`, `run_f23c.sh`, `tab_f23b.py`). Cold jump, 3 runs each, committed vs fix: the wrong hour at full strength 203 vs 204 ms, dimmed 3,857 vs 3,826 ms, the right hour drawn after 4,472 vs 4,482 ms, blank 0 vs 0. Warm jump, 7 runs each: no wrong-hour frame in either; the right hour 374 ms (344 to 535) vs 391 ms (365 to 600): the means (395 vs 442 ms) differ by less than the run-to-run spread (exact permutation test, p = 0.27), and the frame is drawn by the zoom-out bridge, upstream of the scheduler.
+- *The far-zoom scrub* (`scn_farzoom_scrub_legend.js`): the same in both. The thinned placeholder (46x20, Florida 1.34 m) at 3.2 s vs 3.1 s, the exact 2-degree frame (181x82, 2.33 m) 4.38 s vs 4.34 s later, and after a zoom-out the exact right-hour frame at 0.36 s vs 0.35 s.
+- *The owner's own pattern, erratic zoom in and out at the Florida timestamp* (5 seeds, then seeds 23 and 67 replicated 3 times per build with the fetcher's events recorded; `harness/run_f23_erratic.sh`, `tab_f23_erratic.py`). The frame metrics do not differ in a way the data supports. Pooled over both passes (14,671 frames committed, 14,971 fix): frames with the Florida swell under 75% of the exact frame 0.65% vs 0.69%; frames with the heat map faded 3.3% vs 2.4% (first pass 4.5% vs 2.7%, replicates 2.3% vs 2.2%: not consistent, so not an effect I claim); no frame without a committed frame in either. **One unforced occurrence of the defect.** Every run begins with the scenario's own set-up: select the far hour at z9, jump to z3.6, watch 20 s. In 1 of 4 committed-code runs (`f23_e_before_r3`) the selected hour's world `/grid` was never requested (no 360-degree `10-07T18:00` response for 33 s): the dimmed wrong-hour frame was drawn for all 1,194 frames of the watch and 3 s more, against 186 to 190 frames in the other three. With the fix 0 of 4 (188 to 241 frames; the grid answered at 22.2 to 23.0 s, as in the normal committed runs). One run, recorded, not a rate.
+- *What the fix's own events show.* In the six 25 s erratic trials with the fix, `series_upgrade_skipped_pending` fired 45 times and `cache_only_slot_superseded` 12 times. **Correction:** the second order is not rare under erratic input (my "far narrower window, much rarer" was a prediction from the code, and the 26 cold-cell runs of the diagnosis could not show it); each supersede is a fetch-capable enqueue the committed code dropped at the slot check. Whether those drops cost a visible frame is not shown (a later gesture re-enqueues, and the frame metrics did not differ). **Second correction:** REPORT V41's "weak frames 1.0% to 0%" for the F-21 build was one lucky sample; that build reads 0.65% here over 14,671 frames, the F-21 fix does not change weak frames, and the 0.7% residue is the placeholder windows of the F-19 work (11.1% to 0.7%).
+**What this fix is not.** It removes a real lost request (the lost-grid runs have the shape of the owner's 2026-09-30 report: the right hour never arrives until a gesture; that they are the same defect is a hypothesis). It does NOT change the erratic-zoom disappearances the owner reported (the faded heat map and the placeholder windows are the same in both builds): those stay open (F-22 and the placeholder windows).
+
+**Limits.** Offline only (mock backend, no live request; the harness's regional series page takes 1 s, the live mini 0.2 s, so how often a landing falls in the window live is still not
+known). The first order is replayed in the built app with the committed code losing the grid; the second order is covered by the call-site tests and shows up naturally in the built fix app's erratic runs
+(12 `cache_only_slot_superseded` events in six trials), but no built-app run shows the COMMITTED code losing a frame to it. Pans and the other `moveend` sources use the same slot and are covered by the
+call-site tests, not replayed. The cost, stated: where a page used to cancel the zoom-out's grid, the zoom-out now sends
+it: one world `/grid` (2.3 MB JSON, about 3 s of the 1-CPU box), the request every zoom-out that needs one has always sent when no page happened to land in the window.
+
+**Read-back after a deploy (the owner's dev site; commitment in the ledger).** Pick a far hour at a regional zoom on a page that has just opened, zoom out 1 to 2 s later, ten times.
+Each zoom-out must show a `/api/weather/grid?...bbox=-180,-80,180,85` request in the Network tab; `__RAW_FORENSIC__.summary().counts.series_upgrade_skipped_pending` counts the landings that
+used to cancel it (0 is fine: it only fires when a page lands in the window); without the fix a landing in the window shows `flavor_fastpath_miss` with `src: 'series_upgrade'` about 1.3 s
+after the zoom-out and no grid request. Rollback: `__RAW_DISABLE_SU_NO_CANCEL__ = true` per session, or revert the commit.

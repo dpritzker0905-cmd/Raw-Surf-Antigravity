@@ -1,13 +1,23 @@
 # Weather program: state
 
-**Updated 2026-10-01 22:32Z** (logs: `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
-legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, and the zoom-out grid diagnosis), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
+**Updated 2026-10-02 00:34Z** (logs: `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
+legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, and the scheduler slot fix), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
 (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-02 00:33Z (seq 290-292; same branch, local commit e29cddde, NOT pushed): the zoom-out grid race (F-23) is FIXED in the CLIENT, ON BY DEFAULT** (owner: "go, build the scheduler fix").
+  The dispatch slot of `useMarineDataFetcherCore.enqueueMarineUpdate` now knows what an enqueue can do (new `marineEnqueueSlot.js`, +3 net lines in the core, 962 of 966): the cache-only `series_upgrade` lane is
+  SKIPPED while a run is pending or armed (it never displaces a fetch), and a fetch-capable enqueue SUPERSEDES a cache-only slot that is only scheduled. Kill `window.__RAW_DISABLE_SU_NO_CANCEL__ = true`; forensic
+  events `series_upgrade_skipped_pending`, `cache_only_slot_superseded`. 38 new tests (the REAL `enqueueMarineUpdate` under fake timers, both orders, a hidden tab, the switch), 17 mutations each turning them red,
+  the whole `src/components/map` folder 208 suites / 2,237 tests green. **Offline A/B in two BUILT apps** (the committed code vs the fix; mock backend, NO live request; the just-opened cell at a 0.8 s stay,
+  live-like latencies, the series page landing before, inside and after the dispatch window, 30 runs): where a page landed inside the window the committed code lost the zoom-out's world `/grid` 7 of
+  7 times (the right hour never drew in 9 s), the fix 0 of 6 (right hour at 4.4 to 4.5 s, the same as a run with no landing); outside the window neither lost one. The F-21 cells, the far-zoom scrub and the erratic frame metrics are unchanged; one unforced occurrence of the lost grid in the owner's erratic-zoom set-up (1 of 4 committed runs, 0 of 4 with the fix); it does NOT change the erratic-zoom disappearances (faded heat map, placeholder windows), which stay open. Not tested live; the
+  second order by the call-site tests and, with the fix on, 12 natural supersede events in the erratic runs (no frame difference shown); how often a landing falls in the window live is unknown. Cost: where a page used to cancel the grid the zoom-out now sends it (one 2.3 MB world `/grid`). No served number
+  changes (no SCOREBOARD row). Corrections (seq 292): the second order is NOT rare under erratic input (12 supersedes, 45 skips in six 25 s trials) and V41's weak frames 1.0% -> 0% was one lucky
+  sample (0.65% vs 0.69%). Commitment seq 291 (due 2026-10-04T18:00Z): the fix reaches dev and is read back there. Log: `log/2026-10-01-far-zoom-max-thinning.md`; DECISIONS D-013; LESSONS L-F12.
 - **2026-10-01 22:32Z (seq 288-289; diagnosis only, NO product code changed): the zoom-out's world grid that was sometimes never requested has a cause: a series page landing in the
   300 ms between the zoom-out's dispatch and its run cancels it** (owner: "go with 1, diagnose why the zoom-out grid isn't sent"). After a zoom-out `moveend` waits 900 ms (50 ms if cached),
   enqueues `'moveend'` on `useMarineDataFetcherCore`'s single dispatch slot, which arms a 300 ms timer; any LATER enqueue clears that timer. A series page (regional or world, or the hour-0 mini) fires
@@ -16,7 +26,7 @@ is a claim, not a measurement.
   (`locks.isFetching`), not a pending one. Since 2026-07-17 (`f74214fd`). Proof (offline, scratch build of `dd28a1dd` with the forensic ring recording enqueue, dispatch(cancels), run, fetch):
   `moveend` cancelled by `series_upgrade` in 3 of 4 baseline runs; with ONE runtime switch (`series_upgrade` skips when a run is pending) the same landings inside the window lose 0 of
   6 (committed behaviour: 6 of 6); 26 of 26 earlier cold-jump runs with no landing in the window sent their grid. Correction (seq 289): my guess
-  that it was "the state right after a restart" was wrong. Proposed fix, NOT built (the owner decides): a capability-aware dispatcher (a `series_upgrade` enqueue returns when a run is
+  that it was "the state right after a restart" was wrong. Proposed fix (BUILT the same night, see the bullet above; the owner said go): a capability-aware dispatcher (a `series_upgrade` enqueue returns when a run is
   pending; a fetch-capable enqueue that finds a cache-only run scheduled replaces its source), kill switch, forensic event, call-site tests for both orders. The second order never occurred in
   26 natural traced runs; injected, the first part alone leaves it lost (0 of 2 sent) and both parts send it (2 of 2). Not shown live; the link to the
   2026-09-30 reports (commitment 228) is a hypothesis. Log: `log/2026-10-01-far-zoom-max-thinning.md` (21:45Z section); LESSONS L-F12, L-P26.
@@ -205,7 +215,7 @@ is a claim, not a measurement.
   580 (582). #215 moves guards to 179 / 2177 (its run read 2183).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 289, sha256 287ffdd3cd78c7ead0cd6a54eb52962de30a027e953f2e8a62b766d94f79840e**
+  **Ledger head: seq 292, sha256 8bc0ad7fe687e3c82220a470ba6b6d911bde41ae7b8558848922fa01dfdec8ee**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

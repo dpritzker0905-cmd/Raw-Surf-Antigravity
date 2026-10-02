@@ -326,7 +326,7 @@ before starting it.
   0 of 6 with one switch, 0 of 12 outside the window). The mirror order is a second hole: a fetch-capable enqueue that finds the slot
   taken by a cache-only run is dropped at the slot check (injected: lost 2 of 2, and the one-switch fix does not cover it). Rule for any
   coalescing dispatcher: carry a capability with every enqueue and keep the most capable pending run in BOTH orders, with a call-site
-  test per order under fake timers. Diagnosed, not yet fixed (the owner decides). (2026-10-01, log `2026-10-01-far-zoom-max-thinning.md`,
+  test per order under fake timers. Diagnosed 2026-10-01 and fixed the same night (commit e29cddde, `marineEnqueueSlot.js`: the slot carries a capability per enqueue; kill `__RAW_DISABLE_SU_NO_CANCEL__`). (2026-10-01, log `2026-10-01-far-zoom-max-thinning.md`,
   audit REPORT F-23)
 - **L-P26 · An intermittent loss in a harness is a question for the app's own event log, not for the environment: record the decisions,
   then split the runs by the one collision you suspect.** I wrote that the unsent zoom-out grid "looks like the over 75 s after a
@@ -337,3 +337,10 @@ before starting it.
   loss to a slow or stale live state, make the app write down each decision on the path; a guess about a state you cannot reproduce is
   a claim that outran its check (L-A7). The mechanization is in the harness: `TRACE_APP=1` in `scn_wronghour.js` records the app's
   console, every request the page issues and the forensic ring for any cell. (2026-10-01, same log)
+- **L-P27 · A zero from one pass is a sample, not a rate: replicate it before it goes in a table, and count a frequency before you predict it.** REPORT V41 said weak far-zoom frames
+  (the Florida swell under 75% of the exact frame) fell from 1.0% to 0% with the F-21 build, from one 5-seed pass (6,109 frames). The F-23 replays read that same build at 0.65% over 14,671 frames
+  (and the F-23 fix at 0.69% over 14,971): the 0% was a lucky sample, and the 0.7% residue is the placeholder windows of the F-19 work. The same replays contradicted a code-reading prediction: the
+  second ordering of the slot race (a fetch-capable enqueue dropped behind the cache-only lane in the same frame) was written up as "much rarer" because its window is one frame, and with the fix's
+  own event recorded it fired 12 times in six 25 s erratic-zoom trials. A pass that reads zero of something other runs of the same build read as nonzero is a reason to run it again, and a
+  frequency predicted from the code is a hypothesis until the event is counted. Mechanized in the harness: `run_f23_erratic.sh` replicates seeds and records the fetcher's events per trial.
+  (2026-10-02, log `2026-10-01-far-zoom-max-thinning.md`, ledger seq 292)
