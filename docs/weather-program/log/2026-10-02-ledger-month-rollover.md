@@ -83,3 +83,10 @@ seq 279 (finding: the root cause), seq 280 (decision: the fix, built locally), s
 `workspaceId` and Supabase HTTP 400 facts), seq 282 (commitment: the post-merge read-back, due 2026-10-04T18:00Z) and
 seq 283 (commitment: the monitor's month-boundary window, due 2026-10-25T18:00Z). The far-zoom branch also appends
 from seq 274; it re-chains after #216 and this branch merge, which renumbers its lines.
+
+## PR #217 opened, #216's failed job re-run (01:42:49Z)
+
+The owner chose "Push, open PR, re-run #216 (Recommended)". Pushed as `claude/ledger-month-rollover` and opened #217
+against `dev` (it shows #216's three docs commits until #216 merges; #216 merges first). Re-ran the failed jobs of
+#216's CI run 36860391909 at 01:42:21Z (the transient 14-day-old run-list answer). Ledger seq 284 (pr_open) and
+seq 285 (the re-run). Nothing is merged.

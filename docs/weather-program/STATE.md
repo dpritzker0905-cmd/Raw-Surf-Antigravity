@@ -1,14 +1,14 @@
 # Weather program: state
 
-**Updated 2026-10-02 01:36Z** (logs: `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
-rollover; the fix, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
+**Updated 2026-10-02 01:42Z** (logs: `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
+rollover; the fix is #217, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
 diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211),
 `log/2026-10-01-clock-every-header.md` (#208), `log/2026-09-30-clock-every-header.md`
 (#208), `log/2026-09-30-mojibake-debris.md` (#206), `log/2026-09-30-c188-bigswell-by-region.md` (#197, #198, W-30), `log/2026-09-30-memory-audit.md` (every memory checked), `log/2026-09-30-audit-sota.md` (the deep audit), `log/2026-09-29-consensus-and-ops.md`, `log/2026-09-29-sim-works-plan.md`; every action: `ACTIONS.jsonl`). Verify live before acting: this file
 is a claim, not a measurement.
 
 ## Now
-- ⛔ **2026-10-02 (seq 279-283; the fix is stacked on #216 and waits for the owner's word to open): the skill ledger
+- ⛔ **2026-10-02 (seq 279-285; the fix is PR #217, stacked on #216, open for the owner's word): the skill ledger
   has written nothing since 2026-09-30 22:45:05Z.** Supabase Storage answers a missing object with HTTP 400 and the
   strict L2 reader accepted only a 404, so the first read of the new month's segment (`scored-2026-10.json`) raised
   and every precompute run skipped the ledger while the job stayed green; the residual roll-up shares the reader. The
@@ -86,8 +86,8 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours:** none but #216 (a docs PR; seq 277); the skill-ledger fix (seq 280) is a branch stacked on it,
-  to open on the owner's word, and #216 merges first. The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
+- **Open PRs of ours:** #216 (a docs PR; seq 277; its failed floor-staleness job re-run at 01:42:21Z, seq 285) and
+  #217 (the skill-ledger fix, seq 280 and 284), stacked on #216: #216 merges first. The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
   CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
   drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
   anything in it is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
@@ -144,7 +144,7 @@ is a claim, not a measurement.
   skill-ledger fix moves it to 1732, projection 1738), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 283, sha256 de2e0c46466768548b8f7addbf7ad91270f8f50d99393c79d1df7b3f457708a7**
+  **Ledger head: seq 285, sha256 df3aa0e47d6d40ad4832caa3f17458908e2b6922873bf186c3bdd4ae5d260fc6**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
