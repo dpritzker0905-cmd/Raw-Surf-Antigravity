@@ -1272,7 +1272,12 @@ jobs:
           # cached product's warnings, and it is logged): hosted CI on #217 (run 36955511157 @ 7b606f06) observed 140
           # files / 1738. tests/test_l2_read_refusal.py (claimed by `--lane chain`) gains 2 executed tests: 1738 + 2 =
           # 1740, 1740 - 6 = 1734; files 140 unchanged; _FLOOR_SET_FROM["chain"] -> 1740.
-          MIN_FILES, MIN_PASSED = 140, 1734
+          # ⬆ MIN_FILES/MIN_PASSED 140/1734→141/1774 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (a world series
+          # frame reads the global_mid pre-strided when the clip provably keeps every cell; commitment 228's par2
+          # residual): hosted CI on #219 (run 36959067942 @ 4d3848ce) observed 140 files / 1740. The new
+          # tests/test_world_series_strided_read.py (claimed by `--lane chain`) adds 40 executed tests: 1740 + 40 =
+          # 1780, 1780 - 6 = 1774; files 140 + 1 = 141; _FLOOR_SET_FROM["chain"] -> 1780.
+          MIN_FILES, MIN_PASSED = 141, 1774
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

@@ -145,6 +145,89 @@ def _stride_clipped_grid(product, stride: int) -> bool:
     return True
 
 
+# ── THE STRIDED WORLD READ (2026-10-02, commitment 228's par2 residual) ──────────────────────────────
+# After #210 a world series frame still READ the whole global_mid: on an L1 miss, parse + validate 15,023
+# cells, clip all of them (the world clip keeps every one), then keep 966. And it always missed: L1 holds
+# 120k vectors, 8 global_mid products, so a 48-hour page evicts each before it is asked for again (0 of 32
+# loads hit, measured). One core, 16 real files, stride 4: 2.3-3.4 s of CPU per page, 0.9-1.4 s of it gen2
+# GC; two such pages at once overran the 20 s deadline on the box (S11 par2 68.1% / 59.3%). When the clip
+# is provably the identity, this lane reads the file with the store's load-time stride instead (same
+# `decimate_vectors` cells, 16x smaller L1 entry, ~1 ms validate): 0.8-1.2 s cold, 0.2 s repeated (15 of 16
+# hits). Proof obligations: series_vector_budget.global_lattice (every raw cell on its lattice position)
+# and _identity_clip_bounds (the clip rebuilds exactly that lattice). Kill: MARINE_MID_SERIES_LOAD_STRIDE=0.
+def _store_takes_stride(store) -> bool:
+    """True when `store.load_product` accepts `stride` (ProductStore does; older test doubles do not)."""
+    import inspect
+    try:
+        params = inspect.signature(store.load_product).parameters
+    except (TypeError, ValueError, AttributeError):
+        return False
+    return "stride" in params or any(p.kind is p.VAR_KEYWORD for p in params.values())
+
+
+def _window_covers(clip, coverage) -> bool:
+    """True when the clip window contains the product's whole coverage: the only windows that can clip it
+    to itself, so the only ones worth a strided read."""
+    from services.weather_pipeline.route_helpers import clamp_and_normalize_bbox, parse_bbox
+    try:
+        w, s, e, n = clamp_and_normalize_bbox(*parse_bbox(clip))
+        return (w <= e and w <= coverage.west and e >= coverage.east
+                and s <= coverage.south and n >= coverage.north)
+    except Exception:
+        return False
+
+
+def _identity_clip_bounds(product, clip, stride):
+    """The bounds `filter_grid_to_bbox(<the FULL grid>, clip)` would serve when that clip keeps every cell in
+    stored order, which makes clip-then-stride exactly this load-strided grid. None means not proven: read
+    the grid whole. PURE.
+
+    `global_lattice` proved at load time that every full-grid cell sits at (lat0 + r*res, lng0 + c*res), so
+    the clip's cell map holds each lattice cell once. If the window's lattice (the clip's own arithmetic,
+    `clip_lattice`) is that same lattice, the clip fills nothing, drops nothing and reorders nothing.
+    """
+    from services.weather_pipeline.route_helpers import clamp_and_normalize_bbox, clip_lattice, parse_bbox
+    from services.weather_pipeline.schemas import CoverageBounds
+    try:
+        grid = product.grid
+        diag = grid.diagnostics or {}
+        lat = diag.get("load_stride_lattice")
+        if diag.get("load_stride") != stride or not isinstance(lat, dict):
+            return None
+        # The spacing filter_grid_to_bbox builds its lattice at: the declared resolution, else the one it derives
+        # from the cells, which global_lattice derived the same way from the same cells.
+        res = product.resolution or 0.0
+        if res <= 0 and lat.get("res_derived"):
+            res = lat["res"]
+        if res <= 0 or float(lat["res"]) != res:
+            return None
+        rows, cols, lat0, lng0 = lat["rows"], lat["cols"], lat["lat0"], lat["lng0"]
+        west, south, east, north = clamp_and_normalize_bbox(*parse_bbox(clip))
+        if west > east:
+            return None
+        lats, lons = clip_lattice(lat0, lng0, res, west, south, east, north)
+        if (lats != [round(lat0 + r * res, 4) for r in range(rows)]
+                or lons != [round(lng0 + c * res, 4) for c in range(cols)]
+                or (grid.cols, grid.rows) != (len(range(0, cols, stride)), len(range(0, rows, stride)))
+                or len(grid.vectors or []) != grid.cols * grid.rows):
+            return None
+        return CoverageBounds(west=min(lons), south=min(lats), east=max(lons), north=max(lats))
+    except Exception:
+        return None
+
+
+def _apply_identity_clip(product, clip, bounds) -> None:
+    """Write what `filter_grid_to_bbox` writes when it keeps every cell, and what `_stride_clipped_grid`
+    leaves in diagnostics. `product` came from load_product, so its grid container is its own; the
+    diagnostics dict is still the L1 entry's, so it is copied (and the internal lattice stamp dropped)."""
+    grid = product.grid
+    grid.bounds = bounds
+    product.requested_bbox = clip
+    product.served_bbox = f"{bounds.west:.4f},{bounds.south:.4f},{bounds.east:.4f},{bounds.north:.4f}"
+    product.coverage = grid.bounds
+    grid.diagnostics = {k: v for k, v in (grid.diagnostics or {}).items() if k != "load_stride_lattice"}
+
+
 async def try_serve_mid_res_tier(
     store,
     *,
@@ -274,22 +357,6 @@ async def try_serve_mid_res_tier(
         product = _copy.deepcopy(_hit)  # callers mutate (surf transform) — never hand out the cached object
         return product
 
-    async with _LOAD_SEM:
-        candidate_product = await asyncio.to_thread(store.load_product, mid_item.filename)
-    if not candidate_product or not candidate_product.grid:
-        return None
-    if _is_oversized_grid(candidate_product):
-        logger.warning(f"[Grid Resolver] Skipping oversized global_mid product {mid_item.filename} in Step 3.6.")
-        return None
-
-    product = candidate_product
-    product.product_id = mid_item.filename
-    product.coverage_scope = "regional"      # served clipped → regional-like on the client
-    product.coverage_mode = "regional_tile"  # so filter_grid_to_bbox clips it below
-    product.partial_coverage = False
-    product.requested_bbox_original = bbox
-    product.query_bbox = bbox
-    product.requested_bbox = bbox
     # PAD BY ONE MID CELL (2026-07-05, the San Diego "clamp+clear" second-pass report): the clip keeps
     # vectors whose CENTERS fall inside the bbox, and the served grid.bounds are the outermost cell
     # centers — losing up to a HALF-CELL (~1°) ring versus the viewport. Depending on alignment the
@@ -320,10 +387,49 @@ async def try_serve_mid_res_tier(
             _pad = min(_cap, max(2.0, _frac * span))
         _pw = max(-180.0, _sw - _pad); _ps = max(-80.0, _ss - _pad)
         _pe = min(180.0, _se + _pad); _pn = min(85.0, _sn + _pad)
-        product = filter_grid_to_bbox(product, f"{_pw:.4f},{_ps:.4f},{_pe:.4f},{_pn:.4f}")
+        _clip = f"{_pw:.4f},{_ps:.4f},{_pe:.4f},{_pn:.4f}"
     except Exception:
-        product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
-    _strided = _stride > 1 and _stride_clipped_grid(product, _stride)
+        _clip = None    # clipped to the snapped bbox below, as before
+
+    # A world series frame reads the file pre-strided when the clip will provably keep every cell (THE
+    # STRIDED WORLD READ above); anything unproven reads the grid whole, exactly as before.
+    _try_strided = (_stride > 1 and _clip is not None and os.environ.get("MARINE_MID_SERIES_LOAD_STRIDE", "1") != "0"
+                    and _window_covers(_clip, mid_item.coverage) and _store_takes_stride(store))
+    _identity = None
+    async with _LOAD_SEM:
+        if _try_strided:
+            candidate_product = await asyncio.to_thread(store.load_product, mid_item.filename, stride=_stride)
+            _identity = _identity_clip_bounds(candidate_product, _clip, _stride) if candidate_product else None
+            if _identity is None and candidate_product and candidate_product.grid and \
+                    (candidate_product.grid.diagnostics or {}).get("load_stride"):
+                candidate_product = await asyncio.to_thread(store.load_product, mid_item.filename)
+        else:
+            candidate_product = await asyncio.to_thread(store.load_product, mid_item.filename)
+    if not candidate_product or not candidate_product.grid:
+        return None
+    if _is_oversized_grid(candidate_product):
+        logger.warning(f"[Grid Resolver] Skipping oversized global_mid product {mid_item.filename} in Step 3.6.")
+        return None
+
+    product = candidate_product
+    product.product_id = mid_item.filename
+    product.coverage_scope = "regional"      # served clipped → regional-like on the client
+    product.coverage_mode = "regional_tile"  # so filter_grid_to_bbox clips it below
+    product.partial_coverage = False
+    product.requested_bbox_original = bbox
+    product.query_bbox = bbox
+    product.requested_bbox = bbox
+    if _identity is not None:
+        _apply_identity_clip(product, _clip, _identity)
+        _strided = True
+    else:
+        try:
+            if _clip is None:
+                raise ValueError("no padded clip window")
+            product = filter_grid_to_bbox(product, _clip)
+        except Exception:
+            product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
+        _strided = _stride > 1 and _stride_clipped_grid(product, _stride)
     if product.grid:
         # The clip's grid is its own container, but its `diagnostics` is still the L1 entry's dict
         # (load_product and filter_grid_to_bbox copy one level), and stored grids carry a non-None
