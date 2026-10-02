@@ -777,7 +777,12 @@ jobs:
           # written; confirm on this PR's run). The new tests/test_grid_vector_shared_writes.py (claimed by
           # `--lane guards`) adds 14 executed tests: 2169 + 14 = 2183, 2183 - 6 = 2177; files 179 EXACT;
           # _FLOOR_SET_FROM["guards"] -> 2183.
-          MIN_FILES, MIN_PASSED = 179, 2177
+          # ⬆ MIN_FILES 179→180, MIN_PASSED 2177→2242 on 2026-10-02, IN THE SAME PUSH THAT CAUSES IT (the far-zoom branch's
+          # max series thinning, built dark): hosted CI on dev c4a59c01 (run 36961412429) read 179 files / 2183 passed,
+          # confirming #211's projection. tests/test_series_max_thinning.py (claimed by `--lane guards`) adds 65 executed
+          # tests (65 passed locally, 0 skipped): 2183 + 65 = 2248, 2248 - 6 = 2242; files 180 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2248.
+          MIN_FILES, MIN_PASSED = 180, 2242
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

@@ -154,3 +154,12 @@ instrument (README rule 5); a SCOREBOARD row follows its first reading.
   dev; commitment 295 is 302 and the clean reading that fulfils it is 308. Added 309 (pr_merge "#219" in the audit's
   exact form) and 310 (pr_merge "#223").
 - Chain floor re-derived after #223: hosted 141 / 1754 (run 37009550311) + 23 = 1777 -> MIN_PASSED 1771, files 142.
+
+## Re-chained onto dev after #221 merged (14:18Z; auto-fix on #220 for its merge conflict)
+- #221 (the far-zoom fixes) merged at 14:10:02Z as `abcc6355`, ahead of this PR; dev's ledger runs to 325 (its far-zoom
+  and CLAUDE.md lines 301-324, pr_merge "#219" at 325). This branch's own lines 301-308 are now 326-333 (+25 on the
+  previous numbering): the commitment to read the sweep is **327**, fulfilled by the first clean reading **333**; the
+  findings are 328, 329, 330 and 332, the floor-staleness re-run 331. This branch's pr_merge "#219" is dropped (dev has
+  it at 325); pr_merge "#223" is 334; 335 records #221's merge.
+- Floors: guards 180/2242 (#221), chain 142/1771 (this PR, from hosted 141/1754 + 23); `_FLOOR_SET_FROM` guards 2248,
+  chain 1777.

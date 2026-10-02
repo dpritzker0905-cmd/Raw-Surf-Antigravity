@@ -55,7 +55,23 @@
  *   authoritative here. Neither side duplicates the other's condition.
  */
 
+import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+
 export const DEFAULT_COVER_FRAC = 0.6;
+
+/**
+ * The gate's own "zoomed out" test (F-22, 2026-10-02): z <= MARINE_ZOOMED_OUT_MAX_ZOOM, or either viewport axis wider than 15
+ * degrees. WebGLMarineCustomLayer hides a regional resident covering less than DEFAULT_COVER_FRAC of such a view, and the engine's
+ * bridge (marineCommitGate._midBandBridgeWide) promotes the held fine base under the SAME function, so a clip the gate hides is
+ * replaced (marineBridgeGateInvariant.test.js). It was an inline expression in the layer, with a second reading in the bridge that
+ * drifted to a 40 degree ceiling on 2026-07-22; the layer and the bridge now share this one. Other readings of the same test remain
+ * (the orchestrator, the fetcher helpers, the layer's rating-band fade, the guards' wideView, the arbiter's rule 6): they decide
+ * other things and were not moved. An unknown zoom falls back to the spans (the bridge's `_lastZoom` is written by the render loop
+ * and can be undefined before the first frame).
+ */
+export function isGateWideView(zoom, vpWidth, vpHeight) {
+  return (typeof zoom === 'number' && zoom <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vpWidth > 15.0 || vpHeight > 15.0);
+}
 
 /**
  * Resolve what a REJECTED regional grid should render as while zoomed out.
