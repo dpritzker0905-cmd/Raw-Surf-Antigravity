@@ -1282,7 +1282,12 @@ jobs:
           # lane): hosted CI on #219 (run 36959067942 @ 4d3848ce) observed 140 files / 1740, confirming its projection
           # exactly. The new tests/test_l1_cached_product_guard.py (claimed by `--lane chain` only) adds 14 executed
           # tests: 1740 + 14 = 1754, 1754 - 6 = 1748; files 141 EXACT; _FLOOR_SET_FROM["chain"] -> 1754.
-          MIN_FILES, MIN_PASSED = 141, 1748
+          # ⬆ MIN_FILES 141→142, MIN_PASSED 1748→1771 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (consensus PR C,
+          # the flip sweep, re-derived after #223 merged): hosted CI on #223 (run 37009550311 @ eed3bfe9) observed 141
+          # files / 1754, confirming #223's projection. tests/test_consensus_flip_sweep.py (a new file, claimed by
+          # `--lane chain`) adds 23 executed tests: 1754 + 23 = 1777, 1777 - 6 = 1771; files 142;
+          # _FLOOR_SET_FROM["chain"] -> 1777.
+          MIN_FILES, MIN_PASSED = 142, 1771
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

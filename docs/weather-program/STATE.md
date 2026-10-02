@@ -1,7 +1,8 @@
 # Weather program: state
 
-**Updated 2026-10-02 16:32Z** (logs: `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
-invariant; #223), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
+**Updated 2026-10-02 17:21Z** (logs: `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
+invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
+sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
 legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, the scheduler slot fix, the faded heat map diagnosis, the faded heat map fix, and the held-base follow-up), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
 228 closed on S11), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
 rollover; the fix is #217, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
@@ -11,6 +12,39 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-02 17:21Z (merge of `origin/dev` `ed3a1b46` (#227, merged 17:19:08Z) into `claude/consensus-flip-sweep`,
+  auto-fix on #220): RE-CHAINED AGAIN (L-P21).** dev holds seq 1-335 (#227's lines 326-335, among them pr_merge "#223"
+  at 330 and "#221" at 331), so this branch's own lines 326-333 are now **dev seq 336-343 (+10)**; its pr_merge "#223"
+  and "#221" copies are dropped as duplicates; 344 records #227's merge. Cumulative from this branch's first numbering:
+  the commitment to read the sweep 295 -> 337, fulfilled by the first clean reading 301 -> 343; the findings 296, 297,
+  298, 300 -> 338, 339, 340, 342; the floor-staleness re-run 299 -> 341. Floors unchanged (guards 180/2242, chain
+  142/1771). The bullets below cite the numbers of their time.
+- **2026-10-02 14:18Z (merge of `origin/dev` `abcc6355` (#221, merged 14:10:02Z, ahead of #220) into
+  `claude/consensus-flip-sweep`, auto-fix on #220): RE-CHAINED AGAIN (L-P21).** dev holds seq 1-325 (#221's lines
+  301-324 and its pr_merge "#219" at 325), so this branch's own lines 301-308 are now **dev seq 326-333 (+25)**;
+  its pr_merge "#219" (309) is dropped as a duplicate of dev 325, its pr_merge "#223" (310) is 334, and 335 records
+  #221's merge. Cumulative from this branch's first numbering: the commitment to read the sweep 295 -> 327, fulfilled
+  by the first clean reading 301 -> 333; the findings 296, 297, 298, 300 -> 328, 329, 330, 332; the floor-staleness
+  re-run 299 -> 331. Floors: guards 180/2242 (#221), chain 142/1771 (this branch). The bullets below cite the
+  numbers of their time.
+- **2026-10-02 13:38Z (merge of `origin/dev` `ca71acd1` (#223) into `claude/consensus-flip-sweep`, auto-fix on #220 for
+  its merge conflict): the branch's ledger was RE-CHAINED (L-P21).** #223 added dev seq 294-300, so this branch's own
+  lines 294-301 are now **dev seq 301-308 (+7)** (the commitment to read the sweep 295 -> 302, the four findings 296,
+  297, 298, 300 -> 303, 304, 305, 307, the floor-staleness re-run 299 -> 306, the first clean reading 301 -> 308, which
+  fulfils 302), action times kept. Then 309 = pr_merge "#219" in the form the completeness audit matches (dev seq 294
+  recorded it with a prose target) and 310 = pr_merge "#223". Chain floor re-derived from #223's hosted run
+  37009550311 (141 / 1754) + 23: 142 / 1771, `_FLOOR_SET_FROM["chain"]` 1777. The PR C bullet below cites the old
+  numbers (add 7).
+- **2026-10-02 04:04Z (branch `claude/consensus-flip-sweep`; owner: "go, build PR C"): consensus PR C's missing third
+  part, the before/after sweep of DISPLAYED heights, is built.** `scripts/consensus_flip_sweep.py` runs the production
+  precompute over one manifest under today's lane and under `CONSENSUS_SERVE` '1' + `CONSENSUS_SERVE_KEEP_GFS`
+  'hawaii', with a null re-run after both, and REFUSES on any control (Hawaii must not move; nothing may move without a
+  swap). Flags come from `precompute.yml` at run time. No served number changes. **First clean reading (run
+  36974680845, null control 0/1,676; SCOREBOARD S13; seq 301):** the flip changes 14.0% of displayed levels (11.8% up,
+  2.1% down), height ratio p50 1.03 / p90 1.31; SoCal 55.6% (p50 1.27), Biscay and Sri Lanka ~37% up; it cannot reach
+  the global tile, Hawaii (kept) or 97 live-upstream spots, and serves GFS between a GFS ingest and that run's twins.
+  The flip stays the owner's word (PR #220). Its ledger lines re-chain after the cached-product guard (stacked on #219).
+  Log: `log/2026-10-02-consensus-flip-sweep.md`.
 - **2026-10-02 16:32Z (ledger seq 326-335 appended; PR #227 open): the F-22 follow-up is PUSHED and OPENED** (owner: "push to dev", read as the repo flow: the branch `claude/base-hold-followup` was pushed, new on origin, at `205d0253` and PR #227 was opened against dev; nothing is pushed onto dev itself and nothing is merged, that waits for "merge #227"). The 16:17Z bullet below says "NOT pushed" and "no ledger entry yet": superseded by this one. The PR was created 16:30:02Z, 17 files (+1,236 -27), MERGEABLE; no CI check had reported when it was read (the session's PR bar watches it; auto-fix and auto-merge are off).
   **Ledger (ten lines, one chain; dev's head was seq 325 and this branch was 0 behind origin/dev `abcc6355` when they were appended):** 326 finding (the F-22 diagnosis), 327 correction ("gh auth is invalid" in dev seq 317 and 318, HEAT0 and MULT0), 328 finding (a peer's F-23 review note), 329 decision (the F-22 build, merged in #221), 330 `pr_merge #223` and 331 `pr_merge #221` (README rule 12: no open PR carried them, the audit FAILed on #223 and WARNed on #221), 332 decision (D-015, this follow-up), 333 commitment (the F-22 fix and the follow-up read back on the Marine Nightly and the dev site, due 2026-10-06T18:00Z), 334 push, 335 pr_open. Lines 326-331 are `--reconstructed` with `--acted-at`. The open PRs 220, 222, 224, 225 and 226 each append their own lines from older bases, so whichever merges after another re-chains (LESSONS L-P21): take dev's ACTIONS.jsonl and re-append the branch's own lines after its head.
   **Backend read-back that is possible now:** `/api/health` reports `2.0.0-stage-6f-v1-abcc6355...` (read between 16:30:44Z and 16:30:45Z, uptime 2 h 18 m), so #221's backend is deployed; the frontend read-back (the nightly's first scheduled run, `__MARINE_BASE_HOLD__` and the F-22 bridge on the dev site) is still owed (dev seq 313, 318 and 333).
@@ -285,7 +319,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 335, sha256 1907b33797e27c0b5dbe7b29ba8441b0714cce579d20cf23f1ee1a2271fb40cc**
+  **Ledger head: seq 345, sha256 f032441b435af621cc5cc5ae53e4463689adf59b5cce01280f9f396ff2433c0c**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
@@ -314,7 +348,9 @@ direction fix (not supported by a bulk-buoy instrument; needs spectral truth).
 3. ~~**Arm the consensus shadow**~~ merged as #168 (`de72c81c`), 15:30:45Z: `CONSENSUS_INGEST: '1'` in forecast-ingest-pilots.yml,
    forecast-ingest.yml and precompute.yml (+~5% manifest, D-009). Then PR C reads `raw_surf:CONSENSUS`.
 3. **Consensus PR C:** evidence for the flip: judge `CONSENSUS_AB`, ledger `by_band`/`by_region`, a before/after
-   catalogue sweep of displayed heights. Then the owner's flip.
+   catalogue sweep of displayed heights. Then the owner's flip. (2026-10-02: the ledger and judge halves are #158,
+   #160, #169; the sweep is `scripts/consensus_flip_sweep.py` + `consensus-flip-sweep.yml`, built on
+   `claude/consensus-flip-sweep`; its first reading is that PR's own run, `log/2026-10-02-consensus-flip-sweep.md`.)
 4. **MOP for California:** needs spot observations for the sheltered spots (Fort Point, Rincon, Leadbetter, Sands).
 5. **Big-swell calibration on the served consensus:** quantile mapping by lead and coast, trained on the ledger's
    big-swell rows (every model reads 0.3-0.8 m low on 3 m+ days).
