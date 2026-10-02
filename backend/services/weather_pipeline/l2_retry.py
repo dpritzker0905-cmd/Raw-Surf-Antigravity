@@ -180,7 +180,11 @@ def _stamp(result, failures):
             break
     warns = getattr(result, "warnings", None)
     if isinstance(warns, list) and msg not in warns:
-        warns.append(msg)
+        # A NEW list, never an append: the answer is usually a one-level copy of the L1 entry, so `warnings` is the
+        # cached product's own list, and an append labelled every later reader of that entry (2026-10-02).
+        result.warnings = [*warns, msg]
+    # The label lives only in the response; this line makes it countable in the logs (commitment 182, 2026-10-02).
+    logger.info(f"[L2 read refused] answer {pid or '?'} labelled l2_read_refused: {refused[0]['status']} for {names}")
     return result
 
 

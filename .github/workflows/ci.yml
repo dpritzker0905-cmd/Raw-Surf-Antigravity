@@ -1268,7 +1268,11 @@ jobs:
           # exactly. tests/test_calibration_read_retry.py gains 7 executed tests and
           # tests/test_forecast_skill_retention.py gains 11 (both claimed by `--lane chain`): 1720 + 18 = 1738,
           # 1738 - 6 = 1732; files 140 unchanged; _FLOOR_SET_FROM["chain"] -> 1738.
-          MIN_FILES, MIN_PASSED = 140, 1732
+          # ⬆ MIN_PASSED 1732→1734 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (the W-23 label never writes into a
+          # cached product's warnings, and it is logged): hosted CI on #217 (run 36955511157 @ 7b606f06) observed 140
+          # files / 1738. tests/test_l2_read_refusal.py (claimed by `--lane chain`) gains 2 executed tests: 1738 + 2 =
+          # 1740, 1740 - 6 = 1734; files 140 unchanged; _FLOOR_SET_FROM["chain"] -> 1740.
+          MIN_FILES, MIN_PASSED = 140, 1734
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
