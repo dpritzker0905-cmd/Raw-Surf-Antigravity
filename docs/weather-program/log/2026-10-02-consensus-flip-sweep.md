@@ -124,3 +124,26 @@ instrument (README rule 5); a SCOREBOARD row follows its first reading.
 - Also this hour: `backend-floor-staleness` refused on a stale GitHub API answer (newest dev ci.yml success reported as
   run 35183181239 of 2026-09-17; the same query at 06:26Z returned 36961412429 of 03:43Z today); re-run as the script
   prescribes (seq 299), attempt 2 green at 06:27:59Z.
+
+## First clean reading: what the flip does to the displayed catalogue (run 36974680845 on `3237733d`, 06:42-07:05Z; read 12:36Z)
+- Every control passed: null control **0 of 1,676**, no run skew, no kept-region move, no move without a swap; shared
+  inputs held (7,080 tide answers, 809 without a tide; 7,080 wind answers; 1 size-reference load); 387 live upstream
+  spot-hours (97 spots) excluded. Verdict: report. SCOREBOARD S13 (new instrument) carries the numbers.
+- **The flip** (`CONSENSUS_SERVE` '1' + `KEEP_GFS` 'hawaii'), 6,704 spot-hours at +0/24/48/72 h from 06Z: served the
+  consensus on 71.9%; **14.0% of displayed levels change, 11.8% up and 2.1% down**; breaking-height ratio p10/p50/p90
+  0.96 / 1.03 / 1.31; |dheight| p50 0.32 ft, p90 1.41 ft; >= 1 ft on 18.6%.
+- **By region:** us_west_coast_socal 55.6% of levels (55.2% up; ratio p50 1.27, p90 1.95), france_biscay 37.8% up,
+  srilanka_maldives 36.8% up, iberia_west 21.2% (20.5% up), azores 22.4% up (p50 1.37), uk_ireland 17.3%; down-led:
+  centralamerica_caribbean 44.0% (31.0% down), us_southeast_midatlantic 22.0% (12.9% down), florida_east_coast 7.7%
+  (5.8% down). Unreached by design: hawaii (kept) and the global tile (1,704 spot-hours, 0% swapped: the flip swaps
+  regional tiles only).
+- **By offshore band:** < 0.5 m 19.6% and 0.5-1 m 19.5% of levels change, 1-2 m 10.2%, 2-3 m 8.5%, >= 3 m 0 of 30 (none
+  swapped): the calm-sea caveat of 2026-09-29, now in displayed levels.
+- **Largest moves:** NW Ireland at +48 h (Bundoran - Main Beach 5.0 -> 9.4 ft, fair -> fair_good; offshore 0.89 -> 2.00 m;
+  Rossnowlagh, Mullaghmore, Tullan Strand alike) and the Azores (Baixa da Areia 4.4 -> 8.5 ft): a 48 h swell the members
+  disagree on, which the equal mean more than doubles.
+- **For the owner's decision, not a recommendation to flip yet:** the offshore ledger says the equal mean beats GFS
+  all-sea (seq 196, 215); this says the user-visible change is concentrated (SoCal, Biscay, Sri Lanka, Azores) and mostly
+  upward in calm seas. Before flipping, the regional rows that move most (SoCal above all) want the nearshore judge's or
+  the ledger's per-region grade, and the twin-freshness gap (second reading) wants a decision.
+- Commitment seq 295 fulfilled by ledger seq 301.

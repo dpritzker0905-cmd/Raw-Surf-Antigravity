@@ -14,8 +14,11 @@ is a claim, not a measurement.
   part, the before/after sweep of DISPLAYED heights, is built.** `scripts/consensus_flip_sweep.py` runs the production
   precompute over one manifest under today's lane and under `CONSENSUS_SERVE` '1' + `CONSENSUS_SERVE_KEEP_GFS`
   'hawaii', with a null re-run after both, and REFUSES on any control (Hawaii must not move; nothing may move without a
-  swap). Flags come from `precompute.yml` at run time. No served number changes; the first reading is the PR's own run
-  of `consensus-flip-sweep.yml` (PR #220). Its ledger lines re-chain after the cached-product guard (stacked on #219).
+  swap). Flags come from `precompute.yml` at run time. No served number changes. **First clean reading (run
+  36974680845, null control 0/1,676; SCOREBOARD S13; seq 301):** the flip changes 14.0% of displayed levels (11.8% up,
+  2.1% down), height ratio p50 1.03 / p90 1.31; SoCal 55.6% (p50 1.27), Biscay and Sri Lanka ~37% up; it cannot reach
+  the global tile, Hawaii (kept) or 97 live-upstream spots, and serves GFS between a GFS ingest and that run's twins.
+  The flip stays the owner's word (PR #220). Its ledger lines re-chain after the cached-product guard (stacked on #219).
   Log: `log/2026-10-02-consensus-flip-sweep.md`.
 - **2026-10-02 (seq 279-285; FIXED by #217, merged 02:42:26Z as `f302c309`, live from 02:45:03Z, seq 288-289): the skill ledger
   has written nothing since 2026-09-30 22:45:05Z.** Supabase Storage answers a missing object with HTTP 400 and the
@@ -160,7 +163,7 @@ is a claim, not a measurement.
   PR moves it to 1734, projection 1740), estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 300, sha256 70a533a6ec979dfd1e5fac193d931f991105e3fdecd29759dca462b51dce0b47**
+  **Ledger head: seq 301, sha256 3be56743c7da3c9cf54707834ba97e5e927e1666d997017df8ff655d764e0245**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
