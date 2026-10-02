@@ -5,7 +5,7 @@
  * should the held coarse-global take over instead?** The zoom-out bridge, its mirror-image
  * sub-covering reject, and `decideMarineCommit` (the single choke both the `setWaveData` commit
  * and the render loop's `_pendingDowngrade` self-heal route through) share one coverage
- * classifier — `_midBandBridgeWide` — and were already pure, exported and unit-tested. They
+ * classifier — `_midBandBridgeWide` (base-aware since F-22, 2026-10-02) — and were already pure, exported and unit-tested. They
  * lived in WebGLMarineEngine.js only by history.
  *
  * WHY THE MOVE: the #11 marine-mask work (7551d511, dd6fd934, 3a0987ee, 883c0588) took the engine
@@ -27,11 +27,16 @@
  * why the first cut of this move failed the scope-integrity guard instead of shipping green.
  */
 
-import { arbiterDecide } from './marineCommitArbiter';
+import { arbiterDecide, isFineWorldBase, coverageWrapSafe } from './marineCommitArbiter';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { isGateWideView } from './marineZoomOutGate';
 import {
   isCoarseGlobalGrid, isRegionalBounds, shouldRejectResolutionDowngrade,
 } from './marineEngineDecisions';
+// The seed-consume question ("does this staged seed replace the held base?") now asks the HOUR too (2026-10-01, F-21). It rides
+// this module so the engine keeps ONE import line from the commit lane; the rule itself is pure and lives in marineStaleHour.js.
+export { coarseBaseStaleForSeed } from './marineStaleHour';
+import { staleResidentSwapWanted, isWorldGridForSelectedHour } from './marineStaleHour';
 
 // ZOOM-OUT BRIDGE (2026-07-15, user "heatmap clears for a quick second midway zooming out" AND
 // "green grid around FL"): on a fast/settling zoom-out the regional resident either CLEARS to a
@@ -59,24 +64,56 @@ import {
 // OFF → EURO holds the mid, cols 7-13, no flash; bridge ON → cols 37 for ~5s). Below the ceiling the
 // mid keeps up on a moderate zoom-out (each viewport gets a wider mid) with the coarse base under any
 // uncovered edge; past it the coarse is honest. Kill: __RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ restores 15°.
-function _midBandBridgeWide(vb, lastZoom, w) {
+// BASE-AWARE (2026-10-02, audit F-22 — the Marine Nightly's MULT0_FRAME red of 09-28..10-01): the ceiling above protects a 2° MID clip
+// from being replaced by the 10° coarse base, so it only has a job when the held base is coarser than the clip. The layer's gate
+// (WebGLMarineCustomLayer) never got the ceiling: at z <= 7 or span > 15° it HIDES a regional covering < 0.6 (mult 0: the regional
+// pass and the crest animation go dark, only the base wash stays), and between that and the 40° ceiling nothing replaced the hidden
+// clip until a wider one committed (a second or more of a dimmed wash, 4/12/9/12 frames in the nightly; the invariant 8625841b wrote
+// down, "no coverage band is resident-but-hidden", broke on 07-22 with no test to say so). `fineBase` ⇒ the base is a 2° world frame
+// (the backend serves the 2° mid at world span since 07-23), so promoting it is lossless and the gate's own wide test applies
+// (isGateWideView: the layer reads the same function), OR the ceiling's, so a ceiling an operator tuned below 15° is never narrowed.
+// A coarse base keeps the 40° ceiling. Kill: __RAW_DISABLE_BASE_AWARE_BRIDGE__. The older kill (__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__) gives
+// the gate's test for EVERY base and wins over this one. (Other readings of the same wide test remain elsewhere: the orchestrator, the
+// fetcher helpers, the layer's rating-band fade, the guards' wideView; this module's two predicates and the arbiter's rule 8 are the three
+// that must agree with the gate.)
+function _midBandBridgeWide(vb, lastZoom, w, fineBase) {
   if (!vb) return false;
-  if (w && w.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true) {
-    return (typeof lastZoom === 'number' && lastZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM)
-      || (vb[2] - vb[0]) > 15.0 || (vb[3] - vb[1]) > 15.0;
-  }
+  const gateWide = isGateWideView(lastZoom, vb[2] - vb[0], vb[3] - vb[1]);
+  if (w && w.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true) return gateWide;
   const ceil = (w && Number(w.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0;
-  return (vb[2] - vb[0]) > ceil || (vb[3] - vb[1]) > ceil;
+  const ceilWide = (vb[2] - vb[0]) > ceil || (vb[3] - vb[1]) > ceil;
+  return fineBase ? (gateWide || ceilWide) : ceilWide;
 }
 
-export function shouldBridgeToCoarseGlobal(resident, coarse, lastZoom, viewportBounds, win) {
+// May the held base be promoted under the gate's wide test? A fine base only, and ONLY one that adds no wrong frame: the same model
+// and layer as the resident, and made for the SELECTED hour (marineStaleHour.isWorldGridForSelectedHour: its valid time within a snapped
+// step, 1.5 h, of the selected instant; an unknown time fails CLOSED, because a promotion is a new action and the F-21 dim only starts at
+// 3.5 h, so a base for the neighbouring 3-hourly step would otherwise be drawn at full strength). Otherwise this band behaves as it did
+// before (the clip stays hidden over the wash), so the fix cannot show another hour or another model. Past the 40° ceiling nothing changes
+// (marineStaleHour owns the stale base there). Near the antimeridian (a wrapped clip, or a view past ±180°) the engine's coverage
+// arithmetic cannot be trusted (coverageWrapSafe), so the band keeps the old rule there. `selectedMs` is engine.__selectedMs, published by
+// marineStaleHourLayer each frame (null with both F-21 switches on: the band then keeps the old rule too).
+function _fineBaseUsable(resident, base, selectedMs, w, vb) {
+  if (w && w.__RAW_DISABLE_BASE_AWARE_BRIDGE__ === true) return false;
+  if (!isFineWorldBase(base)) return false;
+  if (!coverageWrapSafe(vb, resident.bounds)) return false;
+  if ((resident.__sourceModel || 'GFS') !== (base.__sourceModel || 'GFS')) return false;
+  if ((resident.__componentLayer || 'waves') !== (base.__componentLayer || 'waves')) return false;
+  return isWorldGridForSelectedHour(base, selectedMs);
+}
+
+export function shouldBridgeToCoarseGlobal(resident, coarse, lastZoom, viewportBounds, win, staleSwapMs, selectedMs) {
   const w = win || (typeof window !== 'undefined' ? window : undefined);
   if (w && w.__RAW_DISABLE_ZOOMOUT_BRIDGE__ === true) return false;
   if (!coarse || !isCoarseGlobalGrid(coarse)) return false;
+  // F-21 (2026-10-01, marineStaleHour.js): the resident is itself a WORLD frame, for another hour than the selected one, and the held
+  // base is the selected hour's: promote the base. `staleSwapMs` (the layer's selected instant, set only in the frame it judged the
+  // resident stale) is absent everywhere else, so this clause is inert for every other caller.
+  if (resident && typeof staleSwapMs === 'number' && isCoarseGlobalGrid(resident)) return staleResidentSwapWanted(resident, coarse, staleSwapMs, w);
   if (!resident || !resident.bounds || !isRegionalBounds(resident.bounds) || isCoarseGlobalGrid(resident)) return false;
   const vb = viewportBounds;
   if (!vb) return false;
-  if (!_midBandBridgeWide(vb, lastZoom, w)) return false;
+  if (!_midBandBridgeWide(vb, lastZoom, w, _fineBaseUsable(resident, coarse, selectedMs, w, vb))) return false;
   const rb = resident.bounds;
   const vpA = Math.max(1e-9, (vb[2] - vb[0]) * (vb[3] - vb[1]));
   const ix = Math.max(0, Math.min(rb.east, vb[2]) - Math.max(rb.west, vb[0]));
@@ -115,7 +152,10 @@ export function shouldRejectSubcoveringRegional(resident, incoming, lastZoom, vi
   // Mirror of shouldBridgeToCoarseGlobal (2026-07-22): fire only PAST the mid-band ceiling so a
   // 15-40° mid is ACCEPTED over a coarse resident (it covers) instead of rejected as "subcovering" —
   // the reject and the bridge share this classification so commit/gate/bridge can never disagree.
-  if (!_midBandBridgeWide(vb, lastZoom, w)) return false;
+  // F-22 (2026-10-02): a FINE world resident is judged by the gate's own wide test, as the bridge does for the same base (the hour
+  // is the incoming's own: it must equal the resident's above, so there is no selected-instant to ask here).
+  const fineResident = !(w && w.__RAW_DISABLE_BASE_AWARE_BRIDGE__ === true) && isFineWorldBase(resident) && coverageWrapSafe(vb, incoming.bounds);
+  if (!_midBandBridgeWide(vb, lastZoom, w, fineResident)) return false;
   const ib = incoming.bounds;
   const vpA = Math.max(1e-9, (vb[2] - vb[0]) * (vb[3] - vb[1]));
   const ix = Math.max(0, Math.min(ib.east, vb[2]) - Math.max(ib.west, vb[0]));
@@ -184,6 +224,7 @@ export function decideMarineCommit(resident, incoming, lastZoom, viewportBounds,
     // Mid-band ceiling from the SAME `w` the guard's shouldRejectSubcoveringRegional read above.
     midBandCeil: (w && Number(w.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0,
     midBandCeilOff: !!(w && w.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true),
+    baseAwareBridge: !(w && w.__RAW_DISABLE_BASE_AWARE_BRIDGE__ === true),   // F-22: the arbiter's rule 8 mirrors the guard above
     coverFrac: (w && Number(w.__RAW_DOWNGRADE_COVER_FRAC__)) || undefined,
     graceState: _arbiterGraceState,
     graceDisabled: !!(w && w.__RAW_DISABLE_RATING_GRACE__ === true),

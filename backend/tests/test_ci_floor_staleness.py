@@ -426,8 +426,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # chain 1194: the SAME hosted run actually read 1194, not the 1148 previously projected here.
 #   The projection was never confirmed, so this is corrected to the receipt (see ci.yml).
 # estate 585: dev run 36961412429 (c4a59c01) read 582; this file gains 3 executed tests (22 -> 25), and PR #224's
-#   hosted run 37011560800 read exactly 585. chain 1754 is dev's (#223), unchanged here.
-_FLOOR_SET_FROM = {"guards": 2183, "chain": 1754, "estate": 585}
+#   hosted run 37011560800 read exactly 585. guards 2248 and chain 1754 are dev's (#221, #223), unchanged here.
+_FLOOR_SET_FROM = {"guards": 2248, "chain": 1754, "estate": 585}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

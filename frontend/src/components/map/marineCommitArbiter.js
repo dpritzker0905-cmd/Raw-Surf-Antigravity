@@ -36,6 +36,32 @@ function spanLngOf(grid) {
   return (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
 }
 
+// F-22 (2026-10-02): the coarsest WORLD grid still counted as a FINE base. The 2° mid tier (global_mid, served at world span
+// since 2026-07-23) is the finest world frame; the next is the 10° global_coarse. Anything between works; 2.5° leaves room for a
+// 2.5° lattice and keeps a 3°+ one on the 40° ceiling. A fine base is a COARSE-GLOBAL grid by the engine's own definition
+// (marineEngineDecisions.isCoarseGlobalGrid: span 359° or more and a cell over 1°: the only grids the engine ever holds as a base)
+// with a cell of FINE_BASE_MAX_CELL_DEG or finer. ONE definition: the bridge, its mirror reject and rule 8 below all read it, so
+// they cannot classify the same base differently (marineBridgeGateInvariant.test.js).
+export const FINE_BASE_MAX_CELL_DEG = 2.5;
+export function isFineWorldBase(grid) {
+  const span = spanLngOf(grid), cell = cellDegOf(grid);
+  return span !== null && span >= 359.0 && cell !== null && cell > 1.0 && cell <= FINE_BASE_MAX_CELL_DEG;
+}
+
+// F-22 (2026-10-02): can the engine's coverage arithmetic be trusted for this view and this grid? It has no longitude wrap. The backend
+// returns a clip for a Fiji-style view with WRAPPED bounds (west 170 > east -168) and MapLibre reports that view UNWRAPPED (east 192), so the
+// arithmetic reads the clip as covering 0 of a view the layer's wrap-aware gate sees it covering whole; in the newly covered band that would
+// promote the base over a covering clip and then reject every clip as sub-covering. A wrapped or past-+-180 view, a wrapped grid and an
+// unknown view are NOT safe: there the band keeps the old 40 deg rule (the paths past the ceiling are unchanged, as they always read this
+// arithmetic). `gridBounds` may be absent: the view alone decides. Until the engine's coverage math is wrap-aware.
+export function coverageWrapSafe(viewportBounds, gridBounds) {
+  const vb = viewportBounds;
+  if (!Array.isArray(vb) || vb.length < 4) return false;
+  if (!(vb[2] >= vb[0]) || vb[0] < -180 || vb[2] > 180) return false;
+  if (gridBounds && !(gridBounds.east >= gridBounds.west)) return false;
+  return true;
+}
+
 // The share of the viewport a resident must cover to stay the drawn field (rule `subcover`).
 // Exported with coverageFrac so a diagnostic asking "is that field still the one drawn here?"
 // (the projection diag, W-36) answers with this module's definition, not a second one.
@@ -192,12 +218,17 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
   // tier now serves to 120°, so a 15-120° viewport is NOT "wide" (the mid covers). The ceiling arrives
   // via CTX (decideMarineCommit passes it from the SAME `w` the guards read), keeping this module
   // window-free and byte-agreed with the guard (the differential/sequence harnesses enforce it).
+  // F-22 (2026-10-02): a FINE (2°) world resident is judged by the display gate's own wide test OR the ceiling's — the gate hides a clip
+  // under 60% at z <= 7 or span > 15°, and replacing it must not wait for the 40° ceiling, while a ceiling an operator tuned below the
+  // gate's 15° is never narrowed. `baseAwareBridge` comes from decideMarineCommit (false under __RAW_DISABLE_BASE_AWARE_BRIDGE__);
+  // absent ⇒ the old ceiling-only behaviour. Near the antimeridian the engine's coverage math cannot be trusted (coverageWrapSafe): the old rule.
   const _amcOff = ctx.midBandCeilOff === true;
+  const _fine = ctx.baseAwareBridge === true && isFineWorldBase(resident) && coverageWrapSafe(ctx.viewportBounds, incoming.bounds);
   const _amc = typeof ctx.midBandCeil === 'number' ? ctx.midBandCeil : 40.0;
-  const wideNow = _amcOff
-    ? ((typeof ctx.zoom === 'number' && ctx.zoom <= zMax)
-        || (Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > 15.0 || (vbW[3] - vbW[1]) > 15.0)))
-    : (Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > _amc || (vbW[3] - vbW[1]) > _amc));
+  const _gateWide = (typeof ctx.zoom === 'number' && ctx.zoom <= zMax)
+    || (Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > 15.0 || (vbW[3] - vbW[1]) > 15.0));
+  const _ceilWide = Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > _amc || (vbW[3] - vbW[1]) > _amc);
+  const wideNow = _amcOff ? _gateWide : (_fine ? (_gateWide || _ceilWide) : _ceilWide);
   const zoomedOut = wideNow && rRated === iRated;
   const rSpan = spanLngOf(resident), iSpan = spanLngOf(incoming);
   if (zoomedOut && rSpan !== null && rSpan >= 340 && iSpan !== null && iSpan < 340) {

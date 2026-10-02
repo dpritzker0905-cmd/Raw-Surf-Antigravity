@@ -79,7 +79,7 @@ export {
 // `_arbiterGraceState` comes back too: the Phase B SHADOW verdict below (:175) must pass the SAME
 // grace object the live decision mutates, or it reports the rating-grace rule as a divergence
 // forever. It is shared mutable state, not a value — the identity is the point.
-import { decideMarineCommit, shouldBridgeToCoarseGlobal, _arbiterGraceState } from './marineCommitGate';
+import { decideMarineCommit, shouldBridgeToCoarseGlobal, _arbiterGraceState, coarseBaseStaleForSeed } from './marineCommitGate';
 
 export {
   shouldBridgeToCoarseGlobal, shouldRejectSubcoveringRegional, decideMarineCommit,
@@ -176,9 +176,9 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
         { zoom: this._lastZoom, viewportBounds: this._lastViewportBounds,
           flavorWant: window.__SURF_MODE__ === true,
           zoomedOutMaxZoom: MARINE_ZOOMED_OUT_MAX_ZOOM,
-          // Mid-band ceiling from the SAME window the guard read, so the shadow can't diverge on it.
+          // Mid-band ceiling and the F-22 base-aware switch from the SAME window the guard read, so the shadow can't diverge on them.
           midBandCeil: Number(window.__RAW_MARINE_GLOBAL_SPAN__) || 40.0,
-          midBandCeilOff: window.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true,
+          midBandCeilOff: window.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true, baseAwareBridge: window.__RAW_DISABLE_BASE_AWARE_BRIDGE__ !== true,
           // Shadow must exercise the SAME rule list the flip will run, grace included — otherwise
           // it re-reports the (now-fixed) rating-grace class as a divergence forever.
           graceState: _arbiterGraceState,
@@ -535,9 +535,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   if (this._pendingCoarseBaseGrid) {
     const _seed = this._pendingCoarseBaseGrid;
     const _b = this._coarseBaseData;
-    const _stale = !_b ||
-      (_b.__sourceModel || 'GFS') !== (_seed.__sourceModel || 'GFS') ||
-      (_b.__componentLayer || 'waves') !== (_seed.__componentLayer || 'waves');
+    const _stale = coarseBaseStaleForSeed(_b, _seed);   // no base, ANOTHER model/layer, or another HOUR (2026-10-01, F-21: marineStaleHour.js)
     this._pendingCoarseBaseGrid = null;
     if (_stale) {
       try {
@@ -3039,7 +3037,7 @@ WebGLMarineEngine.prototype.bridgeToCoarseGlobalIfHeld = function(gl) {
     const cbg = base && base.waveGrid;
     const rwg = this._waveData && this._waveData.waveGrid;
     if (!shouldBridgeToCoarseGlobal(rwg, cbg, this._lastZoom, this._lastViewportBounds,
-        typeof window !== 'undefined' ? window : undefined)) return false;
+        typeof window !== 'undefined' ? window : undefined, this.__staleSwapMs, this.__selectedMs)) return false;   // F-21: the instant while the resident is a stale world frame; F-22: the selected instant, always
     // Promotion commits a GLOBAL grid while the cached mask is still the regional's box — force the
     // full mask rebuild (the escaped-mask recipe, 64bd1ff6): left alone, the encoder's retain guards
     // (retain_patched / retain_res_no_downgrade) keep the crisp REGIONAL mask under the WORLD grid and

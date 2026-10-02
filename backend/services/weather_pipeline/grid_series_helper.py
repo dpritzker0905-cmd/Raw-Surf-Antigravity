@@ -22,6 +22,7 @@ from services.weather_pipeline.series_source_policy import (
 
 from services.weather_pipeline.series_vector_budget import (
     decimate_vectors,
+    thinning_mode,
     stamp_build_time_bound,
     stride_for,
 )
@@ -119,12 +120,15 @@ def _resolver_takes_series_stride(resolve_grid) -> bool:
         return False       # unintrospectable callable -> call it the old way
 
 
-def _apply_build_stride(product, stride: int) -> bool:
+def _apply_build_stride(product, stride: int, mode: str = "stride") -> bool:
     """Decimate one resolved product's grid before the series takes a reference to it.
 
     ⚠️ REBINDS grid.vectors — never mutates it. ProductStore.load_product hands out a SHALLOW
     model_copy, so that list object is the one in _product_cache; an in-place stride would
     decimate the CACHED product and every later reader of it. See decimate_vectors.
+
+    `mode` is `thinning_mode(layer, domain)`: 'max' (peak-preserving, marine heights, opt-in) or the
+    plain 'stride'. Every site that thins a series frame passes the same value (ONE QUANTITY).
     """
     if stride <= 1 or product is None:
         return False
@@ -132,7 +136,7 @@ def _apply_build_stride(product, stride: int) -> bool:
         g = getattr(product, "grid", None)
         if g is None or not getattr(g, "vectors", None):
             return False
-        out = decimate_vectors(g.vectors, g.cols, g.rows, stride)
+        out = decimate_vectors(g.vectors, g.cols, g.rows, stride, mode=mode)
         if out is None:
             return False
         g.vectors, g.cols, g.rows = out
@@ -395,7 +399,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # hour resolves and reveals the geometry; `hours` records which frames were ACTUALLY rewritten
     # so the response stamp counts them instead of assuming; `before` accumulates what the series
     # would have retained, so the saving is measured rather than claimed.
-    bound = {"stride": 1, "hours": set(), "before": 0}
+    bound = {"stride": 1, "hours": set(), "before": 0, "mode": thinning_mode(layer, domain)}
 
     async def _build_one(h: int, warm_regional: bool = False):
         if time.monotonic() > deadline or await _client_gone():
@@ -469,7 +473,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                 # `test_a_small_viewport_is_never_decimated` caught exactly that.
                 if bound["stride"] > 1 and _load_stride_of(_g) == bound["stride"]:
                     bound["hours"].add(h)          # already at target geometry; stamp, don't redo
-                elif _apply_build_stride(product, bound["stride"]):
+                elif _apply_build_stride(product, bound["stride"], bound["mode"]):
                     bound["hours"].add(h)
             return (h, product)
         except asyncio.TimeoutError:
@@ -492,7 +496,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             # The first hour is home: its geometry picks the stride for every remaining hour — and
             # for itself, since it was built before that stride could be known.
             bound["stride"] = _series_build_stride(results[0][1], len(loop_hours))
-            if _apply_build_stride(results[0][1], bound["stride"]):
+            if _apply_build_stride(results[0][1], bound["stride"], bound["mode"]):
                 bound["hours"].add(results[0][0])
             if len(loop_hours) > 1:
                 results.extend(await asyncio.gather(*[_build_one(h) for h in loop_hours[1:]], return_exceptions=True))
@@ -572,7 +576,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # (build_grid_series) and will find the response already under budget, so it no-ops — the
     # stamp has to come from here or the diagnostic would silently vanish for bounded pages.
     if bound["stride"] > 1:
-        stamp_build_time_bound(resp, bound["stride"], len(bound["hours"]), bound["before"])
+        stamp_build_time_bound(resp, bound["stride"], len(bound["hours"]), bound["before"], mode=bound["mode"])
     if not frames and _restore_in_progress():
         resp["warming"] = True
     return resp
