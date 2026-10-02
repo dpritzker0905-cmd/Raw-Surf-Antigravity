@@ -74,6 +74,17 @@ export function isGateWideView(zoom, vpWidth, vpHeight) {
 }
 
 /**
+ * The span (degrees) past which a view is a WORLD view: the 2-degree mid tier serves up to here (the backend's MARINE_MID_RES_MAX_SPAN), tunable with
+ * window.__RAW_MARINE_GLOBAL_SPAN__. The bridge's mid-band ceiling (marineCommitGate._midBandBridgeWide) and the band the world warm covers
+ * (marineGlobalPrewarm.prewarmGlobalMarineGrid, opts.band: the exact world frame is warmed for views up to here) read this helper. The same
+ * switch is still read as a literal elsewhere (the tier choice in backendWeatherServiceClientCoverage, and the arbiter's `midBandCeil` context in
+ * marineCommitGate.decideMarineCommit and the engine's shadow call); those were not moved.
+ */
+export function bridgeCeilDeg(win) {
+  return (win && Number(win.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0;
+}
+
+/**
  * Resolve what a REJECTED regional grid should render as while zoomed out.
  *
  * Pure. Every input is a plain value read from the frame the layer is about to draw.

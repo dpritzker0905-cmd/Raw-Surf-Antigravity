@@ -79,7 +79,7 @@ export {
 // `_arbiterGraceState` comes back too: the Phase B SHADOW verdict below (:175) must pass the SAME
 // grace object the live decision mutates, or it reports the rating-grace rule as a divergence
 // forever. It is shared mutable state, not a value — the identity is the point.
-import { decideMarineCommit, shouldBridgeToCoarseGlobal, _arbiterGraceState, coarseBaseStaleForSeed } from './marineCommitGate';
+import { decideMarineCommit, shouldBridgeToCoarseGlobal, _arbiterGraceState, coarseBaseStaleForSeed, heldBaseKeeps } from './marineCommitGate';
 
 export {
   shouldBridgeToCoarseGlobal, shouldRejectSubcoveringRegional, decideMarineCommit,
@@ -531,11 +531,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // model/layer no longer blocks the consume — the stale base is REPLACED (_captureCoarseBase frees it
   // first) so blend-both re-engages for the new model without waiting for an organic world commit.
   // A base already matching the seed's identity means an organic commit beat the seed here — the seed
-  // is DISCARDED (the old gate left it pending forever, which then blocked every future staging).
+  // is DISCARDED (the old gate left it pending forever, which then blocked every future staging) unless it is a 2-degree seed over a coarser base of that hour.
   if (this._pendingCoarseBaseGrid) {
     const _seed = this._pendingCoarseBaseGrid;
     const _b = this._coarseBaseData;
-    const _stale = coarseBaseStaleForSeed(_b, _seed);   // no base, ANOTHER model/layer, or another HOUR (2026-10-01, F-21: marineStaleHour.js)
+    const _stale = coarseBaseStaleForSeed(_b, _seed);   // no base, ANOTHER model/layer, another HOUR (F-21, marineStaleHour.js) or a finer lattice of the same hour (rule 6)
     this._pendingCoarseBaseGrid = null;
     if (_stale) {
       try {
@@ -2904,7 +2904,7 @@ WebGLMarineEngine.prototype._coarseBaseLruEnabled = function() {
 };
 
 WebGLMarineEngine.prototype._captureCoarseBase = function(gl, waveGrid, key) {
-  if (!gl) return;
+  if (!gl || heldBaseKeeps(this._coarseBaseLruEnabled() ? this._coarseBaseLru : null, this._coarseBaseData, waveGrid)) return;   // F-22 follow-up: a held EXACT base is not replaced by a coarser frame of the same data (marineStaleHour.js rule 5; both capture paths come through here)
   // Encode the NEW base BEFORE freeing the old (see resolveCoarseBaseSwap) so a failed re-encode never nulls
   // the base — the two texture sets coexist for a few synchronous lines only. Kill: __RAW_DISABLE_ATOMIC_COARSE_BASE__.
   const atomic = (typeof window === 'undefined') || window.__RAW_DISABLE_ATOMIC_COARSE_BASE__ !== true;

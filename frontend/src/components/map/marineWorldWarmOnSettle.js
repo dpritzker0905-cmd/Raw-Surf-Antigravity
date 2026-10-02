@@ -21,6 +21,11 @@
  * deduped by valid time (three hour steps share one 3-hourly frame). EURO is excluded (its world product goes through the slow
  * Copernicus transport). Kill: __RAW_DISABLE_HOUR_WORLD_WARM__. Telemetry: window.__MARINE_HOUR_WORLD_WARM__ { fired }; what the
  * prewarm then did is in window.__MARINE_GLOBAL_PREWARM__.
+ *
+ * THE BAND (2026-10-02; owner: "keep the 2 degree frame for the selected hour at every zoom in that range"; the F-22 follow-up): the call passes
+ * `band: true`, so the prewarm also serves a view between its 15 degree regional gate and the bridge's ceiling (40 degrees), GRID ONLY (no world
+ * series pages). The F-22 bridge promotes a held 2-degree base for the selected hour there, and until now nothing asked for that frame in that
+ * range: the per-fetch prewarm calls and this one were declined as `wide_view`. Kill: __RAW_DISABLE_WORLD_WARM_BAND__.
  */
 import { useEffect } from 'react';
 import { prewarmGlobalMarineGrid } from './marineGlobalPrewarm';
@@ -65,7 +70,7 @@ export function useMarineWorldWarmOnSettle({
           const b = mapInstance.getBounds();
           const vb = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
           bump('fired');
-          prewarmGlobalMarineGrid(model, hour, vb, layer, { gridFirst: true });
+          prewarmGlobalMarineGrid(model, hour, vb, layer, { gridFirst: true, band: true });
         } catch (e) { /* a warm is best effort: never break the commit that armed it */ }
       }, WORLD_WARM_HOLD_MS);
     };
