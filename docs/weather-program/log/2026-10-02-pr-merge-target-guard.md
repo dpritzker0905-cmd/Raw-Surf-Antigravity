@@ -52,3 +52,15 @@ line. Census of `dev`'s ledger at `ca71acd1`: 59 `pr_merge` lines, 58 with a `#N
 This PR appends its own lines only. It does not re-record #219 or #223: four open PRs already carry `#219` and three
 carry `#223`, and the newest merge may wait (LESSONS L-P21). Whichever PR merges first keeps seq 301; the others
 re-chain onto it.
+
+## #221 merged first: dev merged in, ledger re-chained (14:22:48Z)
+
+- #221 merged at 14:10:02Z as `abcc6355`, during this session, and took seq 301-325 (its last line, seq 325, is a
+  canonical `pr_merge #219`). This branch merged `origin/dev`: the ledger took dev's 325 lines, and this session's
+  decision line was re-appended unchanged except `seq`/`prev`, 301 -> **326** (its `at` 14:19:51Z follows dev's last,
+  13:34:02Z). `verify --base <dev's ACTIONS.jsonl>` passes: dev's ledger is a byte-exact prefix of this branch's.
+- With #221 the newest merge, #223 is now two places back, so this branch records it: **seq 327, `pr_merge #223`**,
+  the first `pr_merge` line written under the new rule. #221's own line waits for the next PR (L-P21).
+- Floors after the merge: guards 180 / 2242 (`_FLOOR_SET_FROM` 2248, #221's move), chain 141 / 1748 (1754), estate
+  604 (606, this PR's). #221's final hosted run 37013975876 (the tree merged as `abcc6355`) read estate 272 files /
+  582, the same as #223's, so the projection is unchanged: 273 files / 606 passed.

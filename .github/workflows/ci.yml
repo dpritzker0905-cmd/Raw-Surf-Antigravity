@@ -777,7 +777,12 @@ jobs:
           # written; confirm on this PR's run). The new tests/test_grid_vector_shared_writes.py (claimed by
           # `--lane guards`) adds 14 executed tests: 2169 + 14 = 2183, 2183 - 6 = 2177; files 179 EXACT;
           # _FLOOR_SET_FROM["guards"] -> 2183.
-          MIN_FILES, MIN_PASSED = 179, 2177
+          # ⬆ MIN_FILES 179→180, MIN_PASSED 2177→2242 on 2026-10-02, IN THE SAME PUSH THAT CAUSES IT (the far-zoom branch's
+          # max series thinning, built dark): hosted CI on dev c4a59c01 (run 36961412429) read 179 files / 2183 passed,
+          # confirming #211's projection. tests/test_series_max_thinning.py (claimed by `--lane guards`) adds 65 executed
+          # tests (65 passed locally, 0 skipped): 2183 + 65 = 2248, 2248 - 6 = 2242; files 180 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2248.
+          MIN_FILES, MIN_PASSED = 180, 2242
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1626,7 +1631,8 @@ jobs:
           # tests/test_fetcher_script_imports.py (claimed by `--lane estate`) adds 12 executed tests: 570 + 12 = 582;
           # 582 - 2 = 580; _FLOOR_SET_FROM[estate] -> 582.
           # ⬆ 580→604 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (a `pr_merge` target is exactly `#N`): hosted
-          # CI on PR #223 (run 37009550311, the tree merged as ca71acd1) observed 272 files / 582 passed. The new
+          # CI on PR #223 (run 37009550311, the tree merged as ca71acd1) observed 272 files / 582 passed, and #221's
+          # final run 37013975876 (the tree merged as abcc6355) read the same 272 / 582. The new
           # tests/test_action_ledger_pr_merge_target.py (claimed by `--lane estate`: 272 -> 273 files; guards 179 and
           # chain 141 unchanged) adds 24 executed tests: 582 + 24 = 606; 606 - 2 = 604; _FLOOR_SET_FROM[estate] -> 606.
           MIN_PASSED = 604
