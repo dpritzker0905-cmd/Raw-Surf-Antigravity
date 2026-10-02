@@ -1,7 +1,7 @@
 # Weather program: state
 
 **Updated 2026-10-02 13:48Z** (logs: `log/2026-10-02-floor-staleness-retry.md` (the floor-staleness check asks
-again and asks REST before refusing; #224, the bottom of the stack dev <- #224 <- #222 <- #220),
+again and asks REST before refusing; #224, the bottom of the stack dev <- #224 <- #222),
 `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product invariant; #223), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
 228 closed on S11), `log/2026-10-02-ledger-month-rollover.md` (the skill ledger died at the October
 rollover; the fix is #217, stacked on #216), `log/2026-10-01-grid-resolver-no-shared-diagnostics.md` (the resolver's
@@ -108,17 +108,17 @@ is a claim, not a measurement.
   encoding-debris cleanup, frontend, so Render restarted, W-26). ⚠️ Every frontend merge still
   redeploys the backend: the Render build filter ignores `docs/**`, `audit/**`, `**/*.md` but not `frontend/**`
   (W-26, owner-only Render setting; #182, #183 and #184 each restarted it). The Render backend auto-deploys from `dev`. The production frontend is frozen at `fc140024` (D-002).
-- **Open PRs of ours, STACKED (L-P21; owner, 2026-10-02: "resolve the merge #222 conflicts, and other merge
-  conflicts you see, lets clean up our progress and streamline"): dev <- #224 <- #222 <- #220. Merge them in that
-  order.** Each branch merges the one below it, so each merge leaves the next one conflict-free; the re-chained
-  ledger, the floors and this file are already resolved at every level. #224 (the floor-staleness retry) is at the
-  bottom, so the PRs above it run its fixed check in their own CI. #222 (commitment 228's par2 residual) sits
-  before #220 (PR C, the consensus flip sweep) because the owner named it. That replaces the earlier agreed order
-  (#223, then #220, then #221). ⚠️ After #224 merges, #220 needs a `pr_merge #224` line before IT merges: the
-  completeness audit lets only the newest merge go unrecorded. #221 (the far-zoom fixes) is NOT in the stack: its
-  session is active (two unpushed commits and an uncommitted edit, read between 13:25:38Z and 13:43:07Z; its CI run
-  for a new head `dd8616fa` started 13:35:17Z), so it re-chains onto whatever has
-  merged. #223 merged 13:24:08Z as `ca71acd1` (seq 304); #219 2026-10-02T03:43:27Z as `c4a59c01` (seq 294, 303); #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
+- **Open PRs of ours (read 13:50:26Z).** #224 and #222 are STACKED (L-P21; owner, 2026-10-02: "resolve the merge
+  #222 conflicts, and other merge conflicts you see, lets clean up our progress and streamline"): dev <- #224 <- #222.
+  Merge #224, then #222; the second needs no rework, because the ledger, the floors and this file are already resolved
+  on it. #224 (the floor-staleness retry, seq 301-304) goes first: every PR's CI runs its own copy of that check, and
+  the old copy failed #220 and #221 on a stale GitHub answer. #220 (PR C, the consensus flip sweep), #221 (the far-zoom
+  fixes) and #225 (the accuracy monitor's month seam, opened 13:50:04Z) are mergeable on their own. #220's and #221's
+  sessions re-chained them onto dev at 13:38:55Z and 13:35:00Z, each from seq 301, so any merge forks the others'
+  ledgers once more. Cheapest path: the stack first, then one of the others at a time with a re-chain between (or
+  each stacked on the previous head). That replaces the earlier agreed order (#223, then #220, then #221). ⚠️ The
+  completeness audit lets only the newest merge go unrecorded, so the first PR merged after the stack must carry
+  `pr_merge #224`. #223 merged 13:24:08Z as `ca71acd1` (seq 304); #219 2026-10-02T03:43:27Z as `c4a59c01` (seq 294, 303); #217 and #216 merged (seq 288, 287). The six old `codex/*` PRs (#15, #22, #23, #27, #43, #44) were
   CLOSED on the owner's word at 12:12:39-12:12:52Z (seq 278; finding seq 275: all conflicting with `dev`, four
   drafts, the rest partly superseded). Their branches are kept; reopen one, or rebase it in a new PR, if
   anything in it is still missing. Merged 2026-10-01: #215, #211, #210, #208, #212, #214 (see `dev` above; seq
@@ -174,8 +174,9 @@ is a claim, not a measurement.
 - **CI floors on `dev`:** guards 179 files / 2177 (reading 2183, dev `c4a59c01`), chain 141 / 1748 (reading 1754:
   #223's run 37009550311 read 141 / 1754 on its merge with `c4a59c01`), estate 580 (582). The stack moves them, each
   level carrying the ones below: #224 estate 583 (585; its run 37011560800 read 585), #222 chain 142 / 1788 (1794 =
-  1740 + 14 for #223 + 40 for #222; its run 37009323668 read 1780 alone), #220 chain 143 / 1811 (1817 = 1794 + 23; its
-  run 36974680790 read 1763 alone). Hosted CI on each stacked head must read those projections.
+  1740 + 14 for #223 + 40 for #222; its run 37009323668 read 1780 alone). Hosted CI on each stacked head must read
+  those projections. #220's own branch moves chain to 142 / 1771 (1777, re-derived by its session after #223);
+  whichever of #220 and #222 merges second re-derives from the hosted reading.
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
   **Ledger head: seq 304, sha256 ab0cc91e085bb2cfd5933d4862039577d72767791b10cb50751627bc1268d7ef**

@@ -98,3 +98,11 @@ arrives.
   `memory_audit.check_completeness` does not match (it tests exact membership of `#N`), so #219 would FAIL as soon as
   #223's merge is newest. Seq 304 records #223's merge (merged by the owner's account; this session did not see the
   words). #222's own `#219` line becomes a duplicate and is dropped when #222 is re-chained onto this branch.
+
+## Correction (13:50:26Z): the stack is dev <- #224 <- #222, not dev <- #224 <- #222 <- #220
+
+The section above planned #220 as a third level. At 13:50:26Z #220's head was `b945f009` and #221's was `dd8616fa`:
+their own sessions had merged dev (ca71acd1) into them at 13:38:55Z and 13:35:00Z, re-chaining each from seq 301,
+and both read MERGEABLE. #225 had opened at 13:50:04Z. Stacking #220 on #222 would have overridden that session's
+own resolution, so this session left it alone. Only #224 and #222 (whose session was idle since 12:52Z) were still
+conflicting. STATE says so; the first PR merged after the stack must carry `pr_merge #224`.
