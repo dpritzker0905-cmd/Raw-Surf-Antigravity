@@ -132,7 +132,7 @@ measurement: check `git fetch`, `gh pr list --state open` and `/api/health` befo
   `10 m → 36.6 ft / 34.6` readings were the MC-01 cap seam (bigger swell, smaller surf), repaired by #146
   (`SURF_CAP_SEAM_MONOTONE`, default on since 2026-09-28). Sweep the interior of a range, not its ends (LESSONS L-S10).
 - **Client** (`frontend/src/components/map/`, ~400 files): `marineGridSeries.js` (48-frame `/grid_series` pages) and
-  `backendWeatherServiceClient.js` → `useMarineDataFetcherCore.js` (ONE dispatch slot, `marineEnqueueSlot.js`) →
+  `backendWeatherServiceClient.js` → `useMarineDataFetcherCore.js` (ONE dispatch slot, `enqueueMarineUpdate`) →
   `useMarineOrchestrator.js` (hour/model/layer) → `marineCommitArbiter.js` / `marineTransitionCoordinator.js` →
   `WebGLMarineLayer.js` → `WebGLMarineEngine.js` + `WebGLMarineShaders.js`. Scrubber: `ForecastWheel.js`. Tier
   gating lives ONLY in `LayerAccessResolver.js`; diagnostics ONLY in the `TruthOverlay.js` HUD (`?diag=1`).
