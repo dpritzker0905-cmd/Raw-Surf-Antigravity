@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 21:19Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 21:39Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,11 +13,17 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-03 21:39Z: CI-history recovery prepared ondev e4242f20.** ExistingPR224
+  reviewed/adopted narrowly, plus30s lookup bound and malformed/future/timezoneless refusal.
+  Baseline12fail24pass twice ->36pass twice, checkout36pass twice. Real GitHub CLI returned
+  staleSep17 in both rounds; REST recovered current4b CI/readings. Age14days unchanged.
+  Estate projected749/floor747/margin2; current dev floor provenance retained. Hosted pending.
 - **2026-10-03 21:19Z: bounded clip allocation guard prepared ondev4b152937.** Final28case
   before23fail/5pass twice, isolated/checkout28pass twice,303neighbor checks pass. Refuses invalid
   geometry before longitude loops and axes/cross-product allocations, shares existing250000serve
   ceiling, returns diagnosed empty partial clip without L1 mutation. Actual selector181guards/
-  147chain; expected guards2276/floor2270, margin6 unchanged. Hosted/live proof pending.
+  147chain; hostedCI37154741295 confirmed2276/1918/735. PR232 merged e4242f20 at21:36:42Z;
+  actual Render after proof/full E2E pending, margin6 unchanged.
 - **2026-10-03 20:47Z: capacity repair prepared on currentdev449b3b91.** Three weather files
   plus42parity/cache/fallback checks from independently reviewed672b996e; baseline18fail twice,
   candidate42pass twice, checkout42pass twice;13neighbor files275pass. Hosted-base1876 plus42
@@ -25,7 +31,7 @@ is a claim, not a measurement.
   6stored frames200twice/field hashes equal. CI37152927047 confirmed2248/1918/735. PR231
   merged4b152937 at21:05:40Z; backend Live/health200 twice, badge401 twice. HTTP6stored frames
   after twice; cross-deploy hashes differ (cause unproved), current-file tier A/B all fields equal6pairs
-  twice with actual optimized lane/cache15023to3822. Full E2E37153891426 pending; no SLO/skill claim.
+  twice with actual optimized lane/cache15023to3822. Full E2E37153891426:60passed/0final fail/3flaky/9existing skips; spot loading SLO still open.
 - **2026-10-03 18:17Z: PR #228 merged into `dev`; backend live `3de464b8`.** Exact-head
   CI37141260667 at4f3aaa41: guards2248/chain1876/estate735, projected counts confirmed,14 GitHub checks
   success. Applied backend-only Strava state schema with twice-before/after catalog and actual-role proofs.
@@ -396,7 +402,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 451, sha256 58d7cb01e6b60d6ebe9404b876dda56d31bc008f65f461d3586548d55308319d**
+  **Ledger head: seq 461, sha256 fe820c75cf133154b713aba91e85110b50defdb673d0fd5aaa3f07ec8a990e4d**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
