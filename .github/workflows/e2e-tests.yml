@@ -191,7 +191,7 @@ jobs:
           args=(--reporter=list,html)
           if [ -n "$E2E_TEST_GREP" ]; then args+=(--grep "$E2E_TEST_GREP"); fi
           if [ -n "$E2E_PROJECT" ]; then args+=(--project "$E2E_PROJECT"); fi
-          if [ "$E2E_DIAGNOSTIC_NO_RETRY" = "true" ]; then args+=(--retries=0 --trace=retain-on-failure); fi
+          if [ "$E2E_DIAGNOSTIC_NO_RETRY" = "true" ]; then args+=(--retries=0 --trace=on); fi
           npx playwright test "${args[@]}"
 
       - name: Upload test results

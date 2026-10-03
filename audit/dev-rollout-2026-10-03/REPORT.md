@@ -189,3 +189,21 @@ The failure has not been attributed or repaired yet; targeted trace reproduction
 Report CI37145251962 floor check refused a stale GitHub API reading of a17-day-old successful
 run even though fresh dev CI is available. A targeted retry while the enclosing run was active
 was refused before dispatch; retry after run completion is pending. No threshold was lowered.
+
+## 2026-10-03 19:20Z — traced synthetic session fixture repair
+
+Fresh Desktop Chrome spot-hub baselines [37146663057](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37146663057)
+and [37147047704](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37147047704)
+each failed one test. The first retained screenshot/video/HTML; on-first-retry config produced no
+trace at retries0, corrected by an explicit diagnostic trace option. The second trace shows
+synthetic unread-counts401 at19:14:43, then client session redirect/cancelled spot request at19:14:45.
+Final page is auth/signup. Site gate verifies200, and trending/conditions200 precede the redirect.
+
+The UI tests seed local synthetic users rather than verified backend accounts. A shared fixture
+now supplies only their incidental GET unread-message badge at the exact backend origin/path for
+the two declared fake IDs. It refuses real identities and passes through writes, other origins
+and every weather/spot/auth request. Boundary controls pass twice; hosted after checks pending.
+[Playwright route ordering/fallback](https://playwright.dev/docs/api/class-route#route-fallback)
+informs registration after the existing external-resource router. Production authentication and
+all UI assertions remain intact. This fixture is UI acceptance, not end-to-end identity acceptance.
+Private trace bodies stay in ignored local artifacts; public evidence contains no credentials.

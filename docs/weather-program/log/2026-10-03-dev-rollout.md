@@ -109,3 +109,19 @@ Ledger402 corrects395: diagnostic option now retain-on-failure; argument control
 First failed diagnostic artifact parser found no traces and its non-escalated summary write failed;
 no conclusion credited to that attempt. Screenshot/HTML assertion readback remains valid evidence.
 Second fresh trace-enabled baseline is next; exact401 trigger still unproved.
+
+## 19:14Z — second fresh browser baseline
+
+Ledger403 publishesaa763a05/404dispatches37147047704; trace explicitly retained on first failure.
+No production auth, browser assertions, live app code or weather served values changed.
+First screenshot final auth signup provides candidate session-redirect mechanism; trace pending.
+
+## 19:20Z — trace-attributed UI fixture repair
+
+Ledger405: second fresh baseline37147047704 fails once; private trace retained locally/ignored.
+Unread-counts synthetic user40119:14:43; spot request cancelled19:14:45 when client redirects
+to auth, whose final screenshot matches first baseline. Site gate verified200, trending/conditions200.
+Ledger406: only declared synthetic identities GET unread badges mocked at exact backend origin/path.
+Node controls pass twice: GET fulfilled, POST fallback, weather/real IDs/foreign origin untouched;
+real ID registration refused; three spec syntax checks pass. Diagnostic trace=on retains success proof.
+No live app change/auth weakening/served weather-number change. Hosted after acceptance pending.

@@ -25,6 +25,7 @@
  * exist". ⇒ A SETUP ASSERTION MUST PIN WHERE IT LANDED, not merely that something rendered.
  */
 const { test, expect } = require('@playwright/test');
+const { stubSeededMessageBadge } = require('./seededMessageBadge');
 
 // The same stub the weather spec uses. Measured sufficient to pass the route guard.
 const standardUser = {
@@ -38,6 +39,7 @@ const standardUser = {
 };
 
 async function signIn(page) {
+  await stubSeededMessageBadge(page, [standardUser.id]);
   await page.goto('/auth', { waitUntil: 'domcontentloaded' });
   // Wait for the real access-code verification before leaving this document. In Safari trace
   // 34515311331, navigating early cancelled verification and the gate cleared its stored code.

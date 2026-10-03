@@ -738,5 +738,18 @@
       "current_present": true
     },
     "limit": "Not attribution to repairs and not stable end-to-end acceptance"
+  },
+  "e2e_diagnosis": {
+    "baseline_runs": [
+      37146663057,
+      37147047704
+    ],
+    "failed_tests_per_fresh_run": [
+      1,
+      1
+    ],
+    "mechanism": "Synthetic unread message badge401 triggers client session redirect; spot request cancelled and final page auth/signup",
+    "fixture_scope": "Only GET unread-counts for two declared synthetic UI identities at exact backend origin/path; weather, spot, auth and real identities untouched",
+    "after_status": "pending"
   }
 }
