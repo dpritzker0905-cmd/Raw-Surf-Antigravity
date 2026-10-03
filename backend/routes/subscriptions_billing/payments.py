@@ -14,6 +14,7 @@ import logging
 from database import get_db
 from core.security import get_current_user_id
 from models import Profile, PaymentTransaction
+from utils.payment_fulfillment import fulfill_wallet_payment
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -293,24 +294,12 @@ async def get_checkout_status(
         
         if transaction:
             # Only update if not already processed
-            if transaction.status != "completed" and status.payment_status == "paid":
-                transaction.status = "completed"
-                transaction.payment_status = status.payment_status
-                transaction.updated_at = datetime.now(timezone.utc)
-                
-                # Add credits to user wallet
-                user_result = await db.execute(
-                    select(Profile).where(Profile.id == transaction.user_id)
-                )
-                user = user_result.scalar_one_or_none()
-                if user:
-                    user.credits = (user.credits or 0) + int(status.amount_total / 100)  # Amount is in cents
-                    logger.info(f"Added {status.amount_total / 100} credits to user {user.id}")
-                
+            if status.payment_status == "paid":
+                await fulfill_wallet_payment(db, transaction)
                 await db.commit()
                 logger.info(f"Payment completed for session {session_id}")
             
-            elif status.status == "expired":
+            elif status.status == "expired" and transaction.status != "completed":
                 transaction.status = "expired"
                 transaction.payment_status = status.payment_status
                 transaction.updated_at = datetime.now(timezone.utc)
@@ -324,9 +313,13 @@ async def get_checkout_status(
             "metadata": status.metadata
         }
     
-    except Exception as e:
-        logger.error(f"Error checking checkout status: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to check status: {str(e)}")
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception:
+        await db.rollback()
+        logger.exception("Error checking checkout status")
+        raise HTTPException(status_code=500, detail="Payment processing failed")
 
 
 @router.post("/webhook/stripe")
@@ -419,27 +412,20 @@ async def stripe_webhook(
             transaction = result.scalar_one_or_none()
             
             if transaction:
-                if webhook_response.payment_status == "paid" and transaction.status != "completed":
-                    transaction.status = "completed"
-                    transaction.payment_status = "paid"
-                    transaction.updated_at = datetime.now(timezone.utc)
-                    
-                    # Add credits
-                    user_result = await db.execute(
-                        select(Profile).where(Profile.id == transaction.user_id)
-                    )
-                    user = user_result.scalar_one_or_none()
-                    if user:
-                        user.credits = (user.credits or 0) + int(transaction.amount)
-                    
+                if webhook_response.payment_status == "paid":
+                    await fulfill_wallet_payment(db, transaction)
                     await db.commit()
                     logger.info(f"Webhook: Payment completed for {webhook_response.session_id}")
         
         return {"status": "received"}
     
-    except Exception as e:
-        logger.error(f"Webhook error: {e}")
-        return {"status": "error", "detail": str(e)}
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception:
+        await db.rollback()
+        logger.exception("Webhook processing failed")
+        raise HTTPException(status_code=500, detail="Payment processing failed")
 
 
 @router.get("/payments/packages")

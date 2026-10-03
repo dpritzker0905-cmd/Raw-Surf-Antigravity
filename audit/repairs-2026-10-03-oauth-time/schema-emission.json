@@ -1,0 +1,29 @@
+{
+  "scope": "PostgreSQL dialect SQL emission; no live DDL, permissions, roles or transaction execution tested",
+  "runs": [
+    {
+      "run": 1,
+      "passed": true,
+      "emitted_statements": [
+        "\nCREATE TABLE strava_oauth_states (\n\tstate_hash VARCHAR(64) NOT NULL, \n\tuser_id VARCHAR(36) NOT NULL, \n\texpires_at TIMESTAMP WITH TIME ZONE NOT NULL, \n\tconsumed_at TIMESTAMP WITH TIME ZONE, \n\tPRIMARY KEY (state_hash), \n\tFOREIGN KEY(user_id) REFERENCES profiles (id) ON DELETE CASCADE\n)\n\n",
+        "CREATE INDEX ix_strava_oauth_states_user_id ON strava_oauth_states (user_id)",
+        "CREATE INDEX ix_strava_oauth_states_expires_at ON strava_oauth_states (expires_at)",
+        "ALTER TABLE strava_oauth_states ENABLE ROW LEVEL SECURITY",
+        "REVOKE ALL ON TABLE strava_oauth_states FROM anon, authenticated",
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE strava_oauth_states TO service_role"
+      ]
+    },
+    {
+      "run": 2,
+      "passed": true,
+      "emitted_statements": [
+        "\nCREATE TABLE strava_oauth_states (\n\tstate_hash VARCHAR(64) NOT NULL, \n\tuser_id VARCHAR(36) NOT NULL, \n\texpires_at TIMESTAMP WITH TIME ZONE NOT NULL, \n\tconsumed_at TIMESTAMP WITH TIME ZONE, \n\tPRIMARY KEY (state_hash), \n\tFOREIGN KEY(user_id) REFERENCES profiles (id) ON DELETE CASCADE\n)\n\n",
+        "CREATE INDEX ix_strava_oauth_states_user_id ON strava_oauth_states (user_id)",
+        "CREATE INDEX ix_strava_oauth_states_expires_at ON strava_oauth_states (expires_at)",
+        "ALTER TABLE strava_oauth_states ENABLE ROW LEVEL SECURITY",
+        "REVOKE ALL ON TABLE strava_oauth_states FROM anon, authenticated",
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE strava_oauth_states TO service_role"
+      ]
+    }
+  ]
+}

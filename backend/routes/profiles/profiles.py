@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel
-from typing import Optional, List
+from pydantic import BaseModel, ConfigDict
+from typing import Optional, List, Union
 from datetime import datetime
 from pathlib import Path
 import base64
 import uuid
 
 from database import get_db
+from core.security import get_current_user_id, get_optional_user_id
+from deps.admin_auth import get_current_admin
 from models import Profile, RoleEnum
 from models import Booking, BookingParticipant, Gallery, GalleryItem, LiveSession, Post
 
@@ -18,16 +20,14 @@ router = APIRouter()
 UPLOAD_DIR = Path(__file__).parent.parent / "uploads" / "avatars"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-class ProfileResponse(BaseModel):
+class PublicProfileResponse(BaseModel):
     id: str
     user_id: str
-    email: str
     full_name: Optional[str]
     username: Optional[str] = None  # @username for Instagram-style display
     role: str
     subscription_tier: Optional[str]
     elite_tier: Optional[str] = None  # 'pro_elite', 'competitive', 'grom_rising'
-    credit_balance: float
     bio: Optional[str]
     avatar_url: Optional[str]
     is_verified: bool = False
@@ -52,17 +52,28 @@ class ProfileResponse(BaseModel):
     # Surfer identification (for photographers)
     wetsuit_color: Optional[str] = None
     rash_guard_color: Optional[str] = None
-    # Home/Pinned location for map centering
-    home_latitude: Optional[float] = None
-    home_longitude: Optional[float] = None
-    home_location_name: Optional[str] = None
     created_at: datetime
     # On-Demand fields for Quick Book feature
     on_demand_active: bool = False  # Alias for on_demand_available for frontend compatibility
     on_demand_hourly_rate: Optional[float] = None
     is_logo_avatar: bool = False  # True = display as logo (object-contain), False = headshot (object-cover)
 
+class ProfileResponse(PublicProfileResponse):
+    email: str
+    credit_balance: float
+    home_latitude: Optional[float] = None
+    home_longitude: Optional[float] = None
+    home_location_name: Optional[str] = None
+
+def profile_for_viewer(profile: Profile, viewer_id: Optional[str]):
+    response = profile_to_response(profile)
+    if viewer_id == profile.id:
+        return response
+    return PublicProfileResponse.model_validate(response.model_dump())
+
+
 class ProfileUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
     full_name: Optional[str] = None
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
@@ -84,8 +95,6 @@ class ProfileUpdate(BaseModel):
     # Surfer identification fields (for photographers)
     wetsuit_color: Optional[str] = None
     rash_guard_color: Optional[str] = None
-    # For testing - allow credit adjustments
-    credit_balance: Optional[float] = None
     # On-Demand fields
     on_demand_available: Optional[bool] = None
     on_demand_latitude: Optional[float] = None
@@ -231,7 +240,10 @@ async def search_profiles(
 
 
 @router.get("/profiles/by-username/{username}")
-async def get_profile_by_username(username: str, db: AsyncSession = Depends(get_db)):
+async def get_profile_by_username(
+    username: str, db: AsyncSession = Depends(get_db),
+    viewer_id: Optional[str] = Depends(get_optional_user_id),
+):
     """Resolve a username to a full profile. Used by shareable gallery storefront URLs."""
     from sqlalchemy import func as sql_func
     result = await db.execute(
@@ -240,7 +252,7 @@ async def get_profile_by_username(username: str, db: AsyncSession = Depends(get_
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="No user found with that username")
-    return profile_to_response(profile)
+    return profile_for_viewer(profile, viewer_id)
 
 
 @router.get("/profiles/{profile_id}/storefront-stats")
@@ -309,13 +321,16 @@ async def get_storefront_stats(profile_id: str, db: AsyncSession = Depends(get_d
     }
 
 
-@router.get("/profiles/{profile_id}", response_model=ProfileResponse)
-async def get_profile(profile_id: str, db: AsyncSession = Depends(get_db)):
+@router.get("/profiles/{profile_id}", response_model=Union[ProfileResponse, PublicProfileResponse])
+async def get_profile(
+    profile_id: str, db: AsyncSession = Depends(get_db),
+    viewer_id: Optional[str] = Depends(get_optional_user_id),
+):
     result = await db.execute(select(Profile).where(Profile.id == profile_id))
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
-    return profile_to_response(profile)
+    return profile_for_viewer(profile, viewer_id)
 
 
 @router.get("/profiles/{profile_id}/trust-signals")
@@ -429,7 +444,14 @@ async def get_trust_signals(profile_id: str, db: AsyncSession = Depends(get_db))
     }
 
 @router.patch("/profiles/{profile_id}", response_model=ProfileResponse)
-async def update_profile(profile_id: str, data: ProfileUpdate, db: AsyncSession = Depends(get_db)):
+async def update_profile(
+    profile_id: str,
+    data: ProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    if profile_id != current_user_id:
+        raise HTTPException(status_code=403, detail="You can only update your own profile")
     result = await db.execute(select(Profile).where(Profile.id == profile_id))
     profile = result.scalar_one_or_none()
     if not profile:
@@ -462,7 +484,12 @@ async def update_profile(profile_id: str, data: ProfileUpdate, db: AsyncSession 
     return profile_to_response(profile)
 
 @router.post("/profiles/{profile_id}/subscription")
-async def update_subscription(profile_id: str, data: SubscriptionUpdate, db: AsyncSession = Depends(get_db)):
+async def update_subscription(
+    profile_id: str,
+    data: SubscriptionUpdate,
+    db: AsyncSession = Depends(get_db),
+    admin: Profile = Depends(get_current_admin),
+):
     result = await db.execute(select(Profile).where(Profile.id == profile_id))
     profile = result.scalar_one_or_none()
     if not profile:
@@ -520,15 +547,18 @@ async def submit_pro_onboarding(profile_id: str, data: ProOnboardingRequest, db:
     
     return {"message": "Pro onboarding submitted for review", "portfolio_url": profile.portfolio_url}
 
-@router.get("/profiles", response_model=List[ProfileResponse])
-async def get_live_photographers(is_live: bool = True, db: AsyncSession = Depends(get_db)):
+@router.get("/profiles", response_model=List[Union[ProfileResponse, PublicProfileResponse]])
+async def get_live_photographers(
+    is_live: bool = True, db: AsyncSession = Depends(get_db),
+    viewer_id: Optional[str] = Depends(get_optional_user_id),
+):
     result = await db.execute(
         select(Profile)
         .where(Profile.role == RoleEnum.PHOTOGRAPHER)
         .where(Profile.is_live == is_live)
     )
     profiles = result.scalars().all()
-    return [profile_to_response(p) for p in profiles]
+    return [profile_for_viewer(p, viewer_id) for p in profiles]
 
 
 @router.get("/users/search")

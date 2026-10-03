@@ -24,6 +24,7 @@ from .enums import (  # noqa: F401
 # Domain models
 from .profile import Profile, PasswordResetToken, UsernameHistory  # noqa: F401
 from .grom_privacy import GromGuardian  # noqa: F401
+from .strava_oauth import StravaOAuthState  # noqa: F401
 
 from .spots import (  # noqa: F401
     SurfSpot, SpotRefinement, SpotVerification, SpotEditLog,

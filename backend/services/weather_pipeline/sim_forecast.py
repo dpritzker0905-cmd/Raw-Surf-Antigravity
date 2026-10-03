@@ -377,7 +377,36 @@ def peek_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
     if os.environ.get("SIM_LIVE_FORECAST", "1") == "0":
         return None
     key = (round(float(lat), 4), round(float(lng), 4), valid_time or current_valid_time())
+    if os.environ.get("SIM_STRICT_INPUTS", "0") == "1":
+        key += ("strict_inputs",)
     return _recall(key)
+
+
+
+def _validated_baseline(marine_point, wind_point):
+    """Validate measured inputs once; an unknown field must never become a measured zero."""
+    fields = (
+        (marine_point, "speed", "swell_height_m"),
+        (marine_point, "period", "swell_period_sec"),
+        (marine_point, "direction", "swell_direction_deg"),
+        (wind_point, "speed", "wind_speed_knots"),
+        (wind_point, "direction", "wind_direction_deg"),
+    )
+    baseline = {}
+    for point, field, key in fields:
+        raw = point.get(field)
+        if isinstance(raw, bool) or not isinstance(raw, (int, float, str)):
+            return None, f"missing or invalid {key}"
+        try:
+            value = float(raw)
+        except (ValueError, TypeError, OverflowError):
+            return None, f"missing or invalid {key}"
+        if not math.isfinite(value) or value < 0 or ("direction" in key and value > 360):
+            return None, f"missing or invalid {key}"
+        baseline[key] = value
+    if baseline["swell_height_m"] > 0 and baseline["swell_period_sec"] == 0:
+        return None, "missing or invalid swell_period_sec for nonzero swell"
+    return baseline, None
 
 
 def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
@@ -394,7 +423,10 @@ def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
     if os.environ.get("SIM_LIVE_FORECAST", "1") == "0":
         return None, {"reason": "disabled (SIM_LIVE_FORECAST=0)"}
     valid_time = valid_time or current_valid_time()
+    strict_inputs = os.environ.get("SIM_STRICT_INPUTS", "0") == "1"
     key = (round(float(lat), 4), round(float(lng), 4), valid_time)
+    if strict_inputs:
+        key += ("strict_inputs",)
     cached = _recall(key)
     if cached is not None:
         return cached
@@ -406,19 +438,39 @@ def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
     wind = fetch_point("wind", "wind", lat, lng, valid_time)
     mp = (marine or {}).get("point") or {}
     wp = (wind or {}).get("point") or {}
+    if strict_inputs:
+        mp = mp if isinstance(mp, dict) else {}
+        wp = wp if isinstance(wp, dict) else {}
+    identities = {}
+    for domain, response in (("marine", marine), ("wind", wind)):
+        response = response or {}
+        identities[domain] = {
+            "requested_valid_time": valid_time,
+            **{field: response.get(field) for field in (
+                "served_valid_time", "frame_offset_hours", "model_run_time", "run_time",
+                "product_id", "is_estimated", "is_stale", "source", "is_forecast_authoritative")},
+        }
+    marine_time = identities["marine"]["served_valid_time"]
+    wind_time = identities["wind"]["served_valid_time"]
+    alignment = "unknown" if not marine_time or not wind_time else (
+        "aligned" if marine_time == wind_time else "mixed")
     missing = [name for name, ok in (("marine", mp.get("speed") is not None),
                                      ("wind", wp.get("speed") is not None)) if not ok]
-    if missing:
-        out = (None, {"reason": f"no {' and '.join(missing)} data at this coordinate",
-                      "valid_time": valid_time, "model": MODEL})
+    baseline, invalid_reason = _validated_baseline(mp, wp) if strict_inputs else (None, None)
+    if missing or invalid_reason:
+        reason = f"no {' and '.join(missing)} data at this coordinate" if missing else invalid_reason
+        out = (None, {"reason": reason,
+                      "valid_time": valid_time, "model": MODEL,
+                      "product_identity": identities, "time_alignment": alignment})
     else:
-        baseline = {
-            "swell_height_m": float(mp["speed"]),          # OFFSHORE Hs, metres
-            "swell_period_sec": float(mp.get("period") or 0.0),
-            "swell_direction_deg": float(mp.get("direction") or 0.0),
-            "wind_speed_knots": float(wp["speed"]),        # this endpoint reports knots
-            "wind_direction_deg": float(wp.get("direction") or 0.0),
-        }
+        if not strict_inputs:
+            baseline = {
+                "swell_height_m": float(mp["speed"]),
+                "swell_period_sec": float(mp.get("period") or 0.0),
+                "swell_direction_deg": float(mp.get("direction") or 0.0),
+                "wind_speed_knots": float(wp["speed"]),
+                "wind_direction_deg": float(wp.get("direction") or 0.0),
+            }
         # The reconciled swell/windsea trains the SERVER's own height ran on (response.partitions;
         # present only when the serve side runs SURF_PARTITIONS=1). Carried so the sim grades the
         # SAME sea state the app served — the sim itself adds no fetches and no flag of its own.
@@ -440,6 +492,8 @@ def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
             # unattributable, which is exactly the gap that made a sim↔glyph divergence need a live
             # re-compute to explain.
             "wind_run_time": (wind or {}).get("run_time"),
+            "product_identity": identities,
+            "time_alignment": alignment,
             "product_id": marine.get("product_id"),
             "is_forecast_authoritative": marine.get("is_forecast_authoritative"),
             "served_surf_height_m": marine.get("surf_height_m"),

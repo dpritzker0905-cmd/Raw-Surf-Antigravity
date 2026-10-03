@@ -338,7 +338,12 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #   controls in tests/test_grid_series_base_anchor.py, selected by `--lane guards` ONLY.
 # chain 1194: the SAME hosted run actually read 1194, not the 1148 previously projected here.
 #   The projection was never confirmed, so this is corrected to the receipt (see ci.yml).
-_FLOOR_SET_FROM = {"guards": 2248, "chain": 1777, "estate": 582}
+# Audit repairs, 2026-10-03: hosted dev run 37048650086 confirms 2248/1777/582.
+# Executed, selector-owned additions chain +13, estate +56; next hosted receipt
+# must confirm these projections. Preserve the existing margins 6/6/2.
+# Continued audit repairs: selector-owned executed additions chain +62 / estate +72.
+# Projections from the same pinned hosted base + first batch, not hosted observations.
+_FLOOR_SET_FROM = {"guards": 2248, "chain": 1876, "estate": 735}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

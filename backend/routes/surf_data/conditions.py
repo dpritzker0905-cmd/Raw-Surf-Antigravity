@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import logging
 import os
+import asyncio
 
 from database import get_db
 from models import SurfSpot
@@ -27,6 +28,7 @@ point_resolution_service = PointResolutionService(
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+CONDITIONS_PREVIEW_TIMEOUT_SECONDS = 3.0
 
 # Producer fields `/conditions/{spot_id}` passes through into `current` (absent unless set). The hub
 # is a surface that shows surf HEIGHT, so it must also carry QUALITY: "a size without a quality is
@@ -255,9 +257,6 @@ async def get_spot_conditions(
         if data and "current_conditions" in data:
             current = data["current_conditions"]
             
-            raw_point = await point_resolution_service.provider.fetch_point(
-                model=model, domain="marine", layer="waves", lat=spot.latitude, lng=spot.longitude, forecast_days=1
-            )
             # ⛔⛔ THIS LOOP USED TO BE `height * 3.28084`, i.e. the OFFSHORE significant wave height
             # served under `wave_height_ft` — THE SAME FIELD NAME `current` uses for the BREAKING
             # height, in the same payload, with a human label applied to it. Measured live
@@ -268,9 +267,22 @@ async def get_spot_conditions(
             # `spot_conditions.hourly_breaking_forecast`, beside the `_breaking_ft` that `current`
             # already used, so this route MIRRORS the one chain rather than being a second path.
             # ⚠️ Geometry is resolved ONCE here and reused across all hours — arithmetic, not I/O.
-            geometry = resolve_surf_geometry(spot.latitude, spot.longitude)
-            forecast = hourly_breaking_forecast(
-                spot.latitude, spot.longitude, (raw_point or {}).get("hourly"), geometry, limit=6)
+            # Current conditions are authoritative; the preview is an optional enrichment.
+            forecast = []
+            forecast_status = "unavailable"
+            try:
+                raw_point = await asyncio.wait_for(
+                    point_resolution_service.provider.fetch_point(
+                        model=model, domain="marine", layer="waves", lat=spot.latitude,
+                        lng=spot.longitude, forecast_days=1),
+                    timeout=CONDITIONS_PREVIEW_TIMEOUT_SECONDS,
+                )
+                geometry = resolve_surf_geometry(spot.latitude, spot.longitude)
+                forecast = hourly_breaking_forecast(
+                    spot.latitude, spot.longitude, (raw_point or {}).get("hourly"), geometry, limit=6)
+                forecast_status = "available" if forecast else "unavailable"
+            except Exception:
+                logger.warning("Optional conditions preview unavailable for spot %s model %s", spot_id, model)
             
             return {
                 "spot_id": spot_id,
@@ -303,7 +315,8 @@ async def get_spot_conditions(
                     # above, so the hub showed a size and never a quality.
                     **{k: current[k] for k in _HUB_PASSTHROUGH if current.get(k) is not None},
                 },
-                "forecast": forecast
+                "forecast": forecast,
+                "forecast_status": forecast_status,
             }
         else:
             raise HTTPException(status_code=502, detail="Unable to fetch conditions")

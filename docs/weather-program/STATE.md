@@ -1,6 +1,7 @@
 # Weather program: state
 
-**Updated 2026-10-02 17:21Z** (logs: `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
+**Updated 2026-10-03 17:35Z** (logs: `log/2026-10-03-dev-rollout.md` (authorized PR228 rollout, CI/schema/deploy acceptance pending), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
 legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, the scheduler slot fix, the faded heat map diagnosis, the faded heat map fix, and the held-base follow-up), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
@@ -12,6 +13,53 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-03 17:35Z: repair branch pushed; PR #228 open into `dev`.** Owner: "ok push to dev and do all your
+  recommendations" authorizes publishing, checks, merge and rollout of these repairs. Head `0ead508e`; hosted
+  CI37141083745 and Netlify preview pending. Verified Render dashboard: linked branchdev, auto-deploy On Commit,
+  previews Off; deployed backend still e0f93466. Thus merge will affect the shared dev/public backend. Validate
+  schema/backend role and all checks/counts before merge; leave new weather flags default-off. Ledger371 push,
+  372 PR open,373 docs/status. Followup log owns rollout evidence; prior "not pushed/deployed" receipts are historical.
+- **2026-10-03 17:23Z: local OAuth/time checkpoint `cd41353e` read back clean.** Staged gitleaks57.22KB
+  scan found no leaks, ledger prefix/tamper checks passed, docs-only memory0FAIL/2WARN/12NOTE. This docs-only
+  check does not refresh the stale secrets pointer or confirm rotation. Full report/log carry the receipt.
+- **2026-10-03 17:20Z (`codex/audit-repairs`, local continuation): APP-06 authority and WEA-02 comparison built.**
+  Strava binds private routes and callback to verified accounts, with hashed ten-minute single-use state and exact
+  frontend redirects; new cases 22 failures/3 passes before twice, 28 passes with configuration companions after
+  twice. SQL model/migration adds backend-only RLS state store; SQL emission passes twice, live schema/role proof
+  pending. Dark `SIM_SERVED_TIME_MATCH` default 0 uses aligned actual marine/wind hour and model; unknown/mixed
+  frames and stale rating tide/quality are withheld. Weather 21 failures/3 passes before twice, 53 with companions
+  after twice; requested-hour Jacobian null control passes. Integration 339 passes/2 existing skips; estate 734
+  passes/2866 existing skips. Chain projection1876/floor1870, estate735/floor733, margins unchanged. No push,
+  deploy, external schema application or serving flag promotion. Rotation, real OAuth, live PostgreSQL and full
+  spot/run identity remain pending; wider audit stays open. Report: `audit/repairs-2026-10-03-oauth-time/REPORT.md`.
+- **2026-10-03 13:37Z: local checkpoint `6aaf55d6` read back clean.** Secret scan and ledger checks pass;
+  memory 0 FAIL / 3 WARN / 12 NOTE. Followup report/log hold the receipt; no outward change.
+- **2026-10-03 13:33Z (`codex/audit-repairs`, local continuation): next batch validated.** Fourteen messaging
+  routes bind actors to verified JWTs; cleanup requires persisted admin authority. New messaging cases: 47 failures /
+  25 passes before twice, 72 passes after twice. Strict simulation inputs are built DARK (`SIM_STRICT_INPUTS` default
+  0): required/finite fields and measured-zero controls; the strict/legacy cache separation found during verification
+  is fixed. Weather baseline 41 failures / 18 passes twice; separate cache baseline 3 failures / 59 passes twice;
+  final expanded weather instrument 88 passes / 2 existing skips twice (62 new cases). Affected integration 239 passes /
+  2 skips; CI-owned sim consumers 255 passes / 2 skips; full estate 709 passes / 2866 skips. Chain projection 1852,
+  estate 710, margins unchanged. Full guards/chain were not rerun this batch. No push, deploy, provider write or flag
+  promotion; hosted CI, staging and Postgres evidence pending. APP-05 and WEA-05 remain partial; broader audit open.
+  Evidence: `audit/repairs-2026-10-03-followup/REPORT.md`, sanitized results; canonical log above.
+- **2026-10-03 03:32Z (`codex/audit-repairs`): first local batch validated, integration pending.** Required backend
+  lanes: guards 2246 passed / 68 skipped / 1 existing xfail, chain 1790 passed, estate 637 passed / 2866 skipped;
+  zero failures in those lanes. Final focused set 101 passed twice. The estate's Windows crypt test assumption was
+  reproduced twice and corrected without changing hashing or adding skips. Five DCL failures remain in the existing
+  quarantine; the whole-tree probe was capped, not certified green. Ledger, memory, paired scoreboard and sanitized
+  report updated. No served flip, deploy, push, real payment or credential rotation. Hosted CI and staging/Postgres
+  evidence remain pending. Details and partial finding boundaries: `log/2026-10-03-audit-repairs.md`.
+- **2026-10-03 03:13Z (`codex/audit-repairs`, base `origin/dev` `e0f93466`): first audit repair batch built locally.**
+  JWT/owner/admin boundaries, public profile projection, transactional wallet fulfillment, environment-only Strava,
+  optional preview isolation, dark spectral tide cap and per-domain sim provenance have two valid baseline and
+  two fixed runs each. Final combined set: 91 passes twice (69 new regressions + 22 CI controls). CI floors raised
+  with unchanged margins from hosted dev receipt 37048650086; next hosted confirmation pending. Full-tree capped
+  probe stops at the five already quarantined DCL missing-Event-Bus failures (624 passed / 574 skipped). Required
+  lane measurements still being completed. No deploy, real payment, rotation confirmation or served flag change.
+  Strava OAuth state/rotation, remaining account paths, Postgres races/precision and downstream served-hour
+  consumers stay open; full scope: `log/2026-10-03-audit-repairs.md`, `audit/repairs-2026-10-03/REPORT.md`.
 - **2026-10-02 17:21Z (merge of `origin/dev` `ed3a1b46` (#227, merged 17:19:08Z) into `claude/consensus-flip-sweep`,
   auto-fix on #220): RE-CHAINED AGAIN (L-P21).** dev holds seq 1-335 (#227's lines 326-335, among them pr_merge "#223"
   at 330 and "#221" at 331), so this branch's own lines 326-333 are now **dev seq 336-343 (+10)**; its pr_merge "#223"
@@ -319,7 +367,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 345, sha256 f032441b435af621cc5cc5ae53e4463689adf59b5cce01280f9f396ff2433c0c**
+  **Ledger head: seq 373, sha256 ffcb3c2e81e91cdde6b3ab57f60c2b102a6b5d9cf16e2aaed57152a361ae5bcb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
