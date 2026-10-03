@@ -21,7 +21,8 @@ is a claim, not a measurement.
   Runtime SIM_STRICT_INPUTS=0, SIM_SERVED_TIME_MATCH=0, SURF_TIDE_DEPTH=0 twice. Shared public/dev
   backend updates; main and public frontend freeze unchanged. Receipt: audit/dev-rollout-2026-10-03/REPORT.md.
   Post-merge CI37142516639 success with identical counts; E2E37142516586 cancelled at50min.
-  Spot-hub/marine UI failures remain untriaged; no trace artifact. Bounded diagnostic branch built. Commitment172 checked;149/309
+  Spot-hub/marine UI failures remain untriaged; full run has no trace artifact. Diagnostic PR230
+  open, hosted single-attempt Desktop Chrome spot-hub run37146663057 pending. Commitment172 checked;149/309
   open (latest monitor loses +24h operational floor to persistence). Broader audit, real OAuth/payment acceptance,
   rotation and weather skill remain open. Receipt PR229 merged into dev atf2ae19d2; its CI retry passed. Exact dev/public origins
   configured; config redeploy Live1m16s at unchanged3de; actual PG nonce race/replay passes twice
@@ -374,7 +375,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 398, sha256 75eb447ba98b7aa07b2c642b13fbd781c9bb748ff11f38ac7ceca25a83ab5381**
+  **Ledger head: seq 402, sha256 8836a918f819c72051e2d0e9244488856fb610979917816b1fe106c30c0066c3**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

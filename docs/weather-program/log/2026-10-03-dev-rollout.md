@@ -94,3 +94,18 @@ f2ae19d2 (19:03:54Z),398 records three literal argument cases twice. No threshol
 Optional PyYAML unavailable before checks; corrected stdlib extraction plus actual Git Bash
 argv controls passed twice. No YAML parser acceptance claimed; hosted dispatch will validate it.
 Diagnostic branch builds on the merged receipt; product backend remains3de464b8.
+
+## 19:07Z — bounded reproduction dispatched
+
+Ledger399 push8b00573e/400PR230/401dispatch37146663057. Published instrumentation only,
+no live app behavior changed. Desktop Chrome existing spot-hub test, one fresh attempt,
+no retry; hosted result/artifact pending. PR230 attached. Receipt229 already merged.
+
+## 19:11Z — first bounded failure and trace correction
+
+Run37146663057 failed one spot-hub attempt, screenshot final page auth signup. HTML/video retained,
+trace absent because existing config records on-first-retry; zero-retry needed explicit trace option.
+Ledger402 corrects395: diagnostic option now retain-on-failure; argument controls pass twice.
+First failed diagnostic artifact parser found no traces and its non-escalated summary write failed;
+no conclusion credited to that attempt. Screenshot/HTML assertion readback remains valid evidence.
+Second fresh trace-enabled baseline is next; exact401 trigger still unproved.
