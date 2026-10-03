@@ -116,3 +116,5 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-03 22:56Z | identity fcea5557 / p95 evidence prepared | S21/S22 | Owner JWT and strict5s histogram boundary | CI2278/1918/781; prior E2E63/0/0/9; p95 before8fail twice after8pass twice,22companions twice | Identity live after/telemetry hosted pending; counts include all outcomes and do not close population SLO |
 
 | 2026-10-03 23:18Z | dev4ff10cc4 / weekly report import repair prepared | S21/S22 | Identity read gates and runtime positive/null controls | Identity63/0/0/9; latencyCI2286/1918/781; weekly before2fail2pass twice after4pass twice | No weather served-number change; ICON owner incident open; metrics/delivery live pending |
+
+| 2026-10-03 23:42Z | dev012d1e1e / quotaowner repairprepared | S21/S22 | JWTactor × resourceowner; ICONdata vs graphics | CI2286/1918/785; ownership25casepaired; ICON5HTTPcases twice200; secondbrowserfallback | No servedweather change/skillgain; p95tailmiss anddevicefallback open |

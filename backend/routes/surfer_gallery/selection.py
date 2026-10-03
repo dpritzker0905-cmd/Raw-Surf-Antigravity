@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
+from core.security import get_current_user_id
 from datetime import datetime, timezone
 from models import (
     Gallery, GalleryItem, Profile,
@@ -17,6 +18,7 @@ router = APIRouter()
 @router.get("/selection-queue/{surfer_id}")
 async def get_selection_queue(
     surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -24,6 +26,9 @@ async def get_selection_queue(
     Returns sessions where the surfer has photos to select from their "included" allocation.
     """
     
+    if surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Selection queue belongs to another surfer")
+
     # Get all pending quotas
     result = await db.execute(
         select(SurferSelectionQuota)
@@ -115,6 +120,7 @@ async def get_selection_queue(
 async def select_included_photos(
     quota_id: str,
     request: SelectPhotosRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -131,6 +137,9 @@ async def select_included_photos(
     
     if not quota:
         raise HTTPException(status_code=404, detail="Selection quota not found")
+
+    if quota.surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Selection quota belongs to another surfer")
     
     if quota.status != 'pending_selection':
         raise HTTPException(status_code=400, detail="Selection already completed or expired")
@@ -238,6 +247,7 @@ async def select_included_photos(
 @router.get("/selection-queue/{quota_id}/items")
 async def get_selection_eligible_items(
     quota_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -254,6 +264,9 @@ async def get_selection_eligible_items(
     
     if not quota:
         raise HTTPException(status_code=404, detail="Selection quota not found")
+
+    if quota.surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Selection quota belongs to another surfer")
     
     # Get items query
     items_query = select(SurferGalleryItem).where(
@@ -318,6 +331,7 @@ class UpdateSelectionPreferenceRequest(BaseModel):
 async def update_selection_preference(
     quota_id: str,
     request: UpdateSelectionPreferenceRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -334,6 +348,9 @@ async def update_selection_preference(
     
     if not quota:
         raise HTTPException(status_code=404, detail="Selection quota not found")
+
+    if quota.surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Selection quota belongs to another surfer")
     
     if quota.status != 'pending_selection':
         raise HTTPException(status_code=400, detail="Cannot change preference - selection already completed or expired")
@@ -355,6 +372,7 @@ async def update_selection_preference(
 @router.get("/selection-queue/{quota_id}/deadline-info")
 async def get_selection_deadline_info(
     quota_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -371,6 +389,9 @@ async def get_selection_deadline_info(
     
     if not quota:
         raise HTTPException(status_code=404, detail="Selection quota not found")
+
+    if quota.surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Selection quota belongs to another surfer")
     
     now = datetime.now(timezone.utc)
     time_remaining = None
