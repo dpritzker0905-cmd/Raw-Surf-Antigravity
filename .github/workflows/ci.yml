@@ -785,7 +785,9 @@ jobs:
           # 2026-10-03 allocation guard: exact7cd898f4 CI37152927047 confirms2248.
           # Tracked test_grid_* selector owns this28-case file in GUARDS, not chain. Expected2276
           # awaits hosted confirmation;181files and2276-6=2270 retain the same margin.
-          MIN_FILES, MIN_PASSED = 181, 2270
+          # PR233 checkedCI37155975799 read2276; monitor window adds2 ->2278.
+          # Exact181files and margin6 unchanged.
+          MIN_FILES, MIN_PASSED = 181, 2272
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

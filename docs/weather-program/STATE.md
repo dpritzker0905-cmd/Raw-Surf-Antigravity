@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 21:39Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 22:11Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,18 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-03 22:11Z: dev bd070fd6 live; owner spot-hub p95 target five seconds.** PR233
+  exact f9cd9404 CI37155975799 passed guards2276/chain1918/estate749; merged22:00:01Z.
+  Actual Render Live3m06s and exact health200 twice, anonymous badge401 twice. Postmerge CI/
+  E2E37156951424/1431 pending. Allocation e424 after Live/guard/catalog proof passes twice;
+  full browser62passed/0finalfail/1flaky/9existing skips; successful Firefox retry4.34s does not
+  assign the initial failure cause or close reliability/SLO. Retries do not hide missed latency.
+- **2026-10-03 22:11Z: monitor seven-day seam repair prepared on bd070fd6.** Reviewed PR225
+  narrowly, shared window constant; before1fail36pass twice ->37pass twice, checkout37pass twice,
+  84companion checks pass. Guards expected2278/floor2272,181files/margin6 unchanged. Hosted pending.
+  Current dev monitor37157286033 loses +24h MAE.174 versus persistence.170/win49percent/n547;
+  no threshold change or claim of skill improvement. Identity32case isolated candidate remains
+  unadopted; advisory backend lint runtime defects under review. Wider audit stays open.
 - **2026-10-03 21:39Z: CI-history recovery prepared ondev e4242f20.** ExistingPR224
   reviewed/adopted narrowly, plus30s lookup bound and malformed/future/timezoneless refusal.
   Baseline12fail24pass twice ->36pass twice, checkout36pass twice. Real GitHub CLI returned
@@ -402,7 +414,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 461, sha256 fe820c75cf133154b713aba91e85110b50defdb673d0fd5aaa3f07ec8a990e4d**
+  **Ledger head: seq 474, sha256 bf82e667bf31dece3cd0ad5929a0b8e8bf3647b7bbfa3f83c4f0f5b20e0012f2**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

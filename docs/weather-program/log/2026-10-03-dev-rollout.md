@@ -288,3 +288,54 @@ margin2 and guard/chain budgets unchanged. Official source: [GitHub CLI run list
 and [workflow-runs REST endpoint](https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-workflow).
 These docs establish supported filters/fields, not the cause of the observed divergent answers.
 Ledger452push/453PRopen/454retry/455E2E/456body/457CI/458merge/459pairedreview/460realreads/461adoption.
+
+## 2026-10-03 22:11Z — live CI recovery, monitor window, owner latency target
+
+PR233 checked f9cd940466b3f7f6c35b3503f8c8465201f6d217 passed14hosted gates.
+CI37155975799 actual: guards2276passed/66skip/1xfail/12warnings828.15s,181files;
+chain1918passed/7warnings519.81s,147files; estate749passed/2865skip/128warnings42.82s,
+278selected/276results/0silent. Merged dev bd070fd6fc1da1201c25bb47d7e2b8594794bd67
+at22:00:01Z; Render actual Live3m06s. Exact HTTP health200/healthy twice626.8MB,
+anonymous real badge401 twice. Postmerge CI37156951424 and E2E37156951431 still running;
+no new dev merge while shared backend browser acceptance is active.
+
+Allocation e424 actual Live, health200 twice, badge401 twice. Deployed canonical Gitblob source
+9480ff65a6671e91039b0319d36efeb65830affd7903a43ad3fd19b8f686648d matches. Five malformed
+cases rejected twice in bounded separate Shell process, valid small axes unchanged, writes0.
+First source-hash instrument used CRLF working bytes, failed before unsafe calls; corrected to
+canonical Gitblob then both rounds rerun. PG catalog RLS/grants alltrue and three scientific
+serving flags0 twice; these catalog reads are not new SETROLE proof. Full E2E37155710907 has
+62passed/0finalfail/1flaky/9existing skips, HTMLokfalse despite job success. Retained DesktopFirefox
+successful retry has realspot2004342.348ms, badge fixture200; first failure cause unassigned.
+
+Owner selected FIVE SECONDS as response-time target for95percent of dev spot-hub loads.
+Latency must be reported separately from functional success and retries. Initial-attempt timeouts
+count as misses; repeated attempts are separate attempts. A paired two-run instrument does not
+establish population-p95 or close an SLO; deployment/source/cache/load identity must accompany
+sample reports. Browser usable-state timing and API response latency must remain distinct.
+
+Reviewed PR225 at63b1bf8cbf1a2bcd52ebde91c7646ed965277df8. Narrow monitor script/tests adopted
+onto currentdev; current CI floors/ledger retained. Shared seven-day constant drives both archive
+selection and evaluator. During first week fetch previous month once; afterwards no33MBprior
+object fetch. Liveness keeps its shorter original seam; thresholds unchanged. Final instrument:
+BEFORE1failed36passed twice(.19/.19s), AFTER37passed twice(.08/.06s), checkout37passed twice
+(.35/.32s), combined monitor/floor/partition84passed(.68s). Synthetic paired-positive fixture
+proves comparison availability, not real forecast skill or an all-green main verdict. Expected
+hosted guards2276+2=2278/floor2272,181files/margin6; chain1918/floor1912 andestate749/floor747
+unchanged. Hosted/live monitor acceptance pending. Current real monitor37157286033 independently
+red at+24h: n547, oursMAE.174 versus persistence.170, delta+.005m, win49percent; +48/+72win.
+The repair does not conceal that legitimate operational-floor failure; correlation limits inference.
+
+Final isolated identity candidate32controls uses actual keyword helper in baseline, locally generated
+JWTs and DB traps, no model/CDN/photo/customer operations: before30fail2pass twice(.42/.43s),
+after32pass twice(.56/.51s),10warnings. Proposed false/0/unavailable matching and ownerJWT gates
+for3POSTs+pending-listGET. Valid owner GET empty read remains200. Candidate NOT adopted,
+no real biometric implementation or customer claims/access/notification changes. Earlier28case
+and stubbed baseline instruments superseded/excluded. Advisory whole-tree backend lint exposes
+missing os in weekly financial email report, timedelta in selection deadline, json in duplicate
+legacy Stripe handler; exact active route ordering must be verified before any handler repair.
+No financial/email/deadline runtime source changes yet. GitHub transient503 history reads were
+bounded and treated as unavailable, not failed product checks. Local runtime still lacks2declared
+packages and is not CI/production environment parity. Ledger462-473 records these receipts.
+
+Final current candidate rerun:84passed.67s, blocking narrow lint0, actual tracked partition609/181/147/278/2excluded/1quarantine, docs-only memory0FAIL2WARN11NOTE. Initial mistyped companion filename produced0tests and is excluded; corrected full run passed. Ledger474.

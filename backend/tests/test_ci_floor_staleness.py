@@ -436,7 +436,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # test_grid_* selector owns this28-case file in guards; expected2276 awaits hosted confirmation.
 # Guards181files/floor2270/reference2276 keep margin6; chain/estate unchanged.
 # estate749: checked dev/PR232 CI37154741295 read735; retry controls22to36 add14.
-_FLOOR_SET_FROM = {"guards": 2276, "chain": 1918, "estate": 749}
+# guards2278: checkedPR233 CI37155975799 read2276; monitor window adds2.
+_FLOOR_SET_FROM = {"guards": 2278, "chain": 1918, "estate": 749}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

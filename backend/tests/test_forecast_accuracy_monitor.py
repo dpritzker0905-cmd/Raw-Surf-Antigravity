@@ -377,3 +377,65 @@ def test_main_reads_last_months_archive_across_a_month_boundary(monkeypatch, cap
     out = capsys.readouterr().out
     assert "newest scored target 2026-09-30T22:00Z is 2.5 h old" in out
     assert "STOPPED SCORING" not in out and "NOT SCORING" not in out and "SCORED ZERO" not in out
+
+
+# ---------------------------------------------------------------------------------------------
+# THE MONTH SEAM (2026-10-02). The scored archive is keyed by month, the paired skill gate grades the
+# TRAILING SEVEN DAYS, and `main` handed it only THIS month's file -- so for the first week of every
+# month the gate saw a fraction of its window. Scheduled runs 36976044116 (06:57Z, 2026-10-02) said
+# `skill floor +48h not gradeable: n_paired=56 < 200` -> REFUSED, one day after every run through
+# 2026-09-30 was green on the same code. The liveness check already merged last month's file; the
+# paired gate did not. Both directions: it must see last month INSIDE the first week, and must NOT
+# fetch a 33 MB file for the other three weeks (the null control).
+# ---------------------------------------------------------------------------------------------
+
+def _pair_rows(n, first_target, tag):
+    """`n` buoy-target keys for `raw_surf` and `persistence` carrying the same verifying observation;
+    ours is the better forecast, so a graded floor reads `we win` (the positive control)."""
+    rows = []
+    for i in range(n):
+        target = (first_target + timedelta(minutes=30 * i)).isoformat()
+        for source, err in (("raw_surf", 0.15), ("persistence", 0.35)):
+            rows.append({"source": source, "buoy_id": "%s%03d" % (tag, i % 40), "target_time": target,
+                         "lead_h": 48.0, "err_m": err, "hs_m": 1.2, "obs_hs_m": 1.0, "obs_time": target})
+    return rows
+
+
+def _run_main_at(monkeypatch, capsys, now, l2):
+    import scripts.forecast_accuracy_monitor as fam
+    fetched = []
+    report = {**_report(), "generated_at": (now - timedelta(hours=1)).isoformat()}
+
+    def fake_l2(key, timeout=30):
+        fetched.append(key)
+        return l2.get(key)
+    monkeypatch.setenv("SUPABASE_URL", "https://storage.example.invalid")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-not-a-key")
+    monkeypatch.setattr(fam, "_fetch_json", lambda url, timeout=60: report)
+    monkeypatch.setattr(fam, "_fetch_l2", fake_l2)
+    monkeypatch.setattr("sys.argv", ["forecast_accuracy_monitor.py", "--as-of", now.isoformat()])
+    fam.main()
+    return capsys.readouterr().out, fetched
+
+
+def test_the_paired_gate_sees_last_month_inside_the_first_week(monkeypatch, capsys):
+    now = datetime(2026, 10, 2, 7, 0, tzinfo=timezone.utc)
+    l2 = {"calibration/skill/scored-2026-10.json": _pair_rows(28, now - timedelta(hours=20), "O"),
+          "calibration/skill/scored-2026-09.json": _pair_rows(260, datetime(2026, 9, 26, 0, 0, tzinfo=timezone.utc), "S"),
+          "calibration/history/residuals-2026-10.json": []}
+    out, fetched = _run_main_at(monkeypatch, capsys, now, l2)
+    assert "calibration/skill/scored-2026-09.json" in fetched
+    assert "SKILL FLOOR UNMEASURED" not in out and "not gradeable" not in out, out
+    assert any(l.startswith("  vs persistence") and "+48h" in l and "we win" in l for l in out.splitlines()), out
+
+
+def test_the_paired_gate_does_not_fetch_last_month_after_the_first_week(monkeypatch, capsys):
+    """THE NULL CONTROL: mid-month the window lies wholly inside this month's file, so the 33 MB
+    previous-month object must not be downloaded (nothing downstream would read it)."""
+    now = datetime(2026, 10, 20, 7, 0, tzinfo=timezone.utc)
+    l2 = {"calibration/skill/scored-2026-10.json": _pair_rows(260, now - timedelta(days=6), "O"),
+          "calibration/skill/scored-2026-09.json": _pair_rows(5, datetime(2026, 9, 26, tzinfo=timezone.utc), "S"),
+          "calibration/history/residuals-2026-10.json": []}
+    out, fetched = _run_main_at(monkeypatch, capsys, now, l2)
+    assert "calibration/skill/scored-2026-09.json" not in fetched, fetched
+    assert any(l.startswith("  vs persistence") and "we win" in l for l in out.splitlines()), out
