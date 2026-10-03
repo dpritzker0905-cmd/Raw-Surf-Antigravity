@@ -1613,7 +1613,7 @@
       ]
     },
     "environment_limit": "Bundled Python3.12 plus existing dependency directory; explicit local tests package path;2declared packages missing, no virtualenv",
-    "live_acceptance": "pending; candidate isolated, no production edits",
+    "live_acceptance": "Exact deployed tier same-current-file A/B6pairs twice all fields equal; HTTP cross-deploy hashes differ/cause unproved; SLO/skill not closed",
     "neighbor_checks": {
       "files": 13,
       "passed": 275,
@@ -1817,6 +1817,209 @@
         }
       ],
       "limit": "Two serial six-frame reads; no load/concurrency or SLO certification; compare hashes only at fixed actual frames and provider"
+    },
+    "hosted_ci": {
+      "run": 37152927047,
+      "head": "7cd898f45a6f16e53569de61f6a122b3e3bb7416",
+      "counts": [
+        {
+          "lane": "guards",
+          "job": 111290327614,
+          "result": "2248 passed, 66 skipped, 1 xfailed, 12 warnings in 814.20s (0:13:34)"
+        },
+        {
+          "lane": "chain",
+          "job": 111290327710,
+          "result": "1918 passed, 7 warnings in 517.64s (0:08:37)"
+        },
+        {
+          "lane": "estate",
+          "job": 111290327702,
+          "result": "735 passed, 2865 skipped, 128 warnings in 73.18s (0:01:13)"
+        }
+      ]
+    },
+    "live_after": {
+      "observed_at": "2026-10-03T21:10:55.647422+00:00",
+      "request": {
+        "model": "GFS",
+        "domain": "marine",
+        "layer": "waves",
+        "bbox": "-180.0000,-80.0000,180.0000,85.0000",
+        "hours": "0,3,6,9,12,15",
+        "base_time": "2026-10-03T21:00:00.000Z"
+      },
+      "rows": [
+        {
+          "round": 1,
+          "version": "2.0.0-stage-6f-v1-4b152937b98b00ebaf43da88cd9a5f9f8a132ad1",
+          "status": 200,
+          "wall_seconds": 4.0524,
+          "bytes": 3578083,
+          "frames": [
+            {
+              "hour_offset": 0,
+              "valid_time": "2026-10-03T21:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "5ca4cde422cbc2b61396860a121680880051877ef111633e97ad603e4f2a3abc"
+            },
+            {
+              "hour_offset": 3,
+              "valid_time": "2026-10-04T00:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "852adf5e994aca9260527d4b9558e68218030991edfac826d03157059ec3781c"
+            },
+            {
+              "hour_offset": 6,
+              "valid_time": "2026-10-04T03:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "5117cdcab6eb1d05559bfe44aa74900861531ea81ca2f50eb83c79d4430dcf51"
+            },
+            {
+              "hour_offset": 9,
+              "valid_time": "2026-10-04T06:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "dd8a0e4f0740caf2eb58c8279b0f300f22e4b34ea545c2ecc48760b2d1a46e09"
+            },
+            {
+              "hour_offset": 12,
+              "valid_time": "2026-10-04T09:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "a2624cde2bb55f637d5e40e099b011948751d98d60e54694e21cde69f99662a7"
+            },
+            {
+              "hour_offset": 15,
+              "valid_time": "2026-10-04T12:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "f31e6d01d060786c4d991fe84161e9c02fdab85b340b54c16bf16f80f35e4c75"
+            }
+          ],
+          "returned_offsets": [
+            0,
+            3,
+            6,
+            9,
+            12,
+            15
+          ],
+          "memory_before_mb": 578.4
+        },
+        {
+          "round": 2,
+          "version": "2.0.0-stage-6f-v1-4b152937b98b00ebaf43da88cd9a5f9f8a132ad1",
+          "status": 200,
+          "wall_seconds": 1.6237,
+          "bytes": 3578083,
+          "frames": [
+            {
+              "hour_offset": 0,
+              "valid_time": "2026-10-03T21:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "5ca4cde422cbc2b61396860a121680880051877ef111633e97ad603e4f2a3abc"
+            },
+            {
+              "hour_offset": 3,
+              "valid_time": "2026-10-04T00:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "852adf5e994aca9260527d4b9558e68218030991edfac826d03157059ec3781c"
+            },
+            {
+              "hour_offset": 6,
+              "valid_time": "2026-10-04T03:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "5117cdcab6eb1d05559bfe44aa74900861531ea81ca2f50eb83c79d4430dcf51"
+            },
+            {
+              "hour_offset": 9,
+              "valid_time": "2026-10-04T06:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "dd8a0e4f0740caf2eb58c8279b0f300f22e4b34ea545c2ecc48760b2d1a46e09"
+            },
+            {
+              "hour_offset": 12,
+              "valid_time": "2026-10-04T09:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "a2624cde2bb55f637d5e40e099b011948751d98d60e54694e21cde69f99662a7"
+            },
+            {
+              "hour_offset": 15,
+              "valid_time": "2026-10-04T12:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "f31e6d01d060786c4d991fe84161e9c02fdab85b340b54c16bf16f80f35e4c75"
+            }
+          ],
+          "returned_offsets": [
+            0,
+            3,
+            6,
+            9,
+            12,
+            15
+          ],
+          "memory_before_mb": 586.2
+        }
+      ],
+      "limit": "Two serial six-frame reads; no load/concurrency or SLO certification; compare hashes only at fixed actual frames and provider",
+      "before_after_physical_equal": false
+    },
+    "deployed_same_file_control": {
+      "instance": "8hprt",
+      "rounds": 2,
+      "pairs_each": 6,
+      "all_product_fields_equal": true,
+      "all_sources_unchanged": true,
+      "optimized_lane_taken_all": true,
+      "old_cache_vectors_each": 15023,
+      "new_cache_vectors_each": 3822,
+      "limit": "Separate Shell process with L2 helper disabled; process-local kill switch only; no HTTP-worker cache/Render env/source writes; six exact local slices21Z..12Z"
     }
   },
   "pr230_merge": {
@@ -1870,6 +2073,279 @@
         "SIM_SERVED_TIME_MATCH": "0",
         "SURF_TIDE_DEPTH": "0"
       }
+    },
+    "postmerge_e2e": {
+      "run": 37152301831,
+      "job": 111288503621,
+      "head": "449b3b910278c52b5d0dde64d1fd5bee4f0e9ffc",
+      "stats": {
+        "total": 72,
+        "expected": 63,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 9,
+        "ok": true
+      },
+      "nonpassing": [
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 282,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 418,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 280,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 416,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Chrome",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 417,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        }
+      ],
+      "log_counts": [
+        "9 skipped",
+        "63 passed (12.2m)"
+      ]
+    },
+    "postmerge_ci": {
+      "run": 37152301913,
+      "attempt": 2,
+      "status": "success",
+      "first_attempt": "floor-only refusal of48-day stale API result31958635101; no floor relaxed"
     }
+  },
+  "pr231_merge": {
+    "commit": "4b152937b98b00ebaf43da88cd9a5f9f8a132ad1",
+    "at": "2026-10-03T21:05:40Z",
+    "after_live": {
+      "observed_at": "2026-10-03T21:17:40.276690+00:00",
+      "rows": [
+        {
+          "round": 1,
+          "name": "anonymous_real_badge",
+          "status": 401
+        },
+        {
+          "round": 1,
+          "name": "health",
+          "status": 200,
+          "version": "2.0.0-stage-6f-v1-4b152937b98b00ebaf43da88cd9a5f9f8a132ad1",
+          "health": "healthy",
+          "rss_mb": 662.6,
+          "uptime_seconds": 501.1
+        },
+        {
+          "round": 2,
+          "name": "anonymous_real_badge",
+          "status": 401
+        },
+        {
+          "round": 2,
+          "name": "health",
+          "status": 200,
+          "version": "2.0.0-stage-6f-v1-4b152937b98b00ebaf43da88cd9a5f9f8a132ad1",
+          "health": "healthy",
+          "rss_mb": 662.6,
+          "uptime_seconds": 501.6
+        }
+      ]
+    },
+    "e2e": {
+      "run": 37153891426,
+      "job": 111293176809,
+      "status": "pending"
+    }
+  },
+  "clip_allocation_guard_review": {
+    "before": {
+      "failed": [
+        23,
+        23
+      ],
+      "passed": [
+        5,
+        5
+      ],
+      "seconds": [
+        0.25,
+        0.24
+      ]
+    },
+    "after": {
+      "passed": [
+        28,
+        28
+      ],
+      "seconds": [
+        0.06,
+        0.06
+      ]
+    },
+    "limit": "Local isolated source; no tracked adoption/deploy; two interrupted pre-harness probes excluded; final range/loop/placeholder traps and45s timeout",
+    "hashes": {
+      "route_helpers.py": "d42a0b032123edfa764cd610ea03434258cc972d905fcbe24ffaafc0b7958561",
+      "test_grid_clip_allocation_guard.py": "cabe2cb61ce15e391e683eafc68c72879b6e5f3e428d4c383fac1ab49494207f"
+    },
+    "neighbor_final": {
+      "passed": 303,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 4,
+      "seconds": 54.87
+    },
+    "checkout_base": "4b152937b98b00ebaf43da88cd9a5f9f8a132ad1",
+    "checkout_pair": {
+      "passed": [
+        28,
+        28
+      ],
+      "seconds": [
+        0.36,
+        0.36
+      ]
+    },
+    "floor_controls": {
+      "passed": 22,
+      "seconds": 0.42
+    },
+    "partition": {
+      "tracked": 609,
+      "guards": 181,
+      "chain": 147,
+      "estate": 278,
+      "excluded": 2,
+      "quarantined": 1
+    },
+    "expected_guards_passes": 2276,
+    "guards_min_passed": 2270,
+    "chain_min_passed": 1912,
+    "blocking_lint_errors": 0,
+    "live_acceptance": "pending; prepared checkpoint only"
   }
 }

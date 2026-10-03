@@ -782,7 +782,10 @@ jobs:
           # confirming #211's projection. tests/test_series_max_thinning.py (claimed by `--lane guards`) adds 65 executed
           # tests (65 passed locally, 0 skipped): 2183 + 65 = 2248, 2248 - 6 = 2242; files 180 EXACT;
           # _FLOOR_SET_FROM["guards"] -> 2248.
-          MIN_FILES, MIN_PASSED = 180, 2242
+          # 2026-10-03 allocation guard: exact7cd898f4 CI37152927047 confirms2248.
+          # Tracked test_grid_* selector owns this28-case file in GUARDS, not chain. Expected2276
+          # awaits hosted confirmation;181files and2276-6=2270 retain the same margin.
+          MIN_FILES, MIN_PASSED = 181, 2270
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

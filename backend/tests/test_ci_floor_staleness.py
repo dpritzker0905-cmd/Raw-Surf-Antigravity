@@ -345,7 +345,10 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Projections from the same pinned hosted base + first batch, not hosted observations.
 # Capacity repair: checked5d9e92f2 CI37150378034 confirms2248/1876/735; one new chain file
 # adds42 executed controls. Expected1918 needs hosted confirmation; margins6/6/2 unchanged.
-_FLOOR_SET_FROM = {"guards": 2248, "chain": 1918, "estate": 735}
+# Allocation guard: exact7cd898f4 CI37152927047 confirms2248/1918/735. The tracked
+# test_grid_* selector owns this28-case file in guards; expected2276 awaits hosted confirmation.
+# Guards181files/floor2270/reference2276 keep margin6; chain/estate unchanged.
+_FLOOR_SET_FROM = {"guards": 2276, "chain": 1918, "estate": 735}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
