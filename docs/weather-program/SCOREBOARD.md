@@ -33,6 +33,9 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | S16 | Dark sim input boundary (`tests/test_audit_sim_input_validity.py`) | local pytest | finite/missing/zero contracts, single-field Jacobian and strict/legacy cache null controls; not forecast skill |
 | S17 | Messaging actor boundary (`tests/test_audit_message_boundaries.py`) | local HTTP/ORM | discrete identity perturbation, persisted peer-state null controls; cleanup SQL ordering spy, not Postgres algorithm proof |
 
+| S18 | Dark served-time/model comparison (`tests/test_audit_sim_time_contract.py`) | local synthetic HTTP | requested-hour null Jacobian, actual-hour query mapping, mixed/stale frame refusal and flag-off control; not forecast skill |
+| S19 | Strava owner and OAuth state boundary (`tests/test_audit_strava_authority.py`) | local HTTP/JWT/SQLite | caller perturbation with zero denied provider/profile effects; nonce expiry/one-use controls; not live Postgres concurrency |
+
 ## Rows
 
 | Date (UTC) | `dev` | Id | Metric | Value | Source |
@@ -82,3 +85,8 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-03 | local `codex/audit-repairs` | S16 | Strict inputs + cache separation AFTER | 62 new cases pass twice; 88 passes / 2 existing skips with companions; finite input mapping Jacobian identity, exact off-diagonal nulls; complete-input flag A/B equal | same instrument; default-off `SIM_STRICT_INPUTS`, no serving promotion or forecast skill claim |
 | 2026-10-03 | local `0d516a90` | S17 | Messaging authority BEFORE | 47 failed / 25 passed twice, 72 cases; anonymous and forged-actor state requests returned 200 | `audit/repairs-2026-10-03-followup/results.json`; mounted production routers |
 | 2026-10-03 | local `codex/audit-repairs` | S17 | Messaging authority AFTER | 72 passed twice; denied calls leave persistent state unchanged, both legitimate participants change only their own column; no served weather number changes | same instrument, real SQLite ORM; global maintenance ordering tested with a spy |
+
+| 2026-10-03 | local `88c9278e` | S18 | Served-time contract BEFORE | 21 failed / 3 passed twice, 24 cases; requested-hour/GFS query and mixed/stale comparison reproduced | `audit/repairs-2026-10-03-oauth-time/results.json`; synthetic frames |
+| 2026-10-03 | local `codex/audit-repairs` | S18 | Same served-time contract AFTER | 24 new cases pass twice, 53 with companions; requested-hour perturbation has zero height/quality effect at fixed actual frame; actual-hour query mapping matches | same instrument; `SIM_SERVED_TIME_MATCH` default off, no served/skill claim |
+| 2026-10-03 | local `88c9278e` | S19 | Strava authority BEFORE | 22 failed / 3 passed twice, 25 cases; lifecycle cases fail at predictable-state issuer precondition | same result manifest; mounted real JWT routes |
+| 2026-10-03 | local `codex/audit-repairs` | S19 | Same Strava authority AFTER | 25 new cases pass twice, 28 with configuration companions; denied caller effects zero, legitimate owner exchange one, other account unchanged | same instrument; real SQLite ORM, pending real OAuth/Postgres/rotation; no served weather change |

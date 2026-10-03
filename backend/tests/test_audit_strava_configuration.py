@@ -3,6 +3,7 @@ import importlib.util
 from pathlib import Path
 import secrets
 
+from core.security import create_access_token
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -32,16 +33,16 @@ def test_unconfigured_oauth_fails_before_provider_redirect(monkeypatch):
     app = FastAPI()
     app.include_router(module.router, prefix='/strava')
     with TestClient(app) as client:
-        response = client.get('/strava/auth-url?user_id=synthetic&redirect_uri=https://example.invalid/callback')
+        response = client.get('/strava/auth-url?user_id=synthetic&redirect_uri=https://example.invalid/callback',
+                              headers={'Authorization': 'Bearer ' + create_access_token({'sub': 'synthetic'})})
     assert response.status_code == 503
     assert response.json() == {'detail': 'Strava integration is not configured'}
 
 
-def test_configured_oauth_can_build_provider_redirect(monkeypatch):
+def test_configured_oauth_cannot_build_anonymous_provider_redirect(monkeypatch):
     module = load_module(monkeypatch, configured=True)
     app = FastAPI()
     app.include_router(module.router, prefix='/strava')
     with TestClient(app) as client:
         response = client.get('/strava/auth-url?user_id=synthetic&redirect_uri=https://example.invalid/callback')
-    assert response.status_code == 200
-    assert response.json()['url'].startswith('https://www.strava.com/oauth/authorize?')
+    assert response.status_code == 401

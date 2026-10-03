@@ -40,6 +40,7 @@ import time
 import urllib.parse
 import urllib.request
 from typing import Any, Dict, Optional
+from datetime import datetime, timezone
 
 logger = logging.getLogger("weather_sim_mcp")
 
@@ -131,6 +132,8 @@ def fetch_served_rating(lat: float, lng: float, valid_time: str, model: str = "G
         "confirmed": best.get("confirmed"),
         "geometry_readiness": best.get("geometry_readiness"),
         "source": payload.get("source"),
+        "model": payload.get("model"),
+        "valid_time": payload.get("valid_time"),
         # The hour the frame ACTUALLY describes when the deploy reports it. `valid_time` echoes what
         # was asked for, and the stale ladder can serve a frame up to 6 h away — a parity number
         # taken across that gap is measuring the clock, not the composition.
@@ -142,6 +145,55 @@ def fetch_served_rating(lat: float, lng: float, valid_time: str, model: str = "G
     }
     _remember(key, out)
     return out
+
+
+
+def _frame_time(value):
+    """Parse a known absolute frame instant; never invent a zone for a naive timestamp."""
+    if not isinstance(value, str):
+        return None
+    try:
+        instant = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return instant.astimezone(timezone.utc) if instant.tzinfo is not None else None
+
+
+def _comparison_frame(provenance, hour):
+    if os.environ.get("SIM_SERVED_TIME_MATCH", "0") != "1":
+        return {"status": "legacy", "valid_time": provenance.get("valid_time") or hour, "model": "GFS"}
+    identity = provenance.get("product_identity")
+    identity = identity if isinstance(identity, dict) else {}
+    times = []
+    for domain in ("marine", "wind"):
+        item = identity.get(domain)
+        times.append(_frame_time(item.get("served_valid_time")) if isinstance(item, dict) else None)
+    if any(t is None for t in times):
+        return {"status": "unavailable", "reason": "unknown_baseline_frame"}
+    if times[0] != times[1]:
+        return {"status": "unavailable", "reason": "mixed_baseline_frames"}
+    model = provenance.get("model")
+    if model not in {"GFS", "ICON", "EURO"}:
+        return {"status": "unavailable", "reason": "unknown_baseline_model"}
+    return {"status": "aligned", "valid_time": times[0].isoformat().replace("+00:00", "Z"), "model": model}
+
+
+def _observed_for_frame(spot, frame):
+    if frame["status"] == "unavailable":
+        return None, frame
+    item = fetch_served_rating(spot.get("latitude"), spot.get("longitude"), frame["valid_time"],
+                              model=frame["model"], spot_id=spot.get("id"))
+    if frame["status"] == "legacy":
+        return item, frame
+    # A live rating computes the requested hour and names it; a precomputed response must
+    # name the stored frame. Never use its echoed requested hour to excuse a stale fallback.
+    actual = (item or {}).get("served_valid_time")
+    if not actual and (item or {}).get("source") == "live":
+        actual = item.get("valid_time")
+    if (not item or item.get("model") != frame["model"] or
+            _frame_time(actual) != _frame_time(frame["valid_time"])):
+        return None, {**frame, "status": "unavailable", "reason": "observed_frame_mismatch"}
+    return item, frame
 
 
 def served_tide(spot: Dict[str, Any], provenance: Dict[str, Any], baseline_source: str,
@@ -161,8 +213,8 @@ def served_tide(spot: Dict[str, Any], provenance: Dict[str, Any], baseline_sourc
         return None
     if not (provenance or {}).get("served_surf_height_m"):
         return None
-    observed = fetch_served_rating(spot.get("latitude"), spot.get("longitude"),
-                                   provenance.get("valid_time") or hour, spot_id=spot.get("id"))
+    frame = _comparison_frame(provenance, hour)
+    observed, _ = _observed_for_frame(spot, frame)
     return glyph_tide(observed)
 
 
@@ -241,14 +293,18 @@ def parity(wave_simulation: Dict[str, Any], spot: Dict[str, Any], provenance: Di
     served_h = provenance.get("served_surf_height_m") if baseline_source == "live_forecast" else None
     if not served_h:
         return None
+    frame = _comparison_frame(provenance, hour)
+    if frame["status"] == "unavailable":
+        return {"time_comparison": frame}
     sim_m = wave_simulation["breaking_height_ft"] / 3.28084
     out = {
         "served_surf_height_m": round(float(served_h), 4),
         "sim_breaking_height_m": round(sim_m, 4),
         "delta_pct": round((sim_m - float(served_h)) / float(served_h) * 100, 2),
     }
-    observed = fetch_served_rating(spot.get("latitude"), spot.get("longitude"),
-                                   provenance.get("valid_time") or hour, spot_id=spot.get("id"))
+    observed, comparison = _observed_for_frame(spot, frame)
+    if frame["status"] != "legacy":
+        out["time_comparison"] = comparison
     quality = score_parity(wave_simulation.get("quality_rating"), observed,
                            wave_simulation.get("quality_label"))
     if quality:

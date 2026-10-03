@@ -5,8 +5,13 @@ import httpx
 import logging
 from database import get_db, async_session_maker
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from models import Profile
+from sqlalchemy import select, update
+from models import Profile, StravaOAuthState
+from core.security import get_current_user_id
+from datetime import datetime, timedelta, timezone
+from urllib.parse import urlencode, urlsplit
+import hashlib
+import secrets
 import time
 
 logger = logging.getLogger(__name__)
@@ -43,7 +48,7 @@ async def refresh_strava_token_if_needed(profile: Profile, db: AsyncSession) -> 
         })
         
         if res.status_code != 200:
-            logger.error(f"Failed to refresh Strava token: {res.text}")
+            logger.warning("Strava refresh failed status=%s", res.status_code)
             return None
             
         data = res.json()
@@ -55,8 +60,10 @@ async def refresh_strava_token_if_needed(profile: Profile, db: AsyncSession) -> 
         return profile.strava_access_token
 
 @router.get("/status")
-async def get_strava_status(user_id: str):
+async def get_strava_status(user_id: str, current_user_id: str = Depends(get_current_user_id)):
     """Check if the user has connected their Strava account."""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
     async with async_session_maker() as db:
         result = await db.execute(select(Profile).where(Profile.id == user_id))
         profile = result.scalar_one_or_none()
@@ -68,61 +75,88 @@ async def get_strava_status(user_id: str):
             "connected": bool(profile.strava_access_token and profile.strava_refresh_token)
         }
 
+def _redirect_target(redirect_uri):
+    target = redirect_uri or f"{FRONTEND_URL.rstrip('/')}/surf-log"
+    origins = os.environ.get("STRAVA_REDIRECT_ORIGINS", FRONTEND_URL).split(",")
+    allowed = {f"{origin.strip().rstrip('/')}/surf-log" for origin in origins if origin.strip()}
+    parsed = urlsplit(target)
+    if target not in allowed or parsed.scheme not in {"http", "https"} or parsed.username or parsed.password:
+        raise HTTPException(status_code=400, detail="Invalid Strava redirect URI")
+    return target
+
+
 @router.get("/auth-url")
-async def get_strava_auth_url(user_id: str, redirect_uri: str = Query(None)):
-    """Returns the Strava OAuth authorization URL, embedding the user_id in the state parameter."""
+async def get_strava_auth_url(user_id: str, redirect_uri: str = Query(None),
+                             current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    """Issue a short-lived, opaque state bound to the verified linking account."""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
     require_strava_configuration()
-    # Allow the frontend to pass its own origin (e.g. https://raw-surf.com/surf-log)
-    # This prevents hardcoded localhost issues when deployed to production.
-    # Strava's own OAuth dashboard will enforce security validation on this URI.
-    if not redirect_uri:
-        redirect_uri = f"{FRONTEND_URL}/surf-log"
-        
-    url = f"https://www.strava.com/oauth/authorize?client_id={STRAVA_CLIENT_ID}&response_type=code&redirect_uri={redirect_uri}&approval_prompt=force&scope=activity:read_all&state={user_id}"
-    return {"url": url}
+    redirect_uri = _redirect_target(redirect_uri)
+    profile = (await db.execute(select(Profile).where(Profile.id == current_user_id))).scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found")
+    state = secrets.token_urlsafe(32)
+    db.add(StravaOAuthState(state_hash=hashlib.sha256(state.encode()).hexdigest(), user_id=current_user_id,
+                           expires_at=datetime.now(timezone.utc) + timedelta(minutes=10)))
+    await db.commit()
+    query = urlencode({"client_id": STRAVA_CLIENT_ID, "response_type": "code", "redirect_uri": redirect_uri,
+                       "approval_prompt": "force", "scope": "activity:read_all", "state": state})
+    return {"url": "https://www.strava.com/oauth/authorize?" + query}
+
 
 @router.get("/callback")
-async def strava_callback(code: str, state: str, error: str = None):
-    """Exchanges the OAuth code for an access token. Called by the frontend."""
+async def strava_callback(code: str, state: str, error: str = None,
+                          current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    """Frontend callback: verified session plus atomic, expiring one-use linking state."""
     require_strava_configuration()
     if error:
-        raise HTTPException(status_code=400, detail=f"Strava auth error: {error}")
-        
-    if not code or not state:
-        raise HTTPException(status_code=400, detail="Missing code or state")
-        
-    user_id = state
-    
+        raise HTTPException(status_code=400, detail="Strava authorization was denied")
+    if not code or not state or len(state) < 32 or len(state) > 128:
+        raise HTTPException(status_code=400, detail="Invalid or expired Strava authorization state")
+    profile = (await db.execute(select(Profile).where(Profile.id == current_user_id))).scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="User not found")
+    now = datetime.now(timezone.utc)
+    claim = await db.execute(update(StravaOAuthState).where(
+        StravaOAuthState.state_hash == hashlib.sha256(state.encode()).hexdigest(),
+        StravaOAuthState.user_id == current_user_id,
+        StravaOAuthState.expires_at > now,
+        StravaOAuthState.consumed_at.is_(None),
+    ).values(consumed_at=now).returning(StravaOAuthState.user_id))
+    if claim.scalar_one_or_none() is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired Strava authorization state")
+    # Persist the one-use claim before provider I/O: concurrent callbacks and failed exchanges
+    # cannot reuse it. A provider failure requires starting a new authorization flow.
+    await db.commit()
     async with httpx.AsyncClient() as client:
         res = await client.post("https://www.strava.com/oauth/token", data={
-            "client_id": STRAVA_CLIENT_ID,
-            "client_secret": STRAVA_CLIENT_SECRET,
-            "code": code,
-            "grant_type": "authorization_code"
-        })
-        
-        if res.status_code != 200:
-            logger.error(f"Strava token exchange failed: {res.text}")
-            raise HTTPException(status_code=400, detail="Strava token exchange failed")
-            
+            "client_id": STRAVA_CLIENT_ID, "client_secret": STRAVA_CLIENT_SECRET,
+            "code": code, "grant_type": "authorization_code"})
+    if res.status_code != 200:
+        logger.warning("Strava token exchange failed status=%s", res.status_code)
+        raise HTTPException(status_code=400, detail="Strava token exchange failed; please reconnect")
+    try:
         data = res.json()
-        
-        # Save to database
-        async with async_session_maker() as db:
-            result = await db.execute(select(Profile).where(Profile.id == user_id))
-            profile = result.scalar_one_or_none()
-            
-            if profile:
-                profile.strava_access_token = data.get("access_token")
-                profile.strava_refresh_token = data.get("refresh_token")
-                profile.strava_expires_at = data.get("expires_at")
-                await db.commit()
-                
+    except ValueError:
+        data = None
+    if not isinstance(data, dict) or any(not isinstance(data.get(k), str) or not data[k].strip()
+                                         for k in ("access_token", "refresh_token")):
+        raise HTTPException(status_code=502, detail="Invalid Strava token response")
+    expires_at = data.get("expires_at")
+    if isinstance(expires_at, bool) or not isinstance(expires_at, int) or expires_at <= int(time.time()):
+        raise HTTPException(status_code=502, detail="Invalid Strava token response")
+    profile.strava_access_token = data["access_token"]
+    profile.strava_refresh_token = data["refresh_token"]
+    profile.strava_expires_at = expires_at
+    await db.commit()
     return {"success": True, "connected": True}
 
 @router.get("/sync-recent")
-async def sync_recent_activity(user_id: str):
+async def sync_recent_activity(user_id: str, current_user_id: str = Depends(get_current_user_id)):
     """Fetches the most recent surfing activity from Strava for the user."""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
     async with async_session_maker() as db:
         result = await db.execute(select(Profile).where(Profile.id == user_id))
         profile = result.scalar_one_or_none()
@@ -142,7 +176,7 @@ async def sync_recent_activity(user_id: str):
         )
             
         if res.status_code != 200:
-            logger.error(f"Failed to fetch Strava activities: {res.text}")
+            logger.warning("Strava activities fetch failed status=%s", res.status_code)
             raise HTTPException(status_code=res.status_code, detail="Failed to fetch activities from Strava")
             
         activities = res.json()

@@ -1292,7 +1292,10 @@ jobs:
           # projected 144 / 1790, floor 1790 - 6 = 1784. Hosted confirmation pending.
           # Next local audit batch: +62 executed sim-input cases, one chain file.
           # Same hosted base receipt + prior additions: projected 145 / 1852; margin 6.
-          MIN_FILES, MIN_PASSED = 145, 1846
+          # 2026-10-03 OAuth/time audit: pinned hosted base 37048650086 plus earlier owned
+          # additions projected 1852; 24 executed served-time cases -> 1876, margin 6.
+          # Tracked selector now 146 files; hosted confirmation pending.
+          MIN_FILES, MIN_PASSED = 146, 1870
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1645,7 +1648,9 @@ jobs:
           # floor 638 - 2 = 636. Hosted confirmation pending; no budget widened.
           # Next local audit batch: +72 executed messaging cases, one estate file.
           # Same hosted base receipt + prior additions: projected 710; margin 2.
-          MIN_PASSED = 708
+          # 2026-10-03 OAuth/time audit: prior hosted projection 710 + 25 executed OAuth
+          # authority cases = 735; retain margin 2. Windows local count is not calibration.
+          MIN_PASSED = 733
 
           try:
               root = ET.parse('estate.xml').getroot()
