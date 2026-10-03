@@ -155,3 +155,9 @@ The source/evidence repair checkpoint is `32a10a9a` on `codex/audit-repairs`. It
 and clean status were read back. Pre-commit scanned 85.77 KB of staged material and found no
 leaks; this does not certify old history or complete credential rotation. Canonical ledger
 seq 359 records the checkpoint read-back. A separate local closeout commit preserves that record.
+
+The post-checkpoint memory check additionally surfaced a missing historical receipt for PR #220,
+the already merged base of this worktree (temporarily 0 FAIL / 3 WARN / 12 NOTE). GitHub/Git identity
+was verified and the historical receipt backfilled at ledger seq 360; this session performed no
+merge. Seq 361 preserves the audit-reading change, and the published anchor advances with it.
+Final read-back after that backfill: **0 FAIL, 2 WARN, 12 NOTE; ledger 361 entries, OK**.

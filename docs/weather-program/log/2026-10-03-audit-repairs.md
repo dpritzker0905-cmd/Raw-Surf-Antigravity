@@ -88,3 +88,12 @@ Local repair checkpoint `32a10a9a` read back on `codex/audit-repairs`; working t
 that commit. Pre-commit scanned 85.77 KB of staged material with no leaks found; this is not a
 history-wide clearance or a credential-rotation receipt. Ledger seq 359 records that read-back.
 The accompanying closeout checkpoint contains only the verification record. No remote action.
+
+After the first checkpoint, the memory audit exposed one additional completeness warning:
+0 FAIL, 3 WARN, 12 NOTE (the missing receipt for the pre-existing base PR #220). GitHub read-back
+confirms MERGED at 2026-10-02T18:37:06Z, merge commit e0f93466 (Git timestamp 18:37:05Z).
+Ledger seq 360 backfills that historical receipt with acted_at/reconstructed; seq 361 records
+the changed audit reading. This session did not merge that PR or change repair source.
+
+Final read-back after the backfill (c9d0ef): memory audit 0 FAIL, 2 WARN, 12 NOTE; ledger
+361 entries, OK. Only the two pre-existing overdue commitments remain warned.
