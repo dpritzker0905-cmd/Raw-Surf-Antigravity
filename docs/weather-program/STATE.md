@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 17:35Z** (logs: `log/2026-10-03-dev-rollout.md` (authorized PR228 rollout, CI/schema/deploy acceptance pending), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 18:42Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,12 +13,18 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
-- **2026-10-03 17:35Z: repair branch pushed; PR #228 open into `dev`.** Owner: "ok push to dev and do all your
-  recommendations" authorizes publishing, checks, merge and rollout of these repairs. Head `0ead508e`; hosted
-  CI37141083745 and Netlify preview pending. Verified Render dashboard: linked branchdev, auto-deploy On Commit,
-  previews Off; deployed backend still e0f93466. Thus merge will affect the shared dev/public backend. Validate
-  schema/backend role and all checks/counts before merge; leave new weather flags default-off. Ledger371 push,
-  372 PR open,373 docs/status. Followup log owns rollout evidence; prior "not pushed/deployed" receipts are historical.
+- **2026-10-03 18:17Z: PR #228 merged into `dev`; backend live `3de464b8`.** Exact-head
+  CI37141260667 at4f3aaa41: guards2248/chain1876/estate735, projected counts confirmed,14 GitHub checks
+  success. Applied backend-only Strava state schema with twice-before/after catalog and actual-role proofs.
+  Render Auto-Deploy Live3m32s; exact revision health200 twice. All seven anonymous boundary probes401
+  twice; owner messaging and Strava status200 twice; conditions canary healthy twice before/after.
+  Runtime SIM_STRICT_INPUTS=0, SIM_SERVED_TIME_MATCH=0, SURF_TIDE_DEPTH=0 twice. Shared public/dev
+  backend updates; main and public frontend freeze unchanged. Receipt: audit/dev-rollout-2026-10-03/REPORT.md.
+  Post-merge CI37142516639 success with identical counts; E2E pending. Commitment172 checked;149/309
+  open (latest monitor loses +24h operational floor to persistence). Broader audit, real OAuth/payment acceptance,
+  rotation and weather skill remain open. Receipt PR229 open into dev. Exact dev/public origins
+  configured; config redeploy Live1m16s at unchanged3de; actual PG nonce race/replay passes twice
+  with provider mock, owner tokens unchanged. Ledger374-392 records rollout, gap and acceptance.
 - **2026-10-03 17:23Z: local OAuth/time checkpoint `cd41353e` read back clean.** Staged gitleaks57.22KB
   scan found no leaks, ledger prefix/tamper checks passed, docs-only memory0FAIL/2WARN/12NOTE. This docs-only
   check does not refresh the stale secrets pointer or confirm rotation. Full report/log carry the receipt.
@@ -367,7 +373,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 373, sha256 ffcb3c2e81e91cdde6b3ab57f60c2b102a6b5d9cf16e2aaed57152a361ae5bcb**
+  **Ledger head: seq 392, sha256 0f760637f754d85794f796c8d8311b849bc7f44e457e7b5d84d7a94a752c0da1**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
