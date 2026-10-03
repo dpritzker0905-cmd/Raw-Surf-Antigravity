@@ -78,3 +78,19 @@ each exactly one mock-provider call; owner token snapshot unchanged twice, no re
 Direct route functions inject owner; separate HTTP401 proof covers auth boundary. Config redeploy
 health200 twice/RSS608.7/608.8MB; RLS/grants and dark flags0 twice. No served weather value changes.
 Real OAuth/provider consent, rotation, monetary acceptance and weather skill remain open.
+
+## 19:01Z — browser acceptance forensics
+
+Ledger393 publishes8080fa6e receipt;394 records E2E cancellation/attempt rows and actual owner
+read failure then recovery;395 records bounded diagnostic instrument. No served weather number
+changed. No final E2E total/artifact available; neither401 messages nor WebGL warnings prove cause.
+Receipt CI floor refused17-day-old GitHub API reading; attempted job-only rerun refused while
+run active, so no dispatch occurred. Bounded targeted reproduction and completed-run retry pending.
+
+## 19:04Z — receipt merged and diagnostic controls
+
+Ledger396 records completed-run floor retry success,397 records PR229 exact checked merge at
+f2ae19d2 (19:03:54Z),398 records three literal argument cases twice. No thresholds changed.
+Optional PyYAML unavailable before checks; corrected stdlib extraction plus actual Git Bash
+argv controls passed twice. No YAML parser acceptance claimed; hosted dispatch will validate it.
+Diagnostic branch builds on the merged receipt; product backend remains3de464b8.

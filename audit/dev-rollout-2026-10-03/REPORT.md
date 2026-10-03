@@ -169,3 +169,23 @@ After config redeploy, all seven anonymous routes still401 twice and health200 h
 at3de464b8. RSS608.7/608.8MB, peak30.2%, uptime485/486.9s; a short canary, not a capacity SLO.
 RLS/restricted grants and all three dark weather flags were read back successfully twice.
 No served weather number changes from this runtime configuration repair.
+
+## 2026-10-03 19:01Z — browser acceptance remains open
+
+[E2E37142516586](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37142516586)
+was cancelled at its50-minute job bound. No failure-trace artifact survived. Its99 printed
+attempt rows include47 passed/44 failed/8 skipped **attempts**, including retries; these are
+not final test totals. Spot-hub and marine-render journeys fail in multiple browsers.
+The suite seeds synthetic browser users without verified backend identity;401 counts alone
+do not prove causation. A real owner Explore read and spot-hub read each failed once and worked
+on retry. Public dependency reads returned200 twice: Explore9.56/8.78s with8 spots, spot-details
+3.56/4.06s with current and10 forecasts. This is not stable end-to-end acceptance.
+
+Diagnostic workflow changes isolate title/project with quoted argument arrays, allow one fresh
+attempt, and stop the test step at40minutes within the50-minute job bound so always-upload can
+preserve traces. Push acceptance keeps the complete suite, existing assertions and retries.
+The failure has not been attributed or repaired yet; targeted trace reproduction is next.
+
+Report CI37145251962 floor check refused a stale GitHub API reading of a17-day-old successful
+run even though fresh dev CI is available. A targeted retry while the enclosing run was active
+was refused before dispatch; retry after run completion is pending. No threshold was lowered.
