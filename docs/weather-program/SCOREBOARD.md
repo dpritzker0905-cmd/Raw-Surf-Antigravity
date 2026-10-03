@@ -30,6 +30,8 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 
 | S14 | Local spectral tide-cap regression (`tests/test_audit_spectral_tide_cap.py`) | local pytest; dark flags only | hand-derived cap, finite-difference tide Jacobian, scalar/one-partition parity and flag-off null control; not forecast skill |
 | S15 | Local optional preview isolation (`tests/test_audit_conditions_isolation.py`) | local HTTP harness | current-answer invariance under preview perturbations and primary-failure control; not live availability |
+| S16 | Dark sim input boundary (`tests/test_audit_sim_input_validity.py`) | local pytest | finite/missing/zero contracts, single-field Jacobian and strict/legacy cache null controls; not forecast skill |
+| S17 | Messaging actor boundary (`tests/test_audit_message_boundaries.py`) | local HTTP/ORM | discrete identity perturbation, persisted peer-state null controls; cleanup SQL ordering spy, not Postgres algorithm proof |
 
 ## Rows
 
@@ -74,3 +76,9 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-03 | local `codex/audit-repairs` | S14 | Same spectral tide-cap regression, AFTER | 10 new guards pass, twice (21 with existing guards); binding-cap Jacobian 0.81 m/m on both sides of zero; flag-off inert | same instrument; runs 30c134/e38894; `audit/repairs-2026-10-03/results.json`; no flag promotion |
 | 2026-10-03 | local base `e0f93466` | S15 | Optional preview isolation, BEFORE | 13 failed / 1 passed, twice | `tests/test_audit_conditions_isolation.py`; runs 451298/95ff2b; synthetic provider perturbations |
 | 2026-10-03 | local `codex/audit-repairs` | S15 | Same optional preview isolation, AFTER | 14 passed, twice; current height/rating/time invariant; successful six-hour preview and primary-failure controls pass | same instrument; runs 66ec57/760bab; no live availability measurement |
+
+| 2026-10-03 | local `0d516a90` | S16 | Required sim inputs BEFORE, 59 cases | 41 failed / 18 passed twice; missing directions/period became zero and nonfinite inputs survived or raised | `audit/repairs-2026-10-03-followup/results.json`; same instrument baseline hashes |
+| 2026-10-03 | local uncommitted strict build | S16 | Strict/legacy cache separation BEFORE, expanded 62 cases | 3 failed / 59 passed twice: both toggle directions and cache peek reused the wrong lane | same instrument, cache-before hashes; regression found before any deploy |
+| 2026-10-03 | local `codex/audit-repairs` | S16 | Strict inputs + cache separation AFTER | 62 new cases pass twice; 88 passes / 2 existing skips with companions; finite input mapping Jacobian identity, exact off-diagonal nulls; complete-input flag A/B equal | same instrument; default-off `SIM_STRICT_INPUTS`, no serving promotion or forecast skill claim |
+| 2026-10-03 | local `0d516a90` | S17 | Messaging authority BEFORE | 47 failed / 25 passed twice, 72 cases; anonymous and forged-actor state requests returned 200 | `audit/repairs-2026-10-03-followup/results.json`; mounted production routers |
+| 2026-10-03 | local `codex/audit-repairs` | S17 | Messaging authority AFTER | 72 passed twice; denied calls leave persistent state unchanged, both legitimate participants change only their own column; no served weather number changes | same instrument, real SQLite ORM; global maintenance ordering tested with a spy |

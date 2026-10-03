@@ -1290,7 +1290,9 @@ jobs:
           # 2026-10-03 audit repairs: hosted dev run 37048650086 at e0f93466 confirms
           # 142 files / 1777 passes. Two selector-owned files add 13 executed cases:
           # projected 144 / 1790, floor 1790 - 6 = 1784. Hosted confirmation pending.
-          MIN_FILES, MIN_PASSED = 144, 1784
+          # Next local audit batch: +62 executed sim-input cases, one chain file.
+          # Same hosted base receipt + prior additions: projected 145 / 1852; margin 6.
+          MIN_FILES, MIN_PASSED = 145, 1846
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1641,7 +1643,9 @@ jobs:
           # 2026-10-03 audit repairs: the same hosted dev receipt confirms 582.
           # Four selector-owned files add 56 executed cases: projected 638;
           # floor 638 - 2 = 636. Hosted confirmation pending; no budget widened.
-          MIN_PASSED = 636
+          # Next local audit batch: +72 executed messaging cases, one estate file.
+          # Same hosted base receipt + prior additions: projected 710; margin 2.
+          MIN_PASSED = 708
 
           try:
               root = ET.parse('estate.xml').getroot()

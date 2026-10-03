@@ -341,7 +341,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Audit repairs, 2026-10-03: hosted dev run 37048650086 confirms 2248/1777/582.
 # Executed, selector-owned additions chain +13, estate +56; next hosted receipt
 # must confirm these projections. Preserve the existing margins 6/6/2.
-_FLOOR_SET_FROM = {"guards": 2248, "chain": 1790, "estate": 638}
+# Continued audit repairs: selector-owned executed additions chain +62 / estate +72.
+# Projections from the same pinned hosted base + first batch, not hosted observations.
+_FLOOR_SET_FROM = {"guards": 2248, "chain": 1852, "estate": 710}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

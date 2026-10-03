@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 03:39Z** (logs: `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 13:33Z** (logs: `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,16 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-03 13:33Z (`codex/audit-repairs`, local continuation): next batch validated.** Fourteen messaging
+  routes bind actors to verified JWTs; cleanup requires persisted admin authority. New messaging cases: 47 failures /
+  25 passes before twice, 72 passes after twice. Strict simulation inputs are built DARK (`SIM_STRICT_INPUTS` default
+  0): required/finite fields and measured-zero controls; the strict/legacy cache separation found during verification
+  is fixed. Weather baseline 41 failures / 18 passes twice; separate cache baseline 3 failures / 59 passes twice;
+  final expanded weather instrument 88 passes / 2 existing skips twice (62 new cases). Affected integration 239 passes /
+  2 skips; CI-owned sim consumers 255 passes / 2 skips; full estate 709 passes / 2866 skips. Chain projection 1852,
+  estate 710, margins unchanged. Full guards/chain were not rerun this batch. No push, deploy, provider write or flag
+  promotion; hosted CI, staging and Postgres evidence pending. APP-05 and WEA-05 remain partial; broader audit open.
+  Evidence: `audit/repairs-2026-10-03-followup/REPORT.md`, sanitized results; canonical log above.
 - **2026-10-03 03:32Z (`codex/audit-repairs`): first local batch validated, integration pending.** Required backend
   lanes: guards 2246 passed / 68 skipped / 1 existing xfail, chain 1790 passed, estate 637 passed / 2866 skipped;
   zero failures in those lanes. Final focused set 101 passed twice. The estate's Windows crypt test assumption was
@@ -336,7 +346,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 361, sha256 a44795db15a67895d7095306b967ee59257f55dc3c493c9291b0c54b90cd1284**
+  **Ledger head: seq 364, sha256 3f807fb38b31d3ea52f237d24439750dbbe2c25d16df8317b9477c2678c787dd**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

@@ -28,11 +28,16 @@ import asyncio
 router = APIRouter()
 
 @router.get("/messages/check-thread/{user_id}/{recipient_id}")
-async def check_existing_thread(user_id: str, recipient_id: str, db: AsyncSession = Depends(get_db)):
+async def check_existing_thread(user_id: str, recipient_id: str, db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     """
     Lazy thread check: Returns existing conversation ID if one exists.
     Does NOT create a new conversation - that happens on first message send.
     """
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+
     # Sort user IDs for consistent lookup
     sorted_ids = sorted([user_id, recipient_id])
     
@@ -500,7 +505,13 @@ async def get_conversation_messages(
     )
 
 @router.post("/messages/accept/{conversation_id}")
-async def accept_message_request(conversation_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
+async def accept_message_request(conversation_id: str, user_id: str | None = None, db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    if user_id is not None and user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+    user_id = current_user_id
+
     result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     
@@ -518,7 +529,13 @@ async def accept_message_request(conversation_id: str, user_id: str, db: AsyncSe
     return {"message": "Message request accepted"}
 
 @router.delete("/messages/conversation/{conversation_id}")
-async def delete_conversation(conversation_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_conversation(conversation_id: str, user_id: str | None = None, db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    if user_id is not None and user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+    user_id = current_user_id
+
     result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     
@@ -537,8 +554,14 @@ async def delete_conversation(conversation_id: str, user_id: str, db: AsyncSessi
 
 
 @router.post("/messages/conversation/{conversation_id}/pin")
-async def toggle_pin_conversation(conversation_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
+async def toggle_pin_conversation(conversation_id: str, user_id: str | None = None, db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     """Toggle pin status for a conversation"""
+    if user_id is not None and user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+    user_id = current_user_id
+
     result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     
@@ -559,8 +582,14 @@ async def toggle_pin_conversation(conversation_id: str, user_id: str, db: AsyncS
 
 
 @router.post("/messages/conversation/{conversation_id}/mute")
-async def toggle_mute_conversation(conversation_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
+async def toggle_mute_conversation(conversation_id: str, user_id: str | None = None, db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     """Toggle mute status for a conversation"""
+    if user_id is not None and user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+    user_id = current_user_id
+
     result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     
@@ -581,8 +610,14 @@ async def toggle_mute_conversation(conversation_id: str, user_id: str, db: Async
 
 
 @router.post("/messages/conversation/{conversation_id}/mark-unread")
-async def toggle_unread_conversation(conversation_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
+async def toggle_unread_conversation(conversation_id: str, user_id: str | None = None, db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     """Toggle mark as unread for a conversation"""
+    if user_id is not None and user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+    user_id = current_user_id
+
     result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     
@@ -603,8 +638,13 @@ async def toggle_unread_conversation(conversation_id: str, user_id: str, db: Asy
 
 
 @router.get("/messages/unread-counts/{user_id}")
-async def get_unread_counts(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_unread_counts(user_id: str, db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     """Get unread message counts for both primary inbox, requests, and Grom Zone"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+
     from models import RoleEnum
     
     # Get user to check if Grom
