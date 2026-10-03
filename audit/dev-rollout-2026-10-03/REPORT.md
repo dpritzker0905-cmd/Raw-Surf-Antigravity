@@ -500,3 +500,62 @@ itself is not proof of gallery/object ownership ([OWASP object authorization](ht
 Latency is reported independently from errors and failed requests ([Google SRE monitoring](https://sre.google/sre-book/monitoring-distributed-systems/)).
 These primary sources inform checks; they do not prove this app passed. Local runtime2missing
 packages/notvirtualenv still limits parity. Ledger475-481 records rollout and preparation.
+
+## 2026-10-03 22:44Z - actual monitor acceptance and next repair boundaries
+
+PR235 exact3dca2ec99cbaacb1df50dc60fe171dd28f30e1ce pushed/created/attached, hosted pending.
+Secret scans44.74KBclean, canonical memory0FAIL2WARN11NOTE; no whole-env parity.
+Render actual8ec73bd1 Live; health200/healthy582.1MB twice, anonymous badge401 twice.
+Archive workflows37159003598/37159077830 bothSUCCESS/verdictOK at exact8ec. Sept+Oct supplied
+178170rows, trailing7days48229rows. +24n2710 MAE.236vs.persistence.362/delta-.126m/win57percent;
++48n2268 .245vs.617/delta-.371/win70percent; +72n2707 .255vs.711/delta-.456/win72percent.
+Liveness newesttarget2026-10-03T22:00Z/.6h in both. Earlier October-only +24n547/.174vs.170/win49
+is a DIFFERENT target window: real archive-window coverage corrected, not physical forecast
+improvement or significance proof. Archive blob hashes not retained, no identical-source claim.
+Scientific flags/skill thresholds unchanged. Log label incorrectly says178170rows thismonth when
+two segments supplied; correction remains. Commitment309 asks for next scheduled run, these
+are manual;283 includes pre-first-segment behavior not proven. Both commitments remain open.
+
+Runtime repair isolated: initial9case baseline5fail4pass(.81s), ONE run, not final paired evidence.
+Real Notification SQLite persistence and mocked session/provider boundaries reveal missingos
+weekly email stage (in-app notification alreadyqueued/persisted despite email failure), missing
+timedelta (reminder flag set before failed deadline extension), dict binding to Text column failure,
+and absent GalleryItem.is_selected_by_surfer/is_favorite and SurferGalleryItem.selection_type/
+selected_at. Actual model stores per-surfer Locker selection_eligible/access_type/is_favorite.
+Correct owner/session/gallery pool and preserved entitlements must precede restored auto-selection;
+no fictitious ORM fields, final after pair, tracked runtime adoption or actual scheduler delivery.
+Shadowed root Stripe duplicate removal candidate stays isolated. Five-second SLO, browser reliability,
+frontend selfie capability/legacy confidence, broader media/payment/provider/rotation acceptance
+remain open. Ledger482-486 records receipts.
+
+## 2026-10-03 22:56Z - identity dev merge and truthful five-second latency evidence
+
+Monitor8ec full browser37158719254/job111307435209:63passed/0finalfail/0flaky/9existing skips,
+HTMLoktrue. No retries; skips still limit weather-rendering acceptance and this is not a p95 SLO.
+Identity exact3dca2ec99cbaacb1df50dc60fe171dd28f30e1ce all hosted gates pass.
+CI37158928246 actual guards2278/66skip/1xfail12warnings907.03s181files;
+chain1918/7warnings541.92s147files; estate781/2865skip137warnings74.42s,
+279selected277results0silent. Merge devfcea55573cf3840f073aada4810882be3d4f4e69
+at22:54:29Z. Actual identity deploy, paired after boundaries and full postmerge E2E pending.
+
+Latency evidence repair adds p95 to existing bounded per-route/total histograms and counts
+requests strictly OVER5000ms using existing buckets. No new retained samples, unbounded labels,
+egress, dependency, client timeout, retry, data serving or cache behavior. Fast5xx remains an
+error independently of timing; row latency includes all statuses and cannot by itself establish
+successful spot-hub-load SLO. Metrics cumulative since process start, top30 route list; client
+and browser usable-state timing remain separate. p95 is bucket UPPER BOUND, overflow marker
+>=10000ms with printed maximum, not an exact percentile. Slow markers absent on clean rows.
+Decimal presentation rounds percentile/max upper bounds UP to tenths:5000.01ms cannot appear
+as5000.0ms and be misread as a target pass. Exact threshold count survives quantization.
+
+Initial six-case positive instrument superseded by eight-case final decimal controls. First
+checkout found1fail21pass: zero-valued slow marker violated existing healthy-row contract.
+Preserved that contract, pinned BEFORE to exact3dca original Git blob after adoption, reran
+whole final pair:8failed twice(.05/.04s),8passed twice(.04/.03s); actual checkout22telemetry/
+percentile checks pass twice3.63/3.37s,3warnings. No test softened. Checked hostedguards2278
+plus8projects2286/floor2280,181files andmargin6 unchanged; chain1918/floor1912 and
+estate781/floor779 unchanged. Hosted/live proof pending. This fixes measurement, not the
+observed API latency or population p95. Isolated scheduler/media model repair remains unfinished,
+no actual scheduler/customer execution. Ledger487-490 records these receipts.
+
+Final latency checkpoint:69telemetry/floor/lane companions passed4.48s,3warnings; changed-file blocking lint0; actual tracked partition610/181/147/279/2excluded/1quarantine; ledger prefix490OK and docs-only memory0FAIL2WARN11NOTE. Note-only response text clarifies cumulative/all-status counts and upward decimal rounding; no behavioral change after these checks.

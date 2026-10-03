@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 22:33Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 22:56Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,21 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-03 22:56Z: identity PR235 merged devfcea5557 at22:54:29Z.** Exact3dca2ec9
+  hosted allgreen2278/1918/781; actual identity deploy/after boundaries/full E2E pending.
+  Prior monitor8ec full browser63passed/0fail/0flaky/9existing skips, HTMLoktrue.
+- **2026-10-03 22:56Z: owner five-second latency evidence prepared.** p95 conservative buckets and
+  exact over5000ms counts on bounded existing telemetry; metrics cumulative/all outcomes,
+  separate from browser success. Conservative rounding prevents5000.01ms becoming5000.0ms.
+  Healthy slow markers remain absent. Final8beforefail twice ->8afterpass twice, existing22
+  telemetry checks pass twice. Expectedguards2286/floor2280/margin6;181files unchanged.
+  Hosted/live pending; measurement upgrade does not repair API tail or close population p95.
+- **2026-10-03 22:44Z: monitor8ec73bd1 live/archive acceptance.** Health200/badge401 twice.
+  Actual37159003598/37159077830 bothOK over restored7days: +24n2710/.236vs.362/win57percent.
+  Earlier October-only loss is a different target window, not forecast improvement proof.
+  Newesttarget22:00Z/.6h fresh. Log label still says thismonth although two archives supplied;
+  correction remains. Scheduled-run/missing-first-segment commitments remain open. PR235
+  exact3dca2ec9 hosted running; runtime isolated9cases initial5fail4pass, not final paired proof.
 - **2026-10-03 22:33Z: monitor PR234 merged dev8ec73bd1 at22:31:06Z.** Checked f395a503
   all gates pass with actual2278/1918/749. Actual Render and new monitor readback pending.
   Priorbd full E2E62passed/0finalfail/1flaky/9existing skips; retained Chrome retry15s timeout.
@@ -425,7 +440,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 481, sha256 490b88f52ef4225db4efdde002805c153ec923baf3850439b7ca1ac6763d6130**
+  **Ledger head: seq 490, sha256 db7ec37bdd65500f470e523b9dfc9342c408e236000692619060bd6e17732b6a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

@@ -110,3 +110,7 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-03 22:11Z | dev bd070fd6 / monitor candidate | S21/S22 | Owner p95 target5s; seven-day window archive selection | Live health/denial paired; CI2276/1918/749; monitor37pass twice and84companions | Browser62pass1flaky9skips; monitor real+24h loss; SLO and broader audit open |
 
 | 2026-10-03 22:33Z | monitor8ec73bd1 / identity repair prepared | S21/S22 | Window seam and verified actor vary; truthful unavailable null controls | Monitor CI2278/1918/749; identity before30fail twice after32pass twice;190companions | Live identity after and frontend capability open; spot API5.24/4.40s does not close p95; skill loss persists |
+
+| 2026-10-03 22:44Z | live monitor8ec73bd1 | S21/S22 | Intended trailing-week archives supplied | Two actual runsOK; +24n2710/.236vs.362/win57percent; paired health/auth | Changed window, not forecast improvement; next-scheduled/missing-first-segment/p95 remain open |
+
+| 2026-10-03 22:56Z | identity fcea5557 / p95 evidence prepared | S21/S22 | Owner JWT and strict5s histogram boundary | CI2278/1918/781; prior E2E63/0/0/9; p95 before8fail twice after8pass twice,22companions twice | Identity live after/telemetry hosted pending; counts include all outcomes and do not close population SLO |

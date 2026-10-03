@@ -6,6 +6,7 @@ quantified" caveat. These tests drive the REAL ASGI middleware with hand-built s
 TestClient dependency) and pin the design bounds: template-not-path, the cardinality cap, 5xx
 accounting including handler exceptions, conservative percentiles, and the kill switch."""
 import asyncio
+import math
 import os
 import sys
 
@@ -154,3 +155,36 @@ def test_the_health_payload_carries_the_block():
     src = inspect.getsource(H.health_check)
     assert "request_telemetry" in src and "_telemetry_snapshot" in src, (
         "routes/health.py no longer exposes request_telemetry — the denominators are dark again")
+
+
+# Owner dev response-time target: five seconds for95% of spot-hub loads. These are
+# conservative server request buckets/counts, distinct from browser/functional acceptance.
+@pytest.mark.parametrize('fast,slow,bounds,overflow',[(95,5,5000,False),(94,6,20000,True)])
+def test_p95_tail_and_exact_five_second_misses(fast,slow,bounds,overflow):
+ for _ in range(fast):T.record('GET','/api/explore/spot-details/{spot_id}',200,4000)
+ for _ in range(slow):T.record('GET','/api/explore/spot-details/{spot_id}',200,20000)
+ out=T.snapshot();row=out['top_routes'][0]
+ assert row['p95_ms']==bounds and out['total']['p95_ms']==bounds
+ assert row.get('over_5000ms',0)==slow and out['total'].get('over_5000ms',0)==slow
+ assert row['n']==100 and row['err_5xx']==0
+ assert ('p95_ge_ms' in row)==overflow
+ assert ('p95_ge_ms' in out['total'])==overflow
+ if overflow:assert row['p95_ge_ms']==10000
+@pytest.mark.parametrize('ms,miss',[(5000,0),(5000.01,1)])
+def test_five_second_boundary_counts_real_misses(ms,miss):
+ T.record('GET','/api/x',200,ms);row=T.snapshot()['top_routes'][0]
+ assert row.get('over_5000ms',0)==miss and T.snapshot()['total'].get('over_5000ms',0)==miss
+ assert row['p95_ms']==math.ceil(ms*10)/10
+def test_fast_error_is_visible_separately_from_latency():
+ T.record('GET','/api/x',503,20);row=T.snapshot()['top_routes'][0]
+ assert row['p95_ms']==20 and row.get('over_5000ms',0)==0 and row['err_5xx']==1
+def test_empty_has_no_percentile_and_zero_misses():
+ total=T.snapshot()['total']
+ assert total['n']==0 and total['p95_ms'] is None and total.get('over_5000ms',0)==0
+
+@pytest.mark.parametrize('ms',[8.04,5000.01])
+def test_decimal_presentation_never_rounds_a_percentile_below_observed_latency(ms):
+ T.record('GET','/api/x',200,ms);out=T.snapshot();row=out['top_routes'][0]
+ for key in ('p50_ms','p90_ms','p95_ms','p99_ms'):
+  assert ms<=row[key]<=row['max_ms']
+ assert ms<=out['total']['p50_ms']<=out['total']['max_ms']

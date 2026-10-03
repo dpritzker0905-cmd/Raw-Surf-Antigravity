@@ -85,9 +85,9 @@ def _percentile_ms(entry: dict, q: float):
         if acc >= target:
             if i < len(BUCKET_BOUNDS_MS):
                 # Still an upper bound, just never above what was actually observed.
-                return round(min(float(BUCKET_BOUNDS_MS[i]), entry["max_ms"]), 1), False
-            return round(entry["max_ms"], 1), True
-    return round(entry["max_ms"], 1), True
+                return math.ceil(min(float(BUCKET_BOUNDS_MS[i]), entry["max_ms"]) * 10) / 10, False
+            return math.ceil(entry["max_ms"] * 10) / 10, True
+    return math.ceil(entry["max_ms"] * 10) / 10, True
 
 
 def snapshot(top: int = 30) -> dict:
@@ -101,40 +101,50 @@ def snapshot(top: int = 30) -> dict:
         for i, c in enumerate(entry["buckets"]):
             total["buckets"][i] += c
     _t50, _t50_of = _percentile_ms(total, 0.50)
+    _t95, _t95_of = _percentile_ms(total, 0.95)
     _t99, _t99_of = _percentile_ms(total, 0.99)
     rows: List[dict] = []
     ranked = sorted(_routes.items(), key=lambda kv: kv[1]["n"], reverse=True)[:max(0, top)]
     for (method, template), entry in ranked:
         p50, p50_of = _percentile_ms(entry, 0.50)
         p90, p90_of = _percentile_ms(entry, 0.90)
+        p95, p95_of = _percentile_ms(entry, 0.95)
         p99, p99_of = _percentile_ms(entry, 0.99)
         row = {
             "route": f"{method} {template}", "n": entry["n"], "err_5xx": entry["err"],
             "avg_ms": round(entry["sum_ms"] / entry["n"], 1) if entry["n"] else None,
-            "p50_ms": p50, "p90_ms": p90, "p99_ms": p99,
-            "max_ms": round(entry["max_ms"], 1),
+            "p50_ms": p50, "p90_ms": p90, "p95_ms": p95, "p99_ms": p99,
+            "max_ms": math.ceil(entry["max_ms"] * 10) / 10,
         }
         # ABSENT unless true, so a clean row stays clean and the marker means something when it
         # appears. `over_top_bucket` is the COUNT that exceeded the last bound -- the fact a reader
         # needs to judge whether an overflow percentile represents many requests or one outlier.
+        over_five = sum(entry["buckets"][BUCKET_BOUNDS_MS.index(5000) + 1:])
+        if over_five:
+            row["over_5000ms"] = over_five
         over = entry["buckets"][-1]
         if over:
             row["over_%dms" % BUCKET_BOUNDS_MS[-1]] = over
-        for name, flag in (("p50", p50_of), ("p90", p90_of), ("p99", p99_of)):
+        for name, flag in (("p50", p50_of), ("p90", p90_of), ("p95", p95_of), ("p99", p99_of)):
             if flag:
                 row[name + "_ge_ms"] = float(BUCKET_BOUNDS_MS[-1])
         rows.append(row)
     return {
         "started_at": _started_at, "routes_tracked": len(_routes),
         "total": {"n": total["n"], "err_5xx": total["err"],
-                  "p50_ms": _t50, "p99_ms": _t99, "max_ms": round(total["max_ms"], 1),
+                  "p50_ms": _t50, "p95_ms": _t95, "p99_ms": _t99, "max_ms": math.ceil(total["max_ms"] * 10) / 10,
+                  **({"over_5000ms": sum(total["buckets"][BUCKET_BOUNDS_MS.index(5000) + 1:])}
+                     if sum(total["buckets"][BUCKET_BOUNDS_MS.index(5000) + 1:]) else {}),
                   **({"p50_ge_ms": float(BUCKET_BOUNDS_MS[-1])} if _t50_of else {}),
+                  **({"p95_ge_ms": float(BUCKET_BOUNDS_MS[-1])} if _t95_of else {}),
                   **({"p99_ge_ms": float(BUCKET_BOUNDS_MS[-1])} if _t99_of else {}),
                   **({"over_%dms" % BUCKET_BOUNDS_MS[-1]: total["buckets"][-1]}
                      if total["buckets"][-1] else {})},
         "top_routes": rows,
         "note": ("percentiles are bucket UPPER BOUNDS, capped at the observed max (read high, "
-                 "never low, never above max_ms); CUMULATIVE since started_at, so they include "
+                 "never low, never above max_ms), rounded UP to tenths of a millisecond. "
+                 "Latency counts include all statuses; errors are reported separately. "
+                 "CUMULATIVE since started_at, so they include "
                  "past stalls and are NOT a current-latency reading; a `pNN_ge_ms` field means "
                  "that percentile only landed in the overflow bucket -- the true value is >= that "
                  "number and the printed pNN_ms is merely max_ms, not a measurement"),
