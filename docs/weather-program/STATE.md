@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 19:32Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 20:05Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -24,7 +24,9 @@ is a claim, not a measurement.
   Full browser acceptance remains open; original full run has no trace artifact. Diagnostic PR230
   open; two fresh spot-hub baselines fail. Trace proves synthetic badge401/session redirect;
   narrow two-identity GET badge fixture passes two fresh after runs (1passed each); real API401
-  twice. Full four-browser E2E37147928653 pending; production auth unchanged. Commitment172 checked;149/309
+  twice. Full E2E37147928653:60pass/2fail/1flaky/9existing skips; Safari fixture bypass and
+  separate Chrome15s spot timeout traced. Fresh Safari baselines1pass/1fail; Explore worker block
+  and explicit fixture-use assertion built, hosted after pending; auth unchanged. Commitment172 checked;149/309
   open (latest monitor loses +24h operational floor to persistence). Broader audit, real OAuth/payment acceptance,
   rotation and weather skill remain open. Receipt PR229 merged into dev atf2ae19d2; its CI retry passed. Exact dev/public origins
   configured; config redeploy Live1m16s at unchanged3de; actual PG nonce race/replay passes twice
@@ -377,7 +379,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 413, sha256 d2f30bbc322609aea89649ff1079d5b71cfe86fa5e5c114c1c2f47bbdf2bdcf5**
+  **Ledger head: seq 422, sha256 f70ea9369739cf8cbda1afea12ccb8a76db78e36060e1b22f3dd89ab02ce51c6**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

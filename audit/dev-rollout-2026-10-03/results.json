@@ -768,7 +768,7 @@
       3.643
     ],
     "full_suite_run": 37147928653,
-    "full_suite_status": "pending"
+    "full_suite_status": "failed: Safari fixture bypass, separate Chrome transport timeout"
   },
   "fixture_live_null_controls": {
     "observed_at": "2026-10-03T19:27:59.409984+00:00",
@@ -802,5 +802,180 @@
         "uptime_seconds": 3362.4
       }
     ]
+  },
+  "e2e_full_first_after": {
+    "run": 37147928653,
+    "head": "288b746279edabbfac96b239c31efd2fdb8e0c31",
+    "stats": {
+      "total": 72,
+      "expected": 60,
+      "unexpected": 2,
+      "flaky": 1,
+      "skipped": 9,
+      "ok": false
+    },
+    "duration_ms": 1308248.6870000002,
+    "nonpassing": [
+      {
+        "file": "booking-flow.spec.js",
+        "title": "clicking a spot opens its spot hub",
+        "project": "Mobile Safari",
+        "outcome": "unexpected",
+        "annotations": []
+      },
+      {
+        "file": "booking-flow.spec.js",
+        "title": "clicking a spot opens its spot hub",
+        "project": "Desktop Safari",
+        "outcome": "unexpected",
+        "annotations": []
+      },
+      {
+        "file": "booking-flow.spec.js",
+        "title": "clicking a spot opens its spot hub",
+        "project": "Desktop Chrome",
+        "outcome": "flaky",
+        "annotations": []
+      },
+      {
+        "file": "marine-render-continuity.spec.js",
+        "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+        "project": "Mobile Safari",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "skip",
+            "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads"
+          }
+        ]
+      },
+      {
+        "file": "marine-render-continuity.spec.js",
+        "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+        "project": "Mobile Safari",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "skip",
+            "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads"
+          }
+        ]
+      },
+      {
+        "file": "marine-render-continuity.spec.js",
+        "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+        "project": "Desktop Firefox",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "skip",
+            "description": "no WebGL on this runner \u2014 this would measure the runner, not the app"
+          }
+        ]
+      },
+      {
+        "file": "marine-render-continuity.spec.js",
+        "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+        "project": "Desktop Firefox",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "skip",
+            "description": "no WebGL on this runner \u2014 this would measure the runner, not the app"
+          }
+        ]
+      },
+      {
+        "file": "weather-simulation.spec.js",
+        "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+        "project": "Mobile Safari",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "fixme",
+            "description": null
+          }
+        ]
+      },
+      {
+        "file": "weather-simulation.spec.js",
+        "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+        "project": "Desktop Chrome",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "fixme",
+            "description": null
+          }
+        ]
+      },
+      {
+        "file": "weather-simulation.spec.js",
+        "title": "surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+        "project": "Desktop Firefox",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "skip",
+            "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app"
+          }
+        ]
+      },
+      {
+        "file": "weather-simulation.spec.js",
+        "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+        "project": "Desktop Firefox",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "fixme",
+            "description": null
+          }
+        ]
+      },
+      {
+        "file": "weather-simulation.spec.js",
+        "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+        "project": "Desktop Safari",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "fixme",
+            "description": null
+          }
+        ]
+      }
+    ]
+  },
+  "pr230_ci": [
+    {
+      "lane": "guards",
+      "job": 111276705378,
+      "result": "2248 passed, 66 skipped, 1 xfailed, 12 warnings in 553.01s (0:09:13)"
+    },
+    {
+      "lane": "chain",
+      "job": 111276705718,
+      "result": "1876 passed, 7 warnings in 527.13s (0:08:47)"
+    },
+    {
+      "lane": "estate",
+      "job": 111276705391,
+      "result": "735 passed, 2865 skipped, 128 warnings in 73.64s (0:01:13)"
+    }
+  ],
+  "safari_worker_control": {
+    "before_runs": [
+      37149619694,
+      37149843112
+    ],
+    "before_results": [
+      "1passed",
+      "1failed"
+    ],
+    "before_failure": "badge401 without fixture marker",
+    "change": "Explore-group serviceWorkers block and completed fixture-use assertion",
+    "after_status": "pending",
+    "production_changes": false
   }
 }

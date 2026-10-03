@@ -7,6 +7,7 @@
 const { URL } = require('node:url');
 
 async function stubSeededMessageBadge(page, userIds) {
+  let fulfilled = 0;
   const origin = new URL(process.env.REACT_APP_BACKEND_URL || 'https://raw-surf-antigravity.onrender.com').origin;
   for (const id of userIds) {
     if (!['test-surfer-id', 'admin-user-id'].includes(id)) {
@@ -18,9 +19,10 @@ async function stubSeededMessageBadge(page, userIds) {
       return route.fulfill({
         json: { total: 0, primary: 0, requests: 0, grom_zone: 0 },
         headers: { 'x-rawsurf-e2e-fixture': 'synthetic-message-badge' },
-      });
+      }).then(() => { fulfilled += 1; });
     });
   }
+  return () => fulfilled;
 }
 
 module.exports = { stubSeededMessageBadge };

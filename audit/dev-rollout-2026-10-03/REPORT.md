@@ -225,3 +225,34 @@ while real spot composition stays live; it is not a numerical weather-accuracy J
 The [full browser suite37147928653](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37147928653)
 is pending at this checkpoint, with all four projects, assertions and normal retries2/worker1.
 The two focused passes do not certify that broader suite. PR230 exact-head CI also follows.
+
+## 2026-10-03 19:56Z — full suite and distinct failure mechanisms
+
+Full37147928653 finished: **60passed,2failed,1flaky,9existing skips**,72 total in21.8min.
+Both Safari spot-hub journeys fail; Chrome spot-hub passes only on retry2. Retained Safari traces
+show synthetic badge401 without the fixture header and cancelled spot request after session redirect.
+Chrome retains fixture200, then a real spot request times out at the unchanged15s Axios budget;
+its final screenshot shows the correct unavailable/manual-retry UI. These are distinct mechanisms.
+
+Playwright recommends blocking service workers for intercepted requests ([official routing docs](https://playwright.dev/docs/api/class-page#page-route)); that is the first controlled hypothesis
+for Safari. Matcher/origin compatibility is the second. Real transport latency remains separate.
+Fresh Safari baseline37149619694 is running; no worker setting or live auth behavior changed yet.
+
+The nine pre-existing skips are four executed-pixel fixmes, two mobile continuity exclusions,
+and three Firefox WebGL capability refusals. They limit device/GL coverage and were not added here.
+Required PR230 CI37148313603 at0fc5e9f6 is successful:2248guard/1876chain/735estate passes,
+with66guard skips/1xfail and2865estate skips; same floors and margins.
+
+## 2026-10-03 20:05Z — intermittent Safari controlled repair
+
+Fresh Safari baselines37149619694/37149843112 are **1passed/1failed** unchanged. Passing trace
+uses fixture200 and real spot2004.876s; failing trace loads worker200, receives badge401 twice
+without fixture marker, and times out at90s. The full suite also retained two failing Safari
+journeys with this mechanism. Do not rewrite the mixed baselines as two fresh failures.
+
+Seeded Explore tests now block service workers per the official interception contract; anonymous
+journeys retain workers. Setup asserts a completed synthetic badge fulfillment. This strengthens
+fixture observability; real identity/auth, spot/weather requests and product code are unchanged.
+Boundary controls pass twice; hosted after pair is pending. Chrome15s timeout remains a separate
+capacity issue. Passive Render CPU chart reaches100percent in that request window; no specific
+heavy function or causal coefficient established.

@@ -149,3 +149,28 @@ Full browser suite and exact-head PR230CI remain pending; broader audit/provider
 Paired doc checkpoint resumed only its document tail after an exact STATE header assertion
 failed before writes. Ledger411-413 already existed and were not appended again; anchor413
 restored. No acceptance claim comes from the failed document script.
+
+## 19:46Z — paired receipt publication readback
+
+Ledger414 records remote0fc5e9f6 paired receipt publication. Full37147928653 still running;
+Chrome spot-hub fails twice then passes retry2, so focused passes do not establish steady acceptance.
+Retained full-suite retry trace will distinguish residual cause; no app/flag change pending it.
+
+## 19:56Z — full browser failure attributed
+
+Ledger415 exact-head PR230CI success with2248/1876/735pass;416 full E2E final60passed/2failed/1flaky/9skipped. Mobile/Desktop Safari traces show badge401 without fixture marker before session redirect/cancelled spot. Chrome trace has fixture200 but real spot request exceeds Axios15s; screenshot recovery state. Four existing GL fixmes, mobile continuity2skip, Firefox unavailable GL3skip; none added. Ledger417 first fresh Safari baseline dispatch37149619694. No app, auth, threshold or weather flag change. Private artifact parsing failed three format assumptions before actual template-format report read succeeded; no conclusions credited to failed parsers.
+
+## 20:02Z — mixed Safari baseline and passive capacity evidence
+
+Ledger418 first fresh Safari baseline passes1 unchanged, fixture200/real spot2004.876s;419 second
+fresh baseline37149843112 running. Full-run Safari failures remain confirmed; reproduction intermittent.
+Ledger420 passive Render CPU chart reaches100percent in Chrome timeout window; memory below half.
+This is correlation, not identified heavy function or an overload benchmark. No app/flag changes.
+
+## 20:05Z — Safari worker control built
+
+Ledger421 second fresh baseline37149843112 fails1, same badge401/no fixture marker; first fresh
+baseline passes1, so intermittent control failure retained honestly. Ledger422 only seeded Explore
+workers blocked and explicit completed-badge-fixture-use setup assertion added. Anonymous worker
+journeys, real spot/weather calls, production auth and existing UI assertions preserved. Boundary
+controls pass twice and syntax valid; hosted after pair next. Chrome capacity remains separate.

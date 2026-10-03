@@ -39,7 +39,7 @@ const standardUser = {
 };
 
 async function signIn(page) {
-  await stubSeededMessageBadge(page, [standardUser.id]);
+  const badgeRequests = await stubSeededMessageBadge(page, [standardUser.id]);
   await page.goto('/auth', { waitUntil: 'domcontentloaded' });
   // Wait for the real access-code verification before leaving this document. In Safari trace
   // 34515311331, navigating early cancelled verification and the gate cleared its stored code.
@@ -51,6 +51,7 @@ async function signIn(page) {
       JSON.stringify({ accepted: true, timestamp: Date.now() }));
     localStorage.setItem('rs-push-prompt-dismissed', Date.now().toString());
   }, { user: standardUser });
+  return badgeRequests;
 }
 
 test.describe('Anonymous access control', () => {
@@ -90,13 +91,19 @@ test.describe('Anonymous access control', () => {
 });
 
 test.describe('Explore', () => {
+  // This seeded-user journey needs its incidental badge fixture to own the request.
+  // Service workers can bypass page.route; anonymous journeys keep service workers enabled.
+  test.use({ serviceWorkers: 'block' });
   test.beforeEach(async ({ page }) => {
-    await signIn(page);
+    const badgeRequests = await signIn(page);
     await page.goto('/explore', { waitUntil: 'domcontentloaded' });
     // ★ THE ASSERTION THE OLD SETUP LACKED. Pin that we are actually ON explore, so an auth
     //   regression fails HERE, naming itself, instead of surfacing as a missing element later.
     await expect(page).toHaveURL(/\/explore/, { timeout: 15000 });
     await expect(page.locator('[data-testid="explore-page"]')).toBeVisible({ timeout: 60000 });
+    await expect.poll(badgeRequests, {
+      message: 'the seeded identity message badge used its declared UI fixture', timeout: 15000,
+    }).toBeGreaterThan(0);
   });
 
   test('explore shows the search input', async ({ page }) => {
@@ -162,8 +169,8 @@ test.describe('Explore', () => {
 });
 
 test.describe('Spot hub transport recovery', () => {
-  // These fault controls require interception to own each request. Keep service workers enabled
-  // in the existing live journeys; Playwright documents that they can bypass page.route.
+  // These fault controls require interception to own each request, as does the seeded Explore
+  // badge fixture. Playwright documents that service workers can bypass page.route.
   test.use({ serviceWorkers: 'block' });
   for (const failure of ['network', '503', 'timeout']) {
     test(`${failure} preserves a manual recovery path`, async ({ page, context, browserName }, testInfo) => {
