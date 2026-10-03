@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 13:33Z** (logs: `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 13:37Z** (logs: `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,8 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-03 13:37Z: local checkpoint `6aaf55d6` read back clean.** Secret scan and ledger checks pass;
+  memory 0 FAIL / 3 WARN / 12 NOTE. Followup report/log hold the receipt; no outward change.
 - **2026-10-03 13:33Z (`codex/audit-repairs`, local continuation): next batch validated.** Fourteen messaging
   routes bind actors to verified JWTs; cleanup requires persisted admin authority. New messaging cases: 47 failures /
   25 passes before twice, 72 passes after twice. Strict simulation inputs are built DARK (`SIM_STRICT_INPUTS` default
@@ -346,7 +348,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 364, sha256 3f807fb38b31d3ea52f237d24439750dbbe2c25d16df8317b9477c2678c787dd**
+  **Ledger head: seq 365, sha256 43956354589420c542e76a2f4a9db32a3769d2df85595fc04e6176ef9cd7ea32**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

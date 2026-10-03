@@ -53,3 +53,13 @@ staging UI and Postgres evidence remain pending. Strava authority/rotation, serv
 tide/MOP and period contracts, scientific skill, payments concurrency, shared capacity, delivery and
 UI/accessibility remain open. Roll back only product paths to `0d516a90` and ledger any rollback;
 keep canonical history append-only.
+
+## 2026-10-03 13:37Z — checkpoint read back
+
+Local product/evidence checkpoint `6aaf55d600a83c96494c1a9c233adb0d928422aa` was read back at
+13:37:39Z. Working tree was clean after it. Gitleaks pre-commit scanned 182.55 KB of staged
+changes and found no leaks; this does not verify provider rotations or clear public history.
+CI partition: 605 tracked test files, guards 180 / chain 145 / estate 277, existing two FastMCP
+exclusions and one quarantine unchanged. Ledger 364 verified, tamper selftest passed, post-commit
+memory 0 FAIL / 3 WARN / 12 NOTE. This receipt is recorded next in the ledger and a docs-only
+checkpoint; no product code is changed by that record. Hosted/staging read-back remains pending.

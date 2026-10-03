@@ -102,3 +102,7 @@ remain open. The next priority is completing Strava authority and served-hour co
 Rollback product changes locally from `0d516a90` using the exact changed product paths. Keep the
 canonical ledger append-only and record any rollback as a new action. Dark switch off restores the
 legacy simulation input lane. Production readiness and the overall audit are not declared complete.
+
+Local checkpoint read-back: `6aaf55d600a83c96494c1a9c233adb0d928422aa`, 2026-10-03 13:37:39Z,
+clean tree. Staged gitleaks scan passed (182.55 KB), ledger tamper checks passed, canonical memory
+0 integrity failures / 3 warnings / 12 notes. This scan does not confirm credential rotation.
