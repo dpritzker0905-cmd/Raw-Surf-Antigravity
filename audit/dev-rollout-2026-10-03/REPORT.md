@@ -559,3 +559,39 @@ observed API latency or population p95. Isolated scheduler/media model repair re
 no actual scheduler/customer execution. Ledger487-490 records these receipts.
 
 Final latency checkpoint:69telemetry/floor/lane companions passed4.48s,3warnings; changed-file blocking lint0; actual tracked partition610/181/147/279/2excluded/1quarantine; ledger prefix490OK and docs-only memory0FAIL2WARN11NOTE. Note-only response text clarifies cumulative/all-status counts and upward decimal rounding; no behavioral change after these checks.
+
+## 2026-10-03 23:18Z - checked latency merge, identity acceptance, owner ICON incident and weekly report
+
+PR236 exact44a923944f913280e4ce6413ada4cd03a13213bc hosted CI37160210176
+all gates pass: guards2286/66skips/1xfail12warnings871.90s181files;
+chain1918/7warnings504.38s147files; estate781/2865skips137warnings73.38s,
+279selected277results0silent. Merged dev4ff10cc44d30948b544e4d53d0738331d9ab2dad
+at2026-10-03T23:16:00Z; current metrics deploy/readback pending. Five-second SLO remains open.
+Prior identityfcea5557 actual RenderLive; health200/healthy384.8MB and real badge401 twice,
+four affected identity anonymous401 twice. This is paired anonymous boundary proof, not live
+owner/foreign-account acceptance. PostmergeCI37160007052 success; full browser37160007109/
+job111311313175 report63passed/0failed/0flaky/9existing rendering skips, HTMLoktrue.
+No retry was required, but weather skips still limit full rendering acceptance.
+
+Owner reports ICON marine long-range heatmap visually not working on live dev. Original
+302-line attachment remains outside tracked repository. Sanitized relevant evidence: ICON
+model switch at hour179 (~7.5days), repeated waves/swell1/windwaves cache misses; resident
+181x80 span360 surface reported with ICON washBase, frameOff0, no terminal upload for those
+ICON waves in supplied excerpt. One swell2 blend reports15023GFS+629EURO inputs. Earlier GFS
+trace died aftermappedGrid and no-downgrade rejected a world grid then self-healed on zoom-out.
+These are separate symptoms, not established cause. No attachment buildSHA/time, HTTP statuses
+or requested/served source/hour readback establishes owner exact deployment. Orphaned browser
+extension streams alone cannot explain or dismiss model-specific behavior. Investigation open;
+no speculative model clamp, zero data, cache purge or served science flag change.
+
+Weekly scheduler active account positive earnings reproduced missingos NameError in both
+configured and unconfigured email cases, while no-account/no-earnings controls pass.
+Final polished four-case BEFORE2failed2passed twice(.97/.98s), candidate4passed twice(.98/.95s),
+actual scheduler package checkout4passed twice(1.63/1.43s). Candidate is exactly one import.
+Mock Resend delivery prevents any actual email; actual Notification ORM Text persistence is
+exercised against fresh SQLite. Query reads are mocked: no claim of actual production SQL
+schema compatibility, real send success or overall financial scheduler correctness.
+Expectedestate781+4=785, floor779+4=783;280estate selected files, guards2286/181,
+chain1918/147 unchanged. Local environment has two declared packages missing; hosted authority
+required. Gallery scheduler missingtimedelta, dict Text payload and nonexistent auto-selection
+fields remain unresolved, candidate not adopted. Ledger491-498 records this checkpoint.

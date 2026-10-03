@@ -3898,7 +3898,156 @@
         }
       ]
     },
-    "live_after": "pending"
+    "live_after": {
+      "health": {
+        "observed_at": "2026-10-03T22:58:39.188230+00:00",
+        "rows": [
+          {
+            "round": 1,
+            "name": "anonymous_real_badge",
+            "status": 401
+          },
+          {
+            "round": 1,
+            "name": "health",
+            "status": 200,
+            "version": "2.0.0-stage-6f-v1-fcea55573cf3840f073aada4810882be3d4f4e69",
+            "health": "healthy",
+            "rss_mb": 384.8,
+            "uptime_seconds": 98.1
+          },
+          {
+            "round": 2,
+            "name": "anonymous_real_badge",
+            "status": 401
+          },
+          {
+            "round": 2,
+            "name": "health",
+            "status": 200,
+            "version": "2.0.0-stage-6f-v1-fcea55573cf3840f073aada4810882be3d4f4e69",
+            "health": "healthy",
+            "rss_mb": 384.8,
+            "uptime_seconds": 98.5
+          }
+        ]
+      },
+      "identity": {
+        "rows": [
+          {
+            "round": 1,
+            "endpoint": "gallery",
+            "anonymous_status": 401,
+            "revision": "2.0.0-stage-6f-v1-fcea55573cf3840f073aada4810882be3d4f4e69"
+          },
+          {
+            "round": 1,
+            "endpoint": "single",
+            "anonymous_status": 401,
+            "revision": "2.0.0-stage-6f-v1-fcea55573cf3840f073aada4810882be3d4f4e69"
+          },
+          {
+            "round": 1,
+            "endpoint": "batch",
+            "anonymous_status": 401,
+            "revision": "2.0.0-stage-6f-v1-fcea55573cf3840f073aada4810882be3d4f4e69"
+          },
+          {
+            "round": 1,
+            "endpoint": "pending",
+            "anonymous_status": 401,
+            "revision": "2.0.0-stage-6f-v1-fcea55573cf3840f073aada4810882be3d4f4e69"
+          },
+          {
+            "round": 2,
+            "endpoint": "gallery",
+            "anonymous_status": 401,
+            "revision": "2.0.0-stage-6f-v1-fcea55573cf3840f073aada4810882be3d4f4e69"
+          },
+          {
+            "round": 2,
+            "endpoint": "single",
+            "anonymous_status": 401,
+            "revision": "2.0.0-stage-6f-v1-fcea55573cf3840f073aada4810882be3d4f4e69"
+          },
+          {
+            "round": 2,
+            "endpoint": "batch",
+            "anonymous_status": 401,
+            "revision": "2.0.0-stage-6f-v1-fcea55573cf3840f073aada4810882be3d4f4e69"
+          },
+          {
+            "round": 2,
+            "endpoint": "pending",
+            "anonymous_status": 401,
+            "revision": "2.0.0-stage-6f-v1-fcea55573cf3840f073aada4810882be3d4f4e69"
+          }
+        ],
+        "limits": "Paired anonymous denials only; same absent synthetic resources, no actual images/provider/customer operations. JWT owner/foreign acceptance proved locally, not live here."
+      },
+      "render_live_revision": "fcea55573cf3840f073aada4810882be3d4f4e69",
+      "limit": "Anonymous paired proof; live JWT owner/foreign acceptance not done"
+    },
+    "postmerge_browser": {
+      "run": 37160007109,
+      "job": 111311313175,
+      "head": "fcea55573cf3840f073aada4810882be3d4f4e69",
+      "stats": {
+        "total": 72,
+        "expected": 63,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 9,
+        "ok": true
+      },
+      "nonpassing": [
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Chrome",
+          "outcome": "skipped"
+        },
+        {
+          "title": "surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Safari",
+          "outcome": "skipped"
+        }
+      ]
+    }
   },
   "latency_evidence_review": {
     "status": "adopted; hosted/live pending",
@@ -3950,5 +4099,115 @@
     "expected_guards": 2286,
     "guards_floor": 2280,
     "limit": "Cumulative server latency upper bounds/counts across all statuses; no browser/functional or population SLO claim"
+  },
+  "pr236_merge": {
+    "headRefOid": "44a923944f913280e4ce6413ada4cd03a13213bc",
+    "mergeCommit": {
+      "oid": "4ff10cc44d30948b544e4d53d0738331d9ab2dad"
+    },
+    "mergedAt": "2026-10-03T23:16:00Z",
+    "state": "MERGED",
+    "hosted": {
+      "run": 37160210176,
+      "head": "44a923944f913280e4ce6413ada4cd03a13213bc",
+      "status": "completed",
+      "conclusion": "success",
+      "lanes": [
+        {
+          "job": 111311925789,
+          "name": "backend-sim-composition-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "2286 passed, 66 skipped, 1 xfailed, 12 warnings in 871.90s (0:14:31)",
+            "collected 2353 tests across 181 files -> 2286 passed, 67 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111311925849,
+          "name": "backend-forecast-chain-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "1918 passed, 7 warnings in 504.38s (0:08:24)",
+            "collected 1918 tests across 147 files -> 1918 passed, 0 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111311925865,
+          "name": "backend-estate-coverage",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "781 passed, 2865 skipped, 137 warnings in 73.38s (0:01:13)",
+            "estate: 279 files selected, 277 produced results, 781 passed, 0 silent."
+          ]
+        }
+      ]
+    },
+    "live_after": "pending"
+  },
+  "weekly_report_runtime": {
+    "status": "adopted; hosted/live pending",
+    "pairs": [
+      {
+        "arm": "before",
+        "round": 1,
+        "exit": 1,
+        "summary": [
+          "2 failed, 2 passed in 0.97s"
+        ]
+      },
+      {
+        "arm": "before",
+        "round": 2,
+        "exit": 1,
+        "summary": [
+          "2 failed, 2 passed in 0.98s"
+        ]
+      },
+      {
+        "arm": "after",
+        "round": 1,
+        "exit": 0,
+        "summary": [
+          "4 passed in 0.98s"
+        ]
+      },
+      {
+        "arm": "after",
+        "round": 2,
+        "exit": 0,
+        "summary": [
+          "4 passed in 0.95s"
+        ]
+      }
+    ],
+    "checkout": {
+      "passed": [
+        4,
+        4
+      ],
+      "seconds": [
+        1.63,
+        1.43
+      ]
+    },
+    "expected_estate": 785,
+    "floor": 783,
+    "limit": "Mocked SQL reads/email; real Notification Text binding only; no actual scheduler/email invocation"
+  },
+  "owner_icon_incident": {
+    "hour": 179,
+    "model": "ICON",
+    "attachment_lines": 302,
+    "source": "Owner console attachment and visual dev report",
+    "status": "open; root cause unassigned",
+    "observations": [
+      "Repeated model/layer cache misses",
+      "181x80 world resident surface",
+      "One ICON swell2 GFS/EURO blend"
+    ],
+    "limit": "No build revision or HTTP/source/hour render acceptance in supplied log"
   }
 }
