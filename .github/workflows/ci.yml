@@ -787,7 +787,9 @@ jobs:
           # awaits hosted confirmation;181files and2276-6=2270 retain the same margin.
           # PR233 checkedCI37155975799 read2276; monitor window adds2 ->2278.
           # Exact181files and margin6 unchanged.
-          MIN_FILES, MIN_PASSED = 181, 2272
+          # PR235 CI37158928246 confirms2278; latency evidence adds8 ->2286.
+          # Same181files/margin6; zero slow markers on healthy rows preserved.
+          MIN_FILES, MIN_PASSED = 181, 2280
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

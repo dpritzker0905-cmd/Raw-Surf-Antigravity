@@ -3614,6 +3614,341 @@
         }
       ]
     },
+    "live_after": {
+      "observed_at": "2026-10-03T22:36:07.804068+00:00",
+      "rows": [
+        {
+          "round": 1,
+          "name": "anonymous_real_badge",
+          "status": 401
+        },
+        {
+          "round": 1,
+          "name": "health",
+          "status": 200,
+          "version": "2.0.0-stage-6f-v1-8ec73bd1d4020b1cda795664a5f369f74707684d",
+          "health": "healthy",
+          "rss_mb": 582.1,
+          "uptime_seconds": 135.9
+        },
+        {
+          "round": 2,
+          "name": "anonymous_real_badge",
+          "status": 401
+        },
+        {
+          "round": 2,
+          "name": "health",
+          "status": 200,
+          "version": "2.0.0-stage-6f-v1-8ec73bd1d4020b1cda795664a5f369f74707684d",
+          "health": "healthy",
+          "rss_mb": 582.1,
+          "uptime_seconds": 136.3
+        }
+      ]
+    },
+    "monitor_after": [
+      {
+        "run": 37159003598,
+        "head": "8ec73bd1d4020b1cda795664a5f369f74707684d",
+        "conclusion": "success",
+        "selected_log_lines": [
+          "grade\tGrade forecast accuracy against buoy truth\t2026-10-03T22:36:31.7845333Z scored archive: 178170 rows this month, 48229 with targets in trailing 7d",
+          "grade\tGrade forecast accuracy against buoy truth\t2026-10-03T22:36:31.7863824Z   vs persistence         +24h  n=2710  ours=0.236 theirs=0.362 delta=-0.126 win=57%  we win",
+          "grade\tGrade forecast accuracy against buoy truth\t2026-10-03T22:36:31.7864359Z   vs persistence         +48h  n=2268  ours=0.245 theirs=0.617 delta=-0.371 win=70%  we win",
+          "grade\tGrade forecast accuracy against buoy truth\t2026-10-03T22:36:31.7864998Z   vs persistence         +72h  n=2707  ours=0.255 theirs=0.711 delta=-0.456 win=72%  we win",
+          "grade\tGrade forecast accuracy against buoy truth\t2026-10-03T22:36:31.7917954Z skill ledger liveness: newest scored target 2026-10-03T22:00Z is 0.6 h old (pages past 16 h)",
+          "grade\tGrade forecast accuracy against buoy truth\t2026-10-03T22:36:31.7918406Z verdict: OK"
+        ],
+        "limit": "Actual rolling window read; not same-snapshot before-after forecast skill improvement proof"
+      },
+      {
+        "run": 37159077830,
+        "conclusion": "success",
+        "headSha": "8ec73bd1d4020b1cda795664a5f369f74707684d",
+        "status": "completed",
+        "selected_log_lines": [
+          "grade\tGrade forecast accuracy against buoy truth\t2026-10-03T22:37:50.8788643Z scored archive: 178170 rows this month, 48229 with targets in trailing 7d",
+          "grade\tGrade forecast accuracy against buoy truth\t2026-10-03T22:37:50.8802330Z   vs persistence         +24h  n=2710  ours=0.236 theirs=0.362 delta=-0.126 win=57%  we win",
+          "grade\tGrade forecast accuracy against buoy truth\t2026-10-03T22:37:50.8802833Z   vs persistence         +48h  n=2268  ours=0.245 theirs=0.617 delta=-0.371 win=70%  we win",
+          "grade\tGrade forecast accuracy against buoy truth\t2026-10-03T22:37:50.8803326Z   vs persistence         +72h  n=2707  ours=0.255 theirs=0.711 delta=-0.456 win=72%  we win",
+          "grade\tGrade forecast accuracy against buoy truth\t2026-10-03T22:37:50.8857752Z skill ledger liveness: newest scored target 2026-10-03T22:00Z is 0.6 h old (pages past 16 h)",
+          "grade\tGrade forecast accuracy against buoy truth\t2026-10-03T22:37:50.8858464Z verdict: OK"
+        ],
+        "limit": "Independent rolling-window read, not identical-snapshot forecast skill improvement proof"
+      }
+    ],
+    "postmerge_browser": {
+      "run": 37158719254,
+      "job": 111307435209,
+      "head": "8ec73bd1d4020b1cda795664a5f369f74707684d",
+      "stats": {
+        "total": 72,
+        "expected": 63,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 9,
+        "ok": true
+      },
+      "nonpassing": [
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 282,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 418,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 280,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 416,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Chrome",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 417,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        }
+      ],
+      "log_counts": [
+        "9 skipped",
+        "63 passed (11.7m)"
+      ]
+    }
+  },
+  "pr235_open": {
+    "head": "3dca2ec99cbaacb1df50dc60fe171dd28f30e1ce",
+    "ci_run": 37158928246,
+    "status": "hosted running, unmerged"
+  },
+  "runtime_dependency_review": {
+    "status": "isolated incomplete instrument only",
+    "initial_before": {
+      "failed": 5,
+      "passed": 4,
+      "seconds": 0.81,
+      "rounds": 1
+    },
+    "live_scheduler_or_customer_delivery": false
+  },
+  "pr235_merge": {
+    "headRefOid": "3dca2ec99cbaacb1df50dc60fe171dd28f30e1ce",
+    "mergeCommit": {
+      "oid": "fcea55573cf3840f073aada4810882be3d4f4e69"
+    },
+    "mergedAt": "2026-10-03T22:54:29Z",
+    "state": "MERGED",
+    "hosted": {
+      "run": 37158928246,
+      "head": "3dca2ec99cbaacb1df50dc60fe171dd28f30e1ce",
+      "status": "completed",
+      "conclusion": "success",
+      "lanes": [
+        {
+          "job": 111308065044,
+          "name": "backend-estate-coverage",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "781 passed, 2865 skipped, 137 warnings in 74.42s (0:01:14)",
+            "estate: 279 files selected, 277 produced results, 781 passed, 0 silent."
+          ]
+        },
+        {
+          "job": 111308065087,
+          "name": "backend-sim-composition-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "2278 passed, 66 skipped, 1 xfailed, 12 warnings in 907.03s (0:15:07)",
+            "collected 2345 tests across 181 files -> 2278 passed, 67 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111308065098,
+          "name": "backend-forecast-chain-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "1918 passed, 7 warnings in 541.92s (0:09:01)",
+            "collected 1918 tests across 147 files -> 1918 passed, 0 skipped, 0 failed, 0 errors"
+          ]
+        }
+      ]
+    },
     "live_after": "pending"
+  },
+  "latency_evidence_review": {
+    "status": "adopted; hosted/live pending",
+    "pairs": [
+      {
+        "arm": "before",
+        "round": 1,
+        "exit": 1,
+        "summary": [
+          "8 failed in 0.05s"
+        ]
+      },
+      {
+        "arm": "before",
+        "round": 2,
+        "exit": 1,
+        "summary": [
+          "8 failed in 0.04s"
+        ]
+      },
+      {
+        "arm": "after",
+        "round": 1,
+        "exit": 0,
+        "summary": [
+          "8 passed in 0.04s"
+        ]
+      },
+      {
+        "arm": "after",
+        "round": 2,
+        "exit": 0,
+        "summary": [
+          "8 passed in 0.03s"
+        ]
+      }
+    ],
+    "checkout": {
+      "passed": [
+        22,
+        22
+      ],
+      "seconds": [
+        3.63,
+        3.37
+      ],
+      "warnings": 3
+    },
+    "expected_guards": 2286,
+    "guards_floor": 2280,
+    "limit": "Cumulative server latency upper bounds/counts across all statuses; no browser/functional or population SLO claim"
   }
 }
