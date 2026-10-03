@@ -1664,7 +1664,8 @@ jobs:
           # Preserve estate margin2; guards and chain floors unchanged.
           # PR234 CI37157703688 estate read749;32new executed identity controls ->781.
           # Same margin2, expected279selected/277results; live legacy suite still explicit skips.
-          MIN_PASSED = 779
+          # PR236 actual estate781 plus4 weekly report runtime controls ->785; same margin2.
+          MIN_PASSED = 783
 
           try:
               root = ET.parse('estate.xml').getroot()

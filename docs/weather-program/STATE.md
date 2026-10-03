@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 22:56Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 23:18Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,20 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-03 23:18Z: latency PR236 merged dev4ff10cc4 at2026-10-03T23:16:00Z.** Exact44a92394
+  all hosted gates pass:2286guards/1918chain/781estate; actual telemetry deploy/readback pending.
+  Identityfcea actual RenderLive, health200/badge401 twice; fouranonymous identity boundaries401
+  twice; full E2E63pass/0fail/0flaky/9existing skips, HTMLoktrue. Live JWTowner/foreign unverified.
+- **2026-10-03 23:18Z: owner ICON long-range heatmap incident captured.** Suppliedconsole switches ICON
+  at hour179; waves/swell/windwaves repeated cache misses and retained181x80 world surface;
+  one swell2 blend returns. No owner buildSHA/time or completed waves upload establishes cause.
+  Investigate model/layer/hour, availability and render admission independently; not dismissed
+  as extension orphaned-stream noise. Canonical science flags remain dark; no speculative fix.
+- **2026-10-03 23:18Z: weekly report repair adopted for next dev checkpoint.** Missingos import; before
+  2fail2pass twice ->4pass twice, actual package4pass twice; email mocked, real Notification
+  Text persistence. Expectedestate785/floor783,280files; guards/chain unchanged. Hosted/live
+  pending. Actual SQL read compatibility/delivery/scheduler behavior beyond import unproved.
+  Gallery scheduler references nonexistent fields; isolated candidate remains unadopted.
 - **2026-10-03 22:56Z: identity PR235 merged devfcea5557 at22:54:29Z.** Exact3dca2ec9
   hosted allgreen2278/1918/781; actual identity deploy/after boundaries/full E2E pending.
   Prior monitor8ec full browser63passed/0fail/0flaky/9existing skips, HTMLoktrue.
@@ -440,7 +454,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 490, sha256 db7ec37bdd65500f470e523b9dfc9342c408e236000692619060bd6e17732b6a**
+  **Ledger head: seq 498, sha256 66a12c39fff9fc36d04deddc29507251b26b1b17daa38964b448e1b3f2633d05**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
