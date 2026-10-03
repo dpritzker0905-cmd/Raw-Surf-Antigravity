@@ -51,3 +51,11 @@ Ledger383 diagnoses309: ops now present (1383ledgered/172scored/45006pending/cap
 but latest monitor37139645631 atoldhead fails operational +24h skill floor, n438 raw0.176m vs
 persistence0.162m and win47%. Do not conflate it with missing samples or month-seam failure.
 Commitments149/309 remain open;172 checked. No weather promotion.
+
+## 18:24Z — receipt publication
+
+Published c598daa2, opened and attached PR229 into dev. Ledger384 push/385PR open/386checkpoint.
+Ledger prefix verification OK; docs-only memory0FAIL/2WARN/11NOTE after commitment172 readback.
+Secret scans33.60KB and419B no leaks. Shared STATE update needed UTF-8 decoding correction before
+publication; exact head anchor now386. No test result inferred from that failed document read.
+Receipt branch changes docs/audit only, inside actual Render/E2E ignored paths. CI follows.
