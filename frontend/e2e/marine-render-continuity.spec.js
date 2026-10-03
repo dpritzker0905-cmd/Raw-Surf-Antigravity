@@ -52,6 +52,7 @@
  * a replacement for it. It catches the DISCONTINUITY class, which is what was reported.
  */
 const { test, expect } = require('@playwright/test');
+const { stubSeededMessageBadge } = require('./seededMessageBadge');
 // Extracted so it can be unit-tested against known answers — see continuityOracle.test.js.
 const { longestStall, stallAnatomy, isAppStall } = require('./continuityOracle');
 // A measured stall must not be retried away — see stallLedger.js.
@@ -130,6 +131,7 @@ test.use({ serviceWorkers: 'block' });
 let ipLookups = 0;
 
 async function openMapAsSurfer(page) {
+  await stubSeededMessageBadge(page, [E2E_USER.id]);
   ipLookups = 0;
   await page.route('**/api/location/ip-geolocation**', (route) => {
     ipLookups += 1;

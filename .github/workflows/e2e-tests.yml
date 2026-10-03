@@ -40,6 +40,19 @@ on:
         description: 'Base URL to test against'
         default: 'https://dev--rawsurf.netlify.app'
         required: false
+      test_grep:
+        description: 'Optional test-title regex for a bounded forensic reproduction'
+        default: ''
+        required: false
+      project:
+        description: 'Optional exact Playwright project; empty runs every project'
+        default: ''
+        required: false
+      diagnostic_no_retry:
+        description: 'Run each selected test once for a fresh reproducible trace'
+        type: boolean
+        default: false
+        required: false
 
 # ⭐⭐⭐ CANCELLING IS CORRECT HERE AND MUST STAY TRUE — the obvious "fix" for a 65% cancellation
 # rate is `cancel-in-progress: false`, and it would be WRONG. This lane drives the LIVE DEPLOYED
@@ -147,9 +160,14 @@ jobs:
         run: python3 backend/scripts/e2e_backend_ready.py "$(git rev-parse HEAD)" "$API" 60 15
 
       - name: Run E2E tests
+        # Stop the test step before the job bound so always() can retain failure traces.
+        timeout-minutes: 40
         working-directory: frontend
         env:
           E2E_BASE_URL: ${{ github.event.inputs.base_url || 'https://dev--rawsurf.netlify.app' }}
+          E2E_TEST_GREP: ${{ github.event.inputs.test_grep || '' }}
+          E2E_PROJECT: ${{ github.event.inputs.project || '' }}
+          E2E_DIAGNOSTIC_NO_RETRY: ${{ github.event.inputs.diagnostic_no_retry || 'false' }}
           # The deployed site is behind AccessCodeScreen, whose dev-bypass only covers localhost.
           # Without this the very first page.goto of every spec lands on "Enter Access Code" and the
           # whole lane fails -- which is exactly what happened once the gate was fixed on
@@ -167,7 +185,14 @@ jobs:
         # --disable-gpu/SwiftShader — see audit/weather-simulation-11.0/evidence/webgl/gl-lane-probe.js).
         # A refusal that cannot be read is indistinguishable from a pass. `list` names every test and
         # its status on stdout; `html` keeps the artifact for traces.
-        run: npx playwright test --reporter=list,html
+        run: |
+          # Arguments are quoted array entries, never interpolated shell source.
+          # Push acceptance keeps the full suite and existing retries; filters are dispatch-only.
+          args=(--reporter=list,html)
+          if [ -n "$E2E_TEST_GREP" ]; then args+=(--grep "$E2E_TEST_GREP"); fi
+          if [ -n "$E2E_PROJECT" ]; then args+=(--project "$E2E_PROJECT"); fi
+          if [ "$E2E_DIAGNOSTIC_NO_RETRY" = "true" ]; then args+=(--retries=0 --trace=on); fi
+          npx playwright test "${args[@]}"
 
       - name: Upload test results
         if: always()

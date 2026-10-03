@@ -169,3 +169,90 @@ After config redeploy, all seven anonymous routes still401 twice and health200 h
 at3de464b8. RSS608.7/608.8MB, peak30.2%, uptime485/486.9s; a short canary, not a capacity SLO.
 RLS/restricted grants and all three dark weather flags were read back successfully twice.
 No served weather number changes from this runtime configuration repair.
+
+## 2026-10-03 19:01Z — browser acceptance remains open
+
+[E2E37142516586](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37142516586)
+was cancelled at its50-minute job bound. No failure-trace artifact survived. Its99 printed
+attempt rows include47 passed/44 failed/8 skipped **attempts**, including retries; these are
+not final test totals. Spot-hub and marine-render journeys fail in multiple browsers.
+The suite seeds synthetic browser users without verified backend identity;401 counts alone
+do not prove causation. A real owner Explore read and spot-hub read each failed once and worked
+on retry. Public dependency reads returned200 twice: Explore9.56/8.78s with8 spots, spot-details
+3.56/4.06s with current and10 forecasts. This is not stable end-to-end acceptance.
+
+Diagnostic workflow changes isolate title/project with quoted argument arrays, allow one fresh
+attempt, and stop the test step at40minutes within the50-minute job bound so always-upload can
+preserve traces. Push acceptance keeps the complete suite, existing assertions and retries.
+The failure has not been attributed or repaired yet; targeted trace reproduction is next.
+
+Report CI37145251962 floor check refused a stale GitHub API reading of a17-day-old successful
+run even though fresh dev CI is available. A targeted retry while the enclosing run was active
+was refused before dispatch; retry after run completion is pending. No threshold was lowered.
+
+## 2026-10-03 19:20Z — traced synthetic session fixture repair
+
+Fresh Desktop Chrome spot-hub baselines [37146663057](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37146663057)
+and [37147047704](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37147047704)
+each failed one test. The first retained screenshot/video/HTML; on-first-retry config produced no
+trace at retries0, corrected by an explicit diagnostic trace option. The second trace shows
+synthetic unread-counts401 at19:14:43, then client session redirect/cancelled spot request at19:14:45.
+Final page is auth/signup. Site gate verifies200, and trending/conditions200 precede the redirect.
+
+The UI tests seed local synthetic users rather than verified backend accounts. A shared fixture
+now supplies only their incidental GET unread-message badge at the exact backend origin/path for
+the two declared fake IDs. It refuses real identities and passes through writes, other origins
+and every weather/spot/auth request. Boundary controls pass twice; hosted after checks pending.
+[Playwright route ordering/fallback](https://playwright.dev/docs/api/class-route#route-fallback)
+informs registration after the existing external-resource router. Production authentication and
+all UI assertions remain intact. This fixture is UI acceptance, not end-to-end identity acceptance.
+Private trace bodies stay in ignored local artifacts; public evidence contains no credentials.
+
+## 2026-10-03 19:32Z — paired focused acceptance
+
+| Fresh spot-hub run | Result | Controlled change | Real spot request |
+|---|---|---|---|
+| Before37146663057 | 1failed | none | cancelled after session redirect |
+| Before37147047704 | 1failed | trace retention only | cancelled after badge401/session redirect |
+| After37147556271 | 1passed | only synthetic badge fixture | 200,4.109s |
+| After37147738635 | 1passed | same fixture, fresh context | 200,3.643s |
+
+Successful traces retain weather/spot responses and contain no action errors. Direct requests
+to the **actual** unread-count endpoint still401 twice; health200 healthy twice at3de464b8.
+No production auth behavior changed. This controlled fixture perturbation removes the redirect
+while real spot composition stays live; it is not a numerical weather-accuracy Jacobian.
+
+The [full browser suite37147928653](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37147928653)
+is pending at this checkpoint, with all four projects, assertions and normal retries2/worker1.
+The two focused passes do not certify that broader suite. PR230 exact-head CI also follows.
+
+## 2026-10-03 19:56Z — full suite and distinct failure mechanisms
+
+Full37147928653 finished: **60passed,2failed,1flaky,9existing skips**,72 total in21.8min.
+Both Safari spot-hub journeys fail; Chrome spot-hub passes only on retry2. Retained Safari traces
+show synthetic badge401 without the fixture header and cancelled spot request after session redirect.
+Chrome retains fixture200, then a real spot request times out at the unchanged15s Axios budget;
+its final screenshot shows the correct unavailable/manual-retry UI. These are distinct mechanisms.
+
+Playwright recommends blocking service workers for intercepted requests ([official routing docs](https://playwright.dev/docs/api/class-page#page-route)); that is the first controlled hypothesis
+for Safari. Matcher/origin compatibility is the second. Real transport latency remains separate.
+Fresh Safari baseline37149619694 is running; no worker setting or live auth behavior changed yet.
+
+The nine pre-existing skips are four executed-pixel fixmes, two mobile continuity exclusions,
+and three Firefox WebGL capability refusals. They limit device/GL coverage and were not added here.
+Required PR230 CI37148313603 at0fc5e9f6 is successful:2248guard/1876chain/735estate passes,
+with66guard skips/1xfail and2865estate skips; same floors and margins.
+
+## 2026-10-03 20:05Z — intermittent Safari controlled repair
+
+Fresh Safari baselines37149619694/37149843112 are **1passed/1failed** unchanged. Passing trace
+uses fixture200 and real spot2004.876s; failing trace loads worker200, receives badge401 twice
+without fixture marker, and times out at90s. The full suite also retained two failing Safari
+journeys with this mechanism. Do not rewrite the mixed baselines as two fresh failures.
+
+Seeded Explore tests now block service workers per the official interception contract; anonymous
+journeys retain workers. Setup asserts a completed synthetic badge fulfillment. This strengthens
+fixture observability; real identity/auth, spot/weather requests and product code are unchanged.
+Boundary controls pass twice; hosted after pair is pending. Chrome15s timeout remains a separate
+capacity issue. Passive Render CPU chart reaches100percent in that request window; no specific
+heavy function or causal coefficient established.

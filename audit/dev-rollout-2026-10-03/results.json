@@ -602,5 +602,380 @@
     ],
     "scope": "Actual route functions and PostgreSQL sessions, owner injected; provider mock in isolated Shell Python process; no real provider exchange",
     "fixtures_created": 2
+  },
+  "e2e": {
+    "run": 37142516586,
+    "job": 111259712415,
+    "conclusion": "cancelled",
+    "test_attempt_rows": [
+      "\u2713   1 [Mobile Safari] \u203a e2e/booking-flow.spec.js:55:3 \u203a Anonymous access control \u203a explore is auth-gated and redirects an anonymous visitor to /auth (6.2s)",
+      "\u2713   2 [Mobile Safari] \u203a e2e/booking-flow.spec.js:73:3 \u203a Anonymous access control \u203a the auth page offers both login and signup (2.7s)",
+      "\u2713   3 [Mobile Safari] \u203a e2e/booking-flow.spec.js:81:3 \u203a Anonymous access control \u203a signup offers the three account categories (2.6s)",
+      "\u2713   4 [Mobile Safari] \u203a e2e/booking-flow.spec.js:100:3 \u203a Explore \u203a explore shows the search input (3.6s)",
+      "\u2713   5 [Mobile Safari] \u203a e2e/booking-flow.spec.js:104:3 \u203a Explore \u203a spot cards are visible on explore (3.8s)",
+      "\u2718   6 [Mobile Safari] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (1.1m)",
+      "\u2718   7 [Mobile Safari] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #1) (1.1m)",
+      "\u2718   8 [Mobile Safari] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #2) (1.1m)",
+      "\u2713   9 [Mobile Safari] \u203a e2e/booking-flow.spec.js:135:3 \u203a Explore \u203a navigation is present, and it is the RIGHT nav for the viewport (3.8s)",
+      "\u2718  10 [Mobile Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a network preserves a manual recovery path (1.6m)",
+      "\u2713  11 [Mobile Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a network preserves a manual recovery path (retry #1) (4.3s)",
+      "\u2713  12 [Mobile Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a 503 preserves a manual recovery path (4.1s)",
+      "\u2713  13 [Mobile Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (3.9s)",
+      "-  14 [Mobile Safari] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan",
+      "-  15 [Mobile Safari] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12",
+      "\u2713  16 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:146:3 \u203a Surfer Lockout Redirection \u203a non-admin surfer is locked out of admin dashboard and can redirect back (2.5s)",
+      "\u2713  17 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:185:3 \u203a Admin Console Operations \u203a admin simulation engine executes weather swell spike scenario (6.3s)",
+      "\u2713  18 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:231:3 \u203a Admin Console Operations \u203a admin diagnostics telemetry refresh synchronizes panel (4.5s)",
+      "\u2718  19 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (9.7s)",
+      "\u2718  20 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (retry #1) (10.1s)",
+      "\u2718  21 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (retry #2) (9.7s)",
+      "\u2718  22 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (9.4s)",
+      "\u2718  23 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (retry #1) (19.3s)",
+      "\u2718  24 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (retry #2) (5.0s)",
+      "-  25 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:584:8 \u203a Rendered-field pixel truth (executed GL) \u203a the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+      "\u2713  26 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:55:3 \u203a Anonymous access control \u203a explore is auth-gated and redirects an anonymous visitor to /auth (955ms)",
+      "\u2713  27 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:73:3 \u203a Anonymous access control \u203a the auth page offers both login and signup (786ms)",
+      "\u2713  28 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:81:3 \u203a Anonymous access control \u203a signup offers the three account categories (767ms)",
+      "\u2713  29 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:100:3 \u203a Explore \u203a explore shows the search input (2.4s)",
+      "\u2713  30 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:104:3 \u203a Explore \u203a spot cards are visible on explore (2.5s)",
+      "\u2718  31 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (1.1m)",
+      "\u2718  32 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #1) (1.1m)",
+      "\u2718  33 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #2) (1.1m)",
+      "\u2713  34 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:135:3 \u203a Explore \u203a navigation is present, and it is the RIGHT nav for the viewport (2.4s)",
+      "\u2713  35 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a network preserves a manual recovery path (2.1s)",
+      "\u2713  36 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a 503 preserves a manual recovery path (2.3s)",
+      "\u2718  37 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (28.1s)",
+      "\u2718  38 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (retry #1) (28.5s)",
+      "\u2718  39 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (retry #2) (28.4s)",
+      "\u2718  40 [Desktop Chrome] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan (3.6s)",
+      "\u2718  41 [Desktop Chrome] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan (retry #1) (35.6s)",
+      "\u2718  42 [Desktop Chrome] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan (retry #2) (1.6m)",
+      "\u2718  43 [Desktop Chrome] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12 (3.5s)",
+      "\u2718  44 [Desktop Chrome] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12 (retry #1) (35.1s)",
+      "\u2718  45 [Desktop Chrome] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12 (retry #2) (34.2s)",
+      "\u2713  46 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:146:3 \u203a Surfer Lockout Redirection \u203a non-admin surfer is locked out of admin dashboard and can redirect back (2.1s)",
+      "\u2713  47 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:185:3 \u203a Admin Console Operations \u203a admin simulation engine executes weather swell spike scenario (13.2s)",
+      "\u2713  48 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:231:3 \u203a Admin Console Operations \u203a admin diagnostics telemetry refresh synchronizes panel (12.6s)",
+      "\u2718  49 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (13.3s)",
+      "\u2718  50 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (retry #1) (18.8s)",
+      "\u2718  51 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (retry #2) (2.1m)",
+      "\u2718  52 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (13.5s)",
+      "\u2718  53 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (retry #1) (4.2m)",
+      "\u2718  54 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (retry #2) (4.2m)",
+      "-  55 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:584:8 \u203a Rendered-field pixel truth (executed GL) \u203a the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+      "\u2713  56 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:55:3 \u203a Anonymous access control \u203a explore is auth-gated and redirects an anonymous visitor to /auth (2.3s)",
+      "\u2713  57 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:73:3 \u203a Anonymous access control \u203a the auth page offers both login and signup (1.1s)",
+      "\u2713  58 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:81:3 \u203a Anonymous access control \u203a signup offers the three account categories (1.1s)",
+      "\u2713  59 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:100:3 \u203a Explore \u203a explore shows the search input (2.9s)",
+      "\u2713  60 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:104:3 \u203a Explore \u203a spot cards are visible on explore (2.8s)",
+      "\u2718  61 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (1.0m)",
+      "\u2718  62 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #1) (1.1m)",
+      "\u2718  63 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #2) (1.1m)",
+      "\u2713  64 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:135:3 \u203a Explore \u203a navigation is present, and it is the RIGHT nav for the viewport (3.0s)",
+      "\u2713  65 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a network preserves a manual recovery path (2.7s)",
+      "\u2713  66 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a 503 preserves a manual recovery path (2.7s)",
+      "\u2718  67 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (27.4s)",
+      "\u2718  68 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (retry #1) (28.9s)",
+      "\u2718  69 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (retry #2) (28.4s)",
+      "-  70 [Desktop Firefox] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan",
+      "-  71 [Desktop Firefox] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12",
+      "\u2713  72 [Desktop Firefox] \u203a e2e/weather-simulation.spec.js:146:3 \u203a Surfer Lockout Redirection \u203a non-admin surfer is locked out of admin dashboard and can redirect back (2.1s)",
+      "\u2713  73 [Desktop Firefox] \u203a e2e/weather-simulation.spec.js:185:3 \u203a Admin Console Operations \u203a admin simulation engine executes weather swell spike scenario (14.1s)",
+      "\u2713  74 [Desktop Firefox] \u203a e2e/weather-simulation.spec.js:231:3 \u203a Admin Console Operations \u203a admin diagnostics telemetry refresh synchronizes panel (13.0s)",
+      "\u2713  75 [Desktop Firefox] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (12.8s)",
+      "-  76 [Desktop Firefox] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+      "-  77 [Desktop Firefox] \u203a e2e/weather-simulation.spec.js:584:8 \u203a Rendered-field pixel truth (executed GL) \u203a the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+      "\u2713  78 [Desktop Safari] \u203a e2e/booking-flow.spec.js:55:3 \u203a Anonymous access control \u203a explore is auth-gated and redirects an anonymous visitor to /auth (2.8s)",
+      "\u2713  79 [Desktop Safari] \u203a e2e/booking-flow.spec.js:73:3 \u203a Anonymous access control \u203a the auth page offers both login and signup (2.0s)",
+      "\u2713  80 [Desktop Safari] \u203a e2e/booking-flow.spec.js:81:3 \u203a Anonymous access control \u203a signup offers the three account categories (1.8s)",
+      "\u2713  81 [Desktop Safari] \u203a e2e/booking-flow.spec.js:100:3 \u203a Explore \u203a explore shows the search input (3.7s)",
+      "\u2713  82 [Desktop Safari] \u203a e2e/booking-flow.spec.js:104:3 \u203a Explore \u203a spot cards are visible on explore (3.5s)",
+      "\u2718  83 [Desktop Safari] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (1.1m)",
+      "\u2718  84 [Desktop Safari] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #1) (21.4s)",
+      "\u2718  85 [Desktop Safari] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #2) (1.1m)",
+      "\u2713  86 [Desktop Safari] \u203a e2e/booking-flow.spec.js:135:3 \u203a Explore \u203a navigation is present, and it is the RIGHT nav for the viewport (3.6s)",
+      "\u2713  87 [Desktop Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a network preserves a manual recovery path (4.2s)",
+      "\u2713  88 [Desktop Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a 503 preserves a manual recovery path (4.2s)",
+      "\u2713  89 [Desktop Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (3.9s)",
+      "\u2718  90 [Desktop Safari] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan (1.6m)",
+      "\u2718  91 [Desktop Safari] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan (retry #1) (39.0s)",
+      "\u2718  92 [Desktop Safari] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan (retry #2) (1.6m)",
+      "\u2718  93 [Desktop Safari] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12 (1.1m)",
+      "\u2718  94 [Desktop Safari] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12 (retry #1) (39.5s)",
+      "\u2718  95 [Desktop Safari] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12 (retry #2) (1.7m)",
+      "\u2713  96 [Desktop Safari] \u203a e2e/weather-simulation.spec.js:146:3 \u203a Surfer Lockout Redirection \u203a non-admin surfer is locked out of admin dashboard and can redirect back (2.8s)",
+      "\u2713  97 [Desktop Safari] \u203a e2e/weather-simulation.spec.js:185:3 \u203a Admin Console Operations \u203a admin simulation engine executes weather swell spike scenario (6.1s)",
+      "\u2713  98 [Desktop Safari] \u203a e2e/weather-simulation.spec.js:231:3 \u203a Admin Console Operations \u203a admin diagnostics telemetry refresh synchronizes panel (6.4s)",
+      "\u2718  99 [Desktop Safari] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (9.5s)"
+    ],
+    "scope": "attempt rows only, no full verdict aggregate/artifact on job timeout",
+    "reason": "50-minute job bound, trace upload did not run"
+  },
+  "owner_extended_reads": {
+    "explore": "first load unavailable; retry succeeded",
+    "spot_hub": "first load unavailable; retry succeeded",
+    "public_trending_http_twice": {
+      "status": [
+        200,
+        200
+      ],
+      "seconds": [
+        9.56,
+        8.78
+      ],
+      "popular_spots_count": 8
+    },
+    "public_spot_details_http_twice": {
+      "status": [
+        200,
+        200
+      ],
+      "seconds": [
+        3.56,
+        4.06
+      ],
+      "forecast_count": 10,
+      "current_present": true
+    },
+    "limit": "Not attribution to repairs and not stable end-to-end acceptance"
+  },
+  "e2e_diagnosis": {
+    "baseline_runs": [
+      37146663057,
+      37147047704
+    ],
+    "failed_tests_per_fresh_run": [
+      1,
+      1
+    ],
+    "mechanism": "Synthetic unread message badge401 triggers client session redirect; spot request cancelled and final page auth/signup",
+    "fixture_scope": "Only GET unread-counts for two declared synthetic UI identities at exact backend origin/path; weather, spot, auth and real identities untouched",
+    "after_status": "paired focused acceptance complete; full suite pending",
+    "after_runs": [
+      37147556271,
+      37147738635
+    ],
+    "passed_tests_per_fresh_run": [
+      1,
+      1
+    ],
+    "real_spot_details_status": [
+      200,
+      200
+    ],
+    "real_spot_details_seconds": [
+      4.109,
+      3.643
+    ],
+    "full_suite_run": 37147928653,
+    "full_suite_status": "failed: Safari fixture bypass, separate Chrome transport timeout"
+  },
+  "fixture_live_null_controls": {
+    "observed_at": "2026-10-03T19:27:59.409984+00:00",
+    "rows": [
+      {
+        "run": 1,
+        "name": "anonymous_real_badge",
+        "status": 401
+      },
+      {
+        "run": 1,
+        "name": "health",
+        "status": 200,
+        "version": "2.0.0-stage-6f-v1-3de464b8ea9a467f67a9a04d4b6f87b6ce8ab6cb",
+        "health": "healthy",
+        "rss_mb": 620.8,
+        "uptime_seconds": 3361.8
+      },
+      {
+        "run": 2,
+        "name": "anonymous_real_badge",
+        "status": 401
+      },
+      {
+        "run": 2,
+        "name": "health",
+        "status": 200,
+        "version": "2.0.0-stage-6f-v1-3de464b8ea9a467f67a9a04d4b6f87b6ce8ab6cb",
+        "health": "healthy",
+        "rss_mb": 621.2,
+        "uptime_seconds": 3362.4
+      }
+    ]
+  },
+  "e2e_full_first_after": {
+    "run": 37147928653,
+    "head": "288b746279edabbfac96b239c31efd2fdb8e0c31",
+    "stats": {
+      "total": 72,
+      "expected": 60,
+      "unexpected": 2,
+      "flaky": 1,
+      "skipped": 9,
+      "ok": false
+    },
+    "duration_ms": 1308248.6870000002,
+    "nonpassing": [
+      {
+        "file": "booking-flow.spec.js",
+        "title": "clicking a spot opens its spot hub",
+        "project": "Mobile Safari",
+        "outcome": "unexpected",
+        "annotations": []
+      },
+      {
+        "file": "booking-flow.spec.js",
+        "title": "clicking a spot opens its spot hub",
+        "project": "Desktop Safari",
+        "outcome": "unexpected",
+        "annotations": []
+      },
+      {
+        "file": "booking-flow.spec.js",
+        "title": "clicking a spot opens its spot hub",
+        "project": "Desktop Chrome",
+        "outcome": "flaky",
+        "annotations": []
+      },
+      {
+        "file": "marine-render-continuity.spec.js",
+        "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+        "project": "Mobile Safari",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "skip",
+            "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads"
+          }
+        ]
+      },
+      {
+        "file": "marine-render-continuity.spec.js",
+        "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+        "project": "Mobile Safari",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "skip",
+            "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads"
+          }
+        ]
+      },
+      {
+        "file": "marine-render-continuity.spec.js",
+        "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+        "project": "Desktop Firefox",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "skip",
+            "description": "no WebGL on this runner \u2014 this would measure the runner, not the app"
+          }
+        ]
+      },
+      {
+        "file": "marine-render-continuity.spec.js",
+        "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+        "project": "Desktop Firefox",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "skip",
+            "description": "no WebGL on this runner \u2014 this would measure the runner, not the app"
+          }
+        ]
+      },
+      {
+        "file": "weather-simulation.spec.js",
+        "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+        "project": "Mobile Safari",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "fixme",
+            "description": null
+          }
+        ]
+      },
+      {
+        "file": "weather-simulation.spec.js",
+        "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+        "project": "Desktop Chrome",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "fixme",
+            "description": null
+          }
+        ]
+      },
+      {
+        "file": "weather-simulation.spec.js",
+        "title": "surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+        "project": "Desktop Firefox",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "skip",
+            "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app"
+          }
+        ]
+      },
+      {
+        "file": "weather-simulation.spec.js",
+        "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+        "project": "Desktop Firefox",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "fixme",
+            "description": null
+          }
+        ]
+      },
+      {
+        "file": "weather-simulation.spec.js",
+        "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+        "project": "Desktop Safari",
+        "outcome": "skipped",
+        "annotations": [
+          {
+            "type": "fixme",
+            "description": null
+          }
+        ]
+      }
+    ]
+  },
+  "pr230_ci": [
+    {
+      "lane": "guards",
+      "job": 111276705378,
+      "result": "2248 passed, 66 skipped, 1 xfailed, 12 warnings in 553.01s (0:09:13)"
+    },
+    {
+      "lane": "chain",
+      "job": 111276705718,
+      "result": "1876 passed, 7 warnings in 527.13s (0:08:47)"
+    },
+    {
+      "lane": "estate",
+      "job": 111276705391,
+      "result": "735 passed, 2865 skipped, 128 warnings in 73.64s (0:01:13)"
+    }
+  ],
+  "safari_worker_control": {
+    "before_runs": [
+      37149619694,
+      37149843112
+    ],
+    "before_results": [
+      "1passed",
+      "1failed"
+    ],
+    "before_failure": "badge401 without fixture marker",
+    "change": "Explore-group serviceWorkers block and completed fixture-use assertion",
+    "after_status": "pending",
+    "production_changes": false
   }
 }

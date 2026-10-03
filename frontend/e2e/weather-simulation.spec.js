@@ -3,6 +3,7 @@
  * Tests surfer lockout, admin sandbox, diagnostics telemetry, and map controls.
  */
 const { test, expect } = require('@playwright/test');
+const { stubSeededMessageBadge } = require('./seededMessageBadge');
 
 const standardUser = {
   id: 'test-surfer-id',
@@ -127,6 +128,8 @@ test.beforeEach(async ({ page }) => {
       });
     }
   });
+  // Registered after the external-resource router so the exact badge fixture wins.
+  await stubSeededMessageBadge(page, [standardUser.id, adminUser.id]);
 });
 
 test.describe('Surfer Lockout Redirection', () => {

@@ -78,3 +78,99 @@ each exactly one mock-provider call; owner token snapshot unchanged twice, no re
 Direct route functions inject owner; separate HTTP401 proof covers auth boundary. Config redeploy
 health200 twice/RSS608.7/608.8MB; RLS/grants and dark flags0 twice. No served weather value changes.
 Real OAuth/provider consent, rotation, monetary acceptance and weather skill remain open.
+
+## 19:01Z — browser acceptance forensics
+
+Ledger393 publishes8080fa6e receipt;394 records E2E cancellation/attempt rows and actual owner
+read failure then recovery;395 records bounded diagnostic instrument. No served weather number
+changed. No final E2E total/artifact available; neither401 messages nor WebGL warnings prove cause.
+Receipt CI floor refused17-day-old GitHub API reading; attempted job-only rerun refused while
+run active, so no dispatch occurred. Bounded targeted reproduction and completed-run retry pending.
+
+## 19:04Z — receipt merged and diagnostic controls
+
+Ledger396 records completed-run floor retry success,397 records PR229 exact checked merge at
+f2ae19d2 (19:03:54Z),398 records three literal argument cases twice. No thresholds changed.
+Optional PyYAML unavailable before checks; corrected stdlib extraction plus actual Git Bash
+argv controls passed twice. No YAML parser acceptance claimed; hosted dispatch will validate it.
+Diagnostic branch builds on the merged receipt; product backend remains3de464b8.
+
+## 19:07Z — bounded reproduction dispatched
+
+Ledger399 push8b00573e/400PR230/401dispatch37146663057. Published instrumentation only,
+no live app behavior changed. Desktop Chrome existing spot-hub test, one fresh attempt,
+no retry; hosted result/artifact pending. PR230 attached. Receipt229 already merged.
+
+## 19:11Z — first bounded failure and trace correction
+
+Run37146663057 failed one spot-hub attempt, screenshot final page auth signup. HTML/video retained,
+trace absent because existing config records on-first-retry; zero-retry needed explicit trace option.
+Ledger402 corrects395: diagnostic option now retain-on-failure; argument controls pass twice.
+First failed diagnostic artifact parser found no traces and its non-escalated summary write failed;
+no conclusion credited to that attempt. Screenshot/HTML assertion readback remains valid evidence.
+Second fresh trace-enabled baseline is next; exact401 trigger still unproved.
+
+## 19:14Z — second fresh browser baseline
+
+Ledger403 publishesaa763a05/404dispatches37147047704; trace explicitly retained on first failure.
+No production auth, browser assertions, live app code or weather served values changed.
+First screenshot final auth signup provides candidate session-redirect mechanism; trace pending.
+
+## 19:20Z — trace-attributed UI fixture repair
+
+Ledger405: second fresh baseline37147047704 fails once; private trace retained locally/ignored.
+Unread-counts synthetic user40119:14:43; spot request cancelled19:14:45 when client redirects
+to auth, whose final screenshot matches first baseline. Site gate verified200, trending/conditions200.
+Ledger406: only declared synthetic identities GET unread badges mocked at exact backend origin/path.
+Node controls pass twice: GET fulfilled, POST fallback, weather/real IDs/foreign origin untouched;
+real ID registration refused; three spec syntax checks pass. Diagnostic trace=on retains success proof.
+No live app change/auth weakening/served weather-number change. Hosted after acceptance pending.
+
+## 19:21Z — first hosted after check
+
+Ledger407 publishes288b7462 test-only fixture and rewritten PR230 scope;408dispatch37147556271.
+No live app deploy, no backend auth change, no weather number change. After result pending.
+
+## 19:25Z — first after passes, second dispatched
+
+Ledger409:37147556271 one test passes; successful trace errors0, real conditions/trending/spot200,
+spot-details4.109s. Badge-only fixture200; other synthetic missing profile/bookings404 unchanged.
+Ledger410 dispatch37147738635 second fresh after at288b7462. No live auth or weather change.
+Broader suite follows paired acceptance, not yet certified.
+
+## 19:32Z — paired fixture acceptance and broad suite
+
+Ledger411: two fresh after runs37147556271/37147738635 each1passed, after two1failed baselines.
+Both traces errors0; actual spot2004.109/3.643s, weather200. Ledger412 dispatches full37147928653
+at288b7462; all4projects/retries2/assertions unchanged. Ledger413 direct badge401 twice/health200
+twice, RSS620.8/621.2MB uptime3361.8/3362.4s. Shared backend still3de; no weather-number change.
+Full browser suite and exact-head PR230CI remain pending; broader audit/provider/skill remain open.
+
+Paired doc checkpoint resumed only its document tail after an exact STATE header assertion
+failed before writes. Ledger411-413 already existed and were not appended again; anchor413
+restored. No acceptance claim comes from the failed document script.
+
+## 19:46Z — paired receipt publication readback
+
+Ledger414 records remote0fc5e9f6 paired receipt publication. Full37147928653 still running;
+Chrome spot-hub fails twice then passes retry2, so focused passes do not establish steady acceptance.
+Retained full-suite retry trace will distinguish residual cause; no app/flag change pending it.
+
+## 19:56Z — full browser failure attributed
+
+Ledger415 exact-head PR230CI success with2248/1876/735pass;416 full E2E final60passed/2failed/1flaky/9skipped. Mobile/Desktop Safari traces show badge401 without fixture marker before session redirect/cancelled spot. Chrome trace has fixture200 but real spot request exceeds Axios15s; screenshot recovery state. Four existing GL fixmes, mobile continuity2skip, Firefox unavailable GL3skip; none added. Ledger417 first fresh Safari baseline dispatch37149619694. No app, auth, threshold or weather flag change. Private artifact parsing failed three format assumptions before actual template-format report read succeeded; no conclusions credited to failed parsers.
+
+## 20:02Z — mixed Safari baseline and passive capacity evidence
+
+Ledger418 first fresh Safari baseline passes1 unchanged, fixture200/real spot2004.876s;419 second
+fresh baseline37149843112 running. Full-run Safari failures remain confirmed; reproduction intermittent.
+Ledger420 passive Render CPU chart reaches100percent in Chrome timeout window; memory below half.
+This is correlation, not identified heavy function or an overload benchmark. No app/flag changes.
+
+## 20:05Z — Safari worker control built
+
+Ledger421 second fresh baseline37149843112 fails1, same badge401/no fixture marker; first fresh
+baseline passes1, so intermittent control failure retained honestly. Ledger422 only seeded Explore
+workers blocked and explicit completed-badge-fixture-use setup assertion added. Anonymous worker
+journeys, real spot/weather calls, production auth and existing UI assertions preserved. Boundary
+controls pass twice and syntax valid; hosted after pair next. Chrome capacity remains separate.
