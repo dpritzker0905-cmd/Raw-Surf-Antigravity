@@ -1295,7 +1295,10 @@ jobs:
           # 2026-10-03 OAuth/time audit: pinned hosted base 37048650086 plus earlier owned
           # additions projected 1852; 24 executed served-time cases -> 1876, margin 6.
           # Tracked selector now 146 files; hosted confirmation pending.
-          MIN_FILES, MIN_PASSED = 146, 1870
+          # 2026-10-03 capacity repair: checked5d9e92f2 CI37150378034 confirms chain1876.
+          # One selector-owned file adds42 executed parity/cache/fallback controls (local pair42pass).
+          # Expected hosted1918, not yet observed;147 files and1918-6=1912 keep the same margin.
+          MIN_FILES, MIN_PASSED = 147, 1912
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

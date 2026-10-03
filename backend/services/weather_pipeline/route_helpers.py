@@ -245,6 +245,45 @@ def is_bbox_covered_by(req_w: float, req_s: float, req_e: float, req_n: float, c
 
     return lon_covers
 
+def clip_lattice(ref_lat: float, ref_lng: float, res: float,
+                 west: float, south: float, east: float, north: float) -> Tuple[List[float], List[float]]:
+    """The cell-centre lattice `filter_grid_to_bbox` builds for a window: (lats ascending, lons in the window's column
+    order), anchored at the data's first lat/lng. PURE. It is shared with the mid tier's strided world read
+    (`mid_res_tier._strided_identity_clip`), which serves a load-strided grid only when this lattice IS the data's own,
+    so the clip and that shortcut cannot disagree about which cells a clip holds (2026-10-02, commitment 228)."""
+    # Generate unique_lats within [south, north]
+    k_lat_min = math.ceil((south - ref_lat - 0.0001) / res)
+    k_lat_max = math.floor((north - ref_lat + 0.0001) / res)
+    unique_lats = sorted([round(ref_lat + k * res, 4) for k in range(k_lat_min, k_lat_max + 1)])
+    # Ensure all lats are within clamp limits [-80, 85]
+    unique_lats = [lat for lat in unique_lats if -80.0 <= lat <= 85.0]
+
+    # Generate unique_lons within [west, east] (handling antimeridian crossing)
+    crosses_antimeridian = west > east
+    east_monotonic = east if not crosses_antimeridian else east + 360.0
+
+    # Adjust ref_lng to be >= west in monotonic space
+    ref_lng_monotonic = ref_lng
+    while ref_lng_monotonic < west:
+        ref_lng_monotonic += 360.0
+    while ref_lng_monotonic >= west + 360.0:
+        ref_lng_monotonic -= 360.0
+
+    k_lon_min = math.ceil((west - ref_lng_monotonic - 0.0001) / res)
+    k_lon_max = math.floor((east_monotonic - ref_lng_monotonic + 0.0001) / res)
+
+    raw_lons = [round(wrap_longitude(ref_lng_monotonic + k * res), 4) for k in range(k_lon_min, k_lon_max + 1)]
+
+    if crosses_antimeridian:
+        unique_lons = sorted(
+            list(set(raw_lons)),
+            key=lambda lng: (0, lng) if lng >= west else (1, lng)
+        )
+    else:
+        unique_lons = sorted(list(set(raw_lons)))
+    return unique_lats, unique_lons
+
+
 def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> NormalizedProduct:
     """
     Crops grid vectors to requested bbox and updates dimensions, returning a deep copy to prevent mutations.
@@ -334,39 +373,8 @@ def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> Normalized
             return cloned_product
         west, east, south, north = _cw, _ce, _cs, _cn
 
-    ref_lat = orig_lats[0]
-    ref_lng = orig_lons[0]
-
-    # Generate unique_lats within [south, north]
-    k_lat_min = math.ceil((south - ref_lat - 0.0001) / res)
-    k_lat_max = math.floor((north - ref_lat + 0.0001) / res)
-    unique_lats = sorted([round(ref_lat + k * res, 4) for k in range(k_lat_min, k_lat_max + 1)])
-    # Ensure all lats are within clamp limits [-80, 85]
-    unique_lats = [lat for lat in unique_lats if -80.0 <= lat <= 85.0]
-
-    # Generate unique_lons within [west, east] (handling antimeridian crossing)
+    unique_lats, unique_lons = clip_lattice(orig_lats[0], orig_lons[0], res, west, south, east, north)
     crosses_antimeridian = west > east
-    east_monotonic = east if not crosses_antimeridian else east + 360.0
-    
-    # Adjust ref_lng to be >= west in monotonic space
-    ref_lng_monotonic = ref_lng
-    while ref_lng_monotonic < west:
-        ref_lng_monotonic += 360.0
-    while ref_lng_monotonic >= west + 360.0:
-        ref_lng_monotonic -= 360.0
-
-    k_lon_min = math.ceil((west - ref_lng_monotonic - 0.0001) / res)
-    k_lon_max = math.floor((east_monotonic - ref_lng_monotonic + 0.0001) / res)
-    
-    raw_lons = [round(wrap_longitude(ref_lng_monotonic + k * res), 4) for k in range(k_lon_min, k_lon_max + 1)]
-    
-    if crosses_antimeridian:
-        unique_lons = sorted(
-            list(set(raw_lons)),
-            key=lambda lng: (0, lng) if lng >= west else (1, lng)
-        )
-    else:
-        unique_lons = sorted(list(set(raw_lons)))
 
     if unique_lats and unique_lons:
         if crosses_antimeridian:

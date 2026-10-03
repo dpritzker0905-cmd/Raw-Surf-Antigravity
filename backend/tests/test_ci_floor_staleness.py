@@ -343,7 +343,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # must confirm these projections. Preserve the existing margins 6/6/2.
 # Continued audit repairs: selector-owned executed additions chain +62 / estate +72.
 # Projections from the same pinned hosted base + first batch, not hosted observations.
-_FLOOR_SET_FROM = {"guards": 2248, "chain": 1876, "estate": 735}
+# Capacity repair: checked5d9e92f2 CI37150378034 confirms2248/1876/735; one new chain file
+# adds42 executed controls. Expected1918 needs hosted confirmation; margins6/6/2 unchanged.
+_FLOOR_SET_FROM = {"guards": 2248, "chain": 1918, "estate": 735}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

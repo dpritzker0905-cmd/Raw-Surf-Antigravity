@@ -174,3 +174,43 @@ baseline passes1, so intermittent control failure retained honestly. Ledger422 o
 workers blocked and explicit completed-badge-fixture-use setup assertion added. Anonymous worker
 journeys, real spot/weather calls, production auth and existing UI assertions preserved. Boundary
 controls pass twice and syntax valid; hosted after pair next. Chrome capacity remains separate.
+
+## 20:26Z — four-project pair accepted; isolated capacity review
+
+Ledger423push5d/424PR230description/425first after dispatch/426first4pass/427second dispatch/
+428second4pass/429full37150963742/430capacity review/431latestCI success. Both after traces
+confirm fixture200, real spot200, worker requests0/errors0; no retry/skip. Full normal suite pending.
+Capacity baseline18fail twice, isolated candidate42pass twice, paired one-core synthetic frames
+identical; cold CPU1.39-1.44s to0.33-0.34s, repeated cache0vs16hits. Current app/backend unchanged.
+Initial candidate42setup errors came from site-package tests namespace shadowing; explicit local
+package path restored actual L1 guard (not disabled). First accepted after lacked workflow parity
+metadata; second pins current workflow and reports2missing packages/no virtualenv. Not hosted parity.
+
+## 2026-10-03 20:39Z — PR230 merged; remaining transport retry isolated
+
+Full normal acceptance37150963742:62passed,0final failures,1flaky,9existing skips.
+Retained Chrome retry trace has fixture200 and real spot cancellation/Axios15000ms timeout;
+Safari interception failures resolved, whole transport/SLO not certified. Exact5d CI success.
+PR230 merged449b3b910278c52b5d0dde64d1fd5bee4f0e9ffc at20:39:06Z; actual deploy pending.
+Capacity candidate13neighbor files:275passed/0failed/0skipped,3warnings,46.25s in disclosed local
+environment; candidate not deployed. Ledger432full verdict/433neighbor check/434PRbody/435merge.
+
+## 2026-10-03 20:47Z — capacity repair checkout and live baseline
+
+PR230 backend449b3b91 Live and healthy200twice; badge401twice. Postmerge E2E37152301831 pending.
+Capacity applied onto449b3b91 from the four source hashes already reviewed; all earlier repairs retained.
+Actual checkout42pass twice15.73/11.23s;22floor controls pass. Partition608tracked/180guards/147chain/
+278estate/2FastMCPexcluded/1quarantine. First partition invocation used repo root and found0; corrected
+required backend cwd gives actual partition proof. Blocking lint0; file-size check116files0violations
+(route helper760LOC). Hosted chain1918 is projected from checked5d run1876 plus42executed cases;
+floor1912 and147files keep the margin6, reference moves with it; guards/estate unchanged.
+
+Bounded live BEFORE: fixed21Z GFS global waves6offsets0..15h;200twice,6of6storedglobal_mid/NOAA,
+3822vectors/frame,3.579MB,2.8302/2.9111s; all physical hashes identical between reads. Initial lowercase
+model request422 was a probe enum error, corrected to documentedGFS and excluded from acceptance.
+No load/concurrency/SLO claim. Candidate default-on identity read changes materialization, with explicit
+MARINE_MID_SERIES_LOAD_STRIDE=0 rollback; it does not promote max thinning or scientific serving flags.
+Ledger436deploy/437checkout build/438live baseline. Hosted/current-head and after-deploy proof pending.
+
+2026-10-03 20:48Z readback (ledger439): live449b3b91 actual catalog/grants pass twice;
+three scientific flags0 twice. Canonical docs memory0FAIL/2WARN/11NOTE; unchanged overdue149/309.

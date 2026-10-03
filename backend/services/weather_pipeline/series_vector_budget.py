@@ -427,6 +427,7 @@ def stride_raw_grid_dicts(data, stride: int) -> bool:
                            mode=thinning_mode(data.get("layer"), data.get("domain")))
     if out is None:
         return False
+    lattice = global_lattice(grid, data.get("resolution"))   # needs every cell: read BEFORE they are discarded
     grid["vectors"], grid["cols"], grid["rows"] = out
     # ⚠️ STAMP IT, because the caller CANNOT tell by looking. grid_series applies its own stride to
     # every hour as it lands; without this marker it re-strides an already-strided grid and the
@@ -438,4 +439,54 @@ def stride_raw_grid_dicts(data, stride: int) -> bool:
         diag = {}
         grid["diagnostics"] = diag
     diag["load_stride"] = stride
+    if lattice is not None:
+        diag["load_stride_lattice"] = lattice
     return True
+
+
+def global_lattice(grid: dict, res) -> "dict | None":
+    """The FULL raw grid's lattice, or None: {lat0, lng0, res, rows, cols} when every cell sits exactly at its row-major
+    position (round(lat0 + r*res, 4), round(lng0 + c*res, 4)) and the grid spans >= 350 deg of longitude. PURE.
+
+    WHY (2026-10-02, commitment 228's par2 residual): the mid tier's world clip of a global_mid is the identity, so the
+    series paid ~80 ms per hour validating and clipping 15,023 cells to keep 966 (log 2026-10-02-commitments-182-228).
+    `mid_res_tier._strided_identity_clip` serves the load-strided grid instead, but only on proof that the clip would
+    have kept every cell in place, and only the full grid can show that. On this lattice the clip's cell map holds every
+    lattice cell exactly once (no hole, duplicate or off-lattice cell can hide among the discarded ones) in stored order.
+    Global only: below 350 deg the clip first clamps to the data's extent, and no world window applies.
+
+    `res` is the product's declared resolution. When there is none (the stored global_mid files declare none), the clip
+    derives it from the cells (the smallest 4-dp gap between rows, else between columns), and so does this: on the
+    lattice proved below, the clip's unique rows are exactly these, so it derives this same number. The stamp says
+    which (`res_derived`), so the reader rebuilds the clip's lattice at the clip's own spacing.
+    """
+    vectors, cols, rows = grid.get("vectors"), grid.get("cols"), grid.get("rows")
+    if (not isinstance(cols, int) or not isinstance(rows, int) or cols < 2 or rows < 1
+            or not isinstance(vectors, list) or len(vectors) != cols * rows or not isinstance(vectors[0], dict)):
+        return None
+    lat0, lng0 = vectors[0].get("lat"), vectors[0].get("lng")
+    if not isinstance(lat0, (int, float)) or not isinstance(lng0, (int, float)):
+        return None
+    try:
+        res = float(res or 0.0)
+    except (TypeError, ValueError):
+        return None
+    derived = res <= 0
+    if derived:      # route_helpers.filter_grid_to_bbox's own derivation, from the column (rows) or the row (cols)
+        axis = [v.get("lat") for v in vectors[::cols]] if rows > 1 else [v.get("lng") for v in vectors[:cols]]
+        try:
+            gaps = [d for d in (round(b - a, 4) for a, b in zip(axis, axis[1:])) if d > 0]
+        except TypeError:
+            return None
+        res = float(min(gaps)) if gaps else 0.0
+        if res <= 0:
+            return None
+    lats = [round(lat0 + r * res, 4) for r in range(rows)]
+    lngs = [round(lng0 + c * res, 4) for c in range(cols)]
+    if lats[0] != lat0 or lngs[0] != lng0 or lngs[-1] - lngs[0] < 350.0:
+        return None
+    for r, lat in enumerate(lats):
+        for v, lng in zip(vectors[r * cols:(r + 1) * cols], lngs):
+            if not isinstance(v, dict) or v.get("lat") != lat or v.get("lng") != lng:
+                return None
+    return {"lat0": lat0, "lng0": lng0, "res": res, "res_derived": derived, "rows": rows, "cols": cols}
