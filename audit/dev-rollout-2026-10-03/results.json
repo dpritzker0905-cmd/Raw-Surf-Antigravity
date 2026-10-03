@@ -339,10 +339,10 @@
   "limits": [
     "No real OAuth exchange or credential rotation confirmation",
     "No payment sandbox reconciliation or live money concurrency test",
-    "No PostgreSQL concurrent nonce claim test",
     "No weather skill/flag acceptance",
     "Netlify preview canceled; live dev tested",
-    "No all-services/no-errors or long-term capacity certification"
+    "No all-services/no-errors or long-term capacity certification",
+    "Real Strava consent/provider exchange and HTTP callback journey not exercised; PG direct-route race and separate HTTP boundaries cover distinct contracts"
   ],
   "post_merge_ci": {
     "run": 37142516639,
@@ -441,5 +441,166 @@
     "head": "e0f934662eb919de6182a4c0fc4cfc41f9f5aa89",
     "conclusion": "failure",
     "reason": "operational skill floor +24h: raw_surf0.176 vs persistence0.162m, n438, win47%"
+  },
+  "updated_at": "2026-10-03T18:42:04.533964+00:00",
+  "after_config": {
+    "observed_at": "2026-10-03T18:40:03.839899+00:00",
+    "phase": "after",
+    "requests": [
+      {
+        "run": 1,
+        "name": "strava_status",
+        "status": 401,
+        "seconds": 0.36
+      },
+      {
+        "run": 1,
+        "name": "strava_sync",
+        "status": 401,
+        "seconds": 0.265
+      },
+      {
+        "run": 1,
+        "name": "strava_auth_url",
+        "status": 401,
+        "seconds": 0.157
+      },
+      {
+        "run": 1,
+        "name": "strava_denied_callback",
+        "status": 401,
+        "seconds": 0.25
+      },
+      {
+        "run": 1,
+        "name": "messages_unread",
+        "status": 401,
+        "seconds": 0.187
+      },
+      {
+        "run": 1,
+        "name": "messages_check",
+        "status": 401,
+        "seconds": 0.25
+      },
+      {
+        "run": 1,
+        "name": "messages_count",
+        "status": 401,
+        "seconds": 0.172
+      },
+      {
+        "run": 1,
+        "name": "health",
+        "status": 200,
+        "seconds": 0.469,
+        "version": "2.0.0-stage-6f-v1-3de464b8ea9a467f67a9a04d4b6f87b6ce8ab6cb",
+        "health": "healthy",
+        "rss_mb": 608.7,
+        "peak_pct": 30.2,
+        "uptime_seconds": 485.0
+      },
+      {
+        "run": 2,
+        "name": "strava_status",
+        "status": 401,
+        "seconds": 0.156
+      },
+      {
+        "run": 2,
+        "name": "strava_sync",
+        "status": 401,
+        "seconds": 0.156
+      },
+      {
+        "run": 2,
+        "name": "strava_auth_url",
+        "status": 401,
+        "seconds": 0.172
+      },
+      {
+        "run": 2,
+        "name": "strava_denied_callback",
+        "status": 401,
+        "seconds": 0.172
+      },
+      {
+        "run": 2,
+        "name": "messages_unread",
+        "status": 401,
+        "seconds": 0.156
+      },
+      {
+        "run": 2,
+        "name": "messages_check",
+        "status": 401,
+        "seconds": 0.25
+      },
+      {
+        "run": 2,
+        "name": "messages_count",
+        "status": 401,
+        "seconds": 0.156
+      },
+      {
+        "run": 2,
+        "name": "health",
+        "status": 200,
+        "seconds": 0.485,
+        "version": "2.0.0-stage-6f-v1-3de464b8ea9a467f67a9a04d4b6f87b6ce8ab6cb",
+        "health": "healthy",
+        "rss_mb": 608.8,
+        "peak_pct": 30.2,
+        "uptime_seconds": 486.9
+      }
+    ]
+  },
+  "redirect_configuration": {
+    "variable": "STRAVA_REDIRECT_ORIGINS",
+    "origins": [
+      "https://dev--rawsurf.netlify.app",
+      "https://rawsurf.netlify.app"
+    ],
+    "revision_unchanged": true,
+    "deploy": "Live",
+    "deploy_duration_seconds": 76,
+    "before_dev_redirect_status": [
+      400,
+      400
+    ],
+    "after_dev_redirect_status": [
+      200,
+      200
+    ],
+    "foreign_origin_status": [
+      400,
+      400
+    ],
+    "foreign_path_status": [
+      400,
+      400
+    ]
+  },
+  "postgres_nonce_race": {
+    "runs": [
+      {
+        "run": 1,
+        "claims_reaching_mock_provider": 1,
+        "other_concurrent_claim_rejected": true,
+        "replay_rejected": true,
+        "tokens_unchanged": true,
+        "consumed_fixture_retained": true
+      },
+      {
+        "run": 2,
+        "claims_reaching_mock_provider": 1,
+        "other_concurrent_claim_rejected": true,
+        "replay_rejected": true,
+        "tokens_unchanged": true,
+        "consumed_fixture_retained": true
+      }
+    ],
+    "scope": "Actual route functions and PostgreSQL sessions, owner injected; provider mock in isolated Shell Python process; no real provider exchange",
+    "fixtures_created": 2
   }
 }

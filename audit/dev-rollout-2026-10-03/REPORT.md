@@ -110,8 +110,8 @@ Deployment and the measured boundary/read-flow checks are complete. The wider au
 open. In particular:
 
 - Confirm exposed credential rotation at the provider; code deletion does not rotate it.
-- Exercise an owner-approved real Strava linking journey, expiry/replay, and concurrent claims
-  against PostgreSQL; SQLite lifecycle tests and role proofs cover different contracts.
+- Exercise an owner-approved real Strava linking journey and provider exchange. Actual PostgreSQL
+  concurrent claims/replay now pass twice with a mock provider; that is a separate contract.
 - Reconcile paid-credit fulfillment with the processor sandbox; validate monetary concurrency
   and precision without charging real users.
 - Finish spot/run identity, period typing, nearest-row/rounded-coordinate cache aliases,
@@ -147,3 +147,25 @@ for missing ops or an insufficient sample in that run. Correlated observations d
 statistical significance. Do not lower the gate or assume the open month-seam PR will make it green.
 The scalar lane has height rows, but full paired/lead/band acceptance remains owed. Commitments149
 and309 stay open. Closing one memory warning does not close weather skill or monitor acceptance.
+
+## 2026-10-03 18:42Z — redirect configuration and live nonce race
+
+Extended acceptance found a configuration gap: actual dev `/surf-log` redirect rejected400
+twice because STRAVA_REDIRECT_ORIGINS was absent and frontend fallback was localhost. The
+owner status200 control above tested reading status; it did not certify linking issuance.
+Added only the existing dev/public Netlify origins to STRAVA_REDIRECT_ORIGINS through the
+Render dashboard. Runtime Save and deploy succeeded Live1m16s at unchanged3de464b8.
+Actual dev redirect passes200 twice; foreign origin and foreign path still reject400 twice.
+
+Two real PostgreSQL race rounds each issued one synthetic owner-bound nonce and launched two
+concurrent callback claims. Exactly one reached the controlled rejecting provider mock; the
+other claim and subsequent replay rejected. Owner tokens were unchanged twice. Two consumed
+fixtures remain retained. No nonce, OAuth URL, connection string or token was printed/saved.
+The mock was confined to a separate Shell process, with no real provider request or live API
+worker modification. Route calls inject the known owner directly; separate HTTP probes prove
+the authentication boundary. This is not an end-to-end real OAuth acceptance certificate.
+
+After config redeploy, all seven anonymous routes still401 twice and health200 healthy twice
+at3de464b8. RSS608.7/608.8MB, peak30.2%, uptime485/486.9s; a short canary, not a capacity SLO.
+RLS/restricted grants and all three dark weather flags were read back successfully twice.
+No served weather number changes from this runtime configuration repair.

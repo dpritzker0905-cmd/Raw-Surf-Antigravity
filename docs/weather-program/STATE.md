@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 18:24Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 18:42Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -22,8 +22,9 @@ is a claim, not a measurement.
   backend updates; main and public frontend freeze unchanged. Receipt: audit/dev-rollout-2026-10-03/REPORT.md.
   Post-merge CI37142516639 success with identical counts; E2E pending. Commitment172 checked;149/309
   open (latest monitor loses +24h operational floor to persistence). Broader audit, real OAuth/payment acceptance,
-  rotation, PostgreSQL concurrent claims and weather skill remain open. Receipt PR229 open into dev.
-  Ledger374-386 records rollout and receipt publication; provider/skill limits stay explicit.
+  rotation and weather skill remain open. Receipt PR229 open into dev. Exact dev/public origins
+  configured; config redeploy Live1m16s at unchanged3de; actual PG nonce race/replay passes twice
+  with provider mock, owner tokens unchanged. Ledger374-392 records rollout, gap and acceptance.
 - **2026-10-03 17:23Z: local OAuth/time checkpoint `cd41353e` read back clean.** Staged gitleaks57.22KB
   scan found no leaks, ledger prefix/tamper checks passed, docs-only memory0FAIL/2WARN/12NOTE. This docs-only
   check does not refresh the stale secrets pointer or confirm rotation. Full report/log carry the receipt.
@@ -372,7 +373,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 386, sha256 dfe507f8de227212fe7b2654773650bc041840e096bde27102c51c9c71759abf**
+  **Ledger head: seq 392, sha256 0f760637f754d85794f796c8d8311b849bc7f44e457e7b5d84d7a94a752c0da1**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

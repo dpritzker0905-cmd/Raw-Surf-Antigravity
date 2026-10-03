@@ -59,3 +59,22 @@ Ledger prefix verification OK; docs-only memory0FAIL/2WARN/11NOTE after commitme
 Secret scans33.60KB and419B no leaks. Shared STATE update needed UTF-8 decoding correction before
 publication; exact head anchor now386. No test result inferred from that failed document read.
 Receipt branch changes docs/audit only, inside actual Render/E2E ignored paths. CI follows.
+
+## 18:32Z — owner issuer config gap and runtime repair
+
+Live PostgreSQL race acceptance stopped before state issuance: dev redirect rejected400.
+Confirmed twice by actual _redirect_target; STRAVA_REDIRECT_ORIGINS absent; no configured FRONTEND_URL
+matched existing app frontends (fallback localhost). Status200 alone did not certify issuer readiness.
+Used Render env-vars skill, added STRAVA_REDIRECT_ORIGINS naming only existing dev/public Netlify
+frontends; Save and deploy accepted at unchanged3de464b8. Ledger387 finding/388env/389deploy-start.
+Provider credentials and weather flags unchanged. Redeploy/paired issuance and race acceptance pending.
+
+## 18:42Z — redirect redeploy and PG race accepted
+
+Ledger390 records config Live1m16s at unchanged3de464b8;391 records two synthetic hashed nonce
+fixtures issued/consumed/retained;392 records paired acceptance. Before dev redirect400 twice,
+after200 twice; foreign origin/path400 twice. Two PostgreSQL concurrent claim/replay rounds
+each exactly one mock-provider call; owner token snapshot unchanged twice, no real provider I/O.
+Direct route functions inject owner; separate HTTP401 proof covers auth boundary. Config redeploy
+health200 twice/RSS608.7/608.8MB; RLS/grants and dark flags0 twice. No served weather value changes.
+Real OAuth/provider consent, rotation, monetary acceptance and weather skill remain open.
