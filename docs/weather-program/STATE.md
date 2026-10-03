@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 17:23Z** (logs: `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 17:35Z** (logs: `log/2026-10-03-dev-rollout.md` (authorized PR228 rollout, CI/schema/deploy acceptance pending), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,12 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-03 17:35Z: repair branch pushed; PR #228 open into `dev`.** Owner: "ok push to dev and do all your
+  recommendations" authorizes publishing, checks, merge and rollout of these repairs. Head `0ead508e`; hosted
+  CI37141083745 and Netlify preview pending. Verified Render dashboard: linked branchdev, auto-deploy On Commit,
+  previews Off; deployed backend still e0f93466. Thus merge will affect the shared dev/public backend. Validate
+  schema/backend role and all checks/counts before merge; leave new weather flags default-off. Ledger371 push,
+  372 PR open,373 docs/status. Followup log owns rollout evidence; prior "not pushed/deployed" receipts are historical.
 - **2026-10-03 17:23Z: local OAuth/time checkpoint `cd41353e` read back clean.** Staged gitleaks57.22KB
   scan found no leaks, ledger prefix/tamper checks passed, docs-only memory0FAIL/2WARN/12NOTE. This docs-only
   check does not refresh the stale secrets pointer or confirm rotation. Full report/log carry the receipt.
@@ -361,7 +367,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 370, sha256 bc0c18bdb134ab2203147e535649c5dc9a049f801b047a19e2e433416cb6c52c**
+  **Ledger head: seq 373, sha256 ffcb3c2e81e91cdde6b3ab57f60c2b102a6b5d9cf16e2aaed57152a361ae5bcb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
