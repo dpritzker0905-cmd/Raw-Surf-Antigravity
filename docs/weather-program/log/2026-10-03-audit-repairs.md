@@ -83,3 +83,8 @@ Closeout gates after ledger appends: ledger selftest detects every tamper; 358 e
 against STATE's published head. Canonical plus local memory again: 0 FAIL, 2 WARN, 12 NOTE.
 Final CI partition and staged LOC policy both exit 0. Local repair checkpoints are ledgered
 at seq 358; their Git read-back is recorded in the subsequent closeout finding.
+
+Local repair checkpoint `32a10a9a` read back on `codex/audit-repairs`; working tree clean after
+that commit. Pre-commit scanned 85.77 KB of staged material with no leaks found; this is not a
+history-wide clearance or a credential-rotation receipt. Ledger seq 359 records that read-back.
+The accompanying closeout checkpoint contains only the verification record. No remote action.

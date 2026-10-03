@@ -150,3 +150,8 @@ Use `python scripts/ci_test_lanes.py --lane guards`, `--lane chain` or `--lane e
 same directory to select a complete lane. `update_evidence.py` summarizes locally retained XML
 receipts and checks the credential defaults and unchanged DCL files without emitting credential
 values. It updates only this batch's owned `results.json`.
+
+The source/evidence repair checkpoint is `32a10a9a` on `codex/audit-repairs`. Its local Git head
+and clean status were read back. Pre-commit scanned 85.77 KB of staged material and found no
+leaks; this does not certify old history or complete credential rotation. Canonical ledger
+seq 359 records the checkpoint read-back. A separate local closeout commit preserves that record.
