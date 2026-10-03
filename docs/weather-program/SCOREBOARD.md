@@ -108,3 +108,5 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-03 21:39Z | CI history / exact guard merge | S21/S22 | Freshness14days constant, source/retry varies | CLI stale17days vs REST current twice;12baselinefail ->36pass twice; hosted guard2276 confirmed | History hosted pending; browser60pass/3flaky/9skip keeps SLO open |
 
 | 2026-10-03 22:11Z | dev bd070fd6 / monitor candidate | S21/S22 | Owner p95 target5s; seven-day window archive selection | Live health/denial paired; CI2276/1918/749; monitor37pass twice and84companions | Browser62pass1flaky9skips; monitor real+24h loss; SLO and broader audit open |
+
+| 2026-10-03 22:33Z | monitor8ec73bd1 / identity repair prepared | S21/S22 | Window seam and verified actor vary; truthful unavailable null controls | Monitor CI2278/1918/749; identity before30fail twice after32pass twice;190companions | Live identity after and frontend capability open; spot API5.24/4.40s does not close p95; skill loss persists |

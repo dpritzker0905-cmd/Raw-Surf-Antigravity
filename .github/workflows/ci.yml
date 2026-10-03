@@ -1660,7 +1660,9 @@ jobs:
           # authority cases = 735; retain margin 2. Windows local count is not calibration.
           # CI37154741295 on checked3bb8f443 read735; retry controls add14, expected749.
           # Preserve estate margin2; guards and chain floors unchanged.
-          MIN_PASSED = 747
+          # PR234 CI37157703688 estate read749;32new executed identity controls ->781.
+          # Same margin2, expected279selected/277results; live legacy suite still explicit skips.
+          MIN_PASSED = 779
 
           try:
               root = ET.parse('estate.xml').getroot()

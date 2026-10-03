@@ -339,3 +339,58 @@ bounded and treated as unavailable, not failed product checks. Local runtime sti
 packages and is not CI/production environment parity. Ledger462-473 records these receipts.
 
 Final current candidate rerun:84passed.67s, blocking narrow lint0, actual tracked partition609/181/147/278/2excluded/1quarantine, docs-only memory0FAIL2WARN11NOTE. Initial mistyped companion filename produced0tests and is excluded; corrected full run passed. Ledger474.
+
+## 2026-10-03 22:33Z — monitor merged; truthful identity capability and owner gates prepared
+
+PR234 exact f395a503fab81b9e52ad05fe467f70ce3e1d85c0 passed all14hosted gates.
+CI37157703688 confirms guards2278/66skip/1xfail/12warnings835.35s181files,
+chain1918/7warnings511.80s147files, estate749/2865skip/128warnings74.87s,
+278selected276results0silent. Dev merge8ec73bd1d4020b1cda795664a5f369f74707684d
+at22:31:06Z. Actual deploy and monitor after proof pending; same14day CI age and skill thresholds.
+
+Priorbd full E2E37156951431/job111302173360:62passed0finalfail1flaky9existing skips,
+HTMLokfalse. Chrome retained FIRST RETRY fails real spotstatus-1 with Axios15000timeout;
+initial attempt not retained, second retry ultimately passed. No initial-cause assignment.
+Two fresh bounded direct anonymous API reads, same spot/model/free query, exactbd:5.2438s
+(misses5s) and4.3972s(meets5s),200both/10forecast days/no retries. Weather projection hashes
+DIFFER; includes producer time fields, no source/cache identity proof or cross-response physics
+parity/cause claim. Telemetry cumulative same process n6,3over10s,max20.8248s,avg10.4345s;
+p90/p99 overflow fields only establish >=10s, printed20.8248s is max, NOT measured percentile.
+Small sample confirms actual misses, not population p95 or browser load SLO acceptance.
+First timing instrument shadowed builtin round and failed before recording; discarded, both
+rounds rerun. First telemetry extractor used wrong routes key, yielded no evidence; corrected
+full pair reads top_routes. Single named artifact download extracts index at root; reader root
+corrected before counting. No timeouts increased and no retries hide missed targets.
+
+Identity service currently fabricates positive confidence from filename/category/description,
+with fallbackpositive. Three matching routes accepted actor query strings; pending queue GET
+had noJWT gate. Repair preserves public service contracts but returns is_matchfalse/confidence0/
+methods[]/unavailable, batchURLs retained and board observedNone. Three POSTs bindJWTactor
+before503 manual-review guidance, no DB/scan charges/newclaims/notifications. GET pending
+sessions bindsJWTowner and retains owner-filtered empty-read200. Removes dormant image-inference
+code and unused private selfie resolver; no replacement biometric engine, no image/provider/CDN
+operations, no synthetic matching confidence, no actual customer scans/uploads/claims/messages.
+Frontend FindMe still presents selfie upload before calling the server; UI unavailable capability,
+legacy stored suggestion confidence and broader manual claim/object ownership are separate OPEN
+work. This patch does not certify the entire gallery or every resource authorization boundary.
+
+Final revised32case isolated instrument uses actual old Cloudinary keyword helper (no I/O), genuine
+locally generated JWTs and DB traps: BEFORE30failed2passed twice(.41/.41s), AFTER32passed twice
+(.53/.54s),10warnings. After removes unused selfie helper; earlier32case.56/.51proof superseded
+for revised candidate. Failed environment/encoding preflights produced no valid test summaries
+and are excluded; corrected complete before/after pair rerun. Actual checkout real package imports
+with actualconftest/L1guard:32passed twice4.10/4.00s12warnings;190companions19.18s90warnings;
+blocking changed-file lint0. Tracked partition610/181guards/147chain/279estate/2excluded/
+1quarantine. Checked hosted estate749 plus32 projects781/floor779, unchanged margin2; guard2278
+and chain1918 budgets unchanged. Full server import with startup disabled/socket connect trap
+confirms these four routes and JWT dependencies are actually assembled; no network calls. Stripe
+canonical payments handler precedes shadowed root duplicate; no Stripe runtime source change.
+Checkout census checker label before describes loading mode after adoption, not new before evidence.
+Actual livebd absent-account anonymous baseline twice:3POST404, pendingGET200empty; only absent
+synthetic resources, no real image/customer read. Hosted identity/live after proof pending.
+
+Authorization follows record-specific permission checks and adversarial tests; JWT identity by
+itself is not proof of gallery/object ownership ([OWASP object authorization](https://api-security.owasp.org/editions/2023/en/0xa1-broken-object-level-authorization/)).
+Latency is reported independently from errors and failed requests ([Google SRE monitoring](https://sre.google/sre-book/monitoring-distributed-systems/)).
+These primary sources inform checks; they do not prove this app passed. Local runtime2missing
+packages/notvirtualenv still limits parity. Ledger475-481 records rollout and preparation.

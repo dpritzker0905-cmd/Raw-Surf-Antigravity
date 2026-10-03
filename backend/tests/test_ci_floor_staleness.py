@@ -437,7 +437,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Guards181files/floor2270/reference2276 keep margin6; chain/estate unchanged.
 # estate749: checked dev/PR232 CI37154741295 read735; retry controls22to36 add14.
 # guards2278: checkedPR233 CI37155975799 read2276; monitor window adds2.
-_FLOOR_SET_FROM = {"guards": 2278, "chain": 1918, "estate": 749}
+# estate781: PR234 CI37157703688 read749; identity evidence controls add32.
+_FLOOR_SET_FROM = {"guards": 2278, "chain": 1918, "estate": 781}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
