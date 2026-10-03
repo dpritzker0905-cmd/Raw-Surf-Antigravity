@@ -1,0 +1,445 @@
+{
+  "recorded_at": "2026-10-03T18:17:24.684207+00:00",
+  "repair_pr": 228,
+  "tested_head": "4f3aaa410c8997406e3c35ad08dbe849ab88a265",
+  "deployed_revision": "3de464b8ea9a467f67a9a04d4b6f87b6ce8ab6cb",
+  "hosted": {
+    "run": 37141260667,
+    "head": "4f3aaa410c8997406e3c35ad08dbe849ab88a265",
+    "counts": {
+      "guards": {
+        "job": 111256007538,
+        "summary": "2248 passed, 66 skipped, 1 xfailed, 12 warnings in 963.02s (0:16:03)",
+        "passed": 2248,
+        "skipped": 66,
+        "xfailed": 1,
+        "warnings": 12
+      },
+      "chain": {
+        "job": 111256007483,
+        "summary": "1876 passed, 7 warnings in 513.01s (0:08:33)",
+        "passed": 1876,
+        "warnings": 7
+      },
+      "estate": {
+        "job": 111256007473,
+        "summary": "735 passed, 2865 skipped, 128 warnings in 63.39s (0:01:03)",
+        "passed": 735,
+        "skipped": 2865,
+        "warnings": 128
+      }
+    }
+  },
+  "before_strava_health": {
+    "phase": "before",
+    "base": "shared Render backend",
+    "requests": [
+      {
+        "run": 1,
+        "name": "strava_status",
+        "status": 404,
+        "seconds": 0.328,
+        "response_keys": [
+          "detail"
+        ]
+      },
+      {
+        "run": 1,
+        "name": "strava_sync",
+        "status": 404,
+        "seconds": 0.281,
+        "response_keys": [
+          "detail"
+        ]
+      },
+      {
+        "run": 1,
+        "name": "strava_auth_url",
+        "status": 200,
+        "seconds": 0.25,
+        "response_keys": [
+          "url"
+        ]
+      },
+      {
+        "run": 1,
+        "name": "strava_denied_callback",
+        "status": 400,
+        "seconds": 0.187,
+        "response_keys": [
+          "detail"
+        ]
+      },
+      {
+        "run": 1,
+        "name": "health",
+        "status": 200,
+        "seconds": 0.485,
+        "response_keys": [
+          "checks",
+          "config",
+          "copernicus_credentials_present",
+          "database",
+          "environment",
+          "memory",
+          "request_telemetry",
+          "runtime",
+          "scheduler",
+          "serving_gates",
+          "status",
+          "summary",
+          "timestamp",
+          "uptime",
+          "uptime_seconds",
+          "version",
+          "weather_readiness"
+        ],
+        "version": "2.0.0-stage-6f-v1-e0f934662eb919de6182a4c0fc4cfc41f9f5aa89"
+      },
+      {
+        "run": 2,
+        "name": "strava_status",
+        "status": 404,
+        "seconds": 0.188,
+        "response_keys": [
+          "detail"
+        ]
+      },
+      {
+        "run": 2,
+        "name": "strava_sync",
+        "status": 404,
+        "seconds": 0.172,
+        "response_keys": [
+          "detail"
+        ]
+      },
+      {
+        "run": 2,
+        "name": "strava_auth_url",
+        "status": 200,
+        "seconds": 0.156,
+        "response_keys": [
+          "url"
+        ]
+      },
+      {
+        "run": 2,
+        "name": "strava_denied_callback",
+        "status": 400,
+        "seconds": 0.188,
+        "response_keys": [
+          "detail"
+        ]
+      },
+      {
+        "run": 2,
+        "name": "health",
+        "status": 200,
+        "seconds": 0.234,
+        "response_keys": [
+          "checks",
+          "config",
+          "copernicus_credentials_present",
+          "database",
+          "environment",
+          "memory",
+          "request_telemetry",
+          "runtime",
+          "scheduler",
+          "serving_gates",
+          "status",
+          "summary",
+          "timestamp",
+          "uptime",
+          "uptime_seconds",
+          "version",
+          "weather_readiness"
+        ],
+        "version": "2.0.0-stage-6f-v1-e0f934662eb919de6182a4c0fc4cfc41f9f5aa89"
+      }
+    ]
+  },
+  "before_messages": {
+    "phase": "before",
+    "requests": [
+      {
+        "run": 1,
+        "name": "message_unread",
+        "status": 200,
+        "seconds": 0.422
+      },
+      {
+        "run": 1,
+        "name": "message_thread_check",
+        "status": 404,
+        "seconds": 0.172
+      },
+      {
+        "run": 1,
+        "name": "message_conversation_count",
+        "status": 200,
+        "seconds": 0.265
+      },
+      {
+        "run": 2,
+        "name": "message_unread",
+        "status": 200,
+        "seconds": 0.188
+      },
+      {
+        "run": 2,
+        "name": "message_thread_check",
+        "status": 404,
+        "seconds": 0.172
+      },
+      {
+        "run": 2,
+        "name": "message_conversation_count",
+        "status": 200,
+        "seconds": 0.203
+      }
+    ]
+  },
+  "after": {
+    "observed_at": "2026-10-03T18:07:42.891541+00:00",
+    "phase": "after",
+    "requests": [
+      {
+        "run": 1,
+        "name": "strava_status",
+        "status": 401,
+        "seconds": 0.344
+      },
+      {
+        "run": 1,
+        "name": "strava_sync",
+        "status": 401,
+        "seconds": 0.25
+      },
+      {
+        "run": 1,
+        "name": "strava_auth_url",
+        "status": 401,
+        "seconds": 0.297
+      },
+      {
+        "run": 1,
+        "name": "strava_denied_callback",
+        "status": 401,
+        "seconds": 0.156
+      },
+      {
+        "run": 1,
+        "name": "messages_unread",
+        "status": 401,
+        "seconds": 0.172
+      },
+      {
+        "run": 1,
+        "name": "messages_check",
+        "status": 401,
+        "seconds": 0.172
+      },
+      {
+        "run": 1,
+        "name": "messages_count",
+        "status": 401,
+        "seconds": 0.234
+      },
+      {
+        "run": 1,
+        "name": "health",
+        "status": 200,
+        "seconds": 0.266,
+        "version": "2.0.0-stage-6f-v1-3de464b8ea9a467f67a9a04d4b6f87b6ce8ab6cb",
+        "health": "healthy",
+        "rss_mb": 598.8,
+        "peak_pct": 29.8,
+        "uptime_seconds": 313.5
+      },
+      {
+        "run": 2,
+        "name": "strava_status",
+        "status": 401,
+        "seconds": 0.156
+      },
+      {
+        "run": 2,
+        "name": "strava_sync",
+        "status": 401,
+        "seconds": 0.156
+      },
+      {
+        "run": 2,
+        "name": "strava_auth_url",
+        "status": 401,
+        "seconds": 0.172
+      },
+      {
+        "run": 2,
+        "name": "strava_denied_callback",
+        "status": 401,
+        "seconds": 0.156
+      },
+      {
+        "run": 2,
+        "name": "messages_unread",
+        "status": 401,
+        "seconds": 0.157
+      },
+      {
+        "run": 2,
+        "name": "messages_check",
+        "status": 401,
+        "seconds": 0.156
+      },
+      {
+        "run": 2,
+        "name": "messages_count",
+        "status": 401,
+        "seconds": 0.156
+      },
+      {
+        "run": 2,
+        "name": "health",
+        "status": 200,
+        "seconds": 0.281,
+        "version": "2.0.0-stage-6f-v1-3de464b8ea9a467f67a9a04d4b6f87b6ce8ab6cb",
+        "health": "healthy",
+        "rss_mb": 599.4,
+        "peak_pct": 29.8,
+        "uptime_seconds": 314.9
+      }
+    ]
+  },
+  "schema": {
+    "before_twice": "absent",
+    "after_twice": {
+      "rls_enabled": true,
+      "anon_read": "42501 denied",
+      "authenticated_read": "42501 denied",
+      "service_role_read": "allowed",
+      "cascade_fk": true,
+      "index_count": 3
+    },
+    "sql_sha256": "bc51467d3f33280f24f4190d5bc3234f38a800edccee225be3c6e13de9b3ba93"
+  },
+  "flags_after_twice": {
+    "SIM_STRICT_INPUTS": "0",
+    "SIM_SERVED_TIME_MATCH": "0",
+    "SURF_TIDE_DEPTH": "0"
+  },
+  "owner_controls": {
+    "messages_list_twice": "success with HTTP200 corroboration",
+    "strava_status_twice": "HTTP200; no consent/exchange",
+    "conditions_twice": "current/tides/forecast shown; regression canary",
+    "profile_twice": "profile and owner controls loaded; no update"
+  },
+  "limits": [
+    "No real OAuth exchange or credential rotation confirmation",
+    "No payment sandbox reconciliation or live money concurrency test",
+    "No PostgreSQL concurrent nonce claim test",
+    "No weather skill/flag acceptance",
+    "Netlify preview canceled; live dev tested",
+    "No all-services/no-errors or long-term capacity certification"
+  ],
+  "post_merge_ci": {
+    "run": 37142516639,
+    "status": "completed",
+    "conclusion": "success",
+    "head": "3de464b8ea9a467f67a9a04d4b6f87b6ce8ab6cb",
+    "counts": {
+      "guards": {
+        "job": 111259713471,
+        "summary": "2248 passed, 66 skipped, 1 xfailed, 12 warnings in 822.03s (0:13:42)"
+      },
+      "chain": {
+        "job": 111259713487,
+        "summary": "1876 passed, 7 warnings in 573.69s (0:09:33)"
+      },
+      "estate": {
+        "job": 111259713457,
+        "summary": "735 passed, 2865 skipped, 128 warnings in 72.75s (0:01:12)"
+      }
+    }
+  },
+  "direction_period_24h": {
+    "raw_surf": {
+      "status": "scored",
+      "period": {
+        "n": 2527,
+        "mae_s": 2.012,
+        "bias_s": 0.511
+      },
+      "direction": {
+        "n": 407,
+        "mae_deg": 24.38,
+        "median_deg": 11.74,
+        "rms_deg": 39.46,
+        "p90_deg": 69.71
+      }
+    },
+    "raw_surf:EURO": {
+      "status": "scored",
+      "period": {
+        "n": 2526,
+        "mae_s": 1.83,
+        "bias_s": -0.739
+      },
+      "direction": {
+        "n": 407,
+        "mae_deg": 25.31,
+        "median_deg": 18.61,
+        "rms_deg": 34.25,
+        "p90_deg": 57.5
+      }
+    },
+    "raw_surf:ICON": {
+      "status": "scored",
+      "period": {
+        "n": 2527,
+        "mae_s": 2.548,
+        "bias_s": -1.704
+      },
+      "direction": {
+        "n": 407,
+        "mae_deg": 32.43,
+        "median_deg": 23.2,
+        "rms_deg": 45.32,
+        "p90_deg": 65.74
+      }
+    },
+    "persistence": {
+      "status": "scored",
+      "period": {
+        "n": 2508,
+        "mae_s": 2.326,
+        "bias_s": -0.056
+      },
+      "direction": {
+        "n": 404,
+        "mae_deg": 27.77,
+        "median_deg": 13.0,
+        "rms_deg": 45.38,
+        "p90_deg": 75.0
+      }
+    }
+  },
+  "ops": {
+    "ledgered": 1383,
+    "scored": 172,
+    "pending_kept": 45006,
+    "pending_evicted_cap": 0,
+    "scoring_rejections": {
+      "invalid_forecasts": 0,
+      "invalid_observations": 0
+    }
+  },
+  "monitor": {
+    "run": 37139645631,
+    "head": "e0f934662eb919de6182a4c0fc4cfc41f9f5aa89",
+    "conclusion": "failure",
+    "reason": "operational skill floor +24h: raw_surf0.176 vs persistence0.162m, n438, win47%"
+  }
+}
