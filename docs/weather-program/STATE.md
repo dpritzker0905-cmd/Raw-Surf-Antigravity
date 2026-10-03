@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 20:05Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 20:47Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,11 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-03 20:47Z: capacity repair prepared on currentdev449b3b91.** Three weather files
+  plus42parity/cache/fallback checks from independently reviewed672b996e; baseline18fail twice,
+  candidate42pass twice, checkout42pass twice;13neighbor files275pass. Hosted-base1876 plus42
+  projects1918, chain floor1912/files147; established margins unchanged. Bounded live before
+ 6stored frames200twice/field hashes equal; after/hosted/live rollout pending. No flag promotion.
 - **2026-10-03 18:17Z: PR #228 merged into `dev`; backend live `3de464b8`.** Exact-head
   CI37141260667 at4f3aaa41: guards2248/chain1876/estate735, projected counts confirmed,14 GitHub checks
   success. Applied backend-only Strava state schema with twice-before/after catalog and actual-role proofs.
@@ -26,7 +31,11 @@ is a claim, not a measurement.
   narrow two-identity GET badge fixture passes two fresh after runs (1passed each); real API401
   twice. Full E2E37147928653:60pass/2fail/1flaky/9existing skips; Safari fixture bypass and
   separate Chrome15s spot timeout traced. Fresh Safari baselines1pass/1fail; Explore worker block
-  and explicit fixture-use assertion built, hosted after pending; auth unchanged. Commitment172 checked;149/309
+  and explicit fixture-use assertion pass4tests twice (all four projects, no retries/skips). Full
+  E2E37150963742 completed62pass/0final fail/1flaky/9existing skips; retained Chrome trace
+  confirms separate real spot15s timeout. PR230 merged449b3b91 at20:39:06Z; backend Live/health
+  exact revision200 twice and real badge401 twice; postmerge E2E37152301831 pending;
+  exact5d9e92f2CI success2248/1876/735; auth unchanged. Commitment172 checked;149/309
   open (latest monitor loses +24h operational floor to persistence). Broader audit, real OAuth/payment acceptance,
   rotation and weather skill remain open. Receipt PR229 merged into dev atf2ae19d2; its CI retry passed. Exact dev/public origins
   configured; config redeploy Live1m16s at unchanged3de; actual PG nonce race/replay passes twice
@@ -379,7 +388,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 422, sha256 f70ea9369739cf8cbda1afea12ccb8a76db78e36060e1b22f3dd89ab02ce51c6**
+  **Ledger head: seq 439, sha256 35b2f5480485ceaace6e850d7ffe6162cd9e703daa572c566fd5d7c955eb1882**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

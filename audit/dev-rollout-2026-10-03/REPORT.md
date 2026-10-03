@@ -256,3 +256,67 @@ fixture observability; real identity/auth, spot/weather requests and product cod
 Boundary controls pass twice; hosted after pair is pending. Chrome15s timeout remains a separate
 capacity issue. Passive Render CPU chart reaches100percent in that request window; no specific
 heavy function or causal coefficient established.
+
+## 2026-10-03 20:26Z — four-browser pair and independent capacity candidate
+
+Worker-control after runs37150377846/37150639002 each **4passed,0failed,0flaky,0skipped**,
+with zero retries. All four retained traces per run show badge fixture200, no worker-script request
+or action error, and unmocked real spot200. Real spot durations4.276-4.837s /4.571-5.747s.
+Full normal suite37150963742 is running. Latest5d9e92f2 CI37150378034 succeeds:2248/1876/735
+passes with unchanged floors/margins and disclosed existing skips/xfail.
+
+The audit capacity recommendation is being advanced independently: current dev materializes
+full global-mid grids before thinning. The existing PR222 candidate was reviewed against current
+5d9e92f2, preserving its other repairs, and copied only into an ignored isolated snapshot.
+Eighteen existing real-store parity/materialization cases fail twice because the full cache entry
+remains; the same normalized outputs compare equal. Candidate42checks pass twice, including
+damaged/non-global/antimeridian fallbacks, kill switch, cache immutability and dark max thinning.
+
+| One-core synthetic16-hour page, stride4 | Old round1/2 | Candidate round1/2 |
+|---|---|---|
+| Cold CPU seconds |1.4375/1.3906|0.3281/0.3438|
+| Cold wall seconds |1.5100/1.5348|0.3949/0.4207|
+| Repeated page L1 hits |0/0|16/16|
+| Retained L1 vectors |105161/105161|15456/15456|
+| Normalized sixteen-frame equality |exact|exact|
+
+Each output retains966cells/frame; raw synthetic inputs15023cells/frame. This varies the read
+strategy while holding the stored physical fields fixed. No live-performance multiplier, actual
+product skill improvement or server-capacity closure is inferred. Candidate source672b996e and
+file hashes are in sanitized results; no production code/deploy has adopted it yet.
+
+Local setup initially had42errors from a site-package tests namespace collision; a local package
+path shim retained the actual L1 mutation guard for both accepted after runs. First accepted run
+lacked workflow metadata; the second includes pinned current workflow and reports2missing declared
+packages/no virtualenv. These passes describe that local environment; hosted/current-head and
+live rollout proof remain required. The prior malformed-grid tiny-spacing lattice hazard and
+joint concurrency/SLO recommendations remain separate open issues.
+
+## 2026-10-03 20:39Z — PR230 merged; remaining transport retry isolated
+
+Full normal acceptance37150963742:62passed,0final failures,1flaky,9existing skips.
+Retained Chrome retry trace has fixture200 and real spot cancellation/Axios15000ms timeout;
+Safari interception failures resolved, whole transport/SLO not certified. Exact5d CI success.
+PR230 merged449b3b910278c52b5d0dde64d1fd5bee4f0e9ffc at20:39:06Z; actual deploy pending.
+Capacity candidate13neighbor files:275passed/0failed/0skipped,3warnings,46.25s in disclosed local
+environment; candidate not deployed. Ledger432full verdict/433neighbor check/434PRbody/435merge.
+
+## 2026-10-03 20:47Z — capacity repair checkout and live baseline
+
+PR230 backend449b3b91 Live and healthy200twice; badge401twice. Postmerge E2E37152301831 pending.
+Capacity applied onto449b3b91 from the four source hashes already reviewed; all earlier repairs retained.
+Actual checkout42pass twice15.73/11.23s;22floor controls pass. Partition608tracked/180guards/147chain/
+278estate/2FastMCPexcluded/1quarantine. First partition invocation used repo root and found0; corrected
+required backend cwd gives actual partition proof. Blocking lint0; file-size check116files0violations
+(route helper760LOC). Hosted chain1918 is projected from checked5d run1876 plus42executed cases;
+floor1912 and147files keep the margin6, reference moves with it; guards/estate unchanged.
+
+Bounded live BEFORE: fixed21Z GFS global waves6offsets0..15h;200twice,6of6storedglobal_mid/NOAA,
+3822vectors/frame,3.579MB,2.8302/2.9111s; all physical hashes identical between reads. Initial lowercase
+model request422 was a probe enum error, corrected to documentedGFS and excluded from acceptance.
+No load/concurrency/SLO claim. Candidate default-on identity read changes materialization, with explicit
+MARINE_MID_SERIES_LOAD_STRIDE=0 rollback; it does not promote max thinning or scientific serving flags.
+Ledger436deploy/437checkout build/438live baseline. Hosted/current-head and after-deploy proof pending.
+
+2026-10-03 20:48Z readback (ledger439): live449b3b91 actual catalog/grants pass twice;
+three scientific flags0 twice. Canonical docs memory0FAIL/2WARN/11NOTE; unchanged overdue149/309.

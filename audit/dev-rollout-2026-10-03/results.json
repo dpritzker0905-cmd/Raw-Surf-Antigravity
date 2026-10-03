@@ -975,7 +975,901 @@
     ],
     "before_failure": "badge401 without fixture marker",
     "change": "Explore-group serviceWorkers block and completed fixture-use assertion",
-    "after_status": "pending",
-    "production_changes": false
+    "after_status": "4passed twice, all four projects, retries0, no skips",
+    "production_changes": false,
+    "after_runs": [
+      37150377846,
+      37150639002
+    ],
+    "after_traces": [
+      {
+        "run": 37150377846,
+        "head": "5d9e92f2d190658e0b1468d352eab2439db7674c",
+        "stats": {
+          "total": 4,
+          "expected": 4,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0,
+          "ok": true
+        },
+        "tests": [
+          {
+            "project": "Mobile Safari",
+            "outcome": "expected",
+            "requests": [
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 320.261,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 324.117,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/explore/spot-details/:id",
+                "status": 200,
+                "duration_ms": 4738.176,
+                "fixture_marker": false
+              }
+            ],
+            "errors": [],
+            "worker_script_requests": 0
+          },
+          {
+            "project": "Desktop Chrome",
+            "outcome": "expected",
+            "requests": [
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 27.475,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 50.412,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/explore/spot-details/:id",
+                "status": 200,
+                "duration_ms": 4786.446999999999,
+                "fixture_marker": false
+              }
+            ],
+            "errors": [],
+            "worker_script_requests": 0
+          },
+          {
+            "project": "Desktop Firefox",
+            "outcome": "expected",
+            "requests": [
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 0,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 0,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/explore/spot-details/:id",
+                "status": 200,
+                "duration_ms": 4276.346,
+                "fixture_marker": false
+              }
+            ],
+            "errors": [],
+            "worker_script_requests": 0
+          },
+          {
+            "project": "Desktop Safari",
+            "outcome": "expected",
+            "requests": [
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 88.264,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 89.834,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/explore/spot-details/:id",
+                "status": 200,
+                "duration_ms": 4837.034,
+                "fixture_marker": false
+              }
+            ],
+            "errors": [],
+            "worker_script_requests": 0
+          }
+        ]
+      },
+      {
+        "run": 37150639002,
+        "head": "5d9e92f2d190658e0b1468d352eab2439db7674c",
+        "stats": {
+          "total": 4,
+          "expected": 4,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 0,
+          "ok": true
+        },
+        "tests": [
+          {
+            "project": "Mobile Safari",
+            "outcome": "expected",
+            "requests": [
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 142.691,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 141.806,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/explore/spot-details/:id",
+                "status": 200,
+                "duration_ms": 5747.052000000001,
+                "fixture_marker": false
+              }
+            ],
+            "errors": [],
+            "worker_script_requests": 0
+          },
+          {
+            "project": "Desktop Chrome",
+            "outcome": "expected",
+            "requests": [
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 39.862,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 52.36,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/explore/spot-details/:id",
+                "status": 200,
+                "duration_ms": 4570.694,
+                "fixture_marker": false
+              }
+            ],
+            "errors": [],
+            "worker_script_requests": 0
+          },
+          {
+            "project": "Desktop Firefox",
+            "outcome": "expected",
+            "requests": [
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 0,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 0,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/explore/spot-details/:id",
+                "status": 200,
+                "duration_ms": 4864.407999999999,
+                "fixture_marker": false
+              }
+            ],
+            "errors": [],
+            "worker_script_requests": 0
+          },
+          {
+            "project": "Desktop Safari",
+            "outcome": "expected",
+            "requests": [
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 84.473,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/messages/unread-counts/:id",
+                "status": 200,
+                "duration_ms": 90.808,
+                "fixture_marker": true
+              },
+              {
+                "path": "/api/explore/spot-details/:id",
+                "status": 200,
+                "duration_ms": 5425.200000000001,
+                "fixture_marker": false
+              }
+            ],
+            "errors": [],
+            "worker_script_requests": 0
+          }
+        ]
+      }
+    ],
+    "full_suite_run": 37150963742,
+    "full_suite_status": "completed62passed/0final failures/1flaky/9existing skips",
+    "full_suite_receipt": {
+      "run": 37150963742,
+      "job": 111284598465,
+      "head": "5d9e92f2d190658e0b1468d352eab2439db7674c",
+      "stats": {
+        "total": 72,
+        "expected": 62,
+        "unexpected": 0,
+        "flaky": 1,
+        "skipped": 9,
+        "ok": false
+      },
+      "nonpassing": [
+        {
+          "title": "clicking a spot opens its spot hub",
+          "projectName": "Desktop Chrome",
+          "outcome": "flaky",
+          "annotations": []
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 282,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 418,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 280,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 416,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Chrome",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 417,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        }
+      ],
+      "log_counts": [
+        "1 flaky",
+        "9 skipped",
+        "62 passed (17.2m)"
+      ]
+    },
+    "remaining_transport_trace": [
+      {
+        "trace": "data/f53373419c7fd8226e258a23fbb7f3c2857712fb.zip",
+        "requests": [
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 33.927,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 33.807,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/explore/spot-details/:id",
+            "status": -1,
+            "duration_ms": -1,
+            "fixture_marker": false
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 8.495999999999999,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 9.24,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 11.061,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 9.987,
+            "fixture_marker": true
+          }
+        ],
+        "errors": [
+          "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+          "Expect failed"
+        ],
+        "signals": [
+          "Axios timeout of 15000ms"
+        ]
+      }
+    ]
+  },
+  "pr230_ci_latest": {
+    "head": "5d9e92f2d190658e0b1468d352eab2439db7674c",
+    "run": 37150378034,
+    "counts": [
+      {
+        "lane": "guards",
+        "job": 111282858693,
+        "result": "2248 passed, 66 skipped, 1 xfailed, 12 warnings in 930.76s (0:15:30)"
+      },
+      {
+        "lane": "chain",
+        "job": 111282858656,
+        "result": "1876 passed, 7 warnings in 611.14s (0:10:11)"
+      },
+      {
+        "lane": "estate",
+        "job": 111282858632,
+        "result": "735 passed, 2865 skipped, 128 warnings in 52.40s"
+      }
+    ]
+  },
+  "capacity_candidate_review": {
+    "before_failures": [
+      18,
+      18
+    ],
+    "before_seconds": [
+      7.86,
+      7.38
+    ],
+    "after_passes": [
+      42,
+      42
+    ],
+    "after_seconds": [
+      13.45,
+      13.59
+    ],
+    "benchmark": {
+      "fixture": "16 synthetic hourly global grids,15023cells/frame,stride4",
+      "source": {
+        "current_base": "5d9e92f2d190658e0b1468d352eab2439db7674c",
+        "candidate_source": "672b996ea9b33f749b96b05f9d60e237ab5b4549",
+        "files": [
+          {
+            "path": "backend/services/weather_pipeline/mid_res_tier.py",
+            "sha256": "865e54cb28cb97e1d9b6be6db83b4c463a689a24dd74ce071167795c522c65ec"
+          },
+          {
+            "path": "backend/services/weather_pipeline/route_helpers.py",
+            "sha256": "832ab9012b12907d3e636a0c4cf6c7c4dfdc2eeec7146f34f0ce151f7cf548d7"
+          },
+          {
+            "path": "backend/services/weather_pipeline/series_vector_budget.py",
+            "sha256": "63dfab946f9b2e67ab5b4047bb2502172b93ccc17bb8436c1a909f95a51da94c"
+          },
+          {
+            "path": "backend/tests/test_world_series_strided_read.py",
+            "sha256": "60787a7107bc87aa1ec25db0160eded6af071d9e8f90170b1185a6701482a1dd"
+          }
+        ],
+        "live_application_changed": false
+      },
+      "affinity_cores": 1,
+      "live_io": false,
+      "rounds": [
+        {
+          "round": 1,
+          "normalized_frame_equality": true,
+          "arms": [
+            {
+              "strategy": "old",
+              "warm": false,
+              "cpu_s": 1.4375,
+              "wall_s": 1.51,
+              "preload_l1_hits": 0,
+              "retained_l1_vectors": 105161,
+              "frame_count": 16,
+              "vectors_per_frame_min": 966,
+              "vectors_per_frame_max": 966
+            },
+            {
+              "strategy": "old",
+              "warm": true,
+              "cpu_s": 1.5156,
+              "wall_s": 1.6739,
+              "preload_l1_hits": 0,
+              "retained_l1_vectors": 105161,
+              "frame_count": 16,
+              "vectors_per_frame_min": 966,
+              "vectors_per_frame_max": 966
+            },
+            {
+              "strategy": "optimized",
+              "warm": false,
+              "cpu_s": 0.3281,
+              "wall_s": 0.3949,
+              "preload_l1_hits": 0,
+              "retained_l1_vectors": 15456,
+              "frame_count": 16,
+              "vectors_per_frame_min": 966,
+              "vectors_per_frame_max": 966
+            },
+            {
+              "strategy": "optimized",
+              "warm": true,
+              "cpu_s": 0.0156,
+              "wall_s": 0.0335,
+              "preload_l1_hits": 16,
+              "retained_l1_vectors": 15456,
+              "frame_count": 16,
+              "vectors_per_frame_min": 966,
+              "vectors_per_frame_max": 966
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "normalized_frame_equality": true,
+          "arms": [
+            {
+              "strategy": "old",
+              "warm": false,
+              "cpu_s": 1.3906,
+              "wall_s": 1.5348,
+              "preload_l1_hits": 0,
+              "retained_l1_vectors": 105161,
+              "frame_count": 16,
+              "vectors_per_frame_min": 966,
+              "vectors_per_frame_max": 966
+            },
+            {
+              "strategy": "old",
+              "warm": true,
+              "cpu_s": 1.5,
+              "wall_s": 1.6064,
+              "preload_l1_hits": 0,
+              "retained_l1_vectors": 105161,
+              "frame_count": 16,
+              "vectors_per_frame_min": 966,
+              "vectors_per_frame_max": 966
+            },
+            {
+              "strategy": "optimized",
+              "warm": false,
+              "cpu_s": 0.3438,
+              "wall_s": 0.4207,
+              "preload_l1_hits": 0,
+              "retained_l1_vectors": 15456,
+              "frame_count": 16,
+              "vectors_per_frame_min": 966,
+              "vectors_per_frame_max": 966
+            },
+            {
+              "strategy": "optimized",
+              "warm": true,
+              "cpu_s": 0.0469,
+              "wall_s": 0.0331,
+              "preload_l1_hits": 16,
+              "retained_l1_vectors": 15456,
+              "frame_count": 16,
+              "vectors_per_frame_min": 966,
+              "vectors_per_frame_max": 966
+            }
+          ]
+        }
+      ]
+    },
+    "environment_limit": "Bundled Python3.12 plus existing dependency directory; explicit local tests package path;2declared packages missing, no virtualenv",
+    "live_acceptance": "pending; candidate isolated, no production edits",
+    "neighbor_checks": {
+      "files": 13,
+      "passed": 275,
+      "failed": 0,
+      "skipped": 0,
+      "warnings": 3,
+      "seconds": 46.25
+    },
+    "checkout_base": "449b3b910278c52b5d0dde64d1fd5bee4f0e9ffc",
+    "checkout_pair": {
+      "passed": [
+        42,
+        42
+      ],
+      "seconds": [
+        15.73,
+        11.23
+      ]
+    },
+    "floor_controls": {
+      "passed": 22,
+      "seconds": 0.46
+    },
+    "partition": {
+      "tracked": 608,
+      "guards": 180,
+      "chain": 147,
+      "estate": 278,
+      "excluded": 2,
+      "quarantined": 1
+    },
+    "blocking_lint_errors": 0,
+    "expected_chain_passes": 1918,
+    "chain_min_passed": 1912,
+    "live_before": {
+      "observed_at": "2026-10-03T20:46:23.696388+00:00",
+      "request": {
+        "model": "GFS",
+        "domain": "marine",
+        "layer": "waves",
+        "bbox": "-180.0000,-80.0000,180.0000,85.0000",
+        "hours": "0,3,6,9,12,15",
+        "base_time": "2026-10-03T21:00:00.000Z"
+      },
+      "rows": [
+        {
+          "round": 1,
+          "version": "2.0.0-stage-6f-v1-449b3b910278c52b5d0dde64d1fd5bee4f0e9ffc",
+          "status": 200,
+          "wall_seconds": 2.8302,
+          "bytes": 3579343,
+          "frames": [
+            {
+              "hour_offset": 0,
+              "valid_time": "2026-10-03T21:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "226c092b920bdd5e4ab1d5c1c7802f3d72127ce51892c603a2e37e05859adfd9"
+            },
+            {
+              "hour_offset": 3,
+              "valid_time": "2026-10-04T00:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "63fd857784506172965de0e5af0ead358287fd7a64b4d41c8fa090e04c63ca76"
+            },
+            {
+              "hour_offset": 6,
+              "valid_time": "2026-10-04T03:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "ebdfe8fd50ee8ccb593e09af4371f254f0b7b5fed0def0f0582aab0310897cb8"
+            },
+            {
+              "hour_offset": 9,
+              "valid_time": "2026-10-04T06:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "398189a2698a5db96d417efb246a4cbe8706c5cbead5e12cd194304c751cca46"
+            },
+            {
+              "hour_offset": 12,
+              "valid_time": "2026-10-04T09:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "8e7f38bb0da297863eccb839f72d8463ff2b14df36f8421c52067ece29afb417"
+            },
+            {
+              "hour_offset": 15,
+              "valid_time": "2026-10-04T12:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "473aaeef3c7d1d1e9f32eeac1649708e25006abdb32f39ed4394907d597a9e98"
+            }
+          ],
+          "returned_offsets": [
+            0,
+            3,
+            6,
+            9,
+            12,
+            15
+          ],
+          "memory_before_mb": 745.3
+        },
+        {
+          "round": 2,
+          "version": "2.0.0-stage-6f-v1-449b3b910278c52b5d0dde64d1fd5bee4f0e9ffc",
+          "status": 200,
+          "wall_seconds": 2.9111,
+          "bytes": 3579343,
+          "frames": [
+            {
+              "hour_offset": 0,
+              "valid_time": "2026-10-03T21:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "226c092b920bdd5e4ab1d5c1c7802f3d72127ce51892c603a2e37e05859adfd9"
+            },
+            {
+              "hour_offset": 3,
+              "valid_time": "2026-10-04T00:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "63fd857784506172965de0e5af0ead358287fd7a64b4d41c8fa090e04c63ca76"
+            },
+            {
+              "hour_offset": 6,
+              "valid_time": "2026-10-04T03:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "ebdfe8fd50ee8ccb593e09af4371f254f0b7b5fed0def0f0582aab0310897cb8"
+            },
+            {
+              "hour_offset": 9,
+              "valid_time": "2026-10-04T06:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "398189a2698a5db96d417efb246a4cbe8706c5cbead5e12cd194304c751cca46"
+            },
+            {
+              "hour_offset": 12,
+              "valid_time": "2026-10-04T09:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "8e7f38bb0da297863eccb839f72d8463ff2b14df36f8421c52067ece29afb417"
+            },
+            {
+              "hour_offset": 15,
+              "valid_time": "2026-10-04T12:00:00Z",
+              "region": "global_mid",
+              "provider": "noaa",
+              "vectors": 3822,
+              "cols": 91,
+              "rows": 42,
+              "physical_sha256": "473aaeef3c7d1d1e9f32eeac1649708e25006abdb32f39ed4394907d597a9e98"
+            }
+          ],
+          "returned_offsets": [
+            0,
+            3,
+            6,
+            9,
+            12,
+            15
+          ],
+          "memory_before_mb": 744.2
+        }
+      ],
+      "limit": "Two serial six-frame reads; no load/concurrency or SLO certification; compare hashes only at fixed actual frames and provider"
+    }
+  },
+  "pr230_merge": {
+    "commit": "449b3b910278c52b5d0dde64d1fd5bee4f0e9ffc",
+    "merged_at": "2026-10-03T20:39:06Z",
+    "head": "5d9e92f2d190658e0b1468d352eab2439db7674c",
+    "live_acceptance": {
+      "observed_at": "2026-10-03T20:45:04.463536+00:00",
+      "rows": [
+        {
+          "round": 1,
+          "name": "anonymous_real_badge",
+          "status": 401
+        },
+        {
+          "round": 1,
+          "name": "health",
+          "status": 200,
+          "version": "2.0.0-stage-6f-v1-449b3b910278c52b5d0dde64d1fd5bee4f0e9ffc",
+          "health": "healthy",
+          "rss_mb": 646.6,
+          "uptime_seconds": 204.5
+        },
+        {
+          "round": 2,
+          "name": "anonymous_real_badge",
+          "status": 401
+        },
+        {
+          "round": 2,
+          "name": "health",
+          "status": 200,
+          "version": "2.0.0-stage-6f-v1-449b3b910278c52b5d0dde64d1fd5bee4f0e9ffc",
+          "health": "healthy",
+          "rss_mb": 646.6,
+          "uptime_seconds": 205.0
+        }
+      ]
+    },
+    "runtime_readback": {
+      "rounds": 2,
+      "instance": "gdrqt",
+      "schema": {
+        "rls": true,
+        "anon_denied": true,
+        "authenticated_denied": true,
+        "service_allowed": true
+      },
+      "flags": {
+        "SIM_STRICT_INPUTS": "0",
+        "SIM_SERVED_TIME_MATCH": "0",
+        "SURF_TIDE_DEPTH": "0"
+      }
+    }
   }
 }
