@@ -2279,7 +2279,304 @@
     "e2e": {
       "run": 37153891426,
       "job": 111293176809,
-      "status": "pending"
+      "head": "4b152937b98b00ebaf43da88cd9a5f9f8a132ad1",
+      "stats": {
+        "total": 72,
+        "expected": 60,
+        "unexpected": 0,
+        "flaky": 3,
+        "skipped": 9,
+        "ok": false
+      },
+      "nonpassing": [
+        {
+          "title": "clicking a spot opens its spot hub",
+          "projectName": "Mobile Safari",
+          "outcome": "flaky",
+          "annotations": []
+        },
+        {
+          "title": "clicking a spot opens its spot hub",
+          "projectName": "Desktop Chrome",
+          "outcome": "flaky",
+          "annotations": []
+        },
+        {
+          "title": "clicking a spot opens its spot hub",
+          "projectName": "Desktop Safari",
+          "outcome": "flaky",
+          "annotations": []
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 282,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 418,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 280,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
+                "line": 416,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Chrome",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "skip",
+              "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 417,
+                "column": 10
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Safari",
+          "outcome": "skipped",
+          "annotations": [
+            {
+              "type": "fixme",
+              "location": {
+                "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
+                "line": 587,
+                "column": 8
+              }
+            }
+          ]
+        }
+      ],
+      "log_counts": [
+        "3 flaky",
+        "9 skipped",
+        "60 passed (15.5m)"
+      ]
+    },
+    "flaky_traces": [
+      {
+        "title": "clicking a spot opens its spot hub",
+        "project": "Mobile Safari"
+      },
+      {
+        "trace": "data/e8c30df2b00b64d2023b8c6b89cedb8ca42a8eb7.zip",
+        "requests": [
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 30.432,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 34.9,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/explore/spot-details/:id",
+            "status": 200,
+            "duration_ms": 3555.998,
+            "fixture_marker": false
+          }
+        ],
+        "errors": [],
+        "signals": []
+      },
+      {
+        "title": "clicking a spot opens its spot hub",
+        "project": "Desktop Chrome"
+      },
+      {
+        "trace": "data/a1d1d7f17118245284c39faf809e1ccad401889a.zip",
+        "requests": [
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 17.885,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 17.77,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/explore/spot-details/:id",
+            "status": -1,
+            "duration_ms": -1,
+            "fixture_marker": false
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 7.6339999999999995,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 7.481999999999999,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 6.132,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 6.8,
+            "fixture_marker": true
+          }
+        ],
+        "errors": [
+          "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed",
+          "Expect failed"
+        ],
+        "signals": [
+          "Axios timeout of 15000ms"
+        ]
+      },
+      {
+        "title": "clicking a spot opens its spot hub",
+        "project": "Desktop Safari"
+      },
+      {
+        "trace": "data/8ba28e4a919f5d37ab6b85e93ba53a978b949725.zip",
+        "requests": [
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 47.982,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 48.115,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/explore/spot-details/:id",
+            "status": 200,
+            "duration_ms": 3994.649,
+            "fixture_marker": false
+          }
+        ],
+        "errors": [],
+        "signals": []
+      }
+    ],
+    "ci": {
+      "run": 37153891363,
+      "attempt": 2,
+      "conclusion": "success",
+      "first_attempt": "floor only refused17-day stale35183181239; unchanged floors"
     }
   },
   "clip_allocation_guard_review": {
@@ -2347,5 +2644,76 @@
     "chain_min_passed": 1912,
     "blocking_lint_errors": 0,
     "live_acceptance": "pending; prepared checkpoint only"
+  },
+  "pr232_merge": {
+    "head": "3bb8f443818643b23994049f8de19318785ca730",
+    "commit": "e4242f2064098e65651fa1ac6776f362b9946ad3",
+    "at": "2026-10-03T21:36:42Z",
+    "ci": [
+      {
+        "job": 111295720509,
+        "summaries": [
+          "2276 passed, 66 skipped, 1 xfailed, 12 warnings in 841.70s (0:14:01)",
+          "collected 2343 tests across 181 files -> 2276 passed, 67 skipped, 0 failed, 0 errors"
+        ]
+      },
+      {
+        "job": 111295720300,
+        "summaries": [
+          "1918 passed, 7 warnings in 537.64s (0:08:57)",
+          "collected 1918 tests across 147 files -> 1918 passed, 0 skipped, 0 failed, 0 errors"
+        ]
+      },
+      {
+        "job": 111295720476,
+        "summaries": [
+          "735 passed, 2865 skipped, 128 warnings in 58.13s",
+          "estate: 278 files selected, 276 produced results, 735 passed, 0 silent."
+        ]
+      }
+    ],
+    "after": "pending"
+  },
+  "ci_history_retry_review": {
+    "source_pr": 224,
+    "source_head": "184f667855a54a329d70f97980adfb55b71b244f",
+    "before_failed": [
+      12,
+      12
+    ],
+    "before_passed": [
+      24,
+      24
+    ],
+    "after_passed": [
+      36,
+      36
+    ],
+    "checkout_passed": [
+      36,
+      36
+    ],
+    "lookup_budget_seconds": 200,
+    "age_limit_days": 14,
+    "actual_network_rounds": 2,
+    "actual_cli_stale_run": 35183181239,
+    "actual_rest_current_run": 37153891363,
+    "actual_readings": {
+      "guards": [
+        180,
+        2248
+      ],
+      "chain": [
+        147,
+        1918
+      ],
+      "estate": [
+        null,
+        735
+      ]
+    },
+    "estate_expected": 749,
+    "estate_floor": 747,
+    "limitation": "Local2declared packages absent/notvirtualenv; isolated harness path failures excluded; hosted pending"
   }
 }

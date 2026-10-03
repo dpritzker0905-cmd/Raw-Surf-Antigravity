@@ -104,3 +104,5 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-03 20:48Z | currentdev449b3b91 / local capacity repair | S21 | Read strategy varies; physical forecast fields held fixed | Before18materialization failures twice; after42pass twice in candidate and checkout;275neighbor checks; synthetic one-core cold CPU1.39-1.44 to0.33-0.34s / normalized frames equal | Live before200twice6stored frames2.8302/2.9111s; after/hosted pending; no live-speed or skill claim |
 
 | 2026-10-03 21:19Z | live4b152937 / local bounded clip guard | S21/S22 | Read strategy or geometry varies; same-source null controls | Deployed tier6same-file pairs all product fields equal twice/cache15023to3822; guard before23fail5pass twice ->28pass twice;303neighbors | HTTP cross-deploy hashes differ/cause unproved; no speed/SLO/skill claim; guard hosted/live pending |
+
+| 2026-10-03 21:39Z | CI history / exact guard merge | S21/S22 | Freshness14days constant, source/retry varies | CLI stale17days vs REST current twice;12baselinefail ->36pass twice; hosted guard2276 confirmed | History hosted pending; browser60pass/3flaky/9skip keeps SLO open |

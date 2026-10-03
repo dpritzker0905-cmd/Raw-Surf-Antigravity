@@ -1656,7 +1656,9 @@ jobs:
           # Same hosted base receipt + prior additions: projected 710; margin 2.
           # 2026-10-03 OAuth/time audit: prior hosted projection 710 + 25 executed OAuth
           # authority cases = 735; retain margin 2. Windows local count is not calibration.
-          MIN_PASSED = 733
+          # CI37154741295 on checked3bb8f443 read735; retry controls add14, expected749.
+          # Preserve estate margin2; guards and chain floors unchanged.
+          MIN_PASSED = 747
 
           try:
               root = ET.parse('estate.xml').getroot()

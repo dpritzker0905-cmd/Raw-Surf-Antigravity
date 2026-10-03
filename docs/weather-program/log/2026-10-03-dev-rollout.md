@@ -262,3 +262,29 @@ File-only size invocation scanned0 and is excluded; real directory check116files
 route_helpers784LOC. Blocking lint0. Final source hashes pinned to isolated before adoption.
 Local dependency limitation remains2declared packages absent/no virtualenv; hosted/live pending.
 Ledger448final neighbors/449checkout adoption/450actual capacity deploy/451same-file proof.
+
+## 2026-10-03 21:39Z — allocation merge, browser reliability limit, CI-history repair
+
+PR232 exact3bb8f443 passed all hosted gates: guards2276passed/66skip/1xfail,12warnings841.70s,
+181files; chain1918passed/7warnings537.64s,147files; estate735passed/2865skip,128warnings58.13s.
+Merged dev e4242f2064098e65651fa1ac6776f362b9946ad3 at21:36:42Z. Render Building observed;
+actual after proof/full E2E37155710907 pending. Capacity postmerge37153891426 has60passed,
+0final failures,3flaky,9existing skips, HTMLokfalse. Retained Chrome retry trace provesfixture200
+and real spot-details-1/Axios15000timeout; Safari retained traces capture successful retries only,
+so their prior failure cause is unassigned. Exit-green is not a reliability/SLO closure.
+
+Three floor-history refusals on valid recent dev revisions prompted independent review of existing
+PR224 at184f6678. Adopt its bounded three-attempt dual CLI/REST lookup onto currentdev, not its old
+workflow floors or ledger. Extend lookup calls with30s deadlines (six calls plus20s backoff at most
+200s for history lookup), reject malformed ids/SHAs/timestamps, missing timezone/future times before
+accumulating a source. Errors stay named, all stale/unreadable answers still refuse;14day age limit
+unchanged. Final36controls: BEFORE12fail/24pass twice(.15/.12s), AFTER36pass twice(.13/.13s);
+actual checkout36pass twice(.53/.48s). Initial isolated-path/default-argument harness failures were
+corrected and excluded; paired evidence was rerun in full. Local2missingdependencies/notvirtualenv
+remains a limitation. Actual GitHub candidate reads twice: CLI named17-day35183181239, REST
+named current37153891363/4b152937; both recovered actual180guards2248/147chain1918/estate735.
+Current workflow untouched except estate733to747: established735 plus14 new tests predicts749;
+margin2 and guard/chain budgets unchanged. Official source: [GitHub CLI run list](https://cli.github.com/manual/gh_run_list)
+and [workflow-runs REST endpoint](https://docs.github.com/en/rest/actions/workflow-runs#list-workflow-runs-for-a-workflow).
+These docs establish supported filters/fields, not the cause of the observed divergent answers.
+Ledger452push/453PRopen/454retry/455E2E/456body/457CI/458merge/459pairedreview/460realreads/461adoption.
