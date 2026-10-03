@@ -106,3 +106,5 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-03 21:19Z | live4b152937 / local bounded clip guard | S21/S22 | Read strategy or geometry varies; same-source null controls | Deployed tier6same-file pairs all product fields equal twice/cache15023to3822; guard before23fail5pass twice ->28pass twice;303neighbors | HTTP cross-deploy hashes differ/cause unproved; no speed/SLO/skill claim; guard hosted/live pending |
 
 | 2026-10-03 21:39Z | CI history / exact guard merge | S21/S22 | Freshness14days constant, source/retry varies | CLI stale17days vs REST current twice;12baselinefail ->36pass twice; hosted guard2276 confirmed | History hosted pending; browser60pass/3flaky/9skip keeps SLO open |
+
+| 2026-10-03 22:11Z | dev bd070fd6 / monitor candidate | S21/S22 | Owner p95 target5s; seven-day window archive selection | Live health/denial paired; CI2276/1918/749; monitor37pass twice and84companions | Browser62pass1flaky9skips; monitor real+24h loss; SLO and broader audit open |
