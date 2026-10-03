@@ -125,3 +125,8 @@ Rollback these product/test/CI paths locally to `88c9278e` before deployment, pr
 ledger append-only and recording the rollback. Turning the new dark switch off restores legacy
 comparison behavior. If the schema has subsequently been applied, its rollback requires a separately
 reviewed database action; deleting its nonce rows can interrupt outstanding linking flows.
+
+Local product checkpoint: `cd41353e8b0d9ecf4b337e01a9fbc48286fbdc0c`, read back clean at
+2026-10-03 17:23:43Z. Staged gitleaks scan57.22KB found no leaks; ledger prefix and tamper checks
+passed. End docs-only memory audit: 0 failures / 2 warnings / 12 notes. The narrower docs-only
+scope does not clear the stale secrets pointer or verify rotation. Receipt recorded at ledger370.

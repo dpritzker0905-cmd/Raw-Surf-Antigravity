@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 17:20Z** (logs: `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 17:23Z** (logs: `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,9 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-03 17:23Z: local OAuth/time checkpoint `cd41353e` read back clean.** Staged gitleaks57.22KB
+  scan found no leaks, ledger prefix/tamper checks passed, docs-only memory0FAIL/2WARN/12NOTE. This docs-only
+  check does not refresh the stale secrets pointer or confirm rotation. Full report/log carry the receipt.
 - **2026-10-03 17:20Z (`codex/audit-repairs`, local continuation): APP-06 authority and WEA-02 comparison built.**
   Strava binds private routes and callback to verified accounts, with hashed ten-minute single-use state and exact
   frontend redirects; new cases 22 failures/3 passes before twice, 28 passes with configuration companions after
@@ -358,7 +361,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 369, sha256 24ebae4cc4ac6d3c85ab9dfc53085f12937762037f498c7301214ff180bf1cb6**
+  **Ledger head: seq 370, sha256 bc0c18bdb134ab2203147e535649c5dc9a049f801b047a19e2e433416cb6c52c**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

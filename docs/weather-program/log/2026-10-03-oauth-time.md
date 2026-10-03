@@ -37,3 +37,12 @@ Report/manifest/schema proof: audit/repairs-2026-10-03-oauth-time/. SCOREBOARD S
 records Strava repair,367 comparison,368 CI calibration,369 report/memory writes. Preserve canonical
 history append-only; restore this batch product/test/CI paths to88c9278e for local rollback and record it.
 Overall audit, broader permissions/money/delivery/AI/UI/capacity and weather science remain open.
+
+## 17:23Z — checkpoint receipt
+
+Local product/evidence checkpoint `cd41353e8b0d9ecf4b337e01a9fbc48286fbdc0c` was read back clean
+at 17:23:43Z. Commit hook gitleaks scanned 57.22KB and found no leaks; no bypass. Ledger369 verified
+with the original365-line byte-exact prefix; selftest caught every tamper. Post-commit docs-only memory
+0FAIL/2WARN/12NOTE, both overdue commitments retained. Its narrower scope does not clear the stale
+secrets pointer seen in the full start audit. This receipt's doc writes are ledger370 and saved in a
+separate local documentation checkpoint; product code is unchanged. No outward action occurred.
