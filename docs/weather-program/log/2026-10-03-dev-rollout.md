@@ -125,3 +125,27 @@ Ledger406: only declared synthetic identities GET unread badges mocked at exact 
 Node controls pass twice: GET fulfilled, POST fallback, weather/real IDs/foreign origin untouched;
 real ID registration refused; three spec syntax checks pass. Diagnostic trace=on retains success proof.
 No live app change/auth weakening/served weather-number change. Hosted after acceptance pending.
+
+## 19:21Z — first hosted after check
+
+Ledger407 publishes288b7462 test-only fixture and rewritten PR230 scope;408dispatch37147556271.
+No live app deploy, no backend auth change, no weather number change. After result pending.
+
+## 19:25Z — first after passes, second dispatched
+
+Ledger409:37147556271 one test passes; successful trace errors0, real conditions/trending/spot200,
+spot-details4.109s. Badge-only fixture200; other synthetic missing profile/bookings404 unchanged.
+Ledger410 dispatch37147738635 second fresh after at288b7462. No live auth or weather change.
+Broader suite follows paired acceptance, not yet certified.
+
+## 19:32Z — paired fixture acceptance and broad suite
+
+Ledger411: two fresh after runs37147556271/37147738635 each1passed, after two1failed baselines.
+Both traces errors0; actual spot2004.109/3.643s, weather200. Ledger412 dispatches full37147928653
+at288b7462; all4projects/retries2/assertions unchanged. Ledger413 direct badge401 twice/health200
+twice, RSS620.8/621.2MB uptime3361.8/3362.4s. Shared backend still3de; no weather-number change.
+Full browser suite and exact-head PR230CI remain pending; broader audit/provider/skill remain open.
+
+Paired doc checkpoint resumed only its document tail after an exact STATE header assertion
+failed before writes. Ledger411-413 already existed and were not appended again; anchor413
+restored. No acceptance claim comes from the failed document script.

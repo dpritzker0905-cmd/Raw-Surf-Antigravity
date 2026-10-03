@@ -750,6 +750,57 @@
     ],
     "mechanism": "Synthetic unread message badge401 triggers client session redirect; spot request cancelled and final page auth/signup",
     "fixture_scope": "Only GET unread-counts for two declared synthetic UI identities at exact backend origin/path; weather, spot, auth and real identities untouched",
-    "after_status": "pending"
+    "after_status": "paired focused acceptance complete; full suite pending",
+    "after_runs": [
+      37147556271,
+      37147738635
+    ],
+    "passed_tests_per_fresh_run": [
+      1,
+      1
+    ],
+    "real_spot_details_status": [
+      200,
+      200
+    ],
+    "real_spot_details_seconds": [
+      4.109,
+      3.643
+    ],
+    "full_suite_run": 37147928653,
+    "full_suite_status": "pending"
+  },
+  "fixture_live_null_controls": {
+    "observed_at": "2026-10-03T19:27:59.409984+00:00",
+    "rows": [
+      {
+        "run": 1,
+        "name": "anonymous_real_badge",
+        "status": 401
+      },
+      {
+        "run": 1,
+        "name": "health",
+        "status": 200,
+        "version": "2.0.0-stage-6f-v1-3de464b8ea9a467f67a9a04d4b6f87b6ce8ab6cb",
+        "health": "healthy",
+        "rss_mb": 620.8,
+        "uptime_seconds": 3361.8
+      },
+      {
+        "run": 2,
+        "name": "anonymous_real_badge",
+        "status": 401
+      },
+      {
+        "run": 2,
+        "name": "health",
+        "status": 200,
+        "version": "2.0.0-stage-6f-v1-3de464b8ea9a467f67a9a04d4b6f87b6ce8ab6cb",
+        "health": "healthy",
+        "rss_mb": 621.2,
+        "uptime_seconds": 3362.4
+      }
+    ]
   }
 }

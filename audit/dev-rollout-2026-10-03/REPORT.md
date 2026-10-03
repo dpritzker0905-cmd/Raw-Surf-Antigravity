@@ -207,3 +207,21 @@ and every weather/spot/auth request. Boundary controls pass twice; hosted after 
 informs registration after the existing external-resource router. Production authentication and
 all UI assertions remain intact. This fixture is UI acceptance, not end-to-end identity acceptance.
 Private trace bodies stay in ignored local artifacts; public evidence contains no credentials.
+
+## 2026-10-03 19:32Z — paired focused acceptance
+
+| Fresh spot-hub run | Result | Controlled change | Real spot request |
+|---|---|---|---|
+| Before37146663057 | 1failed | none | cancelled after session redirect |
+| Before37147047704 | 1failed | trace retention only | cancelled after badge401/session redirect |
+| After37147556271 | 1passed | only synthetic badge fixture | 200,4.109s |
+| After37147738635 | 1passed | same fixture, fresh context | 200,3.643s |
+
+Successful traces retain weather/spot responses and contain no action errors. Direct requests
+to the **actual** unread-count endpoint still401 twice; health200 healthy twice at3de464b8.
+No production auth behavior changed. This controlled fixture perturbation removes the redirect
+while real spot composition stays live; it is not a numerical weather-accuracy Jacobian.
+
+The [full browser suite37147928653](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37147928653)
+is pending at this checkpoint, with all four projects, assertions and normal retries2/worker1.
+The two focused passes do not certify that broader suite. PR230 exact-head CI also follows.

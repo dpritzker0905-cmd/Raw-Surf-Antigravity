@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 19:01Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-03 19:32Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -21,9 +21,10 @@ is a claim, not a measurement.
   Runtime SIM_STRICT_INPUTS=0, SIM_SERVED_TIME_MATCH=0, SURF_TIDE_DEPTH=0 twice. Shared public/dev
   backend updates; main and public frontend freeze unchanged. Receipt: audit/dev-rollout-2026-10-03/REPORT.md.
   Post-merge CI37142516639 success with identical counts; E2E37142516586 cancelled at50min.
-  Spot-hub/marine UI failures remain untriaged; full run has no trace artifact. Diagnostic PR230
+  Full browser acceptance remains open; original full run has no trace artifact. Diagnostic PR230
   open; two fresh spot-hub baselines fail. Trace proves synthetic badge401/session redirect;
-  narrow two-identity GET badge fixture built, hosted after checks pending. Production auth unchanged. Commitment172 checked;149/309
+  narrow two-identity GET badge fixture passes two fresh after runs (1passed each); real API401
+  twice. Full four-browser E2E37147928653 pending; production auth unchanged. Commitment172 checked;149/309
   open (latest monitor loses +24h operational floor to persistence). Broader audit, real OAuth/payment acceptance,
   rotation and weather skill remain open. Receipt PR229 merged into dev atf2ae19d2; its CI retry passed. Exact dev/public origins
   configured; config redeploy Live1m16s at unchanged3de; actual PG nonce race/replay passes twice
@@ -376,7 +377,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 406, sha256 ecc52b17cf06157c4367bba545979deba74456ed2369f2282691841be899627b**
+  **Ledger head: seq 413, sha256 d2f30bbc322609aea89649ff1079d5b71cfe86fa5e5c114c1c2f47bbdf2bdcf5**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
