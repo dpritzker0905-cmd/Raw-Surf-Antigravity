@@ -245,18 +245,29 @@ def is_bbox_covered_by(req_w: float, req_s: float, req_e: float, req_n: float, c
 
     return lon_covers
 
+class UnsafeClipLattice(ValueError):
+    """Geometry must be refused before it can allocate axes or rectangular placeholders."""
+
+
+def _clip_lattice_index(value: float, upper: bool = False) -> int:
+    if not math.isfinite(value):
+        raise UnsafeClipLattice("unrepresentable lattice index")
+    return math.floor(value) if upper else math.ceil(value)
+
+
 def clip_lattice(ref_lat: float, ref_lng: float, res: float,
                  west: float, south: float, east: float, north: float) -> Tuple[List[float], List[float]]:
     """The cell-centre lattice `filter_grid_to_bbox` builds for a window: (lats ascending, lons in the window's column
     order), anchored at the data's first lat/lng. PURE. It is shared with the mid tier's strided world read
     (`mid_res_tier._strided_identity_clip`), which serves a load-strided grid only when this lattice IS the data's own,
     so the clip and that shortcut cannot disagree about which cells a clip holds (2026-10-02, commitment 228)."""
+    if not all(math.isfinite(v) for v in (ref_lat, ref_lng, res, west, south, east, north)) or res <= 0:
+        raise UnsafeClipLattice("nonfinite geometry or nonpositive resolution")
+    if abs(ref_lat) > 90 or abs(ref_lng) > 360 or max(abs(west), abs(east)) > 180 or max(abs(south), abs(north)) > 90:
+        raise UnsafeClipLattice("geometry outside coordinate normalization bounds")
     # Generate unique_lats within [south, north]
-    k_lat_min = math.ceil((south - ref_lat - 0.0001) / res)
-    k_lat_max = math.floor((north - ref_lat + 0.0001) / res)
-    unique_lats = sorted([round(ref_lat + k * res, 4) for k in range(k_lat_min, k_lat_max + 1)])
-    # Ensure all lats are within clamp limits [-80, 85]
-    unique_lats = [lat for lat in unique_lats if -80.0 <= lat <= 85.0]
+    k_lat_min = _clip_lattice_index((south - ref_lat - 0.0001) / res)
+    k_lat_max = _clip_lattice_index((north - ref_lat + 0.0001) / res, upper=True)
 
     # Generate unique_lons within [west, east] (handling antimeridian crossing)
     crosses_antimeridian = west > east
@@ -269,8 +280,16 @@ def clip_lattice(ref_lat: float, ref_lng: float, res: float,
     while ref_lng_monotonic >= west + 360.0:
         ref_lng_monotonic -= 360.0
 
-    k_lon_min = math.ceil((west - ref_lng_monotonic - 0.0001) / res)
-    k_lon_max = math.floor((east_monotonic - ref_lng_monotonic + 0.0001) / res)
+    k_lon_min = _clip_lattice_index((west - ref_lng_monotonic - 0.0001) / res)
+    k_lon_max = _clip_lattice_index((east_monotonic - ref_lng_monotonic + 0.0001) / res, upper=True)
+    # Share the serve-time ceiling; measure axis lengths and their cross-product BEFORE either allocation.
+    from services.weather_pipeline.viewport_helper import _MAX_SERVEABLE_GRID_VECTORS
+    lat_count, lon_count = max(0, k_lat_max - k_lat_min + 1), max(0, k_lon_max - k_lon_min + 1)
+    if max(lat_count, lon_count, lat_count * lon_count) > _MAX_SERVEABLE_GRID_VECTORS:
+        raise UnsafeClipLattice("clip lattice exceeds the serve-time vector ceiling")
+    unique_lats = sorted([round(ref_lat + k * res, 4) for k in range(k_lat_min, k_lat_max + 1)])
+    # Ensure all lats are within clamp limits [-80, 85]
+    unique_lats = [lat for lat in unique_lats if -80.0 <= lat <= 85.0]
 
     raw_lons = [round(wrap_longitude(ref_lng_monotonic + k * res), 4) for k in range(k_lon_min, k_lon_max + 1)]
 
@@ -373,7 +392,12 @@ def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> Normalized
             return cloned_product
         west, east, south, north = _cw, _ce, _cs, _cn
 
-    unique_lats, unique_lons = clip_lattice(orig_lats[0], orig_lons[0], res, west, south, east, north)
+    try:
+        unique_lats, unique_lons = clip_lattice(orig_lats[0], orig_lons[0], res, west, south, east, north)
+    except UnsafeClipLattice:
+        unique_lats, unique_lons = [], []
+        cloned_product.grid.diagnostics = dict(cloned_product.grid.diagnostics or {}, clip_rejected="unsafe_lattice")
+        cloned_product.partial_coverage = True
     crosses_antimeridian = west > east
 
     if unique_lats and unique_lons:

@@ -320,3 +320,51 @@ Ledger436deploy/437checkout build/438live baseline. Hosted/current-head and afte
 
 2026-10-03 20:48Z readback (ledger439): live449b3b91 actual catalog/grants pass twice;
 three scientific flags0 twice. Canonical docs memory0FAIL/2WARN/11NOTE; unchanged overdue149/309.
+
+## 2026-10-03 21:07Z — capacity merge and separate bounded-allocation proof
+
+PR231 at7cd898f4 passed hostedCI37152927047:guards2248/66skip/1xfail12warnings814.20s,
+chain1918/7warnings517.64s,estate735/2865skip128warnings73.18s. Merged4b152937b98b00ebaf43da88cd9a5f9f8a132ad1
+at21:05:40Z; actual deploy/after proof pending. PR230 exact-dev full browser37152301831:63passed,
+0failed,0flaky,9existing rendering skips. Dev CI37152301913 attempt2success: initial floor job
+refused48-day stale GitHub API result31958635101(Aug16); targeted retry, no floor/budget relaxation.
+
+Separate malformed-grid recommendation: small inferred spacing can request enormous axes and fill
+products; nonfinite or huge finite longitude can spin during normalization. Work stayed isolated.
+Two initial probe attempts reached distinct untrapped longitude loops; only their owned Python
+children were stopped, no large lattice allocated; neither is accepted baseline evidence. Final
+harness adds loop traps, range/placeholder traps and45s child timeout. An intermediate after result
+20pass/1fail was a legitimate small resolution-derivation range misclassified by the instrument;
+separate counters corrected it and the entire before/after pair was rerun. Subsequent finite-bound
+and subnormal-resolution controls expand the final instrument to28cases: BEFORE23failed/5passed
+twice(.25/.24s), AFTER28passed twice(.06/.06s). The after guard uses the existing250000-vector
+serve ceiling before either axis or cross-product allocation, rejects unsafe geometry before
+normalization, returns an empty diagnosed partial clip, and copies diagnostics instead of altering
+L1. Exact shared-cap and valid/empty-clip null controls pass. Candidate source784LOC, no tracked
+code adoption/deploy yet; earlier21case neighbor296pass is superseded by final expanded neighbor
+run pending. These are malformed-input containment proofs, not forecast skill or live SLO claims.
+Ledger440push/441PRopen/442E2E/443CIrerun/444CIcounts/445body/446merge/447isolatedguard.
+
+## 2026-10-03 21:19Z — live capacity same-file proof; guard prepared
+
+Capacity4b152937 is Live/healthy200twice(662.6MB), anonymous badge401twice. Bounded HTTP AFTER
+returns6of6NOAA/global_mid frames200twice,4.0524/1.6237s,3.578MB. AFTER hashes agree with each
+other but differ from BEFORE; baseline raw source bytes/run identifiers were not retained, so
+source-cycle vs downstream change cannot be assigned and cross-deploy physical equality is NOT
+claimed. No live speed multiplier/SLO conclusion from these two timings. A direct same-current-file
+control on deployed8hprt varies only the tier read strategy in a separate Shell Python process:
+old kill0 vs new1, six exact local21Z..12Z files, two rounds. All twelve pairs are equal in EVERY
+normalized product field; file hashes unchanged across all arms, actual optimized lane taken each
+time, retained per-file cache15023to3822vectors. No service env/flag changes, no L2/provider I/O,
+no source writes, no API-worker cache mutation. This is real stored-tier parity, not a complete
+HTTP before/after attribution or independent weather grade. Full E2E37153891426 pending.
+
+Final allocation guard neighbor run303passed/0failed/0skipped,4warnings54.87s; actual checkout
+28passed twice(.36/.36s), final paired floor controls22passed(.42s). Selector proves this
+new test_grid_* file belongs to GUARDS:609tracked/181guards/147chain/278estate/2excluded/
+1quarantine. The initial unpublished chain projection was corrected before publication; expected
+guards2276/floor2270, exact181files andmargin6; chain1918/floor1912 unchanged, estate unchanged.
+File-only size invocation scanned0 and is excluded; real directory check116files/0violations,
+route_helpers784LOC. Blocking lint0. Final source hashes pinned to isolated before adoption.
+Local dependency limitation remains2declared packages absent/no virtualenv; hosted/live pending.
+Ledger448final neighbors/449checkout adoption/450actual capacity deploy/451same-file proof.
