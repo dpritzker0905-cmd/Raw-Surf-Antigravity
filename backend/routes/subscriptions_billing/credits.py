@@ -12,6 +12,7 @@ from database import get_db
 from core.security import get_current_user_id
 from models import Profile, PaymentTransaction, CreditTransaction
 from utils.credits import get_balance, get_transaction_history, add_credits
+from utils.payment_fulfillment import fulfill_wallet_payment, wallet_credit_amount
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -73,7 +74,15 @@ async def purchase_credits(data: CreditPurchaseRequest, user_id: str = Depends(g
     return {"checkout_url": checkout_session.url, "session_id": checkout_session.id}
 
 @router.get("/credits/status/{session_id}")
-async def check_credit_status(session_id: str, db: AsyncSession = Depends(get_db)):
+async def check_credit_status(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_current_user_id),
+):
+    result = await db.execute(select(PaymentTransaction).where(PaymentTransaction.session_id == session_id))
+    transaction = result.scalar_one_or_none()
+    if not transaction or transaction.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Transaction not found")
     try:
         checkout_session = stripe.checkout.Session.retrieve(session_id)
         payment_status = checkout_session.payment_status
@@ -81,57 +90,23 @@ async def check_credit_status(session_id: str, db: AsyncSession = Depends(get_db
         logger.error(f"Stripe error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Payment verification error: {str(e)}")
     
-    result = await db.execute(
-        select(PaymentTransaction).where(PaymentTransaction.session_id == session_id)
-    )
-    transaction = result.scalar_one_or_none()
-    
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    
     credits_added = 0
     new_balance = 0
-    
-    if payment_status == 'paid' and transaction.payment_status != 'paid':
-        transaction.payment_status = 'paid'
-        transaction.status = 'completed'
-        
-        profile_result = await db.execute(select(Profile).where(Profile.id == transaction.user_id))
-        profile = profile_result.scalar_one_or_none()
-        if profile:
-            # Log the credit transaction
-            balance_before = profile.credit_balance or 0
-            profile.credit_balance = balance_before + transaction.amount
-            credits_added = transaction.amount
-            new_balance = profile.credit_balance
-            
-            # Keep withdrawable_credits in sync for Pro roles (unified wallet)
-            from utils.revenue_routing import is_pro_creator, is_hobbyist_creator
-            if is_pro_creator(profile.role):
-                profile.withdrawable_credits = profile.credit_balance
-            elif is_hobbyist_creator(profile.role):
-                profile.gear_only_credits = profile.credit_balance
-            
-            credit_tx = CreditTransaction(
-                user_id=transaction.user_id,
-                amount=transaction.amount,
-                balance_before=balance_before,
-                balance_after=profile.credit_balance,
-                transaction_type='stripe_topup',
-                reference_type='payment_transaction',
-                reference_id=transaction.id,
-                description=f'Purchased {int(transaction.amount)} credits via Stripe'
-            )
-            db.add(credit_tx)
-        
-        await db.commit()
-    elif payment_status == 'paid':
-        # Already processed, get current balance
-        profile_result = await db.execute(select(Profile).where(Profile.id == transaction.user_id))
-        profile = profile_result.scalar_one_or_none()
-        if profile:
-            new_balance = profile.credit_balance
-            credits_added = transaction.amount
+    if payment_status == 'paid':
+        try:
+            if wallet_credit_amount(transaction) is None:
+                raise HTTPException(status_code=400, detail="Not a wallet purchase")
+            _, new_balance = await fulfill_wallet_payment(db, transaction)
+            await db.commit()
+            # Preserve the status response's total-credits contract on repeated polls.
+            credits_added = wallet_credit_amount(transaction)
+        except HTTPException:
+            await db.rollback()
+            raise
+        except Exception:
+            await db.rollback()
+            logger.exception("Credit payment processing failed")
+            raise HTTPException(status_code=500, detail="Payment processing failed")
     
     amount_total = checkout_session.amount_total if checkout_session.amount_total else int(transaction.amount * 100)
     
@@ -240,4 +215,3 @@ async def get_credit_summary(
         "total_spent": total_spent,
         "breakdown": totals
     }
-

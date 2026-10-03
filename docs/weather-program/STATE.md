@@ -1,6 +1,7 @@
 # Weather program: state
 
-**Updated 2026-10-02 17:21Z** (logs: `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
+**Updated 2026-10-03 03:32Z** (logs: `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
 legend, a load incident, the exact-frame fix for far zoom, the wrong-hour frame fix, the failing-runs note, the zoom-out grid diagnosis, the scheduler slot fix, the faded heat map diagnosis, the faded heat map fix, and the held-base follow-up), `log/2026-10-02-commitments-182-228.md` (182 read, a W-23 label defect fixed,
@@ -12,6 +13,22 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-03 03:32Z (`codex/audit-repairs`): first local batch validated, integration pending.** Required backend
+  lanes: guards 2246 passed / 68 skipped / 1 existing xfail, chain 1790 passed, estate 637 passed / 2866 skipped;
+  zero failures in those lanes. Final focused set 101 passed twice. The estate's Windows crypt test assumption was
+  reproduced twice and corrected without changing hashing or adding skips. Five DCL failures remain in the existing
+  quarantine; the whole-tree probe was capped, not certified green. Ledger, memory, paired scoreboard and sanitized
+  report updated. No served flip, deploy, push, real payment or credential rotation. Hosted CI and staging/Postgres
+  evidence remain pending. Details and partial finding boundaries: `log/2026-10-03-audit-repairs.md`.
+- **2026-10-03 03:13Z (`codex/audit-repairs`, base `origin/dev` `e0f93466`): first audit repair batch built locally.**
+  JWT/owner/admin boundaries, public profile projection, transactional wallet fulfillment, environment-only Strava,
+  optional preview isolation, dark spectral tide cap and per-domain sim provenance have two valid baseline and
+  two fixed runs each. Final combined set: 91 passes twice (69 new regressions + 22 CI controls). CI floors raised
+  with unchanged margins from hosted dev receipt 37048650086; next hosted confirmation pending. Full-tree capped
+  probe stops at the five already quarantined DCL missing-Event-Bus failures (624 passed / 574 skipped). Required
+  lane measurements still being completed. No deploy, real payment, rotation confirmation or served flag change.
+  Strava OAuth state/rotation, remaining account paths, Postgres races/precision and downstream served-hour
+  consumers stay open; full scope: `log/2026-10-03-audit-repairs.md`, `audit/repairs-2026-10-03/REPORT.md`.
 - **2026-10-02 17:21Z (merge of `origin/dev` `ed3a1b46` (#227, merged 17:19:08Z) into `claude/consensus-flip-sweep`,
   auto-fix on #220): RE-CHAINED AGAIN (L-P21).** dev holds seq 1-335 (#227's lines 326-335, among them pr_merge "#223"
   at 330 and "#221" at 331), so this branch's own lines 326-333 are now **dev seq 336-343 (+10)**; its pr_merge "#223"
@@ -319,7 +336,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 345, sha256 f032441b435af621cc5cc5ae53e4463689adf59b5cce01280f9f396ff2433c0c**
+  **Ledger head: seq 358, sha256 18af0db5ac860e2fadeb7bc6ffab1843cf367c552cbcd5b619843a89c7c5489e**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

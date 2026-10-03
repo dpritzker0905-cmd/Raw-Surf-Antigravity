@@ -13,14 +13,20 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-STRAVA_CLIENT_ID = os.environ.get("STRAVA_CLIENT_ID", "238756")
-STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET", "3dc3dacb2fbaa94b6b5c914b669d2ca072e84bcc")
+STRAVA_CLIENT_ID = os.environ.get("STRAVA_CLIENT_ID", "")
+STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET", "")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+
+def require_strava_configuration():
+    if not STRAVA_CLIENT_ID or not STRAVA_CLIENT_SECRET:
+        raise HTTPException(status_code=503, detail="Strava integration is not configured")
+
 
 async def refresh_strava_token_if_needed(profile: Profile, db: AsyncSession) -> str:
     """Checks if the access token is expired, refreshes it if necessary, and returns the valid access token."""
     if not profile.strava_access_token or not profile.strava_refresh_token:
         return None
+    require_strava_configuration()
         
     current_time = int(time.time())
     # Add a 5 minute buffer
@@ -65,6 +71,7 @@ async def get_strava_status(user_id: str):
 @router.get("/auth-url")
 async def get_strava_auth_url(user_id: str, redirect_uri: str = Query(None)):
     """Returns the Strava OAuth authorization URL, embedding the user_id in the state parameter."""
+    require_strava_configuration()
     # Allow the frontend to pass its own origin (e.g. https://raw-surf.com/surf-log)
     # This prevents hardcoded localhost issues when deployed to production.
     # Strava's own OAuth dashboard will enforce security validation on this URI.
@@ -77,6 +84,7 @@ async def get_strava_auth_url(user_id: str, redirect_uri: str = Query(None)):
 @router.get("/callback")
 async def strava_callback(code: str, state: str, error: str = None):
     """Exchanges the OAuth code for an access token. Called by the frontend."""
+    require_strava_configuration()
     if error:
         raise HTTPException(status_code=400, detail=f"Strava auth error: {error}")
         

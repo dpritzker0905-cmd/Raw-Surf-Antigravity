@@ -1287,7 +1287,10 @@ jobs:
           # files / 1754, confirming #223's projection. tests/test_consensus_flip_sweep.py (a new file, claimed by
           # `--lane chain`) adds 23 executed tests: 1754 + 23 = 1777, 1777 - 6 = 1771; files 142;
           # _FLOOR_SET_FROM["chain"] -> 1777.
-          MIN_FILES, MIN_PASSED = 142, 1771
+          # 2026-10-03 audit repairs: hosted dev run 37048650086 at e0f93466 confirms
+          # 142 files / 1777 passes. Two selector-owned files add 13 executed cases:
+          # projected 144 / 1790, floor 1790 - 6 = 1784. Hosted confirmation pending.
+          MIN_FILES, MIN_PASSED = 144, 1784
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1635,7 +1638,10 @@ jobs:
           # CI on PR #171 (merged as 7e81347f) observed 271 files / 570 passed. The new
           # tests/test_fetcher_script_imports.py (claimed by `--lane estate`) adds 12 executed tests: 570 + 12 = 582;
           # 582 - 2 = 580; _FLOOR_SET_FROM[estate] -> 582.
-          MIN_PASSED = 580
+          # 2026-10-03 audit repairs: the same hosted dev receipt confirms 582.
+          # Four selector-owned files add 56 executed cases: projected 638;
+          # floor 638 - 2 = 636. Hosted confirmation pending; no budget widened.
+          MIN_PASSED = 636
 
           try:
               root = ET.parse('estate.xml').getroot()

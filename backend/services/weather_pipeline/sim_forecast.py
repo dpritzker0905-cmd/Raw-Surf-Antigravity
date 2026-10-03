@@ -406,11 +406,25 @@ def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
     wind = fetch_point("wind", "wind", lat, lng, valid_time)
     mp = (marine or {}).get("point") or {}
     wp = (wind or {}).get("point") or {}
+    identities = {}
+    for domain, response in (("marine", marine), ("wind", wind)):
+        response = response or {}
+        identities[domain] = {
+            "requested_valid_time": valid_time,
+            **{field: response.get(field) for field in (
+                "served_valid_time", "frame_offset_hours", "model_run_time", "run_time",
+                "product_id", "is_estimated", "is_stale", "source", "is_forecast_authoritative")},
+        }
+    marine_time = identities["marine"]["served_valid_time"]
+    wind_time = identities["wind"]["served_valid_time"]
+    alignment = "unknown" if not marine_time or not wind_time else (
+        "aligned" if marine_time == wind_time else "mixed")
     missing = [name for name, ok in (("marine", mp.get("speed") is not None),
                                      ("wind", wp.get("speed") is not None)) if not ok]
     if missing:
         out = (None, {"reason": f"no {' and '.join(missing)} data at this coordinate",
-                      "valid_time": valid_time, "model": MODEL})
+                      "valid_time": valid_time, "model": MODEL,
+                      "product_identity": identities, "time_alignment": alignment})
     else:
         baseline = {
             "swell_height_m": float(mp["speed"]),          # OFFSHORE Hs, metres
@@ -440,6 +454,8 @@ def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
             # unattributable, which is exactly the gap that made a sim↔glyph divergence need a live
             # re-compute to explain.
             "wind_run_time": (wind or {}).get("run_time"),
+            "product_identity": identities,
+            "time_alignment": alignment,
             "product_id": marine.get("product_id"),
             "is_forecast_authoritative": marine.get("is_forecast_authoritative"),
             "served_surf_height_m": marine.get("surf_height_m"),

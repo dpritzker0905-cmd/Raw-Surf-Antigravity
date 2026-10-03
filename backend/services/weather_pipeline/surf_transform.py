@@ -486,17 +486,13 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     # to 350 m because its shelf median is 452 m — the Monterey Canyon). `break_depth_m` comes from
     # ETOPO 2022 15s at ~463 m (8.5 m at Cowell's, 13.4 m at Steamer Lane) so H <= gamma*d becomes
     # real physics again. Absent -> legacy behaviour byte-identical. Kill: SURF_BREAK_DEPTH=0.
-    _cap_depth = depth_m
-    if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
-        _cap_depth = float(break_depth_m)
     # ── TIDE moves the BREAKING DEPTH and nothing else. ⛔ NEVER `depth_m` (a ~139 km shelf median
     # feeding friction — a metre of tide there is noise pretending to be signal). Datum: MSL both sides.
     # ⚠️ THE FLOOR IS MANDATORY, NOT DEFENSIVE: break depths bottom out at 3.0 m, so a spring low past
     # -3 m drives the cap negative and `min(H, cap)` returns a NEGATIVE height. Default 0.0 + flag OFF
     # ⇒ byte-identical until enabled. Jacobians, reach, and the mutation that holed the first guard:
     # MASTER-AUDIT-10.0 row H + tests/test_tide_moves_the_breaking_cap.py. Enable: SURF_TIDE_DEPTH=1.
-    if water_level_m and os.environ.get("SURF_TIDE_DEPTH", "0") != "0":
-        _cap_depth = max(_MIN_CAP_DEPTH_M, _cap_depth + float(water_level_m))
+    _cap_depth = effective_cap_depth(depth_m, break_depth_m, water_level_m)
     cap = breaker_index(Tp_s, slope=_slope_proxy) * _cap_depth  # period+slope: long-period/steep breaks taller
     if _v3("SURF_V3_KOMAR"):
         # v3: the surviving swell shoals up to the Komar & Gaughan breaker height at the (sub-grid)
@@ -531,6 +527,19 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     # helper); SURF_CAP_SEAM_MONOTONE converts BEFORE comparing so a rising sea cannot DROP the
     # published height at the regime edge (11.0 §3.8 / MC-01). Default ON since 2026-09-28 (see the helper).
     return publish_surf_height(H, cap, 'shelf' if H <= Hs_m else 'shoaling')
+
+
+def effective_cap_depth(depth_m, break_depth_m, water_level_m=0.0):
+    """Depth of the breaking cap, shared by scalar and recombined seas.
+
+    Tide changes this nearshore cap only; offshore shelf friction retains depth_m.
+    """
+    cap_depth = depth_m
+    if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
+        cap_depth = float(break_depth_m)
+    if water_level_m and os.environ.get("SURF_TIDE_DEPTH", "0") != "0":
+        cap_depth = max(_MIN_CAP_DEPTH_M, cap_depth + float(water_level_m))
+    return cap_depth
 
 
 def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_width_km: float = 0.0,
@@ -596,7 +605,7 @@ def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_w
     if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
         tp_ref = max((p.get("tp") or 0.0) for p in partitions if isinstance(p, dict))
         _slope = (depth_m / (shelf_width_km * 1000.0)) if (shelf_width_km and shelf_width_km > 0) else None
-        cap = breaker_index(tp_ref, slope=_slope) * float(break_depth_m)
+        cap = breaker_index(tp_ref, slope=_slope) * effective_cap_depth(depth_m, break_depth_m, water_level_m)
         if h_total >= cap:
             return float(cap), 'breaking'
     # Report the regime of the most energetic train that actually transformed.
