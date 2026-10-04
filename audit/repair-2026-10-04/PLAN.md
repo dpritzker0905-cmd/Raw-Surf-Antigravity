@@ -2,8 +2,8 @@
 
 Started 2026-10-04 04:21Z. Baselinea2213ee9; deployed source6b062e97. All original register rows
 are carried forward below; overlap and scientific assurance gaps are not counted as independent
-new bugs. Owner authorized repairs/test/visual improvements. This branch is reviewable work, not
-production or scientific promotion.
+new bugs. Owner authorized repairs/test/visual improvements. Source88feec8c is hosted-qualified and PR243 is ready for review. This batch is not
+production or scientific promotion; every remaining finding stays open.
 
 Method: actual-source before/after repetitions, one-input perturbations, correct dependency and
 state invariants, offline ORM/storage/Canvas fixtures, current primary docs, then hosted gates and
@@ -42,7 +42,7 @@ bounded device/visual acceptance. No live load tests. Changes to served science 
 | SOC-01 | Crew message/history and unread-count predicates compile to `WHERE false`. | Open; preserved for a separate measured repair. |
 | SOC-02 | Hashtag search raises an uninitialized-variable error and returns HTTP 500. | Open; preserved for a separate measured repair. |
 | AS-02 | Production Netlify ignore command uses paths relative to the wrong base and omits dependencies. | Open; preserved for a separate measured repair. |
-| AS-03 | Frontend discovery floor permits disappearance of 31 suites/483 tests. | Ratcheted to exact candidate hosted335/3440 receipt; final-head qualification pending. |
+| AS-03 | Frontend discovery floor permits disappearance of 31 suites/483 tests. | Ratcheted to exact candidate hosted335/3440 receipt; final source88feec8c confirms335/3440. |
 | AS-04 | Green E2E omits the full hour-to-pixel oracle and default-FPS/mobile coverage. | Open; preserved for a separate measured repair. |
 | AS-05 | Node 18 and the E2E lane's Node 20 are both EOL. | Open; preserved for a separate measured repair. |
 | M01 | EURO unavailable point becomes measured calm/Trace | Open; preserved for a separate measured repair. |

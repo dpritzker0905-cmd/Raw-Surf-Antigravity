@@ -64,3 +64,15 @@ restore light/dark/beach opener respectively. Three themes fit390x844 phone and1
 Browser DOM facade lacks getAnimations; the failed instrument call was excluded and settled
 styles read in subsequent calls. No product inference from that instrument limitation.
 Final test counts unchanged; exact published head must finish all hosted gates before acceptance.
+
+## 2026-10-04 05:38Z - final code accepted and PR243 ready for review
+
+Source88feec8c accepted by CI37179486193. All19checks18success1neutral.
+Frontend335suites3440passed; backend2288guards/1918chain/889estate=5095passed.
+Actual guard summary66skips1xfail; estate2865skips established complement,0silentfiles.
+No new exclusion. Ledger/encoding/LOC/lint/Lighthouse/Netlifypreview all accepted.
+PR243 marked ready and read isDraftfalse; no merge/deployment/science promotion.
+Following commit publishes docs/ledger receipts only; qualified functional source unchanged.
+Rotation still not done; storage, historical matching rows, PG concurrency, coastline/device
+performance and science programme gaps remain open in the complete repair register.
+Preview tabs closed, browser viewport reset and temporary servers stopped. Worktree preserved.
