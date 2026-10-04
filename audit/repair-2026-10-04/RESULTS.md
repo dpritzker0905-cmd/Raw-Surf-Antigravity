@@ -49,7 +49,12 @@ Remaining candidate jobs and subsequent receipt-commit checks must still finish.
 
 Real-browser isolated preview uses the actual dialog and application CSS, without backend requests.
 Mobile465x884 and desktop1280x800 reviewed; light/dark/beach styles, accessible title/description,
-close/back actions and Escape dismissal inspected. Mobile excessive whitespace was corrected.
+close/back actions and Escape dismissal inspected. A narrower390x844 phone and all three
+themes at1280x800 desktop also fit; settled opacity1 and correct theme colors read back.
+Six strengthened wrapper/theme focus tests fail before explicit opener restoration and pass
+after. Actual browser Escape/Back/Close return focus to the light/dark/beach opener respectively.
+The portal test checks the actual document for file inputs, not only the React root container.
+This follows [Radix dialog guidance](https://www.radix-ui.com/primitives/docs/components/dialog). Mobile excessive whitespace was corrected.
 Screenshots and generated bundles are ignored; source harness is reproducible with
 `node audit/repair-2026-10-04/build-visual.cjs`.
 

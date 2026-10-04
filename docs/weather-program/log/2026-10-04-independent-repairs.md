@@ -55,3 +55,12 @@ Object-identity assertions expose11causal failures before;23related controls pas
 An initial deep-equality fixture could not distinguish empty GL handles; corrected before
 acceptance. Actual split-framebufferGL2 fixture passes twice;GLerror0; no console errors.
 Testcounts unchanged. Final published head hosted checks remain pending.
+
+## 2026-10-04 05:17Z - final dialog focus and phone qualification
+
+Controlled wrappers have no Dialog.Trigger. Explicit opener restoration added after6causal
+focus failures;6pass afterward and105affected controls pass. Actual browser Escape/Back/Close
+restore light/dark/beach opener respectively. Three themes fit390x844 phone and1280x800 desktop.
+Browser DOM facade lacks getAnimations; the failed instrument call was excluded and settled
+styles read in subsequent calls. No product inference from that instrument limitation.
+Final test counts unchanged; exact published head must finish all hosted gates before acceptance.

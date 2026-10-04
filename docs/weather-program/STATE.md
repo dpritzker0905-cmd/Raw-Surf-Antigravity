@@ -15,7 +15,7 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-04 04:21Z: independent audit repairs underway on codex/independent-audit-repairs.**
-  Owner authorized repairs/testing/visual improvement. Ledger559-575: local locker/media authority,
+  Owner authorized repairs/testing/visual improvement. Ledger559-577: local locker/media authority,
   gift/quota relationship and marine mask contracts repaired; no merge/deploy/science promotion.
   Two proven credential-bearing CI artifacts removed/read back absent; access-code rotation remains.
   Follow this session in `log/2026-10-04-independent-repairs.md`; all audit rows tracked in
@@ -546,7 +546,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 575, sha256 73a4199355b0d26c9d9b6417092cb3a85d61809c00d8cdb453266293fca3cdf6**
+  **Ledger head: seq 577, sha256 95a8de7a25eada67aa6d625d2754776c2c76bf2b3e0b1dcd746f2f651d97e63f**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
