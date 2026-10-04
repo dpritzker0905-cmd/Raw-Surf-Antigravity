@@ -327,7 +327,7 @@ def evaluate_scored_segment(rows, now, paired=None, cfg=None):
                (OK, [line + " -- informational only"])
     week = [r for r in rows if (t := _parse_iso(r.get("target_time")))
             and timedelta(0) <= now - t <= timedelta(days=PAIRED_WINDOW_DAYS)]
-    lines = ["scored archive: %d rows this month, %d with targets in trailing 7d" % (len(rows), len(week))]
+    lines = ["scored archive: %d rows loaded, %d with targets in trailing 7d" % (len(rows), len(week))]
     for s in skill_summary(week):
         lines.append("  %-22s +%dh  n=%-5d mae=%.3f bias=%+.3f"
                      % (s["source"], s["lead_h"], s["n"], s["mae_m"], s["bias_m"]))

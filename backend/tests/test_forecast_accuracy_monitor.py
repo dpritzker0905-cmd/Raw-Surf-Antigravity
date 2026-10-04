@@ -439,3 +439,29 @@ def test_the_paired_gate_does_not_fetch_last_month_after_the_first_week(monkeypa
     out, fetched = _run_main_at(monkeypatch, capsys, now, l2)
     assert "calibration/skill/scored-2026-09.json" not in fetched, fetched
     assert any(l.startswith("  vs persistence") and "we win" in l for l in out.splitlines()), out
+
+
+def _assert_loaded_archive_label_with_verdict(ours, theirs, win, expected):
+    from scripts import forecast_accuracy_monitor as monitor
+
+    now = datetime(2026, 10, 3, 23, 0, tzinfo=timezone.utc)
+    rows = [
+        {'source': 'raw_surf', 'buoy_id': 'fixture_a', 'lead_h': 24, 'hs_m': 1.2,
+         'obs_hs_m': 1.0, 'err_m': 0.2, 'target_time': '2026-09-30T23:00:00Z'},
+        {'source': 'raw_surf', 'buoy_id': 'fixture_b', 'lead_h': 24, 'hs_m': 1.2,
+         'obs_hs_m': 1.0, 'err_m': 0.2, 'target_time': '2026-10-03T22:00:00Z'},
+        {'source': 'raw_surf', 'buoy_id': 'fixture_c', 'lead_h': 24, 'hs_m': 1.2,
+         'obs_hs_m': 1.0, 'err_m': 0.2, 'target_time': '2026-10-04T00:00:00Z'},
+    ]
+    code, lines = monitor.evaluate_scored_segment(
+        rows, now, paired=[_paired('persistence', ours=ours, theirs=theirs, win=win)])
+    assert code == expected
+    assert lines[0] == 'scored archive: 3 rows loaded, 2 with targets in trailing 7d'
+
+
+def test_two_month_archive_label_preserves_healthy_verdict():
+    _assert_loaded_archive_label_with_verdict(0.1, 0.2, 0.7, OK)
+
+
+def test_two_month_archive_label_preserves_measured_loss_verdict():
+    _assert_loaded_archive_label_with_verdict(0.3, 0.2, 0.3, RED)

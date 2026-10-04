@@ -6140,6 +6140,328 @@
         }
       ],
       "limit": "Cumulative all-status server histogram, small population; overflow lower bound, not exact p95; not browser usable-state SLO"
+    },
+    "postmerge_hosted": {
+      "run": 37163814170,
+      "head": "56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+      "status": "completed",
+      "conclusion": "success",
+      "lanes": [
+        {
+          "job": 111322534570,
+          "name": "backend-sim-composition-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "2286 passed, 66 skipped, 1 xfailed, 12 warnings in 888.41s (0:14:48)",
+            "collected 2353 tests across 181 files -> 2286 passed, 67 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111322534597,
+          "name": "backend-estate-coverage",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "810 passed, 2865 skipped, 153 warnings in 71.02s (0:01:11)",
+            "estate: 281 files selected, 279 produced results, 810 passed, 0 silent."
+          ]
+        },
+        {
+          "job": 111322534644,
+          "name": "backend-forecast-chain-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "1918 passed, 7 warnings in 535.12s (0:08:55)",
+            "collected 1918 tests across 147 files -> 1918 passed, 0 skipped, 0 failed, 0 errors"
+          ]
+        }
+      ]
+    },
+    "postmerge_browser": {
+      "run": 37163814183,
+      "head": "56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+      "stats": {
+        "total": 72,
+        "expected": 63,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 9,
+        "ok": true
+      },
+      "nonpassing": [
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Chrome",
+          "outcome": "skipped"
+        },
+        {
+          "title": "surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Safari",
+          "outcome": "skipped"
+        }
+      ]
     }
+  },
+  "pr239_merge": {
+    "headRefOid": "5a79582ff3f49e87783a4d2d88e3d4a265a64645",
+    "mergeCommit": {
+      "oid": "22f84f9923bf445343b0b4816653f53dfb0857d3"
+    },
+    "mergedAt": "2026-10-04T00:38:41Z",
+    "state": "MERGED",
+    "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/239",
+    "hosted": {
+      "run": 37164586339,
+      "head": "5a79582ff3f49e87783a4d2d88e3d4a265a64645",
+      "status": "completed",
+      "conclusion": "success",
+      "lanes": [
+        {
+          "job": 111324801051,
+          "name": "backend-forecast-chain-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "1918 passed, 7 warnings in 563.08s (0:09:23)",
+            "collected 1918 tests across 147 files -> 1918 passed, 0 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111324801068,
+          "name": "backend-sim-composition-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "2286 passed, 66 skipped, 1 xfailed, 12 warnings in 978.61s (0:16:18)",
+            "collected 2353 tests across 181 files -> 2286 passed, 67 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111324801085,
+          "name": "backend-estate-coverage",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "810 passed, 2865 skipped, 153 warnings in 74.52s (0:01:14)",
+            "estate: 281 files selected, 279 produced results, 810 passed, 0 silent."
+          ]
+        }
+      ]
+    },
+    "frontend": {
+      "head": "5a79582ff3f49e87783a4d2d88e3d4a265a64645",
+      "lanes": [
+        {
+          "job": 111324801005,
+          "lane": "lint-and-build (18.x)",
+          "summaries": [
+            "Test Suites: 329 passed, 329 total",
+            "Tests:       3387 passed, 3387 total",
+            "suites 329/329  tests 3387/3387  failed 0"
+          ]
+        },
+        {
+          "job": 111324801036,
+          "lane": "frontend-marine-composition-guards",
+          "summaries": [
+            "Test Suites: 8 passed, 8 total",
+            "Tests:       121 passed, 121 total",
+            "suites 8/8  tests 121/121  failed 0"
+          ]
+        }
+      ]
+    },
+    "flag_enabled": false,
+    "live_after": "pending"
+  },
+  "calibration_latest_read": {
+    "observed_at": "2026-10-04T00:21:42.192899+00:00",
+    "available": true,
+    "generated_at": "2026-10-03T22:17:57.485866+00:00",
+    "ops_present": true,
+    "ops_keys": [
+      "ledgered",
+      "scored",
+      "pending_kept",
+      "pending_evicted_cap",
+      "scoring_rejections"
+    ],
+    "limit": "One public read; no new precompute/calibration dispatched, no skill promotion or scheduled-monitor closure",
+    "ops": {
+      "ledgered": 1383,
+      "scored": 14,
+      "pending_kept": 47180,
+      "pending_evicted_cap": 0
+    },
+    "scalar_rows": [
+      {
+        "source": "raw_surf:GFS_SCALAR",
+        "lead_h": 24,
+        "n": 1,
+        "bias_m": -0.091,
+        "mae_m": 0.091,
+        "n_paired": 1
+      },
+      {
+        "source": "raw_surf:GFS_SCALAR",
+        "lead_h": 72,
+        "n": 1,
+        "bias_m": -0.0691,
+        "mae_m": 0.0691,
+        "n_paired": 1
+      },
+      {
+        "source": "raw_surf:GFS_SCALAR",
+        "lead_h": 24
+      },
+      {
+        "source": "raw_surf:GFS_SCALAR",
+        "lead_h": 48
+      },
+      {
+        "source": "raw_surf:GFS_SCALAR",
+        "lead_h": 72
+      }
+    ],
+    "scalar_limit": "Recursive source-field presence only; absence does not prove ledger absent; no paired same-model or 72h verdict."
+  },
+  "precompute012": {
+    "run": 37162472350,
+    "head": "012d1e1e8b59f0ee2426ee6a2986350ed21de01b",
+    "stage_summaries": [
+      {
+        "stage": "buoy",
+        "values": [
+          "417",
+          "0.188"
+        ]
+      },
+      {
+        "stage": "report",
+        "values": [
+          "1773",
+          "0"
+        ]
+      },
+      {
+        "stage": "ratings",
+        "values": [
+          "1773",
+          "6"
+        ]
+      },
+      {
+        "stage": "done",
+        "values": [
+          "0"
+        ]
+      }
+    ],
+    "limit": "Actual hosted stage summaries; not live report propagation, scheduled monitor, or held-out skill closure"
+  },
+  "monitor_label_repair": {
+    "pairs": [
+      {
+        "source": "before",
+        "round": 1,
+        "exit": 1,
+        "seconds": 0.922,
+        "summary": "2 failed in 0.13s"
+      },
+      {
+        "source": "before",
+        "round": 2,
+        "exit": 1,
+        "seconds": 0.952,
+        "summary": "2 failed in 0.12s"
+      },
+      {
+        "source": "after",
+        "round": 1,
+        "exit": 0,
+        "seconds": 0.721,
+        "summary": "2 passed in 0.05s"
+      },
+      {
+        "source": "after",
+        "round": 2,
+        "exit": 0,
+        "seconds": 0.663,
+        "summary": "2 passed in 0.04s"
+      }
+    ],
+    "status": "Adopted locally; hosted/live pending",
+    "limits": "No threshold/window/verdict change or scheduled monitor closure"
+  },
+  "stripe_single_authority": {
+    "pairs": [
+      {
+        "source": "before",
+        "round": 1,
+        "exit": 1,
+        "seconds": 10.383,
+        "summary": "1 failed, 5 passed, 3 warnings in 6.18s"
+      },
+      {
+        "source": "before",
+        "round": 2,
+        "exit": 1,
+        "seconds": 9.773,
+        "summary": "1 failed, 5 passed, 3 warnings in 5.82s"
+      },
+      {
+        "source": "after",
+        "round": 1,
+        "exit": 0,
+        "seconds": 9.26,
+        "summary": "6 passed, 3 warnings in 5.28s"
+      },
+      {
+        "source": "after",
+        "round": 2,
+        "exit": 0,
+        "seconds": 9.666,
+        "summary": "6 passed, 3 warnings in 5.59s"
+      }
+    ],
+    "status": "Adopted locally; hosted/live pending",
+    "limits": "Unreachable duplicate removed; SDK verification mocked, no real payment or customer DB proof"
   }
 }
