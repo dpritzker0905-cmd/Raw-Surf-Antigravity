@@ -293,7 +293,11 @@ export { fetchBackendExactPoint } from './backendWeatherServiceClientPoint';
 export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS') {
   await fetchProductsManifest().catch(() => null);
 
-  if (model === 'ICON' && hourOffset > 168) {
+  // D-001: changing displayed forecasts stays dark until the owner authorizes a flip.
+  // When enabled, use the backend's stored estimate and its product/run/served-time identity.
+  // Secondary swell retains its separately disclosed legacy estimate (D-003).
+  const storedIconTail = process.env.REACT_APP_ICON_STORED_TAIL === 'true';
+  if (model === 'ICON' && hourOffset > 168 && (!storedIconTail || layer === 'swell_2')) {
     if (hourOffset <= 240 && layer === 'swell_2') {
       // Fall through to existing swell_2 blender below
     } else {

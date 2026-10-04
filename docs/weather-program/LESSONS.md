@@ -388,3 +388,7 @@ before starting it.
   a clip fetched at z7 that a zoom-out outruns. A 0.00% against 0.00% is a null scenario, not a pass. The same A/B showed the opposite trap for an INTERMITTENT defect (a thin base replacing the exact one needs a thin frame to commit before the exact one is held): one run per arm shows it
   or not by timing (3 of 5 trials in one desktop set, none in another, 65% of the phone frames in an earlier run), so the replicates (3 sets per arm) show that the defect is real and the real-engine tests and the sweep carry the causal claim. Rule: print the control arm's table by the
   class of the state that decides whether the fix acts BEFORE the treatment arm's, and run replicates for anything that depends on timing. Mechanized: `f22_ab_classes_v2.py` (the control arm first), `f22b_tables.py` (the per-trial base class over time). (2026-10-02, same log)
+
+### 2026-10-04 00:17Z — estimated source ownership is a measured contract
+
+A stored estimate can be estimated again in a browser branch with different source times and masks. Check full per-coordinate fields and product/run/served-time identity; matching maxima or nonzero HTTP responses do not establish parity. A finite-difference source control distinguishes a displayed value that follows the served target from one that ignores it. Keep changed values dark under D-001; consistent inputs alone prove neither forecast skill nor a default-device graphics fix.

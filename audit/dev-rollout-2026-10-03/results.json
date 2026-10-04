@@ -4862,6 +4862,656 @@
         "consecutive_seconds": 12
       },
       "limit": "OwnerloghasnoFPS; actualownercauseunassigned; no graphicsfix"
+    },
+    "stored_tail_dark_repair": {
+      "flag": "REACT_APP_ICON_STORED_TAIL",
+      "enabled": false,
+      "paired_controls": [
+        {
+          "suite": "icon-canonical-source.test.js",
+          "source": "before",
+          "round": 1,
+          "exit": 1,
+          "total": 25,
+          "passed": 8,
+          "failed": 17,
+          "seconds": 1.135
+        },
+        {
+          "suite": "icon-canonical-source.test.js",
+          "source": "before",
+          "round": 2,
+          "exit": 1,
+          "total": 25,
+          "passed": 8,
+          "failed": 17,
+          "seconds": 1.192
+        },
+        {
+          "suite": "icon-canonical-source.test.js",
+          "source": "after",
+          "round": 1,
+          "exit": 0,
+          "total": 25,
+          "passed": 25,
+          "failed": 0,
+          "seconds": 1.191
+        },
+        {
+          "suite": "icon-canonical-source.test.js",
+          "source": "after",
+          "round": 2,
+          "exit": 0,
+          "total": 25,
+          "passed": 25,
+          "failed": 0,
+          "seconds": 1.167
+        },
+        {
+          "suite": "icon-built-source.test.js",
+          "source": "before",
+          "round": 1,
+          "exit": 1,
+          "total": 12,
+          "passed": 3,
+          "failed": 9,
+          "seconds": 1.231,
+          "measurements": [
+            {
+              "layer": "waves",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 146,
+              "max_offshore_height_delta_m": 1.6524,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "waves",
+                  "hour": 168
+                },
+                {
+                  "model": "GFS",
+                  "layer": "waves",
+                  "hour": 168
+                },
+                {
+                  "model": "GFS",
+                  "layer": "waves",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 2.31815,
+              "stored_max_m": 2.3265
+            },
+            {
+              "layer": "waves",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 0
+            },
+            {
+              "layer": "waves",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            },
+            {
+              "layer": "swell_1",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 141,
+              "max_offshore_height_delta_m": 1.7214,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "swell_1",
+                  "hour": 168
+                },
+                {
+                  "model": "GFS",
+                  "layer": "swell_1",
+                  "hour": 168
+                },
+                {
+                  "model": "GFS",
+                  "layer": "swell_1",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 1.4943,
+              "stored_max_m": 1.7214
+            },
+            {
+              "layer": "swell_1",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 0
+            },
+            {
+              "layer": "swell_1",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 146,
+              "max_offshore_height_delta_m": 1.625,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "wind_waves",
+                  "hour": 168
+                },
+                {
+                  "model": "GFS",
+                  "layer": "wind_waves",
+                  "hour": 168
+                },
+                {
+                  "model": "GFS",
+                  "layer": "wind_waves",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 2.1898375,
+              "stored_max_m": 2.1952
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 0
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            }
+          ]
+        },
+        {
+          "suite": "icon-built-source.test.js",
+          "source": "before",
+          "round": 2,
+          "exit": 1,
+          "total": 12,
+          "passed": 3,
+          "failed": 9,
+          "seconds": 1.722,
+          "measurements": [
+            {
+              "layer": "waves",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 146,
+              "max_offshore_height_delta_m": 1.6524,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "waves",
+                  "hour": 168
+                },
+                {
+                  "model": "GFS",
+                  "layer": "waves",
+                  "hour": 168
+                },
+                {
+                  "model": "GFS",
+                  "layer": "waves",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 2.31815,
+              "stored_max_m": 2.3265
+            },
+            {
+              "layer": "waves",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 0
+            },
+            {
+              "layer": "waves",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            },
+            {
+              "layer": "swell_1",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 141,
+              "max_offshore_height_delta_m": 1.7214,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "swell_1",
+                  "hour": 168
+                },
+                {
+                  "model": "GFS",
+                  "layer": "swell_1",
+                  "hour": 168
+                },
+                {
+                  "model": "GFS",
+                  "layer": "swell_1",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 1.4943,
+              "stored_max_m": 1.7214
+            },
+            {
+              "layer": "swell_1",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 0
+            },
+            {
+              "layer": "swell_1",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 146,
+              "max_offshore_height_delta_m": 1.625,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "wind_waves",
+                  "hour": 168
+                },
+                {
+                  "model": "GFS",
+                  "layer": "wind_waves",
+                  "hour": 168
+                },
+                {
+                  "model": "GFS",
+                  "layer": "wind_waves",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 2.1898375,
+              "stored_max_m": 2.1952
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 0
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            }
+          ]
+        },
+        {
+          "suite": "icon-built-source.test.js",
+          "source": "after",
+          "round": 1,
+          "exit": 0,
+          "total": 12,
+          "passed": 12,
+          "failed": 0,
+          "seconds": 1.197,
+          "measurements": [
+            {
+              "layer": "waves",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 0,
+              "max_offshore_height_delta_m": 0,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "waves",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 2.3265,
+              "stored_max_m": 2.3265
+            },
+            {
+              "layer": "waves",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 1.0000000000000009
+            },
+            {
+              "layer": "waves",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            },
+            {
+              "layer": "swell_1",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 0,
+              "max_offshore_height_delta_m": 0,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "swell_1",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 1.7214,
+              "stored_max_m": 1.7214
+            },
+            {
+              "layer": "swell_1",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 1.0000000000000009
+            },
+            {
+              "layer": "swell_1",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 0,
+              "max_offshore_height_delta_m": 0,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "wind_waves",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 2.1952,
+              "stored_max_m": 2.1952
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 1.0000000000000009
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            }
+          ]
+        },
+        {
+          "suite": "icon-built-source.test.js",
+          "source": "after",
+          "round": 2,
+          "exit": 0,
+          "total": 12,
+          "passed": 12,
+          "failed": 0,
+          "seconds": 1.158,
+          "measurements": [
+            {
+              "layer": "waves",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 0,
+              "max_offshore_height_delta_m": 0,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "waves",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 2.3265,
+              "stored_max_m": 2.3265
+            },
+            {
+              "layer": "waves",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 1.0000000000000009
+            },
+            {
+              "layer": "waves",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            },
+            {
+              "layer": "swell_1",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 0,
+              "max_offshore_height_delta_m": 0,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "swell_1",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 1.7214,
+              "stored_max_m": 1.7214
+            },
+            {
+              "layer": "swell_1",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 1.0000000000000009
+            },
+            {
+              "layer": "swell_1",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 0,
+              "max_offshore_height_delta_m": 0,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "wind_waves",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 2.1952,
+              "stored_max_m": 2.1952
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 1.0000000000000009
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            }
+          ]
+        }
+      ],
+      "actual_checkout": [
+        {
+          "round": 1,
+          "total": 37,
+          "passed": 37,
+          "failed": 0,
+          "seconds": 1.301,
+          "measurements": [
+            {
+              "layer": "waves",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 0,
+              "max_offshore_height_delta_m": 0,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "waves",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 2.3265,
+              "stored_max_m": 2.3265
+            },
+            {
+              "layer": "waves",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 1.0000000000000009
+            },
+            {
+              "layer": "waves",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            },
+            {
+              "layer": "swell_1",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 0,
+              "max_offshore_height_delta_m": 0,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "swell_1",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 1.7214,
+              "stored_max_m": 1.7214
+            },
+            {
+              "layer": "swell_1",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 1.0000000000000009
+            },
+            {
+              "layer": "swell_1",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 0,
+              "max_offshore_height_delta_m": 0,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "wind_waves",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 2.1952,
+              "stored_max_m": 2.1952
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 1.0000000000000009
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "total": 37,
+          "passed": 37,
+          "failed": 0,
+          "seconds": 1.284,
+          "measurements": [
+            {
+              "layer": "waves",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 0,
+              "max_offshore_height_delta_m": 0,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "waves",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 2.3265,
+              "stored_max_m": 2.3265
+            },
+            {
+              "layer": "waves",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 1.0000000000000009
+            },
+            {
+              "layer": "waves",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            },
+            {
+              "layer": "swell_1",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 0,
+              "max_offshore_height_delta_m": 0,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "swell_1",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 1.7214,
+              "stored_max_m": 1.7214
+            },
+            {
+              "layer": "swell_1",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 1.0000000000000009
+            },
+            {
+              "layer": "swell_1",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "field",
+              "vectors": 182,
+              "changed": 0,
+              "max_offshore_height_delta_m": 0,
+              "requests": [
+                {
+                  "model": "ICON",
+                  "layer": "wind_waves",
+                  "hour": 179
+                }
+              ],
+              "old_or_candidate_max_m": 2.1952,
+              "stored_max_m": 2.1952
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "jacobian_target",
+              "d_display_height_d_stored_target": 1.0000000000000009
+            },
+            {
+              "layer": "wind_waves",
+              "kind": "jacobian_browser_anchor",
+              "d_display_height_d_browser_anchor": 0
+            }
+          ]
+        }
+      ],
+      "companions": 176,
+      "limits": [
+        "No serving promotion",
+        "One captured region/time for actual-built replay",
+        "No forecast skill or GPU/default-device fix",
+        "Owner original cause unassigned",
+        "Hosted and dark deployment pending"
+      ]
     }
   },
   "pr237_merge": {
@@ -4909,10 +5559,246 @@
         }
       ]
     },
-    "live_after": "pending"
+    "live_after": {
+      "observed_at": "2026-10-03T23:44:30.290541+00:00",
+      "rows": [
+        {
+          "round": 1,
+          "name": "health",
+          "status": 200,
+          "revision": "2.0.0-stage-6f-v1-012d1e1e8b59f0ee2426ee6a2986350ed21de01b",
+          "health": "healthy",
+          "rss_mb": 698.7,
+          "started_at": 1791070774.2809198,
+          "total": {
+            "n": 573,
+            "err_5xx": 0,
+            "p50_ms": 500.0,
+            "p95_ms": 5000.0,
+            "p99_ms": 35561.2,
+            "max_ms": 35561.2,
+            "over_5000ms": 28,
+            "p99_ge_ms": 10000.0,
+            "over_10000ms": 17
+          },
+          "spot_routes": [
+            {
+              "route": "GET /api/explore/spot-details/{spot_id}",
+              "n": 3,
+              "err_5xx": 0,
+              "avg_ms": 16194.6,
+              "p50_ms": 10000.0,
+              "p90_ms": 35561.2,
+              "p95_ms": 35561.2,
+              "p99_ms": 35561.2,
+              "max_ms": 35561.2,
+              "over_5000ms": 3,
+              "over_10000ms": 1,
+              "p90_ge_ms": 10000.0,
+              "p95_ge_ms": 10000.0,
+              "p99_ge_ms": 10000.0
+            }
+          ]
+        },
+        {
+          "round": 1,
+          "name": "anonymous_badge",
+          "status": 401
+        },
+        {
+          "round": 2,
+          "name": "health",
+          "status": 200,
+          "revision": "2.0.0-stage-6f-v1-012d1e1e8b59f0ee2426ee6a2986350ed21de01b",
+          "health": "healthy",
+          "rss_mb": 698.7,
+          "started_at": 1791070774.2809198,
+          "total": {
+            "n": 575,
+            "err_5xx": 0,
+            "p50_ms": 500.0,
+            "p95_ms": 5000.0,
+            "p99_ms": 35561.2,
+            "max_ms": 35561.2,
+            "over_5000ms": 28,
+            "p99_ge_ms": 10000.0,
+            "over_10000ms": 17
+          },
+          "spot_routes": [
+            {
+              "route": "GET /api/explore/spot-details/{spot_id}",
+              "n": 3,
+              "err_5xx": 0,
+              "avg_ms": 16194.6,
+              "p50_ms": 10000.0,
+              "p90_ms": 35561.2,
+              "p95_ms": 35561.2,
+              "p99_ms": 35561.2,
+              "max_ms": 35561.2,
+              "over_5000ms": 3,
+              "over_10000ms": 1,
+              "p90_ge_ms": 10000.0,
+              "p95_ge_ms": 10000.0,
+              "p99_ge_ms": 10000.0
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "anonymous_badge",
+          "status": 401
+        }
+      ],
+      "limit": "Cumulative all-status server histogram, small population; overflow lower bound, not exact p95; not browser usable-state SLO"
+    },
+    "postmerge_hosted": {
+      "run": 37162333662,
+      "head": "012d1e1e8b59f0ee2426ee6a2986350ed21de01b",
+      "status": "completed",
+      "conclusion": "success",
+      "lanes": [
+        {
+          "job": 111318165727,
+          "name": "backend-sim-composition-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "2286 passed, 66 skipped, 1 xfailed, 12 warnings in 888.70s (0:14:48)",
+            "collected 2353 tests across 181 files -> 2286 passed, 67 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111318165813,
+          "name": "backend-forecast-chain-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "1918 passed, 7 warnings in 537.66s (0:08:57)",
+            "collected 1918 tests across 147 files -> 1918 passed, 0 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111318165817,
+          "name": "backend-estate-coverage",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "785 passed, 2865 skipped, 137 warnings in 53.55s",
+            "estate: 280 files selected, 278 produced results, 785 passed, 0 silent."
+          ]
+        }
+      ]
+    },
+    "postmerge_browser": {
+      "run": 37162333713,
+      "head": "012d1e1e8b59f0ee2426ee6a2986350ed21de01b",
+      "stats": {
+        "total": 72,
+        "expected": 62,
+        "unexpected": 0,
+        "flaky": 1,
+        "skipped": 9,
+        "ok": false
+      },
+      "nonpassing": [
+        {
+          "title": "clicking a spot opens its spot hub",
+          "projectName": "Mobile Safari",
+          "outcome": "flaky"
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Chrome",
+          "outcome": "skipped"
+        },
+        {
+          "title": "surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Safari",
+          "outcome": "skipped"
+        }
+      ]
+    },
+    "retry_traces": [
+      {
+        "title": "clicking a spot opens its spot hub",
+        "project": "Mobile Safari",
+        "attempts": [
+          {
+            "status": null,
+            "duration": null,
+            "retry": null
+          },
+          {
+            "status": null,
+            "duration": null,
+            "retry": null
+          }
+        ]
+      },
+      {
+        "trace": "data/67596d04096e5500a38856f3220a6a0d7aa87fec.zip",
+        "requests": [
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 43.156,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/messages/unread-counts/:id",
+            "status": 200,
+            "duration_ms": 43.276,
+            "fixture_marker": true
+          },
+          {
+            "path": "/api/explore/spot-details/:id",
+            "status": 200,
+            "duration_ms": 6862.084,
+            "fixture_marker": false
+          }
+        ],
+        "errors": [],
+        "signals": []
+      }
+    ]
   },
   "selection_authority": {
-    "status": "adopted; hosted/liveafterpending",
+    "status": "Merged/live; five anonymous boundaries401 twice; real owner/foreign customer flow unverified",
     "pairs": [
       {
         "arm": "before",
@@ -5039,6 +5925,221 @@
     "limits": [
       "LocalrealJWT andmockedDB only",
       "Broaderbrowse/claims/duplicates/concurrency/autoexpiryremainopen"
-    ]
+    ],
+    "live_after": {
+      "observed_at": "2026-10-04T00:09:26.683243+00:00",
+      "rows": [
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+          "method": "GET",
+          "endpoint": "/surfer-gallery/selection-queue/:surfer_id",
+          "status": 401
+        },
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+          "method": "POST",
+          "endpoint": "/surfer-gallery/selection-queue/:quota_id/select",
+          "status": 401
+        },
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+          "method": "GET",
+          "endpoint": "/surfer-gallery/selection-queue/:quota_id/items",
+          "status": 401
+        },
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+          "method": "PATCH",
+          "endpoint": "/surfer-gallery/selection-queue/:quota_id/preference",
+          "status": 401
+        },
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+          "method": "GET",
+          "endpoint": "/surfer-gallery/selection-queue/:quota_id/deadline-info",
+          "status": 401
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+          "method": "GET",
+          "endpoint": "/surfer-gallery/selection-queue/:surfer_id",
+          "status": 401
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+          "method": "POST",
+          "endpoint": "/surfer-gallery/selection-queue/:quota_id/select",
+          "status": 401
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+          "method": "GET",
+          "endpoint": "/surfer-gallery/selection-queue/:quota_id/items",
+          "status": 401
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+          "method": "PATCH",
+          "endpoint": "/surfer-gallery/selection-queue/:quota_id/preference",
+          "status": 401
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+          "method": "GET",
+          "endpoint": "/surfer-gallery/selection-queue/:quota_id/deadline-info",
+          "status": 401
+        }
+      ],
+      "limit": "Absent synthetic IDs; no actual customer objects/writes; anonymous after boundary, not live owner/foreign customer proof"
+    }
+  },
+  "pr238_merge": {
+    "headRefOid": "664d93ef6b5f6073cf3394e651ba82586125b8a6",
+    "mergeCommit": {
+      "oid": "56544d2aa3625a2ea8750a575b8dfc4462e48d1d"
+    },
+    "mergedAt": "2026-10-04T00:04:58Z",
+    "state": "MERGED",
+    "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/238",
+    "hosted": {
+      "run": 37162708786,
+      "head": "664d93ef6b5f6073cf3394e651ba82586125b8a6",
+      "status": "completed",
+      "conclusion": "success",
+      "lanes": [
+        {
+          "job": 111319285070,
+          "name": "backend-forecast-chain-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "1918 passed, 7 warnings in 533.74s (0:08:53)",
+            "collected 1918 tests across 147 files -> 1918 passed, 0 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111319285121,
+          "name": "backend-estate-coverage",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "810 passed, 2865 skipped, 153 warnings in 73.40s (0:01:13)",
+            "estate: 281 files selected, 279 produced results, 810 passed, 0 silent."
+          ]
+        },
+        {
+          "job": 111319285136,
+          "name": "backend-sim-composition-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "2286 passed, 66 skipped, 1 xfailed, 12 warnings in 1039.00s (0:17:19)",
+            "collected 2353 tests across 181 files -> 2286 passed, 67 skipped, 0 failed, 0 errors"
+          ]
+        }
+      ]
+    },
+    "live_after": {
+      "observed_at": "2026-10-04T00:09:23.974256+00:00",
+      "rows": [
+        {
+          "round": 1,
+          "name": "health",
+          "status": 200,
+          "revision": "2.0.0-stage-6f-v1-56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+          "health": "healthy",
+          "rss_mb": 583.1,
+          "started_at": 1791072478.1674445,
+          "total": {
+            "n": 139,
+            "err_5xx": 0,
+            "p50_ms": 50.0,
+            "p95_ms": 1000.0,
+            "p99_ms": 2500.0,
+            "max_ms": 12870.2,
+            "over_5000ms": 1,
+            "over_10000ms": 1
+          },
+          "spot_routes": [
+            {
+              "route": "GET /api/explore/spot-details/{spot_id}",
+              "n": 1,
+              "err_5xx": 0,
+              "avg_ms": 12870.1,
+              "p50_ms": 12870.2,
+              "p90_ms": 12870.2,
+              "p95_ms": 12870.2,
+              "p99_ms": 12870.2,
+              "max_ms": 12870.2,
+              "over_5000ms": 1,
+              "over_10000ms": 1,
+              "p50_ge_ms": 10000.0,
+              "p90_ge_ms": 10000.0,
+              "p95_ge_ms": 10000.0,
+              "p99_ge_ms": 10000.0
+            }
+          ]
+        },
+        {
+          "round": 1,
+          "name": "anonymous_badge",
+          "status": 401
+        },
+        {
+          "round": 2,
+          "name": "health",
+          "status": 200,
+          "revision": "2.0.0-stage-6f-v1-56544d2aa3625a2ea8750a575b8dfc4462e48d1d",
+          "health": "healthy",
+          "rss_mb": 583.3,
+          "started_at": 1791072478.1674445,
+          "total": {
+            "n": 141,
+            "err_5xx": 0,
+            "p50_ms": 50.0,
+            "p95_ms": 1000.0,
+            "p99_ms": 2500.0,
+            "max_ms": 12870.2,
+            "over_5000ms": 1,
+            "over_10000ms": 1
+          },
+          "spot_routes": [
+            {
+              "route": "GET /api/explore/spot-details/{spot_id}",
+              "n": 1,
+              "err_5xx": 0,
+              "avg_ms": 12870.1,
+              "p50_ms": 12870.2,
+              "p90_ms": 12870.2,
+              "p95_ms": 12870.2,
+              "p99_ms": 12870.2,
+              "max_ms": 12870.2,
+              "over_5000ms": 1,
+              "over_10000ms": 1,
+              "p50_ge_ms": 10000.0,
+              "p90_ge_ms": 10000.0,
+              "p95_ge_ms": 10000.0,
+              "p99_ge_ms": 10000.0
+            }
+          ]
+        },
+        {
+          "round": 2,
+          "name": "anonymous_badge",
+          "status": 401
+        }
+      ],
+      "limit": "Cumulative all-status server histogram, small population; overflow lower bound, not exact p95; not browser usable-state SLO"
+    }
   }
 }
