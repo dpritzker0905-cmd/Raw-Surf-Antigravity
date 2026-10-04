@@ -1,5 +1,49 @@
 # Dev rollout of accumulated audit repairs
 
+## Current verified result — 2026-10-04 01:54Z
+
+**The owner-approved ICON stored-tail path is live on dev only.** [PR241](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/241)
+merged the tested head `00549cc2` as `6b062e97` at 2026-10-04T01:27:20Z. Actual Netlify dev
+and backend readbacks agree with that revision. [Dev map](https://dev--rawsurf.netlify.app/map).
+The versioned build enables `REACT_APP_ICON_STORED_TAIL` only when both `CONTEXT=branch-deploy`
+and `BRANCH=dev`. Two compiled checks prove the primary grid bypass is enabled; two preview
+checks remain dark, and the public frontend remains `fc140024`. No Netlify environment
+variable was saved: its reserved `dev` override was rejected; the tested source condition
+supplies the authorized build setting. Other scientific flags remain unchanged.
+
+| Acceptance | Measured result | Limit |
+|---|---|---|
+| Build scope, twice before/after | Before 2 failed / 10 passed twice; after 12 scope + 25 source controls passed twice | Inert subprocesses exercise the actual build command; not GPU acceptance |
+| Source preservation, twice before/after | Prior source controls 17 failed / 8 passed twice and built-field replay 9 failed / 3 passed twice; after 25 / 12 passed twice | Captured physical fields; not forecast accuracy |
+| Live stored products | Two five-case rounds before and after: all 200/nonzero, three ICON179 layers preserve physical fields and source metadata | One regional window/UTC anchor; ICON tail and168 control are estimated |
+| Fresh normal-guardrail browser after | Two fresh `6b062e97` pages drew the app's heatmap and crests at verified ICON hour179 | Low-FPS and served-time warnings remain; bounded same-device observations |
+| Exact-head frontend | 330 suites / 3,399 tests; focused 8 / 121 | Existing baseline lint and excluded browser controls remain |
+| Deployed backend regression | Guards 2,288; chain 1,918; estate 816; zero silent estate files | Existing skips/xfail retained |
+| Deployed browser suite | 63 passed, zero unexpected or flaky, nine skipped, 72 total; actual HTML report successful | Continuity suite disables FPS guardrail; not default GPU closure |
+| Actual monitor after, twice | Both read-only runs OK; `rows loaded` label correct,178637 rows/47071 trailing-seven-day targets | Manual runs; next scheduled-run commitment remains open |
+
+The source-preserving adapter changes a controlled dependency: on the captured h179 fields,
+the old browser re-estimate changed146/141/146 cells, while the stored-path replay changed
+zero. The local stored-target derivative changes0→1. This Jacobian check establishes source
+consistency on that sample; it does not establish accuracy against observations or explain
+the owner's original graphics failure. The separate exact-point adapter still emulates the
+ICON tail above168; secondary swell retains D-003 behavior.
+
+**Remaining priorities:** sustained default-device graphics profiling; exact-point/grid source
+parity; served-time selection fidelity; spot-hub p95≤5s on a measured spot population;
+remaining gallery ownership/privacy/payment acceptance; same-model/by-band/disjoint-holdout
+scientific grading. Current all-route p95 upper bound2.5s does not close the spot-hub SLO
+(max25.9294s,25requests above5s). Scalar archive pairs now number659/443/440 at24/48/72h,
+but comparison populations diverge; the scalar serving flag remains unpromoted.
+
+Evidence: [exact-head CI](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37167173560),
+[deployed CI](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37168060976),
+[deployed browser run](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37168060895),
+[monitor first](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37168663163),
+[monitor second](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37168736488).
+Earlier report entries below are historical snapshots. Their pending statuses are superseded
+only where this current measured result supplies acceptance; unresolved findings stay open.
+
 Recorded 2026-10-03 18:17Z. Owner authorized: "ok push to dev and do all your recommendations".
 
 [PR #228](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/228) merged into `dev` at
@@ -835,3 +879,31 @@ top20, so this is not a spot-specific population measurement and does not close5
 Public dev before assets twice same main.1fb0de13.js SHA256
 74b4b7706ba040eca202766862320c729640b668842b1e86303ffa34d9928df5.
 Compiled-away variable-name absence is not runtime flag proof.
+
+## 2026-10-04 01:25Z — actual live backend and rollout acceptance boundaries
+
+PR240 exact760eea1d is actual RenderLive. Two HTTP rounds healthhealthy, anonymous
+badge401 and unsigned unrelated Stripe400; RSS633.2/632.9MB. Canonical route rejected
+this same unsigned probe before and after; no payment/crypto-positive proof. Dev
+serviceworker760eea1d; frozenproductionfc140024. All-route n345/362, exactover5s11/15,
+p95upper5000ms and max55.5323s; these do not establish spot-hub population SLO.
+
+PR24100549cc2 pushed/attached; actualLinux frontend330suites3399tests andfocused8/121,
+projection exact. Local lint1174files86existingerrors922warnings baselinepass, no
+baseline increase. Weather guard and prior760 full E2E pending. Public dev map chunk
+6530.58a57c50 atSHA444173a3487ff6b5cc35237d3e127ec70f7adaaa236977533287024fc1dfb353
+has the specific ICON flag unset. Relevant env property only inspected; no other
+build env values stored. Retained browser log BUILD4ff10cc4 is stale and excluded
+from new-deploy acceptance. Fresh after pages must identify their actual bundle.
+
+Two bounded5case actual stored-product before rounds at760: ICON179 waves/swell1/
+windwaves all200,182vectors,146/141/146nonzero, offshoremax2.3265/1.7214/2.1952m.
+Allestimated; servedOct11T12Z, preserving source/run/basis. The168-hour dispatch
+control itself is estimated and serves00Z forrequested01Z, so do not label it native
+forecast acceptance. GFS179 controlnonzero200. One region/hour capture, not accuracy.
+
+PR239 actual E2E37165575148:62expected,0unexpected,1flaky,9skips,72total,HTMLokfalse.
+Chrome clicking-spot hub retry remains; disabledCI GPU controls do not prove actual
+default-device graphical acceptance. Separate ICON exact point adapter still enters
+legacy emulation above168 beforeproduct-ID lookup (line8); grid-only rollout does
+not close point/grid disagreement or claim whole-app source consistency.
