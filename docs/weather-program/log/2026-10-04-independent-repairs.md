@@ -46,3 +46,12 @@ GPU preview compile-time env setup error repaired and excluded from product find
 Metadata inventory29pages115retainedreports4,374,679,296bytes; no further payloads downloaded.
 Rotation remains owner action in appadmin access controls plus GitHub E2E_ACCESS_CODE.
 No actual credential values read or recorded. Temporary preview tab closed and viewport reset.
+
+## 2026-10-04 05:03Z - final sharedGL2 read/draw qualification
+
+Final review found that FRAMEBUFFER binding restoration conflated distinct GL2 read/draw
+bindings. Probe now touches only READ_FRAMEBUFFER onGL2, retainingGL1 fallback.
+Object-identity assertions expose11causal failures before;23related controls pass after twice.
+An initial deep-equality fixture could not distinguish empty GL handles; corrected before
+acceptance. Actual split-framebufferGL2 fixture passes twice;GLerror0; no console errors.
+Testcounts unchanged. Final published head hosted checks remain pending.

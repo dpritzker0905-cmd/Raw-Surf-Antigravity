@@ -8,7 +8,7 @@ import { withTextureState } from '../../frontend/src/components/map/WebGLMarineT
 function gpuChecks() {
   const gl = document.createElement('canvas').getContext('webgl2');
   if (!gl) return { supported: false };
-  const foreign = gl.createTexture(), water = gl.createTexture(), fbo = gl.createFramebuffer();
+  const foreign = gl.createTexture(), water = gl.createTexture(), fbo = gl.createFramebuffer(), drawFbo = gl.createFramebuffer();
   gl.bindTexture(gl.TEXTURE_2D, foreign);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   let stateRestored, throwRestored;
@@ -23,7 +23,8 @@ function gpuChecks() {
     stateRestored = gl.getParameter(gl.TEXTURE_BINDING_2D) === foreign && !gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
     try { withTextureState(gl, () => { gl.bindTexture(gl.TEXTURE_2D, water); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); throw new Error('injected'); }); } catch (_) { /* expected failure control */ }
     throwRestored = gl.getParameter(gl.TEXTURE_BINDING_2D) === foreign && !gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, drawFbo);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbo);
     const reads = [0.2, 2, 12, 40].map(span => {
       const engine = { _overlayMaskTex: water, _overlayMaskBounds: { west: -span / 2, east: span / 2, south: -1, north: 1 },
         _overlayMaskTexDims: { w:128, h:64 }, _probeState: { overlayOn:true, replace:true } };
@@ -33,11 +34,11 @@ function gpuChecks() {
       const unknown = WebGLMarineEngine.prototype.probeMaskGPU.call(engine, point, gl)[0].effective;
       return { span, known, unknown };
     });
-    const framebufferRestored = gl.getParameter(gl.FRAMEBUFFER_BINDING) === fbo, error = gl.getError();
+    const framebufferRestored = gl.getParameter(gl.READ_FRAMEBUFFER_BINDING) === fbo && gl.getParameter(gl.DRAW_FRAMEBUFFER_BINDING) === drawFbo, error = gl.getError();
     return { supported:true, stateRestored, throwRestored, reads,
       framebufferRestored, error, version:gl.getParameter(gl.VERSION),
       passed:stateRestored && throwRestored && framebufferRestored && error === gl.NO_ERROR && reads.every(r => r.known === 255 && r.unknown === null) };
-  } finally { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fbo); gl.deleteTexture(foreign); gl.deleteTexture(water); }
+  } finally { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fbo); gl.deleteFramebuffer(drawFbo); gl.deleteTexture(foreign); gl.deleteTexture(water); }
 }
 
 function Preview() {

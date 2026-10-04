@@ -58,6 +58,11 @@ probe method. A128x64 all-water texture retained255 at all four perturbed spans;
 dimensions returned null at all four spans. Foreign texture binding/flip-Y restored on success
 and injected failure, foreign framebuffer restored, GL error0. This qualifies the API contract
 in this browser; it does not qualify coastline rasterization or a fleet of hardware drivers.
+Final diff review additionally perturbed WebGL2 read and draw framebuffer bindings independently.
+The11 strengthened probe cases failed before the read-target repair and passed after;23 related
+controls passed twice. ActualGL2 distinct read/draw bindings were preserved twice withGLerror0.
+WebGL1 continues using FRAMEBUFFER; GL2 touches READ_FRAMEBUFFER only. Test counts are unchanged.
+
 The expanded isolated harness initially lacked CRA's compile-time process.env definition; that
 preview setup error was fixed before GPU qualification and is not an application finding.
 

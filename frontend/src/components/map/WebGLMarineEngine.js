@@ -2710,7 +2710,11 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
   const ps = this._probeState || {};
   const merc = (lat) => { const c = Math.max(-85.051129, Math.min(85.051129, lat)) * Math.PI / 180; return (1 - Math.log(Math.tan(c) + 1 / Math.cos(c)) / Math.PI) / 2; };
   const wrap = (lng, center) => { let p = lng; while (p - center > 180) p -= 360; while (p - center < -180) p += 360; return p; };
-  const prevFbo = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  // WebGL2 may have different read/draw bindings. Touch only the read target there;
+  // WebGL1 has one binding and follows the original FRAMEBUFFER path.
+  const framebufferTarget = gl.READ_FRAMEBUFFER !== undefined ? gl.READ_FRAMEBUFFER : gl.FRAMEBUFFER;
+  const framebufferBinding = gl.READ_FRAMEBUFFER_BINDING !== undefined ? gl.READ_FRAMEBUFFER_BINDING : gl.FRAMEBUFFER_BINDING;
+  const prevFbo = gl.getParameter(framebufferBinding);
   const fbo = gl.createFramebuffer();
   const out = new Uint8Array(4);
   const read = (tex, b, dims, lng, lat) => {
@@ -2725,9 +2729,9 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
     const tx = Math.max(0, Math.min(dims.w - 1, Math.round(u * (dims.w - 1))));
     const tyC = Math.max(0, Math.min(dims.h - 1, Math.round(v * (dims.h - 1))));
     const ty = dims.h - 1 - tyC;                          // mask uploaded UNPACK_FLIP_Y=true
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) return null;
+    gl.bindFramebuffer(framebufferTarget, fbo);
+    gl.framebufferTexture2D(framebufferTarget, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    if (gl.checkFramebufferStatus(framebufferTarget) !== gl.FRAMEBUFFER_COMPLETE) return null;
     gl.readPixels(tx, ty, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
     return { r: out[0], b: out[2] }; // .r = land/water; .b = coast SDF (when __RAW_COAST_SDF__)
   };
@@ -2747,28 +2751,28 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
   const cbD = (cb && cb.__maskCanvasDims) ? { w: cb.__maskCanvasDims.w, h: cb.__maskCanvasDims.h } : null;
   try {
     return points.map(({ lng, lat }) => {
-    const baseS = read(baseTex, baseB, baseD, lng, lat);
-    const ovS = read(ovTex, ovB, ovD, lng, lat);
-    const base = baseS ? baseS.r : null;
-    const overlay = ovS ? ovS.r : null;
-    let effective = base, src = 'base', effB = baseS ? baseS.b : null; // effB = the coast-SDF byte the shader uses
-    if (ps.overlayOn && overlay != null && inBounds(ovB, lng, lat)) {
-      if (ps.replace) { effective = overlay; effB = ovS.b; src = 'overlay_replace'; }
-      else {
-        effective = (base == null) ? overlay : Math.min(base, overlay);
-        effB = (baseS && ovS) ? Math.min(baseS.b, ovS.b) : (ovS ? ovS.b : effB); // min-combine of two SDFs = more-land
-        src = 'overlay_min';
+      const baseS = read(baseTex, baseB, baseD, lng, lat);
+      const ovS = read(ovTex, ovB, ovD, lng, lat);
+      const base = baseS ? baseS.r : null;
+      const overlay = ovS ? ovS.r : null;
+      let effective = base, src = 'base', effB = baseS ? baseS.b : null; // effB = the coast-SDF byte the shader uses
+      if (ps.overlayOn && overlay != null && inBounds(ovB, lng, lat)) {
+        if (ps.replace) { effective = overlay; effB = ovS.b; src = 'overlay_replace'; }
+        else {
+          effective = (base == null) ? overlay : Math.min(base, overlay);
+          effB = (baseS && ovS) ? Math.min(baseS.b, ovS.b) : (ovS ? ovS.b : effB); // min-combine of two SDFs = more-land
+          src = 'overlay_min';
+        }
       }
-    }
-    if (effective == null && cbTex && cbB && cbD) {
-      const cbS = read(cbTex, cbB, cbD, lng, lat);
-      if (cbS != null) { effective = cbS.r; effB = cbS.b; src = 'coarse_base'; }
-    }
-    return { lng, lat, base, overlay, effective, src, effB };
+      if (effective == null && cbTex && cbB && cbD) {
+        const cbS = read(cbTex, cbB, cbD, lng, lat);
+        if (cbS != null) { effective = cbS.r; effB = cbS.b; src = 'coarse_base'; }
+      }
+      return { lng, lat, base, overlay, effective, src, effB };
     });
   } finally {
     // A diagnostic read may throw too: never leave MapLibre attached to our FBO.
-    try { gl.bindFramebuffer(gl.FRAMEBUFFER, prevFbo); } catch (e) { /* context may be lost */ }
+    try { gl.bindFramebuffer(framebufferTarget, prevFbo); } catch (e) { /* context may be lost */ }
     try { gl.deleteFramebuffer(fbo); } catch (e) { /* context may be lost */ }
   }
 };
