@@ -595,3 +595,79 @@ Expectedestate781+4=785, floor779+4=783;280estate selected files, guards2286/181
 chain1918/147 unchanged. Local environment has two declared packages missing; hosted authority
 required. Gallery scheduler missingtimedelta, dict Text payload and nonexistent auto-selection
 fields remain unresolved, candidate not adopted. Ledger491-498 records this checkpoint.
+
+## 2026-10-03 23:42Z - dev weekly merge, actual latency tail, ICON data/graphics and quota ownership
+
+WeeklyPR237 exact509dfdc683ff8425da5ac4a09ed08ae7f8338c7d allhostedgatespass.
+CI37161489400 actualguards2286/66skip/1xfail12warnings828.26s181files;
+chain1918/7warnings523.53s147files; estate785/2865skip137warnings74.71s,
+280selected278results0silent. Mergeddev012d1e1e8b59f0ee2426ee6a2986350ed21de01b
+at2026-10-03T23:36:45Z. Weeklyactualdeployment/fullbrowser pending; noactual scheduler or email run.
+
+Precedinglatency4ff actualRenderLive andtwo health200/healthy644.3/647.2MB, realbadge401.
+p95 schema andover5000ms live. Sameprocess cumulative spotroute n3/5xx0:oneover5000ms/
+oneover10000ms,max16435.6ms,p95OVERFLOW lowerbound>=10000. Printedp95ismaximum,
+not an exact percentile. SmallallstatussamplecannotestablishownerpopulationSLO; targetstillmissed.
+PostmergeCI37161213444 success; E2E37161213426 actualHTML62expected/0unexpected/2flaky/
+8skips,okfalse. RetainedMobileSafari successfulretryspot2003452.799ms,syntheticbadge200;
+Firefoxretryhas10swaitForURLtimeout; initialfailurecauseunassigned. Skips notremoved;
+defaultFPSguardrail isdisabledbyexistingrendercontinuitygate, so CIcannotclose realdefault
+graphicsfallback. This qualifies the GitHubjob'sgreen conclusion; no reliableSLOclosure.
+
+ICONHTTPmatrixtwo rounds fixedbase2026-10-03T23:00Z,bbox[-86,23,-72,34]:
+ICONwaves168 plusICONwaves/swell1/windwaves179 andGFSwaves179,all200 andnonzero182vectors.
+ICON179 waves146positive/max2.3104m,swell1 140/max1.6291m,windwaves146/max2.1694m;
+these are OFFSHORE input heights, not breaking surf or skill evidence. Responseestimatedtrue,
+providerestimated,backendicon_persistence_gfs_blend. Requested10:00Zproduct09:00Z;
+servedvalidtimefieldechoes10:00Z: do notmisreadasexactsourcehour (darkservedtimework remains).
+ICON168 anchorrequestedOct10T23alreadygetsestimatedOct11T00, whereasclient>168also
+computesicon_trend_extrapolation. Differentforecastpaths/doubleestimation remainunderreview,
+not provenownerfailure andnotchanged. Owneractualviewport/time/revisionunknown.
+
+Actualdevmapcontrolledfreshpages usedaccessiblewheel179. Firstpageinitialreducedgraphics/
+timewarningthenrecoveredowncoloredfield. Secondpage showedlowFPSwarnings1-19 and
+guardrail9FPS12consecutive seconds ->simplifiedthirdparty layer. Backenddata isavailable,
+but thisisnotfullownheatmapacceptance. Providedowner302lineloghasnoFPS/guardrail entries;
+cannotassignsamecausetoowner. Sourcealreadyexemptsdocumenthidden/!hasFocus andmoving/
+scrubbing; donotblindlyaddanotherexemption ordisableprotection. Longrangecoarse2degreefield
+andbackstopthreefailedredrives/45sprobe recordedinthisbrowser,notforecastprecisionclaim.
+No speculativeparticlebudget,zero field,cacherewrite,modelclamp orscienceflagflip.
+
+Nextsourcecheckpoint5manualselectionroutes:queueJWTself constraint; select/items/preference/
+deadline checkactualquota.surfer_id before returns,expiry statechanges or preferencewrites.
+Nonvacuousowner200/missingquota404,invalidJWT/anonymous401,foreignknownquota403; expired
+foreignrequestcannotmarkquotaexpiredorchange preference. Final25controls BEFORE16failed/
+9passed twice(1.28/1.21s),candidate25passed twice(.84/1.04s),actualpackage25passed twice
+(4.60/4.43s,19warnings). LocalJWT validation real; DB reads/commits mocked, no customerdata.
+Livebefore at4ff:anonymous queue200empty andfourabsentquota404 twice, no actualobject writes.
+Expectedestate785+25=810/floor783+25=808,281files;guards2286/181,chain1918/147 unchanged.
+Broader sessionbrowse/claims/duplicateitemselection/concurrentquota/autoexpiry remainsopen.
+Initialisolatedscriptquote syntaxpreflight executedno source/testwork, excluded; entirevalid
+pairreran. Ledger499-508 recordsreceipts. Actualafter/hostedownership pending.
+
+## 2026-10-03 23:43Z — reviewable status
+
+The weekly report repair is merged into dev as 012d1e1e. Its checked CI confirmed 2,286 weather
+guards, 1,918 forecast-chain tests and 785 estate tests. Deployment and full browser acceptance
+for that revision are still pending here.
+
+The next repair protects five manual photo-selection endpoints. It validates the JWT and checks
+the actual quota owner before returning items or changing a deadline, preference or selection.
+The 25 HTTP controls reproduced 16 failures in each baseline, then passed twice with the fix.
+The actual package passed twice, and 160 surrounding account, message, identity and sensitive-route
+checks passed. These tests use real local JWT validation with mocked database reads and commits.
+Broader session browsing, photo claims, selection concurrency and gallery auto-expiry remain open.
+
+Your ICON long-range report remains an open incident. At hour 179, the backend returned nonzero
+estimated waves, swell and wind-waves in both controlled rounds. Two fresh browser pages showed
+different outcomes: one recovered the app's colored field, while the other triggered the low-FPS
+guardrail and switched to a simplified third-party layer. Your supplied console did not contain
+the guardrail messages, so that cannot yet be assigned as the cause of your original failure.
+There is also a separate source-consistency concern: the frontend re-estimates long-range ICON
+data even though the backend already serves stored estimates. No speculative weather change
+or guardrail override has been applied.
+
+The five-second performance target is not met. The new telemetry is live and shows a spot-hub
+request over 16 seconds. The preceding full browser job succeeded only after retries: its report
+contains two flaky tests and eight skips. A green job alone does not close reliability, default
+graphics fallback behavior, forecast accuracy or the population latency target.

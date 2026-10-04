@@ -1665,7 +1665,8 @@ jobs:
           # PR234 CI37157703688 estate read749;32new executed identity controls ->781.
           # Same margin2, expected279selected/277results; live legacy suite still explicit skips.
           # PR236 actual estate781 plus4 weekly report runtime controls ->785; same margin2.
-          MIN_PASSED = 783
+          # PR237 actualestate785 plus25selectionownership controls ->810; margin2 unchanged.
+          MIN_PASSED = 808
 
           try:
               root = ET.parse('estate.xml').getroot()
