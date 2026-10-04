@@ -114,7 +114,8 @@ jobs:
           // W03/W05: db20de62 hosted335/3440 + two suites/28 controls; hosted confirmation pending.
           // Point identity, availability, playback and consumer controls: full local346/3582.
           // Daily calendar, mounted label/rollback controls: +1suite/+28tests; projected347/3610.
-          const MIN_SUITES = 347, MIN_TESTS = 3610;
+          // PF01/PF02 transport/cache and mounted viewport controls: +4suites/+37tests.
+          const MIN_SUITES = 351, MIN_TESTS = 3647;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

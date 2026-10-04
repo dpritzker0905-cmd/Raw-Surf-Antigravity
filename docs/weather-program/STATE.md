@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 22:25Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 22:49Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,13 +14,22 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-04 22:49Z: PF01/PF02 browser repairs locally qualified on PR243.**
+  Three limiter-owned requests, latest regional intent, reusable global work, safe A/B/A owners;
+  shared48entry/32MiB estimated cache, expiration/recency. Both new frontend flags default off.
+  Final351/3647frontend,90neighbors twice, lint/standard build/LOC accepted; hosted pending.
+  Prior e4353c06 CI37240056010 all11jobs success: backend5219/frontend3610; AS06 canary open.
+  No merge/deploy/activation/live load. Next PF03/PF04 and service/device/GPU acceptance.
+  See `audit/repair-2026-10-04/PERFORMANCE-RESULTS.md`.
+
 - **2026-10-04 22:09Z: AS06 immutable publication source locally qualified on PR243.**
   Unique/create-only uploads, exact acknowledgment before insert/CAS, designated writer gate;
   no immediate ambiguous-candidate deletion, bounded age/generation cleanup.16before controls
   9fail/7pass twice; after148expanded neighbors/floors twice;39new guards, projected2327/backend5207.
   Source32a33138 ledger gate rejected a date-only expansion row; original retained and explicit
   correction recorded. Precision-aware checker12estate controls; projected backend5219.
-  Candidate hosted follow-up and actual Supabase canary pending; MANIFEST_IMMUTABLE_PUBLICATION=0.
+  Hosted follow-up e4353c06 CI37240056010 accepted all11jobs/5219backend; actual Supabase canary
+  pending; MANIFEST_IMMUTABLE_PUBLICATION=0. Original date-only row retained and hosted checker accepted.
   Prior649cb14e full CI37231405906 success. No merge/deploy/activation; live source6b062e97.
   Next source work PF queues/cache/encoding. See `audit/repair-2026-10-04/MANIFEST-RESULTS.md`.
 
@@ -590,7 +599,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 612, sha256 d64311e23f9bb6b8a1750c58d6f26aa623cdaba28416b835adc61dfe82d33edb**
+  **Ledger head: seq 615, sha256 ddafea60f9350cb92fd7946c3154c95f226483506ff3059e0b4dd3af2e3c4a4d**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

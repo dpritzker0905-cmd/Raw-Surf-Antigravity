@@ -203,3 +203,17 @@ and108publication/parity/floor/chronology controls pass; audit selftest accepted
 docs-only0FAIL/7WARN/6NOTE. Existing overdue commitments remain open.
 Selector620tracked/182guards/150chain/285estate;12new estate controls, reference910/floor908.
 Expected full backend5219, frontend3610; hosted follow-up pending. No served-number change.
+
+### 2026-10-04 22:49Z: PF01/PF02 browser work and retention repair
+
+Source e4353c06 prior AS06/chronology CI37240056010 all11jobs success; backend5219/frontend3610.
+Current local PF01/PF02: three limiter-owned requests; scoped regional cancellation with
+reusable global work retained; rapid A/B/A aborted-owner replacement and cleanup safety.
+Every cache writer shares48entry/32MiB estimated budget, expires stale entries and retains
+recency without changing freshness. Cache before3fail/5pass twice; exact old limiter
+2causal failures twice (9deselected, not production skips). Final90focused controls twice,
+full351/3647; lint86existingerrors/917warnings, standard build and LOC accepted. Extra
+CI=true build rejected existing warning debt; established CI=false compile accepted.
+Both flags disabled; no merge/deploy/activation/live load. Backend admission, true heap/GPU
+bytes, p95/slow-fetch oracle, PF03/PF04 remain open. User withdrew wrong-chat Foamking request;
+no Foamking changes made. Hosted current candidate pending.

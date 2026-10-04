@@ -7,7 +7,8 @@ import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { recordTruthStage, resetTruthTracker } from './weatherTruthTracker';
 import { useMarineDataFetcher } from './useMarineDataFetcher';
 import { beginTransition, endCurrentTransition, recordChurn, getTarget, displayMatchesRequested, decideStrandAction } from './marineTransitionCoordinator';
-import { ensureMarineSeries, getMarineSeriesFrame, prewarmMarineSeries } from './marineGridSeries';
+import { getMarineSeriesFrame } from './marineGridSeries';
+import { useMarineSeriesWarm } from './useMarineSeriesWarm';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 import { isTerminalNoCoverage } from './marineControllerCache';
 
@@ -815,94 +816,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     marineFetchLocksRef, updateMarineGridRef, marineRevision, lastCommittedSigRef,
   });
 
-  // Option 1 (flag-gated): background-load the marine time-series for the active
-  // model/layer/viewport so the timeline scrubber can track hours instantly via the
-  // series-as-cache-source above. No-op unless window.__MARINE_SERIES__ === true;
-  // ensureMarineSeries is deduped + TTL'd so moveend spam is cheap.
-  useEffect(() => {
-    if (!mapInstance || !activeMarineLayer) return;
-    let cancelled = false;
-    const controller = new AbortController();
-    const kick = () => {
-      if (cancelled || !mapInstance) return;
-      try {
-        const b = mapInstance.getBounds();
-        const bounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
-        // Load the PAGE containing the current scrubbed hour first (not always hour 0), then
-        // adjacent pages on idle — so far-hour scrubbing is instant once its page warms.
-        ensureMarineSeries(activeModelRef.current, activeMarineLayerRef.current, bounds, timeOffsetRef.current, controller.signal);
-        // Also eagerly warm ALL pages on viewport SETTLE (not just on scrub-start), so scrubbing
-        // to FAR hours right after activating/panning is instant instead of cold-missing the
-        // un-warmed page (the "heatmap doesn't change during scrub" delay). prewarmMarineSeries is
-        // capped + deduped + TTL'd + abortable (controller aborts on viewport/model/layer change)
-        // and SKIPS EURO (protects the 1-CPU/2GB backend) — GFS & ICON just re-slice a cheap
-        // cached coarse product, so the proactive warm is bounded.
-        prewarmMarineSeries(activeModelRef.current, activeMarineLayerRef.current, bounds, controller.signal);
-      } catch (e) { /* map not ready — ignore */ }
-    };
-    const t = setTimeout(kick, 600);
-    const onIdle = () => kick();
-    mapInstance.on('moveend', onIdle);
-    // On scrub start, eagerly load EVERY page so any hour the user jumps to during a fast drag
-    // is already cached (the during-scrub re-index reads getMarineSeriesFrame synchronously).
-    const onScrubStart = () => {
-      if (cancelled || !mapInstance) return;
-      try {
-        const b = mapInstance.getBounds();
-        prewarmMarineSeries(
-          activeModelRef.current,
-          activeMarineLayerRef.current,
-          { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() },
-          controller.signal
-        );
-      } catch (e) { /* map not ready — ignore */ }
-    };
-    if (typeof window !== 'undefined') window.addEventListener('timeline_scrub_start', onScrubStart);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-      controller.abort();
-      try { mapInstance.off('moveend', onIdle); } catch (e) { /* ignore */ }
-      if (typeof window !== 'undefined') window.removeEventListener('timeline_scrub_start', onScrubStart);
-    };
-    // Page is intentionally NOT a dep. prewarmMarineSeries already loads ALL pages on settle +
-    // scrub-start, so re-running per page crossing is redundant — and destructive: the cleanup's
-    // controller.abort() would KILL the in-flight prewarm. A fast MULTI-PAGE scrub (e.g. 271→31→88…)
-    // crosses page boundaries (141↔144, 285↔288) repeatedly, so the warm was perpetually aborted and
-    // the series NEVER warmed → scrub fell to a per-hour /grid storm (the "scrub never gets snappy"
-    // root, live-confirmed 2026-06-26). Keying only on model/layer/map lets the warm COMPLETE so the
-    // scrub-settle + during-scrub paths actually HIT the series. (A real model/layer switch still
-    // re-runs + aborts the now-stale warm, which is correct.)
-  }, [mapInstance, activeModel, activeMarineLayer]);
-
-  // On a MODEL switch only, eagerly warm the NEW model's series pages so the heatmap + scrubbing
-  // resolve fast instead of waiting on cold per-hour fetches — this is what makes switching
-  // ICON/GFS/EURO feel slow (the block cache is wiped on switch, so the new model starts cold).
-  // It also shrinks the window where the cross-model hold cap (useMarineWindData) has to blank.
-  // Additive + safe: prewarmMarineSeries is deduped + TTL'd and SKIPS EURO (avoids OOMing the
-  // 1-CPU/512MB backend); GFS & ICON just re-slice a cheap cached coarse product. Model-only
-  // (ref-guarded) so it does NOT fire on layer switches or pans.
-  const prevPrewarmModelRef = useRef(null);
-  useEffect(() => {
-    if (!mapInstance || !activeMarineLayer) return;
-    if (prevPrewarmModelRef.current === activeModel) return;
-    prevPrewarmModelRef.current = activeModel;
-    // Abortable: when the user switches model AGAIN, abort this prewarm so the PREVIOUS model's
-    // still-queued series pages are dropped instead of piling onto the 1-CPU backend (rapid
-    // model toggling was firing GFS+ICON+EURO × every layer × 3 pages concurrently → 503 storm).
-    const controller = new AbortController();
-    try {
-      const b = mapInstance.getBounds();
-      prewarmMarineSeries(
-        activeModelRef.current,
-        activeMarineLayerRef.current,
-        { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() },
-        controller.signal
-      );
-    } catch (e) { /* map not ready — ignore */ }
-    return () => { try { controller.abort(); } catch (e) { /* ignore */ } };
-  }, [activeModel, mapInstance, activeMarineLayer]);
+  useMarineSeriesWarm({ mapInstance, activeModel, activeMarineLayer,
+    activeModelRef, activeMarineLayerRef, timeOffsetRef });
 
   return { marineData };
 }
-

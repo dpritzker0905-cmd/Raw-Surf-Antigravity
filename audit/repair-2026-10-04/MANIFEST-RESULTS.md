@@ -74,3 +74,11 @@ and108publication/parity/floor/chronology controls pass; audit selftest accepted
 docs-only0FAIL/7WARN/6NOTE. Existing overdue commitments remain open.
 Selector620tracked/182guards/150chain/285estate;12new estate controls, reference910/floor908.
 Expected full backend5219, frontend3610; hosted follow-up pending. No served-number change.
+
+### 2026-10-04 22:49Z: exact-source hosted acceptance
+
+Source e4353c062c093b453ce7f4e9445a4a793ce7feba CI37240056010 completed/success, all11jobs.
+Frontend347/3610; backend5219passed: guards182files/2327passed/66skipped/1xfailed,
+chain150/1982passed/0skips; estate285selected/283results/910passed/0silent.
+Ledger37240056059, encoding, LOC, Lighthouse and Netlify preview accepted. The dated
+scoreboard correction passed hosted validation. Flags0; actual Supabase canary remains open.

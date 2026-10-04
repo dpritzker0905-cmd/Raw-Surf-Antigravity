@@ -51,13 +51,26 @@
     }
   },
   "hosted": {
-    "status": "pending",
+    "status": "success",
     "expected": {
       "guards": 2327,
       "chain": 1982,
       "estate": 910,
       "backend_total": 5219,
       "frontend": 3610
+    },
+    "source": "e4353c062c093b453ce7f4e9445a4a793ce7feba",
+    "ci": 37240056010,
+    "actual": {
+      "guards": 2327,
+      "chain": 1982,
+      "estate": 910,
+      "backend_total": 5219,
+      "frontend": 3610,
+      "frontend_suites": 347,
+      "guard_skips": 66,
+      "guard_xfailed": 1,
+      "estate_silent": 0
     }
   },
   "flag": {

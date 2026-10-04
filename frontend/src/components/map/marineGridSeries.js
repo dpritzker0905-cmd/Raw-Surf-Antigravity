@@ -28,6 +28,8 @@ import { frameToMarineData } from './marineSeriesFrame';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { exactGfsPlaybackEnabled } from './marinePlaybackPolicy';
 import { isThinnedWorldGrid } from './marineExactUpgrade';
+import { MarineSeriesCache } from './marineSeriesCache';
+import { marineSeriesWorkBoundsEnabled } from './marineSeriesWorkPolicy';
 import { deferMarineSeries, marineSeriesCallerAborted, resetMarineSeriesDeferred } from './marineSeriesDeferred';
 import { padRegionalBbox, normalizeRequestBbox, bboxContains } from './marineBboxGeometry';
 import {
@@ -36,8 +38,18 @@ import {
 } from './marineSeriesLimiter';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
-const _seriesCache = new Map();
+const _seriesCache = new MarineSeriesCache();
 const _inFlight = new Map();
+function hasLiveFlight(key) {
+  const flight = _inFlight.get(key);
+  if (marineSeriesWorkBoundsEnabled() && flight?.seriesSignal?.aborted) {
+    _inFlight.delete(key); return false;
+  }
+  return _inFlight.has(key);
+}
+function finishFlight(key, flight) {
+  if (_inFlight.get(key) === flight) _inFlight.delete(key);
+}
 const SERIES_TTL_MS = 5 * 60 * 1000; // mirror backend upstream cache TTL
 const SERIES_MAX = 48;              // bounded; heavy-class targets hold up to 8 SMALL pages each
                                     // (16 frames vs 48), so more entries ≈ same total memory
@@ -188,6 +200,10 @@ function pageKey(model, layer, bounds, page) {
   return `${model || 'GFS'}_${layer || 'waves'}_${getSurfModeFlag() ? 'surf' : 'swell'}_${viewportKey(bounds)}_p${page}${seriesAnchorTag()}`;
 }
 
+export function marineSeriesViewportIdentity(model, layer, bounds) {
+  return pageKey(model, layer, bounds, 0);
+}
+
 
 // Defer adjacent-page prefetch to idle so it never competes with the current page or a
 // scrub. requestIdleCallback when available; otherwise a macrotask (NOT a microtask, so it
@@ -238,7 +254,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
     }
     if (!coarseRetryDue && !coverageBroken && Date.now() - existing.ts < SERIES_TTL_MS) return;
   }
-  if (_inFlight.has(key)) {
+  if (hasLiveFlight(key)) {
     // Already loading. If it is still QUEUED as a background warm and someone now needs it on screen,
     // it jumps the queue (A15-11); a load already running is left alone.
     if (!background) promoteQueuedWarm(key);
@@ -289,7 +305,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
       // Cancellation can follow acquisition (including a queued handoff) before this
       // continuation runs. Return only an owned slot; queued drops own none.
       if (gotSlot) releaseSeriesSlot(gotSlot);
-      _inFlight.delete(key);
+      finishFlight(key, p);
       if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } } // Preserve queued-drop listener cleanup; see RATIONALE-2026-08-09-observability-and-duplicate-load-fixes.md.
       return;
     }
@@ -387,10 +403,11 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
     } finally {
       releaseSeriesSlot(gotSlot); // hand the slot to the next queued load (visible first)
       clearTimeout(timeoutId);
-      _inFlight.delete(key);
+      finishFlight(key, p);
       if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
     }
   })();
+  p.seriesSignal = localController.signal;
   _inFlight.set(key, p);
   // Awaiting here makes the load observable to callers that DO await (and tests); the
   // orchestrator calls this fire-and-forget (no await), so it stays a background load.
@@ -417,7 +434,7 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
   const page = marineSeriesPageForHour(hourOffset, model);
   const h0key = `${pageKey(model, layer, bounds, page)}_h0`;
   const existing = _seriesCache.get(h0key);
-  if ((existing && Date.now() - existing.ts < SERIES_TTL_MS) || _inFlight.has(h0key)) return;
+  if ((existing && Date.now() - existing.ts < SERIES_TTL_MS) || hasLiveFlight(h0key)) return;
   const h = alignToCadenceGrid(Math.max(0, hourOffset), 3);   // T-01: snap to the UTC product grid, not anchor+3k
   // PAD FIRST, THEN NORMALISE (order matters): padding a viewport whose west sits at -179.8 pushes
   // it to -180.3 and would re-introduce the very out-of-range edge normalisation exists to remove.
@@ -468,10 +485,11 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
     } catch (e) { /* silent — full page is the safety net */ } finally {
       if (timeoutId) clearTimeout(timeoutId);
       if (lane) releaseMiniSlot(lane);
-      _inFlight.delete(h0key);
+      finishFlight(h0key, p);
       if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
     }
   })();
+  p.seriesSignal = localController.signal;
   _inFlight.set(h0key, p);
   await p;
 }
@@ -509,7 +527,7 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
     if (adj < 0 || adj > lastPageFor(model)) continue;
     const k = pageKey(model, layer, bounds, adj);
     const cached = _seriesCache.get(k);
-    if ((cached && Date.now() - cached.ts < SERIES_TTL_MS) || _inFlight.has(k)) continue;
+    if ((cached && Date.now() - cached.ts < SERIES_TTL_MS) || hasLiveFlight(k)) continue;
     scheduleIdlePrefetch(() => { loadSeriesPage(model, layer, bounds, adj, signal, false, true); }, signal); // a warm
   }
 }
@@ -666,6 +684,7 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     return null;
   }
   if (typeof window !== 'undefined' && window.__MARINE_SERIES_DIAG__) window.__MARINE_SERIES_DIAG__.hits++;
+  _seriesCache.touchFrame(best);
   return best;
 }
 
@@ -675,4 +694,8 @@ export function _resetMarineSeriesForTest() {
   resetMarineSeriesDeferred();
   _resetSeriesLimiterForTest();
   _failRetries.clear();
+}
+
+export function _marineSeriesCacheState() {
+  return { entries: _seriesCache.size, estimatedBytes: _seriesCache.estimatedBytes ?? null };
 }

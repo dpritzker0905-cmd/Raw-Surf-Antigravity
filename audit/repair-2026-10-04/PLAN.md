@@ -72,8 +72,8 @@ frontend346/3582 and backend5128 passed; flags remain default off and full map c
 | MH01 | Island threshold change disables partial-tile damage detection | Local repair: separate damage snapshot; real visual/GPU acceptance open. |
 | MH02 | Mask uploads fail to preserve shared GL state | Local repair: success/error GL-state restoration; native GPU acceptance open. |
 | MH03 | Mask diagnostic reads using incorrect texture dimensions | Local repair: uploaded dimensions; native GPU diagnostic qualification open. |
-| PF01 | Visible mini requests bypass total bound; viewport moves retain old work | Open; preserved for a separate measured repair. |
-| PF02 | Mini cache insertion bypasses cap; expired entries retained | Open; preserved for a separate measured repair. |
+| PF01 | Visible mini requests bypass total bound; viewport moves retain old work | Default-off three-request browser budget and scoped regional intents; real stalled transport, mounted lifecycle and A/B/A owner controls locally qualified. Backend admission and hosted/device acceptance open. |
+| PF02 | Mini cache insertion bypasses cap; expired entries retained | Default-off shared48entry/32MiB estimated ownership cache across every writer; expiry and recency controls locally qualified. Hosted and actual heap/GPU plateau acceptance open. |
 | PF03 | Response encoding/compression CPU lies outside builder deadline | Open; preserved for a separate measured repair. |
 | PF04 | Concurrent identical raster requests duplicate decoding; FIFO evicts hot tile | Open; preserved for a separate measured repair. |
 
