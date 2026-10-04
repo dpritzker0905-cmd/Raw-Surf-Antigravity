@@ -48,7 +48,7 @@ Runtime rollback switches are `__RAW_DISABLE_MARINE_SERIES_WORK_BOUNDS__` and
  351/3642 retained as history. Final lint accepted86existingerrors/917warnings; no debt increase.
 - LOC ratchet accepted2509files, zero new/regressed violations; orchestrator shrinks to823lines.
 - Extra CI=true compilation refuses existing warning debt, matching the documented repository
-  CI=false build exception. Standard production compilation accepted with existing warnings; hosted candidate gates pending.
+  CI=false build exception. Standard production compilation accepted with existing warnings; hosted source21db8ee8 accepted all11CIjobs (receipt below).
 
 ## Open acceptance and next source work
 
@@ -63,3 +63,12 @@ generated. Backend response encoding/deadline work PF03 and raster dedupe/LRU PF
 
 Primary guidance: [Map insertion order](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map),
 [AbortController cancellation](https://developer.mozilla.org/en-US/docs/Web/API/AbortController/abort).
+
+## 2026-10-04 23:08Z: exact-source hosted acceptance
+
+Source`21db8ee80fc5af8ea892c4c4467f0b54ce2f004e`: CI37241546337 completed/success, all11jobs.
+Frontend351/3647, backend5219passed: guards182files/2327passed/66skips/1xfail,
+chain150/1982/0skips, estate285selected/283results/910passed/0silent. Encoding, ledger,
+LOC, Lighthouse and Netlify preview accepted. Source fingerprints match. Flags remain
+disabled; no merge, deployment or activation. Backend admission/device/full-map/p95
+acceptance remains open. Final paired floor/chronology controls48pass locally.

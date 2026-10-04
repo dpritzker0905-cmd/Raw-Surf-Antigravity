@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 22:49Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 23:08Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,13 +14,15 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-04 22:49Z: PF01/PF02 browser repairs locally qualified on PR243.**
+- **2026-10-04 22:49Z: PF01/PF02 browser source21db8ee8 hosted qualified on PR243.**
   Three limiter-owned requests, latest regional intent, reusable global work, safe A/B/A owners;
   shared48entry/32MiB estimated cache, expiration/recency. Both new frontend flags default off.
-  Final351/3647frontend,90neighbors twice, lint/standard build/LOC accepted; hosted pending.
+  Final351/3647frontend,90neighbors twice; CI37241546337 all11jobs accepted/5219backend.
+  Supplemental encoding/ledger/LOC/Lighthouse/Netlify preview accepted; no new skipped coverage.
   Prior e4353c06 CI37240056010 all11jobs success: backend5219/frontend3610; AS06 canary open.
   No merge/deploy/activation/live load. Next PF03/PF04 and service/device/GPU acceptance.
-  See `audit/repair-2026-10-04/PERFORMANCE-RESULTS.md`.
+  PF03 actual-route40trial diagnosis/finite-guard prototype recorded; runtime repair remains next.
+  See `audit/repair-2026-10-04/PERFORMANCE-RESULTS.md` and `PF03-DIAGNOSIS.md`.
 
 - **2026-10-04 22:09Z: AS06 immutable publication source locally qualified on PR243.**
   Unique/create-only uploads, exact acknowledgment before insert/CAS, designated writer gate;
@@ -599,7 +601,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 615, sha256 ddafea60f9350cb92fd7946c3154c95f226483506ff3059e0b4dd3af2e3c4a4d**
+  **Ledger head: seq 619, sha256 e57f454c2b0c04b43c5ee0b64cfff6b80c9576fd4c0b431c53e64a6faa9f27f6**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

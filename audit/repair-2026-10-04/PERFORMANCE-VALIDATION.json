@@ -39,11 +39,29 @@
     "loc": "2509files,0new/regressed"
   },
   "hosted": {
-    "status": "pending",
+    "status": "success",
     "expected": {
       "frontend_suites": 351,
       "frontend_passed": 3647,
       "backend": 5219
+    },
+    "source": "21db8ee80fc5af8ea892c4c4467f0b54ce2f004e",
+    "ci": 37241546337,
+    "recorded_at_utc": "2026-10-04 23:08Z",
+    "actual": {
+      "frontend_suites": 351,
+      "frontend_passed": 3647,
+      "backend": 5219,
+      "guards": 2327,
+      "guard_files": 182,
+      "guard_skips": 66,
+      "guard_xfailed": 1,
+      "chain": 1982,
+      "chain_files": 150,
+      "estate": 910,
+      "estate_selected": 285,
+      "estate_results": 283,
+      "estate_silent": 0
     }
   },
   "flags": {

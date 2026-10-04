@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-04 22:49Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-04 23:08Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -33,16 +33,16 @@ See MANIFEST-RESULTS.md and MANIFEST-VALIDATION.json. Prior649cb14e receipt CI37
 Prior source5afa0c82: full hosted CI37226218002 passed11jobs, frontend3582/backend5128.
 Receipt-only0fb75c8e CI37227786046 completed/success. Jacobian ownership probe6controls twice:
 requested/hint derivatives0/1 to1/0 across GFS/ICON/EURO; no scientific accuracy claim.
-Current candidate: frontend347/3610, supported backend neighbors195, lint/LOC/build accepted;
+Prior source40cd1ddd: frontend347/3610, supported backend neighbors195, lint/LOC/build accepted;
 source40cd1ddd hosted CI37230181942 accepted11jobs: frontend347/3610 and backend5168passed
 (chain1982/guards2288/estate898). Current-source Jacobian6controls passes twice. AS06 current-source
-race and missing-upload defects reproduced twice offline; repair remains next. Local before/after
+race and missing-upload defects reproduced twice offline; subsequent AS06 repair is qualified above. Local before/after
 receipts and limitations in HUB-COPERNICUS-RESULTS.md.
 Daily rows verified in light/dark/beach desktop/390px phone offline component fixture.
 
 ## What remains, in order
 
-1. PF01/PF02 candidate hosted acceptance; AS06 actual Supabase staging publication/read-back.
+1. AS06 actual Supabase staging publication/read-back; PF01/PF02 source hosted qualified.
 2. PF03/PF04 encoding deadlines, process-wide admission, raster duplicate decoding and hot-tile
    retention; qualify browser heap/GPU plateau and actual spot-hub populationp95≤5s.
 3. AS04/MH01–03/PB01/B-M01/B-M02: full hour-to-pixel oracle, slow-fetch play/scrub,
@@ -62,4 +62,6 @@ Production remains frozen. Beta app access-code rotation remains deferred as req
 PF01/PF02 local source at 2026-10-04 22:49Z: final351/3647 full frontend,90focused controls twice,
 lint ratchet/standard production build/LOC accepted. Cache before3fail/5pass twice; old
 limiter two causal failures twice; Jacobian active/count1→0, latest height1 unchanged.
-See PERFORMANCE-RESULTS.md; current hosted qualification pending. No live latency claim.
+See PERFORMANCE-RESULTS.md; source21db8ee8 CI37241546337 hosted qualified all11jobs,
+frontend351/3647/backend5219; supplementary gates and preview accepted. No live latency claim.
+PF03 actual-route offline diagnosis and finite-guard prototype in PF03-DIAGNOSIS.md; runtime repair remains next.

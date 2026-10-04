@@ -217,3 +217,17 @@ CI=true build rejected existing warning debt; established CI=false compile accep
 Both flags disabled; no merge/deploy/activation/live load. Backend admission, true heap/GPU
 bytes, p95/slow-fetch oracle, PF03/PF04 remain open. User withdrew wrong-chat Foamking request;
 no Foamking changes made. Hosted current candidate pending.
+
+### 2026-10-04 23:08Z: performance exact-source hosted acceptance and next diagnosis
+
+Source21db8ee8 CI37241546337 all11jobs success. Frontend351/3647, backend5219: guards2327
+with66skips/1xfail; chain1982, estate910/0silent. Supplemental gates and preview accepted.
+Source fingerprints match; remotehead21db8ee8 and PR243 body updated/read back.
+PF03 actual route/framework synthetic-builder experiment:40distinct-vector requests,
+5trials per arm repeated in reverse order; decoded masks/quantities/missing/provenance
+parity. Unguarded Pydantic NaN→null differs from baseline refusal. Finite guard and actual
+route datetime/bytes/set fallback/nonfinite error controls accepted; no runtime change.
+Response-cost/body/headroom/admission/deadline acceptance still open. Own diagnostic
+fixture shared vectors initially; superseded with76800distinct vectors. No production
+latency inference. Reviewable experiment and limitations recorded in PF03-DIAGNOSIS.md.
+No merge/deploy/activation. This publication is receipts plus offline experiment only.
