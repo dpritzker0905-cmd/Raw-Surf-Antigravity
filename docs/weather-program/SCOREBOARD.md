@@ -120,3 +120,5 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-03 23:42Z | dev012d1e1e / quotaowner repairprepared | S21/S22 | JWTactor × resourceowner; ICONdata vs graphics | CI2286/1918/785; ownership25casepaired; ICON5HTTPcases twice200; secondbrowserfallback | No servedweather change/skillgain; p95tailmiss anddevicefallback open |
 
 | 2026-10-04 00:17Z | ICON stored-tail dark candidate | S21/S22, D-001 | Same captured dev h179 fields,3layers×182cells; actual adapter and central difference | Old146/141/146 changed cells,max delta1.6524/1.7214/1.625m; candidate0; target derivative0->1 | Flag default-off: no served weather change, no accuracy/graphics claim; one region/time only |
+
+| 2026-10-04 00:42Z | dev22f84f99 / monitor label and Stripe authority prepared | S21/S22 | Real assembled route dispatch; healthy/loss scored-archive controls | 45actual checks twice; default-off ICON hosted329/3387 +8/121 | No served weather change or flag flip; no processor/graphics/SLO/skill closure |

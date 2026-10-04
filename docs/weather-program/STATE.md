@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 00:17Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 00:42Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,19 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-04 00:42Z: ICON PR239 merged dev22f84f99, default-off.** Exact5a79582f all gates green:
+  frontend329/3387,focused8/121; backend2286/1918/810. No flag or Netlify environment changed;
+  actual deployment/full browser after pending. Promotion/accuracy and default GPU fallback open.
+- **2026-10-04 00:42Z: monitor label and Stripe authority next checkpoint.** Correct combined archive
+  population to rows loaded; remove unreachable duplicate root Stripe route while retaining first
+  canonical signed handler. Isolated before/after twice; actual45pass twice5.72/5.29s.
+  No payment call/customer write or actual scheduler invocation. Expectedguards2288/floor2282,
+  chain1918/floor1912,estate816/floor814; new estatefile, backend613tracked. Hosted/live pending.
+- **2026-10-04 00:42Z: selection565 full acceptance read back.** CI2286/1918/810; browser63expected,
+  zero failures/retries,9existing skips,HTMLoktrue. Does not close excluded GPU controls or5s SLO.
+  Public calibration has ops and GFS_SCALAR +24/+72 n1 each; insufficient for promotion.
+  Existing012precompute success417buoys MAE.188m,1773spots6frames,0matched reports; no
+  next scheduled accuracy-monitor success yet, commitments149/309 remain open.
 - **2026-10-04 00:17Z: quota PR238 merged and live dev56544d2a.** Checked664d93ef all gates green:
   2286 weather guards,1918 chain,810 estate; actual Render Live and health200/badge401 twice.
   All five anonymous selection endpoints401 twice using absent synthetic IDs. Live foreign/
@@ -483,7 +496,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 517, sha256 83ea3719f06f71fa6522fbba6f87135ee744d2721e20c1924c155a855a8cce5c**
+  **Ledger head: seq 525, sha256 24b52f1268a72ecee6c5aabe8a43b6ed68b6f0fe7ca6796b801ae9ea53893a5c**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

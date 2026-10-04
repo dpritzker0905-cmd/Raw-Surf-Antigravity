@@ -734,3 +734,77 @@ The full frontend floor rises297/2879 ->298/2904; expected hosted329suites/3387t
 preserving previous measured margins31suites/483tests. Focused lane7/96 ->8/121
 and explicitly discovers the25new controls. Backend lane counts/floors unchanged.
 Ledger509-517 records these receipts and the default-off adoption.
+
+## 2026-10-04 00:42Z — dark ICON merged; next monitor and webhook checkpoint
+
+ICONPR239 exact5a79582ff3f49e87783a4d2d88e3d4a265a64645 passed every hosted gate.
+CI37164586339 backend2,286 guards/66skips/1xfail (978.61s,181files),1,918 chain
+(563.08s,147files),810 estate/2865skips (74.52s,281selected279results0silent).
+Actual hosted frontend329suites/3387tests and focused8suites/121tests match projection.
+Mergeddev22f84f9923bf445343b0b4816653f53dfb0857d3 at2026-10-04T00:38:41Z.
+Flag remains default-off in source; no Netlify env write, no main/unfreeze or scientific
+serving promotion. Actual new deployment/full browser after pending here.
+
+Selection565 postmerge CI37163814170 actual2,286/1,918/810 (888.41/535.12/71.02s).
+Browser37163814183 actual63expected/0unexpected/0flaky/9skips,HTMLoktrue.
+Skipped/default-FPS-disabled coverage still cannot close the observed graphics fallback.
+Earlier paired real anonymous boundaries/health/badge receipts remain valid for565.
+The five-second target is unresolved; no latency regression is hidden by increasing a timeout.
+
+Live buoy-calibration read00:21Z generated22:17:57Z: ops ledgered1383,scored14,
+pending47180,cap evicted0. GFS_SCALAR source rows at+24/+72 eachn1
+(MAE/bias.091/-.091m and.0691/-.0691m); this is sparse source presence,
+not sufficient skill or paired same-model proof. Commitments149/309 remain open.
+Existing012precompute37162472350 completed successfully: actualstage417buoy spots
+heightMAE.188m;1773spot ratings6frames;report1773archived0matched;rc0.
+A successful precompute does not establish live propagation or the next scheduled monitor.
+Most recent scheduled accuracy monitor is still failed37157286033 before the seam fix;
+manual green37159003598/37159077830 is already recorded and remains distinct.
+
+Next two non-weather repairs were reproduced in isolation before adoption.
+Monitor: the caller supplies previous+current scored archives during the7day seam,
+but prints their combined total as rows thismonth. Change only that label to rows loaded.
+Two controls include September+October rows, exclude future targets and preserve both
+OK and measured persistence-loss RED. Before2failed twice(.13/.12s),after2passed
+twice(.05/.04s). Residual archive label stays monthly because its reader is still monthly.
+No window, paging threshold or production verdict changed; no new monitor dispatch.
+
+Stripe: actual server assembled POST/api/webhook/stripe twice. The first is the canonical
+router; the later root function is unreachable under current registration order. The root
+also has an unsigned JSON fallback and stale business logic; deleting it removes ambiguous
+ownership and dormant unsafe code. It does not prove an unsigned exploit was reachable.
+Canonical first handler remains registered and is now the sole route; payment flow, wallet
+fulfillment, signature configuration and callbacks are otherwise untouched.
+Full assembled6controls before1failed/5passed twice(6.18/5.82s),candidate6passed
+twice(5.28/5.59s). HTTP controls verify missing config503,missing/invalid signature400,
+and an SDK-validated unrelated event200 with zero customer reads/commits; rejected requests
+roll back. Actual SDK verification is mocked; this is dispatch/ordering acceptance,
+not real processor cryptographic verification, replay/concurrency or payment fulfillment proof.
+No real signing/API key values appear in the new tests: configured credentials are objects.
+No actual payment calls, customer data, notifications or DB startup.
+
+Actual package: monitor39+Stripe6 =45passed twice(5.72/5.29s),3existingwarnings.
+Local interpreter is not the declared CI/prod environment; hosted authority still pending.
+Expected guards2288/floor2282 (two added monitor controls),chain1918/floor1912,
+estate816/floor814 (six added full-app route controls),613trackedfiles/282estatefiles.
+Margins6/6/2 stay unchanged; frontend counts/floors unchanged from239.
+
+Graphics work remains measurement-first. MDN's [WebGL best practices](https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/WebGL_best_practices)
+supports bounding GPU memory and framebuffer cost per viewport, while its
+[long animation frame guidance](https://developer.mozilla.org/en-US/docs/Web/API/Performance_API/Long_animation_frame_timing)
+distinguishes combined frame work from individual long tasks. These guide the next profile;
+they do not prove that the87,616-particle budget caused this owner's failure.
+No speculative density change, hidden-window exemption duplicate or FPS guardrail disable.
+Ledger518-525 records the readbacks, merge and next adoption.
+
+### 2026-10-04 00:45Z — checkpoint validation
+
+The monitor-label and single Stripe-authority checkout has103 passing payment, request-telemetry,
+lane, floor and discovery companion controls (6.11s,11existing warnings). Changed-file blocking
+lint finds no errors. Directory governance scanned641Pythonfiles with128size warnings and
+zero violations; earlier file-path invocations scanned zero files and are excluded as proof.
+Tracked lane partition613/181guards/147chain/282estate,2excluded/1quarantined is complete.
+Ledger525 verifies byte-prefix against actual dev22f; memory audit0FAIL/2WARN/11NOTE.
+The two overdue science/operational commitments remain open. A floor-update helper initially
+expected a scalar assignment instead of the actual tuple; corrected only its unexecuted floor
+tail, with no duplicate ledger append or source-test change.

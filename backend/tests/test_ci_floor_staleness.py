@@ -439,7 +439,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # guards2278: checkedPR233 CI37155975799 read2276; monitor window adds2.
 # estate781: PR234 CI37157703688 read749; identity evidence controls add32.
 # PR235 CI37158928246 guards2278 plus8 latency-evidence controls ->2286.
-_FLOOR_SET_FROM = {"guards": 2286, "chain": 1918, "estate": 810}
+_FLOOR_SET_FROM = {"guards": 2288, "chain": 1918, "estate": 816}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

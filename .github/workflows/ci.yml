@@ -791,7 +791,8 @@ jobs:
           # Exact181files and margin6 unchanged.
           # PR235 CI37158928246 confirms2278; latency evidence adds8 ->2286.
           # Same181files/margin6; zero slow markers on healthy rows preserved.
-          MIN_FILES, MIN_PASSED = 181, 2280
+          # PR239 actual2286 plus2 monitor-label controls ->2288; margin6 unchanged.
+          MIN_FILES, MIN_PASSED = 181, 2282
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1668,7 +1669,8 @@ jobs:
           # Same margin2, expected279selected/277results; live legacy suite still explicit skips.
           # PR236 actual estate781 plus4 weekly report runtime controls ->785; same margin2.
           # PR237 actualestate785 plus25selectionownership controls ->810; margin2 unchanged.
-          MIN_PASSED = 808
+          # PR239 actualestate810 plus6 assembledStripe controls ->816; margin2 unchanged.
+          MIN_PASSED = 814
 
           try:
               root = ET.parse('estate.xml').getroot()
