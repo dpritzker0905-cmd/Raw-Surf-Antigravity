@@ -191,3 +191,15 @@ AS06 final local qualification supersedes the earlier109/36 partial counts:148pa
 39newpublication controls, guards2327projected/floor2321. Added fallback-safe gate failures
 and independent pilot writer flag0. Final causal before16cases9fail/7pass unchanged;
 publication Jacobian winner/loser[0,1]→[1,0]. Hosted full candidate remains pending.
+
+### 2026-10-04 22:25Z: explicit chronology correction
+
+The final AS06 expansion row was appended with date-only precision after timestamped rows.
+It was written with ledger610 at22:14:13Z, not midnight. CI37239259594 rejected it because
+the checker invented midnight. The historical row is retained. Date-only rows now constrain
+the whole UTC day; prior explicit time constraints carry across them. Earlier days and
+reversed explicit times still fail. Actual audit_docs before1fail/1pass; after12controls
+and108publication/parity/floor/chronology controls pass; audit selftest accepted and
+docs-only0FAIL/7WARN/6NOTE. Existing overdue commitments remain open.
+Selector620tracked/182guards/150chain/285estate;12new estate controls, reference910/floor908.
+Expected full backend5219, frontend3610; hosted follow-up pending. No served-number change.

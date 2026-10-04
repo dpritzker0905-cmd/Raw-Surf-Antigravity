@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 22:09Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-04 22:25Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -24,7 +24,9 @@ These counts describe work coverage, not24 fully closed production findings.
 ## Validation status
 
 AS06 current candidate: actual source9fail/7pass before twice,148expanded neighbors/floors pass after twice;
-publication Jacobian winner/loser[0,1]→[1,0].39new guards; projected backend5207, hosted pending.
+publication Jacobian winner/loser[0,1]→[1,0].39new guards plus12chronology estate controls; projected backend5219, hosted follow-up pending.
+Source32a33138 ledger gate caught a date-only row after timed rows; explicit correction retained
+and precision-aware chronology tests still reject reversals. See MANIFEST-RESULTS.md.
 See MANIFEST-RESULTS.md and MANIFEST-VALIDATION.json. Prior649cb14e receipt CI37231405906 green.
 
 Prior source5afa0c82: full hosted CI37226218002 passed11jobs, frontend3582/backend5128.

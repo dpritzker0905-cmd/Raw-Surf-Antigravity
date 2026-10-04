@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 22:09Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 22:25Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -18,7 +18,9 @@ is a claim, not a measurement.
   Unique/create-only uploads, exact acknowledgment before insert/CAS, designated writer gate;
   no immediate ambiguous-candidate deletion, bounded age/generation cleanup.16before controls
   9fail/7pass twice; after148expanded neighbors/floors twice;39new guards, projected2327/backend5207.
-  Candidate hosted and actual Supabase canary pending; MANIFEST_IMMUTABLE_PUBLICATION=0.
+  Source32a33138 ledger gate rejected a date-only expansion row; original retained and explicit
+  correction recorded. Precision-aware checker12estate controls; projected backend5219.
+  Candidate hosted follow-up and actual Supabase canary pending; MANIFEST_IMMUTABLE_PUBLICATION=0.
   Prior649cb14e full CI37231405906 success. No merge/deploy/activation; live source6b062e97.
   Next source work PF queues/cache/encoding. See `audit/repair-2026-10-04/MANIFEST-RESULTS.md`.
 
@@ -588,7 +590,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 610, sha256 ff7cee17a92d74821207ff9e52080049328508535dc2db78145100cea5a62cb0**
+  **Ledger head: seq 612, sha256 d64311e23f9bb6b8a1750c58d6f26aa623cdaba28416b835adc61dfe82d33edb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

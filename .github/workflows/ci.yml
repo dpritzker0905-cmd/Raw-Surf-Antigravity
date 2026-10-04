@@ -1684,7 +1684,8 @@ jobs:
           # Independent audit: CI37167173560 confirms816. Two selector-owned files
           # add73 executed cases; projected889, same margin2. Candidate CI must confirm.
           # Hosted5afa0c82 estate889 +9actual horizon-route controls =898; margin2.
-          MIN_PASSED = 896
+          # Scoreboard chronology:12 actual-audit/negative controls; projected910, margin2.
+          MIN_PASSED = 908
 
           try:
               root = ET.parse('estate.xml').getroot()
