@@ -189,3 +189,11 @@ with a single line `Superseded by D-MMM (date)`. The newest entry is at the bott
 - **Measure after (the dev site once it merges):** after an erratic zoom `window.__MARINE_BASE_HOLD__.kept` is above 0 and `__RAW_GPU__.blendBoth.haveCoarseBase` stays true; in a session that never leaves the band `__MARINE_GLOBAL_PREWARM__.last`
   shows one `fetch` with `band: true` per settled valid time and no world series request from that view; the Marine Nightly's `MULT0_FRAME` stays at 2 or fewer (D-014's acceptance).
 - **Revert:** the two kill switches per session, or revert the commit.
+
+### D-016 · Stored ICON tail may be enabled on dev only
+- **Decided:** owner chat reply, "Enable on dev only (recommended)", to the explicit PR239 promotion question.
+- **Scope:** REACT_APP_ICON_STORED_TAIL=true on exact Netlify dev branch only. Production, main, previews and other scientific flags retain their prior behavior. D-001 remains binding for any further promotion.
+- **Evidence and limits:** 25 synthetic and 12 real built-product replay controls passed twice after failing twice before. This proves the stored source path and metadata, not forecast skill, served-hour presentation or the separate GPU fallback. Two live after checks remain required.
+- **Rollback:** remove the exact dev branch value and rebuild dev; default-off source restores prior path.
+
+D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved branch override. No UI variable was saved. Use a versioned build command enabling the flag only when CONTEXT=branch-deploy and BRANCH=dev; the authorization scope is unchanged.

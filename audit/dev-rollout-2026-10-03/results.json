@@ -6463,5 +6463,79 @@
     ],
     "status": "Adopted locally; hosted/live pending",
     "limits": "Unreachable duplicate removed; SDK verification mocked, no real payment or customer DB proof"
+  },
+  "pr240": {
+    "head": "56aa0477a4770cdce6b05b228fca8fbb03fe673c",
+    "merge": "760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+    "merged_at": "2026-10-04T01:03:44Z",
+    "hosted": {
+      "run": 37165952035,
+      "head": "56aa0477a4770cdce6b05b228fca8fbb03fe673c",
+      "status": "completed",
+      "conclusion": "success",
+      "lanes": [
+        {
+          "job": 111328742643,
+          "name": "backend-estate-coverage",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "816 passed, 2865 skipped, 153 warnings in 73.55s (0:01:13)",
+            "estate: 282 files selected, 280 produced results, 816 passed, 0 silent."
+          ]
+        },
+        {
+          "job": 111328742671,
+          "name": "backend-forecast-chain-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "1918 passed, 7 warnings in 473.67s (0:07:53)",
+            "collected 1918 tests across 147 files -> 1918 passed, 0 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111328742693,
+          "name": "backend-sim-composition-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "2288 passed, 66 skipped, 1 xfailed, 12 warnings in 892.69s (0:14:52)",
+            "collected 2355 tests across 181 files -> 2288 passed, 67 skipped, 0 failed, 0 errors"
+          ]
+        }
+      ]
+    },
+    "live_after": "pending"
+  },
+  "icon_dev_promotion": {
+    "owner_authorized": true,
+    "scope": "CONTEXT=branch-deploy AND BRANCH=dev",
+    "netlify_ui_env_saved": false,
+    "ui_reserved_branch_rejection": true,
+    "status": "prepared not deployed",
+    "before": [
+      {
+        "failed": 2,
+        "passed": 10
+      },
+      {
+        "failed": 2,
+        "passed": 10
+      }
+    ],
+    "after_combined_passed": [
+      37,
+      37
+    ],
+    "expected_frontend": [
+      330,
+      3399
+    ],
+    "floor": [
+      299,
+      2916
+    ],
+    "live_after": "pending"
   }
 }

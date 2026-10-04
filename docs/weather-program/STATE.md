@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 00:42Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 01:08Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,15 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-04 01:08Z: PR240 merged dev760eea1d.** Exact56aa0477 hosted2288/1918/816, all
+  checks green; actual deployment and two unsigned negative after controls pending.
+- **2026-10-04 01:08Z: dev-only ICON build scope prepared.** Netlify rejected reserved branchdev
+  variable override; canceled with no env saved. Versioned build condition enables only
+  CONTEXT=branch-deploy AND BRANCH=dev. Before2fail10pass twice; after scope+source37pass
+  twice. Frontend expected330/3399; floors299/2916. Not yet deployed; two live checks pending.
+- **2026-10-04 01:01Z: owner explicitly authorized dev-only ICON stored-tail enable.** Exact dev
+  branch value true; production/previews and other flags excluded. Netlify form prepared but
+  not yet submitted; two live after checks and deployed-bundle readback pending.
 - **2026-10-04 00:42Z: ICON PR239 merged dev22f84f99, default-off.** Exact5a79582f all gates green:
   frontend329/3387,focused8/121; backend2286/1918/810. No flag or Netlify environment changed;
   actual deployment/full browser after pending. Promotion/accuracy and default GPU fallback open.
@@ -496,7 +505,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 525, sha256 24b52f1268a72ecee6c5aabe8a43b6ed68b6f0fe7ca6796b801ae9ea53893a5c**
+  **Ledger head: seq 534, sha256 4b0d76fbba12cea17f7f782e371c7deea3ceb2f1edc90eb575d2677d94406a4f**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

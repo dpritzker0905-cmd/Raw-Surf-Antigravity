@@ -108,7 +108,8 @@ jobs:
           // 2026-09-28 (recorder settled peak): raised to the hosted receipt of #138's run (`suites 297/297  tests
           // 2879/2879  failed 0`, its +2 prewarm tests). This change's own +2 recorder tests are counted on its run.
           // PR238 hosted 328 suites/3362 tests; add one suite/25 tests, keep margins 31/483.
-          const MIN_SUITES = 298, MIN_TESTS = 2904;
+          // PR240 retains hosted 329/3387; +1 suite/12 scope probes, margins 31/483.
+          const MIN_SUITES = 299, MIN_TESTS = 2916;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
