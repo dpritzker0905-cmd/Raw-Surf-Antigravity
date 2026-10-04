@@ -3,6 +3,9 @@ import { resolveForecastWindow, getUserTier, getAllowedModels } from '../compone
 import { radarFutureFramesForModel, radarRegionForCenter, discoverHrrrRun, HRRR_RUN_TTL_MS, rainviewerCatalogUrl } from '../components/map/radarForecastSources';
 import { registerRadarRecolorProtocol } from '../components/map/radarTileRecolor';
 import logger from '../utils/logger';
+import { getModelSafeMarine, prewarmGlobalMarineGrid } from '../components/map/marineController';
+import { getSharedValidTime, getSurfModeFlag } from '../components/map/backendWeatherServiceClient';
+import { exactGfsPlaybackEnabled, playbackMapBounds, isWidePlaybackView, isExactPlaybackFrame, PLAYBACK_WORLD_BOUNDS } from '../components/map/marinePlaybackPolicy';
 
 /**
  * useWeatherState Manages all weather/forecast layer state for the Map.
@@ -24,6 +27,7 @@ export function useWeatherState({ user }) {
   useEffect(() => {
     try {
       localStorage.setItem('rawsurf-active-model', activeModel);
+      window.dispatchEvent(new Event('rawsurf-model-changed'));
     } catch (e) {
       logger.error('Failed to save activeModel to localStorage:', e);
     }
@@ -44,6 +48,7 @@ export function useWeatherState({ user }) {
   const [activeLayers, setActiveLayers] = useState([]);
   const [timeOffsetHours, setTimeOffsetHours] = useState(0);
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
+  const [isForecastBuffering, setIsForecastBuffering] = useState(false);
   const [showWeatherControls, setShowWeatherControls] = useState(false);
   const [isTimelineCollapsed, setIsTimelineCollapsed] = useState(false);
 
@@ -194,11 +199,37 @@ export function useWeatherState({ user }) {
  // v3.9: Wind/marine need ~3s per fetch 4s interval with 6h steps
   // Raster-only layers (rain/fog/pressure/satellite) use faster 1.5s (no API call needed)
   useEffect(() => {
+    setIsForecastBuffering(false);
     if (isPlayingTimeline && !isRadarOrSat && activeLayers.length > 0) {
       const activeLayer = activeLayers[0];
       const isRasterOnly = ['rain', 'fog', 'pressure', 'satellite'].includes(activeLayer);
       const stepHours = isRasterOnly ? 1 : 6;
       const intervalMs = isRasterOnly ? 800 : 4000;
+
+      if (exactGfsPlaybackEnabled(activeModel, activeLayer) && !getSurfModeFlag() && isWidePlaybackView(playbackMapBounds())) {
+        const next = timeOffsetHours + stepHours > maxHoursForUser ? 0 : timeOffsetHours + stepHours;
+        const started = Date.now();
+        let advanced = false, warmedAt = -Infinity, attempts = 0;
+        const tick = () => {
+          if (advanced) return;
+          if (window.isScrubbingTimeline) return;
+          const bounds = playbackMapBounds();
+          if (!isWidePlaybackView(bounds) || getSurfModeFlag()) { setIsPlayingTimeline(false); return; }
+          const targetTime = getSharedValidTime(next, activeLayer, activeModel, { readOnly: true });
+          const ready = isExactPlaybackFrame(getModelSafeMarine(activeModel, next, activeLayer, PLAYBACK_WORLD_BOUNDS), targetTime);
+          if (!ready && attempts < 3 && Date.now() - warmedAt >= 30000) {
+            attempts++;
+            warmedAt = Date.now();
+            prewarmGlobalMarineGrid(activeModel, next, bounds, activeLayer, { playback: true, gridFirst: true });
+          }
+          if (Date.now() - started < intervalMs) return;
+          setIsForecastBuffering(!ready);
+          if (ready) { advanced = true; setTimeOffsetHours(next); }
+        };
+        tick();
+        forecastIntervalRef.current = setInterval(tick, 250);
+        return () => clearInterval(forecastIntervalRef.current);
+      }
 
       forecastIntervalRef.current = setInterval(() => {
         setTimeOffsetHours(prev => {
@@ -210,7 +241,7 @@ export function useWeatherState({ user }) {
     return () => {
       if (forecastIntervalRef.current) clearInterval(forecastIntervalRef.current);
     };
-  }, [isPlayingTimeline, isRadarOrSat, activeLayers, maxHoursForUser]);
+  }, [isPlayingTimeline, isRadarOrSat, activeLayers, activeModel, maxHoursForUser, timeOffsetHours]);
 
   // --- Layer toggling ---
   const toggleLayer = useCallback((layerId) => {
@@ -230,6 +261,7 @@ export function useWeatherState({ user }) {
     setTimeOffsetHours,
     isPlayingTimeline,
     setIsPlayingTimeline,
+    isForecastBuffering,
     showWeatherControls,
     setShowWeatherControls,
     isTimelineCollapsed,

@@ -8,6 +8,7 @@ import { isInCooldown } from './marineControllerUtils';
 import { findHourIndex } from './forecastHelpers';
 import { governMarineRequest } from './marineRequestGovernor';
 import { updateDeprecationDiag } from './forecastDeprecationDiag';
+import { pointRequestIdentityEnabled, createPointRequestContext, pointRequestCacheKey } from './pointRequestIdentity';
 import {
   getBackendWeatherFlag,
   getBackendIconMarineFlag,
@@ -78,7 +79,7 @@ const MARINE_MODEL_LIMITS = {
   'ecmwf_wam025': 10,
 };
 
-export function getCachedPointResponse(lat, lng, model, activeLayer = 'waves', timeOffsetHours = 0) {
+export function getCachedPointResponse(lat, lng, model, activeLayer = 'waves', timeOffsetHours = 0, gridProductId = null, gridBbox = null, requestContext = null) {
   if (lat == null || lng == null) return null;
   const rLat = +lat.toFixed(2);
   const rLng = +lng.toFixed(2);
@@ -94,6 +95,12 @@ export function getCachedPointResponse(lat, lng, model, activeLayer = 'waves', t
   const isCopernicusRedirect = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves');
   const isIconRedirect = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves');
   const isPrecipRedirect = typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && (activeLayer === 'precipitation' || activeLayer === 'rain');
+
+  if (pointRequestIdentityEnabled() && (isPrecipRedirect || isPressureRedirect || isGfsRedirect || isWindRedirect || isCopernicusRedirect || isIconRedirect)) {
+    const context = requestContext || createPointRequestContext(model, activeLayer, timeOffsetHours, false, gridProductId, gridBbox);
+    const cached = _exactPointCache.get(pointRequestCacheKey(rLat, rLng, context));
+    return cached && Date.now() - cached.timestamp < (cached.ttl || EXACT_POINT_CACHE_TTL) ? cached.data : null;
+  }
 
   if (isPrecipRedirect) {
     const validTimeStr = getSharedValidTime(timeOffsetHours, activeLayer, model || 'GFS');
@@ -155,14 +162,17 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   const isPrecipRedirect = typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && (activeLayer === 'precipitation' || activeLayer === 'rain');
   const isBackendRedirect = isPressureRedirect || isGfsRedirect || isWindRedirect || isCopernicusRedirect || isIconRedirect;
 
-  const cacheKey = isPrecipRedirect
+  const requestContext = pointRequestIdentityEnabled() && (isBackendRedirect || isPrecipRedirect)
+    ? createPointRequestContext(model, activeLayer, timeOffsetHours, force, gridProductId, gridBbox) : null;
+  const cacheKey = requestContext ? pointRequestCacheKey(rLat, rLng, requestContext) : isPrecipRedirect
     ? `${(model || 'GFS').toUpperCase()}_weather_precipitation_${rLat.toFixed(2)}_${rLng.toFixed(2)}_${getSharedValidTime(timeOffsetHours, activeLayer, model || 'GFS')}_${provider}`
     : (isBackendRedirect
       ? `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}_hr${timeOffsetHours}`
       : `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}`);
 
   // --- v7.6 Unified Cache Interception ---
-  const cachedResponse = getCachedPointResponse(rLat, rLng, model, activeLayer, timeOffsetHours);
+  const cachedResponse = requestContext?.force ? null
+    : getCachedPointResponse(rLat, rLng, model, activeLayer, timeOffsetHours, gridProductId, gridBbox, requestContext);
   if (cachedResponse) {
     console.log(`[ExactPoint] Cache hit resolved at entry for key: ${cacheKey}`);
     return cachedResponse;
@@ -172,7 +182,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   if (isPrecipRedirect) {
     try {
       console.log(`[Backend Precipitation Service] Redirecting ${model || 'GFS'} Precipitation point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
-      const pointResult = await fetchBackendExactPrecipitationPoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS');
+      const pointResult = await fetchBackendExactPrecipitationPoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS', requestContext);
       if (pointResult) {
         updateDeprecationDiag({
           model: model || 'GFS',
@@ -200,7 +210,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   if (isPressureRedirect) {
     try {
       console.log(`[Backend Pressure Service] Redirecting ${model || 'GFS'} Pressure point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
-      const pointResult = await fetchBackendExactPressurePoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS');
+      const pointResult = await fetchBackendExactPressurePoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS', requestContext);
       if (pointResult) {
         updateDeprecationDiag({
           model: model || 'GFS',
@@ -228,7 +238,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   if (isGfsRedirect) {
     try {
       console.log(`[Backend Weather Service] Redirecting GFS ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
-      const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, 'GFS', gridProductId, gridBbox);
+      const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, 'GFS', gridProductId, gridBbox, requestContext);
       if (pointResult) {
         updateDeprecationDiag({
           model: 'GFS',
@@ -256,7 +266,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   if (isWindRedirect) {
     try {
       console.log(`[Backend Weather Service] Redirecting ${model || 'GFS'} Wind point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
-      const pointResult = await fetchBackendExactWindPoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS');
+      const pointResult = await fetchBackendExactWindPoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS', requestContext);
       if (pointResult) {
         updateDeprecationDiag({
           model: model || 'GFS',
@@ -284,7 +294,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   if (isCopernicusRedirect) {
     try {
       console.log(`[Backend Weather Service] Redirecting Copernicus ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
-      const pointResult = await fetchBackendExactCopernicusPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, gridProductId, gridBbox);
+      const pointResult = await fetchBackendExactCopernicusPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, gridProductId, gridBbox, requestContext);
       if (pointResult) {
         updateDeprecationDiag({
           model: 'EURO',
@@ -312,7 +322,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   if (isIconRedirect) {
     try {
       console.log(`[Backend Weather Service] Redirecting ICON ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
-      const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, 'ICON', gridProductId, gridBbox);
+      const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, 'ICON', gridProductId, gridBbox, requestContext);
       if (pointResult) {
         updateDeprecationDiag({
           model: 'ICON',

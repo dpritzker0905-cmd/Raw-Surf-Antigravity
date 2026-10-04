@@ -262,6 +262,12 @@ class PointResolutionService:
 
         if grid_product_id:
             product = await asyncio.to_thread(self.store.load_product, grid_product_id)
+            if product and os.environ.get("POINT_PRODUCT_IDENTITY", "0") == "1":
+                if (getattr(product, "model", "").upper() != model.upper()
+                        or getattr(product, "domain", "").lower() != domain.lower()):
+                    logger.warning("[Point Resolution] Hint model/domain mismatch; using automatic selection.")
+                    product = None
+                    grid_product_id = None
             if product and getattr(product, "layer", "").lower() != layer.lower():
                 logger.warning(f"[Point Resolution] Layer mismatch: loaded product has layer={product.layer}, but requested layer={layer}. Bypassing strict grid lookup.")
                 product = None

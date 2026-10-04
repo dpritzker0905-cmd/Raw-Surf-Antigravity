@@ -13,6 +13,8 @@ import { LockerSelfieModal } from './LockerSelfieModal';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import { useSpotReadings } from '../hooks/useSpotReadings';
+import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
 import '../utils/leafletLoader'; // sets window.L (see file for why this was needed)
 
 
@@ -98,7 +100,11 @@ const UnifiedSpotDrawer = ({
   const [spotOfTheDay, setSpotOfTheDay] = useState(null);
 
   // Real-Time Wave Height state (NOAA/Open-Meteo data)
-  const [liveWaveHeight, setLiveWaveHeight] = useState(null);
+  const [legacyWaveHeight, setLiveWaveHeight] = useState(null);
+  const strictIdentity = forecastStateIdentityEnabled();
+  const reading = useSpotReadings(spot?.id, isOpen && strictIdentity, true);
+  const currentHeight = reading.conditions?.current?.wave_height_ft;
+  const liveWaveHeight = strictIdentity ? (Number.isFinite(currentHeight) && currentHeight >= 0 ? Math.round(currentHeight) : null) : legacyWaveHeight;
   
   // User's current location for verification nudge
   const [userLocation, setUserLocation] = useState(null);
@@ -129,10 +135,10 @@ const UnifiedSpotDrawer = ({
 
   // Fetch Real-Time Wave Height when drawer opens
   useEffect(() => {
-    if (isOpen && spot?.id) {
+    if (isOpen && spot?.id && !strictIdentity) {
       fetchLiveWaveHeight();
     }
-  }, [isOpen, spot?.id]);
+  }, [isOpen, spot?.id, strictIdentity]);
 
   // Get user location for verification nudge (photographers only)
   useEffect(() => {

@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 14:05Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 18:51Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,16 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-04: ordered point/availability/consumer/playback repairs locally qualified on PR243.**
+  W01/W02, M01/M02/M03, SH01/SH02/SH03 and owner PB01 controls pass; final frontend346/3582,
+  focused backend171, lint86existingerrors/917warnings, production compilation and LOC accepted.
+  Actual all-theme desktop/390px-phone component fixture holds0 until exact delivery then6;
+  no horizontal overflow. Full map/GPU/cadence canary and candidate hosted backend remain open.
+  Local full backend collection crashed with a Windows native access violation; no acceptance inferred.
+  All new served-value flags default off; no merge, deployment or activation. Prior source d67763d5
+  CI37207402431 completed/success, superseding its dated pending claim below. Follow
+  `log/2026-10-04-point-availability-playback.md` and `audit/repair-2026-10-04/POINT-PLAYBACK-RESULTS.md`.
 
 - **2026-10-04 13:50Z: owner defers beta app access-code rotation and authorizes continuing repairs.**
   AS-01 stays open. Second batch repairs W-03 canceled series retry/prefetch and W-05 estimate
@@ -556,7 +566,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 586, sha256 a7e11710073c3dc8f27bbf01a4233f8b6680bf5d0a1fcc4620fd99cbd9c05fb9**
+  **Ledger head: seq 591, sha256 4a30b700186f1c1064372940389114a8c77d57e4dacc60073a553619d3e4cf5e**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

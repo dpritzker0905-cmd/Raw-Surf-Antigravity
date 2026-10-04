@@ -197,7 +197,7 @@ var MapPageContent = () => {
     activeModel, setActiveModel,
     activeLayers,
     timeOffsetHours, setTimeOffsetHours,
-    isPlayingTimeline, setIsPlayingTimeline,
+    isPlayingTimeline, setIsPlayingTimeline, isForecastBuffering,
     showWeatherControls, setShowWeatherControls,
     radarFrames, radarFrameIndex, setRadarFrameIndex,
     isRadarOrSat,
@@ -551,6 +551,7 @@ var MapPageContent = () => {
         currentTimeOffset={timeOffsetHours}
         onTimeChange={setTimeOffsetHours}
         isPlaying={isPlayingTimeline}
+        isBuffering={isForecastBuffering}
         onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
         isImmersiveMode={isImmersiveMode}
       />
@@ -575,6 +576,7 @@ var MapPageContent = () => {
         currentTimeOffset={timeOffsetHours}
         onTimeChange={setTimeOffsetHours}
         isPlaying={isPlayingTimeline}
+        isBuffering={isForecastBuffering}
         onTogglePlay={() => setIsPlayingTimeline(!isPlayingTimeline)}
         isImmersiveMode={isImmersiveMode}
       />

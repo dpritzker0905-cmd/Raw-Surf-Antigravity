@@ -441,7 +441,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # PR235 CI37158928246 guards2278 plus8 latency-evidence controls ->2286.
 # Independent repair batch: pinned hosted CI37167173560 estate816 +73 executed,
 # selector-owned additions -> projected889. CI must confirm; margin remains2.
-_FLOOR_SET_FROM = {"guards": 2288, "chain": 1918, "estate": 889}
+# Ordered audit repair: two tracked chain modules add33 controls; projected1951 from
+# pinned hosted1918. Hosted candidate must confirm; reference moves with floor1945.
+_FLOOR_SET_FROM = {"guards": 2288, "chain": 1951, "estate": 889}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

@@ -37,11 +37,11 @@ full backend rerun pending. Detailed second-batch evidence: `SERIES-RESULTS.md` 
 | SEC-08 | Matching surf alerts create duplicate notifications on successive ticks despite a recent trigger. | Open; preserved for a separate measured repair. |
 | SEC-09 | Stripe refusal is module-local; other route configuration retains the key. | Open; preserved for a separate measured repair. |
 | SEC-10 | Existing-profile trust-signals uses a lower-case value against an upper-case PostgreSQL enum. | Open; preserved for a separate measured repair. |
-| W-01 | A strict ICON product hint can make nominal GFS/EURO point requests sample ICON values. | Open; preserved for a separate measured repair. |
-| W-02 | Outer point cache ignores absolute forecast time/product changes and intercepts forced refresh. | Open; preserved for a separate measured repair. |
-| W-03 | Deferred marine-series retries resurrect canceled requests. | Second batch source d67763d5: abort-owned deferred work and late decode/mini handoff gates;23 causal failures before twice,28 controls/163 neighbor tests pass after twice; hosted frontend/build gates accepted; full backend rerun pending. |
+| W-01 | A strict ICON product hint can make nominal GFS/EURO point requests sample ICON values. | Local default-off model/domain identity repair; actual resolver/sampler and adapter recursive controls pass. Hosted full candidate pending; see POINT-PLAYBACK-RESULTS.md. |
+| W-02 | Outer point cache ignores absolute forecast time/product changes and intercepts forced refresh. | Local default-off absolute request identity and outer/inner forced refresh repair; UTC rollover, product/bbox, manifest-await and abort controls pass. Hosted candidate pending. |
+| W-03 | Deferred marine-series retries resurrect canceled requests. | Second batch source d67763d5: abort-owned deferred work and late decode/mini handoff gates;23 causal failures before twice,28 controls/163 neighbor tests pass after twice; full prior-source CI37207402431 completed/success; exact new candidate receipt pending. |
 | W-04 | A terminal Copernicus time failure repeats across spatial tiles, then empty rows enter the normal ten-minute cache. | Open; preserved for a separate measured repair. |
-| W-05 | Series mapping drops the explanation of how an estimated forecast was composed. | Second batch source d67763d5: entire per-frame basis on grid and wrapper; native/missing/zero and page/mini cache controls; hosted frontend/build gates accepted; full backend rerun pending. |
+| W-05 | Series mapping drops the explanation of how an estimated forecast was composed. | Second batch source d67763d5: entire per-frame basis on grid and wrapper; native/missing/zero and page/mini cache controls; full prior-source CI37207402431 completed/success; exact new candidate receipt pending. |
 | AS-06 | Manifest CAS permits winner-object overwrite; failed uploads can also publish a missing object. | Open; preserved for a separate measured repair. |
 | SOC-01 | Crew message/history and unread-count predicates compile to `WHERE false`. | Open; preserved for a separate measured repair. |
 | SOC-02 | Hashtag search raises an uninitialized-variable error and returns HTTP 500. | Open; preserved for a separate measured repair. |
@@ -49,12 +49,12 @@ full backend rerun pending. Detailed second-batch evidence: `SERIES-RESULTS.md` 
 | AS-03 | Frontend discovery floor permits disappearance of 31 suites/483 tests. | Ratcheted to exact candidate hosted335/3440 receipt; final source88feec8c confirms335/3440. |
 | AS-04 | Green E2E omits the full hour-to-pixel oracle and default-FPS/mobile coverage. | Open; preserved for a separate measured repair. |
 | AS-05 | Node 18 and the E2E lane's Node 20 are both EOL. | Open; preserved for a separate measured repair. |
-| M01 | EURO unavailable point becomes measured calm/Trace | Open; preserved for a separate measured repair. |
-| M02 | EURO drops explicit nearshore=false | Open; preserved for a separate measured repair. |
-| M03 | EURO mean swell period duplicated under Peak label | Open; preserved for a separate measured repair. |
-| SH01 | Missing total sea becomes current Flat and ten Flat days | Open; preserved for a separate measured repair. |
-| SH02 | Map rating memo ignores changed height/period/tide/source | Open; preserved for a separate measured repair. |
-| SH03 | Drawer old response/zero handling retains previous spot | Open; preserved for a separate measured repair. |
+| M01 | EURO unavailable point becomes measured calm/Trace | Local default-off actual adapter-to-card availability repair; missing/invalid versus measured-zero controls pass across models. Served activation/visual map acceptance open. |
+| M02 | EURO drops explicit nearshore=false | Local default-off EURO nearshore false/true/null field parity repaired and qualified. Hosted candidate pending. |
+| M03 | EURO mean swell period duplicated under Peak label | Local default-off mean-to-peak alias removed; mean values retained, no invented peak. Actual card controls qualified; hosted pending. |
+| SH01 | Missing total sea becomes current Flat and ten Flat days | Local default-off producer and compact/full/daily availability repair; real producer12cases and all-theme consumers pass. Served qualification open. |
+| SH02 | Map rating memo ignores changed height/period/tide/source | Local default-off full reading identity memo; nine one-field perturbations and unchanged controls qualified. Hosted pending. |
+| SH03 | Drawer old response/zero handling retains previous spot | Local default-off spot/model request ownership, late completion/abort guards and measured-zero drawer repair; mounted all-theme and all four lanes pass. Hosted pending. |
 | SH04 | Tomorrow/Today and date-only timezone drift | Open; preserved for a separate measured repair. |
 | SH05 | Drawer size labels diverge from canonical ladder | Open; preserved for a separate measured repair. |
 | SH06 | Current-only request unnecessarily resolves ten future days | Open; preserved for a separate measured repair. |
@@ -90,3 +90,9 @@ This register does not overwrite the historical reports or their evidence.
 
 No claim of worldwide forecast accuracy, state-of-the-art completion, native GPU performance,
 public frontend promotion or payment activation follows from these local contract fixes.
+
+## Owner playback evidence added 2026-10-04
+
+| ID | Verified defect | Disposition |
+| --- | --- | --- |
+| PB01 | Wide GFS wave playback swaps thinned46x20 and exact181x82 frames; player advances before next-frame readiness. | Local default-off one-frame readiness and common series commit policy qualified; full map/GPU slow-fetch canary still open. See POINT-PLAYBACK-RESULTS.md. |

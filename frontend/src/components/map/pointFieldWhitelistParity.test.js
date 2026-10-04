@@ -149,7 +149,7 @@ describe('point field whitelist parity', () => {
   const KNOWN_TWO_OF_THREE = [
     'cache_key', 'coordinate_count', 'coverage_scope', 'is_dynamic_viewport_product',
     'is_forecast_authoritative', 'is_test_fixture', 'requested_bbox', 'resolution',
-    'served_bbox', 'source', 'surf_nearshore', 'valid_time',
+    'served_bbox', 'source', 'valid_time',
   ].sort();
 
   test('no NEW field is mapped by exactly two of the three mappers', () => {

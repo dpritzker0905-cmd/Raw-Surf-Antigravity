@@ -6,6 +6,7 @@ import {
   PILOT_COVERAGE 
 } from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
+import { pointRequestIdentityEnabled, createPointRequestContext } from './pointRequestIdentity';
 
 export const pressurePointCache = new BoundedPointCache(50, 30000);
 
@@ -31,7 +32,9 @@ export function getBackendPressureFlag() {
 /**
  * Fetches exact point pressure forecast from backend weather service.
  */
-export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signal, model = 'GFS') {
+export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signal, model = 'GFS', requestContext = null) {
+  requestContext = pointRequestIdentityEnabled()
+    ? requestContext || createPointRequestContext(model, 'pressure', hourOffset) : null;
   const start = Date.now();
   const targetModel = (model || 'GFS').toUpperCase();
   const offset = isNaN(Number(hourOffset)) ? 0 : Number(hourOffset);
@@ -76,10 +79,11 @@ export async function fetchBackendExactPressurePoint(lat, lng, hourOffset, signa
     fallbackReason = "Manifest not loaded or empty";
   }
 
+  if (requestContext) validTimeStr = requestContext.validTime;
   const provider = targetModel === 'EURO' ? 'copernicus' : 'open-meteo';
   const cacheKey = `${targetModel}_weather_pressure_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
 
-  const cached = pressurePointCache.get(cacheKey);
+  const cached = requestContext?.force ? null : pressurePointCache.get(cacheKey);
   if (cached) {
     console.log(`[Backend Weather Service] Cache hit for ${targetModel} Pressure: ${cacheKey}`);
     const clonedData = JSON.parse(JSON.stringify(cached.data));

@@ -26,6 +26,8 @@ import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { seriesAnchorTag, seriesAnchorParam, seriesGridPhase, alignToCadenceGrid } from './seriesAnchor';
 import { frameToMarineData } from './marineSeriesFrame';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
+import { exactGfsPlaybackEnabled } from './marinePlaybackPolicy';
+import { isThinnedWorldGrid } from './marineExactUpgrade';
 import { deferMarineSeries, marineSeriesCallerAborted, resetMarineSeriesDeferred } from './marineSeriesDeferred';
 import { padRegionalBbox, normalizeRequestBbox, bboxContains } from './marineBboxGeometry';
 import {
@@ -656,6 +658,9 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     }
     best = null;
   }
+  // A thin world frame drops narrow swells between cells. Under the qualified policy, keep
+  // the resident field while the ordinary exact-grid path loads; applies to play and manual scrub.
+  if (best && exactGfsPlaybackEnabled(model, layer) && isThinnedWorldGrid(best.grid)) best = null;
   if (best === null || bestDiff > 1.5) {
     if (typeof window !== 'undefined' && window.__MARINE_SERIES_DIAG__) window.__MARINE_SERIES_DIAG__.misses++;
     return null;
