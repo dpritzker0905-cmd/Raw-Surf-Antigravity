@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-03 23:42Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 00:17Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,21 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+- **2026-10-04 00:17Z: quota PR238 merged and live dev56544d2a.** Checked664d93ef all gates green:
+  2286 weather guards,1918 chain,810 estate; actual Render Live and health200/badge401 twice.
+  All five anonymous selection endpoints401 twice using absent synthetic IDs. Live foreign/
+  owner customer flows remain unverified. Broader gallery/session/concurrency issues stay open.
+- **2026-10-04 00:17Z: ICON source repair built dark; no serving promotion.** Default-off
+  REACT_APP_ICON_STORED_TAIL chooses stored waves/swell1/windwaves instead of a browser
+  re-estimate. D-003 secondary swell unchanged. 25controls before17fail8pass twice ->25pass
+  twice;12same-built-field controls before9fail3pass twice ->12pass twice. Actual package37pass
+  twice plus176companions. Stored h179 three layers182vectors each: old146/141/146 cells
+  changed; candidate0; local stored-target derivative0->1. Not forecast accuracy or owner
+  graphical cause. Hosted/dark deploy pending; default FPS fallback and source-hour issues open.
+- **2026-10-04 00:17Z: weekly012 deployment and browser read back.** Render Live and health200/badge401
+  twice; postmerge CI2286/1918/785. Browser62expected/0unexpected/1flaky/9skips,HTMLokfalse.
+  Retained MobileSafari retry real spot6.862s; initial cause unassigned. Latest565 spot n1
+  12.870s still misses owner5s; no population-p95 closure. No actual scheduler/email sent.
 - **2026-10-03 23:42Z: weekly PR237 merged dev012d1e1e at2026-10-03T23:36:45Z.** Checked509dfdc6
   allhostedgreen2286/1918/785; actualweeklydeploy/browserafter pending. Priorlatency4ff
   RenderLive/health200/badge401 twice; histogram p95 evidence live, smalln3tail>=10s misses5s.
@@ -468,7 +483,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 508, sha256 9d17562ea1860e26dc4d651aeff591f2f062791ba5afd8278ba293f2e8652e0f**
+  **Ledger head: seq 517, sha256 83ea3719f06f71fa6522fbba6f87135ee744d2721e20c1924c155a855a8cce5c**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

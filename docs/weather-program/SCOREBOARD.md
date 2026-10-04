@@ -118,3 +118,5 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-03 23:18Z | dev4ff10cc4 / weekly report import repair prepared | S21/S22 | Identity read gates and runtime positive/null controls | Identity63/0/0/9; latencyCI2286/1918/781; weekly before2fail2pass twice after4pass twice | No weather served-number change; ICON owner incident open; metrics/delivery live pending |
 
 | 2026-10-03 23:42Z | dev012d1e1e / quotaowner repairprepared | S21/S22 | JWTactor × resourceowner; ICONdata vs graphics | CI2286/1918/785; ownership25casepaired; ICON5HTTPcases twice200; secondbrowserfallback | No servedweather change/skillgain; p95tailmiss anddevicefallback open |
+
+| 2026-10-04 00:17Z | ICON stored-tail dark candidate | S21/S22, D-001 | Same captured dev h179 fields,3layers×182cells; actual adapter and central difference | Old146/141/146 changed cells,max delta1.6524/1.7214/1.625m; candidate0; target derivative0->1 | Flag default-off: no served weather change, no accuracy/graphics claim; one region/time only |

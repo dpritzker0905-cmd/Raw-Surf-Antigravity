@@ -671,3 +671,66 @@ The five-second performance target is not met. The new telemetry is live and sho
 request over 16 seconds. The preceding full browser job succeeded only after retries: its report
 contains two flaky tests and eight skips. A green job alone does not close reliability, default
 graphics fallback behavior, forecast accuracy or the population latency target.
+
+## 2026-10-04 00:17Z — selection live acceptance and a dark ICON source repair
+
+PR238 merged to dev56544d2aa3625a2ea8750a575b8dfc4462e48d1d at
+2026-10-04T00:04:58Z after every gate passed on664d93ef6b5f6073cf3394e651ba82586125b8a6.
+Actual CI37162708786:2,286 guards/66skips/1xfail (1039.00s,181files),
+1,918 chain (533.74s,147files),810 estate/2865skips (73.40s,281selected,
+279results,0silent); frontend328suites/3362tests,focused7/96. Floors/margins unchanged.
+Render visibly Live56544d2; paired exact-revision health200/healthy583.1/583.3MB
+and real badge401. Five anonymous selection endpoints each401 in both rounds.
+Synthetic absent identifiers only: no private photos, real quotas or customer writes.
+Local JWTowner/foreign controls do not establish live customer ownership acceptance.
+Postmerge565 CI/full browser still running. Gallery browsing/claims/concurrency remain open.
+
+Weekly012 actual Render Live and health200/healthy698.7MB, real badge401 twice.
+Postmerge CI37162333662 actual2286/1918/785 (888.70/537.66/53.55s).
+E2E37162333713 actual62expected/0unexpected/1flaky/9skips,HTMLokfalse.
+Retained MobileSafari successful retry real spot200/6862.084ms; fixture badge200;
+initial failure cause unassigned. No actual weekly scheduler/email action.
+The HTML stats parser initially overlaid a missing root ok onto stats.ok; corrected
+the ignored artifact before adoption, actual stats.ok is false. No public claim of green
+browser acceptance. Latest565 telemetry sameprocess spot n1/12,870.2ms,5xx0,over5s
+and over10s. Small all-status sample is not a population-p95 proof; owner5s gate stays open.
+Weekly012 earlier maximum35,561.2ms is recorded, not assigned to the import repair.
+
+ICON repair: default-off REACT_APP_ICON_STORED_TAIL. Enabled candidate uses the
+backend's stored long-range waves/swell1/windwaves, retaining physical values, product ID,
+run revision, requested/served-time metadata and estimate basis; avoids a second browser
+estimate and its extra anchor requests. D-003 secondary swell behavior unchanged.
+The flag is unset by default and no Netlify environment was changed. This changes displayed
+forecast values when enabled; D-001 requires separate owner-authorized promotion with evidence.
+No change to main/public frontend freeze, other science flags,15s timeout or FPS guardrail.
+
+Final isolated25network/identity/native/empty/error/default-off controls:
+before17failed/8passed twice(1.135/1.192s), darkcandidate25passed twice(1.191/1.167s).
+Four default/invalid flag controls preserve current legacy values and three requests.
+A single captured set of12 actual dev grid responses across three layers and four sources
+(ICON168,GFS168,GFS179,ICON179), fixedbase2026-10-04T00:00Z,bbox[-86,23,-72,34],
+supports replay with no live network. Twelve actual-built-field/metadata/Jacobian controls:
+before9failed/3passed twice(1.231/1.722s),candidate12passed twice(1.197/1.158s).
+Actual production package37controls passed twice(1.301/1.284s),176companions in12suites pass.
+Local Node24.19 installed dependencies differ from hosted Node18; hosted authority pending.
+An earlier recorder read omitted UTF-8 and failed after one baseline; entire final pairs reran.
+
+At h179, all182coordinates retained. Old client differed from stored fields in
+146 waves cells,141 swell1 cells,146 windwaves cells; maximum offshore height differences
+1.6524m/1.7214m/1.625m. Candidate exact0 height/period/u/v differences under normal
+adapter normalization. These are OFFSHORE inputs, not breaking surf or forecast error.
+Old/stored maxima: waves2.31815/2.3265m,swell1 1.4943/1.7214m,
+windwaves2.1898375/2.1952m. Stored-target local central derivative at one positive
+coordinate per layer: old0,candidate1 (+/-0.01m). Browser-anchor derivative at that
+sample is0 in both, so no broader anchor-sensitivity claim follows. All controls share one
+captured time/region: no accuracy, seam-wide, device-performance or global acceptance claim.
+Stored target run revisions and actual served12Z differ from requested11Z by1hour;
+carrying that metadata does not repair the remaining source-hour presentation issue.
+Actual owner incident has no FPS line, build revision or exact source UTC; root cause unassigned.
+Default-device low-FPS fallback remains reproduced separately; no GPU budget fix applied.
+Raw forecast frames and HTML/trace files remain ignored; sanitized summaries only tracked.
+
+The full frontend floor rises297/2879 ->298/2904; expected hosted329suites/3387tests,
+preserving previous measured margins31suites/483tests. Focused lane7/96 ->8/121
+and explicitly discovers the25new controls. Backend lane counts/floors unchanged.
+Ledger509-517 records these receipts and the default-off adoption.
