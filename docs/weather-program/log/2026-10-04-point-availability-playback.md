@@ -131,3 +131,63 @@ Supersedes local-candidate pending entries and ledger600 publication intent. Fin
 unchanged; current Jacobian6pass twice and final timezone47pass eachNY/Auckland. AS06 winner
 overwrite/missing-upload publication rechecked twice offline with serial controls; next repair.
 Receipt-only follow-up, no merge/deploy/activation. Full map/GPU/device/science limits remain.
+
+## 2026-10-04 22:09Z — AS06 publication repair
+
+The prior publisher used one object name per generation with overwriting uploads. A losing
+writer could overwrite the winner's already-pointed bytes; an upload returning no acknowledgment
+could still advance the pointer. Both actual-source failure paths reproduced twice.
+
+`MANIFEST_IMMUTABLE_PUBLICATION=0` is the new dark switch. Enabled publication uses a unique
+generation/UUID key, the real store's strict=True/overwrite=False upload, and requires the exact
+True acknowledgment before insert/CAS. The existing pointer schema, reader bytes and fallback
+are retained. No migration or remote configuration change. Direct publication also enforces
+the existing designated-writer gate. UUID collision or HTTP400/409/429/500 refuses publication.
+
+A failed or ambiguous CAS never immediately deletes its uploaded candidate: the server might
+have committed before the acknowledgment was lost. Successful writers perform at most one
+100-row listing and one20-object batch deletion, each with5s HTTP timeout. Cleanup keeps five
+generations AND3600s since the later created/updated timestamp. Unknown paths, invalid/naive
+timestamps, fresh copies, current/future generations and non-designated writers are preserved.
+Old legacy keys can age out during transition. No unbounded listing or per-object delete loop.
+Cleanup errors cannot revoke an acknowledged publication. This bounds work per publication;
+it does not prove a global object-count cap or an absolute network wall-clock deadline.
+
+## Forensic and local qualification
+
+- Final exact prior publisher substitution, restored byte-for-byte:16cases,9fail/7pass twice,
+  zero collection errors/skips. Initial pre-strengthening replay13cases,8fail/5pass twice retained.
+- Repaired actual publisher/store upload/REST CAS/reader and manifest neighbors109pass twice.
+  Thirty-six new controls cover initial/ordinary races, exact upload acknowledgment, UUID
+  collision, failed/ambiguous uploads/CAS, legacy success despite copy failure, writer gate,
+  retention safety/bounds/failures, reader/CDN parity and dark rollback.
+- Publication central differences epsilon0.05: winner/loser derivatives[0,1] legacy→[1,0]
+  enabled. Both controls execute the real publisher, uploader, REST CAS and reader with
+  deterministic concurrent synthetic storage. This measures ownership, not forecast skill.
+- Paired floor controls36pass; selector619tracked/182guards/150chain/284estate, two existing
+  fastmcp exclusions and one existing quarantine. No new skip/exclusion. Guards projected2324,
+  floor2318; chain1982/estate898 unchanged; backend total projected5204. Frontend347/3610 unchanged.
+- Fatal Python lint and backend643-file/800LOC guard accepted. Repository LOC ratchet accepted.
+  Local interpreter remains partial (two declared packages absent/not a venv); full hosted
+  Linux CI must qualify candidate. No acceptance inferred from a root-directory selector
+  attempt reporting zero files; corrected backend-directory selector proves actual ownership.
+- One live health/data read remains healthy/ok at deployed6b062e97. No live load test or write.
+
+## Remaining acceptance
+
+Hosted candidate full gates pending. Source is default off, no merge/deploy/activation. Actual
+Supabase staging concurrency/acknowledgment/read-back and bounded-cleanup timings remain open.
+Stored forecast values, reader schema and scientific composition are unchanged by the dark path.
+Next source phase is PF01–04 queues, caches, duplicate raster work and encoding deadlines.
+
+Primary guidance: [Supabase uploads and concurrency](https://supabase.com/docs/guides/storage/uploads/standard-uploads),
+[file listing](https://supabase.com/docs/reference/python/storage-from-list),
+[batch deletion](https://supabase.com/docs/reference/python/storage-from-remove).
+Current changelog was retrieved and checked; installed storage3 REST routes/payloads inspected.
+Backend-only environment credentials and existing writer authorization are retained; no client
+credential, RLS/schema change or package upgrade introduced.
+
+AS06 final local qualification supersedes the earlier109/36 partial counts:148pass twice,
+39newpublication controls, guards2327projected/floor2321. Added fallback-safe gate failures
+and independent pilot writer flag0. Final causal before16cases9fail/7pass unchanged;
+publication Jacobian winner/loser[0,1]→[1,0]. Hosted full candidate remains pending.

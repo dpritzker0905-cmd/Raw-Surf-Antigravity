@@ -1,0 +1,69 @@
+{
+  "baseline": "649cb14e73bfbba539b7c5f555f62256759a6a8e",
+  "recorded_at_utc": "2026-10-04 22:09Z",
+  "source_sha256": {
+    ".github/workflows/ci.yml": "8eac62af40f6a8f4524e0b8474d63a274c49fab98598928824e2e11e34e134b3",
+    ".github/workflows/forecast-ingest-pilots.yml": "86161c75c2e1c115d99068b34726063a1400d549bf2f74d507e12dbf46dfb8d5",
+    ".github/workflows/forecast-ingest.yml": "20a9503125e43934c1f3b5f55f463d9243f16a677cbd755f002f48142c8c8560",
+    ".github/workflows/precompute.yml": "37c100afbe7f31da1d418673090e2a77c83f952c61bcb1ebd4b3e92b5cba13cd",
+    ".github/workflows/sim-parity-monitor.yml": "6d165ccbf4413fd83da8d10e13f19407a41adbb45adb77423ca35930ef6293aa",
+    "backend/routes/admin/surf_forecast.py": "45bbd269ce973d49689de7e836b4c109725354b9f56cf6c028daeafbdfd14c84",
+    "backend/services/weather_pipeline/manifest_immutable.py": "eb659ca6ec5a1b011a07328ea146cd30fcf77472cd532d9200ad78ef81a25536",
+    "backend/services/weather_pipeline/manifest_pointer.py": "04dea5fe1791ebc8229a598d64b9292a13c88934fe902f679356f09d56336c04",
+    "backend/tests/test_ci_floor_staleness.py": "4f7d09402e82a74c877dc72ed8f624589d724cdd63728686fc5dde5fbf4d479d",
+    "backend/tests/test_manifest_immutable_publication.py": "90337b6cef05d3d8c28f840f594797df69b1ce89295d5fd6265173c6b6f43e81"
+  },
+  "local": {
+    "causal_before_twice": {
+      "tests": 16,
+      "failed": 9,
+      "passed": 7,
+      "errors": 0,
+      "skipped": 0
+    },
+    "supported_neighbors_twice": 148,
+    "new_guard_controls": 39,
+    "floor_controls": 36,
+    "jacobian": {
+      "epsilon": 0.05,
+      "columns": [
+        "winner",
+        "loser"
+      ],
+      "legacy": [
+        0,
+        1
+      ],
+      "enabled": [
+        1,
+        0
+      ]
+    },
+    "selector": {
+      "tracked": 619,
+      "guards": 182,
+      "chain": 150,
+      "estate": 284,
+      "existing_fastmcp_exclusions": 2,
+      "existing_quarantine": 1
+    }
+  },
+  "hosted": {
+    "status": "pending",
+    "expected": {
+      "guards": 2327,
+      "chain": 1982,
+      "estate": 898,
+      "backend_total": 5207,
+      "frontend": 3610
+    }
+  },
+  "flag": {
+    "MANIFEST_IMMUTABLE_PUBLICATION": "0"
+  },
+  "limits": [
+    "No merge/deploy/activation",
+    "Actual Supabase canary unqualified",
+    "No science skill gain"
+  ]
+}

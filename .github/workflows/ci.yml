@@ -798,7 +798,8 @@ jobs:
           # PR235 CI37158928246 confirms2278; latency evidence adds8 ->2286.
           # Same181files/margin6; zero slow markers on healthy rows preserved.
           # PR239 actual2286 plus2 monitor-label controls ->2288; margin6 unchanged.
-          MIN_FILES, MIN_PASSED = 181, 2282
+          # Immutable manifest publication: hosted2327 projected (2288 +39), same six-test margin.
+          MIN_FILES, MIN_PASSED = 182, 2321
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
