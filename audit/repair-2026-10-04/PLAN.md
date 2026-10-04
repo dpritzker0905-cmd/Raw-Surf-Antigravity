@@ -22,7 +22,7 @@ bounded device/visual acceptance. No live load tests. Changes to served science 
 
 | ID | Audit finding | Current status |
 |---|---|---|
-| AS-01 | Retained public-repository CI retry traces contain the beta access code. | Containment: two proven artifacts deleted; future raw traces off; rotation and broader retained inventory open. |
+| AS-01 | Retained public-repository CI retry traces contain the beta access code. | Containment: two proven artifacts deleted; candidate raw traces off;115report metadata inventory complete; rotation and payload review open. |
 | SEC-01 | Anonymous requests can read private locker originals, change visibility and reject another account's queue item. | Partial local repair: 15 locker boundaries; broader media/session audience remains. |
 | SEC-02 | The separate locker scan still manufactures persistent face/selfie matches using random numbers. | Local repair: random worker and selfie collection removed; existing false queue rows need reviewed remediation. |
 | SEC-03 | A free/gift tag for photo A grants unrelated paid photo B for zero credits. | Local repair: tag/item binding and repeated-claim controls. |
@@ -42,7 +42,7 @@ bounded device/visual acceptance. No live load tests. Changes to served science 
 | SOC-01 | Crew message/history and unread-count predicates compile to `WHERE false`. | Open; preserved for a separate measured repair. |
 | SOC-02 | Hashtag search raises an uninitialized-variable error and returns HTTP 500. | Open; preserved for a separate measured repair. |
 | AS-02 | Production Netlify ignore command uses paths relative to the wrong base and omits dependencies. | Open; preserved for a separate measured repair. |
-| AS-03 | Frontend discovery floor permits disappearance of 31 suites/483 tests. | Ratcheted to exact hosted330/3399 receipt; candidate additions await hosted count. |
+| AS-03 | Frontend discovery floor permits disappearance of 31 suites/483 tests. | Ratcheted to exact candidate hosted335/3440 receipt; final-head qualification pending. |
 | AS-04 | Green E2E omits the full hour-to-pixel oracle and default-FPS/mobile coverage. | Open; preserved for a separate measured repair. |
 | AS-05 | Node 18 and the E2E lane's Node 20 are both EOL. | Open; preserved for a separate measured repair. |
 | M01 | EURO unavailable point becomes measured calm/Trace | Open; preserved for a separate measured repair. |

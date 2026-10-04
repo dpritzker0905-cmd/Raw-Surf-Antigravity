@@ -29,9 +29,8 @@ async def scan_locker(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Triggered by the Locker "Scan Photos" button.
-    Receives current selfie, passes to background worker to prevent UI freezing,
-    Returns success boolean so UI can start polling the ClaimQueue.
+    Authenticated compatibility endpoint while automatic photo matching is unavailable.
+    No matching work or claim-queue writes are scheduled.
     """
     if current_user_id != surfer_id:
         raise HTTPException(status_code=403, detail="Locker belongs to another surfer")

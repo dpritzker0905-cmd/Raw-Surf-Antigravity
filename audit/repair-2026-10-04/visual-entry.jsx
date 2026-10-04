@@ -33,9 +33,10 @@ function gpuChecks() {
       const unknown = WebGLMarineEngine.prototype.probeMaskGPU.call(engine, point, gl)[0].effective;
       return { span, known, unknown };
     });
+    const framebufferRestored = gl.getParameter(gl.FRAMEBUFFER_BINDING) === fbo, error = gl.getError();
     return { supported:true, stateRestored, throwRestored, reads,
-      framebufferRestored:gl.getParameter(gl.FRAMEBUFFER_BINDING) === fbo, error:gl.getError(), version:gl.getParameter(gl.VERSION),
-      passed:stateRestored && throwRestored && reads.every(r => r.known === 255 && r.unknown === null) };
+      framebufferRestored, error, version:gl.getParameter(gl.VERSION),
+      passed:stateRestored && throwRestored && framebufferRestored && error === gl.NO_ERROR && reads.every(r => r.known === 255 && r.unknown === null) };
   } finally { gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.deleteFramebuffer(fbo); gl.deleteTexture(foreign); gl.deleteTexture(water); }
 }
 

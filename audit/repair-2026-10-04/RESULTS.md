@@ -28,6 +28,11 @@ These results describe that instrument; hosted CI must independently qualify the
 Network is refused by the offline backend runner. Its package namespace avoids unrelated startup
 integrations while exercising the actual route modules; it does not prove aggregate app startup.
 
+Hosted candidateCI37177756735 on `d5b1fa34` independently confirms frontend335/3440
+at2026-10-04T04:44:22Z and backend estate889 with284 selected/282 result-producing files,
+zero silent files, at04:44:17Z. Frontend floor then ratcheted to this exact receipt.
+Remaining candidate jobs and subsequent receipt-commit checks must still finish.
+
 ## Jacobian lens: change one input, inspect the correct dependency
 
 | Perturbation | Required response |
@@ -42,11 +47,19 @@ integrations while exercising the actual route modules; it does not prove aggreg
 | Partial/full query-water tile; density399/400/401/850 | Damage restoration independent of the island-reassert400 threshold |
 | Open-water plausibility kill switch | Existing disable behavior preserved |
 
-Real-browser isolated preview uses the actual dialog and application CSS, without an API client.
+Real-browser isolated preview uses the actual dialog and application CSS, without backend requests.
 Mobile465x884 and desktop1280x800 reviewed; light/dark/beach styles, accessible title/description,
 close/back actions and Escape dismissal inspected. Mobile excessive whitespace was corrected.
 Screenshots and generated bundles are ignored; source harness is reproducible with
 `node audit/repair-2026-10-04/build-visual.cjs`.
+
+Actual browser WebGL2 context (Chromium) also exercised the real shared-state helper and real
+probe method. A128x64 all-water texture retained255 at all four perturbed spans; removing recorded
+dimensions returned null at all four spans. Foreign texture binding/flip-Y restored on success
+and injected failure, foreign framebuffer restored, GL error0. This qualifies the API contract
+in this browser; it does not qualify coastline rasterization or a fleet of hardware drivers.
+The expanded isolated harness initially lacked CRA's compile-time process.env definition; that
+preview setup error was fixed before GPU qualification and is not an application finding.
 
 ## External containment and remaining acceptance
 
@@ -54,7 +67,12 @@ The two proven exposed artifacts11289289427 and11290546683 were removed through 
 API. Both runs read back with empty artifact lists. Raw Playwright traces are disabled by the
 candidate config, with two fresh synthetic credential-present/absent policy controls.
 Owner confirmed the exposed access code has **not** been rotated. Rotation and broader retained
-artifact review remain open; downloaded copies are not revoked by deletion.
+artifact payload review remain open; downloaded copies are not revoked by deletion.
+Metadata inventory across29 GitHub API pages found115 retained Playwright reports,
+4,374,679,296 bytes, dated September20 through October4. This count does not assert that every
+report contains credentials. No further report payloads were downloaded for this inventory.
+Rotation belongs in the app's admin access-control settings; update GitHub E2E_ACCESS_CODE
+to match, without entering either value in tracked files, comments or chat.
 
 Paid-media private storage, existing fabricated queue remediation, PostgreSQL concurrency,
 native coastline/device performance, scientific validation and default deployed acceptance are

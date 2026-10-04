@@ -35,3 +35,14 @@ and selector-owned executed73addition projection respectively. All615tracked tes
 Browser actual mobile/desktop layouts inspected; no API client; keyboard dismissal works.
 See audit/repair-2026-10-04/RESULTS.md for instrument limits and Jacobian perturbations.
 Owner confirms access code NOT rotated; AS01 stays open. No credential value recorded.
+
+## 2026-10-04 04:49Z - draft243 and hosted count receipts
+
+Repaird5b1fa34 pushed; draft243 againstdev attached. CI37177756735 hostedfrontend
+335/3440 and estate889 confirmed via exactjoblogs at04:44:22Z/04:44:17Z respectively.
+Frontend floor raised to this receipt; final-head gates remain pending.
+Actual isolated browserWebGL2 passed all recorded contracts twice;GLerror0.
+GPU preview compile-time env setup error repaired and excluded from product findings.
+Metadata inventory29pages115retainedreports4,374,679,296bytes; no further payloads downloaded.
+Rotation remains owner action in appadmin access controls plus GitHub E2E_ACCESS_CODE.
+No actual credential values read or recorded. Temporary preview tab closed and viewport reset.

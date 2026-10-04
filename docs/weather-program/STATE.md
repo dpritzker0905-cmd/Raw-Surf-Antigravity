@@ -15,11 +15,12 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-04 04:21Z: independent audit repairs underway on codex/independent-audit-repairs.**
-  Owner authorized repairs/testing/visual improvement. Ledger559-564: local locker/media authority,
+  Owner authorized repairs/testing/visual improvement. Ledger559-573: local locker/media authority,
   gift/quota relationship and marine mask contracts repaired; no merge/deploy/science promotion.
   Two proven credential-bearing CI artifacts removed/read back absent; access-code rotation remains.
   Follow this session in `log/2026-10-04-independent-repairs.md`; all audit rows tracked in
-  `audit/repair-2026-10-04/PLAN.md`. Fullfrontend335/3440 and backend98 local controls pass; hosted/device qualification pending.
+  `audit/repair-2026-10-04/PLAN.md`. DraftPR243; hostedfrontend335/3440 and estate889 pass; actualWebGL contract passes.
+  Final head gates, coastline/device acceptance and code rotation remain pending.
 
 - **2026-10-04 01:54Z: owner-authorized ICON stored tail live on dev only at6b062e97 (PR241).**
   Actual Netlify/backend accepted; emitted primary-grid bypass true twice, preview dark twice,
@@ -545,7 +546,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 568, sha256 ab31546a96c61900d59ae8f2a4f704b339d1c2d63bc1b2ff1e15a597acfe9dce**
+  **Ledger head: seq 573, sha256 5f436a6658a69461efa7808ed5719b80ace06ca948887179aa8f5d179a100a13**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
