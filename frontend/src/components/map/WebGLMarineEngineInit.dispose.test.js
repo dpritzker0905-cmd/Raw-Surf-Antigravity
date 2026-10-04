@@ -23,7 +23,7 @@ const makeGl = () => ({
 
 // Every field disposeEngine is responsible for clearing, seeded with a non-null sentinel so a
 // missed one is visible rather than coincidentally already null.
-const OVERLAY_STATE = ['_overlayMaskTex', '_overlayMaskBounds', '_overlayMaskTruthBox'];
+const OVERLAY_STATE = ['_overlayMaskTex', '_overlayMaskBounds', '_overlayMaskTruthBox', '_overlayMaskTexDims'];
 const RESIDENT_STATE = ['_residentWaveTex', '_residentChlTex', '_residentBathTex', '_residentScoreTex',
   '_cachedMaskTex', '_cachedMaskGeoJSON', '_lastPatchedMask', '_landGeoJSON'];
 

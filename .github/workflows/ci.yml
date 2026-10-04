@@ -109,7 +109,9 @@ jobs:
           // 2879/2879  failed 0`, its +2 prewarm tests). This change's own +2 recorder tests are counted on its run.
           // PR238 hosted 328 suites/3362 tests; add one suite/25 tests, keep margins 31/483.
           // PR240 retains hosted 329/3387; +1 suite/12 scope probes, margins 31/483.
-          const MIN_SUITES = 299, MIN_TESTS = 2916;
+          // Independent audit AS03: hosted CI37167173560 at PR241 confirms330/3399.
+          // Retire the 31-suite/483-test gap. New repair tests await their hosted receipt.
+          const MIN_SUITES = 330, MIN_TESTS = 3399;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1671,7 +1673,9 @@ jobs:
           # PR236 actual estate781 plus4 weekly report runtime controls ->785; same margin2.
           # PR237 actualestate785 plus25selectionownership controls ->810; margin2 unchanged.
           # PR239 actualestate810 plus6 assembledStripe controls ->816; margin2 unchanged.
-          MIN_PASSED = 814
+          # Independent audit: CI37167173560 confirms816. Two selector-owned files
+          # add73 executed cases; projected889, same margin2. Candidate CI must confirm.
+          MIN_PASSED = 887
 
           try:
               root = ET.parse('estate.xml').getroot()

@@ -22,6 +22,7 @@ import {
 } from './WebGLWindUtils';
 import {
   createTexture,
+  withTextureState,
   encodeMarineTexture
 } from './WebGLMarineTextureEncoder';
 import { renderMaskToCanvas, overlayBasemapWaterOnMask, isBasemapWaterSourceReady, maskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
@@ -2483,13 +2484,11 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     // COAST SDF: re-write the signed dist-to-coast into .b on the PATCHED base coast (this re-upload
     // would otherwise revert .b to a redundant .r). Opt-in; byte-identical when off. Keeps the flag live.
     this._cachedMaskHasSDF = writeCoastDistanceField(canvas);
-    const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
-    const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
-    gl.bindTexture(gl.TEXTURE_2D, prevTex);
+    withTextureState(gl, () => {
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    });
     // Record the TRUTH box for the hysteresis above — the STRICT viewport the painter actually
     // repainted (the old 40%-padded box claimed truth over a ring the tile queries can never
     // cover; that ring was black land = the pan/zoom "rectangle holes"). Zoom-ins inside the box
@@ -2669,21 +2668,21 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
     }
     // COAST SDF for the viewport-truth overlay (the band's min-combine mask). Opt-in; byte-identical off.
     this._overlayMaskHasSDF = writeCoastDistanceField(canvas);
-    if (!this._overlayMaskTex) {
-      this._overlayMaskTex = gl.createTexture();
+    // Capture before allocation binds anything; restore even when an upload throws.
+    withTextureState(gl, () => {
+      if (!this._overlayMaskTex) {
+        this._overlayMaskTex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      }
       gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    }
-    const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
-    const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
-    gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
-    gl.bindTexture(gl.TEXTURE_2D, prevTex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    });
+    this._overlayMaskTexDims = { w: canvas.width, h: canvas.height }; // probe follows uploaded size
     this._overlayMaskBounds = bounds;
     // The region the painter truth-painted from tiles = the strict viewport at paint time; the
     // canvas ring outside it holds NE base truth (sane but coarser). Hysteresis keys on this box.
@@ -2711,19 +2710,6 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
   const ps = this._probeState || {};
   const merc = (lat) => { const c = Math.max(-85.051129, Math.min(85.051129, lat)) * Math.PI / 180; return (1 - Math.log(Math.tan(c) + 1 / Math.cos(c)) / Math.PI) / 2; };
   const wrap = (lng, center) => { let p = lng; while (p - center > 180) p -= 360; while (p - center < -180) p += 360; return p; };
-  const dimsForOverlay = (b) => {
-    const span = (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
-    let w = span < 10 ? 4096 : (span < 30 ? 2048 : 4096); if (w > 2048) w = 2048;
-    // MID-ZOOM COASTAL CARVE (2026-07-21, user residual-fringe report): the regional min-combine
-    // overlay spans ~0.5–3° across the halo band; at the flat 2048 cap that is ~56 m/texel and the
-    // coast carve is soft, so the heatmap feather still rides a thin fringe onto land. Lift the cap to
-    // 4096 (~28 m/texel) for that span band so the coast cuts crisply — matching the z>=12 look the
-    // user confirmed clean. Deep-zoom (<0.35°, already fine at 2048) and world (≥30°, memory-bound)
-    // spans are unchanged. Kill: __RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ (restores the flat 2048 cap).
-    if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ === true) &&
-        span >= 0.35 && span < 6) w = 4096;
-    return { w, h: w / 2 };
-  };
   const prevFbo = gl.getParameter(gl.FRAMEBUFFER_BINDING);
   const fbo = gl.createFramebuffer();
   const out = new Uint8Array(4);
@@ -2751,7 +2737,7 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
     return pl >= wW && pl <= wE;
   };
   const baseTex = this._cachedMaskTex, baseB = this._cachedMaskBounds, baseD = this._cachedMaskTexDims;
-  const ovTex = this._overlayMaskTex, ovB = this._overlayMaskBounds, ovD = ovB ? dimsForOverlay(ovB) : null;
+  const ovTex = this._overlayMaskTex, ovB = this._overlayMaskBounds, ovD = this._overlayMaskTexDims || null;
   // COARSE-BASE FALLBACK (2026-07-18 EVE-2): beyond the RESIDENT mask bounds both reads return
   // null, which callers (zoomlab's water ground truth) had to guess about — the ring-fill zone
   // read as "unknown/land" and could hide a real dead-ring finding there. The held coarse base
@@ -2759,7 +2745,8 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
   const cb = this._coarseBaseData;
   const cbTex = cb && cb.u_oceanMaskTexture, cbB = cb && cb.bounds;
   const cbD = (cb && cb.__maskCanvasDims) ? { w: cb.__maskCanvasDims.w, h: cb.__maskCanvasDims.h } : null;
-  const res = points.map(({ lng, lat }) => {
+  try {
+    return points.map(({ lng, lat }) => {
     const baseS = read(baseTex, baseB, baseD, lng, lat);
     const ovS = read(ovTex, ovB, ovD, lng, lat);
     const base = baseS ? baseS.r : null;
@@ -2778,9 +2765,12 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
       if (cbS != null) { effective = cbS.r; effB = cbS.b; src = 'coarse_base'; }
     }
     return { lng, lat, base, overlay, effective, src, effB };
-  });
-  try { gl.bindFramebuffer(gl.FRAMEBUFFER, prevFbo); gl.deleteFramebuffer(fbo); } catch (e) { /* probe cleanup only — the sampled result is already captured in `res` */ }
-  return res;
+    });
+  } finally {
+    // A diagnostic read may throw too: never leave MapLibre attached to our FBO.
+    try { gl.bindFramebuffer(gl.FRAMEBUFFER, prevFbo); } catch (e) { /* context may be lost */ }
+    try { gl.deleteFramebuffer(fbo); } catch (e) { /* context may be lost */ }
+  }
 };
 
 // BLEND BOTH: snapshot a global-coarse grid into a standalone (non-resident) texture set we own + free.

@@ -281,6 +281,7 @@ export function disposeEngine(engine, gl) {
   engine._cachedMaskTex = null;
   engine._overlayMaskTex = null;
   engine._overlayMaskBounds = null;
+  engine._overlayMaskTexDims = null;
   // C4-MR-09 (2026-08-16): the truth box was ABSENT from this inventory — it outlived its own
   // bounds. Not reachable today (render needs _overlayMaskTex && _overlayMaskBounds, both nulled
   // above, and the uniform site re-checks `ob === _overlayMaskBounds`), so this is hygiene, not a

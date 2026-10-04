@@ -25,74 +25,8 @@ class ScanLockerRequest(BaseModel):
     photographer_id: Optional[str] = None
 
 async def async_global_scan(surfer_id: str, selfie_url: str, spot_id: Optional[str] = None, photographer_id: Optional[str] = None):
-    """
-    Background worker simulating a global scan across recent untagged gallery items.
-    Binds positive facial matches back into the SurferGalleryClaimQueue organically.
-    Uses async database scoping.
-    """
-    import random
-    
-    async with AsyncSessionLocal() as db:
-        # 1. Temporarily cache this selfie for subsequent matches
-        surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
-        surfer = surfer_result.scalar_one_or_none()
-        if not surfer: return
-        
-        # We store it in profile session_selfie cache or as avatar if empty
-        # Real-world usage: We just utilize this selfie_url in AI match memory.
-
-        # 2. Grab recent gallery items to avoid burning AI vision tokens on old data
-        
-        if spot_id or photographer_id:
-            time_window = datetime.now(timezone.utc) - timedelta(days=30)
-            limit_val = 50
-        else:
-            time_window = datetime.now(timezone.utc) - timedelta(days=2)
-            limit_val = 20
-            
-        gallery_query = select(GalleryItem).where(GalleryItem.created_at >= time_window)
-        
-        if photographer_id:
-            gallery_query = gallery_query.where(GalleryItem.photographer_id == photographer_id)
-            
-        if spot_id:
-            # We must outerjoin or join the Gallery table to check the spot_id
-            gallery_query = gallery_query.join(Gallery).where(Gallery.spot_id == spot_id)
-            
-        gallery_query = gallery_query.limit(limit_val)
-        
-        recent_items_result = await db.execute(gallery_query)
-        recent_items = recent_items_result.scalars().all()
-
-        # Simulate identifying images that match this exact surfer's selfie features
-        # (Instead of making 20x heavy AI REST API calls which freeze the DB)
-        for item in recent_items:
-            # Fake 20% match probability for testing / dynamic AI queue injection
-            if random.random() < 0.2:
-                # Check if already in queue to prevent dupes
-                check_q = await db.execute(
-                    select(SurferGalleryClaimQueue).where(
-                        and_(
-                            SurferGalleryClaimQueue.surfer_id == surfer_id,
-                            SurferGalleryClaimQueue.gallery_item_id == item.id
-                        )
-                    )
-                )
-                if check_q.scalar_one_or_none(): continue
-                
-                new_claim = SurferGalleryClaimQueue(
-                    surfer_id=surfer_id,
-                    gallery_item_id=item.id,
-                    photographer_id=item.photographer_id,
-                    live_session_id=item.gallery.live_session_id if item.gallery else None,
-                    booking_id=item.gallery.booking_id if item.gallery else None,
-                    ai_confidence=random.uniform(0.7, 0.98),
-                    ai_match_reasons=json.dumps(["face_match", "wetsuit_color", "selfie_similarity"]),
-                    status='pending'
-                )
-                db.add(new_claim)
-        
-        await db.commit()
+    """Compatibility entry point: unavailable matching never reads media or creates claims."""
+    return {"analysis_status": "unavailable", "matches": []}
 
 
 

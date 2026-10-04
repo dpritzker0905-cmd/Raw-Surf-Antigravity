@@ -1,0 +1,37 @@
+# Independent audit repair session
+
+## 2026-10-04 04:21Z — first local contracts and exposure containment
+
+Owner authorized repairs, thorough tests, forensics, Jacobian probes and visual improvement.
+Recovered independent October3 app audit plus marine/masking/performance addendum.
+Repair baselinea2213ee9 includes preserved rollout receipts; applicationdev6b062e97.
+PR242 remains open with all hosted checks success/neutral; no new deployment.
+
+Memory start0FAIL2WARN11NOTE; commitments149/309 remain open. Latest scheduled monitor
+37157286033 still failed at earlierbd070fd6, while prior two manual runs passed.
+No inference of scheduled acceptance from manual success. Science flags unpromoted.
+
+Ledger559-564 records branch context, precise exposed artifact removal and repair groups.
+No served forecast number changed in this batch. Mask pixels/readback and media authorization
+changed; real device/GPU acceptance, paid-media storage migration and code rotation remain open.
+Local test environment is Python runtime plus existing project packages; declared parity warning
+prevents treating local tests as hosted acceptance. Sandbox initialization stalls excluded.
+
+Baseline locker47fail15pass twice ->62pass. Actual ORM relationships4fail2pass at six controls;
+expanded nine7fail2pass on preserved source. Initial missing preview fixture corrected before
+acceptance; its setup errors are not product findings. Engine original14controls6fail8pass,
+expanded15pass after; actual painter15controls5fail10pass ->15pass. Combined7suites79pass.
+Historical repair patch parser preflights failed without writing source; only reviewed final
+exact matching blocks adopted. Unfocused initial fullfrontend baseline332suites3413tests,
+6 failures all in new engine controls; original330suites3399tests passed.
+
+## 2026-10-04 04:39Z - finalized first repair batch
+
+Final backend73controls56fail17pass before twice to73pass; with25 prior selection
+controls98pass twice. Fullfrontend335suites3440tests; final compact-layout/probe17pass.
+Affected11suites105pass; adjacentbackend36pass37legacy skips. Build and blocking gates pass.
+Hosted receiptCI37167173560 read330/3399 and estate816; floors raised from that receipt
+and selector-owned executed73addition projection respectively. All615tracked tests partition.
+Browser actual mobile/desktop layouts inspected; no API client; keyboard dismissal works.
+See audit/repair-2026-10-04/RESULTS.md for instrument limits and Jacobian perturbations.
+Owner confirms access code NOT rotated; AS01 stays open. No credential value recorded.

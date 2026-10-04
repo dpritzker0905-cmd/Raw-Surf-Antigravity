@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 01:57Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 04:39Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,13 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-04 04:21Z: independent audit repairs underway on codex/independent-audit-repairs.**
+  Owner authorized repairs/testing/visual improvement. Ledger559-564: local locker/media authority,
+  gift/quota relationship and marine mask contracts repaired; no merge/deploy/science promotion.
+  Two proven credential-bearing CI artifacts removed/read back absent; access-code rotation remains.
+  Follow this session in `log/2026-10-04-independent-repairs.md`; all audit rows tracked in
+  `audit/repair-2026-10-04/PLAN.md`. Fullfrontend335/3440 and backend98 local controls pass; hosted/device qualification pending.
 
 - **2026-10-04 01:54Z: owner-authorized ICON stored tail live on dev only at6b062e97 (PR241).**
   Actual Netlify/backend accepted; emitted primary-grid bypass true twice, preview dark twice,
@@ -538,7 +545,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 558, sha256 dc1b1a86e1daeda68a8c92f4ac88ad9a82cee5103cadd8b18cc237da2d43cb0d**
+  **Ledger head: seq 568, sha256 ab31546a96c61900d59ae8f2a4f704b339d1c2d63bc1b2ff1e15a597acfe9dce**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

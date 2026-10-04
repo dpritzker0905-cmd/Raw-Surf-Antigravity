@@ -131,7 +131,7 @@ async def select_included_photos(
     
     # Get the quota
     result = await db.execute(
-        select(SurferSelectionQuota).where(SurferSelectionQuota.id == quota_id)
+        select(SurferSelectionQuota).where(SurferSelectionQuota.id == quota_id).with_for_update()
     )
     quota = result.scalar_one_or_none()
     
@@ -141,6 +141,11 @@ async def select_included_photos(
     if quota.surfer_id != current_user_id:
         raise HTTPException(status_code=403, detail="Selection quota belongs to another surfer")
     
+    if len(request.item_ids) != len(set(request.item_ids)):
+        raise HTTPException(status_code=400, detail="Select each photo only once")
+    if bool(quota.booking_id) == bool(quota.live_session_id):
+        raise HTTPException(status_code=400, detail="Selection quota needs exactly one session")
+
     if quota.status != 'pending_selection':
         raise HTTPException(status_code=400, detail="Selection already completed or expired")
     
@@ -223,7 +228,10 @@ async def select_included_photos(
             select(SurferGalleryItem).where(
                 SurferGalleryItem.surfer_id == quota.surfer_id,
                 SurferGalleryItem.selection_eligible == True,
-                SurferGalleryItem.access_type == 'pending_selection'
+                SurferGalleryItem.access_type == 'pending_selection',
+                SurferGalleryItem.booking_id == quota.booking_id,
+                SurferGalleryItem.live_session_id == quota.live_session_id,
+                SurferGalleryItem.photographer_id == quota.photographer_id,
             )
         )
         remaining_items = remaining_result.scalars().all()

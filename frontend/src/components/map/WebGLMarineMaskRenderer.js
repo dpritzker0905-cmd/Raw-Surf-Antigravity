@@ -212,12 +212,17 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   // engages at every zoom the mask is coarse (z5-~z11) and self-disables where the basemap is
   // genuinely finer (z12+ meter tiles — re-asserting coarse NE there would blockify the coast).
   let neFull = null;
+  let checkOpenWaterDamage = false;
   try {
     const _raOff = typeof window !== 'undefined' && window.__RAW_DISABLE_ISLAND_REASSERT__ === true;
     const _span = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
     const _densityPxDeg = _span > 0 ? canvas.width / _span : 0;
     const _maxDensity = (typeof window !== 'undefined') ? Number(window.__RAW_ISLAND_REASSERT_MAX_DENSITY__) : NaN;
-    if (islandReassertEnabled({ densityPxPerDeg: _densityPxDeg, maxDensity: _maxDensity, killed: _raOff })) {
+    // The pristine snapshot has two consumers with different density limits. A fine-basemap
+    // coast must not be overwritten by NE, but partial tile queries still need damage detection.
+    checkOpenWaterDamage = _densityPxDeg > 0 && _densityPxDeg < 1200 &&
+      !(typeof window !== 'undefined' && window.__RAW_DISABLE_OPENWATER_PLAUSIBILITY__ === true);
+    if (checkOpenWaterDamage || islandReassertEnabled({ densityPxPerDeg: _densityPxDeg, maxDensity: _maxDensity, killed: _raOff })) {
       neFull = document.createElement('canvas');
       neFull.width = canvas.width; neFull.height = canvas.height;
       neFull.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0);
@@ -321,8 +326,8 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
     }
   }
 
-  // 3c. ISLAND RE-ASSERT (see reassertNeLand + the neFull capture above): multiply the pristine
-  //     full-res NE land back wherever the mask is coarser than NE (neFull is non-null only then).
+  // 3c. ISLAND RE-ASSERT: the independent 400 px/degree gate decides whether to multiply NE
+  //     land back. The damage detector also owns a snapshot, without overriding this gate.
   //     Runs AFTER the inland guard so it overrides any island the basemap flooded; the wetland +
   //     sheltered passes below only ever darken, so they can't re-flood it. Only darkens → the
   //     port-landfill/canal/sheltered verdicts (NE=water) are all preserved.
@@ -479,7 +484,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   let openWaterDegraded = false;
   try {
     const _w2 = typeof window !== 'undefined' ? window : {};
-    if (painted > 0 && neFull && _w2.__RAW_DISABLE_OPENWATER_PLAUSIBILITY__ !== true && rw > 8 && rh > 8) {
+    if (painted > 0 && neFull && checkOpenWaterDamage && _w2.__RAW_DISABLE_OPENWATER_PLAUSIBILITY__ !== true && rw > 8 && rh > 8) {
       const sx = Math.round(rx), sy = Math.round(ry), sw = Math.floor(rw), sh = Math.floor(rh);
       const cur = ctx.getImageData(sx, sy, sw, sh).data;
       const ne = neFull.getContext('2d', { willReadFrequently: true }).getImageData(sx, sy, sw, sh).data;
