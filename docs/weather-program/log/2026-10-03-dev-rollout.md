@@ -702,3 +702,38 @@ Ledger525 verifies byte-prefix against actual dev22f; memory audit0FAIL/2WARN/11
 The two overdue science/operational commitments remain open. A floor-update helper initially
 expected a scalar assignment instead of the actual tuple; corrected only its unexecuted floor
 tail, with no duplicate ledger append or source-test change.
+
+## 2026-10-04 01:01Z — dev-only promotion authorized
+
+### D-016 · Stored ICON tail may be enabled on dev only
+- **Decided:** owner chat reply, "Enable on dev only (recommended)", to the explicit PR239 promotion question.
+- **Scope:** REACT_APP_ICON_STORED_TAIL=true on exact Netlify dev branch only. Production, main, previews and other scientific flags retain their prior behavior. D-001 remains binding for any further promotion.
+- **Evidence and limits:** 25 synthetic and 12 real built-product replay controls passed twice after failing twice before. This proves the stored source path and metadata, not forecast skill, served-hour presentation or the separate GPU fallback. Two live after checks remain required.
+- **Rollback:** remove the exact dev branch value and rebuild dev; default-off source restores prior path.
+
+## 2026-10-04 01:08Z — monitor/Stripe checkpoint merged; dev-only ICON build scope
+
+PR240 exact56aa0477 passed actual hosted guards2288/181files, chain1918/147files and
+estate816/282selected/280results/0silent, then merged dev760eea1d at01:03:44Z.
+Netlify preview was canceled; its green status is not evidence of a preview build.
+Actual backend after and unsigned negative pair pending. Before400twice at22f; no
+processor/customer events or signed callbacks. Removing the duplicate root handler
+changes sole authority, not the already-first canonical missing-signature rejection.
+
+Owner explicitly approved stored ICON tail on dev only. Netlify form rejected exact
+branchdev as reserved and was canceled: no variable saved. Official context.dev is
+local Netlify Dev. Minimal versioned shell condition checks both CONTEXT=branch-deploy
+and BRANCH=dev before exporting REACT_APP_ICON_STORED_TAIL=true. Production, preview,
+other branches, localdev and missing-metadata controls retain prior values. Actual
+command is exercised with inert npm/node subprocesses: before2fail10pass twice
+3.624/3.399s; after12scope+25source pass twice4.532/4.637s. Fullfrontend expected
+330suites3399tests, floors299/2916 keep31/483 margin. Hosted/deployed/two live after
+pending. Source-path consistency is separate from forecast skill/served-hour display
+and default FPS fallback; no guardrail disabled or other scientific flag enabled.
+
+PR239 actual backend health200healthy and badge401twice exact22f; RSS602.4/606.5MB.
+All-route telemetry p95upper10000ms and 27/28 over5000 of438/450; spot route absent
+top20, so this is not a spot-specific population measurement and does not close5sSLO.
+Public dev before assets twice same main.1fb0de13.js SHA256
+74b4b7706ba040eca202766862320c729640b668842b1e86303ffa34d9928df5.
+Compiled-away variable-name absence is not runtime flag proof.
