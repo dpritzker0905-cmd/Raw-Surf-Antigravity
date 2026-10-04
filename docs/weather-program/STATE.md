@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 18:51Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 19:15Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,11 +14,14 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-04: ordered point/availability/consumer/playback repairs locally qualified on PR243.**
+- **2026-10-04: ordered point/availability/consumer/playback source5afa0c82 hosted qualified on PR243.**
   W01/W02, M01/M02/M03, SH01/SH02/SH03 and owner PB01 controls pass; final frontend346/3582,
   focused backend171, lint86existingerrors/917warnings, production compilation and LOC accepted.
   Actual all-theme desktop/390px-phone component fixture holds0 until exact delivery then6;
-  no horizontal overflow. Full map/GPU/cadence canary and candidate hosted backend remain open.
+  no horizontal overflow. Full map/GPU/cadence canary remains open. CI37226218002 completed/
+  success: frontend346/3582; backend5128 passed (guards2288/67documentedskips, chain1951/0skips,
+  estate889/0silent); all11jobs accepted. Central differences6pass twice show requested/hint
+  derivatives0/1 legacy to1/0 repaired, no skill claim. Receipt preserves source fingerprints.
   Local full backend collection crashed with a Windows native access violation; no acceptance inferred.
   All new served-value flags default off; no merge, deployment or activation. Prior source d67763d5
   CI37207402431 completed/success, superseding its dated pending claim below. Follow
@@ -566,7 +569,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 591, sha256 4a30b700186f1c1064372940389114a8c77d57e4dacc60073a553619d3e4cf5e**
+  **Ledger head: seq 596, sha256 f653b0196c1538294888d05aa03c3f7463516d1259354dc56704f1c212c59e1d**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

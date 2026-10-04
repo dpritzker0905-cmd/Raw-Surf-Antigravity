@@ -63,3 +63,22 @@ map-pixel/GPU/FPS/live-latency/skill claim. Source flags dark, no merge/deploy. 
 `audit/repair-2026-10-04/POINT-PLAYBACK-RESULTS.md`; raw video/log/frame assets remain local.
 
 Pre-publication docs-only memory audit:0 FAIL/7 WARN/6 NOTE. Previously open18Z commitments are now overdue; none is claimed fulfilled by this repair. Ledger591 verifies; source default-off compilation, frontend346/3582 and lint86/917 accepted.
+
+## 19:15Z — exact-source hosted acceptance and Jacobian receipt
+
+PR243 head5afa0c82 read back. CI37226218002 completed/success, all11 jobs accepted.
+Completed per-job logs: frontend346suites/3582tests; chain1951/149files/0skips;
+guards2288/181files/67existingdocumentedskips; estate889/284selected/282produced/0silent.
+Backend total5128passed,0failed. LOC37226218144, encoding37226218139, ledger37226218004
+and Lighthouse37226218027 success. PR rollup19:17SUCCESS checkruns,1NEUTRAL,1successful
+Netlify preview status. This supersedes candidate pending entries; the local native
+collection failure remains a historical non-qualifying attempt.
+
+Standalone point_jacobian_probe.py: actual resolver/sampler,6 controls twice. For
+GFS/ICON/EURO, central derivatives requested/hint change0/1 to1/0, epsilon0.05m,
+error<1e-10. This measures ownership, not surf physics or forecast skill. Instrument
+is explicit-path offline, outside backend CI discovery; no exclusion or floor change.
+
+All recorded production/test/CI fingerprints match5afa0c82. This follow-up only
+publishes sanitized receipts and the offline probe. All served flags stay off; no
+merge/deploy. Full map/GPU/device FPS/real-fetch cadence acceptance remains open.

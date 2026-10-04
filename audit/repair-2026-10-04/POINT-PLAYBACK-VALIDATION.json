@@ -102,7 +102,40 @@
   },
   "backend_focused_passed": 171,
   "backend_full_local": "native crash during collection; no qualifying count",
-  "backend_full_hosted": "pending",
+  "backend_full_hosted": {
+    "source": "5afa0c82eaed515ede5c0a0f66b1a8bb8d34b347",
+    "run": 37226218002,
+    "conclusion": "success",
+    "jobs_success": 11,
+    "frontend_suites": 346,
+    "frontend_passed": 3582,
+    "frontend_failed": 0,
+    "chain_files": 149,
+    "chain_passed": 1951,
+    "chain_skipped": 0,
+    "guards_files": 181,
+    "guards_passed": 2288,
+    "guards_skipped": 67,
+    "estate_selected": 284,
+    "estate_produced": 282,
+    "estate_passed": 889,
+    "estate_silent": 0,
+    "backend_total_passed": 5128,
+    "failed": 0,
+    "supplementary_success": {
+      "LOC": 37226218144,
+      "Encoding": 37226218139,
+      "WeatherLedger": 37226218004,
+      "Lighthouse": 37226218027
+    },
+    "pr_rollup": {
+      "total": 19,
+      "checkrun_success": 17,
+      "checkrun_neutral": 1,
+      "netlify_preview_status_success": 1
+    },
+    "readback": "Completed gh run view per-job logs and PR head rollup, 2026-10-04 19:15Z"
+  },
   "flags": "default-off, no activation",
   "visual": "offline component fixture only; map/GPU/live performance pending",
   "hashes_normalization": "UTF-8 source with LF line endings",
@@ -113,5 +146,80 @@
     "guards_skipped": 67,
     "chain_passed": 1918,
     "estate_passed": 889
+  },
+  "jacobian": {
+    "instrument": "audit/repair-2026-10-04/point_jacobian_probe.py",
+    "passed_each_run": 6,
+    "runs": 2,
+    "readings": {
+      "GFS/flag0": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.0,
+          1.0000000000000009
+        ]
+      },
+      "ICON/flag0": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.0,
+          1.0000000000000009
+        ]
+      },
+      "EURO/flag0": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.0,
+          1.0000000000000009
+        ]
+      },
+      "GFS/flag1": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.9999999999999987,
+          0.0
+        ]
+      },
+      "ICON/flag1": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.9999999999999987,
+          0.0
+        ]
+      },
+      "EURO/flag1": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.9999999999999987,
+          0.0
+        ]
+      }
+    },
+    "qualification": "Actual resolver/sampler request identity only; no skill or surf-physics calibration",
+    "instrument_sha256": "2d4bfb5920db2f5d2480c359d0cf1f4de0b883dee77c71f95ae7068735db5319"
   }
 }

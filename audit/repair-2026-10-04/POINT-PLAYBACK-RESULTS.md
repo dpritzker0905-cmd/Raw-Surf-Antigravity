@@ -1,7 +1,7 @@
 # Point identity, availability and GFS playback repairs
 
-2026-10-04. Baseline `69c06852`, continuing PR243 on `dev`. This is a locally qualified,
-default-off repair batch. No merge, deployment or forecast/science flag activation.
+2026-10-04. Baseline `69c06852`, continuing PR243 on `dev`. Source `5afa0c82` is locally
+and hosted qualified; this is a default-off repair batch. No merge, deployment or forecast/science flag activation.
 
 | Finding | Repair and qualification |
 | --- | --- |
@@ -18,6 +18,12 @@ default-off repair batch. No merge, deployment or forecast/science flag activati
 ## Evidence and tests
 
 - Backend W01 original15 controls:8fail/7pass before twice; extended21 pass.
+- Standalone `point_jacobian_probe.py`:6 central-difference controls pass twice through the
+  actual resolver/sampler. GFS/ICON/EURO height derivatives against [requested-product height,
+  cross-model-hint height] change from[0,1] under the legacy dark control to[1,0] with the
+  repair; epsilon0.05m, numerical error below1e-10. This measures request ownership, not
+  forecast skill or transformed-surf physics. The explicit-path offline instrument is an
+  audit artifact and does not alter the backend CI lane counts.
 - Frontend W01/W02 original20:18fail/2pass before twice; extended26 pass.
 - Availability original19:12fail/7pass before twice; extended24 pass. Producer original11:
   8fail/3pass before twice; extended12 pass. Tests bind actual producer/adapter/selector/cards.
@@ -35,7 +41,13 @@ default-off repair batch. No merge, deployment or forecast/science flag activati
   paired reference1951 (= pinned hosted1918 +33 new controls). No new exclusion/skip.
 - Local full backend lane crashed during collection with a Windows native access violation;
   it collected no qualifying test result. The local interpreter also reports two missing
-  declared packages. Hosted Linux candidate CI must supply the complete backend receipt.
+  declared packages. Completed hosted Linux CI now supplies the full source receipt.
+- Source5afa0c82 CI37226218002 completed/success: all11 jobs accepted; frontend346/3582,
+  chain1951/149files (0skips), guards2288/181files (67 existing documented skips),
+  estate889 (284selected/282produced/0silent):5128 backend passed,0failed. Production
+  compilation, lint/import/ownership/floor gates and supplementary LOC/encoding/ledger/
+  Lighthouse passed. PR rollup19:17success checkruns,1neutral and1successful preview status.
+  Receipt-only changes preserve every recorded production/test/CI source fingerprint.
 - Prior source d67763d5 CI37207402431 completed/success, read back with hosted guards2288
   (67 documented skips), chain1918 (no skips) and estate889 (no silent files):5095 passed.
   These counts qualify the prior source, not the new candidate.
