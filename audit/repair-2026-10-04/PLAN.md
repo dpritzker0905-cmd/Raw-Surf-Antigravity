@@ -22,7 +22,7 @@ bounded device/visual acceptance. No live load tests. Changes to served science 
 
 | ID | Audit finding | Current status |
 |---|---|---|
-| AS-01 | Retained public-repository CI retry traces contain the beta access code. | Containment: two proven artifacts deleted; candidate raw traces off;115report metadata inventory complete; rotation and payload review open. |
+| AS-01 | Retained public-repository CI retry traces contain the beta access code. | Two proven artifacts deleted; candidate raw traces off;115report metadata inventory complete; owner defers rotation on 2026-10-04; rotation and payload review open. |
 | SEC-01 | Anonymous requests can read private locker originals, change visibility and reject another account's queue item. | Partial local repair: 15 locker boundaries; broader media/session audience remains. |
 | SEC-02 | The separate locker scan still manufactures persistent face/selfie matches using random numbers. | Local repair: random worker and selfie collection removed; existing false queue rows need reviewed remediation. |
 | SEC-03 | A free/gift tag for photo A grants unrelated paid photo B for zero credits. | Local repair: tag/item binding and repeated-claim controls. |
@@ -35,9 +35,9 @@ bounded device/visual acceptance. No live load tests. Changes to served science 
 | SEC-10 | Existing-profile trust-signals uses a lower-case value against an upper-case PostgreSQL enum. | Open; preserved for a separate measured repair. |
 | W-01 | A strict ICON product hint can make nominal GFS/EURO point requests sample ICON values. | Open; preserved for a separate measured repair. |
 | W-02 | Outer point cache ignores absolute forecast time/product changes and intercepts forced refresh. | Open; preserved for a separate measured repair. |
-| W-03 | Deferred marine-series retries resurrect canceled requests. | Open; preserved for a separate measured repair. |
+| W-03 | Deferred marine-series retries resurrect canceled requests. | Second batch local repair: abort-owned deferred work and late decode/mini handoff gates;23 causal failures before twice,28 controls/163 neighbor tests pass after twice; hosted acceptance pending. |
 | W-04 | A terminal Copernicus time failure repeats across spatial tiles, then empty rows enter the normal ten-minute cache. | Open; preserved for a separate measured repair. |
-| W-05 | Series mapping drops the explanation of how an estimated forecast was composed. | Open; preserved for a separate measured repair. |
+| W-05 | Series mapping drops the explanation of how an estimated forecast was composed. | Second batch local repair: retain entire per-frame estimate basis on grid and wrapper; native/missing/zero controls plus page/mini cache integration; hosted acceptance pending. |
 | AS-06 | Manifest CAS permits winner-object overwrite; failed uploads can also publish a missing object. | Open; preserved for a separate measured repair. |
 | SOC-01 | Crew message/history and unread-count predicates compile to `WHERE false`. | Open; preserved for a separate measured repair. |
 | SOC-02 | Hashtag search raises an uninitialized-variable error and returns HTTP 500. | Open; preserved for a separate measured repair. |

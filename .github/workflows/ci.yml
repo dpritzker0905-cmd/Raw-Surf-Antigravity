@@ -111,7 +111,8 @@ jobs:
           // PR240 retains hosted 329/3387; +1 suite/12 scope probes, margins 31/483.
           // Independent audit AS03: hosted CI37177756735 at d5b1fa34 confirms335/3440.
           // Retire the historical 31-suite/483-test gap and guard every new repair test.
-          const MIN_SUITES = 335, MIN_TESTS = 3440;
+          // W03/W05: db20de62 hosted335/3440 + two suites/28 controls; hosted confirmation pending.
+          const MIN_SUITES = 337, MIN_TESTS = 3468;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
