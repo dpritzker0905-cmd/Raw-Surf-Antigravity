@@ -608,105 +608,105 @@
     "job": 111259712415,
     "conclusion": "cancelled",
     "test_attempt_rows": [
-      "\u2713   1 [Mobile Safari] \u203a e2e/booking-flow.spec.js:55:3 \u203a Anonymous access control \u203a explore is auth-gated and redirects an anonymous visitor to /auth (6.2s)",
-      "\u2713   2 [Mobile Safari] \u203a e2e/booking-flow.spec.js:73:3 \u203a Anonymous access control \u203a the auth page offers both login and signup (2.7s)",
-      "\u2713   3 [Mobile Safari] \u203a e2e/booking-flow.spec.js:81:3 \u203a Anonymous access control \u203a signup offers the three account categories (2.6s)",
-      "\u2713   4 [Mobile Safari] \u203a e2e/booking-flow.spec.js:100:3 \u203a Explore \u203a explore shows the search input (3.6s)",
-      "\u2713   5 [Mobile Safari] \u203a e2e/booking-flow.spec.js:104:3 \u203a Explore \u203a spot cards are visible on explore (3.8s)",
-      "\u2718   6 [Mobile Safari] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (1.1m)",
-      "\u2718   7 [Mobile Safari] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #1) (1.1m)",
-      "\u2718   8 [Mobile Safari] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #2) (1.1m)",
-      "\u2713   9 [Mobile Safari] \u203a e2e/booking-flow.spec.js:135:3 \u203a Explore \u203a navigation is present, and it is the RIGHT nav for the viewport (3.8s)",
-      "\u2718  10 [Mobile Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a network preserves a manual recovery path (1.6m)",
-      "\u2713  11 [Mobile Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a network preserves a manual recovery path (retry #1) (4.3s)",
-      "\u2713  12 [Mobile Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a 503 preserves a manual recovery path (4.1s)",
-      "\u2713  13 [Mobile Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (3.9s)",
-      "-  14 [Mobile Safari] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan",
-      "-  15 [Mobile Safari] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12",
-      "\u2713  16 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:146:3 \u203a Surfer Lockout Redirection \u203a non-admin surfer is locked out of admin dashboard and can redirect back (2.5s)",
-      "\u2713  17 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:185:3 \u203a Admin Console Operations \u203a admin simulation engine executes weather swell spike scenario (6.3s)",
-      "\u2713  18 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:231:3 \u203a Admin Console Operations \u203a admin diagnostics telemetry refresh synchronizes panel (4.5s)",
-      "\u2718  19 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (9.7s)",
-      "\u2718  20 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (retry #1) (10.1s)",
-      "\u2718  21 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (retry #2) (9.7s)",
-      "\u2718  22 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (9.4s)",
-      "\u2718  23 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (retry #1) (19.3s)",
-      "\u2718  24 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (retry #2) (5.0s)",
-      "-  25 [Mobile Safari] \u203a e2e/weather-simulation.spec.js:584:8 \u203a Rendered-field pixel truth (executed GL) \u203a the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
-      "\u2713  26 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:55:3 \u203a Anonymous access control \u203a explore is auth-gated and redirects an anonymous visitor to /auth (955ms)",
-      "\u2713  27 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:73:3 \u203a Anonymous access control \u203a the auth page offers both login and signup (786ms)",
-      "\u2713  28 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:81:3 \u203a Anonymous access control \u203a signup offers the three account categories (767ms)",
-      "\u2713  29 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:100:3 \u203a Explore \u203a explore shows the search input (2.4s)",
-      "\u2713  30 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:104:3 \u203a Explore \u203a spot cards are visible on explore (2.5s)",
-      "\u2718  31 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (1.1m)",
-      "\u2718  32 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #1) (1.1m)",
-      "\u2718  33 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #2) (1.1m)",
-      "\u2713  34 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:135:3 \u203a Explore \u203a navigation is present, and it is the RIGHT nav for the viewport (2.4s)",
-      "\u2713  35 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a network preserves a manual recovery path (2.1s)",
-      "\u2713  36 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a 503 preserves a manual recovery path (2.3s)",
-      "\u2718  37 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (28.1s)",
-      "\u2718  38 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (retry #1) (28.5s)",
-      "\u2718  39 [Desktop Chrome] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (retry #2) (28.4s)",
-      "\u2718  40 [Desktop Chrome] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan (3.6s)",
-      "\u2718  41 [Desktop Chrome] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan (retry #1) (35.6s)",
-      "\u2718  42 [Desktop Chrome] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan (retry #2) (1.6m)",
-      "\u2718  43 [Desktop Chrome] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12 (3.5s)",
-      "\u2718  44 [Desktop Chrome] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12 (retry #1) (35.1s)",
-      "\u2718  45 [Desktop Chrome] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12 (retry #2) (34.2s)",
-      "\u2713  46 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:146:3 \u203a Surfer Lockout Redirection \u203a non-admin surfer is locked out of admin dashboard and can redirect back (2.1s)",
-      "\u2713  47 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:185:3 \u203a Admin Console Operations \u203a admin simulation engine executes weather swell spike scenario (13.2s)",
-      "\u2713  48 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:231:3 \u203a Admin Console Operations \u203a admin diagnostics telemetry refresh synchronizes panel (12.6s)",
-      "\u2718  49 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (13.3s)",
-      "\u2718  50 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (retry #1) (18.8s)",
-      "\u2718  51 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (retry #2) (2.1m)",
-      "\u2718  52 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (13.5s)",
-      "\u2718  53 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (retry #1) (4.2m)",
-      "\u2718  54 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (retry #2) (4.2m)",
-      "-  55 [Desktop Chrome] \u203a e2e/weather-simulation.spec.js:584:8 \u203a Rendered-field pixel truth (executed GL) \u203a the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
-      "\u2713  56 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:55:3 \u203a Anonymous access control \u203a explore is auth-gated and redirects an anonymous visitor to /auth (2.3s)",
-      "\u2713  57 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:73:3 \u203a Anonymous access control \u203a the auth page offers both login and signup (1.1s)",
-      "\u2713  58 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:81:3 \u203a Anonymous access control \u203a signup offers the three account categories (1.1s)",
-      "\u2713  59 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:100:3 \u203a Explore \u203a explore shows the search input (2.9s)",
-      "\u2713  60 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:104:3 \u203a Explore \u203a spot cards are visible on explore (2.8s)",
-      "\u2718  61 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (1.0m)",
-      "\u2718  62 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #1) (1.1m)",
-      "\u2718  63 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #2) (1.1m)",
-      "\u2713  64 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:135:3 \u203a Explore \u203a navigation is present, and it is the RIGHT nav for the viewport (3.0s)",
-      "\u2713  65 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a network preserves a manual recovery path (2.7s)",
-      "\u2713  66 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a 503 preserves a manual recovery path (2.7s)",
-      "\u2718  67 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (27.4s)",
-      "\u2718  68 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (retry #1) (28.9s)",
-      "\u2718  69 [Desktop Firefox] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (retry #2) (28.4s)",
-      "-  70 [Desktop Firefox] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan",
-      "-  71 [Desktop Firefox] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12",
-      "\u2713  72 [Desktop Firefox] \u203a e2e/weather-simulation.spec.js:146:3 \u203a Surfer Lockout Redirection \u203a non-admin surfer is locked out of admin dashboard and can redirect back (2.1s)",
-      "\u2713  73 [Desktop Firefox] \u203a e2e/weather-simulation.spec.js:185:3 \u203a Admin Console Operations \u203a admin simulation engine executes weather swell spike scenario (14.1s)",
-      "\u2713  74 [Desktop Firefox] \u203a e2e/weather-simulation.spec.js:231:3 \u203a Admin Console Operations \u203a admin diagnostics telemetry refresh synchronizes panel (13.0s)",
-      "\u2713  75 [Desktop Firefox] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (12.8s)",
-      "-  76 [Desktop Firefox] \u203a e2e/weather-simulation.spec.js:362:3 \u203a Standard Surfer Map Controls \u203a surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
-      "-  77 [Desktop Firefox] \u203a e2e/weather-simulation.spec.js:584:8 \u203a Rendered-field pixel truth (executed GL) \u203a the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
-      "\u2713  78 [Desktop Safari] \u203a e2e/booking-flow.spec.js:55:3 \u203a Anonymous access control \u203a explore is auth-gated and redirects an anonymous visitor to /auth (2.8s)",
-      "\u2713  79 [Desktop Safari] \u203a e2e/booking-flow.spec.js:73:3 \u203a Anonymous access control \u203a the auth page offers both login and signup (2.0s)",
-      "\u2713  80 [Desktop Safari] \u203a e2e/booking-flow.spec.js:81:3 \u203a Anonymous access control \u203a signup offers the three account categories (1.8s)",
-      "\u2713  81 [Desktop Safari] \u203a e2e/booking-flow.spec.js:100:3 \u203a Explore \u203a explore shows the search input (3.7s)",
-      "\u2713  82 [Desktop Safari] \u203a e2e/booking-flow.spec.js:104:3 \u203a Explore \u203a spot cards are visible on explore (3.5s)",
-      "\u2718  83 [Desktop Safari] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (1.1m)",
-      "\u2718  84 [Desktop Safari] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #1) (21.4s)",
-      "\u2718  85 [Desktop Safari] \u203a e2e/booking-flow.spec.js:128:3 \u203a Explore \u203a clicking a spot opens its spot hub (retry #2) (1.1m)",
-      "\u2713  86 [Desktop Safari] \u203a e2e/booking-flow.spec.js:135:3 \u203a Explore \u203a navigation is present, and it is the RIGHT nav for the viewport (3.6s)",
-      "\u2713  87 [Desktop Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a network preserves a manual recovery path (4.2s)",
-      "\u2713  88 [Desktop Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a 503 preserves a manual recovery path (4.2s)",
-      "\u2713  89 [Desktop Safari] \u203a e2e/booking-flow.spec.js:167:5 \u203a Spot hub transport recovery \u203a timeout preserves a manual recovery path (3.9s)",
-      "\u2718  90 [Desktop Safari] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan (1.6m)",
-      "\u2718  91 [Desktop Safari] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan (retry #1) (39.0s)",
-      "\u2718  92 [Desktop Safari] \u203a e2e/marine-render-continuity.spec.js:263:3 \u203a Marine render continuity across real gestures \u203a the marine field keeps drawing while toggling layers, models, zoom and pan (retry #2) (1.6m)",
-      "\u2718  93 [Desktop Safari] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12 (1.1m)",
-      "\u2718  94 [Desktop Safari] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12 (retry #1) (39.5s)",
-      "\u2718  95 [Desktop Safari] \u203a e2e/marine-render-continuity.spec.js:405:3 \u203a Marine render continuity under a rapid zoom/pan burst \u203a the field and the band survive a fast burst at Sebastian Inlet z12 (retry #2) (1.7m)",
-      "\u2713  96 [Desktop Safari] \u203a e2e/weather-simulation.spec.js:146:3 \u203a Surfer Lockout Redirection \u203a non-admin surfer is locked out of admin dashboard and can redirect back (2.8s)",
-      "\u2713  97 [Desktop Safari] \u203a e2e/weather-simulation.spec.js:185:3 \u203a Admin Console Operations \u203a admin simulation engine executes weather swell spike scenario (6.1s)",
-      "\u2713  98 [Desktop Safari] \u203a e2e/weather-simulation.spec.js:231:3 \u203a Admin Console Operations \u203a admin diagnostics telemetry refresh synchronizes panel (6.4s)",
-      "\u2718  99 [Desktop Safari] \u203a e2e/weather-simulation.spec.js:270:3 \u203a Standard Surfer Map Controls \u203a standard surfer map controls model selection, layer toggle, and timeline scrubbing (9.5s)"
+      "✓   1 [Mobile Safari] › e2e/booking-flow.spec.js:55:3 › Anonymous access control › explore is auth-gated and redirects an anonymous visitor to /auth (6.2s)",
+      "✓   2 [Mobile Safari] › e2e/booking-flow.spec.js:73:3 › Anonymous access control › the auth page offers both login and signup (2.7s)",
+      "✓   3 [Mobile Safari] › e2e/booking-flow.spec.js:81:3 › Anonymous access control › signup offers the three account categories (2.6s)",
+      "✓   4 [Mobile Safari] › e2e/booking-flow.spec.js:100:3 › Explore › explore shows the search input (3.6s)",
+      "✓   5 [Mobile Safari] › e2e/booking-flow.spec.js:104:3 › Explore › spot cards are visible on explore (3.8s)",
+      "✘   6 [Mobile Safari] › e2e/booking-flow.spec.js:128:3 › Explore › clicking a spot opens its spot hub (1.1m)",
+      "✘   7 [Mobile Safari] › e2e/booking-flow.spec.js:128:3 › Explore › clicking a spot opens its spot hub (retry #1) (1.1m)",
+      "✘   8 [Mobile Safari] › e2e/booking-flow.spec.js:128:3 › Explore › clicking a spot opens its spot hub (retry #2) (1.1m)",
+      "✓   9 [Mobile Safari] › e2e/booking-flow.spec.js:135:3 › Explore › navigation is present, and it is the RIGHT nav for the viewport (3.8s)",
+      "✘  10 [Mobile Safari] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › network preserves a manual recovery path (1.6m)",
+      "✓  11 [Mobile Safari] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › network preserves a manual recovery path (retry #1) (4.3s)",
+      "✓  12 [Mobile Safari] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › 503 preserves a manual recovery path (4.1s)",
+      "✓  13 [Mobile Safari] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › timeout preserves a manual recovery path (3.9s)",
+      "-  14 [Mobile Safari] › e2e/marine-render-continuity.spec.js:263:3 › Marine render continuity across real gestures › the marine field keeps drawing while toggling layers, models, zoom and pan",
+      "-  15 [Mobile Safari] › e2e/marine-render-continuity.spec.js:405:3 › Marine render continuity under a rapid zoom/pan burst › the field and the band survive a fast burst at Sebastian Inlet z12",
+      "✓  16 [Mobile Safari] › e2e/weather-simulation.spec.js:146:3 › Surfer Lockout Redirection › non-admin surfer is locked out of admin dashboard and can redirect back (2.5s)",
+      "✓  17 [Mobile Safari] › e2e/weather-simulation.spec.js:185:3 › Admin Console Operations › admin simulation engine executes weather swell spike scenario (6.3s)",
+      "✓  18 [Mobile Safari] › e2e/weather-simulation.spec.js:231:3 › Admin Console Operations › admin diagnostics telemetry refresh synchronizes panel (4.5s)",
+      "✘  19 [Mobile Safari] › e2e/weather-simulation.spec.js:270:3 › Standard Surfer Map Controls › standard surfer map controls model selection, layer toggle, and timeline scrubbing (9.7s)",
+      "✘  20 [Mobile Safari] › e2e/weather-simulation.spec.js:270:3 › Standard Surfer Map Controls › standard surfer map controls model selection, layer toggle, and timeline scrubbing (retry #1) (10.1s)",
+      "✘  21 [Mobile Safari] › e2e/weather-simulation.spec.js:270:3 › Standard Surfer Map Controls › standard surfer map controls model selection, layer toggle, and timeline scrubbing (retry #2) (9.7s)",
+      "✘  22 [Mobile Safari] › e2e/weather-simulation.spec.js:362:3 › Standard Surfer Map Controls › surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (9.4s)",
+      "✘  23 [Mobile Safari] › e2e/weather-simulation.spec.js:362:3 › Standard Surfer Map Controls › surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (retry #1) (19.3s)",
+      "✘  24 [Mobile Safari] › e2e/weather-simulation.spec.js:362:3 › Standard Surfer Map Controls › surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (retry #2) (5.0s)",
+      "-  25 [Mobile Safari] › e2e/weather-simulation.spec.js:584:8 › Rendered-field pixel truth (executed GL) › the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+      "✓  26 [Desktop Chrome] › e2e/booking-flow.spec.js:55:3 › Anonymous access control › explore is auth-gated and redirects an anonymous visitor to /auth (955ms)",
+      "✓  27 [Desktop Chrome] › e2e/booking-flow.spec.js:73:3 › Anonymous access control › the auth page offers both login and signup (786ms)",
+      "✓  28 [Desktop Chrome] › e2e/booking-flow.spec.js:81:3 › Anonymous access control › signup offers the three account categories (767ms)",
+      "✓  29 [Desktop Chrome] › e2e/booking-flow.spec.js:100:3 › Explore › explore shows the search input (2.4s)",
+      "✓  30 [Desktop Chrome] › e2e/booking-flow.spec.js:104:3 › Explore › spot cards are visible on explore (2.5s)",
+      "✘  31 [Desktop Chrome] › e2e/booking-flow.spec.js:128:3 › Explore › clicking a spot opens its spot hub (1.1m)",
+      "✘  32 [Desktop Chrome] › e2e/booking-flow.spec.js:128:3 › Explore › clicking a spot opens its spot hub (retry #1) (1.1m)",
+      "✘  33 [Desktop Chrome] › e2e/booking-flow.spec.js:128:3 › Explore › clicking a spot opens its spot hub (retry #2) (1.1m)",
+      "✓  34 [Desktop Chrome] › e2e/booking-flow.spec.js:135:3 › Explore › navigation is present, and it is the RIGHT nav for the viewport (2.4s)",
+      "✓  35 [Desktop Chrome] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › network preserves a manual recovery path (2.1s)",
+      "✓  36 [Desktop Chrome] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › 503 preserves a manual recovery path (2.3s)",
+      "✘  37 [Desktop Chrome] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › timeout preserves a manual recovery path (28.1s)",
+      "✘  38 [Desktop Chrome] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › timeout preserves a manual recovery path (retry #1) (28.5s)",
+      "✘  39 [Desktop Chrome] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › timeout preserves a manual recovery path (retry #2) (28.4s)",
+      "✘  40 [Desktop Chrome] › e2e/marine-render-continuity.spec.js:263:3 › Marine render continuity across real gestures › the marine field keeps drawing while toggling layers, models, zoom and pan (3.6s)",
+      "✘  41 [Desktop Chrome] › e2e/marine-render-continuity.spec.js:263:3 › Marine render continuity across real gestures › the marine field keeps drawing while toggling layers, models, zoom and pan (retry #1) (35.6s)",
+      "✘  42 [Desktop Chrome] › e2e/marine-render-continuity.spec.js:263:3 › Marine render continuity across real gestures › the marine field keeps drawing while toggling layers, models, zoom and pan (retry #2) (1.6m)",
+      "✘  43 [Desktop Chrome] › e2e/marine-render-continuity.spec.js:405:3 › Marine render continuity under a rapid zoom/pan burst › the field and the band survive a fast burst at Sebastian Inlet z12 (3.5s)",
+      "✘  44 [Desktop Chrome] › e2e/marine-render-continuity.spec.js:405:3 › Marine render continuity under a rapid zoom/pan burst › the field and the band survive a fast burst at Sebastian Inlet z12 (retry #1) (35.1s)",
+      "✘  45 [Desktop Chrome] › e2e/marine-render-continuity.spec.js:405:3 › Marine render continuity under a rapid zoom/pan burst › the field and the band survive a fast burst at Sebastian Inlet z12 (retry #2) (34.2s)",
+      "✓  46 [Desktop Chrome] › e2e/weather-simulation.spec.js:146:3 › Surfer Lockout Redirection › non-admin surfer is locked out of admin dashboard and can redirect back (2.1s)",
+      "✓  47 [Desktop Chrome] › e2e/weather-simulation.spec.js:185:3 › Admin Console Operations › admin simulation engine executes weather swell spike scenario (13.2s)",
+      "✓  48 [Desktop Chrome] › e2e/weather-simulation.spec.js:231:3 › Admin Console Operations › admin diagnostics telemetry refresh synchronizes panel (12.6s)",
+      "✘  49 [Desktop Chrome] › e2e/weather-simulation.spec.js:270:3 › Standard Surfer Map Controls › standard surfer map controls model selection, layer toggle, and timeline scrubbing (13.3s)",
+      "✘  50 [Desktop Chrome] › e2e/weather-simulation.spec.js:270:3 › Standard Surfer Map Controls › standard surfer map controls model selection, layer toggle, and timeline scrubbing (retry #1) (18.8s)",
+      "✘  51 [Desktop Chrome] › e2e/weather-simulation.spec.js:270:3 › Standard Surfer Map Controls › standard surfer map controls model selection, layer toggle, and timeline scrubbing (retry #2) (2.1m)",
+      "✘  52 [Desktop Chrome] › e2e/weather-simulation.spec.js:362:3 › Standard Surfer Map Controls › surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (13.5s)",
+      "✘  53 [Desktop Chrome] › e2e/weather-simulation.spec.js:362:3 › Standard Surfer Map Controls › surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (retry #1) (4.2m)",
+      "✘  54 [Desktop Chrome] › e2e/weather-simulation.spec.js:362:3 › Standard Surfer Map Controls › surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas (retry #2) (4.2m)",
+      "-  55 [Desktop Chrome] › e2e/weather-simulation.spec.js:584:8 › Rendered-field pixel truth (executed GL) › the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+      "✓  56 [Desktop Firefox] › e2e/booking-flow.spec.js:55:3 › Anonymous access control › explore is auth-gated and redirects an anonymous visitor to /auth (2.3s)",
+      "✓  57 [Desktop Firefox] › e2e/booking-flow.spec.js:73:3 › Anonymous access control › the auth page offers both login and signup (1.1s)",
+      "✓  58 [Desktop Firefox] › e2e/booking-flow.spec.js:81:3 › Anonymous access control › signup offers the three account categories (1.1s)",
+      "✓  59 [Desktop Firefox] › e2e/booking-flow.spec.js:100:3 › Explore › explore shows the search input (2.9s)",
+      "✓  60 [Desktop Firefox] › e2e/booking-flow.spec.js:104:3 › Explore › spot cards are visible on explore (2.8s)",
+      "✘  61 [Desktop Firefox] › e2e/booking-flow.spec.js:128:3 › Explore › clicking a spot opens its spot hub (1.0m)",
+      "✘  62 [Desktop Firefox] › e2e/booking-flow.spec.js:128:3 › Explore › clicking a spot opens its spot hub (retry #1) (1.1m)",
+      "✘  63 [Desktop Firefox] › e2e/booking-flow.spec.js:128:3 › Explore › clicking a spot opens its spot hub (retry #2) (1.1m)",
+      "✓  64 [Desktop Firefox] › e2e/booking-flow.spec.js:135:3 › Explore › navigation is present, and it is the RIGHT nav for the viewport (3.0s)",
+      "✓  65 [Desktop Firefox] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › network preserves a manual recovery path (2.7s)",
+      "✓  66 [Desktop Firefox] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › 503 preserves a manual recovery path (2.7s)",
+      "✘  67 [Desktop Firefox] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › timeout preserves a manual recovery path (27.4s)",
+      "✘  68 [Desktop Firefox] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › timeout preserves a manual recovery path (retry #1) (28.9s)",
+      "✘  69 [Desktop Firefox] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › timeout preserves a manual recovery path (retry #2) (28.4s)",
+      "-  70 [Desktop Firefox] › e2e/marine-render-continuity.spec.js:263:3 › Marine render continuity across real gestures › the marine field keeps drawing while toggling layers, models, zoom and pan",
+      "-  71 [Desktop Firefox] › e2e/marine-render-continuity.spec.js:405:3 › Marine render continuity under a rapid zoom/pan burst › the field and the band survive a fast burst at Sebastian Inlet z12",
+      "✓  72 [Desktop Firefox] › e2e/weather-simulation.spec.js:146:3 › Surfer Lockout Redirection › non-admin surfer is locked out of admin dashboard and can redirect back (2.1s)",
+      "✓  73 [Desktop Firefox] › e2e/weather-simulation.spec.js:185:3 › Admin Console Operations › admin simulation engine executes weather swell spike scenario (14.1s)",
+      "✓  74 [Desktop Firefox] › e2e/weather-simulation.spec.js:231:3 › Admin Console Operations › admin diagnostics telemetry refresh synchronizes panel (13.0s)",
+      "✓  75 [Desktop Firefox] › e2e/weather-simulation.spec.js:270:3 › Standard Surfer Map Controls › standard surfer map controls model selection, layer toggle, and timeline scrubbing (12.8s)",
+      "-  76 [Desktop Firefox] › e2e/weather-simulation.spec.js:362:3 › Standard Surfer Map Controls › surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+      "-  77 [Desktop Firefox] › e2e/weather-simulation.spec.js:584:8 › Rendered-field pixel truth (executed GL) › the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+      "✓  78 [Desktop Safari] › e2e/booking-flow.spec.js:55:3 › Anonymous access control › explore is auth-gated and redirects an anonymous visitor to /auth (2.8s)",
+      "✓  79 [Desktop Safari] › e2e/booking-flow.spec.js:73:3 › Anonymous access control › the auth page offers both login and signup (2.0s)",
+      "✓  80 [Desktop Safari] › e2e/booking-flow.spec.js:81:3 › Anonymous access control › signup offers the three account categories (1.8s)",
+      "✓  81 [Desktop Safari] › e2e/booking-flow.spec.js:100:3 › Explore › explore shows the search input (3.7s)",
+      "✓  82 [Desktop Safari] › e2e/booking-flow.spec.js:104:3 › Explore › spot cards are visible on explore (3.5s)",
+      "✘  83 [Desktop Safari] › e2e/booking-flow.spec.js:128:3 › Explore › clicking a spot opens its spot hub (1.1m)",
+      "✘  84 [Desktop Safari] › e2e/booking-flow.spec.js:128:3 › Explore › clicking a spot opens its spot hub (retry #1) (21.4s)",
+      "✘  85 [Desktop Safari] › e2e/booking-flow.spec.js:128:3 › Explore › clicking a spot opens its spot hub (retry #2) (1.1m)",
+      "✓  86 [Desktop Safari] › e2e/booking-flow.spec.js:135:3 › Explore › navigation is present, and it is the RIGHT nav for the viewport (3.6s)",
+      "✓  87 [Desktop Safari] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › network preserves a manual recovery path (4.2s)",
+      "✓  88 [Desktop Safari] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › 503 preserves a manual recovery path (4.2s)",
+      "✓  89 [Desktop Safari] › e2e/booking-flow.spec.js:167:5 › Spot hub transport recovery › timeout preserves a manual recovery path (3.9s)",
+      "✘  90 [Desktop Safari] › e2e/marine-render-continuity.spec.js:263:3 › Marine render continuity across real gestures › the marine field keeps drawing while toggling layers, models, zoom and pan (1.6m)",
+      "✘  91 [Desktop Safari] › e2e/marine-render-continuity.spec.js:263:3 › Marine render continuity across real gestures › the marine field keeps drawing while toggling layers, models, zoom and pan (retry #1) (39.0s)",
+      "✘  92 [Desktop Safari] › e2e/marine-render-continuity.spec.js:263:3 › Marine render continuity across real gestures › the marine field keeps drawing while toggling layers, models, zoom and pan (retry #2) (1.6m)",
+      "✘  93 [Desktop Safari] › e2e/marine-render-continuity.spec.js:405:3 › Marine render continuity under a rapid zoom/pan burst › the field and the band survive a fast burst at Sebastian Inlet z12 (1.1m)",
+      "✘  94 [Desktop Safari] › e2e/marine-render-continuity.spec.js:405:3 › Marine render continuity under a rapid zoom/pan burst › the field and the band survive a fast burst at Sebastian Inlet z12 (retry #1) (39.5s)",
+      "✘  95 [Desktop Safari] › e2e/marine-render-continuity.spec.js:405:3 › Marine render continuity under a rapid zoom/pan burst › the field and the band survive a fast burst at Sebastian Inlet z12 (retry #2) (1.7m)",
+      "✓  96 [Desktop Safari] › e2e/weather-simulation.spec.js:146:3 › Surfer Lockout Redirection › non-admin surfer is locked out of admin dashboard and can redirect back (2.8s)",
+      "✓  97 [Desktop Safari] › e2e/weather-simulation.spec.js:185:3 › Admin Console Operations › admin simulation engine executes weather swell spike scenario (6.1s)",
+      "✓  98 [Desktop Safari] › e2e/weather-simulation.spec.js:231:3 › Admin Console Operations › admin diagnostics telemetry refresh synchronizes panel (6.4s)",
+      "✘  99 [Desktop Safari] › e2e/weather-simulation.spec.js:270:3 › Standard Surfer Map Controls › standard surfer map controls model selection, layer toggle, and timeline scrubbing (9.5s)"
     ],
     "scope": "attempt rows only, no full verdict aggregate/artifact on job timeout",
     "reason": "50-minute job bound, trace upload did not run"
@@ -845,7 +845,7 @@
         "annotations": [
           {
             "type": "skip",
-            "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads"
+            "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads"
           }
         ]
       },
@@ -857,7 +857,7 @@
         "annotations": [
           {
             "type": "skip",
-            "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads"
+            "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads"
           }
         ]
       },
@@ -869,7 +869,7 @@
         "annotations": [
           {
             "type": "skip",
-            "description": "no WebGL on this runner \u2014 this would measure the runner, not the app"
+            "description": "no WebGL on this runner — this would measure the runner, not the app"
           }
         ]
       },
@@ -881,7 +881,7 @@
         "annotations": [
           {
             "type": "skip",
-            "description": "no WebGL on this runner \u2014 this would measure the runner, not the app"
+            "description": "no WebGL on this runner — this would measure the runner, not the app"
           }
         ]
       },
@@ -917,7 +917,7 @@
         "annotations": [
           {
             "type": "skip",
-            "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app"
+            "description": "no WebGL context on this runner — the marine overlay cannot render, so every assertion below would measure the runner, not the app"
           }
         ]
       },
@@ -1247,7 +1247,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 282,
@@ -1263,7 +1263,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 418,
@@ -1279,7 +1279,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "description": "no WebGL on this runner — this would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 280,
@@ -1295,7 +1295,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "description": "no WebGL on this runner — this would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 416,
@@ -1341,7 +1341,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app",
+              "description": "no WebGL context on this runner — the marine overlay cannot render, so every assertion below would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
                 "line": 417,
@@ -2094,7 +2094,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 282,
@@ -2110,7 +2110,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 418,
@@ -2126,7 +2126,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "description": "no WebGL on this runner — this would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 280,
@@ -2142,7 +2142,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "description": "no WebGL on this runner — this would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 416,
@@ -2188,7 +2188,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app",
+              "description": "no WebGL context on this runner — the marine overlay cannot render, so every assertion below would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
                 "line": 417,
@@ -2314,7 +2314,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 282,
@@ -2330,7 +2330,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 418,
@@ -2346,7 +2346,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "description": "no WebGL on this runner — this would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 280,
@@ -2362,7 +2362,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "description": "no WebGL on this runner — this would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 416,
@@ -2408,7 +2408,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app",
+              "description": "no WebGL context on this runner — the marine overlay cannot render, so every assertion below would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
                 "line": 417,
@@ -2807,7 +2807,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 282,
@@ -2823,7 +2823,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 418,
@@ -2839,7 +2839,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "description": "no WebGL on this runner — this would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 280,
@@ -2855,7 +2855,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "description": "no WebGL on this runner — this would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 416,
@@ -2901,7 +2901,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app",
+              "description": "no WebGL context on this runner — the marine overlay cannot render, so every assertion below would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
                 "line": 417,
@@ -3085,7 +3085,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 282,
@@ -3101,7 +3101,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 418,
@@ -3117,7 +3117,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "description": "no WebGL on this runner — this would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 280,
@@ -3133,7 +3133,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "description": "no WebGL on this runner — this would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 416,
@@ -3179,7 +3179,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app",
+              "description": "no WebGL context on this runner — the marine overlay cannot render, so every assertion below would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
                 "line": 417,
@@ -3698,7 +3698,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 282,
@@ -3714,7 +3714,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "desktop layout only \u2014 the mobile bottom sheet adds motion this oracle misreads",
+              "description": "desktop layout only — the mobile bottom sheet adds motion this oracle misreads",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 418,
@@ -3730,7 +3730,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "description": "no WebGL on this runner — this would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 280,
@@ -3746,7 +3746,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL on this runner \u2014 this would measure the runner, not the app",
+              "description": "no WebGL on this runner — this would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/marine-render-continuity.spec.js",
                 "line": 416,
@@ -3792,7 +3792,7 @@
           "annotations": [
             {
               "type": "skip",
-              "description": "no WebGL context on this runner \u2014 the marine overlay cannot render, so every assertion below would measure the runner, not the app",
+              "description": "no WebGL context on this runner — the marine overlay cannot render, so every assertion below would measure the runner, not the app",
               "location": {
                 "file": "/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/frontend/e2e/weather-simulation.spec.js",
                 "line": 417,
@@ -6506,7 +6506,52 @@
         }
       ]
     },
-    "live_after": "pending"
+    "live_after": {
+      "observed_at": "2026-10-04T01:10:48.125874+00:00",
+      "rows": [
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+          "health": "healthy",
+          "rss_mb": 633.2,
+          "total": {
+            "n": 345,
+            "err_5xx": 0,
+            "p50_ms": 50.0,
+            "p95_ms": 5000.0,
+            "p99_ms": 55532.3,
+            "max_ms": 55532.3,
+            "over_5000ms": 11,
+            "p99_ge_ms": 10000.0,
+            "over_10000ms": 4
+          },
+          "started_at": 1791075995.746555,
+          "anonymous_badge": 401,
+          "unsigned_stripe": 400
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+          "health": "healthy",
+          "rss_mb": 632.9,
+          "total": {
+            "n": 362,
+            "err_5xx": 0,
+            "p50_ms": 50.0,
+            "p95_ms": 5000.0,
+            "p99_ms": 55532.3,
+            "max_ms": 55532.3,
+            "over_5000ms": 15,
+            "p99_ge_ms": 10000.0,
+            "over_10000ms": 4
+          },
+          "started_at": 1791075995.746555,
+          "anonymous_badge": 401,
+          "unsigned_stripe": 400
+        }
+      ],
+      "limit": "Actual unsigned negative controls only; no cryptographic-positive processor/customer fulfillment claim."
+    }
   },
   "icon_dev_promotion": {
     "owner_authorized": true,
@@ -6536,6 +6581,1301 @@
       299,
       2916
     ],
-    "live_after": "pending"
+    "live_after": "pending",
+    "pr": 241,
+    "head": "00549cc2e5e3140a1b152f3008967dd186b54c90",
+    "hosted_frontend": [
+      330,
+      3399
+    ],
+    "live_before": {
+      "observed_at": "2026-10-04T01:20:11.077728+00:00",
+      "anchor": "2026-10-04T01:00:00+00:00",
+      "rows": [
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+          "model": "ICON",
+          "layer": "waves",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 146,
+          "max_offshore_m": 2.3265,
+          "product_id": "icon_marine_waves_global_mid_20261011T120000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T12:00:00+00:00",
+            "layer": "waves",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_waves_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_waves_global_mid_20261011T120000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.4,
+              "gfs": 0.6,
+              "icon": 0.0
+            },
+            "confidence": 0.85,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T12:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_waves_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 2.420335
+        },
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+          "model": "ICON",
+          "layer": "swell_1",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 141,
+          "max_offshore_m": 1.7214,
+          "product_id": "icon_marine_swell_1_global_mid_20261011T120000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T12:00:00+00:00",
+            "layer": "swell_1",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_swell_1_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_swell_1_global_mid_20261011T120000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.4,
+              "gfs": 0.6,
+              "icon": 0.0
+            },
+            "confidence": 0.85,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T12:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_swell_1_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 1.814556
+        },
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+          "model": "ICON",
+          "layer": "wind_waves",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 146,
+          "max_offshore_m": 2.1952,
+          "product_id": "icon_marine_wind_waves_global_mid_20261011T120000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T12:00:00+00:00",
+            "layer": "wind_waves",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_wind_waves_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_wind_waves_global_mid_20261011T120000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.4,
+              "gfs": 0.6,
+              "icon": 0.0
+            },
+            "confidence": 0.85,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T12:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_wind_waves_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 1.169491
+        },
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+          "model": "ICON",
+          "layer": "waves",
+          "hour": 168,
+          "requested": "2026-10-11T01:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 146,
+          "max_offshore_m": 2.3087,
+          "product_id": "icon_marine_waves_global_mid_20261011T000000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T00:00:00Z",
+          "valid_time": "2026-10-11T01:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T00:00:00+00:00",
+            "layer": "waves",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_waves_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_waves_global_mid_20261011T000000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.55,
+              "gfs": 0.45,
+              "icon": 0.0
+            },
+            "confidence": 0.925,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T00:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_waves_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 1.981847
+        },
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+          "model": "GFS",
+          "layer": "waves",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 144,
+          "max_offshore_m": 2.5372,
+          "product_id": "gfs_marine_waves_global_mid_20261011T120000Z.json",
+          "run_time": "2026-10-03T22:46:02.344751Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": false,
+          "estimate_basis": null,
+          "elapsed_s": 0.446984
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+          "model": "ICON",
+          "layer": "waves",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 146,
+          "max_offshore_m": 2.3265,
+          "product_id": "icon_marine_waves_global_mid_20261011T120000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T12:00:00+00:00",
+            "layer": "waves",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_waves_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_waves_global_mid_20261011T120000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.4,
+              "gfs": 0.6,
+              "icon": 0.0
+            },
+            "confidence": 0.85,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T12:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_waves_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 0.189848
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+          "model": "ICON",
+          "layer": "swell_1",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 141,
+          "max_offshore_m": 1.7214,
+          "product_id": "icon_marine_swell_1_global_mid_20261011T120000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T12:00:00+00:00",
+            "layer": "swell_1",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_swell_1_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_swell_1_global_mid_20261011T120000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.4,
+              "gfs": 0.6,
+              "icon": 0.0
+            },
+            "confidence": 0.85,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T12:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_swell_1_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 0.246465
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+          "model": "ICON",
+          "layer": "wind_waves",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 146,
+          "max_offshore_m": 2.1952,
+          "product_id": "icon_marine_wind_waves_global_mid_20261011T120000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T12:00:00+00:00",
+            "layer": "wind_waves",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_wind_waves_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_wind_waves_global_mid_20261011T120000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.4,
+              "gfs": 0.6,
+              "icon": 0.0
+            },
+            "confidence": 0.85,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T12:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_wind_waves_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 0.189775
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+          "model": "ICON",
+          "layer": "waves",
+          "hour": 168,
+          "requested": "2026-10-11T01:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 146,
+          "max_offshore_m": 2.3087,
+          "product_id": "icon_marine_waves_global_mid_20261011T000000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T00:00:00Z",
+          "valid_time": "2026-10-11T01:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T00:00:00+00:00",
+            "layer": "waves",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_waves_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_waves_global_mid_20261011T000000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.55,
+              "gfs": 0.45,
+              "icon": 0.0
+            },
+            "confidence": 0.925,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T00:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_waves_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 0.18919
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+          "model": "GFS",
+          "layer": "waves",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 144,
+          "max_offshore_m": 2.5372,
+          "product_id": "gfs_marine_waves_global_mid_20261011T120000Z.json",
+          "run_time": "2026-10-03T22:46:02.344751Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": false,
+          "estimate_basis": null,
+          "elapsed_s": 0.219824
+        }
+      ],
+      "limits": "Public stored product HTTP acceptance over one regional window; no browser rendering or forecast skill claim; wave heights offshore."
+    },
+    "point_legacy_boundary_open": true
+  },
+  "pr239_browser_actual": {
+    "run": 37165575148,
+    "head": "22f84f9923bf445343b0b4816653f53dfb0857d3",
+    "stats": {
+      "total": 72,
+      "expected": 62,
+      "unexpected": 0,
+      "flaky": 1,
+      "skipped": 9,
+      "ok": false
+    },
+    "nonpassing": [
+      {
+        "title": "clicking a spot opens its spot hub",
+        "projectName": "Desktop Chrome",
+        "outcome": "flaky"
+      },
+      {
+        "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+        "projectName": "Mobile Safari",
+        "outcome": "skipped"
+      },
+      {
+        "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+        "projectName": "Mobile Safari",
+        "outcome": "skipped"
+      },
+      {
+        "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+        "projectName": "Desktop Firefox",
+        "outcome": "skipped"
+      },
+      {
+        "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+        "projectName": "Desktop Firefox",
+        "outcome": "skipped"
+      },
+      {
+        "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+        "projectName": "Mobile Safari",
+        "outcome": "skipped"
+      },
+      {
+        "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+        "projectName": "Desktop Chrome",
+        "outcome": "skipped"
+      },
+      {
+        "title": "surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+        "projectName": "Desktop Firefox",
+        "outcome": "skipped"
+      },
+      {
+        "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+        "projectName": "Desktop Firefox",
+        "outcome": "skipped"
+      },
+      {
+        "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+        "projectName": "Desktop Safari",
+        "outcome": "skipped"
+      }
+    ],
+    "limits": "CI continuity controls disable the FPS guardrail and existing skips remain; not default-device live graphical acceptance."
+  },
+  "current_verified_at": "2026-10-04T01:54:04.877973+00:00",
+  "dev_icon_rollout_after241": {
+    "pr": 241,
+    "checked_head": "00549cc2e5e3140a1b152f3008967dd186b54c90",
+    "merge": "6b062e9709559adfe26215e4668a747e7eef58bb",
+    "merged_at": "2026-10-04T01:27:20Z",
+    "dev_only": true,
+    "other_scientific_flags_unchanged": true,
+    "remote_netlify_env_saved": false,
+    "compiled_scope_actual": {
+      "observed_at": "2026-10-04T01:32:25.801275+00:00",
+      "rows": [
+        {
+          "round": 1,
+          "surface": "dev",
+          "build": "6b062e97",
+          "map_asset": "/static/js/6530.a1d0c9b6.chunk.js",
+          "sha256": "14bcc762885fd085d8d1063576f3b1d6364a78910b66dd59c12943f6b358cdb9",
+          "primary_grid_legacy_branch_bypassed": true,
+          "secondary_guard_present": true,
+          "dispatch_interpretation": "primary stored path enabled"
+        },
+        {
+          "round": 1,
+          "surface": "preview",
+          "build": "00549cc2",
+          "map_asset": "/static/js/6530.58a57c50.chunk.js",
+          "sha256": "444173a3487ff6b5cc35237d3e127ec70f7adaaa236977533287024fc1dfb353",
+          "primary_grid_legacy_branch_bypassed": false,
+          "secondary_guard_present": true,
+          "dispatch_interpretation": "primary stored path remains dark"
+        },
+        {
+          "round": 1,
+          "surface": "production",
+          "build": "fc140024"
+        },
+        {
+          "round": 2,
+          "surface": "dev",
+          "build": "6b062e97",
+          "map_asset": "/static/js/6530.a1d0c9b6.chunk.js",
+          "sha256": "14bcc762885fd085d8d1063576f3b1d6364a78910b66dd59c12943f6b358cdb9",
+          "primary_grid_legacy_branch_bypassed": true,
+          "secondary_guard_present": true,
+          "dispatch_interpretation": "primary stored path enabled"
+        },
+        {
+          "round": 2,
+          "surface": "preview",
+          "build": "00549cc2",
+          "map_asset": "/static/js/6530.58a57c50.chunk.js",
+          "sha256": "444173a3487ff6b5cc35237d3e127ec70f7adaaa236977533287024fc1dfb353",
+          "primary_grid_legacy_branch_bypassed": false,
+          "secondary_guard_present": true,
+          "dispatch_interpretation": "primary stored path remains dark"
+        },
+        {
+          "round": 2,
+          "surface": "production",
+          "build": "fc140024"
+        }
+      ],
+      "limit": "Specific actual emitted grid dispatch condition; legacy exact-point adapter and forecast skill unverified."
+    },
+    "stored_http_after": {
+      "observed_at": "2026-10-04T01:32:58.103787+00:00",
+      "anchor": "2026-10-04T01:00:00+00:00",
+      "rows": [
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-6b062e9709559adfe26215e4668a747e7eef58bb",
+          "model": "ICON",
+          "layer": "waves",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 146,
+          "max_offshore_m": 2.3265,
+          "product_id": "icon_marine_waves_global_mid_20261011T120000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T12:00:00+00:00",
+            "layer": "waves",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_waves_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_waves_global_mid_20261011T120000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.4,
+              "gfs": 0.6,
+              "icon": 0.0
+            },
+            "confidence": 0.85,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T12:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_waves_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 0.855532
+        },
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-6b062e9709559adfe26215e4668a747e7eef58bb",
+          "model": "ICON",
+          "layer": "swell_1",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 141,
+          "max_offshore_m": 1.7214,
+          "product_id": "icon_marine_swell_1_global_mid_20261011T120000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T12:00:00+00:00",
+            "layer": "swell_1",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_swell_1_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_swell_1_global_mid_20261011T120000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.4,
+              "gfs": 0.6,
+              "icon": 0.0
+            },
+            "confidence": 0.85,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T12:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_swell_1_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 0.864444
+        },
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-6b062e9709559adfe26215e4668a747e7eef58bb",
+          "model": "ICON",
+          "layer": "wind_waves",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 146,
+          "max_offshore_m": 2.1952,
+          "product_id": "icon_marine_wind_waves_global_mid_20261011T120000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T12:00:00+00:00",
+            "layer": "wind_waves",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_wind_waves_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_wind_waves_global_mid_20261011T120000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.4,
+              "gfs": 0.6,
+              "icon": 0.0
+            },
+            "confidence": 0.85,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T12:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_wind_waves_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 2.022094
+        },
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-6b062e9709559adfe26215e4668a747e7eef58bb",
+          "model": "ICON",
+          "layer": "waves",
+          "hour": 168,
+          "requested": "2026-10-11T01:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 146,
+          "max_offshore_m": 2.3087,
+          "product_id": "icon_marine_waves_global_mid_20261011T000000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T00:00:00Z",
+          "valid_time": "2026-10-11T01:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T00:00:00+00:00",
+            "layer": "waves",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_waves_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_waves_global_mid_20261011T000000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.55,
+              "gfs": 0.45,
+              "icon": 0.0
+            },
+            "confidence": 0.925,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T00:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_waves_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 2.066138
+        },
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-6b062e9709559adfe26215e4668a747e7eef58bb",
+          "model": "GFS",
+          "layer": "waves",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 144,
+          "max_offshore_m": 2.5372,
+          "product_id": "gfs_marine_waves_global_mid_20261011T120000Z.json",
+          "run_time": "2026-10-03T22:46:02.344751Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": false,
+          "estimate_basis": null,
+          "elapsed_s": 0.730019
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-6b062e9709559adfe26215e4668a747e7eef58bb",
+          "model": "ICON",
+          "layer": "waves",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 146,
+          "max_offshore_m": 2.3265,
+          "product_id": "icon_marine_waves_global_mid_20261011T120000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T12:00:00+00:00",
+            "layer": "waves",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_waves_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_waves_global_mid_20261011T120000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.4,
+              "gfs": 0.6,
+              "icon": 0.0
+            },
+            "confidence": 0.85,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T12:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_waves_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 0.630713
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-6b062e9709559adfe26215e4668a747e7eef58bb",
+          "model": "ICON",
+          "layer": "swell_1",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 141,
+          "max_offshore_m": 1.7214,
+          "product_id": "icon_marine_swell_1_global_mid_20261011T120000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T12:00:00+00:00",
+            "layer": "swell_1",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_swell_1_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_swell_1_global_mid_20261011T120000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.4,
+              "gfs": 0.6,
+              "icon": 0.0
+            },
+            "confidence": 0.85,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T12:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_swell_1_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 0.508426
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-6b062e9709559adfe26215e4668a747e7eef58bb",
+          "model": "ICON",
+          "layer": "wind_waves",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 146,
+          "max_offshore_m": 2.1952,
+          "product_id": "icon_marine_wind_waves_global_mid_20261011T120000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T12:00:00+00:00",
+            "layer": "wind_waves",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_wind_waves_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_wind_waves_global_mid_20261011T120000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.4,
+              "gfs": 0.6,
+              "icon": 0.0
+            },
+            "confidence": 0.85,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T12:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_wind_waves_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 0.494722
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-6b062e9709559adfe26215e4668a747e7eef58bb",
+          "model": "ICON",
+          "layer": "waves",
+          "hour": 168,
+          "requested": "2026-10-11T01:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 146,
+          "max_offshore_m": 2.3087,
+          "product_id": "icon_marine_waves_global_mid_20261011T000000Z_estimated.json",
+          "run_time": "2026-10-03T22:27:55.928338Z",
+          "served_valid_time": "2026-10-11T00:00:00Z",
+          "valid_time": "2026-10-11T01:00:00Z",
+          "estimated": true,
+          "estimate_basis": {
+            "type": "icon_persistence_gfs_blend",
+            "target_valid_time": "2026-10-11T00:00:00+00:00",
+            "layer": "waves",
+            "region_id": "global_mid",
+            "tile_id": "global_mid",
+            "native_limit_hours": 168,
+            "gfs_anchor_product_id": "gfs_marine_waves_global_mid_20261010T120000Z.json",
+            "gfs_target_product_id": "gfs_marine_waves_global_mid_20261011T000000Z.json",
+            "icon_anchor_product_id": null,
+            "icon_target_product_id": null,
+            "weights": {
+              "persistence": 0.55,
+              "gfs": 0.45,
+              "icon": 0.0
+            },
+            "confidence": 0.925,
+            "gfs_anchor_valid_time": "2026-10-10T12:00:00+00:00",
+            "icon_anchor_valid_time": null,
+            "gfs_target_valid_time": "2026-10-11T00:00:00+00:00",
+            "icon_target_valid_time": null,
+            "anchor_delta_hours": 0.0,
+            "target_delta_hours": 0.0,
+            "persistence_anchor_product_id": "icon_marine_waves_global_mid_20261010T120000Z.json",
+            "persistence_anchor_valid_time": "2026-10-10T12:00:00+00:00"
+          },
+          "elapsed_s": 0.949415
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-6b062e9709559adfe26215e4668a747e7eef58bb",
+          "model": "GFS",
+          "layer": "waves",
+          "hour": 179,
+          "requested": "2026-10-11T12:00:00Z",
+          "status": 200,
+          "vectors": 182,
+          "nonzero": 144,
+          "max_offshore_m": 2.5372,
+          "product_id": "gfs_marine_waves_global_mid_20261011T120000Z.json",
+          "run_time": "2026-10-03T22:46:02.344751Z",
+          "served_valid_time": "2026-10-11T12:00:00Z",
+          "valid_time": "2026-10-11T12:00:00Z",
+          "estimated": false,
+          "estimate_basis": null,
+          "elapsed_s": 0.273883
+        }
+      ],
+      "limits": "Public stored product HTTP acceptance over one regional window; no browser rendering or forecast skill claim; wave heights offshore."
+    },
+    "health_actual": {
+      "observed_at": "2026-10-04T01:43:09.285668+00:00",
+      "rows": [
+        {
+          "round": 1,
+          "revision": "2.0.0-stage-6f-v1-6b062e9709559adfe26215e4668a747e7eef58bb",
+          "status": "healthy",
+          "rss_mb": 736.6,
+          "total": {
+            "n": 3003,
+            "err_5xx": 0,
+            "p50_ms": 50.0,
+            "p95_ms": 2500.0,
+            "p99_ms": 5000.0,
+            "max_ms": 25929.4,
+            "over_5000ms": 25,
+            "over_10000ms": 11
+          },
+          "badge": 401,
+          "unsigned_stripe": 400
+        },
+        {
+          "round": 2,
+          "revision": "2.0.0-stage-6f-v1-6b062e9709559adfe26215e4668a747e7eef58bb",
+          "status": "healthy",
+          "rss_mb": 736.6,
+          "total": {
+            "n": 3009,
+            "err_5xx": 0,
+            "p50_ms": 50.0,
+            "p95_ms": 2500.0,
+            "p99_ms": 5000.0,
+            "max_ms": 25929.4,
+            "over_5000ms": 25,
+            "over_10000ms": 11
+          },
+          "badge": 401,
+          "unsigned_stripe": 400
+        }
+      ],
+      "limit": "All-route telemetry, unsigned-negative controls; not spot SLO or signed payment fulfillment proof."
+    },
+    "exact_head_ci": {
+      "run": 37167173560,
+      "head": "00549cc2e5e3140a1b152f3008967dd186b54c90",
+      "status": "completed",
+      "conclusion": "success",
+      "lanes": [
+        {
+          "job": 111332415207,
+          "name": "backend-sim-composition-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "2288 passed, 66 skipped, 1 xfailed, 12 warnings in 804.54s (0:13:24)",
+            "collected 2355 tests across 181 files -> 2288 passed, 67 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111332415233,
+          "name": "backend-estate-coverage",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "816 passed, 2865 skipped, 153 warnings in 75.99s (0:01:15)",
+            "estate: 282 files selected, 280 produced results, 816 passed, 0 silent."
+          ]
+        },
+        {
+          "job": 111332415246,
+          "name": "backend-forecast-chain-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "1918 passed, 7 warnings in 541.26s (0:09:01)",
+            "collected 1918 tests across 147 files -> 1918 passed, 0 skipped, 0 failed, 0 errors"
+          ]
+        }
+      ]
+    },
+    "exact_head_frontend": [
+      {
+        "job": 111332415221,
+        "lane": "full frontend",
+        "summaries": [
+          "Test Suites: 330 passed, 330 total",
+          "Tests:       3399 passed, 3399 total",
+          "suites 330/330  tests 3399/3399  failed 0"
+        ]
+      },
+      {
+        "job": 111332415264,
+        "lane": "marine focused",
+        "summaries": [
+          "Test Suites: 8 passed, 8 total",
+          "Tests:       121 passed, 121 total",
+          "suites 8/8  tests 121/121  failed 0"
+        ]
+      }
+    ],
+    "postmerge_ci": {
+      "run": 37168060976,
+      "head": "6b062e9709559adfe26215e4668a747e7eef58bb",
+      "status": "completed",
+      "conclusion": "success",
+      "lanes": [
+        {
+          "job": 111335102058,
+          "name": "backend-forecast-chain-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "1918 passed, 7 warnings in 520.26s (0:08:40)",
+            "collected 1918 tests across 147 files -> 1918 passed, 0 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111335102085,
+          "name": "backend-sim-composition-guards",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "2288 passed, 66 skipped, 1 xfailed, 12 warnings in 828.96s (0:13:48)",
+            "collected 2355 tests across 181 files -> 2288 passed, 67 skipped, 0 failed, 0 errors"
+          ]
+        },
+        {
+          "job": 111335102165,
+          "name": "backend-estate-coverage",
+          "status": "completed",
+          "conclusion": "success",
+          "summaries": [
+            "816 passed, 2865 skipped, 153 warnings in 58.28s",
+            "estate: 282 files selected, 280 produced results, 816 passed, 0 silent."
+          ]
+        }
+      ]
+    },
+    "postmerge_browser": {
+      "run": 37168060895,
+      "head": "6b062e9709559adfe26215e4668a747e7eef58bb",
+      "stats": {
+        "total": 72,
+        "expected": 63,
+        "unexpected": 0,
+        "flaky": 0,
+        "skipped": 9,
+        "ok": true
+      },
+      "nonpassing": [
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Chrome",
+          "outcome": "skipped"
+        },
+        {
+          "title": "surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Safari",
+          "outcome": "skipped"
+        }
+      ],
+      "limits": "Full CI continuity disables FPS guardrail; nine existing graphics/browser skips persist; fresh default-device checks separate and bounded."
+    },
+    "prior240_browser": {
+      "run": 37166858484,
+      "head": "760eea1d0bbf34349544ac831eb61b4b445dd0f5",
+      "stats": {
+        "total": 72,
+        "expected": 62,
+        "unexpected": 0,
+        "flaky": 1,
+        "skipped": 9,
+        "ok": false
+      },
+      "nonpassing": [
+        {
+          "title": "clicking a spot opens its spot hub",
+          "projectName": "Desktop Chrome",
+          "outcome": "flaky"
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field keeps drawing while toggling layers, models, zoom and pan",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the field and the band survive a fast burst at Sebastian Inlet z12",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Mobile Safari",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Chrome",
+          "outcome": "skipped"
+        },
+        {
+          "title": "surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Firefox",
+          "outcome": "skipped"
+        },
+        {
+          "title": "the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels",
+          "projectName": "Desktop Safari",
+          "outcome": "skipped"
+        }
+      ],
+      "limits": "CI graphics guard disabled; retry and skip outcomes remain separate from functional pass."
+    },
+    "manual_monitor_after": [
+      {
+        "run": 37168663163,
+        "job": 111336900920,
+        "head": "6b062e9709559adfe26215e4668a747e7eef58bb",
+        "event": "workflow_dispatch",
+        "conclusion": "success",
+        "summaries": [
+          "scored archive: 178637 rows loaded, 47071 with targets in trailing 7d",
+          "  open_meteo:ncep_gfswave025 +24h  n=2309  mae=0.190 bias=-0.071",
+          "  open_meteo:ncep_gfswave025 +48h  n=1838  mae=0.199 bias=-0.052",
+          "  open_meteo:ncep_gfswave025 +72h  n=2232  mae=0.211 bias=-0.066",
+          "  open_meteo_marine      +24h  n=2648  mae=0.177 bias=+0.003",
+          "  open_meteo_marine      +48h  n=2109  mae=0.182 bias=+0.012",
+          "  open_meteo_marine      +72h  n=2531  mae=0.207 bias=+0.011",
+          "  persistence            +24h  n=2712  mae=0.356 bias=+0.141",
+          "  persistence            +48h  n=2156  mae=0.613 bias=+0.283",
+          "  persistence            +72h  n=2597  mae=0.717 bias=+0.377",
+          "  raw_surf:GFS_SCALAR    +24h  n=659   mae=0.163 bias=-0.051",
+          "  raw_surf:GFS_SCALAR    +48h  n=443   mae=0.178 bias=+0.008",
+          "  raw_surf:GFS_SCALAR    +72h  n=440   mae=0.174 bias=-0.072",
+          "  vs open_meteo:ncep_gfswave025 +24h  n=2309  ours=0.209 theirs=0.190 delta=+0.019 win=42%  WE LOSE",
+          "  vs open_meteo:ncep_gfswave025 +48h  n=1838  ours=0.219 theirs=0.199 delta=+0.021 win=43%  WE LOSE",
+          "  vs open_meteo:ncep_gfswave025 +72h  n=2206  ours=0.230 theirs=0.212 delta=+0.018 win=44%  WE LOSE",
+          "  vs open_meteo_marine   +24h  n=2648  ours=0.236 theirs=0.177 delta=+0.059 win=44%  WE LOSE",
+          "  vs open_meteo_marine   +48h  n=2109  ours=0.243 theirs=0.182 delta=+0.061 win=43%  WE LOSE",
+          "  vs open_meteo_marine   +72h  n=2531  ours=0.251 theirs=0.207 delta=+0.044 win=46%  WE LOSE",
+          "  vs persistence         +24h  n=2712  ours=0.233 theirs=0.356 delta=-0.123 win=57%  we win",
+          "  vs persistence         +48h  n=2156  ours=0.241 theirs=0.613 delta=-0.372 win=70%  we win",
+          "  vs persistence         +72h  n=2597  ours=0.247 theirs=0.717 delta=-0.470 win=73%  we win",
+          "  vs raw_surf:GFS_SCALAR +24h  n=659   ours=0.172 theirs=0.163 delta=+0.009 win=24%  WE LOSE  [POPULATIONS DIVERGE: 2712 vs 659 unpaired]",
+          "  vs raw_surf:GFS_SCALAR +48h  n=443   ours=0.189 theirs=0.178 delta=+0.011 win=28%  WE LOSE  [POPULATIONS DIVERGE: 2156 vs 443 unpaired]",
+          "  vs raw_surf:GFS_SCALAR +72h  n=440   ours=0.183 theirs=0.174 delta=+0.009 win=20%  WE LOSE  [POPULATIONS DIVERGE: 2597 vs 440 unpaired]",
+          "##[warning]PUBLIC REFERENCE ahead at +24h -- `open_meteo:ncep_gfswave025` beats us by +0.019 m on n=2309 (win rate 42%). Standing product condition, deliberately not a page: it has held since 2026-08-10 and a permanently-red workflow trains red-blindness. Pages at +0.100 m.",
+          "##[warning]PUBLIC REFERENCE ahead at +48h -- `open_meteo:ncep_gfswave025` beats us by +0.021 m on n=1838 (win rate 43%). Standing product condition, deliberately not a page: it has held since 2026-08-10 and a permanently-red workflow trains red-blindness. Pages at +0.100 m.",
+          "##[warning]PUBLIC REFERENCE ahead at +72h -- `open_meteo:ncep_gfswave025` beats us by +0.018 m on n=2206 (win rate 44%). Standing product condition, deliberately not a page: it has held since 2026-08-10 and a permanently-red workflow trains red-blindness. Pages at +0.100 m.",
+          "##[warning]PUBLIC REFERENCE ahead at +24h -- `open_meteo_marine` beats us by +0.059 m on n=2648 (win rate 44%). Standing product condition, deliberately not a page: it has held since 2026-08-10 and a permanently-red workflow trains red-blindness. Pages at +0.100 m.",
+          "##[warning]PUBLIC REFERENCE ahead at +48h -- `open_meteo_marine` beats us by +0.061 m on n=2109 (win rate 43%). Standing product condition, deliberately not a page: it has held since 2026-08-10 and a permanently-red workflow trains red-blindness. Pages at +0.100 m.",
+          "##[warning]PUBLIC REFERENCE ahead at +72h -- `open_meteo_marine` beats us by +0.044 m on n=2531 (win rate 46%). Standing product condition, deliberately not a page: it has held since 2026-08-10 and a permanently-red workflow trains red-blindness. Pages at +0.100 m.",
+          "verdict: OK"
+        ],
+        "limit": "Actual manual read-only monitor, not next scheduled-run acceptance or independent forecast-skill validation."
+      },
+      {
+        "run": 37168736488,
+        "job": 111337118558,
+        "head": "6b062e9709559adfe26215e4668a747e7eef58bb",
+        "event": "workflow_dispatch",
+        "conclusion": "success",
+        "summaries": [
+          "scored archive: 178637 rows loaded, 47071 with targets in trailing 7d",
+          "  vs persistence         +24h  n=2712  ours=0.233 theirs=0.356 delta=-0.123 win=57%  we win",
+          "  vs persistence         +48h  n=2156  ours=0.241 theirs=0.613 delta=-0.372 win=70%  we win",
+          "  vs persistence         +72h  n=2597  ours=0.247 theirs=0.717 delta=-0.470 win=73%  we win",
+          "  vs raw_surf:GFS_SCALAR +24h  n=659   ours=0.172 theirs=0.163 delta=+0.009 win=24%  WE LOSE  [POPULATIONS DIVERGE: 2712 vs 659 unpaired]",
+          "  vs raw_surf:GFS_SCALAR +48h  n=443   ours=0.189 theirs=0.178 delta=+0.011 win=28%  WE LOSE  [POPULATIONS DIVERGE: 2156 vs 443 unpaired]",
+          "  vs raw_surf:GFS_SCALAR +72h  n=440   ours=0.183 theirs=0.174 delta=+0.009 win=20%  WE LOSE  [POPULATIONS DIVERGE: 2597 vs 440 unpaired]",
+          "verdict: OK"
+        ],
+        "limit": "Manual monitor, not scheduled-run acceptance; populations and source models differ from prior snapshots."
+      }
+    ],
+    "fresh_browser_after": {
+      "pages": 2,
+      "actual_bundle": "6b062e97",
+      "model": "ICON",
+      "layer": "waves",
+      "verified_hour": 179,
+      "own_heatmap_and_crests_both": true,
+      "default_guardrail": true,
+      "low_fps_warnings_remain": true,
+      "served_time_warning_remains": true,
+      "same_default_viewport": true,
+      "limit": "Bounded same-device observation; no all-GPU/region/horizon or forecast accuracy proof."
+    },
+    "open": [
+      "default-device sustained GPU reliability and original owner root cause",
+      "legacy exact-point ICON tail",
+      "served-time mismatch",
+      "spot-hub population p95 <=5 seconds",
+      "scalar same-model/by-band/disjoint heldout acceptance",
+      "next scheduled monitor acceptance",
+      "broader gallery/privacy/payment acceptance"
+    ]
+  },
+  "receipt_publication": {
+    "pr": 242,
+    "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/242",
+    "base": "dev",
+    "state_observed": "OPEN",
+    "initial_report_commit": "d93a61b668014a0f726929d40d1a5943ae89eb63",
+    "functional_deployed_revision": "6b062e9709559adfe26215e4668a747e7eef58bb",
+    "hosted_docs_checks": "pending at publication",
+    "memory_audit": {
+      "fail": 0,
+      "warn": 2,
+      "note": 11
+    },
+    "staged_scan": "clean",
+    "receipt_amendment": "same docs-only publication target"
   }
 }

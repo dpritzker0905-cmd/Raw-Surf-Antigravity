@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 01:08Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 01:57Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,39 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-04 01:54Z: owner-authorized ICON stored tail live on dev only at6b062e97 (PR241).**
+  Actual Netlify/backend accepted; emitted primary-grid bypass true twice, preview dark twice,
+  publicfrontendfc140024 unchanged twice. Versioned exact-context+branch export, no remote env saved.
+  Secondary swell and other scientific flags unchanged; separate exact-point tail remains legacy.
+- **Actual paired acceptance:** build scope2fail/10pass before twice→37pass after twice;
+  source25 and built-field12 paired controls accepted. Regional5case HTTP before/after twice
+  all200/nonzero; ICONestimated fields/source preserved. Two fresh default-guardrail pages
+  draw own field at179, but lowFPS/served-time warnings remain; no sustained GPU closure.
+- **Exact-head241 frontend330/3399 and focused8/121; deployed full CI2288/1918/816.**
+  Actual deployed E2E63expected/0unexpected/0flaky/9skips,HTMLtrue; CIguardrail exemption
+  and skipped GPU/browser controls remain. Prior240E2E62/1flaky/9skips retained as history.
+- **Actual repaired-label monitor after twice at6b: OK,178637 rows loaded/47071 targets.**
+  Manual read-only runs37168663163/37168736488, not scheduled-run acceptance. Scalarpaired
+  n659/443/440 has differing populations; no promotion and commitments149/309 remain open.
+- **Still open:** default GPU performance/original-owner causality, source-hour/point parity,
+  spot-hub populationp95≤5s, broader gallery/privacy/payment boundaries and scientific heldouts.
+  All-route p95upper2500ms/max25929.4ms does not close spot-hub SLO.
+
+- **2026-10-04 01:57Z: report and canonical receipts published in docs-only PR242.**
+  Open against dev; hosted docs checks pending. Functional241 remains live at6b062e97.
+
+## Earlier checkpoint snapshots (historical; pending statuses superseded only by measured Now)
+- **2026-10-04 01:25Z: PR240 actual live after accepted twice.** Renderlive760eea1d; healthhealthy,
+  badge401 and unsigned unrelated Stripe400 twice. RSS633.2/632.9MB. Signed processor
+  and real customer fulfillment unverified; all-route latency is not the spot-hub SLO.
+- **2026-10-04 01:25Z: PR241 exact00549cc2 pending weather guards and prior dev E2E.** Hosted frontend
+ 330/3399 andfocused8/121 match; emitted dev flag before is unset. Paired regional
+  stored products all200/nonzero but estimated, including168-hour dispatch control.
+  Legacy exact-point browser estimate above168 remains; grid rollout does not close it.
+- **2026-10-04 01:25Z: PR239 browser62expected/1flaky/9skips, HTMLokfalse.** Chrome hub retry and
+  excluded default GPU acceptance remain open; retained browser BUILD4ff is stale,
+  not new-deployment evidence. Fresh after pages and actual deployed flag still pending.
 - **2026-10-04 01:08Z: PR240 merged dev760eea1d.** Exact56aa0477 hosted2288/1918/816, all
   checks green; actual deployment and two unsigned negative after controls pending.
 - **2026-10-04 01:08Z: dev-only ICON build scope prepared.** Netlify rejected reserved branchdev
@@ -505,7 +538,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 534, sha256 4b0d76fbba12cea17f7f782e371c7deea3ceb2f1edc90eb575d2677d94406a4f**
+  **Ledger head: seq 558, sha256 dc1b1a86e1daeda68a8c92f4ac88ad9a82cee5103cadd8b18cc237da2d43cb0d**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
