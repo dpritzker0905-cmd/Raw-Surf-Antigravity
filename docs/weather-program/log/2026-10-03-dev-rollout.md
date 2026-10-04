@@ -809,3 +809,11 @@ tracked. First rapid browser navigation reached153 rather than179; corrected thr
 ARIA readbacks before acceptance. Compiled-parser preflights were instrument failures, not
 product failures. Exact emitted optimizer guard, including secondary240 exception, read twice.
 No accuracy gain attributed to build activation or monitor label correction.
+
+## 2026-10-04 01:57Z — report checkpoint published for review
+
+Docs-only d93a61b6 pushed and actual remote matched. PR242 opened/attached against dev.
+This same-target publication includes its receipt amendment; final remote hash is checked
+after pushing the amendment. Functional dev remains6b062e97; docs PR not merged/deployed.
+Ledger555/base534 and memory audit0FAIL2WARN11NOTE, staged112.08KB scan clean.
+Hosted docs checks pending; no scheduled or scientific commitment closed.

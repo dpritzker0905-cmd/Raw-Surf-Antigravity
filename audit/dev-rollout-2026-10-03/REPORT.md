@@ -41,6 +41,9 @@ Evidence: [exact-head CI](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigrav
 [deployed browser run](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37168060895),
 [monitor first](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37168663163),
 [monitor second](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/37168736488).
+Documentation publication: [PR242](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/242)
+is open against dev; its hosted checks are pending. The functional rollout is already live.
+
 Earlier report entries below are historical snapshots. Their pending statuses are superseded
 only where this current measured result supplies acceptance; unresolved findings stay open.
 

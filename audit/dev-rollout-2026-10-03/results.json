@@ -7861,5 +7861,21 @@
       "next scheduled monitor acceptance",
       "broader gallery/privacy/payment acceptance"
     ]
+  },
+  "receipt_publication": {
+    "pr": 242,
+    "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/242",
+    "base": "dev",
+    "state_observed": "OPEN",
+    "initial_report_commit": "d93a61b668014a0f726929d40d1a5943ae89eb63",
+    "functional_deployed_revision": "6b062e9709559adfe26215e4668a747e7eef58bb",
+    "hosted_docs_checks": "pending at publication",
+    "memory_audit": {
+      "fail": 0,
+      "warn": 2,
+      "note": 11
+    },
+    "staged_scan": "clean",
+    "receipt_amendment": "same docs-only publication target"
   }
 }
