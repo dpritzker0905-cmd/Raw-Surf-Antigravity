@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 19:55Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 20:12Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -25,7 +25,10 @@ Prior source5afa0c82: full hosted CI37226218002 passed11jobs, frontend3582/backe
 Receipt-only0fb75c8e CI37227786046 completed/success. Jacobian ownership probe6controls twice:
 requested/hint derivatives0/1 to1/0 across GFS/ICON/EURO; no scientific accuracy claim.
 Current candidate: frontend347/3610, supported backend neighbors195, lint/LOC/build accepted;
-hosted full lanes pending. Local before/after receipts and limitations in HUB-COPERNICUS-RESULTS.md.
+source40cd1ddd hosted CI37230181942 accepted11jobs: frontend347/3610 and backend5168passed
+(chain1982/guards2288/estate898). Current-source Jacobian6controls passes twice. AS06 current-source
+race and missing-upload defects reproduced twice offline; repair remains next. Local before/after
+receipts and limitations in HUB-COPERNICUS-RESULTS.md.
 Daily rows verified in light/dark/beach desktop/390px phone offline component fixture.
 
 ## What remains, in order

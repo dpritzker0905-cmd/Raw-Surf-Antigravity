@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 19:55Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 20:12Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,9 +14,12 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-04 19:55Z: SH04/SH05/SH06/W04 source repairs locally qualified on PR243.**
+- **2026-10-04 19:55Z: SH04/SH05/SH06/W04 source40cd1ddd hosted qualified on PR243.**
   Daily UTC calendar/size ladder, current-only work bounds and typed terminal Copernicus failures;
-  frontend347/3610, supported backend195, lint/LOC/build accepted; candidate full hosted CI pending.
+  frontend347/3610, supported backend195, lint/LOC/build accepted; CI37230181942 success11jobs.
+  Full backend5168pass: chain1982, guards2288/66skipped/1xfailed, estate898/0silent; source fingerprints
+  match40cd1ddd. Current Jacobian6controls twice; final timezone47NY/47Auckland. AS06 defects
+  rechecked twice offline; source repair remains next. Ledger600 publication read back at40cd1ddd.
   Source flags default off; no merge/deploy/activation or live p95/GPU/science claim. Prior receipt
   0fb75c8e CI37227786046 completed/success, superseding ledger596 pending publication.
   Next AS06 publication, then PF work bounds and device/science acceptance. Full register/progress:
@@ -577,7 +580,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 600, sha256 a62a66f55e3d2d1547d3059b9098d41b0c6868748d488c82b2931dc8dec44a96**
+  **Ledger head: seq 605, sha256 bd270625b27ac620ab599c159774309957d926429a289b63bfae18299dfa824d**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

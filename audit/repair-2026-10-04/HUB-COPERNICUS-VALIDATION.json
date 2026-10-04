@@ -45,16 +45,31 @@
       "dark",
       "beach"
     ],
-    "phone_width": 390
+    "phone_width": 390,
+    "final_timezone_controls": {
+      "America/New_York": 47,
+      "Pacific/Auckland": 47
+    }
   },
   "hosted": {
-    "status": "pending",
-    "expected": {
-      "guards": 2288,
+    "status": "completed/success",
+    "source": "40cd1ddd0f710ad7a00678f2dba07c41c9310c43",
+    "run_id": 37230181942,
+    "jobs": 11,
+    "frontend_suites": 347,
+    "frontend_tests": 3610,
+    "passed": {
       "chain": 1982,
-      "estate": 898,
-      "frontend": 3610
-    }
+      "guards": 2288,
+      "estate": 898
+    },
+    "backend_total": 5168,
+    "guards_documented_skips": 66,
+    "guards_documented_xfailed": 1,
+    "chain_files": 150,
+    "estate_selected_files": 284,
+    "estate_produced_files": 282,
+    "estate_silent_files": 0
   },
   "flags": {
     "SURF_REQUESTED_HORIZON": "0",
@@ -65,5 +80,80 @@
     "No merge/deploy/activation",
     "No full-map/GPU/FPS or live p95 acceptance",
     "Full local backend not qualified"
-  ]
+  ],
+  "final_read_back_utc": "2026-10-04 20:12Z",
+  "jacobian_current_source": {
+    "passes_per_run": 6,
+    "runs": 2,
+    "instrument": "point_jacobian_probe.py",
+    "readings": {
+      "GFS/flag0": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.0,
+          1.0000000000000009
+        ]
+      },
+      "ICON/flag0": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.0,
+          1.0000000000000009
+        ]
+      },
+      "EURO/flag0": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.0,
+          1.0000000000000009
+        ]
+      },
+      "GFS/flag1": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.9999999999999987,
+          0.0
+        ]
+      },
+      "ICON/flag1": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.9999999999999987,
+          0.0
+        ]
+      },
+      "EURO/flag1": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.9999999999999987,
+          0.0
+        ]
+      }
+    },
+    "qualification": "Request ownership, no scientific skill claim"
+  }
 }

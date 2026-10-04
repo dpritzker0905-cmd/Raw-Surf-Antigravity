@@ -122,3 +122,12 @@ and [Copernicus SDK troubleshooting](https://help.marine.copernicus.eu/en/articl
 Installed SDK exception implementation was inspected; strict-inside mode and science composition unchanged.
 Final mounted timezone controls:47pass New York,47pass Auckland, including rollback. Initial
 wrong-root launcher attempt collected no tests and contributes no acceptance evidence.
+
+## 2026-10-04 20:12Z — calendar/horizon/terminal source hosted accepted
+
+Source40cd1ddd CI37230181942 completed/success11jobs, frontend347/3610 and backend5168pass:
+chain1982, guards2288/66skipped/1xfailed, estate898/0silent. All separate gates/preview accepted.
+Supersedes local-candidate pending entries and ledger600 publication intent. Fingerprints
+unchanged; current Jacobian6pass twice and final timezone47pass eachNY/Auckland. AS06 winner
+overwrite/missing-upload publication rechecked twice offline with serial controls; next repair.
+Receipt-only follow-up, no merge/deploy/activation. Full map/GPU/device/science limits remain.

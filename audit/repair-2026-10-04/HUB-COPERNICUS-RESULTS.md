@@ -2,7 +2,8 @@
 
 Recorded 2026-10-04 19:55Z. Baseline `0fb75c8eb9c57aeebdf644bb1e67de6f83d53b5d`.
 Candidate source is bound by LF-normalized fingerprints in `HUB-COPERNICUS-VALIDATION.json`.
-Hosted candidate qualification is pending; prior receipt CI37227786046 completed/success.
+Source40cd1ddd hosted CI37230181942 completed/success, all11jobs: frontend347/3610,
+backend5168passed (chain1982, guards2288, estate898). Prior receipt CI37227786046 completed/success.
 
 | Finding | Actual repair and causal controls | Activation |
 | --- | --- | --- |
@@ -48,3 +49,14 @@ then bounded queues/caches/encoding and device/scientific acceptance. See `PROGR
 Primary guidance: [MDN Date.parse](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse)
 and [Copernicus SDK troubleshooting](https://help.marine.copernicus.eu/en/articles/8632322-copernicus-marine-toolbox-troubleshoots).
 Installed SDK exception implementation was inspected; strict-inside mode and science composition unchanged.
+
+## 2026-10-04 20:12Z — source acceptance read-back
+
+All eleven CI jobs accepted; chain150files/1982pass, guards181files/2288pass/66skipped/1xfailed,
+estate284selected/282produced/898pass/0silent. Estate broader collection skips remain
+ownership controls, not extra executed tests. Frontend347suites/3610tests and build accepted.
+Separate LOC, encoding, ledger and Lighthouse gates accepted; preview success.
+All source fingerprints match40cd1ddd; receipts-only follow-up does not change qualified source.
+Current-source Jacobian6controls passes twice; final calendar/rollback47pass NY and Auckland.
+AS06 current-source in-memory replay reproduced winner overwrite and missing upload publication
+twice; serial controls pass. AS06 is diagnosed, not repaired. No merge/deploy/activation.
