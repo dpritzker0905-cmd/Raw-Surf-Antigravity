@@ -49,7 +49,16 @@ ownership, retry bounds, background priority, coverage, cadence, base-anchor, an
 14-day/heavy paging, mini lanes, source truth and prewarm controls. Full frontend acceptance:
 **337 suites / 3468 tests passed**. Discovery floors now match that count, from accepted
 db20de62's335/3440 plus two new suites/28 controls. Production compilation passed via the
-PowerShell equivalent of the CRACO build; lint ran independently. Hosted confirmation pending.
+PowerShell equivalent of the CRACO build; lint ran independently.
+
+Published functional source **d67763d59d5e007e07f84b274b6693faf5134ad7**, PR243,
+CI37207402431: hosted frontend Run tests/Build frontend steps and overall job111451360943
+completed successfully, verified through the jobs API. This includes the 337/3468 minimum
+discovery gate; explicit hosted test totals await log availability while the whole run is
+still active. Frontend lint/composition, ledger, encoding, LOC, backend estate/authority/
+floor/import/lint and Netlify preview gates also accepted. The two longer backend guard
+lanes remain in progress; no full-run acceptance is claimed. This source changes no backend
+application code. A following acceptance receipt changes only documentation/memory.
 
 Lint ratchet passed: 86 existing errors / 917 warnings; no new baseline violation. Initial
 sandbox transform-cache EPERM prevented collection and is excluded from causal evidence;

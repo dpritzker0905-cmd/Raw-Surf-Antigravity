@@ -9,6 +9,10 @@ Method: actual-source before/after repetitions, one-input perturbations, correct
 state invariants, offline ORM/storage/Canvas fixtures, current primary docs, then hosted gates and
 bounded device/visual acceptance. No live load tests. Changes to served science remain dark.
 
+Continuation: W-03/W-05 source d67763d5 has hosted frontend test/build/discovery acceptance;
+full backend rerun pending. Detailed second-batch evidence: `SERIES-RESULTS.md` and
+`SERIES-VALIDATION.json`. Access-code rotation deferred on the owner's explicit instruction.
+
 ## Repair order
 
 1. Contain exposed artifacts; locker actor/audience; real item/session authority.
@@ -35,9 +39,9 @@ bounded device/visual acceptance. No live load tests. Changes to served science 
 | SEC-10 | Existing-profile trust-signals uses a lower-case value against an upper-case PostgreSQL enum. | Open; preserved for a separate measured repair. |
 | W-01 | A strict ICON product hint can make nominal GFS/EURO point requests sample ICON values. | Open; preserved for a separate measured repair. |
 | W-02 | Outer point cache ignores absolute forecast time/product changes and intercepts forced refresh. | Open; preserved for a separate measured repair. |
-| W-03 | Deferred marine-series retries resurrect canceled requests. | Second batch local repair: abort-owned deferred work and late decode/mini handoff gates;23 causal failures before twice,28 controls/163 neighbor tests pass after twice; hosted acceptance pending. |
+| W-03 | Deferred marine-series retries resurrect canceled requests. | Second batch source d67763d5: abort-owned deferred work and late decode/mini handoff gates;23 causal failures before twice,28 controls/163 neighbor tests pass after twice; hosted frontend/build gates accepted; full backend rerun pending. |
 | W-04 | A terminal Copernicus time failure repeats across spatial tiles, then empty rows enter the normal ten-minute cache. | Open; preserved for a separate measured repair. |
-| W-05 | Series mapping drops the explanation of how an estimated forecast was composed. | Second batch local repair: retain entire per-frame estimate basis on grid and wrapper; native/missing/zero controls plus page/mini cache integration; hosted acceptance pending. |
+| W-05 | Series mapping drops the explanation of how an estimated forecast was composed. | Second batch source d67763d5: entire per-frame basis on grid and wrapper; native/missing/zero and page/mini cache controls; hosted frontend/build gates accepted; full backend rerun pending. |
 | AS-06 | Manifest CAS permits winner-object overwrite; failed uploads can also publish a missing object. | Open; preserved for a separate measured repair. |
 | SOC-01 | Crew message/history and unread-count predicates compile to `WHERE false`. | Open; preserved for a separate measured repair. |
 | SOC-02 | Hashtag search raises an uninitialized-variable error and returns HTTP 500. | Open; preserved for a separate measured repair. |

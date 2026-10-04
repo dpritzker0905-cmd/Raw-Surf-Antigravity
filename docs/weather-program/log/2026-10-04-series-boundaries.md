@@ -36,3 +36,16 @@ native-device performance assertion, live load test, merge, production deploy or
 Production CRACO compilation accepted using PowerShell NODE_OPTIONS; lint independently
 accepted. No generated source/version edits retained. Ledger584valid; LOC ratchet accepted
 with no new/regressed violation. Source publication/hosted confirmation pending.
+
+## 2026-10-04 14:03Z - source published and hosted frontend accepted
+
+Source d67763d59d5e007e07f84b274b6693faf5134ad7 published to existing PR243 against dev.
+git ls-remote and refreshed PR head match. First immediate PR read still showed db20de62;
+that stale read is excluded from source confirmation. Commit hook secret scan: no leaks.
+Hosted CI37207402431 frontend job111451360943 completed success at14:00:46Z; jobs API
+confirms Run tests/Build frontend success, including the337/3468minimum discovery gate.
+Explicit hosted totals are not claimed: CLI logs await whole-run completion; direct job
+log attempt yielded no usable count. Two longer backend lanes remain running, no full-run
+acceptance claim. Frontend lint/composition, ledger, encoding, LOC, backend estate/authority/
+floor/import/lint and preview also accepted. Source changed no backend code.
+Following commit records acceptance only; no application/test/workflow changes after d67763d5.

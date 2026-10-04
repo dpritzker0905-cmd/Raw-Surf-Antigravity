@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 13:54Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 14:05Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -17,7 +17,9 @@ is a claim, not a measurement.
 - **2026-10-04 13:50Z: owner defers beta app access-code rotation and authorizes continuing repairs.**
   AS-01 stays open. Second batch repairs W-03 canceled series retry/prefetch and W-05 estimate
   basis mapping locally;23fail/5pass before twice,28pass after in163neighbor controls twice;
-  full frontend337/3468, lint ratchet and production compilation pass. Source publication/hosted acceptance pending.
+  full local frontend337/3468, lint ratchet and production compilation pass. Source d67763d5
+  published/read back at PR243; hosted frontend test/build/discovery and composition/lint accepted
+  in CI37207402431. Two longer backend lanes still running; explicit hosted totals await logs.
   No served number/science flag changes. Follow `log/2026-10-04-series-boundaries.md` and
   `audit/repair-2026-10-04/SERIES-RESULTS.md`; prior first-batch docs CI37180513517 also green.
 
@@ -554,7 +556,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 584, sha256 17887788aeb37d8697fd2b9450ac2e8021612a0453d116a12105bfdce95868ab**
+  **Ledger head: seq 586, sha256 a7e11710073c3dc8f27bbf01a4233f8b6680bf5d0a1fcc4620fd99cbd9c05fb9**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

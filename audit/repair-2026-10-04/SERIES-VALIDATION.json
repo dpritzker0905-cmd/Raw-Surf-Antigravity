@@ -106,7 +106,15 @@
     "loc": "passed; zero new/regressed violations",
     "ledger": "584 entries valid"
   },
-  "hosted": "pending",
+  "hosted": {
+    "source_sha": "d67763d59d5e007e07f84b274b6693faf5134ad7",
+    "ci_run": "37207402431",
+    "frontend_job": "111451360943",
+    "frontend_test_build_discovery": "success; jobs API verified 2026-10-04T14:03:40Z",
+    "frontend_lint_composition": "success",
+    "explicit_test_totals": "pending log availability; local337/3468 confirmed",
+    "full_ci": "two longer backend lanes still running; no full-run acceptance claimed"
+  },
   "served_numbers_changed": false,
   "merged": false,
   "production_deployed": false
