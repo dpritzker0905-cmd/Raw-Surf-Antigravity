@@ -292,10 +292,13 @@ async def resolve_spot_conditions_impl(
     else:
         current_dt = now_dt.replace(hour=current_hour, minute=0, second=0, microsecond=0)
         
-    # 10 daily forecast days
+    # Provider forecast_days includes today; only requested daily frames can cause a cache miss.
+    # Default-off because removing irrelevant fallback can change the source of a served reading.
+    requested_horizon = os.environ.get("SURF_REQUESTED_HORIZON", "0") == "1"
+    daily_count = min(10, max(0, int(forecast_days) - 1)) if requested_horizon else 10
     forecast_dates = []
     tomorrow_date = now_dt.date() + timedelta(days=1)
-    for i in range(10):
+    for i in range(daily_count):
         d = tomorrow_date + timedelta(days=i)
         forecast_dates.append(datetime(d.year, d.month, d.day, 12, 0, 0, tzinfo=timezone.utc))
         
@@ -346,7 +349,9 @@ async def resolve_spot_conditions_impl(
         logger.info(f"[Spot conditions] Cache miss for {model} at ({lat}, {lng}). Fetching direct point forecast...")
         try:
             raw_point = await self.provider.fetch_point(
-                model=model, domain="marine", layer="all_marine", lat=lat, lng=lng, forecast_days=forecast_days
+                model=model, domain="marine", layer="all_marine", lat=lat, lng=lng,
+                forecast_days=(max(1, (all_dates[-1].date() - now_dt.date()).days + 1)
+                               if requested_horizon else forecast_days)
             )
             if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
                 times = raw_point["hourly"]["time"]

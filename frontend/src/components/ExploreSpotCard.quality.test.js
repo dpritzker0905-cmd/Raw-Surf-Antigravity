@@ -13,6 +13,7 @@ import ExploreSpotCard from './ExploreSpotCard';
 
 // The repo's pattern (SpotHub.confidence.test.js): react-router-dom v7 is ESM, so it is mocked by name.
 jest.mock('react-router-dom', () => ({ useNavigate: () => jest.fn() }), { virtual: true });
+jest.mock('../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: 'dark' }) }));
 
 const spot = (current_conditions) => ({
   id: 'thirteenth', name: '13th Beach', region: 'Victoria', latitude: -38.28, longitude: 144.47,
@@ -37,4 +38,18 @@ it('renders the size alone when the spot is unrated (no invented quality)', () =
   render(<ExploreSpotCard spot={spot({ wave_height_ft: 2.1, label: 'Knee High' })} />);
   expect(screen.queryByTestId('spot-quality-compact')).toBeNull();
   expect(screen.getAllByText('2.1ft')).toHaveLength(2);
+});
+
+it('daily badge follows the supplied date even when the first row is not tomorrow', () => {
+  process.env.REACT_APP_FORECAST_STATE_IDENTITY = 'true';
+  const now = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-04T12:00:00Z'));
+  try {
+    render(<ExploreSpotCard spot={{ ...spot({ wave_height_ft: 5, label: 'Head High' }), forecast: [
+      { date: '2026-10-06', wave_height_max: 6, label: 'Overhead' },
+      { date: '2026-10-07', wave_height_max: 6, label: 'Overhead' },
+    ] }} />);
+    expect(screen.getByText('Tue')).toBeInTheDocument();
+    expect(screen.getByText('Wed')).toBeInTheDocument();
+    expect(screen.queryByText('Tom')).toBeNull();
+  } finally { now.mockRestore(); delete process.env.REACT_APP_FORECAST_STATE_IDENTITY; }
 });

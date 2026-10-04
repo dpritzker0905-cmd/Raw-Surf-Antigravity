@@ -113,7 +113,8 @@ jobs:
           // Retire the historical 31-suite/483-test gap and guard every new repair test.
           // W03/W05: db20de62 hosted335/3440 + two suites/28 controls; hosted confirmation pending.
           // Point identity, availability, playback and consumer controls: full local346/3582.
-          const MIN_SUITES = 346, MIN_TESTS = 3582;
+          // Daily calendar, mounted label/rollback controls: +1suite/+28tests; projected347/3610.
+          const MIN_SUITES = 347, MIN_TESTS = 3610;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1316,7 +1317,8 @@ jobs:
           # Ordered audit repair: two selector-owned files add21+12 executed controls to
           # pinned hosted1918. Expected1951; local full collection crashes on Windows,
           # so hosted CI must confirm. Preserve the six-test margin and paired reference.
-          MIN_FILES, MIN_PASSED = 149, 1945
+          # Hosted5afa0c82 chain1951 +11producer/+20Copernicus controls =1982; margin6.
+          MIN_FILES, MIN_PASSED = 150, 1976
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1680,7 +1682,8 @@ jobs:
           # PR239 actualestate810 plus6 assembledStripe controls ->816; margin2 unchanged.
           # Independent audit: CI37167173560 confirms816. Two selector-owned files
           # add73 executed cases; projected889, same margin2. Candidate CI must confirm.
-          MIN_PASSED = 887
+          # Hosted5afa0c82 estate889 +9actual horizon-route controls =898; margin2.
+          MIN_PASSED = 896
 
           try:
               root = ET.parse('estate.xml').getroot()

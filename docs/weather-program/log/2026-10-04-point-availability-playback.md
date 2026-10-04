@@ -82,3 +82,43 @@ is explicit-path offline, outside backend CI discovery; no exclusion or floor ch
 All recorded production/test/CI fingerprints match5afa0c82. This follow-up only
 publishes sanitized receipts and the offline probe. All served flags stay off; no
 merge/deploy. Full map/GPU/device FPS/real-fetch cadence acceptance remains open.
+
+## 19:55Z — calendar/horizon/terminal failure batch
+
+- Exact baseline consumer substitution, restored byte-for-byte: 9fail/21pass twice.
+  An earlier incorrect assertion count was corrected before this accepted replay.
+- Exact baseline backend substitution: 17fail/70pass twice, no errors/skips. Candidate87pass;
+  expanded supported neighbor set195pass, including actual routes, SDK subprocess boundary,
+  cache, wire contract, source composition, script imports, registry and CI-floor controls.
+- Current-only cache checks22 to2; irrelevant future fallback1 to0. Paired current dictionary
+  equality retained with all cached frames. Terminal typed failure tile attempts4 to1; generic
+  and spatial failures retain four attempts. These are isolated causal controls, not live p95.
+- Full frontend347suites/3610tests passed; timezone subsets45pass each New York/Auckland
+  before the final two rollback controls; full UTC run includes those controls.
+- Lint ratchet accepted1199files,86existingerrors/917warnings; baseline unchanged. Python
+  fatal-error lint accepted. LOC2499files,12grandfathered,0new/0regressed accepted.
+- Production compilation accepted with CI=false, matching workflow build policy and its
+  separate lint gate. Initial CI=true warning-promoted build was not accepted evidence.
+- Selector partition618tracked: guards181, chain150, estate284,2existing fastmcp exclusions,
+  1existing quarantine. No new skip/exclusion. Candidate hosted counts expected chain1982,
+  estate898, guards2288; paired floors1976/896/2282, frontend347/3610.
+- Full backend local suite is not qualified: isolated runner cannot collect full-server
+  test_weather_copernicus; earlier Windows native collection crash remains historical.
+  Hosted Linux full lanes must qualify the candidate.
+- Actual component fixture light/dark/beach at desktop and390px phone: calendar dates,
+  missing/zero labels and size labels readable; scrollWidth390/viewport390 in all themes.
+  Screenshots are ignored local evidence, not a full-map/GPU/FPS/canary certification.
+  Owned loopback preview server stopped; inspected tab closed and viewport reset.
+
+## Limits and next work
+
+No merge, deployment, flag flip or forecast-skill claim. Time failure recognition is narrow;
+this does not introduce cross-request negative caching or cancel an already running executor.
+Remaining source priority is AS-06 immutable manifest publication/failed-upload refusal,
+then bounded queues/caches/encoding and device/scientific acceptance. See `PROGRESS.md`.
+
+Primary guidance: [MDN Date.parse](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse)
+and [Copernicus SDK troubleshooting](https://help.marine.copernicus.eu/en/articles/8632322-copernicus-marine-toolbox-troubleshoots).
+Installed SDK exception implementation was inspected; strict-inside mode and science composition unchanged.
+Final mounted timezone controls:47pass New York,47pass Auckland, including rollback. Initial
+wrong-root launcher attempt collected no tests and contributes no acceptance evidence.

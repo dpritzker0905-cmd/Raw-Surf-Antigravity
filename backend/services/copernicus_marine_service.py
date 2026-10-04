@@ -26,6 +26,7 @@ import gc
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
+from services.copernicus_errors import CopernicusTimeUnavailable, subprocess_time_unavailable
 
 logger = logging.getLogger(__name__)
 
@@ -206,6 +207,7 @@ async def fetch_euro_marine(
     Fetch EURO marine wave data from Copernicus Marine Service.
     Includes 10-minute server-side caching keyed by rounded coordinate arrays.
     """
+    terminal_guard = os.environ.get('COPERNICUS_TERMINAL_TIME_GUARD', '0') == '1'
     if is_test_environment():
         logger.info(f"[Copernicus Point mock] Returning mock Copernicus results under test environment")
         return generate_mock_copernicus_response(latitudes, longitudes, forecast_days, variables)
@@ -219,7 +221,7 @@ async def fetch_euro_marine(
     now = time.time()
     if cache_key in _point_cache:
         cached_data, timestamp = _point_cache[cache_key]
-        if now - timestamp < POINT_CACHE_TTL:
+        if now - timestamp < POINT_CACHE_TTL and (not terminal_guard or _has_forecast_samples(cached_data)):
             logger.info(f"[Copernicus Backend Cache] HIT for cache_key={cache_key}")
             return copy.deepcopy(cached_data)
 
@@ -233,7 +235,7 @@ async def fetch_euro_marine(
         batched_key = (rounded_lats, rounded_lons, forecast_days, None, None)
         if batched_key != cache_key and batched_key in _point_cache:
             cached_data, timestamp = _point_cache[batched_key]
-            if now - timestamp < _batched_entry_ttl():
+            if now - timestamp < _batched_entry_ttl() and (not terminal_guard or _has_forecast_samples(cached_data)):
                 logger.info(f"[Copernicus Backend Cache] BATCHED hit for point=({rounded_lats[0]},{rounded_lons[0]})")
                 return copy.deepcopy(cached_data)
 
@@ -245,7 +247,7 @@ async def fetch_euro_marine(
         None, _fetch_sync, latitudes, longitudes, forecast_days, variables, valid_time
     )
     
-    if results and len(results) > 0:
+    if results and len(results) > 0 and (not terminal_guard or _has_forecast_samples(results)):
         _point_cache[cache_key] = (copy.deepcopy(results), now)
         cap = _point_cache_cap()
         while len(_point_cache) > cap:
@@ -253,6 +255,25 @@ async def fetch_euro_marine(
             _point_cache.pop(oldest_key, None)
             
     return results
+
+
+def _has_forecast_samples(rows):
+    """Empty/error stubs are not ten-minute successes; finite measured zero is."""
+    import math
+    for row in rows or []:
+        hourly = row.get('hourly', {}) if isinstance(row, dict) else {}
+        if not isinstance(hourly, dict):
+            continue
+        times = hourly.get('time') or []
+        if not isinstance(times, (list, tuple)):
+            continue
+        for name, values in hourly.items():
+            if name == 'time' or not isinstance(values, (list, tuple)):
+                continue
+            for stamp, value in zip(times, values):
+                if isinstance(stamp, str) and stamp and isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
+                    return True
+    return False
 
 
 async def fetch_euro_marine_global_coarse(
@@ -393,6 +414,9 @@ def _fetch_tiled_sync(
                 tiles_failed += 1
                 logger.warning(f"[Copernicus Tiled] Tile {tile_key} returned empty results ({len(indices)} pts)")
         except Exception as e:
+            if isinstance(e, CopernicusTimeUnavailable) and os.environ.get('COPERNICUS_TERMINAL_TIME_GUARD', '0') == '1':
+                logger.info('[Copernicus Tiled] Requested time outside dataset; remaining spatial tiles skipped')
+                return []
             tiles_failed += 1
             logger.warning(f"[Copernicus Tiled] Tile {tile_key} ({len(indices)} pts) failed: {e}")
             # Create empty result stubs for failed tile points so coordinate ordering is preserved
@@ -559,6 +583,8 @@ def _fetch_sync(
                     timeout=subprocess_timeout
                 )
                 if result.returncode != 0:
+                    if os.environ.get('COPERNICUS_TERMINAL_TIME_GUARD', '0') == '1' and subprocess_time_unavailable(result):
+                        raise CopernicusTimeUnavailable('Requested time outside dataset temporal coverage')
                     raise RuntimeError(f"Fetcher subprocess failed (exit code {result.returncode}): {result.stdout.strip()} | stderr: {result.stderr.strip()}")
             except subprocess.TimeoutExpired as te:
                 logger.error(f"[Copernicus Subprocess API] Fetcher subprocess timed out after {subprocess_timeout} seconds: {te}")
@@ -660,4 +686,3 @@ def _fetch_sync(
             f"TotalTime: {total_time:.2f}s"
         )
         return results
-

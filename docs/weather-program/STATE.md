@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 19:15Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-04 19:55Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,14 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-04 19:55Z: SH04/SH05/SH06/W04 source repairs locally qualified on PR243.**
+  Daily UTC calendar/size ladder, current-only work bounds and typed terminal Copernicus failures;
+  frontend347/3610, supported backend195, lint/LOC/build accepted; candidate full hosted CI pending.
+  Source flags default off; no merge/deploy/activation or live p95/GPU/science claim. Prior receipt
+  0fb75c8e CI37227786046 completed/success, superseding ledger596 pending publication.
+  Next AS06 publication, then PF work bounds and device/science acceptance. Full register/progress:
+  `audit/repair-2026-10-04/PROGRESS.md` and `HUB-COPERNICUS-RESULTS.md`.
 
 - **2026-10-04: ordered point/availability/consumer/playback source5afa0c82 hosted qualified on PR243.**
   W01/W02, M01/M02/M03, SH01/SH02/SH03 and owner PB01 controls pass; final frontend346/3582,
@@ -569,7 +577,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 596, sha256 f653b0196c1538294888d05aa03c3f7463516d1259354dc56704f1c212c59e1d**
+  **Ledger head: seq 600, sha256 a62a66f55e3d2d1547d3059b9098d41b0c6868748d488c82b2931dc8dec44a96**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

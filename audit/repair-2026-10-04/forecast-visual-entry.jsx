@@ -52,6 +52,11 @@ function Preview() {
       <div className="my-2"><SpotConditions spotId="missing" /></div>
       <h2 className="my-2">Measured calm</h2><SpotConditions spotId="calm" compact />
     </section>
+    <section className="my-4" data-testid="calendar-fixture" style={{ maxWidth: mobile ? 360 : 480 }}>
+      <h2 className="my-2">Calendar and canonical size labels</h2>
+      <SpotConditions spotId="calendar" compact />
+      <div className="my-2"><SpotConditions spotId="calendar" /></div>
+    </section>
   </main>;
 }
 createRoot(document.getElementById('root')).render(<ThemeProvider><Preview /></ThemeProvider>);

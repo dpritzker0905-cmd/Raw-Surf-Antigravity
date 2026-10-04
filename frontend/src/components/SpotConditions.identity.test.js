@@ -16,6 +16,48 @@ beforeEach(() => {
   apiClient.get.mockResolvedValue({ data: {} });
 });
 afterEach(() => { delete process.env.REACT_APP_FORECAST_STATE_IDENTITY; delete process.env.REACT_APP_MARINE_VALUE_VALIDITY; });
+
+test.each(['light', 'dark', 'beach'])('daily %s rows name their actual UTC calendar date, not array position', async theme => {
+  mockTheme = theme;
+  const now = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-04T12:00:00Z'));
+  apiClient.get.mockImplementation(url => Promise.resolve(url.startsWith('/conditions/forecast/')
+    ? { data: { forecast: [
+      { date: '2026-10-05', wave_height_min: 3, wave_height_max: 5, label: 'Head High' },
+      { date: '2026-10-07', wave_height_min: 3, wave_height_max: 5, label: 'Head High' },
+    ] } } : url.startsWith('/conditions/') ? current(5) : { data: {} }));
+  try {
+    render(<SpotConditions spotId="spot" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    expect(await screen.findByText('Tomorrow')).toBeInTheDocument();
+    expect(screen.getByText('Oct 5')).toBeInTheDocument();
+    expect(screen.getByText('Wed')).toBeInTheDocument();
+    expect(screen.queryByText('Today')).toBeNull();
+  } finally { now.mockRestore(); }
+});
+
+test.each([[7, 'Overhead'], [9, 'Overhead'], [12, 'Double Overhead'], [16, 'Triple Overhead+']])(
+  'full and compact %sft agree with the canonical size ladder', async (height, label) => {
+    apiClient.get.mockImplementation(url => Promise.resolve(url.startsWith('/conditions/') ? current(height) : { data: {} }));
+    const { rerender } = render(<SpotConditions spotId="spot" compact />);
+    expect(await screen.findAllByText(label)).toHaveLength(1);
+    rerender(<SpotConditions spotId="spot" />);
+    expect(await screen.findAllByText(label)).toHaveLength(1);
+  }
+);
+
+test.each(['flag-off', 'runtime-kill'])('%s restores the legacy size ladder and positional date labels', async rollback => {
+  if (rollback === 'flag-off') process.env.REACT_APP_FORECAST_STATE_IDENTITY = 'false';
+  else window.__RAW_DISABLE_FORECAST_STATE_IDENTITY__ = true;
+  apiClient.get.mockImplementation(url => Promise.resolve(url.startsWith('/conditions/forecast/')
+    ? { data: { forecast: [{ date: '2026-10-05', wave_height_min: 5, wave_height_max: 9, label: 'Overhead' }] } }
+    : url.startsWith('/conditions/') ? current(9) : { data: {} }));
+  try {
+    render(<SpotConditions spotId="spot" />);
+    expect(await screen.findByText('Double Overhead')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    expect(await screen.findByText('Today')).toBeInTheDocument();
+  } finally { delete window.__RAW_DISABLE_FORECAST_STATE_IDENTITY__; }
+});
 test.each(['light', 'dark', 'beach'])('late previous spot cannot replace the current %s reading', async theme => {
   mockTheme = theme;
   const old = deferred();

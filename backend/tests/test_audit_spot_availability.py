@@ -89,3 +89,87 @@ async def test_dark_switch_keeps_legacy_flat(monkeypatch, enabled):
     data, _ = await read(monkeypatch, "missing", None, enabled)
     assert data["current_conditions"]["wave_height_ft"] == 0
     assert data["current_conditions"]["label"] == "Flat"
+
+
+class CountingResolver(Resolver):
+    def __init__(self, current_only=False):
+        super().__init__("current_only" if current_only else "cached", 1.5)
+        self.cache_reads, self.upstream = [], []
+
+    async def find_cached_grid_product(self, model, domain, layer, lat, lng, dt):
+        self.cache_reads.append((layer, dt))
+        return await super().find_cached_grid_product(model, domain, layer, lat, lng, dt)
+
+    async def fetch(self, **kw):
+        self.upstream.append(kw)
+        return await super().fetch(**kw)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("future_cached", [False, True])
+async def test_current_only_work_is_independent_of_future_cache(monkeypatch, future_cached):
+    monkeypatch.setenv("SURF_REQUESTED_HORIZON", "1")
+    monkeypatch.setenv("SURF_STRICT_AVAILABILITY", "1")
+    monkeypatch.setenv("SURF_PARTITIONS", "0")
+    monkeypatch.setattr(sc, "datetime", FrozenDatetime)
+    resolver = CountingResolver(current_only=not future_cached)
+    data = await sc.resolve_spot_conditions_impl(resolver, "GFS", 28.3664, -80.6015, forecast_days=1)
+    assert len(resolver.cache_reads) == 2
+    assert resolver.upstream == [] and data["forecast"] == []
+    assert data["current_conditions"]["wave_height_ft"] > 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("days,expected", [(2, 1), (4, 3), (8, 7), (11, 10), (20, 10)])
+async def test_requested_daily_horizon_keeps_current_and_bounds_future(monkeypatch, days, expected):
+    monkeypatch.setenv("SURF_REQUESTED_HORIZON", "1")
+    monkeypatch.setenv("SURF_PARTITIONS", "0")
+    monkeypatch.setattr(sc, "datetime", FrozenDatetime)
+    resolver = CountingResolver()
+    data = await sc.resolve_spot_conditions_impl(resolver, "GFS", 28.3664, -80.6015, forecast_days=days)
+    assert len(data["forecast"]) == expected
+    assert len(resolver.cache_reads) == 2 * (expected + 1)
+    assert resolver.upstream == []
+    assert data["forecast"][0]["date"] == "2026-10-05"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("enabled", ["0", "true"])
+async def test_requested_horizon_dark_control_preserves_legacy_work(monkeypatch, enabled):
+    monkeypatch.setenv("SURF_REQUESTED_HORIZON", enabled)
+    monkeypatch.setenv("SURF_PARTITIONS", "0")
+    monkeypatch.setattr(sc, "datetime", FrozenDatetime)
+    resolver = CountingResolver(current_only=True)
+    data = await sc.resolve_spot_conditions_impl(resolver, "GFS", 28.3664, -80.6015, forecast_days=1)
+    assert len(data["forecast"]) == 10 and len(resolver.cache_reads) == 22
+    assert len(resolver.upstream) == 1
+
+
+@pytest.mark.asyncio
+async def test_horizon_does_not_change_current_height_quality_or_source(monkeypatch):
+    monkeypatch.setenv("SURF_PARTITIONS", "0")
+    monkeypatch.setattr(sc, "datetime", FrozenDatetime)
+    readings = []
+    for enabled in ("0", "1"):
+        monkeypatch.setenv("SURF_REQUESTED_HORIZON", enabled)
+        data = await sc.resolve_spot_conditions_impl(CountingResolver(), "GFS", 28.3664, -80.6015, forecast_days=1)
+        readings.append(data["current_conditions"])
+    assert readings[0] == readings[1]
+
+
+@pytest.mark.asyncio
+async def test_current_rounding_across_midnight_keeps_provider_target_covered(monkeypatch):
+    class LateDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 12, 31, 23, 30, tzinfo=timezone.utc)
+
+    monkeypatch.setenv("SURF_REQUESTED_HORIZON", "1")
+    monkeypatch.setenv("SURF_STRICT_AVAILABILITY", "1")
+    monkeypatch.setenv("SURF_PARTITIONS", "0")
+    monkeypatch.setattr(sc, "datetime", LateDatetime)
+    resolver = CountingResolver(current_only=True)
+    data = await sc.resolve_spot_conditions_impl(resolver, "GFS", 28.3664, -80.6015, forecast_days=1)
+    assert resolver.cache_reads[0][1].isoformat() == '2027-01-01T00:00:00+00:00'
+    assert len(resolver.cache_reads) == 2 and data["forecast"] == []
+    assert len(resolver.upstream) == 1 and resolver.upstream[0]['forecast_days'] == 2

@@ -16,6 +16,7 @@ import { hubSourceLabel, formatWaveDirection } from './spotConditionsFormat';
 import { useSpotReadings } from '../hooks/useSpotReadings';
 import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
 import { marineValueValidityEnabled } from './map/marinePointValues';
+import { forecastCalendar } from './forecastCalendar';
 
 // Emoji constants -- using String.fromCodePoint to prevent encoding corruption
 const E = {
@@ -443,8 +444,9 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               <div className="space-y-2">
                 {forecast.slice(0, forecastDaysAllowed).map((day, index) => {
                   const dateObj = new Date(day.date);
-                  const dayName = index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                  const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                  const calendar = forecastStateIdentityEnabled() ? forecastCalendar(day.date) : null;
+                  const dayName = calendar ? calendar.relative : index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                  const dateStr = calendar ? calendar.monthDay : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                   
                   return (
                     <div key={day.date} className={`flex items-center justify-between p-3 ${cellBg} rounded-lg`}>
@@ -730,8 +732,9 @@ function getConditionsLabel(waveHeightFt, strictValues = false) {
   if (waveHeightFt < 4) return "Waist High";
   if (waveHeightFt < 5) return "Chest High";
   if (waveHeightFt < 6) return "Head High";
-  if (waveHeightFt < 8) return "Overhead";
-  if (waveHeightFt < 10) return "Double Overhead";
+  // Canonical services/conditions_labels.py uses 10/15ft. Preserve rollback under the dark flag.
+  if (waveHeightFt < (forecastStateIdentityEnabled() ? 10 : 8)) return "Overhead";
+  if (waveHeightFt < (forecastStateIdentityEnabled() ? 15 : 10)) return "Double Overhead";
   return "Triple Overhead+";
 }
 

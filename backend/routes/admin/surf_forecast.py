@@ -30,6 +30,8 @@ router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
 _RATING_FLAGS = {
+    "COPERNICUS_TERMINAL_TIME_GUARD": ("0", "Stop dataset-wide temporal tile failures; reject empty success cache rows", "Render env + ingestion/precompute/monitor together"),
+    "SURF_REQUESTED_HORIZON": ("0", "Resolve only requested spot forecast days; current-only never fetches future frames", "Render env + ingestion/precompute/monitor together"),
     "SURF_STRICT_AVAILABILITY": ("0", "Keep missing/invalid spot sea unavailable; preserve measured zero", "Render env + ingestion/precompute/monitor together"),
     "POINT_PRODUCT_IDENTITY": ("0", "Discard point hints from another model/domain; re-resolve automatically", "Render env"),
     "SIM_SERVED_TIME_MATCH": ("0", "Match sim tide/quality to actual baseline hour and model", "MCP process env"),
