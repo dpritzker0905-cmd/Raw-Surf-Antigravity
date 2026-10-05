@@ -1691,7 +1691,9 @@ jobs:
           # Observer22/session23/social7/purchase8: projected970, margin2.
           # Atomic alert delivery69 controls including HTTP configuration ownership: projected1039, margin2.
           # Deep-audit push/AI/trace/explicit-actor controls add36 to hosted1039; margin2.
-          MIN_PASSED = 1073
+          # #243 blocker fixes: two estate files add20 executed cases (money-route authority15,
+          # on-demand selection quota5) to projected1075 = 1095; margin2. Hosted run must confirm.
+          MIN_PASSED = 1093
 
           try:
               root = ET.parse('estate.xml').getroot()
