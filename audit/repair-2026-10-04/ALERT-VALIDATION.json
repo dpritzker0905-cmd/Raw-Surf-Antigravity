@@ -1,0 +1,45 @@
+{
+  "baseline_ref": "2355ac2a08619ad283b6c2696fd95b87f824cb3f",
+  "runtime": "offline Windows Python with two declared packages absent; real ephemeral SQLite; provider/push offline",
+  "receipts": {
+    "alerts-before-1": {
+      "tests": 23,
+      "failed": 16,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-before-2": {
+      "tests": 23,
+      "failed": 16,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-after-1": {
+      "tests": 93,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-after-2": {
+      "tests": 161,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-after-final": {
+      "tests": 63,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "frontend": {
+    "node": "24.21.0",
+    "suites": 356,
+    "tests": 3689,
+    "build": true,
+    "lint_ratchet": true
+  },
+  "hosted": "pending",
+  "production_changed": false
+}

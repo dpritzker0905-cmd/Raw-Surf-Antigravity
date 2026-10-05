@@ -139,6 +139,7 @@ async def create_surf_alert(user_id: str, data: SurfAlertCreate, db: AsyncSessio
 
 @router.get("/alerts/user/{user_id}")
 async def get_user_alerts(user_id: str, db: AsyncSession = Depends(get_db)):
+    from services.surf_alert_delivery import cooldown_seconds
     result = await db.execute(
         select(SurfAlert)
         .where(SurfAlert.user_id == user_id)
@@ -158,6 +159,7 @@ async def get_user_alerts(user_id: str, db: AsyncSession = Depends(get_db)):
         "tide_states": a.tide_states,
         "is_active": a.is_active,
         "notify_push": a.notify_push,
+        "cooldown_seconds": cooldown_seconds(),
         "trigger_count": a.trigger_count,
         "last_triggered": a.last_triggered.isoformat() if a.last_triggered else None
     } for a in alerts]
@@ -305,89 +307,52 @@ async def share_surf_alert(data: SurfAlertShare, db: AsyncSession = Depends(get_
 
 @router.post("/alerts/check")
 async def check_and_trigger_alerts(db: AsyncSession = Depends(get_db)):
+    from services.surf_alert_delivery import claim_alert_delivery
+
     result = await db.execute(
         select(SurfAlert)
         .where(SurfAlert.is_active.is_(True))
         .options(selectinload(SurfAlert.spot), selectinload(SurfAlert.user))
     )
-    alerts = result.scalars().all()
-    
-    triggered = []
-    
-    for alert in alerts:
+    prepared = []
+    for alert in result.scalars().all():
         if not alert.spot:
             continue
-        
         try:
             data = await point_resolution_service.resolve_spot_conditions(
                 model="GFS", lat=alert.spot.latitude, lng=alert.spot.longitude, forecast_days=1,
                 spot_id=alert.spot.id
             )
-            if data and "current_conditions" in data:
-                current = data["current_conditions"]
-                wave_height_ft = current["wave_height_ft"]
-                wave_period = current["wave_period"] or 0
-                
-                matches = True
-                
-                if alert.min_wave_height and wave_height_ft < alert.min_wave_height:
-                    matches = False
-                if alert.max_wave_height and wave_height_ft > alert.max_wave_height:
-                    matches = False
-                
-                if matches:
-                    alert.trigger_count += 1
-                    alert.last_triggered = datetime.now(timezone.utc)
-
-                    # ⛔⛔ THIS NOTIFICATION USED TO SAY "perfect conditions!" ON HEIGHT ALONE, WITH
-                    # THE QUALITY SITTING UNREAD IN THE SAME DICT. `resolve_spot_conditions` runs the
-                    # mandated chain and writes `rating` / `rating_level` (gated) into
-                    # `current_conditions`; this block read only `wave_height_ft` and `wave_period`
-                    # and then asserted the day was perfect.
-                    # ⇒ CLAUDE.md, verbatim: "A size without a quality is also incomplete: a
-                    #   blown-out 6 ft and a groomed 6 ft must not render identically." They rendered
-                    #   IDENTICALLY here — the same push notification, both claiming perfection — and
-                    #   a notification is worse than a screen, because the user acts on it without
-                    #   looking. The mandate names alerts explicitly among the surfaces it binds.
-                    # ⚠️ WHEN IT FIRES IS DELIBERATELY UNCHANGED. The user asked to be told at a
-                    #   height range and that is still exactly what triggers; silently adding a
-                    #   quality threshold would drop alerts they asked for. Only the CLAIM is fixed.
-                    #   A quality floor is a product decision and needs a column on the alert.
-                    rating = current.get("rating")
-                    rating_level = current.get("rating_level")
-                    body = surf_alert_body(wave_height_ft, wave_period, rating, rating_level)
-
-                    notification = Notification(
-                        user_id=alert.user_id,
-                        type="surf_alert",
-                        title=f"🌊 {alert.spot.name} — {wave_height_ft:.1f}ft",
-                        body=body,
-                        data=json.dumps({
-                            "spot_id": alert.spot_id,
-                            "wave_height_ft": wave_height_ft,
-                            "wave_period": wave_period,
-                            # Carried so a client can colour or filter on quality without a second
-                            # request — the same reason the glyph payload carries `level`.
-                            "rating": rating,
-                            "rating_level": rating_level,
-                            "alert_id": alert.id,
-                            "type": "surf_alert"
-                        })
-                    )
-                    db.add(notification)
-
-                    triggered.append({
-                        "alert_id": alert.id,
-                        "user_id": alert.user_id,
-                        "spot_name": alert.spot.name,
-                        "wave_height_ft": round(wave_height_ft, 1),
-                        "wave_period": wave_period,
-                        "rating": rating,
-                        "rating_level": rating_level
-                    })
-        except Exception as e:
-            logger.error(f"Error checking alert {alert.id}: {str(e)}")
-    
+        except Exception:
+            logger.exception("Error resolving surf alert %s", alert.id)
+            continue
+        current = (data or {}).get("current_conditions")
+        if isinstance(current, dict):
+            prepared.append((alert, current))
+    # Resolve forecasts before taking write locks; no provider I/O holds a claim.
+    triggered = []
+    for alert, current in prepared:
+        if not await claim_alert_delivery(db, alert, current):
+            continue
+        wave_height_ft = current["wave_height_ft"]
+        wave_period = current.get("wave_period") or 0
+        rating, rating_level = current.get("rating"), current.get("rating_level")
+        body = surf_alert_body(wave_height_ft, wave_period, rating, rating_level)
+        db.add(Notification(
+            user_id=alert.user_id, type="surf_alert",
+            title=f"🌊 {alert.spot.name} — {wave_height_ft:.1f}ft", body=body,
+            data=json.dumps({
+                "spot_id": alert.spot_id, "wave_height_ft": wave_height_ft,
+                "wave_period": wave_period, "rating": rating, "rating_level": rating_level,
+                "alert_id": alert.id, "type": "surf_alert"
+            })
+        ))
+        triggered.append({
+            "alert_id": alert.id, "user_id": alert.user_id, "spot_name": alert.spot.name,
+            "wave_height_ft": round(wave_height_ft, 1), "wave_period": wave_period,
+            "rating": rating, "rating_level": rating_level
+        })
+    # SQL/commit errors propagate: no partial claimed delivery is reported as success.
     await db.commit()
     return {"triggered_count": len(triggered), "triggered": triggered}
 

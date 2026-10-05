@@ -291,3 +291,26 @@ No global antivirus disable or provider data/config writes. Current chat tool sn
 still lacks Supabase, so reload Codex and reopen this same chat before actual scoped
 tool verification. Source cloud publication canary not executed; runtime credential
 path remains separate. Ledger633 records owner approval and measured recovery.
+
+### 2026-10-05 01:35Z: partial alert delivery repair and connector reload scope
+
+Owner confirms only reopening the chat after OAuth approval, not fully restarting Codex.
+Current tools still lack Supabase; no re-authentication or provider write attempted.
+Source SEC08 repaired both emitters through one conditional SQL cooldown claim.
+Two before repetitions:16fail/7pass; after48new controls,63delivery/quality and161expanded
+pass. Concurrent stale workers no longer create two records/lost counter updates;
+claim and notification commit together; push follows commit; forecasts precede writes.
+One-hour default with bounded operator env override is reported by the API/list.
+Missing/invalid height refuses emission; measured zero and maximum zero survive.
+Build/lint/LOC accepted; frontend/hosted pending. No new forecast value or scientific
+threshold, real notification, provider schema/data, merge/deploy or activation.
+SEC08 remains partial: preferences, manual actor binding, durable outbox, quiet hours
+and PG/provider qualification open. ALERT-RESULTS.md; ledger634 records source proof.
+
+### 2026-10-05 01:38Z: final local alert qualification and publication checkpoint
+
+Full Node24frontend356suites/3689tests accepted. Production compilation/lint ratchet
+accepted; changed Python fatal lint clean;646backend files within800LOC and general
+ratchet accepted. Final delivery/quality63pass and expanded161pass, no skips.
+Ledger635 records publication checkpoint with commit/push/hosted read-back pending.
+ALERT-VALIDATION.json derived directly from the five local JUnit receipts.

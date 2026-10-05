@@ -1,14 +1,14 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-05 01:02Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-05 01:35Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
 ## Implemented source repairs
 
-40 rows have source changes, including partial repairs: prior26 plus AS02/05, SEC05/06/10, SOC01/02,
-OS01/02/03/06, B-M01 and PF03/04. AS01 containment makes41 rows with source or containment work.
-These counts describe work coverage, not40 fully closed production findings; rotation is owner-deferred.
+41 rows have source changes, including partial repairs: prior26 plus AS02/05, SEC05/06/10, SOC01/02,
+OS01/02/03/06, B-M01, PF03/04 and partial SEC08. AS01 containment makes42 rows with source or containment work.
+These counts describe work coverage, not41 fully closed production findings; rotation is owner-deferred.
 
 - Locker actor/audience and gift/item/session/quota authority; random face/selfie matching removed.
 - GL-state restoration, partial-tile damage identity and diagnostic texture dimensions.
@@ -24,6 +24,11 @@ These counts describe work coverage, not40 fully closed production findings; rot
 - Latest14-row source batch:160new backend controls, expanded280pass/2legacy skips and68CI controls;
   Node24production build/lint ratchet/LOC accepted. CI37248136689 all11jobs success atd7b10451;
   unchanged source4eac3550, backend5379/frontend3689. See REMAINING-BATCH-RESULTS.md.
+
+- SEC08 shared atomic cooldown and durable in-app claim, push after commit, missing/zero bounds and
+  server cadence rendering:48new/63delivery-quality/161expanded controls pass.16fail/7pass before twice.
+  Build/lint/LOC/full356suites/3689frontend accepted; hosted qualification pending. Preferences/provider/PG acceptance open.
+  See ALERT-RESULTS.md. Estate floor1016/reference1018; projected backend5427.
 
 ## Validation status
 
@@ -58,7 +63,8 @@ Daily rows verified in light/dark/beach desktop/390px phone offline component fi
 6. OS01–06/SCI01–02: served-hour rating gate, historical autofill, composer zero/missing/provenance,
    daily quality, authenticated observer binding, observation UTC interpretation and held-out coverage.
 
-Nine rows still lack source repairs: AS04, SEC07/08/09, OS04/05, SCI01/02 and B-M02.
+Eight rows still lack source repairs: AS04, SEC07/09, OS04/05, SCI01/02 and B-M02.
+SEC08 now has partial source coverage; stored preferences, actor binding, durable push and PostgreSQL remain open.
 Partial OS02/03/06 and SEC06 scope plus additional acceptance remain on implemented rows.
 New served-value behavior stays default off pending the owner's explicit activation instruction.
 Production remains frozen. Beta app access-code rotation remains deferred as requested.

@@ -1689,7 +1689,8 @@ jobs:
           # Hosted5afa0c82 estate889 +9actual horizon-route controls =898; margin2.
           # Scoreboard chronology:12 actual-audit/negative controls; projected910, margin2.
           # Observer22/session23/social7/purchase8: projected970, margin2.
-          MIN_PASSED = 968
+          # Atomic alert delivery48 controls: projected1018, margin2.
+          MIN_PASSED = 1016
 
           try:
               root = ET.parse('estate.xml').getroot()
