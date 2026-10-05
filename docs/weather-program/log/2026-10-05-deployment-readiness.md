@@ -24,3 +24,13 @@ Main protection still requires18.x while emitted job names24.21.0. Production fr
 shared-backend implications, unconditional product behavior and dark-feature acceptance are
 explicit in DEPLOYMENT-READINESS.md. No provider write, deploy, dev merge or flag activation.
 No served number changed. New docs publication/hosted ledger qualification pending.
+
+### 2026-10-05 21:40Z: readiness publication and ledger gate recovered
+
+Docs838514dc pushed; remote branch and PR head agree OPEN. Hosted ledger37377273489
+COMPLETED/SUCCESS; missing merge metadata failure resolved without bypassing the gate.
+PR description updated and read back with current source13f6d0a9 and5504/3700 counts,
+four blocker fixes, actual live versions and explicit deployment/activation acceptance.
+Runtime/workflow diff from13f6d0a9 remains empty. Ledger650 records publication/description;
+final receipt is documentation only. Full newest application checks pending. No merge to dev,
+deployment, cloud data write, money/provider action or new flag activation.

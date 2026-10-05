@@ -44,7 +44,9 @@ Hosted current-head counts are5504backend=2360guards+2049chain+1095estate,
 356frontend suites/3700tests. Estate296selected/294produced/0silent; existing skipped
 coverage remains. Independent local replay:20backend and29frontend pass, no failures.
 Local Python reports two declared packages absent; hosted Linux remains the full environment authority.
-The separate Weather Program Ledger run37357966994 is FAILURE. Do not call all checks green.
+The separate Weather Program Ledger run37357966994 failed on missing PR242.
+Docs838514dc reconstructs PR242/244; its ledger37377273489 completed SUCCESS.
+Newest full application checks are pending; runtime/workflows are unchanged from13f6d0a9.
 
 ## Release sequence
 

@@ -7,7 +7,8 @@ The register has50 rows, including overlapping findings and assurance gaps, not5
 Current deployment assessment: [DEPLOYMENT-READINESS.md](DEPLOYMENT-READINESS.md).
 PR244 fixes the four newer merge blockers on PR243 head13f6d0a9; current application CI
 all11success5504backend/356suites3700frontend. Separate ledger check failed on missing242;
-historical242/244 merge records now appended, exact new-head hosted requalification pending.
+historical242/244 merge records appended; docs838514dc ledger37377273489 now SUCCESS.
+Newest full application checks remain pending; runtime source is unchanged from13f6d0a9.
 Live API/dev/prod remain6b062e97/2a7b8615/fc140024. No deployment/activation.
 Supabase Dev tools now callable; empty private/RLS preflight confirmed; actual canary unexecuted.
 Older source and connector statements below are historical receipts, not current readiness.
