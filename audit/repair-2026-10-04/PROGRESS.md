@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-05 23:30Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-05 23:49Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -60,7 +60,9 @@ alert source CI all11success/backend5448. New d1cc16fe CI37257237630 all11succes
 See DEEP-AUDIT-RESULTS.md; deadline/hub/ingestion/device/science and provider/PG remain open.
 Historical WI02/WI03 diagnosis6controls twice is retained in INGESTION-DIAGNOSIS.md.
 Current repairs locally qualified:67controls/216expanded twice;51new cases. Actual product
-acknowledgments and verified cycle monitoring repaired; new hosted qualification pending.
+acknowledgments and verified cycle monitoring repaired;1912639b hosted all11SUCCESS,
+5577backend/3700frontend. Supplemental Gulf diagnosis: offline19ft preserved18.913ft,
+8focused suites98pass; actual served-frame/grid/native-pixel cause remains open.
 See INGESTION-REPAIR-RESULTS.md; actual cloud/deployment/every-lane acceptance remains separate.
 
 ## Validation status

@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-05 23:30Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-05 23:49Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,19 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-05 23:49Z: ingestion source1912639b hosted-qualified; Gulf capture incorporated.**
+  CI37388965928 all11SUCCESS; actual5577backend=2393guards2071chain1113estate,
+  frontend356suites3700tests;296estate selected294produced0silent. Supplementary gates
+  success. Commitment664 fulfilled; local67/216twice retained. WI02/WI03 source repaired,
+  no product-selection/served-number/science activation; monitoring warnings unconditional.
+  Gulf stale badge/world181x82 atzoom7.28 observed; later absolute frame/cycle/product/cells
+  not captured. Corrected offline19ft=>18.913ft/three themes/interpolation probe twice;
+  8focused suites98tests pass. Not native pixels or proof of expected storm height.
+  Actual Dev publication, PG/card, native full-map/performance and science remain open.
+  No merge/deploy/provider write; productionfreeze/newflags preserved. Current receipts:
+  INGESTION-REPAIR-RESULTS.md,GULF-HEATMAP-DIAGNOSIS.md; log2026-10-05-deployment-readiness.
+  Ledger666-670; PR243 updated description verified on source1912639b. Receipt publication pending.
 
 - **2026-10-05 23:30Z: remaining WI02/WI03 ingestion/health repairs locally qualified.**
   WI02 fivefail/fivepass twice; WI03 sevenfail/seventeenpass twice before. After67controls
@@ -727,7 +740,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 665, sha256 48759dcfbf8b755d3bdd663134c543543091fcba3edd47455370c388db1ab09e**
+  **Ledger head: seq 670, sha256 7700e31a376de575754d90a338df28b7418ea64df9239735911f7d44b2e289f7**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

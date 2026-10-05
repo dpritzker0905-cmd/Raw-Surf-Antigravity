@@ -104,3 +104,22 @@ pass; selectorchecked51new=33guards18chain. Collection caught one guards project
 error before publication, corrected33, not34. Projected5577backend/unchanged3700frontend;
 exact hosted commitment664 open. Local Python lacks two declared packages. Cloud
 publication/full-map/PG/card/science/deployment remain separate; ledger663-665.
+
+### 2026-10-05 23:49Z: exact ingestion qualification and supplementary Gulf case
+
+Source1912639b all11 hosted jobs SUCCESS in37388965928; actual5577backend=
+2393guards2071chain1113estate,356frontend suites3700tests.296estate selected/
+294produced/0silent. Supplementary gates success;664 fulfilled. Published source
+PR243 OPEN/dev read back. No cloud/every-lane/PG/card/science/native map acceptance.
+Gulf19ft/stale/world181x82 captured; later actual absolute time/cycle/product/cells
+missing. Corrected offline encoder/ramp/identity/interpolation instrument twice;
+98focused tests pass. First-three encode stats cannot certify laterh98. User tab
+only read; no controls/reload changed. No served-value/source runtime change for
+diagnosis, no merge/deploy/provider write or new flag activation.
+
+### 2026-10-05 23:51Z: PR description readback before receipt publication
+
+PR243 OPEN/dev/head1912639b read back with actual5577backend3700frontend, WI02/
+WI03 scope and new Gulf diagnosis. Runtime/CI-test/workflow diff from1912639b
+empty; new standalone audit instrument is explicit. Ledger670; receipt commit
+publication pending. Local ledger669/memory0FAIL8WARN5NOTE before this append.

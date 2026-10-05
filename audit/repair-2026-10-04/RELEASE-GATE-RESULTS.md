@@ -122,3 +122,19 @@ Remaining: configured Render HTTP health path and deliberate shared-backend roll
 publication/CAS canary; isolated PostgreSQL/card/concurrency; actual map/native performance/device
 acceptance; unrepaired ingestion/deadline/media/observation/science findings. Main check-name
 coordination is a main-promotion gate. Preserve Netlify's production freeze and keep new flags off.
+
+## 2026-10-05 23:49Z: ingestion repairs and Gulf case
+
+Runtime1912639b CI37388965928 all11SUCCESS, actual5577backend=2393guards+2071chain+
+1113estate;356frontend suites3700tests; estate296selected294produced0silent.
+Supplementary ledger/LOC/encoding/Lighthouse success. WI02/WI03 now source repaired
+and hosted-qualified; this supersedes their older unrepaired release status.
+Actual cloud/every-lane/upstream and rollout acceptance stay separate.
+
+New Gulf capture: stale badge and coarse world grid at regional zoom.98focused
+frontend tests pass; corrected actual encoder/JS-ramp synthetic probe twice preserves
+19ft as18.913ft and distinct three-theme colors. Four-cell interpolation counterexample
+derivative0.25 is not actual Gulf data. Later frame/cycle/product/cell identities are
+absent from captured logs; first-three encoder statistics cannot qualify later98h.
+Root cause/full native map/science remain open. GULF-HEATMAP-DIAGNOSIS.md.
+No merge/deploy/provider write/forecast flag activation; productionfreeze preserved.

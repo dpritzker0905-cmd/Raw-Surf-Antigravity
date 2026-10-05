@@ -1,16 +1,16 @@
 # Deployment readiness: updated audit versus actual repairs
 
-Verified 2026-10-05 22:44Z. This is a deployment assessment, not deployment authorization.
+Verified 2026-10-05 23:49Z. This is a deployment assessment, not deployment authorization.
 The supplied deep REPORT.md includes sections 10 and 11, and its current SHA256 is
 `be4914fbc8de71b1cfada3b7beb0f78e669c8fd6b5090fefbc3678accb5b72c0`.
-Its merge-blocker review is of `0bb3aec0`; the qualified runtime/test/workflow source is now `f48d15e6`; final receipts are documentation only.
+Its merge-blocker review is of `0bb3aec0`; the qualified runtime/CI-test/workflow source is now `1912639b`; later receipts/audit instruments do not change that source.
 This supersedes the older deployment status in PROGRESS.md without rewriting historical receipts.
 
 ## What is actually running
 
 | Component | Fresh evidence | Meaning |
 |---|---|---|
-| PR243, targeting dev | OPEN, qualified sourcef48d15e6; CI37381706714 all11 application jobs success,5526backend/3700frontend | Repaired source has not reached dev |
+| PR243, targeting dev | OPEN, qualified source1912639b; CI37388965928 all11 application jobs success,5577backend/3700frontend | Repaired source has not reached dev |
 | Shared Render API | Public /api/health healthy, version ends6b062e97; /api/health/data ok, alerts empty | Current PR backend is not live; health does not certify model-cycle freshness |
 | Netlify dev | service-worker BUILD_VERSION2a7b8615 | Current PR frontend is not live on dev |
 | Netlify production | service-worker BUILD_VERSIONfc140024 | Owner's frozen frontend remains served |
@@ -25,7 +25,8 @@ dashboard's22.x/default command. New flag overrides are absent from both provide
 secret values stayed masked. No provider configuration changed. Live Render build used stamp heads,
 while current settings use upgrade heads. Actual live READ ONLY schema preflight now verifies all514
 required columns across13tables and matching three revision heads; types/constraints/concurrency remain
-separate acceptance. Corrected sourcef48d15e6 hosted-qualified after59dd3d26's failed estate projection.
+separate acceptance. Current source1912639b is hosted-qualified; predecessorf48d15e6 had corrected
+59dd3d26's failed estate projection.
 Native isolated controls and WebGL state/dimension checks pass; actual map/FPS/heap acceptance remains.
 Full follow-up receipt:
 [RELEASE-GATE-RESULTS.md](RELEASE-GATE-RESULTS.md).
@@ -42,7 +43,7 @@ Full follow-up receipt:
 | CD01 | main still requires lint-and-build (18.x); current job emits (24.21.0) | Coordinate a stable check name with protection, or explicitly update the required context before main promotion; preserve protection |
 | TLD02 | PR242/244 merge receipts reconstructed; hosted ledger gates at838514dc/4a7671a9 SUCCESS | Resolved missing-history gate; preserve append-only ledger |
 | LIVE04 | grid_series has a default-off response bound; /grid has no deadline | Do not describe this as complete CPU cancellation or a grid-wide deadline repair |
-| WI02/WI03 | Candidate source repaired;67current/216expanded twice,51new cases | New hosted exact-source CI pending; unknown legacy provenance now warns; cloud publication/every-lane and rollout acceptance remain separate |
+| WI02/WI03 | Source repaired;67current/216expanded twice,51new cases;1912639b hosted5577backend/3700frontend | Unknown legacy provenance now warns; cloud publication/every-lane and rollout acceptance remain separate |
 | LIVE01/LIVE02/WC01 and science/geometry rows | Still open; matching file names are not proof of repair | Index scan/cache work, height floor, canonical composition, mixed-sea/partition controls and disjoint held-outs require separate repairs/evidence |
 
 The four section11 merge blockers were fixed by PR244 merged into the repair branch, not dev.
@@ -53,9 +54,11 @@ Local Python reports two declared packages absent; hosted Linux remains the full
 The separate Weather Program Ledger run37357966994 failed on missing PR242.
 Docs838514dc reconstructs PR242/244; its ledger37377273489 completed SUCCESS.
 Docs4a7671a9 application CI37377554458 all11SUCCESS; runtime unchanged from13f6d0a9.
-The gallery/default-pin sourcef48d15e6 is now qualified by CI37381706714 all11SUCCESS:
-5526backend and356suites3700frontend; supplementary gates success. New receipt/launcher files change
-no application, test or workflow source; actual cloud publication is still unexecuted.
+The current ingestion source1912639b is qualified by CI37388965928 all11SUCCESS:
+5577backend and356suites3700frontend; supplementary gates success. Predecessorf48d15e6 had
+5526backend. Later receipts and standalone audit instruments change no runtime/CI-test/workflow
+source; actual cloud publication is still unexecuted. Unknown model-cycle provenance now warns
+unconditionally in the candidate. The supplementary Gulf frame-to-pixel diagnosis remains open.
 
 ## Release sequence
 

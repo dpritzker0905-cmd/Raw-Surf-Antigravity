@@ -1,6 +1,6 @@
 # Ingestion progress and model-cycle health repairs
 
-Local source qualification, 2026-10-05. Hosted successor and deployment are pending.
+Source1912639b hosted-qualified, 2026-10-05. Deployment and real cloud acceptance remain pending.
 These address WI-02/WI-03 in the separate83-ID deep audit; they do not automatically close
 the original50-row register or any publication/science/performance finding.
 
@@ -81,3 +81,11 @@ cycle age7h→55h now changes healthok→critical while ingest age1h remains fix
 forecast-skill gain claimed. Hosted exact-source CI remains a commitment, not projected success.
 Real publication/readback canary, upstream-job internals, every-lane completion and rollout of
 new health warnings remain separate acceptance. No merge/deployment/provider write/activation.
+
+## 2026-10-05 23:49Z: exact-source hosted qualification
+
+CI37388965928 completed all11 application jobs SUCCESS on1912639b. Actual5577backend=
+2393guards+2071chain+1113estate;356frontend suites3700tests. Estate296selected/
+294produced/0silent. Supplementary ledger/LOC/encoding/Lighthouse SUCCESS.
+These actual counters supersede the pending projections above. Commitment664 fulfilled.
+No merge/deployment, upstream/cloud publication proof or physical forecast-skill claim.
