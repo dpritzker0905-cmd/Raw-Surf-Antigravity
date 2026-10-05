@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-05 01:57Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-05 02:03Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -28,7 +28,8 @@ These counts describe work coverage, not41 fully closed production findings; rot
 - SEC08 shared atomic cooldown and durable in-app claim, push after commit, missing/zero bounds and
   server cadence rendering plus JWT/owner CRUD/share/check binding:69new/182expanded controls pass.
   Cooldown16fail/7pass, check5fail, config13fail/6pass before twice each.
-  Build/lint/LOC/full356suites/3689frontend accepted; hosted qualification pending. Preferences/provider/PG acceptance open.
+  Build/lint/LOC/full356suites/3689frontend accepted. Cooldown sourcef995dae4 hosted-qualified
+  all11jobs in CI37252419546/backend5427; final owner source6c355cb2 CI37253656301 running. Preferences/provider/PG acceptance open.
   See ALERT-RESULTS.md. Estate floor1037/reference1039; projected backend5448.
 
 ## Validation status
