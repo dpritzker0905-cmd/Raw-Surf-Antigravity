@@ -25,7 +25,9 @@ is a claim, not a measurement.
   hardware FPS/heap, cloud publication, PG financial/card and science acceptance stay open.
   Dev preflight empty/private/RLS; secure terminal launcher/operator guide prepared, owner
   JSON receipt pending. Netlify lockfc140024 preserved; no merge/deploy/flag/provider writes.
-  RELEASE-GATE-RESULTS.md; log/2026-10-05-deployment-readiness.md; ledger657-661.
+  RELEASE-GATE-RESULTS.md; log/2026-10-05-deployment-readiness.md; ledger657-662.
+  Receipt57f47923 and PR description published/read back; application/test/workflow source
+  unchanged from qualifiedf48d15e6. New docs-head checks pending at publication.
 
 - **2026-10-05 22:16Z: hosted floor caught a lane-projection mistake; corrected without lowering.**
   Source59dd3d26 actual estate1105, not projected1109; unset controls belong to chain2053.
@@ -714,7 +716,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 661, sha256 1f34eec84f8a1ec9a6b08c2373516ccc57e67d06c50e9a27de010a8f2da4a14b**
+  **Ledger head: seq 662, sha256 de5eeff740992424c65aa7a852fbfd9e348bbd8f582f81911435461edd3cebbe**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
