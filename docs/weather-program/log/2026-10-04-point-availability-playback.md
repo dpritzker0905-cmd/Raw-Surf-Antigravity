@@ -260,3 +260,13 @@ Upstream issue48504 reports the same Avast version and controlled resolution els
 Earlier missing-registration explanation was incomplete; earlier unknown cause superseded.
 No antivirus setting or remote provider state changed. Proposed endpoint-only exception
 still requires owner UI action and controlled retest; no causal closure or authenticated access yet.
+
+### 2026-10-05 00:49Z: first endpoint clear; second OAuth endpoint still inspected
+
+Owner CLI now fails at the API OAuth issuer instead of MCP resource discovery. Normal TLS
+read-back: mcp.supabase.com issuer Google Trust Services and metadata200/curl0;
+api.supabase.com issuer Avast Web/Mail Shield Root and metadata200/curl0, while Codex still
+fails decoding there. Suggested second exception restricted to the API host, pending owner
+action and retest; no global antivirus disable or agent settings edit. Ledger629 records it.
+Ledger630 corrects author attribution on620-628: the CLI defaulted to claude when omitted,
+but the actions were Codex's. Original entries retained; future calls explicitly set actor codex.
