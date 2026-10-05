@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-05 22:16Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-05 22:44Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,19 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-05 22:44Z: sourcef48d15e6 hosted-qualified after the gallery/lane correction.**
+  CI37381706714 all11SUCCESS:5526backend=2360/2053/1113;356suites3700frontend.
+  Estate296selected/294produced/0silent; supplementary ledger/LOC/encoding/Lighthouse success.
+  Local152pass/new8repeat. Failed59dd3d26 floor result remains explicit;659 fulfilled660.
+  Live read-only PostgreSQL13required tables514columns/no missing; three source/database
+  heads match. Column/revision preflight only, not type/constraint/card/concurrency proof.
+  Native isolated desktop/phone exact-frame buffering and three themes/calendar accepted;
+  native WebGL2 state/exception/framebuffer/dimension probe passed/error0. Actual map pixels,
+  hardware FPS/heap, cloud publication, PG financial/card and science acceptance stay open.
+  Dev preflight empty/private/RLS; secure terminal launcher/operator guide prepared, owner
+  JSON receipt pending. Netlify lockfc140024 preserved; no merge/deploy/flag/provider writes.
+  RELEASE-GATE-RESULTS.md; log/2026-10-05-deployment-readiness.md; ledger657-661.
 
 - **2026-10-05 22:16Z: hosted floor caught a lane-projection mistake; corrected without lowering.**
   Source59dd3d26 actual estate1105, not projected1109; unset controls belong to chain2053.
@@ -701,7 +714,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 656, sha256 5cd1d50767cf9dc6abee39286c0d1293ec4bbf9799e556d4770dbd5e20e5fcc2**
+  **Ledger head: seq 661, sha256 1f34eec84f8a1ec9a6b08c2373516ccc57e67d06c50e9a27de010a8f2da4a14b**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

@@ -1,20 +1,20 @@
 # Deployment readiness: updated audit versus actual repairs
 
-Verified 2026-10-05 22:16Z. This is a deployment assessment, not deployment authorization.
+Verified 2026-10-05 22:44Z. This is a deployment assessment, not deployment authorization.
 The supplied deep REPORT.md includes sections 10 and 11, and its current SHA256 is
 `be4914fbc8de71b1cfada3b7beb0f78e669c8fd6b5090fefbc3678accb5b72c0`.
-Its merge-blocker review is of `0bb3aec0`; the actual PR243 head is now `13f6d0a9`.
+Its merge-blocker review is of `0bb3aec0`; the qualified runtime/test/workflow source is now `f48d15e6`; final receipts are documentation only.
 This supersedes the older deployment status in PROGRESS.md without rewriting historical receipts.
 
 ## What is actually running
 
 | Component | Fresh evidence | Meaning |
 |---|---|---|
-| PR243, targeting dev | OPEN, MERGEABLE, head13f6d0a9; CI37357966896 all11 application jobs success | Repaired source has not reached dev |
+| PR243, targeting dev | OPEN, qualified sourcef48d15e6; CI37381706714 all11 application jobs success,5526backend/3700frontend | Repaired source has not reached dev |
 | Shared Render API | Public /api/health healthy, version ends6b062e97; /api/health/data ok, alerts empty | Current PR backend is not live; health does not certify model-cycle freshness |
 | Netlify dev | service-worker BUILD_VERSION2a7b8615 | Current PR frontend is not live on dev |
 | Netlify production | service-worker BUILD_VERSIONfc140024 | Owner's frozen frontend remains served |
-| Netlify PR243 preview | service-worker BUILD_VERSION13f6d0a9 | Latest frontend preview exists; it still uses the shared backend |
+| Netlify PR243 preview | Completed13f6d0a9 frontend preview; later receipts have no frontend delta | Existing preview uses shared backend; status success does not mean every docs head rebuilt |
 | Separate Supabase Dev | Scoped SQL: pointer0rows, auth0users, weather bucket0objects, private, pointer RLS enabled | Connector works; real publication canary is still unexecuted |
 
 Authenticated Chrome readback now confirms Render dev/Auto-Deploy On Commit, migrations in the
@@ -22,9 +22,11 @@ build command and empty health-check path. Live /api/health/simple returned HTTP
 Auto Publishing Locked atfc140024; production branch main, branch deploys dev/frozen branch.
 The completed13f6d0a9 preview uses Node24.21.0 and netlify.toml's build command, overriding the
 dashboard's22.x/default command. New flag overrides are absent from both provider key inventories;
-secret values stayed masked. No provider configuration changed. Live Render build used stamp heads, while current settings use upgrade heads; verify actual schema.
-Hosted59dd3d26 estate gate caught the incorrect lane projection; corrected floors now await a successor
-run, despite passing estate tests. Native isolated control acceptance is partial, not map/GPU qualification.
+secret values stayed masked. No provider configuration changed. Live Render build used stamp heads,
+while current settings use upgrade heads. Actual live READ ONLY schema preflight now verifies all514
+required columns across13tables and matching three revision heads; types/constraints/concurrency remain
+separate acceptance. Corrected sourcef48d15e6 hosted-qualified after59dd3d26's failed estate projection.
+Native isolated controls and WebGL state/dimension checks pass; actual map/FPS/heap acceptance remains.
 Full follow-up receipt:
 [RELEASE-GATE-RESULTS.md](RELEASE-GATE-RESULTS.md).
 
@@ -34,7 +36,7 @@ Full follow-up receipt:
 |---|---|---|
 | LH01/LH02/AS01 | Push authority, Gemini credential transport and unconditional trace-off remain repaired | Deploy source; historical cleanup/rotation is separate; beta-code rotation remains owner-deferred |
 | F01 | PR244 binds join, in-session purchase and quick-book to JWT identity before database operations | Actual financial/card/concurrency behavior remains outside SQLite authority qualification |
-| F02 | PR244 restores gallery redemption; follow-up scopes queue/items/redemption/sweep by owner, photographer and session/gallery | Six prior defects reproduced twice;87focused/144expanded pass; new hosted qualification and PG concurrency pending |
+| F02 | PR244 restores gallery redemption; follow-up scopes queue/items/redemption/sweep by owner, photographer and session/gallery | Six prior defects reproduced twice;152expanded/new8repeat pass;5526backend hosted green; PG concurrency remains |
 | FCA01 | PR244 separates the damage snapshot from the island reassert gate | Actual painter tests cover401/850/1199, coarse68/205/399 and kill205/850; native GPU/geography acceptance remains |
 | FCA02 | PR244 restores readable forecast chip classes on the existing dark card surface in all three themes | Mounted light/dark/beach controls pass; broader desktop/mobile visual acceptance remains |
 | CD01 | main still requires lint-and-build (18.x); current job emits (24.21.0) | Coordinate a stable check name with protection, or explicitly update the required context before main promotion; preserve protection |
@@ -44,14 +46,16 @@ Full follow-up receipt:
 | LIVE01/LIVE02/WC01 and science/geometry rows | Still open; matching file names are not proof of repair | Index scan/cache work, height floor, canonical composition, mixed-sea/partition controls and disjoint held-outs require separate repairs/evidence |
 
 The four section11 merge blockers were fixed by PR244 merged into the repair branch, not dev.
-Hosted current-head counts are5504backend=2360guards+2049chain+1095estate,
+Historical13f6d0a9 hosted counts were5504backend=2360guards+2049chain+1095estate,
 356frontend suites/3700tests. Estate296selected/294produced/0silent; existing skipped
 coverage remains. Independent local replay:20backend and29frontend pass, no failures.
 Local Python reports two declared packages absent; hosted Linux remains the full environment authority.
 The separate Weather Program Ledger run37357966994 failed on missing PR242.
 Docs838514dc reconstructs PR242/244; its ledger37377273489 completed SUCCESS.
 Docs4a7671a9 application CI37377554458 all11SUCCESS; runtime unchanged from13f6d0a9.
-The gallery/default-pin follow-up changes source/tests/floors and needs a fresh hosted run.
+The gallery/default-pin sourcef48d15e6 is now qualified by CI37381706714 all11SUCCESS:
+5526backend and356suites3700frontend; supplementary gates success. New receipt/launcher files change
+no application, test or workflow source; actual cloud publication is still unexecuted.
 
 ## Release sequence
 

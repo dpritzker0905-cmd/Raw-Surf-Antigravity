@@ -67,3 +67,19 @@ FPS/heap/latency acceptance. Viewport restored, tab and loopback server closed. 
 Live Render build used alembic stamp heads versus current upgrade heads setting: actual database
 schema/revision still requires verification. No provider/DB writes, merge, deploy or flag activation.
 No served number changed. Earlier22:00 projection remains visible with this correction.
+
+### 2026-10-05 22:44Z: corrected source hosted green, schema metadata and native WebGL acceptance
+
+Exact sourcef48d15e6 CI37381706714 all11SUCCESS;5526backend=2360/2053/1113 and356/3700frontend.
+Estate296selected/294produced/0silent; supplementary ledger/LOC/encoding/Lighthouse success.
+Commitment659 fulfilled660. Failed59dd3d26 projection stays explicit. Local152/new8repeat pass.
+Source/model/requirements/migration diff from live verified; actual live readonly schema query
+returns13required tables514columns/no missing and matching three source/database heads. No types/
+constraints/card/concurrency claim. Live historical stamp command was insufficient on its own.
+Native Chrome WebGL2 state/exception/framebuffer/dimension probe passes,error0; four known255/
+unknownnull spans. Repeat input timed out, so first confirmed run only. Tab/server closed. Full-map
+pixels/hardware FPS/heap remain unqualified. No live map load or served forecast/skill changes.
+Dev empty/private/RLS confirmed fresh. Secure fixed-Dev terminal launcher/operator guide prepared,
+parser PASS; owner asked to enter existing key only hidden and return JSON. Actual canary pending.
+No credential printed/stored, no provider/DB user-data writes, charge, merge, deploy or activation.
+Ledger657-661; final receipt/launcher files change no application/test/workflow behavior.

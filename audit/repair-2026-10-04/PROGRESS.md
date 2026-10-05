@@ -1,18 +1,23 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-05 22:16Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-05 22:44Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
 Current deployment assessment: [DEPLOYMENT-READINESS.md](DEPLOYMENT-READINESS.md).
-PR244 fixes the four newer merge blockers on PR243 head13f6d0a9; current application CI
+PR244 fixes the four newer merge blockers on prior PR243 head13f6d0a9; that source's application CI
 all11success5504backend/356suites3700frontend. Separate ledger check failed on missing242;
 historical242/244 merge records appended; docs838514dc ledger37377273489 now SUCCESS.
 Docs4a7671a9 CI37377554458 all11SUCCESS. Gallery follow-up fixes queue/photographer scope;
 Latest expanded152pass/new eight repeated pass. Hosted59dd3d26 estate1105 failed floor1107;
 four unset cases belong to chain2053. Corrected without lowering: eighteen gallery cases bring
-estate projection1113/floor1111; chain2053/floor2047. Successor hosted confirmation pending. Authenticated provider configuration/lock/absent flags read back;
-see RELEASE-GATE-RESULTS.md. Runtime source13f6 qualification does not certify the new change.
+estate1113/floor1111; chain2053/floor2047. Exact sourcef48d15e6 now qualified:
+CI37381706714 all11SUCCESS;5526backend/356suites3700frontend;0silent; supplementary gates success.
+Live read-only schema preflight13tables514columns/no missing/revisions match. Native isolated
+desktop/phone buffer/themes/calendar and WebGL2 state/dimension probe accepted; full-map pixels,
+hardware performance and PG financial concurrency remain open. Authenticated configuration/lock/
+absent flags read back; RELEASE-GATE-RESULTS.md and STAGING-CANARY-OPERATOR.md contain current gates.
+Actual Dev publication test still awaits secure terminal execution; launcher syntax alone is not success.
 Live API/dev/prod remain6b062e97/2a7b8615/fc140024. No deployment/activation.
 Supabase Dev tools now callable; empty private/RLS preflight confirmed; actual canary unexecuted.
 Older source and connector statements below are historical receipts, not current readiness.
@@ -76,7 +81,8 @@ Daily rows verified in light/dark/beach desktop/390px phone offline component fi
 ## What remains, in order
 
 1. AS06 actual Supabase staging publication/read-back: separate existing Dev target verified empty;
-   actual-source canary prepared, not executed. Dev MCP OAuth approved/confirmed after narrow Avast endpoint recovery; chat tool reload and runtime access open.
+   actual-source canary prepared, not executed. Dev connector is callable; the separate publisher runtime
+   needs the existing Dev credential through the hidden terminal prompt. See STAGING-CANARY-OPERATOR.md.
 2. PF03/PF04 source implemented dark and locally qualified; qualify browser heap/GPU plateau,
    hosted candidate and actual spot-hub populationp95≤5s. Admission is per Python process.
 3. AS04/MH01–03/PB01/B-M01/B-M02: full hour-to-pixel oracle, slow-fetch play/scrub,

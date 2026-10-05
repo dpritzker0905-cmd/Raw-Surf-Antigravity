@@ -1,6 +1,6 @@
 # Gallery and deployment gate follow-up
 
-Verified 2026-10-05 22:16Z; source qualification below is local until the new hosted run completes.
+Verified 2026-10-05 22:44Z; exact sourcef48d15e6 is hosted-qualified. Earlier pending/failed stages remain historical below.
 
 ## Source repair
 
@@ -89,3 +89,36 @@ does not certify existing schema. No schema repair or provider setting change wa
 Official guidance: [Render deployment triggers](https://render.com/docs/deploys),
 [Render HTTP checks](https://render.com/docs/health-checks),
 [Netlify file configuration](https://docs.netlify.com/build/configure-builds/file-based-configuration/).
+
+## 2026-10-05 22:44Z: exact-source qualification and live column/revision preflight
+
+Sourcef48d15e6 CI37381706714 completed all11 application jobs SUCCESS. Actual5526backend=
+2360guards+2053chain+1113estate;356frontend suites/3700tests. Estate296selected/294produced/
+0silent; existing skips/xfail retained. Supplementary ledger/LOC/encoding/Lighthouse SUCCESS.
+This supersedes the failed59dd3d26 projection rather than hiding it. Local152 and new8repeat pass.
+
+The authenticated live Render shell ran only metadata queries under transaction_read_only=on,
+with5s statement/connect bounds, rollback and connection close. All514expected columns across13
+required gallery/session/booking/dispatch/payment/profile tables are present. Database/source
+revision heads match2fd2888a0987,a107b7db4f12,avatar_url_text_001. Models/migrations/requirements
+have no delta from live6b062e97. This addresses required-column/revision readiness; it does not
+certify data types, constraints, charge/credit behavior or PostgreSQL concurrency. No DDL or user
+record was changed, and no credential value was printed. Current build remains upgrade heads;
+the historical stamp command alone was not the evidence of schema readiness.
+
+Native Chrome WebGL2 probe: stateRestored,throwRestored,framebufferRestored,passed alltrue; error0.
+Spans0.2,2,12,40 all read known255 and unknown-dimensionnull. This uses actual encoder/probe helpers
+and a real WebGL context; it does not identify a hardware renderer or measure full-map pixels/FPS/
+heap. A repeat input timed out, so only the confirmed first run is credited. Probe tab/server closed.
+
+Fresh Dev connector SQL confirms pointer/auth/object counts0, private weather bucket and pointer
+RLS. [run-staging-canary.ps1](run-staging-canary.ps1) fixes the verified isolated target, accepts the
+existing key hidden, sets only the child runtime credential environment and restores its parent;
+it persists no credential. Parser PASS; actual canary unexecuted. Owner terminal JSON receipt is
+pending. [STAGING-CANARY-OPERATOR.md](STAGING-CANARY-OPERATOR.md) supplies the concrete steps.
+No production key, cloud data write, charge, merge, deployment or new flag activation occurred.
+
+Remaining: configured Render HTTP health path and deliberate shared-backend rollout; actual Dev
+publication/CAS canary; isolated PostgreSQL/card/concurrency; actual map/native performance/device
+acceptance; unrepaired ingestion/deadline/media/observation/science findings. Main check-name
+coordination is a main-promotion gate. Preserve Netlify's production freeze and keep new flags off.
