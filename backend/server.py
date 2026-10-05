@@ -11,6 +11,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env', override=True)  # Override system env vars with .env values
 
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # (Early Synchronous Cache Check has been shifted to the lifespan function to avoid blocking port binding and causing Render health check failures)

@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-05 02:03Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-05 02:50Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,13 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-05 02:50Z: deep-audit security/trace/actor source locally qualified.**
+  Owner-supplied83-ID audit retained separately; current push/Gemini/trace/actor defects
+  reproduced and repaired.36new/166expanded pass; point Jacobian6pass twice; no science
+  activation. Earlier alert source6c355cb2 CI37253656301 all11success/backend5448 and
+  frontend356/3689. New source hosted pending; original eight no-source rows and cloud,
+  deadline/hub/ingestion/GPU/p95/PG/science acceptance remain. DEEP-AUDIT-RESULTS.md.
 
 - **2026-10-05 02:03Z: final alert owner source6c355cb2 published on PR243.**
   Exact head read back OPEN; PR description updated. Prior cooldown sourcef995dae4
@@ -651,7 +658,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 638, sha256 0b6c358ad50839eecec0269c28b3599c124ed6d2beb9d209a062db81d1608601**
+  **Ledger head: seq 641, sha256 985059c7db838ba07b69bcbf64f84274f79590859b03c1cb2ca078578310186a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

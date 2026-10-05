@@ -1690,7 +1690,8 @@ jobs:
           # Scoreboard chronology:12 actual-audit/negative controls; projected910, margin2.
           # Observer22/session23/social7/purchase8: projected970, margin2.
           # Atomic alert delivery69 controls including HTTP configuration ownership: projected1039, margin2.
-          MIN_PASSED = 1037
+          # Deep-audit push/AI/trace/explicit-actor controls add36 to hosted1039; margin2.
+          MIN_PASSED = 1073
 
           try:
               root = ET.parse('estate.xml').getroot()

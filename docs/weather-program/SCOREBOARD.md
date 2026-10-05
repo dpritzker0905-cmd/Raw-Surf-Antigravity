@@ -152,3 +152,11 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-05 01:57Z | SEC08 JWT and owner configuration/check extension | D-001 | Actual HTTP/JWT plus real ephemeral ORM; positive own CRUD/share/all-owner scheduler | Manual5fail before twice, config13fail/6pass before twice;69new/182expanded/25repeated HTTP pass; fatal lint/LOC accepted | No served weather number/skill change; no deployment/activation; preferences/outbox/PG/provider acceptance open |
 
 | 2026-10-05 02:03Z | Alert cooldown sourcef995dae4 hosted qualification | D-001 | Exact hosted source, all11jobs and actual completed-log counters |5427backend=2360/2049/1018,356/3689frontend; estate290selected/288produced/0silent; existing66skip/1xfail | No served weather number/skill change; final owner source6c355cb2 differs and hosted acceptance remains pending; no merge/deploy/activation |
+
+| 2026-10-05 02:50Z | Final alert owner source6c355cb2 hosted acceptance | D-001 | Exact all11 completed jobs and actual log counters | 5448backend=2360/2049/1039;356/3689frontend;0silent | No served weather number/skill change; Preferences/outbox/provider/PG remain open; no activation |
+
+| 2026-10-05 02:50Z | Deep audit push/Gemini/trace source repair | D-001 | Actual HTTP/JWT/ephemeral ORM/HTTPX and executed workflow arguments | 24fail/3pass before twice; final31security controls pass;166expanded accepted | No served weather number/skill change; Provider/PG/old log/artifact/rotation acceptance remains; no activation |
+
+| 2026-10-05 02:50Z | Explicit ledger actor | D-001 | Real CLI writes on isolated hash-chained fixture ledgers | 3fail/2pass before twice;5pass after; omitted actor refuses before write | No served weather number/skill change; Historical attribution correction remains partial; no activation |
+
+| 2026-10-05 02:50Z | Current point Jacobian continuation | D-001 | Two repeats finite differences through actual resolver/sampler | Requested/hint[1,0] flag on;[0,1] off;6controls twice | No served weather number/skill change; No physical accuracy or held-out skill claim; no activation |

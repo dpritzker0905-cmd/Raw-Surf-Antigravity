@@ -61,6 +61,7 @@ history stays where it is: it is frozen, and new state lives here.
 2. Verify STATE's claims live before acting on them (they drift): `git fetch`, `gh pr list --state open`, and the
    backend's `/api/health` and `/api/health/data`.
 3. Open your own log file for the day and append to it as you go; ledger each action as you take it.
+   Ledger append requires an explicit `--actor`; environment/default attribution is refused.
 
 ## Ending a session
 

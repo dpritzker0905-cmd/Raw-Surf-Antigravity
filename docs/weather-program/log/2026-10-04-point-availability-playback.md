@@ -343,3 +343,18 @@ PR243 final description read back with69new/182expanded and honest final hosted
 pending status. Ledger638 records receipt-only synchronization; no source/provider
 change. Supabase tools still absent; full Codex restart and staged runtime access
 remain the publication-canary prerequisites. No new login or credentials requested.
+
+### 2026-10-05 02:50Z: owner-supplied deep audit and fresh source repairs
+
+Read the supplied83-finding partial audit and reconciled its older dev/deployed
+baseline with PR243. Current push/credential/trace/actor failures reproduced:
+security24fail/3pass twice; actor3fail/2pass twice. Source now36new controls,
+166expanded pass, fatal lint/LOC/ledger selftest accepted; requested-product
+Jacobian6pass twice. Original eight source gaps and all external acceptance
+remain. Whole83 findings not independently re-certified; registry preserves them.
+
+Fresh readonly health healthy/live6b062e97, all10 data lanes ok/no alerts,
+freshest age0.6h; no inference about model-cycle age. Prior final alert source
+6c355cb2 CI37253656301 all11success, actual5448backend/frontend356/3689.
+New publication/hosted pending. No provider writes, live pushes, activation,
+merge/deploy or computer-use shell mutation; beta rotation remains deferred.

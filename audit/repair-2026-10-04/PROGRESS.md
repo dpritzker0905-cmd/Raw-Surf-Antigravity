@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-05 02:03Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-05 02:50Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -20,7 +20,7 @@ These counts describe work coverage, not41 fully closed production findings; rot
 - Immutable manifest publication now uses unique/create-only uploads with exact acknowledgment,
   protected ambiguous CAS candidates and bounded generation/age cleanup; actual source and expanded neighbors/floors148pass twice.
 - Browser series total3, latest regional ownership and shared cache48entries/32MiB estimate; both new flags disabled.
-- Current local frontend356suites/3689tests; backend floors2354/2043/968, paired references2360/2049/970.
+- Frontend356suites/3689tests on prior/current hosted source; current backend floors2354/2043/1073, paired references2360/2049/1075.
 - Latest14-row source batch:160new backend controls, expanded280pass/2legacy skips and68CI controls;
   Node24production build/lint ratchet/LOC accepted. CI37248136689 all11jobs success atd7b10451;
   unchanged source4eac3550, backend5379/frontend3689. See REMAINING-BATCH-RESULTS.md.
@@ -29,8 +29,17 @@ These counts describe work coverage, not41 fully closed production findings; rot
   server cadence rendering plus JWT/owner CRUD/share/check binding:69new/182expanded controls pass.
   Cooldown16fail/7pass, check5fail, config13fail/6pass before twice each.
   Build/lint/LOC/full356suites/3689frontend accepted. Cooldown sourcef995dae4 hosted-qualified
-  all11jobs in CI37252419546/backend5427; final owner source6c355cb2 CI37253656301 running. Preferences/provider/PG acceptance open.
-  See ALERT-RESULTS.md. Estate floor1037/reference1039; projected backend5448.
+  all11jobs in CI37252419546/backend5427; final owner source6c355cb2 CI37253656301 all11success/backend5448. Preferences/provider/PG acceptance open.
+  See ALERT-RESULTS.md. Prior estate1039 observed; current deep-audit floor1073/reference1075; projected backend5484.
+
+## Deep-audit continuation
+
+Owner-supplied deep audit83 IDs retained in DEEP-AUDIT-REGISTER.md. Fresh current-source
+review confirms LH01/LH02/AS01 diagnostic override/PS03. Public push send removed; JWT
+subscription ownership, header-only Gemini credentials/no key prefixes and mandatory actor
+implemented.36new controls,166expanded pass; current point Jacobian6pass twice. Prior
+alert source CI now all11success/backend5448. New source hosted-pending. No activation.
+See DEEP-AUDIT-RESULTS.md; deadline/hub/ingestion/device/science and provider/PG remain open.
 
 ## Validation status
 
