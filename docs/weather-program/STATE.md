@@ -25,7 +25,8 @@ is a claim, not a measurement.
   Actual Dev publication, PG/card, native full-map/performance and science remain open.
   No merge/deploy/provider write; productionfreeze/newflags preserved. Current receipts:
   INGESTION-REPAIR-RESULTS.md,GULF-HEATMAP-DIAGNOSIS.md; log2026-10-05-deployment-readiness.
-  Ledger666-670; PR243 updated description verified on source1912639b. Receipt publication pending.
+  Ledger666-671; receipt5d36b304 and PR243 description published/read back.
+  Runtime/CI-test/workflow source unchanged1912639b; documentation-head checks pending.
 
 - **2026-10-05 23:30Z: remaining WI02/WI03 ingestion/health repairs locally qualified.**
   WI02 fivefail/fivepass twice; WI03 sevenfail/seventeenpass twice before. After67controls
@@ -740,7 +741,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 670, sha256 7700e31a376de575754d90a338df28b7418ea64df9239735911f7d44b2e289f7**
+  **Ledger head: seq 671, sha256 d5eb3109ae951eee8e4836308404b41c254448acd00772dadc93d7a1b9e38eb7**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

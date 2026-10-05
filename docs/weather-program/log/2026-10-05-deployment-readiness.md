@@ -123,3 +123,11 @@ PR243 OPEN/dev/head1912639b read back with actual5577backend3700frontend, WI02/
 WI03 scope and new Gulf diagnosis. Runtime/CI-test/workflow diff from1912639b
 empty; new standalone audit instrument is explicit. Ledger670; receipt commit
 publication pending. Local ledger669/memory0FAIL8WARN5NOTE before this append.
+
+### 2026-10-05 23:53Z: completed receipt publication readback
+
+Receipt5d36b304 published and PR243 OPEN/dev/head/body read back. Actual runtime/
+CI-test/workflow diff from qualified1912639b empty; new standalone Gulf audit
+instrument and receipts explicit. Local ledger670/memory0FAIL8WARN5NOTE pass.
+Ledger671 accompanies this publication batch; documentation-head checks pending,
+not claimed fully green. No merge/deploy/flag/provider writes or served values changed.
