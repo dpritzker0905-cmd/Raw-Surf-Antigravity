@@ -14,9 +14,10 @@ process.env.NODE_ENV = 'production';
 process.chdir(frontend);
 webpack({ mode: 'production', entry: path.join(__dirname, forecast ? 'forecast-visual-entry.jsx' : 'visual-entry.jsx'),
   output: { path: out, filename: 'preview.js' }, devtool: false,
-  plugins: [new webpack.DefinePlugin({ 'process.env': JSON.stringify({ NODE_ENV: 'production', ...(forecast ? {
+  // A wrapped object remains an expression inside concise arrow functions during concatenation.
+  plugins: [new webpack.DefinePlugin({ 'process.env': '(' + JSON.stringify({ NODE_ENV: 'production', ...(forecast ? {
     REACT_APP_FORECAST_STATE_IDENTITY: 'true', REACT_APP_MARINE_VALUE_VALIDITY: 'true', REACT_APP_GFS_EXACT_PLAYBACK: 'true',
-  } : {}) }) }), ...(forecast ? [
+  } : {}) }) + ')' }), ...(forecast ? [
     new webpack.NormalModuleReplacementPlugin(/contexts[/\\]AuthContext(?:\.js)?$/, path.join(__dirname, 'forecast-visual-auth.js')),
     new webpack.NormalModuleReplacementPlugin(/lib[/\\]apiClient(?:\.js)?$/, path.join(__dirname, 'forecast-visual-api.js')),
   ] : [])],

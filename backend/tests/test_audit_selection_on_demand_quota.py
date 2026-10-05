@@ -216,3 +216,31 @@ async def test_session_selection_still_lists_redeems_and_sweeps_only_its_scope(h
     assert response.json()['photos_selected'] == 1 and response.json()['selection_complete'] is True
     assert await access_types(maker) == {
         'si-a': 'included', 'si-b': 'pending', 'si-c': 'pending_selection', 'si-x': 'pending_selection'}
+
+
+@pytest.mark.parametrize('scope_key', ['booking_id', 'live_session_id'])
+@pytest.mark.parametrize('surface', ['queue', 'items', 'redeem', 'sweep'])
+async def test_gallery_only_quota_never_claims_session_assigned_items(harness, scope_key, surface):
+    client, maker = harness
+    await add_quota(maker, gallery_id='g1', allowed=1)
+    async with maker() as db:
+        item = (await db.execute(select(SurferGalleryItem).where(SurferGalleryItem.id == 'si-a'))).scalar_one()
+        # Same surfer, photographer and parent gallery, but allocated to a different session.
+        setattr(item, scope_key, 'another-session')
+        await db.commit()
+    if surface in ('redeem', 'sweep'):
+        ids = ['si-a'] if surface == 'redeem' else ['si-b']
+        response = await client.post(select_url(), headers=bearer(), json={'item_ids': ids})
+        assert response.status_code == 200, response.text
+        assert response.json()['photos_selected'] == (0 if surface == 'redeem' else 1)
+        types = await access_types(maker)
+        assert types['si-c'] == ('pending_selection' if surface == 'redeem' else 'pending')
+    else:
+        url = '/api/surfer-gallery/selection-queue/surfer' if surface == 'queue' else '/api/surfer-gallery/selection-queue/q/items'
+        response = await client.get(url, headers=bearer())
+        assert response.status_code == 200, response.text
+        body = response.json()
+        items = body['quotas'][0]['eligible_items'] if surface == 'queue' else body['unselected_items']
+        assert {item['id'] for item in items} == {'si-b', 'si-c'}
+    types = await access_types(maker)
+    assert types['si-a'] == 'pending_selection' and types['si-x'] == 'pending_selection'

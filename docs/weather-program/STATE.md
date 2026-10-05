@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-05 22:00Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-05 22:16Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,17 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-05 22:16Z: hosted floor caught a lane-projection mistake; corrected without lowering.**
+  Source59dd3d26 actual estate1105, not projected1109; unset controls belong to chain2053.
+  Estate floor1107 failed while its tests passed. Eight new gallery/session collision controls
+  bring projected estate1113/floor1111; chain2053/floor2047. Local152pass, new eight repeated
+  pass. Prior failed exact-source qualification is recorded, not promoted; successor pending.
+  Native isolated desktop/phone playback holds until exact frames arrive; three themes/calendar
+  checked. Actual map pixels/native GPU/heap/performance remain open. Visual instrument repaired.
+  Render live build used stamp heads versus current upgrade heads: actual schema verification
+  remains a release gate even without migration-file delta. No merge/deploy/provider activation.
+  RELEASE-GATE-RESULTS.md; log/2026-10-05-deployment-readiness.md; ledger653-656.
 
 - **2026-10-05 22:00Z: gallery queue extension and actual unset defaults locally qualified.**
   Six defects reproduced twice; shared surfer/photographer/scope query now covers queue,
@@ -690,7 +701,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 652, sha256 5f773e3b012c42f8e0a754c0158d2100446ccefd16d5285d3146ef1fe00bfddb**
+  **Ledger head: seq 656, sha256 5cd1d50767cf9dc6abee39286c0d1293ec4bbf9799e556d4770dbd5e20e5fcc2**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

@@ -50,3 +50,20 @@ local auto-deploy edit canceled without save. Lightweight public health probe HT
 write, actual charge, cloud test data, merge, deployment or activation. No served number changes.
 Prior docs4a7671a9 application CI37377554458 all11SUCCESS; new source hosted qualification pending.
 Ledger651-652; release receipt separates remaining cloud/PG/native/deadline/ingestion/science gates.
+
+### 2026-10-05 22:16Z: failed lane projection corrected, native isolated controls, migration drift
+
+Source59dd3d26 published and PR description read back (653). Original qualification promise654
+inspected and closed with explicit failed result in correction655: estate actual1105 passed but
+floor1107 failed; four unset cases are chain-owned, actual2053 passed. Eight meaningful booking/live
+assignment collision controls across queue/items/redemption/sweep added;152expanded and new8repeat
+pass. Corrected paired chain2047/ref2053 and estate1111/ref1113 increase, no lowered floors/skips.
+Successor hosted qualification remains pending. Do not promote failed59dd3d26 as fully green.
+
+Visual instrument DefinePlugin object needed expression wrapping; actual isolated bundle now builds.
+Native desktop0hBuffering->exact6hReady and phone6hBuffering->exact12hReady; keyboard scrub label
+and light/dark/beach/calendar controls inspected. This synthetic fixture is not actual map pixel/GPU/
+FPS/heap/latency acceptance. Viewport restored, tab and loopback server closed. Ledger656.
+Live Render build used alembic stamp heads versus current upgrade heads setting: actual database
+schema/revision still requires verification. No provider/DB writes, merge, deploy or flag activation.
+No served number changed. Earlier22:00 projection remains visible with this correction.

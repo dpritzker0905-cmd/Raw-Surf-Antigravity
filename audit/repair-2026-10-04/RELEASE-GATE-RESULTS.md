@@ -1,6 +1,6 @@
 # Gallery and deployment gate follow-up
 
-Verified 2026-10-05 22:00Z; source qualification below is local until the new hosted run completes.
+Verified 2026-10-05 22:16Z; source qualification below is local until the new hosted run completes.
 
 ## Source repair
 
@@ -61,3 +61,31 @@ to Python. PostgreSQL/card concurrency, native playback/GPU/heap/device acceptan
 freshness and empty-ingest failures, grid deadline and held-out science remain explicitly open.
 Main protection's required18.x versus emitted24.21.0 check mismatch remains a main-promotion gate.
 No cloud test data, actual charge, merge, deployment or flag activation occurred in this follow-up.
+
+## 22:16Z correction and further acceptance
+
+The earlier estate1109 projection was wrong: actual-source59dd3d26 hosted estate ran1105pass,
+2865skip and its1107floor failed. Four unset controls belong to chain, which ran2053pass. This
+is a CI configuration error, not a skipped/failing gallery regression. Do not call59dd3d26 green.
+Selector readback from backend confirms ownership. Eight added gallery/session collision controls
+cover both booking/live assignment across queue/items/redemption/leftover sweeping.152expanded
+pass; the new eight repeat independently8pass. Correct paired projections: chain2053/floor2047,
+estate1113/floor1111. Both floors increase; no baseline, discovery, exemption or skip changes.
+Expected total5526backend=2360+2053+1113 requires successor hosted confirmation.
+
+The isolated visual build instrument initially failed because an unwrapped DefinePlugin object
+made a concise arrow parse as a block. Wrapping the expression fixed the instrument; production
+CRA source/build is unchanged. Native Chrome actual controls held desktop0h/Buffering until exact6h
+delivery, and phone6h/Buffering until exact12h delivery. Keyboard scrub to7h announced the nearest
+6h model step. Light/dark/beach styles were checked; native390x844 phone viewport restored. Calendar
+shows Oct6 and Oct8 rather than inventing a contiguous third day; missing sea is Unavailable, measured
+zero Flat,9ft Overhead. Fixture cache/API/frame delivery are synthetic; no actual map pixel, native
+GPU/FPS/heap/real-data latency acceptance is inferred. Local server and preview tab were closed.
+
+Render live6b062e97 deploy history contains `alembic stamp heads`, unlike current configured
+`alembic upgrade heads`. Therefore actual shared database schema and revision must be checked;
+stamping alone did not run DDL. No migration/requirements file delta from the live source, but that
+does not certify existing schema. No schema repair or provider setting change was performed.
+Official guidance: [Render deployment triggers](https://render.com/docs/deploys),
+[Render HTTP checks](https://render.com/docs/health-checks),
+[Netlify file configuration](https://docs.netlify.com/build/configure-builds/file-based-configuration/).

@@ -1322,7 +1322,8 @@ jobs:
           # so hosted CI must confirm. Preserve the six-test margin and paired reference.
           # Hosted5afa0c82 chain1951 +11producer/+20Copernicus controls =1982; margin6.
           # Exact-corner validity67 controls: projected2049, margin6.
-          MIN_FILES, MIN_PASSED = 151, 2043
+          # Four actual unset-default controls belong to chain: projected2053, margin6.
+          MIN_FILES, MIN_PASSED = 151, 2047
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1693,9 +1694,9 @@ jobs:
           # Deep-audit push/AI/trace/explicit-actor controls add36 to hosted1039; margin2.
           # #243 blocker fixes: two estate files add20 executed cases (money-route authority15,
           # on-demand selection quota5) to projected1075 = 1095; margin2. Hosted run must confirm.
-          # Gallery queue/scope/photographer controls add10; actual unset-default controls add4.
-          # Projected1109 from hosted1095; margin2. Hosted run must confirm.
-          MIN_PASSED = 1107
+          # Hosted59dd3d26 actually ran1105 estate cases; four unset cases belong to chain.
+          # Eight gallery-vs-session assignment controls bring estate to1113; margin2.
+          MIN_PASSED = 1111
 
           try:
               root = ET.parse('estate.xml').getroot()

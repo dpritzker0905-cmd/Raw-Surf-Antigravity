@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-05 22:00Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-05 22:16Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -9,8 +9,9 @@ PR244 fixes the four newer merge blockers on PR243 head13f6d0a9; current applica
 all11success5504backend/356suites3700frontend. Separate ledger check failed on missing242;
 historical242/244 merge records appended; docs838514dc ledger37377273489 now SUCCESS.
 Docs4a7671a9 CI37377554458 all11SUCCESS. Gallery follow-up fixes queue/photographer scope;
-87focused/144expanded pass, ten gallery and four actual unset-default cases added; fresh hosted
-confirmation pending. Authenticated provider configuration/lock/absent flags read back;
+Latest expanded152pass/new eight repeated pass. Hosted59dd3d26 estate1105 failed floor1107;
+four unset cases belong to chain2053. Corrected without lowering: eighteen gallery cases bring
+estate projection1113/floor1111; chain2053/floor2047. Successor hosted confirmation pending. Authenticated provider configuration/lock/absent flags read back;
 see RELEASE-GATE-RESULTS.md. Runtime source13f6 qualification does not certify the new change.
 Live API/dev/prod remain6b062e97/2a7b8615/fc140024. No deployment/activation.
 Supabase Dev tools now callable; empty private/RLS preflight confirmed; actual canary unexecuted.

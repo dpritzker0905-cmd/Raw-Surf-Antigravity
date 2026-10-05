@@ -1,6 +1,6 @@
 # Deployment readiness: updated audit versus actual repairs
 
-Verified 2026-10-05 22:00Z. This is a deployment assessment, not deployment authorization.
+Verified 2026-10-05 22:16Z. This is a deployment assessment, not deployment authorization.
 The supplied deep REPORT.md includes sections 10 and 11, and its current SHA256 is
 `be4914fbc8de71b1cfada3b7beb0f78e669c8fd6b5090fefbc3678accb5b72c0`.
 Its merge-blocker review is of `0bb3aec0`; the actual PR243 head is now `13f6d0a9`.
@@ -22,7 +22,10 @@ build command and empty health-check path. Live /api/health/simple returned HTTP
 Auto Publishing Locked atfc140024; production branch main, branch deploys dev/frozen branch.
 The completed13f6d0a9 preview uses Node24.21.0 and netlify.toml's build command, overriding the
 dashboard's22.x/default command. New flag overrides are absent from both provider key inventories;
-secret values stayed masked. No provider configuration changed. Full follow-up receipt:
+secret values stayed masked. No provider configuration changed. Live Render build used stamp heads, while current settings use upgrade heads; verify actual schema.
+Hosted59dd3d26 estate gate caught the incorrect lane projection; corrected floors now await a successor
+run, despite passing estate tests. Native isolated control acceptance is partial, not map/GPU qualification.
+Full follow-up receipt:
 [RELEASE-GATE-RESULTS.md](RELEASE-GATE-RESULTS.md).
 
 ## Updated audit reconciliation
