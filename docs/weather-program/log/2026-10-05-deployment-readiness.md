@@ -91,3 +91,16 @@ Application/test/workflow source unchanged from qualifiedf48d15e6; new docs-head
 queued and ledger running at readback, not claimed fully green. Local ledger661 OK;
 memory0FAIL8WARN5NOTE, all eight inherited commitments retained. Ledger662 records
 this publication. No live forecast number, deployment, provider or flag changed.
+
+### 2026-10-05 23:30Z: WI02/WI03 actual-source repairs, local qualification
+
+WI02 fivefail/fivepass twice and WI03 sevenfail/seventeenpass twice before; actual
+67health/product controls and216expanded twice after. Invocation-scoped actual
+Storage ack and300s drain; unknown/future/estimated model cycles explicit, current
+global component/tier/tile/native-estimate cohorts graded without borrowing receipt
+timestamps. No product-selection/served-number/science change. Unconditional candidate
+monitoring now warns on missing legacy provenance. Fatal lint/LOC648<=800/36floorcontrols
+pass; selectorchecked51new=33guards18chain. Collection caught one guards projection
+error before publication, corrected33, not34. Projected5577backend/unchanged3700frontend;
+exact hosted commitment664 open. Local Python lacks two declared packages. Cloud
+publication/full-map/PG/card/science/deployment remain separate; ledger663-665.

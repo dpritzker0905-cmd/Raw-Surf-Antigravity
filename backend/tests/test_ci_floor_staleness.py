@@ -447,7 +447,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # #243 blocker fixes: estate+20 (two files); projected1095, floor1093, margin2; hosted run must confirm.
 # Hosted59dd3d26 estate1105: unset controls belong to chain, projected2053/floor2047.
 # Eight gallery/session assignment controls bring estate to1113/floor1111; no floor lowered.
-_FLOOR_SET_FROM = {"guards": 2360, "chain": 2053, "estate": 1113}
+# WI02/WI03 add18 chain and33 guards controls, selectors checked from backend cwd.
+_FLOOR_SET_FROM = {"guards": 2393, "chain": 2071, "estate": 1113}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

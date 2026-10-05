@@ -42,7 +42,7 @@ Full follow-up receipt:
 | CD01 | main still requires lint-and-build (18.x); current job emits (24.21.0) | Coordinate a stable check name with protection, or explicitly update the required context before main promotion; preserve protection |
 | TLD02 | PR242/244 merge receipts reconstructed; hosted ledger gates at838514dc/4a7671a9 SUCCESS | Resolved missing-history gate; preserve append-only ledger |
 | LIVE04 | grid_series has a default-off response bound; /grid has no deadline | Do not describe this as complete CPU cancellation or a grid-wide deadline repair |
-| WI02/WI03 | Causal diagnosis only, not repaired | Empty ingestion must fail correctly; health must measure model-cycle freshness before claiming closure |
+| WI02/WI03 | Candidate source repaired;67current/216expanded twice,51new cases | New hosted exact-source CI pending; unknown legacy provenance now warns; cloud publication/every-lane and rollout acceptance remain separate |
 | LIVE01/LIVE02/WC01 and science/geometry rows | Still open; matching file names are not proof of repair | Index scan/cache work, height floor, canonical composition, mixed-sea/partition controls and disjoint held-outs require separate repairs/evidence |
 
 The four section11 merge blockers were fixed by PR244 merged into the repair branch, not dev.
@@ -101,3 +101,12 @@ remain separate backlog, not automatically fixed by publishing this PR.
 Official deployment guidance: [Render health checks](https://render.com/docs/health-checks),
 [Netlify production locks](https://docs.netlify.com/deploy/deploy-overview/),
 [Netlify environment changes require rebuild](https://docs.netlify.com/api-and-cli-guides/cli-guides/get-started-with-cli/).
+
+## 2026-10-05 23:30Z: remaining ingestion repair candidate
+
+WI02/WI03 runtime source now changes beyond qualifiedf48d15e6; the new candidate must
+pass its own hosted run. Local67controls/216expanded twice; projected5577backend and
+unchanged3700frontend. Invocation product progress is distinct from metadata, restore
+and earlier runs. Health grades verified model cycles, with unknown/stale warnings
+unconditional in this candidate; no serving model/value/science switch changed.
+INGESTION-REPAIR-RESULTS.md states the exact scope and cloud/rollout limits.

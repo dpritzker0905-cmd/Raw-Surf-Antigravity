@@ -801,7 +801,8 @@ jobs:
           # PR239 actual2286 plus2 monitor-label controls ->2288; margin6 unchanged.
           # Immutable manifest publication: hosted2327 projected (2288 +39), same six-test margin.
           # Response envelope17 + served-hour8 + staging-target8: projected2360, margin6.
-          MIN_FILES, MIN_PASSED = 185, 2354
+          # WI03: 33 cycle/provenance controls in test_data_health; projected2393, margin6.
+          MIN_FILES, MIN_PASSED = 185, 2387
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1323,7 +1324,8 @@ jobs:
           # Hosted5afa0c82 chain1951 +11producer/+20Copernicus controls =1982; margin6.
           # Exact-corner validity67 controls: projected2049, margin6.
           # Four actual unset-default controls belong to chain: projected2053, margin6.
-          MIN_FILES, MIN_PASSED = 151, 2047
+          # WI02: 18 invocation-scoped product progress controls; projected2071, margin6.
+          MIN_FILES, MIN_PASSED = 152, 2065
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

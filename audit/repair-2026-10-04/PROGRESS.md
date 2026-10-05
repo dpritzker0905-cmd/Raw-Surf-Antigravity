@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-05 22:44Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-05 23:30Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -58,7 +58,10 @@ subscription ownership, header-only Gemini credentials/no key prefixes and manda
 implemented.36new controls,166expanded pass; current point Jacobian6pass twice. Prior
 alert source CI all11success/backend5448. New d1cc16fe CI37257237630 all11success/backend5484. No activation.
 See DEEP-AUDIT-RESULTS.md; deadline/hub/ingestion/device/science and provider/PG remain open.
-WI02/WI03 now reproduced6diagnosis controls twice; still unrepaired. INGESTION-DIAGNOSIS.md.
+Historical WI02/WI03 diagnosis6controls twice is retained in INGESTION-DIAGNOSIS.md.
+Current repairs locally qualified:67controls/216expanded twice;51new cases. Actual product
+acknowledgments and verified cycle monitoring repaired; new hosted qualification pending.
+See INGESTION-REPAIR-RESULTS.md; actual cloud/deployment/every-lane acceptance remains separate.
 
 ## Validation status
 

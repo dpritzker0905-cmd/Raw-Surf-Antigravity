@@ -31,3 +31,11 @@ partial failure, no-op/empty and failed-product-plus-successful-health controls.
 cycle age separately from ingest liveness, with model cadence and missing/estimated provenance.
 Neither change should select a different served cycle; prune/invalid-frame/cache decisions remain
 separate dark repairs under D-001. No repair or scientific promotion is claimed by this receipt.
+
+## 2026-10-05 23:30Z: source repair supersedes the unrepaired status above
+
+The six-case instrument remains an historical baseline assertion set. Run it with
+--baseline-source scripts.ingest_forecast_ci,services.weather_pipeline.data_health
+--baseline-ref b7636291; do not interpret its intentionally old expectations as
+current repair acceptance. Current67controls/216expanded twice and pending hosted
+source qualification are in INGESTION-REPAIR-RESULTS.md. No deployment.

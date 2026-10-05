@@ -7,6 +7,7 @@ from typing import List, Tuple, Optional
 
 from services.weather_pipeline.schemas import PipelineManifest, NormalizedProduct, ManifestProduct
 from services.weather_pipeline.copernicus_validator import is_test_environment
+from services.weather_pipeline.product_upload_progress import submit_product_upload
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +176,7 @@ def save_product_helper(store, product: NormalizedProduct, resolution: float = 0
 
     # 2b. Upload product to Supabase Storage (L2 — fire-and-forget)
     if not is_tf:
-        _upload_executor.submit(store._upload_to_supabase, filename, product_json_bytes)
+        submit_product_upload(_upload_executor, store, filename, product_json_bytes)
 
     # 2. Update registration in master manifest
     if is_tf and not is_test_env:
@@ -282,7 +283,7 @@ def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedPro
 
             # 2. Upload product to Supabase Storage (L2 — fire-and-forget)
             if not is_tf:
-                _upload_executor.submit(store._upload_to_supabase, filename, product_json_bytes)
+                submit_product_upload(_upload_executor, store, filename, product_json_bytes)
                 has_non_tf = True
 
             # 3. Add to manifest dict, updating/overwriting any existing duplicate slice
