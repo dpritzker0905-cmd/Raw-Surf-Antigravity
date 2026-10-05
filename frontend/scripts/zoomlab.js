@@ -8,6 +8,8 @@
 const path = require('path');
 const fs = require('fs');
 const { runWithNetworkEvidence } = require('./zoomlab-network-evidence');
+const { stubZoomlabMessageBadge, waitForMarineReady, requireMarinePage, findWavesControl,
+  waitForWavesControl, marinePageState, ZoomlabInstrumentError, instrumentFailureReport } = require('./zoomlab-harness.cjs');
 // Portable resolve (2026-07-18, CI): plain require works when run from frontend/ (or with
 // NODE_PATH set); the explicit node_modules fallback covers running from the repo root locally.
 let chromium;
@@ -41,9 +43,25 @@ async function main() {
     recordVideo: { dir: outdir, size: { width: 1280, height: 800 } },
   });
   const page = await context.newPage();
+  const consoleErrors = [];
+  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 400)); });
+  page.on('pageerror', (error) => consoleErrors.push(`Uncaught ${error.message}`.slice(0, 400)));
+  // The dev user's badge is incidental UI, not authenticated production data under test.
+  const messageBadgeFixtureCount = await stubZoomlabMessageBadge(page);
 
   await runWithNetworkEvidence(page, {
-    run: networkEvidence => runScenario(page, networkEvidence),
+    run: async networkEvidence => {
+      try { return await runScenario(page, networkEvidence, messageBadgeFixtureCount, consoleErrors); }
+      catch (error) {
+        if (error instanceof ZoomlabInstrumentError) {
+          const report = instrumentFailureReport(error, scenario, messageBadgeFixtureCount(), consoleErrors);
+          error.exitCode = report.verdict === 'FAIL' ? 1 : 3;
+          fs.writeFileSync(path.join(outdir, `instrument_${scenario}.json`),
+            JSON.stringify(report));
+        }
+        throw error;
+      }
+    },
     close: async () => {
       try { await context.close(); } finally { await browser.close(); }
     },
@@ -53,7 +71,7 @@ async function main() {
   log('videos: ' + vids.join(', '));
 }
 
-async function runScenario(page, networkEvidence) {
+async function runScenario(page, networkEvidence, messageBadgeFixtureCount, consoleErrors) {
 
   // ZL_FLAGS: comma-separated window globals set true before app boot (kill-switch A/B runs),
   // e.g. ZL_FLAGS="__RAW_DISABLE_FLAT_HEATMAP_OPACITY__,__RAW_DISABLE_SHARPEN_OPACITY_EASE__".
@@ -98,13 +116,9 @@ async function runScenario(page, networkEvidence) {
     Object.defineProperty(navigator, 'serviceWorker', { get() { return mockSW; }, configurable: true });
   });
 
-  const consoleErrors = [];
-  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 400)); });
-  page.on('pageerror', (error) => consoleErrors.push(`Uncaught ${error.message}`.slice(0, 400)));
-
   log('goto /map');
   await page.goto(BASE + '/map', { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.waitForFunction(() => window.map && window.__MARINE_ENGINE__, null, { timeout: 60000 });
+  await waitForMarineReady(page);
   log('map + engine ready');
   // Dismiss the cookie banner like a user would (it overlays the lower map).
   try {
@@ -115,18 +129,8 @@ async function runScenario(page, networkEvidence) {
   } catch (e) {}
 
   // Enable the waves layer via its real button.
-  const findWaves = () => {
-    const all = Array.from(document.querySelectorAll('button'));
-    let b = all.find((x) => ((x.title || x.getAttribute('aria-label') || x.textContent || '').trim()) === 'Waves');
-    if (!b) {
-      // panel may be collapsed — click any expander that mentions weather controls
-      const exp = all.find((x) => /weather controls/i.test((x.getAttribute('aria-label') || '') + (x.title || '')) &&
-        !/collapse/i.test((x.getAttribute('aria-label') || '') + (x.title || '')));
-      if (exp) exp.click();
-    }
-    return b || null;
-  };
-  await page.waitForFunction(`(${findWaves.toString()})() !== null`, null, { timeout: 45000 });
+  const findWaves = findWavesControl;
+  await waitForWavesControl(page);
   const toggled = await page.evaluate(`(() => {
     const b = (${findWaves.toString()})();
     if (!b) return 'NOT FOUND';
@@ -134,9 +138,13 @@ async function runScenario(page, networkEvidence) {
     return 'pressed(before-click-state)=' + b.getAttribute('aria-pressed');
   })()`);
   log('waves toggle: ' + toggled);
+  if (toggled === 'NOT FOUND') {
+    await requireMarinePage(page);
+    throw new ZoomlabInstrumentError('waves-control-unavailable', await page.evaluate(marinePageState));
+  }
   // The activation lane alone may not fetch — a camera move triggers the moveend lane.
   await page.waitForTimeout(1500);
-  await page.evaluate(([c, z]) => { window.map.jumpTo({ center: c, zoom: z }); }, [ZL_CENTER, ZL_START_ZOOM]);
+  await requireMarinePage(page, { center: ZL_CENTER, zoom: ZL_START_ZOOM });
   await page.waitForFunction(() => {
     const e = window.__MARINE_ENGINE__;
     return e && e._waveData && e._waveData.bounds;
@@ -201,7 +209,7 @@ async function runScenario(page, networkEvidence) {
   }
 
   // Camera start: coastal FL at z9 by default; ZL_CENTER/ZL_START_ZOOM override (Gulf/Bertha repro).
-  await page.evaluate(([c, z]) => { window.map.jumpTo({ center: c, zoom: z }); }, [ZL_CENTER, ZL_START_ZOOM]);
+  await requireMarinePage(page, { center: ZL_CENTER, zoom: ZL_START_ZOOM });
   await page.waitForFunction(([c, z]) => Math.abs(window.map.getZoom() - z) < 0.01 &&
     Math.abs(window.map.getCenter().lng - c[0]) < 0.01, [ZL_CENTER, ZL_START_ZOOM], { timeout: 20000 });
   // Let a fresh resident commit for this camera (moveend debounce + fetch).
@@ -420,7 +428,7 @@ async function runScenario(page, networkEvidence) {
     // flip the wind overlay on/off — per-frame trace catches transition clears/steps/blank frames.
     // Note the blend wash requires same-layer base parity, so each switch opens a window with no
     // wash until the new layer's coarse-global commits — measure how it reads.
-    await page.evaluate(() => window.map.jumpTo({ center: [-80.2, 28.33], zoom: 7 }));
+    await requireMarinePage(page, { center: [-80.2, 28.33], zoom: 7 });
     await page.waitForTimeout(6000);
     const clickLayer = (name) => page.evaluate((n) => {
       const b = Array.from(document.querySelectorAll('button')).find(
@@ -437,7 +445,7 @@ async function runScenario(page, networkEvidence) {
     // ALL-LAYERS AUDIT (2026-07-16 user: Precip/Satellite/Fog/Pressure/Air Temp/Water Temp not
     // painting): toggle every weather layer; per layer record network activity, pixel change vs
     // the pre-toggle frame, and console errors — classifies dead layers by failure mode.
-    await page.evaluate(() => window.map.jumpTo({ center: [-80.2, 28.33], zoom: 7 }));
+    await requireMarinePage(page, { center: [-80.2, 28.33], zoom: 7 });
     await page.waitForTimeout(5000);
     const reqLog = [];
     page.on('request', (r) => { const u = r.url(); if (!/localhost:3009\/static|hot-update|ne_\d+m|fonts|basemaps|\.png$|openfreemap|sentry/i.test(u)) reqLog.push(u.slice(0, 140)); });
@@ -476,7 +484,7 @@ async function runScenario(page, networkEvidence) {
     // the ForecastWheel's KEYBOARD contract (role="slider", arrows ±1 — the a11y house pattern
     // doubling as the test hook). Exercises hour_change commits, scrub-settle verification, and
     // the series lanes at a settled coastal camera. Forward in bursts, settle, then Home back.
-    await page.evaluate(() => window.map.jumpTo({ center: [-80.2, 28.33], zoom: 7.2 }));
+    await requireMarinePage(page, { center: [-80.2, 28.33], zoom: 7.2 });
     await page.waitForTimeout(6000);
     const wheelFocused = await page.evaluate(() => {
       const w = document.querySelector('[role="slider"][aria-label*="Forecast timeline"]');
@@ -494,7 +502,7 @@ async function runScenario(page, networkEvidence) {
     }
   } else if (scenario === 'pan_coverage') {
     // Zoom to mid-level, then drag-pan east repeatedly like a user exploring.
-    await page.evaluate(() => window.map.jumpTo({ center: [-80.2, 28.33], zoom: 7 }));
+    await requireMarinePage(page, { center: [-80.2, 28.33], zoom: 7 });
     await page.waitForTimeout(5000);
     for (let p = 0; p < 4; p++) {
       await page.mouse.move(cx + 250, cy);
@@ -526,11 +534,13 @@ async function runScenario(page, networkEvidence) {
           .filter((e) => e.type === 'reject_downgrade' || e.type === 'reject_subcover')
           .map((e) => ({ type: e.type, rule: e.rule, decidedBy: e.decidedBy, zoom: e.zoom })) : [],
   }));
-  fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ ...trace, scenario, completed: true, zoomNow, consoleErrors: [...new Set(consoleErrors)], networkEvidence: networkEvidence(), arbShadow, arbLive }));
+  await requireMarinePage(page);
+  fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ ...trace, scenario, completed: true, zoomNow, consoleErrors: [...new Set(consoleErrors)], networkEvidence: networkEvidence(), arbShadow, arbLive,
+    syntheticMessageBadge: { user: 'dev-mock-user-id', fulfilled: messageBadgeFixtureCount() } }));
   log(`arbiter: mode=${arbLive.mode} decisions=${arbLive.tallies ? arbLive.tallies.n : 0} rejects=${arbLive.tallies ? arbLive.tallies.rejects : 0} rules=${JSON.stringify(arbLive.tallies ? arbLive.tallies.byRule : {})}`);
   log(`trace saved: ${trace.frames.length} frames, final zoom ${zoomNow.toFixed(2)}`);
 
 }
 
 function log(s) { console.log(`[zoomlab] ${s}`); }
-main().catch((e) => { console.error('[zoomlab] FATAL', e); process.exit(1); });
+main().catch((e) => { console.error('[zoomlab] FATAL', e); process.exit(e instanceof ZoomlabInstrumentError ? (e.exitCode || 3) : 1); });
