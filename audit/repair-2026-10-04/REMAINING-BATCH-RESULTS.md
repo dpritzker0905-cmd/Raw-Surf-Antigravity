@@ -1,0 +1,84 @@
+# Remaining workgroups: source checkpoint
+
+This checkpoint adds source repairs across14 audit rows. It does not complete the six
+workgroups or certify deployment, scientific skill, native GPU performance or payment concurrency.
+All new served-value and performance switches remain disabled. No merge or deployment occurred.
+
+## Source behavior
+
+- PF03: two per-process owned series slots (one page, one reserved mini), total queue<=4,
+  admission/build/encoding/gzip share the response deadline. Shielded workers retain their
+  permits until work really finishes. Finite values and legacy unsupported-type serialization
+  are preserved; gzip negotiation avoids double compression. CPU work cannot be preempted,
+  and this is not a fleet-wide admission limit. `GRID_SERIES_RESPONSE_BOUNDS=0`.
+- PF04: identical non-marine raster decode work is shared, subscribers receive independent
+  transfer-safe buffers, cancellation belongs to each subscriber, flush epochs refuse stale
+  writes, and hot decoded tiles use recency. Marine callbacks remain per request.
+  `REACT_APP_RASTER_WORK_BOUNDS` is unset; no measured heap/GPU plateau claim.
+- SEC05/06: five obsolete subscription imports repaired; unsupported purchase methods rejected;
+  booking membership and paid status enforced; persisted live membership/locked price used;
+  unknown sessions refused and claim queues bound to stored session. Included live photo credits
+  use an atomic conditional UPDATE and participate in transaction rollback. PostgreSQL/payment
+  concurrency and broader media/booking quota acceptance remain open.
+- SEC10/SOC01/02: correct PostgreSQL enum label, SQL boolean predicates, initialized hashtag
+  users result. Compiled SQL controls do not substitute for seeded PostgreSQL acceptance.
+- OS06: observation/surf-log routes bind to the JWT actor before SQL; ratings constrained1..5;
+  static stats route precedes the dynamic entry route. Observation timestamp migration remains open.
+- B-M01: qualified exact corners pass validity checks while measured zero remains authoritative;
+  `SAMPLER_EXACT_VALIDITY=0`. Island geometry B-M02 remains open.
+- OS01: actual served marine/wind instants must be aware and agree before quality rating;
+  unavailable/naive/mixed provenance refuses rating. `SIM_FORECAST_SERVED_GATE=0`.
+- OS02/03: qualified composer current autofill retains finite zero, clears missing values,
+  derives consistent direction and refuses historical-day autofill. Labels identify modeled
+  conditions and unverified time. Actual hook controls pass; mounted modal/themes, response
+  ownership and durable model/spot/instant provenance remain open. Composer flag is unset.
+- AS02/05: Node24.21.0 pinned across frontend/build/CI; Netlify ignore resolves repository-root
+  paths from the actual frontend base, includes dependency changes and builds on uncertain refs.
+
+## Local evidence
+
+- Full supported Node frontend:356 suites/3689 tests pass. Production compilation accepted;
+  lint ratchet remains86 pre-existing errors/917 warnings. An earlier run had one existing
+  SpotHub timeout; a later sandbox run had12 Git Bash DLL initialization failures. Final
+  escalated run passed without relaxed assertions or exclusions.
+- All160 newly added backend controls pass together, no skips. Expanded relevant controls:
+  280 pass/2 existing skips, no failures. Coverage-floor/lane/flag controls68 pass.
+  Local Python is a partial environment (two declared packages absent, not a virtualenv);
+  full hosted Linux lanes are still required.
+- Two prior-source causal replays:82 cases,44 fail/38 pass, no errors/skips. These cover exact
+  corner validity, served-time gate and social defects; current82 cases pass. PF03 actual route
+  and PF04 registered protocol controls pass, but this report does not invent prior-source
+  contrast or science Jacobians for those unmeasured arms.
+- Tracked selector628 files:185 guards/151 chain/289 estate, two existing fastmcp exclusions,
+  one existing quarantine. Projected hosted counts2360/2049/970=5379 backend. Paired passed
+  floors2354/2043/968 preserve existing margins; frontend floor356/3689.
+- Changed/new Python fatal lint accepted; full repository lint still reports pre-existing
+  scheduler timedelta, watermark global and quarantined StringIO debt. Repository LOC ratchet
+  and backend645-file/800LOC check pass. No new exclusions or production skips.
+
+## Actual staging target and connection
+
+Read-only provider inventory identified the separate existing **Raw Surf App Dev** project:
+private weather-products bucket empty, weather_manifest_pointer empty, actual auth.users count0.
+The shared Render service has only its Production environment and shared Supabase settings;
+it supplies no identified isolated staging runtime credential. No provider data was changed.
+
+`manifest_staging_canary.py` is prepared but NOT executed: explicit non-shared target preflight,
+actual store/publisher/REST CAS/reader, one initial publication and a forced two-writer race,
+create-only overwrite refusal, owned nonce-scoped cleanup and empty-state read-back. Eight
+target refusal/acceptance controls pass. Credentials are environment names only:
+STAGING_SUPABASE_URL and STAGING_SUPABASE_SERVICE_ROLE_KEY.
+
+On owner authorization, a Dev-scoped Supabase MCP server was registered in local Codex config.
+OAuth login failed during metadata discovery before an approval page opened. A separate public
+metadata request returned JSON with malformed chunk framing; both Codex and curl failed to
+decode it. Provider versus network-path cause remains unknown. Current chat exposes no
+Supabase tools. MCP metadata/SQL access alone does not supply the source canary's runtime key.
+
+Remaining source work: SEC07/08/09, OS04/05, SCI01/02, B-M02; AS04/device/full-map acceptance,
+actual staging canary, live spot-hub p95, GPU plateau and PostgreSQL financial acceptance also open.
+
+Primary guidance: [Supabase MCP](https://supabase.com/docs/guides/ai-tools/mcp),
+[create-only uploads](https://supabase.com/docs/guides/storage/uploads/standard-uploads),
+[asyncio shielding](https://docs.python.org/3/library/asyncio-task.html#shielding-from-cancellation),
+[supported Node releases](https://nodejs.org/en/about/previous-releases).

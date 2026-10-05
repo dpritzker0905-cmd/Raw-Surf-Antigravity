@@ -75,7 +75,7 @@ async def global_search(
             .order_by(Profile.full_name)
             .limit(limit)
         )
-    users = user_result.scalars().all()
+    users = user_result.scalars().all() if not is_hashtag_search else []
     results["users"] = [{
         "id": u.id,
         "full_name": u.full_name,

@@ -32,24 +32,24 @@ frontend346/3582 and backend5128 passed; flags remain default off and full map c
 | SEC-02 | The separate locker scan still manufactures persistent face/selfie matches using random numbers. | Local repair: random worker and selfie collection removed; existing false queue rows need reviewed remediation. |
 | SEC-03 | A free/gift tag for photo A grants unrelated paid photo B for zero credits. | Local repair: tag/item binding and repeated-claim controls. |
 | SEC-04 | Completing session A's quota removes session B's selection eligibility. | Local repair: session cleanup and duplicate selection refusal; expiry/concurrency acceptance remains. |
-| SEC-05 | Ordinary purchase fails on a removed `routes.photo_subscriptions` import. | Open; preserved for a separate measured repair. |
-| SEC-06 | Real booking/live entitlement paths crash, while an invented session selects a permissive default purchase price. | Open; preserved for a separate measured repair. |
+| SEC-05 | Ordinary purchase fails on a removed `routes.photo_subscriptions` import. | Source repaired: obsolete imports and unsupported methods refused; actual purchase/SQLite credit-ledger8controls pass. PostgreSQL financial concurrency open. |
+| SEC-06 | Real booking/live entitlement paths crash, while an invented session selects a permissive default purchase price. | Source repaired: persisted paid booking/live membership, locked finite prices, unknown-session refusal, stored claim context and atomic live photo credit reservation;23controls pass. Broader quotas/financial acceptance open. |
 | SEC-07 | Original media uses public delivery and predictable names derived from previews. | Open; preserved for a separate measured repair. |
 | SEC-08 | Matching surf alerts create duplicate notifications on successive ticks despite a recent trigger. | Open; preserved for a separate measured repair. |
 | SEC-09 | Stripe refusal is module-local; other route configuration retains the key. | Open; preserved for a separate measured repair. |
-| SEC-10 | Existing-profile trust-signals uses a lower-case value against an upper-case PostgreSQL enum. | Open; preserved for a separate measured repair. |
+| SEC-10 | Existing-profile trust-signals uses a lower-case value against an upper-case PostgreSQL enum. | Source repaired: stored COMPLETED enum label, dialect compilation control passes; seeded PostgreSQL acceptance open. |
 | W-01 | A strict ICON product hint can make nominal GFS/EURO point requests sample ICON values. | Local default-off model/domain identity repair; actual resolver/sampler and adapter recursive controls pass. Source5afa0c82 hosted CI accepted; see POINT-PLAYBACK-RESULTS.md. |
 | W-02 | Outer point cache ignores absolute forecast time/product changes and intercepts forced refresh. | Local default-off absolute request identity and outer/inner forced refresh repair; UTC rollover, product/bbox, manifest-await and abort controls pass. Source5afa0c82 hosted CI accepted. |
 | W-03 | Deferred marine-series retries resurrect canceled requests. | Second batch source d67763d5: abort-owned deferred work and late decode/mini handoff gates;23 causal failures before twice,28 controls/163 neighbor tests pass after twice; full prior-source CI37207402431 completed/success; source5afa0c82 full hosted CI37226218002 accepted. |
 | W-04 | A terminal Copernicus time failure repeats across spatial tiles, then empty rows enter the normal ten-minute cache. | Default-off typed temporal failure and empty-success cache repair; actual SDK/subprocess/tile/cache controls qualified locally. Source40cd1ddd hosted CI37230181942 accepted; see HUB-COPERNICUS-RESULTS.md. |
 | W-05 | Series mapping drops the explanation of how an estimated forecast was composed. | Second batch source d67763d5: entire per-frame basis on grid and wrapper; native/missing/zero and page/mini cache controls; full prior-source CI37207402431 completed/success; source5afa0c82 full hosted CI37226218002 accepted. |
 | AS-06 | Manifest CAS permits winner-object overwrite; failed uploads can also publish a missing object. | Default-off unique/create-only/acknowledged publication, reader-safe bounded retention; real publisher/store/CAS/reader and neighbors/floors148pass twice;39new guards. Hosted e4353c06 CI37240056010 qualified5219backend; actual Supabase canary pending; see MANIFEST-RESULTS.md. |
-| SOC-01 | Crew message/history and unread-count predicates compile to `WHERE false`. | Open; preserved for a separate measured repair. |
-| SOC-02 | Hashtag search raises an uninitialized-variable error and returns HTTP 500. | Open; preserved for a separate measured repair. |
-| AS-02 | Production Netlify ignore command uses paths relative to the wrong base and omits dependencies. | Open; preserved for a separate measured repair. |
+| SOC-01 | Crew message/history and unread-count predicates compile to `WHERE false`. | Source repaired: SQL is_(False) predicates for crew history/messages and unread notifications; compiled SQL controls pass. Positive seeded PostgreSQL acceptance open. |
+| SOC-02 | Hashtag search raises an uninitialized-variable error and returns HTTP 500. | Source repaired: hashtag-mode users initialized, actual empty-result endpoint control passes. |
+| AS-02 | Production Netlify ignore command uses paths relative to the wrong base and omits dependencies. | Source repaired: frontend-base repo-root dependency-aware Netlify ignore;15controls and actual git command dispositions pass. Hosted candidate pending. |
 | AS-03 | Frontend discovery floor permits disappearance of 31 suites/483 tests. | Prior hosted source5afa0c82 confirms346/3582; new local347/3610 floor with paired backend references. Source40cd1ddd hosted CI37230181942 confirms347/3610. |
 | AS-04 | Green E2E omits the full hour-to-pixel oracle and default-FPS/mobile coverage. | Open; preserved for a separate measured repair. |
-| AS-05 | Node 18 and the E2E lane's Node 20 are both EOL. | Open; preserved for a separate measured repair. |
+| AS-05 | Node 18 and the E2E lane's Node 20 are both EOL. | Source repaired: Node24.21.0 pinned consistently; full356/3689frontend and production build pass. Hosted candidate pending. |
 | M01 | EURO unavailable point becomes measured calm/Trace | Local default-off actual adapter-to-card availability repair; missing/invalid versus measured-zero controls pass across models. Served activation/visual map acceptance open. |
 | M02 | EURO drops explicit nearshore=false | Local default-off EURO nearshore false/true/null field parity repaired and qualified. Source5afa0c82 hosted CI accepted. |
 | M03 | EURO mean swell period duplicated under Peak label | Local default-off mean-to-peak alias removed; mean values retained, no invented peak. Actual card controls and source5afa0c82 hosted CI qualified. |
@@ -59,23 +59,23 @@ frontend346/3582 and backend5128 passed; flags remain default off and full map c
 | SH04 | Tomorrow/Today and date-only timezone drift | Default-off validated UTC calendar in actual drawer/hub/Explore consumers; gap/stale/leap/year/DST and all-theme controls locally qualified. Source40cd1ddd hosted CI37230181942 accepted. |
 | SH05 | Drawer size labels diverge from canonical ladder | Default-off canonical 10/15ft drawer size ladder; compact/full and legacy kill-switch controls qualified locally. Source40cd1ddd hosted CI37230181942 accepted. |
 | SH06 | Current-only request unnecessarily resolves ten future days | SURF_REQUESTED_HORIZON=0; current-only2 versus22cache checks, no irrelevant fallback, actual daily route/provider coverage controls locally qualified. Source40cd1ddd hosted CI37230181942 accepted. |
-| OS01 | Default-now forecast tool omits served hour from rating gate | Open; preserved for a separate measured repair. |
-| OS02 | Current autofill presented as historical conditions | Open; preserved for a separate measured repair. |
-| OS03 | Composer zeros/missing values preserve prior measurements | Open; preserved for a separate measured repair. |
+| OS01 | Default-now forecast tool omits served hour from rating gate | Default-off actual served marine/wind aware-time agreement gate;8controls pass. Unknown/mixed time refuses quality; no scientific accuracy claim. |
+| OS02 | Current autofill presented as historical conditions | Partial default-off source repair: historical-day current autofill refused and modeled/time-unverified labels. Hook qualified; full modal and persisted context open. |
+| OS03 | Composer zeros/missing values preserve prior measurements | Partial default-off source repair: numeric zero retained, missing cleared, degrees/compass consistent. Six helper/four actual-hook controls pass; mounted modal/races open. |
 | OS04 | Daily/full-hub forecast surfaces omit quality | Open; preserved for a separate measured repair. |
 | OS05 | Composer loses model, spot, time and provenance context | Open; preserved for a separate measured repair. |
-| OS06 | Observation submission lacks authenticated observer binding | Open; preserved for a separate measured repair. |
+| OS06 | Observation submission lacks authenticated observer binding | Source repaired: strict JWT observer/owner binding and1..5rating;22actual-route controls including stats path pass. Legacy observations and UTC migration open. |
 | SCI-01 | Local observation time treated as UTC in calibration | Open; preserved for a separate measured repair. |
 | SCI-02 | Available observations do not certify all beaches/layers/leads | Open; preserved for a separate measured repair. |
-| B-M01 | Exact masked grid corners return authoritative values | Open; preserved for a separate measured repair. |
+| B-M01 | Exact masked grid corners return authoritative values | Default-off exact-corner validity repair;67controls across11native combinations pass; before33fail/34pass twice. Measured zero preserved; island geometry separate. |
 | B-M02 | Fine-island point geometry disagrees with display/band masks | Open; preserved for a separate measured repair. |
 | MH01 | Island threshold change disables partial-tile damage detection | Local repair: separate damage snapshot; real visual/GPU acceptance open. |
 | MH02 | Mask uploads fail to preserve shared GL state | Local repair: success/error GL-state restoration; native GPU acceptance open. |
 | MH03 | Mask diagnostic reads using incorrect texture dimensions | Local repair: uploaded dimensions; native GPU diagnostic qualification open. |
 | PF01 | Visible mini requests bypass total bound; viewport moves retain old work | Default-off three-request browser budget and scoped regional intents; real stalled transport, mounted lifecycle and A/B/A owner controls locally qualified. Hosted21db8ee8 CI37241546337 qualified; backend admission/device acceptance open. |
 | PF02 | Mini cache insertion bypasses cap; expired entries retained | Default-off shared48entry/32MiB estimated ownership cache across every writer; expiry and recency controls locally qualified. Hosted21db8ee8 CI37241546337 qualified; actual heap/GPU plateau acceptance open. |
-| PF03 | Response encoding/compression CPU lies outside builder deadline | Open; actual route/framework40distinct-vector offline trials and finite-guard prototype qualify diagnosis, not runtime repair. NaN/infinity and unsupported-type boundaries recorded in PF03-DIAGNOSIS.md. |
-| PF04 | Concurrent identical raster requests duplicate decoding; FIFO evicts hot tile | Open; preserved for a separate measured repair. |
+| PF03 | Response encoding/compression CPU lies outside builder deadline | Default-off per-process2slot/4queue response envelope, shared build/encode/gzip deadline, finite serialization;17actual-route controls pass. CPU cannot preempt, fleet/p95 acceptance open. |
+| PF04 | Concurrent identical raster requests duplicate decoding; FIFO evicts hot tile | Default-off non-marine decode coalescing, independent buffer delivery, consumer cancellation and recency;17helper/registered-protocol controls pass. Actual heap/GPU acceptance open. |
 
 ## Source records and primary guidance
 

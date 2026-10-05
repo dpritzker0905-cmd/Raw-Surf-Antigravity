@@ -284,20 +284,18 @@ def get_weather_forecast(spot_name: str, valid_time: str = "") -> Dict[str, Any]
     payload["baseline_source"] = source
     if provenance:
         payload["forecast_provenance"] = provenance
+    from services.weather_pipeline.forecast_gate_time import forecast_gate_time
+    gate_time, quality_available = forecast_gate_time(hour, provenance, payload)
+    if not quality_available:
+        return payload
     payload["wave_simulation"] = calculate_surf_rating(
         spot, baseline["swell_height_m"], baseline["swell_period_sec"],
         baseline["swell_direction_deg"], baseline["wind_speed_knots"],
         baseline["wind_direction_deg"], partitions=_baseline_partitions(baseline),
-        # ⛔⛔ ARMS THE OBSERVATION GATE, which `calculate_surf_rating` applies only when
-        # `valid_time is not None`. Omitted until 2026-08-03: the hour was parsed and used for the
-        # BASELINE two lines up, then dropped here, so this tool published Nai Harn as 70.5 `good`
-        # while the app served 66.4 `fair_good` — #13's asymmetry, re-opened by a None default.
-        # Guarded by GATE_ARG_CALLERS in tests/test_rating_composition_parity.py.
-        valid_time=hour or None,
-        # I/O already paid — this tool FETCHED the baseline it is rating, and it is the one
-        # surface that prints its own parity against the app. Without the lookup it would grade
-        # the global 1.2 m curve while the glyph grades locally, and the probe (which does look
-        # up) would read GREEN over it — a false green on the path a user actually reads.
+        # A known served instant arms the observation gate for current and future forecasts.
+        # Caller parity is guarded in tests/test_rating_composition_parity.py.
+        valid_time=gate_time,
+        # Use the app's local reference curve, rather than the global 1.2 m fallback.
         allow_reference_lookup=True,
         # ...and the curve and tide the APP used (observed, no env; tide is W-30, SIM_SERVED_TIDE).
         served_reference_size_m=sim_forecast.served_reference(provenance),

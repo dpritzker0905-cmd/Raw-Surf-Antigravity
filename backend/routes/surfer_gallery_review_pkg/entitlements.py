@@ -4,19 +4,39 @@ Handles session entitlement checks and resolution tier upgrades.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, update
 from sqlalchemy.orm import selectinload
 import logging
+import math
 
 from database import get_db
 from models import (
     Profile, SurferGalleryItem, GalleryItem,
-    Booking, LiveSession, BookingParticipant
+    Booking, LiveSession, BookingParticipant, LiveSessionParticipant
 )
 from core.security import get_user_id_from_jwt_or_query
 
 router = APIRouter(prefix="/surfer-gallery", tags=["Surfer Gallery Review"])
 logger = logging.getLogger(__name__)
+
+
+def _valid_price(value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+        raise HTTPException(status_code=409, detail="Session price requires review")
+    return float(value)
+
+
+async def consume_live_photo_credit(session_id, user_id, db):
+    """Reserve exactly one persisted credit; concurrent claims cannot reuse it."""
+    result = await db.execute(update(LiveSessionParticipant).where(
+        LiveSessionParticipant.live_session_id == session_id,
+        LiveSessionParticipant.surfer_id == user_id,
+        LiveSessionParticipant.status.in_(['active', 'completed']),
+        LiveSessionParticipant.photos_credit_remaining > 0,
+    ).values(photos_credit_remaining=LiveSessionParticipant.photos_credit_remaining - 1)
+        .returning(LiveSessionParticipant.id))
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=409, detail='Included media credit is no longer available')
 
 
 @router.get("/session-entitlements/{session_id}")
@@ -41,16 +61,18 @@ async def get_session_entitlements(
             select(BookingParticipant).where(
                 and_(
                     BookingParticipant.booking_id == session_id,
-                    BookingParticipant.user_id == user_id
+                    BookingParticipant.participant_id == user_id
                 )
             )
         )
-        _ = participant_result.scalar_one_or_none()
+        participant = participant_result.scalar_one_or_none()
+        if not participant or participant.payment_status != "Paid" or participant.status not in {"confirmed", "completed"}:
+            raise HTTPException(status_code=403, detail="Paid session membership required")
 
         # Calculate entitlements from booking
         included_count = booking.booking_photos_included or 0
         is_all_inclusive = booking.booking_full_gallery or False
-        price_per_clip = booking.booking_price_standard or 5.0
+        price_per_clip = _valid_price(booking.booking_price_standard)
 
         # Count already claimed items
         claimed_result = await db.execute(
@@ -84,12 +106,19 @@ async def get_session_entitlements(
     if live_session:
         # Get photographer's pricing
         photographer_result = await db.execute(
-            select(Profile).where(Profile.id == live_session.broadcaster_id)
+            select(Profile).where(Profile.id == live_session.photographer_id)
         )
         photographer = photographer_result.scalar_one_or_none()
 
-        included_count = photographer.photo_package_size if photographer else 0
-        price_per_clip = photographer.live_photo_price if photographer else 5.0
+        member_result = await db.execute(select(LiveSessionParticipant).where(
+            LiveSessionParticipant.live_session_id == session_id,
+            LiveSessionParticipant.surfer_id == user_id,
+            LiveSessionParticipant.status.in_(["active", "completed"])))
+        member = member_result.scalar_one_or_none()
+        if not member:
+            raise HTTPException(status_code=403, detail="Session membership required")
+        price_per_clip = _valid_price(member.locked_price_standard)
+        remaining = max(0, member.photos_credit_remaining or 0)
 
         # Count claimed
         claimed_result = await db.execute(
@@ -107,24 +136,14 @@ async def get_session_entitlements(
             "session_id": session_id,
             "session_type": "live",
             "is_all_inclusive": False,
-            "included_media_count": included_count,
+            "included_media_count": remaining + claimed_count,
             "claimed_count": claimed_count,
-            "credits_remaining": max(0, included_count - claimed_count),
+            "credits_remaining": remaining,
             "price_per_clip": price_per_clip,
             "resolution_tier": "standard"
         }
 
-    # Default response
-    return {
-        "session_id": session_id,
-        "session_type": "unknown",
-        "is_all_inclusive": False,
-        "included_media_count": 0,
-        "claimed_count": 0,
-        "credits_remaining": 0,
-        "price_per_clip": 5.0,
-        "resolution_tier": "standard"
-    }
+    raise HTTPException(status_code=404, detail="Session not found")
 
 
 @router.get("/resolution-upsell/{gallery_item_id}")

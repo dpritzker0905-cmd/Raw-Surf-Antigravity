@@ -100,13 +100,14 @@ async def get_grid_series(
     touch /grid — if it fails, the client falls back to the per-hour /grid flow.
     """
     from services.weather_pipeline.grid_series_helper import build_grid_series
-    # Reuse the SAME resolver /grid uses (get_grid, defined below) so each frame matches the
-    # live heatmap exactly, at any zoom/region (manifest regional/global + dynamic viewport).
-    # viewport_service enables the EURO/Copernicus fast path (one full-range fetch + slice).
-    # request is threaded through so a scrub-aborted connection cancels the remaining per-hour
-    # builds instead of running the whole multi-hour series to completion (zombie OOM load).
-    # base_time (F-01, audit 14.0): the client's absolute anchor — validated, skew-bounded and
-    # disclosed as `base_time_source` in build_grid_series, whose docstring carries the rationale.
+    # Same /grid resolver, including the EURO multi-hour viewport fast path. The helper
+    # validates/discloses base_time and stops per-hour builds after client disconnect.
+    # Qualified response bounds include queueing, building, encoding and compression.
+    if os.environ.get("GRID_SERIES_RESPONSE_BOUNDS", "0") == "1":
+        from services.weather_pipeline.series_response import serve_series
+        return await serve_series(lambda: build_grid_series(
+            get_grid, viewport_service, model, domain, layer, bbox, hours,
+            request=request, surf=surf, base_time=base_time), hours, request)
     return await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours, request=request, surf=surf, base_time=base_time)
 
 

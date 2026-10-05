@@ -23,7 +23,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x]
+        node-version: [24.21.0]
 
     steps:
       - uses: actions/checkout@v5
@@ -115,7 +115,7 @@ jobs:
           // Point identity, availability, playback and consumer controls: full local346/3582.
           // Daily calendar, mounted label/rollback controls: +1suite/+28tests; projected347/3610.
           // PF01/PF02 transport/cache and mounted viewport controls: +4suites/+37tests.
-          const MIN_SUITES = 351, MIN_TESTS = 3647;
+          const MIN_SUITES = 356, MIN_TESTS = 3689;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -164,10 +164,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 18.20.2
+      - name: Use Node.js 24.21.0
         uses: actions/setup-node@v5
         with:
-          node-version: '18.20.2'   # matches frontend/.node-version
+          node-version: '24.21.0'   # matches frontend/.node-version
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -204,10 +204,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 18.20.2
+      - name: Use Node.js 24.21.0
         uses: actions/setup-node@v5
         with:
-          node-version: '18.20.2'   # matches frontend/.node-version
+          node-version: '24.21.0'   # matches frontend/.node-version
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -800,7 +800,8 @@ jobs:
           # Same181files/margin6; zero slow markers on healthy rows preserved.
           # PR239 actual2286 plus2 monitor-label controls ->2288; margin6 unchanged.
           # Immutable manifest publication: hosted2327 projected (2288 +39), same six-test margin.
-          MIN_FILES, MIN_PASSED = 182, 2321
+          # Response envelope17 + served-hour8 + staging-target8: projected2360, margin6.
+          MIN_FILES, MIN_PASSED = 185, 2354
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1320,7 +1321,8 @@ jobs:
           # pinned hosted1918. Expected1951; local full collection crashes on Windows,
           # so hosted CI must confirm. Preserve the six-test margin and paired reference.
           # Hosted5afa0c82 chain1951 +11producer/+20Copernicus controls =1982; margin6.
-          MIN_FILES, MIN_PASSED = 150, 1976
+          # Exact-corner validity67 controls: projected2049, margin6.
+          MIN_FILES, MIN_PASSED = 151, 2043
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1686,7 +1688,8 @@ jobs:
           # add73 executed cases; projected889, same margin2. Candidate CI must confirm.
           # Hosted5afa0c82 estate889 +9actual horizon-route controls =898; margin2.
           # Scoreboard chronology:12 actual-audit/negative controls; projected910, margin2.
-          MIN_PASSED = 908
+          # Observer22/session23/social7/purchase8: projected970, margin2.
+          MIN_PASSED = 968
 
           try:
               root = ET.parse('estate.xml').getroot()

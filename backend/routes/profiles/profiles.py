@@ -340,7 +340,7 @@ async def get_trust_signals(profile_id: str, db: AsyncSession = Depends(get_db))
     Returns total completed sessions, average on-demand response time,
     category-level review averages, and verification status.
     """
-    from models import Booking, DispatchRequest, Review
+    from models import Booking, DispatchRequest, Review, DispatchRequestStatusEnum
     from sqlalchemy import func as sql_func
 
     # Verify profile exists
@@ -361,7 +361,7 @@ async def get_trust_signals(profile_id: str, db: AsyncSession = Depends(get_db))
     dispatch_count_result = await db.execute(
         sql_func.count(DispatchRequest.id).select().where(
             DispatchRequest.photographer_id == profile_id,
-            DispatchRequest.status == 'completed'
+            DispatchRequest.status == DispatchRequestStatusEnum.COMPLETED
         )
     )
     total_dispatches = dispatch_count_result.scalar() or 0

@@ -286,7 +286,7 @@ class PointSampler:
         # Exact match path
         if lat0 == lat1 and lon0 == lon1:
             vec = get_vector_safe(lat0, lon0)
-            if vec:
+            if vec and (os.environ.get("SAMPLER_EXACT_VALIDITY", "0") != "1" or self._is_vector_valid(vec, product.domain, product.layer)):
                 detail = NormalizedPointDetail(
                     requested_lat=lat,
                     requested_lng=lng,

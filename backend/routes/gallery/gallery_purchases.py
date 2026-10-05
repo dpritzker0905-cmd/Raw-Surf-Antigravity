@@ -43,6 +43,8 @@ async def purchase_gallery_item(
     """Purchase a gallery item with the authenticated buyer's account."""
     if current_user_id != buyer_id:
         raise HTTPException(status_code=403, detail="Cannot purchase media for another user")
+    if data.payment_method != "credits":
+        raise HTTPException(status_code=400, detail="Only credit purchases are supported")
     from utils.credits import deduct_credits, add_credits
     
     # Get item with photographer
@@ -93,7 +95,7 @@ async def purchase_gallery_item(
     price, download_url = get_quality_price(item, photographer, data.quality_tier)
     
     # Check if subscription quota covers this purchase (photo or video)
-    from routes.photo_subscriptions import try_use_subscription_quota
+    from routes.subscriptions_billing.photo_sub_helpers import try_use_subscription_quota
     quota_type = 'video' if item.media_type == 'video' else 'photo'
     sub_quota_result = await try_use_subscription_quota(
         db, buyer_id, item.photographer_id, quota_type

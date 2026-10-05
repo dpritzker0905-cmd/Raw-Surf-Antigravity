@@ -148,7 +148,7 @@ async def purchase_photo_in_session(
     photo_price = photographer.live_photo_price or gallery_item.price or 5.0
     
     # Check if subscription quota covers this item (photo or video)
-    from routes.photo_subscriptions import try_use_subscription_quota
+    from routes.subscriptions_billing.photo_sub_helpers import try_use_subscription_quota
 
 
     quota_type = 'video' if gallery_item.media_type == 'video' else 'photo'

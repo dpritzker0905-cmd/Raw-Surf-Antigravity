@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 23:08Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-05 00:32Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,15 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-05 00:32Z: remaining-workgroup source checkpoint locally qualified.**
+  Fourteen additional rows source-covered (partial scopes retained), nine source rows and external
+  acceptance open.160new backend/280expanded+2legacy skips/68CI controls pass;356/3689frontend,
+  Node24production build/lint ratchet/LOC accepted. Projected5379backend; hosted candidate pending.
+  Existing separate Dev staging target verified empty; source canary prepared, not executed.
+  Dev-scoped local Supabase MCP registered, OAuth discovery decoding failed; runtime access open.
+  All new served switches off; no merge/deploy/activation/cloud data writes. Report:
+  `audit/repair-2026-10-04/REMAINING-BATCH-RESULTS.md`.
 
 - **2026-10-04 22:49Z: PF01/PF02 browser source21db8ee8 hosted qualified on PR243.**
   Three limiter-owned requests, latest regional intent, reusable global work, safe A/B/A owners;
@@ -601,7 +610,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 619, sha256 e57f454c2b0c04b43c5ee0b64cfff6b80c9576fd4c0b431c53e64a6faa9f27f6**
+  **Ledger head: seq 626, sha256 802c35a10138e3011709818da365868ffc799926c5757402851362e5107af022**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

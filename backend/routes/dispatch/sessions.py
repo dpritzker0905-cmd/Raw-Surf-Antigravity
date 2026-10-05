@@ -230,7 +230,7 @@ async def create_dispatch_request(
     subscription_discount_pct = 0.0
     subscription_covered = False
     if request_data.target_photographer_id:
-        from routes.photo_subscriptions import get_subscription_discount, try_use_subscription_quota
+        from routes.subscriptions_billing.photo_sub_helpers import get_subscription_discount, try_use_subscription_quota
         subscription_discount_pct = await get_subscription_discount(
             db, requester_id, request_data.target_photographer_id, service_type='on_demand'
         )

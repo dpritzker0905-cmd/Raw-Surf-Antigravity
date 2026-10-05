@@ -231,3 +231,21 @@ Response-cost/body/headroom/admission/deadline acceptance still open. Own diagno
 fixture shared vectors initially; superseded with76800distinct vectors. No production
 latency inference. Reviewable experiment and limitations recorded in PF03-DIAGNOSIS.md.
 No merge/deploy/activation. This publication is receipts plus offline experiment only.
+
+### 2026-10-05 00:32Z: remaining-workgroup source checkpoint and staging forensics
+
+Fourteen additional rows source-covered, including partial composer/session repairs; nine source rows
+plus cloud/device/financial/scientific acceptance remain. All new served switches off. Full Node24
+frontend356/3689 and production build accepted;160new backend controls and68CI controls pass;
+expanded280pass/2legacy skips. Prior-source82controls44fail/38pass twice; current82pass.
+Selector628tracked/185guards/151chain/289estate; projected2360/2049/970=5379backend, hosted pending.
+Local Python partial; full-repo lint existing scheduler/watermark/quarantined test debt persists,
+changed/new fatal lint and both LOC checks pass. Earlier frontend timeout and sandbox Git Bash
+DLL startup failures retained; final escalation passes without test relaxation.
+Read-only provider inventory: separate existing Raw Surf App Dev, private weather bucket0objects,
+pointer0rows, actual authusers0. Shared Render has no isolated staging environment identified.
+Prepared actual-source nonce-owned cloud canary is NOT executed. Dev-scoped local MCP registered
+on owner authorization; OAuth metadata decoding fails before approval. Public metadata framing
+also fails curl; provider versus network cause unknown. No cloud data/config/deployment writes.
+Automatic review rejected revealing shared Render URL; safe metadata/SQL alternative established
+staging instead, without retrying disclosure. Report: audit/repair-2026-10-04/REMAINING-BATCH-RESULTS.md.

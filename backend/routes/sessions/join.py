@@ -97,7 +97,7 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
         platform_discount = 0.20  # 20% off
     
     # Apply photographer-specific subscription discount (stacks with platform discount)
-    from routes.photo_subscriptions import get_subscription_discount, try_use_subscription_quota
+    from routes.subscriptions_billing.photo_sub_helpers import get_subscription_discount, try_use_subscription_quota
     photo_sub_discount_pct = await get_subscription_discount(
         db, surfer_id, data.photographer_id, service_type='on_demand'
     )
