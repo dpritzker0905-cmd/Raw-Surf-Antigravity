@@ -90,3 +90,14 @@ Primary guidance: [Supabase MCP](https://supabase.com/docs/guides/ai-tools/mcp),
 [create-only uploads](https://supabase.com/docs/guides/storage/uploads/standard-uploads),
 [asyncio shielding](https://docs.python.org/3/library/asyncio-task.html#shielding-from-cancellation),
 [supported Node releases](https://nodejs.org/en/about/previous-releases).
+
+## Hosted acceptance observed2026-10-05 01:02Z
+
+CI37248136689 at receiptd7b10451 completed successfully: all11jobs. Source fingerprint
+comparison against4eac3550 has zero differences across runtime/backend/frontend/workflows.
+Frontend356suites/3689tests; guards2360pass/66skip/1xfail, chain2049pass, estate970pass,
+289selected/287produced. Combined5379backend matches projection; floors/build/lint/imports
+accepted. This supersedes hosted-pending notes; cloud/device/GPU/p95/science/financial
+acceptance and nine remaining source rows remain open. No new exclusions or activation.
+Owner confirms the API exception saved, but API TLS still Avast-intercepted and Codex
+discovery fails; MCP normal public TLS/metadata works. No repeated OAuth flow started.

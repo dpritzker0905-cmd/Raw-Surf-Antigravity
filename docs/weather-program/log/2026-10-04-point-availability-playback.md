@@ -270,3 +270,13 @@ fails decoding there. Suggested second exception restricted to the API host, pen
 action and retest; no global antivirus disable or agent settings edit. Ledger629 records it.
 Ledger630 corrects author attribution on620-628: the CLI defaulted to claude when omitted,
 but the actions were Codex's. Original entries retained; future calls explicitly set actor codex.
+
+### 2026-10-05 01:02Z: full hosted repair acceptance and remaining connector gate
+
+CI37248136689 atd7b10451 all11jobs success. Runtime fingerprints identical to4eac3550.
+Frontend356/3689; backend5379=2360guards+2049chain+970estate; guards66skip/1xfail,
+estate289selected/287produced. Floors/build/lint/imports pass; no new exclusions.
+Ledger631 records exact-source acceptance; no merge/deploy/activation/science promotion.
+Ledger632 records owner confirmation of saved API Website/Domain exception; public TLS
+still Avast-intercepted and Codex API metadata decoding fails. First endpoint remains
+clear. Saved UI details not visible to agent; no antivirus edits or repeated login.

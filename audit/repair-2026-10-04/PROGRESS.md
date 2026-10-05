@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-05 00:32Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-05 01:02Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -22,7 +22,8 @@ These counts describe work coverage, not40 fully closed production findings; rot
 - Browser series total3, latest regional ownership and shared cache48entries/32MiB estimate; both new flags disabled.
 - Current local frontend356suites/3689tests; backend floors2354/2043/968, paired references2360/2049/970.
 - Latest14-row source batch:160new backend controls, expanded280pass/2legacy skips and68CI controls;
-  Node24production build/lint ratchet/LOC accepted. Full hosted candidate pending; see REMAINING-BATCH-RESULTS.md.
+  Node24production build/lint ratchet/LOC accepted. CI37248136689 all11jobs success atd7b10451;
+  unchanged source4eac3550, backend5379/frontend3689. See REMAINING-BATCH-RESULTS.md.
 
 ## Validation status
 
@@ -53,7 +54,7 @@ Daily rows verified in light/dark/beach desktop/390px phone offline component fi
 4. SEC05–10 and SOC01–02: purchase/booking/live entitlements, original media delivery,
    alert dedupe, Stripe refusal scope, PostgreSQL enum, crew predicates and hashtag500.
    SEC01 broader audience, SEC02 old false queue remediation and SEC04 expiry/concurrency remain partial.
-5. AS02/AS05 source locally qualified on Node24.21.0; exact-source hosted qualification remains.
+5. AS02/AS05 source hosted-qualified on Node24.21.0 in CI37248136689; no deployment authorized.
 6. OS01–06/SCI01–02: served-hour rating gate, historical autofill, composer zero/missing/provenance,
    daily quality, authenticated observer binding, observation UTC interpretation and held-out coverage.
 

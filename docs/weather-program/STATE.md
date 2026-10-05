@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-05 00:32Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-05 01:02Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,13 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-05 01:02Z: remaining source4eac3550 hosted-qualified at receiptd7b10451.**
+  CI37248136689 all11jobs success; frontend356/3689, backend5379 (guards2360, chain2049,
+  estate970;289selected/287produced). Existing skips/xfail retained, no new exclusions.
+  Source fingerprints unchanged; no merge/deploy/activation/scientific accuracy claim.
+  Owner confirms API Website/Domain exception saved, but TLS remains Avast-inspected and
+  OAuth discovery fails. Narrow URL format retest pending; connector unauthenticated.
 
 - **2026-10-05 00:32Z: remaining-workgroup source checkpoint locally qualified.**
   Fourteen additional rows source-covered (partial scopes retained), nine source rows and external
@@ -610,7 +617,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 630, sha256 ee3ed2b2f2e6392dacb69b7d93880b2fdc622255e6ee35dd45b78d5c558855e7**
+  **Ledger head: seq 632, sha256 c1a58f8a983ca5e1334a043dde337204c4e6d705bc53be3bbd3e57382f9cbdec**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
