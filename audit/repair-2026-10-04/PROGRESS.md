@@ -1,8 +1,16 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-05 03:14Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-05 21:36Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
+
+Current deployment assessment: [DEPLOYMENT-READINESS.md](DEPLOYMENT-READINESS.md).
+PR244 fixes the four newer merge blockers on PR243 head13f6d0a9; current application CI
+all11success5504backend/356suites3700frontend. Separate ledger check failed on missing242;
+historical242/244 merge records now appended, exact new-head hosted requalification pending.
+Live API/dev/prod remain6b062e97/2a7b8615/fc140024. No deployment/activation.
+Supabase Dev tools now callable; empty private/RLS preflight confirmed; actual canary unexecuted.
+Older source and connector statements below are historical receipts, not current readiness.
 
 ## Implemented source repairs
 

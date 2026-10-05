@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-05 03:14Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-05 21:36Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,18 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-05 21:36Z: updated audit reconciled with current PR243 source13f6d0a9.**
+  PR244 already merged four blocker fixes into the repair branch, not dev. Current application
+  CI37357966896 all11success:5504backend and356suites/3700frontend; independent20backend/
+  29frontend pass. Separate hosted ledger check failed on missing242; reconstructed242/244
+  receipts now appended646/647 and current docs-only hosted requalification pending.
+  Live API6b062e97, dev frontend2a7b8615, prod frontendfc140024, preview13f6d0a9.
+  Scoped Dev Supabase tools work and empty/private/RLS preflight confirmed; actual-source
+  publication canary still unexecuted. Provider lock/settings/effective flags not authenticated.
+  Main required-check name still18.x; code emits24.21.0. No deployment or activation.
+  DEPLOYMENT-READINESS.md separates immediate release gates from dark-feature acceptance.
+  Session log: log/2026-10-05-deployment-readiness.md; ledger646-649.
 
 - **2026-10-05 03:14Z: deep-audit source d1cc16fe hosted-qualified.**
   CI37257237630 all11success; actual5484backend=2360/2049/1075 and356/3689frontend.
@@ -666,7 +678,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 645, sha256 11a22a76bd342df09a860431ab4f8aadde769beee12227e10f63dc97bd8aba75**
+  **Ledger head: seq 649, sha256 257fc38390c89ca5dde02d619daf97daf594549c9ad5eb3c0bdf22487ae6e276**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
