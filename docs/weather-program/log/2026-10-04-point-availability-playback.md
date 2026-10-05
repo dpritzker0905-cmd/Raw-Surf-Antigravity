@@ -249,3 +249,14 @@ on owner authorization; OAuth metadata decoding fails before approval. Public me
 also fails curl; provider versus network cause unknown. No cloud data/config/deployment writes.
 Automatic review rejected revealing shared Render URL; safe metadata/SQL alternative established
 staging instead, without retrying disclosure. Report: audit/repair-2026-10-04/REMAINING-BATCH-RESULTS.md.
+
+### 2026-10-05 00:45Z: connector diagnosis narrowed to local HTTPS inspection
+
+Owner normal PowerShell repeats OAuth decoding failure. Active Avast One26.9.11171.1011,
+public Supabase TLS issuer Avast Web/Mail Shield Root under normal certificate validation,
+and sanitized current codex_apps startup logs establish local HTTPS interception and the
+same connector decoding failure. Public issuer endpoint succeeds; MCP metadata framing fails.
+Upstream issue48504 reports the same Avast version and controlled resolution elsewhere.
+Earlier missing-registration explanation was incomplete; earlier unknown cause superseded.
+No antivirus setting or remote provider state changed. Proposed endpoint-only exception
+still requires owner UI action and controlled retest; no causal closure or authenticated access yet.

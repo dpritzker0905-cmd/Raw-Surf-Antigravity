@@ -75,6 +75,14 @@ metadata request returned JSON with malformed chunk framing; both Codex and curl
 decode it. Provider versus network-path cause remains unknown. Current chat exposes no
 Supabase tools. MCP metadata/SQL access alone does not supply the source canary's runtime key.
 
+Follow-up2026-10-05 00:45Z: owner normal terminal reproduces the error. Read-only inventory
+identifies active Avast One26.9.11171.1011; normally validated TLS certificate issuer is
+Avast Web/Mail Shield Root. Current sanitized codex_apps startup logs also report response
+decoding failure. [Upstream issue48504](https://github.com/openai/codex/issues/48504) reports
+the same version/symptoms and a confirmed HTTPS-inspection cause on another machine.
+This supersedes the unknown-cause diagnosis: local Avast interception is proven; causality
+awaits a narrow endpoint-exception retest. No antivirus setting was changed by this session.
+
 Remaining source work: SEC07/08/09, OS04/05, SCI01/02, B-M02; AS04/device/full-map acceptance,
 actual staging canary, live spot-hub p95, GPU plateau and PostgreSQL financial acceptance also open.
 
