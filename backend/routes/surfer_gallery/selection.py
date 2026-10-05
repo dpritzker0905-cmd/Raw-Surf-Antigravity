@@ -15,6 +15,29 @@ from models import (
 from .claims import SelectPhotosRequest
 router = APIRouter()
 
+
+def quota_scope(quota):
+    """Which single scope identifies this quota's photos: 'booking', 'live', 'gallery' or None.
+
+    On-demand (dispatch) quotas carry only a gallery_id, so they are scoped by gallery. A quota
+    naming both a booking and a live session is ambiguous, and one naming nothing would match every
+    eligible photo the surfer has: both are refused (None).
+    """
+    if quota.booking_id and quota.live_session_id:
+        return None
+    if quota.booking_id:
+        return 'booking'
+    if quota.live_session_id:
+        return 'live'
+    return 'gallery' if quota.gallery_id else None
+
+
+def in_quota_gallery(quota):
+    """SurferGalleryItem rows whose parent gallery item belongs to the quota's gallery."""
+    return SurferGalleryItem.gallery_item_id.in_(
+        select(GalleryItem.id).where(GalleryItem.gallery_id == quota.gallery_id)
+    )
+
 @router.get("/selection-queue/{surfer_id}")
 async def get_selection_queue(
     surfer_id: str,
@@ -143,7 +166,8 @@ async def select_included_photos(
     
     if len(request.item_ids) != len(set(request.item_ids)):
         raise HTTPException(status_code=400, detail="Select each photo only once")
-    if bool(quota.booking_id) == bool(quota.live_session_id):
+    scope = quota_scope(quota)
+    if scope is None:
         raise HTTPException(status_code=400, detail="Selection quota needs exactly one session")
 
     if quota.status != 'pending_selection':
@@ -176,12 +200,14 @@ async def select_included_photos(
             continue
         
         # Check if from the same session
-        if quota.booking_id and item.booking_id != quota.booking_id:
+        if scope == 'booking' and item.booking_id != quota.booking_id:
             continue
-        if quota.live_session_id and item.live_session_id != quota.live_session_id:
+        if scope == 'live' and item.live_session_id != quota.live_session_id:
             continue
-        
+
         gi = item.gallery_item
+        if scope == 'gallery' and (gi is None or gi.gallery_id != quota.gallery_id):
+            continue
         if gi.media_type == 'video':
             video_items.append(item)
         else:
@@ -224,16 +250,26 @@ async def select_included_photos(
         quota.completed_at = datetime.now(timezone.utc)
         
         # Mark remaining eligible items as 'pending' (purchasable)
-        remaining_result = await db.execute(
-            select(SurferGalleryItem).where(
-                SurferGalleryItem.surfer_id == quota.surfer_id,
-                SurferGalleryItem.selection_eligible == True,
-                SurferGalleryItem.access_type == 'pending_selection',
+        remaining_query = select(SurferGalleryItem).where(
+            SurferGalleryItem.surfer_id == quota.surfer_id,
+            SurferGalleryItem.selection_eligible == True,
+            SurferGalleryItem.access_type == 'pending_selection',
+            SurferGalleryItem.photographer_id == quota.photographer_id,
+        )
+        if scope == 'gallery':
+            # Session-less items: without the gallery filter this would sweep every other
+            # on-demand gallery the surfer has with the same photographer.
+            remaining_query = remaining_query.where(
+                SurferGalleryItem.booking_id.is_(None),
+                SurferGalleryItem.live_session_id.is_(None),
+                in_quota_gallery(quota),
+            )
+        else:
+            remaining_query = remaining_query.where(
                 SurferGalleryItem.booking_id == quota.booking_id,
                 SurferGalleryItem.live_session_id == quota.live_session_id,
-                SurferGalleryItem.photographer_id == quota.photographer_id,
             )
-        )
+        remaining_result = await db.execute(remaining_query)
         remaining_items = remaining_result.scalars().all()
         
         for item in remaining_items:
@@ -283,6 +319,8 @@ async def get_selection_eligible_items(
     
     if quota.booking_id:
         items_query = items_query.where(SurferGalleryItem.booking_id == quota.booking_id)
+    elif not quota.live_session_id and quota.gallery_id:
+        items_query = items_query.where(in_quota_gallery(quota))
     else:
         items_query = items_query.where(SurferGalleryItem.live_session_id == quota.live_session_id)
     
