@@ -46,7 +46,7 @@ Daily rows verified in light/dark/beach desktop/390px phone offline component fi
 ## What remains, in order
 
 1. AS06 actual Supabase staging publication/read-back: separate existing Dev target verified empty;
-   actual-source canary prepared, not executed. Dev MCP registered, OAuth discovery failed; runtime access open.
+   actual-source canary prepared, not executed. Dev MCP OAuth approved/confirmed after narrow Avast endpoint recovery; chat tool reload and runtime access open.
 2. PF03/PF04 source implemented dark and locally qualified; qualify browser heap/GPU plateau,
    hosted candidate and actual spot-hub populationp95≤5s. Admission is per Python process.
 3. AS04/MH01–03/PB01/B-M01/B-M02: full hour-to-pixel oracle, slow-fetch play/scrub,

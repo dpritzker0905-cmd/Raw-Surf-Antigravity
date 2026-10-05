@@ -101,3 +101,14 @@ accepted. This supersedes hosted-pending notes; cloud/device/GPU/p95/science/fin
 acceptance and nine remaining source rows remain open. No new exclusions or activation.
 Owner confirms the API exception saved, but API TLS still Avast-intercepted and Codex
 discovery fails; MCP normal public TLS/metadata works. No repeated OAuth flow started.
+
+### 2026-10-05 01:11Z: Dev connector OAuth recovery verified
+
+Owner saved explicit API HTTPS path exception and approved browser OAuth. Fresh normal
+TLS validation returns Google Trust Services issuer for MCP/API hosts; discovery200/exit0
+each. CLI login exit0; outside-sandbox MCP list explicitly enabled/OAuth (sandbox read
+cannot see the credential status and reports Unknown). Endpoint-only recovery verified.
+No global antivirus disable or provider data/config writes. Current chat tool snapshot
+still lacks Supabase, so reload Codex and reopen this same chat before actual scoped
+tool verification. Source cloud publication canary not executed; runtime credential
+path remains separate. Ledger633 records owner approval and measured recovery.

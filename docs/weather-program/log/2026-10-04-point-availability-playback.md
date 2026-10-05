@@ -280,3 +280,14 @@ Ledger631 records exact-source acceptance; no merge/deploy/activation/science pr
 Ledger632 records owner confirmation of saved API Website/Domain exception; public TLS
 still Avast-intercepted and Codex API metadata decoding fails. First endpoint remains
 clear. Saved UI details not visible to agent; no antivirus edits or repeated login.
+
+### 2026-10-05 01:11Z: Dev connector OAuth recovery verified
+
+Owner saved explicit API HTTPS path exception and approved browser OAuth. Fresh normal
+TLS validation returns Google Trust Services issuer for MCP/API hosts; discovery200/exit0
+each. CLI login exit0; outside-sandbox MCP list explicitly enabled/OAuth (sandbox read
+cannot see the credential status and reports Unknown). Endpoint-only recovery verified.
+No global antivirus disable or provider data/config writes. Current chat tool snapshot
+still lacks Supabase, so reload Codex and reopen this same chat before actual scoped
+tool verification. Source cloud publication canary not executed; runtime credential
+path remains separate. Ledger633 records owner approval and measured recovery.
