@@ -13,6 +13,7 @@ from utils.geo import haversine_distance
 
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, SurfSpot, SurfAlert, Notification, 
     PhotographerRequest, PhotographerRequestStatusEnum, RoleEnum
@@ -89,7 +90,10 @@ class SurfAlertShare(BaseModel):
     recipient_identifier: str  # Username or email
 
 @router.post("/alerts")
-async def create_surf_alert(user_id: str, data: SurfAlertCreate, db: AsyncSession = Depends(get_db)):
+async def create_surf_alert(user_id: str, data: SurfAlertCreate,
+    actor_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    if user_id != actor_id:
+        raise HTTPException(status_code=403, detail="Cannot create another user's alert")
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = user_result.scalar_one_or_none()
     if not user:
@@ -138,7 +142,10 @@ async def create_surf_alert(user_id: str, data: SurfAlertCreate, db: AsyncSessio
     }
 
 @router.get("/alerts/user/{user_id}")
-async def get_user_alerts(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_user_alerts(user_id: str,
+    actor_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    if user_id != actor_id:
+        raise HTTPException(status_code=403, detail="Cannot read another user's alerts")
     from services.surf_alert_delivery import cooldown_seconds
     result = await db.execute(
         select(SurfAlert)
@@ -165,8 +172,9 @@ async def get_user_alerts(user_id: str, db: AsyncSession = Depends(get_db)):
     } for a in alerts]
 
 @router.patch("/alerts/{alert_id}")
-async def update_surf_alert(alert_id: str, data: SurfAlertUpdate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(SurfAlert).where(SurfAlert.id == alert_id))
+async def update_surf_alert(alert_id: str, data: SurfAlertUpdate,
+    actor_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(SurfAlert).where(SurfAlert.id == alert_id, SurfAlert.user_id == actor_id))
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -193,9 +201,10 @@ async def update_surf_alert(alert_id: str, data: SurfAlertUpdate, db: AsyncSessi
 
 
 @router.put("/alerts/{alert_id}")
-async def full_update_surf_alert(alert_id: str, data: SurfAlertCreate, db: AsyncSession = Depends(get_db)):
+async def full_update_surf_alert(alert_id: str, data: SurfAlertCreate,
+    actor_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     """Full update of a surf alert - allows changing all fields including spot"""
-    result = await db.execute(select(SurfAlert).where(SurfAlert.id == alert_id))
+    result = await db.execute(select(SurfAlert).where(SurfAlert.id == alert_id, SurfAlert.user_id == actor_id))
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -214,8 +223,9 @@ async def full_update_surf_alert(alert_id: str, data: SurfAlertCreate, db: Async
     return {"message": "Alert updated", "id": alert_id}
 
 @router.delete("/alerts/{alert_id}")
-async def delete_surf_alert(alert_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(SurfAlert).where(SurfAlert.id == alert_id))
+async def delete_surf_alert(alert_id: str,
+    actor_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(SurfAlert).where(SurfAlert.id == alert_id, SurfAlert.user_id == actor_id))
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
@@ -225,12 +235,15 @@ async def delete_surf_alert(alert_id: str, db: AsyncSession = Depends(get_db)):
     return {"message": "Alert deleted"}
 
 @router.post("/alerts/share")
-async def share_surf_alert(data: SurfAlertShare, db: AsyncSession = Depends(get_db)):
+async def share_surf_alert(data: SurfAlertShare,
+    actor_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
+    if data.sender_id != actor_id:
+        raise HTTPException(status_code=403, detail="Cannot share as another user")
     """Share an alert configuration with another user"""
     # Get the original alert
     alert_result = await db.execute(
         select(SurfAlert)
-        .where(SurfAlert.id == data.alert_id)
+        .where(SurfAlert.id == data.alert_id, SurfAlert.user_id == actor_id)
         .options(selectinload(SurfAlert.spot))
     )
     alert = alert_result.scalar_one_or_none()
@@ -306,12 +319,14 @@ async def share_surf_alert(data: SurfAlertShare, db: AsyncSession = Depends(get_
     }
 
 @router.post("/alerts/check")
-async def check_and_trigger_alerts(db: AsyncSession = Depends(get_db)):
+async def check_and_trigger_alerts(
+    actor_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)
+):
     from services.surf_alert_delivery import claim_alert_delivery
 
     result = await db.execute(
         select(SurfAlert)
-        .where(SurfAlert.is_active.is_(True))
+        .where(SurfAlert.is_active.is_(True), SurfAlert.user_id == actor_id)
         .options(selectinload(SurfAlert.spot), selectinload(SurfAlert.user))
     )
     prepared = []

@@ -31,6 +31,54 @@
       "failed": 0,
       "errors": 0,
       "skipped": 0
+    },
+    "alerts-actor-before-1": {
+      "tests": 5,
+      "failed": 5,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-actor-before-2": {
+      "tests": 5,
+      "failed": 5,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-config-before-1": {
+      "tests": 19,
+      "failed": 13,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-config-before-2": {
+      "tests": 19,
+      "failed": 13,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-actor-after-1": {
+      "tests": 167,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-actor-after-2": {
+      "tests": 6,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-owner-after-1": {
+      "tests": 182,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-owner-after-2": {
+      "tests": 25,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
     }
   },
   "frontend": {
@@ -41,5 +89,7 @@
     "lint_ratchet": true
   },
   "hosted": "pending",
-  "production_changed": false
+  "production_changed": false,
+  "cooldown_source": "f995dae4d5cfc7310b0e0d5b8719a50f45bd8ee6",
+  "projected_backend": 5448
 }

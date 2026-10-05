@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-05 01:35Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-05 01:57Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -26,9 +26,10 @@ These counts describe work coverage, not41 fully closed production findings; rot
   unchanged source4eac3550, backend5379/frontend3689. See REMAINING-BATCH-RESULTS.md.
 
 - SEC08 shared atomic cooldown and durable in-app claim, push after commit, missing/zero bounds and
-  server cadence rendering:48new/63delivery-quality/161expanded controls pass.16fail/7pass before twice.
+  server cadence rendering plus JWT/owner CRUD/share/check binding:69new/182expanded controls pass.
+  Cooldown16fail/7pass, check5fail, config13fail/6pass before twice each.
   Build/lint/LOC/full356suites/3689frontend accepted; hosted qualification pending. Preferences/provider/PG acceptance open.
-  See ALERT-RESULTS.md. Estate floor1016/reference1018; projected backend5427.
+  See ALERT-RESULTS.md. Estate floor1037/reference1039; projected backend5448.
 
 ## Validation status
 
@@ -64,7 +65,8 @@ Daily rows verified in light/dark/beach desktop/390px phone offline component fi
    daily quality, authenticated observer binding, observation UTC interpretation and held-out coverage.
 
 Eight rows still lack source repairs: AS04, SEC07/09, OS04/05, SCI01/02 and B-M02.
-SEC08 now has partial source coverage; stored preferences, actor binding, durable push and PostgreSQL remain open.
+SEC08 now has partial source coverage; stored preferences, durable push and PostgreSQL remain open.
+Alert create/list/edit/delete/share/check now bind the authenticated actor and owned source.
 Partial OS02/03/06 and SEC06 scope plus additional acceptance remain on implemented rows.
 New served-value behavior stays default off pending the owner's explicit activation instruction.
 Production remains frozen. Beta app access-code rotation remains deferred as requested.

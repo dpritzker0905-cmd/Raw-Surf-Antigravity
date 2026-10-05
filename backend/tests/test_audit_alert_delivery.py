@@ -7,10 +7,14 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 import pytest_asyncio
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 import database
+from core.security import create_access_token
+from database import get_db
 from models import Notification, Profile, RoleEnum, SurfAlert, SurfSpot
 from routes.surf_data import alerts as manual
 from scheduler import surf_alerts as scheduled
@@ -55,7 +59,7 @@ async def harness(tmp_path, monkeypatch):
             await scheduled.check_surf_alerts_task()
         else:
             async with maker() as db:
-                return await manual.check_and_trigger_alerts(db=db)
+                return await manual.check_and_trigger_alerts(actor_id='owner', db=db)
 
     async def edit(**values):
         async with maker() as db:
@@ -252,5 +256,165 @@ async def test_api_reports_server_cadence_and_preserves_zero_bounds(harness):
     maker, _, edit, _, _, _ = harness
     await edit(max_wave_height=0)
     async with maker() as db:
-        rows = await manual.get_user_alerts('owner', db=db)
+        rows = await manual.get_user_alerts('owner', actor_id='owner', db=db)
     assert rows[0]['cooldown_seconds'] == 3600 and rows[0]['max_wave_height'] == 0
+
+
+@pytest.mark.parametrize('identity', ['missing', 'invalid', 'expired'])
+async def test_manual_check_refuses_unauthenticated_actor_before_database(identity):
+    app = FastAPI()
+    app.include_router(manual.router)
+
+    async def forbidden_database():
+        raise AssertionError('Unauthorized check opened a database session')
+        yield  # Dependency is deliberately an async generator.
+
+    app.dependency_overrides[get_db] = forbidden_database
+    headers = {}
+    if identity == 'invalid':
+        headers['Authorization'] = 'Bearer invalid'
+    elif identity == 'expired':
+        headers['Authorization'] = 'Bearer ' + create_access_token(
+            {'sub': 'owner'}, expires_delta=timedelta(seconds=-1))
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://offline.invalid') as client:
+        response = await client.post('/alerts/check?user_id=owner', headers=headers)
+    assert response.status_code == 401
+
+
+async def _second_owner(maker):
+    async with maker() as db:
+        db.add_all([
+            Profile(id='foreign', user_id='foreign', email='foreign@example.invalid', role=RoleEnum.SURFER),
+            SurfAlert(id='foreign-alert', user_id='foreign', spot_id='spot', min_wave_height=0,
+                      max_wave_height=12, notify_push=False),
+        ])
+        await db.commit()
+
+
+@pytest.mark.parametrize('actor', ['owner', 'foreign'])
+async def test_manual_check_scopes_real_queries_to_jwt_subject_not_query(harness, actor):
+    maker, _, _, _, _, _ = harness
+    await _second_owner(maker)
+    app = FastAPI()
+    app.include_router(manual.router)
+
+    async def session():
+        async with maker() as db:
+            yield db
+
+    app.dependency_overrides[get_db] = session
+    other = 'foreign' if actor == 'owner' else 'owner'
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://offline.invalid') as client:
+        response = await client.post('/alerts/check?user_id=' + other,
+            headers={'Authorization': 'Bearer ' + create_access_token({'sub': actor})})
+    assert response.status_code == 200 and response.json()['triggered_count'] == 1
+    async with maker() as db:
+        rows = list((await db.scalars(select(Notification))).all())
+        assert len(rows) == 1 and rows[0].user_id == actor
+        untouched = await db.get(SurfAlert, 'foreign-alert' if actor == 'owner' else 'alert')
+        assert untouched.trigger_count == 0 and untouched.last_triggered is None
+
+
+async def test_scheduled_check_retains_all_owners(harness):
+    maker, run, _, _, _, _ = harness
+    await _second_owner(maker)
+    await run('scheduled')
+    async with maker() as db:
+        assert {row.user_id for row in (await db.scalars(select(Notification))).all()} == {'owner', 'foreign'}
+
+
+CONFIG_CASES = [
+    ('POST', '/alerts?user_id=owner', {'spot_id': 'spot'}),
+    ('GET', '/alerts/user/owner', None),
+    ('PATCH', '/alerts/alert', {'max_wave_height': 0}),
+    ('PUT', '/alerts/alert', {'spot_id': 'spot', 'max_wave_height': 0}),
+    ('DELETE', '/alerts/alert', None),
+    ('POST', '/alerts/share', {'alert_id': 'alert', 'sender_id': 'owner', 'recipient_identifier': 'foreign@example.invalid'}),
+]
+
+
+@pytest.mark.parametrize('method,path,body', CONFIG_CASES)
+async def test_alert_config_requires_jwt_before_database(method, path, body):
+    app = FastAPI()
+    app.include_router(manual.router)
+
+    async def forbidden_database():
+        raise AssertionError('Anonymous configuration opened database session')
+        yield
+
+    app.dependency_overrides[get_db] = forbidden_database
+    async with AsyncClient(transport=ASGITransport(app=app), base_url='http://offline.invalid') as client:
+        response = await client.request(method, path, json=body)
+    assert response.status_code == 401
+
+
+async def _config_client(maker):
+    app = FastAPI()
+    app.include_router(manual.router)
+
+    async def session():
+        async with maker() as db:
+            yield db
+
+    app.dependency_overrides[get_db] = session
+    return AsyncClient(transport=ASGITransport(app=app), base_url='http://offline.invalid')
+
+
+@pytest.mark.parametrize('method,path,body', CONFIG_CASES)
+async def test_foreign_alert_config_cannot_read_or_mutate(harness, method, path, body):
+    maker, _, _, _, _, _ = harness
+    async with maker() as db:
+        db.add(Profile(id='foreign', user_id='foreign', email='foreign@example.invalid', role=RoleEnum.SURFER))
+        await db.commit()
+    async with await _config_client(maker) as client:
+        response = await client.request(method, path, json=body,
+            headers={'Authorization': 'Bearer ' + create_access_token({'sub': 'foreign'})})
+    assert response.status_code == (404 if method in ('PATCH', 'PUT', 'DELETE') else 403)
+    async with maker() as db:
+        alerts = list((await db.scalars(select(SurfAlert))).all())
+        assert len(alerts) == 1 and alerts[0].user_id == 'owner' and alerts[0].max_wave_height == 12
+        assert not list((await db.scalars(select(Notification))).all())
+
+
+async def test_alert_share_requires_source_owner_even_with_own_sender(harness):
+    maker, _, _, _, _, _ = harness
+    async with maker() as db:
+        db.add(Profile(id='foreign', user_id='foreign', email='foreign@example.invalid', role=RoleEnum.SURFER))
+        await db.commit()
+    async with await _config_client(maker) as client:
+        response = await client.post('/alerts/share', json={
+            'alert_id': 'alert', 'sender_id': 'foreign', 'recipient_identifier': 'owner@example.invalid'},
+            headers={'Authorization': 'Bearer ' + create_access_token({'sub': 'foreign'})})
+    assert response.status_code == 404
+
+
+async def test_owner_alert_config_keeps_edit_delete_create_and_read(harness):
+    maker, _, _, _, _, _ = harness
+    headers = {'Authorization': 'Bearer ' + create_access_token({'sub': 'owner'})}
+    async with await _config_client(maker) as client:
+        for method, payload in [('PATCH', {'max_wave_height': 0}),
+                                ('PUT', {'spot_id': 'spot', 'min_wave_height': 0, 'max_wave_height': 0})]:
+            response = await client.request(method, '/alerts/alert', json=payload, headers=headers)
+            assert response.status_code == 200
+        response = await client.get('/alerts/user/owner', headers=headers)
+        assert response.json()[0]['max_wave_height'] == 0
+        assert (await client.delete('/alerts/alert', headers=headers)).status_code == 200
+        assert (await client.get('/alerts/user/owner', headers=headers)).json() == []
+        response = await client.post('/alerts?user_id=owner', headers=headers,
+            json={'spot_id': 'spot', 'min_wave_height': 0, 'max_wave_height': 0})
+        assert response.status_code == 200 and response.json()['max_wave_height'] == 0
+
+
+async def test_owner_can_share_own_alert_to_fixture_recipient(harness):
+    maker, _, _, _, _, _ = harness
+    async with maker() as db:
+        db.add(Profile(id='foreign', user_id='foreign', email='foreign@example.invalid', role=RoleEnum.SURFER))
+        await db.commit()
+    async with await _config_client(maker) as client:
+        response = await client.post('/alerts/share', json={
+            'alert_id': 'alert', 'sender_id': 'owner', 'recipient_identifier': 'foreign@example.invalid'},
+            headers={'Authorization': 'Bearer ' + create_access_token({'sub': 'owner'})})
+    assert response.status_code == 200 and response.json()['recipient_id'] == 'foreign'
+    async with maker() as db:
+        assert {row.user_id for row in (await db.scalars(select(SurfAlert))).all()} == {'owner', 'foreign'}
+        assert len((await db.scalars(select(Notification))).all()) == 1

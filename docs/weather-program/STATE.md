@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-05 01:35Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-05 01:57Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,15 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-05 01:57Z: SEC08 alert actor boundaries also locally qualified.**
+  Create/list/edit/delete/share/manual-check bind JWT and source owner; scheduler retains
+  all owners. Manual5fail and config13fail/6pass before twice each; current69new controls/
+  182expanded/25repeated HTTP controls pass, no skips; fatal lint/LOC accepted. Cooldown source
+  f995dae4 published/read back on PR243; final actor extension hosted pending. Frontend
+  unchanged from qualified356/3689. Source coverage41including partial/eight source rows open.
+  Preferences/outbox/PG/provider and broader financial/device/science acceptance remain.
+  Production/science frozen; no provider writes, merge/deploy/activation.
 
 - **2026-10-05 01:35Z: SEC08 partial delivery repair locally qualified on PR243.**
   Actual emitters/SQLite16fail/7pass before twice;48new controls,63delivery/quality and161expanded
@@ -633,7 +642,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 635, sha256 f231d602660b9aa16aa323096e6f37ad33401b903775eed06cb3e21ad7851a46**
+  **Ledger head: seq 636, sha256 bb46d9ec6988025309e3c23c614c67beb7ddf575f51f48f3fba3e187472c4af3**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

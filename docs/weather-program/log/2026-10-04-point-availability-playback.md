@@ -314,3 +314,17 @@ accepted; changed Python fatal lint clean;646backend files within800LOC and gene
 ratchet accepted. Final delivery/quality63pass and expanded161pass, no skips.
 Ledger635 records publication checkpoint with commit/push/hosted read-back pending.
 ALERT-VALIDATION.json derived directly from the five local JUnit receipts.
+
+### 2026-10-05 01:57Z: alert actor/configuration extension and next financial dependency
+
+After sourcef995dae4 publication/read-back, review found check/CRUD/share actor gaps.
+Check5fail before twice; config19selected13fail/6pass before twice. Repaired all seven
+alert handlers with JWT/owner binding; actual own CRUD and intentional fixture-recipient
+share preserved, scheduler retains all owners. Final69new/182expanded/25repeated HTTP
+controls pass; changed fatal lint/LOC accepted; frontend unchanged356/3689. Ledger636.
+Broader photographer-request routes retain their separate scope. Source41rows partial/
+eight without source; stored preference/outbox/PG/provider qualification open.
+Stripe trace confirms separate configuration reads in routes/scheduler/constructor;
+cleanup can abandon pending transactions if verification is unavailable. Centralizing
+key refusal must retain an explicit no-write disabled-verification control. SEC09 remains
+unrepaired; no processor/network/account/payment calls or provider writes made.
