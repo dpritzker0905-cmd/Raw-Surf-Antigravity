@@ -34,3 +34,19 @@ four blocker fixes, actual live versions and explicit deployment/activation acce
 Runtime/workflow diff from13f6d0a9 remains empty. Ledger650 records publication/description;
 final receipt is documentation only. Full newest application checks pending. No merge to dev,
 deployment, cloud data write, money/provider action or new flag activation.
+
+### 2026-10-05 22:00Z: gallery scope extension, unset pins and authenticated release settings
+
+Six gallery regressions fail twice before; actual queue/items/redemption share scope after repair.
+Invalid quota listing fails closed, photographer mismatch excluded, booking/live positive controls
+and leftover scope pass.87focused/144expanded after; ten gallery cases plus four actual unset
+availability/horizon/Copernicus cases. Floors1107/reference1109 paired. Fatal lint, size, BOLA gates
+pass; no baseline growth or skips. Local Python environment limitation remains; PG locks unqualified.
+
+Correction of21:36 provider-inaccessibility statement: existing authenticated Chrome sessions now
+establish Render dev/On Commit and empty health path, build migrations, Netlify lockfc140024/main,
+new flag override absence and actual preview Node24.21.0/file command. Secrets stay masked;
+local auto-deploy edit canceled without save. Lightweight public health probe HTTP200. No provider
+write, actual charge, cloud test data, merge, deployment or activation. No served number changes.
+Prior docs4a7671a9 application CI37377554458 all11SUCCESS; new source hosted qualification pending.
+Ledger651-652; release receipt separates remaining cloud/PG/native/deadline/ingestion/science gates.

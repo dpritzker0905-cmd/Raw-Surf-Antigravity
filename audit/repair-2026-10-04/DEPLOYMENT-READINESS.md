@@ -1,6 +1,6 @@
 # Deployment readiness: updated audit versus actual repairs
 
-Verified 2026-10-05 21:35Z. This is a deployment assessment, not deployment authorization.
+Verified 2026-10-05 22:00Z. This is a deployment assessment, not deployment authorization.
 The supplied deep REPORT.md includes sections 10 and 11, and its current SHA256 is
 `be4914fbc8de71b1cfada3b7beb0f78e669c8fd6b5090fefbc3678accb5b72c0`.
 Its merge-blocker review is of `0bb3aec0`; the actual PR243 head is now `13f6d0a9`.
@@ -17,12 +17,13 @@ This supersedes the older deployment status in PROGRESS.md without rewriting his
 | Netlify PR243 preview | service-worker BUILD_VERSION13f6d0a9 | Latest frontend preview exists; it still uses the shared backend |
 | Separate Supabase Dev | Scoped SQL: pointer0rows, auth0users, weather bucket0objects, private, pointer RLS enabled | Connector works; real publication canary is still unexecuted |
 
-Render and Netlify connectors are not exposed in this session. The public Netlify dashboard
-confirms the published frozen commit, but is logged out and does not establish its current lock,
-configured build branch or environment values. Render's actual build command, health-check path,
-auto-deploy mode and full effective flags must be read back before a deployment. The previous audit
-reported an empty health-check path and migrations in the live build command. Do not apply
-render.yaml wholesale: that source file is not proof of current service configuration.
+Authenticated Chrome readback now confirms Render dev/Auto-Deploy On Commit, migrations in the
+build command and empty health-check path. Live /api/health/simple returned HTTP200. Netlify is
+Auto Publishing Locked atfc140024; production branch main, branch deploys dev/frozen branch.
+The completed13f6d0a9 preview uses Node24.21.0 and netlify.toml's build command, overriding the
+dashboard's22.x/default command. New flag overrides are absent from both provider key inventories;
+secret values stayed masked. No provider configuration changed. Full follow-up receipt:
+[RELEASE-GATE-RESULTS.md](RELEASE-GATE-RESULTS.md).
 
 ## Updated audit reconciliation
 
@@ -30,11 +31,11 @@ render.yaml wholesale: that source file is not proof of current service configur
 |---|---|---|
 | LH01/LH02/AS01 | Push authority, Gemini credential transport and unconditional trace-off remain repaired | Deploy source; historical cleanup/rotation is separate; beta-code rotation remains owner-deferred |
 | F01 | PR244 binds join, in-session purchase and quick-book to JWT identity before database operations | Actual financial/card/concurrency behavior remains outside SQLite authority qualification |
-| F02 | PR244 restores gallery-scoped on-demand redemption and prevents cross-gallery redemption/leftover sweeping | Quota-specific item listing tested; whole queue listing and odd legacy data need broader acceptance |
+| F02 | PR244 restores gallery redemption; follow-up scopes queue/items/redemption/sweep by owner, photographer and session/gallery | Six prior defects reproduced twice;87focused/144expanded pass; new hosted qualification and PG concurrency pending |
 | FCA01 | PR244 separates the damage snapshot from the island reassert gate | Actual painter tests cover401/850/1199, coarse68/205/399 and kill205/850; native GPU/geography acceptance remains |
 | FCA02 | PR244 restores readable forecast chip classes on the existing dark card surface in all three themes | Mounted light/dark/beach controls pass; broader desktop/mobile visual acceptance remains |
 | CD01 | main still requires lint-and-build (18.x); current job emits (24.21.0) | Coordinate a stable check name with protection, or explicitly update the required context before main promotion; preserve protection |
-| TLD02 | Hosted ledger gate fails because PR242 has no merge record; PR244 is also not yet recorded | Reconstruct both from GitHub merge metadata and get the exact new-head ledger gate green |
+| TLD02 | PR242/244 merge receipts reconstructed; hosted ledger gates at838514dc/4a7671a9 SUCCESS | Resolved missing-history gate; preserve append-only ledger |
 | LIVE04 | grid_series has a default-off response bound; /grid has no deadline | Do not describe this as complete CPU cancellation or a grid-wide deadline repair |
 | WI02/WI03 | Causal diagnosis only, not repaired | Empty ingestion must fail correctly; health must measure model-cycle freshness before claiming closure |
 | LIVE01/LIVE02/WC01 and science/geometry rows | Still open; matching file names are not proof of repair | Index scan/cache work, height floor, canonical composition, mixed-sea/partition controls and disjoint held-outs require separate repairs/evidence |
@@ -46,7 +47,8 @@ coverage remains. Independent local replay:20backend and29frontend pass, no fail
 Local Python reports two declared packages absent; hosted Linux remains the full environment authority.
 The separate Weather Program Ledger run37357966994 failed on missing PR242.
 Docs838514dc reconstructs PR242/244; its ledger37377273489 completed SUCCESS.
-Newest full application checks are pending; runtime/workflows are unchanged from13f6d0a9.
+Docs4a7671a9 application CI37377554458 all11SUCCESS; runtime unchanged from13f6d0a9.
+The gallery/default-pin follow-up changes source/tests/floors and needs a fresh hosted run.
 
 ## Release sequence
 
@@ -84,9 +86,9 @@ Newest full application checks are pending; runtime/workflows are unchanged from
 | Publication | MANIFEST_IMMUTABLE_PUBLICATION | Actual-source Dev upload/CAS/two-writer/readback/cleanup canary; requires STAGING_SUPABASE_URL and STAGING_SUPABASE_SERVICE_ROLE_KEY securely supplied to the runtime |
 | Sampler/sim/composer | SAMPLER_EXACT_VALIDITY, SIM_FORECAST_SERVED_GATE; REACT_APP_COMPOSER_CONDITIONS | Geometry/provenance controls, canonical composition, mounted consumer/device acceptance and applicable held-out science evidence |
 
-All listed new switches default off/unset in source. Effective provider values were not independently
-read in this session. Capture them without credentials before deployment; do not enable every switch
-as a batch. Unrepaired deadlines, ingestion, private-media, financial, observation and science findings
+All listed new switches default off/unset in source. Authenticated provider key inventories confirm
+their overrides are absent. Four new cases exercise actual environment-variable deletion; no new
+switch was activated. Do not enable every switch as a batch. Unrepaired deadlines, ingestion, private-media, financial, observation and science findings
 remain separate backlog, not automatically fixed by publishing this PR.
 
 Official deployment guidance: [Render health checks](https://render.com/docs/health-checks),

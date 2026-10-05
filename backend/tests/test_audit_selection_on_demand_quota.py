@@ -140,3 +140,79 @@ async def test_items_listing_for_on_demand_quota_shows_only_its_gallery(harness)
     assert response.status_code == 200, response.text
     listed = {item['id'] for item in response.json()['unselected_items']}
     assert listed == {'si-a', 'si-b', 'si-c'}
+
+
+async def test_queue_keeps_each_on_demand_gallery_separate(harness):
+    client, maker = harness
+    await add_quota(maker, quota_id='q1', gallery_id='g1')
+    await add_quota(maker, quota_id='q2', gallery_id='g2')
+    response = await client.get('/api/surfer-gallery/selection-queue/surfer', headers=bearer())
+    assert response.status_code == 200, response.text
+    quotas = {quota['id']: quota for quota in response.json()['quotas']}
+    assert {item['id'] for item in quotas['q1']['eligible_items']} == {'si-a', 'si-b', 'si-c'}
+    assert {item['id'] for item in quotas['q2']['eligible_items']} == {'si-x'}
+    assert quotas['q1']['total_eligible'] == 3 and quotas['q2']['total_eligible'] == 1
+    assert quotas['q1']['session_type'] == 'on_demand' and quotas['q1']['session_id'] == 'g1'
+
+
+@pytest.mark.parametrize('scope', [{}, {'booking_id': 'missing-booking', 'live_session_id': 'missing-live'}])
+async def test_queue_does_not_advertise_unredeemable_scope(harness, scope):
+    client, maker = harness
+    await add_quota(maker, **scope)
+    response = await client.get('/api/surfer-gallery/selection-queue/surfer', headers=bearer())
+    assert response.status_code == 200, response.text
+    assert response.json()['quotas'] == [] and response.json()['pending_count'] == 0
+
+
+@pytest.mark.parametrize('surface', ['queue', 'items', 'redeem'])
+async def test_wrong_photographer_assignment_never_matches_quota(harness, surface):
+    client, maker = harness
+    await add_quota(maker, gallery_id='g1')
+    async with maker() as db:
+        item = (await db.execute(select(SurferGalleryItem).where(SurferGalleryItem.id == 'si-a'))).scalar_one()
+        item.photographer_id = 'another-pro'
+        await db.commit()
+    if surface == 'redeem':
+        response = await client.post(select_url(), headers=bearer(), json={'item_ids': ['si-a']})
+        assert response.status_code == 200, response.text
+        assert response.json()['photos_selected'] == 0
+    else:
+        url = '/api/surfer-gallery/selection-queue/surfer' if surface == 'queue' else '/api/surfer-gallery/selection-queue/q/items'
+        response = await client.get(url, headers=bearer())
+        assert response.status_code == 200, response.text
+        body = response.json()
+        items = body['quotas'][0]['eligible_items'] if surface == 'queue' else body['unselected_items']
+        assert {item['id'] for item in items} == {'si-b', 'si-c'}
+    assert (await access_types(maker))['si-a'] == 'pending_selection'
+
+
+@pytest.mark.parametrize('scope', [{}, {'booking_id': 'missing-booking', 'live_session_id': 'missing-live'}])
+async def test_items_refuse_unredeemable_scope_without_exposing_photos(harness, scope):
+    client, maker = harness
+    await add_quota(maker, **scope)
+    response = await client.get('/api/surfer-gallery/selection-queue/q/items', headers=bearer())
+    assert response.status_code == 400, response.text
+    assert set((await access_types(maker)).values()) == {'pending_selection'}
+
+
+@pytest.mark.parametrize('scope_key', ['booking_id', 'live_session_id'])
+async def test_session_selection_still_lists_redeems_and_sweeps_only_its_scope(harness, scope_key):
+    client, maker = harness
+    await add_quota(maker, allowed=1, **{scope_key: 'matching-session'})
+    async with maker() as db:
+        items = (await db.execute(select(SurferGalleryItem).where(
+            SurferGalleryItem.id.in_(['si-a', 'si-b'])))).scalars().all()
+        for item in items:
+            setattr(item, scope_key, 'matching-session')
+        await db.commit()
+    queue = await client.get('/api/surfer-gallery/selection-queue/surfer', headers=bearer())
+    assert queue.status_code == 200, queue.text
+    assert {item['id'] for item in queue.json()['quotas'][0]['eligible_items']} == {'si-a', 'si-b'}
+    listing = await client.get('/api/surfer-gallery/selection-queue/q/items', headers=bearer())
+    assert listing.status_code == 200, listing.text
+    assert {item['id'] for item in listing.json()['unselected_items']} == {'si-a', 'si-b'}
+    response = await client.post(select_url(), headers=bearer(), json={'item_ids': ['si-a', 'si-x']})
+    assert response.status_code == 200, response.text
+    assert response.json()['photos_selected'] == 1 and response.json()['selection_complete'] is True
+    assert await access_types(maker) == {
+        'si-a': 'included', 'si-b': 'pending', 'si-c': 'pending_selection', 'si-x': 'pending_selection'}

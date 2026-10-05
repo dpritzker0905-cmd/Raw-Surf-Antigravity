@@ -43,7 +43,10 @@ class Resolver:
 
 
 async def read(monkeypatch, mode, height, enabled="1"):
-    monkeypatch.setenv("SURF_STRICT_AVAILABILITY", enabled)
+    if enabled == "unset":
+        monkeypatch.delenv("SURF_STRICT_AVAILABILITY", raising=False)
+    else:
+        monkeypatch.setenv("SURF_STRICT_AVAILABILITY", enabled)
     monkeypatch.setenv("SURF_PARTITIONS", "0")
     monkeypatch.setattr(sc, "datetime", FrozenDatetime)
     monkeypatch.setattr("services.weather_pipeline.rating_confirmation.gate_single_model_surface",
@@ -84,7 +87,7 @@ async def test_current_sea_cannot_fill_missing_future_days(monkeypatch):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("enabled", ["0", "true"])
+@pytest.mark.parametrize("enabled", ["0", "true", "unset"])
 async def test_dark_switch_keeps_legacy_flat(monkeypatch, enabled):
     data, _ = await read(monkeypatch, "missing", None, enabled)
     assert data["current_conditions"]["wave_height_ft"] == 0
@@ -134,9 +137,12 @@ async def test_requested_daily_horizon_keeps_current_and_bounds_future(monkeypat
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("enabled", ["0", "true"])
+@pytest.mark.parametrize("enabled", ["0", "true", "unset"])
 async def test_requested_horizon_dark_control_preserves_legacy_work(monkeypatch, enabled):
-    monkeypatch.setenv("SURF_REQUESTED_HORIZON", enabled)
+    if enabled == "unset":
+        monkeypatch.delenv("SURF_REQUESTED_HORIZON", raising=False)
+    else:
+        monkeypatch.setenv("SURF_REQUESTED_HORIZON", enabled)
     monkeypatch.setenv("SURF_PARTITIONS", "0")
     monkeypatch.setattr(sc, "datetime", FrozenDatetime)
     resolver = CountingResolver(current_only=True)

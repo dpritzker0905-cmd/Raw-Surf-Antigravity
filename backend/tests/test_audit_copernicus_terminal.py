@@ -52,9 +52,12 @@ async def test_existing_empty_batched_entry_cannot_short_circuit_recovery(monkey
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('enabled', ['0', 'true'])
+@pytest.mark.parametrize('enabled', ['0', 'true', 'unset'])
 async def test_default_off_keeps_legacy_empty_success_cache(monkeypatch, enabled):
-    monkeypatch.setenv('COPERNICUS_TERMINAL_TIME_GUARD', enabled)
+    if enabled == 'unset':
+        monkeypatch.delenv('COPERNICUS_TERMINAL_TIME_GUARD', raising=False)
+    else:
+        monkeypatch.setenv('COPERNICUS_TERMINAL_TIME_GUARD', enabled)
     fetch = Mock(return_value=[{'hourly': {'time': []}}])
     monkeypatch.setattr(cm, '_fetch_sync', fetch)
     await cm.fetch_euro_marine([1], [1])
@@ -70,10 +73,13 @@ def test_tile_local_failure_does_not_suppress_other_spatial_tiles(monkeypatch):
     assert rows[0]['hourly']['time'] == [] and rows[1]['hourly']['wave_height'] == [2]
 
 
-@pytest.mark.parametrize('enabled,attempts', [('1', 1), ('0', 4), ('true', 4)])
+@pytest.mark.parametrize('enabled,attempts', [('1', 1), ('0', 4), ('true', 4), ('unset', 4)])
 def test_real_subprocess_boundary_stops_only_dataset_wide_temporal_failure(monkeypatch, enabled, attempts):
     from types import SimpleNamespace
-    monkeypatch.setenv('COPERNICUS_TERMINAL_TIME_GUARD', enabled)
+    if enabled == 'unset':
+        monkeypatch.delenv('COPERNICUS_TERMINAL_TIME_GUARD', raising=False)
+    else:
+        monkeypatch.setenv('COPERNICUS_TERMINAL_TIME_GUARD', enabled)
     monkeypatch.setattr(cm, '_check_credentials', lambda: (None, None))
     fetch = Mock(return_value=SimpleNamespace(returncode=65, stdout='ERROR_CODE:COPERNICUS_TIME_UNAVAILABLE\n', stderr=''))
     monkeypatch.setattr('subprocess.run', fetch)

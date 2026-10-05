@@ -1693,7 +1693,9 @@ jobs:
           # Deep-audit push/AI/trace/explicit-actor controls add36 to hosted1039; margin2.
           # #243 blocker fixes: two estate files add20 executed cases (money-route authority15,
           # on-demand selection quota5) to projected1075 = 1095; margin2. Hosted run must confirm.
-          MIN_PASSED = 1093
+          # Gallery queue/scope/photographer controls add10; actual unset-default controls add4.
+          # Projected1109 from hosted1095; margin2. Hosted run must confirm.
+          MIN_PASSED = 1107
 
           try:
               root = ET.parse('estate.xml').getroot()

@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-05 21:40Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-05 22:00Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,17 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-05 22:00Z: gallery queue extension and actual unset defaults locally qualified.**
+  Six defects reproduced twice; shared surfer/photographer/scope query now covers queue,
+  items, redemption and sweep.87focused/144expanded pass; ten new gallery cases plus four
+  unset-default cases; estate projected1109/floor1107, hosted confirmation pending.
+  Authenticated Render dev/On Commit readback confirms shared API merge impact and empty
+  health path; live lightweight /api/health/simple HTTP200. Netlify lockfc140024/main and
+  actual preview Node24.21.0 confirmed; new provider flag overrides absent, secrets masked.
+  Prior docs4a7671a9 CI37377554458 all11success; new source needs own qualification.
+  Publication canary/PG/card/native/science acceptance still open. No merge/deploy/activation.
+  RELEASE-GATE-RESULTS.md; log/2026-10-05-deployment-readiness.md; ledger651-652.
 
 - **2026-10-05 21:36Z: updated audit reconciled with current PR243 source13f6d0a9.**
   PR244 already merged four blocker fixes into the repair branch, not dev. Current application
@@ -679,7 +690,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 650, sha256 efac4c7e1ed87364698a9c877e66ad47d0c18c7cb4d8245eb29c730f2c69ec49**
+  **Ledger head: seq 652, sha256 5f773e3b012c42f8e0a754c0158d2100446ccefd16d5285d3146ef1fe00bfddb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
