@@ -15,8 +15,6 @@ import { getFullUrl } from '../utils/media';
 import SpotQualityBadge from './SpotQualityBadge';
 import { forecastCalendar } from './forecastCalendar';
 import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
-import { useTheme } from '../contexts/ThemeContext';
-import { getThemeTokens } from '../utils/themeTokens';
 
 // Conditions color mapping
 const conditionColors = {
@@ -45,9 +43,10 @@ const DirectionArrow = ({ direction, className = "" }) => {
 };
 
 // Forecast day badge - index 0 is now Tomorrow (backend skips today)
+// The chips sit on the card's fixed dark surface (bg-zinc-900/80 in light, dark AND beach), so
+// they keep fixed light-on-dark classes: theme tokens here put beach/light text on a dark card
+// (contrast 1.03-1.75:1 in beach, 3.16:1 in light) and the chip would vanish.
 const ForecastDayBadge = ({ day, index, isLocked = false }) => {
-  const { theme } = useTheme();
-  const t = getThemeTokens(theme);
   const dateObj = new Date(day.date);
   // index 0 = Tomorrow, index 1 = Day after tomorrow, etc.
   const calendar = forecastStateIdentityEnabled() ? forecastCalendar(day.date) : null;
@@ -55,8 +54,8 @@ const ForecastDayBadge = ({ day, index, isLocked = false }) => {
   
   if (isLocked) {
     return (
-      <div className={`flex flex-col items-center px-2 py-1 ${t.rowBg} rounded-lg opacity-50`}>
-        <span className={`text-[10px] ${t.textMuted}`}>{dayName}</span>
+      <div className="flex flex-col items-center px-2 py-1 bg-zinc-800/50 rounded-lg opacity-50">
+        <span className="text-[10px] text-gray-500">{dayName}</span>
         <Lock className="w-3 h-3 text-purple-400 my-0.5" />
         <span className="text-[9px] text-gray-600">--</span>
       </div>
@@ -64,9 +63,9 @@ const ForecastDayBadge = ({ day, index, isLocked = false }) => {
   }
   
   return (
-    <div className={`flex flex-col items-center px-2 py-1 ${t.rowBg} rounded-lg`}>
-      <span className={`text-[10px] ${t.textSecondary}`}>{dayName}</span>
-      <span className={`text-xs font-bold ${t.textPrimary}`}>{day.wave_height_max}ft</span>
+    <div className="flex flex-col items-center px-2 py-1 bg-zinc-800 rounded-lg">
+      <span className="text-[10px] text-gray-400">{dayName}</span>
+      <span className="text-xs font-bold text-white">{day.wave_height_max}ft</span>
       <span className={`text-[9px] ${conditionColors[day.label]?.replace('bg-', 'text-') || 'text-gray-400'}`}>
         {day.label?.split(' ')[0]}
       </span>

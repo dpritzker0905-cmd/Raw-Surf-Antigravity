@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
+from core.security import get_current_user_id
 from datetime import datetime, timedelta, timezone
 import json
 from models import AnalyticsEvent, CreditTransaction, LiveSession, LiveSessionParticipant, Notification, PaymentTransaction, Post, Profile, RoleEnum, XPTransaction
@@ -19,7 +20,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/sessions/join")
-async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSession = Depends(get_db)):
+async def join_session(
+    data: JoinSessionRequest,
+    surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Join a live session - SmugMug-style pricing:
     - Buy-in price to join the session
@@ -38,7 +44,12 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
     - User receives notification about the refund
     """
     from models import AnalyticsEvent
-    
+
+    # The buyer is whoever holds the token: debiting credits or charging a card for an id
+    # supplied in the query string would let anyone spend another user's balance.
+    if surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot join a session on behalf of another user")
+
     surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
     surfer = surfer_result.scalar_one_or_none()
     if not surfer:

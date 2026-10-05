@@ -213,6 +213,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   // genuinely finer (z12+ meter tiles — re-asserting coarse NE there would blockify the coast).
   let neFull = null;
   let checkOpenWaterDamage = false;
+  let islandOn = false;
   try {
     const _raOff = typeof window !== 'undefined' && window.__RAW_DISABLE_ISLAND_REASSERT__ === true;
     const _span = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
@@ -220,14 +221,18 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
     const _maxDensity = (typeof window !== 'undefined') ? Number(window.__RAW_ISLAND_REASSERT_MAX_DENSITY__) : NaN;
     // The pristine snapshot has two consumers with different density limits. A fine-basemap
     // coast must not be overwritten by NE, but partial tile queries still need damage detection.
+    // `islandOn` is the ONLY thing that lets step 3c multiply NE land back: owning a snapshot for
+    // damage detection must never switch the re-assert on (it bypassed the 400 px/deg gate and the
+    // __RAW_DISABLE_ISLAND_REASSERT__ kill switch, bringing back the Madeira island halo).
     checkOpenWaterDamage = _densityPxDeg > 0 && _densityPxDeg < 1200 &&
       !(typeof window !== 'undefined' && window.__RAW_DISABLE_OPENWATER_PLAUSIBILITY__ === true);
-    if (checkOpenWaterDamage || islandReassertEnabled({ densityPxPerDeg: _densityPxDeg, maxDensity: _maxDensity, killed: _raOff })) {
+    islandOn = islandReassertEnabled({ densityPxPerDeg: _densityPxDeg, maxDensity: _maxDensity, killed: _raOff });
+    if (checkOpenWaterDamage || islandOn) {
       neFull = document.createElement('canvas');
       neFull.width = canvas.width; neFull.height = canvas.height;
       neFull.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0);
     }
-  } catch (e) { neFull = null; }
+  } catch (e) { neFull = null; islandOn = false; }
 
   // 1. Land-black the viewport patch (clipped to the canvas).
   const [px0, py0] = project(vb.west, vb.north);
@@ -334,7 +339,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   try {
     const _span = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
     const _dens = _span > 0 ? Math.round(canvas.width / _span) : null;
-    if (neFull) {
+    if (neFull && islandOn) {
       const rStats = reassertNeLand(canvas, neFull);
       if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.islandReassert = { ...rStats, densityPxDeg: _dens };
     } else if (typeof window !== 'undefined' && window.__RAW_GPU__) {

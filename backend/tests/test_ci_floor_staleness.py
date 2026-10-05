@@ -444,7 +444,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Ordered audit repair: two tracked chain modules add33 controls; projected1951 from
 # pinned hosted1918. Hosted candidate must confirm; reference moves with floor1945.
 # Calendar/horizon/terminal-cache repair: chain+31, estate+9; hosted confirmation pending.
-_FLOOR_SET_FROM = {"guards": 2360, "chain": 2049, "estate": 1075}
+# #243 blocker fixes: estate+20 (two files); projected1095, floor1093, margin2; hosted run must confirm.
+_FLOOR_SET_FROM = {"guards": 2360, "chain": 2049, "estate": 1095}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

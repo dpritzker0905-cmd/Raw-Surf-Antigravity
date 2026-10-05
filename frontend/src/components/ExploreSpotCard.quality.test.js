@@ -13,7 +13,9 @@ import ExploreSpotCard from './ExploreSpotCard';
 
 // The repo's pattern (SpotHub.confidence.test.js): react-router-dom v7 is ESM, so it is mocked by name.
 jest.mock('react-router-dom', () => ({ useNavigate: () => jest.fn() }), { virtual: true });
-jest.mock('../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: 'dark' }) }));
+let mockTheme = 'dark';
+jest.mock('../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: mockTheme }) }));
+afterEach(() => { mockTheme = 'dark'; });
 
 const spot = (current_conditions) => ({
   id: 'thirteenth', name: '13th Beach', region: 'Victoria', latitude: -38.28, longitude: 144.47,
@@ -38,6 +40,23 @@ it('renders the size alone when the spot is unrated (no invented quality)', () =
   render(<ExploreSpotCard spot={spot({ wave_height_ft: 2.1, label: 'Knee High' })} />);
   expect(screen.queryByTestId('spot-quality-compact')).toBeNull();
   expect(screen.getAllByText('2.1ft')).toHaveLength(2);
+});
+
+// The card surface is bg-zinc-900/80 in every theme, so the forecast chips must stay light-on-dark in
+// light, dark and beach: theme tokens (beach amber-900 text, light gray-500) vanish on that surface.
+it.each(['light', 'dark', 'beach'])('forecast chips stay light-on-dark in the %s theme', (theme) => {
+  mockTheme = theme;
+  render(<ExploreSpotCard spot={{ ...spot({ wave_height_ft: 5, label: 'Head High' }), forecast: [
+    { date: '2026-10-06', wave_height_max: 6, label: 'Overhead' },
+  ] }} userSubscriptionTier="free" />);
+  const height = screen.getByText('6ft');
+  expect(height).toHaveClass('text-white');
+  const chip = height.parentElement;
+  expect(chip).toHaveClass('bg-zinc-800');
+  expect(chip.firstChild).toHaveClass('text-gray-400');
+  for (const cls of [...chip.classList, ...height.classList, ...chip.firstChild.classList]) {
+    expect(cls).not.toMatch(/amber|bg-gray-100|text-gray-500|text-gray-900/);
+  }
 });
 
 it('daily badge follows the supplied date even when the first row is not tomorrow', () => {

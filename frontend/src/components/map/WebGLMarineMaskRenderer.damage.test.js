@@ -60,3 +60,19 @@ test('plausibility kill switch preserves paint while suppressing the new verdict
   window.__RAW_DISABLE_OPENWATER_PLAUSIBILITY__=true;
   expect(paint(850,false).degraded).toBe(false);
 });
+// Call-site contract for step 3c. The damage detector owns a snapshot below 1200 px/deg, but only
+// the independent 400 px/deg gate (and its kill switch) may multiply NE land back: islandReassertGate
+// tests the predicate, these tests the painter, which is where the Madeira halo regressed.
+test.each([401,850,1199])('density %s: owning a damage snapshot does not re-assert NE land',density=>{
+  paint(density,true);
+  expect(window.__RAW_GPU__.islandReassert).toMatchObject({applied:false,reason:'fine_basemap'});
+});
+test.each([68,205,399])('density %s: coarse mask still re-asserts NE land',density=>{
+  paint(density,true);
+  expect(window.__RAW_GPU__.islandReassert).toMatchObject({applied:true,mode:'multiply'});
+});
+test.each([205,850])('density %s: kill switch disables the re-assert',density=>{
+  window.__RAW_DISABLE_ISLAND_REASSERT__=true;
+  paint(density,true);
+  expect(window.__RAW_GPU__.islandReassert).toMatchObject({applied:false,reason:'disabled'});
+});
