@@ -160,3 +160,7 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-05 02:50Z | Explicit ledger actor | D-001 | Real CLI writes on isolated hash-chained fixture ledgers | 3fail/2pass before twice;5pass after; omitted actor refuses before write | No served weather number/skill change; Historical attribution correction remains partial; no activation |
 
 | 2026-10-05 02:50Z | Current point Jacobian continuation | D-001 | Two repeats finite differences through actual resolver/sampler | Requested/hint[1,0] flag on;[0,1] off;6controls twice | No served weather number/skill change; No physical accuracy or held-out skill claim; no activation |
+
+| 2026-10-05 03:14Z | Deep-audit source d1cc16fe hosted qualification | D-001 | Exact completed CI37257237630 and all11jobs/log counters |5484backend=2360/2049/1075;356/3689frontend;294estate selected/292produced/0silent;36new executed | No served weather number/skill change; source remains unmerged/undeployed; native/cloud/PG/ingestion/science acceptance open |
+
+| 2026-10-05 03:14Z | WI02/WI03 current-source causal diagnosis | D-001 | Real CI entrypoint/store acknowledgment and pure health with offline boundaries | health200/500=>empty-cycle exit0/1; known cycle7h/55h=>ok/ok; ingest13h=>critical;6controls twice | No served weather number/skill change; unrepaired diagnosis excluded from repair counts; no provider writes |

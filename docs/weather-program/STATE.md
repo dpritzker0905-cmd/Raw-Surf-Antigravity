@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-05 02:50Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-05 03:14Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,14 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-05 03:14Z: deep-audit source d1cc16fe hosted-qualified.**
+  CI37257237630 all11success; actual5484backend=2360/2049/1075 and356/3689frontend.
+  Estate294selected/292produced/0silent; all36new controls executed; supplementary
+  LOC/ledger/encoding/Lighthouse success. Commitment641 fulfilled in ledger644.
+  Current WI02/WI03 diagnosed twice, unrepaired; old83-ID and50-row scopes retained.
+  Runtime/workflows unchanged in receipt work. Production/science stay frozen;
+  cloud/deadlines/hub/ingestion/GPU/PG/media/Stripe/held-out acceptance remain open.
 
 - **2026-10-05 02:50Z: deep-audit security/trace/actor source locally qualified.**
   Owner-supplied83-ID audit retained separately; current push/Gemini/trace/actor defects
@@ -658,7 +666,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 641, sha256 985059c7db838ba07b69bcbf64f84274f79590859b03c1cb2ca078578310186a**
+  **Ledger head: seq 645, sha256 11a22a76bd342df09a860431ab4f8aadde769beee12227e10f63dc97bd8aba75**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

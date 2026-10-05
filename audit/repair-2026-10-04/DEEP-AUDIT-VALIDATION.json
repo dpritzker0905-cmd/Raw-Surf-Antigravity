@@ -135,7 +135,7 @@
     "frontend_suites": 356,
     "frontend_tests": 3689
   },
-  "hosted_candidate": "pending publication",
+  "hosted_candidate": {"source": "d1cc16fe394de241a314494fe728d9f83d2a380d", "run": 37257237630, "status": "completed", "conclusion": "success", "jobs": 11, "guards": 2360, "chain": 2049, "estate": 1075, "backend_total": 5484, "frontend_suites": 356, "frontend_tests": 3689, "estate_selected": 294, "estate_produced": 292, "silent": 0},
   "floors": {
     "guards": 2354,
     "chain": 2043,

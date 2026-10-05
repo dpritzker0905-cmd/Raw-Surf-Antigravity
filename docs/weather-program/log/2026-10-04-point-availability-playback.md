@@ -358,3 +358,26 @@ freshest age0.6h; no inference about model-cycle age. Prior final alert source
 6c355cb2 CI37253656301 all11success, actual5448backend/frontend356/3689.
 New publication/hosted pending. No provider writes, live pushes, activation,
 merge/deploy or computer-use shell mutation; beta rotation remains deferred.
+
+### 2026-10-05 03:09Z: publication and next ingestion diagnosis
+
+Source d1cc16fe published/read back OPEN on PR243; description updated/read back.
+CI37257237630 now10success/one long guard running. Source/hosted counters remain
+pending until completed logs are available; commitment641 owns the follow-up.
+First commit was blocked by a receipt-digest generic-key false positive; path/hash
+representation then passed the full guard. No bypass or secret value was added.
+
+Current WI02/WI03 diagnosis reproduced6controls twice: empty-cycle exit tracks
+health upload; model cycle55h staysok when ingest1h, ingest13h iscritical.
+These passing assertions describe unrepaired behavior and are excluded from
+accepted repair counts. INGESTION-DIAGNOSIS and durable instrument retained.
+Application/workflow fingerprints unchanged after published source. Ledger642/643.
+
+### 2026-10-05 03:14Z: exact new source hosted qualification
+
+CI37257237630 at d1cc16fe all11jobs success; actual5484backend=2360/2049/1075,
+356suites/3689frontend; estate294selected/292produced/0silent; existing66skip/
+1xfail in guards and2865estate skips retained; all36new controls executed.
+Supplementary LOC/ledger/encoding/Lighthouse success. Ledger644 fulfills641.
+Runtime/workflows unchanged in subsequent receipt work; no merge/deploy/
+activation/provider writes. Current ingestion diagnosis remains unrepaired.

@@ -19,6 +19,15 @@ The report's moving-PR overlap assessment used filenames, not a current-source r
   Executed workflow argument builders reproduced it; normal paths now explicitly force off too.
 - **PS-03 confirmed:** the ledger CLI silently selects a default/environment actor when omitted.
   Real CLI calls wrote incorrectly attributed fixture ledgers instead of refusing.
+- **Stripe conclusion needs qualification:** the supplied report's service table infers that
+  Stripe is disabled from the server boot refusal. Current billing modules still read their
+  own configuration and constructors set the SDK global. That log alone cannot establish
+  whole-program refusal; original SEC09 remains open. No processor calls were made.
+- **WI02/WI03 now reproduced on current source:** metadata upload success can make an empty
+  ingest cycle exit0; changing known model-cycle age7h to55h with ingest1h keeps healthok,
+  while ingest13h makes it critical. Six offline diagnosis controls repeated twice. These
+  findings remain unrepaired; diagnosis assertions describe the defect and are not accepted
+  CI fixes. See INGESTION-DIAGNOSIS.md and ingestion_jacobian_probe.py.
 - **LIVE-04 still open:** /grid awaits its resolver without a route deadline. Existing dark
   PF03 admission bounds series wait/output, not CPU execution. Its shield retains ownership
   until encoding finishes; simply removing the shield would release capacity around work
@@ -81,7 +90,10 @@ correct every historical attribution or alter authorization/commitment policy.
   Guards2354/reference2360 and chain2043/reference2049 are unchanged.
 - Prior runtime6c355cb2 CI37253656301 now completed: all11jobs success. Actual logs show
   2360guards/2049chain/1039estate =5448backend;356suites/3689frontend. Existing66skip/1xfail;
-  estate290selected/288produced/0silent. New source hosted acceptance is pending publication.
+  estate290selected/288produced/0silent. New source d1cc16fe CI37257237630 now all11success:
+  5484backend=2360guards+2049chain+1075estate;356suites/3689frontend;294estate selected/
+  292produced/0silent. Existing66guards skip/1xfail and2865estate skips retained; all36new
+  controls executed. LOC/ledger/encoding/Lighthouse supplementary workflows success.
 
 Offline controls use randomly generated fixture credentials, blocked external sockets,
 actual routers/HTTPX/ORM and temporary fixture databases. No real users or pushes were used.

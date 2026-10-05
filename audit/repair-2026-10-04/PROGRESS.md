@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-05 02:50Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-05 03:14Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -30,7 +30,7 @@ These counts describe work coverage, not41 fully closed production findings; rot
   Cooldown16fail/7pass, check5fail, config13fail/6pass before twice each.
   Build/lint/LOC/full356suites/3689frontend accepted. Cooldown sourcef995dae4 hosted-qualified
   all11jobs in CI37252419546/backend5427; final owner source6c355cb2 CI37253656301 all11success/backend5448. Preferences/provider/PG acceptance open.
-  See ALERT-RESULTS.md. Prior estate1039 observed; current deep-audit floor1073/reference1075; projected backend5484.
+  See ALERT-RESULTS.md. Prior estate1039 observed; current deep-audit floor1073/reference1075; hosted observed backend5484 on d1cc16fe.
 
 ## Deep-audit continuation
 
@@ -38,8 +38,9 @@ Owner-supplied deep audit83 IDs retained in DEEP-AUDIT-REGISTER.md. Fresh curren
 review confirms LH01/LH02/AS01 diagnostic override/PS03. Public push send removed; JWT
 subscription ownership, header-only Gemini credentials/no key prefixes and mandatory actor
 implemented.36new controls,166expanded pass; current point Jacobian6pass twice. Prior
-alert source CI now all11success/backend5448. New source hosted-pending. No activation.
+alert source CI all11success/backend5448. New d1cc16fe CI37257237630 all11success/backend5484. No activation.
 See DEEP-AUDIT-RESULTS.md; deadline/hub/ingestion/device/science and provider/PG remain open.
+WI02/WI03 now reproduced6diagnosis controls twice; still unrepaired. INGESTION-DIAGNOSIS.md.
 
 ## Validation status
 
