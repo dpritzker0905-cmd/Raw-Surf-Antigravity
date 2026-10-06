@@ -67,6 +67,10 @@ Original Gulf storm/hour98, device/native/raster smoothness, real staging
 publisher, PG/card/races and science acceptance remain open. No wave heights
 were inflated. Unowned manifest canary remains byte-identical and excluded.
 
-PR246 retains the separate default-off backend manifest scan repair. New renderer
-source needs its own hosted qualification; prior5b receipts do not qualify it.
+PR246 retains the separate default-off backend manifest scan repair. Sourcea5a29ae9
+ownCI37522946610 all11 and four supplementary passed: actual5943backend
+(2425/2317/1201),369suites4014frontend,estate0silent.757fulfills752 and755verifies
+754publication. No merge/deployment/activation. [Native isolation](NATIVE-RENDERER-PROFILE.md)
+records bounded synthetic controls and a portable probe; it does not close the
+full-app/Gulf performance or physical accuracy incident.
 Rollback: revert only the projection-boundary commit, retaining the prior guard.

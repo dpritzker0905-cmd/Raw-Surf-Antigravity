@@ -79,3 +79,22 @@ tests/build overlapped observation. Waves off read back. No playback/Gulf/device
 acceptance. 753 updates canonical/audit receipts;752 own new-source hosted
 qualification pending;754 prepares owned publication on existing PR246/dev.
 Unowned canary hash unchanged, not staged. No merge/deploy/cloud write.
+
+## 2026-10-06 20:28Z — exact source qualification755–758 and native isolation
+
+755verifies754 sourcea5a29ae9 published/PR246OPEN/dev and exact final title/body.
+757fulfills752: ownCI37522946610 all11, ledger37522946646/LOC37522946504/
+Lighthouse37522946445/Encoding37522946464 successful. Actual stdout guards2425
+(2492JUnit/67skip/186files), chain2317/157files, estate1201/297selected295produced
+0silent; total5943backend. Frontend369suites4014tests. All exacta5, no borrowed CI.
+756 records independent offline native engine/shared-context/reversed-order
+and actual MapLibre controls;60frames each, GL0, matrix16, small1536x768 and
+desktop4096x2304drawing buffers, median cadence16.7ms. No source performance
+optimization, physical forecast/full-app/device/GPU completion acceptance.
+NATIVE-RENDERER-PROFILE.md records fixture failure and context/order caveats;
+portable scratch copies identical at same import depth. Probe maps removed and
+own loopback server stopped. No shared backend load from these probes.
+758publishes receipt/tooling only, served source/tests/workflows unchanged;
+new receipt head/remote/ledger readback follows. Unowned canary hash unchanged.
+No merge/deploy/flag/cloud-write action; original live fallback, Gulf height,
+play/scrub/coast/device/resources, publisher/PG/races and science remain open.

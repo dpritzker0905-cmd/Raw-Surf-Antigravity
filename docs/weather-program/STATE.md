@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 19:56Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 20:28Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,18 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 20:28Z: projection sourcea5a29ae9 fully qualified757.**
+  OwnCI37522946610 all11 and ledger/LOC/Lighthouse/Encoding passed; actual
+  5943backend (2425/2317/1201),369suites4014frontend,estate0silent.757fulfills752.
+  755verifies754 publication and final PR body: PR246 OPEN/dev, no merge/deploy.
+  Six new real layer/engine/hook controls retained; repaint/thresholds/retry
+  unchanged. Native756: synthetic actual MapLibre60frames each small/desktop
+  buffer, matrix16 and GL0, median cadence16.7ms. Query CPU cost observed;
+  GPU completion/full-app/coast/Gulf/play/scrub/device acceptance ungraded.
+  Native scene does not reproduce live low-FPS incident. Portable probe and
+  receipts in audit/repair-2026-10-04;758publishes receipt/tooling only, served
+  runtime/tests/workflows identical to a5. Unowned canary preserved/excluded.
 
 - **2026-10-06 19:56Z: projection-boundary false fallback repaired locally751.**
   Owner750 attributes access to their browser;749 receipt7ef read back, no access
@@ -979,7 +991,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 754, sha256 234f9dbd98dd80026654c430f702b93a8d7ccf4c58aa0d8bbe5bcdd6e0fa6fe1**
+  **Ledger head: seq 758, sha256 df44e4948c9243a9e4c7cc49b91a5fcf457c18149877dacaac8e674c9ea6b40c**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
