@@ -49,7 +49,8 @@ export function beginMarineMainThreadTiming(start, Observer) {
       });
       observer.observe({ entryTypes: Object.keys(totals) }); // no buffered pre-streak entries
       // No more render events may arrive to reset the streak. Never leave the observer running
-      // indefinitely. A normal trip's 11 remaining windows finish in <22s (2s gap resets it).
+      // indefinitely. A slow streak can outlive this cap; finish then reports unknown,
+      // never a partial interval presented as complete evidence.
       expiry = setTimeout(() => { closed = true; disconnect(); }, 30000);
     } else Object.keys(totals).forEach(key => delete totals[key]);
   } catch (e) {

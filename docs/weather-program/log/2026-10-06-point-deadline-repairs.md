@@ -180,3 +180,13 @@ Backend source unchanged, hosted backend projection remains5943 (2425/2317/1201)
 Exact new source hosted checks pending, not borrowed from PR246 or docs head d1.
 No original root-cause, GPU completion, Gulf/play/scrub/device acceptance claimed.
 No dev merge, main promotion, serving/science flag flip or served math change.
+
+## 2026-10-06 22:48Z — source publication775 and cap-comment correction
+
+775 verifies774 actual19f1480c local/remote/draft247 OPEN/dev; final review body
+agrees after CRLF normalization. CI37542729373 started on19f, not qualified yet.
+Observer expiry comment corrected: each FPS window can approach3s (subsecond
+frames then a gap under2s), so a streak can exceed30s; existing cap deliberately
+yields unknown, not partial evidence. Behavior/tests unchanged; timeout control
+passed in final CRACO372/4066. Source receipt/comment-only push next; exact new
+head needs hosted checks. Canary unchanged/excluded; no dev/main merge or flip.

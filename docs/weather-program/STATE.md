@@ -32,7 +32,9 @@ is a claim, not a measurement.
   observation during low-FPS streaks, no extra production RAF loop or GL
   query, no guard/retry/math changes. Original root cause remains open.
   Final local CRACO372/4066 passed; build/lint/LOC passed. Exact-head
-  hosted qualification pending. Offline browser known-stall controls
+  hosted qualification pending.775 verifies774 actual19f1480c publication
+  and normalized PR body; receipt/comment-only push next, no runtime delta
+  from locally tested candidate. Cap expiry correctly means unknown. Offline browser known-stall controls
   detect six100ms tasks/six RAF gaps in both orders; idle zero. No second
   merge authorized or performed; dev still72e6e5ad.
 
@@ -1040,7 +1042,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 774, sha256 ce897cb42be063d9bf3643eadcff1ad94c53a07e90b28e360008f4533b866034**
+  **Ledger head: seq 775, sha256 8bfc9106dd847ad1df0e0e2ab161fe2a9336432421d0bbd2d762063a1f95a4fb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
