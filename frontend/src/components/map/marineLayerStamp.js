@@ -11,7 +11,7 @@
  * This stamp answers that. `__RAW_GPU__.layer` is rewritten on EVERY render() call:
  *   n     advances per call, so a flat `n` means MapLibre stopped calling the layer at all
  *   skip  null when the engine was asked to draw; otherwise the exit taken instead
- * ⚠️ Every skip except `engine_no_data` returns BEFORE the layer's `finally { map.triggerRepaint() }`,
+ * ⚠️ Skips other than `engine_no_data` and `engine_no_matrix` return BEFORE `finally { map.triggerRepaint() }`,
  * which is the layer's own animation clock, so those skips also stop the layer driving frames.
  * The gate records both fields; the next dev E2E run names the mechanism instead of a guess.
  */
@@ -23,6 +23,7 @@ export const SKIP = Object.freeze({
   REJECTED_BAIL: 'rejected_bail',    // regional grid rejected at a zoomed-out viewport
   ZOOMED_OUT_IDLE: 'zoomed_out_idle', // regional grid hidden at world zoom while idle
   ENGINE_NO_DATA: 'engine_no_data',  // the layer called the engine, which has no wave data to draw
+  ENGINE_NO_MATRIX: 'engine_no_matrix', // the engine has data but no projection, so cannot draw
 });
 
 /** Stamp one render() call; returns the stamp to mark a skip on, or null when not instrumented. */

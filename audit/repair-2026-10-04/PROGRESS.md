@@ -1,5 +1,29 @@
 # Audit repair progress — 2026-10-04
 
+Latest qualification 2026-10-06 21:44Z: source0bd ownCI37533475555/all11 plus four supplementary
+passed; actual5943backend/370suites4045frontend/estate0silent.763fulfills760.
+762verifies761publication. [Fallback receipt](FALLBACK-EVIDENCE-RESULTS.md) qualifies
+the new diagnostic-fault boundary, with no live cause/Gulf/playback acceptance.
+[Staging launcher](STAGING-LAUNCHER-RESULTS.md) independently passed6manual PS7
+controls, PS5 syntax only; readonly Dev empty/private/RLS accepted, actual
+publication unexecuted.764publishes operator/probe/receipts, app/tests/workflows
+unchanged from0bd. PR246 OPEN/dev, no merge/deploy/math/flag/cloud write.
+Unowned canary hash preserved/excluded.
+
+Latest continuation 2026-10-06 21:19Z: diagnostic-fault fallback repair and bounded native trip receipt
+local759; mounted red2fail18pass, scoped113before sparse case, final370/4045;
+build/lint/LOC passed.761publication prepared, own new-source hosted pending760.
+Clean dev paused GFS showed20/27FPS, one7FPS warning, stable uploads19, no sustained trip;
+original fallback/Gulf/play/scrub/device cause stays open. Prior receipt e56 all15 green;
+PR246 OPEN/dev, no merge/deploy/math/flag change. [Evidence repair](FALLBACK-EVIDENCE-RESULTS.md).
+Unowned canary untouched/excluded.
+
+Latest qualification 2026-10-06 20:28Z: projection sourcea5a29ae9 ownCI37522946610/all11 and four supplementary passed; actual5943backend (2425/2317/1201),369suites4014frontend,estate0silent.757fulfills752;755verifies754 source publication and final PR body. PR246 OPEN/dev, no merge/deploy or activation. Native756 actual synthetic MapLibre60frames each at small/desktop buffers: matrix16,GL0,median16.7ms cadence. State reads cost2.2–3.9ms/frame in standalone controls; live root cause and GPU/full-app/coast/Gulf/play/scrub/device/cloud/PG/science acceptance open. [Projection results](RENDERER-PROJECTION-RESULTS.md), [native isolation and portable probe](NATIVE-RENDERER-PROFILE.md).758receipt/tooling publication keeps served source/tests/workflows unchanged. Unowned canary preserved/excluded.
+
+Latest continuation 2026-10-06 19:56Z: projection-boundary false fallback repaired locally751. Six actual layer/engine/hook controls red twice,83 neighborhood and full369/4014 passed; build/lint/LOC passed. Owner750 attributes earlier access problem to their browser. Own752 new-source hosted qualification pending;754 prepared publication on existing PR246/dev, no merge/deploy. Prior5b qualifies only the manifest source. Separate dev073 paused diagnostic smoke still falls back; captured startup projection16/FBOcomplete, concurrent local tests/build prevent clean FPS benchmarking. Broader native/Gulf/device/cloud/PG/science acceptance open. [Projection results](RENDERER-PROJECTION-RESULTS.md). Unowned canary unchanged/excluded.
+
+Latest qualification 2026-10-06 17:56Z: PR246 source5b286f7a own CI37504889852/all11 and four supplementary passed; actual5943backend (2425/2317/1201),369suites4008frontend,estate0silent.745fulfills739;742verifies740publication. Source not merged/deployed and response flag stays off. PR243 dev frontend/shared API served073de1e2, production frontend frozenfc140024. Paused GFS1FPS fallback/recovery/retrip reproduced744; served clock/run absent, actual cause/Gulf/device/cloud/PG/science open. [Renderer smoke](DEV-RENDERER-SMOKE.md), [scan results](MANIFEST-SCAN-RESULTS.md). Unowned canary excluded.
+
 Latest qualification 2026-10-06 17:03Z: source9ba1f3e5 ownCI37497929680/all11/four supplementary success; actual5906backend/369suites4008frontend, estate297selected295produced0silent.734fulfills732/verifies733. Zero UI and dark response/real-helper child ownership qualify. Dev connector restored; readonly staging preflight accepted; actual publisher process credential/execution remains separate. [Response ownership results](RESPONSE-OWNERSHIP-RESULTS.md). Original Gulf/device/cloud/PG/science and live latency/resource/producer acceptance remain open; no promotion/activation; unowned canary excluded. Final receipt docs only.
 
 Latest continuation 2026-10-06 16:41Z: first response/zero UI source0849 qualified on ownCI37494572374/all11/four supplementary, actual5901backend/369suites4008frontend/estate0silent. Actual-helper child gate now local54new/229expanded twice; own732 hosted pending projected5906backend. Dev connector restored; fresh readonly private/empty/RLS/grants preflight. Actual publisher still needs independent Dev process credential. [Response ownership results](RESPONSE-OWNERSHIP-RESULTS.md). Broader live/resource/Gulf/device/PG/science acceptance open; no promotion; unowned canary excluded.

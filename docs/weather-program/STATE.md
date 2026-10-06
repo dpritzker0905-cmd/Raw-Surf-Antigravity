@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 17:03Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 21:44Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,79 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 21:44Z: fallback source0bd fully qualified763; operator boundary762.**
+  OwnCI37533475555 all11 plus ledger/LOC/Encoding/Lighthouse successful;
+  actual5943backend (2425/2317/1201),370suites4045frontend,estate0silent.
+  763fulfills760;762verifies761 publication and exact PR body at0bd.
+  Diagnostic sink failure contained; bounded native counter receipt, no GL
+  query/threshold/retry/math/flag change. Clean paused dev did not trip,
+  no original live/Gulf/play/scrub/device/GPU completion acceptance.
+  Dev-only connector readonly0pointer/0objects/private/RLStrue. Launcher
+  rejects dirty canary before credential; manual6cases PS7, PS5 syntax only,
+  no policy change/credential entry/cloud write. Actual publisher credential
+  and execution remain open.764publishes operator/probe/receipts only;
+  application/tests/workflows identical to qualified0bd. PR246 OPEN/dev,
+  no merge/deployment. Unowned canary preserved/excluded. Results in
+  FALLBACK-EVIDENCE-RESULTS.md and STAGING-LAUNCHER-RESULTS.md.
+
+- **2026-10-06 21:19Z: fallback diagnostic boundary repaired locally759.**
+  New mounted sink failure suppressed actual fallback; red2fail18pass, scoped
+  113pass before final sparse case. Bounded counter-only receipt; no GL query,
+  height/math/threshold/retry/flag change. Clean paused dev observation: single
+  7FPS warning, later20/27FPS, uploads19 stable; no sustained trip. No local
+  test/build overlap; no Gulf/play/scrub/device/GPU completion acceptance.
+  e56 receipt now all15 checks successful and verifies758 publication; own760
+  new-delta hosted qualification pending. Local final370/4045, build/lint/LOC
+  pass; frontend ratchet370/4045 (+1suite/31tests).761publishes owned delta.
+  PR246 OPEN/dev, no merge/deployment.
+  FALLBACK-EVIDENCE-RESULTS.md. Unowned canary preserved/excluded.
+
+- **2026-10-06 20:28Z: projection sourcea5a29ae9 fully qualified757.**
+  OwnCI37522946610 all11 and ledger/LOC/Lighthouse/Encoding passed; actual
+  5943backend (2425/2317/1201),369suites4014frontend,estate0silent.757fulfills752.
+  755verifies754 publication and final PR body: PR246 OPEN/dev, no merge/deploy.
+  Six new real layer/engine/hook controls retained; repaint/thresholds/retry
+  unchanged. Native756: synthetic actual MapLibre60frames each small/desktop
+  buffer, matrix16 and GL0, median cadence16.7ms. Query CPU cost observed;
+  GPU completion/full-app/coast/Gulf/play/scrub/device acceptance ungraded.
+  Native scene does not reproduce live low-FPS incident. Portable probe and
+  receipts in audit/repair-2026-10-04;758publishes receipt/tooling only, served
+  runtime/tests/workflows identical to a5. Unowned canary preserved/excluded.
+
+- **2026-10-06 19:56Z: projection-boundary false fallback repaired locally751.**
+  Owner750 attributes access to their browser;749 receipt7ef read back, no access
+  repair claimed. Actual engine no-matrix callbacks drew nothing but tripped
+  the guard: six new controls red twice; stamp fixed, repaint/thresholds/retry
+  unchanged. Neighborhood83/full369suites4014tests, build/lint/LOC pass. Own752
+  new-source hosted qualification pending;754 planned PR246 publication, no merge.
+  Separate paused dev073 diagnostic smoke still tripped; valid startup matrix,
+  FRAMEBUFFER_COMPLETE, observation overlapped local tests/build. Cause remains
+  open; no native performance/Gulf/science acceptance or height inflation.
+  RENDERER-PROJECTION-RESULTS.md. Unowned canary unchanged/excluded.
+
+- **2026-10-06 17:30Z: owner-authorized PR243 is merged to dev; scan follow-up stays separate.**
+  Dev073de1e2 from pinnedf405, own37501260553 all11/four supplementary,
+  actual5906backend/369suites4008frontend;737records merge.741verifies served
+  dev build/API healthy073de1e2 and Render commit; frontend productionfc140024
+  stays frozen. Fresh map controls mount; style startup recovery still ungraded.
+  no flags/provider settings changed.736verifies prior735 publication.
+  Manifest selector ran on event loop:12fail24pass twice over20007entries;
+  dark same-selector offload repaired locally37new/214expanded twice.
+  HTTP deadline retains actual scan-thread lease. Other scans/CPU/live/Gulf/
+  cloud/PG/science acceptance remain open.745fulfills739: own5b CI37504889852
+  all11/four supplementary, actual5943backend/369suites4008frontend,estate0silent.
+  follow-up PR246/source5b286f7a OPEN/dev, not deployed.742verifies740.
+  Manual same-source encoding743 passed;746PR body read back.748verifies747
+  receipt7b594b76, code-equal5b and own PR checks successful. Owner dev access
+  report748: fresh HTTP200/root/map/asset, direct and proxied API healthy073,
+  Chrome map and homepage mount; new map tab open/weather inactive. Exact
+  prior error pending; current availability is not a proven fix. No redeploy.
+  DEV-ACCESS-CHECK.md;749docs-only receipt readback follows.
+  Paused GFS smoke744:1FPS trip/recovery/retrip with served/run metadata
+  absent; current entry URL matches dev HTML. Waves then off; native/Gulf
+  cause remains open. DEV-RENDERER-SMOKE.md. No guard override.
+  Unowned canary preserved/excluded. MANIFEST-SCAN-RESULTS.md.
 
 - **2026-10-06 17:03Z: zero UI and response/child ownership source9ba1 fully qualified.**
   Own37497929680/all11/four supplementary: actual5906backend/369suites4008
@@ -945,7 +1018,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 735, sha256 6faab6447d4fb66f55768e2dc189f2f53694eab33d4b7253dee2815012b2b22c**
+  **Ledger head: seq 764, sha256 de496d45c5acc7070794cff3a0fcc661bce7d735dff0d52330c64c87c30d8c62**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

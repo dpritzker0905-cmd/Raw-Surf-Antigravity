@@ -1,5 +1,29 @@
 # Deployment readiness: updated audit versus actual repairs
 
+Latest qualification 2026-10-06 21:44Z: source0bd ownCI37533475555/all11 plus four supplementary
+passed; actual5943backend/370suites4045frontend/estate0silent.763fulfills760.
+762verifies761publication. [Fallback receipt](FALLBACK-EVIDENCE-RESULTS.md) qualifies
+the new diagnostic-fault boundary, with no live cause/Gulf/playback acceptance.
+[Staging launcher](STAGING-LAUNCHER-RESULTS.md) independently passed6manual PS7
+controls, PS5 syntax only; readonly Dev empty/private/RLS accepted, actual
+publication unexecuted.764publishes operator/probe/receipts, app/tests/workflows
+unchanged from0bd. PR246 OPEN/dev, no merge/deploy/math/flag/cloud write.
+Unowned canary hash preserved/excluded.
+
+Latest continuation 2026-10-06 21:19Z: diagnostic-fault fallback repair and bounded native trip receipt
+local759; mounted red2fail18pass, scoped113before sparse case, final370/4045;
+build/lint/LOC passed.761publication prepared, own new-source hosted pending760.
+Clean dev paused GFS showed20/27FPS, one7FPS warning, stable uploads19, no sustained trip;
+original fallback/Gulf/play/scrub/device cause stays open. Prior receipt e56 all15 green;
+PR246 OPEN/dev, no merge/deploy/math/flag change. [Evidence repair](FALLBACK-EVIDENCE-RESULTS.md).
+Unowned canary untouched/excluded.
+
+Latest qualification 2026-10-06 20:28Z: projection sourcea5a29ae9 ownCI37522946610/all11 and four supplementary passed; actual5943backend (2425/2317/1201),369suites4014frontend,estate0silent.757fulfills752;755verifies754 source publication and final PR body. PR246 OPEN/dev, no merge/deploy or activation. Native756 actual synthetic MapLibre60frames each at small/desktop buffers: matrix16,GL0,median16.7ms cadence. State reads cost2.2–3.9ms/frame in standalone controls; live root cause and GPU/full-app/coast/Gulf/play/scrub/device/cloud/PG/science acceptance open. [Projection results](RENDERER-PROJECTION-RESULTS.md), [native isolation and portable probe](NATIVE-RENDERER-PROFILE.md).758receipt/tooling publication keeps served source/tests/workflows unchanged. Unowned canary preserved/excluded.
+
+Latest continuation 2026-10-06 19:56Z: projection-boundary false fallback repaired locally751. Six actual layer/engine/hook controls red twice,83 neighborhood and full369/4014 passed; build/lint/LOC passed. Owner750 attributes earlier access problem to their browser. Own752 new-source hosted qualification pending;754 prepared publication on existing PR246/dev, no merge/deploy. Prior5b qualifies only the manifest source. Separate dev073 paused diagnostic smoke still falls back; captured startup projection16/FBOcomplete, concurrent local tests/build prevent clean FPS benchmarking. Broader native/Gulf/device/cloud/PG/science acceptance open. [Projection results](RENDERER-PROJECTION-RESULTS.md). Unowned canary unchanged/excluded.
+
+Latest qualification 2026-10-06 17:56Z: PR246 source5b286f7a own CI37504889852/all11 and four supplementary passed; actual5943backend (2425/2317/1201),369suites4008frontend,estate0silent.745fulfills739;742verifies740publication. Source not merged/deployed and response flag stays off. PR243 dev frontend/shared API served073de1e2, production frontend frozenfc140024. Paused GFS1FPS fallback/recovery/retrip reproduced744; served clock/run absent, actual cause/Gulf/device/cloud/PG/science open. [Renderer smoke](DEV-RENDERER-SMOKE.md), [scan results](MANIFEST-SCAN-RESULTS.md). Unowned canary excluded.
+
 Latest qualification 2026-10-06 17:03Z: source9ba1f3e5 ownCI37497929680/all11/four supplementary success; actual5906backend/369suites4008frontend, estate297selected295produced0silent.734fulfills732/verifies733. Zero UI and dark response/real-helper child ownership qualify. Dev connector restored; readonly staging preflight accepted; actual publisher process credential/execution remains separate. [Response ownership results](RESPONSE-OWNERSHIP-RESULTS.md). Original Gulf/device/cloud/PG/science and live latency/resource/producer acceptance remain open; no promotion/activation; unowned canary excluded. Final receipt docs only.
 
 2026-10-06 17:07Z static preview readback: HTTP200/build0849b89e, including a cache-bypassed GET. The frontend tree is unchanged between0849 and qualified9ba1; the served build stamp does not identify9ba1. Netlify reports the latest preview check success, but no current-stamp/pixel/native acceptance is claimed. A static frontend preview cannot qualify the shared API deployment or dark flags. No map/forecast request was executed.
@@ -24,12 +48,12 @@ This supersedes the older deployment status in PROGRESS.md without rewriting his
 
 | Component | Evidence (live versions are last confirmed; no new live-map/API load) | Meaning |
 |---|---|---|
-| PR243, targeting dev | OPEN; qualified runtime9a7a33ba CI37412065874 all11/four supplementary,5852backend/368suites3966frontend; final receipt docs only | No dev/production promotion or scientific activation; unowned canary edit excluded |
-| Shared Render API | Public /api/health healthy, version ends6b062e97; /api/health/data ok, alerts empty | Current PR backend is not live; health does not certify model-cycle freshness |
-| Netlify dev | service-worker BUILD_VERSION2a7b8615 | Current PR frontend is not live on dev |
+| PR243, targeting dev | MERGED dev073de1e2; ownf405 CI37501260553 all11/four supplementary, actual5906backend/369suites4008frontend | Owner-authorized dev/shared-API rollout verified741; scientific flags not activated; unowned canary excluded |
+| Shared Render API | Fresh /api/health healthy, version ends073de1e2; Render last-successful commit matches | PR243 backend live; health does not certify model-cycle freshness or dark-flag activation |
+| Netlify dev | Fresh static HTTP200/service-worker BUILD_VERSION073de1e2 | PR243 frontend live on dev; authenticated controls mount, wave/native/device acceptance separate |
 | Netlify production | service-worker BUILD_VERSIONfc140024 | Owner's frozen frontend remains served |
 | Netlify PR243 preview | Source9a7a33ba status ready; static service-worker HTTP200/build9a7a33ba | Preview build identity verified; no map/forecast execution or pixel/device acceptance |
-| Separate Supabase Dev | Prior successful preflight empty/private/RLS; latest readonly SQL failed OAuth refresh before execution | Access/emptiness must be reverified; actual publisher canary unexecuted |
+| Separate Supabase Dev | Connector access restored730; readonly private/empty/RLS/constraints/grants preflight verified earlier this session | Actual Storage/REST publisher credential is separate and absent; canary unexecuted |
 
 Authenticated Chrome readback now confirms Render dev/Auto-Deploy On Commit, migrations in the
 build command and empty health-check path. Live /api/health/simple returned HTTP200. Netlify is

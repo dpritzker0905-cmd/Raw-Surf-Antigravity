@@ -1,9 +1,10 @@
 """Real grid HTTP boundary with controlled work; external network is never needed."""
 import asyncio
 import copy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import threading
 import time
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -13,9 +14,9 @@ from pydantic import create_model
 from starlette.middleware.gzip import GZipMiddleware
 
 from routes import weather
-from services.weather_pipeline import grid_resolver, series_response
+from services.weather_pipeline import grid_resolver, mid_res_tier, series_response
 from services.weather_pipeline import grid_response as G
-from services.weather_pipeline.schemas import NormalizedProduct
+from services.weather_pipeline.schemas import ManifestProduct, NormalizedProduct, PipelineManifest
 
 PARAMS = dict(model='GFS', domain='marine', layer='waves',
               valid_time='2026-10-09T00:00:00Z', bbox='-90,20,-80,35')
@@ -632,5 +633,116 @@ def test_queued_grid_child_cannot_start_after_root_deadline(monkeypatch):
             release.set()
             await drained()
         assert len(starts) == 1
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('bounds_flag', [None, '0', '1'])
+@pytest.mark.parametrize('model', ['GFS', 'EURO', 'ICON'])
+@pytest.mark.parametrize('layer', ['waves', 'swell_1'])
+@pytest.mark.parametrize('island_flag', ['0', '1'])
+def test_real_manifest_scan_preserves_candidates_and_leaves_loop_when_owned(
+        monkeypatch, bounds_flag, model, layer, island_flag):
+    if bounds_flag is None:
+        monkeypatch.delenv('GRID_RESPONSE_BOUNDS', raising=False)
+    else:
+        monkeypatch.setenv('GRID_RESPONSE_BOUNDS', bounds_flag)
+    monkeypatch.setenv('COPERNICUS_ISLAND_SERVE', island_flag)
+    instant = datetime(2026, 10, 9, tzinfo=timezone.utc)
+
+    def product(name, hour=0, **changes):
+        data = dict(model=model, provider='offline', domain='marine', layer=layer,
+                    run_time=instant, valid_time_start=instant + timedelta(hours=hour),
+                    valid_time_end=instant + timedelta(hours=hour), resolution=2,
+                    freshness_sec=3600, is_forecast_authoritative=True,
+                    coverage=dict(west=-90, south=20, east=-80, north=35), filename=name)
+        data.update(changes)
+        return ManifestProduct(**data)
+
+    rows = [product('exact'), product('minus3', -3), product('plus3', 3),
+            product('estimated', 1, is_estimated=True), product('island', region_id='island_fixture'),
+            product('outside', 3 + 1 / 3600), product('wrong-layer', layer='air_temp'),
+            product('wrong-domain', domain='wind'), product('wrong-model', model='OTHER')]
+    # Representative reported manifest size, without constructing or retaining grid cells.
+    manifest = PipelineManifest(last_manifest_update=instant, products=rows + [rows[-1]] * 19998)
+    scan_threads = []
+
+    class ObservedRows(list):
+        def __iter__(self):
+            scan_threads.append(threading.get_ident())
+            return super().__iter__()
+
+    manifest.products = ObservedRows(manifest.products)
+    observed = {}
+
+    class SelectionComplete(Exception):
+        pass
+
+    def capture(authoritative, estimated):
+        observed['authoritative'] = [(item.filename, diff) for item, diff in authoritative]
+        observed['estimated'] = [(item.filename, diff) for item, diff in estimated]
+        raise SelectionComplete
+
+    monkeypatch.setattr(mid_res_tier, 'split_mid_candidates', capture)
+    store = SimpleNamespace(get_manifest=lambda: manifest)
+
+    async def run():
+        loop_thread = threading.get_ident()
+        with pytest.raises(SelectionComplete):
+            await grid_resolver.resolve_grid(store, None, model=model.lower(), domain='MARINE',
+                                             layer=layer.upper(), valid_time=instant.isoformat())
+        assert observed['authoritative'] == (
+            [('exact', 0), ('minus3', 10800), ('plus3', 10800)]
+            + ([('island', 0)] if island_flag == '1' else []))
+        assert observed['estimated'] == [('estimated', 3600)]
+        assert len(scan_threads) == 1
+        if bounds_flag == '1':
+            assert scan_threads[0] != loop_thread, '20,007-entry selection occupies the event-loop thread'
+        else:
+            assert scan_threads[0] == loop_thread
+
+    asyncio.run(run())
+
+
+
+def test_actual_offloaded_manifest_scan_retains_http_lease_after_deadline(monkeypatch):
+    entered, release, exited = threading.Event(), threading.Event(), threading.Event()
+
+    class ControlledRows(list):
+        def __iter__(self):
+            entered.set()
+            try:
+                if not release.wait(5):
+                    raise AssertionError('controlled scan was not released')
+                return super().__iter__()
+            finally:
+                exited.set()
+
+    monkeypatch.setattr(weather, 'store', SimpleNamespace(
+        get_manifest=lambda: SimpleNamespace(products=ControlledRows())))
+
+    def stop_after_selection(*args):
+        raise HTTPException(status_code=503, detail='offline selection boundary')
+
+    monkeypatch.setattr(mid_res_tier, 'split_mid_candidates', stop_after_selection)
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app()),
+                                     base_url='https://offline.invalid') as client:
+            task = asyncio.create_task(client.get('/api/weather/grid', params=PARAMS))
+            try:
+                until = time.monotonic() + 2
+                while not entered.is_set() and time.monotonic() < until:
+                    await asyncio.sleep(.005)
+                assert entered.is_set()
+                response = await asyncio.wait_for(asyncio.shield(task), 2)
+                assert response.status_code == 503 and response.headers['retry-after'] == '1'
+                assert not exited.is_set()
+                assert series_response.ADMISSION.active['mini'] == 1
+            finally:
+                release.set()
+                await asyncio.gather(task, return_exceptions=True)
+                await drained()
+            assert exited.is_set() and series_response.ADMISSION.active['mini'] == 0
 
     asyncio.run(run())
