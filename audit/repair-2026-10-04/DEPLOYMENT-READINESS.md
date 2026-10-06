@@ -3,14 +3,14 @@
 Verified 2026-10-06 00:52Z. This is a deployment assessment, not deployment authorization.
 The supplied deep REPORT.md includes sections 10 and 11, and its current SHA256 is
 `be4914fbc8de71b1cfada3b7beb0f78e669c8fd6b5090fefbc3678accb5b72c0`.
-Its merge-blocker review is of `0bb3aec0`. Qualified resident-diagnostic/WI04 sourceff5cfc98 has exact hosted acceptance. New WI05 invalid-write guard is locally accepted but needs its own hosted qualification679 before merge.
+Its merge-blocker review is of `0bb3aec0`. WI05 sourcea3b321f0 has exact hosted acceptance. New WI06 retry source is locally accepted and dark, with its own hosted686 pending. Cache freshness and cycle-ranking repairs remain open.
 This supersedes the older deployment status in PROGRESS.md without rewriting historical receipts.
 
 ## What is actually running
 
 | Component | Fresh evidence | Meaning |
 |---|---|---|
-| PR243, targeting dev | OPEN; ff5cfc98 CI37394319031 all11success5604backend/3746frontend; new WI05 source local only, hosted679 pending | Repaired source has not reached dev; qualify WI05 independently |
+| PR243, targeting dev | OPEN; a3b321f0 CI37396359484 all11success5642backend/3746frontend; next WI06 source local, hosted686 pending | Repaired source has not reached dev; qualify WI06 independently |
 | Shared Render API | Public /api/health healthy, version ends6b062e97; /api/health/data ok, alerts empty | Current PR backend is not live; health does not certify model-cycle freshness |
 | Netlify dev | service-worker BUILD_VERSION2a7b8615 | Current PR frontend is not live on dev |
 | Netlify production | service-worker BUILD_VERSIONfc140024 | Owner's frozen frontend remains served |

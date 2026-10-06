@@ -43,3 +43,15 @@ upstream record. Known valid-zero acceptance is not a physical forecast-skill ga
 - No merge/deployment, flag activation, cloud/provider write or live map load. Productionfreeze
   remains; actual Gulf cells/native pixels, Dev publication, PG/card/concurrency, cache/WI01,
   retry/WI06, latency/mobile/performance and held-out science remain open.
+
+
+### 2026-10-06 01:12Z: WI05 hosted-qualified; next WI06 local partial repair accepted
+
+Sourcea3b321f0 CI37396359484 all11success; actual5642backend2393/2136/1113,frontend360/3746;
+estate296selected294produced0silent, supplementary gates success; fulfills679, ledger684.
+WI06 actual picker20before17fail3pass twice; final32regressions,67focused/347expanded twice pass.
+Default0/unset retry has12s selection/3s socket/two attempts, backoff/terminal/late guards;
+script-by-path passes; no cycle-axis/ranking migration. New32guards selector186, floor2419/ref2425;
+projection5674backend, own hosted686 pending. Frontend unchanged. Separate actual duplicate
+sweep2fail twice: later older known cycle deletes newer; WI06 remains partial. WI01 open.
+No served-number/skill/flag/cloud/provider/merge/deploy action; ledger685-686; WAVE-CYCLE-RETRY-RESULTS.md.

@@ -209,6 +209,12 @@ TOTAL_SEA_PARTITIONS = [
 def _pick_cycle(requests, now, max_f):
     """Probe AWS Open Data newest-first for a COMPLETE GFS-Wave cycle (f000 + the requested last hour
     both present). Returns (cycle_dt, file_prefix) or (None, None)."""
+    if os.environ.get('NOAA_WAVE_CYCLE_RETRY', '0') == '1':
+        try:
+            from _fetch_wave_cycle import pick_complete_cycle
+        except ImportError:
+            from services._fetch_wave_cycle import pick_complete_cycle
+        return pick_complete_cycle(requests, now, max_f, S3_BASE, GRID)
     # GFS runs 00/06/12/18Z; waves land ~3.5-5 h after cycle. Walk back up to ~36 h.
     floor6 = now.replace(minute=0, second=0, microsecond=0, hour=(now.hour // 6) * 6)
     for back in range(0, 7):

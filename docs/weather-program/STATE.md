@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 00:52Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 01:12Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,22 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 01:12Z: WI05 sourcea3b321f0 qualified; WI06 retry local/dark partial repair.**
+  CI37396359484 all11success, actual5642backend2393/2136/1113 +frontend360/3746,
+  estate0silent, supplementary success; fulfills679/ledger684. New retry67focused/347expanded
+  twice pass;32new guards, selector186/floor2419/ref2425; projection5674backend, own686 pending.
+  NOAA_WAVE_CYCLE_RETRY default0/unset; no provider/workflow activation. Actual duplicate sweep
+  independently2fail twice: late older known cycle deletes newer; ranking remains open, WI06
+  partial. WI01 disk repair and Gulf/native/cloud/PG/card/science remain open. Ledger685-686;
+  WAVE-CYCLE-RETRY-RESULTS.md. No merge/deploy/cloud/served-number/flag change.
+
+- **2026-10-06 00:56Z: WI05 sourcea3b321f0 published to PR243 OPEN/dev.**
+  CI37396359484 running; exact qualification679 pending. Ledger/LOC/encoding success.
+  Predecessorff5cfc98 qualified5604backend/3746frontend; it does not certify WI05.
+  WI01/WI06 remain open; next-repair cache/concurrency/validation and bounded retry matrix
+  recorded in CACHE-CYCLE-NEXT-REPAIR.md using actual code and primary docs. No source or
+  activation for those proposals. No served-number/merge/deploy/flag/cloud action. Ledger682-683.
 
 - **2026-10-06 00:52Z: resident sourceff5cfc98 hosted-qualified; WI05 next source pending679.**
   All11 CI37394319031 success; actual5604backend2393/2098/1113 and frontend360/3746,
@@ -773,7 +789,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 681, sha256 f27ffd3a43957ccb4223573f1eb4042d6fb3f77f6d7728a2de196251036ea626**
+  **Ledger head: seq 686, sha256 6f475d65b2eb0e70c254b7986c3f698163c62e5cbfb9f3e09166b93411e960b4**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

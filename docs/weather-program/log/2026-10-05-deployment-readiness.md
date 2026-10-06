@@ -194,3 +194,24 @@ twice;500/timeout transient yields6h older run. Initial URL mismatch results rej
 These are offline sensitivity diagnoses, not real Gulf pixel/cell provenance or physical skill,
 and not a proof of the audit's separate new-run-time/duplicate-ranking claims. Both repairs open.
 No merge/deployment/flag/provider/cloud/live-map action.
+
+
+### 2026-10-06 00:56Z: WI05 source published; next cache/cycle acceptance recorded
+
+PR243 sourcea3b321f0 OPEN/dev and body read back; commit secret scan no leaks. CI37396359484
+running;679 pending. Ledger/LOC/encoding success; no merge/deployment/flags/cloud/live action.
+WI01/WI06 acceptance design uses actual loader/cache/restore/picker code and primary transport
+references; no implementation/activation claim. No served-number change. Ledger682-683;
+CACHE-CYCLE-NEXT-REPAIR.md.
+
+
+### 2026-10-06 01:12Z: WI05 hosted-qualified; next WI06 local partial repair accepted
+
+Sourcea3b321f0 CI37396359484 all11success; actual5642backend2393/2136/1113,frontend360/3746;
+estate296selected294produced0silent, supplementary gates success; fulfills679, ledger684.
+WI06 actual picker20before17fail3pass twice; final32regressions,67focused/347expanded twice pass.
+Default0/unset retry has12s selection/3s socket/two attempts, backoff/terminal/late guards;
+script-by-path passes; no cycle-axis/ranking migration. New32guards selector186, floor2419/ref2425;
+projection5674backend, own hosted686 pending. Frontend unchanged. Separate actual duplicate
+sweep2fail twice: later older known cycle deletes newer; WI06 remains partial. WI01 open.
+No served-number/skill/flag/cloud/provider/merge/deploy action; ledger685-686; WAVE-CYCLE-RETRY-RESULTS.md.
