@@ -137,3 +137,50 @@ document.getElementById('map-run').addEventListener('click', async event => {
   finally { clearTimeout(timer); map.remove(); button.disabled = false; }
   report.textContent = JSON.stringify(result, null, 2);
 });
+import { beginMarineMainThreadTiming } from '../../../frontend/src/components/map/marineMainThreadTiming';
+
+document.getElementById('gap-run').addEventListener('click', async event => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  const result = { fullApp: false, physicalForecast: false, syntheticMainThreadCalibration: true,
+    gpuCompletionMeasured: false, cases: [] };
+  try {
+    const order = document.getElementById('reverse').checked ? [true, false] : [false, true];
+    for (const block of order) {
+      const start = performance.now();
+      const timing = beginMarineMainThreadTiming(start, window.PerformanceObserver);
+      let timer;
+      const gaps = [], cpu = [];
+      try {
+        let last, frames = 0;
+        await new Promise((resolve, reject) => {
+          timer = setTimeout(() => reject(new Error('Bounded animation capture timed out')), 10000);
+          const frame = now => {
+            if (last !== undefined) gaps.push(now - last);
+            last = now;
+            if (block && frames % 5 === 0) {
+              const began = performance.now();
+              while (performance.now() - began < 100) { /* deliberate offline calibration only */ }
+              cpu.push(performance.now() - began);
+            }
+            if (++frames < 30) requestAnimationFrame(frame);
+            else resolve();
+          };
+          requestAnimationFrame(frame);
+        });
+        clearTimeout(timer);
+        // Observer delivery is asynchronous. Allow bounded delivery, then drain queued records.
+        await new Promise(resolve => setTimeout(resolve, 150));
+        result.cases.push({ deliberatelyBlocked: block, frames, insertedBlocks: cpu.length,
+          insertedCpuTotalMs: cpu.reduce((a, b) => a + b, 0),
+          rafGapsOver50Ms: gaps.filter(gap => gap > 50).length,
+          rafGapP50Ms: percentile(gaps, 0.5), rafGapMaxMs: Math.max(...gaps),
+          observedIntervalMs: performance.now() - start,
+          mainThreadTiming: timing.finish(performance.now()) });
+      } finally { clearTimeout(timer); timing.dispose(); }
+    }
+    result.completed = true;
+  } catch (error) { result.completed = false; result.error = String(error.message); }
+  document.getElementById('report').textContent = JSON.stringify(result, null, 2);
+  button.disabled = false;
+});

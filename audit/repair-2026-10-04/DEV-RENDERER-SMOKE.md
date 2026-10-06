@@ -70,3 +70,7 @@ stable, complete framebuffer/289cells. Waves off readback and research tab close
 This does not grade full-app smoothness, Gulf/hour98, playback or GPU completion.
 FALLBACK-EVIDENCE-RESULTS.md records the observation and exact limitations.
 No dev merge/production promotion or served-number/flag activation.
+
+## 2026-10-06 22:13Z — served rollout768 and clean native receipt769
+
+PR246 dev72e6e5ad frontend/shared API served at22:07:46Z; production frontendfc140024 remains frozen. Clean single Chrome tab, no concurrent local build/test, GFS Waves paused0: native fallback reproduced22:08:39.622Z; new receipt12windows/15.724s continuous, FPS1..5, callbacks27/uploads6/slowCPU3/hist17,7,1,2,0. Histogram excludes scheduling/full-map passes and is not GPU completion. Play selected6 then pause12, keyboard13 stable; simplified notice/time-unverified and recovery1/2 at22:09:43.600Z observed. Served/run metadata null; no exact-frame/physical Gulf/device acceptance. Waves off read back and tab closed.769 fulfills766 observation, not broader science/latency/cloud gates. Source inspection confirms existing finally repaint and MapLibre render event after painter; callback-gap cause remains open. No new source/math/flag change. DEV-FALLBACK-ROLLOUT-RESULTS.md.

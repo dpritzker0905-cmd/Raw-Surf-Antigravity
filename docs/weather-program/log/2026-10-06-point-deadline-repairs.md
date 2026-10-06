@@ -139,3 +139,54 @@ inside owned roots and removed; portable6-control probe cleans its fixtures.
 qualified0bd. No merge/deployment/flags/math; actual publisher and original
 live fallback/Gulf/play/scrub/device/PG/resources/science acceptance open.
 Unowned canary hash unchanged/excluded. Final remote/PR/readback follows.
+
+## 2026-10-06 22:05Z — owner-approved exact-head dev merge765–767
+
+Owner yes specifically approves PR246 dev/shared-backend merge after checks. Own144 CI37536152276 all11 and four supplementary passed. Actual stdout5943backend (2425/2317/1201),370suites4045frontend,estate297selected295produced0silent. Pinned squash merge read back MERGED72e6e5adf790d77dc4a73fc186799ea2a103960d at22:04:37Z and fetched origin/dev matches. 767 records merge and verifies764 publication. Automatic frontend/API rollout pending;766 tracks bounded live verification. No main promotion, flag activation or served-height math change. Unowned canary hash unchanged; excluded. New receipt branch based merged dev preserves dirty ledger/docs/canary.
+
+## 2026-10-06 22:13Z — served rollout768 and clean native receipt769
+
+PR246 dev72e6e5ad frontend/shared API served at22:07:46Z; production frontendfc140024 remains frozen. Clean single Chrome tab, no concurrent local build/test, GFS Waves paused0: native fallback reproduced22:08:39.622Z; new receipt12windows/15.724s continuous, FPS1..5, callbacks27/uploads6/slowCPU3/hist17,7,1,2,0. Histogram excludes scheduling/full-map passes and is not GPU completion. Play selected6 then pause12, keyboard13 stable; simplified notice/time-unverified and recovery1/2 at22:09:43.600Z observed. Served/run metadata null; no exact-frame/physical Gulf/device acceptance. Waves off read back and tab closed.769 fulfills766 observation, not broader science/latency/cloud gates. Source inspection confirms existing finally repaint and MapLibre render event after painter; callback-gap cause remains open. No new source/math/flag change. DEV-FALLBACK-ROLLOUT-RESULTS.md.
+
+## 2026-10-06 22:17Z — receipt publication770–772
+
+Owned docs/ledger commit66f2c73ac495f6199c8cb0304e964d8c31eabf69 pushed and remote read back. Draft247 OPEN/dev/head66 with exact review body, attached to chat;771 records creation and verifies770. Runtime/tests/workflows equal merged72e6e5ad. Ledger/memory0FAIL/9inheritedWARN, staged whitespace and redacted secret scans pass.772 plans final creation/readback receipt commit/push to same draft; final local/remote/PR head check pending. No second dev merge, science/serving flip or cloud write. Unowned canary unchanged/excluded.
+
+## 2026-10-06 22:43Z — callback-gap candidate773
+
+773 verifies772 final d1c0a89b remote/local/draft247 receipt. Owner asks to move
+onto gaps between render callbacks. Existing native callback already requests
+repaint; MapLibre render follows painter. TruthDiff style serialization is a
+measurement candidate, not a proved cause. Added bounded scalar observer for
+delivered main-thread tasks/long frames in the same low-FPS receipt interval,
+all exclusion/retry/unmount cleanup plus30s expiry, API faults cannot suppress
+fallback. Kill __RAW_DISABLE_MAIN_THREAD_TIMING__, no new production RAF loop,
+GL reads, threshold/retry change or served forecast math/flags. Two diagnostic
+red controls:5fail/3pass before integration; Windows selection errors excluded.
+Neighborhood7/107passed, initialfull372/4065passed, build/lint/LOC passed. Final
+review added unreadable-blocking value control; final full/hosted pending.
+Native offline actual collector calibration in both orders: six100ms CPU
+stalls detected as six long tasks/six RAF gaps over50ms; idle zero, RAFmedian
+16.7ms. Long-frame counts5 rather than6, overlapping metrics not interchangeable.
+No original live-cause, playback, exact-time, Gulf, devices or independent audit
+gate closed. Unowned canary unchanged/excluded. CALLBACK-GAP-DIAGNOSIS.md.
+
+## 2026-10-06 22:45Z — final local callback qualification
+
+Final project CRACO suite:372/372suites4066/4066tests0fail (callback-full-final.json).
+Build exit0, lint1235files with inherited86errors917warnings and no ratchet
+regression, LOC0regressed. Full frontend floors raised to measured372/4066.
+Backend source unchanged, hosted backend projection remains5943 (2425/2317/1201).
+Exact new source hosted checks pending, not borrowed from PR246 or docs head d1.
+No original root-cause, GPU completion, Gulf/play/scrub/device acceptance claimed.
+No dev merge, main promotion, serving/science flag flip or served math change.
+
+## 2026-10-06 22:48Z — source publication775 and cap-comment correction
+
+775 verifies774 actual19f1480c local/remote/draft247 OPEN/dev; final review body
+agrees after CRLF normalization. CI37542729373 started on19f, not qualified yet.
+Observer expiry comment corrected: each FPS window can approach3s (subsecond
+frames then a gap under2s), so a streak can exceed30s; existing cap deliberately
+yields unknown, not partial evidence. Behavior/tests unchanged; timeout control
+passed in final CRACO372/4066. Source receipt/comment-only push next; exact new
+head needs hosted checks. Canary unchanged/excluded; no dev/main merge or flip.

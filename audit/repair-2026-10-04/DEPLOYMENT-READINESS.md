@@ -266,3 +266,7 @@ frontend only; all new science/serving flags0/unset, Netlifyfreeze, no merge/dep
 
 
 2026-10-06 03:26Z: source48c04424 is qualified on its own CI37407541898, all11 and four supplementary gates; actual5764backend/367suites3872frontend, estate0silent. Ledger710fulfills708 and verifies709publication. Extra15000opt-in matrix passes twice. PRpreview ready and static BUILD_VERSION48c04424 verified; no map/forecast load or dev/prod promotion. Original Gulf/native/raster/mobile/FPS/heap/cloud/PG/card/latency/science acceptance remains open. See FRONTEND-FRAME-TIME-RESULTS.md.
+
+## 2026-10-06 22:13Z — served rollout768 and clean native receipt769
+
+PR246 dev72e6e5ad frontend/shared API served at22:07:46Z; production frontendfc140024 remains frozen. Clean single Chrome tab, no concurrent local build/test, GFS Waves paused0: native fallback reproduced22:08:39.622Z; new receipt12windows/15.724s continuous, FPS1..5, callbacks27/uploads6/slowCPU3/hist17,7,1,2,0. Histogram excludes scheduling/full-map passes and is not GPU completion. Play selected6 then pause12, keyboard13 stable; simplified notice/time-unverified and recovery1/2 at22:09:43.600Z observed. Served/run metadata null; no exact-frame/physical Gulf/device acceptance. Waves off read back and tab closed.769 fulfills766 observation, not broader science/latency/cloud gates. Source inspection confirms existing finally repaint and MapLibre render event after painter; callback-gap cause remains open. No new source/math/flag change. DEV-FALLBACK-ROLLOUT-RESULTS.md.
