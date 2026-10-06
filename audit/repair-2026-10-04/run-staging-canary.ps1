@@ -8,6 +8,23 @@ param(
 $ErrorActionPreference = 'Stop'
 $taskRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 $taskCanary = Join-Path $PSScriptRoot 'manifest_staging_canary.py'
+# Refuse another session's uncommitted source before asking for a privileged credential.
+# A clean HEAD is necessary, not proof of hosted qualification; use the qualified commit.
+$taskCanaryRelative = 'audit/repair-2026-10-04/manifest_staging_canary.py'
+if (-not (Test-Path -LiteralPath $taskCanary -PathType Leaf)) {
+    throw 'Staging canary source is missing; no credential was requested.'
+}
+& git -C $taskRoot cat-file -e ('HEAD:' + $taskCanaryRelative) 2>$null
+if ($LASTEXITCODE -ne 0) {
+    throw 'Staging canary must exist in committed HEAD; no credential was requested.'
+}
+& git -C $taskRoot diff --quiet HEAD -- $taskCanaryRelative
+if ($LASTEXITCODE -eq 1) {
+    throw 'Staging canary differs from committed HEAD. Use a clean checkout of the qualified commit; uncommitted work was preserved. No credential was requested.'
+}
+if ($LASTEXITCODE -ne 0) {
+    throw 'Could not verify staging canary source; no credential was requested.'
+}
 # Fixed verified isolated target; this launcher cannot select the shared application project.
 $taskProjectRef = 'weewaulkwfwlbhqemxma'
 $taskStagingUrl = 'https://' + $taskProjectRef + '.supabase.co'

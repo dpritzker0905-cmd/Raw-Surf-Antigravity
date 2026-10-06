@@ -1,5 +1,15 @@
 # Deployment readiness: updated audit versus actual repairs
 
+Latest qualification 2026-10-06 21:44Z: source0bd ownCI37533475555/all11 plus four supplementary
+passed; actual5943backend/370suites4045frontend/estate0silent.763fulfills760.
+762verifies761publication. [Fallback receipt](FALLBACK-EVIDENCE-RESULTS.md) qualifies
+the new diagnostic-fault boundary, with no live cause/Gulf/playback acceptance.
+[Staging launcher](STAGING-LAUNCHER-RESULTS.md) independently passed6manual PS7
+controls, PS5 syntax only; readonly Dev empty/private/RLS accepted, actual
+publication unexecuted.764publishes operator/probe/receipts, app/tests/workflows
+unchanged from0bd. PR246 OPEN/dev, no merge/deploy/math/flag/cloud write.
+Unowned canary hash preserved/excluded.
+
 Latest continuation 2026-10-06 21:19Z: diagnostic-fault fallback repair and bounded native trip receipt
 local759; mounted red2fail18pass, scoped113before sparse case, final370/4045;
 build/lint/LOC passed.761publication prepared, own new-source hosted pending760.

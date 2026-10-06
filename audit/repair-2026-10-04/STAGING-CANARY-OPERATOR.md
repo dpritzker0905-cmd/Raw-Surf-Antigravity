@@ -14,7 +14,14 @@ Open Supabase, select **Raw Surf App Dev**, then **Settings > API Keys**. Use th
 The [official key guide](https://supabase.com/docs/guides/getting-started/api-keys) explains the key
 types and dashboard location. No new key or access grant is required by this launcher.
 
-From regular PowerShell, starting in this checkout, a read-only preflight is:
+Use a clean checkout of the qualified commit. The launcher now rejects a canary
+that differs from committed HEAD before requesting a credential. Preserve work
+from other chats; do not discard or execute unqualified edits. Clean HEAD alone
+does not establish qualification. [Launcher controls](STAGING-LAUNCHER-RESULTS.md)
+passed under configured PowerShell7; PowerShell5 syntax passed but its execution
+policy blocked runtime checks and was left unchanged.
+
+From a configured PowerShell terminal in that clean checkout, a read-only preflight is:
 
 ```powershell
 & ".\audit\repair-2026-10-04\run-staging-canary.ps1"

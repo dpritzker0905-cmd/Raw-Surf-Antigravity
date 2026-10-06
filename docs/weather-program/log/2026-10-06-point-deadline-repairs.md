@@ -123,3 +123,19 @@ all exclusions/trip/retry clear evidence references. No threshold/retry change.
 Jest JSON first cp1252 read failed; explicit UTF-8 read verified exact counts.
 761records planned owned delta push; own760 hosted remains pending. Unowned
 canary hash unchanged/excluded. No merge/deployment/served math/flags changed.
+
+## 2026-10-06 21:44Z — exact qualification763 and operator source boundary762/764
+
+Source0bdc458d ownCI37533475555 all11 and four supplementary successful.
+Strict hosted stdout counts5943backend (2425/2317/1201),370suites4045frontend,
+estate297selected295produced0silent.763fulfills760,762verifies761 publication.
+Dev scoped connector readonly0pointer/0objects/private/RLStrue, no cloud write.
+Actual launcher prompted on unowned dirty source: red3fail1pass; guard before
+credential now6manual PS7 controls. PS5 file execution refused by its policy;
+no policy changed, PS5 parser accepted syntax, runtime ungraded. No credentials
+entered/Python child/cloud requests. Generated scratch Git fixtures resolved
+inside owned roots and removed; portable6-control probe cleans its fixtures.
+764publishes operator/probe/receipt delta, app/tests/workflows identical to
+qualified0bd. No merge/deployment/flags/math; actual publisher and original
+live fallback/Gulf/play/scrub/device/PG/resources/science acceptance open.
+Unowned canary hash unchanged/excluded. Final remote/PR/readback follows.

@@ -56,7 +56,12 @@ Mounted-hook red:2failed/18passed. Expanded neighborhood:113passed before the
 final sparse-histogram case. Final full370suites/4045tests passed (0failed),
 including27 helper and4 mounted-hook additions. Node24 production build exited0
 with inherited warnings. Lint1232files stayed within86errors/917warnings and LOC
-had0regressions. Exact new-source hosted qualification remains pending760. The helper cases cover immutable snapshots, absent
+had0regressions. Own source0bdc458d CI37533475555 all11 and four supplementary passed;
+actual5943backend/370suites4045frontend, estate0silent.763fulfills760.
+Sequential hosted logs and strict exact-head count parser accepted.764publishes
+operator/probe/receipt work only, app/tests/workflows identical to0bd; no merge
+or deployment. Launcher six manual controls are independently recorded in
+STAGING-LAUNCHER-RESULTS.md and not borrowed from the hosted app qualification. The helper cases cover immutable snapshots, absent
 versus zero, malformed/sparse/unsafe counters, reset/rebound, engine replacement,
 clock regression, fixed receipt schema and throwing diagnostic reads. Hook
 cases cover pre-unmount emission, a loading-gap reset and failure containment.

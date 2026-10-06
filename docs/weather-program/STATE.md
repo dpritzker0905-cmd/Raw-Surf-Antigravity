@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 21:21Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 21:44Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,21 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 21:44Z: fallback source0bd fully qualified763; operator boundary762.**
+  OwnCI37533475555 all11 plus ledger/LOC/Encoding/Lighthouse successful;
+  actual5943backend (2425/2317/1201),370suites4045frontend,estate0silent.
+  763fulfills760;762verifies761 publication and exact PR body at0bd.
+  Diagnostic sink failure contained; bounded native counter receipt, no GL
+  query/threshold/retry/math/flag change. Clean paused dev did not trip,
+  no original live/Gulf/play/scrub/device/GPU completion acceptance.
+  Dev-only connector readonly0pointer/0objects/private/RLStrue. Launcher
+  rejects dirty canary before credential; manual6cases PS7, PS5 syntax only,
+  no policy change/credential entry/cloud write. Actual publisher credential
+  and execution remain open.764publishes operator/probe/receipts only;
+  application/tests/workflows identical to qualified0bd. PR246 OPEN/dev,
+  no merge/deployment. Unowned canary preserved/excluded. Results in
+  FALLBACK-EVIDENCE-RESULTS.md and STAGING-LAUNCHER-RESULTS.md.
 
 - **2026-10-06 21:19Z: fallback diagnostic boundary repaired locally759.**
   New mounted sink failure suppressed actual fallback; red2fail18pass, scoped
@@ -1003,7 +1018,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 761, sha256 0a0d398489eedf24ead2ea1c88e6a8d0328c07f902355bda4371f7117b5011d0**
+  **Ledger head: seq 764, sha256 de496d45c5acc7070794cff3a0fcc661bce7d735dff0d52330c64c87c30d8c62**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
