@@ -1,5 +1,13 @@
 # Audit repair progress — 2026-10-04
 
+Current 2026-10-06 23:19Z: PR247 merged and served dev1993cc39; exact source ec34
+qualified on CI37543004057 all11/four supplementary green, actual5943backend and
+372suites4066frontend. One clean GFS Waves observation recovered from startup
+low-FPS warnings without a sustained trip; Play12/scrub13 worked, cause/smoothness
+and Gulf/device/time acceptance remain open. Waves off/tab closed/API healthy;
+production frontendfc140024 frozen. Ledger778–781; [callback report](CALLBACK-GAP-DIAGNOSIS.md).
+Older dated entries below describe their state at that time.
+
 Latest qualification 2026-10-06 21:44Z: source0bd ownCI37533475555/all11 plus four supplementary
 passed; actual5943backend/370suites4045frontend/estate0silent.763fulfills760.
 762verifies761publication. [Fallback receipt](FALLBACK-EVIDENCE-RESULTS.md) qualifies
@@ -335,3 +343,45 @@ Backend source unchanged, hosted backend projection remains5943 (2425/2317/1201)
 Exact new source hosted checks pending, not borrowed from PR246 or docs head d1.
 No original root-cause, GPU completion, Gulf/play/scrub/device acceptance claimed.
 No dev merge, main promotion, serving/science flag flip or served math change.
+
+## 2026-10-06 23:19Z — qualified PR247 merged and served; bounded capture780
+
+
+PR247 exact source ec34dfa22e6498b2fa0613550f45d89de78e6c5d qualified on
+CI37543004057: all11 jobs and four supplementary workflows successful. Actual
+backend5943 = guards2425 + chain2317 + estate1201; estate297 selected295 produced,
+zero silent. Frontend372/372 suites4066/4066 tests. Source diagnostics remain
+unchanged from that qualification. Owner776 approves the dev merge and beneficial
+dev repairs;778 reads MERGED1993cc39294a75436218d426b13a359cdb57a356 at23:10:28Z.
+779 reads dev frontend1993cc39 at23:13:44Z and shared API healthy/full1993cc39 at
+23:14:02Z; production frontendfc140024 remains frozen. Automatic squash CI still
+running at the later readback; source qualification is not borrowed from it.
+
+One clean native Chrome map, no concurrent local build/test: GFS Waves paused0
+loaded authoritative NOAA ncep_gfswave025; public GPU HUD FRAMEBUFFER_COMPLETE,
+169 marine cells,11 textures/33.51MB,19 uploads before short playback. Startup
+warnings at23:16:32..35Z were2/4/4FPS; later warnings12..19FPS interleaved with
+healthy windows. HUD27FPS before Play,26 at Play,23 at Pause12,24 at ArrowRight13,
+21 near cleanup. Uploads31 after playback. No sustained guardrail trip and no
+mainThreadTiming receipt. This is a non-reproduction of the sustained slowdown,
+not evidence of zero long tasks or a repaired cause. Timeline says nearest model
+time where appropriate; requested/drawn/served/run equality remains unproven.
+
+Waves off verified by public aria-pressed false; owned tab1101120701 closed.
+Post-map API at23:18:08Z healthy/full1993cc39; data-health warn unchanged from
+premerge.780 fulfills777 bounded follow-up only. Original intermittent fallback,
+smooth Play/scrub, exact served/run time, Gulf amplitude and broader devices stay
+open. Unowned canary SHA256 unchanged and excluded. No served forecast number,
+production promotion, science/serving switch or cloud publication changed.
+
+Next discriminating experiment: offline full-layer idle/settle fixture measuring
+mask refresh and truth listener costs separately from engine draw. Source shows
+idle/moveend/zoomend may invoke refreshMaskWithBasemapWater outside the engine CPU
+histogram. Successful paints consume the700ms throttle; false returns do not.
+Some false exits occur after canvas painting or upload failure, so the claim
+that all skipped attempts cost only bounds math is not universally true. Whether
+that path occurred during the original live slowdown is UNKNOWN. Hysteresis and
+tile-ready exits must remain cheap; a test must distinguish those from failed
+expensive attempts and verify prompt tile-readiness recovery before any throttle
+change. useLayerTruthDiff getStyle work is another unmeasured candidate. Neither
+candidate is a proven cause. No speculative mask/listener behavior repair applied.
