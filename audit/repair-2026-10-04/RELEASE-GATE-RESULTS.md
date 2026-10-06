@@ -1,6 +1,6 @@
 # Gallery and deployment gate follow-up
 
-Verified 2026-10-05 22:44Z; exact sourcef48d15e6 is hosted-qualified. Earlier pending/failed stages remain historical below.
+Verified 2026-10-06 03:26Z; current source48c04424 is hosted-qualified on own CI37407541898, all11 and four supplementary gates:5764backend/367suites3872frontend, estate0silent. Source acceptance does not close live/Gulf/cloud/PG/device/science gates. Earlier source stages remain historical below.
 
 ## Source repair
 
@@ -300,3 +300,6 @@ frontend only; all new science/serving flags0/unset, Netlifyfreeze, no merge/dep
 
 
 2026-10-06 03:07Z: visual sourcea1cb1ed3 own CI37405974317 all11+four supplementary success, actual5764backend/365/3808frontend,706fulfills704. Separate WF03 actual-served-time comparison built dark:64newcases,142expanded twice, full367/3872 and isolated Chrome14controls pass;708 exact-source hosted pending. See FRONTEND-FRAME-TIME-RESULTS.md. No physical Gulf/fullmap/cloud acceptance or merge/deploy/activation.
+
+
+2026-10-06 03:26Z: source48c04424 is qualified on its own CI37407541898, all11 and four supplementary gates; actual5764backend/367suites3872frontend, estate0silent. Ledger710fulfills708 and verifies709publication. Extra15000opt-in matrix passes twice. PRpreview ready and static BUILD_VERSION48c04424 verified; no map/forecast load or dev/prod promotion. Original Gulf/native/raster/mobile/FPS/heap/cloud/PG/card/latency/science acceptance remains open. See FRONTEND-FRAME-TIME-RESULTS.md.

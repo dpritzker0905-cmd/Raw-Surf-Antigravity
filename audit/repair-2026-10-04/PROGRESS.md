@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-06 01:52Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-06 03:26Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -21,6 +21,10 @@ Actual Dev publication test still awaits secure terminal execution; launcher syn
 Live API/dev/prod remain6b062e97/2a7b8615/fc140024. No deployment/activation.
 Supabase Dev tools now callable; empty private/RLS preflight confirmed; actual canary unexecuted.
 Older source and connector statements below are historical receipts, not current readiness.
+
+## Current source acceptance
+
+Source **48c04424** is hosted-qualified: CI37407541898, all11 jobs and four supplementary gates; actual **5,764 backend passes / 367 frontend suites / 3,872 tests**, estate0silent. Both new visual and dark actual-time batches are covered. Independent15,000-case opt-in matrix passes twice. The PR preview is ready; static BUILD_VERSION48c04424 verified. Dev/production are not promoted, new science/serving flags stay dark, and latest Dev OAuth refresh fails before SQL. Original Gulf/full-map/native/raster/mobile/GPU/heap, actual cloud publication, PG/card/latency/science remain separate acceptance. FRONTEND-FRAME-TIME-RESULTS.md records the evidence.
 
 ## Implemented source repairs
 
@@ -278,3 +282,6 @@ frontend only; all new science/serving flags0/unset, Netlifyfreeze, no merge/dep
 
 
 2026-10-06 03:07Z: visual sourcea1cb1ed3 own CI37405974317 all11+four supplementary success, actual5764backend/365/3808frontend,706fulfills704. Separate WF03 actual-served-time comparison built dark:64newcases,142expanded twice, full367/3872 and isolated Chrome14controls pass;708 exact-source hosted pending. See FRONTEND-FRAME-TIME-RESULTS.md. No physical Gulf/fullmap/cloud acceptance or merge/deploy/activation.
+
+
+2026-10-06 03:26Z: source48c04424 is qualified on its own CI37407541898, all11 and four supplementary gates; actual5764backend/367suites3872frontend, estate0silent. Ledger710fulfills708 and verifies709publication. Extra15000opt-in matrix passes twice. PRpreview ready and static BUILD_VERSION48c04424 verified; no map/forecast load or dev/prod promotion. Original Gulf/native/raster/mobile/FPS/heap/cloud/PG/card/latency/science acceptance remains open. See FRONTEND-FRAME-TIME-RESULTS.md.

@@ -1,20 +1,20 @@
 # Deployment readiness: updated audit versus actual repairs
 
-Verified 2026-10-06 01:52Z. This is a deployment assessment, not deployment authorization.
+Verified 2026-10-06 03:26Z. This is a deployment assessment, not deployment authorization.
 The supplied deep REPORT.md includes sections 10 and 11, and its current SHA256 is
 `be4914fbc8de71b1cfada3b7beb0f78e669c8fd6b5090fefbc3678accb5b72c0`.
-Its merge-blocker review is of `0bb3aec0`. Retry sourced4046562 has exact hosted acceptance: CI37398137575 all11success5674backend/3746frontend and supplementary gates. All new ingestion guards remain dark. Cache freshness and duplicate-cycle ranking repairs, actual live/cloud/Gulf/graphics acceptance remain open.
+Its merge-blocker review is of `0bb3aec0`. Current repair source **48c04424** is qualified on its own CI37407541898: all11 jobs, actual5,764backend/367suites3,872frontend and allfour supplementary gates. Visual fallback/storage/GL lifecycle and dark actual-time guard repairs are included. Cache/cycle source repairs are qualified; scientific switches remain dark. Actual Gulf/live-map/cloud/PG/graphics/science acceptance remains open.
 This supersedes the older deployment status in PROGRESS.md without rewriting historical receipts.
 
 ## What is actually running
 
-| Component | Fresh evidence | Meaning |
+| Component | Evidence (live versions are last confirmed; no new live-map/API load) | Meaning |
 |---|---|---|
-| PR243, targeting dev | OPEN; qualified sourced4046562 CI37398137575 all11success5674backend/3746frontend; current pending delta docs/ledger only | Repaired source has not reached dev; new flags remain dark |
+| PR243, targeting dev | OPEN; qualified source48c04424 CI37407541898 all11success5764backend/367suites3872frontend; final receipt docs only | Repaired source has not been promoted to dev; new flags remain dark |
 | Shared Render API | Public /api/health healthy, version ends6b062e97; /api/health/data ok, alerts empty | Current PR backend is not live; health does not certify model-cycle freshness |
 | Netlify dev | service-worker BUILD_VERSION2a7b8615 | Current PR frontend is not live on dev |
 | Netlify production | service-worker BUILD_VERSIONfc140024 | Owner's frozen frontend remains served |
-| Netlify PR243 preview | Historical completed13f6d0a9 preview; latest d4046562 status success says Deploy Preview canceled | Latest status does not qualify a new frontend preview |
+| Netlify PR243 preview | Source48c04424 status Deploy Preview ready; static service-worker HTTP200/BUILD_VERSION48c04424 | Preview build identity verified; live-map/pixel/device acceptance remains open |
 | Separate Supabase Dev | Prior successful preflight empty/private/RLS; latest readonly SQL failed OAuth refresh before execution | Access/emptiness must be reverified; actual publisher canary unexecuted |
 
 Authenticated Chrome readback now confirms Render dev/Auto-Deploy On Commit, migrations in the
@@ -225,3 +225,6 @@ frontend only; all new science/serving flags0/unset, Netlifyfreeze, no merge/dep
 
 
 2026-10-06 03:07Z: visual sourcea1cb1ed3 own CI37405974317 all11+four supplementary success, actual5764backend/365/3808frontend,706fulfills704. Separate WF03 actual-served-time comparison built dark:64newcases,142expanded twice, full367/3872 and isolated Chrome14controls pass;708 exact-source hosted pending. See FRONTEND-FRAME-TIME-RESULTS.md. No physical Gulf/fullmap/cloud acceptance or merge/deploy/activation.
+
+
+2026-10-06 03:26Z: source48c04424 is qualified on its own CI37407541898, all11 and four supplementary gates; actual5764backend/367suites3872frontend, estate0silent. Ledger710fulfills708 and verifies709publication. Extra15000opt-in matrix passes twice. PRpreview ready and static BUILD_VERSION48c04424 verified; no map/forecast load or dev/prod promotion. Original Gulf/native/raster/mobile/FPS/heap/cloud/PG/card/latency/science acceptance remains open. See FRONTEND-FRAME-TIME-RESULTS.md.

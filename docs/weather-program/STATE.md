@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 03:07Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 03:26Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,20 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 03:26Z: both visual and dark actual-time repairs qualified on source48c04424.**
+  Own CI37407541898: all11 jobs and four supplementary success; actual5,764backend
+  and367suites3,872frontend; estate296selected294produced0silent. Ledger710fulfills708
+  and verifies709publication. Independent15,000-case opt-in matrix passes twice;
+  same-clock430holds2,570commits, actual changed/unknown times release each3,000.
+  Preview ready, static service-worker BUILD_VERSION48c04424/HTTP200; no map/forecast
+  code executed, no dev/production promotion or scientific activation. Source fixes
+  idle/loading FPS evidence, completed recovery ownership, safe storage, GL failed
+  initialization cleanup/caller fallback, raster resolution and actual-time guards.
+  Original Gulf/data/pixel/native/raster/mobile/FPS/heap, Dev publication/OAuth,
+  PG/card/latency/held-out science remain open. Production freeze retained. Final
+  docs-only publication711 needs exact push readback; runtime/workflow bytes stay48c04424.
+  FRONTEND-FRAME-TIME-RESULTS.md and VISUAL-RESILIENCE-RESULTS.md.
 
 - **2026-10-06 03:07Z: visual a1cb1ed3 qualified; separate WF03 actual-time source local/708pending.**
   Own CI37405974317/all11 and four supplementary success, actual5764backend/365/3808frontend;
@@ -864,7 +878,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 709, sha256 2991f5349a440501b7a2fbae5b00e62c1e79aa21cf39c3e9bbd7009218700c36**
+  **Ledger head: seq 711, sha256 a806b01d9b726b195410217f973252339a0ee13e2bd2770c429126968301aa7d**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

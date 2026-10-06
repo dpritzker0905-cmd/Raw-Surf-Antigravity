@@ -1,6 +1,6 @@
 # Deep audit companion register
 
-Reconciled 2026-10-05 02:50Z. All83 supplied IDs retained in original order.
+Reconciled 2026-10-06 03:26Z. All83 supplied IDs retained in original order.
 Source audit baseline2a7b8615; current-source review baseline035ac5f2. Severity and original
 verification below are reported by the supplied audit, not independently re-certified.
 Current-source repairs and limits: DEEP-AUDIT-RESULTS.md. Original50-row PLAN.md remains separate.
@@ -30,7 +30,7 @@ Current-source repairs and limits: DEEP-AUDIT-RESULTS.md. Original50-row PLAN.md
 | CX34-03 | On dev, ICON >168 h heat map and exact point/infobox use different estimators; the follow-up was dropped from #243 | medium | weather sim / ICON long range | spot-checked | Retained open; not independently reproduced on current branch. |
 | CX34-07 | Owner's ICON hour-179 heat map incident is not closed: the 178-vs-179 scrub-settle lag remains unexplained; the FPS guardrail falls back even when the map is idle | medium | incident | single-pass (unverified) | Retained open; not independently reproduced on current branch. |
 | WF-01 | Rating pills and light-theme status text fail contrast, and 8 map controls are click-only elements | medium | accessibility | single-pass (unverified) | Retained open; not independently reproduced on current branch. |
-| WF-03 | Frame guard is keyed on the hour label, not the valid time, so a stale frame is held across an anchor rollover; after a rollover 47 of 139 frames were served 2 h off | medium | browser engine / time | single-pass (unverified) | Actual served-time comparison counterexample reproduced twice in both paths; guard/subcover/arbiter/shadow/grace repaired dark.64newcases142expanded twice/full367/3872 local and Chrome14synthetic controls pass; own708 hosted and actual map/physical rollout remain open. FRONTEND-FRAME-TIME-RESULTS.md. |
+| WF-03 | Frame guard is keyed on the hour label, not the valid time, so a stale frame is held across an anchor rollover; after a rollover 47 of 139 frames were served 2 h off | medium | browser engine / time | single-pass (unverified) | Actual served-time comparison counterexample reproduced twice in both paths; guard/subcover/arbiter/shadow/grace repaired dark.64newcases142expanded twice/full367/3872 local and Chrome14synthetic controls pass; Own source48c04424 hosted-qualified710;15000opt-in matrix passes twice. Actual map/physical rollout remains open. FRONTEND-FRAME-TIME-RESULTS.md. |
 | WS-01 | Unauthenticated grid_series pages for far-past or far-future hours trigger one upstream fetch per hour (48 hours -> 48 upstream calls) | medium | serving / upstream quota | single-pass (unverified) | Retained open; not independently reproduced on current branch. |
 | WS-03 | EURO swell fallback is fetched from GFS but labelled as ECMWF-derived in estimate_basis | medium | model identity / labels | single-pass (unverified) | Retained open; not independently reproduced on current branch. |
 | WS-04 | Series (playback) frames drop the 'substitute tier after HTTP 429' warning that the single-grid route carries | medium | provenance labels | single-pass (unverified) | Earlier W-05 provenance source coverage; dark served/browser acceptance open. |
