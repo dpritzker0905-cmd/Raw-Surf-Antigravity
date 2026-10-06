@@ -103,3 +103,38 @@ are needed or embedded in these offline tests.
 
 Design references checked: [FastAPI custom routes](https://fastapi.tiangolo.com/how-to/custom-request-and-route/)
 and [Python task/shield/thread semantics](https://docs.python.org/3.12/library/asyncio-task.html).
+
+## 2026-10-06 16:41Z — qualified parent and real-helper follow-up
+
+Source0849b89e is qualified on ownCI37494572374: all11/four supplementary
+success, actual5901backend (2425guards/2275chain/1201estate) and369/4008
+frontend; estate297selected295produced0silent.729fulfills727/verifies728.
+Guard pytest2425pass66skip1xfail (JUnit67skipped),872.09s; chain2275pass,529.89s.
+Different CI durations are not a source-caused performance or live-latency result.
+Static previewHTTP200/build0849 verified; no map/forecast executed.
+
+The actual series helper then reproduced a narrower remaining admission defect:
+four started grid builds for four hours after canceled waiters, both older
+series-switch modes, two failures in each of two runs. Root lease retention
+alone did not stop the helper replacing work inside that lease. This new
+follow-up has one real grid-child slot per root operation. A started child
+holds it through actual completion; a canceled queued child is canceled
+before it can build; an expired root refuses any later queued start.
+Thus the dark generic helper is serial within a root lease, instead of its
+normal concurrency4. Default-off behavior keeps the old concurrency. Actual
+cached/live throughput and shared producer limits still need acceptance.
+
+Five follow-ups cover the real-helper stalled controls in both modes, real
+healthy four-frame parity in both modes, and post-deadline queued work refusal.
+Final source now has54new controls;229expanded pass twice,13.39s/13.25s
+(54new+17series+13signature+88point+57floor). New paired chain floor2274/
+reference2280 retains margin6;157files unchanged. Projected5906backend,
+frontend369/4008 unchanged. Own732 qualification is pending for this delta;
+the parent CI does not certify it. No flag/provider/math/promotion change.
+
+The Dev connector now works. Fresh readonly metadata verifies private/empty
+weather storage and pointer, RLS, singleton/primary constraints and service-role
+CRUD privileges. Actual publisher Storage/REST authentication remains separate:
+the staging process URL/service credential are absent. No SQL/storage mutation
+or publisher execution.730records this restored access boundary; unowned
+canary source is still excluded and unqualified.

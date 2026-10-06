@@ -1,10 +1,13 @@
 # Run the prepared Dev publication test
 
-The last successful Dev preflight found an empty private weather bucket/pointer table. A fresh
-read-only check now fails at OAuth token refresh before SQL executes; reverify access and emptiness
-before execution. The actual Python publisher uses Storage/REST authentication independently of
-the connector's OAuth session.
-Its existing Dev service-role key must be available to that child process. Do not send the key in chat.
+2026-10-06 16:41Z: the Dev connector is responding again. Fresh read-only queries verify the
+expected project, private weather bucket with0objects, pointer table with0rows/RLS enabled,
+singleton/primary-key constraints and existing service-role CRUD grants. No cloud write occurred.
+The actual Python publisher still uses separate Storage/REST authentication; the staging URL/key
+are absent from this agent process. Its existing Dev service-role key must be available to the
+child process. Do not send the key in chat. Reverify emptiness in the actual publisher preflight.
+A separate unowned local canary edit is preserved and unqualified; use qualified committed
+canary source from a clean checkout for an execution receipt.
 
 Open Supabase, select **Raw Surf App Dev**, then **Settings > API Keys**. Use the existing legacy
 **service_role** key for this existing publisher; do not select anon/publishable or a production key.

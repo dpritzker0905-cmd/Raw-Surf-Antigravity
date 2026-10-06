@@ -1,12 +1,13 @@
 """Real grid HTTP boundary with controlled work; external network is never needed."""
 import asyncio
 import copy
+from datetime import datetime, timezone
 import threading
 import time
 
 import httpx
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import create_model
 from starlette.middleware.gzip import GZipMiddleware
@@ -531,5 +532,105 @@ def test_direct_series_resolver_call_outside_envelope_retains_product(monkeypatc
         result = await weather.get_grid(**PARAMS, surf=False, request=None)
         assert result is payload
         assert not G.OWNED_TASKS and series_response.ADMISSION.active == {'mini': 0, 'page': 0}
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('series_flag', ['0', '1'])
+def test_real_series_helper_does_not_multiply_abandoned_hour_workers(monkeypatch, series_flag):
+    from services.weather_pipeline import grid_series_helper
+    monkeypatch.setenv('GRID_SERIES_RESPONSE_BOUNDS', series_flag)
+    monkeypatch.setenv('GFS_ICON_SERIES_FASTPATH', '0')
+    monkeypatch.setattr(grid_series_helper, '_per_hour_timeout', lambda: .04)
+
+    async def run():
+        release = asyncio.Event()
+        starts, canceled = [], []
+
+        async def resolve(*args, **kwargs):
+            starts.append(kwargs['valid_time'])
+            try:
+                await release.wait()
+                return NormalizedProduct.model_validate(product())
+            except asyncio.CancelledError:
+                canceled.append(True)
+                raise
+
+        monkeypatch.setattr(grid_resolver, 'resolve_grid', resolve)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app()), base_url='https://offline.invalid') as client:
+            try:
+                # Actual helper, route, defaults and cancellation; only resolver work is controlled.
+                response = await client.get('/api/weather/grid_series', params={
+                    'model': 'GFS', 'layer': 'waves', 'bbox': PARAMS['bbox'], 'hours': '0,3,6,9'})
+                assert response.status_code == 200 and response.json()['frame_count'] == 0
+                assert len(starts) == 1, 'canceled hour waiters admitted replacement workers'
+                assert not canceled and series_response.ADMISSION.active['page'] == 1
+            finally:
+                release.set()
+                await drained()
+            assert len(starts) == 1 and not canceled
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('series_flag', ['0', '1'])
+def test_real_series_helper_ready_frames_match_legacy_with_child_gate(monkeypatch, series_flag):
+    monkeypatch.setenv('GRID_SERIES_RESPONSE_BOUNDS', series_flag)
+    monkeypatch.setenv('GFS_ICON_SERIES_FASTPATH', '0')
+
+    async def resolve(*args, **kwargs):
+        payload = product(2)
+        payload['valid_time'] = kwargs['valid_time']
+        return NormalizedProduct.model_validate(payload)
+
+    monkeypatch.setattr(grid_resolver, 'resolve_grid', resolve)
+
+    async def run():
+        params = {'model': 'GFS', 'layer': 'waves', 'bbox': PARAMS['bbox'], 'hours': '0,3,6,9',
+                  'base_time': datetime.now(timezone.utc).replace(
+                      minute=0, second=0, microsecond=0).isoformat()}
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app()), base_url='https://offline.invalid') as client:
+            monkeypatch.setenv('GRID_RESPONSE_BOUNDS', '0')
+            legacy = await client.get('/api/weather/grid_series', params=params)
+            monkeypatch.setenv('GRID_RESPONSE_BOUNDS', '1')
+            bounded = await client.get('/api/weather/grid_series', params=params)
+            assert legacy.status_code == bounded.status_code == 200
+            assert legacy.json() == bounded.json()
+            body = bounded.json()
+            assert body['frame_count'] == 4
+            assert [frame['hour_offset'] for frame in body['frames']] == [0, 3, 6, 9]
+            assert all(frame['vectors'][1]['speed'] == 5.79 for frame in body['frames'])
+            await drained()
+
+    asyncio.run(run())
+
+
+def test_queued_grid_child_cannot_start_after_root_deadline(monkeypatch):
+    async def run():
+        entered, release = asyncio.Event(), asyncio.Event()
+        starts = []
+
+        async def resolve(*args, **kwargs):
+            starts.append(True)
+            entered.set()
+            await release.wait()
+            return JSONResponse({'fixture': 'finished'})
+
+        async def build():
+            await asyncio.gather(weather.get_grid(**PARAMS, surf=False), weather.get_grid(**PARAMS, surf=False))
+            return JSONResponse({})
+
+        monkeypatch.setattr(grid_resolver, 'resolve_grid', resolve)
+        task = asyncio.create_task(G.serve_response(build, None, 'page', time.monotonic() + .08))
+        try:
+            await entered.wait()
+            with pytest.raises(HTTPException) as error:
+                await task
+            assert error.value.status_code == 503 and len(starts) == 1
+            assert series_response.ADMISSION.active['page'] == 1
+        finally:
+            release.set()
+            await drained()
+        assert len(starts) == 1
 
     asyncio.run(run())

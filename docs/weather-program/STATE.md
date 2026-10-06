@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 16:15Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 16:41Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,17 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 16:41Z: first response/zero UI source0849 qualified; real-helper gate follows.**
+  Own37494572374/all11/four supplementary: actual5901backend/369suites4008
+  frontend, estate0silent;729fulfills727/verifies728, static preview0849.
+  Actual series helper still multiplied canceled-hour work4-to1; follow-up
+  repairs it locally54new/229expanded twice. Own732 hosted pending5906backend;
+ 733push pending. GRID_RESPONSE_BOUNDS remains0; no promotion/math/flag change.
+  Dev connector restored:730fresh readonly private/empty/RLS/grants preflight.
+  Actual publisher remains unexecuted without independent process Dev credential.
+  Gulf/pixel/device/FPS/heap, PG/card/races, other producers/live resources and
+  held-out science remain open. Unowned local canary preserved/excluded.
 
 - **2026-10-06 16:15Z: zero-coordinate UI and dark grid response ownership repaired locally.**
   139mounted/point controls twice; full369/4008/build/ratchet pass. Grid49new
@@ -921,7 +932,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 728, sha256 526ba532ce0ad76474c45cccbd7d4d5b0febf0feec762afd3f20e38e2f929953**
+  **Ledger head: seq 733, sha256 c34b8276369efb33345266b301cc1c29355bb0aba3fedb21e91baf9eb077a942**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

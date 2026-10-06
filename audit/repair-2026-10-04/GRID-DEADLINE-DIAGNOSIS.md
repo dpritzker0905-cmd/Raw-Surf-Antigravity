@@ -72,3 +72,10 @@ acceptance remains unexecuted.
 
 
 2026-10-06 04:27Z: a separate actual mounted point-hook diagnosis (three ordinary/wrapped controls and three zero-coordinate cases, twice) confirms the existing `useExactPointFetch` truthiness guards suppress valid latitude/longitude zero. This UI gate needs a separate repair; the API and outer-cache coordinate checks do not fix it. Repeated actual-module world-copy selections reach exact_success. No runtime change is included in this diagnosis.
+
+2026-10-06 16:41Z: first default-off response envelope source0849 qualified on own
+hosted gates; actual-helper replacement-work gap was then reproduced twice and
+a child-slot follow-up passed229expanded twice locally. See RESPONSE-OWNERSHIP-RESULTS.md
+for qualification scopes and remaining resource/producer/pixel acceptance. Dev
+connector access is restored; fresh read-only staging metadata is accepted, but
+actual publisher authentication/execution and PG financial/race acceptance are separate.

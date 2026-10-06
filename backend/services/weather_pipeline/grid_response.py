@@ -19,7 +19,7 @@ from services.weather_pipeline.config_env import env_float
 from services.weather_pipeline import series_response
 
 OWNED_TASKS = set()
-_CHILDREN = ContextVar('weather_response_children', default=None)
+_SCOPE = ContextVar('weather_response_scope', default=None)
 INGRESS_KEY = 'weather_response_ingress'
 logger = logging.getLogger(__name__)
 
@@ -54,11 +54,28 @@ def own_grid_operation(builder):
     """
     @wraps(builder)
     async def owned(*args, **kwargs):
-        children = _CHILDREN.get()
-        if children is None:
+        scope = _SCOPE.get()
+        if scope is None:
             return await builder(*args, **kwargs)
-        task = _retain(asyncio.create_task(builder(*args, **kwargs)), children)
-        return await asyncio.shield(task)
+        started = False
+
+        async def work():
+            nonlocal started
+            # One real grid build per root lease, not one per per-hour waiter.
+            # A canceled series waiter must not free capacity for another thread.
+            async with scope['slot']:
+                if time.monotonic() >= scope['deadline']:
+                    raise _expired()
+                started = True
+                return await builder(*args, **kwargs)
+
+        task = _retain(asyncio.create_task(work()), scope['children'])
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            if not started:
+                task.cancel()  # queued only: no store/producer work has started
+            raise
 
     return owned
 
@@ -82,12 +99,13 @@ async def serve_response(builder, request, lane, deadline):
     admission = series_response.ADMISSION  # one process budget, not a second pair of slots
     await admission.acquire(lane, request, deadline)
     children = set()
+    scope = {'children': children, 'slot': asyncio.Semaphore(1), 'deadline': deadline}
     result = asyncio.get_running_loop().create_future()
     # Also consume an output error if its HTTP waiter has already left.
     result.add_done_callback(lambda done: None if done.cancelled() else done.exception())
 
     async def operation():
-        token = _CHILDREN.set(children)
+        token = _SCOPE.set(scope)
         background = None
         try:
             if time.monotonic() >= deadline:
@@ -119,7 +137,7 @@ async def serve_response(builder, request, lane, deadline):
                     while children:
                         await asyncio.gather(*tuple(children), return_exceptions=True)
             finally:
-                _CHILDREN.reset(token)
+                _SCOPE.reset(token)
                 admission.release(lane)
 
     _retain(asyncio.create_task(operation()), OWNED_TASKS)
