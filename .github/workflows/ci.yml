@@ -123,7 +123,9 @@ jobs:
           // Mounted zero-coordinate hook: +1 suite/42 controls, local369/4008.
           // WF-02 projection-boundary repair: six real layer/engine/hook controls, local369/4014.
           // Own hosted confirmation pending; retain the zero-margin frontend ratchet.
-          const MIN_SUITES = 369, MIN_TESTS = 4014;
+            // WF-02 diagnostic-fault boundary + fixed native receipt: +1 suite/31 controls.
+            // Local final370/4045; new exact-source hosted qualification required.
+            const MIN_SUITES = 370, MIN_TESTS = 4045;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

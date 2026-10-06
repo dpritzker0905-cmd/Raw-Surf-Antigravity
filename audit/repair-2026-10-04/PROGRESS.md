@@ -1,5 +1,13 @@
 # Audit repair progress — 2026-10-04
 
+Latest continuation 2026-10-06 21:19Z: diagnostic-fault fallback repair and bounded native trip receipt
+local759; mounted red2fail18pass, scoped113before sparse case, final370/4045;
+build/lint/LOC passed.761publication prepared, own new-source hosted pending760.
+Clean dev paused GFS showed20/27FPS, one7FPS warning, stable uploads19, no sustained trip;
+original fallback/Gulf/play/scrub/device cause stays open. Prior receipt e56 all15 green;
+PR246 OPEN/dev, no merge/deploy/math/flag change. [Evidence repair](FALLBACK-EVIDENCE-RESULTS.md).
+Unowned canary untouched/excluded.
+
 Latest qualification 2026-10-06 20:28Z: projection sourcea5a29ae9 ownCI37522946610/all11 and four supplementary passed; actual5943backend (2425/2317/1201),369suites4014frontend,estate0silent.757fulfills752;755verifies754 source publication and final PR body. PR246 OPEN/dev, no merge/deploy or activation. Native756 actual synthetic MapLibre60frames each at small/desktop buffers: matrix16,GL0,median16.7ms cadence. State reads cost2.2–3.9ms/frame in standalone controls; live root cause and GPU/full-app/coast/Gulf/play/scrub/device/cloud/PG/science acceptance open. [Projection results](RENDERER-PROJECTION-RESULTS.md), [native isolation and portable probe](NATIVE-RENDERER-PROFILE.md).758receipt/tooling publication keeps served source/tests/workflows unchanged. Unowned canary preserved/excluded.
 
 Latest continuation 2026-10-06 19:56Z: projection-boundary false fallback repaired locally751. Six actual layer/engine/hook controls red twice,83 neighborhood and full369/4014 passed; build/lint/LOC passed. Owner750 attributes earlier access problem to their browser. Own752 new-source hosted qualification pending;754 prepared publication on existing PR246/dev, no merge/deploy. Prior5b qualifies only the manifest source. Separate dev073 paused diagnostic smoke still falls back; captured startup projection16/FBOcomplete, concurrent local tests/build prevent clean FPS benchmarking. Broader native/Gulf/device/cloud/PG/science acceptance open. [Projection results](RENDERER-PROJECTION-RESULTS.md). Unowned canary unchanged/excluded.

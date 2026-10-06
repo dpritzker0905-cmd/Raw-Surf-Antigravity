@@ -57,3 +57,16 @@ supports measuring these calls; it does not attribute this application's trip.
 
 The manifest-scan backend repair in PR246 is separate and default-off. No
 renderer source fix or native smoothness acceptance is claimed by that PR.
+
+## 2026-10-06 21:21Z — subsequent clean observation and source boundaries
+
+The preceding no-renderer-fix statement describes the earlier manifest-only
+stage. Projection repair751/757 is now separately qualified. New759 diagnostics
+contain a reproduced faulted-telemetry boundary and add a bounded native trip
+receipt; final local370/4045/build/lint/LOC pass, own760 hosted pending.
+The new clean paused GFS observation (no concurrent local test/build workload)
+did not trip: one7FPS warning, later20/27FPS, uploads19 and slow CPU-call count1
+stable, complete framebuffer/289cells. Waves off readback and research tab closed.
+This does not grade full-app smoothness, Gulf/hour98, playback or GPU completion.
+FALLBACK-EVIDENCE-RESULTS.md records the observation and exact limitations.
+No dev merge/production promotion or served-number/flag activation.

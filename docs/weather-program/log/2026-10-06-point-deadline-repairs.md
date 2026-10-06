@@ -98,3 +98,28 @@ own loopback server stopped. No shared backend load from these probes.
 new receipt head/remote/ledger readback follows. Unowned canary hash unchanged.
 No merge/deploy/flag/cloud-write action; original live fallback, Gulf height,
 play/scrub/coast/device/resources, publisher/PG/races and science remain open.
+
+## 2026-10-06 21:19Z — clean observation and diagnostic boundary759/760
+
+Verified e56 exact PR head/dev/OPEN and all15 checks successful; verifies758.
+Clean paused GFS dev hour0 with no local tests/build overlap did not trip:
+matrix16 startup, one7FPS warning21:12:29Z, later HUD20/27FPS, uploads19 and
+slow CPU-call counter1 stable, FBO complete/289cells; Waves off and tab closed.
+No playback/Gulf/hour98 or GPU completion/device qualification.
+New mounted controls red2fail18pass: direct emit exception blocks fallback and
+receipt absent. Source catches sink failure; fixed-size allowlisted counter
+receipt before unmount, null/zero and resets honest, no GL queries. Expanded113
+pass before sparse counter case, final/full/build/hosted pending own760.
+Root-cwd runner invocation failed module resolution; frontend-cwd passed.
+No production/dev deployment or scientific number/flag change; unowned canary
+hash remains3E51C899490A8DCC07D453AEE2A1FED2864A5B02DB6A51C920CDE9801DD418C0.
+
+## 2026-10-06 21:21Z — final local gates and planned publication761
+
+Final actual370suites4045tests0fail, source delta adds27helper+4mounted controls.
+Build exit0/inherited warnings, lint1232files within86errors917warnings, LOC0
+regressions. Counter/discontinuity/receipt/source reviewed without new GL reads;
+all exclusions/trip/retry clear evidence references. No threshold/retry change.
+Jest JSON first cp1252 read failed; explicit UTF-8 read verified exact counts.
+761records planned owned delta push; own760 hosted remains pending. Unowned
+canary hash unchanged/excluded. No merge/deployment/served math/flags changed.

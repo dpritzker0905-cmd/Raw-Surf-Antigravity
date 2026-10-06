@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { useWebGLGuardrail, RECOVERY_BACKOFFS_MS } from './useWebGLGuardrail';
 import { createCustomLayer } from './WebGLMarineCustomLayer';
 import WebGLMarineEngine from './WebGLMarineEngine';
+import { WeatherTelemetry } from './WeatherTelemetry';
 
 let clock;
 function setup() {
@@ -109,6 +110,50 @@ afterEach(() => {
 
 test('sustained slow actual marine animation still trips the protection', () => {
   const s = setup(); s.drive(30);
+  expect(s.setMarine).toHaveBeenCalledWith(true);
+});
+
+test('a telemetry exception cannot suppress a genuine sustained rendering fallback', () => {
+  jest.spyOn(WeatherTelemetry, 'emit').mockImplementation(() => { throw new Error('diagnostic sink unavailable'); });
+  const s = setup();
+  expect(() => s.drive(30)).not.toThrow();
+  expect(s.setMarine).toHaveBeenCalledWith(true);
+});
+
+test('a trip publishes bounded native timing evidence before the resident is unmounted', () => {
+  const emit = jest.spyOn(WeatherTelemetry, 'emit').mockImplementation(() => {});
+  window.__RAW_GPU__.frameTimeHistogram = [100, 2, 1, 0, 0];
+  window.__RAW_GPU__.textureUploadCount = 19;
+  window.__RAW_GPU__.droppedFrameCounter = 1;
+  const s = setup();
+  s.drive(22);
+  const calls = emit.mock.calls.filter(([type]) => type === 'webgl_marine_fallback_evidence');
+  expect(calls).toHaveLength(1);
+  expect(calls[0][1]).toMatchObject({ version: 1, lowFpsWindows: 12,
+    observedIntervalMs: 11000, fps: { first: 1, last: 1, min: 1, max: 1 },
+    deltas: { nativeCallbacks: 11, textureUploads: 0, slowCpuCalls: 0, cpuCallHistogram: [0, 0, 0, 0, 0] },
+    timingKind: 'cpu_call_duration_including_driver_wait', gpuCompletionMeasured: false });
+  expect(s.setMarine).toHaveBeenCalledWith(true);
+});
+
+test('a loading gap discards the old receipt as well as the consecutive low-FPS count', () => {
+  const emit = jest.spyOn(WeatherTelemetry, 'emit').mockImplementation(() => {});
+  window.__RAW_GPU__.textureUploadCount = 1;
+  const s = setup(); s.drive(19);
+  window.__MARINE_FETCH_PENDING__ = true; s.drive(4);
+  window.__RAW_GPU__.textureUploadCount = 100;
+  delete window.__MARINE_FETCH_PENDING__;
+  s.drive(12);
+  const calls = emit.mock.calls.filter(([type]) => type === 'webgl_marine_fallback_evidence');
+  expect(calls).toHaveLength(1);
+  expect(calls[0][1]).toMatchObject({ lowFpsWindows: 12, observedIntervalMs: 11000,
+    deltas: { nativeCallbacks: 11, textureUploads: 0 } });
+});
+
+test('an inaccessible native diagnostic still permits the sustained fallback', () => {
+  const s = setup();
+  Object.defineProperty(window.__RAW_GPU__, 'frameTimeHistogram', { get: () => { throw new Error('diagnostic unavailable'); } });
+  expect(() => s.drive(30)).not.toThrow();
   expect(s.setMarine).toHaveBeenCalledWith(true);
 });
 test.each(['inactive', 'engine_no_data', 'zoomed_out_idle', 'no_map'])('%s frames do not count as slow animated marine rendering', skip => {
