@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 03:45Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 04:04Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,6 +14,17 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-06 04:04Z: server coordinates d65677ac qualified; shared world-copy candidate local/718pending.**
+  Own CI37410583036/all11 and four supplementary success, actual5852backend and
+ 367/3872frontend, estate297selected295produced0silent.716fulfills714/verifies715.
+  Shared point fetch/cache canonicalize world longitude with existing helper;94new
+  controls72fail22pass before twice;122expanded after twice/full368/3966 pass.
+  Build exit0 inherited warnings; lint86/917 baseline unchanged; LOCpass. Frontend
+  floor368/3966; no science math/flag change, disabled legacy endpoint preserved.
+  Original Gulf/full-map/device/FPS/heap, actual cloud/OAuth, PG/card, deadlines and
+  held-out science remain open; no merge/deploy/cloud/provider action.719pushpending.
+  POINT-COORDINATE-RESULTS.md and WORLD-COORDINATE-RESULTS.md.
+
 - **2026-10-06 03:45Z: WS-08 HTTP coordinate repair locally accepted; own714 hosted pending.**
   Actual router64invalid/24valid before twice;142expanded after twice; rejects impossible
   and nonfinite coordinates before resolver. Valid geographic endpoints/Gulf/frame
@@ -23,7 +34,7 @@ is a claim, not a measurement.
   Local environment differs from declared CI; LOC and partition pass. Dev OAuth
   refresh still fails before readonly SQL. Server deadlines, Gulf/full-map/devices,
   actual cloud publication, PG/card and science remain open. No merge/deploy/flag action.
-  Publication711 verified712; WS-08 publication715 pending; POINT-COORDINATE-RESULTS.md.
+  Publication711 verified712; WS-08 publication715 verified716; POINT-COORDINATE-RESULTS.md.
 
 - **2026-10-06 03:26Z: both visual and dark actual-time repairs qualified on source48c04424.**
   Own CI37407541898: all11 jobs and four supplementary success; actual5,764backend
@@ -889,7 +900,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 715, sha256 a9fd9e0015be2d14bd9df980cbb3ea3850664901fd5413d2fdaa1ed8e4773f74**
+  **Ledger head: seq 719, sha256 10e1dea1d0d14a4bd655522042b7af4ff58faa92f9d5bd43f1859e7302119d53**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

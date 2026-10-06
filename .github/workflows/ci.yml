@@ -118,7 +118,9 @@ jobs:
           // Visual sourcea1cb1ed3 own CI37405974317 full job112083517831: hosted365/3808.
           // Rollover source48c04424 own CI37407541898 job112088337571: actual367/3872.
           // Raise to qualified hosted coverage; no frontend tests added by WS-08.
-          const MIN_SUITES = 367, MIN_TESTS = 3872;
+          // Shared world-coordinate repair adds1suite/94controls; local368/3966 passed.
+          // Own hosted confirmation required; preserve the zero-margin frontend ratchet.
+          const MIN_SUITES = 368, MIN_TESTS = 3966;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

@@ -1,18 +1,20 @@
 # Deployment readiness: updated audit versus actual repairs
 
+Latest continuation 2026-10-06 04:04Z: server coordinate sourced65677ac qualified on own CI37410583036/all11/four supplementary,5852backend/367/3872frontend. Separate shared map-world coordinate/cache candidate local368/3966/build/ratchet/LOCpass; own718 hosted pending. [World-copy repair](WORLD-COORDINATE-RESULTS.md). No deployment/activation.
+
 Latest continuation 2026-10-06 03:45Z: WS-08 coordinate candidate local142controls pass twice; own714 exact-source hosted qualification pending. Previous source48c04424 remains qualified. All branch changes throughb9dbdc21 were already pushed. See [coordinate repair](POINT-COORDINATE-RESULTS.md). No deployment/activation.
 
 Verified 2026-10-06 03:26Z. This is a deployment assessment, not deployment authorization.
 The supplied deep REPORT.md includes sections 10 and 11, and its current SHA256 is
 `be4914fbc8de71b1cfada3b7beb0f78e669c8fd6b5090fefbc3678accb5b72c0`.
-Its merge-blocker review is of `0bb3aec0`. Current repair source **48c04424** is qualified on its own CI37407541898: all11 jobs, actual5,764backend/367suites3,872frontend and allfour supplementary gates. Visual fallback/storage/GL lifecycle and dark actual-time guard repairs are included. Cache/cycle source repairs are qualified; scientific switches remain dark. Actual Gulf/live-map/cloud/PG/graphics/science acceptance remains open.
+Its merge-blocker review is of `0bb3aec0`. Latest qualified repair source **d65677ac** has own CI37410583036/all11 and allfour supplementary success, actual5,852backend/367suites3,872frontend. The newer shared world-coordinate client candidate is locally accepted at368suites3,966tests; own718 hosted qualification remains pending. Visual fallback/storage/GL lifecycle, dark actual-time guards and prior cache/cycle repairs are included. Scientific switches remain dark. Actual Gulf/live-map/cloud/PG/graphics/science acceptance remains open.
 This supersedes the older deployment status in PROGRESS.md without rewriting historical receipts.
 
 ## What is actually running
 
 | Component | Evidence (live versions are last confirmed; no new live-map/API load) | Meaning |
 |---|---|---|
-| PR243, targeting dev | OPEN; qualified source48c04424 CI37407541898 all11success5764backend/367suites3872frontend; final receipt docs only | Repaired source has not been promoted to dev; new flags remain dark |
+| PR243, targeting dev | OPEN; qualified sourced65677ac CI37410583036 all11success5852backend/367suites3872frontend; separate world-coordinate client local368/3966, own718pending | Repaired source has not been promoted to dev; new flags remain dark |
 | Shared Render API | Public /api/health healthy, version ends6b062e97; /api/health/data ok, alerts empty | Current PR backend is not live; health does not certify model-cycle freshness |
 | Netlify dev | service-worker BUILD_VERSION2a7b8615 | Current PR frontend is not live on dev |
 | Netlify production | service-worker BUILD_VERSIONfc140024 | Owner's frozen frontend remains served |

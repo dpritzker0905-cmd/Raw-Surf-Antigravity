@@ -192,3 +192,5 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-06 03:07Z | WF03 actual-time guard candidate | D-001/D-002 preserved; forecastidentity0/unset |64newcases,48before26fail22pass twice;142expanded twice/full367/3872 and Chrome14synthetic controls | Equal actualtime holds across labels; changed/unknown actualtime releases; bounded grace keyed to actualtime | No served scientific/pixel/latency gain claimed; own708pending; FRONTEND-FRAME-TIME-RESULTS.md |
 
 | 2026-10-06 03:45Z | WS-08 public point geographic validation | No legitimate served science change | Real HTTP88cases before64fail/24pass twice;142expanded after twice |64invalid queries now422before resolver;24valid controls unchanged | Local candidate only; own714hosted pending; POINT-COORDINATE-RESULTS.md |
+
+| 2026-10-06 04:04Z | WS-08 shared world-copy compatibility | No scientific model math changed |94controls before72fail22pass twice;122expanded after twice/full368/3966 |World aliases use geographic provider/cache coordinates; invalid points start no work | Local source only; own718pending; full-map/physical acceptance open; WORLD-COORDINATE-RESULTS.md |

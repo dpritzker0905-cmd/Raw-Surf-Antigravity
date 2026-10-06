@@ -5,6 +5,7 @@
  */
 
 import { isInCooldown } from './marineControllerUtils';
+import { wrapLongitude } from './mapUtils';
 import { findHourIndex } from './forecastHelpers';
 import { governMarineRequest } from './marineRequestGovernor';
 import { updateDeprecationDiag } from './forecastDeprecationDiag';
@@ -80,9 +81,9 @@ const MARINE_MODEL_LIMITS = {
 };
 
 export function getCachedPointResponse(lat, lng, model, activeLayer = 'waves', timeOffsetHours = 0, gridProductId = null, gridBbox = null, requestContext = null) {
-  if (lat == null || lng == null) return null;
+  if (!Number.isFinite(lat) || Math.abs(lat) > 90 || !Number.isFinite(lng)) return null;
   const rLat = +lat.toFixed(2);
-  const rLng = +lng.toFixed(2);
+  const rLng = +wrapLongitude(lng).toFixed(2);
   const PROVIDER_MAP = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
   let provider = PROVIDER_MAP[model] || 'open-meteo';
   if (model === 'EURO' && activeLayer === 'waves' && !getBackendCopernicusFlag()) {
@@ -137,11 +138,11 @@ export function hasCacheForModel(lat, lng, model, activeLayer = 'waves', timeOff
  * Fetch the FULL multi-day forecast for a single point.
  */
 export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'waves', signal = null, timeOffsetHours = 0, force = false, gridProductId = null, gridBbox = null) {
-  if (lat == null || lng == null) return null;
+  if (!Number.isFinite(lat) || Math.abs(lat) > 90 || !Number.isFinite(lng)) return null;
 
   const startTime = Date.now();
   const rLat = +lat.toFixed(2);
-  const rLng = +lng.toFixed(2);
+  const rLng = +wrapLongitude(lng).toFixed(2);
   
   if (typeof isInCooldown === 'function' && isInCooldown('marine')) {
     console.warn(`[ExactPoint] Blocked fetch for model=${model} lat=${rLat} lng=${rLng}: marine cooldown is active.`);
