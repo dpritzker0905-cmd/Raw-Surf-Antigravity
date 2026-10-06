@@ -115,7 +115,9 @@ jobs:
           // Point identity, availability, playback and consumer controls: full local346/3582.
           // Daily calendar, mounted label/rollback controls: +1suite/+28tests; projected347/3610.
           // PF01/PF02 transport/cache and mounted viewport controls: +4suites/+37tests.
-          const MIN_SUITES = 356, MIN_TESTS = 3689;
+          // Visual sourcea1cb1ed3 own CI37405974317 full job112083517831: hosted365/3808.
+          // Raise to actual hosted coverage; the new rollover64cases await their own receipt.
+          const MIN_SUITES = 365, MIN_TESTS = 3808;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

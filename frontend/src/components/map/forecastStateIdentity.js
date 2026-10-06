@@ -1,6 +1,7 @@
-export function forecastStateIdentityEnabled() {
+export function forecastStateIdentityEnabled(win) {
+  const w = win || (typeof window !== 'undefined' ? window : null);
   return process.env.REACT_APP_FORECAST_STATE_IDENTITY === 'true' &&
-    !(typeof window !== 'undefined' && window.__RAW_DISABLE_FORECAST_STATE_IDENTITY__ === true);
+    !(w && w.__RAW_DISABLE_FORECAST_STATE_IDENTITY__ === true);
 }
 
 // Rating payloads are small JSON records. Compare all fields, including nested explanations,

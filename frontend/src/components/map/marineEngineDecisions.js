@@ -23,6 +23,8 @@
  */
 import { recordMarineEvent } from './marineForensics';
 import { readMarineSurfMode } from './marineSurfMode';
+import { forecastStateIdentityEnabled } from './forecastStateIdentity';
+import { marineFrameInstant, sameMarineFrameInstant } from './marineFrameInstant';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 
 export function latToMercatorY(lat) {
@@ -246,7 +248,7 @@ export function gridCellDeg(waveGrid) {
 // coarse→regional (sharpen/UPGRADE), a scrub to a DIFFERENT hour, zoomed-out, no resident, or a resident regional
 // that no longer COVERS the viewport (stale after a pan) all return false — so the guard can never strand a
 // non-covering rectangle nor re-create the coarse-global CLAMP that 7f6c39be/54e289b5 fixed.
-export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, viewportBounds, disabled, nowMs) {
+export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, viewportBounds, disabled, nowMs, absoluteFrameTime = forecastStateIdentityEnabled()) {
   if (disabled || !resident || !incoming) return false;
   // Two downgrade shapes are blocked (everything else falls through unguarded):
   //  (1) the coarse-GLOBAL fallback displacing a regional (the original 07-01 ping-pong), and
@@ -288,8 +290,8 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   if (!isCoarseGlobalGrid(incoming) && !cellDowngrade && !ratingDowngrade) return false;
   if (!isRegionalBounds(resident.bounds)) return false;    // resident must itself be a regional tile
   const sameLayer = (incoming.__componentLayer || 'waves') === (resident.__componentLayer || 'waves');
-  const sameHour = incoming.hourOffset !== undefined && resident.hourOffset !== undefined
-    && incoming.hourOffset === resident.hourOffset;
+  const sameHour = absoluteFrameTime ? sameMarineFrameInstant(resident, incoming)
+    : incoming.hourOffset !== undefined && resident.hourOffset !== undefined && incoming.hourOffset === resident.hourOffset;
   // UNKNOWN zoom must FAIL OPEN (2026-07-03): _lastZoom is only written by the render loop, so a
   // commit racing a zoom change (or arriving before the first frame / while rAF is paused) reads
   // undefined-or-stale. Treating unknown as "zoomed in" made the guard reject the coarse WHILE the
@@ -364,7 +366,7 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
     if (w.__RAW_DISABLE_RATING_GRACE__ !== true) {
       const graceMs = (typeof w.__RAW_RATING_GRACE_MS__ === 'number') ? w.__RAW_RATING_GRACE_MS__ : 4000;
       const t = (typeof nowMs === 'number') ? nowMs : Date.now();
-      const key = `${_rm}|${resident.__componentLayer || 'waves'}|${resident.hourOffset}|`
+      const key = `${_rm}|${resident.__componentLayer || 'waves'}|${absoluteFrameTime ? marineFrameInstant(resident) : resident.hourOffset}|`
         + `${rb ? [rb.west, rb.south, rb.east, rb.north].join(',') : 'nb'}`;
       if (_ratingGraceState.key !== key) {
         _ratingGraceState.key = key;

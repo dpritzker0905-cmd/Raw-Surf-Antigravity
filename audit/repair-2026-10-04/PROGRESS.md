@@ -275,3 +275,6 @@ Prior543954fd publication readback resolves700, ledger701. Owner evidence702, re
 own exact hosted commitment704 pending, source publication705 awaits final readback.
 Projection5764backend/3808frontend is not an actual new hosted result. Source changes
 frontend only; all new science/serving flags0/unset, Netlifyfreeze, no merge/deploy.
+
+
+2026-10-06 03:07Z: visual sourcea1cb1ed3 own CI37405974317 all11+four supplementary success, actual5764backend/365/3808frontend,706fulfills704. Separate WF03 actual-served-time comparison built dark:64newcases,142expanded twice, full367/3872 and isolated Chrome14controls pass;708 exact-source hosted pending. See FRONTEND-FRAME-TIME-RESULTS.md. No physical Gulf/fullmap/cloud acceptance or merge/deploy/activation.

@@ -29,6 +29,8 @@
 
 import { arbiterDecide, isFineWorldBase, coverageWrapSafe } from './marineCommitArbiter';
 import { readMarineSurfMode } from './marineSurfMode';
+import { forecastStateIdentityEnabled } from './forecastStateIdentity';
+import { sameMarineFrameInstant } from './marineFrameInstant';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { isGateWideView, bridgeCeilDeg } from './marineZoomOutGate';
 import {
@@ -146,8 +148,8 @@ export function shouldRejectSubcoveringRegional(resident, incoming, lastZoom, vi
   if (!incoming.bounds || !isRegionalBounds(incoming.bounds) || isCoarseGlobalGrid(incoming)) return false;
   if ((resident.__sourceModel || 'GFS') !== (incoming.__sourceModel || 'GFS')) return false;
   if ((resident.__componentLayer || 'waves') !== (incoming.__componentLayer || 'waves')) return false;
-  if (incoming.hourOffset === undefined || resident.hourOffset === undefined
-      || incoming.hourOffset !== resident.hourOffset) return false;
+  if (forecastStateIdentityEnabled(w) ? !sameMarineFrameInstant(resident, incoming)
+    : incoming.hourOffset === undefined || resident.hourOffset === undefined || incoming.hourOffset !== resident.hourOffset) return false;
   if (!!resident.ratingMode !== !!incoming.ratingMode) return false;
   const vb = viewportBounds;
   if (typeof lastZoom !== 'number' || !vb) return false;   // unknown → fail open
@@ -200,10 +202,11 @@ export function decideMarineCommit(resident, incoming, lastZoom, viewportBounds,
   const w = win || (typeof window !== 'undefined' ? window : undefined);
   const disabled = !!(w && w.__RAW_DISABLE_NO_DOWNGRADE__);
   const arbiterOn = !!(w && w.__RAW_MARINE_ARBITER__ === true && w.__RAW_DISABLE_MARINE_ARBITER__ !== true);
+  const absoluteFrameTime = forecastStateIdentityEnabled(w);
 
   if (!arbiterOn) {
     if (resident && incoming) {
-      if (shouldRejectResolutionDowngrade(resident, incoming, lastZoom, viewportBounds, disabled, nowMs)) {
+      if (shouldRejectResolutionDowngrade(resident, incoming, lastZoom, viewportBounds, disabled, nowMs, absoluteFrameTime)) {
         return { reject: true, why: 'downgrade', rule: 'guard_downgrade', source: 'guards' };
       }
       if (shouldRejectSubcoveringRegional(resident, incoming, lastZoom, viewportBounds, disabled, w)) {
@@ -220,6 +223,7 @@ export function decideMarineCommit(resident, incoming, lastZoom, viewportBounds,
     zoom: lastZoom,
     viewportBounds,
     flavorWant: readMarineSurfMode(w),
+    absoluteFrameTime,
     zoomedOutMaxZoom: MARINE_ZOOMED_OUT_MAX_ZOOM,
     // Mid-band ceiling from the SAME `w` the guard's shouldRejectSubcoveringRegional read above.
     midBandCeil: (w && Number(w.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0,

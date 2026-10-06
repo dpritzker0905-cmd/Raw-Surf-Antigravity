@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 02:47Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 03:07Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,17 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 03:07Z: visual a1cb1ed3 qualified; separate WF03 actual-time source local/708pending.**
+  Own CI37405974317/all11 and four supplementary success, actual5764backend/365/3808frontend;
+  706fulfills704 and verifies705publication. WF03 reproduced with actual servedtime, not
+  requestecho; guard/subcover/arbiter/shadow and bounded grace repaired behind existing
+  forecastidentity0/unset.64newcases142expanded twice/full367suites3872, build/ratchet/LOC
+  pass; Chrome14synthetic production-module controls pass without externalapplicationtraffic.
+  New707evidence/708commitment/709publicationpending. Prior visual qualification is not
+  borrowed for this delta. Original Gulf/frame/pixel/mobile/FPS/heap, cloudcanary/OAuth,
+  PG/card/latency/science remain open; no merge/deploy/provider/cloud/flag action.
+  FRONTEND-FRAME-TIME-RESULTS.md and VISUAL-RESILIENCE-RESULTS.md.
 
 - **2026-10-06 02:47Z: visual resilience source locally accepted; own704 hosted pending.**
  WF02 idle/loading exclusion and completed-retry ownership, WF04 safe storage decisions,
@@ -853,7 +864,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 705, sha256 1a97c0fc6fa30b4ef1dd5ce1046aa4b35635a68a327e7257df99c1cb08c8be9e**
+  **Ledger head: seq 709, sha256 2991f5349a440501b7a2fbae5b00e62c1e79aa21cf39c3e9bbd7009218700c36**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

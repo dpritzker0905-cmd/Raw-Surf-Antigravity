@@ -7,6 +7,7 @@
  */
 
 import { recordTruthStage } from './weatherTruthTracker';
+import { forecastStateIdentityEnabled } from './forecastStateIdentity';
 import { readMarineSurfMode } from './marineSurfMode';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
@@ -178,6 +179,7 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
         this._waveData && this._waveData.waveGrid, waveGrid,
         { zoom: this._lastZoom, viewportBounds: this._lastViewportBounds,
           flavorWant: window.__SURF_MODE__ === true,
+          absoluteFrameTime: forecastStateIdentityEnabled(),
           zoomedOutMaxZoom: MARINE_ZOOMED_OUT_MAX_ZOOM,
           // Mid-band ceiling and the F-22 base-aware switch from the SAME window the guard read, so the shadow can't diverge on them.
           midBandCeil: Number(window.__RAW_MARINE_GLOBAL_SPAN__) || 40.0,

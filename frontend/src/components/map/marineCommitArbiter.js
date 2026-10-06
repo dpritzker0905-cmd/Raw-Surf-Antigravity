@@ -20,6 +20,8 @@
  * via arguments. First match wins.
  */
 
+import { marineFrameInstant, sameMarineFrameInstant } from './marineFrameInstant';
+
 const ZOOMED_OUT_MAX_ZOOM_DEFAULT = 6.5;
 
 function cellDegOf(grid) {
@@ -107,7 +109,11 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
   }
 
   // 4. Hour change — a scrub must always advance the clock.
-  if (incoming.hourOffset !== undefined && resident.hourOffset !== undefined
+  if (ctx.absoluteFrameTime === true && !sameMarineFrameInstant(resident, incoming)) {
+    const known = marineFrameInstant(resident) !== null && marineFrameInstant(incoming) !== null;
+    return { verdict: 'commit', rule: known ? 'actual_frame_change' : 'actual_frame_unverified' };
+  }
+  if (ctx.absoluteFrameTime !== true && incoming.hourOffset !== undefined && resident.hourOffset !== undefined
       && incoming.hourOffset !== resident.hourOffset) {
     return { verdict: 'commit', rule: 'hour_change' };
   }
@@ -159,7 +165,7 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
           const t = (typeof ctx.nowMs === 'number') ? ctx.nowMs : Date.now();
           const rb = resident.bounds;
           const key = `${resident.__sourceModel || 'GFS'}|${resident.__componentLayer || 'waves'}`
-            + `|${resident.hourOffset}|${rb ? [rb.west, rb.south, rb.east, rb.north].join(',') : 'nb'}`;
+            + `|${ctx.absoluteFrameTime === true ? marineFrameInstant(resident) : resident.hourOffset}|${rb ? [rb.west, rb.south, rb.east, rb.north].join(',') : 'nb'}`;
           if (gs.key !== key) { gs.key = key; gs.startedAt = t; gs.expired = false; }
           if (t - gs.startedAt < graceMs) return { verdict: 'reject', rule: 'rated_uncovering_grace' };
           gs.expired = true;
