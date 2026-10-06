@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 04:27Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 16:15Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,15 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 16:15Z: zero-coordinate UI and dark grid response ownership repaired locally.**
+  139mounted/point controls twice; full369/4008/build/ratchet pass. Grid49new
+  controls/154expanded twice;57floor guards; shared643-file partition passes.
+  New GRID_RESPONSE_BOUNDS remains0; no scientific math/activation/promotion.
+  Own727 hosted pending (projected5901backend/369suites4008frontend);728push
+  pending. Unowned canary excluded. Prior723 publication92a9 read back724.
+  Gulf/pixels/devices/FPS/heap, real staging, PG/card/races and held-out science
+  remain open. See log/2026-10-06-point-deadline-repairs.md and audit receipts.
 
 - **2026-10-06 04:27Z: geographic runtime9a7a33ba fully qualified; receipt docs only.**
   Own CI37412065874/all11/four supplementary success;actual5852backend and368/3966
@@ -912,7 +921,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 723, sha256 59cd36184e16c619b18ac3b20490b91ee08dfeb789bc172236d65c917365cc1d**
+  **Ledger head: seq 728, sha256 526ba532ce0ad76474c45cccbd7d4d5b0febf0feec762afd3f20e38e2f929953**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

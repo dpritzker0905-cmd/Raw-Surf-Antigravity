@@ -196,3 +196,7 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-06 04:04Z | WS-08 shared world-copy compatibility | No scientific model math changed |94controls before72fail22pass twice;122expanded after twice/full368/3966 |World aliases use geographic provider/cache coordinates; invalid points start no work | Local source only; own718pending; full-map/physical acceptance open; WORLD-COORDINATE-RESULTS.md |
 
 | 2026-10-06 04:27Z | Geographic source9a7a33ba qualification | No scientific model/flag activation | Own CI37412065874 all11/four supplementary;5852backend/368suites3966frontend | HTTP validation and world aliases qualified; estate0silent; previewstatic9a7 | Original Gulf/device/cloud/PG/deadline/science and zero UI remain open;720fulfills718 |
+
+| 2026-10-06 16:15Z | Valid-zero shared point UI | No model math changed |42controls before24fail18pass twice;139after twice/full369/4008 |Zero/reselection reaches exact_success; invalid coordinates stay idle | Local; own727 hosted pending; no native pixels |
+
+| 2026-10-06 16:15Z | LIVE04 dark HTTP response ownership | No served flag or scientific number changed |2HTTPdeadline failures twice;49new/154expanded after twice;24paired JSON invariance fixtures |Retryable late output, jointly bounded admission and retained real-worker leases | Local; own727 hosted pending; not a hard CPU bound/live latency result |

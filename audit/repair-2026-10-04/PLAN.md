@@ -1,5 +1,7 @@
 # Independent audit repair register
 
+Latest continuation 2026-10-06 16:15Z: valid-zero UI and default-off HTTP grid/series response ownership repaired locally. Final154backend controls twice;139frontend controls twice/full369/4008; build/ratchet/LOC pass. Own727 hosted pending; projected5901backend/369suites4008frontend. [Response ownership results](RESPONSE-OWNERSHIP-RESULTS.md). Gulf/device/cloud/PG/science and live resource acceptance remain open; unowned canary excluded; no promotion.
+
 Started 2026-10-04 04:21Z. Baselinea2213ee9; deployed source6b062e97. All original register rows
 are carried forward below; overlap and scientific assurance gaps are not counted as independent
 new bugs. Owner authorized repairs/test/visual improvements. Source88feec8c is hosted-qualified and PR243 is ready for review. This batch is not

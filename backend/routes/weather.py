@@ -22,6 +22,7 @@ from services.weather_pipeline.route_helpers import (
 )
 from services.weather_pipeline.viewport_service import ViewportService
 from services.weather_pipeline.point_resolution import PointResolutionService
+from services.weather_pipeline.grid_response import GridResponseRoute, own_grid_operation
 
 # P1 per-spot ratings (/spot-ratings): query surf spots + compute the rating at each precise location.
 from sqlalchemy import select, or_
@@ -38,7 +39,7 @@ from services.weather_pipeline.spot_ratings_precompute import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/weather")
+router = APIRouter(prefix="/weather", route_class=GridResponseRoute)
 
 # Instantiate Store and Sampler
 # The SERVING view (consensus_serve.ServedStore: a no-op unless CONSENSUS_SERVE=1); ingest keeps its own store.
@@ -93,17 +94,15 @@ async def get_grid_series(
     Returns a TIME-SERIES of viewport grids in ONE response so the client can scrub
     hours instantly (client-side frame selection) instead of one fetch per hour.
 
-    SURGICAL + ADDITIVE: reuses the exact per-hour dynamic-product builder that /grid
-    already uses (get_cached_dynamic_product). The first requested hour triggers the
-    multi-hour upstream fetch (Open-Meteo/Copernicus already return it and the provider
-    caches it 5 min); every subsequent hour re-slices that SAME cached fetch. It does not
-    touch /grid — if it fails, the client falls back to the per-hour /grid flow.
+    Reuses /grid's per-hour builder and shared upstream cache. If a series fails,
+    the client falls back to per-hour /grid requests. The dark response envelope
+    shares admission across both HTTP routes and owns canceled per-hour work.
     """
     from services.weather_pipeline.grid_series_helper import build_grid_series
     # Same /grid resolver, including the EURO multi-hour viewport fast path. The helper
     # validates/discloses base_time and stops per-hour builds after client disconnect.
     # Qualified response bounds include queueing, building, encoding and compression.
-    if os.environ.get("GRID_SERIES_RESPONSE_BOUNDS", "0") == "1":
+    if os.environ.get("GRID_SERIES_RESPONSE_BOUNDS", "0") == "1" and os.environ.get("GRID_RESPONSE_BOUNDS", "0") != "1":
         from services.weather_pipeline.series_response import serve_series
         return await serve_series(lambda: build_grid_series(
             get_grid, viewport_service, model, domain, layer, bbox, hours,
@@ -112,6 +111,7 @@ async def get_grid_series(
 
 
 @router.get("/grid", response_model=NormalizedProduct)
+@own_grid_operation
 async def get_grid(
     model: str = Query(..., pattern="^(GFS|ICON|EURO)$"),
     domain: str = Query(..., pattern="^(marine|wind|weather)$"),

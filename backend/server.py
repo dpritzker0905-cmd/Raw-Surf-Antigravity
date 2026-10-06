@@ -495,6 +495,8 @@ app.add_middleware(
 # includes both and is the number closest to what the client felt. Kill: REQUEST_TELEMETRY=0.
 from services.request_telemetry import RequestTelemetryMiddleware
 app.add_middleware(RequestTelemetryMiddleware)
+from services.weather_pipeline.grid_response import GridResponseIngress
+app.add_middleware(GridResponseIngress)
 
 # CORS ON ERROR RESPONSES (backlog ⑦, shipped 2026-07-12): unhandled exceptions bypass
 # CORSMiddleware (Starlette's ServerErrorMiddleware wraps OUTSIDE user middleware), so during

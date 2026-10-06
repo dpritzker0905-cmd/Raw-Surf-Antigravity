@@ -120,7 +120,8 @@ jobs:
           // Raise to qualified hosted coverage; no frontend tests added by WS-08.
           // Shared world-coordinate repair adds1suite/94controls; local368/3966 passed.
           // Own hosted confirmation required; preserve the zero-margin frontend ratchet.
-          const MIN_SUITES = 368, MIN_TESTS = 3966;
+          // Mounted zero-coordinate hook: +1 suite/42 controls, local369/4008.
+          const MIN_SUITES = 369, MIN_TESTS = 4008;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1334,7 +1335,9 @@ jobs:
           # WI04: staged selector owns27 shared-object prune controls; projected2098/153files, margin6.
           # WI05: staged selector owns38 invalid-write/zero/ack controls; projected2136/154files, margin6.
           # WI01/WI06: 90 staged refresh/cycle-prune controls; projected2226/156files, margin6.
-          MIN_FILES, MIN_PASSED = 156, 2220
+          # Grid HTTP response envelope: staged chain test +49 executed controls.
+          # Own hosted9a7 read2226; projected2275/157files, preserve margin6.
+          MIN_FILES, MIN_PASSED = 157, 2269
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

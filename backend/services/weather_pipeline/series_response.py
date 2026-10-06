@@ -82,6 +82,15 @@ class SeriesAdmission:
 
     async def acquire(self, lane, request, deadline):
         queue = self.queue[lane]
+        if time.monotonic() >= deadline:
+            raise HTTPException(503, 'Series response deadline exceeded', headers={'Retry-After': '1'})
+        if request is not None and await request.is_disconnected():
+            raise HTTPException(499, 'Client disconnected')
+        # Queue capacity is for waiting work. An idle reserved slot remains usable
+        # even when the other lane's queue is full; do not starve a visible frame.
+        if self.active[lane] == 0 and not queue:
+            self.active[lane] += 1
+            return
         if sum(map(len, self.queue.values())) >= 4:
             raise HTTPException(429, 'Series admission queue full', headers={'Retry-After': '1'})
         ticket = object()
