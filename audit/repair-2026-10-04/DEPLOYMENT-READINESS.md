@@ -1,5 +1,7 @@
 # Deployment readiness: updated audit versus actual repairs
 
+Latest continuation 2026-10-06 17:30Z: PR243 merged to dev073de1e2 after ownf405 CI37501260553 all11/four supplementary and actual5906backend/369suites4008frontend;737. 741verifies served dev HTTP200/build073de1e2 and shared API healthy/version073de1e2; production frontend HTTP200/buildfc140024 remains frozen. No flag/provider settings changed. Fresh map controls mount; two style-not-loaded startup warnings need recovery diagnosis, with no wave/native playback accepted. Separate default-off manifest scan follow-up37new/214expanded twice; own739 hosted5943 pending. [Manifest scan results](MANIFEST-SCAN-RESULTS.md). Other scans/CPU/Gulf/device/cloud/PG/science remain open; unowned canary excluded.
+
 Latest qualification 2026-10-06 17:03Z: source9ba1f3e5 ownCI37497929680/all11/four supplementary success; actual5906backend/369suites4008frontend, estate297selected295produced0silent.734fulfills732/verifies733. Zero UI and dark response/real-helper child ownership qualify. Dev connector restored; readonly staging preflight accepted; actual publisher process credential/execution remains separate. [Response ownership results](RESPONSE-OWNERSHIP-RESULTS.md). Original Gulf/device/cloud/PG/science and live latency/resource/producer acceptance remain open; no promotion/activation; unowned canary excluded. Final receipt docs only.
 
 2026-10-06 17:07Z static preview readback: HTTP200/build0849b89e, including a cache-bypassed GET. The frontend tree is unchanged between0849 and qualified9ba1; the served build stamp does not identify9ba1. Netlify reports the latest preview check success, but no current-stamp/pixel/native acceptance is claimed. A static frontend preview cannot qualify the shared API deployment or dark flags. No map/forecast request was executed.
@@ -24,12 +26,12 @@ This supersedes the older deployment status in PROGRESS.md without rewriting his
 
 | Component | Evidence (live versions are last confirmed; no new live-map/API load) | Meaning |
 |---|---|---|
-| PR243, targeting dev | OPEN; qualified runtime9a7a33ba CI37412065874 all11/four supplementary,5852backend/368suites3966frontend; final receipt docs only | No dev/production promotion or scientific activation; unowned canary edit excluded |
-| Shared Render API | Public /api/health healthy, version ends6b062e97; /api/health/data ok, alerts empty | Current PR backend is not live; health does not certify model-cycle freshness |
-| Netlify dev | service-worker BUILD_VERSION2a7b8615 | Current PR frontend is not live on dev |
+| PR243, targeting dev | MERGED dev073de1e2; ownf405 CI37501260553 all11/four supplementary, actual5906backend/369suites4008frontend | Owner-authorized dev/shared-API rollout verified741; scientific flags not activated; unowned canary excluded |
+| Shared Render API | Fresh /api/health healthy, version ends073de1e2; Render last-successful commit matches | PR243 backend live; health does not certify model-cycle freshness or dark-flag activation |
+| Netlify dev | Fresh static HTTP200/service-worker BUILD_VERSION073de1e2 | PR243 frontend live on dev; authenticated controls mount, wave/native/device acceptance separate |
 | Netlify production | service-worker BUILD_VERSIONfc140024 | Owner's frozen frontend remains served |
 | Netlify PR243 preview | Source9a7a33ba status ready; static service-worker HTTP200/build9a7a33ba | Preview build identity verified; no map/forecast execution or pixel/device acceptance |
-| Separate Supabase Dev | Prior successful preflight empty/private/RLS; latest readonly SQL failed OAuth refresh before execution | Access/emptiness must be reverified; actual publisher canary unexecuted |
+| Separate Supabase Dev | Connector access restored730; readonly private/empty/RLS/constraints/grants preflight verified earlier this session | Actual Storage/REST publisher credential is separate and absent; canary unexecuted |
 
 Authenticated Chrome readback now confirms Render dev/Auto-Deploy On Commit, migrations in the
 build command and empty health-check path. Live /api/health/simple returned HTTP200. Netlify is

@@ -156,9 +156,16 @@ async def resolve_grid(
 
     # 1. Search the manifest for candidate products covering the target time
     manifest = await asyncio.to_thread(store.get_manifest)
-    authoritative_candidates, estimated_candidates = find_candidates(
-        manifest, model, domain, layer, target_dt
-    )
+    if os.environ.get("GRID_RESPONSE_BOUNDS", "0") == "1":
+        # The owned grid child retains its lease while this real thread finishes.
+        # Offloading removes this scan from the loop; it does not preempt CPU work.
+        authoritative_candidates, estimated_candidates = await asyncio.to_thread(
+            find_candidates, manifest, model, domain, layer, target_dt
+        )
+    else:
+        authoritative_candidates, estimated_candidates = find_candidates(
+            manifest, model, domain, layer, target_dt
+        )
 
     # MID-RES split (Step 3.6 tier, mid_res_tier.py): global_mid items must never compete in the
     # generic selection — select_best_candidate ties globals on intersection+coverage area and falls

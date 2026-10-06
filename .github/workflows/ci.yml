@@ -1336,9 +1336,9 @@ jobs:
           # WI05: staged selector owns38 invalid-write/zero/ack controls; projected2136/154files, margin6.
           # WI01/WI06: 90 staged refresh/cycle-prune controls; projected2226/156files, margin6.
           # Grid HTTP response envelope: staged chain test +54 executed controls.
-          # Own hosted9a7 read2226; projected2280/157files, preserve margin6.
+          # Own hostedf405 read2280; 37 scan/lease controls project2317/157files, preserve margin6.
           # Five follow-ups grade real-helper cancellation/ready frames/expired child work.
-          MIN_FILES, MIN_PASSED = 157, 2274
+          MIN_FILES, MIN_PASSED = 157, 2311
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

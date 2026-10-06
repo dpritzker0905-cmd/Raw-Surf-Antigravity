@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 17:03Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 17:35Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,19 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 17:30Z: owner-authorized PR243 is merged to dev; scan follow-up stays separate.**
+  Dev073de1e2 from pinnedf405, own37501260553 all11/four supplementary,
+  actual5906backend/369suites4008frontend;737records merge.741verifies served
+  dev build/API healthy073de1e2 and Render commit; frontend productionfc140024
+  stays frozen. Fresh map controls mount; style startup recovery still ungraded.
+  no flags/provider settings changed.736verifies prior735 publication.
+  Manifest selector ran on event loop:12fail24pass twice over20007entries;
+  dark same-selector offload repaired locally37new/214expanded twice.
+  HTTP deadline retains actual scan-thread lease. Other scans/CPU/live/Gulf/
+  cloud/PG/science acceptance remain open.739own hosted5943 projection pending;
+  follow-up codex/manifest-scan-repair not deployed.740publication pending.
+  Unowned canary preserved/excluded. MANIFEST-SCAN-RESULTS.md.
 
 - **2026-10-06 17:03Z: zero UI and response/child ownership source9ba1 fully qualified.**
   Own37497929680/all11/four supplementary: actual5906backend/369suites4008
@@ -945,7 +958,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 735, sha256 6faab6447d4fb66f55768e2dc189f2f53694eab33d4b7253dee2815012b2b22c**
+  **Ledger head: seq 741, sha256 6ae0da0888c5678b6fadd83010bf3cb2982464e09b3ab4f53e9556f6f53f8b4a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
