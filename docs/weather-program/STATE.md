@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 22:43Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 23:37Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,35 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 23:35Z: truth-inspector cadence/lifecycle repaired locally785/787.**
+  Owner784 requests real progress;776 already authorizes qualified beneficial dev merges.
+  Render throttled but idle unbounded: mounted red twice8fail5pass,60frame pairs
+  caused64 style snapshots;20moveend events21snapshots and stale callbacks. Shared
+  250ms render/idle budget plus final-idle check; coalesced/owned moveend cancellation.
+  New13 and existing grace4pass; full373suites4079tests, build/lint/LOCpass. One actual
+  offline MapLibre pair125to9 reads; two incomplete deadline captures excluded.
+  No original FPS-cause or physical/time/device acceptance.786 tracks own hosted
+  qualification, approved dev merge and bounded served observation.789 verifies788
+  actual32dd local/remote/draft PR248 OPEN/dev. Publication receipt continuation
+  changes no runtime/test/workflow; final head still needs its own hosted checks.
+  Runtime limited to hook, no forecast math/mask/guard/science switch change.
+  Dev1993cc39/APIhealthy; data-health warn inherited, production frontendfc140024.
+  Unowned canary preserved and excluded.
+
+- **2026-10-06 23:13Z: owner-approved PR247 merged dev1993cc39, ledger778.**
+  Exact ec34 source qualified: ownCI37543004057 all11 and four supplementary
+  workflows green; actual5943backend,372suites4066frontend,estate0silent.
+  778 verifies775 publication;776 records broader beneficial dev repair authority.
+  779 reads dev frontend1993cc39/shared API full1993cc39 healthy; production
+  frontendfc140024 frozen.780 fulfills777: one clean paused GFS Waves observation
+  with startup2/4/4FPS warnings then HUD23..27FPS, no sustained trip or timing
+  receipt. Play/Pause12 and ArrowRight13 worked; exact-time/smoothness unproven.
+  Waves off read back and owned tab closed; post-map API healthy, data-health warn
+  unchanged from premerge. Original cause/Gulf/device gates stay open.781 records
+  the receipts; next probe measures out-of-engine listener/mask costs offline.
+  Production frontendfc140024 frozen; no science/serving flags or forecast math changed.
+  Unowned staging canary preserved and excluded.
 
 - **2026-10-06 22:05Z: owner-approved PR246 merged dev72e6e5ad, ledger767.**
   Approved exact144 ownCI37536152276 all11 and four supplementary green;
@@ -1042,7 +1071,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 775, sha256 8bfc9106dd847ad1df0e0e2ab161fe2a9336432421d0bbd2d762063a1f95a4fb**
+  **Ledger head: seq 789, sha256 f9e0c925005adc0b07774eb433dc556eb7ae3acc3d32b06c13a7313f9fddb327**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

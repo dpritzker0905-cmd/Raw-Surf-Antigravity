@@ -190,3 +190,63 @@ frames then a gap under2s), so a streak can exceed30s; existing cap deliberately
 yields unknown, not partial evidence. Behavior/tests unchanged; timeout control
 passed in final CRACO372/4066. Source receipt/comment-only push next; exact new
 head needs hosted checks. Canary unchanged/excluded; no dev/main merge or flip.
+
+## 2026-10-06 23:13Z — owner-approved PR247 dev merge776–778
+
+Exact ec34 qualified on ownCI37543004057: all11 plus four supplementary green; actual5943backend,372suites4066frontend,estate0silent. Pinned PR247 squash read back MERGED1993cc39294a75436218d426b13a359cdb57a356 at23:10:28Z; fetched origin/dev agrees. 778 verifies775 publication. Automatic rollout and bounded clean map follow-up tracked777. No served forecast math change, production promotion or serving/science activation. Unowned canary preserved/excluded.
+
+## 2026-10-06 23:19Z — qualified PR247 merged and served; bounded capture780
+
+
+PR247 exact source ec34dfa22e6498b2fa0613550f45d89de78e6c5d qualified on
+CI37543004057: all11 jobs and four supplementary workflows successful. Actual
+backend5943 = guards2425 + chain2317 + estate1201; estate297 selected295 produced,
+zero silent. Frontend372/372 suites4066/4066 tests. Source diagnostics remain
+unchanged from that qualification. Owner776 approves the dev merge and beneficial
+dev repairs;778 reads MERGED1993cc39294a75436218d426b13a359cdb57a356 at23:10:28Z.
+779 reads dev frontend1993cc39 at23:13:44Z and shared API healthy/full1993cc39 at
+23:14:02Z; production frontendfc140024 remains frozen. Automatic squash CI still
+running at the later readback; source qualification is not borrowed from it.
+
+One clean native Chrome map, no concurrent local build/test: GFS Waves paused0
+loaded authoritative NOAA ncep_gfswave025; public GPU HUD FRAMEBUFFER_COMPLETE,
+169 marine cells,11 textures/33.51MB,19 uploads before short playback. Startup
+warnings at23:16:32..35Z were2/4/4FPS; later warnings12..19FPS interleaved with
+healthy windows. HUD27FPS before Play,26 at Play,23 at Pause12,24 at ArrowRight13,
+21 near cleanup. Uploads31 after playback. No sustained guardrail trip and no
+mainThreadTiming receipt. This is a non-reproduction of the sustained slowdown,
+not evidence of zero long tasks or a repaired cause. Timeline says nearest model
+time where appropriate; requested/drawn/served/run equality remains unproven.
+
+Waves off verified by public aria-pressed false; owned tab1101120701 closed.
+Post-map API at23:18:08Z healthy/full1993cc39; data-health warn unchanged from
+premerge.780 fulfills777 bounded follow-up only. Original intermittent fallback,
+smooth Play/scrub, exact served/run time, Gulf amplitude and broader devices stay
+open. Unowned canary SHA256 unchanged and excluded. No served forecast number,
+production promotion, science/serving switch or cloud publication changed.
+
+Next discriminating experiment: offline full-layer idle/settle fixture measuring
+mask refresh and truth listener costs separately from engine draw. Source shows
+idle/moveend/zoomend may invoke refreshMaskWithBasemapWater outside the engine CPU
+histogram. Successful paints consume the700ms throttle; false returns do not.
+Some false exits occur after canvas painting or upload failure, so the claim
+that all skipped attempts cost only bounds math is not universally true. Whether
+that path occurred during the original live slowdown is UNKNOWN. Hysteresis and
+tile-ready exits must remain cheap; a test must distinguish those from failed
+expensive attempts and verify prompt tile-readiness recovery before any throttle
+change. useLayerTruthDiff getStyle work is another unmeasured candidate. Neither
+candidate is a proven cause. No speculative mask/listener behavior repair applied.
+
+## 2026-10-06 23:21Z — receipt publication783
+
+783 verifies782 remote21a9c4429422cfcc7defc426094ee04c16c9c829 equals local. Docs-only rollout receipt batch; final verification continuation changes no runtime/test/workflow. No additional dev deployment needed for these notes. Callback root cause remains open; offline listener/mask-cost discrimination is next. Unowned canary unchanged and excluded.
+
+Final receipt validation: ledger783 valid; docs audit0FAIL9WARN4NOTE inherited. Runtime/tests/workflows unchanged from deployed1993cc39.
+
+## 2026-10-06 23:35Z — concrete truth inspector cadence/lifecycle repair785–788
+
+Repeated red8fail5pass verifies unbounded idle and stale moveend defects. Mounted green17/17, final project CRACO373/373suites4079/4079tests0fail0pending. Buildexit0, lint1236files86errors917warnings inherited ratchetpass, LOC0new0regressed. One completed actual MapLibre/React offline pair125to9style snapshots; median16.7ms both, no FPS improvement claim; initial/reverse deadlines incomplete/excluded. No localtest/build overlapped the native pair. No original root-cause/Gulf/device/served-time acceptance. Forecast math, mask policy and guard thresholds unchanged; no served number change. 787 qualifies locally;786 awaits new hosted/approved dev merge/live readback,788prepares publication. Unowned canary hash unchanged/excluded. See TRUTH-INSPECTOR-CADENCE-RESULTS.md.
+
+## 2026-10-06 23:37Z — cadence source publication789
+
+789 verifies788: local/remote/PR248 head32dd7e443aa920d1ea258e5575382d1f49166eb6, OPEN draft dev and attached. OwnCI37547474025 queued then running, not yet qualified. Receipt-only continuation does not change runtime/tests/workflows; final own head must pass under786. No merge/activation/live forecast load or original cause claim. Canary unchanged/excluded.
