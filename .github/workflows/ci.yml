@@ -1325,7 +1325,8 @@ jobs:
           # Exact-corner validity67 controls: projected2049, margin6.
           # Four actual unset-default controls belong to chain: projected2053, margin6.
           # WI02: 18 invocation-scoped product progress controls; projected2071, margin6.
-          MIN_FILES, MIN_PASSED = 152, 2065
+          # WI04: staged selector owns27 shared-object prune controls; projected2098/153files, margin6.
+          MIN_FILES, MIN_PASSED = 153, 2092
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

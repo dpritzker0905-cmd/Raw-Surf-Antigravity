@@ -63,6 +63,8 @@ export function frameToMarineData(frame, model, layer) {
     __componentLayer: layer,
     __sourceModel: model,
     __sourceDataset,
+    // Keep the reported dataset separate from the legacy display-label guess above.
+    source_dataset: frame.source_dataset || null,
     __gridProvider: provider,
     // The ORIGIN beside the DISPATCH KEY, so a consumer can tell an 8 km MFWAM field from a 25 km
     // IFS one. `__MARINE_RENDER_SOURCE_DIAG__.upstreamProvider` reads this.

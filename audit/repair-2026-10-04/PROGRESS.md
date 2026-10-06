@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-05 23:49Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-06 00:27Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -113,3 +113,13 @@ See PERFORMANCE-RESULTS.md; source21db8ee8 CI37241546337 hosted qualified all11j
 frontend351/3647/backend5219; supplementary gates and preview accepted. No live latency claim.
 PF03 diagnosis in PF03-DIAGNOSIS.md is followed by the current dark runtime repair.
 Current staging,14-row source qualification and limitations: REMAINING-BATCH-RESULTS.md.
+
+
+## 2026-10-06 00:27Z: next repairs locally accepted
+
+Resident/point/HUD provenance repaired; WI04 shared-object deletion reproduced and repaired
+dark.360/3746frontend,245expanded backend,250expanded frontend pass. Newsource hosted pending673;
+qualified1912639b remains the predecessor.27newchain cases project5604backend; full lint still
+contains four pre-existing findings in unchanged files. WI01/WI05/WI06 and actual Gulf native
+frame/pixels/cloud/PG/card/science acceptance remain open. Original50row coverage is not recounted
+as production closure. No merge/deploy/activation. GULF-RESIDENT-PRUNE-RESULTS.md.

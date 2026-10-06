@@ -5,6 +5,7 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics } from './backendWeatherServiceClientDiag';
 import { pointRequestIdentityEnabled, createPointRequestContext, childPointRequestContext } from './pointRequestIdentity';
 import { marineValueValidityEnabled, marinePointValues } from './marinePointValues';
+import { readMarineFrameReceipt } from './marineFrameReceipt';
 
 export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer = 'waves', model = 'GFS', gridProductIdParam = null, gridBboxParam = null, requestContext = null) {
   requestContext = pointRequestIdentityEnabled()
@@ -559,6 +560,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
 
     const data = {
       hourly: conformedHourly,
+      frameReceipt: readMarineFrameReceipt(json),
       snappedLat: json.point.sampled_lat || lat,
       snappedLng: json.point.sampled_lng || lng,
       requestedLat: lat,
@@ -631,6 +633,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
 
     const details = {
       url,
+      frameReceipt: data.frameReceipt,
       status: res.status,
       validTime: validTimeStr,
       valueKind: json.value_kind || (layer === 'swell_1' ? 'swell_wave_height' : 'wave_height'),

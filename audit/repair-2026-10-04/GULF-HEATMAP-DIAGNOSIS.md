@@ -93,3 +93,12 @@ Run offline from repository root with the qualified Node runtime:
 `node audit/repair-2026-10-04/gulf-height-probe.cjs`.
 Detailed local results are retained under ignored `visual/gulf-height-results.json` and
 `visual/gulf-regressions.json`; no raw user log or credential is committed.
+
+
+## 2026-10-06 00:27Z: resident-frame evidence repair
+
+Actual resident/point receipt drops and false control-label/HUD parity reproduced twice and
+repaired. Compact pasted snapshots now include both receipts and selected offshore reading.
+Final360/3746 frontend and245expanded backend pass; source hosted qualification pending673.
+This does not identify the real Gulf cell/pixel cause or raise model values. Refer to
+[GULF-RESIDENT-PRUNE-RESULTS.md](GULF-RESIDENT-PRUNE-RESULTS.md).

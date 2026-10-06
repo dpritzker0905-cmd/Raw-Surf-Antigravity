@@ -8,6 +8,7 @@ import {
   writeOverlayDiagnostics
 } from '../components/map/forecastSamplers';
 import { isInCooldown, clearCooldown } from '../components/map/marineControllerUtils';
+import { residentFrameDiagnosticsEnabled } from '../components/map/marineFrameReceipt';
 
 // EXACT-POINT FETCH BUDGET (2026-07-06): the shared 12s abort guaranteed a first-look "Timeout"
 // on EURO — a COLD native CMEMS point measured 17s live (GFS 0.9s / ICON 2.5s), so every first
@@ -278,10 +279,11 @@ export function useExactPointFetch({
   }, [pointLat, pointLng, activeModel, activeLayer, isScrubbing, isPlaying, settledOffset, isExactPointRequired, selectedSpot, longPressLocation, retryNonce]);
 
   useEffect(() => {
-    if (!effectiveExactPointResponse) {
+    const selected = effectiveExactPointResponse ? selectExactPointHour(effectiveExactPointResponse, timeOffsetHours) : null;
+    if (!selected) {
+      if (typeof window !== 'undefined' && residentFrameDiagnosticsEnabled()) window.__MARINE_POINT_DIAG__ = null;
       return;
     }
-    const selected = selectExactPointHour(effectiveExactPointResponse, timeOffsetHours);
 
     if (selected) {
       const targetTs = Date.now() + (timeOffsetHours || 0) * 3600000;
@@ -319,6 +321,8 @@ export function useExactPointFetch({
         window.__MARINE_POINT_DIAG__ = {
           point: { lat: pointLat, lng: pointLng },
           activeModel, activeLayer, timeOffsetHours,
+          frameReceipt: residentFrameDiagnosticsEnabled() && !['exact_no_time_coverage', 'exact_stale_available'].includes(selected.status)
+            ? effectiveExactPointResponse.frameReceipt || null : null,
           targetTimestamp,
           requestedForecastDays: effectiveExactPointResponse.forecastDays,
           returnedTimeRange: {

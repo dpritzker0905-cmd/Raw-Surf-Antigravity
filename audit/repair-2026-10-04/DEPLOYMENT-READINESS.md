@@ -1,9 +1,9 @@
 # Deployment readiness: updated audit versus actual repairs
 
-Verified 2026-10-05 23:49Z. This is a deployment assessment, not deployment authorization.
+Verified 2026-10-06 00:27Z. This is a deployment assessment, not deployment authorization.
 The supplied deep REPORT.md includes sections 10 and 11, and its current SHA256 is
 `be4914fbc8de71b1cfada3b7beb0f78e669c8fd6b5090fefbc3678accb5b72c0`.
-Its merge-blocker review is of `0bb3aec0`; the qualified runtime/CI-test/workflow source is now `1912639b`; later receipts/audit instruments do not change that source.
+Its merge-blocker review is of `0bb3aec0`. Qualified predecessor1912639b remains historical evidence; new resident-diagnostic/WI04 source has local acceptance and requires exact hosted qualification673.
 This supersedes the older deployment status in PROGRESS.md without rewriting historical receipts.
 
 ## What is actually running
@@ -113,3 +113,13 @@ unchanged3700frontend. Invocation product progress is distinct from metadata, re
 and earlier runs. Health grades verified model cycles, with unknown/stale warnings
 unconditional in this candidate; no serving model/value/science switch changed.
 INGESTION-REPAIR-RESULTS.md states the exact scope and cloud/rollout limits.
+
+
+## 2026-10-06 00:27Z: current source delta
+
+Actual resident/point receipts and HUD refusal ship as diagnostics; WI04 object preservation
+built default0/unset for explicit owner activation.360/3746full frontend and245expanded backend
+pass locally. Source changed; predecessor5577/3700 does not certify it. Projection5604backend/
+3746frontend, commitment673. Broad backend lint is soft in CI and reports four unchanged findings;
+changed files lint clean. Cloud/native/PG/card/science and remaining ingestion gates retained.
+See GULF-RESIDENT-PRUNE-RESULTS.md. No deployment/merge/flag change.

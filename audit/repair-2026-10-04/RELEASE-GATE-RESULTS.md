@@ -138,3 +138,12 @@ derivative0.25 is not actual Gulf data. Later frame/cycle/product/cell identitie
 absent from captured logs; first-three encoder statistics cannot qualify later98h.
 Root cause/full native map/science remain open. GULF-HEATMAP-DIAGNOSIS.md.
 No merge/deploy/provider write/forecast flag activation; productionfreeze preserved.
+
+
+## 2026-10-06 00:27Z: resident diagnostics and dark WI04
+
+Local360/3746 full frontend;250frontend/245backend expanded;27newchain cases. Null manifest
+selection Jacobian across three synthetic prune modes; object preservation improves only when
+explicit flag1. Hosted source pending673; no predecessor qualification borrowed. Whole backend
+fatal lint reports four existing findings in unchanged files; changed files pass. No live map load,
+cloud publish, deployment, activation or physical forecast gain. GULF-RESIDENT-PRUNE-RESULTS.md.

@@ -131,3 +131,29 @@ CI-test/workflow diff from qualified1912639b empty; new standalone Gulf audit
 instrument and receipts explicit. Local ledger670/memory0FAIL8WARN5NOTE pass.
 Ledger671 accompanies this publication batch; documentation-head checks pending,
 not claimed fully green. No merge/deploy/flag/provider writes or served values changed.
+
+
+### 2026-10-06 00:27Z: Gulf actual-frame evidence and dark WI04 local acceptance
+
+Eight resident/adapter/grid failures twice; stale point twofail/onepass twice; HUD twofail/elevenpass
+twice. Receipt envelope avoids altering existing grid run identity/base hold; missing evidence refuses
+certification. Compact snapshot JSON includes both actual receipts and selected offshore reading.
+WI04 sevenfail/twelvepass twice including real save-provider collision;63focused twice and245expanded
+repeated after. All three prune paths protect retained objects/keys only with explicit flag1; unset0
+legacy controls and call-time rollback pass. Three synthetic manifest selection null Jacobians; no
+served number, science/forecast-skill gain or actual Gulf pixel/root-cause claim.360/3746 fullfrontend
+and250expanded; lint ratchet/LOC649<=800 pass. Broad backend lint four pre-existing findings in
+unchanged gallery scheduler/watermark/quarantined test; current touched files clean. No skip changes.
+Staged selector153chain owns27newcases; paired floor2092/ref2098; projected5604backend, hosted pending673.
+No merge/deploy/provider/live-map/cloud write/activation. WI01/WI05/WI06/cloud/native/PG/card/science
+remain open. Ledger672-674 and GULF-RESIDENT-PRUNE-RESULTS.md.
+
+
+### 2026-10-06 00:28Z: new receipt row schema corrected
+
+The pre-publication memory gate caught a missing sixth column in the newly appended scoreboard
+row. Its claims were preserved and the missing D-001 column added; prior rows remain unchanged.
+Memory0FAIL8WARN5NOTE after the formatting repair. Correction675 records this;673 still pending.
+
+Correction676: the preceding note and675 verification copied the prior5NOTE count. Actual
+current audit is0FAIL8WARN6NOTE: new commitment673 adds one NOTE. No test/source result changed.

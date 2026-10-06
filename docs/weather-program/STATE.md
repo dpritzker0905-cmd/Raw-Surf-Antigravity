@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-05 23:49Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 00:27Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,18 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 00:27Z: Gulf resident diagnostics and dark WI04 locally accepted.**
+  Actual resident/point receipts, stale diagnostic clearing, HUD refusal and compact pasted JSON.
+  Eightbeforefail twice; stale twofail twice; HUD twofail twice. WI04 real provider/save collision
+  sevenfail twice; three prune paths protect only unreferenced deletion with explicit flag1.
+  Default0/unset, registry records it; manifest selection null in three fixtures. No source activation.
+  Fullfrontend360/3746;250frontend/245backend expanded;63prune focused repeated. New27chain;
+  projection5604backend2393/2098/1113, hosted commitment673 pending. Predecessor191qualified
+  does not certify newsource. Four broad-lint findings in unchanged files explicit; changed lint clean.
+  No served number, live map/cloud/provider write, merge/deploy or scientific gain. WI01/WI05/WI06,
+  actual Gulf frame/pixels/native/mobile/performance, Devcanary/PG/card/science remain open.
+  GULF-RESIDENT-PRUNE-RESULTS.md; sessionlog2026-10-05-deployment-readiness; ledger672-674.
 
 - **2026-10-05 23:49Z: ingestion source1912639b hosted-qualified; Gulf capture incorporated.**
   CI37388965928 all11SUCCESS; actual5577backend=2393guards2071chain1113estate,
@@ -741,7 +753,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 671, sha256 d5eb3109ae951eee8e4836308404b41c254448acd00772dadc93d7a1b9e38eb7**
+  **Ledger head: seq 676, sha256 78b7c5df5d535ce4832af59f4c29503723cb08e441191f77c7e4363cf86f217b**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

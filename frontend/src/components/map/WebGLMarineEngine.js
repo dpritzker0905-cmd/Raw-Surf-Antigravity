@@ -31,7 +31,7 @@ import { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CA
   from './marineOverlayMode';
 export { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason };
 import { setLandAwareFetchUniforms } from './marineLandAwareFetch';
-import { populateCrestDiagnostics } from './WebGLMarineEngineDiagnostics';
+import { populateCrestDiagnostics, marineForensicFrameEvidence } from './WebGLMarineEngineDiagnostics';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, COARSE_CREST_BAND_MIN_ZOOM } from './marineZoomThresholds';
 import {
   reinitParticles,
@@ -1607,7 +1607,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       var _fsNow = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       if (!this._forensicSnapT || (_fsNow - this._forensicSnapT) > 15000) {
         this._forensicSnapT = _fsNow;
-        var _snap = {
+        var _snap = { ...marineForensicFrameEvidence(waveGrid),
           zoom: (typeof z === 'number') ? +z.toFixed(2) : null,
           dims: waveGrid ? `${waveGrid.cols}x${waveGrid.rows}` : null,
           spanLng: (waveGrid && waveGrid.bounds) ? +boundsLonSpan(waveGrid.bounds).toFixed(2) : null,
