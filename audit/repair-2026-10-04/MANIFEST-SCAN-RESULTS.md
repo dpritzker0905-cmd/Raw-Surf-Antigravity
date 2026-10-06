@@ -74,3 +74,7 @@ Design reference: [Python task/shield/thread semantics](https://docs.python.org/
 Rollout readback741: PR243 dev frontend and shared API now serve073de1e2;
 production frontend stillfc140024. This follow-up scan source is separate.
 Additional floor/selector guards pass72; discovery/skip budgets unchanged.
+
+## 2026-10-06 17:56Z — exact-source qualification745
+
+Source5b286f7a own CI37504889852 all11 successful. Actual stdout: guards2425passes/186files (2492JUnit/67skip), chain2317passes/157files, estate1201passes/297selected295produced0silent; total5943backend. Frontend369suites4008tests. LOC37504889840,ledger37504889870, Lighthouse37504889848 and manual same-source encoding37505186980 passed. 745fulfills739. PR246 body updated/read back746; source remains OPEN/dev, not merged/deployed, responseflag off.747prepares docs-only receipts and runtime equivalence/pinned publication readback. Local canary hash preserved/excluded. DEV-RENDERER-SMOKE.md records fresh paused1FPS recovery/retrip; no physical Gulf/native/device/live-resource/cloud/PG/science acceptance.

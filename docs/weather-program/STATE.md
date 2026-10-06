@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 17:35Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 17:56Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -23,8 +23,14 @@ is a claim, not a measurement.
   Manifest selector ran on event loop:12fail24pass twice over20007entries;
   dark same-selector offload repaired locally37new/214expanded twice.
   HTTP deadline retains actual scan-thread lease. Other scans/CPU/live/Gulf/
-  cloud/PG/science acceptance remain open.739own hosted5943 projection pending;
-  follow-up codex/manifest-scan-repair not deployed.740publication pending.
+  cloud/PG/science acceptance remain open.745fulfills739: own5b CI37504889852
+  all11/four supplementary, actual5943backend/369suites4008frontend,estate0silent.
+  follow-up PR246/source5b286f7a OPEN/dev, not deployed.742verifies740.
+  Manual same-source encoding743 passed;746PR body read back.747docs receipt
+  publication readback follows; runtime remains qualified5b.
+  Paused GFS smoke744:1FPS trip/recovery/retrip with served/run metadata
+  absent; current entry URL matches dev HTML. Waves then off; native/Gulf
+  cause remains open. DEV-RENDERER-SMOKE.md. No guard override.
   Unowned canary preserved/excluded. MANIFEST-SCAN-RESULTS.md.
 
 - **2026-10-06 17:03Z: zero UI and response/child ownership source9ba1 fully qualified.**
@@ -958,7 +964,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 741, sha256 6ae0da0888c5678b6fadd83010bf3cb2982464e09b3ab4f53e9556f6f53f8b4a**
+  **Ledger head: seq 747, sha256 bf9fd39b851bd092938ea20d473cd9b51f99fcaa1848c20cbda7ec4f9a25e9d2**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

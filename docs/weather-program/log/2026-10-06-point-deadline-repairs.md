@@ -50,3 +50,11 @@ PG acceptance or dev deployment. Local inventory still has0GFSwave products.
 ## 2026-10-06 17:35Z — live dev rollout readback741
 
 Fresh17:32Z dev staticHTTP200/build073de1e2 and shared API healthy/version073de1e2; Render last-successful commit matches. Production staticHTTP200/buildfc140024 remains frozen. Fresh authenticated Chrome dev map controls mount, all weather layers inactive. Captured two style-not-loaded startup warnings, marine and wind; their recovery is not yet diagnosed. Other captured warnings mention listener limits/multiplex streams and are not attributed to app source without evidence. No wave/native/Gulf pixels, physical forecast, device/FPS or cloud/PG acceptance follows from this smoke check. No manual deploy/config/flag/write.
+
+## 2026-10-06 17:53Z — manifest publication and paused renderer readback742–744
+
+PR246 OPEN/dev exact5b286f7a remote/head/body matched; unowned canary excluded, no follow-up merge/deploy. Manual existing Encoding Guard37505186980 passed on5b. Own739 CI still pending. Paused GFS hour0 smoke reproduced1FPS trip, recovery and second trip; Waves then off, earlier inactive readback, later reread timed out. Served/run metadata missing; browser entry URL matches fresh dev HTML. DEV-RENDERER-SMOKE.md records evidence and profiling candidates without attributing GPU/CPU cause. No playback/Gulf/device acceptance or guard override.
+
+## 2026-10-06 17:56Z — exact-source qualification745
+
+Source5b286f7a own CI37504889852 all11 successful. Actual stdout: guards2425passes/186files (2492JUnit/67skip), chain2317passes/157files, estate1201passes/297selected295produced0silent; total5943backend. Frontend369suites4008tests. LOC37504889840,ledger37504889870, Lighthouse37504889848 and manual same-source encoding37505186980 passed. 745fulfills739. PR246 body updated/read back746; source remains OPEN/dev, not merged/deployed, responseflag off.747prepares docs-only receipts and runtime equivalence/pinned publication readback. Local canary hash preserved/excluded. DEV-RENDERER-SMOKE.md records fresh paused1FPS recovery/retrip; no physical Gulf/native/device/live-resource/cloud/PG/science acceptance.
