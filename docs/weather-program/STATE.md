@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 03:26Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 03:45Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,6 +14,17 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-06 03:45Z: WS-08 HTTP coordinate repair locally accepted; own714 hosted pending.**
+  Actual router64invalid/24valid before twice;142expanded after twice; rejects impossible
+  and nonfinite coordinates before resolver. Valid geographic endpoints/Gulf/frame
+  identifiers unchanged; no served scientific number or frontend runtime change.
+  Estate297files/+88controls; projected5852backend and367/3872frontend awaits exact CI.
+  Paired estate floor1199/reference1201; frontend actual hosted367/3872 now pinned.
+  Local environment differs from declared CI; LOC and partition pass. Dev OAuth
+  refresh still fails before readonly SQL. Server deadlines, Gulf/full-map/devices,
+  actual cloud publication, PG/card and science remain open. No merge/deploy/flag action.
+  Publication711 verified712; WS-08 publication715 pending; POINT-COORDINATE-RESULTS.md.
+
 - **2026-10-06 03:26Z: both visual and dark actual-time repairs qualified on source48c04424.**
   Own CI37407541898: all11 jobs and four supplementary success; actual5,764backend
   and367suites3,872frontend; estate296selected294produced0silent. Ledger710fulfills708
@@ -25,7 +36,7 @@ is a claim, not a measurement.
   initialization cleanup/caller fallback, raster resolution and actual-time guards.
   Original Gulf/data/pixel/native/raster/mobile/FPS/heap, Dev publication/OAuth,
   PG/card/latency/held-out science remain open. Production freeze retained. Final
-  docs-only publication711 needs exact push readback; runtime/workflow bytes stay48c04424.
+  docs-only publication711 verified by712; runtime/workflow bytes stayed48c04424.
   FRONTEND-FRAME-TIME-RESULTS.md and VISUAL-RESILIENCE-RESULTS.md.
 
 - **2026-10-06 03:07Z: visual a1cb1ed3 qualified; separate WF03 actual-time source local/708pending.**
@@ -878,7 +889,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 711, sha256 a806b01d9b726b195410217f973252339a0ee13e2bd2770c429126968301aa7d**
+  **Ledger head: seq 715, sha256 a9fd9e0015be2d14bd9df980cbb3ea3850664901fd5413d2fdaa1ed8e4773f74**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

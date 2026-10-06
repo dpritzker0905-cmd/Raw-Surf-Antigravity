@@ -182,8 +182,8 @@ async def get_point(
     model: str = Query(..., pattern="^(GFS|ICON|EURO|CONSENSUS)$"),
     domain: str = Query(..., pattern="^(marine|wind|weather)$"),
     layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
-    lat: float = Query(..., description="Latitude coordinate"),
-    lng: float = Query(..., description="Longitude coordinate"),
+    lat: float = Query(..., ge=-90, le=90, allow_inf_nan=False, description="Latitude coordinate"),
+    lng: float = Query(..., ge=-180, le=180, allow_inf_nan=False, description="Longitude coordinate"),
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),
     grid_product_id: Optional[str] = Query(None, description="The exact grid product to sample from"),
     grid_bbox: Optional[str] = Query(None, description="The client's viewport grid bbox")
