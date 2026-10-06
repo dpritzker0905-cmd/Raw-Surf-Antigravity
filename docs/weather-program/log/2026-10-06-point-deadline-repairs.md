@@ -236,3 +236,9 @@ tile-ready exits must remain cheap; a test must distinguish those from failed
 expensive attempts and verify prompt tile-readiness recovery before any throttle
 change. useLayerTruthDiff getStyle work is another unmeasured candidate. Neither
 candidate is a proven cause. No speculative mask/listener behavior repair applied.
+
+## 2026-10-06 23:21Z — receipt publication783
+
+783 verifies782 remote21a9c4429422cfcc7defc426094ee04c16c9c829 equals local. Docs-only rollout receipt batch; final verification continuation changes no runtime/test/workflow. No additional dev deployment needed for these notes. Callback root cause remains open; offline listener/mask-cost discrimination is next. Unowned canary unchanged and excluded.
+
+Final receipt validation: ledger783 valid; docs audit0FAIL9WARN4NOTE inherited. Runtime/tests/workflows unchanged from deployed1993cc39.
