@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 00:27Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 00:52Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,6 +14,25 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-06 00:52Z: resident sourceff5cfc98 hosted-qualified; WI05 next source pending679.**
+  All11 CI37394319031 success; actual5604backend2393/2098/1113 and frontend360/3746,
+  estate296selected294produced0silent; supplementary gates success. Fulfilled673, ledger680.
+  New WI05 local guard/default0 and38tests are not certified by this predecessor.
+  WI01 full/stride2 stale disk independently reproduced2fail twice; corrected WI06 transient
+  cycle fallback2fail/1control twice,6h older run. Both repairs open; ledger681. No actual Gulf
+  cause or separate new-run-time stamping proof. No deployment/flag/cloud/provider action.
+
+- **2026-10-06 00:43Z: WI05 invalid replacement write guard locally accepted, dark.**
+  Real L1/simulated L2 loss12fail twice; corrected tracked22fail/16pass twice.153focused/
+  283expanded twice pass; valid zero/partial grids/negative weather retained. Rejected uploads
+  cannot count current success. INGEST_REJECT_INVALID_FRAMES default0/unset; registered, no
+  workflow/provider activation. New38chain, selector154files; floor2130/ref2136; projection
+  5642backend and unchanged360/3746frontend. Newsource hosted679 pending. ff5cfc98 Gulf/prune
+  predecessor673 still awaits final guards; actual2098chain1113estate3746frontend confirmed.
+  No served number/skill gain, merge/deploy/provider/cloud/live-map/flag action. WI01/WI06,
+  actual Gulf/native/mobile/performance, Devcanary/PG/card/science open. Ledger678-679;
+  INGESTION-FRAME-VALIDITY-RESULTS.md; existing deployment-readiness sessionlog.
+
 - **2026-10-06 00:27Z: Gulf resident diagnostics and dark WI04 locally accepted.**
   Actual resident/point receipts, stale diagnostic clearing, HUD refusal and compact pasted JSON.
   Eightbeforefail twice; stale twofail twice; HUD twofail twice. WI04 real provider/save collision
@@ -24,7 +43,8 @@ is a claim, not a measurement.
   does not certify newsource. Four broad-lint findings in unchanged files explicit; changed lint clean.
   No served number, live map/cloud/provider write, merge/deploy or scientific gain. WI01/WI05/WI06,
   actual Gulf frame/pixels/native/mobile/performance, Devcanary/PG/card/science remain open.
-  GULF-RESIDENT-PRUNE-RESULTS.md; sessionlog2026-10-05-deployment-readiness; ledger672-674.
+  Sourceff5cfc98 published/read back OPEN/dev; CI37394319031 running, supplementary ledger/LOC/encoding success.
+  GULF-RESIDENT-PRUNE-RESULTS.md; sessionlog2026-10-05-deployment-readiness; ledger672-677.
 
 - **2026-10-05 23:49Z: ingestion source1912639b hosted-qualified; Gulf capture incorporated.**
   CI37388965928 all11SUCCESS; actual5577backend=2393guards2071chain1113estate,
@@ -753,7 +773,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 676, sha256 78b7c5df5d535ce4832af59f4c29503723cb08e441191f77c7e4363cf86f217b**
+  **Ledger head: seq 681, sha256 f27ffd3a43957ccb4223573f1eb4042d6fb3f77f6d7728a2de196251036ea626**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

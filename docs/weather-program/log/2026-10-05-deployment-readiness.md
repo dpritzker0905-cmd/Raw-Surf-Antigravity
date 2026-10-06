@@ -157,3 +157,40 @@ Memory0FAIL8WARN5NOTE after the formatting repair. Correction675 records this;67
 
 Correction676: the preceding note and675 verification copied the prior5NOTE count. Actual
 current audit is0FAIL8WARN6NOTE: new commitment673 adds one NOTE. No test/source result changed.
+
+
+### 2026-10-06 00:31Z: source published and PR read back
+
+Sourceff5cfc98 pushed; OPEN/dev/exact head and revised description read back. CI37394319031
+running; exact-source ledger37394318487 LOC37394318475 encoding37394318862 success; Lighthouse
+37394318984 running. Qualification673 remains pending. No merge/deploy/provider/flag changes.
+Local676ledger/memory0FAIL8WARN6NOTE passed;677records this publication.
+
+
+### 2026-10-06 00:43Z: WI05 real-store diagnosis and dark repair locally accepted
+
+Offline12fail/6valid-zero twice; corrected tracked baseline22fail/16pass twice. Initial drain-method
+harness error corrected to actual wait and before rerun; wrong-cwd zero-scope LOC rejected, root12
+ratchet accepted.153focused and283expanded twice pass. Guard explicit1 only, default0/unset; no
+invalid disk/L2/registration or current acknowledgment; valid-zero/partial/negative-weather and
+mixed batch controls pass.38new chain cases, staged selector154chain; paired floor2130/ref2136.
+Projection5642backend, frontend source unchangedff5cfc98. Host qualification679 pending; predecessor
+673still pending final guards. No source activation/live/cloud/provider/merge/deploy changes.
+WI01/WI06, actual Gulf/native/cloud/PG/card/science remain open. Ledger678-679; receipt noted.
+
+
+### 2026-10-06 00:52Z: ff5cfc98 qualified; WI05 remains a separate pending source
+
+CI37394319031 all11success: actual5604backend=2393guards/2098chain/1113estate;
+frontend360suites3746tests. Guards2460collected185files67skips, chain153files, estate296selected/
+294produced/0silent. Exact ledger37394318487, LOC37394318475, encoding37394318862 and
+Lighthouse37394318984 success. Commitment673 fulfilled by ledger680. Existing broad fatal
+lint debt remains explicit because broad CI step permits errors. New WI05 local source has its
+own commitment679: projected5642backend, unchangedfrontend; predecessor does not certify it.
+
+WI01 real store full/stride2 cache probe2fail twice: fake remote4=>6m and latestmanifest/RAMclear
+still yield4m and0L2reads. WI06 actual picker corrected URL fixture2fail/1genuine404control pass
+twice;500/timeout transient yields6h older run. Initial URL mismatch results rejected. Ledger681.
+These are offline sensitivity diagnoses, not real Gulf pixel/cell provenance or physical skill,
+and not a proof of the audit's separate new-run-time/duplicate-ranking claims. Both repairs open.
+No merge/deployment/flag/provider/cloud/live-map action.

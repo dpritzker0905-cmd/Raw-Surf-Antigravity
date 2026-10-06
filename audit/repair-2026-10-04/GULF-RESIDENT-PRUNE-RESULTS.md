@@ -62,3 +62,20 @@ NOAA's combined significant wind-wave/swell field is distinct from an atmospheri
 No merge/deploy/provider/cloud write, live map load or flag activation. Productionfreeze D002 and
 served-number D001 remain. Dev canary, full-map/GPU/FPS/heap/mobile, PG/card/financial concurrency,
 remaining ingestion and held-out science gates stay open. Raw user captures/logs are not tracked.
+
+
+### 2026-10-06 00:52Z: ff5cfc98 qualified; WI05 remains a separate pending source
+
+CI37394319031 all11success: actual5604backend=2393guards/2098chain/1113estate;
+frontend360suites3746tests. Guards2460collected185files67skips, chain153files, estate296selected/
+294produced/0silent. Exact ledger37394318487, LOC37394318475, encoding37394318862 and
+Lighthouse37394318984 success. Commitment673 fulfilled by ledger680. Existing broad fatal
+lint debt remains explicit because broad CI step permits errors. New WI05 local source has its
+own commitment679: projected5642backend, unchangedfrontend; predecessor does not certify it.
+
+WI01 real store full/stride2 cache probe2fail twice: fake remote4=>6m and latestmanifest/RAMclear
+still yield4m and0L2reads. WI06 actual picker corrected URL fixture2fail/1genuine404control pass
+twice;500/timeout transient yields6h older run. Initial URL mismatch results rejected. Ledger681.
+These are offline sensitivity diagnoses, not real Gulf pixel/cell provenance or physical skill,
+and not a proof of the audit's separate new-run-time/duplicate-ranking claims. Both repairs open.
+No merge/deployment/flag/provider/cloud/live-map action.

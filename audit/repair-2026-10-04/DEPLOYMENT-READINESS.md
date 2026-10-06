@@ -1,16 +1,16 @@
 # Deployment readiness: updated audit versus actual repairs
 
-Verified 2026-10-06 00:27Z. This is a deployment assessment, not deployment authorization.
+Verified 2026-10-06 00:52Z. This is a deployment assessment, not deployment authorization.
 The supplied deep REPORT.md includes sections 10 and 11, and its current SHA256 is
 `be4914fbc8de71b1cfada3b7beb0f78e669c8fd6b5090fefbc3678accb5b72c0`.
-Its merge-blocker review is of `0bb3aec0`. Qualified predecessor1912639b remains historical evidence; new resident-diagnostic/WI04 source has local acceptance and requires exact hosted qualification673.
+Its merge-blocker review is of `0bb3aec0`. Qualified resident-diagnostic/WI04 sourceff5cfc98 has exact hosted acceptance. New WI05 invalid-write guard is locally accepted but needs its own hosted qualification679 before merge.
 This supersedes the older deployment status in PROGRESS.md without rewriting historical receipts.
 
 ## What is actually running
 
 | Component | Fresh evidence | Meaning |
 |---|---|---|
-| PR243, targeting dev | OPEN, qualified source1912639b; CI37388965928 all11 application jobs success,5577backend/3700frontend | Repaired source has not reached dev |
+| PR243, targeting dev | OPEN; ff5cfc98 CI37394319031 all11success5604backend/3746frontend; new WI05 source local only, hosted679 pending | Repaired source has not reached dev; qualify WI05 independently |
 | Shared Render API | Public /api/health healthy, version ends6b062e97; /api/health/data ok, alerts empty | Current PR backend is not live; health does not certify model-cycle freshness |
 | Netlify dev | service-worker BUILD_VERSION2a7b8615 | Current PR frontend is not live on dev |
 | Netlify production | service-worker BUILD_VERSIONfc140024 | Owner's frozen frontend remains served |
@@ -25,7 +25,7 @@ dashboard's22.x/default command. New flag overrides are absent from both provide
 secret values stayed masked. No provider configuration changed. Live Render build used stamp heads,
 while current settings use upgrade heads. Actual live READ ONLY schema preflight now verifies all514
 required columns across13tables and matching three revision heads; types/constraints/concurrency remain
-separate acceptance. Current source1912639b is hosted-qualified; predecessorf48d15e6 had corrected
+separate acceptance. Predecessor1912639b is historical hosted evidence; resident sourceff5cfc98 is qualified and WI05 remains pending; predecessorf48d15e6 had corrected
 59dd3d26's failed estate projection.
 Native isolated controls and WebGL state/dimension checks pass; actual map/FPS/heap acceptance remains.
 Full follow-up receipt:
