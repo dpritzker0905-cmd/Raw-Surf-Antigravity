@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 21:44Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 22:13Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,19 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 22:05Z: owner-approved PR246 merged dev72e6e5ad, ledger767.**
+  Approved exact144 ownCI37536152276 all11 and four supplementary green;
+  actual5943backend (2425/2317/1201),370suites4045frontend,estate0silent.
+  765 records owner yes;767 verifies764 publication and actual squash merge.
+  768 reads dev HTTP200/build72e6e5ad and shared API healthy/full72e6e5ad;
+  production frontendfc140024 frozen.769 fulfills766 bounded live follow-up:
+  clean paused native1..5FPS trip, working receipt27callbacks/15.724s,
+  CPU histogram17/7/1/2/0; cause/GPU completion remain open. Play to12,
+  keyboard scrub13 stable; fallback notice and recovery1/2 observed.
+  Served/run clocks absent, no smoothness/Gulf/device acceptance. Waves
+  off read back and tab closed; no main promotion or science/serving activation.
+  Unowned canary unchanged and excluded; receipt branch dev-fallback-verification.
 
 - **2026-10-06 21:44Z: fallback source0bd fully qualified763; operator boundary762.**
   OwnCI37533475555 all11 plus ledger/LOC/Encoding/Lighthouse successful;
@@ -1018,7 +1031,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 764, sha256 de496d45c5acc7070794cff3a0fcc661bce7d735dff0d52330c64c87c30d8c62**
+  **Ledger head: seq 770, sha256 2527ab0193ca91bf54788f524444ad6ff0b23b88a921ec36cee5dc2ae58133f3**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

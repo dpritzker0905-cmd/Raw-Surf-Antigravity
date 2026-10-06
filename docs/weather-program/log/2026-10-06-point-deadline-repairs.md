@@ -139,3 +139,11 @@ inside owned roots and removed; portable6-control probe cleans its fixtures.
 qualified0bd. No merge/deployment/flags/math; actual publisher and original
 live fallback/Gulf/play/scrub/device/PG/resources/science acceptance open.
 Unowned canary hash unchanged/excluded. Final remote/PR/readback follows.
+
+## 2026-10-06 22:05Z — owner-approved exact-head dev merge765–767
+
+Owner yes specifically approves PR246 dev/shared-backend merge after checks. Own144 CI37536152276 all11 and four supplementary passed. Actual stdout5943backend (2425/2317/1201),370suites4045frontend,estate297selected295produced0silent. Pinned squash merge read back MERGED72e6e5adf790d77dc4a73fc186799ea2a103960d at22:04:37Z and fetched origin/dev matches. 767 records merge and verifies764 publication. Automatic frontend/API rollout pending;766 tracks bounded live verification. No main promotion, flag activation or served-height math change. Unowned canary hash unchanged; excluded. New receipt branch based merged dev preserves dirty ledger/docs/canary.
+
+## 2026-10-06 22:13Z — served rollout768 and clean native receipt769
+
+PR246 dev72e6e5ad frontend/shared API served at22:07:46Z; production frontendfc140024 remains frozen. Clean single Chrome tab, no concurrent local build/test, GFS Waves paused0: native fallback reproduced22:08:39.622Z; new receipt12windows/15.724s continuous, FPS1..5, callbacks27/uploads6/slowCPU3/hist17,7,1,2,0. Histogram excludes scheduling/full-map passes and is not GPU completion. Play selected6 then pause12, keyboard13 stable; simplified notice/time-unverified and recovery1/2 at22:09:43.600Z observed. Served/run metadata null; no exact-frame/physical Gulf/device acceptance. Waves off read back and tab closed.769 fulfills766 observation, not broader science/latency/cloud gates. Source inspection confirms existing finally repaint and MapLibre render event after painter; callback-gap cause remains open. No new source/math/flag change. DEV-FALLBACK-ROLLOUT-RESULTS.md.
