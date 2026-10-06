@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 22:13Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 22:17Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -26,6 +26,9 @@ is a claim, not a measurement.
   Served/run clocks absent, no smoothness/Gulf/device acceptance. Waves
   off read back and tab closed; no main promotion or science/serving activation.
   Unowned canary unchanged and excluded; receipt branch dev-fallback-verification.
+  771 verifies770 remote66f2c73a and draft PR247 OPEN/dev; docs/ledger only,
+  runtime equal deployed72e6e5ad.772 publishes creation/readback receipt;
+  final remote/PR head check pending. No second merge authorized or performed.
 
 - **2026-10-06 21:44Z: fallback source0bd fully qualified763; operator boundary762.**
   OwnCI37533475555 all11 plus ledger/LOC/Encoding/Lighthouse successful;
@@ -1031,7 +1034,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 770, sha256 2527ab0193ca91bf54788f524444ad6ff0b23b88a921ec36cee5dc2ae58133f3**
+  **Ledger head: seq 772, sha256 986a122f7d605603df8b1e3517080387dd61c17dbea1a7307398481143b0f7cb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
