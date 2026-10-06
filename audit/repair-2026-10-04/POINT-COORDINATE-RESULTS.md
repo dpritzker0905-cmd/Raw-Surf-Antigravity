@@ -39,3 +39,6 @@ checked against real router behavior. No dependency upgrades.
 
 
 2026-10-06 04:04Z: exact d65677ac own CI37410583036 all11/four supplementary success, actual5852backend/367/3872frontend; estate297selected295produced0silent.716fulfills714 and verifies715. Shared world-copy client gap separately repaired locally/own718pending; WORLD-COORDINATE-RESULTS.md. No promotion/activation.
+
+
+2026-10-06 04:27Z: client9a7a33ba own CI37412065874/all11/four supplementary success, actual5852backend/368/3966frontend, estate0silent;720fulfills718 and verifies719. Mounted world-copy handoff passes twice; separate existing zero-coordinate UI truthiness gap remains open. No promotion/activation.

@@ -554,3 +554,35 @@ cloud publisher/OAuth, PG/card, server deadlines and held-out scientific accepta
 remain open. Direct callers of individual adapters outside this shared entrypoint
 are not newly certified. No merge/deploy/provider setting/SQL/Storage/flag activation.
 The renderer behavior was checked against [MapLibre world-copy options](https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapOptions/).
+
+## 2026-10-06 04:27Z: geographic source9a7a33ba fully hosted-qualified; next boundaries diagnosed
+
+Own CI37412065874/all11 and four supplementary success. Actual5,852backend
+(2425guards2226chain1201estate),368frontend suites3,966tests. Estate297selected
+295produced0silent; floor368/3966 pins all frontend coverage. Ledger720fulfills718
+and verifies719publication. Prior server d656 qualified716/ownCI37410583036.
+Previewstatic service-worker HTTP200/build9a7a33ba; no map or forecast executed.
+
+Actual mounted hook/sampler/adapter follow-up passes twice with stable props:
+three wrapped/ordinary worlds reach exact_success with canonical wire coordinate.
+Three zero-coordinate cases prove the **existing UI truthiness gate still treats
+valid zero as missing**. This separate UI fix remains open; current server and outer
+coordinate acceptance do not certify every valid map location. Diagnostic6-case
+passes are not permanent acceptance gates; rejected fixture failures are excluded.
+
+LIVE-04 diagnosis also repeated: actual HTTP single-grid request outwaits the
+series-only budget in both flag arms; cancellation leaves controlled thread work
+alive until explicitly released. Three diagnostic assertions per run3.18s/3.10s;
+they establish an open boundary, not a fix or current production latency. Next repair
+must cover admission/build/schema/encode/compression and retain permits until actual
+work completes; GRID-DEADLINE-DIAGNOSIS.md. No hard CPU-bound guarantee claimed.
+
+Local inventories provided no captured real Gulf product or isolated PG executable
+target. The original Gulf clocks/heights/pixels/play/scrub/themes/mobile/FPS/heap,
+actual Dev publisher/OAuth, PG/card, deadline/resource and held-out science acceptance
+remain open. No dev/production promotion, provider/SQL/Storage write or science flag
+activation. A concurrent unowned staging canary edit appeared during QA, was preserved
+and is explicitly excluded from this receipt; it is not certified by source9a7 CI.
+
+720qualifiesownedsource,721deadline/target diagnosis,722mounted/zero UI diagnosis;
+723plans docs-only receipt publication, runtime-equivalence readback required.

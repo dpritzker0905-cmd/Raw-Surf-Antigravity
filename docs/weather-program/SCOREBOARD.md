@@ -194,3 +194,5 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-06 03:45Z | WS-08 public point geographic validation | No legitimate served science change | Real HTTP88cases before64fail/24pass twice;142expanded after twice |64invalid queries now422before resolver;24valid controls unchanged | Local candidate only; own714hosted pending; POINT-COORDINATE-RESULTS.md |
 
 | 2026-10-06 04:04Z | WS-08 shared world-copy compatibility | No scientific model math changed |94controls before72fail22pass twice;122expanded after twice/full368/3966 |World aliases use geographic provider/cache coordinates; invalid points start no work | Local source only; own718pending; full-map/physical acceptance open; WORLD-COORDINATE-RESULTS.md |
+
+| 2026-10-06 04:27Z | Geographic source9a7a33ba qualification | No scientific model/flag activation | Own CI37412065874 all11/four supplementary;5852backend/368suites3966frontend | HTTP validation and world aliases qualified; estate0silent; previewstatic9a7 | Original Gulf/device/cloud/PG/deadline/science and zero UI remain open;720fulfills718 |

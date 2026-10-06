@@ -1,5 +1,7 @@
 # Deployment readiness: updated audit versus actual repairs
 
+Latest qualification 2026-10-06 04:27Z: source9a7a33ba own CI37412065874 all11/four supplementary success, actual5852backend/368suites3966frontend, estate0silent.720fulfills718. Previewstatic9a7 verified. Next: [grid deadline/ownership](GRID-DEADLINE-DIAGNOSIS.md) and valid-zero UI gate; broader physical/device/cloud/PG/science acceptance open. Final receipt docs only; concurrent canary edit excluded.
+
 Latest continuation 2026-10-06 04:04Z: server coordinate sourced65677ac qualified on own CI37410583036/all11/four supplementary,5852backend/367/3872frontend. Separate shared map-world coordinate/cache candidate local368/3966/build/ratchet/LOCpass; own718 hosted pending. [World-copy repair](WORLD-COORDINATE-RESULTS.md). No deployment/activation.
 
 Latest continuation 2026-10-06 03:45Z: WS-08 coordinate candidate local142controls pass twice; own714 exact-source hosted qualification pending. Previous source48c04424 remains qualified. All branch changes throughb9dbdc21 were already pushed. See [coordinate repair](POINT-COORDINATE-RESULTS.md). No deployment/activation.
@@ -7,18 +9,18 @@ Latest continuation 2026-10-06 03:45Z: WS-08 coordinate candidate local142contro
 Verified 2026-10-06 03:26Z. This is a deployment assessment, not deployment authorization.
 The supplied deep REPORT.md includes sections 10 and 11, and its current SHA256 is
 `be4914fbc8de71b1cfada3b7beb0f78e669c8fd6b5090fefbc3678accb5b72c0`.
-Its merge-blocker review is of `0bb3aec0`. Latest qualified repair source **d65677ac** has own CI37410583036/all11 and allfour supplementary success, actual5,852backend/367suites3,872frontend. The newer shared world-coordinate client candidate is locally accepted at368suites3,966tests; own718 hosted qualification remains pending. Visual fallback/storage/GL lifecycle, dark actual-time guards and prior cache/cycle repairs are included. Scientific switches remain dark. Actual Gulf/live-map/cloud/PG/graphics/science acceptance remains open.
+Its merge-blocker review is of `0bb3aec0`. Latest owned runtime **9a7a33ba** is qualified on CI37412065874/all11/four supplementary success, actual5,852backend/368suites3,966frontend. It includes both geographic repairs, visual resilience, dark actual-time guards and prior cache/cycle repairs. Scientific activation, actual Gulf/device/cloud/PG/deadline/science acceptance and the separate zero-coordinate UI gate remain open. Concurrent unowned canary edit is not qualified or included.
 This supersedes the older deployment status in PROGRESS.md without rewriting historical receipts.
 
 ## What is actually running
 
 | Component | Evidence (live versions are last confirmed; no new live-map/API load) | Meaning |
 |---|---|---|
-| PR243, targeting dev | OPEN; qualified sourced65677ac CI37410583036 all11success5852backend/367suites3872frontend; separate world-coordinate client local368/3966, own718pending | Repaired source has not been promoted to dev; new flags remain dark |
+| PR243, targeting dev | OPEN; qualified runtime9a7a33ba CI37412065874 all11/four supplementary,5852backend/368suites3966frontend; final receipt docs only | No dev/production promotion or scientific activation; unowned canary edit excluded |
 | Shared Render API | Public /api/health healthy, version ends6b062e97; /api/health/data ok, alerts empty | Current PR backend is not live; health does not certify model-cycle freshness |
 | Netlify dev | service-worker BUILD_VERSION2a7b8615 | Current PR frontend is not live on dev |
 | Netlify production | service-worker BUILD_VERSIONfc140024 | Owner's frozen frontend remains served |
-| Netlify PR243 preview | Source48c04424 status Deploy Preview ready; static service-worker HTTP200/BUILD_VERSION48c04424 | Preview build identity verified; live-map/pixel/device acceptance remains open |
+| Netlify PR243 preview | Source9a7a33ba status ready; static service-worker HTTP200/build9a7a33ba | Preview build identity verified; no map/forecast execution or pixel/device acceptance |
 | Separate Supabase Dev | Prior successful preflight empty/private/RLS; latest readonly SQL failed OAuth refresh before execution | Access/emptiness must be reverified; actual publisher canary unexecuted |
 
 Authenticated Chrome readback now confirms Render dev/Auto-Deploy On Commit, migrations in the

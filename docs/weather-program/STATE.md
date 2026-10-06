@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 04:04Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 04:27Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,6 +14,18 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-06 04:27Z: geographic runtime9a7a33ba fully qualified; receipt docs only.**
+  Own CI37412065874/all11/four supplementary success;actual5852backend and368/3966
+  frontend, estate297selected295produced0silent.720fulfills718/verifies719. Preview
+  static HTTP200/build9a7; no map/forecast executed. API/outer-coordinate guards and
+  world-cache aliases qualify; actual mounted three world aliases reach exact_success.
+  Separate zero-coordinate UI truthiness gate remains open, reproduced twice; next
+  with single-grid deadline/worker ownership. No real Gulf product or isolated PG
+  target identified; actual cloud refresh still blocked. Gulf/pixel/device/FPS/heap,
+  cloud/PG/card/deadline/science acceptance open; no promotion/flag/provider/write action.
+  Unowned concurrent canary edit preserved/excluded.723docsreceiptpushpending.
+  WORLD-COORDINATE-RESULTS.md and GRID-DEADLINE-DIAGNOSIS.md.
+
 - **2026-10-06 04:04Z: server coordinates d65677ac qualified; shared world-copy candidate local/718pending.**
   Own CI37410583036/all11 and four supplementary success, actual5852backend and
  367/3872frontend, estate297selected295produced0silent.716fulfills714/verifies715.
@@ -22,7 +34,7 @@ is a claim, not a measurement.
   Build exit0 inherited warnings; lint86/917 baseline unchanged; LOCpass. Frontend
   floor368/3966; no science math/flag change, disabled legacy endpoint preserved.
   Original Gulf/full-map/device/FPS/heap, actual cloud/OAuth, PG/card, deadlines and
-  held-out science remain open; no merge/deploy/cloud/provider action.719pushpending.
+  held-out science remain open; no merge/deploy/cloud/provider action.719pushverified720.
   POINT-COORDINATE-RESULTS.md and WORLD-COORDINATE-RESULTS.md.
 
 - **2026-10-06 03:45Z: WS-08 HTTP coordinate repair locally accepted; own714 hosted pending.**
@@ -900,7 +912,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 719, sha256 10e1dea1d0d14a4bd655522042b7af4ff58faa92f9d5bd43f1859e7302119d53**
+  **Ledger head: seq 723, sha256 59cd36184e16c619b18ac3b20490b91ee08dfeb789bc172236d65c917365cc1d**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
