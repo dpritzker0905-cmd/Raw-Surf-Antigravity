@@ -1,6 +1,6 @@
 # Deployment readiness: updated audit versus actual repairs
 
-Verified 2026-10-06 01:29Z. This is a deployment assessment, not deployment authorization.
+Verified 2026-10-06 01:52Z. This is a deployment assessment, not deployment authorization.
 The supplied deep REPORT.md includes sections 10 and 11, and its current SHA256 is
 `be4914fbc8de71b1cfada3b7beb0f78e669c8fd6b5090fefbc3678accb5b72c0`.
 Its merge-blocker review is of `0bb3aec0`. Retry sourced4046562 has exact hosted acceptance: CI37398137575 all11success5674backend/3746frontend and supplementary gates. All new ingestion guards remain dark. Cache freshness and duplicate-cycle ranking repairs, actual live/cloud/Gulf/graphics acceptance remain open.
@@ -123,3 +123,25 @@ pass locally. Source changed; predecessor5577/3700 does not certify it. Projecti
 3746frontend, commitment673. Broad backend lint is soft in CI and reports four unchanged findings;
 changed files lint clean. Cloud/native/PG/card/science and remaining ingestion gates retained.
 See GULF-RESIDENT-PRUNE-RESULTS.md. No deployment/merge/flag change.
+
+
+## 2026-10-06 01:52Z: new dark cache/cycle repair source
+
+88newchain controls;485expanded twice, scoped fatal lint/LOC/partition accepted. Current
+candidate source is NOT qualified by prior6a5c5f23 CI37399663979 all11success5674/3746.
+Own hosted694 pending; projection5762backend2425/2224/1113 and360/3746frontend.
+PRODUCT_REVISION_REFRESH and INGEST_PRUNE_VERIFIED_CYCLES remain0/unset; no deploy/merge.
+WI01 partial identical-metadata rewrite/wire/CAS; WI06 verified-cycle code repaired dark,
+live/capacity/coverage still required. Gulf/native/fallback/playback/performance and actual
+Devpublisher/PG/card/science remain separate. CACHE-CYCLE-REPAIR-RESULTS.md is current.
+
+
+### 2026-10-06 01:57Z: final unit/vector review supersedes interim counts
+
+Local formats (value kind/unit/display hint, source variables, units) must also match
+before replacement; measured direction/u/v/period/gust/value must be finite. Added two
+controls, now90newchain (41refresh/49prune): actual predecessor69fail21pass twice,
+final544expanded including57floor/lane controls twice. Previous88/485 receipts describe
+the accepted interim source. New source chain2226/floor2220/ref2226; projected5764backend,
+frontend unchanged360/3746; hosted694 pending. Scoped fatal lint pass; no activation or
+live served-number/physics/cloud/merge/deploy change. Ledger695 records the count update.

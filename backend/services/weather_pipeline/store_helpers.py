@@ -594,18 +594,24 @@ def load_product_helper(store, filename: str, stride: Optional[int] = None) -> O
     # keeps a decimated grid out of every other consumer's hands.
     cache_key = filename if stride <= 1 else f"{filename}#s{stride}"
 
+    revision, revision_reason = None, None
+    if os.environ.get('PRODUCT_REVISION_REFRESH', '0') == '1':
+        from services.weather_pipeline.product_revision_refresh import refresh_revision, registration, mark_revision_refusal
+        revision, revision_reason = refresh_revision(store, filename)
+
     # 1. Check in-memory product cache
     now = time.time()
     with ProductStore._product_cache_lock:
         if cache_key in ProductStore._product_cache:
             cached_product, cached_time = ProductStore._product_cache[cache_key]
-            if now - cached_time < ProductStore._PRODUCT_CACHE_TTL:
+            if (now - cached_time < ProductStore._PRODUCT_CACHE_TTL
+                    and (revision is None or revision_reason or registration(cached_product) == revision)):
                 logger.debug(f"[Product Store] Memory cache HIT for {cache_key}")
                 # Shallow copy product and grid container to avoid deep-copying vector list
                 cloned = cached_product.model_copy()
                 if cloned.grid is not None:
                     cloned.grid = cloned.grid.model_copy()
-                return cloned
+                return mark_revision_refusal(cloned, revision_reason) if revision_reason else cloned
             else:
                 ProductStore._product_cache.pop(cache_key, None)
                 ProductStore._product_cache_vectors.pop(cache_key, None)
@@ -720,7 +726,7 @@ def load_product_helper(store, filename: str, stride: Optional[int] = None) -> O
             cloned = product.model_copy()
             if cloned.grid is not None:
                 cloned.grid = cloned.grid.model_copy()
-            return cloned
+            return mark_revision_refusal(cloned, revision_reason) if revision_reason else cloned
     except Exception as e:
         logger.error(f"[Product Store] Stored product load and parse failed for {filename}: {e}")
         return None

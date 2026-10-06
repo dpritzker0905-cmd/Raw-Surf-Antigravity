@@ -1328,7 +1328,8 @@ jobs:
           # WI02: 18 invocation-scoped product progress controls; projected2071, margin6.
           # WI04: staged selector owns27 shared-object prune controls; projected2098/153files, margin6.
           # WI05: staged selector owns38 invalid-write/zero/ack controls; projected2136/154files, margin6.
-          MIN_FILES, MIN_PASSED = 154, 2130
+          # WI01/WI06: 90 staged refresh/cycle-prune controls; projected2226/156files, margin6.
+          MIN_FILES, MIN_PASSED = 156, 2220
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

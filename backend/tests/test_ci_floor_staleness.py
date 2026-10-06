@@ -448,7 +448,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Hosted59dd3d26 estate1105: unset controls belong to chain, projected2053/floor2047.
 # Eight gallery/session assignment controls bring estate to1113/floor1111; no floor lowered.
 # WI02/WI03 add18 chain and33 guards controls, selectors checked from backend cwd.
-_FLOOR_SET_FROM = {"guards": 2425, "chain": 2136, "estate": 1113}
+_FLOOR_SET_FROM = {"guards": 2425, "chain": 2226, "estate": 1113}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

@@ -278,3 +278,32 @@ Actual PR body atd4046562 OPEN/dev confirms686fulfilled and5674/3746 source qual
 Receipt-only change has no code delta; memory0FAIL8inheritedWARN5NOTE. Immediate commit/push
 and exact new head readback follow; application qualification remains explicitlyd4046562, not
 a borrowed check on a new source. Ledger691; no merge/deploy/cloud/flag/UI action.
+
+
+### 2026-10-06 01:52Z: cache and cycle repair batch accepted locally, dark
+
+Owner asked to continue and whether to push. Prior6a5c5f23 all11 CI and supplementary
+success read back,5674backend/360suites3746frontend; guards66skip1xfailed. Resolves691
+pending receipt publication, ledger692. New actual source contains default-off refresh and
+verified-cycle prune plus reconciliation and point refusal propagation. Corrected final
+67fail21pass twice against predecessor,88pass after;145focused/485expanded twice. First
+expanded command named a missing test file and collected0: rejected. Later fixture errors
+omitted saved coverage_mode and mutated a cached vector: corrected, no production workaround.
+Both staged files own chain:156files2224projection, floor2218/ref2224. Scoped fatal lint,
+root LOC/backend653files, partition pass. Ledger693; own hosted qualification694 pending.
+CACHE-CYCLE-REPAIR-RESULTS.md details reproducible sensitivity, limits and remaining gates.
+WI01 partial: no same-metadata digest, initial missing/corrupt path and cross-process CAS.
+WI06 code repaired dark, unknown retention/capacity and live rollout separate. Gulf/native/
+fallback/playback/performance, actual Devpublisher, PG/card/science open. No merge/deploy/
+cloud/UI/provider/flags/served-number action. Immediate same-PR source push follows.
+
+
+### 2026-10-06 01:57Z: final unit/vector review supersedes interim counts
+
+Local formats (value kind/unit/display hint, source variables, units) must also match
+before replacement; measured direction/u/v/period/gust/value must be finite. Added two
+controls, now90newchain (41refresh/49prune): actual predecessor69fail21pass twice,
+final544expanded including57floor/lane controls twice. Previous88/485 receipts describe
+the accepted interim source. New source chain2226/floor2220/ref2226; projected5764backend,
+frontend unchanged360/3746; hosted694 pending. Scoped fatal lint pass; no activation or
+live served-number/physics/cloud/merge/deploy change. Ledger695 records the count update.

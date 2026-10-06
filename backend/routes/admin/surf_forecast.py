@@ -37,6 +37,8 @@ _RATING_FLAGS = {
     "INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS": ("0", "Prune registrations without deleting an object still named by a retained registration", "Render env + ingestion/precompute/monitor together"),
     "INGEST_REJECT_INVALID_FRAMES": ("0", "Reject empty/all-invalid replacement frames before disk, storage upload and manifest registration", "Render env + ingestion/precompute/monitor together"),
     "NOAA_WAVE_CYCLE_RETRY": ("0", "Bounded transient HEAD retries with actual complete GFS-wave cycle identity", "Render env + ingestion/precompute/monitor together"),
+    "PRODUCT_REVISION_REFRESH": ("0", "Validate changed manifest registrations before replacing existing L1 forecast objects", "Render env; staging bytes/concurrency/egress acceptance before activation"),
+    "INGEST_PRUNE_VERIFIED_CYCLES": ("0", "Prune only verified-cycle duplicates of the same hour, source and coverage; preserve unknowns and unique tails", "Render env + ingestion/precompute/monitor together"),
     "COPERNICUS_TERMINAL_TIME_GUARD": ("0", "Stop dataset-wide temporal tile failures; reject empty success cache rows", "Render env + ingestion/precompute/monitor together"),
     "SURF_REQUESTED_HORIZON": ("0", "Resolve only requested spot forecast days; current-only never fetches future frames", "Render env + ingestion/precompute/monitor together"),
     "SURF_STRICT_AVAILABILITY": ("0", "Keep missing/invalid spot sea unavailable; preserve measured zero", "Render env + ingestion/precompute/monitor together"),

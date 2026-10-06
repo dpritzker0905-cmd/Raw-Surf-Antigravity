@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 01:29Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 01:57Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,17 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 01:52Z: WI01/WI06 source repairs locally accepted, dark; own hosted694 pending.**
+ 90newchain cases, predecessor69fail21pass twice;544expanded including floors twice, scoped
+ lint/LOC/partition pass. Final unit/vector safeguards and count update recorded695. PRODUCT_REVISION_REFRESH/INGEST_PRUNE_VERIFIED_CYCLES0/unset. WI01
+ partial: same-metadata byte rewrites and cross-process/wire identity remain. WI06
+ prune/reconciliation uses verified cycles, preserves unique coverage/unknowns/tails.
+ Prior6a5c5f23 CI37399663979 all11success5674backend/3746frontend, supplementary success
+ resolves691receipt readback; not newsource qualification. Projection5764backend2226chain.
+ No merge/deploy/cloud/flags/served-number change. Actual Gulf/native/fallback/playback/
+ performance, Dev canary/PG/card/science open; freeze preserved. Ledger692-694;
+ CACHE-CYCLE-REPAIR-RESULTS.md. Same-PR push follows local gates.
 
 - **2026-10-06 01:29Z: sourced4046562 retry hosted-qualified; all new ingestion guards dark.**
   CI37398137575 all11success: actual5674backend2425/2136/1113 and frontend360/3746;
@@ -808,7 +819,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 691, sha256 bc27a62135d83e92f82035593de2e16b8972b7ffbd6ec15d02f2886d9e780164**
+  **Ledger head: seq 695, sha256 39effd66624e8dc2544b8fdea3e31abed57be71dd386118066fd2c228d1c7e47**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

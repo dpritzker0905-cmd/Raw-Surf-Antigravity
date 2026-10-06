@@ -87,3 +87,14 @@ No ranking migration/activation; WI06 partial and WI01 open. WAVE-CYCLE-RETRY-RE
 Transport readback: the local installed storage3 synchronous download API returns response bytes
 and passes no caller conditional headers; its options path handles image transformation. This is
 local SDK evidence, not a claim about every version, deployed transport or Supabase S3 capabilities.
+
+
+## 2026-10-06 01:52Z: new dark cache/cycle repair source
+
+88newchain controls;485expanded twice, scoped fatal lint/LOC/partition accepted. Current
+candidate source is NOT qualified by prior6a5c5f23 CI37399663979 all11success5674/3746.
+Own hosted694 pending; projection5762backend2425/2224/1113 and360/3746frontend.
+PRODUCT_REVISION_REFRESH and INGEST_PRUNE_VERIFIED_CYCLES remain0/unset; no deploy/merge.
+WI01 partial identical-metadata rewrite/wire/CAS; WI06 verified-cycle code repaired dark,
+live/capacity/coverage still required. Gulf/native/fallback/playback/performance and actual
+Devpublisher/PG/card/science remain separate. CACHE-CYCLE-REPAIR-RESULTS.md is current.

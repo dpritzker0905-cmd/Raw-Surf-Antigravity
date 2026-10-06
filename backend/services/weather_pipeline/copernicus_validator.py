@@ -311,6 +311,9 @@ def prune_duplicate_valid_times_helper(store) -> int:
     dedup is SAFE where a blanket run_time prune is not: hours only an OLDER run covers (a newer
     cancelled run stopped early) keep their only product — no coverage loss, only true duplicates go.
     """
+    if os.environ.get('INGEST_PRUNE_VERIFIED_CYCLES', '0') == '1':
+        from services.weather_pipeline.prune_verified_cycles import prune_verified_cycles
+        return prune_verified_cycles(store)
     from services.weather_pipeline.store import (
         _manifest_executor, dump_manifest_for_l2,
         reconcile_manifest_products_for_upload,
@@ -394,6 +397,16 @@ def prune_superseded_products_helper(
     Kill switch INGEST_PRUNE_PRESERVE_ESTIMATES=0 restores the plain newest-run rule (operator
     lever to purge a poisoned estimated generation with one healthy native run).
     """
+    if os.environ.get('INGEST_PRUNE_VERIFIED_CYCLES', '0') == '1':
+        from services.weather_pipeline.prune_verified_cycles import prune_verified_cycles
+
+        def lane(product):
+            return (product.model.upper() == model.upper() and product.domain.lower() == domain.lower()
+                    and product.layer.lower() == layer.lower()
+                    and (product.region_id == region_id
+                         or (region_id and product.region_id is None and product.coverage_mode == 'global_tile')))
+
+        return prune_verified_cycles(store, lane)
     from services.weather_pipeline.store import (
         _manifest_executor, dump_manifest_for_l2,
         reconcile_manifest_products_for_upload,

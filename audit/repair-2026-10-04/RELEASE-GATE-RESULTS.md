@@ -214,3 +214,25 @@ map/mobile/FPS/heap require their own acceptance. Actual Dev publisher canary re
 current connector OAuth refresh failed before SQL; hidden Storage runtime still required. No
 database/schema/storage/provider/UI changes. PG/card/concurrency, deadlines/latency and held-out
 science remain open; production Netlify freeze preserved. Latest preview status canceled.
+
+
+## 2026-10-06 01:52Z: new dark cache/cycle repair source
+
+88newchain controls;485expanded twice, scoped fatal lint/LOC/partition accepted. Current
+candidate source is NOT qualified by prior6a5c5f23 CI37399663979 all11success5674/3746.
+Own hosted694 pending; projection5762backend2425/2224/1113 and360/3746frontend.
+PRODUCT_REVISION_REFRESH and INGEST_PRUNE_VERIFIED_CYCLES remain0/unset; no deploy/merge.
+WI01 partial identical-metadata rewrite/wire/CAS; WI06 verified-cycle code repaired dark,
+live/capacity/coverage still required. Gulf/native/fallback/playback/performance and actual
+Devpublisher/PG/card/science remain separate. CACHE-CYCLE-REPAIR-RESULTS.md is current.
+
+
+### 2026-10-06 01:57Z: final unit/vector review supersedes interim counts
+
+Local formats (value kind/unit/display hint, source variables, units) must also match
+before replacement; measured direction/u/v/period/gust/value must be finite. Added two
+controls, now90newchain (41refresh/49prune): actual predecessor69fail21pass twice,
+final544expanded including57floor/lane controls twice. Previous88/485 receipts describe
+the accepted interim source. New source chain2226/floor2220/ref2226; projected5764backend,
+frontend unchanged360/3746; hosted694 pending. Scoped fatal lint pass; no activation or
+live served-number/physics/cloud/merge/deploy change. Ledger695 records the count update.

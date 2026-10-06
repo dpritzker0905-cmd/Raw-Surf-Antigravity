@@ -236,8 +236,13 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
             if cutoff is not None and _past_retention(raw.get("valid_time_start"), cutoff):
                 continue  # a pruned entry the remote still holds: never resurrect it
             mine = ours.get(pid)
-            if mine is not None and not (prefer_newer and _raw_run_time_newer(raw, mine.run_time)):
-                continue  # key collision, ours is current (or the guard is off) — pre-fix behaviour
+            if mine is not None:
+                if os.environ.get('INGEST_PRUNE_VERIFIED_CYCLES', '0') == '1':
+                    from services.weather_pipeline.prune_verified_cycles import newer_collision
+                    if not newer_collision(raw, mine):
+                        continue
+                elif not (prefer_newer and _raw_run_time_newer(raw, mine.run_time)):
+                    continue  # Legacy key collision, ours is current (or guard off).
             try:
                 item = ManifestProduct.model_validate(raw)
             except Exception:
