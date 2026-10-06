@@ -66,6 +66,7 @@ jobs:
         env:
           NODE_ENV: production
           RENDER: 'true'
+          MANIFEST_IMMUTABLE_PUBLICATION: '0' # Dark: same publication contract as core writer
           FORECAST_JOB_STAGGER_SEC: '0'
           INGEST_PILOTS: 'only'             # pilots only — the core cycle owns the globals
           CONSENSUS_INGEST: '1'         # ARMED by the owner's merge of the arming PR (D-009; declared '0' by #164). '1' builds the equal GFS/EURO/ICON mean as the SHADOW model CONSENSUS in the pilots lane (consensus_ingest.py) and adds the `raw_surf:CONSENSUS` lane to the skill ledger that forecast-ingest.yml and precompute.yml run. Serves nothing either way. ARM ALL THREE TOGETHER: forecast-ingest-pilots.yml, forecast-ingest.yml, precompute.yml.

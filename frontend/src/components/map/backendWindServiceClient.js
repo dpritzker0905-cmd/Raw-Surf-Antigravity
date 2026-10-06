@@ -16,6 +16,7 @@ import {
   PILOT_COVERAGE,
   fetchProductsManifest
 } from './backendWeatherServiceClient';
+import { pointRequestIdentityEnabled, createPointRequestContext } from './pointRequestIdentity';
 import { BoundedPointCache } from './BoundedPointCache';
 import { recordTruthStage } from './weatherTruthTracker';
 
@@ -229,7 +230,9 @@ export function updateWindDiagnostics(type, details) {
 /**
  * Fetches exact point forecast from backend weather service for wind.
  */
-export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, model = 'GFS') {
+export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, model = 'GFS', requestContext = null) {
+  requestContext = pointRequestIdentityEnabled()
+    ? requestContext || createPointRequestContext(model, 'wind', hourOffset) : null;
   let gridProductId = null;
   if (typeof window !== 'undefined') {
     const diag = window.__WIND_PROJECTION_DIAG__;
@@ -239,14 +242,15 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
   }
 
   const start = Date.now();
-  const validTimeStr = getSharedValidTime(hourOffset, 'wind', model);
+  if (requestContext) gridProductId = requestContext.gridProductId;
+  const validTimeStr = requestContext?.validTime || getSharedValidTime(hourOffset, 'wind', model);
   const provider = model === 'EURO' ? 'copernicus' : 'open-meteo';
   let cacheKey = `${model}_wind_wind_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
   if (gridProductId) {
     cacheKey += `_grid_${gridProductId}`;
   }
 
-  const cached = windPointCache.get(cacheKey);
+  const cached = requestContext?.force ? null : windPointCache.get(cacheKey);
   if (cached) {
     console.log(`[Backend Weather Service] Cache hit for ${model} Wind: ${cacheKey}`);
     const clonedData = JSON.parse(JSON.stringify(cached.data));
@@ -627,4 +631,3 @@ if (typeof window !== 'undefined') {
   window.fetchBackendExactWindPoint = fetchBackendExactWindPoint;
   window.fetchBackendWindGrid = fetchBackendWindGrid;
 }
-

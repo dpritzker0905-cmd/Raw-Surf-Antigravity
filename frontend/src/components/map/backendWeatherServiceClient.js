@@ -9,6 +9,7 @@
 
 import { BACKEND_URL } from '../../lib/apiClient';
 import { BoundedPointCache } from './BoundedPointCache';
+import { readMarineSurfMode } from './marineSurfMode';
 import { clampViewportBbox, getCachedManifest, setCachedManifest } from './backendWeatherServiceClientCoverage';
 import { latestTimeDiag, updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { recordTruthStage } from './weatherTruthTracker';
@@ -145,7 +146,7 @@ export function getSurfModeFlag() {
   if (typeof window === 'undefined') return false;
   if (window.__SURF_MODE__ !== undefined) return !!window.__SURF_MODE__;
   try {
-    const persisted = window.localStorage.getItem('__SURF_MODE__') === 'true';
+    const persisted = readMarineSurfMode(window);
     // BOOT-RACE PIN (2026-07-03): stamp the window flag on FIRST read so every reader —
     // including the raw `window.__SURF_MODE__` inline reads in the engine — agrees for the whole
     // boot. Before this, code reading the window flag directly saw `undefined` (falsy) until the
@@ -211,9 +212,9 @@ export function getSeriesAnchorIso() {
  * Provides the single source of authority for matching grid/point time dimensions.
  * Diagnostic callers use readOnly to avoid manifest refreshes or serving diagnostic writes.
  */
-export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName = 'GFS', { readOnly = false } = {}) {
+export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName = 'GFS', { readOnly = false, anchorMs = null, domain = null } = {}) {
   const offset = isNaN(Number(timeOffsetHours)) ? 0 : Number(timeOffsetHours);
-  const roundedNow = getSeriesAnchorMs();
+  const roundedNow = anchorMs ?? getSeriesAnchorMs();
   const targetDt = new Date(roundedNow + offset * 3600000);
   const requestedValidTime = targetDt.toISOString();
 
@@ -222,7 +223,7 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
   let fallbackReason = null;
 
   const filterLayer = (layer || 'waves').toLowerCase();
-  const filterDomain = filterLayer === 'wind' ? 'wind' : 'marine';
+  const filterDomain = domain || (filterLayer === 'wind' ? 'wind' : 'marine');
   const filterModel = (modelName || 'GFS').toUpperCase();
 
   const manifest = getCachedManifest();

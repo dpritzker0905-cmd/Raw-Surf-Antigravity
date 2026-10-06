@@ -14,6 +14,7 @@ import { scoreToLevel, RATING_COLOR, RATING_LABEL } from './surfRating';
 import { fetchSpotRatings, mapSpotRatingsResponse } from './spotRatingsClient';
 import { fetchPublicRatingsObject, selectPrecomputedLaddered, isBeyondPrecomputeBound } from './spotRatingsCdn';
 import { getSharedValidTime } from './backendWeatherServiceClient';
+import { forecastStateIdentityEnabled, sameForecastReading } from './forecastStateIdentity';
 
 // Stable shared empty: computeSpotRatings' gate + the endpoint idle branch both need to return the SAME
 // reference when the rating overlay is off, so a per-step marineData commit / timeline step doesn't mint a
@@ -168,6 +169,7 @@ export function aggregateLeafRatings(leaves, spotRatings) {
  * (all spot/cluster markers) needlessly. Returning the prior ref when value-equal skips those renders.
  */
 export function ratingsShallowEqual(a, b) {
+  if (forecastStateIdentityEnabled()) return sameForecastReading(a, b);
   if (a === b) return true;
   if (!a || !b) return false;
   const ka = Object.keys(a);

@@ -169,6 +169,29 @@ def _row_time(cell: str) -> str:
     return f"{m.group(1)} {int(m.group(2) or 0):02d}:{m.group(3) or '00'}"
 
 
+def scoreboard_dates_ordered(cells: list) -> bool:
+    """Date-only rows constrain the UTC day, rather than falsely asserting midnight.
+
+    Carry every prior explicit lower bound across coarse rows. An intervening bare
+    date therefore cannot hide a later timestamp reversal or an earlier-day row.
+    """
+    earliest = ""
+    for cell in cells:
+        match = re.match(r"(\d{4}-\d{2}-\d{2})(?:\s+~?(\d{1,2})(?::(\d{2}))?Z?)?", cell)
+        if not match:
+            return False
+        lower = _row_time(cell)
+        try:
+            datetime.strptime(lower, "%Y-%m-%d %H:%M")
+        except ValueError:
+            return False
+        upper = lower if match[2] is not None else match[1] + " 23:59"
+        if earliest > upper:
+            return False
+        earliest = max(earliest, lower)
+    return True
+
+
 def audit_docs(docs_dir: str = DOCS, state_path: str = None, ledger_path: str = None) -> list:
     """[(level, message)] for the git record. PURE given the folder."""
     res = []
@@ -202,8 +225,8 @@ def audit_docs(docs_dir: str = DOCS, state_path: str = None, ledger_path: str = 
         cells = [c.strip() for c in r.strip().strip("|").split("|")]
         if len(cells) != 6:
             res.append(("FAIL", f"SCOREBOARD row has {len(cells)} columns, not 6: {r[:60]}"))
-        dates.append(_row_time(cells[0]))
-    if dates != sorted(dates):
+        dates.append(cells[0])
+    if not scoreboard_dates_ordered(dates):
         res.append(("FAIL", "SCOREBOARD rows are not in date order (append-only rows go at the bottom)"))
     texts = {}
     for dirpath, _, fs in os.walk(docs_dir):

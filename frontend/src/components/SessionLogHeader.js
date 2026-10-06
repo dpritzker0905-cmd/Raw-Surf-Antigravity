@@ -290,7 +290,7 @@ export const SessionLogHeader = ({
           </span>
           {hasConditions && isHistoricalSession && (
             <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full">
-              Conditions from this day
+              {post.conditions_source?.startsWith('auto') ? 'Modeled forecast · time unverified' : 'Session conditions entered'}
             </span>
           )}
         </div>

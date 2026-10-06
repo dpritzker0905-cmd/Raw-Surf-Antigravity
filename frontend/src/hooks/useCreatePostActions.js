@@ -4,6 +4,7 @@
  * 18 pure handlers.
  */
 import { useState } from 'react';
+import { composerConditionsEnabled, historicalSession, applyConditionFields } from '../utils/composerConditions';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -177,12 +178,24 @@ const useCreatePostActions = ({
   };
 
   const fetchConditions = async (lat, lon, spotName) => {
+    if (composerConditionsEnabled() && historicalSession(sessionDate)) {
+      toast.error('Current forecasts cannot fill a past session. Enter observed conditions.');
+      return;
+    }
     setConditionsLoading(true);
     try {
       const response = await apiClient.get(`/surf-conditions`, {
         params: { latitude: lat, longitude: lon, spot_name: spotName }
       });
       
+      if (composerConditionsEnabled()) {
+        const available = applyConditionFields(response.data, { waveHeightFt: setWaveHeightFt, wavePeriodSec: setWavePeriodSec, waveDirection: setWaveDirection, waveDirectionDegrees: setWaveDirectionDegrees, windSpeedMph: setWindSpeedMph, windDirection: setWindDirection, tideStatus: setTideStatus, tideHeightFt: setTideHeightFt });
+        setConditionsSource(available ? 'auto_current' : 'unavailable');
+        setShowSessionData(true);
+        if (available) toast.success('Current forecast filled. These are modeled conditions.');
+        else toast.error('No conditions available for this location. Enter observed conditions.');
+        return;
+      }
       if (response.data.wave_height_ft) setWaveHeightFt(response.data.wave_height_ft.toString());
       if (response.data.wave_period_sec) setWavePeriodSec(response.data.wave_period_sec.toString());
       if (response.data.wave_direction) setWaveDirection(response.data.wave_direction);

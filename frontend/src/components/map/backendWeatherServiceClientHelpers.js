@@ -9,6 +9,7 @@
 import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { arrayMax } from './marineControllerUtils';
+import { readMarineFrameReceipt } from './marineFrameReceipt';
 
 import { blendSubVector, extrapolateSubVector } from './marineDirectionBlend';
 export { blendDirection, blendPeriod, blendSubVector, extrapolateSubVector } from './marineDirectionBlend';
@@ -189,6 +190,8 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       // the run) — the commit short-circuit refuses to skip without it. Must be carried
       // explicitly: this mapper rebuilds the result field-by-field, so unknown fields are dropped.
       run_time: json.run_time || null,
+      // Diagnostic envelope only: do not alter the legacy frame-selection/run identity fields.
+      frameReceipt: readMarineFrameReceipt(json),
       // §0c SERVING HONESTY: valid_time above ECHOES the ask; these carry the frame actually
       // served (frame_substituted = a ±3h nearest-frame stand-in) — surfaced in FORENSIC-SNAP
       // so a pasted log self-reports frame skew.

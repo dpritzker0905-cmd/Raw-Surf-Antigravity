@@ -18,6 +18,7 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchNotification, DispatchRequestStatusEnum, SurfSpot,
@@ -138,16 +139,22 @@ async def get_pending_requests(db: AsyncSession = Depends(get_db)):
 async def create_dispatch_request(
     request_data: CreateDispatchRequest,
     requester_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Create a new on-demand dispatch request
     Returns payment intent for deposit
-    
+
     Time Guardrails:
     - On-Demand (is_immediate=True): Current-day only, no scheduling allowed
     - Scheduled (is_immediate=False): Requires 24-hour lead time
     """
+    # The requester is whoever holds the token; a quick-book spends that user's
+    # subscription quota and opens a request in their name.
+    if requester_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot request a pro on behalf of another user")
+
     # Verify requester exists
     result = await db.execute(select(Profile).where(Profile.id == requester_id))
     requester = result.scalar_one_or_none()
@@ -230,7 +237,7 @@ async def create_dispatch_request(
     subscription_discount_pct = 0.0
     subscription_covered = False
     if request_data.target_photographer_id:
-        from routes.photo_subscriptions import get_subscription_discount, try_use_subscription_quota
+        from routes.subscriptions_billing.photo_sub_helpers import get_subscription_discount, try_use_subscription_quota
         subscription_discount_pct = await get_subscription_discount(
             db, requester_id, request_data.target_photographer_id, service_type='on_demand'
         )

@@ -1,5 +1,9 @@
 import sys
 import json
+try:
+    from copernicus_errors import temporal_bounds_error, TIME_UNAVAILABLE_EXIT, TIME_UNAVAILABLE_MARKER
+except ImportError:
+    from services.copernicus_errors import temporal_bounds_error, TIME_UNAVAILABLE_EXIT, TIME_UNAVAILABLE_MARKER
 
 def main():
     if len(sys.argv) < 2:
@@ -50,6 +54,9 @@ def main():
         )
         print("SUCCESS")
     except Exception as e:
+        if temporal_bounds_error(e):
+            print(TIME_UNAVAILABLE_MARKER)
+            sys.exit(TIME_UNAVAILABLE_EXIT)
         print(f"ERROR: Ingestion subset failed: {e}")
         sys.exit(1)
 

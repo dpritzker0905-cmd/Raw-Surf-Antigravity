@@ -2,6 +2,9 @@
 in memory and asserts the freshness/presence/parity/horizon verdicts that catch the recurring
 silent-staleness failure classes. No live sources (verification of LIVE flow is the cron's job)."""
 from datetime import datetime, timezone, timedelta
+from types import SimpleNamespace as S
+
+import pytest
 
 from services.weather_pipeline.data_health import compute_data_health, EXPECTED_LANES
 from services.weather_pipeline.schemas import PipelineManifest, ManifestProduct, CoverageBounds
@@ -14,6 +17,7 @@ def _p(model, domain, run_age_h=1.0, horizon_h=336.0, layer="waves"):
     rt = NOW - timedelta(hours=run_age_h)
     return ManifestProduct(
         model=model, provider="open-meteo", domain=domain, layer=layer,
+        model_run_time=rt, model_run_time_status='known',
         run_time=rt, valid_time_start=rt, valid_time_end=NOW + timedelta(hours=horizon_h),
         resolution=10.0, freshness_sec=3600, is_forecast_authoritative=True, coverage=COV,
         filename=f"{model}_{domain}_{layer}_global_coarse.json", region_id="global_coarse",
@@ -29,6 +33,141 @@ class _Store:
 
 def _all_healthy():
     return [_p(m, d, run_age_h=1.0) for (m, d) in EXPECTED_LANES]
+
+
+@pytest.mark.parametrize('age,expected', [(7, 'ok'), (19, 'warn'), (55, 'critical')])
+def test_model_cycle_age_changes_health_independently_of_recent_ingest(age, expected):
+    products = _all_healthy()
+    products[0].model_run_time = NOW - timedelta(hours=age)
+    rep = compute_data_health(_Store(products), now=NOW)
+    assert rep['lanes']['GFS/marine']['age_h'] == 1
+    assert rep['lanes']['GFS/marine']['verdict'] == expected
+    assert rep['status'] == expected
+
+
+@pytest.mark.parametrize('provenance', ['missing', 'estimated'])
+def test_unverified_cycle_is_warn_and_never_borrowed_from_ingest_time(provenance):
+    products = _all_healthy()
+    products[0].model_run_time = NOW - timedelta(hours=1) if provenance == 'estimated' else None
+    products[0].model_run_time_status = provenance
+    rep = compute_data_health(_Store(products), now=NOW)
+    assert rep['lanes']['GFS/marine']['verdict'] == 'warn'
+    assert rep['lanes']['GFS/marine']['model_cycle_age_h'] is None
+
+
+def test_stale_component_cannot_be_hidden_by_a_fresh_wave_layer():
+    products = _all_healthy()
+    stale = _p('GFS', 'marine', layer='swell_1')
+    stale.model_run_time = NOW - timedelta(hours=55)
+    products.append(stale)
+    assert compute_data_health(_Store(products), now=NOW)['lanes']['GFS/marine']['verdict'] == 'critical'
+
+
+def test_new_unknown_cycle_cannot_borrow_an_old_verified_cycle():
+    products = _all_healthy()
+    old = _p('GFS', 'marine', run_age_h=3)
+    products[0].model_run_time = None
+    products[0].model_run_time_status = 'missing'
+    products.append(old)
+    lane = compute_data_health(_Store(products), now=NOW)['lanes']['GFS/marine']
+    assert lane['verdict'] == 'warn'
+    assert lane['model_cycle_age_h'] is None
+
+
+def test_legacy_cycle_provenance_is_unknown_not_healthy_or_invented():
+    products = [S(model=m, domain=d, layer='waves', region_id='global_coarse',
+                  run_time=NOW-timedelta(hours=1), valid_time_end=NOW+timedelta(hours=400))
+                for m, d in EXPECTED_LANES]
+    rep = compute_data_health(S(get_manifest=lambda: S(products=products)), now=NOW)
+    assert rep['status'] == 'warn'
+    assert rep['lanes']['EURO/marine']['model_cycle_age_h'] is None
+
+
+@pytest.mark.parametrize('model,domain,age,expected', [
+    ('GFS', 'marine', 18, 'ok'), ('GFS', 'marine', 18.01, 'warn'),
+    ('GFS', 'marine', 24, 'warn'), ('GFS', 'marine', 24.01, 'critical'),
+    ('ICON', 'marine', 19, 'ok'), ('ICON', 'marine', 30.01, 'warn'),
+    ('ICON', 'marine', 42.01, 'critical'), ('EURO', 'marine', 19, 'ok'),
+    ('EURO', 'marine', 42.01, 'critical'), ('ICON', 'wind', 19, 'warn'),
+    ('EURO', 'weather', 19, 'warn')])
+def test_cadence_thresholds_use_unrounded_age(model, domain, age, expected):
+    products = _all_healthy()
+    target = next(p for p in products if p.model == model and p.domain == domain)
+    target.model_run_time = NOW - timedelta(hours=age)
+    rep = compute_data_health(_Store(products), now=NOW)
+    assert rep['lanes'][f'{model}/{domain}']['verdict'] == expected
+
+
+@pytest.mark.parametrize('warn,critical', [('nan', '30'), ('18', 'inf'), ('-1', '24'),
+                                         ('24', '18'), ('broken', '24')])
+def test_invalid_threshold_overrides_cannot_silence_stale_cycles(monkeypatch, warn, critical):
+    monkeypatch.setenv('HEALTH_MODEL_CYCLE_WARN_HOURS_GFS_MARINE', warn)
+    monkeypatch.setenv('HEALTH_MODEL_CYCLE_CRITICAL_HOURS_GFS_MARINE', critical)
+    products = _all_healthy()
+    products[0].model_run_time = NOW - timedelta(hours=55)
+    assert compute_data_health(_Store(products), now=NOW)['status'] == 'critical'
+
+
+def test_valid_operator_threshold_override_is_reported(monkeypatch):
+    monkeypatch.setenv('HEALTH_MODEL_CYCLE_WARN_HOURS_GFS_MARINE', '10')
+    monkeypatch.setenv('HEALTH_MODEL_CYCLE_CRITICAL_HOURS_GFS_MARINE', '20')
+    products = _all_healthy()
+    products[0].model_run_time = NOW - timedelta(hours=21)
+    lane = compute_data_health(_Store(products), now=NOW)['lanes']['GFS/marine']
+    assert lane['verdict'] == 'critical'
+    assert lane['model_cycle_warn_h'] == 10 and lane['model_cycle_critical_h'] == 20
+
+
+@pytest.mark.parametrize('value,status', [(None, 'known'), (NOW.replace(tzinfo=None), 'known'),
+                                       (NOW+timedelta(hours=3), 'known'), (NOW, 'conflicting')])
+def test_invalid_naive_future_and_conflicting_cycles_are_unverified(value, status):
+    products = _all_healthy()
+    products[0].model_run_time, products[0].model_run_time_status = value, status
+    lane = compute_data_health(_Store(products), now=NOW)['lanes']['GFS/marine']
+    assert lane['verdict'] == 'warn' and lane['model_cycle_age_h'] is None
+
+
+def test_latest_known_cohort_can_replace_old_retained_frames_without_mutation():
+    products = _all_healthy()
+    old = _p('GFS', 'marine', run_age_h=9)
+    old.model_run_time = NOW - timedelta(hours=55)
+    products.append(old)
+    store = _Store(products)
+    before = store._m.model_dump_json()
+    lane = compute_data_health(store, now=NOW)['lanes']['GFS/marine']
+    assert lane['verdict'] == 'ok' and lane['model_cycle_age_h'] == 1
+    assert store._m.model_dump_json() == before
+
+
+def test_new_estimated_cohort_cannot_hide_stale_native_cycle():
+    products = _all_healthy()
+    products[0].model_run_time = NOW - timedelta(hours=55)
+    estimated = _p('GFS', 'marine', run_age_h=0)
+    estimated.is_estimated = True
+    estimated.model_run_time = None
+    estimated.model_run_time_status = 'missing'
+    products.append(estimated)
+    lane = compute_data_health(_Store(products), now=NOW)['lanes']['GFS/marine']
+    assert lane['verdict'] == 'critical' and lane['model_cycle_status'] == 'mixed'
+
+
+def test_cycle_verdict_is_order_independent_in_a_mixed_receipt_cohort():
+    products = _all_healthy()
+    stale = _p('GFS', 'marine')
+    stale.model_run_time = NOW - timedelta(hours=55)
+    products.append(stale)
+    a = compute_data_health(_Store(products), now=NOW)['lanes']['GFS/marine']
+    b = compute_data_health(_Store(list(reversed(products))), now=NOW)['lanes']['GFS/marine']
+    assert a == b and a['verdict'] == 'critical'
+
+
+def test_slow_regional_pilot_does_not_degrade_global_model_cycle_health():
+    products = _all_healthy()
+    regional = _p('GFS', 'marine')
+    regional.region_id, regional.coverage_mode = 'florida_pilot', 'regional_tile'
+    regional.model_run_time = NOW - timedelta(hours=55)
+    products.append(regional)
+    assert compute_data_health(_Store(products), now=NOW)['status'] == 'ok'
 
 
 def test_all_lanes_fresh_is_ok():

@@ -7,6 +7,8 @@ from typing import List, Tuple, Optional
 
 from services.weather_pipeline.schemas import PipelineManifest, NormalizedProduct, ManifestProduct
 from services.weather_pipeline.copernicus_validator import is_test_environment
+from services.weather_pipeline.product_upload_progress import submit_product_upload
+from services.weather_pipeline.ingestion_frame_validity import grid_frame_save_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -153,6 +155,9 @@ def save_product_helper(store, product: NormalizedProduct, resolution: float = 0
     if not product or not product.grid:
         logger.warning("[Product Store] Attempted to save empty or ungrid product.")
         return None
+    if not grid_frame_save_allowed(product):
+        logger.warning('[Product Store] Rejected invalid frame before storage: %s/%s/%s', product.model, product.domain, product.layer)
+        return None
 
     _apply_florida_region_defaults(product)
 
@@ -175,7 +180,7 @@ def save_product_helper(store, product: NormalizedProduct, resolution: float = 0
 
     # 2b. Upload product to Supabase Storage (L2 — fire-and-forget)
     if not is_tf:
-        _upload_executor.submit(store._upload_to_supabase, filename, product_json_bytes)
+        submit_product_upload(_upload_executor, store, filename, product_json_bytes)
 
     # 2. Update registration in master manifest
     if is_tf and not is_test_env:
@@ -261,6 +266,10 @@ def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedPro
             if not product or not product.grid:
                 logger.warning("[Product Store] Attempted to save empty or ungrid product in batch.")
                 continue
+            if not grid_frame_save_allowed(product):
+                failed_count += 1
+                logger.warning('[Product Store] Rejected invalid batch frame before storage: %s/%s/%s', product.model, product.domain, product.layer)
+                continue
 
             _apply_florida_region_defaults(product)
 
@@ -282,7 +291,7 @@ def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedPro
 
             # 2. Upload product to Supabase Storage (L2 — fire-and-forget)
             if not is_tf:
-                _upload_executor.submit(store._upload_to_supabase, filename, product_json_bytes)
+                submit_product_upload(_upload_executor, store, filename, product_json_bytes)
                 has_non_tf = True
 
             # 3. Add to manifest dict, updating/overwriting any existing duplicate slice
@@ -585,18 +594,24 @@ def load_product_helper(store, filename: str, stride: Optional[int] = None) -> O
     # keeps a decimated grid out of every other consumer's hands.
     cache_key = filename if stride <= 1 else f"{filename}#s{stride}"
 
+    revision, revision_reason = None, None
+    if os.environ.get('PRODUCT_REVISION_REFRESH', '0') == '1':
+        from services.weather_pipeline.product_revision_refresh import refresh_revision, registration, mark_revision_refusal
+        revision, revision_reason = refresh_revision(store, filename)
+
     # 1. Check in-memory product cache
     now = time.time()
     with ProductStore._product_cache_lock:
         if cache_key in ProductStore._product_cache:
             cached_product, cached_time = ProductStore._product_cache[cache_key]
-            if now - cached_time < ProductStore._PRODUCT_CACHE_TTL:
+            if (now - cached_time < ProductStore._PRODUCT_CACHE_TTL
+                    and (revision is None or revision_reason or registration(cached_product) == revision)):
                 logger.debug(f"[Product Store] Memory cache HIT for {cache_key}")
                 # Shallow copy product and grid container to avoid deep-copying vector list
                 cloned = cached_product.model_copy()
                 if cloned.grid is not None:
                     cloned.grid = cloned.grid.model_copy()
-                return cloned
+                return mark_revision_refusal(cloned, revision_reason) if revision_reason else cloned
             else:
                 ProductStore._product_cache.pop(cache_key, None)
                 ProductStore._product_cache_vectors.pop(cache_key, None)
@@ -711,7 +726,7 @@ def load_product_helper(store, filename: str, stride: Optional[int] = None) -> O
             cloned = product.model_copy()
             if cloned.grid is not None:
                 cloned.grid = cloned.grid.model_copy()
-            return cloned
+            return mark_revision_refusal(cloned, revision_reason) if revision_reason else cloned
     except Exception as e:
         logger.error(f"[Product Store] Stored product load and parse failed for {filename}: {e}")
         return None

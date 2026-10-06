@@ -26,7 +26,7 @@ verified). A later line closes it with `fulfills: <seq>`, which must name an ear
 unfulfilled commitment and marks the OVERDUE ones; memory_audit surfaces them at every session start.
 
 USAGE (from the repo root; standard library only):
-  python backend/scripts/action_ledger.py append --kind pr_merge --target "#163" \
+  python backend/scripts/action_ledger.py append --actor codex --kind pr_merge --target "#163" \
       --why "..." --authorized-by "owner (chat, 2026-09-29): 'Merge #163 and #164'" \
       --evidence "CI 14/14 green" --evidence "hosted chain 130/1537" \
       --outcome "merged as abc12345" --verified "gh pr view 163: MERGED" --rollback "git revert -m 1 abc12345"
@@ -355,7 +355,7 @@ def main(argv=None) -> int:
     a = sub.add_parser("append")
     a.add_argument("--kind", required=True, choices=sorted(KINDS))
     for k in ("actor", "target", "why", "authorized-by", "outcome", "verified", "rollback"):
-        a.add_argument(f"--{k}", required=(k != "actor"))
+        a.add_argument(f"--{k}", required=True)
     a.add_argument("--evidence", action="append", required=True)
     a.add_argument("--corrects", help="an earlier seq, or a reference to where the corrected claim was written")
     a.add_argument("--at", help="when the line is written (default now); must not precede the last line")
@@ -374,7 +374,7 @@ def main(argv=None) -> int:
         fields = {"kind": args.kind, "target": args.target, "why": args.why, "authorized_by": args.authorized_by,
                   "outcome": args.outcome, "verified": args.verified, "rollback": args.rollback,
                   "evidence": args.evidence,
-                  "actor": args.actor or os.environ.get("LEDGER_ACTOR", "claude")}
+                  "actor": args.actor}
         if args.corrects is not None:
             fields["corrects"] = int(args.corrects) if args.corrects.isdigit() else args.corrects
         if args.at:

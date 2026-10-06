@@ -22,13 +22,18 @@ describe('useWebGLGuardrail', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    window.__MARINE_ENGINE__ = { _initialized: true, _waveData: {} };
+    window.__RAW_GPU__ = {};
     eventListeners = {};
     docEventListeners = {};
     currentTime = 1000;
 
     mapInstance = {
       on: jest.fn((event, cb) => {
-        eventListeners[event] = cb;
+        eventListeners[event] = (...args) => {
+          window.__RAW_GPU__.layer = { n: (window.__RAW_GPU__.layer?.n || 0) + 1, t: Date.now(), skip: null };
+          cb(...args);
+        };
       }),
       off: jest.fn((event, cb) => {
         if (eventListeners[event] === cb) {
@@ -61,6 +66,8 @@ describe('useWebGLGuardrail', () => {
   });
 
   afterEach(() => {
+    delete window.__MARINE_ENGINE__;
+    delete window.__RAW_GPU__;
     mockPerformanceNow.mockRestore();
     jest.restoreAllMocks();
     Object.defineProperty(document, 'hidden', {

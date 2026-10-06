@@ -13,6 +13,7 @@ supposed to keep warm, checks three things that catch the recurring failure clas
   2. PRESENCE   — each expected lane has a global product at all.                            → a lane silently dropped
   3. PARITY     — no lane lags the freshest lane by more than the stale threshold.           → one source degraded
   4. HORIZON    — each lane's products extend far enough ahead.                              → tail-loss (EURO-estimates class)
+  5. CYCLE      — verified model cycle age, separate from receipt liveness.                  → upstream stuck/re-ingested
 
 It is PURE + read-only (no fetch, no mutation) so it is safe to run in the cron tail AND standalone from a
 separate monitor workflow against the restored L2 manifest. Thresholds are env-tunable; defaults suit the
@@ -21,6 +22,7 @@ separate monitor workflow against the restored L2 manifest. Thresholds are env-t
 import os
 from datetime import datetime, timezone
 from typing import Optional
+from services.weather_pipeline.model_cycle_health import summarize_model_cycles
 
 # The lanes the decoupled cron is expected to keep warm every cycle (source matrix: runbook §12).
 EXPECTED_LANES = [
@@ -79,7 +81,7 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
                 "alerts": [f"could not read manifest: {e!r}"], "lanes": {}}
 
     # Newest global product per (model, domain).
-    lane_state = {}
+    lane_state, lane_products = {}, {}
     for p in products:
         if not _is_global(p):
             continue
@@ -88,6 +90,7 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
         vt = _coerce_utc(getattr(p, "valid_time_end", None))
         if rt is None:
             continue
+        lane_products.setdefault(key, []).append(p)
         cur = lane_state.get(key)
         if cur is None or rt > cur["run_time"]:
             lane_state[key] = {"run_time": rt, "horizon_end": vt,
@@ -142,8 +145,12 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
             verdict = _worse(verdict, "warn"); reasons.append(f"lags freshest by {lag_h}h")
         if horizon_h is not None and horizon_h < _min_horizon(model):
             verdict = _worse(verdict, "warn"); reasons.append(f"horizon only {horizon_h}h")
+        cycle_fields, cycle_verdict, cycle_reasons = summarize_model_cycles(
+            lane_products[(model, domain)], now, model, domain)
+        verdict = _worse(verdict, cycle_verdict)
+        reasons.extend(cycle_reasons)
         lanes[name] = {"verdict": verdict, "age_h": age_h, "lag_h": lag_h,
-                       "horizon_h": horizon_h, "source": st["source"]}
+                       "horizon_h": horizon_h, "source": st["source"], **cycle_fields}
         if reasons:
             alerts.append(f"{name}: " + ", ".join(reasons))
         status = _worse(status, verdict)

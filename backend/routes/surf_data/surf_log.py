@@ -13,6 +13,7 @@ from datetime import date, datetime, timezone
 
 from database import get_db
 from models import SurfLogEntry, SurfSpot, Profile
+from core.security import get_current_user_id
 
 router = APIRouter()
 
@@ -122,9 +123,12 @@ def _entry_to_dict(entry: SurfLogEntry) -> dict:
 async def create_surf_log_entry(
     user_id: str,
     data: SurfLogCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """Create a new surf log entry."""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot access another user\'s surf log")
     # Verify user
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
     if not user_result.scalar_one_or_none():
@@ -189,12 +193,15 @@ async def get_surf_log(
     month: Optional[int] = None,
     spot_id: Optional[str] = None,
     mood: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Get user's surf log entries with optional filters.
     Sorted newest → oldest.
     """
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot access another user\'s surf log")
     query = (
         select(SurfLogEntry)
         .where(SurfLogEntry.user_id == user_id)
@@ -227,99 +234,19 @@ async def get_surf_log(
     }
 
 
-@router.get("/surf-log/{user_id}/{entry_id}")
-async def get_surf_log_entry(
-    user_id: str,
-    entry_id: str,
-    db: AsyncSession = Depends(get_db)
-):
-    """Get a single surf log entry."""
-    result = await db.execute(
-        select(SurfLogEntry).where(
-            SurfLogEntry.id == entry_id,
-            SurfLogEntry.user_id == user_id
-        )
-    )
-    entry = result.scalar_one_or_none()
-    if not entry:
-        raise HTTPException(status_code=404, detail="Surf log entry not found")
-
-    return {"entry": _entry_to_dict(entry)}
-
-
-# ──────────────────────────────────────
-# UPDATE
-# ──────────────────────────────────────
-
-@router.patch("/surf-log/{user_id}/{entry_id}")
-async def update_surf_log_entry(
-    user_id: str,
-    entry_id: str,
-    data: SurfLogUpdate,
-    db: AsyncSession = Depends(get_db)
-):
-    """Update an existing surf log entry. Only provided fields are changed."""
-    result = await db.execute(
-        select(SurfLogEntry).where(
-            SurfLogEntry.id == entry_id,
-            SurfLogEntry.user_id == user_id
-        )
-    )
-    entry = result.scalar_one_or_none()
-    if not entry:
-        raise HTTPException(status_code=404, detail="Surf log entry not found")
-
-    update_fields = data.model_dump(exclude_unset=True)
-    for field, value in update_fields.items():
-        setattr(entry, field, value)
-
-    await db.commit()
-    await db.refresh(entry)
-
-    return {"success": True, "entry": _entry_to_dict(entry)}
-
-
-# ──────────────────────────────────────
-# DELETE
-# ──────────────────────────────────────
-
-@router.delete("/surf-log/{user_id}/{entry_id}")
-async def delete_surf_log_entry(
-    user_id: str,
-    entry_id: str,
-    db: AsyncSession = Depends(get_db)
-):
-    """Delete a surf log entry."""
-    result = await db.execute(
-        select(SurfLogEntry).where(
-            SurfLogEntry.id == entry_id,
-            SurfLogEntry.user_id == user_id
-        )
-    )
-    entry = result.scalar_one_or_none()
-    if not entry:
-        raise HTTPException(status_code=404, detail="Surf log entry not found")
-
-    await db.delete(entry)
-    await db.commit()
-
-    return {"success": True, "message": "Entry deleted"}
-
-
-# ──────────────────────────────────────
-# STATS — Surf Log Summary
-# ──────────────────────────────────────
-
 @router.get("/surf-log/{user_id}/stats")
 async def get_surf_log_stats(
     user_id: str,
     year: Optional[int] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Get aggregated surf log stats for a user.
     Returns total sessions, hours in water, favourite spot, mood distribution, etc.
     """
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot access another user\'s surf log")
     base = select(SurfLogEntry).where(SurfLogEntry.user_id == user_id)
     if year:
         base = base.where(func.extract('year', SurfLogEntry.session_date) == year)
@@ -376,3 +303,91 @@ async def get_surf_log_stats(
         "busiest_month": busiest_month,
         "gear_diversity": len(set(e.board_model for e in entries if e.board_model)),
     }
+
+
+@router.get("/surf-log/{user_id}/{entry_id}")
+async def get_surf_log_entry(
+    user_id: str,
+    entry_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """Get a single surf log entry."""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot access another user\'s surf log")
+    result = await db.execute(
+        select(SurfLogEntry).where(
+            SurfLogEntry.id == entry_id,
+            SurfLogEntry.user_id == user_id
+        )
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Surf log entry not found")
+
+    return {"entry": _entry_to_dict(entry)}
+
+
+# ──────────────────────────────────────
+# UPDATE
+# ──────────────────────────────────────
+
+@router.patch("/surf-log/{user_id}/{entry_id}")
+async def update_surf_log_entry(
+    user_id: str,
+    entry_id: str,
+    data: SurfLogUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """Update an existing surf log entry. Only provided fields are changed."""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot access another user\'s surf log")
+    result = await db.execute(
+        select(SurfLogEntry).where(
+            SurfLogEntry.id == entry_id,
+            SurfLogEntry.user_id == user_id
+        )
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Surf log entry not found")
+
+    update_fields = data.model_dump(exclude_unset=True)
+    for field, value in update_fields.items():
+        setattr(entry, field, value)
+
+    await db.commit()
+    await db.refresh(entry)
+
+    return {"success": True, "entry": _entry_to_dict(entry)}
+
+
+# ──────────────────────────────────────
+# DELETE
+# ──────────────────────────────────────
+
+@router.delete("/surf-log/{user_id}/{entry_id}")
+async def delete_surf_log_entry(
+    user_id: str,
+    entry_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
+    """Delete a surf log entry."""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot access another user\'s surf log")
+    result = await db.execute(
+        select(SurfLogEntry).where(
+            SurfLogEntry.id == entry_id,
+            SurfLogEntry.user_id == user_id
+        )
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Surf log entry not found")
+
+    await db.delete(entry)
+    await db.commit()
+
+    return {"success": True, "message": "Entry deleted"}

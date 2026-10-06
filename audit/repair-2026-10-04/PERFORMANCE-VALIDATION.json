@@ -1,0 +1,77 @@
+{
+  "recorded_at_utc": "2026-10-04 22:49Z",
+  "baseline": "e4353c062c093b453ce7f4e9445a4a793ce7feba",
+  "source_sha256": {
+    ".github/workflows/ci.yml": "a1eaccd7274fe064b969dd5d3798ab29c6d1012183289442ab530e22d78c8c91",
+    "frontend/src/components/map/marineGridSeries.cacheBounds.test.js": "7aa472259c71fe144b78cc656e266ac41465940661300b92b8308e0ef9596ba9",
+    "frontend/src/components/map/marineGridSeries.js": "d0ecb65e71d2043ca8a18882f8c3f08c9582d877ab5f560562ca2f1f07fecb44",
+    "frontend/src/components/map/marineSeriesCache.js": "61d8a232844b7991c0a5f1b9299be5cb8e6e06f1a20eab92390acda79091c9d7",
+    "frontend/src/components/map/marineSeriesCache.test.js": "ee89c27467b6b4a90adb90e38e33e1ede8b00de6e71d3aa9b742db76dd4f74ea",
+    "frontend/src/components/map/marineSeriesLimiter.js": "c5a0b162d14bdc69346014daf366c685ad53c2239e89b1399fc595a86d054eaa",
+    "frontend/src/components/map/marineSeriesWorkBounds.test.js": "87751382c9f072c663f9004474bfad6eb7c31cd9af15fe61550c7fdc28e9253a",
+    "frontend/src/components/map/marineSeriesWorkPolicy.js": "3504bcbe8933eda0412f418faaf9d28a15b1db82a7600767d4e2d096a066e17a",
+    "frontend/src/components/map/useMarineOrchestrator.js": "54168ba62383a994ef7b4743e3a45a421c864e22f06dc8f4bbea672fbab1040f",
+    "frontend/src/components/map/useMarineSeriesWarm.js": "846338254d572fed519cb8efc742f0ad0261365965c217be4559cca1a63a541d",
+    "frontend/src/components/map/useMarineSeriesWarm.test.js": "e40bcd67f777b6ccb1ea9d086b9e71ec80812b39343793ef5d5af05c97ef8783"
+  },
+  "local": {
+    "frontend_suites": 351,
+    "frontend_passed": 3647,
+    "focused_passed_twice": 90,
+    "new_controls": 37,
+    "cache_before_twice": {
+      "failed": 3,
+      "passed": 5
+    },
+    "limiter_before_twice": {
+      "failed": 2,
+      "deselected": 9
+    },
+    "jacobian": {
+      "active_count_legacy": 1,
+      "active_count_enabled": 0,
+      "retained_count_legacy": 1,
+      "retained_count_enabled": 0,
+      "height_both": 1
+    },
+    "lint": "86existingerrors/917warnings, ratchet accepted",
+    "build": "standard CI=false production compilation accepted; extra CI=true rejects existing warning debt",
+    "loc": "2509files,0new/regressed"
+  },
+  "hosted": {
+    "status": "success",
+    "expected": {
+      "frontend_suites": 351,
+      "frontend_passed": 3647,
+      "backend": 5219
+    },
+    "source": "21db8ee80fc5af8ea892c4c4467f0b54ce2f004e",
+    "ci": 37241546337,
+    "recorded_at_utc": "2026-10-04 23:08Z",
+    "actual": {
+      "frontend_suites": 351,
+      "frontend_passed": 3647,
+      "backend": 5219,
+      "guards": 2327,
+      "guard_files": 182,
+      "guard_skips": 66,
+      "guard_xfailed": 1,
+      "chain": 1982,
+      "chain_files": 150,
+      "estate": 910,
+      "estate_selected": 285,
+      "estate_results": 283,
+      "estate_silent": 0
+    }
+  },
+  "flags": {
+    "REACT_APP_MARINE_SERIES_WORK_BOUNDS": "false (unset)",
+    "REACT_APP_MARINE_SERIES_CACHE_BOUNDS": "false (unset)"
+  },
+  "limits": [
+    "No merge/deploy/activation",
+    "Backend process-wide admission remains open",
+    "No live p95 or native GPU closure",
+    "Estimated ownership is not true heap bytes"
+  ]
+}

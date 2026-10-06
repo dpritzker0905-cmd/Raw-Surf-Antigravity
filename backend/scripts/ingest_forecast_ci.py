@@ -17,7 +17,8 @@ ENV (set by the workflow from repo secrets):
   COPERNICUSMARINE_SERVICE_USERNAME/PASSWORD (or your Render names) -> EURO marine; optional
   WEATHER_PROXY_URL                       -> open-meteo fallback proxy; optional
 
-Exit code: 0 if the cycle ran AND at least one L2 upload was recorded; 1 otherwise (so a failed
+Exit code: 0 if this cycle acknowledged at least one product upload and drained its product queue;
+1 otherwise. Metadata, restores and earlier invocations cannot satisfy this requirement (so a failed
 round-trip fails the Action loudly during the verification phase).
 """
 import os
@@ -40,6 +41,7 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 logger = logging.getLogger("ingest_forecast_ci")
+PRODUCT_UPLOAD_DRAIN_SECONDS = 300
 
 
 def main() -> int:
@@ -69,7 +71,11 @@ def main() -> int:
 
     logger.info("Starting decoupled forecast ingestion (reusing production ingest_marine_forecast_task)...")
     from scheduler.forecast import ingest_marine_forecast_task
-    ingest_marine_forecast_task()  # synchronous; manages its own event loop + per-job isolation
+    from services.weather_pipeline.product_upload_progress import collect_product_uploads
+    with collect_product_uploads() as progress:
+        ingest_marine_forecast_task()  # synchronous; manages its own event loop + per-job isolation
+    product_diag = progress.wait(PRODUCT_UPLOAD_DRAIN_SECONDS)
+    logger.info("CURRENT-CYCLE PRODUCT UPLOADS: %s", product_diag)
 
     # ── Duplicate-valid_time sweep (2026-07-04, manifest-bloat audit) ────────────────────────────────
     # Per-layer prune_superseded only runs after a layer's save loop completes, so CANCELLED runs
@@ -150,13 +156,16 @@ def main() -> int:
     diag = ProductStore().get_persistence_diagnostics()
     logger.info("L2 DIAGNOSTICS: %s", diag)
 
-    if not diag.get("last_upload_time"):
-        logger.error("No L2 upload was recorded this run — Supabase creds missing or every upload failed. "
-                     "Check SUPABASE_* secrets + last_upload_errors above.")
+    if not product_diag['acknowledged'] or product_diag['pending']:
+        logger.error("No acknowledged product progress or product uploads remain after the bounded drain: %s. "
+                     "Metadata/restore/prior uploads do not qualify this cycle.", product_diag)
         return 1
+    if product_diag['failed']:
+        logger.warning("Partial product-upload failure in this cycle: %s", product_diag)
     if diag.get("last_upload_errors"):
         logger.warning("Some L2 uploads failed: %s", diag.get("last_upload_errors"))
-    logger.info("Decoupled ingestion complete — products are in Supabase L2 for the Render box to restore.")
+    logger.info("Decoupled ingestion complete — current-cycle product objects acknowledged in L2. "
+                "Manifest publication/readback and every-lane completeness are separate checks.")
     return 0
 
 

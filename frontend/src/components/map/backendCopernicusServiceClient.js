@@ -18,6 +18,8 @@ import {
   getSurfModeFlag
 } from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
+import { pointRequestIdentityEnabled, createPointRequestContext } from './pointRequestIdentity';
+import { marineValueValidityEnabled, marinePointValues } from './marinePointValues';
 import { arrayMax } from './marineControllerUtils';
 
 export const copernicusPointCache = new BoundedPointCache(50, 30000);
@@ -514,7 +516,9 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
 /**
  * Fetches exact point forecast from backend weather service for EURO Copernicus.
  */
-export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, signal, layer = 'swell_1', gridProductIdParam = null, gridBboxParam = null) {
+export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, signal, layer = 'swell_1', gridProductIdParam = null, gridBboxParam = null, requestContext = null) {
+  requestContext = pointRequestIdentityEnabled()
+    ? requestContext || createPointRequestContext('EURO', layer, hourOffset, false, gridProductIdParam, gridBboxParam) : null;
   let gridProductId = gridProductIdParam;
   if (!gridProductId && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) {
     gridProductId = window.__MARINE_PROJECTION_DIAG__.productId || window.__MARINE_PROJECTION_DIAG__.gridProductId || null;
@@ -526,7 +530,11 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
   }
 
   const start = Date.now();
-  const validTimeStr = getSharedValidTime(hourOffset, layer, 'EURO');
+  if (requestContext) {
+    gridProductId = requestContext.gridProductId;
+    gridBbox = requestContext.gridBbox;
+  }
+  const validTimeStr = requestContext?.validTime || getSharedValidTime(hourOffset, layer, 'EURO');
   const provider = 'copernicus';
   let cacheKey = `EURO_marine_${layer}_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
   if (gridProductId) {
@@ -536,7 +544,7 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
     cacheKey += `_bbox_${gridBbox}`;
   }
 
-  const cached = copernicusPointCache.get(cacheKey);
+  const cached = requestContext?.force ? null : copernicusPointCache.get(cacheKey);
   if (cached) {
     console.log(`[Backend Weather Service] Cache hit for EURO Copernicus: ${cacheKey}`);
     const clonedData = JSON.parse(JSON.stringify(cached.data));
@@ -624,24 +632,28 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       wind_wave_peak_period: [null]
     };
 
+    const strictValues = marineValueValidityEnabled();
+    const values = strictValues ? marinePointValues(json.point) : {
+      height: json.point.speed || 0, direction: json.point.direction || 0, period: json.point.period || 0};
+    if (strictValues && !json.point) json.point = {};
     if (layer === 'swell_1') {
-      conformedHourly.swell_wave_height = [json.point.speed || 0];
-      conformedHourly.swell_wave_direction = [json.point.direction || 0];
-      conformedHourly.swell_wave_period = [json.point.period || 0];
-      conformedHourly.swell_wave_peak_period = [json.point.period || 0];
+      conformedHourly.swell_wave_height = [values.height];
+      conformedHourly.swell_wave_direction = [values.direction];
+      conformedHourly.swell_wave_period = [values.period];
+      conformedHourly.swell_wave_peak_period = [strictValues ? null : values.period];
     } else if (layer === 'swell_2') {
-      conformedHourly.secondary_swell_wave_height = [json.point.speed || 0];
-      conformedHourly.secondary_swell_wave_direction = [json.point.direction || 0];
-      conformedHourly.secondary_swell_wave_period = [json.point.period || 0];
+      conformedHourly.secondary_swell_wave_height = [values.height];
+      conformedHourly.secondary_swell_wave_direction = [values.direction];
+      conformedHourly.secondary_swell_wave_period = [values.period];
     } else if (layer === 'wind_waves') {
-      conformedHourly.wind_wave_height = [json.point.speed || 0];
-      conformedHourly.wind_wave_direction = [json.point.direction || 0];
-      conformedHourly.wind_wave_period = [json.point.period || 0];
-      conformedHourly.wind_wave_peak_period = [json.point.period || 0];
+      conformedHourly.wind_wave_height = [values.height];
+      conformedHourly.wind_wave_direction = [values.direction];
+      conformedHourly.wind_wave_period = [values.period];
+      conformedHourly.wind_wave_peak_period = [strictValues ? null : values.period];
     } else if (layer === 'waves') {
-      conformedHourly.wave_height = [json.point.speed || 0];
-      conformedHourly.wave_direction = [json.point.direction || 0];
-      conformedHourly.wave_period = [json.point.period || 0];
+      conformedHourly.wave_height = [values.height];
+      conformedHourly.wave_direction = [values.direction];
+      conformedHourly.wave_period = [values.period];
     }
 
     const data = {
@@ -665,6 +677,7 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       // infobox had no "Surf" tab while GFS/ICON (which go through fetchBackendExactPoint) did. Carry them.
       surf_height_m: (json.surf_height_m ?? null),
       surf_regime: (json.surf_regime ?? null),
+      surf_nearshore: strictValues ? (json.surf_nearshore ?? null) : null,
       shelf_depth_m: (json.shelf_depth_m ?? null),
       // Same geometry field the GFS/ICON builder carries — without it the EURO infobox rating
       // evaluates the speed-only wind branch and a neutral swell exposure.

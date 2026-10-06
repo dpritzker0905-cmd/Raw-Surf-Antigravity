@@ -22,6 +22,9 @@
  * WebGLMarineEngine re-exports every name below, so no importer and no test changed.
  */
 import { recordMarineEvent } from './marineForensics';
+import { readMarineSurfMode } from './marineSurfMode';
+import { forecastStateIdentityEnabled } from './forecastStateIdentity';
+import { marineFrameInstant, sameMarineFrameInstant } from './marineFrameInstant';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 
 export function latToMercatorY(lat) {
@@ -245,7 +248,7 @@ export function gridCellDeg(waveGrid) {
 // coarse→regional (sharpen/UPGRADE), a scrub to a DIFFERENT hour, zoomed-out, no resident, or a resident regional
 // that no longer COVERS the viewport (stale after a pan) all return false — so the guard can never strand a
 // non-covering rectangle nor re-create the coarse-global CLAMP that 7f6c39be/54e289b5 fixed.
-export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, viewportBounds, disabled, nowMs) {
+export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, viewportBounds, disabled, nowMs, absoluteFrameTime = forecastStateIdentityEnabled()) {
   if (disabled || !resident || !incoming) return false;
   // Two downgrade shapes are blocked (everything else falls through unguarded):
   //  (1) the coarse-GLOBAL fallback displacing a regional (the original 07-01 ping-pong), and
@@ -272,9 +275,7 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   // ANY honest incoming — even the coarse global — is a TRUTH UPGRADE over a rated resident:
   // never hold it. (Exact mirror of ratingDowngrade below, which protects rated residents while
   // the flag is ON.) Kill shared: __RAW_DISABLE_NO_DOWNGRADE__ disables the whole guard.
-  const _surfFlagOn = (typeof window !== 'undefined') && (window.__SURF_MODE__ === true
-    || (window.__SURF_MODE__ === undefined && typeof window.localStorage !== 'undefined'
-        && window.localStorage.getItem('__SURF_MODE__') === 'true'));
+  const _surfFlagOn = readMarineSurfMode();
   if (resident.ratingMode && !incoming.ratingMode && !_surfFlagOn) return false;
   const _rc = gridCellDeg(resident);
   const _ic = gridCellDeg(incoming);
@@ -285,15 +286,12 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   // kept displacing the rated dynamic grid every cycle, flickering the band off. Same coverage/
   // layer/hour predicates below apply, so a non-covering rated rect still releases (no stranding)
   // and cross-model switches above stay deliberate. Kill shared: __RAW_DISABLE_NO_DOWNGRADE__.
-  const ratingDowngrade = !!(resident.ratingMode && !incoming.ratingMode)
-    && (typeof window !== 'undefined') && (window.__SURF_MODE__ === true
-        || (window.__SURF_MODE__ === undefined && typeof window.localStorage !== 'undefined'
-            && window.localStorage.getItem('__SURF_MODE__') === 'true'));
+  const ratingDowngrade = !!(resident.ratingMode && !incoming.ratingMode) && _surfFlagOn;
   if (!isCoarseGlobalGrid(incoming) && !cellDowngrade && !ratingDowngrade) return false;
   if (!isRegionalBounds(resident.bounds)) return false;    // resident must itself be a regional tile
   const sameLayer = (incoming.__componentLayer || 'waves') === (resident.__componentLayer || 'waves');
-  const sameHour = incoming.hourOffset !== undefined && resident.hourOffset !== undefined
-    && incoming.hourOffset === resident.hourOffset;
+  const sameHour = absoluteFrameTime ? sameMarineFrameInstant(resident, incoming)
+    : incoming.hourOffset !== undefined && resident.hourOffset !== undefined && incoming.hourOffset === resident.hourOffset;
   // UNKNOWN zoom must FAIL OPEN (2026-07-03): _lastZoom is only written by the render loop, so a
   // commit racing a zoom change (or arriving before the first frame / while rAF is paused) reads
   // undefined-or-stale. Treating unknown as "zoomed in" made the guard reject the coarse WHILE the
@@ -368,7 +366,7 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
     if (w.__RAW_DISABLE_RATING_GRACE__ !== true) {
       const graceMs = (typeof w.__RAW_RATING_GRACE_MS__ === 'number') ? w.__RAW_RATING_GRACE_MS__ : 4000;
       const t = (typeof nowMs === 'number') ? nowMs : Date.now();
-      const key = `${_rm}|${resident.__componentLayer || 'waves'}|${resident.hourOffset}|`
+      const key = `${_rm}|${resident.__componentLayer || 'waves'}|${absoluteFrameTime ? marineFrameInstant(resident) : resident.hourOffset}|`
         + `${rb ? [rb.west, rb.south, rb.east, rb.north].join(',') : 'nb'}`;
       if (_ratingGraceState.key !== key) {
         _ratingGraceState.key = key;

@@ -3,6 +3,8 @@
  * Developer tools and telemetry definitions for the GPU Marine render loop.
  */
 
+export { marineForensicFrameEvidence } from './marineFrameReceipt';
+
 export function populateCrestDiagnostics(engine, gl, waveBounds, z) {
   if (typeof window === 'undefined') return;
 

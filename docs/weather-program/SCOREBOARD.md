@@ -124,3 +124,85 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 | 2026-10-04 00:42Z | dev22f84f99 / monitor label and Stripe authority prepared | S21/S22 | Real assembled route dispatch; healthy/loss scored-archive controls | 45actual checks twice; default-off ICON hosted329/3387 +8/121 | No served weather change or flag flip; no processor/graphics/SLO/skill closure |
 
 | 2026-10-04 01:54Z | dev6b062e97, owner D-016 / PR241 | S21/S22, D-001 | Dev-only primary ICON grid source preservation; actual compiled scope twice, same captured h179 fields and live regional pair | Old146/141/146 cells altered→stored replay0; local target derivative0→1; live two5case rounds before/after all200/nonzero; two fresh own fields179 | Serving source path enabled on dev only; values remain estimated; no skill gain, sustained GPU, point parity or served-hour closure |
+
+| 2026-10-04 18:51Z | PR243 dark ordered identity/availability/playback candidate | D-001, S21/S22 | Actual resolver/sampler, HTTP adapters/cards, spot producer and mounted consumers/player; one-field and time/force perturbations | W01 wrong-product1m→requested2m; point18fail→26pass; availability12fail→24pass; producer8fail→12pass; memo/race16fail→controls pass; playback9fail→controls pass; fullfrontend346/3582 +backend171focused | All new flags default-off: no served-number or skill gain. Hosted full backend pending; browser component fixture only, full map/GPU/real-device/canary still open |
+
+| 2026-10-04 19:15Z | PR243 source5afa0c82 dark hosted qualification | D-001, S21/S22 | Actual resolver/sampler central differences and exact-source full CI | GFS/ICON/EURO requested/hint derivatives0/1→1/0;6controls twice; hostedfrontend346/3582, backend5128pass/67existingguardskips/0fail | All new flags default-off; no served-number change or skill gain. Full-map/GPU/device/canary acceptance remains open |
+
+| 2026-10-04 19:55Z | PR243 dark SH04/SH05/SH06/W04 repairs | D-001 | Actual mounted UTC calendar/size controls and backend route/cache/SDK boundary controls | Before frontend9fail/21pass and backend17fail/70pass twice; after frontend3610/backend195neighbors; current cache22→2, irrelevant fallback1→0, typed terminal tiles4→1; no live p95 measurement | Flags default off; no served-number change or skill gain; full hosted/device acceptance pending |
+
+| 2026-10-04 20:12Z | PR243 source40cd1ddd hosted dark qualification | D-001 | Exact-source hosted full lanes plus current resolver/sampler central differences | Frontend347/3610, backend5168passed, all11CIjobs; Jacobian6controls twice; no new skips/exclusions | No served-number change or skill gain; device/full-map/live p95 acceptance remains open |
+
+| 2026-10-04 22:09Z | PR243 dark AS06 immutable publication | D-001 | Actual publisher/store/REST CAS/reader concurrent controls and central differences | Before16cases9fail/7pass twice; after109neighbors twice; winner/loser derivative[0,1]→[1,0];36new guards; one100-row list and one20-object batch cap | Flag0; no served-number or skill change; actual Supabase canary and hosted pending |
+
+| 2026-10-04 | AS06 final local control expansion (supersedes earlier partial count) | D-001 | Publisher/store/CAS/reader, gate exception and pilot parity controls plus floors |148passed twice;39new guards; projection2327guards/backend5207; before16cases9fail/7pass twice unchanged | Flag0, no served-number or skill change; hosted and Supabase canary pending |
+
+| 2026-10-04 22:25Z | Correction: AS06 date-only expansion row retained | D-001 | Actual audit_docs and precision-aware chronology negative controls | Before1fail/1pass; after12controls plus108neighbors pass; explicit time/day reversals remain refused | No served-number change; actual row write22:14:13Z per ledger610; hosted follow-up pending |
+
+| 2026-10-04 22:49Z | PF01/PF02 default-off browser work/retention | D-001 | Actual series transport, cache writers, mounted viewport hook and central differences |14→3active requests;≤48entries and32MiB estimate; count sensitivity1→0, height1 unchanged;90controls twice;351/3647full frontend | No served-number or skill change; actual service admission/device/GPU/p95 and hosted current candidate open |
+
+| 2026-10-04 23:08Z | PF01/PF02 source21db8ee8 hosted qualification | D-001 | Exact-source full hosted lanes and local transport/cache sensitivities |351/3647frontend,5219backend,all11jobs;90neighbors twice; no new skip/exclusion; masks/height controls preserved | No served-number or skill change; sourceflags off; service admission/device/GPU/p95 and PF03/PF04 remain open |
+
+| 2026-10-05 00:32Z | PR243 remaining-workgroup dark source checkpoint | D-001 | Actual route/protocol/ORM, finite/masked/time/actor controls and prior-source causal replay |160new/280expanded plus2legacy skips;68CI controls;356/3689frontend;44causal failures before twice versus current82pass | No served-number or skill change; switches off; hosted/cloud/GPU/p95/PostgreSQL/science acceptance open |
+
+| 2026-10-05 01:02Z | Remaining source4eac3550 hosted-qualified atd7b10451 | D-001 | Exact hosted source fingerprints, full lanes and discovery floors |5379backend (2360/2049/970),356suites/3689frontend,all11jobs; existing documented skips/xfail retained | No served-number or skill change; switches off; nine source rows and cloud/device/financial/science acceptance remain |
+
+| 2026-10-05 01:35Z | SEC08 partial alert delivery source repair | D-001 | Real manual/scheduled emitters, ephemeral SQLite transactions and concurrent independent sessions |16fail/7pass before twice;48new/63delivery-quality/161expanded pass; duplicate count sensitivity1→0 within cooldown; build/lint/LOC accepted | No served weather number or skill change; no deployment/activation; PG/provider/outbox/preferences/actor acceptance open |
+
+| 2026-10-05 01:57Z | SEC08 JWT and owner configuration/check extension | D-001 | Actual HTTP/JWT plus real ephemeral ORM; positive own CRUD/share/all-owner scheduler | Manual5fail before twice, config13fail/6pass before twice;69new/182expanded/25repeated HTTP pass; fatal lint/LOC accepted | No served weather number/skill change; no deployment/activation; preferences/outbox/PG/provider acceptance open |
+
+| 2026-10-05 02:03Z | Alert cooldown sourcef995dae4 hosted qualification | D-001 | Exact hosted source, all11jobs and actual completed-log counters |5427backend=2360/2049/1018,356/3689frontend; estate290selected/288produced/0silent; existing66skip/1xfail | No served weather number/skill change; final owner source6c355cb2 differs and hosted acceptance remains pending; no merge/deploy/activation |
+
+| 2026-10-05 02:50Z | Final alert owner source6c355cb2 hosted acceptance | D-001 | Exact all11 completed jobs and actual log counters | 5448backend=2360/2049/1039;356/3689frontend;0silent | No served weather number/skill change; Preferences/outbox/provider/PG remain open; no activation |
+
+| 2026-10-05 02:50Z | Deep audit push/Gemini/trace source repair | D-001 | Actual HTTP/JWT/ephemeral ORM/HTTPX and executed workflow arguments | 24fail/3pass before twice; final31security controls pass;166expanded accepted | No served weather number/skill change; Provider/PG/old log/artifact/rotation acceptance remains; no activation |
+
+| 2026-10-05 02:50Z | Explicit ledger actor | D-001 | Real CLI writes on isolated hash-chained fixture ledgers | 3fail/2pass before twice;5pass after; omitted actor refuses before write | No served weather number/skill change; Historical attribution correction remains partial; no activation |
+
+| 2026-10-05 02:50Z | Current point Jacobian continuation | D-001 | Two repeats finite differences through actual resolver/sampler | Requested/hint[1,0] flag on;[0,1] off;6controls twice | No served weather number/skill change; No physical accuracy or held-out skill claim; no activation |
+
+| 2026-10-05 03:14Z | Deep-audit source d1cc16fe hosted qualification | D-001 | Exact completed CI37257237630 and all11jobs/log counters |5484backend=2360/2049/1075;356/3689frontend;294estate selected/292produced/0silent;36new executed | No served weather number/skill change; source remains unmerged/undeployed; native/cloud/PG/ingestion/science acceptance open |
+
+| 2026-10-05 03:14Z | WI02/WI03 current-source causal diagnosis | D-001 | Real CI entrypoint/store acknowledgment and pure health with offline boundaries | health200/500=>empty-cycle exit0/1; known cycle7h/55h=>ok/ok; ingest13h=>critical;6controls twice | No served weather number/skill change; unrepaired diagnosis excluded from repair counts; no provider writes |
+
+| 2026-10-05 22:44Z | Gallery queue/scoped redemption and real unset controls | D-001 | Actual JWT/HTTP/ORM before twice,152expanded/new8repeat; hosted exact sourcef48d15e6 | Wrong-gallery queue4/4=>3/1; wrong-photographer redemption1=>0;5526backend/356suites3700frontend | No served forecast or physical skill change; source unmerged/undeployed, new flags off; PG/card/cloud/map acceptance remains |
+
+| 2026-10-05 22:44Z | Native isolated control and WebGL state/dimension acceptance | D-001 | Chrome actual controls and real WebGL2 helper probe | Desktop0Buffering=>exact6Ready; phone6Buffering=>exact12Ready; exception/framebuffer restored,error0,four known255/unknownnull spans | Synthetic delivery/context helper evidence only; no full-map pixels/hardware FPS/heap or forecast skill claim |
+
+| 2026-10-05 23:30Z | WI02 current-invocation acknowledged product progress | D-001 | Actual CLI/store/HTTP controls, fivefail before twice;18new/216expanded twice after | Empty metadata success exit0=>1; metadata toggle derivative1=>0; late/prior/restore uploads cannot count | No served forecast/skill change; at-least-one product contract retained, cloud publication/every-lane/deploy separate |
+
+| 2026-10-05 23:30Z | WI03 model-cycle health independent of ingest liveness | D-001 | Manifest cycle7h=>55h with ingest1h fixed; sevenfail before twice;33new/216expanded twice after | Healthok=>critical; unknown/estimated warn without inferred cycle; stale components preserved | Monitoring evidence only, no served-model/value or physical skill change; candidate unmerged/undeployed, hosted pending |
+
+| 2026-10-06 00:27Z | Gulf actual-resident/point provenance and WI04 shared-object prune controls | D-001 | Label-only parity true with stale/absent resident; verified times dropped; alias prune deletes new L1/L2 object |360frontend suites3746tests;250frontend/245backend expanded;63prune focused twice; three fixture manifest-selection null Jacobians | No served number/skill change; diagnostic only plus prune default-off; actual Gulf pixels/cloud/owner activation open |
+
+| 2026-10-06 00:43Z | WI05 valid-frame write guard, built dark | D-001 | Real single/batch store replay across three models; corrected22fail/16pass twice;153focused/283expanded twice after | Invalid replacement no longer overwrites old object when explicit1; rejected current product acknowledgments1=>0; valid zero remains0 | No served-number/skill change; flag0/unset; GRIB/cloud/cycle-serving activation remains open; INGESTION-FRAME-VALIDITY-RESULTS.md |
+
+| 2026-10-06 01:12Z | WI06 bounded wave-cycle retry, built dark | D-001 | Actual picker transient perturbation first/final endpoint;20before17fail3pass twice;67focused/347expanded twice after | Selected cycle displacement -6h=>0 on recoverable refusal; missing404 retains legitimate older run; late response cannot certify completeness | No served-number/physical-skill change; flag0/unset; live timing/availability/owner activation and duplicate cycle ranking open; WAVE-CYCLE-RETRY-RESULTS.md |
+
+| 2026-10-06 01:52Z | WI01 metadata-evidenced refresh, built dark | D-001 | Actual store remote4m=>6m registration change;39controls, prior failures reproducible | Synthetic served derivative0=>1; unchanged0reads; bad/older bytes retain4m and point refusal; full/stride/concurrency pass | No live served-number/skill change; same-metadata rewrites unmeasured by design; flag0/unset; CACHE-CYCLE-REPAIR-RESULTS.md |
+
+| 2026-10-06 01:52Z | WI06 verified-cycle duplicate prune/reconcile, built dark | D-001 |49actual store controls; later receipt on6h older verified run | Newer known cycle deletion=>retention; sole hours, unknowns, source/resolution/tails preserved;485expanded twice | No live served-number/physics/skill change; flag0/unset; actual cloud/capacity/owner activation open |
+
+| 2026-10-06 01:57Z | WI01 final unit/vector controls, dark | D-001 |2additional bad replacement controls; final90newchain total69fail21pass before twice |544expanded including floors twice; changed units and nonfinite directions cannot replace good L1 | No served-number/skill change; flag0/unset;693interim evidence superseded by695, own694 hosted pending |
+
+| 2026-10-06 02:04Z | WI01 local warm/refresh cost, dark | D-001 | Actual loader500warm reads per arm,20kmanifest/14842synthetic cells, two runs | Guardmedian0.0471/0.0463ms; initialindex102.65/102.28ms; changedrefresh87.79/87.38ms; stable0remote reads | No served-number/skill change; fakeStorage/local only, cloud/sharedRender acceptance open; sourcea268d804/own694 pending |
+
+| 2026-10-06 02:47Z | WF02/WF04/WF06 visual resilience candidate | D-001/D-002 preserved |62new regressions,135expanded twice,365/3808fullfrontend and2actual scoped AMD WebGL2 runs | Misleading raster resolution, storage exceptions, idle/loading trip, completed-retry ownership, GL init leaks/caller failure repaired; actual shader6/6 and10/10cleanup | No live served number, scientific skill or full-map/FPS claim; own704 hosted pending; VISUAL-RESILIENCE-RESULTS.md |
+
+| 2026-10-06 03:07Z | WF03 actual-time guard candidate | D-001/D-002 preserved; forecastidentity0/unset |64newcases,48before26fail22pass twice;142expanded twice/full367/3872 and Chrome14synthetic controls | Equal actualtime holds across labels; changed/unknown actualtime releases; bounded grace keyed to actualtime | No served scientific/pixel/latency gain claimed; own708pending; FRONTEND-FRAME-TIME-RESULTS.md |
+
+| 2026-10-06 03:45Z | WS-08 public point geographic validation | No legitimate served science change | Real HTTP88cases before64fail/24pass twice;142expanded after twice |64invalid queries now422before resolver;24valid controls unchanged | Local candidate only; own714hosted pending; POINT-COORDINATE-RESULTS.md |
+
+| 2026-10-06 04:04Z | WS-08 shared world-copy compatibility | No scientific model math changed |94controls before72fail22pass twice;122expanded after twice/full368/3966 |World aliases use geographic provider/cache coordinates; invalid points start no work | Local source only; own718pending; full-map/physical acceptance open; WORLD-COORDINATE-RESULTS.md |
+
+| 2026-10-06 04:27Z | Geographic source9a7a33ba qualification | No scientific model/flag activation | Own CI37412065874 all11/four supplementary;5852backend/368suites3966frontend | HTTP validation and world aliases qualified; estate0silent; previewstatic9a7 | Original Gulf/device/cloud/PG/deadline/science and zero UI remain open;720fulfills718 |
+
+| 2026-10-06 16:15Z | Valid-zero shared point UI | No model math changed |42controls before24fail18pass twice;139after twice/full369/4008 |Zero/reselection reaches exact_success; invalid coordinates stay idle | Local; own727 hosted pending; no native pixels |
+
+| 2026-10-06 16:15Z | LIVE04 dark HTTP response ownership | No served flag or scientific number changed |2HTTPdeadline failures twice;49new/154expanded after twice;24paired JSON invariance fixtures |Retryable late output, jointly bounded admission and retained real-worker leases | Local; own727 hosted pending; not a hard CPU bound/live latency result |
+
+| 2026-10-06 16:41Z | Response/zero UI source0849 hosted qualification | No scientific math/flag activation | Own37494572374 all11/four supplementary;5901backend/369suites4008frontend | Estate0silent; exact source; preview0849 |729fulfills727; actual-helper delta remains separate |
+
+| 2026-10-06 16:41Z | Dark actual-helper child admission | No served flag/number change | Real helper stalled4starts before vs1after; two cases twice; healthy4frame parity;229expanded twice | Canceled/expired queued children start no replacement work | Local54controls; own732 hosted pending; serialized generic page throughput unaccepted |
+
+| 2026-10-06 17:03Z | Zero UI and dark response/real-helper source9ba1 qualification | No scientific math/flag change | Own37497929680 all11/four supplementary;5906backend/369suites4008frontend | Estate0silent;54new/42new controls retained |734fulfills732; live/Gulf/device/publisher/PG/science open |

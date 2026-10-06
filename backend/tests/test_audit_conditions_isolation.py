@@ -9,6 +9,49 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 
+@pytest.mark.parametrize('enabled,expected', [('1', 1), ('0', 2), ('true', 2)])
+def test_current_route_requests_only_current_under_horizon_flag(conditions, monkeypatch, enabled, expected):
+    module, client = conditions
+    monkeypatch.setenv('SURF_REQUESTED_HORIZON', enabled)
+    calls = []
+
+    async def resolve(**kw):
+        calls.append(kw)
+        return {'current_conditions': {'wave_height_ft': 0, 'label': 'Flat', 'wave_direction': 90,
+                                      'wave_period': 12, 'swell_height_ft': 0, 'swell_direction': 90,
+                                      'updated_at': '2026-10-04T12:00:00Z'}}
+
+    async def fetch(**kw):
+        return {'hourly': {}}
+
+    monkeypatch.setattr(module.point_resolution_service, 'resolve_spot_conditions', resolve)
+    monkeypatch.setattr(module.point_resolution_service.provider, 'fetch_point', fetch)
+    response = client.get('/api/conditions/synthetic?model=ICON')
+    assert response.status_code == 200
+    assert len(calls) == 1 and calls[0]['forecast_days'] == expected
+    assert calls[0]['model'] == 'ICON' and calls[0]['spot_id'] == 'synthetic'
+    assert response.json()['current']['wave_height_ft'] == 0
+
+
+@pytest.mark.parametrize('days', [1, 3, 10])
+@pytest.mark.parametrize('enabled', ['1', '0'])
+def test_daily_route_preserves_requested_future_rows(conditions, monkeypatch, days, enabled):
+    module, client = conditions
+    monkeypatch.setenv('SURF_REQUESTED_HORIZON', enabled)
+    calls = []
+
+    async def resolve(**kw):
+        calls.append(kw)
+        return {'forecast': [{'date': '2026-10-05', 'wave_height_max': 0}] * days}
+
+    monkeypatch.setattr(module.point_resolution_service, 'resolve_spot_conditions', resolve)
+    response = client.get(f'/api/conditions/forecast/synthetic?model=EURO&days={days}')
+    assert response.status_code == 200
+    assert len(response.json()['forecast']) == days
+    assert len(calls) == 1 and calls[0]['forecast_days'] == days + (enabled == '1')
+    assert calls[0]['model'] == 'EURO' and calls[0]['spot_id'] == 'synthetic'
+
+
 @pytest.fixture
 def conditions(monkeypatch):
     path = Path(__file__).parents[1] / 'routes/surf_data/conditions.py'

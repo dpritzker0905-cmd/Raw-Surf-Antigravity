@@ -2,6 +2,7 @@ import { servedResolutionNotice, ServedResolutionRow } from './servedResolutionN
 import { marineFallbackNotice, MarineFallbackRow, useMarineFallbackState } from './marineFallbackNotice';
 import { useDrawnGridResolution } from './drawnGridResolution';
 import React from 'react';
+import { readMarineSurfMode } from './marineSurfMode';
 
 /**
  * legendTicks.js — put a legend's NUMBERS where its COLOURS are (2026-08-09, report R11-11 item 3).
@@ -92,13 +93,11 @@ export function tickTransform(pct) {
 export function LegendTicks({ ticks, className, showResolution = false }) {
   // Hooks must run before any early return, or the hook order changes with `ticks` (React rule).
   const marineFailed = useMarineFallbackState();
-  const drawnDeg = useDrawnGridResolution(showResolution);
-  const ratingOn = typeof window !== 'undefined'
-    && (window.__SURF_MODE__ === true
-      || (window.__SURF_MODE__ === undefined && typeof window.localStorage !== 'undefined'
-          && window.localStorage.getItem('__SURF_MODE__') === 'true'));
+  const drawnDeg = useDrawnGridResolution(showResolution && !marineFailed);
+  const ratingOn = readMarineSurfMode();
   if (!Array.isArray(ticks) || ticks.length === 0) return null;
-  const d = (showResolution && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) || null;
+  // Native metadata cannot describe the replacement raster's grid, including during disposal/recovery.
+  const d = (showResolution && !marineFailed && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) || null;
   // The notice describes the grid DRAWN, not the last fetch (see drawnGridResolution.js): a thinned far-zoom frame
   // is an 8° lattice while the diag can still say 0.25° (silent) or 2° (an exact frame fetched but not drawn).
   const notice = d

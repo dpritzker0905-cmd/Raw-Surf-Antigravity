@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-04 01:57Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 17:03Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,413 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 17:03Z: zero UI and response/child ownership source9ba1 fully qualified.**
+  Own37497929680/all11/four supplementary: actual5906backend/369suites4008
+  frontend, estate297selected295produced0silent.734fulfills732/verifies733.
+  Valid-zero UI and dark response/real-helper child gates qualify; no scientific
+  math/flag/provider/merge/deploy/cloud-write action. GRID_RESPONSE_BOUNDS stays0.
+  Dev connector restored730; readonly empty/private/RLS/grants preflight accepted,
+  actual publisher lacks independent process Dev credential and remains unexecuted.
+  Original Gulf/native/raster/play/scrub/device/FPS/heap, real latency/resource/
+  producer, PG/card/race and disjoint science acceptance remain open. No GFS wave
+  product locally. Unowned canary preserved/excluded.735receipt docs only.
+  Static preview still0849, frontend tree identical to9ba1; latest served stamp/
+  native pixels and shared API deployment are not accepted by that readback.
+
+- **2026-10-06 16:41Z: first response/zero UI source0849 qualified; real-helper gate follows.**
+  Own37494572374/all11/four supplementary: actual5901backend/369suites4008
+  frontend, estate0silent;729fulfills727/verifies728, static preview0849.
+  Actual series helper still multiplied canceled-hour work4-to1; follow-up
+  repairs it locally54new/229expanded twice. Own732 hosted pending5906backend;
+ 733push pending. GRID_RESPONSE_BOUNDS remains0; no promotion/math/flag change.
+  Dev connector restored:730fresh readonly private/empty/RLS/grants preflight.
+  Actual publisher remains unexecuted without independent process Dev credential.
+  Gulf/pixel/device/FPS/heap, PG/card/races, other producers/live resources and
+  held-out science remain open. Unowned local canary preserved/excluded.
+
+- **2026-10-06 16:15Z: zero-coordinate UI and dark grid response ownership repaired locally.**
+  139mounted/point controls twice; full369/4008/build/ratchet pass. Grid49new
+  controls/154expanded twice;57floor guards; shared643-file partition passes.
+  New GRID_RESPONSE_BOUNDS remains0; no scientific math/activation/promotion.
+  Own727 hosted pending (projected5901backend/369suites4008frontend);728push
+  pending. Unowned canary excluded. Prior723 publication92a9 read back724.
+  Gulf/pixels/devices/FPS/heap, real staging, PG/card/races and held-out science
+  remain open. See log/2026-10-06-point-deadline-repairs.md and audit receipts.
+
+- **2026-10-06 04:27Z: geographic runtime9a7a33ba fully qualified; receipt docs only.**
+  Own CI37412065874/all11/four supplementary success;actual5852backend and368/3966
+  frontend, estate297selected295produced0silent.720fulfills718/verifies719. Preview
+  static HTTP200/build9a7; no map/forecast executed. API/outer-coordinate guards and
+  world-cache aliases qualify; actual mounted three world aliases reach exact_success.
+  Separate zero-coordinate UI truthiness gate remains open, reproduced twice; next
+  with single-grid deadline/worker ownership. No real Gulf product or isolated PG
+  target identified; actual cloud refresh still blocked. Gulf/pixel/device/FPS/heap,
+  cloud/PG/card/deadline/science acceptance open; no promotion/flag/provider/write action.
+  Unowned concurrent canary edit preserved/excluded.723docsreceiptpushpending.
+  WORLD-COORDINATE-RESULTS.md and GRID-DEADLINE-DIAGNOSIS.md.
+
+- **2026-10-06 04:04Z: server coordinates d65677ac qualified; shared world-copy candidate local/718pending.**
+  Own CI37410583036/all11 and four supplementary success, actual5852backend and
+ 367/3872frontend, estate297selected295produced0silent.716fulfills714/verifies715.
+  Shared point fetch/cache canonicalize world longitude with existing helper;94new
+  controls72fail22pass before twice;122expanded after twice/full368/3966 pass.
+  Build exit0 inherited warnings; lint86/917 baseline unchanged; LOCpass. Frontend
+  floor368/3966; no science math/flag change, disabled legacy endpoint preserved.
+  Original Gulf/full-map/device/FPS/heap, actual cloud/OAuth, PG/card, deadlines and
+  held-out science remain open; no merge/deploy/cloud/provider action.719pushverified720.
+  POINT-COORDINATE-RESULTS.md and WORLD-COORDINATE-RESULTS.md.
+
+- **2026-10-06 03:45Z: WS-08 HTTP coordinate repair locally accepted; own714 hosted pending.**
+  Actual router64invalid/24valid before twice;142expanded after twice; rejects impossible
+  and nonfinite coordinates before resolver. Valid geographic endpoints/Gulf/frame
+  identifiers unchanged; no served scientific number or frontend runtime change.
+  Estate297files/+88controls; projected5852backend and367/3872frontend awaits exact CI.
+  Paired estate floor1199/reference1201; frontend actual hosted367/3872 now pinned.
+  Local environment differs from declared CI; LOC and partition pass. Dev OAuth
+  refresh still fails before readonly SQL. Server deadlines, Gulf/full-map/devices,
+  actual cloud publication, PG/card and science remain open. No merge/deploy/flag action.
+  Publication711 verified712; WS-08 publication715 verified716; POINT-COORDINATE-RESULTS.md.
+
+- **2026-10-06 03:26Z: both visual and dark actual-time repairs qualified on source48c04424.**
+  Own CI37407541898: all11 jobs and four supplementary success; actual5,764backend
+  and367suites3,872frontend; estate296selected294produced0silent. Ledger710fulfills708
+  and verifies709publication. Independent15,000-case opt-in matrix passes twice;
+  same-clock430holds2,570commits, actual changed/unknown times release each3,000.
+  Preview ready, static service-worker BUILD_VERSION48c04424/HTTP200; no map/forecast
+  code executed, no dev/production promotion or scientific activation. Source fixes
+  idle/loading FPS evidence, completed recovery ownership, safe storage, GL failed
+  initialization cleanup/caller fallback, raster resolution and actual-time guards.
+  Original Gulf/data/pixel/native/raster/mobile/FPS/heap, Dev publication/OAuth,
+  PG/card/latency/held-out science remain open. Production freeze retained. Final
+  docs-only publication711 verified by712; runtime/workflow bytes stayed48c04424.
+  FRONTEND-FRAME-TIME-RESULTS.md and VISUAL-RESILIENCE-RESULTS.md.
+
+- **2026-10-06 03:07Z: visual a1cb1ed3 qualified; separate WF03 actual-time source local/708pending.**
+  Own CI37405974317/all11 and four supplementary success, actual5764backend/365/3808frontend;
+  706fulfills704 and verifies705publication. WF03 reproduced with actual servedtime, not
+  requestecho; guard/subcover/arbiter/shadow and bounded grace repaired behind existing
+  forecastidentity0/unset.64newcases142expanded twice/full367suites3872, build/ratchet/LOC
+  pass; Chrome14synthetic production-module controls pass without externalapplicationtraffic.
+  New707evidence/708commitment/709publicationpending. Prior visual qualification is not
+  borrowed for this delta. Original Gulf/frame/pixel/mobile/FPS/heap, cloudcanary/OAuth,
+  PG/card/latency/science remain open; no merge/deploy/provider/cloud/flag action.
+  FRONTEND-FRAME-TIME-RESULTS.md and VISUAL-RESILIENCE-RESULTS.md.
+
+- **2026-10-06 02:47Z: visual resilience source locally accepted; own704 hosted pending.**
+ WF02 idle/loading exclusion and completed-retry ownership, WF04 safe storage decisions,
+ WF06 shader/program batch cleanup and actual caller fallback, raster/native resolution
+ label fixed.62newcases135expanded twice/full365suites3808tests, build/ratchet/LOC pass.
+ Two actual local Chrome/AMD WebGL2 init/link/dispose/failure probes pass; no fullmap/
+ physicalforecast/device/FPS/heap claim. New owner logs:12x1FPS trip and recovery2/2, no
+ captured hard error; no user interactions since Gulf screenshot; true drawing state unknown.
+ Prior543954fd receipt readback700 resolved701, owner702/source703/commitment704/push705.
+ Fresh Dev OAuth refresh fails before SQL; actual canary/PG/card/science still open.
+ Same PR source push follows; productionfreeze/newscienceflags preserved, no merge/deploy.
+ VISUAL-RESILIENCE-RESULTS.md; inherited lint86/917, not clean lint. Next: absolute-frame
+ rollover guard WF03, actual Gulf/native/raster playback acceptance, publication/cloud/
+ financial/latency/science gates. Previously qualifieda268 does not qualify this delta.
+
+- **2026-10-06 02:16Z: cache/cycle sourcea268d804 exact hosted qualification accepted.**
+ CI37401821405 all11success: actual5764backend2425/2226/1113,360suites3746frontend;
+ estate296selected294produced0silent; allfour supplementary gates success. Ledger699
+ fulfills694 (695corrected interim2224 projection). Final90newtests/544expanded twice.
+ Pending receipt delta documentation/ledger only; final source-equivalent publication
+ readback700 follows commit/push. Newflags0/unset, Netlifyfreeze, no merge/deploy.
+ WI01 same-metadata/missingpath/cross-process/cloud acceptance and WI06 live capacity
+ remain open. Fallback label reproduced unpatched;126hour log quality switch lacks
+ resident/pixel proof. Actual Gulf/playback/device/performance, Devcanary/PG/card/
+ held-out science open. CACHE-CYCLE-REPAIR-RESULTS.md; broad lint debt unchanged.
+
+- **2026-10-06 02:04Z: cache/cycle sourcea268d804 published to PR243 OPEN/dev.**
+ CI37401821405 running; own694 pending;90newcases544expanded twice,5764backend projection.
+ Two local20kmanifest/14842cell probes: guardwarmmedian0.0471/0.0463ms, initialindex102ms,
+ changedrefresh88ms, unchanged0remote. Not cloud/sharedRender acceptance. Separate actual
+ LegendTicks SSR twice confirms native223km shown while engine absent in raster fallback;
+ sourcefix/actual pixels not done, Gulf cause unproven. Newflags0/unset, productionfreeze
+ preserved; no merge/deploy/cloud/UI/served-number action. Ledger696-697; current receipts.
+ Receipt delta source-equivalent; hosted source gate must be completed, not borrowed.
+
+- **2026-10-06 01:52Z: WI01/WI06 source repairs locally accepted, dark; own hosted694 pending.**
+ 90newchain cases, predecessor69fail21pass twice;544expanded including floors twice, scoped
+ lint/LOC/partition pass. Final unit/vector safeguards and count update recorded695. PRODUCT_REVISION_REFRESH/INGEST_PRUNE_VERIFIED_CYCLES0/unset. WI01
+ partial: same-metadata byte rewrites and cross-process/wire identity remain. WI06
+ prune/reconciliation uses verified cycles, preserves unique coverage/unknowns/tails.
+ Prior6a5c5f23 CI37399663979 all11success5674backend/3746frontend, supplementary success
+ resolves691receipt readback; not newsource qualification. Projection5764backend2226chain.
+ No merge/deploy/cloud/flags/served-number change. Actual Gulf/native/fallback/playback/
+ performance, Dev canary/PG/card/science open; freeze preserved. Ledger692-694;
+ CACHE-CYCLE-REPAIR-RESULTS.md. Same-PR push follows local gates.
+
+- **2026-10-06 01:29Z: sourced4046562 retry hosted-qualified; all new ingestion guards dark.**
+  CI37398137575 all11success: actual5674backend2425/2136/1113 and frontend360/3746;
+  estate296selected294produced0silent; supplementary success. Fulfilled686, ledger690.
+  WI05 sourcea3b321f0 separately5642/3746; resident/WI04 ff5 separately5604/3746. Pending
+  delta documentation/ledger only, source-equivalent. No merge/deploy/flags/served-number change.
+  Next repairs: WI01 stale disk revision, WI06 duplicate-cycle ranking, actual graphics fallback
+  provenance/time/palette and Gulf pixel/frame/performance acceptance. Current existing tab
+  shows fallback, original screenshot path still unknown. Dev canary unexecuted: current OAuth
+  refresh fails before SQL; private Storage runtime also required. PG/card/science and broader
+  audit remain open; Netlify latest preview canceled, production freeze preserved. Receipts/log updated.
+
+- **2026-10-06 01:21Z: retry sourced4046562 published; exact686 pending.**
+  PR243 OPEN/dev/body verified; CI37398137575 running, supplementary gates success.
+  Netlify status says canceled preview, not deployment. Current Dev readonly SQL failed OAuth
+  refresh before execution; earlier empty/private preflight historical, actual publisher canary
+  still unexecuted. Public discovery valid200 does not certify refresh/query access. No SQL/
+  storage/schema/provider/flag/merge/deploy write. Sourcea3b321f0 qualified5642/3746. WI01 and
+  duplicate cycle ranking remain open; WI06 retry partial. Ledger687-688; release/operator receipts.
+
+- **2026-10-06 01:12Z: WI05 sourcea3b321f0 qualified; WI06 retry local/dark partial repair.**
+  CI37396359484 all11success, actual5642backend2393/2136/1113 +frontend360/3746,
+  estate0silent, supplementary success; fulfills679/ledger684. New retry67focused/347expanded
+  twice pass;32new guards, selector186/floor2419/ref2425; projection5674backend, own686 pending.
+  NOAA_WAVE_CYCLE_RETRY default0/unset; no provider/workflow activation. Actual duplicate sweep
+  independently2fail twice: late older known cycle deletes newer; ranking remains open, WI06
+  partial. WI01 disk repair and Gulf/native/cloud/PG/card/science remain open. Ledger685-686;
+  WAVE-CYCLE-RETRY-RESULTS.md. No merge/deploy/cloud/served-number/flag change.
+
+- **2026-10-06 00:56Z: WI05 sourcea3b321f0 published to PR243 OPEN/dev.**
+  CI37396359484 running; exact qualification679 pending. Ledger/LOC/encoding success.
+  Predecessorff5cfc98 qualified5604backend/3746frontend; it does not certify WI05.
+  WI01/WI06 remain open; next-repair cache/concurrency/validation and bounded retry matrix
+  recorded in CACHE-CYCLE-NEXT-REPAIR.md using actual code and primary docs. No source or
+  activation for those proposals. No served-number/merge/deploy/flag/cloud action. Ledger682-683.
+
+- **2026-10-06 00:52Z: resident sourceff5cfc98 hosted-qualified; WI05 next source pending679.**
+  All11 CI37394319031 success; actual5604backend2393/2098/1113 and frontend360/3746,
+  estate296selected294produced0silent; supplementary gates success. Fulfilled673, ledger680.
+  New WI05 local guard/default0 and38tests are not certified by this predecessor.
+  WI01 full/stride2 stale disk independently reproduced2fail twice; corrected WI06 transient
+  cycle fallback2fail/1control twice,6h older run. Both repairs open; ledger681. No actual Gulf
+  cause or separate new-run-time stamping proof. No deployment/flag/cloud/provider action.
+
+- **2026-10-06 00:43Z: WI05 invalid replacement write guard locally accepted, dark.**
+  Real L1/simulated L2 loss12fail twice; corrected tracked22fail/16pass twice.153focused/
+  283expanded twice pass; valid zero/partial grids/negative weather retained. Rejected uploads
+  cannot count current success. INGEST_REJECT_INVALID_FRAMES default0/unset; registered, no
+  workflow/provider activation. New38chain, selector154files; floor2130/ref2136; projection
+  5642backend and unchanged360/3746frontend. Newsource hosted679 pending. ff5cfc98 Gulf/prune
+  predecessor673 still awaits final guards; actual2098chain1113estate3746frontend confirmed.
+  No served number/skill gain, merge/deploy/provider/cloud/live-map/flag action. WI01/WI06,
+  actual Gulf/native/mobile/performance, Devcanary/PG/card/science open. Ledger678-679;
+  INGESTION-FRAME-VALIDITY-RESULTS.md; existing deployment-readiness sessionlog.
+
+- **2026-10-06 00:27Z: Gulf resident diagnostics and dark WI04 locally accepted.**
+  Actual resident/point receipts, stale diagnostic clearing, HUD refusal and compact pasted JSON.
+  Eightbeforefail twice; stale twofail twice; HUD twofail twice. WI04 real provider/save collision
+  sevenfail twice; three prune paths protect only unreferenced deletion with explicit flag1.
+  Default0/unset, registry records it; manifest selection null in three fixtures. No source activation.
+  Fullfrontend360/3746;250frontend/245backend expanded;63prune focused repeated. New27chain;
+  projection5604backend2393/2098/1113, hosted commitment673 pending. Predecessor191qualified
+  does not certify newsource. Four broad-lint findings in unchanged files explicit; changed lint clean.
+  No served number, live map/cloud/provider write, merge/deploy or scientific gain. WI01/WI05/WI06,
+  actual Gulf frame/pixels/native/mobile/performance, Devcanary/PG/card/science remain open.
+  Sourceff5cfc98 published/read back OPEN/dev; CI37394319031 running, supplementary ledger/LOC/encoding success.
+  GULF-RESIDENT-PRUNE-RESULTS.md; sessionlog2026-10-05-deployment-readiness; ledger672-677.
+
+- **2026-10-05 23:49Z: ingestion source1912639b hosted-qualified; Gulf capture incorporated.**
+  CI37388965928 all11SUCCESS; actual5577backend=2393guards2071chain1113estate,
+  frontend356suites3700tests;296estate selected294produced0silent. Supplementary gates
+  success. Commitment664 fulfilled; local67/216twice retained. WI02/WI03 source repaired,
+  no product-selection/served-number/science activation; monitoring warnings unconditional.
+  Gulf stale badge/world181x82 atzoom7.28 observed; later absolute frame/cycle/product/cells
+  not captured. Corrected offline19ft=>18.913ft/three themes/interpolation probe twice;
+  8focused suites98tests pass. Not native pixels or proof of expected storm height.
+  Actual Dev publication, PG/card, native full-map/performance and science remain open.
+  No merge/deploy/provider write; productionfreeze/newflags preserved. Current receipts:
+  INGESTION-REPAIR-RESULTS.md,GULF-HEATMAP-DIAGNOSIS.md; log2026-10-05-deployment-readiness.
+  Ledger666-671; receipt5d36b304 and PR243 description published/read back.
+  Runtime/CI-test/workflow source unchanged1912639b; documentation-head checks pending.
+
+- **2026-10-05 23:30Z: remaining WI02/WI03 ingestion/health repairs locally qualified.**
+  WI02 fivefail/fivepass twice; WI03 sevenfail/seventeenpass twice before. After67controls
+  and216expanded twice; fatal lint/LOC648<=800 and36floorcontrols pass. Actual current
+  product acknowledgments/bounded drain; verified cycle freshness and explicit unknowns
+  per global component/tier/tile/native-estimate cohort. No served-model/value change.
+  Health warnings for unknown/stale provenance are unconditional in candidate; no activation.
+  New51cases:33guards/18chain; projected5577backend2393/2071/1113, frontend3700 unchanged.
+  Source not yet hosted-qualified: commitment664. Earlierf48d15e6 green does not certify it.
+  Actual Dev canary/full-map/PG/card/science acceptance remain; productionfreeze preserved.
+  INGESTION-REPAIR-RESULTS.md; log/2026-10-05-deployment-readiness.md; ledger663-665.
+
+- **2026-10-05 22:44Z: sourcef48d15e6 hosted-qualified after the gallery/lane correction.**
+  CI37381706714 all11SUCCESS:5526backend=2360/2053/1113;356suites3700frontend.
+  Estate296selected/294produced/0silent; supplementary ledger/LOC/encoding/Lighthouse success.
+  Local152pass/new8repeat. Failed59dd3d26 floor result remains explicit;659 fulfilled660.
+  Live read-only PostgreSQL13required tables514columns/no missing; three source/database
+  heads match. Column/revision preflight only, not type/constraint/card/concurrency proof.
+  Native isolated desktop/phone exact-frame buffering and three themes/calendar accepted;
+  native WebGL2 state/exception/framebuffer/dimension probe passed/error0. Actual map pixels,
+  hardware FPS/heap, cloud publication, PG financial/card and science acceptance stay open.
+  Dev preflight empty/private/RLS; secure terminal launcher/operator guide prepared, owner
+  JSON receipt pending. Netlify lockfc140024 preserved; no merge/deploy/flag/provider writes.
+  RELEASE-GATE-RESULTS.md; log/2026-10-05-deployment-readiness.md; ledger657-662.
+  Receipt57f47923 and PR description published/read back; application/test/workflow source
+  unchanged from qualifiedf48d15e6. New docs-head checks pending at publication.
+
+- **2026-10-05 22:16Z: hosted floor caught a lane-projection mistake; corrected without lowering.**
+  Source59dd3d26 actual estate1105, not projected1109; unset controls belong to chain2053.
+  Estate floor1107 failed while its tests passed. Eight new gallery/session collision controls
+  bring projected estate1113/floor1111; chain2053/floor2047. Local152pass, new eight repeated
+  pass. Prior failed exact-source qualification is recorded, not promoted; successor pending.
+  Native isolated desktop/phone playback holds until exact frames arrive; three themes/calendar
+  checked. Actual map pixels/native GPU/heap/performance remain open. Visual instrument repaired.
+  Render live build used stamp heads versus current upgrade heads: actual schema verification
+  remains a release gate even without migration-file delta. No merge/deploy/provider activation.
+  RELEASE-GATE-RESULTS.md; log/2026-10-05-deployment-readiness.md; ledger653-656.
+
+- **2026-10-05 22:00Z: gallery queue extension and actual unset defaults locally qualified.**
+  Six defects reproduced twice; shared surfer/photographer/scope query now covers queue,
+  items, redemption and sweep.87focused/144expanded pass; ten new gallery cases plus four
+  unset-default cases; estate projected1109/floor1107, hosted confirmation pending.
+  Authenticated Render dev/On Commit readback confirms shared API merge impact and empty
+  health path; live lightweight /api/health/simple HTTP200. Netlify lockfc140024/main and
+  actual preview Node24.21.0 confirmed; new provider flag overrides absent, secrets masked.
+  Prior docs4a7671a9 CI37377554458 all11success; new source needs own qualification.
+  Publication canary/PG/card/native/science acceptance still open. No merge/deploy/activation.
+  RELEASE-GATE-RESULTS.md; log/2026-10-05-deployment-readiness.md; ledger651-652.
+
+- **2026-10-05 21:36Z: updated audit reconciled with current PR243 source13f6d0a9.**
+  PR244 already merged four blocker fixes into the repair branch, not dev. Current application
+  CI37357966896 all11success:5504backend and356suites/3700frontend; independent20backend/
+  29frontend pass. Separate hosted ledger check failed on missing242; reconstructed242/244
+  receipts appended646/647; docs838514dc hosted ledger37377273489 SUCCESS.
+  Current PR description/readiness receipt published; newest full application checks pending.
+  Live API6b062e97, dev frontend2a7b8615, prod frontendfc140024, preview13f6d0a9.
+  Scoped Dev Supabase tools work and empty/private/RLS preflight confirmed; actual-source
+  publication canary still unexecuted. Provider lock/settings/effective flags not authenticated.
+  Main required-check name still18.x; code emits24.21.0. No deployment or activation.
+  DEPLOYMENT-READINESS.md separates immediate release gates from dark-feature acceptance.
+  Session log: log/2026-10-05-deployment-readiness.md; ledger646-650.
+
+- **2026-10-05 03:14Z: deep-audit source d1cc16fe hosted-qualified.**
+  CI37257237630 all11success; actual5484backend=2360/2049/1075 and356/3689frontend.
+  Estate294selected/292produced/0silent; all36new controls executed; supplementary
+  LOC/ledger/encoding/Lighthouse success. Commitment641 fulfilled in ledger644.
+  Current WI02/WI03 diagnosed twice, unrepaired; old83-ID and50-row scopes retained.
+  Runtime/workflows unchanged in receipt work. Production/science stay frozen;
+  cloud/deadlines/hub/ingestion/GPU/PG/media/Stripe/held-out acceptance remain open.
+
+- **2026-10-05 02:50Z: deep-audit security/trace/actor source locally qualified.**
+  Owner-supplied83-ID audit retained separately; current push/Gemini/trace/actor defects
+  reproduced and repaired.36new/166expanded pass; point Jacobian6pass twice; no science
+  activation. Earlier alert source6c355cb2 CI37253656301 all11success/backend5448 and
+  frontend356/3689. New source hosted pending; original eight no-source rows and cloud,
+  deadline/hub/ingestion/GPU/p95/PG/science acceptance remain. DEEP-AUDIT-RESULTS.md.
+
+- **2026-10-05 02:03Z: final alert owner source6c355cb2 published on PR243.**
+  Exact head read back OPEN; PR description updated. Prior cooldown sourcef995dae4
+  CI37252419546 all11jobs success:5427backend=2360guards+2049chain+1018estate,
+  356/3689frontend;290estate selected/288produced/0silent; existing66skip/1xfail.
+  Final owner extension69new/182expanded locally accepted; CI37253656301 running.
+  No source qualification inferred from the earlier run for changed actor handlers.
+  Source41rows including partial/eight rows without source; remaining acceptance in
+  PROGRESS.md and ALERT-RESULTS.md. No merge/deploy/activation/provider writes.
+
+- **2026-10-05 01:57Z: SEC08 alert actor boundaries also locally qualified.**
+  Create/list/edit/delete/share/manual-check bind JWT and source owner; scheduler retains
+  all owners. Manual5fail and config13fail/6pass before twice each; current69new controls/
+  182expanded/25repeated HTTP controls pass, no skips; fatal lint/LOC accepted. Cooldown source
+  f995dae4 published/read back on PR243; final actor extension hosted pending. Frontend
+  unchanged from qualified356/3689. Source coverage41including partial/eight source rows open.
+  Preferences/outbox/PG/provider and broader financial/device/science acceptance remain.
+  Production/science frozen; no provider writes, merge/deploy/activation.
+
+- **2026-10-05 01:35Z: SEC08 partial delivery repair locally qualified on PR243.**
+  Actual emitters/SQLite16fail/7pass before twice;48new controls,63delivery/quality and161expanded
+  pass. Shared conditional SQL cooldown claim+notification transaction; push after commit,
+  forecast I/O before writes, finite/missing/zero bounds and visible server cadence. Build/lint/LOC
+  accepted; full frontend356/3689 accepted, hosted pending. Source coverage41rows including partial, eight rows
+  without source. Preferences/outbox/PG/provider/actor and broader acceptance open. OAuth remains
+  authenticated; owner only reopened chat, full Codex restart/tool reload still needed.
+  No merge/deploy/provider writes or weather/science activation. See ALERT-RESULTS.md.
+
+- **2026-10-05 01:11Z: Dev-scoped Supabase OAuth succeeds after narrow endpoint recovery.**
+  Both public discovery hosts use normal Google Trust Services TLS and200/exit0. Owner
+  approves OAuth, CLI login exit0; outside-sandbox MCP list explicitly reports enabled/OAuth.
+  Current tool snapshot still lacks Supabase; reload Codex and reopen this same chat, then
+  verify project-scoped tools. Actual-source cloud canary and runtime credential path still
+  pending. No provider data/config writes, merge/deploy/activation or global protection disable.
+
+- **2026-10-05 01:02Z: remaining source4eac3550 hosted-qualified at receiptd7b10451.**
+  CI37248136689 all11jobs success; frontend356/3689, backend5379 (guards2360, chain2049,
+  estate970;289selected/287produced). Existing skips/xfail retained, no new exclusions.
+  Source fingerprints unchanged; no merge/deploy/activation/scientific accuracy claim.
+  Owner confirms API Website/Domain exception saved, but TLS remains Avast-inspected and
+  OAuth discovery fails. Narrow URL format retest pending; connector unauthenticated.
+
+- **2026-10-05 00:32Z: remaining-workgroup source checkpoint locally qualified.**
+  Fourteen additional rows source-covered (partial scopes retained), nine source rows and external
+  acceptance open.160new backend/280expanded+2legacy skips/68CI controls pass;356/3689frontend,
+  Node24production build/lint ratchet/LOC accepted. Projected5379backend; hosted candidate pending.
+  Existing separate Dev staging target verified empty; source canary prepared, not executed.
+  Dev-scoped local Supabase MCP registered, OAuth discovery decoding failed; runtime access open.
+  All new served switches off; no merge/deploy/activation/cloud data writes. Report:
+  `audit/repair-2026-10-04/REMAINING-BATCH-RESULTS.md`.
+
+- **2026-10-04 22:49Z: PF01/PF02 browser source21db8ee8 hosted qualified on PR243.**
+  Three limiter-owned requests, latest regional intent, reusable global work, safe A/B/A owners;
+  shared48entry/32MiB estimated cache, expiration/recency. Both new frontend flags default off.
+  Final351/3647frontend,90neighbors twice; CI37241546337 all11jobs accepted/5219backend.
+  Supplemental encoding/ledger/LOC/Lighthouse/Netlify preview accepted; no new skipped coverage.
+  Prior e4353c06 CI37240056010 all11jobs success: backend5219/frontend3610; AS06 canary open.
+  No merge/deploy/activation/live load. Next PF03/PF04 and service/device/GPU acceptance.
+  PF03 actual-route40trial diagnosis/finite-guard prototype recorded; runtime repair remains next.
+  See `audit/repair-2026-10-04/PERFORMANCE-RESULTS.md` and `PF03-DIAGNOSIS.md`.
+
+- **2026-10-04 22:09Z: AS06 immutable publication source locally qualified on PR243.**
+  Unique/create-only uploads, exact acknowledgment before insert/CAS, designated writer gate;
+  no immediate ambiguous-candidate deletion, bounded age/generation cleanup.16before controls
+  9fail/7pass twice; after148expanded neighbors/floors twice;39new guards, projected2327/backend5207.
+  Source32a33138 ledger gate rejected a date-only expansion row; original retained and explicit
+  correction recorded. Precision-aware checker12estate controls; projected backend5219.
+  Hosted follow-up e4353c06 CI37240056010 accepted all11jobs/5219backend; actual Supabase canary
+  pending; MANIFEST_IMMUTABLE_PUBLICATION=0. Original date-only row retained and hosted checker accepted.
+  Prior649cb14e full CI37231405906 success. No merge/deploy/activation; live source6b062e97.
+  Next source work PF queues/cache/encoding. See `audit/repair-2026-10-04/MANIFEST-RESULTS.md`.
+
+- **2026-10-04 19:55Z: SH04/SH05/SH06/W04 source40cd1ddd hosted qualified on PR243.**
+  Daily UTC calendar/size ladder, current-only work bounds and typed terminal Copernicus failures;
+  frontend347/3610, supported backend195, lint/LOC/build accepted; CI37230181942 success11jobs.
+  Full backend5168pass: chain1982, guards2288/66skipped/1xfailed, estate898/0silent; source fingerprints
+  match40cd1ddd. Current Jacobian6controls twice; final timezone47NY/47Auckland. AS06 defects
+  rechecked twice offline; source repair remains next. Ledger600 publication read back at40cd1ddd.
+  Source flags default off; no merge/deploy/activation or live p95/GPU/science claim. Prior receipt
+  0fb75c8e CI37227786046 completed/success, superseding ledger596 pending publication.
+  Next AS06 publication, then PF work bounds and device/science acceptance. Full register/progress:
+  `audit/repair-2026-10-04/PROGRESS.md` and `HUB-COPERNICUS-RESULTS.md`.
+
+- **2026-10-04: ordered point/availability/consumer/playback source5afa0c82 hosted qualified on PR243.**
+  W01/W02, M01/M02/M03, SH01/SH02/SH03 and owner PB01 controls pass; final frontend346/3582,
+  focused backend171, lint86existingerrors/917warnings, production compilation and LOC accepted.
+  Actual all-theme desktop/390px-phone component fixture holds0 until exact delivery then6;
+  no horizontal overflow. Full map/GPU/cadence canary remains open. CI37226218002 completed/
+  success: frontend346/3582; backend5128 passed (guards2288/67documentedskips, chain1951/0skips,
+  estate889/0silent); all11jobs accepted. Central differences6pass twice show requested/hint
+  derivatives0/1 legacy to1/0 repaired, no skill claim. Receipt preserves source fingerprints.
+  Local full backend collection crashed with a Windows native access violation; no acceptance inferred.
+  All new served-value flags default off; no merge, deployment or activation. Prior source d67763d5
+  CI37207402431 completed/success, superseding its dated pending claim below. Follow
+  `log/2026-10-04-point-availability-playback.md` and `audit/repair-2026-10-04/POINT-PLAYBACK-RESULTS.md`.
+
+- **2026-10-04 13:50Z: owner defers beta app access-code rotation and authorizes continuing repairs.**
+  AS-01 stays open. Second batch repairs W-03 canceled series retry/prefetch and W-05 estimate
+  basis mapping locally;23fail/5pass before twice,28pass after in163neighbor controls twice;
+  full local frontend337/3468, lint ratchet and production compilation pass. Source d67763d5
+  published/read back at PR243; hosted frontend test/build/discovery and composition/lint accepted
+  in CI37207402431. Two longer backend lanes still running; explicit hosted totals await logs.
+  No served number/science flag changes. Follow `log/2026-10-04-series-boundaries.md` and
+  `audit/repair-2026-10-04/SERIES-RESULTS.md`; prior first-batch docs CI37180513517 also green.
+
+- **2026-10-04 05:38Z: first independent repair batch source88feec8c accepted; PR243 ready for review.**
+  Owner authorized repairs/testing/visual improvement. Ledger559-581: qualified locker/media authority,
+  gift/quota relationship and marine mask contracts repaired; no merge/deploy/science promotion.
+  Two proven credential-bearing CI artifacts removed/read back absent; access-code rotation remains.
+  Follow this session in `log/2026-10-04-independent-repairs.md`; all audit rows tracked in
+  `audit/repair-2026-10-04/PLAN.md`. PR243 sourceCI37179486193:19checks18success1neutral;frontend335/3440;backend5095passed.
+  ActualWebGL2 and three-theme phone/desktop/focus contracts pass. Receipt update is docs only;
+  coastline/device performance, PostgreSQL concurrency, media migration and code rotation remain open.
 
 - **2026-10-04 01:54Z: owner-authorized ICON stored tail live on dev only at6b062e97 (PR241).**
   Actual Netlify/backend accepted; emitted primary-grid bypass true twice, preview dark twice,
@@ -538,7 +945,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 558, sha256 dc1b1a86e1daeda68a8c92f4ac88ad9a82cee5103cadd8b18cc237da2d43cb0d**
+  **Ledger head: seq 735, sha256 6faab6447d4fb66f55768e2dc189f2f53694eab33d4b7253dee2815012b2b22c**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

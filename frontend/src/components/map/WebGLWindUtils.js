@@ -5,26 +5,36 @@
 
 export function createShader(gl, type, source) {
   const shader = gl.createShader(type);
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+  if (!shader) return null;
+  let compiled = false;
+  try {
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    compiled = !!gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+    if (compiled) return shader;
     console.error('[WebGLWind] Shader error:', gl.getShaderInfoLog(shader));
-    gl.deleteShader(shader);
-    return null;
+  } finally {
+    // Successful shaders remain owned by the initialization batch/program until disposal.
+    if (!compiled) gl.deleteShader(shader);
   }
-  return shader;
+  return null;
 }
 
 export function createProgram(gl, vs, fs) {
   const prog = gl.createProgram();
-  gl.attachShader(prog, vs);
-  gl.attachShader(prog, fs);
-  gl.linkProgram(prog);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+  if (!prog) return null;
+  let linked = false;
+  try {
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    linked = !!gl.getProgramParameter(prog, gl.LINK_STATUS);
+    if (linked) return prog;
     console.error('[WebGLWind] Link error:', gl.getProgramInfoLog(prog));
-    return null;
+  } finally {
+    if (!linked) gl.deleteProgram(prog);
   }
-  return prog;
+  return null;
 }
 
 export function createTexture(gl, filter, data, width, height) {

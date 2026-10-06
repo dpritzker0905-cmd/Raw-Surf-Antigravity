@@ -111,7 +111,7 @@ jobs:
 
       - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: '24.21.0'
 
       - name: Install dependencies
         working-directory: frontend
@@ -188,10 +188,11 @@ jobs:
         run: |
           # Arguments are quoted array entries, never interpolated shell source.
           # Push acceptance keeps the full suite and existing retries; filters are dispatch-only.
-          args=(--reporter=list,html)
+          # Credential-bearing browser contexts must stay untraced, including diagnostics.
+          args=(--reporter=list,html --trace=off)
           if [ -n "$E2E_TEST_GREP" ]; then args+=(--grep "$E2E_TEST_GREP"); fi
           if [ -n "$E2E_PROJECT" ]; then args+=(--project "$E2E_PROJECT"); fi
-          if [ "$E2E_DIAGNOSTIC_NO_RETRY" = "true" ]; then args+=(--retries=0 --trace=on); fi
+          if [ "$E2E_DIAGNOSTIC_NO_RETRY" = "true" ]; then args+=(--retries=0); fi
           npx playwright test "${args[@]}"
 
       - name: Upload test results

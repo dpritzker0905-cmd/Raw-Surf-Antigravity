@@ -165,3 +165,21 @@ it('THREE THEMES: light, dark and beach render three DISTINCT dot classes', asyn
   // would have silently rendered as dark and this is the assertion that would have caught it.
   expect(new Set(seen).size).toBe(3);
 });
+
+it.each(['light', 'dark', 'beach'])('daily calendar identifiers stay Oct 5 in the actual %s hub', async theme => {
+  mockTheme = theme;
+  process.env.REACT_APP_FORECAST_STATE_IDENTITY = 'true';
+  apiClient.get.mockImplementation(url => Promise.resolve({ data: url.includes('/spot-details/') ? {
+    id: 'spot-1', name: 'Calendar Beach', forecast: [
+      { date: '2026-10-05', wave_height_max: 6, label: 'Overhead' },
+      { date: '2026-10-06', wave_height_max: 7, label: 'Overhead' },
+    ], current_conditions: { wave_height_ft: 5, label: 'Head High' },
+  } : {} }));
+  try {
+    render(<SpotHub />);
+    expect(await screen.findByText('Mon')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('Tue')).toBeInTheDocument();
+    expect(screen.queryByText('Sun')).toBeNull();
+  } finally { delete process.env.REACT_APP_FORECAST_STATE_IDENTITY; }
+});

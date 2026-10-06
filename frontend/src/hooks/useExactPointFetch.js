@@ -8,6 +8,7 @@ import {
   writeOverlayDiagnostics
 } from '../components/map/forecastSamplers';
 import { isInCooldown, clearCooldown } from '../components/map/marineControllerUtils';
+import { residentFrameDiagnosticsEnabled } from '../components/map/marineFrameReceipt';
 
 // EXACT-POINT FETCH BUDGET (2026-07-06): the shared 12s abort guaranteed a first-look "Timeout"
 // on EURO — a COLD native CMEMS point measured 17s live (GFS 0.9s / ICON 2.5s), so every first
@@ -44,6 +45,9 @@ export function useExactPointFetch({
   const prevModelRef = useRef(activeModel);
 
   const isEuroComponentLayer = activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer);
+  // Zero is a valid coordinate. Longitudes may come from a rendered world copy;
+  // the shared exact-point adapter canonicalizes those before cache/HTTP lookup.
+  const hasPointCoordinates = Number.isFinite(pointLat) && Math.abs(pointLat) <= 90 && Number.isFinite(pointLng);
 
   // Decoupled refs to prevent high-frequency grid updates and timeline scrubbing from triggering redundant fetches
   const marineDataRef = useRef(marineData);
@@ -86,7 +90,7 @@ export function useExactPointFetch({
       localStatus = nextStatus;
     } else {
       setExactPointResponse(null);
-      const nextStatus = pointLat && pointLng && isExactPointRequired ? 'exact_loading' : 'idle';
+      const nextStatus = hasPointCoordinates && isExactPointRequired ? 'exact_loading' : 'idle';
       setExactPointStatus(nextStatus);
 
       localResponse = null;
@@ -105,7 +109,7 @@ export function useExactPointFetch({
 
   const effectiveExactPointStatus = (() => {
     if (isStale) {
-      return (pointLat && pointLng && isExactPointRequired ? 'exact_stale_rejected' : 'idle');
+      return (hasPointCoordinates && isExactPointRequired ? 'exact_stale_rejected' : 'idle');
     }
     if (localStatus === 'exact_success' && effectiveExactPoint?.status) {
       return effectiveExactPoint.status;
@@ -119,7 +123,7 @@ export function useExactPointFetch({
     const isModelSwitch = prevModelRef.current !== activeModel;
     prevModelRef.current = activeModel;
 
-    if (!pointLat || !pointLng || !isExactPointRequired) {
+    if (!hasPointCoordinates || !isExactPointRequired) {
       setExactPointResponse(null);
       setExactPointStatus('idle');
       return;
@@ -275,13 +279,14 @@ export function useExactPointFetch({
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
       controller.abort();
     };
-  }, [pointLat, pointLng, activeModel, activeLayer, isScrubbing, isPlaying, settledOffset, isExactPointRequired, selectedSpot, longPressLocation, retryNonce]);
+  }, [pointLat, pointLng, hasPointCoordinates, activeModel, activeLayer, isScrubbing, isPlaying, settledOffset, isExactPointRequired, selectedSpot, longPressLocation, retryNonce]);
 
   useEffect(() => {
-    if (!effectiveExactPointResponse) {
+    const selected = effectiveExactPointResponse ? selectExactPointHour(effectiveExactPointResponse, timeOffsetHours) : null;
+    if (!selected) {
+      if (typeof window !== 'undefined' && residentFrameDiagnosticsEnabled()) window.__MARINE_POINT_DIAG__ = null;
       return;
     }
-    const selected = selectExactPointHour(effectiveExactPointResponse, timeOffsetHours);
 
     if (selected) {
       const targetTs = Date.now() + (timeOffsetHours || 0) * 3600000;
@@ -319,6 +324,8 @@ export function useExactPointFetch({
         window.__MARINE_POINT_DIAG__ = {
           point: { lat: pointLat, lng: pointLng },
           activeModel, activeLayer, timeOffsetHours,
+          frameReceipt: residentFrameDiagnosticsEnabled() && !['exact_no_time_coverage', 'exact_stale_available'].includes(selected.status)
+            ? effectiveExactPointResponse.frameReceipt || null : null,
           targetTimestamp,
           requestedForecastDays: effectiveExactPointResponse.forecastDays,
           returnedTimeRange: {

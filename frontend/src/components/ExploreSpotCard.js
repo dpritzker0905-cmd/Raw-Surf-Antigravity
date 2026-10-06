@@ -13,6 +13,8 @@ import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getFullUrl } from '../utils/media';
 import SpotQualityBadge from './SpotQualityBadge';
+import { forecastCalendar } from './forecastCalendar';
+import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
 
 // Conditions color mapping
 const conditionColors = {
@@ -41,10 +43,14 @@ const DirectionArrow = ({ direction, className = "" }) => {
 };
 
 // Forecast day badge - index 0 is now Tomorrow (backend skips today)
+// The chips sit on the card's fixed dark surface (bg-zinc-900/80 in light, dark AND beach), so
+// they keep fixed light-on-dark classes: theme tokens here put beach/light text on a dark card
+// (contrast 1.03-1.75:1 in beach, 3.16:1 in light) and the chip would vanish.
 const ForecastDayBadge = ({ day, index, isLocked = false }) => {
   const dateObj = new Date(day.date);
   // index 0 = Tomorrow, index 1 = Day after tomorrow, etc.
-  const dayName = index === 0 ? 'Tom' : index === 1 ? dateObj.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3) : dateObj.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3);
+  const calendar = forecastStateIdentityEnabled() ? forecastCalendar(day.date) : null;
+  const dayName = calendar ? calendar.shortRelative : index === 0 ? 'Tom' : dateObj.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3);
   
   if (isLocked) {
     return (

@@ -30,6 +30,19 @@ router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
 _RATING_FLAGS = {
+    "SAMPLER_EXACT_VALIDITY": ("0", "Honor validity before exact corner point success", "Render env"),
+    "SIM_FORECAST_SERVED_GATE": ("0", "Bind real forecast rating gate to the served hour", "MCP process env"),
+    "GRID_SERIES_RESPONSE_BOUNDS": ("0", "Per-process bounded series build/encoding/gzip and late-output refusal", "Render env"),
+    "MANIFEST_IMMUTABLE_PUBLICATION": ("0", "Publish unique create-only manifest copies only after durable upload acknowledgment", "Render env + ingestion/precompute/monitor together"),
+    "INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS": ("0", "Prune registrations without deleting an object still named by a retained registration", "Render env + ingestion/precompute/monitor together"),
+    "INGEST_REJECT_INVALID_FRAMES": ("0", "Reject empty/all-invalid replacement frames before disk, storage upload and manifest registration", "Render env + ingestion/precompute/monitor together"),
+    "NOAA_WAVE_CYCLE_RETRY": ("0", "Bounded transient HEAD retries with actual complete GFS-wave cycle identity", "Render env + ingestion/precompute/monitor together"),
+    "PRODUCT_REVISION_REFRESH": ("0", "Validate changed manifest registrations before replacing existing L1 forecast objects", "Render env; staging bytes/concurrency/egress acceptance before activation"),
+    "INGEST_PRUNE_VERIFIED_CYCLES": ("0", "Prune only verified-cycle duplicates of the same hour, source and coverage; preserve unknowns and unique tails", "Render env + ingestion/precompute/monitor together"),
+    "COPERNICUS_TERMINAL_TIME_GUARD": ("0", "Stop dataset-wide temporal tile failures; reject empty success cache rows", "Render env + ingestion/precompute/monitor together"),
+    "SURF_REQUESTED_HORIZON": ("0", "Resolve only requested spot forecast days; current-only never fetches future frames", "Render env + ingestion/precompute/monitor together"),
+    "SURF_STRICT_AVAILABILITY": ("0", "Keep missing/invalid spot sea unavailable; preserve measured zero", "Render env + ingestion/precompute/monitor together"),
+    "POINT_PRODUCT_IDENTITY": ("0", "Discard point hints from another model/domain; re-resolve automatically", "Render env"),
     "SIM_SERVED_TIME_MATCH": ("0", "Match sim tide/quality to actual baseline hour and model", "MCP process env"),
     "SIM_STRICT_INPUTS": ("0", "Refuse missing/non-finite sim forecast fields; preserve measured zero", "MCP process env"),
     # EXPLANATION, not physics: publishes `limiter`/`limiter_f` on each spot rating — which of the

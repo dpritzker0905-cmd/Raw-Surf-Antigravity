@@ -82,6 +82,7 @@ export var MapWeatherControls = ({
   currentTimeOffset = 0,
   onTimeChange,
   isPlaying = false,
+  isBuffering = false,
   onTogglePlay,
   isTimelineCollapsed = false,
   onTimelineCollapseToggle,
@@ -481,8 +482,11 @@ export var MapWeatherControls = ({
             onClick={onTogglePlay}
             className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-transform active:scale-95 shadow-md ${isPlaying ? 'bg-rose-500 text-white' : 'bg-cyan-500 text-black'}`}
             aria-label={isPlaying ? 'Pause' : 'Play'}
+            aria-busy={isPlaying && isBuffering}
+            title={isPlaying && isBuffering ? 'Loading next forecast frame — pause playback' : undefined}
           >
-            {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
+            {isPlaying && isBuffering ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
+            {isPlaying && isBuffering && <span className="sr-only" role="status">Loading next forecast frame</span>}
           </button>
 
           {/* Step Back (Radar only) */}

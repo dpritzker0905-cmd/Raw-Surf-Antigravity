@@ -11,6 +11,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env', override=True)  # Override system env vars with .env values
 
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # (Early Synchronous Cache Check has been shifted to the lifespan function to avoid blocking port binding and causing Render health check failures)
@@ -494,6 +495,8 @@ app.add_middleware(
 # includes both and is the number closest to what the client felt. Kill: REQUEST_TELEMETRY=0.
 from services.request_telemetry import RequestTelemetryMiddleware
 app.add_middleware(RequestTelemetryMiddleware)
+from services.weather_pipeline.grid_response import GridResponseIngress
+app.add_middleware(GridResponseIngress)
 
 # CORS ON ERROR RESPONSES (backlog ⑦, shipped 2026-07-12): unhandled exceptions bypass
 # CORSMiddleware (Starlette's ServerErrorMiddleware wraps OUTSIDE user middleware), so during

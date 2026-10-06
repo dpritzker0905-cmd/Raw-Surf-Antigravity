@@ -8,6 +8,7 @@ import { energyFluxKwM, energyBand, formatEnergy, isCoarseTier } from './surfEne
 // converter it wrote rather than the one that ships. Importing the shared display formatter makes
 // the production path the only path. (`heightUnit` is still a PROP — it is state, not behaviour.)
 import { formatHeightFromMeters } from './heightUnits';
+import { marineValueValidityEnabled } from './marinePointValues';
 
 export const STATUS_RENDERS = {
   ready: { color: 'text-emerald-400', text: 'Heatmap Ready (CMEMS)' },
@@ -83,6 +84,7 @@ export function compileForecastCards({
   isLoading
 }) {
   const cards = [];
+  const strictValues = marineValueValidityEnabled();
   // One place decides how a height reads, in the user's unit. `_h` returns null (never the '—'
   // sentinel formatHeightFromMeters uses) so the existing `!= null ? … : '--'` no-data branches
   // stay reachable and keep printing '--'; `_hWord` spells the unit for screen readers, which must
@@ -296,7 +298,7 @@ export function compileForecastCards({
       const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
       // Provisional first paint: mark with the shared trailing ellipsis (reads "still refining")
       // instead of suppressing the instant feedback; the marker disappears when authority lands.
-      displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
+      displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : (strictValues && isExactPointAuthority ? 'Unavailable' : '--');
       if (wavePeriod != null) displayPeriod = `${wavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
       if (useExactPoint?.wave_peak_period != null && useExactPoint.wave_peak_period > 0) {
         displayPeak = `${useExactPoint.wave_peak_period.toFixed(1)}s`;
@@ -446,7 +448,9 @@ export function compileForecastCards({
         } else {
           const gridHasData = swell1Supported;
           const hasExactData = useExactPoint?.swell_wave_height != null;
-          if (!gridHasData && !hasExactData) {
+          if (strictValues && isExactPointAuthority && swell1Height == null) {
+            showStatus = 'Unavailable';
+          } else if (!gridHasData && !hasExactData) {
             showStatus = 'No data';
           } else {
             showStatus = 'Trace';
@@ -549,7 +553,9 @@ export function compileForecastCards({
         } else {
           const gridHasSwell2 = swell2Supported;
           const hasExactS2 = useExactPoint?.secondary_swell_wave_height != null;
-          if (!gridHasSwell2 && !hasExactS2) {
+          if (strictValues && isExactPointAuthority && swell2Height == null) {
+            showStatus = 'Unavailable';
+          } else if (!gridHasSwell2 && !hasExactS2) {
             showStatus = 'No data';
           } else {
             showStatus = 'Trace';
@@ -641,7 +647,9 @@ export function compileForecastCards({
         } else {
           const gridHasWW = windWavesSupported;
           const hasExactWW = useExactPoint?.wind_wave_height != null;
-          if (!gridHasWW && !hasExactWW) {
+          if (strictValues && isExactPointAuthority && windWaveHeight == null) {
+            showStatus = 'Unavailable';
+          } else if (!gridHasWW && !hasExactWW) {
             showStatus = 'No data';
           } else {
             showStatus = 'Trace';

@@ -17,6 +17,7 @@ import { fetchBackendMarineGrid, getSharedValidTime } from './backendWeatherServ
 import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
 import { coarseBaseOutdatedBy } from './marineStaleHour';
 import { bridgeCeilDeg } from './marineZoomOutGate';
+import { exactGfsPlaybackEnabled, isExactPlaybackFrame } from './marinePlaybackPolicy';
 
 let _prewarmDeps = null;
 
@@ -164,11 +165,12 @@ export function _rewarmWashBaseIfStale(m, hourOffset, bounds, activeLayer) {
 // the warm itself were declined as `wide_view`. GRID ONLY from such a view: the world series half (three 48-frame pages, 10-13 s of box CPU
 // each) stays a regional-zoom activity. A view past the ceiling is a world view with its own fetch path. Kill: __RAW_DISABLE_WORLD_WARM_BAND__.
 export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, opts) {
+  const playback = !!opts?.playback && exactGfsPlaybackEnabled(model, activeLayer);
   const gridFirst = !!(opts && opts.gridFirst) && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WORLD_GRID_FIRST__ === true);
   let _seriesStarted = false;
   let _deferSeries = false;
   let _gatesPassed = false;
-  let _bandView = false;
+  let _bandView = playback; // Playback warms one grid; never fans out into series pages.
   // THE SERIES HALF (audit v6) -- rationale relocated 2026-08-11 to keep marineController under the 800
   // LOC ratchet (it was 853). NOTHING WAS DELETED: the full reasoning, verbatim, is in
   // docs/research/FINDING-2026-08-11-marineController-rationale.md#series-half
@@ -198,7 +200,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
     // (Except the world warm's band: opts.band, below, serves a view up to the bridge's ceiling, grid only.)
     const vw = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
     const vh = Math.abs(bounds.north - bounds.south);
-    if (vw > 15 || vh > 15) {
+    if (!playback && (vw > 15 || vh > 15)) {
       // The band (opts.band): a view over 15 degrees and inside the ceiling is served, grid only. (Only a view over 15 degrees gets here, so a
       // ceiling tuned below 15 can never narrow the regional gate: it just leaves the band empty.)
       const ceil = bridgeCeilDeg(typeof window !== 'undefined' ? window : undefined);
@@ -227,9 +229,10 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
     if (_vt) {
       const shared = _recallGlobalByValidTime(key);
       const sharedGrid = shared && shared.grid;
-      if (sharedGrid && Array.isArray(sharedGrid.vectors) && sharedGrid.vectors.length > 0) {
+      if (sharedGrid && Array.isArray(sharedGrid.vectors) && sharedGrid.vectors.length > 0 &&
+          (!playback || isExactPlaybackFrame(shared, _vt))) {
         deps.cacheMarineResult(m, hourOffset, shared, activeLayer, true);
-        _stageCoarseBridgeSeed(sharedGrid, m, activeLayer, 'valid_time_dedupe');
+        if (!playback) _stageCoarseBridgeSeed(sharedGrid, m, activeLayer, 'valid_time_dedupe');
         _note('valid_time_dedupe', hourOffset, { vt: _vt, band: _bandView });
         return;
       }
@@ -244,8 +247,8 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
     if (cached && cached.grid && Array.isArray(cached.grid.vectors) && cached.grid.vectors.length > 0) {
       const cb = cached.grid.bounds;
       const cw = cb ? ((cb.east < cb.west) ? (cb.east + 360) - cb.west : cb.east - cb.west) : 0;
-      if (cw >= 340) {
-        _stageCoarseBridgeSeed(cached.grid, m, activeLayer, 'cache_warm');
+      if (cw >= 340 && (!playback || isExactPlaybackFrame(cached, _vt))) {
+        if (!playback) _stageCoarseBridgeSeed(cached.grid, m, activeLayer, 'cache_warm');
         _note('cache_warm', hourOffset, { vt: _vt, band: _bandView });
         return;
       }
@@ -269,10 +272,10 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
         // of the world grid, not the grid. Standing it in for the world grid ("identical pixels") made the controller cache
         // hand the thin frame to every zoom-out, and the exact frame was never fetched. It still seeds the bridge (right
         // hour, placeholder quality, better than none); the exact world grid is fetched below and replaces it.
-        _stageCoarseBridgeSeed(sg, m, activeLayer, 'series_cache_thinned');
+        if (!playback) _stageCoarseBridgeSeed(sg, m, activeLayer, 'series_cache_thinned');
       } else {
         deps.cacheMarineResult(m, hourOffset, seriesFrame, activeLayer, true);
-        _stageCoarseBridgeSeed(sg, m, activeLayer, 'series_cache');
+        if (!playback) _stageCoarseBridgeSeed(sg, m, activeLayer, 'series_cache');
         _note('series_cache', hourOffset, { vt: _vt, band: _bandView });
         return;
       }
@@ -309,7 +312,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
           // empty → the zoom-out bridge can't engage. Stage the prewarmed global (tagged for blend match) so
           // the ENGINE snapshots it into the bridge base at its next render (proper render-loop GL timing —
           // never do GL work in this detached callback). Kill: __RAW_DISABLE_COARSE_BRIDGE__.
-          _stageCoarseBridgeSeed(g, m, activeLayer);
+          if (!playback) _stageCoarseBridgeSeed(g, m, activeLayer);
         }
       })
       .catch(() => { _gridT.doneAt = _gridT.doneAt || Date.now(); _gridT.ok = false; /* best-effort: a cold zoom-out just falls back to the live fetch */ })

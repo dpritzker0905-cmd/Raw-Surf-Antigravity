@@ -284,6 +284,7 @@ async def resolve_spot_conditions_impl(
     that genuinely has none gets exactly the previous behaviour.
     """
     # Round current conditions target time to nearest 3 hours
+    strict_availability = os.environ.get("SURF_STRICT_AVAILABILITY", "0") == "1"
     now_dt = datetime.now(timezone.utc)
     current_hour = round(now_dt.hour / 3.0) * 3
     if current_hour == 24:
@@ -291,10 +292,13 @@ async def resolve_spot_conditions_impl(
     else:
         current_dt = now_dt.replace(hour=current_hour, minute=0, second=0, microsecond=0)
         
-    # 10 daily forecast days
+    # Provider forecast_days includes today; only requested daily frames can cause a cache miss.
+    # Default-off because removing irrelevant fallback can change the source of a served reading.
+    requested_horizon = os.environ.get("SURF_REQUESTED_HORIZON", "0") == "1"
+    daily_count = min(10, max(0, int(forecast_days) - 1)) if requested_horizon else 10
     forecast_dates = []
     tomorrow_date = now_dt.date() + timedelta(days=1)
-    for i in range(10):
+    for i in range(daily_count):
         d = tomorrow_date + timedelta(days=i)
         forecast_dates.append(datetime(d.year, d.month, d.day, 12, 0, 0, tzinfo=timezone.utc))
         
@@ -310,13 +314,19 @@ async def resolve_spot_conditions_impl(
         waves_prod = await self.find_cached_grid_product(model, "marine", "waves", lat, lng, dt)
         if waves_prod:
             res = self.sampler.sample_point(waves_prod, lat, lng)
+            height = res.point.speed
+            if strict_availability and (getattr(res.point, "interpolation_method", None) == "unavailable"
+                    or getattr(res.point, "is_valid", None) is False
+                    or not isinstance(height, (int, float)) or isinstance(height, bool)
+                    or not math.isfinite(height) or height < 0):
+                height = None
             waves_data[dt] = {
                 # W-34: WHERE this hour's sea came from, recorded where the value is taken, so the hub
                 # can say it instead of a hard-coded "Open-Meteo" (true only on the fallback lane).
                 "source": stored_product_source(waves_prod, model),
-                "wave_height": res.point.speed,
-                "wave_direction": res.point.direction,
-                "wave_period": res.point.period,
+                "wave_height": height,
+                "wave_direction": None if strict_availability and height is None else res.point.direction,
+                "wave_period": None if strict_availability and height is None else res.point.period,
                 # ENSEMBLE SPREAD, carried off the sampled vector. None on every deterministic
                 # product — which is all of them until ECMWF_WAVE_ENSEMBLE is on — and None on the
                 # interpolated sampler paths by design (averaging standard deviations across
@@ -339,7 +349,9 @@ async def resolve_spot_conditions_impl(
         logger.info(f"[Spot conditions] Cache miss for {model} at ({lat}, {lng}). Fetching direct point forecast...")
         try:
             raw_point = await self.provider.fetch_point(
-                model=model, domain="marine", layer="all_marine", lat=lat, lng=lng, forecast_days=forecast_days
+                model=model, domain="marine", layer="all_marine", lat=lat, lng=lng,
+                forecast_days=(max(1, (all_dates[-1].date() - now_dt.date()).days + 1)
+                               if requested_horizon else forecast_days)
             )
             if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
                 times = raw_point["hourly"]["time"]
@@ -350,14 +362,17 @@ async def resolve_spot_conditions_impl(
                     if idx is not None:
                         # Parse waves fallback
                         if dt not in waves_data:
-                            wave_height = safe_index_get(raw_point["hourly"], "wave_height", idx, 0.0)
+                            wave_height = safe_index_get(raw_point["hourly"], "wave_height", idx, None if strict_availability else 0.0)
+                            if strict_availability and (not isinstance(wave_height, (int, float))
+                                    or isinstance(wave_height, bool) or not math.isfinite(wave_height) or wave_height < 0):
+                                wave_height = None
                             wave_dir = safe_index_get(raw_point["hourly"], "wave_direction", idx, 0.0)
                             wave_per = safe_index_get(raw_point["hourly"], "wave_period", idx, 0.0)
                             waves_data[dt] = {
                                 "source": point_query_source(self.provider, model),
                                 "wave_height": wave_height,
-                                "wave_direction": wave_dir,
-                                "wave_period": wave_per,
+                                "wave_direction": None if strict_availability and wave_height is None else wave_dir,
+                                "wave_period": None if strict_availability and wave_height is None else wave_per,
                                 # EXPLICITLY None, not omitted: this is the open-meteo point
                                 # fallback, which has no ensemble at all. Writing the key means the
                                 # lookup below cannot silently differ between the two lanes.
@@ -418,35 +433,39 @@ async def resolve_spot_conditions_impl(
             logger.debug(f"[spot-conditions] size reference unavailable for {spot_id}: {e}")
 
     # Construct current conditions response dict
-    current_waves = waves_data.get(current_dt, {"wave_height": 0.0, "wave_direction": 0.0,
-                                                "wave_period": 0.0, "wave_height_spread": None})
+    missing_value = None if strict_availability else 0.0
+    current_waves = waves_data.get(current_dt, {"wave_height": missing_value, "wave_direction": missing_value,
+                                                "wave_period": missing_value, "wave_height_spread": None})
     current_swell = swell_data.get(current_dt, {"swell_height": None, "swell_direction": None})
 
-    offshore_m = current_waves["wave_height"] or 0.0
+    offshore_m = current_waves["wave_height"] if strict_availability else (current_waves["wave_height"] or 0.0)
     period_s = current_waves["wave_period"] or 0.0
     swell_from = current_waves["wave_direction"]
     # ONE sea state for this frame: the same reconciled trains feed the height transform AND the
     # rating below, so the two cannot disagree about what is in the water (None when the flag is
     # off — production today — or nothing usable is cached).
-    current_parts = await _spectral_partitions(self, model, lat, lng, current_dt, offshore_m,
-                                               period_s)
-    current_wave_height_ft, regime = _breaking_ft(
+    current_parts = (await _spectral_partitions(self, model, lat, lng, current_dt, offshore_m, period_s)
+                     if offshore_m is not None else None)
+    current_wave_height_ft, regime = (_breaking_ft(
         lat, lng, offshore_m, period_s, swell_from, geometry, partitions=current_parts)
+        if offshore_m is not None else (None, "unknown"))
     current_swell_height_ft = swell_height_ft(current_swell["swell_height"])
 
     current_conditions = {
         # ⚠️ THIS IS THE BREAKING HEIGHT NOW, not the offshore Hs it used to be. The offshore value
         # is still reported alongside so the two can never be silently conflated again.
         "wave_height_ft": current_wave_height_ft,
-        "offshore_height_ft": round(offshore_m * M_TO_FT, 1) if offshore_m else 0,
+        "offshore_height_ft": None if offshore_m is None else (round(offshore_m * M_TO_FT, 1) if offshore_m else 0),
         "surf_regime": regime,
         "wave_direction": current_waves["wave_direction"],
         "wave_period": current_waves["wave_period"],
         "swell_height_ft": current_swell_height_ft,
         "swell_direction": current_swell["swell_direction"],
-        "label": get_conditions_label(current_wave_height_ft),
+        "label": get_conditions_label(current_wave_height_ft) if current_wave_height_ft is not None else "Unavailable",
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
+    if strict_availability:
+        current_conditions["status"] = "no_data" if offshore_m is None else "available"
     # Absent-unless-known, like forecast_confidence: an hour with no sea at all names no source.
     if current_waves.get("source"):
         current_conditions["data_source"] = current_waves["source"]
@@ -454,144 +473,146 @@ async def resolve_spot_conditions_impl(
     # ── QUALITY, from the SAME engine the map glyphs use ──────────────────────────────────────
     # The hub showed a size and nothing about whether the wind was destroying it, so a blown-out
     # 6 ft and a groomed 6 ft were indistinguishable. One wind sample buys the whole rating.
-    try:
-        from services.weather_pipeline.surf_rating import compute_surf_rating
-        wind = await self.resolve_point(model=model, domain="wind", layer="wind",
-                                        lat=lat, lng=lng, valid_time_str=current_dt.strftime("%Y-%m-%dT%H:00:00Z"))
-        wind_pt = getattr(wind, "point", None)
-        wind_ms = (getattr(wind_pt, "speed", None) or 0.0) * SR.KT_TO_MS if wind_pt else None
-        wind_from = getattr(wind_pt, "direction", None) if wind_pt else None
-        # ⚠️ KEYWORDS, NOT POSITION. This call passed TEN positional arguments, which silently
-        # stopped at `reference_size_m` and left `break_depth_m` None — while `geometry.break_depth_m`
-        # was resolved twenty lines above and sitting in scope. The hub therefore opted out of the
-        # oversize gate's per-spot capacity tier that the map glyphs use, and the two surfaces graded
-        # the same spot differently. Measured 2026-07-29 at Tp 18 s, light wind, head-on:
-        #     Mavericks   45.9 ft   hub 27.3 "poor"      vs glyph 89.6 "epic"       (+62.3)
-        #     Trestles    32.8 ft   hub 69.8 "fair_good" vs glyph 27.3 "poor"       (-42.5)
-        #     Pipeline    32.8 ft   hub 69.8 "fair_good" vs glyph 51.4 "fair"       (-18.4)
-        # Signed BOTH ways — the hub was simultaneously crushing big-wave spots and calling
-        # closeouts good. Identical below the oversize regime, so ordinary days are unchanged.
-        # A positional call is how a new engine input silently fails to reach a surface; every
-        # optional factor is passed by NAME here so the next one cannot repeat it.
-        score, level = compute_surf_rating(
-            current_wave_height_ft / M_TO_FT, period_s, wind_ms,
-            wind_from_deg=wind_from,
-            shore_normal_deg=getattr(geometry, "shore_normal_deg", None),
-            swell_from_deg=swell_from,
-            reference_size_m=reference_size_m,
-            partitions=current_parts,
-            break_depth_m=getattr(geometry, "break_depth_m", None))
-        # ── THE OBSERVATION GATE (#13, owner decision 2026-07-31) ─────────────────────────────
-        # The hub is a surface a surfer READS, so it must show what the app shows. Until now the
-        # gate ran at the three glyph surfaces and NOT here, so the same spot graded differently
-        # depending on which surface you looked at — measured live: Moss Landing served 83.9 'good'
-        # on the map while the ungated lanes said 95.9 'epic'.
-        # ⚠️ A POST-`rating_score` STEP — invisible to test_rating_composition_parity's AST guard,
-        # which inspects the rating CALL's arguments (#14). Its POST-step registry watches this.
-        # ⛔⛔ DELIBERATELY **NOT** WRAPPED IN `RATING_OBS_GATE` — DO NOT "MAKE IT CONSISTENT".
-        # Three surfaces (spot_ratings, routes/weather, grid_resolver_surf) read that flag; this one
-        # and `sim_rating` do not, and a 2026-08-05 audit flagged the asymmetry as a defect and
-        # proposed gating both. THAT CHANGE WOULD RE-OPEN THE DEFECT ABOVE. The flag defaults to
-        # "0" in code and is unset outside Render, so gating here restores exactly the Moss Landing
-        # split (83.9 'good' on the map vs 95.9 'epic' here) in every lane where it is off.
-        # ★ WHY IT IS SAFE TO CAP UNCONDITIONALLY, measured over 999 spot-hours (2026-07-31):
-        #   `gate BINDS on 66/999` and `raw >= 70 on 66/999` — an IDENTICAL count. A surface that
-        #   cannot find a confirmation caps at 69.9, which is precisely what the map already shows,
-        #   so a lookup MISS lands on the SAME verdict. The failure mode points toward AGREEMENT.
-        # ⇒ The kill switch un-gates the three GLYPH lanes only, and that is the intended contract.
-        #   Pinned by test_observation_gate_single_model_surfaces.py so this cannot be "tidied".
-        from services.weather_pipeline.rating_confirmation import gate_single_model_surface
-        # ⛔ OFF THE EVENT LOOP (2026-08-09) — `confirmation_for` inside performs an unconditional
-        # per-spot haversine scan AND, on a TTL miss, a blocking `requests.get(timeout=10)` L2
-        # load, inside this async def. Same class and same fix as grid_resolver_surf.py:103's
-        # `_build_observation_gate` offload. WHAT it computes is untouched — the unconditional-cap
-        # contract above stands exactly as written.
-        import asyncio as _asyncio
-        _gated, _glevel, _confirm, _raw = await _asyncio.to_thread(
-            gate_single_model_surface, score, lat, lng, current_dt)
-        if _gated is not None:
-            score, level = _gated, _glevel
-        # Raw stays auditable: the cap changes the DISPLAYED verdict, never the physics.
-        current_conditions["rating_raw"] = _raw
-        current_conditions["rating_confirmed"] = _confirm
-        current_conditions["rating"] = score
-        current_conditions["rating_level"] = level
-        # ── HOW SURE ARE WE? (2026-08-07) ─────────────────────────────────────────────────────
-        # A third confidence, orthogonal to the score and to `geometry_readiness`: how much the
-        # ensemble members disagree about the SEA. The hub is a surface a surfer READS — the same
-        # argument that moved the observation gate and the directional_conflict disclosure here —
-        # so a forecast five days out should not look as certain as one from this morning.
-        # ⛔ IT DOES NOT TOUCH `rating`. Uncertainty is not quality: a high-spread 6 ft is the same
-        # wave as a low-spread 6 ft, forecast less confidently. Same verdict the repo reached on
-        # RATING_LOCAL_SIZE — a separate axis, never a multiplier.
-        # ⚠️ Paired with the OFFSHORE height (`wave_height` here IS `point.speed`, the offshore
-        # significant height), never the breaking one, or the ratio inflates by the transform.
-        # ★ Calls the SAME `forecast_spread.describe` that `rate_one_spot` calls — mirrored, not
-        # re-derived, per the ONE FORECAST COMPOSITION rule. Absent unless it binds.
-        # Kill: FORECAST_SPREAD_CONFIDENCE=0.
+    if current_wave_height_ft is not None:
         try:
-            from services.weather_pipeline.forecast_spread import describe as _spread_describe
-            _fc = _spread_describe(current_waves.get("wave_height_spread"),
-                                   current_waves.get("wave_height"))
-            if _fc:
-                current_conditions["forecast_confidence"] = _fc
-        except Exception as _fe:   # a confidence must never break the conditions it qualifies
-            logger.debug(f"[spot-conditions] forecast spread unavailable: {_fe}")
-        # ── WHEN THE SIZE AND THE QUALITY DISAGREE, SAY SO (MASTER-AUDIT-2.0 §2) ──────────────
-        # The hub shows a breaking height AND this score, and off-angle they are computed from the
-        # same bearing with floors 5.95x apart (quality `swell_exposure` -> 0.100, height
-        # `_height_exposure_factor` -> 0.595; 0.354 vs 0.100 in energy = 3.54x). Measured live
-        # 2026-08-04: >=15.4% of 1005 served spots bind, and Fafa Island read 6.2 ft "very_poor"
-        # on FULL geometry with nothing said.
-        # ⚠️ The hub is a surface a surfer READS — the same argument that moved the observation
-        # gate here. It shipped to `sim_rating` only, and the sim is an MCP tool.
-        # Diagnostic only; nothing branches on it. Absent unless it binds. Kill:
-        # RATING_DIRECTIONAL_CONFLICT=0.
-        if os.environ.get("RATING_DIRECTIONAL_CONFLICT", "1") != "0":
+            from services.weather_pipeline.surf_rating import compute_surf_rating
+            wind = await self.resolve_point(model=model, domain="wind", layer="wind",
+                                            lat=lat, lng=lng, valid_time_str=current_dt.strftime("%Y-%m-%dT%H:00:00Z"))
+            wind_pt = getattr(wind, "point", None)
+            wind_ms = (getattr(wind_pt, "speed", None) or 0.0) * SR.KT_TO_MS if wind_pt else None
+            wind_from = getattr(wind_pt, "direction", None) if wind_pt else None
+            # ⚠️ KEYWORDS, NOT POSITION. This call passed TEN positional arguments, which silently
+            # stopped at `reference_size_m` and left `break_depth_m` None — while `geometry.break_depth_m`
+            # was resolved twenty lines above and sitting in scope. The hub therefore opted out of the
+            # oversize gate's per-spot capacity tier that the map glyphs use, and the two surfaces graded
+            # the same spot differently. Measured 2026-07-29 at Tp 18 s, light wind, head-on:
+            #     Mavericks   45.9 ft   hub 27.3 "poor"      vs glyph 89.6 "epic"       (+62.3)
+            #     Trestles    32.8 ft   hub 69.8 "fair_good" vs glyph 27.3 "poor"       (-42.5)
+            #     Pipeline    32.8 ft   hub 69.8 "fair_good" vs glyph 51.4 "fair"       (-18.4)
+            # Signed BOTH ways — the hub was simultaneously crushing big-wave spots and calling
+            # closeouts good. Identical below the oversize regime, so ordinary days are unchanged.
+            # A positional call is how a new engine input silently fails to reach a surface; every
+            # optional factor is passed by NAME here so the next one cannot repeat it.
+            score, level = compute_surf_rating(
+                current_wave_height_ft / M_TO_FT, period_s, wind_ms,
+                wind_from_deg=wind_from,
+                shore_normal_deg=getattr(geometry, "shore_normal_deg", None),
+                swell_from_deg=swell_from,
+                reference_size_m=reference_size_m,
+                partitions=current_parts,
+                break_depth_m=getattr(geometry, "break_depth_m", None))
+            # ── THE OBSERVATION GATE (#13, owner decision 2026-07-31) ─────────────────────────────
+            # The hub is a surface a surfer READS, so it must show what the app shows. Until now the
+            # gate ran at the three glyph surfaces and NOT here, so the same spot graded differently
+            # depending on which surface you looked at — measured live: Moss Landing served 83.9 'good'
+            # on the map while the ungated lanes said 95.9 'epic'.
+            # ⚠️ A POST-`rating_score` STEP — invisible to test_rating_composition_parity's AST guard,
+            # which inspects the rating CALL's arguments (#14). Its POST-step registry watches this.
+            # ⛔⛔ DELIBERATELY **NOT** WRAPPED IN `RATING_OBS_GATE` — DO NOT "MAKE IT CONSISTENT".
+            # Three surfaces (spot_ratings, routes/weather, grid_resolver_surf) read that flag; this one
+            # and `sim_rating` do not, and a 2026-08-05 audit flagged the asymmetry as a defect and
+            # proposed gating both. THAT CHANGE WOULD RE-OPEN THE DEFECT ABOVE. The flag defaults to
+            # "0" in code and is unset outside Render, so gating here restores exactly the Moss Landing
+            # split (83.9 'good' on the map vs 95.9 'epic' here) in every lane where it is off.
+            # ★ WHY IT IS SAFE TO CAP UNCONDITIONALLY, measured over 999 spot-hours (2026-07-31):
+            #   `gate BINDS on 66/999` and `raw >= 70 on 66/999` — an IDENTICAL count. A surface that
+            #   cannot find a confirmation caps at 69.9, which is precisely what the map already shows,
+            #   so a lookup MISS lands on the SAME verdict. The failure mode points toward AGREEMENT.
+            # ⇒ The kill switch un-gates the three GLYPH lanes only, and that is the intended contract.
+            #   Pinned by test_observation_gate_single_model_surfaces.py so this cannot be "tidied".
+            from services.weather_pipeline.rating_confirmation import gate_single_model_surface
+            # ⛔ OFF THE EVENT LOOP (2026-08-09) — `confirmation_for` inside performs an unconditional
+            # per-spot haversine scan AND, on a TTL miss, a blocking `requests.get(timeout=10)` L2
+            # load, inside this async def. Same class and same fix as grid_resolver_surf.py:103's
+            # `_build_observation_gate` offload. WHAT it computes is untouched — the unconditional-cap
+            # contract above stands exactly as written.
+            import asyncio as _asyncio
+            _gated, _glevel, _confirm, _raw = await _asyncio.to_thread(
+                gate_single_model_surface, score, lat, lng, current_dt)
+            if _gated is not None:
+                score, level = _gated, _glevel
+            # Raw stays auditable: the cap changes the DISPLAYED verdict, never the physics.
+            current_conditions["rating_raw"] = _raw
+            current_conditions["rating_confirmed"] = _confirm
+            current_conditions["rating"] = score
+            current_conditions["rating_level"] = level
+            # ── HOW SURE ARE WE? (2026-08-07) ─────────────────────────────────────────────────────
+            # A third confidence, orthogonal to the score and to `geometry_readiness`: how much the
+            # ensemble members disagree about the SEA. The hub is a surface a surfer READS — the same
+            # argument that moved the observation gate and the directional_conflict disclosure here —
+            # so a forecast five days out should not look as certain as one from this morning.
+            # ⛔ IT DOES NOT TOUCH `rating`. Uncertainty is not quality: a high-spread 6 ft is the same
+            # wave as a low-spread 6 ft, forecast less confidently. Same verdict the repo reached on
+            # RATING_LOCAL_SIZE — a separate axis, never a multiplier.
+            # ⚠️ Paired with the OFFSHORE height (`wave_height` here IS `point.speed`, the offshore
+            # significant height), never the breaking one, or the ratio inflates by the transform.
+            # ★ Calls the SAME `forecast_spread.describe` that `rate_one_spot` calls — mirrored, not
+            # re-derived, per the ONE FORECAST COMPOSITION rule. Absent unless it binds.
+            # Kill: FORECAST_SPREAD_CONFIDENCE=0.
             try:
-                from services.weather_pipeline import wave_physics
-                current_conditions["directional_conflict"] = wave_physics.directional_conflict(
-                    swell_from, getattr(geometry, "shore_normal_deg", None))
-            except Exception as _dc:
-                logger.debug(f"[spot-hub] directional conflict unavailable at ({lat},{lng}): {_dc!r}")
-        if wind_pt is not None:
-            current_conditions["wind_speed_kts"] = round(getattr(wind_pt, "speed", 0.0) or 0.0, 1)
-            current_conditions["wind_direction"] = wind_from
-    except Exception as e:
-        # A rating is an ENRICHMENT — never let it cost the conditions read.
-        logger.debug(f"[spot-conditions] rating unavailable at ({lat},{lng}): {e}")
+                from services.weather_pipeline.forecast_spread import describe as _spread_describe
+                _fc = _spread_describe(current_waves.get("wave_height_spread"),
+                                       current_waves.get("wave_height"))
+                if _fc:
+                    current_conditions["forecast_confidence"] = _fc
+            except Exception as _fe:   # a confidence must never break the conditions it qualifies
+                logger.debug(f"[spot-conditions] forecast spread unavailable: {_fe}")
+            # ── WHEN THE SIZE AND THE QUALITY DISAGREE, SAY SO (MASTER-AUDIT-2.0 §2) ──────────────
+            # The hub shows a breaking height AND this score, and off-angle they are computed from the
+            # same bearing with floors 5.95x apart (quality `swell_exposure` -> 0.100, height
+            # `_height_exposure_factor` -> 0.595; 0.354 vs 0.100 in energy = 3.54x). Measured live
+            # 2026-08-04: >=15.4% of 1005 served spots bind, and Fafa Island read 6.2 ft "very_poor"
+            # on FULL geometry with nothing said.
+            # ⚠️ The hub is a surface a surfer READS — the same argument that moved the observation
+            # gate here. It shipped to `sim_rating` only, and the sim is an MCP tool.
+            # Diagnostic only; nothing branches on it. Absent unless it binds. Kill:
+            # RATING_DIRECTIONAL_CONFLICT=0.
+            if os.environ.get("RATING_DIRECTIONAL_CONFLICT", "1") != "0":
+                try:
+                    from services.weather_pipeline import wave_physics
+                    current_conditions["directional_conflict"] = wave_physics.directional_conflict(
+                        swell_from, getattr(geometry, "shore_normal_deg", None))
+                except Exception as _dc:
+                    logger.debug(f"[spot-hub] directional conflict unavailable at ({lat},{lng}): {_dc!r}")
+            if wind_pt is not None:
+                current_conditions["wind_speed_kts"] = round(getattr(wind_pt, "speed", 0.0) or 0.0, 1)
+                current_conditions["wind_direction"] = wind_from
+        except Exception as e:
+            # A rating is an ENRICHMENT — never let it cost the conditions read.
+            logger.debug(f"[spot-conditions] rating unavailable at ({lat},{lng}): {e}")
 
     # Construct forecast response list
     forecast_list = []
     for dt in forecast_dates:
         date_str = dt.strftime("%Y-%m-%d")
-        day_waves = waves_data.get(dt, {"wave_height": 0.0, "wave_direction": 0.0, "wave_period": 0.0})
+        day_waves = waves_data.get(dt, {"wave_height": missing_value, "wave_direction": missing_value, "wave_period": missing_value})
         day_swell = swell_data.get(dt, {"swell_height": None})
 
-        day_offshore = day_waves["wave_height"] or 0.0
+        day_offshore = day_waves["wave_height"] if strict_availability else (day_waves["wave_height"] or 0.0)
         # Spectral per frame for the same reason as the current frame: one payload must not mix a
         # spectral "now" with total-field days. Local cache sampling only; None when the flag is off.
-        day_parts = await _spectral_partitions(self, model, lat, lng, dt, day_offshore,
-                                               day_waves["wave_period"] or None)
-        max_ft, day_regime = _breaking_ft(
+        day_parts = (await _spectral_partitions(self, model, lat, lng, dt, day_offshore,
+                                               day_waves["wave_period"] or None) if day_offshore is not None else None)
+        max_ft, day_regime = (_breaking_ft(
             lat, lng, day_offshore, day_waves["wave_period"], day_waves["wave_direction"], geometry,
-            partitions=day_parts)
+            partitions=day_parts) if day_offshore is not None else (None, "unknown"))
         # ⚠️ `wave_height_min` is a PRESENTATION band around a single modelled value, not a second
         # forecast — it was `max * 0.6` with no comment, which reads like measured spread. Named as
         # what it is, and kept so the existing UI range still renders.
-        min_ft = round(max_ft * 0.6, 1)
+        min_ft = round(max_ft * 0.6, 1) if max_ft is not None else None
         swell_max_ft = swell_height_ft(day_swell["swell_height"])
 
         forecast_list.append({
             "date": date_str,
             "wave_height_min": min_ft,
             "wave_height_max": max_ft,
-            "offshore_height_ft": round(day_offshore * M_TO_FT, 1) if day_offshore else 0,
+            "offshore_height_ft": None if day_offshore is None else (round(day_offshore * M_TO_FT, 1) if day_offshore else 0),
             "surf_regime": day_regime,
             "wave_direction": day_waves["wave_direction"],
             "wave_period": day_waves["wave_period"],
             "swell_height_ft": swell_max_ft,
-            "label": get_conditions_label(max_ft)
+            "label": get_conditions_label(max_ft) if max_ft is not None else "Unavailable",
+            **({"status": "no_data" if day_offshore is None else "available"} if strict_availability else {}),
         })
 
     return {

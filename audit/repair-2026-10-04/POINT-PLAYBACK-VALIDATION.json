@@ -1,0 +1,225 @@
+{
+  "baseline": "69c06852a01933d061ff599ce97fd2c581209ecc",
+  "recorded_at_utc": "2026-10-04 18:51Z",
+  "source_sha256": {
+    ".github/workflows/ci.yml": "4a0f9ea4b90524217bbb73336973ab693246a18c415140ba49c00934bb0436ee",
+    ".github/workflows/forecast-ingest.yml": "0397bdfe27ed02ad78e5e41be18e569c26cd30dcb06ca483d981a896041a7500",
+    ".github/workflows/precompute.yml": "bb2ae3cd548617cf227415de9d6358d2dd7b9fb28601c0b08f3563ac73b87fc6",
+    ".github/workflows/sim-parity-monitor.yml": "7ed29953b3d40fe9c2f6494870dfea27ca7614d5eecb67e28bf05ba2fba729f6",
+    "backend/routes/admin/surf_forecast.py": "027ebaa9763fc2300c958b7f285f54b57a696309f30f7b7f7f8a28f082773ecb",
+    "backend/services/weather_pipeline/point_resolution.py": "3c2f4c618d06dfdab334b4fa73959da98b3bc81152db32e2e2db17b4f12ecda1",
+    "backend/services/weather_pipeline/spot_conditions.py": "ec449188ef5be4e49365e0d1758c5539c9ab6eca6bd224da9c0f53e3335bded1",
+    "backend/tests/test_audit_point_request_identity.py": "c14bee1e2c569781967909cecb16e7049df49d24111d0e52eddc82c4ff19f178",
+    "backend/tests/test_audit_spot_availability.py": "e981a416f6b1835f611979604344ab1f1604d6a57fe79bda9492130fac1b713b",
+    "backend/tests/test_ci_floor_staleness.py": "cb72aa4b97aacc3a9484a8a801e466307e839d92f50fade1edaf674dc2d5c244",
+    "frontend/src/components/MapPage.js": "7b5c5d3538b81cb694c50b97d7a083ef3fc423b0d9640dd414ac10214260a41c",
+    "frontend/src/components/SpotConditions.identity.test.js": "7c211a0c356c01b7b7c418b8354593d4744ddbd0acbf2a0fd62d68d4a9c2538c",
+    "frontend/src/components/SpotConditions.js": "8ca12472aa88acc94b025d26eee3ba01f0556aaf1a0b6026162d538205242fcc",
+    "frontend/src/components/UnifiedSpotDrawer.identity.test.js": "7ce2c408ae16c84604782714481fb82c5241fdbed0236c26a0c1064868718fc3",
+    "frontend/src/components/UnifiedSpotDrawer.js": "80e2e8c6f196e5108a9e5ac2ccbe702a473a9515016753cb7d551df7188d29ec",
+    "frontend/src/components/map/MapWeatherControls.js": "cc3be2fbaa02da3afcefbadf944f5ee3db79de5d88dee36fa3b9bbcf7626b331",
+    "frontend/src/components/map/MapWeatherControls.playback.test.js": "e9833af30b729179810ac69f1ab4759dbd1718eb2776712142802ab6b22b695c",
+    "frontend/src/components/map/backendCopernicusServiceClient.js": "7aedfbb416794758127453ceca48f089a6e0f7f1f3a0e506a4417de5f7f83764",
+    "frontend/src/components/map/backendPrecipitationServiceClient.js": "e9b170a574aae425b9e1a0b0fae6d3df87bffae2cc1ae0dc6fdd7eeb0f5edac4",
+    "frontend/src/components/map/backendPressureServiceClient.js": "620b60a3c2a623f7be0cc2412b2adb7f7ef3fe4cff4dd8ba096257bd882d2644",
+    "frontend/src/components/map/backendWeatherServiceClient.js": "711bb994faac96d860824c4f2087e55789e9c8cc60e956774ad997de0fbd4187",
+    "frontend/src/components/map/backendWeatherServiceClientPoint.js": "9d19c7f9b03739e6014cc3a48c8355c91267daa25848c29fe1a0d287d12c34fc",
+    "frontend/src/components/map/backendWindServiceClient.js": "914eabbb47898f74592c959fb7f7c4a7cba69d52fd209e481fbb2ee83ebf2325",
+    "frontend/src/components/map/forecastCardCompiler.js": "ad707a56f5c131bd70273a607e3c3e4421b1aa8ccf06f4bf303aecb2afd85b06",
+    "frontend/src/components/map/forecastConsumerIdentity.test.js": "b61449f337400f8534d20ed5991226f079f51b63e90868d22d46045ecf0e92bc",
+    "frontend/src/components/map/forecastExactPoint.js": "1e5c86282cf654ea8fe4f58f21df387dee7496d9eb2709c4c50953205906a216",
+    "frontend/src/components/map/forecastStateIdentity.js": "b8d20c3c4c08b5a9db078ac519ffb46d5fffe13edfc226ba95350d7b4a81d064",
+    "frontend/src/components/map/marineGlobalPrewarm.js": "72d5cd216665e11ea01829b49847273cedd01c649fd25ea882376026003dccc9",
+    "frontend/src/components/map/marineGridSeries.js": "624f42b8ac9bc3b916b7fe834d3e8dcc794c4b035066949e56c6c767a0667705",
+    "frontend/src/components/map/marinePlayback.series.test.js": "53f9abf8377fe62abc91a0ac6bddc6a4c270a59acd88d558fb3ab03c50380748",
+    "frontend/src/components/map/marinePlaybackPolicy.js": "eae7a61561f1c20f2d3f436c48c7a39358cec8a30e9436dd2b047055c293d6d8",
+    "frontend/src/components/map/marinePointAvailability.test.js": "dd1defd4587d0fa7cd11546513af586eaaa078f287be5a03ee068387f31b4310",
+    "frontend/src/components/map/marinePointValues.js": "722b89e9df5d40e869906f6168b1c0cbfb56d280121af23ffa2d6542129b132d",
+    "frontend/src/components/map/pointFieldWhitelistParity.test.js": "399df3ad87c41bfc1faeae0814eb628e91a7f60c040832d24f23d049b9572de2",
+    "frontend/src/components/map/pointRequestIdentity.js": "f959b136f07cefa0429c22dc3923d991ed22a4bd86db994fcaeecf9666dc5c13",
+    "frontend/src/components/map/pointRequestIdentity.test.js": "bb58609da353b9cb09208e7cad77bbc0a372f4f9ede40f6bf02af26fac8e7e92",
+    "frontend/src/components/map/useSpotRatings.js": "55986d6fa33ea2f85e514f33a11eb04e1b90dca85a20a613a5c5385008b4f0be",
+    "frontend/src/hooks/useSpotReadings.js": "334683a9d04f953bbdd5d6f888dad7cc674e412452fe0e909cb5335b8e890edb",
+    "frontend/src/hooks/useSpotReadings.test.js": "a1dac66dbd0c8660622525cbf1245c949b01ceeaabf18278b64d6f2bc14ec655",
+    "frontend/src/hooks/useWeatherState.js": "49673d421559ba03092e019aa5be954e9cb8cb2aa26a930736c2694581e7df19",
+    "frontend/src/hooks/useWeatherState.playback.test.js": "abc2ecff5588c6dbe64b5a1324a347b65f1bf48afb78c109b1e1e3f0ba054439"
+  },
+  "frontend": {
+    "identity-before-1": {
+      "numTotalTestSuites": 1,
+      "numPassedTests": 2,
+      "numFailedTests": 18,
+      "numTotalTests": 20
+    },
+    "identity-before-2": {
+      "numTotalTestSuites": 1,
+      "numPassedTests": 2,
+      "numFailedTests": 18,
+      "numTotalTests": 20
+    },
+    "availability-before-1": {
+      "numTotalTestSuites": 1,
+      "numPassedTests": 7,
+      "numFailedTests": 12,
+      "numTotalTests": 19
+    },
+    "availability-before-2": {
+      "numTotalTestSuites": 1,
+      "numPassedTests": 7,
+      "numFailedTests": 12,
+      "numTotalTests": 19
+    },
+    "consumers-before-1": {
+      "numTotalTestSuites": 2,
+      "numPassedTests": 2,
+      "numFailedTests": 16,
+      "numTotalTests": 18
+    },
+    "consumers-before-2": {
+      "numTotalTestSuites": 2,
+      "numPassedTests": 2,
+      "numFailedTests": 16,
+      "numTotalTests": 18
+    },
+    "playback-before-3": {
+      "numTotalTestSuites": 2,
+      "numPassedTests": 8,
+      "numFailedTests": 9,
+      "numTotalTests": 17
+    },
+    "playback-before-4": {
+      "numTotalTestSuites": 2,
+      "numPassedTests": 8,
+      "numFailedTests": 9,
+      "numTotalTests": 17
+    },
+    "final-frontend": {
+      "numTotalTestSuites": 346,
+      "numPassedTests": 3582,
+      "numFailedTests": 0,
+      "numTotalTests": 3582
+    }
+  },
+  "backend_focused_passed": 171,
+  "backend_full_local": "native crash during collection; no qualifying count",
+  "backend_full_hosted": {
+    "source": "5afa0c82eaed515ede5c0a0f66b1a8bb8d34b347",
+    "run": 37226218002,
+    "conclusion": "success",
+    "jobs_success": 11,
+    "frontend_suites": 346,
+    "frontend_passed": 3582,
+    "frontend_failed": 0,
+    "chain_files": 149,
+    "chain_passed": 1951,
+    "chain_skipped": 0,
+    "guards_files": 181,
+    "guards_passed": 2288,
+    "guards_skipped": 67,
+    "estate_selected": 284,
+    "estate_produced": 282,
+    "estate_passed": 889,
+    "estate_silent": 0,
+    "backend_total_passed": 5128,
+    "failed": 0,
+    "supplementary_success": {
+      "LOC": 37226218144,
+      "Encoding": 37226218139,
+      "WeatherLedger": 37226218004,
+      "Lighthouse": 37226218027
+    },
+    "pr_rollup": {
+      "total": 19,
+      "checkrun_success": 17,
+      "checkrun_neutral": 1,
+      "netlify_preview_status_success": 1
+    },
+    "readback": "Completed gh run view per-job logs and PR head rollup, 2026-10-04 19:15Z"
+  },
+  "flags": "default-off, no activation",
+  "visual": "offline component fixture only; map/GPU/live performance pending",
+  "hashes_normalization": "UTF-8 source with LF line endings",
+  "prior_hosted": {
+    "source": "d67763d59d5e007e07f84b274b6693faf5134ad7",
+    "run": 37207402431,
+    "guards_passed": 2288,
+    "guards_skipped": 67,
+    "chain_passed": 1918,
+    "estate_passed": 889
+  },
+  "jacobian": {
+    "instrument": "audit/repair-2026-10-04/point_jacobian_probe.py",
+    "passed_each_run": 6,
+    "runs": 2,
+    "readings": {
+      "GFS/flag0": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.0,
+          1.0000000000000009
+        ]
+      },
+      "ICON/flag0": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.0,
+          1.0000000000000009
+        ]
+      },
+      "EURO/flag0": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.0,
+          1.0000000000000009
+        ]
+      },
+      "GFS/flag1": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.9999999999999987,
+          0.0
+        ]
+      },
+      "ICON/flag1": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.9999999999999987,
+          0.0
+        ]
+      },
+      "EURO/flag1": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.9999999999999987,
+          0.0
+        ]
+      }
+    },
+    "qualification": "Actual resolver/sampler request identity only; no skill or surf-physics calibration",
+    "instrument_sha256": "2d4bfb5920db2f5d2480c359d0cf1f4de0b883dee77c71f95ae7068735db5319"
+  }
+}

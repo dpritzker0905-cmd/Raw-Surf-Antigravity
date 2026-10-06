@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from core.security import get_current_user_id
 from typing import Optional
 from datetime import datetime, timezone
 from collections import Counter
@@ -22,11 +23,14 @@ class SurfReportCreate(BaseModel):
     tide_height: Optional[str] = None
     tide_status: Optional[str] = None
     notes: Optional[str] = None
-    rating: Optional[int] = None
+    rating: Optional[int] = Field(None, ge=1, le=5)
     photo_url: Optional[str] = None
 
 @router.post("/surf-reports")
-async def create_surf_report(user_id: str, data: SurfReportCreate, db: AsyncSession = Depends(get_db)):
+async def create_surf_report(user_id: str, data: SurfReportCreate, db: AsyncSession = Depends(get_db),
+                             current_user_id: str = Depends(get_current_user_id)):
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot submit observations for another user")
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = user_result.scalar_one_or_none()
     if not user:

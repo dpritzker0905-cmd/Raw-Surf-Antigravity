@@ -7,7 +7,13 @@
 // fetches so the box serves them ~2 at a time and each finishes fast (no contention). Requests
 // queue client-side; a request whose signal aborts while queued is dropped (never hits the box),
 // so superseded model/layer warms don't pile up. Tune up once the backend has more CPU.
+import { marineSeriesWorkBoundsEnabled } from './marineSeriesWorkPolicy';
 const MARINE_SERIES_MAX_CONCURRENT = 2;
+const MARINE_TOTAL_MAX = 3; // two pages plus one reserved foreground mini
+// Qualified policy caps all limiter-owned transport at3, foreground minis at1;
+// regional intents cancel stale queues in useMarineSeriesWarm. Legacy notes below
+// describe the default-off behavior. Ordinary foreground /grid and point calls
+// remain outside this limiter; this is not a server-wide admission budget.
 // PRIORITY (A15-11, #123). Background warms (sibling layers, the world series behind the zoom-out bridge,
 // adjacent-page idle prefetch, the world /grid) shared ONE FIFO with the loads the user is waiting on.
 // Visible loads are always served first, and a visible request for a page still QUEUED as a warm promotes
@@ -28,10 +34,15 @@ const MARINE_BG_MAX = 1;
 let _seriesActiveLoads = 0;  // pages in flight, visible and background
 let _bgActiveLoads = 0;      // background pages in flight
 let _bgMiniActive = 0;       // background minis in flight
-let _visibleMinis = 0;       // visible minis in flight: never queued, counted so background waits for them
+let _visibleMinis = 0;       // visible minis in flight; qualified policy reserves one slot
 const _seriesWaiters = [];   // visible pages:    [{ resolve, signal, key, background: false }]
 const _bgWaiters = [];       // background pages: same shape, background: true
 const _miniWaiters = [];     // background minis: [{ resolve, signal }]
+const _visibleMiniWaiters = [];
+
+function _totalHasSlot() {
+  return !marineSeriesWorkBoundsEnabled() || _seriesActiveLoads + _bgMiniActive + _visibleMinis < MARINE_TOTAL_MAX;
+}
 
 function _priorityOn() {
   return !(typeof window !== 'undefined' && window.__RAW_DISABLE_FETCH_PRIORITY__ === true);
@@ -41,11 +52,13 @@ function _backgroundMayStart() {
   // Idle = no visible page or mini in flight. (A visible page can only be WAITING while one is loading:
   // background holds at most one of the two slots. And an idle limiter always has a free slot.)
   const visibleLoading = _seriesActiveLoads - _bgActiveLoads > 0 || _visibleMinis > 0;
-  return !visibleLoading && _bgActiveLoads + _bgMiniActive < MARINE_BG_MAX;
+  return !visibleLoading && _bgActiveLoads + _bgMiniActive < MARINE_BG_MAX &&
+    (!marineSeriesWorkBoundsEnabled() || (_visibleMiniWaiters.length === 0 && _seriesWaiters.length === 0 && _totalHasSlot()));
 }
 
 function _canStart(background) {
   if (_seriesActiveLoads >= MARINE_SERIES_MAX_CONCURRENT) return false;
+  if (!_totalHasSlot()) return false;
   return !background || _backgroundMayStart();
 }
 
@@ -58,16 +71,18 @@ function _take(background) {
 function _dropOnAbort(entry, queueOf) {
   if (!entry.signal) return;
   try {
-    entry.signal.addEventListener('abort', () => {
+    entry.abortHandler = () => {
       const q = queueOf(entry);                            // it may have been promoted
       const i = q.indexOf(entry);
       if (i >= 0) { q.splice(i, 1); entry.resolve(false); } // dropped while queued; no slot taken
-    }, { once: true });
+    };
+    entry.signal.addEventListener('abort', entry.abortHandler, { once: true });
   } catch (e) { /* ignore */ }
 }
 
 /** Resolves to the lane the slot was granted in ('visible' | 'background'), or false when dropped. */
 export function acquireSeriesSlot(signal, background = false, key = null) {
+  if (signal?.aborted) return Promise.resolve(false);
   const bg = !!background && _priorityOn();
   if (_canStart(bg)) return Promise.resolve(_take(bg));
   return new Promise((resolve) => {
@@ -80,6 +95,7 @@ export function acquireSeriesSlot(signal, background = false, key = null) {
 function _nextLive(q) {
   while (q.length) {
     const w = q.shift();
+    if (w.abortHandler) w.signal?.removeEventListener('abort', w.abortHandler);
     if (w.signal && w.signal.aborted) { w.resolve(false); continue; } // drop aborted-while-queued
     return w;
   }
@@ -87,7 +103,15 @@ function _nextLive(q) {
 }
 
 function _pump() {
-  while (_seriesActiveLoads < MARINE_SERIES_MAX_CONCURRENT) {
+  if (!marineSeriesWorkBoundsEnabled()) {
+    let mini;
+    while ((mini = _nextLive(_visibleMiniWaiters))) { _visibleMinis++; mini.resolve('visible-mini'); }
+  }
+  if (marineSeriesWorkBoundsEnabled() && _visibleMinis === 0 && _totalHasSlot()) {
+    const mini = _nextLive(_visibleMiniWaiters);
+    if (mini) { _visibleMinis++; mini.resolve('visible-mini'); }
+  }
+  while (_seriesActiveLoads < MARINE_SERIES_MAX_CONCURRENT && _totalHasSlot()) {
     const v = _nextLive(_seriesWaiters);
     if (!v) break;
     v.resolve(_take(false));
@@ -111,7 +135,16 @@ export function releaseSeriesSlot(lane) {
  * dropped (its signal aborted while queued). With the kill switch on every mini starts at once, as before.
  */
 export function acquireMiniSlot(signal, background) {
-  if (!background || !_priorityOn()) { _visibleMinis++; return Promise.resolve('visible-mini'); }
+  if (signal?.aborted) return Promise.resolve(false);
+  if (!background || !_priorityOn()) {
+    if (!marineSeriesWorkBoundsEnabled() || (_visibleMinis === 0 && _totalHasSlot())) {
+      _visibleMinis++; return Promise.resolve('visible-mini');
+    }
+    return new Promise(resolve => {
+      const entry = { resolve, signal };
+      _visibleMiniWaiters.push(entry); _dropOnAbort(entry, () => _visibleMiniWaiters);
+    });
+  }
   if (_backgroundMayStart()) { _bgMiniActive++; return Promise.resolve('mini'); }
   return new Promise((resolve) => {
     const entry = { resolve, signal };
@@ -152,7 +185,7 @@ export async function runBackgroundWarm(fn, signal) {
 export function _seriesLimiterState() {
   return { active: _seriesActiveLoads, background: _bgActiveLoads, backgroundMini: _bgMiniActive,
     visibleMini: _visibleMinis, queuedVisible: _seriesWaiters.length, queuedBackground: _bgWaiters.length,
-    queuedMini: _miniWaiters.length };
+    queuedMini: _miniWaiters.length, queuedVisibleMini: _visibleMiniWaiters.length };
 }
 
 export function _resetSeriesLimiterForTest() {
@@ -163,4 +196,5 @@ export function _resetSeriesLimiterForTest() {
   _seriesWaiters.length = 0;
   _bgWaiters.length = 0;
   _miniWaiters.length = 0;
+  _visibleMiniWaiters.length = 0;
 }

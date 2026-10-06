@@ -3,20 +3,30 @@ import { iconExtendedContinuityDecay, iconExtendedContinuityOffset } from './bac
 import { requireMarineDirection } from './marineDirectionBlend';
 import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics } from './backendWeatherServiceClientDiag';
+import { pointRequestIdentityEnabled, createPointRequestContext, childPointRequestContext } from './pointRequestIdentity';
+import { marineValueValidityEnabled, marinePointValues } from './marinePointValues';
+import { readMarineFrameReceipt } from './marineFrameReceipt';
 
-export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer = 'waves', model = 'GFS', gridProductIdParam = null, gridBboxParam = null) {
+export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer = 'waves', model = 'GFS', gridProductIdParam = null, gridBboxParam = null, requestContext = null) {
+  requestContext = pointRequestIdentityEnabled()
+    ? requestContext || createPointRequestContext(model, layer, hourOffset, false, gridProductIdParam, gridBboxParam) : null;
+  const fetchChild = (hour, childModel, childLayer = layer) => {
+    const context = childPointRequestContext(requestContext, childModel, childLayer, hour);
+    return fetchBackendExactPoint(lat, lng, hour, signal, childLayer, childModel,
+      context ? context.gridProductId : gridProductIdParam, context ? context.gridBbox : gridBboxParam, context);
+  };
   if (model === 'ICON' && hourOffset > 168) {
     if (hourOffset <= 240 && layer === 'swell_2') {
       // Fall through to unsupported swell_2 response below
     } else {
-      const validTimeStr = getSharedValidTime(hourOffset, layer, 'ICON');
+      const validTimeStr = requestContext?.validTime || getSharedValidTime(hourOffset, layer, 'ICON');
       try {
         if (hourOffset <= 240) {
           // ICON Persistence + GFS Trend extrapolation
           const [iconAnchor, gfsAnchor, gfsTarget] = await Promise.all([
-            fetchBackendExactPoint(lat, lng, 168, signal, layer, 'ICON', gridProductIdParam, gridBboxParam),
-            fetchBackendExactPoint(lat, lng, 168, signal, layer, 'GFS', gridProductIdParam, gridBboxParam),
-            fetchBackendExactPoint(lat, lng, hourOffset, signal, layer, 'GFS', gridProductIdParam, gridBboxParam)
+            fetchChild(168, 'ICON'),
+            fetchChild(168, 'GFS'),
+            fetchChild(hourOffset, 'GFS')
           ]);
 
           if (!iconAnchor || !gfsAnchor || !gfsTarget) {
@@ -127,12 +137,12 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
           // Anchor points ride the point cache (168h anchors are the ≤240 branch's own inputs).
           // Fail-open: any missing anchor → the raw mix. Kill: __RAW_DISABLE_ICON_TAIL_CONTINUITY__.
           const [gfsTarget, euroTarget, icon168R, gfs168R, gfs240R, euro240R] = await Promise.allSettled([
-            fetchBackendExactPoint(lat, lng, hourOffset, signal, layer, 'GFS', gridProductIdParam, gridBboxParam),
-            fetchBackendExactPoint(lat, lng, hourOffset, signal, layer, 'EURO', gridProductIdParam, gridBboxParam),
-            fetchBackendExactPoint(lat, lng, 168, signal, layer, 'ICON', gridProductIdParam, gridBboxParam),
-            fetchBackendExactPoint(lat, lng, 168, signal, layer, 'GFS', gridProductIdParam, gridBboxParam),
-            fetchBackendExactPoint(lat, lng, 240, signal, layer, 'GFS', gridProductIdParam, gridBboxParam),
-            fetchBackendExactPoint(lat, lng, 240, signal, layer, 'EURO', gridProductIdParam, gridBboxParam)
+            fetchChild(hourOffset, 'GFS'),
+            fetchChild(hourOffset, 'EURO'),
+            fetchChild(168, 'ICON'),
+            fetchChild(168, 'GFS'),
+            fetchChild(240, 'GFS'),
+            fetchChild(240, 'EURO')
           ]);
 
           const gfsVal = gfsTarget.status === 'fulfilled' ? gfsTarget.value : null;
@@ -263,10 +273,10 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     // the infobox showed "no source data" while the heatmap rendered the blend. Only falls back to
     // 'unsupported' when BOTH GFS and EURO swell_2 are genuinely unavailable.
     try {
-      const s2ValidTimeStr = getSharedValidTime(hourOffset, 'swell_2', 'ICON');
+      const s2ValidTimeStr = requestContext?.validTime || getSharedValidTime(hourOffset, 'swell_2', 'ICON');
       const [gfsS2, euroS2] = await Promise.allSettled([
-        fetchBackendExactPoint(lat, lng, hourOffset, signal, 'swell_2', 'GFS', gridProductIdParam, gridBboxParam),
-        fetchBackendExactPoint(lat, lng, hourOffset, signal, 'swell_2', 'EURO', gridProductIdParam, gridBboxParam)
+        fetchChild(hourOffset, 'GFS', 'swell_2'),
+        fetchChild(hourOffset, 'EURO', 'swell_2')
       ]);
       // An abort (model/layer switch cancels the shared signal) is NOT data-unavailability:
       // falling through to the terminal 'unsupported' response here let the caller CACHE
@@ -331,7 +341,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     return {
       status: 'unsupported',
       hourly: {
-        time: [getSharedValidTime(hourOffset, 'swell_2', 'ICON')],
+        time: [requestContext?.validTime || getSharedValidTime(hourOffset, 'swell_2', 'ICON')],
         secondary_swell_wave_height: [null],
         secondary_swell_wave_direction: [null],
         secondary_swell_wave_period: [null]
@@ -389,7 +399,11 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
   }
 
   const start = Date.now();
-  const validTimeStr = getSharedValidTime(hourOffset, layer, model);
+  if (requestContext) {
+    gridProductId = requestContext.gridProductId;
+    gridBbox = requestContext.gridBbox;
+  }
+  const validTimeStr = requestContext?.validTime || getSharedValidTime(hourOffset, layer, model);
   const provider = model === 'EURO' ? 'copernicus' : 'open-meteo';
   let cacheKey = `${model}_marine_${layer}_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
   if (gridProductId) {
@@ -399,7 +413,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     cacheKey += `_bbox_${gridBbox}`;
   }
 
-  const cached = pointCache.get(cacheKey);
+  const cached = requestContext?.force ? null : pointCache.get(cacheKey);
   if (cached) {
     console.log(`[Backend Weather Service] Cache hit for ${model} Marine: ${cacheKey}`);
     const clonedData = JSON.parse(JSON.stringify(cached.data));
@@ -515,11 +529,13 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     // to NULL so the infobox shows its no-data state instead of a confident "0.0 ft / N 0" — the same
     // contract as the all-land grid-cell fix (3f45d004).
     const _ptUnavailable = !json.point || json.point.interpolation_method === 'unavailable';
-    const _ptSpeed = _ptUnavailable || !Number.isFinite(json.point.speed) || json.point.speed < 0 ? null : json.point.speed;
+    const strictPoint = marineValueValidityEnabled() ? marinePointValues(json.point) : null;
+    const _ptSpeed = strictPoint ? strictPoint.height : (_ptUnavailable || !Number.isFinite(json.point.speed) || json.point.speed < 0 ? null : json.point.speed);
     // Preserve missing bearings for the mirror's active-source checks; zero is valid north.
-    const _ptDir = _ptUnavailable || !Number.isFinite(json.point.direction)
-      ? null : ((json.point.direction % 360) + 360) % 360;
-    const _ptPer = _ptUnavailable ? null : (json.point.period || 0);
+    const _ptDir = strictPoint ? strictPoint.direction : (_ptUnavailable || !Number.isFinite(json.point.direction)
+      ? null : ((json.point.direction % 360) + 360) % 360);
+    const _ptPer = strictPoint ? strictPoint.period : (_ptUnavailable ? null : (json.point.period || 0));
+    if (strictPoint && !json.point) json.point = {};
 
     if (layer === 'waves') {
       conformedHourly.wave_height = [_ptSpeed];
@@ -544,6 +560,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
 
     const data = {
       hourly: conformedHourly,
+      frameReceipt: readMarineFrameReceipt(json),
       snappedLat: json.point.sampled_lat || lat,
       snappedLng: json.point.sampled_lng || lng,
       requestedLat: lat,
@@ -616,6 +633,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
 
     const details = {
       url,
+      frameReceipt: data.frameReceipt,
       status: res.status,
       validTime: validTimeStr,
       valueKind: json.value_kind || (layer === 'swell_1' ? 'swell_wave_height' : 'wave_height'),

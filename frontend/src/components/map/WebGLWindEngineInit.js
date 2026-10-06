@@ -10,10 +10,9 @@ import {
   FADE_FS
 } from './WebGLWindShaders';
 import {
-  createShader,
-  createProgram,
   initParticleTexture
 } from './WebGLWindUtils';
+import { createProgramBatch } from './WebGLProgramBatch';
 
 export function reinitParticles(engine, gl, opts) {
   if (!gl || !engine._initialized) return;
@@ -38,24 +37,12 @@ export function reinitParticles(engine, gl, opts) {
 
 export function initEngine(engine, gl) {
   if (engine._initialized) return;
-  var advVS = createShader(gl, gl.VERTEX_SHADER, ADVECT_VS);
-  var advFS = createShader(gl, gl.FRAGMENT_SHADER, ADVECT_FS);
-  var drawVS = createShader(gl, gl.VERTEX_SHADER, DRAW_VS);
-  var drawFS = createShader(gl, gl.FRAGMENT_SHADER, DRAW_FS);
-  var screenVS = createShader(gl, gl.VERTEX_SHADER, SCREEN_VS);
-  var screenFS = createShader(gl, gl.FRAGMENT_SHADER, SCREEN_FS);
-  var fadeVS = createShader(gl, gl.VERTEX_SHADER, SCREEN_VS);
-  var fadeFS = createShader(gl, gl.FRAGMENT_SHADER, FADE_FS);
-  var heatVS = createShader(gl, gl.VERTEX_SHADER, HEATMAP_VS);
-  var heatFS = createShader(gl, gl.FRAGMENT_SHADER, HEATMAP_FS);
-  if (!advVS || !advFS || !drawVS || !drawFS || !screenVS || !screenFS || !heatVS || !heatFS) {
-    console.error('[WebGLWind] Failed to compile shaders'); return;
+  const programs = createProgramBatch(gl, [[ADVECT_VS, ADVECT_FS], [DRAW_VS, DRAW_FS],
+    [SCREEN_VS, SCREEN_FS], [SCREEN_VS, FADE_FS], [HEATMAP_VS, HEATMAP_FS]]);
+  if (!programs) {
+    console.error('[WebGLWind] Failed to compile or link shaders'); return;
   }
-  engine.advectProgram = createProgram(gl, advVS, advFS);
-  engine.drawProgram = createProgram(gl, drawVS, drawFS);
-  engine.screenProgram = createProgram(gl, screenVS, screenFS);
-  engine.fadeProgram = createProgram(gl, fadeVS, fadeFS);
-  engine.heatmapProgram = createProgram(gl, heatVS, heatFS);
+  [engine.advectProgram, engine.drawProgram, engine.screenProgram, engine.fadeProgram, engine.heatmapProgram] = programs;
   engine.quadBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, engine.quadBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);

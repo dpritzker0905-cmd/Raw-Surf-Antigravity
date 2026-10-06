@@ -439,7 +439,17 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # guards2278: checkedPR233 CI37155975799 read2276; monitor window adds2.
 # estate781: PR234 CI37157703688 read749; identity evidence controls add32.
 # PR235 CI37158928246 guards2278 plus8 latency-evidence controls ->2286.
-_FLOOR_SET_FROM = {"guards": 2288, "chain": 1918, "estate": 816}
+# Independent repair batch: pinned hosted CI37167173560 estate816 +73 executed,
+# selector-owned additions -> projected889. CI must confirm; margin remains2.
+# Ordered audit repair: two tracked chain modules add33 controls; projected1951 from
+# pinned hosted1918. Hosted candidate must confirm; reference moves with floor1945.
+# Calendar/horizon/terminal-cache repair: chain+31, estate+9; hosted confirmation pending.
+# #243 blocker fixes: estate+20 (two files); projected1095, floor1093, margin2; hosted run must confirm.
+# Hosted59dd3d26 estate1105: unset controls belong to chain, projected2053/floor2047.
+# Eight gallery/session assignment controls bring estate to1113/floor1111; no floor lowered.
+# WI02/WI03 add18 chain and33 guards controls, selectors checked from backend cwd.
+# WS-08 adds88 estate controls; projected1201 awaits own-source hosted confirmation.
+_FLOOR_SET_FROM = {"guards": 2425, "chain": 2280, "estate": 1201}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

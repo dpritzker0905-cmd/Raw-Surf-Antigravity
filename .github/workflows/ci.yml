@@ -23,7 +23,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x]
+        node-version: [24.21.0]
 
     steps:
       - uses: actions/checkout@v5
@@ -109,7 +109,19 @@ jobs:
           // 2879/2879  failed 0`, its +2 prewarm tests). This change's own +2 recorder tests are counted on its run.
           // PR238 hosted 328 suites/3362 tests; add one suite/25 tests, keep margins 31/483.
           // PR240 retains hosted 329/3387; +1 suite/12 scope probes, margins 31/483.
-          const MIN_SUITES = 299, MIN_TESTS = 2916;
+          // Independent audit AS03: hosted CI37177756735 at d5b1fa34 confirms335/3440.
+          // Retire the historical 31-suite/483-test gap and guard every new repair test.
+          // W03/W05: db20de62 hosted335/3440 + two suites/28 controls; hosted confirmation pending.
+          // Point identity, availability, playback and consumer controls: full local346/3582.
+          // Daily calendar, mounted label/rollback controls: +1suite/+28tests; projected347/3610.
+          // PF01/PF02 transport/cache and mounted viewport controls: +4suites/+37tests.
+          // Visual sourcea1cb1ed3 own CI37405974317 full job112083517831: hosted365/3808.
+          // Rollover source48c04424 own CI37407541898 job112088337571: actual367/3872.
+          // Raise to qualified hosted coverage; no frontend tests added by WS-08.
+          // Shared world-coordinate repair adds1suite/94controls; local368/3966 passed.
+          // Own hosted confirmation required; preserve the zero-margin frontend ratchet.
+          // Mounted zero-coordinate hook: +1 suite/42 controls, local369/4008.
+          const MIN_SUITES = 369, MIN_TESTS = 4008;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -158,10 +170,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 18.20.2
+      - name: Use Node.js 24.21.0
         uses: actions/setup-node@v5
         with:
-          node-version: '18.20.2'   # matches frontend/.node-version
+          node-version: '24.21.0'   # matches frontend/.node-version
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -198,10 +210,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 18.20.2
+      - name: Use Node.js 24.21.0
         uses: actions/setup-node@v5
         with:
-          node-version: '18.20.2'   # matches frontend/.node-version
+          node-version: '24.21.0'   # matches frontend/.node-version
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -793,7 +805,11 @@ jobs:
           # PR235 CI37158928246 confirms2278; latency evidence adds8 ->2286.
           # Same181files/margin6; zero slow markers on healthy rows preserved.
           # PR239 actual2286 plus2 monitor-label controls ->2288; margin6 unchanged.
-          MIN_FILES, MIN_PASSED = 181, 2282
+          # Immutable manifest publication: hosted2327 projected (2288 +39), same six-test margin.
+          # Response envelope17 + served-hour8 + staging-target8: projected2360, margin6.
+          # WI03: 33 cycle/provenance controls in test_data_health; projected2393, margin6.
+          # WI06: staged selector owns32 bounded wave-cycle retry controls; projected2425/186files, margin6.
+          MIN_FILES, MIN_PASSED = 186, 2419
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1309,7 +1325,20 @@ jobs:
           # 2026-10-03 capacity repair: checked5d9e92f2 CI37150378034 confirms chain1876.
           # One selector-owned file adds42 executed parity/cache/fallback controls (local pair42pass).
           # Expected hosted1918, not yet observed;147 files and1918-6=1912 keep the same margin.
-          MIN_FILES, MIN_PASSED = 147, 1912
+          # Ordered audit repair: two selector-owned files add21+12 executed controls to
+          # pinned hosted1918. Expected1951; local full collection crashes on Windows,
+          # so hosted CI must confirm. Preserve the six-test margin and paired reference.
+          # Hosted5afa0c82 chain1951 +11producer/+20Copernicus controls =1982; margin6.
+          # Exact-corner validity67 controls: projected2049, margin6.
+          # Four actual unset-default controls belong to chain: projected2053, margin6.
+          # WI02: 18 invocation-scoped product progress controls; projected2071, margin6.
+          # WI04: staged selector owns27 shared-object prune controls; projected2098/153files, margin6.
+          # WI05: staged selector owns38 invalid-write/zero/ack controls; projected2136/154files, margin6.
+          # WI01/WI06: 90 staged refresh/cycle-prune controls; projected2226/156files, margin6.
+          # Grid HTTP response envelope: staged chain test +54 executed controls.
+          # Own hosted9a7 read2226; projected2280/157files, preserve margin6.
+          # Five follow-ups grade real-helper cancellation/ready frames/expired child work.
+          MIN_FILES, MIN_PASSED = 157, 2274
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1671,7 +1700,20 @@ jobs:
           # PR236 actual estate781 plus4 weekly report runtime controls ->785; same margin2.
           # PR237 actualestate785 plus25selectionownership controls ->810; margin2 unchanged.
           # PR239 actualestate810 plus6 assembledStripe controls ->816; margin2 unchanged.
-          MIN_PASSED = 814
+          # Independent audit: CI37167173560 confirms816. Two selector-owned files
+          # add73 executed cases; projected889, same margin2. Candidate CI must confirm.
+          # Hosted5afa0c82 estate889 +9actual horizon-route controls =898; margin2.
+          # Scoreboard chronology:12 actual-audit/negative controls; projected910, margin2.
+          # Observer22/session23/social7/purchase8: projected970, margin2.
+          # Atomic alert delivery69 controls including HTTP configuration ownership: projected1039, margin2.
+          # Deep-audit push/AI/trace/explicit-actor controls add36 to hosted1039; margin2.
+          # #243 blocker fixes: two estate files add20 executed cases (money-route authority15,
+          # on-demand selection quota5) to projected1075 = 1095; margin2. Hosted run must confirm.
+          # Hosted59dd3d26 actually ran1105 estate cases; four unset cases belong to chain.
+          # Eight gallery-vs-session assignment controls bring estate to1113; margin2.
+          # WS-08 real-router controls add88: hosted1113 +88 projected1201, margin2.
+          # Exact-source hosted qualification remains required; no floor lowered.
+          MIN_PASSED = 1199
 
           try:
               root = ET.parse('estate.xml').getroot()

@@ -20,7 +20,10 @@ function makeMap() {
     off: (ev, fn) => { handlers[ev] = (handlers[ev] || []).filter((f) => f !== fn); },
     isMoving: () => false,
     isZooming: () => false,
-    __fire: (ev) => (handlers[ev] || []).forEach((f) => f()),
+    __fire: (ev) => {
+      window.__RAW_GPU__.layer = { n: (window.__RAW_GPU__.layer?.n || 0) + 1, t: Date.now(), skip: null };
+      (handlers[ev] || []).forEach((f) => f());
+    },
   };
 }
 
@@ -28,6 +31,8 @@ const churn = (kind) => ((window.__MARINE_CHURN__ && window.__MARINE_CHURN__.log
 
 beforeEach(() => {
   jest.useFakeTimers();
+  window.__MARINE_ENGINE__ = { _initialized: true, _waveData: {} };
+  window.__RAW_GPU__ = {};
   delete window.__MARINE_CHURN__;
   delete window.__DISABLE_WEBGL_GUARDRAIL__;
   delete window.__DISABLE_WEBGL_GUARDRAIL_RECOVERY__;
@@ -40,6 +45,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  delete window.__MARINE_ENGINE__;
+  delete window.__RAW_GPU__;
   jest.useRealTimers();
   jest.restoreAllMocks();
 });

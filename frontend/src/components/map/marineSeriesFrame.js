@@ -40,6 +40,10 @@ export function frameToMarineData(frame, model, layer) {
     model_run_time_status: frame.model_run_time_status || 'missing',
     ingested_at: frame.ingested_at ?? null,
   };
+  // The estimate belongs to this frame, including zero weights/confidence and native metadata.
+  // Match the per-hour mapper's contract; never infer a blend from the selected model.
+  const estimateBasis = frame.estimate_basis ?? null;
+  const keepEstimate = !(typeof window !== 'undefined' && window.__RAW_DISABLE_SERIES_ESTIMATE_PROVENANCE__ === true);
   const grid = {
     ...cycleProvenance,
     vectors: frame.vectors,
@@ -59,6 +63,8 @@ export function frameToMarineData(frame, model, layer) {
     __componentLayer: layer,
     __sourceModel: model,
     __sourceDataset,
+    // Keep the reported dataset separate from the legacy display-label guess above.
+    source_dataset: frame.source_dataset || null,
     __gridProvider: provider,
     // The ORIGIN beside the DISPATCH KEY, so a consumer can tell an 8 km MFWAM field from a 25 km
     // IFS one. `__MARINE_RENDER_SOURCE_DIAG__.upstreamProvider` reads this.
@@ -66,6 +72,7 @@ export function frameToMarineData(frame, model, layer) {
     provider,
     hourOffset: frame.hour_offset,
     is_estimated: !!frame.is_estimated,
+    ...(keepEstimate ? { estimate_basis: estimateBasis } : {}),
     is_dynamic_viewport_product: true,
     __fromSeries: true,
     // Carry the surf-RATING signal so the shader paints the rating band on series-committed frames (clamp/scrub
@@ -133,6 +140,7 @@ export function frameToMarineData(frame, model, layer) {
     __renderable: renderable,
     __fromSeries: true,
     valid_time: frame.valid_time,
+    ...(keepEstimate ? { isEstimated: !!frame.is_estimated, estimateBasis } : {}),
     run_time: frame.run_time,
     ...cycleProvenance,
     hourOffset: frame.hour_offset,
@@ -143,4 +151,3 @@ export function frameToMarineData(frame, model, layer) {
     is_dynamic_viewport_product: true,
   };
 }
-

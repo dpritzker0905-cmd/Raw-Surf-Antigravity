@@ -36,6 +36,8 @@ import { getThemeTokens } from '../utils/themeTokens';
 // exact helpers; importing them is what stops this surface drifting into a second vocabulary.
 import { CONFIDENCE_TEXT, confidenceDot, confidenceLabel } from './SpotConditions';
 import { SpotCardSkeleton, AlertCardSkeleton } from './ui/SkeletonVariants';
+import { forecastCalendar } from './forecastCalendar';
+import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
 
 
 
@@ -55,20 +57,22 @@ const conditionColors = {
 // Forecast day card - starts from TOMORROW (day 1 = tomorrow, not today)
 const ForecastDayCard = ({ day, _dayIndex, isLocked = false }) => {
   const { theme } = useTheme();
-  const isLight = theme === 'light';
-  const rowBg = isLight ? 'bg-gray-100/80 shadow-inner' : 'bg-zinc-800/50';
-  const lockBg = isLight ? 'bg-gray-100/50' : 'bg-zinc-800/50';
+  const t = getThemeTokens(theme);
+  const isLight = t.isLight;
+  const rowBg = t.isBeach ? t.rowBg : isLight ? 'bg-gray-100/80 shadow-inner' : 'bg-zinc-800/50';
+  const lockBg = t.isBeach ? t.rowBg : isLight ? 'bg-gray-100/50' : 'bg-zinc-800/50';
   
   const dateObj = new Date(day.date);
-  const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-  const dateNum = dateObj.getDate();
+  const calendar = forecastStateIdentityEnabled() ? forecastCalendar(day.date) : null;
+  const dayName = calendar ? calendar.weekday : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+  const dateNum = calendar ? calendar.dateNumber : dateObj.getDate();
   const colors = conditionColors[day.label] || { bg: 'bg-gray-500', text: 'text-gray-400' };
   
   if (isLocked) {
     return (
       <div data-testid="spot-hub-page" className={`flex flex-col items-center p-2 rounded-lg min-w-[55px] ${lockBg}`}>
-        <span className={`text-[10px] ${isLight ? 'text-gray-400' : 'text-gray-500'}`}>{dayName}</span>
-        <span className="text-sm font-bold text-gray-600">{dateNum}</span>
+        <span className={`text-[10px] ${t.textMuted}`}>{dayName}</span>
+        <span className={`text-sm font-bold ${t.textMuted}`}>{dateNum}</span>
         <Lock className="w-3 h-3 text-purple-400 my-0.5" />
       </div>
     );
@@ -76,8 +80,8 @@ const ForecastDayCard = ({ day, _dayIndex, isLocked = false }) => {
   
   return (
     <div className={`flex flex-col items-center p-2 rounded-lg min-w-[55px] ${rowBg}`}>
-      <span className={`text-[10px] ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>{dayName}</span>
-      <span className={`text-sm font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{dateNum}</span>
+      <span className={`text-[10px] ${t.textSecondary}`}>{dayName}</span>
+      <span className={`text-sm font-bold ${t.textPrimary}`}>{dateNum}</span>
       <Waves className={`w-4 h-4 ${colors.text} my-0.5`} />
       <span className="text-xs font-bold">{day.wave_height_max}ft</span>
     </div>

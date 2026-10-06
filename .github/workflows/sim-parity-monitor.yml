@@ -136,6 +136,10 @@ jobs:
           # stayed green while these were unset. Do not rely on that for the others.
           # tests/test_flag_lane_parity.py fails if this block drifts from the ingest lanes.
           RATING_TIDE: '1'
+          SURF_STRICT_AVAILABILITY: '0' # Dark: unknown sea must not become Flat
+          SURF_REQUESTED_HORIZON: '0' # Dark: request-scoped spot forecast work
+          COPERNICUS_TERMINAL_TIME_GUARD: '0' # Dark: fail once for dataset-wide temporal bounds
+          MANIFEST_IMMUTABLE_PUBLICATION: '0' # Dark: unique acknowledged manifest snapshots
           SURF_PARTITIONS: '0'
           SURF_NEARSHORE_MOP: '0'
           RATING_OBS_GATE: '1'

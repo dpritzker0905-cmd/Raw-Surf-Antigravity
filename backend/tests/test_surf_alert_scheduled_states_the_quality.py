@@ -59,6 +59,11 @@ class _FakeSession:
         class _R:
             def scalars(self):
                 return types.SimpleNamespace(all=lambda: alerts)
+
+            def scalar_one_or_none(self):
+                # Sentence-only fixture: model a successful database claim.
+                # Real SQL/cooldown/races live in test_audit_alert_delivery.py.
+                return alerts[0].id if alerts else None
         return _R()
 
     def add(self, obj):

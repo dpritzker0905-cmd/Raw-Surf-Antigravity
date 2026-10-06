@@ -43,6 +43,8 @@ async def purchase_gallery_item(
     """Purchase a gallery item with the authenticated buyer's account."""
     if current_user_id != buyer_id:
         raise HTTPException(status_code=403, detail="Cannot purchase media for another user")
+    if data.payment_method != "credits":
+        raise HTTPException(status_code=400, detail="Only credit purchases are supported")
     from utils.credits import deduct_credits, add_credits
     
     # Get item with photographer
@@ -93,7 +95,7 @@ async def purchase_gallery_item(
     price, download_url = get_quality_price(item, photographer, data.quality_tier)
     
     # Check if subscription quota covers this purchase (photo or video)
-    from routes.photo_subscriptions import try_use_subscription_quota
+    from routes.subscriptions_billing.photo_sub_helpers import try_use_subscription_quota
     quota_type = 'video' if item.media_type == 'video' else 'photo'
     sub_quota_result = await try_use_subscription_quota(
         db, buyer_id, item.photographer_id, quota_type
@@ -228,22 +230,16 @@ async def claim_free_photo(
     """Claim a free photo for the authenticated tagged user."""
     if current_user_id != user_id:
         raise HTTPException(status_code=403, detail="Cannot claim media for another user")
-    # Verify the user has access (through PhotoTag with access_granted=True or is_gift=True)
+    # One relationship grants authority: this tag, this actor and this item.
+    tag_query = select(PhotoTag).where(
+        PhotoTag.gallery_item_id == item_id,
+        PhotoTag.surfer_id == current_user_id,
+    )
     if tag_id:
-        tag_result = await db.execute(
-            select(PhotoTag)
-            .where(PhotoTag.id == tag_id)
-            .where(PhotoTag.surfer_id == user_id)
-        )
-        tag = tag_result.scalar_one_or_none()
-    else:
-        tag_result = await db.execute(
-            select(PhotoTag)
-            .where(PhotoTag.gallery_item_id == item_id)
-            .where(PhotoTag.surfer_id == user_id)
-        )
-        tag = tag_result.scalar_one_or_none()
-    
+        tag_query = tag_query.where(PhotoTag.id == tag_id)
+    tag_result = await db.execute(tag_query.limit(1).with_for_update())
+    tag = tag_result.scalar_one_or_none()
+
     if not tag:
         raise HTTPException(status_code=404, detail="You are not tagged in this photo")
     
@@ -253,12 +249,25 @@ async def claim_free_photo(
             raise HTTPException(status_code=400, detail="This photo requires purchase")
     
     # Get the item
-    item_result = await db.execute(select(GalleryItem).where(GalleryItem.id == item_id))
+    item_result = await db.execute(select(GalleryItem).where(GalleryItem.id == item_id).with_for_update())
     item = item_result.scalar_one_or_none()
     
     if not item:
         raise HTTPException(status_code=404, detail="Photo not found")
     
+    # Serialize on the item before the entitlement read: repeated claims do not mint purchases.
+    existing_result = await db.execute(select(GalleryPurchase).where(
+        GalleryPurchase.gallery_item_id == item_id,
+        GalleryPurchase.buyer_id == current_user_id,
+        GalleryPurchase.quality_tier == 'high',
+    ).limit(1))
+    if existing_result.scalar_one_or_none():
+        return {
+            "success": True,
+            "message": "Photo already in your gallery!",
+            "download_link": f"/api/gallery/download/{item_id}?buyer_id={user_id}&quality=high",
+        }
+
     # Create a "free" purchase record (amount_paid=0)
     purchase = GalleryPurchase(
         gallery_item_id=item_id,
