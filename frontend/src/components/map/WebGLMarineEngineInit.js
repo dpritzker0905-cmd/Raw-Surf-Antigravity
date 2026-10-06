@@ -9,14 +9,13 @@ import {
   DRAW_FS
 } from './WebGLMarineParticleShaders';
 import {
-  createShader,
-  createProgram,
   safeDeleteTexture
 } from './WebGLWindUtils';
 import {
   createTexture
 } from './WebGLMarineTextureEncoder';
 import { recordChurn } from './marineTransitionCoordinator';
+import { createProgramBatch } from './WebGLProgramBatch';
 
 // --- Particle Texture Init Helper ---
 export function initParticleTexture(gl, resolution) {
@@ -104,21 +103,12 @@ export function reseedParticleStateInPlace(engine, gl) {
 export function initEngine(engine, gl) {
   if (engine._initialized) return;
 
-  var advVS = createShader(gl, gl.VERTEX_SHADER, ADVECT_VS);
-  var advFS = createShader(gl, gl.FRAGMENT_SHADER, ADVECT_FS);
-  var drawVS = createShader(gl, gl.VERTEX_SHADER, DRAW_VS);
-  var drawFS = createShader(gl, gl.FRAGMENT_SHADER, DRAW_FS);
-  var heatVS = createShader(gl, gl.VERTEX_SHADER, HEATMAP_VS);
-  var heatFS = createShader(gl, gl.FRAGMENT_SHADER, HEATMAP_FS);
-
-  if (!advVS || !advFS || !drawVS || !drawFS || !heatVS || !heatFS) {
-    console.error('[WebGLMarine] Failed to compile shaders');
+  const programs = createProgramBatch(gl, [[ADVECT_VS, ADVECT_FS], [DRAW_VS, DRAW_FS], [HEATMAP_VS, HEATMAP_FS]]);
+  if (!programs) {
+    console.error('[WebGLMarine] Failed to compile or link shaders');
     return;
   }
-
-  engine.advectProgram = createProgram(gl, advVS, advFS);
-  engine.drawProgram = createProgram(gl, drawVS, drawFS);
-  engine.heatmapProgram = createProgram(gl, heatVS, heatFS);
+  [engine.advectProgram, engine.drawProgram, engine.heatmapProgram] = programs;
 
   engine.quadBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, engine.quadBuffer);

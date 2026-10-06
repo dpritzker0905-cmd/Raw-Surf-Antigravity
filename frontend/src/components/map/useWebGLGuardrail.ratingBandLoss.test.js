@@ -37,7 +37,10 @@ function makeMap(overrides = {}) {
     off: (ev, fn) => { handlers[ev] = (handlers[ev] || []).filter((f) => f !== fn); },
     isMoving: () => false,
     isZooming: () => false,
-    __fire: (ev) => (handlers[ev] || []).forEach((f) => f()),
+    __fire: (ev) => {
+      window.__RAW_GPU__.layer = { n: (window.__RAW_GPU__.layer?.n || 0) + 1, t: Date.now(), skip: null };
+      (handlers[ev] || []).forEach((f) => f());
+    },
     __handlers: handlers,
     ...overrides,
   };
@@ -74,6 +77,12 @@ const baseProps = (map, over = {}) => ({
   webglMarineFailed: false,
   ...over,
 });
+
+beforeEach(() => {
+  window.__MARINE_ENGINE__ = { _initialized: true, _waveData: {} };
+  window.__RAW_GPU__ = {};
+});
+afterEach(() => { delete window.__MARINE_ENGINE__; delete window.__RAW_GPU__; });
 
 describe('useWebGLGuardrail — the marine rating band is collateral of the FPS fallback', () => {
   let nowSpy;
@@ -254,9 +263,14 @@ describe('useWebGLGuardrail — the recovery is actually wired to a timer', () =
   });
 
   it('stops after the budget — bounded flapping, not a loop', () => {
-    const { props, clock } = tripped();
-    // walk past every backoff plus a wide margin; the re-enable count must equal the budget
-    for (const b of RECOVERY_BACKOFFS_MS) advance(clock, b + 10000);
+    const { props, clock, map, rerender } = tripped();
+    // Each retry needs a NEW owned trip. A flag left true after a retry is no new consent.
+    for (const b of RECOVERY_BACKOFFS_MS) {
+      advance(clock, b + 10000);
+      rerender({ ...props, webglMarineFailed: false });
+      driveFrames(map, clock, { fps: 1, seconds: 30 });
+      rerender({ ...props, webglMarineFailed: true });
+    }
     advance(clock, 3600000);
     const reEnables = props.setWebglMarineFailed.mock.calls.filter(([v]) => v === false).length;
     expect(reEnables).toBe(RECOVERY_BACKOFFS_MS.length);

@@ -7,6 +7,7 @@
  */
 
 import { recordTruthStage } from './weatherTruthTracker';
+import { readMarineSurfMode } from './marineSurfMode';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
@@ -120,6 +121,7 @@ function WebGLMarineEngine() {
 
 WebGLMarineEngine.prototype.init = function(gl) {
   initEngine(this, gl);
+  if (!this._initialized) throw new Error('WebGL Marine initialization failed');
 };
 
 WebGLMarineEngine.prototype.reinitParticles = function(gl) {
@@ -1565,9 +1567,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // and the shader paints the band when u_surfMode>0.5 — so a missing band is one of: flag off, grid not a
     // rating grid (propagation), or downstream. No render effect; reads the same inputs the gate above uses.
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      var _rawFlag = (window.__SURF_MODE__ !== undefined)
-        ? !!window.__SURF_MODE__
-        : (typeof window.localStorage !== 'undefined' && window.localStorage.getItem('__SURF_MODE__') === 'true');
+      var _rawFlag = readMarineSurfMode();
       window.__RAW_GPU__.ratingBand = {
         flag: _rawFlag,                                            // is the Surf/Rating toggle's global flag set?
         gridRatingMode: !!(waveGrid && waveGrid.ratingMode),       // did a rating grid reach the engine?

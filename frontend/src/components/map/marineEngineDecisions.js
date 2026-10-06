@@ -22,6 +22,7 @@
  * WebGLMarineEngine re-exports every name below, so no importer and no test changed.
  */
 import { recordMarineEvent } from './marineForensics';
+import { readMarineSurfMode } from './marineSurfMode';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 
 export function latToMercatorY(lat) {
@@ -272,9 +273,7 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   // ANY honest incoming — even the coarse global — is a TRUTH UPGRADE over a rated resident:
   // never hold it. (Exact mirror of ratingDowngrade below, which protects rated residents while
   // the flag is ON.) Kill shared: __RAW_DISABLE_NO_DOWNGRADE__ disables the whole guard.
-  const _surfFlagOn = (typeof window !== 'undefined') && (window.__SURF_MODE__ === true
-    || (window.__SURF_MODE__ === undefined && typeof window.localStorage !== 'undefined'
-        && window.localStorage.getItem('__SURF_MODE__') === 'true'));
+  const _surfFlagOn = readMarineSurfMode();
   if (resident.ratingMode && !incoming.ratingMode && !_surfFlagOn) return false;
   const _rc = gridCellDeg(resident);
   const _ic = gridCellDeg(incoming);
@@ -285,10 +284,7 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   // kept displacing the rated dynamic grid every cycle, flickering the band off. Same coverage/
   // layer/hour predicates below apply, so a non-covering rated rect still releases (no stranding)
   // and cross-model switches above stay deliberate. Kill shared: __RAW_DISABLE_NO_DOWNGRADE__.
-  const ratingDowngrade = !!(resident.ratingMode && !incoming.ratingMode)
-    && (typeof window !== 'undefined') && (window.__SURF_MODE__ === true
-        || (window.__SURF_MODE__ === undefined && typeof window.localStorage !== 'undefined'
-            && window.localStorage.getItem('__SURF_MODE__') === 'true'));
+  const ratingDowngrade = !!(resident.ratingMode && !incoming.ratingMode) && _surfFlagOn;
   if (!isCoarseGlobalGrid(incoming) && !cellDowngrade && !ratingDowngrade) return false;
   if (!isRegionalBounds(resident.bounds)) return false;    // resident must itself be a regional tile
   const sameLayer = (incoming.__componentLayer || 'waves') === (resident.__componentLayer || 'waves');

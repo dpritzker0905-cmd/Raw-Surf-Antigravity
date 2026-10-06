@@ -9,6 +9,7 @@
 
 import { BACKEND_URL } from '../../lib/apiClient';
 import { BoundedPointCache } from './BoundedPointCache';
+import { readMarineSurfMode } from './marineSurfMode';
 import { clampViewportBbox, getCachedManifest, setCachedManifest } from './backendWeatherServiceClientCoverage';
 import { latestTimeDiag, updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { recordTruthStage } from './weatherTruthTracker';
@@ -145,7 +146,7 @@ export function getSurfModeFlag() {
   if (typeof window === 'undefined') return false;
   if (window.__SURF_MODE__ !== undefined) return !!window.__SURF_MODE__;
   try {
-    const persisted = window.localStorage.getItem('__SURF_MODE__') === 'true';
+    const persisted = readMarineSurfMode(window);
     // BOOT-RACE PIN (2026-07-03): stamp the window flag on FIRST read so every reader —
     // including the raw `window.__SURF_MODE__` inline reads in the engine — agrees for the whole
     // boot. Before this, code reading the window flag directly saw `undefined` (falsy) until the

@@ -197,6 +197,7 @@ export function windFineFeatherFrac(fineSpan, wideFade) {
 
 WebGLWindEngine.prototype.init = function(gl) {
   initEngine(this, gl);
+  if (!this._initialized) throw new Error('WebGL Wind initialization failed');
 };
 
 WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {

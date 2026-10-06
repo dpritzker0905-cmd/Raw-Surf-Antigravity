@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 02:16Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 02:47Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,20 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 02:47Z: visual resilience source locally accepted; own704 hosted pending.**
+ WF02 idle/loading exclusion and completed-retry ownership, WF04 safe storage decisions,
+ WF06 shader/program batch cleanup and actual caller fallback, raster/native resolution
+ label fixed.62newcases135expanded twice/full365suites3808tests, build/ratchet/LOC pass.
+ Two actual local Chrome/AMD WebGL2 init/link/dispose/failure probes pass; no fullmap/
+ physicalforecast/device/FPS/heap claim. New owner logs:12x1FPS trip and recovery2/2, no
+ captured hard error; no user interactions since Gulf screenshot; true drawing state unknown.
+ Prior543954fd receipt readback700 resolved701, owner702/source703/commitment704/push705.
+ Fresh Dev OAuth refresh fails before SQL; actual canary/PG/card/science still open.
+ Same PR source push follows; productionfreeze/newscienceflags preserved, no merge/deploy.
+ VISUAL-RESILIENCE-RESULTS.md; inherited lint86/917, not clean lint. Next: absolute-frame
+ rollover guard WF03, actual Gulf/native/raster playback acceptance, publication/cloud/
+ financial/latency/science gates. Previously qualifieda268 does not qualify this delta.
 
 - **2026-10-06 02:16Z: cache/cycle sourcea268d804 exact hosted qualification accepted.**
  CI37401821405 all11success: actual5764backend2425/2226/1113,360suites3746frontend;
@@ -839,7 +853,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 700, sha256 c9242cfaff6367f63088d0113e2edf180ddea6710a09fb14e4ce300ba424691a**
+  **Ledger head: seq 705, sha256 1a97c0fc6fa30b4ef1dd5ce1046aa4b35635a68a327e7257df99c1cb08c8be9e**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

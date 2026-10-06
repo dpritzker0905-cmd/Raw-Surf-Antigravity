@@ -89,6 +89,7 @@ export function useWebGLGuardrail({
     let lastTime = performance.now();
     let lastFrameTime = performance.now();
     let lowFpsCount = 0;
+    let lastMarineCall = null;
     // Recovery state. `guardrailOwned` is the consent check: only a trip this hook caused may be
     // undone by this hook. `attempts` is spent, never refunded, so the retry budget bounds flapping.
     let guardrailOwned = false;
@@ -139,6 +140,22 @@ export function useWebGLGuardrail({
         return;
       }
 
+      // MapLibre also renders idle tiles and unrelated overlays. Their cadence is not marine GPU
+      // performance. Count only new, non-skipped calls with a live initialized marine resident.
+      // Diagnostic kill restores the legacy map-event measurement for comparison.
+      if (typeof window !== 'undefined' && window.__RAW_DISABLE_GUARDRAIL_RENDER_EVIDENCE__ !== true) {
+        const engine = window.__MARINE_ENGINE__;
+        const layer = window.__RAW_GPU__?.layer;
+        const call = layer && layer.skip === null && Number.isFinite(layer.n) ? layer.n : null;
+        const fresh = call !== null && call !== lastMarineCall && Number.isFinite(layer.t)
+          && Date.now() >= layer.t && Date.now() - layer.t < 2000;
+        lastMarineCall = call;
+        if (!engine?._initialized || !engine._waveData || !fresh) {
+          frameCount = 0; lastTime = now; lowFpsCount = 0;
+          return;
+        }
+      }
+
       // Bypass monitoring if the user is currently timeline scrubbing or has scrubbed in the last 5 seconds
       const isScrubbing = typeof window !== 'undefined' && (
         window.isScrubbingTimeline === true ||
@@ -162,7 +179,8 @@ export function useWebGLGuardrail({
 
       // Bypass monitoring during active model/layer transitions — FPS drops are expected
       // while tile sources reload and the WebGL engine re-uploads textures.
-      if (typeof window !== 'undefined' && window.__MARINE_TRANSITIONING__ === true) {
+      if (typeof window !== 'undefined' && (window.__MARINE_TRANSITIONING__ === true
+          || window.__MARINE_FETCH_PENDING__ === true || window.__MARINE_FETCH_DEBOUNCING__ === true)) {
         frameCount = 0;
         lastTime = now;
         lowFpsCount = 0;
@@ -268,6 +286,7 @@ export function useWebGLGuardrail({
         WeatherTelemetry.emit('webgl_marine_fallback_recovery', { attempt: attempts });
       } catch (e) { /* the retry must never fail on diagnostics */ }
       recordChurn('marine_webgl_recover', { cause: 'guardrail_retry', attempt: attempts });
+      guardrailOwned = false; // This trip is spent; a later hard/foreign failure is not ours to undo.
       setWebglMarineFailedRef.current(false);
     };
     const recoveryTimer = setInterval(recoveryTick, 5000);

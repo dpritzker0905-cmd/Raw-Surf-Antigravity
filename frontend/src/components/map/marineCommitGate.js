@@ -28,6 +28,7 @@
  */
 
 import { arbiterDecide, isFineWorldBase, coverageWrapSafe } from './marineCommitArbiter';
+import { readMarineSurfMode } from './marineSurfMode';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { isGateWideView, bridgeCeilDeg } from './marineZoomOutGate';
 import {
@@ -218,9 +219,7 @@ export function decideMarineCommit(resident, incoming, lastZoom, viewportBounds,
   const d = arbiterDecide(resident, incoming, {
     zoom: lastZoom,
     viewportBounds,
-    flavorWant: !!(w && (w.__SURF_MODE__ === true
-      || (w.__SURF_MODE__ === undefined && w.localStorage
-          && w.localStorage.getItem('__SURF_MODE__') === 'true'))),
+    flavorWant: readMarineSurfMode(w),
     zoomedOutMaxZoom: MARINE_ZOOMED_OUT_MAX_ZOOM,
     // Mid-band ceiling from the SAME `w` the guard's shouldRejectSubcoveringRegional read above.
     midBandCeil: (w && Number(w.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0,
