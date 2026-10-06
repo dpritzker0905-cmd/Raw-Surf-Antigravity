@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 23:35Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 23:37Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -22,8 +22,10 @@ is a claim, not a measurement.
   New13 and existing grace4pass; full373suites4079tests, build/lint/LOCpass. One actual
   offline MapLibre pair125to9 reads; two incomplete deadline captures excluded.
   No original FPS-cause or physical/time/device acceptance.786 tracks own hosted
-  qualification, approved dev merge and bounded served observation.788 publication
-  prepared; runtime limited to hook, no forecast math/mask/guard/science switch change.
+  qualification, approved dev merge and bounded served observation.789 verifies788
+  actual32dd local/remote/draft PR248 OPEN/dev. Publication receipt continuation
+  changes no runtime/test/workflow; final head still needs its own hosted checks.
+  Runtime limited to hook, no forecast math/mask/guard/science switch change.
   Dev1993cc39/APIhealthy; data-health warn inherited, production frontendfc140024.
   Unowned canary preserved and excluded.
 
@@ -1069,7 +1071,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 788, sha256 71c95dfb5e51090a603350ae712f245a7c2be28e19f830135bd190102724e3bb**
+  **Ledger head: seq 789, sha256 f9e0c925005adc0b07774eb433dc556eb7ae3acc3d32b06c13a7313f9fddb327**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
