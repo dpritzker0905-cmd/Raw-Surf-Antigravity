@@ -32,3 +32,15 @@ long-task and long-animation-frame scalars alongside RAF gaps. It makes no
 forecast or backend request. Run it alone, with the tab focused and local
 builds/tests stopped; controls are not a measurement of the original live
 problem. See [callback diagnosis](../CALLBACK-GAP-DIAGNOSIS.md).
+
+## Truth-inspector cadence control
+
+From the repository root, run the pinned Node runtime with
+`audit/repair-2026-10-04/renderer-probe/serve-truth-cadence.cjs`.
+Open the reported localhost URL and press **Run before/after cadence**.
+The server reads the original hook from pinned dev 1993cc39 with git; the baseline
+copy and webpack bundle are ignored. Actual React and MapLibre events drive both
+cases, with 100 background layers and no live forecast requests. A 120-frame target
+may include an already queued final frame; the report gives actual counts.
+Deadline failures are incomplete evidence, never passing measurements.
+See `../TRUTH-INSPECTOR-CADENCE-RESULTS.md` for the captured result and limits.

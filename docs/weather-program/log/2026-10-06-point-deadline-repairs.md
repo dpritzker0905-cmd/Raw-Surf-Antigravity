@@ -242,3 +242,7 @@ candidate is a proven cause. No speculative mask/listener behavior repair applie
 783 verifies782 remote21a9c4429422cfcc7defc426094ee04c16c9c829 equals local. Docs-only rollout receipt batch; final verification continuation changes no runtime/test/workflow. No additional dev deployment needed for these notes. Callback root cause remains open; offline listener/mask-cost discrimination is next. Unowned canary unchanged and excluded.
 
 Final receipt validation: ledger783 valid; docs audit0FAIL9WARN4NOTE inherited. Runtime/tests/workflows unchanged from deployed1993cc39.
+
+## 2026-10-06 23:35Z — concrete truth inspector cadence/lifecycle repair785–788
+
+Repeated red8fail5pass verifies unbounded idle and stale moveend defects. Mounted green17/17, final project CRACO373/373suites4079/4079tests0fail0pending. Buildexit0, lint1236files86errors917warnings inherited ratchetpass, LOC0new0regressed. One completed actual MapLibre/React offline pair125to9style snapshots; median16.7ms both, no FPS improvement claim; initial/reverse deadlines incomplete/excluded. No localtest/build overlapped the native pair. No original root-cause/Gulf/device/served-time acceptance. Forecast math, mask policy and guard thresholds unchanged; no served number change. 787 qualifies locally;786 awaits new hosted/approved dev merge/live readback,788prepares publication. Unowned canary hash unchanged/excluded. See TRUTH-INSPECTOR-CADENCE-RESULTS.md.
