@@ -62,3 +62,20 @@ Source5b286f7a own CI37504889852 all11 successful. Actual stdout: guards2425pass
 ## 2026-10-06 18:33Z — dev access investigation748–749
 
 Owner cannot open live dev; exact visible symptom pending. Fresh root/map/SW and main asset200, SW073; direct/proxied API200healthy/version073. Fresh Chrome authenticated map mounts navigation/weather controls/markers, weather inactive; landing content mounts and bounded error log empty. New map tab kept for owner. No redeploy, cache purge, permission/settings/auth or forecast/playback action. DEV-ACCESS-CHECK.md separates current availability from unconfirmed failure cause. Inspected startup recovery/storage hypotheses; no speculative code fix. 748verifies747 receipt7b/code equality and own PR246 checks; remains OPEN/dev. 749prepares docs-only receipt. Unowned canary hash remains preserved.
+
+## 2026-10-06 19:56Z — projection-boundary repair750–754
+
+Owner750 attributes access to own browser;749 receipt7ef and PR/remote read back.
+751 records the actual no-matrix layer/engine/hook false-trip reproduction and
+repair. Six new controls red twice6fail12pass;83 scoped and full369/4014 pass.
+Build compiled with inherited warnings; ESLint ratchet/LOC/diff pass. Initial
+Windows glob/cache/DLL/build-cache failures are not credited as reproductions.
+RENDERER-PROJECTION-RESULTS.md names commands' scopes and limits. No GL call in
+no-matrix fixture; repaint and valid-next-matrix resume retained, genuine low-FPS
+control still trips. No scientific numbers, provider flags or guard threshold changed.
+Bounded public diag dev073 GFS hour0 paused smoke still tripped at19:50:18Z;
+startup matrix16 and FBOcomplete; native performance cause unproven and local
+tests/build overlapped observation. Waves off read back. No playback/Gulf/device
+acceptance. 753 updates canonical/audit receipts;752 own new-source hosted
+qualification pending;754 prepares owned publication on existing PR246/dev.
+Unowned canary hash unchanged, not staged. No merge/deploy/cloud write.

@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 18:33Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 19:56Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,17 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 19:56Z: projection-boundary false fallback repaired locally751.**
+  Owner750 attributes access to their browser;749 receipt7ef read back, no access
+  repair claimed. Actual engine no-matrix callbacks drew nothing but tripped
+  the guard: six new controls red twice; stamp fixed, repaint/thresholds/retry
+  unchanged. Neighborhood83/full369suites4014tests, build/lint/LOC pass. Own752
+  new-source hosted qualification pending;754 planned PR246 publication, no merge.
+  Separate paused dev073 diagnostic smoke still tripped; valid startup matrix,
+  FRAMEBUFFER_COMPLETE, observation overlapped local tests/build. Cause remains
+  open; no native performance/Gulf/science acceptance or height inflation.
+  RENDERER-PROJECTION-RESULTS.md. Unowned canary unchanged/excluded.
 
 - **2026-10-06 17:30Z: owner-authorized PR243 is merged to dev; scan follow-up stays separate.**
   Dev073de1e2 from pinnedf405, own37501260553 all11/four supplementary,
@@ -968,7 +979,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 749, sha256 5bf761d81182f00199e8fd11b6ec64ff050be78f0afbcbec71a30ec4bbd1818f**
+  **Ledger head: seq 754, sha256 234f9dbd98dd80026654c430f702b93a8d7ccf4c58aa0d8bbe5bcdd6e0fa6fe1**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

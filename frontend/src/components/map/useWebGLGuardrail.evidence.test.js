@@ -1,5 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { useWebGLGuardrail, RECOVERY_BACKOFFS_MS } from './useWebGLGuardrail';
+import { createCustomLayer } from './WebGLMarineCustomLayer';
+import WebGLMarineEngine from './WebGLMarineEngine';
 
 let clock;
 function setup() {
@@ -18,6 +20,25 @@ function setup() {
   };
   return { ...mounted, drive, setMarine, props };
 }
+
+function nativeNoDrawLayer() {
+  // Use the real engine's early-return path. Any GL access would fail this fixture;
+  // this is evidence of no draw, not a mocked render pretending to do GPU work.
+  const engine = Object.create(WebGLMarineEngine.prototype);
+  engine._initialized = true;
+  engine._waveData = { waveGrid: {} };
+  window.__MARINE_ENGINE__ = engine;
+  const map = { getCanvas: () => ({ width: 256, height: 128 }), getZoom: () => 9,
+    getBounds: () => ({ getWest: () => -90, getEast: () => -80, getSouth: () => 20, getNorth: () => 30 }),
+    triggerRepaint: jest.fn() };
+  const ref = current => ({ current });
+  const layer = createCustomLayer(engine, ref(true), ref(map), ref(null), ref(null), ref(null),
+    ref('dark'), ref(null), ref(false), ref(['waves']), ref(0), ref(null), ref('GFS'));
+  const gl = new WebGL2RenderingContext();
+  const access = jest.fn(() => { throw new Error('A no-matrix frame must not access GL'); });
+  const guardedGL = new Proxy(gl, { get: access });
+  return { engine, map, layer, guardedGL, access };
+}
 beforeEach(() => {
   jest.useFakeTimers();
   clock = 0;
@@ -28,6 +49,57 @@ beforeEach(() => {
   window.__RAW_GPU__ = {};
   jest.spyOn(console, 'warn').mockImplementation(() => {});
   jest.spyOn(console, 'error').mockImplementation(() => {});
+  jest.spyOn(console, 'log').mockImplementation(() => {});
+  global.WebGLRenderingContext = global.WebGLRenderingContext || class {};
+  global.WebGL2RenderingContext = global.WebGL2RenderingContext || class {};
+});
+
+test.each([
+  ['MapLibre object, absent', undefined, false],
+  ['MapLibre object, empty', new Float32Array(0), false],
+  ['native context, absent', undefined, true],
+  ['native context, empty', new Float32Array(0), true],
+])('%s projection never turns a no-draw callback into a GPU fallback', (_name, matrix, native) => {
+  const s = setup();
+  const { layer, guardedGL, access, map } = nativeNoDrawLayer();
+  for (let i = 0; i < 40; i++) {
+    if (native) layer.render(guardedGL, matrix);
+    else layer.render({ gl: guardedGL, defaultProjectionData: { mainMatrix: matrix } });
+    s.drive(1, false);
+  }
+  expect(access).not.toHaveBeenCalled();
+  expect(map.triggerRepaint).toHaveBeenCalledTimes(40);
+  expect(s.setMarine).not.toHaveBeenCalled();
+  expect(window.__RAW_GPU__.layer).toMatchObject({ n: 40, skip: 'engine_no_matrix' });
+});
+
+test('no-matrix callbacks break consecutive low-FPS evidence; later slow drawing still trips', () => {
+  const s = setup();
+  s.drive(19);
+  const { layer, guardedGL } = nativeNoDrawLayer();
+  for (let i = 0; i < 10; i++) {
+    layer.render({ gl: guardedGL });
+    s.drive(1, false);
+  }
+  s.drive(11);
+  expect(s.setMarine).not.toHaveBeenCalled();
+  s.drive(2);
+  expect(s.setMarine).toHaveBeenCalledWith(true);
+});
+
+test('a valid next projection is forwarded and clears the no-matrix stamp without remounting', () => {
+  const { layer, engine, map, guardedGL } = nativeNoDrawLayer();
+  layer.render({ gl: guardedGL });
+  expect(window.__RAW_GPU__.layer.skip).toBe('engine_no_matrix');
+  // This control checks forwarding only; native GPU performance is not measured here.
+  const render = jest.spyOn(engine, 'render').mockImplementation(() => {});
+  const matrix = new Float32Array(16);
+  layer.render({ gl: guardedGL, defaultProjectionData: { mainMatrix: matrix } });
+  expect(render).toHaveBeenCalledTimes(1);
+  expect(render.mock.calls[0][0]).toBe(guardedGL);
+  expect(render.mock.calls[0].slice(1)).toEqual([matrix, 256, 128, 9, 'dark', [-90, 20, -80, 30], 1]);
+  expect(window.__RAW_GPU__.layer).toMatchObject({ n: 2, skip: null });
+  expect(map.triggerRepaint).toHaveBeenCalledTimes(2);
 });
 afterEach(() => {
   ['__MARINE_ENGINE__', '__RAW_GPU__', '__MARINE_FETCH_PENDING__', '__MARINE_FETCH_DEBOUNCING__', '__FORCE_MARINE_FALLBACK__'].forEach(k => delete window[k]);

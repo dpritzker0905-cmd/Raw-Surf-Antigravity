@@ -121,7 +121,9 @@ jobs:
           // Shared world-coordinate repair adds1suite/94controls; local368/3966 passed.
           // Own hosted confirmation required; preserve the zero-margin frontend ratchet.
           // Mounted zero-coordinate hook: +1 suite/42 controls, local369/4008.
-          const MIN_SUITES = 369, MIN_TESTS = 4008;
+          // WF-02 projection-boundary repair: six real layer/engine/hook controls, local369/4014.
+          // Own hosted confirmation pending; retain the zero-margin frontend ratchet.
+          const MIN_SUITES = 369, MIN_TESTS = 4014;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

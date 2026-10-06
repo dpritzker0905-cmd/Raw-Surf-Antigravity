@@ -365,6 +365,9 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
+        // The engine also exits before any GL work without a projection. Preserve repaint,
+        // but do not let these callbacks count as slow GPU drawing in the fallback guard.
+        if (!_matrix || !_matrix.length) stampSkip(_stamp, SKIP.ENGINE_NO_MATRIX);
         // A WORLD frame made for another hour than the selected one (the page-load frame the zoom-out bridge promotes while the
         // right hour is still on its way) is drawn provisional, not as the selected hour: a fraction of its strength, only once
         // the hour has held still, never for a regional frame. Fail-open, kill: __RAW_DISABLE_STALE_HOUR_DIM__.
