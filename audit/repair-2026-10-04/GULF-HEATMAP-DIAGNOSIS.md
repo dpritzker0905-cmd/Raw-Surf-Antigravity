@@ -102,3 +102,20 @@ repaired. Compact pasted snapshots now include both receipts and selected offsho
 Final360/3746 frontend and245expanded backend pass; source hosted qualification pending673.
 This does not identify the real Gulf cell/pixel cause or raise model values. Refer to
 [GULF-RESIDENT-PRUNE-RESULTS.md](GULF-RESIDENT-PRUNE-RESULTS.md).
+
+
+### 2026-10-06 01:27Z: current open-tab follow-up shows graphics fallback
+
+Read the already-open dev map tab without reloading or playing/scrubbing: GFS Waves,h98,
+~223km/2deg,point30.04/-87.41,14ftestimatedsurf/19ftoffshore/9.1s,Stale Hour Retained.
+It now displays Simplified wave layer — reduced graphics mode, explicitly a third-party
+wave-height layer with no native crests or rating band. Current label Fri11PM differs from
+the original screenshot Fri8PM, but absolute served timestamps were not captured: this is
+not proof of a particular time drift, native-cell height or model cycle mismatch.
+
+Actual MapWebGL renders WebGLMarineLayer only while !webglMarineFailed; fallback raster
+slots are admitted when failed. marineFallbackNotice explains this boundary. That establishes
+the current path, not the original screenshot's path: its banner/state is not proven. Future
+pixel acceptance must distinguish native resident provenance from third-party raster/time/
+palette before comparing the GFS point card with map colour. Native encoder/ramp controls
+cannot alone certify this fallback product. No source/UI/provider state changed; ledger689.

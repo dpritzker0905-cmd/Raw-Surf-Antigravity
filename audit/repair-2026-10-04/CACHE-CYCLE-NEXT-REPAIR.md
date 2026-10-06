@@ -82,3 +82,8 @@ The retry proposal above now has a default-off local implementation with67focuse
 twice pass; hosted686 pending. Actual duplicate sweep2fail twice proves the separate ranking
 problem too: later legacyrun_time of an older known cycle deletes the newest known cycle.
 No ranking migration/activation; WI06 partial and WI01 open. WAVE-CYCLE-RETRY-RESULTS.md.
+
+
+Transport readback: the local installed storage3 synchronous download API returns response bytes
+and passes no caller conditional headers; its options path handles image transformation. This is
+local SDK evidence, not a claim about every version, deployed transport or Supabase S3 capabilities.

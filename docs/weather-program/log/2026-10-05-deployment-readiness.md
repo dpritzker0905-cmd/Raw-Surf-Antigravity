@@ -215,3 +215,66 @@ script-by-path passes; no cycle-axis/ranking migration. New32guards selector186,
 projection5674backend, own hosted686 pending. Frontend unchanged. Separate actual duplicate
 sweep2fail twice: later older known cycle deletes newer; WI06 remains partial. WI01 open.
 No served-number/skill/flag/cloud/provider/merge/deploy action; ledger685-686; WAVE-CYCLE-RETRY-RESULTS.md.
+
+
+### 2026-10-06 01:21Z: retry source published; current preview/access gates refreshed
+
+PR243 sourced4046562 OPEN/dev/body read back; own CI37398137575 running,686 pending. Ledger/
+LOC/encoding/Lighthouse exact source success; actual estate1113/0silent and frontend360/3746.
+GitHub Netlify status success says Deploy Preview canceled: no new preview qualification.
+Dev execute_sql failed before query: OAuth token refresh failed / Failed to parse server response.
+Public discovery independently HTTP200/application-json/valid issuer; token/query access remains
+unverified. No SQL/storage/schema/provider/flag/merge/deploy write. Earlier Dev empty/private
+preflight remains historical, and full publisher canary still requires the authenticated runtime.
+Installed local storage download API returns bytes and does not pass conditional headers; do not
+borrow AWS API capabilities. Official changelog read, relevant OAuth status and PG notices followed;
+no claim either caused the failure. Ledger687-688. No served-number/skill change.
+
+
+### 2026-10-06 01:27Z: current open-tab follow-up shows graphics fallback
+
+Read the already-open dev map tab without reloading or playing/scrubbing: GFS Waves,h98,
+~223km/2deg,point30.04/-87.41,14ftestimatedsurf/19ftoffshore/9.1s,Stale Hour Retained.
+It now displays Simplified wave layer — reduced graphics mode, explicitly a third-party
+wave-height layer with no native crests or rating band. Current label Fri11PM differs from
+the original screenshot Fri8PM, but absolute served timestamps were not captured: this is
+not proof of a particular time drift, native-cell height or model cycle mismatch.
+
+Actual MapWebGL renders WebGLMarineLayer only while !webglMarineFailed; fallback raster
+slots are admitted when failed. marineFallbackNotice explains this boundary. That establishes
+the current path, not the original screenshot's path: its banner/state is not proven. Future
+pixel acceptance must distinguish native resident provenance from third-party raster/time/
+palette before comparing the GFS point card with map colour. Native encoder/ramp controls
+cannot alone certify this fallback product. No source/UI/provider state changed; ledger689.
+
+
+### 2026-10-06 01:29Z: exact retry source qualified; repair progress and remaining acceptance
+
+Sourced4046562 CI37398137575 all11success: actual5674backend=2425guards/2136chain/1113estate,
+frontend360suites3746tests; guards2492collected186files67skips, chain154files; estate296selected/
+294produced/0silent. Ledger37398137744, LOC37398137752, encoding37398137695 and Lighthouse
+37398137680 success. Commitment686 fulfilled by690. Predecessor WI05 a3b321f0 independently
+qualified5642/3746; ff5 resident/WI04 independently5604/3746. No floors/skips/discovery weakened.
+Current pending changes are documentation/ledger only; no source delta from d4046562.
+
+Completed source: resident provenance/forensic/HUD evidence, referenced-object prune protection,
+invalid-frame write protection and bounded GFS-wave probe retries. New guards remain0/unset;
+no new deployment/activation or live physical forecast improvement. Broad existing lint debt
+remains separate from the soft CI job's success. Dev merge still affects shared production API.
+
+Next source repairs: WI01 revision-aware disk freshness (actual full/stride counterexample),
+WI06 verified-cycle duplicate ranking (actual newer-cycle deletion counterexample), and graphics
+fallback/time/palette identity acceptance. Current tab fallback observation does not prove the
+original screenshot's path. Actual Gulf served cells/native or fallback pixels and smooth full-
+map/mobile/FPS/heap require their own acceptance. Actual Dev publisher canary remains unexecuted:
+current connector OAuth refresh failed before SQL; hidden Storage runtime still required. No
+database/schema/storage/provider/UI changes. PG/card/concurrency, deadlines/latency and held-out
+science remain open; production Netlify freeze preserved. Latest preview status canceled.
+
+
+### 2026-10-06 01:31Z: qualification receipt-only publication
+
+Actual PR body atd4046562 OPEN/dev confirms686fulfilled and5674/3746 source qualification.
+Receipt-only change has no code delta; memory0FAIL8inheritedWARN5NOTE. Immediate commit/push
+and exact new head readback follow; application qualification remains explicitlyd4046562, not
+a borrowed check on a new source. Ledger691; no merge/deploy/cloud/flag/UI action.

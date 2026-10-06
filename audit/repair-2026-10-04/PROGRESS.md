@@ -1,6 +1,6 @@
 # Audit repair progress — 2026-10-04
 
-Updated 2026-10-06 00:27Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
+Updated 2026-10-06 01:29Z. Existing [PR243](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/243),
 branch `codex/independent-audit-repairs`, targets dev. No merge/deployment/activation.
 The register has50 rows, including overlapping findings and assurance gaps, not50 independent bugs.
 
@@ -152,3 +152,27 @@ script-by-path passes; no cycle-axis/ranking migration. New32guards selector186,
 projection5674backend, own hosted686 pending. Frontend unchanged. Separate actual duplicate
 sweep2fail twice: later older known cycle deletes newer; WI06 remains partial. WI01 open.
 No served-number/skill/flag/cloud/provider/merge/deploy action; ledger685-686; WAVE-CYCLE-RETRY-RESULTS.md.
+
+
+### 2026-10-06 01:29Z: exact retry source qualified; repair progress and remaining acceptance
+
+Sourced4046562 CI37398137575 all11success: actual5674backend=2425guards/2136chain/1113estate,
+frontend360suites3746tests; guards2492collected186files67skips, chain154files; estate296selected/
+294produced/0silent. Ledger37398137744, LOC37398137752, encoding37398137695 and Lighthouse
+37398137680 success. Commitment686 fulfilled by690. Predecessor WI05 a3b321f0 independently
+qualified5642/3746; ff5 resident/WI04 independently5604/3746. No floors/skips/discovery weakened.
+Current pending changes are documentation/ledger only; no source delta from d4046562.
+
+Completed source: resident provenance/forensic/HUD evidence, referenced-object prune protection,
+invalid-frame write protection and bounded GFS-wave probe retries. New guards remain0/unset;
+no new deployment/activation or live physical forecast improvement. Broad existing lint debt
+remains separate from the soft CI job's success. Dev merge still affects shared production API.
+
+Next source repairs: WI01 revision-aware disk freshness (actual full/stride counterexample),
+WI06 verified-cycle duplicate ranking (actual newer-cycle deletion counterexample), and graphics
+fallback/time/palette identity acceptance. Current tab fallback observation does not prove the
+original screenshot's path. Actual Gulf served cells/native or fallback pixels and smooth full-
+map/mobile/FPS/heap require their own acceptance. Actual Dev publisher canary remains unexecuted:
+current connector OAuth refresh failed before SQL; hidden Storage runtime still required. No
+database/schema/storage/provider/UI changes. PG/card/concurrency, deadlines/latency and held-out
+science remain open; production Netlify freeze preserved. Latest preview status canceled.

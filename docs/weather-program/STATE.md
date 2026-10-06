@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 01:12Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 01:29Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,25 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 01:29Z: sourced4046562 retry hosted-qualified; all new ingestion guards dark.**
+  CI37398137575 all11success: actual5674backend2425/2136/1113 and frontend360/3746;
+  estate296selected294produced0silent; supplementary success. Fulfilled686, ledger690.
+  WI05 sourcea3b321f0 separately5642/3746; resident/WI04 ff5 separately5604/3746. Pending
+  delta documentation/ledger only, source-equivalent. No merge/deploy/flags/served-number change.
+  Next repairs: WI01 stale disk revision, WI06 duplicate-cycle ranking, actual graphics fallback
+  provenance/time/palette and Gulf pixel/frame/performance acceptance. Current existing tab
+  shows fallback, original screenshot path still unknown. Dev canary unexecuted: current OAuth
+  refresh fails before SQL; private Storage runtime also required. PG/card/science and broader
+  audit remain open; Netlify latest preview canceled, production freeze preserved. Receipts/log updated.
+
+- **2026-10-06 01:21Z: retry sourced4046562 published; exact686 pending.**
+  PR243 OPEN/dev/body verified; CI37398137575 running, supplementary gates success.
+  Netlify status says canceled preview, not deployment. Current Dev readonly SQL failed OAuth
+  refresh before execution; earlier empty/private preflight historical, actual publisher canary
+  still unexecuted. Public discovery valid200 does not certify refresh/query access. No SQL/
+  storage/schema/provider/flag/merge/deploy write. Sourcea3b321f0 qualified5642/3746. WI01 and
+  duplicate cycle ranking remain open; WI06 retry partial. Ledger687-688; release/operator receipts.
 
 - **2026-10-06 01:12Z: WI05 sourcea3b321f0 qualified; WI06 retry local/dark partial repair.**
   CI37396359484 all11success, actual5642backend2393/2136/1113 +frontend360/3746,
@@ -789,7 +808,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 686, sha256 6f475d65b2eb0e70c254b7986c3f698163c62e5cbfb9f3e09166b93411e960b4**
+  **Ledger head: seq 691, sha256 bc27a62135d83e92f82035593de2e16b8972b7ffbd6ec15d02f2886d9e780164**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

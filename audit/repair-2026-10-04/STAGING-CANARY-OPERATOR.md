@@ -1,7 +1,9 @@
 # Run the prepared Dev publication test
 
-The Dev connector is connected and the private weather bucket/pointer table are empty. The actual
-Python publisher uses Storage/REST authentication independently of the connector's OAuth session.
+The last successful Dev preflight found an empty private weather bucket/pointer table. A fresh
+read-only check now fails at OAuth token refresh before SQL executes; reverify access and emptiness
+before execution. The actual Python publisher uses Storage/REST authentication independently of
+the connector's OAuth session.
 Its existing Dev service-role key must be available to that child process. Do not send the key in chat.
 
 Open Supabase, select **Raw Surf App Dev**, then **Settings > API Keys**. Use the existing legacy

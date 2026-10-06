@@ -1,21 +1,21 @@
 # Deployment readiness: updated audit versus actual repairs
 
-Verified 2026-10-06 00:52Z. This is a deployment assessment, not deployment authorization.
+Verified 2026-10-06 01:29Z. This is a deployment assessment, not deployment authorization.
 The supplied deep REPORT.md includes sections 10 and 11, and its current SHA256 is
 `be4914fbc8de71b1cfada3b7beb0f78e669c8fd6b5090fefbc3678accb5b72c0`.
-Its merge-blocker review is of `0bb3aec0`. WI05 sourcea3b321f0 has exact hosted acceptance. New WI06 retry source is locally accepted and dark, with its own hosted686 pending. Cache freshness and cycle-ranking repairs remain open.
+Its merge-blocker review is of `0bb3aec0`. Retry sourced4046562 has exact hosted acceptance: CI37398137575 all11success5674backend/3746frontend and supplementary gates. All new ingestion guards remain dark. Cache freshness and duplicate-cycle ranking repairs, actual live/cloud/Gulf/graphics acceptance remain open.
 This supersedes the older deployment status in PROGRESS.md without rewriting historical receipts.
 
 ## What is actually running
 
 | Component | Fresh evidence | Meaning |
 |---|---|---|
-| PR243, targeting dev | OPEN; a3b321f0 CI37396359484 all11success5642backend/3746frontend; next WI06 source local, hosted686 pending | Repaired source has not reached dev; qualify WI06 independently |
+| PR243, targeting dev | OPEN; qualified sourced4046562 CI37398137575 all11success5674backend/3746frontend; current pending delta docs/ledger only | Repaired source has not reached dev; new flags remain dark |
 | Shared Render API | Public /api/health healthy, version ends6b062e97; /api/health/data ok, alerts empty | Current PR backend is not live; health does not certify model-cycle freshness |
 | Netlify dev | service-worker BUILD_VERSION2a7b8615 | Current PR frontend is not live on dev |
 | Netlify production | service-worker BUILD_VERSIONfc140024 | Owner's frozen frontend remains served |
-| Netlify PR243 preview | Completed13f6d0a9 frontend preview; later receipts have no frontend delta | Existing preview uses shared backend; status success does not mean every docs head rebuilt |
-| Separate Supabase Dev | Scoped SQL: pointer0rows, auth0users, weather bucket0objects, private, pointer RLS enabled | Connector works; real publication canary is still unexecuted |
+| Netlify PR243 preview | Historical completed13f6d0a9 preview; latest d4046562 status success says Deploy Preview canceled | Latest status does not qualify a new frontend preview |
+| Separate Supabase Dev | Prior successful preflight empty/private/RLS; latest readonly SQL failed OAuth refresh before execution | Access/emptiness must be reverified; actual publisher canary unexecuted |
 
 Authenticated Chrome readback now confirms Render dev/Auto-Deploy On Commit, migrations in the
 build command and empty health-check path. Live /api/health/simple returned HTTP200. Netlify is
