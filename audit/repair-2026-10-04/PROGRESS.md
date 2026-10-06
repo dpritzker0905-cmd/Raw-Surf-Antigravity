@@ -325,3 +325,13 @@ frontend only; all new science/serving flags0/unset, Netlifyfreeze, no merge/dep
 ## 2026-10-06 22:13Z — served rollout768 and clean native receipt769
 
 PR246 dev72e6e5ad frontend/shared API served at22:07:46Z; production frontendfc140024 remains frozen. Clean single Chrome tab, no concurrent local build/test, GFS Waves paused0: native fallback reproduced22:08:39.622Z; new receipt12windows/15.724s continuous, FPS1..5, callbacks27/uploads6/slowCPU3/hist17,7,1,2,0. Histogram excludes scheduling/full-map passes and is not GPU completion. Play selected6 then pause12, keyboard13 stable; simplified notice/time-unverified and recovery1/2 at22:09:43.600Z observed. Served/run metadata null; no exact-frame/physical Gulf/device acceptance. Waves off read back and tab closed.769 fulfills766 observation, not broader science/latency/cloud gates. Source inspection confirms existing finally repaint and MapLibre render event after painter; callback-gap cause remains open. No new source/math/flag change. DEV-FALLBACK-ROLLOUT-RESULTS.md.
+
+## 2026-10-06 22:45Z — final local callback qualification
+
+Final project CRACO suite:372/372suites4066/4066tests0fail (callback-full-final.json).
+Build exit0, lint1235files with inherited86errors917warnings and no ratchet
+regression, LOC0regressed. Full frontend floors raised to measured372/4066.
+Backend source unchanged, hosted backend projection remains5943 (2425/2317/1201).
+Exact new source hosted checks pending, not borrowed from PR246 or docs head d1.
+No original root-cause, GPU completion, Gulf/play/scrub/device acceptance claimed.
+No dev merge, main promotion, serving/science flag flip or served math change.

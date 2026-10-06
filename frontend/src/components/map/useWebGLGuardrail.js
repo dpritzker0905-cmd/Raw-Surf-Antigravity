@@ -3,6 +3,7 @@ import { WeatherTelemetry } from './WeatherTelemetry';
 import { cancelTruthChains } from './weatherTruthTracker';
 import { recordChurn } from './marineTransitionCoordinator';
 import { sampleMarineFallback, marineFallbackReceipt } from './marineFallbackEvidence';
+import { beginMarineMainThreadTiming } from './marineMainThreadTiming';
 
 /**
  * useWebGLGuardrail hook monitors the map's render loop frame rate.
@@ -91,6 +92,11 @@ export function useWebGLGuardrail({
     let lastFrameTime = performance.now();
     let lowFpsCount = 0;
     let lowFpsEvidence = null;
+    let mainThreadTiming = null;
+    const resetLowFps = () => {
+      lowFpsCount = 0; lowFpsEvidence = null;
+      mainThreadTiming?.dispose(); mainThreadTiming = null;
+    };
     let lastMarineCall = null;
     // Recovery state. `guardrailOwned` is the consent check: only a trip this hook caused may be
     // undone by this hook. `attempts` is spent, never refunded, so the retry budget bounds flapping.
@@ -104,7 +110,7 @@ export function useWebGLGuardrail({
         frameCount = 0;
         lastTime = performance.now();
         lastFrameTime = performance.now();
-        lowFpsCount = 0; lowFpsEvidence = null;
+        resetLowFps();
         return;
       }
 
@@ -118,7 +124,7 @@ export function useWebGLGuardrail({
       if (delta >= 2000) {
         frameCount = 0;
         lastTime = now;
-        lowFpsCount = 0; lowFpsEvidence = null; // An excluded scheduling gap breaks consecutive low-FPS evidence.
+        resetLowFps(); // An excluded scheduling gap breaks consecutive low-FPS evidence.
         return;
       }
 
@@ -126,7 +132,7 @@ export function useWebGLGuardrail({
       if (now < graceUntil) {
         frameCount = 0;
         lastTime = now;
-        lowFpsCount = 0; lowFpsEvidence = null;
+        resetLowFps();
         return;
       }
 
@@ -138,7 +144,7 @@ export function useWebGLGuardrail({
       if (!hasMarine) {
         frameCount = 0;
         lastTime = now;
-        lowFpsCount = 0; lowFpsEvidence = null;
+        resetLowFps();
         return;
       }
 
@@ -153,7 +159,7 @@ export function useWebGLGuardrail({
           && Date.now() >= layer.t && Date.now() - layer.t < 2000;
         lastMarineCall = call;
         if (!engine?._initialized || !engine._waveData || !fresh) {
-          frameCount = 0; lastTime = now; lowFpsCount = 0; lowFpsEvidence = null;
+          frameCount = 0; lastTime = now; resetLowFps();
           return;
         }
       }
@@ -166,7 +172,7 @@ export function useWebGLGuardrail({
       if (isScrubbing) {
         frameCount = 0;
         lastTime = now;
-        lowFpsCount = 0; lowFpsEvidence = null;
+        resetLowFps();
         return;
       }
 
@@ -175,7 +181,7 @@ export function useWebGLGuardrail({
       if (isMoving) {
         frameCount = 0;
         lastTime = now;
-        lowFpsCount = 0; lowFpsEvidence = null;
+        resetLowFps();
         return;
       }
 
@@ -185,7 +191,7 @@ export function useWebGLGuardrail({
           || window.__MARINE_FETCH_PENDING__ === true || window.__MARINE_FETCH_DEBOUNCING__ === true)) {
         frameCount = 0;
         lastTime = now;
-        lowFpsCount = 0; lowFpsEvidence = null;
+        resetLowFps();
         return;
       }
 
@@ -210,7 +216,7 @@ export function useWebGLGuardrail({
 
           if (typeof window !== 'undefined' && (window.__DISABLE_WEBGL_GUARDRAIL__ === true || isLocalhost)) {
             frameCount = 0;
-            lowFpsCount = 0; lowFpsEvidence = null;
+            resetLowFps();
             return;
           }
           console.warn(`[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: ${fps} FPS`);
@@ -221,6 +227,12 @@ export function useWebGLGuardrail({
             context: 'MapWebGL_RenderLoop',
             activeLayers: active
           }); } catch (e) { /* diagnosis cannot suppress the safety fallback */ }
+
+          if (lowFpsCount === 0 && typeof window !== 'undefined'
+              && window.__RAW_DISABLE_MAIN_THREAD_TIMING__ !== true) {
+            try { mainThreadTiming = beginMarineMainThreadTiming(now, window.PerformanceObserver); }
+            catch (e) { mainThreadTiming = null; } // optional browser API cannot block protection
+          }
 
           lowFpsEvidence = sampleMarineFallback(lowFpsCount === 0 ? null : lowFpsEvidence, {
             now, fps, gpu: typeof window !== 'undefined' ? window.__RAW_GPU__ : null,
@@ -240,6 +252,9 @@ export function useWebGLGuardrail({
               // Capture before unmount/retry can reset cumulative native counters.
               try {
                 const evidence = marineFallbackReceipt(lowFpsEvidence);
+                const timing = mainThreadTiming?.finish(now) ?? null;
+                mainThreadTiming = null;
+                if (evidence) evidence.mainThreadTiming = timing;
                 if (evidence) {
                   console.warn('[WebGLGuardrail] Native trip evidence: ' + JSON.stringify(evidence));
                   WeatherTelemetry.emit('webgl_marine_fallback_evidence', evidence);
@@ -260,10 +275,10 @@ export function useWebGLGuardrail({
               } catch (e) { /* the flip must never fail on diagnostics */ }
             }
 
-            lowFpsCount = 0; lowFpsEvidence = null;
+            resetLowFps();
           }
         } else {
-          lowFpsCount = 0; lowFpsEvidence = null;
+          resetLowFps();
         }
       }
     };
@@ -274,7 +289,7 @@ export function useWebGLGuardrail({
       const now = performance.now();
       lastTime = now;
       lastFrameTime = now;
-      lowFpsCount = 0; lowFpsEvidence = null;
+      resetLowFps();
     };
 
     // The retry runs on a timer, not on 'render': a map sitting idle in the fallback emits few or no
@@ -294,7 +309,7 @@ export function useWebGLGuardrail({
 
       attempts += 1;
       graceUntil = now + GRACE_MS;   // remount costs startup again; forgive it (see graceUntil)
-      lowFpsCount = 0; lowFpsEvidence = null; frameCount = 0; lastTime = now; lastFrameTime = now;
+      resetLowFps(); frameCount = 0; lastTime = now; lastFrameTime = now;
       console.warn(`[WebGLGuardrail] Recovery attempt ${attempts}/${RECOVERY_BACKOFFS_MS.length}: `
         + 're-enabling the WebGL Marine layer after backoff.');
       try {
@@ -318,6 +333,7 @@ export function useWebGLGuardrail({
 
     return () => {
       clearInterval(recoveryTimer);
+      resetLowFps();
       try {
         if (mapInstance) {
           mapInstance.off('render', onRender);

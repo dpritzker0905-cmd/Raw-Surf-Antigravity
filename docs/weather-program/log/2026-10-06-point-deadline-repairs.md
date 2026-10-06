@@ -151,3 +151,32 @@ PR246 dev72e6e5ad frontend/shared API served at22:07:46Z; production frontendfc1
 ## 2026-10-06 22:17Z — receipt publication770–772
 
 Owned docs/ledger commit66f2c73ac495f6199c8cb0304e964d8c31eabf69 pushed and remote read back. Draft247 OPEN/dev/head66 with exact review body, attached to chat;771 records creation and verifies770. Runtime/tests/workflows equal merged72e6e5ad. Ledger/memory0FAIL/9inheritedWARN, staged whitespace and redacted secret scans pass.772 plans final creation/readback receipt commit/push to same draft; final local/remote/PR head check pending. No second dev merge, science/serving flip or cloud write. Unowned canary unchanged/excluded.
+
+## 2026-10-06 22:43Z — callback-gap candidate773
+
+773 verifies772 final d1c0a89b remote/local/draft247 receipt. Owner asks to move
+onto gaps between render callbacks. Existing native callback already requests
+repaint; MapLibre render follows painter. TruthDiff style serialization is a
+measurement candidate, not a proved cause. Added bounded scalar observer for
+delivered main-thread tasks/long frames in the same low-FPS receipt interval,
+all exclusion/retry/unmount cleanup plus30s expiry, API faults cannot suppress
+fallback. Kill __RAW_DISABLE_MAIN_THREAD_TIMING__, no new production RAF loop,
+GL reads, threshold/retry change or served forecast math/flags. Two diagnostic
+red controls:5fail/3pass before integration; Windows selection errors excluded.
+Neighborhood7/107passed, initialfull372/4065passed, build/lint/LOC passed. Final
+review added unreadable-blocking value control; final full/hosted pending.
+Native offline actual collector calibration in both orders: six100ms CPU
+stalls detected as six long tasks/six RAF gaps over50ms; idle zero, RAFmedian
+16.7ms. Long-frame counts5 rather than6, overlapping metrics not interchangeable.
+No original live-cause, playback, exact-time, Gulf, devices or independent audit
+gate closed. Unowned canary unchanged/excluded. CALLBACK-GAP-DIAGNOSIS.md.
+
+## 2026-10-06 22:45Z — final local callback qualification
+
+Final project CRACO suite:372/372suites4066/4066tests0fail (callback-full-final.json).
+Build exit0, lint1235files with inherited86errors917warnings and no ratchet
+regression, LOC0regressed. Full frontend floors raised to measured372/4066.
+Backend source unchanged, hosted backend projection remains5943 (2425/2317/1201).
+Exact new source hosted checks pending, not borrowed from PR246 or docs head d1.
+No original root-cause, GPU completion, Gulf/play/scrub/device acceptance claimed.
+No dev merge, main promotion, serving/science flag flip or served math change.

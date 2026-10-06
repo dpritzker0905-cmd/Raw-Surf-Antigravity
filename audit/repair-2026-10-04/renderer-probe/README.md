@@ -22,3 +22,13 @@ This is an investigative tool, not a pass/fail performance gate. CPU-call time
 can include driver waits; it is not GPU elapsed time. These scenes do not
 qualify app-level playback/scrubbing, full basemap cost, coast masks, physical
 forecasts or device coverage. Findings: [native profile](../NATIVE-RENDERER-PROFILE.md).
+
+## Callback-gap calibration (2026-10-06)
+
+`Run callback gap controls` measures 30 animation frames, first idle and then
+with six deliberate 100 ms main-thread stalls. Reverse the order with the
+existing checkbox. The actual bounded timing collector reports delivered
+long-task and long-animation-frame scalars alongside RAF gaps. It makes no
+forecast or backend request. Run it alone, with the tab focused and local
+builds/tests stopped; controls are not a measurement of the original live
+problem. See [callback diagnosis](../CALLBACK-GAP-DIAGNOSIS.md).
