@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 01:57Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-06 02:16Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,26 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-06 02:16Z: cache/cycle sourcea268d804 exact hosted qualification accepted.**
+ CI37401821405 all11success: actual5764backend2425/2226/1113,360suites3746frontend;
+ estate296selected294produced0silent; allfour supplementary gates success. Ledger699
+ fulfills694 (695corrected interim2224 projection). Final90newtests/544expanded twice.
+ Pending receipt delta documentation/ledger only; final source-equivalent publication
+ readback700 follows commit/push. Newflags0/unset, Netlifyfreeze, no merge/deploy.
+ WI01 same-metadata/missingpath/cross-process/cloud acceptance and WI06 live capacity
+ remain open. Fallback label reproduced unpatched;126hour log quality switch lacks
+ resident/pixel proof. Actual Gulf/playback/device/performance, Devcanary/PG/card/
+ held-out science open. CACHE-CYCLE-REPAIR-RESULTS.md; broad lint debt unchanged.
+
+- **2026-10-06 02:04Z: cache/cycle sourcea268d804 published to PR243 OPEN/dev.**
+ CI37401821405 running; own694 pending;90newcases544expanded twice,5764backend projection.
+ Two local20kmanifest/14842cell probes: guardwarmmedian0.0471/0.0463ms, initialindex102ms,
+ changedrefresh88ms, unchanged0remote. Not cloud/sharedRender acceptance. Separate actual
+ LegendTicks SSR twice confirms native223km shown while engine absent in raster fallback;
+ sourcefix/actual pixels not done, Gulf cause unproven. Newflags0/unset, productionfreeze
+ preserved; no merge/deploy/cloud/UI/served-number action. Ledger696-697; current receipts.
+ Receipt delta source-equivalent; hosted source gate must be completed, not borrowed.
 
 - **2026-10-06 01:52Z: WI01/WI06 source repairs locally accepted, dark; own hosted694 pending.**
  90newchain cases, predecessor69fail21pass twice;544expanded including floors twice, scoped
@@ -819,7 +839,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 695, sha256 39effd66624e8dc2544b8fdea3e31abed57be71dd386118066fd2c228d1c7e47**
+  **Ledger head: seq 700, sha256 c9242cfaff6367f63088d0113e2edf180ddea6710a09fb14e4ce300ba424691a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

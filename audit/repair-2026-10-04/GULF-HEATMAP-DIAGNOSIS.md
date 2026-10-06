@@ -119,3 +119,56 @@ the current path, not the original screenshot's path: its banner/state is not pr
 pixel acceptance must distinguish native resident provenance from third-party raster/time/
 palette before comparing the GFS point card with map colour. Native encoder/ramp controls
 cannot alone certify this fallback product. No source/UI/provider state changed; ledger689.
+
+
+## 2026-10-06 02:04Z: source publication and independent local cost/label probes
+
+Sourcea268d804 pushed/read back at PR243 OPEN/dev, body accurate; CI37401821405
+running and own694 pending. New flags0/unset; no merge/deploy/cloud/UI/served-number change.
+Final90newcases544expanded twice; projection5764backend, not an actual hosted result.
+Two actual-loader probes:20kmanifest/14842cells, guarded warmmedian0.0471/0.0463ms
+vs0.0039/0.0040ms off; p95<=0.0542ms; initialindex102.65/102.28ms; changedrevision
+refresh87.79/87.38ms including reindex. Unchanged0remote reads; changed1; servedstride966.
+Synthetic local machine/fakeStorage only; sharedRender/cloudwire/egress/memory gate open.
+Separate corrected actual LegendTicks SSR counterexample twice: fallback notice plus
+native223km resolution with native engine absent. No realGPU/cloud/pixels or source fix.
+Old screenshot path remains unknown; this does not prove low Gulf heights. Next visual
+acceptance must identify actual raster/native frame/model/time/palette/cells and devices.
+Ledger696-697. Pending delta only these receipts; source equals a268d804.
+
+
+## 2026-10-06 02:11Z: original playback media revisited
+
+Local decoder reports87.03s,2218x1552/30fps. Six sampled frames show only the map,
+without picker/time/product IDs; color patterns vary, but their physical correctness cannot
+be certified from this crop. Original pasted console has13GFS snapshots:8at181x82 and5at
+46x20; hours0/12/36/54/78/102/126. At126 it changes46x20=>181x82 without a selected-hour
+change. This is recorded grid-quality variation, not proof of a verified cycle, actual cell
+height or exact video-to-console alignment:0actual resident timestamp receipts. Existing
+read-only tab still reports h98, fallback plus2deg/223km,19ft offshore/14ftestimatedsurf,
+stale retained hour. No reload/play/scrub; page-scope globals returnednull and captured logs
+empty, which are not accepted as actual resident proof. Ledger698. This extends the next
+native/fallback/frame acceptance and does not qualify a repaired storm magnitude.
+
+
+## 2026-10-06 02:16Z: exact cache/cycle source hosted qualification
+
+Source **a268d804f76864eaeb20e7bc0df7c99023f9536d**, PR243 OPEN/dev: own
+CI37401821405 completed successfully with all11 jobs. Actual timestamp-anchored
+stdout: **5,764 backend** =2,425guards (66skips,1xfailed)+2,226chain+1,113estate;
+**360 suites/3,746 frontend tests**. Estate296selected294produced0silent. The
+LOC37401821438,ledger37401821491,encoding37401821492,Lighthouse37401821452
+supplementary runs all succeed on this exact source. Ledger699 fulfills694;
+695 corrected the interim2224chain projection to final2226. No previous source
+qualification or copied workflow comment is counted as this run stdout.
+Final90new regressions and544expanded local controls pass twice. Scoped fatal
+lint/LOC pass; existing broad backend lint debt remains explicit. This pending
+delta is documentation/ledger only and source-equivalent to the qualified commit.
+Receipt publication700 requires final exact GitHub readback after commit/push.
+New flags stay0/unset, production freeze preserved, no merge/deploy/activation.
+WI01 remains partial: same-metadata rewrites, missing/corrupt local path and
+cross-process/cloud wire acceptance. WI06 live coverage/capacity remains open.
+Fallback resolution label reproduced but unpatched; original playback logs show
+same-selected-hour grid-quality changes, without resident time/pixel proof.
+Actual Gulf cause, native/raster playback/device/performance, Dev publication
+canary, PG/card acceptance and held-out science remain open.
