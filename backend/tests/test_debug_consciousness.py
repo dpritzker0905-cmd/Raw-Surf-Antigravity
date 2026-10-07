@@ -228,8 +228,8 @@ def test_dcl_json_rpc_initialize():
     
     old_stdin = sys.stdin
     old_stdout = sys.stdout
-    sys.stdin = StringIO(input_str) if 'StringIO' in globals() else io.StringIO(input_str) if 'io' in globals() else io_import_helper(input_str)
-    sys.stdout = StringIO() if 'StringIO' in globals() else io.StringIO() if 'io' in globals() else io_stdout_helper()
+    sys.stdin = io.StringIO(input_str)
+    sys.stdout = io.StringIO()
     
     try:
         debug_consciousness_mcp_server.main()

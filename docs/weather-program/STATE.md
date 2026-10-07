@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 01:28Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 01:59Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,34 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 01:59Z: live CPU receipt825 fulfills813; costly water painting found.**
+  Dev26a1cc8b/main.3de9efe1.js paused GFS Waves trip at01:58:35.523Z,12windows
+  1FPS,17.987s interval.18custom callbacks95.6ms/engine77.2ms;22water paints
+  4038.3ms,21regional4268.2ms/overlay3668.8ms nested. All18callbacks visible
+  focused;18longtasks4196ms max737. Costs overlap, no GPU/sole-cause claim.
+  Waves off readback false, owned tabclosed;01:59:32Z API healthy exact26a1,
+  data healthwarn. Browser beta restored by owner. No Play/scrub/Gulf/device
+  acceptance. Next: trace repeated mask paint and offline regression.
+  Gallery candidate822/824 remains local, not deployed; fatal lint0,39isolated
+  controls pass, full configured hosted acceptance pending. Canary preserved.
+
+- **2026-10-07 01:56Z: PR250 merged and served dev26a1cc8b; gallery repair candidate.**
+  820 qualifies exact77e6 ownCI37557753240 all11/four success, actual5943backend,
+  376suites4128frontend, estate297selected295results0silent.821 merges250
+  26a1cc8b at01:52:19Z;823 reads matching dev frontend/shared API healthy
+  at01:55:46Z. Production frontendfc140024 frozen. Native browser reconnected
+  to Edge5, beta access pending owner entry; no live scene started or smoothness
+  claim.813 remains open for bounded paused CPU receipt and cleanup/readback.
+  819 diagnoses one missing gallery timedelta import and guarded test lint debt;
+  822 repairs locally with actual mocked scheduler2pass1fail before/3pass after.
+  Fatal backend lint4to0, now blocking.39 isolated scheduler/floor controls pass;
+  application conftest excluded, own-source hosted acceptance pending824.
+  Estate selector298includes new file; projected1204/floor1202 margin2. No real
+  gallery/database mutation, served forecast number or science flag change.
+  Canary excluded/preserved. See CPU-PHASE-DIAGNOSIS.md, GALLERY-GRACE-RESULTS.md
+  and log/2026-10-07-marine-phase-timing.md. Original cadence/Gulf/time/device and
+  actual staging publication gates remain open.
 
 - **2026-10-07 01:28Z: whole-callback/mask CPU diagnosis candidate under813.**
   Owner812 continues qualified beneficial dev repairs under776. Fresh origin/dev
@@ -1089,7 +1117,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 817, sha256 345ee047b622c6222e0712d23f1b94d6239794d73cd2026e6fac88559e85ba05**
+  **Ledger head: seq 825, sha256 cc162aad0dcb1199c1eee52dd283db8783fd11ca4b715292f6b286ae6f2f3f16**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
