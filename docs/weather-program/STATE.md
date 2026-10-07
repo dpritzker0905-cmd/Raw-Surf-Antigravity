@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 13:42Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 14:10Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,41 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 14:10Z:255merge refused on squash-stack memory conflicts; reconciliation.**
+  885: reviewed77all11gates qualified884, but after254squash3310 GitHub
+  DIRTY/CONFLICTING; onlyACTIONS/STATE collide.255notmerged/deployed.
+  Preserve canonical864prefix and ownappend-only records, no app/test/workflow
+  change. New final pushedhead requires its own checks before retry.
+  883qualified863closure and860focus blocker retained; no bypass/forcepush.
+
+- **2026-10-07 14:05Z:863 qualified receipt merge/readback fulfilled;25577readyqualified.**
+  883fulfills863 under881explicit local LOC/Encoding supplement adjustment;
+  own25411CI/Ledger/Lighthouse, docs merge3310, devfrontend3310/APIhealthy4fe
+  (backendappunchanged) read back; frozenproductionfrontendfc140024 preserved.
+  884own77CI37630822926 all11success:377/4177frontend,5957backend;
+  ownLOC/Ledger/Lighthouse pass, Encodingabsentbyfilter/identityproved.
+  255authorized devmerge and new deployedsource/health pending.860focus
+  blocker and broader acceptance remain open; no science/shareddata/main.
+  Records beyond mergedreceipt864 remain local until own receipt publication.
+
+- **2026-10-07 13:58Z: PR254 merged dev3310b6f5 (2026-10-07T13:56:28Z).**
+  Exact reviewedhead7762ae6e, source/ledgerprefix read back;
+  docs only and app/workflow identical4fe;881qualifies863supplement gates.
+  Deployment source/health readback pending; no live860 repeat. Original
+  playback/time/Gulf/device/isolation/datahealth gates remain independently
+  open. Records after merged branch prefix remain local until receipt PR.
+  See own `log/2026-10-07-ecmwf-rollout.md` for actual checks/rollout progress.
+
+- **2026-10-07 13:55Z: owner880 authorizes qualified254/255 dev merge/deployment.**
+  881explicitly qualifies863 docs-path skipped LOC/Encoding with actual
+  immutable254local controls:0LOCnew/regressed,1221encodingfiles0violations;
+  own11CI/Ledger/Lighthouse pass, no fake all-four-hosted claim.
+  2547762ready for qualified merge;25577 still awaits current two CI lanes.
+  Local action records remain unmerged; source/check heads frozen. No main,
+  serving/science/shared-data change.860focus blocker and remaining product
+  acceptance remain open; no live repeat during rollout.
+  See own `log/2026-10-07-ecmwf-rollout.md` for exact source/counts/progress.
 
 - **2026-10-07 13:42Z:860 owner-assisted preflight executed; focus prerequisite failed.**
   878 reads C860PREFLIGHT3 at13:37:51Z:dev4fe94420,visibletrue,
@@ -1280,7 +1315,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 879, sha256 cf42d292bbed7ce67e89989394fa9bb171957368917718ab6e26d7e9442e5d2a**
+  **Ledger head: seq 885, sha256 63859864de5de2073e7445fa4a218458f87f2d6db2d6dfa3ddc7277be6f5040a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
