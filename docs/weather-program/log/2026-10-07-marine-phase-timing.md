@@ -80,3 +80,33 @@ Waves off direct DOM aria-pressedfalse, tabclosed; post API healthy exact26a1
 01:59:32.6924738Z, datahealthwarn01:59:32.9846975Z. No Play/scrub/Gulf/device
 acceptance. Next evidence target repeated mask painting and offline regression.
 No served forecast number/science/production frontend change; canary preserved.
+
+## 2026-10-07 02:17Z — gallery merged, mask experiment deliberately unshipped
+
+827 verifies826 publication: exact b81b local/remote/PR251 OPEN draftdev attached.
+828 dispatches manual Encoding37560053774 because automatic paths are frontend-only.
+830 ownCI37559959669 all11/four green; actual5946backend2425/2317/1204,
+estate298selected296results0silent;376suites4128frontend; strict fatal lint0.
+831 PR251 squash bf72c8db02:15:56Z under776/812; fetched origin/dev exact.
+02:17:39Z frontendbf72 served, API stillhealthy26a1; matching readback824 pending.
+Production frontendfc140024 remains frozen. No real gallery/history mutation.
+
+829 native mask stage controls did not reproduce live183.6ms mean. Exact-distance
+prototype matches unchanged algorithm10633oracle controls and eight native A/B
+legs have full final RGBA byte parity, but total paint benefit is mixed. Keep it
+outside served source; no FPS repair claim. Native Chrome was used after Edge
+became unavailable; external browser activity not controlled. Tabsclosed and
+serversstopped. Portable generator reproduced10633 controls, source unchanged.
+WATER-PAINT-DIAGNOSIS.md records the hotspot, hypotheses and next boundary.
+Installed MapLibre has render completion without renderstart; guessed pairings
+are not timing evidence. Original playback/Gulf/time/device/cloud gates open.
+No served forecast number/science flag change; other chat canary preserved.
+
+## 2026-10-07 02:21Z - matching served rollout
+
+Ledger832 fulfills824. At02:21:00.0403477Z the public API was healthy on full
+bf72c8db57252d55ccfaec3f55e0f9a4cc4d2f2d; dev frontend BUILD_VERSION bf72c8db
+matched. Production frontend fc140024 unchanged. PR250 and PR251 are served.
+No real gallery mutation, historical repair, served forecast number or science
+flag change. Ledger833 preserves portable offline research and its limits;
+the cache prototype remains unshipped. Original forecast acceptance stays open.

@@ -71,3 +71,15 @@ neither live FPS, asynchronous GPU completion nor forecast accuracy.
 intervals with no map, engine or GPU work. It records context on every callback
 and stops after45seconds if incomplete. Use it as a scheduling discriminant,
 not a graphics benchmark; incomplete or unfocused captures are not acceptance.
+
+## Offline mask stage and parity research
+
+From the repository root run `python audit/repair-2026-10-04/renderer-probe/build-water-profile.py`.
+It generates clock-instrumented painter copies and an **unshipped** distance-cache
+prototype under ignored `visual/`; it does not edit the app. Run the pinned Node
+runtime on `visual/inland-prototype-controls.mjs` for exact-source oracle controls,
+or `visual/serve-water-profile.cjs` to open native Canvas2D before/after controls.
+Three measured paints per leg follow warmup, and every final RGBA byte is compared.
+The CSP forbids backend/network connections. Stop builds/tests during native runs,
+close the owned tab and stop the server afterward. See `../WATER-PAINT-DIAGNOSIS.md`:
+pixel parity passed, but total paint benefit and the live cause are unproven.
