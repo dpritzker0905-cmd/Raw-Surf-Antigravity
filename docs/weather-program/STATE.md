@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 14:15Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 14:40Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,32 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 14:40Z: Existing PR245 locally qualified against dev8e.**
+  891: current Nightly undefined-map failure maps to existing harness candidate.
+  Four source/workflow files integrate cleanly; 26 offline controls pass.
+  Backend, renderer, physical values and CI floors unchanged. Commitment892
+  tracks updated PR245 final-head hosted checks and conditional dev merge.
+  PR255 is deployed and887 fulfilled889 at source/availability scope.
+  860 access blocker and333 live Nightly acceptance remain independent.
+
+- **2026-10-07 14:40Z: PR255 repair merged and deployed to dev; 887 fulfilled.**
+  Dev merge `8e4eeaeb5f5de662a1e305de0468fe8ef9744416`, exact reviewed head98e6870e. Own eleven CI jobs pass:
+  frontend377/4177 and backend5957 passes; LOC/Ledger/Lighthouse pass.
+  API healthy on exact merge source and dev frontend marker8e4eeaeb;
+  production frontendfc140024 preserved. Three missing-cycle data warnings
+  remain honest. 860 is access-blocked/open; 863 is qualified fulfilled883.
+  PR245 has a current Nightly instrument failure; PR226 guard is still absent.
+  Preserve original playback/time/Gulf/device/isolation/data-health acceptance.
+  New post-merge records remain proposed until their receipt branch merges.
+
+- **2026-10-07 14:33Z: PR255 merged dev8e4eeaeb (2026-10-07T14:32:26Z).**
+  Exact reviewedhead98e6870e, source/ledgerprefix read back;
+  full merge tree equals hosted98e6870e repair source; no numeric/science change.
+  Deployment source/health readback pending; no live860 repeat. Original
+  playback/time/Gulf/device/isolation/datahealth gates remain independently
+  open. Records after merged branch prefix remain local until receipt PR.
+  See own `log/2026-10-07-ecmwf-rollout.md` for actual checks/rollout progress.
 
 - **2026-10-07 14:15Z: PR255 stack resolved; new head qualification pending.**
   886 preserves the exact merged ledger prefix and resolves only ACTIONS/STATE
@@ -1322,7 +1348,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 887, sha256 ae3dc1526cc909d53664774addd56b6c68a756c3287b23183a6b09ff59db690f**
+  **Ledger head: seq 892, sha256 8695071d8bee31c98428179274cabfa04d5833f2c8bb5e406286440a5fef60c8**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

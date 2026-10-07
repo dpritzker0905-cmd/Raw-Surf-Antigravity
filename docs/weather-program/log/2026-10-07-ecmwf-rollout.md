@@ -78,3 +78,41 @@ and all owned append-only additions. Merge 78495654 connects dev3310 without
 changing application/tests/workflows. 887 tracks the final candidate checks and
 matching dev source/health readback. Historical 77 checks are not new-head checks.
 No live860 repeat, production promotion, scientific change or shared-data write.
+
+## 2026-10-07 14:33Z — PR255 actual merge readback
+
+PR255 MERGED2026-10-07T14:32:26Z squash8e4eeaeb5f5de662a1e305de0468fe8ef9744416, exact reviewedhead98e6870e995e0e271cbe3e443cfa5f25b262cb9f.
+origin/dev equals merge; full merge tree equals98e6870e, exact priorledgerprefix retained.
+Source/health deployed readback remains pending; no scientificactivation/shareddata/main
+promotion or live860scene. User rollout authority880;863qualifiedsupplements881 preserved.
+
+## 2026-10-07 14:40Z — Deployed repair and remaining evidence
+
+Own final98e6870e CI37635290132 all11 successful, actual frontend377/4177 and
+backend2425+2328+1204=5957 passes. Applicable LOC/Ledger/Lighthouse passed;
+Encoding deliberately absent under the unchanged-frontend filter. Merge8e4eeaeb5f5de662a1e305de0468fe8ef9744416
+read back MERGED, with matching healthy API and dev frontend. 887 is fulfilled
+at this rollout scope. Production frontendfc140024 remains frozen; shared API
+source changed as part of the authorized dev rollout. No shared-data mutation.
+
+Data-health warnings remain missing-cycle provenance for ICONmarine, EUROmarine
+and EUROwind; availability is not data-health acceptance. 860 remains blocked
+on stable focused access and does not accept playback. 863 qualified closure
+883 is canonical through merged887. Latest Nightly failed before scenario
+completion on undefined window.map jumpTo, mapped to245/333. Current malformed
+merge-target counterexample maps to existing226. Source fixes224/225 and222
+already exist; original independent acceptance contracts remain open.
+
+The reconciliation initially wrote local CRLF ledger bytes; verify refused them.
+Exact committed LF bytes were restored before publication; no ledger content
+changed, and own final hosted Ledger passed. Protected unowned canary is intact.
+
+## 2026-10-07 14:40Z — Current PR245 integration
+
+891 preserves the existing PR245 identity and source, integrated cleanly against
+merged dev8e. Current actual Node18.20.2 harness suite26 passes with zero skips
+or failures. The first command named a nonexistent sibling test and executed
+no controls; the corrected actual suite passes. Exact four harness/workflow
+files only; backend, renderer, served values and CI floors remain unchanged.
+892 tracks own updated-head qualification and conditional dev merge. No new
+live battery, workflow dispatch or forecast load. 333 remains independent.
