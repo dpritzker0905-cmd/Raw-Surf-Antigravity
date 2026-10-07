@@ -247,3 +247,73 @@ own checks and actual377/4177frontend plus2425guards/2328chain/1227estate.
 899tracks conditional dev merge/readback.894-900 are proposed until merge,
 including896892fulfillment.860focus blocker and333scheduledrenderer/data
 health acceptance remain separate; no live map/battery/ingest dispatch.
+
+## 2026-10-07 15:42Z — PR226 actual merge readback
+
+PR226 MERGED2026-10-07T15:42:32Z squash7a5fe141d501aaeb9e916ca40e0b23254c73f95b, exact reviewedhead58922be1d892c14ac3fe9e5f2d69c9b1f690d553.
+origin/dev equals merge; full merge tree equals58922be1, exact priorledgerprefix retained.
+Source/health deployed readback remains pending; no scientificactivation/shareddata/main
+promotion or live860scene. User rollout authority880;863qualifiedsupplements881 preserved.
+
+## 2026-10-07 15:47Z — PR226 actual dev rollout qualification
+
+902fulfills899 at existingguard qualification/dev rollout scope. Exact58922be1
+own CI37644066651 all11passed: frontend377/4177; guards2425,chain2328,
+estate1227=5980actualbackend passes. Guards66skips1xfail, estate2865skips,
+299selected297produced0silent;0failed/errors. LOC37644066658,Ledger37644066707,
+Lighthouse37644066817 passed; Encoding absent by unchanged frontend filter.
+Own floor-staleness check used existing224 REST fallback successfully; no
+duplicate repair required.23new controls confirmed in hosted estate increase,
+current actor/scoreboard andcanonical900prefix preserved. Merge7a5fe141
+at15:42:32Z fulltree equals reviewed58922be1. Public 2026-10-07T15:47:07.889473+00:00 both frontend
+andhealthyAPI exact7a, restorationcomplete13188, durableconnectedtrue.
+Productionfrontendfc140024. Data warn with3alerts remains independent. Initial
+15:43 source read showed68 and was not accepted as rollout completion.
+
+254/255/245 and226 source repairs are now merged. Canonical900 includes892
+fulfillment896 and earlier887/863closures.901actual226merge and902899
+fulfillment remain proposed until receipt branch merges.860 remains focus
+access blocked;333nextschedulednative verdict, playback/time/Gulf/device/
+isolation/datahealth and9historicaloverdues unchanged. No manual ingestion,
+Nightlydispatch, live scene, scientific flag/shareddata/main promotion.
+
+## 2026-10-07 15:50Z — final merged-repair task reconciliation
+
+903records final report/handoff update. Canonical900 versus proposed901-903
+explicit. Fresh15:48:46Z healthyAPI/devfrontend7a,13188manifest entries,0restore
+errors,durableconnected; earlier68inventory13367,179difference cause unknown.
+Restoration source is lazy, counts entries available on demand and filters
+fixtures/native-horizon overclaims; do not claim all objects read or an expiry
+cause established. ExistingWI03read-only manifest/cohort identity comparison
+tracks this caveat; three missing-cycle warnings stay open. No new shared-data
+write,forcedingest/Nightly,science/main change or application source repair
+is justified by the aggregate difference alone. Recommendations: existingWI03
+metadata evidence; next scheduled333receipt;860pausedscene only after focus,
+source/health/quiet-period/≥20min after latest7amerge prerequisites.
+
+| Existing task ID | Current evidence | Status / proposed reconciliation | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| 860 / A-02 | Earlier capture changed viewport; latest stable preflight was visible but focused=false and stopped before Waves; cleanup/post-health verified | Open, access blocked; preserve identity | Establish safe focused stable access after current deployment's quiet period | Matching source, healthy API, ≥20min after relevant merge, no concurrent loads; one visible focused PAUSED GFS Waves scene; actual viewport/bounds/zoom/grid, paint verdicts/counts/CPU/gaps/fallback; Waves off, owned-tab cleanup/post-health; no Play/scrub/stress/extra scenes |
+| 863 / A-03 | Exact254 own receipts, explicit881 supplementation, merge3310, source/health readback; fulfills883 now canonical | Fulfilled at qualified documentation scope | Preserve scoped closure; no repeat receipt task | Documentation qualification and authorized dev merge; no live-product acceptance implied |
+| 872 | Actual own8a source qualification, fulfilled875; final98 requalified all11 | Fulfilled at source scope | Preserve actual head/count evidence | Requalify if application/tests/workflows change |
+| 887 | Own final98 all11/gates, actual255 merge, matching healthy8e rollout | Fulfilled by canonical889 | Preserve scoped closure | Exact reviewed source, completed counts and matching source/availability readback; independent data/live gates remain |
+| A-01 / three253 cache repairs | Qualified minimum-size repaint, pristine Canvas copy and active z8–12 retention repairs; documented16 native controls with zero final-pixel differences | Completed at documented scope | Reopen only on specific current regression/failed path/incomplete coverage | Current counterexample; pixel parity does not establish forecast accuracy |
+| WI-03 / A-04 / 862 | Partial ECMWF selected-message metadata defect repaired/deployed255;104 offline controls and156 actual-decoder forensic/Jacobian calls; three live warnings persist; inventory13667→13188, zero restore errors, lazy manifest restoration | Decoder source repaired; data-health acceptance open | Assess scheduled cohort/warning provenance and a read-only manifest identity/cohort diff for179entries | Complete consistent selected analysis metadata before known cycle; freshness and justified warning/clearance; availability alone insufficient |
+| WF-02 / CX34-07 | Changed-viewport paused receipt:1,061 callbacks, gaps17median/113p95/227max ms, no fallback edge; overlapping draw timing high | Performance/fallback acceptance open | Complete860 first when prerequisites hold; otherwise offline attribution only | Controlled native/fallback continuity and recovery on actual devices; callback cadence is not completed GPU frames |
+| WF-03 / 313 / 318 / 333 / A-05 | Existing served-time/transition repairs; incomplete current identity/play/scrub/nightly acceptance | Preserve independent open contracts | Inspect prior receipts; use later separately bounded cases | Requested/served/cycle/resident/drawn identity; original transition/nightly criteria; no broad battery inside860 |
+| PR245 / 802 / 892 / 333 | Current Nightly37631047631 fails before scene completion on undefined window.map jumpTo; data-contract passes. Current four-file integration clean,26 offline controls pass | Source merged and matching rollout verified;892fulfillment896 now canonical | Assess next scheduled scene on its own contract | Strict prerequisites/fixture isolation and honest refusal; a later completed scheduled scene/verdict is required for333's renderer acceptance |
+| 668 / 672 / A-06 | Historical Gulf symptom; current observed scene is Florida east coast; no new accuracy proof | Accuracy acceptance open | Establish model/product/time/grid/pixel identity before comparison | Held-out observations and offshore-versus-breaking scope; parity insufficient |
+| AS-04 | Real desktop/mobile and light/dark/beach acceptance incomplete | Open | Preserve concrete cases on existing task | Actual device/theme/hour-to-pixel and native/fallback evidence |
+| AS-06 / W-26 / D-002 / A-07 | Source publication safeguards; shared serving API; unowned canary preserved, not executed | Isolation acceptance open | Separately scoped isolated publication process | Create-only/CAS/durable acknowledgment/reader/cleanup with zero shared-production effects |
+| PR226 / 899 |23 real controls RED16fail/7pass then23pass;76local sibling controls. Own58922be1 all11CI/Ledger/LOC/Lighthouse successful;377/4177frontend and5980backend, estate1227confirmed. Actualmerge7a, matching healthy frontend/API15:48Z | Source repaired, merged and rollout verified; proposed899fulfillment902 | Preserve exact scope closure; merge the final receipt branch after its own review/checks | Refusal before write, validASCIIpositive#N credited, historical900prefix and newer actor/scoreboard/floors preserved; no product acceptance implied |
+| PR224 / PR225 / PR222 | Retry/REST, month-seam loading and strided world-read path already present in current source, with later hardening/tests | Proposed source portions superseded/integrated; PRs and independent receipts not closed here | Assess their own receipts before closure; avoid duplicate/downgrade repairs | Original task evidence; source inspection alone does not close live/operational acceptance |
+| 149 / 217 / 266 / 282 / 283 / 291 / 298 / 299 / 309 | Historical independent obligations retained. Existing ingest/precompute/monitor receipts green on4fe, without every original contract checked | Preserve existing statuses; nine historical overdue warnings | Read each task's own receipts before further work | Original skill/cache/rollover/storage/monitor contracts; no closure from255CI |
+| PF03 / LIVE-04; AS-01 / PS-11 | Historical resource and retained-artifact/rotation acceptance outside this bounded repair | Preserve existing scopes | Follow their own evidence/authority | No shared-server stress or credential/provider action inferred from this pass |
+
+
+## 2026-10-07 15:51Z — inventory transcription correction
+
+904corrects903table/handoff text13667: the actual earlier count is13367,
+current13188, difference179.903evidence/descriptive paragraph were correct.
+External report/handoff exact text corrected; original append-only table
+retained with this correction. Cause remains unknown; no source/data action.

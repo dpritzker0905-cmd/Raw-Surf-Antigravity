@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 15:26Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 15:51Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,24 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 15:47Z: PR226 merged and matching dev rollout verified;899fulfilled.**
+  Exact58922be1 all11 CI37644066651:377/4177frontend,5980backend passes;
+  estate1227 confirmed299selected297produced0silent. LOC/Ledger/Lighthouse
+  successful; Encoding absent by unchanged frontend filter. Merge7a5fe141
+  at15:42:32Z equals reviewed tree. Public source/readiness both7a, restored
+  13188 products; productionfrontendfc140024. Data warn, 3alerts retained.
+  Canonical ledger900 includes892fulfillment896; new901merge/902rollout899
+  fulfillment proposed on final receipt branch.860focus,333scheduledrenderer
+  and all independent playback/time/Gulf/device/isolation/datahealth stay open.
+
+- **2026-10-07 15:42Z: PR226 merged dev7a5fe141 (2026-10-07T15:42:32Z).**
+  Exact reviewedhead58922be1, source/ledgerprefix read back;
+  full merge tree equals58922be1; no numeric/science change.
+  Deployment source/health readback pending; no live860 repeat. Original
+  playback/time/Gulf/device/isolation/datahealth gates remain independently
+  open. Records after merged branch prefix remain local until receipt PR.
+  See own `log/2026-10-07-ecmwf-rollout.md` for actual checks/rollout progress.
 
 - **2026-10-07 15:26Z: PR226 pushed as a draft current-dev repair.**
   Actual local/remote/PR head35a093a5, original226 anddev68 ancestry retained
@@ -1389,7 +1407,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 900, sha256 168ea3ec346b974fb4aa6a0f8e70eedf5f8d2a362154ba7d7beb7733ec3e2e88**
+  **Ledger head: seq 904, sha256 da53f162bb646b1d66db80941c278b867831a5d0a6c4c6b19dbf1fb26bc08bd6**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
