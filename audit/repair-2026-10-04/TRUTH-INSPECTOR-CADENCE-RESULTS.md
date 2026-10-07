@@ -68,3 +68,18 @@ has stopped.
 ## 2026-10-06 23:35Z — concrete truth inspector cadence/lifecycle repair785–788
 
 Repeated red8fail5pass verifies unbounded idle and stale moveend defects. Mounted green17/17, final project CRACO373/373suites4079/4079tests0fail0pending. Buildexit0, lint1236files86errors917warnings inherited ratchetpass, LOC0new0regressed. One completed actual MapLibre/React offline pair125to9style snapshots; median16.7ms both, no FPS improvement claim; initial/reverse deadlines incomplete/excluded. No localtest/build overlapped the native pair. No original root-cause/Gulf/device/served-time acceptance. Forecast math, mask policy and guard thresholds unchanged; no served number change. 787 qualifies locally;786 awaits new hosted/approved dev merge/live readback,788prepares publication. Unowned canary hash unchanged/excluded. See TRUTH-INSPECTOR-CADENCE-RESULTS.md.
+
+## 2026-10-07 00:06Z — cadence merge and residual fallback
+
+791 qualified PR248 exact49db with own CI37547605295 all11/four supplementary successful, actual5943backend and373suites4079frontend.792 merged248 devb8cdb2bd;793 verified frontend/API served matching healthy and production frontendfc140024 frozen.794 fulfills786 qualification/readback: one clean bounded map check still tripped2..9FPS12windows, with15longtasks3068ms and48LoAF12211ms overlapping; no original cause attribution. Waves disabled/tab closed/postAPIhealthy. Separate mask preflight795 passes18new/133coastal regressions and changes empty-water10attempts10to0native canvases,62.5to0.5ms CPU; full gates/publication pending. No forecast number/science change. See MASK-PREFLIGHT-RESULTS.md. Repeated fallback remains open.
+
+## 2026-10-07 00:16 Z — timing scope correction800
+
+Correction to794 and earlier render/upload shorthand: the histogram covers
+renderHeatmapAndParticles engine draw calls. Six texture helper operations are
+counts only; direct mask-refresh uploads and outside encode/listener work are
+not collectively timed. Their cost cannot be excluded by0slow engine draw calls.
+No cause attribution. Next discriminant needs separate whole-map/custom-callback,
+mask prepare/paint/upload and data-encoding CPU scalars in the same low-FPS
+interval, retaining no URLs/payloads, and independent native controls. No GPU
+completion claim or budget relaxation. Current PR249 runtime76ad stays frozen.

@@ -716,8 +716,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
         // Consume the throttle ONLY when a paint actually happened (2026-07-04, "rectangle
         // holes"): a moveend attempt that the tile-readiness gate (or hysteresis) skipped used to
         // eat the window and starve the `idle` refresh that would have painted real truth —
-        // missing-tile rectangles then persisted until the next gesture. Skipped attempts are
-        // cheap (bounds math only), so leaving the window open costs nothing.
+        // missing-tile rectangles then persisted until the next gesture. Readiness, hysteresis
+        // and empty-feature exits precede canvas allocation; later paint/upload failures may cost work.
         if (engine.refreshMaskWithBasemapWater(gl, mapInstance)) {
           basemapMaskThrottleRef.current = now;
           mapInstance.triggerRepaint();

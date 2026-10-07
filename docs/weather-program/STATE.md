@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-06 23:37Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 00:06Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,20 +14,21 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-06 23:35Z: truth-inspector cadence/lifecycle repaired locally785/787.**
-  Owner784 requests real progress;776 already authorizes qualified beneficial dev merges.
-  Render throttled but idle unbounded: mounted red twice8fail5pass,60frame pairs
-  caused64 style snapshots;20moveend events21snapshots and stale callbacks. Shared
-  250ms render/idle budget plus final-idle check; coalesced/owned moveend cancellation.
-  New13 and existing grace4pass; full373suites4079tests, build/lint/LOCpass. One actual
-  offline MapLibre pair125to9 reads; two incomplete deadline captures excluded.
-  No original FPS-cause or physical/time/device acceptance.786 tracks own hosted
-  qualification, approved dev merge and bounded served observation.789 verifies788
-  actual32dd local/remote/draft PR248 OPEN/dev. Publication receipt continuation
-  changes no runtime/test/workflow; final head still needs its own hosted checks.
-  Runtime limited to hook, no forecast math/mask/guard/science switch change.
-  Dev1993cc39/APIhealthy; data-health warn inherited, production frontendfc140024.
-  Unowned canary preserved and excluded.
+- **2026-10-07 00:06Z: PR248 qualified/merged/live; residual fallback observed794.**
+  Owner776/784 authorizes qualified beneficial dev repairs.792 records dev squash
+  b8cdb2bd from exact49db source, own CI37547605295 all11 and four supplementary
+  success; actual5943backend,373suites4079frontend, estate0silent.793 reads dev
+  frontend/sharedAPI b8cdb2bd healthy, production frontendfc140024 frozen.
+  794 fulfills786 qualification/readback: clean bounded Chrome GFS Waves still
+  trips2..9FPS12windows.68nativecallbacks6texture-helper ops0slow engine drawcalls;
+  15longtasks3068ms and48LoAF12211ms overlapping. Outside paint/upload untimed800.
+  Waves disabled, owned tab closed, API healthy; no playback/time/Gulf/device proof.
+  Next mask preflight locally passes18new/133coastal tests; two valid red9fail9pass.
+  Actual native Canvas empty-water10attempts10to0allocations,62.5to0.5ms CPU.
+  No readiness/throttle/coast-policy/science change.797 local full374suites4097tests,
+  build/lint/LOC/secrets pass.799 verifies798 remote51d864 and draft PR249 OPEN/dev;
+  final receipt-only source continuation needs its own hosted gates under796.
+  Unowned canary preserved/excluded. See MASK-PREFLIGHT-RESULTS.md and current log.
 
 - **2026-10-06 23:13Z: owner-approved PR247 merged dev1993cc39, ledger778.**
   Exact ec34 source qualified: ownCI37543004057 all11 and four supplementary
@@ -1071,7 +1072,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 789, sha256 f9e0c925005adc0b07774eb433dc556eb7ae3acc3d32b06c13a7313f9fddb327**
+  **Ledger head: seq 801, sha256 ec8cbe07aa49eb506b908766d90a98b0f677b211f1ce7844239ef05eab944b4b**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

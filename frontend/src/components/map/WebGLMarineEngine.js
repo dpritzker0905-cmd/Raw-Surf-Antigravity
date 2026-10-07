@@ -27,7 +27,7 @@ import {
   withTextureState,
   encodeMarineTexture
 } from './WebGLMarineTextureEncoder';
-import { renderMaskToCanvas, overlayBasemapWaterOnMask, isBasemapWaterSourceReady, maskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
+import { renderMaskToCanvas, overlayBasemapWaterOnMask, prepareBasemapWaterOverlay, isBasemapWaterSourceReady, maskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
 
 import { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason }
   from './marineOverlayMode';
@@ -2480,8 +2480,10 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   // layer's `idle` listener re-drives this refresh once every covering tile is queryable.
   if (!isBasemapWaterSourceReady(mapInstance)) { this._lastMaskRepatchReason = 'source_not_ready'; return false; }
   try {
+    const water = prepareBasemapWaterOverlay(mapInstance);
+    if (!water) { this._lastMaskRepatchReason = 'overlay_not_applied'; return false; }
     const canvas = renderMaskToCanvas(geo, bounds);
-    const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance);
+    const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water);
     if (!applied) { this._lastMaskRepatchReason = 'overlay_not_applied'; return false; }
     // COAST SDF: re-write the signed dist-to-coast into .b on the PATCHED base coast (this re-upload
     // would otherwise revert .b to a redundant .r). Opt-in; byte-identical when off. Keeps the flag live.
@@ -2617,10 +2619,12 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
   // skip and let the `idle`-driven refresh land the paint when every covering tile is queryable.
   if (!isBasemapWaterSourceReady(mapInstance)) return false;
   try {
+    const water = prepareBasemapWaterOverlay(mapInstance);
+    if (!water) return false;
     // 2048 cap: an overlay spans ≤ ~1°, so 2048 px keeps ≤ ~3 m/texel at deep zoom while the
     // paint + texImage2D upload cost 4× less than the 4096 tier (8 MB vs 32 MB per refresh).
     const canvas = renderMaskToCanvas(geo, bounds, { maxWidth: 2048 });
-    const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance);
+    const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water);
     if (!applied) return false;
     // ── MASK NO-SHRINK (#11, the halo) ────────────────────────────────────────────────────────
     // Refuse a candidate mask that SHRINKS while failing to cover the viewport, when the incumbent

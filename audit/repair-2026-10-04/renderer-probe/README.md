@@ -44,3 +44,13 @@ cases, with 100 background layers and no live forecast requests. A 120-frame tar
 may include an already queued final frame; the report gives actual counts.
 Deadline failures are incomplete evidence, never passing measurements.
 See `../TRUTH-INSPECTOR-CADENCE-RESULTS.md` for the captured result and limits.
+
+## Empty-water mask allocation control
+
+From the repository root, run the pinned Node runtime with
+`audit/repair-2026-10-04/renderer-probe/serve-mask-cost.cjs`.
+Open the reported localhost URL and press **Run mask failure cost**.
+Run alone with builds/tests stopped. Actual engine/painter/native Canvas uses
+synthetic geometry/readiness, no live backend and no GPU upload. Ten not-ready
+and ready/empty-water attempts count allocations and CPU call time. See
+`../MASK-PREFLIGHT-RESULTS.md` for before/after evidence and limits.

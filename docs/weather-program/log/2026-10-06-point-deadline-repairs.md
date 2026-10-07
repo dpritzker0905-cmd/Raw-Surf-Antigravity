@@ -250,3 +250,7 @@ Repeated red8fail5pass verifies unbounded idle and stale moveend defects. Mounte
 ## 2026-10-06 23:37Z — cadence source publication789
 
 789 verifies788: local/remote/PR248 head32dd7e443aa920d1ea258e5575382d1f49166eb6, OPEN draft dev and attached. OwnCI37547474025 queued then running, not yet qualified. Receipt-only continuation does not change runtime/tests/workflows; final own head must pass under786. No merge/activation/live forecast load or original cause claim. Canary unchanged/excluded.
+
+## 2026-10-06 23:47Z — separate paid-mask failure experiment790
+
+Actual engine/painter and native Canvas with synthetic geometry/map readiness:10same-view not-ready attempts0canvas/0.5ms total/max0.3ms, allfalse source_not_ready. Ready/empty-water10attempts10canvases/62.5ms total/max12.8ms, allfalse overlay_not_applied and no regional patch. Full layer/GPU upload/live backend/physical weather excluded; no current mask behavior or served number change. Owned tab/server closed. Proven wasted paint path, no original live-fallback linkage. Next regression must prevent empty-feature paint while preserving prompt readiness recovery and coastal truth. Cadence PR248 source49db frozen, own hosted guards/chain pending.
