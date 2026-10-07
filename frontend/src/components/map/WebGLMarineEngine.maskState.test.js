@@ -3,6 +3,7 @@ import WebGLMarineEngine from './WebGLMarineEngine';
 jest.mock('./WebGLMarineMaskRenderer', () => ({
   renderMaskToCanvas: () => ({ width: 128, height: 64 }),
   overlayBasemapWaterOnMask: () => ({ applied: true }),
+  prepareBasemapWaterOverlay: () => ({ feats: [{}], usedSourceFallback: false }),
   isBasemapWaterSourceReady: () => true,
 }));
 jest.mock('./maskCoastSDF', () => ({ writeCoastDistanceField: () => false }));

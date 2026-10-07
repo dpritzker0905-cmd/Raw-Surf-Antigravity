@@ -135,8 +135,10 @@ export function reassertNeLand(canvas, neFull) {
   }
 }
 
-export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
-  if (!canvas || !mapInstance || typeof mapInstance.querySourceFeatures !== 'function') return false;
+// Resolve the existing finest-tile selection before allocating a refresh canvas. The packet is
+// owned by one synchronous paint attempt; never cache it across tile arrivals or map events.
+export function prepareBasemapWaterOverlay(mapInstance) {
+  if (!mapInstance || typeof mapInstance.querySourceFeatures !== 'function') return null;
   let waterSource = 'composite';
   let waterSourceLayer = 'water';
   try {
@@ -177,10 +179,18 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
     try {
       feats = mapInstance.querySourceFeatures(waterSource, { sourceLayer: waterSourceLayer });
     } catch (e) {
-      return false;
+      return null;
     }
   }
-  if (!feats || !feats.length) return false;
+  if (!feats || !feats.length) return null;
+  return { waterSource, feats, usedSourceFallback };
+}
+
+export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedWater) {
+  if (!canvas || !mapInstance || typeof mapInstance.querySourceFeatures !== 'function') return false;
+  const water = preparedWater || prepareBasemapWaterOverlay(mapInstance);
+  if (!water) return false;
+  const { waterSource, feats, usedSourceFallback } = water;
 
   // STRICT viewport in geographic coords — the truth patch region. NO pad (was 40%): both tile
   // queries above can only see tiles covering the CURRENT viewport, so a padded rect black-fills
