@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 04:22Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 14:15Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,116 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 14:15Z: PR255 stack resolved; new head qualification pending.**
+  886 preserves the exact merged ledger prefix and resolves only ACTIONS/STATE
+  conflict chunks. Application, tests and workflows remain identical to reviewed
+  77. Commitment 887 tracks final-head checks and dev deployment readback.
+  860 remains blocked on focused, stable browser access; 863 is fulfilled at the
+  qualified documentation scope recorded in 883. Broader acceptance stays open.
+
+- **2026-10-07 14:10Z:255merge refused on squash-stack memory conflicts; reconciliation.**
+  885: reviewed77all11gates qualified884, but after254squash3310 GitHub
+  DIRTY/CONFLICTING; onlyACTIONS/STATE collide.255notmerged/deployed.
+  Preserve canonical864prefix and ownappend-only records, no app/test/workflow
+  change. New final pushedhead requires its own checks before retry.
+  883qualified863closure and860focus blocker retained; no bypass/forcepush.
+
+- **2026-10-07 14:05Z:863 qualified receipt merge/readback fulfilled;25577readyqualified.**
+  883fulfills863 under881explicit local LOC/Encoding supplement adjustment;
+  own25411CI/Ledger/Lighthouse, docs merge3310, devfrontend3310/APIhealthy4fe
+  (backendappunchanged) read back; frozenproductionfrontendfc140024 preserved.
+  884own77CI37630822926 all11success:377/4177frontend,5957backend;
+  ownLOC/Ledger/Lighthouse pass, Encodingabsentbyfilter/identityproved.
+  255authorized devmerge and new deployedsource/health pending.860focus
+  blocker and broader acceptance remain open; no science/shareddata/main.
+  Records beyond mergedreceipt864 remain local until own receipt publication.
+
+- **2026-10-07 13:58Z: PR254 merged dev3310b6f5 (2026-10-07T13:56:28Z).**
+  Exact reviewedhead7762ae6e, source/ledgerprefix read back;
+  docs only and app/workflow identical4fe;881qualifies863supplement gates.
+  Deployment source/health readback pending; no live860 repeat. Original
+  playback/time/Gulf/device/isolation/datahealth gates remain independently
+  open. Records after merged branch prefix remain local until receipt PR.
+  See own `log/2026-10-07-ecmwf-rollout.md` for actual checks/rollout progress.
+
+- **2026-10-07 13:55Z: owner880 authorizes qualified254/255 dev merge/deployment.**
+  881explicitly qualifies863 docs-path skipped LOC/Encoding with actual
+  immutable254local controls:0LOCnew/regressed,1221encodingfiles0violations;
+  own11CI/Ledger/Lighthouse pass, no fake all-four-hosted claim.
+  2547762ready for qualified merge;25577 still awaits current two CI lanes.
+  Local action records remain unmerged; source/check heads frozen. No main,
+  serving/science/shared-data change.860focus blocker and remaining product
+  acceptance remain open; no live repeat during rollout.
+  See own `log/2026-10-07-ecmwf-rollout.md` for exact source/counts/progress.
+
+- **2026-10-07 13:42Z:860 owner-assisted preflight executed; focus prerequisite failed.**
+  878 reads C860PREFLIGHT3 at13:37:51Z:dev4fe94420,visibletrue,
+  focusedfalse,1280x631,zoom9,bounds recorded. No Waves activation,
+  stableobserver or new paint/gap sample. Helper later restored narrowwindow;
+  owned checktab closed, WavesOFF/DevToolsclosed; usertabs preserved.
+  Post APIhealthydev4fe,datawarn three missingcycles.860 open for safe
+  focus-preserving access; no forced repeat or cache-regression inference.
+  879 reads877receiptpush663ac016; source8a qualified875/872fulfilled.
+  New docs receipt fullSHA has separate hosted check status.255draft,
+  254unmerged7762/863open; no merge/deploy/science/shared-data action.
+  See own publication log and external live-stable-pass preflight receipt.
+
+- **2026-10-07 13:24Z: WI-03 PR255 source8a54cd90 hosted-qualified;872 fulfilled by875.**
+  Own CI37625462518 all11success: frontend377/4177; backend5957passes
+  (guards2425,chain2328,estate1204), exact projection. LOC/Ledger/Lighthouse
+  pass at8a; Encoding deliberately absent, unchangedfrontend identity proved.
+  Receipt-only amendment has a new fullSHA/check state; source/test/workflow
+  unchanged. PR255 stays draft; PR254 remains unmerged7762ae6e,863 open.
+  876: owner quiet/prepared860 tab; helper prompt-focus prerequisite pending,
+  WavesOFF and no new scene.860 stays open; earlier changed viewport retained.
+  Dev/API4fe94420 healthy; missing-cycle data warnings remain. No rollout,
+  science/shared-data changes or closure of broader acceptance gates.
+  See own `log/2026-10-07-ecmwf-publication.md`;877 prepares receipt push.
+
+- **2026-10-07 13:00Z: WI-03 repair published as attached draftPR255/dev.**
+  874 reads back local/remote/PR initiald9d507f8; own CI/LOC/Ledger/
+  Lighthouse queued at exact head. Same-branch receipt amendment follows;
+  own872 qualification remains pending, totals5957backend projected.
+  PR254 remains separate unmerged7762ae6e; proposed receipt prefix retained.
+  Dev4fe94420 unchanged; no merge/deploy or live repeat.860/863 remain open;
+  no cache repair reopened, forecast-value/flag/shared-data change.
+  See `log/2026-10-07-ecmwf-publication.md` for source and Jacobian limits.
+
+- **2026-10-07 12:57Z: WI-03 publication authorized; Jacobian control qualified locally.**
+  871:156real-decoder offline cells, physical sensitivities equal across4
+  provenance modes with max delta0; wave/wind/pressure analytic interior gains
+  pass. Existing0c89source104passes; chain2328/backend5957 still projected.
+  872tracks new-source own hosted qualification, not replacement860/863.
+  873prepares branch push/dev draft; source/receipt stack inherits unmerged
+  PR254head7762ae6e. Merged dev4fe94420 unchanged; no live repeat, merge,
+  deployment, shared-data or science flag action. See own publication log.
+
+- **2026-10-07 12:48Z: assisted860 receipt retained; viewport changed, acceptance open.**
+  868/869: owner quiet/access, one paused GFS Waves h0 scene; viewport540x241
+  to1280x631 atzoom9 prevents stationary clean-cache acceptance. 88overlay
+  refreshes/2water paints330.8ms;1061fresh callbacks, gaps17median/113p95/
+  227max ms,0fallback edges. Nested CPU phases not summed; GPU completion
+  unmeasured. Owner WavesOFF/tabclosed; post APIhealthy/dev4fe94420,
+  datawarn missing ICONmarine/EUROmarine/EUROwind cycles. No repeat scene.
+  PR253 repairs stay closed;860 remains open for stable viewport;863 remains
+  partial with draftPR254head7762ae6e (12:37Z readback). Local0c89 ECMWF
+  candidate remains unpublished; proposed receipt/local ledger records are
+  unmerged. Playback/time/Gulf/device/staging/data-health gates remain open.
+  See `log/2026-10-07-c860-assisted-live.md` for limits and handoff pointers.
+
+- **2026-10-07 11:57Z: WI-03 partial ECMWF cycle candidate local-qualified; unpublished.**
+  Owner865 authorizes repairs;866 reproduces false-known metadata with10 RED
+  failures. Complete selected-message analysis metadata is now required;
+  final104 offline controls pass, including unchanged wave values/times/counts.
+  Eleven new chain controls project2328/floor2322; own hosted remains pending.
+  Branch `codex/ecmwf-cycle-provenance` is stacked on unmerged receipt PR254
+  head7762ae6e; merged dev still4fe94420. No live forecast number, deployment,
+  shared-data or scientific flag change. Estimated-tail cycle warnings remain.
+  Cache repairs stay closed at documented scope. Existing860 is still blocked
+  on focused/viewport/diagnostic browser access;863 remains separately open.
+  Playback/scrub, served-time, Gulf/device and isolated staging acceptance stay
+  open. See `log/2026-10-07-ecmwf-cycle-provenance.md` for bounded evidence.
 
 - **2026-10-07 04:22Z: PR253 three-cache repairs qualified, merged and served dev4fe94420.**
   857 own d417 CI37569367813 all11/four success;377/4177 frontend and5946
@@ -1212,7 +1322,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 864, sha256 b864b6eb483c4b9eee6e66292a73e29284b66f20de4fe69c1e91df27faa8473a**
+  **Ledger head: seq 887, sha256 ae3dc1526cc909d53664774addd56b6c68a756c3287b23183a6b09ff59db690f**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
