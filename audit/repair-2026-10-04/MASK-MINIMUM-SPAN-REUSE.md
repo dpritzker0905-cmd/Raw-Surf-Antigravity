@@ -160,3 +160,4 @@ Data-health readback at2026-10-07T04:22:57Z remains warn (862), while the
 API availability/version is healthy and exact (859). Warning causes and
 scientific/live acceptance are not closed by this deployment receipt.
 
+Receipt branch publication, own hosted qualification and dev merge remain owed by863.
