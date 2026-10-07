@@ -1,5 +1,16 @@
 # Audit repair progress — 2026-10-04
 
+Current 2026-10-07 04:22Z: PR253 three-cache repairs are qualified, merged and
+served dev4fe94420; fresh healthy API/frontend match exact squash, production
+frontendfc140024 unchanged. Own final d417 CI37569367813 all11/four success:
+377suites/4177 frontend,5946 backend passes,67 guard skips,estate0silent.
+Native16legs64MiB exact final pixels, repeated synthetic paints3to1. No live
+smoothness/Gulf accuracy acceptance; commitment860 covers the later bounded
+paused check with actual viewport/zoom, clean paints, callback gaps and fallback.
+851 fulfilled859. No forecast number/science activation/second live scene;
+playback/scrub, Gulf amplitude, served-time, devices and staging remain open.
+Older entries below retain their original evidence and qualification limits.
+
 Current 2026-10-07 03:56Z: PR253 now covers THREE reproduced cache defects:
 minimum-span reuse, inconsistent pristine-cache contexts, and obsolete12 stale
 clearing inside the active8-to12 regional zone. Final local377/4177, lint/LOC/

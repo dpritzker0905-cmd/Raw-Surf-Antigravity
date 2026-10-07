@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 03:56Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 04:22Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,17 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 04:22Z: PR253 three-cache repairs qualified, merged and served dev4fe94420.**
+  857 own d417 CI37569367813 all11/four success;377/4177 frontend and5946
+  backend passes,67 guard skips,estate298selected296results0silent. 858
+  squash253; 859 fulfills851 via fresh matching healthy API/dev frontend.
+  Native85516legs64MiB exact pixels; repeated floor/regional paints3to1 in
+  synthetic controls. No liveFPS/smoothness acceptance; 860 tracks later
+  bounded paused receipt with real viewport/zoom and clean-paint/gap/fallback
+  measurements. Production frontendfc140024 frozen; no served forecast number
+  or science activation, second live scene, Play/scrub or stress/judge dispatch.
+  Original playback/Gulf/time/device/staging gates open; canary untouched.
 
 - **2026-10-07 03:56Z: final three-cache PR253 amendment local-qualified; hosted pending851.**
   853/854 prove active8-to12 regional overlays reset at obsolete12clear;
@@ -1199,7 +1210,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 855, sha256 3c8d484c61e3961cd95e7f801140705a31efeb9e03b7d19114f9a325f2faef5b**
+  **Ledger head: seq 863, sha256 02343ee8181a0caed9a4d1b3521e7d532c406cc25de68c26148b82035582250d**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

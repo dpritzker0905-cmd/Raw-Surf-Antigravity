@@ -238,3 +238,37 @@ floor4177 replaces its4171 baseline. New head must pass its own full hosted
 checks/counts before dev merge and matching served readback. No served forecast
 number/science activation/production frontend change. Original live smoothness,
 viewport span, playback/Gulf/time/device/staging gates remain open.
+
+## 2026-10-07 04:22Z - final source qualified, merged and served on dev
+
+857 qualifies exact d4176381 on own CI37569367813: all11 jobs and four
+supplementary workflows succeed. Actual377 suites/4177 frontend tests and5946
+backend passes (2425 guards,2317 chain,1204 estate);67 declared guard skips,
+0 failures/errors,estate298selected296results0silent. These receipts qualify
+the final active-zone amendment; earlierff124 evidence remains historical.
+858 records PR253 squash 4fe944205a5716aa3114dfa47a79e1ee32e69cc6 at 2026-10-07T04:17:54Z.
+859 fulfills851: fresh 2026-10-07T04:21:55.0649154Z healthy shared API and dev frontend match
+the exact squash; production frontendfc140024 unchanged. Final native855 has
+16legs/64MiB compared/zero differing bytes. Repeated floor and regional paints
+fall3to1 in synthetic controls; this does not establish live smoothness.
+
+Three fixes are deployed: minimum-span reuse guarded by truth/coverage/zoom/
+combine mode; consistent pristine-cache Canvas context; and clearing regional
+overlays below their active8gate rather than obsolete12. Both new client kill
+switches and the existing pristine-cache disable remain available. No served
+forecast number or scientific-serving flag changed; no SCOREBOARD row needed.
+One-CPU shared backend received only lightweight health reads after merge.
+No second live scene, Play/scrub, judge or stress dispatch. Owned tabs/servers
+remain closed and other chat canary unchanged/excluded.
+
+860 records the later bounded paused live acceptance: first verify exact
+served version and healthy API after the deployment quiet period; capture real
+viewport/zoom, clean-paint counts/cost, callback gaps, visibility and fallback;
+then disable Waves, close the owned tab and read back health. No claim yet for
+FPS, playback/scrub, Gulf amplitude, exact served time, real devices or isolated
+staging publication. The original audit register and prior failures stay open.
+
+Data-health readback at2026-10-07T04:22:57Z remains warn (862), while the
+API availability/version is healthy and exact (859). Warning causes and
+scientific/live acceptance are not closed by this deployment receipt.
+
