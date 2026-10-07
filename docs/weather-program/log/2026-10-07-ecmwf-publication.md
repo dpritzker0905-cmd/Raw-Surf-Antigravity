@@ -82,3 +82,28 @@ and workflow remain unchanged. No merge/deploy/forecast-number/shared-data/
 scientific flag change. Do not reopen the three qualified253 repairs without
 current product-path evidence. Next bounded live work remains860 after actual
 focus/build/bounds preflight readback; do not force when access fails.
+
+## 2026-10-07 13:42Z —860 preflight read back; stopped before activation
+
+878 resolves876pending owner input: owner says done, C860PREFLIGHT3 actually
+emitted13:37:51.167Z with build4fe94420,visibletrue,focusedfalse,1280x631,
+zoom9,bounds[[-81.35627714843768,27.95064761636432],[-79.87312285156274,28.713383717539813]].
+This fails focused-scene prerequisite; no Waves activation, stableobserver,
+Play/scrub/stress/additionalscene or new paint/CPU/gap/fallback measurement.
+Helper later restored540x363 window while closing DevTools, further preventing
+controlled viewport. Do not infer product regression or accept playback.
+
+DevTools closed; UI GFSnone/RasterOFF confirms WavesOFF. Only designatedtab
+closed; fresh windowinventory13:40:11Z excludesRawSurf and preserves user
+Chrome windows. Posthealth2026-10-07T13:42:51Z: APIhealthydev4fe94420; datawarn missing
+ICONmarine/EUROmarine/EUROwind cycles. Previous changedviewport receipt retained.
+Next860action: obtain focus-preserving read-only diagnostic access before
+another bounded scene; no forced retry when prerequisites fail.
+
+879 records owned memory update and877publication readback:13:29:24Z local/
+remote/PR255clean663ac016 draftdev, PR description matches actual qualified
+counts; source/tests/workflows equal875qualified8a. At13:40:47Z new own
+CI37628678011 has10successfuljobs/compositionguardsrunning, no currentfailure.
+New docs-only receipt has another fullSHA/check state; no inherited fullSHA
+green claim.872fulfilled at source scope;860/863 open;254unmerged7762/dev4fe
+unchanged. No new application fix, merge/deploy/shareddata/scienceflag change.
