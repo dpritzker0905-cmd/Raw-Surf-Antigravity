@@ -24,6 +24,8 @@ is a claim, not a measurement.
   measurements. Production frontendfc140024 frozen; no served forecast number
   or science activation, second live scene, Play/scrub or stress/judge dispatch.
   Original playback/Gulf/time/device/staging gates open; canary untouched.
+  Receipt PR254 OPEN draftdev/attached (864), six docs only; own hosted and
+  conditional dev merge pending863. Later bounded live acceptance pending860.
 
 - **2026-10-07 03:56Z: final three-cache PR253 amendment local-qualified; hosted pending851.**
   853/854 prove active8-to12 regional overlays reset at obsolete12clear;
@@ -1210,7 +1212,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 863, sha256 02343ee8181a0caed9a4d1b3521e7d532c406cc25de68c26148b82035582250d**
+  **Ledger head: seq 864, sha256 b864b6eb483c4b9eee6e66292a73e29284b66f20de4fe69c1e91df27faa8473a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

@@ -161,3 +161,15 @@ API availability/version is healthy and exact (859). Warning causes and
 scientific/live acceptance are not closed by this deployment receipt.
 
 Receipt branch publication, own hosted qualification and dev merge remain owed by863.
+
+## 2026-10-07 04:25Z - rollout receipts published for independent checks
+
+864 records PR254 OPEN draftdev/attached, initial00c03201 local/remote/PR
+source exact and six documentation files only. This publication append will
+advance its head; the final head must qualify its own hosted checks under863.
+Local ledger verification and canonical memory audit pass0FAIL/9historicalWARN;
+secret scanning and whitespace gates pass. No app/workflow delta, canary staged
+or forecast request. PR253 remains qualified/served4fe94420 via859; data-health
+warn remains862. Next bounded live acceptance860 is separate from receipt
+qualification863; neither is represented as fulfilled. Production frontend
+fc140024 remains frozen; original playback/Gulf/time/device/staging gates open.

@@ -7,6 +7,7 @@ frontendfc140024 unchanged. Own final d417 CI37569367813 all11/four success:
 Native16legs64MiB exact final pixels, repeated synthetic paints3to1. No live
 smoothness/Gulf accuracy acceptance; commitment860 covers the later bounded
 paused check with actual viewport/zoom, clean paints, callback gaps and fallback.
+Rollout receipts PR254 draftdev, own hosted qualification pending863.
 851 fulfilled859. No forecast number/science activation/second live scene;
 playback/scrub, Gulf amplitude, served-time, devices and staging remain open.
 Older entries below retain their original evidence and qualification limits.
