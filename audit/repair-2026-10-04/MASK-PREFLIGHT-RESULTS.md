@@ -45,7 +45,8 @@ effect; timings are single controlled samples, not an app FPS benchmark.
 The preceding cadence repair PR248 is served on dev b8cdb2bd. Its clean bounded
 Chrome GFS Waves check at 2026-10-07 00:00:59Z still triggered fallback after
 12 low-FPS windows (2–9 FPS; 12,878 ms). The receipt reports 68 native callbacks,
-six uploads and zero slow instrumented render/upload CPU calls. Fifteen long
+six counted texture-helper operations and zero slow instrumented engine draw calls.
+Mask refresh and other uploads outside that timer remain untimed. Fifteen long
 tasks occupied 3,068 ms; 48 long animation frames spanned 12,211 ms with 2,501 ms
 blocking duration. These metrics overlap and are not additive. GPU completion is
 unmeasured. This is evidence of residual main-thread work, not attribution to the
@@ -65,3 +66,14 @@ initial build could not write the dependency-junction ESLint cache. Permissioned
 reruns completed with all checks enabled; neither failure is counted as passing.
 Frontend CI floors rise to374/4097; backend source and floors are unchanged.
 Exact-head hosted qualification and served readback remain under commitment796.
+
+## 2026-10-07 00:16 Z — timing scope correction800
+
+Correction to794 and earlier render/upload shorthand: the histogram covers
+renderHeatmapAndParticles engine draw calls. Six texture helper operations are
+counts only; direct mask-refresh uploads and outside encode/listener work are
+not collectively timed. Their cost cannot be excluded by0slow engine draw calls.
+No cause attribution. Next discriminant needs separate whole-map/custom-callback,
+mask prepare/paint/upload and data-encoding CPU scalars in the same low-FPS
+interval, retaining no URLs/payloads, and independent native controls. No GPU
+completion claim or budget relaxation. Current PR249 runtime76ad stays frozen.

@@ -20,8 +20,8 @@ is a claim, not a measurement.
   success; actual5943backend,373suites4079frontend, estate0silent.793 reads dev
   frontend/sharedAPI b8cdb2bd healthy, production frontendfc140024 frozen.
   794 fulfills786 qualification/readback: clean bounded Chrome GFS Waves still
-  trips2..9FPS12windows.68nativecallbacks6uploads0slow instrumentedCPUcalls;
-  15longtasks3068ms and48LoAF12211ms overlapping. Main-thread gaps not attributed.
+  trips2..9FPS12windows.68nativecallbacks6texture-helper ops0slow engine drawcalls;
+  15longtasks3068ms and48LoAF12211ms overlapping. Outside paint/upload untimed800.
   Waves disabled, owned tab closed, API healthy; no playback/time/Gulf/device proof.
   Next mask preflight locally passes18new/133coastal tests; two valid red9fail9pass.
   Actual native Canvas empty-water10attempts10to0allocations,62.5to0.5ms CPU.
@@ -1072,7 +1072,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 799, sha256 b1f24b6791c2f688f2a2dcd1f995ff397b310933e24d15f89e8ccd264b9dfeac**
+  **Ledger head: seq 801, sha256 ec8cbe07aa49eb506b908766d90a98b0f677b211f1ce7844239ef05eab944b4b**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

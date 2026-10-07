@@ -37,3 +37,14 @@ checks enabled passed.796 tracks own final hosted/dev readback. No live FPS clai
 draftOPEN/dev and attached. Receipt-only continuation leaves runtime/tests/workflows
 identical to qualified source.796 still awaits its own final hosted gates and
 approved dev merge/readback; no borrowed counts or live improvement claim.
+
+## 2026-10-07 00:16 Z — timing scope correction800
+
+Correction to794 and earlier render/upload shorthand: the histogram covers
+renderHeatmapAndParticles engine draw calls. Six texture helper operations are
+counts only; direct mask-refresh uploads and outside encode/listener work are
+not collectively timed. Their cost cannot be excluded by0slow engine draw calls.
+No cause attribution. Next discriminant needs separate whole-map/custom-callback,
+mask prepare/paint/upload and data-encoding CPU scalars in the same low-FPS
+interval, retaining no URLs/payloads, and independent native controls. No GPU
+completion claim or budget relaxation. Current PR249 runtime76ad stays frozen.
