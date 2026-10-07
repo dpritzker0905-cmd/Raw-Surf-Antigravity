@@ -1,5 +1,25 @@
 # Audit repair progress — 2026-10-04
 
+Current 2026-10-07 01:59Z: PR250 dev26a1cc8b qualified/served and one live
+paused receipt captured825, fulfilling813. Fallback persists at1FPS;18whole
+callbacks95.6ms but22water-mask paints4038.3ms in17.987s, all callbacks visible
+focused. Nested totals overlap; this identifies expensive repeated painting,
+not its sole cause or GPU completion. Waves off/tabclosed; post API healthy,
+datahealthwarn. Gallery repair remains local pending824 hosted qualification.
+[CPU phase report](CPU-PHASE-DIAGNOSIS.md). Original acceptance gates stay open.
+
+Current 2026-10-07 01:56Z: PR250 whole-callback/mask CPU diagnostics merged
+and served dev26a1cc8b. Own77e6 CI37557753240 all11/four green, actual5943backend,
+376frontend suites/4128tests, estate0silent; final local build/lint/LOC/native
+controls passed. No live smoothness or cause acceptance: reconnected Edge needs
+beta access before the bounded paused receipt813. Production frontendfc140024
+frozen. Gallery missing-import repair has valid offline2pass1fail before/3pass
+after; fatal backend lint4to0 and now blocking.39 isolated floor/scheduler
+controls pass, full hosted acceptance pending824. [CPU report](CPU-PHASE-DIAGNOSIS.md),
+[gallery evidence](GALLERY-GRACE-RESULTS.md). Original playback, exact served time,
+Gulf amplitude, real devices and actual staging publication stay open. Older
+entries below retain their dated state.
+
 Current 2026-10-07 00:48Z: PR248 cadence and PR249 mask preflight are merged
 and deployed to dev de1bd561; frontend bundle and shared API match the squash.
 PR249 exact9ee own CI37551277208 all11 and four supplementary workflows pass:
