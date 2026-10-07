@@ -91,3 +91,17 @@ actual event and verdict wrappers. Expected categories: water/clean, other
 source/source fallback, water/rendered damage. The displayed report checks
 interval isolation and return identity. Native clocks do not establish live
 paint cost, geometry correctness or smoothness. See MASK-REPAINT-ATTRIBUTION.md.
+
+## Minimum-span clean cache control
+
+Run the pinned Node runtime on `serve-mask-cost.cjs --minimum-span` from the
+repository root and open its loopback URL. The actual engine/painter and native
+Canvas run three same-view attempts for each combine mode. The rollback switch
+reproduces the prior policy (three paints); repaired reuse should paint once.
+Repeat with pristine-canvas caching enabled/disabled. Compare every first and
+final RGBA byte and require both land and water in the fixture. This exposed
+native drift from inconsistent cache context options, now corrected.
+The map and GL are synthetic; this proves cache/pixel parity, not GPU completion,
+real geography, forecast accuracy or smoothness. CSP blocks network connections.
+Keep builds/tests stopped during observation; close the owned tab and stop the
+server afterward. Generated bundles live in ignored `visual/`.

@@ -1,9 +1,10 @@
 const fs = require('fs'), path = require('path'), http = require('http');
 const req = require('module').createRequire(path.resolve('frontend/package.json'));
 const webpack = req('webpack');
-const output = path.join(__dirname, 'mask-cost-bundle');
+const minimumSpan = process.argv.includes('--minimum-span');
+const output = path.join(__dirname, minimumSpan ? '../visual/minimum-span-bundle' : 'mask-cost-bundle');
 const compiler = webpack({ mode: 'development', devtool: false,
-  entry: path.join(__dirname, 'mask-cost-entry.js'), output: { path: output, filename: 'probe.js' },
+  entry: path.join(__dirname, minimumSpan ? 'minimum-span-entry.js' : 'mask-cost-entry.js'), output: { path: output, filename: 'probe.js' },
   resolve: { modules: [path.resolve('frontend/node_modules'), 'node_modules'] },
   module: { rules: [{ test: /\.jsx?$/, exclude: /node_modules/, use: { loader: req.resolve('babel-loader'),
     options: { babelrc: false, configFile: false, presets: [req.resolve('@babel/preset-env'),
@@ -19,7 +20,9 @@ compiler.run((error, stats) => {
         response.setHeader('Content-Type', 'application/javascript'); response.end(fs.readFileSync(path.join(output, 'probe.js')));
       } else if (request.url === '/') {
         response.setHeader('Content-Type', 'text/html');
-        response.end('<!doctype html><meta charset="utf-8"><title>Offline failed mask cost</title><h1>Mask refresh false-return control</h1><p>Actual engine/painter, native Canvas, synthetic geometry and map readiness. No GPU upload or live backend. Ten same-view attempts each for not-ready and ready/empty-water controls.</p><button id="run">Run mask failure cost</button><pre id="report">Ready</pre><script src="/probe.js"></script>');
+        response.end(minimumSpan
+          ? '<!doctype html><meta charset="utf-8"><title>Offline minimum-span mask reuse</title><h1>Clean mask reuse control</h1><p>Actual engine/painter and native Canvas, synthetic map and GL. Three same-view attempts per combine mode with rollback enabled versus repaired cache. Compare every final RGBA byte; no live backend, physical forecast or GPU completion claim.</p><button id="run">Run minimum-span control</button><pre id="report">Ready</pre><script src="/probe.js"></script>'
+          : '<!doctype html><meta charset="utf-8"><title>Offline failed mask cost</title><h1>Mask refresh false-return control</h1><p>Actual engine/painter, native Canvas, synthetic geometry and map readiness. No GPU upload or live backend. Ten same-view attempts each for not-ready and ready/empty-water controls.</p><button id="run">Run mask failure cost</button><pre id="report">Ready</pre><script src="/probe.js"></script>');
       } else { response.statusCode = 404; response.end('Not found'); }
     });
     server.listen(0, '127.0.0.1', () => console.log('Offline mask probe: http://127.0.0.1:' + server.address().port));

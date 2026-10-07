@@ -2542,12 +2542,8 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
   if (!geo || !gl || !mapInstance) return false;
   let z;
   try { z = mapInstance.getZoom(); } catch (e) { return false; }
-  // z≥4.4 (was 7, was 9 — 2026-07-07, the z5 "halo keeps trying to heal + heatmap on islands"):
-  // "below z7 coarse texels read acceptably" was WRONG — world-mask texels stay visibly wide
-  // (>1.3 screen px) down to z≈4.4, and the world-GRID regime (span≥30, where this overlay is
-  // the ONLY crisp truth) lives mostly below z7. The paint is a fixed screen-resolution canvas,
-  // so cost does not grow with span; at z<4.4 the texels go sub-pixel and the base mask reads
-  // fine, so the gate self-limits.
+  // z≥4.4: world-mask texels stay visibly wide below z7, where this is the only crisp truth.
+  // The fixed-resolution canvas does not grow with span; below z4.4 the base reads sub-pixel.
   if (z < 4.4) return false;
   let bounds;
   let view = null;
@@ -2581,22 +2577,22 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
       const cy = (bounds.north + bounds.south) / 2;
       bounds.south = Math.max(-85, cy - MIN_SPAN / 2); bounds.north = Math.min(85, cy + MIN_SPAN / 2);
     }
-    // HYSTERESIS (the stair-climb fix): if the previous paint's TRUTH box (the strict viewport it
-    // actually repainted from tile truth — NOT the padded texture bounds, whose ring is only NE
-    // base truth) still CONTAINS the current viewport AND its resolution is still adequate (span
-    // not more than ~5× the viewport — i.e. the user hasn't zoomed far past its texel density),
-    // skip the repaint entirely. Zoom-ins inside the truth box cost NOTHING; escaping it repaints
-    // once (throttled at the layer, tile-gated below).
+    // HYSTERESIS: reuse covering queried truth within 5× the view. Minimum-span reuse also
+    // needs stable zoom: identical bounds add no density, but settled zooms bring finer tiles.
+    // Combine-mode changes rebuild; the padded ring remains NE, not queried tile truth.
+    const spanReuseOff = typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_MINIMUM_SPAN_REUSE__ === true;
     const prev = this._overlayMaskBounds;
     const prevTruth = this._overlayMaskTruthBox;
     // A DEGRADED previous paint (parent-vulnerable fallback) never earns the skip — this is the
-    // El Salvador grey-rectangle self-heal (2026-07-06): a bad box on a WIDE-grid residency
-    // REPLACES the base mask at every zoom and used to persist until the 5× resolution rule
-    // finally escaped (the user had to zoom extremely close). Now the next refresh repaints it.
+    // Grey-rectangle self-heal: a bad box on a WIDE-grid residency
+    // REPLACES the base at every zoom; a later attempt must retry with finest tile truth.
     if (prev && prevTruth && this._overlayMaskTex && !this._overlayPaintDegraded &&
+        (spanReuseOff || this._overlayMaskBasinScale === !!basinScale) &&
         prevTruth.west <= view.west && prevTruth.east >= view.east &&
         prevTruth.south <= view.south && prevTruth.north >= view.north &&
-        (prev.east - prev.west) <= Math.max(viewSpan, 0.001) * 5) {
+        ((prev.east - prev.west) <= Math.max(viewSpan, 0.001) * 5 ||
+          (!spanReuseOff && Math.abs(z - this._overlayMaskPaintZoom) < 0.75 &&
+            (prev.east - prev.west) <= bounds.east - bounds.west))) {
       // #11 FORENSICS (read-only, 2026-08-01): the no-shrink guard below never fires in production
       // (proven INERT by kill-switch A/B, `50c74e33`). Its precondition is a COVERING incumbent —
       // and THIS skip also requires the previous box to contain the viewport. Since the padded
@@ -2691,6 +2687,8 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
     }));
     this._overlayMaskTexDims = { w: canvas.width, h: canvas.height }; // probe follows uploaded size
     this._overlayMaskBounds = bounds;
+    this._overlayMaskBasinScale = !!basinScale;
+    this._overlayMaskPaintZoom = z;
     // The region the painter truth-painted from tiles = the strict viewport at paint time; the
     // canvas ring outside it holds NE base truth (sane but coarser). Hysteresis keys on this box.
     this._overlayMaskTruthBox = view;

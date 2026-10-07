@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 02:38Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 03:30Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,45 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 03:30Z: combined mask reuse/parity locally qualified, hosted pending851.**
+  850 final377/4171frontend, lint/LOC/build pass; engine3207to3205.849 native
+  8cases32MiB exact final/first/repeated parity,3legacy paints versus1repair.
+  Candidate preserves truth/healing/readiness, stable zoom and combine mode;
+  pristine cache gets matching read-oriented context.851 requires own hosted
+  all11/four/actual5946backend and377/4171, then qualified dev merge and fresh
+  matching served readback. Dev1a89ed0a; production frontendfc140024 frozen.
+  No second live scene/forecast number/science activation; original gates open.
+
+- **2026-10-07 03:27Z: minimum-span/pristine-context repair local, not served.**
+  847 RED2stationary failures proves minimum-span cache contradiction;16new
+  controls cover healing, pan/resolution, combine mode, settled zoom and kill.
+  848 native parity failed,849 isolated pristine-cache context mismatch.
+  Matching read-oriented context removed first/repeated/final drift in8native
+  legs,32MiB final comparisons;3paints reduced to1 in synthetic controls.
+  Combined full/lint/build and own hosted remain pending; no liveFPS acceptance.
+  PR252 remains served1a89ed0a, production frontendfc140024 frozen. No second
+  live scene/forecast number/science activation. Canary untouched/excluded.
+
+- **2026-10-07 03:08Z: PR252 served1a89ed0a; clean-cache gap now open.**
+  846 fulfills841: own hosted377/4155frontend,5946backend; matching healthy
+  API/frontend. Paused visible/focused Chrome receipt:19clean paints2433.2ms,
+  15callbacks99.3ms;7idle/8other-source refreshes,0fallback/damage/water-source.
+  Degraded-retry hypothesis falsified for this scene. Inspect clean-cache
+  eligibility offline; live viewport span not captured, no sole-cause claim.
+  Waves off/tabclosed, post APIhealthy/datawarn. Production frontendfc140024
+  frozen; playback/Gulf/time/device/staging gates open; no forecast number or
+  scientific-serving flag changed. Earlier entries are historical.
+
+- **2026-10-07 02:57Z: PR252 qualified/merged1a89ed0a; rollout/live pending841.**
+  843 own13fbab10 CI37563127950 all11/four supplementary success; actual5946
+  backend2425/2317/1204,estate298selected296results0silent;377/4155frontend.
+  844 GitHub merge02:57:31Z1a89ed0a/fetched dev exact.02:57:55Z frontend/API
+  stillbf72healthy; matching served readback pending.842 owner restored Chrome
+  sign-in; map unopened pending matching rollout. No source filter/cache or
+  healing policy change. One bounded paused receipt will distinguish event
+  and paint-verdict paths; no FPS/cause acceptance yet. Production frontend
+  fc140024 frozen, no forecast number/science flag change; canary excluded.
 
 - **2026-10-07 02:38Z: mask repaint attribution candidate, not deployed.**
   836/837 distinguish triggering event and actual paint verdict in23fixed CPU
@@ -1151,7 +1190,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 839, sha256 0057c9e735633deca875713d60c72560d3a6539282f3d0ff4337a7f5019becbc**
+  **Ledger head: seq 851, sha256 bb7217829b6598797c835840ebd9603755e2716ee8f5ed30d20a749db6507eac**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

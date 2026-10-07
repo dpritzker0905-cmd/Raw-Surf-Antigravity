@@ -1,5 +1,26 @@
 # Audit repair progress — 2026-10-04
 
+Current 2026-10-07 03:30Z: clean minimum-span mask reuse and pristine-context
+parity repair are locally qualified, awaiting own-source dev PR qualification.
+850 combined377suites/4171tests, lint/LOC/build pass;849 native8cases32MiB exact
+pixel parity,3legacy paints versus1repaired. Two real engine REDs established
+stationary cache and settled-zoom guards; a native parity failure was isolated
+to inconsistent pristine-cache context options and corrected.851 tracks hosted
+checks, qualified dev merge and matching served readback. Dev currently1a89ed0a;
+production frontendfc140024 frozen. No live smoothness or original acceptance
+gate closed, no second forecast scene/science activation. Older notes below are
+historical and retain their original qualification limits.
+
+Current 2026-10-07 03:08Z: PR252 qualified and served dev1a89ed0a. Own
+CI37563127950: all11 lanes and four supplementary checks pass;5946backend,
+377frontend suites/4155tests. One paused Chrome receipt846 caught19CLEAN
+water paints2433.2ms, versus15wave callbacks99.3ms. Degraded/source-fallback
+retries were absent; next inspect clean-mask cache eligibility. Waves off,
+owned tab closed; post APIhealthy exact1a89ed0a/datawarn. No FPS/smoothness
+repair accepted yet; production frontendfc140024 frozen, no science activation.
+Playback/Gulf/time/device/staging gates remain open. Earlier evidence below
+is historical and does not override this receipt.
+
 Current 2026-10-07 02:21Z: PR250 renderer diagnostics and PR251 gallery grace
 repair are qualified, merged and served on dev bf72c8db. Ledger832 fulfills824:
 frontend BUILD_VERSION and healthy shared API match the exact squash;

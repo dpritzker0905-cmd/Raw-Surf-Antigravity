@@ -772,7 +772,7 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
     try {
       const keep = document.createElement('canvas');
       keep.width = canvas.width; keep.height = canvas.height;
-      keep.getContext('2d').drawImage(canvas, 0, 0);
+      keep.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0);
       _maskCanvasCache.delete(cacheKey);
       _maskCanvasCache.set(cacheKey, keep);
       while (_maskCanvasCache.size > MASK_CANVAS_CACHE_MAX) {
