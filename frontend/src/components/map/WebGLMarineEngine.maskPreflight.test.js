@@ -69,7 +69,12 @@ beforeEach(() => {
     tag === 'canvas' ? new Canvas() : originalElement(tag, ...args));
   window.__RAW_DISABLE_SHELTERED_WATER__ = true;
 });
-afterEach(() => { jest.restoreAllMocks(); delete window.__RAW_DISABLE_SHELTERED_WATER__; });
+afterEach(() => {
+  jest.restoreAllMocks(); delete window.__RAW_DISABLE_SHELTERED_WATER__;
+  delete window.__RAW_DISABLE_MASK_MINIMUM_SPAN_REUSE__;
+  delete window.__RAW_DISABLE_ACTIVE_OVERLAY_RETENTION__;
+  delete window.__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__;
+});
 
 test.each(methods)('%s: repeated empty-water attempts allocate no mask canvas', kind => {
   const f = fixture(kind);
@@ -115,4 +120,138 @@ test.each(methods)('%s: failed feature queries cannot trigger canvas allocation'
   expect(f.refresh()).toBe(false);
   expect(renderMaskToCanvas).not.toHaveBeenCalled();
   expect(f.gl.texImage2D).not.toHaveBeenCalled();
+});
+
+// Exercise the real painter/engine at a stationary close view, below the overlay span floor.
+// A minimum-width texture cannot become denser by repainting the same minimum-width bounds.
+test.each(['overlay', 'wide'])('%s: clean minimum-span mask survives repeated stationary refreshes', kind => {
+  const f = fixture(kind); f.addWater();
+  const size = kind === 'wide' ? 0.05 : 0.005;
+  f.map.getBounds = () => ({ getWest: () => 1, getEast: () => 1 + size,
+    getSouth: () => 1, getNorth: () => 1 + size });
+  expect(f.refresh()).toBe(true);
+  expect(f.engine._overlayPaintDegraded).toBe(false);
+  const texture = f.engine._overlayMaskTex;
+  const paintedPixels = f.gl.texImage2D.mock.calls[0][5].px.slice();
+  for (let i = 0; i < 10; i++) expect(f.refresh()).toBe(false);
+  expect(renderMaskToCanvas).toHaveBeenCalledTimes(1);
+  expect(f.map.queryRenderedFeatures).toHaveBeenCalledTimes(1);
+  expect(f.gl.texImage2D).toHaveBeenCalledTimes(1);
+  expect(f.engine._overlayMaskTex).toBe(texture);
+  expect(f.gl.texImage2D.mock.calls[0][5].px).toEqual(paintedPixels);
+});
+
+function setView(f, west, size) {
+  f.map.getBounds = () => ({ getWest: () => west, getEast: () => west + size,
+    getSouth: () => west, getNorth: () => west + size });
+}
+
+test.each(['overlay', 'wide'])('%s: minimum-span reuse does not retain truth after a pan escape', kind => {
+  const f = fixture(kind); f.addWater();
+  const size = kind === 'wide' ? 0.05 : 0.005;
+  setView(f, 1, size); expect(f.refresh()).toBe(true);
+  setView(f, 1.1, size); expect(f.refresh()).toBe(true);
+  expect(f.engine._overlayMaskTruthBox.west).toBe(1.1);
+  expect(f.refresh()).toBe(false);
+  expect(f.gl.texImage2D).toHaveBeenCalledTimes(2);
+});
+
+test.each(['overlay', 'wide'])('%s: minimum-span fallback heals before clean truth is reused', kind => {
+  const f = fixture(kind); f.addWater();
+  setView(f, 1, kind === 'wide' ? 0.05 : 0.005);
+  f.map.queryRenderedFeatures.mockImplementationOnce(() => []);
+  expect(f.refresh()).toBe(true); expect(f.engine._overlayPaintDegraded).toBe(true);
+  expect(f.refresh()).toBe(true); expect(f.engine._overlayPaintDegraded).toBe(false);
+  expect(f.refresh()).toBe(false);
+  expect(f.gl.texImage2D).toHaveBeenCalledTimes(2);
+});
+
+test.each(['overlay', 'wide'])('%s: a real resolution increase inside old truth still paints', kind => {
+  const f = fixture(kind); f.addWater();
+  expect(f.refresh()).toBe(true); // 1-degree viewport, 2-degree texture.
+  setView(f, 1.45, 0.1); expect(f.refresh()).toBe(true);
+  expect(f.refresh()).toBe(false);
+  expect(f.gl.texImage2D).toHaveBeenCalledTimes(2);
+});
+
+test.each([false, true])('changing basin combine mode from %s rebuilds clean covering truth', mode => {
+  const f = fixture('overlay'); f.addWater(); setView(f, 1, 0.2);
+  expect(f.engine.refreshViewportOverlayMask(f.gl, f.map, mode)).toBe(true);
+  expect(f.engine.refreshViewportOverlayMask(f.gl, f.map, !mode)).toBe(true);
+  expect(f.engine._overlayMaskBasinScale).toBe(!mode);
+  expect(f.engine.refreshViewportOverlayMask(f.gl, f.map, !mode)).toBe(false);
+  expect(f.gl.texImage2D).toHaveBeenCalledTimes(2);
+});
+
+test.each(['overlay', 'wide'])('%s: zooming inside the same minimum span retains clean truth', kind => {
+  const f = fixture(kind); f.addWater();
+  const size = kind === 'wide' ? 0.05 : 0.005;
+  setView(f, 1, size); expect(f.refresh()).toBe(true);
+  setView(f, 1 + size / 4, size / 2); expect(f.refresh()).toBe(false);
+  expect(f.gl.texImage2D).toHaveBeenCalledTimes(1);
+});
+
+test.each(['overlay', 'wide'])('%s: rollback switch restores prior minimum-span repaint policy', kind => {
+  const f = fixture(kind); f.addWater();
+  setView(f, 1, kind === 'wide' ? 0.05 : 0.005);
+  window.__RAW_DISABLE_MASK_MINIMUM_SPAN_REUSE__ = true;
+  expect(f.refresh()).toBe(true); expect(f.refresh()).toBe(true);
+  delete window.__RAW_DISABLE_MASK_MINIMUM_SPAN_REUSE__;
+  expect(f.refresh()).toBe(false);
+  expect(f.gl.texImage2D).toHaveBeenCalledTimes(2);
+});
+
+test.each(['overlay', 'wide'])('%s: settled zoom change refreshes finest tile truth despite a fixed minimum span', kind => {
+  const f = fixture(kind); f.addWater();
+  const size = kind === 'wide' ? 0.05 : 0.005;
+  setView(f, 1, size); expect(f.refresh()).toBe(true);
+  setView(f, 1 + size / 4, size / 2);
+  f.map.getZoom = () => 7.75;
+  expect(f.refresh()).toBe(true);
+  expect(f.refresh()).toBe(false);
+  expect(f.map.queryRenderedFeatures).toHaveBeenCalledTimes(2);
+});
+
+test.each([8, 10, 11.999])('regional: clean active overlay survives stationary refresh at zoom%s', zoom => {
+  const f = fixture('regional'); f.addWater(); f.map.getZoom = () => zoom;
+  expect(f.refresh()).toBe(true);
+  expect(f.engine._regionalPatchState.degraded).toBe(false);
+  expect(f.engine._overlayPaintDegraded).toBe(false);
+  const truth = f.engine._overlayMaskTruthBox;
+  expect(renderMaskToCanvas).toHaveBeenCalledTimes(2); // one base, one overlay.
+  for (let i = 0; i < 10; i++) expect(f.refresh()).toBe(false);
+  expect(f.engine._overlayMaskTruthBox).toBe(truth);
+  expect(renderMaskToCanvas).toHaveBeenCalledTimes(2);
+  expect(f.gl.texImage2D).toHaveBeenCalledTimes(2);
+});
+
+test('regional: exiting the active overlay zone clears its truth', () => {
+  const f = fixture('regional'); f.addWater(); f.map.getZoom = () => 10;
+  expect(f.refresh()).toBe(true); expect(f.engine._overlayMaskTruthBox).toBeTruthy();
+  f.map.getZoom = () => 7.999; f.refresh();
+  expect(f.engine._overlayMaskBounds).toBeNull();
+  expect(f.engine._overlayMaskTruthBox).toBeNull();
+  expect(f.refresh()).toBe(false);
+});
+
+test('regional: legacy carve gate still clears below12 and rebuilds at12', () => {
+  const f = fixture('regional'); f.addWater(); f.map.getZoom = () => 12;
+  expect(f.refresh()).toBe(true);
+  window.__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ = true;
+  f.map.getZoom = () => 10; f.refresh();
+  expect(f.engine._overlayMaskBounds).toBeNull();
+  expect(f.refresh()).toBe(false);
+  f.map.getZoom = () => 12; expect(f.refresh()).toBe(true);
+  expect(f.engine._overlayMaskTruthBox).toBeTruthy();
+  expect(f.refresh()).toBe(false);
+});
+
+test('regional: retention rollback restores repeated midzoom clearing, then re-enables reuse', () => {
+  const f = fixture('regional'); f.addWater(); f.map.getZoom = () => 10;
+  window.__RAW_DISABLE_ACTIVE_OVERLAY_RETENTION__ = true;
+  expect(f.refresh()).toBe(true); expect(f.refresh()).toBe(true);
+  expect(renderMaskToCanvas).toHaveBeenCalledTimes(3);
+  delete window.__RAW_DISABLE_ACTIVE_OVERLAY_RETENTION__;
+  expect(f.refresh()).toBe(false);
+  expect(renderMaskToCanvas).toHaveBeenCalledTimes(3);
 });

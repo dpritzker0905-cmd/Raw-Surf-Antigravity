@@ -122,3 +122,119 @@ Candidate23fixed buckets, no source IDs/history or newGPU/feature/pixel queries.
 No livecause/FPS claim. Windows harness failures excluded; CI=true build rejected
 existing warnings, deployed-config CI=false build pending. No served forecast
 number/science/production frontend change; other chat canary excluded.
+
+## 2026-10-07 02:57Z - own-source qualification and merge
+
+843 accepts13fbab10 ownCI37563127950 all11 and four supplementary successes.
+Actual5946backend:2425guards/2317chain/1204estate; estate298selected296results
+0silent. Frontend377suites4155tests, matching raised floor. Local source remains
+frozen.844 PR252 merged02:57:31Z as1a89ed0a559f132d53401b0cfc40c1cf8a184592;
+fetched dev matches.02:57:55Z frontend/API stillbf72healthy, productionfc140024.
+841 remains open for matching rollout and one bounded paused scene.842 owner
+Chrome account sign-in restored; user feed tab present, owned landing retained
+for later map receipt. No credential reads; no second forecast scene. This
+supersedes the earlier access limitation. No forecast number/science activation.
+
+## 2026-10-07 03:08Z - clean repeated paints, not degraded retries
+
+Ledger846 fulfills841. Frontend/API matched1a89ed0a before the single paused
+Chrome GFS Waves hour0 observation. The actual receipt includes all23 fixed
+phase categories, proving the map's lazy-loaded diagnostic code is served.
+At03:05:29.020Z:15001.6ms interval,12low-FPS windows all1FPS;
+15visible/focused callbacks99.3ms, engine draw84.9ms.19rendered-clean paints
+2433.2ms (all>66.6ms), zero source-fallback or damaged paints.7idle refreshes
+684.2ms and8other-source refreshes1118.8ms;0water-source refreshes.17longtasks
+3029ms/max472ms. Phase durations overlap and include driver waits; no GPU
+completion was measured. Other browser activity was not controlled.
+
+This FALSIFIES the degraded/source-fallback retry hypothesis for this receipt.
+Clean-cache eligibility is the next boundary. The source category alone does
+not justify dropping events: readiness depends on global tiles as well.
+We did not capture the live viewport span, so a minimum-span cache defect must
+be established independently offline and cannot yet explain this scene alone.
+Zero LoAF entries do not exclude stalls. No performance improvement comparison
+is valid against the prior receipt's different browser/view.
+
+Waves read back0, HUD layer none/raster OFF; owned map tab closed, user feed
+preserved.03:08:29Z shared API healthy exact1a89ed0a/datawarn. Production frontend
+fc140024 frozen. No second live scene, playback/scrub or forecast science flag
+activation. No served forecast number changed; original Gulf, time, device and
+isolated staging-publication gates remain open. Raw console/recorder URLs and
+credentials are excluded. Sanitized local scalar receipt is gitignored.
+
+Correction to the publication asset check: the landing main bundle does not
+contain map-only labels because the map is lazy-loaded. Local Windows and
+hosted Linux chunk IDs are not interchangeable. Those marker checks are
+excluded; the live receipt establishes the diagnostic categories actually ran.
+
+## 2026-10-07 03:27Z - native parity failure isolated and repaired
+
+848 preserved a failed native pixel qualification rather than ignoring it:
+rollback3paints versus repaired1, but1542regional/1320wide final bytes differed.
+849 isolated eight native legs: FIRST paints matched exactly; repeated legacy
+paints drifted only when pristine-canvas caching was enabled. Disabling that
+cache removed the discrepancy. The synthetic fixture deliberately has all-land
+NE and map water, with shelter off; it is a raster control, not real geography.
+
+One source change gives the pristine cache's first2Dcontext creation the same
+willReadFrequently:true option as original/render-copy canvases. The same eight
+legs then had ZERO first/repeated/final differing bytes across32MiB of final
+comparisons. Every row had both land and water, clean verdict, restored GL
+state; old-policy3queries/uploads versus repaired1. Native completed=true.
+The actual pixel algorithm is unchanged; the context choice is now consistent.
+The earlier no-parity result remains evidence, not an excluded test.
+
+The context-option mismatch is causal in this Chrome control. MDN documents
+that getContext reuses the first context and that willReadFrequently selects
+a software-oriented2Dcanvas; this explains why matching creation options is
+appropriate. We did not instrument the browser's actual GPU/backend selection
+and do not claim all-browser parity, GPU completion, cost or live smoothness.
+[Canvas context documentation](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext)
+
+Both owned native tabs closed and servers stopped; no tests/builds overlapped
+the observations, no backend connections (CSP connect-src none), no second live
+forecast scene. Renderer change now joins the minimum-span repair and requires
+new combined full/lint/build and own-source hosted qualification. Forecast
+numbers/science switches/production frontend remain unchanged; canary excluded.
+
+## 2026-10-07 03:30Z - final combined local qualification
+
+850 accepts the FINAL combined tree:377suites/4171tests,0failed/pending;
+blocking lint86knownerrors/917warnings, no ratchet regression; LOC0new/regressed,
+engine3207to3205; deployed CI=false production build exit0.849 native8cases
+compare32MiB finalRGBA exactly, including first/repeated parity and restored GL
+state. No source code changes remain after this qualification. Earlier full
+runs were intermediate; they do not substitute for this combined result.
+
+851 tracks own-source hosted all11/four supplementary checks, actual5946backend
+and377/4171frontend with0silent estate results, qualified dev merge and healthy
+matching served readback. No second live scene in this turn. Live smoothness,
+viewport span, playback/Gulf/time/device/cloud acceptance remain open. No
+served forecast number or science switch changed; production frontendfc140024
+frozen and other chat canary unchanged/excluded.
+
+## 2026-10-07 03:56Z - final three-cache repair, active zone included
+
+853 records a related public-engine RED1/34 in an isolated ignored root:
+regional z10 clears clean overlay truth on every refresh. Actual active carve
+minimum is8, while the stale clear still used obsolete12. The proper source
+regressions then produced4RED/36passing cases:8/10/11.999stationary plus
+reenabled rollback. Clear only below the active zone; legacy carve and the
+new __RAW_DISABLE_ACTIVE_OVERLAY_RETENTION__ rollback keep12. Below8clear,
+legacy12gate and repair rollback/re-enable are preserved.
+
+854 final full377suites4177tests,0failed/pending; lint/LOC/build pass,
+engine3207to3202.22new public controls now cover all three cache repairs.
+855 native16legs,64MiB exact finalRGBA comparisons,0different bytes. Regional
+8/10/11.999 have3legacy overlays versus1repair (each also paints1base);
+at12both retain1overlay. Floor controls remain3versus1. Every native row has
+land/water, clean verdict, restored GL state. Owned tab closed/server stopped;
+no tests/build overlapped, no backend connections or second live forecast.
+
+The previousff124 candidate qualified all11/four and actual5946backend/
+3774171frontend on CI37567230968 at03:49:10Z, but was NOT merged. That evidence
+is historical and cannot qualify the new head.851 remains open; final frontend
+floor4177 replaces its4171 baseline. New head must pass its own full hosted
+checks/counts before dev merge and matching served readback. No served forecast
+number/science activation/production frontend change. Original live smoothness,
+viewport span, playback/Gulf/time/device/staging gates remain open.

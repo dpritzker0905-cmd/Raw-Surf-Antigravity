@@ -56,3 +56,69 @@ receipt remain pending. No Play/scrub, exact time, Gulf amplitude, device or
 isolated staging-publication acceptance is claimed. Production frontend frozen.
 The other chat's canary is excluded. Ledger836/837; no served forecast number
 or scientific-serving flag changes.
+
+## 2026-10-07 02:44Z - publication and event-loop hypothesis
+
+PR252 is attached, source13fbab10bb6f620e7708cf7d1884f4b048cd047b matches local,
+remote and PR. Own CI37563127950/four supplementary checks pending.839 verified
+by840;841 tracks hosted, served and one bounded paused receipt. Code frozen.
+
+The installed MapLibre map.ts fires idle after a loaded nonmoving frame. This
+layer requests another repaint after successful mask painting. If the paint
+remains degraded, a later idle can paint again after700ms. The new idle and
+paint-verdict buckets discriminate this possible feedback loop from source
+events; it remains a hypothesis until the served receipt.
+[MapLibre event documentation](https://maplibre.org/maplibre-gl-js/docs/API/type-aliases/MapEventType/)
+also distinguishes source-loading events from map events. Current source event
+objects include sourceId/isSourceLoaded in the installed events.ts. No filter
+is justified by the event type alone because the existing readiness gate also
+checks global tile readiness.
+
+Chrome access check reached the public landing page, without an authenticated
+app session. Edge is no longer in the browser inventory; owner reconnect request
+pending. The landing tab was closed; no extra live forecast scene was opened.
+No app credential read/extraction or repeated forecast dispatch.
+
+## 2026-10-07 02:57Z - own-source qualification and merge
+
+843 accepts13fbab10 ownCI37563127950 all11 and four supplementary successes.
+Actual5946backend:2425guards/2317chain/1204estate; estate298selected296results
+0silent. Frontend377suites4155tests, matching raised floor. Local source remains
+frozen.844 PR252 merged02:57:31Z as1a89ed0a559f132d53401b0cfc40c1cf8a184592;
+fetched dev matches.02:57:55Z frontend/API stillbf72healthy, productionfc140024.
+841 remains open for matching rollout and one bounded paused scene.842 owner
+Chrome account sign-in restored; user feed tab present, owned landing retained
+for later map receipt. No credential reads; no second forecast scene. This
+supersedes the earlier access limitation. No forecast number/science activation.
+
+## 2026-10-07 03:08Z - clean repeated paints, not degraded retries
+
+Ledger846 fulfills841. Frontend/API matched1a89ed0a before the single paused
+Chrome GFS Waves hour0 observation. The actual receipt includes all23 fixed
+phase categories, proving the map's lazy-loaded diagnostic code is served.
+At03:05:29.020Z:15001.6ms interval,12low-FPS windows all1FPS;
+15visible/focused callbacks99.3ms, engine draw84.9ms.19rendered-clean paints
+2433.2ms (all>66.6ms), zero source-fallback or damaged paints.7idle refreshes
+684.2ms and8other-source refreshes1118.8ms;0water-source refreshes.17longtasks
+3029ms/max472ms. Phase durations overlap and include driver waits; no GPU
+completion was measured. Other browser activity was not controlled.
+
+This FALSIFIES the degraded/source-fallback retry hypothesis for this receipt.
+Clean-cache eligibility is the next boundary. The source category alone does
+not justify dropping events: readiness depends on global tiles as well.
+We did not capture the live viewport span, so a minimum-span cache defect must
+be established independently offline and cannot yet explain this scene alone.
+Zero LoAF entries do not exclude stalls. No performance improvement comparison
+is valid against the prior receipt's different browser/view.
+
+Waves read back0, HUD layer none/raster OFF; owned map tab closed, user feed
+preserved.03:08:29Z shared API healthy exact1a89ed0a/datawarn. Production frontend
+fc140024 frozen. No second live scene, playback/scrub or forecast science flag
+activation. No served forecast number changed; original Gulf, time, device and
+isolated staging-publication gates remain open. Raw console/recorder URLs and
+credentials are excluded. Sanitized local scalar receipt is gitignored.
+
+Correction to the publication asset check: the landing main bundle does not
+contain map-only labels because the map is lazy-loaded. Local Windows and
+hosted Linux chunk IDs are not interchangeable. Those marker checks are
+excluded; the live receipt establishes the diagnostic categories actually ran.
