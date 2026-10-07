@@ -63,6 +63,17 @@ AT_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?Z$")
 # ⬆ Widened the same evening (seq 189 wrote "18:4x... bound"): an `HH:Mx` estimate is one with or without the Z.
 ESTIMATED_TIME_RE = re.compile(r"~\s?\d{1,2}(?::\d{2})?(?:\s?[-–]\s?\d{1,2}(?::\d{2})?)?\s?Z"
                                r"|\b\d{1,2}:\d?[xX]{1,2}(?![A-Za-z0-9])|\b\d{1,2}[xX]{1,2}Z")
+# Completeness credits exactly #N. Refuse malformed NEW merge records before writing;
+# verify remains compatible with append-only historical records. ASCII digits only.
+PR_MERGE_TARGET_RE = re.compile(r"#[1-9][0-9]*")
+
+
+def pr_merge_target_problem(kind: str, target) -> str | None:
+    """Return the refusal for a new merge target; other action kinds keep free targets."""
+    if kind != "pr_merge" or PR_MERGE_TARGET_RE.fullmatch(str(target)):
+        return None
+    return (f"a pr_merge target must be exactly '#<PR number>' (e.g. '#219'); got {target!r}. "
+            "Put the branch and title in --why or --outcome")
 
 
 def estimated_time_in_verified(verified: str):
@@ -198,6 +209,9 @@ def append(path: str, **fields) -> dict:
     problems = check_entry(e, e["seq"])
     if problems:
         raise ValueError("refusing an invalid entry: " + "; ".join(problems))
+    bad_target = pr_merge_target_problem(e["kind"], e["target"])
+    if bad_target:
+        raise ValueError(f"refusing the entry: {bad_target}")
     est = estimated_time_in_verified(e.get("verified"))
     if est:
         raise ValueError(f"refusing an estimated time in `verified` ({est!r}): give the clock or platform reading "
@@ -251,7 +265,8 @@ def selftest() -> list:
     with tempfile.TemporaryDirectory() as d:
         p = os.path.join(d, "ACTIONS.jsonl")
         for i, kind in enumerate(("pr_open", "pr_merge", "finding"), 1):
-            append(p, kind=kind, at=f"2026-09-29T0{i}:00:00Z", **base)
+            target = "#2" if kind == "pr_merge" else "t"
+            append(p, kind=kind, at=f"2026-09-29T0{i}:00:00Z", **{**base, "target": target})
         append(p, kind="correction", corrects=3, at="2026-09-29T04:00:00Z", **base)
         good = read_lines(p)
         # Commitments: a second ledger, so the tamper cases below keep their four-line shape.

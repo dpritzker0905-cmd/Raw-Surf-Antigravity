@@ -1723,7 +1723,9 @@ jobs:
           # Exact-source hosted qualification remains required; no floor lowered.
           # PR250 own CI37557753240 read1201. Gallery grace-period regression adds3
           # executed estate cases: projected1204, preserving margin2. Own CI must confirm.
-          MIN_PASSED = 1202
+          # PR226 current-base guard adds23 executed estate controls to hosted1204.
+          # Projected1227, preserving margin2; own exact-head hosted CI must confirm.
+          MIN_PASSED = 1225
 
           try:
               root = ET.parse('estate.xml').getroot()

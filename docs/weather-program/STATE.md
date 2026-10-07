@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 14:44Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 15:26Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,40 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 15:26Z: PR226 pushed as a draft current-dev repair.**
+  Actual local/remote/PR head35a093a5, original226 anddev68 ancestry retained
+  with full tree equal reviewedb602330e.900records publication; receipt-only
+  continuation requires final own-head checks, not stale green.899 remains
+  open; canonical ledger893 vs proposed894-900 explicit. Source255/245
+  already deployed68;860focus/333nightly/data-health acceptance stay open.
+
+- **2026-10-07 15:21Z: existing PR226 adapted to current dev; qualification pending.**
+  New23 merge-target controls RED16fail/7pass then GREEN23; actual76 local
+  target/actor/scoreboard/floor controls pass. Estate299files projected1227,
+  floor1225; unchanged guards186/2425 and chain157/2328. Source changes no
+  served number. Proposed898repair and899qualification contract preserve
+  original226 identity and canonical893prefix; old source is not restored.
+  Rollout receipts894-897 remain proposed until the adapted branch merges.
+  860 browser access,333scheduled renderer and three data warnings remain open.
+
+- **2026-10-07 15:10Z: PR245 merged and matching dev rollout read back; 892 fulfilled.**
+  Merge68fedfcf at15:02:32Z, exact8b final head/all11 CI; frontend377/4177,
+  backend5957 passes. Ledger/Lighthouse pass; LOC/Encoding absent by unchanged
+  app-source filters. 26 offline harness controls pass on Node18.20.2 and24.19.0.
+  At15:08:02Z frontend/API both68; restore complete13367; production frontend
+  fc140024 preserved. Three data warnings remain. 863 and887 closures are
+  canonical through893; new892 fulfillment896 is proposed on the receipt branch.
+  860 remains access blocked,333scheduled renderer verdict open. PR226 guard
+  still requires current-base adaptation; no duplicate224/225/222 source repairs.
+
+- **2026-10-07 15:04Z: PR245 merged dev68fedfcf (2026-10-07T15:02:32Z).**
+  Exact reviewedhead8b5c11a7, source/ledgerprefix read back;
+  full merge tree equals8b5c11a7; no numeric/science change.
+  Deployment source/health readback pending; no live860 repeat. Original
+  playback/time/Gulf/device/isolation/datahealth gates remain independently
+  open. Records after merged branch prefix remain local until receipt PR.
+  See own `log/2026-10-07-ecmwf-rollout.md` for actual checks/rollout progress.
 
 - **2026-10-07 14:44Z: PR245 updated by normal fast-forward; own checks pending.**
   893: local/remote/PR headc638b49a agrees, draft/dev; original245 and
@@ -1355,7 +1389,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 893, sha256 e3202cf80a806fbdccbceda141dd195643ad753215b616535f3fd5d6975a74ba**
+  **Ledger head: seq 900, sha256 168ea3ec346b974fb4aa6a0f8e70eedf5f8d2a362154ba7d7beb7733ec3e2e88**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

@@ -125,3 +125,125 @@ ancestors. PRbaseRefOid is an older2a7 snapshot; actual live dev ref8e was
 checked separately. Own initialCI37638804647 is running; Ledger37638804657
 passed at this head. LOC/Encoding are absent by their unchanged-source filters.
 Final receipt amendment has a new full SHA and requires its own check status.
+
+## 2026-10-07 15:04Z — Publication-order correction
+
+894 records the local memory-audit ordering mistake: session36923 was running
+when the8b receipt push occurred. Its actual exit0 was read afterward, with
+0FAIL9historicalWARN6NOTE. Final own8b Ledger and all11CI passed before merge.
+No ledger content was rewritten or failing gate bypassed. Future mutation gates
+await actual completion. The source and final hosted qualification remain valid.
+
+## 2026-10-07 15:04Z — PR245 actual merge readback
+
+PR245 MERGED2026-10-07T15:02:32Z squash68fedfcf9a99b1e25e7165b387525b5c8603c226, exact reviewedhead8b5c11a7a5064f223c8eda096ae6a2ed47dc92ef.
+origin/dev equals merge; full merge tree equals8b5c11a7, exact priorledgerprefix retained.
+Source/health deployed readback remains pending; no scientificactivation/shareddata/main
+promotion or live860scene. User rollout authority880;863qualifiedsupplements881 preserved.
+
+## 2026-10-07 15:10Z — PR245 actual rollout qualification
+
+896 fulfills892 at own-head qualification/dev rollout scope. Exact8b all11
+CI37639259088 passed with frontend377/4177 and backend5957 actual passes;
+Ledger/Lighthouse successful. LOC/Encoding absent by unchanged-source filters,
+not hosted passes. Merge68fedfcf15:02:32Z full tree equals reviewed8b. Public
+15:08:02Z frontend and healthy API both68, restoration complete13367 products,
+production frontendfc140024 unchanged. Datawarn retains three missing-cycle
+alerts.26 offline controls passed on Node18.20.2 and24.19.0; Nightly uses24.21.0
+and next scheduled run is independent evidence. The existing scheduled Nightly
+reads default branchdev; no new battery/forecast scene/dispatch occurred here.
+
+887 fulfillment889 and863 fulfillment883 are canonical through893. New894
+ordering correction,895merge and896rollout receipts remain proposed until their
+branch merges.860 remains access blocked;333scheduled renderer verdict and
+playback/time/Gulf/device/isolation/data-health criteria stay open independently.
+Remaining current source guard maps to existing226; do not merge its obsolete
+branch wholesale or duplicate224/225/222 source work already present.
+
+## 2026-10-07 15:11Z — Final reconciliation table and handoff
+
+897 records the updated report and separate implementation handoff. Canonical
+ledger893 versus proposed894-896 is explicit; no product acceptance inferred
+from documentation or API availability. Three data warnings and9 historical
+overdue warnings remain. Current source guard still maps to existing226.
+
+| Existing task ID | Current evidence | Status / proposed reconciliation | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| 860 / A-02 | Earlier capture changed viewport; latest stable preflight was visible but focused=false and stopped before Waves; cleanup/post-health verified | Open, access blocked; preserve identity | Establish safe focused stable access after current deployment's quiet period | Matching source, healthy API, ≥20min after relevant merge, no concurrent loads; one visible focused PAUSED GFS Waves scene; actual viewport/bounds/zoom/grid, paint verdicts/counts/CPU/gaps/fallback; Waves off, owned-tab cleanup/post-health; no Play/scrub/stress/extra scenes |
+| 863 / A-03 | Exact254 own receipts, explicit881 supplementation, merge3310, source/health readback; fulfills883 now canonical | Fulfilled at qualified documentation scope | Preserve scoped closure; no repeat receipt task | Documentation qualification and authorized dev merge; no live-product acceptance implied |
+| 872 | Actual own8a source qualification, fulfilled875; final98 requalified all11 | Fulfilled at source scope | Preserve actual head/count evidence | Requalify if application/tests/workflows change |
+| 887 | Own final98 all11/gates, actual255 merge, matching healthy8e rollout | Fulfilled by canonical889 | Preserve scoped closure | Exact reviewed source, completed counts and matching source/availability readback; independent data/live gates remain |
+| A-01 / three253 cache repairs | Qualified minimum-size repaint, pristine Canvas copy and active z8–12 retention repairs; documented16 native controls with zero final-pixel differences | Completed at documented scope | Reopen only on specific current regression/failed path/incomplete coverage | Current counterexample; pixel parity does not establish forecast accuracy |
+| WI-03 / A-04 / 862 | Partial ECMWF selected-message metadata defect repaired/deployed255;104 offline controls and156 actual-decoder forensic/Jacobian calls; three live warnings persist | Decoder source repaired; data-health acceptance open | Assess already scheduled native/estimated cohort receipts and warning provenance | Complete consistent selected analysis metadata before known cycle; freshness and justified warning/clearance; availability alone insufficient |
+| WF-02 / CX34-07 | Changed-viewport paused receipt:1,061 callbacks, gaps17median/113p95/227max ms, no fallback edge; overlapping draw timing high | Performance/fallback acceptance open | Complete860 first when prerequisites hold; otherwise offline attribution only | Controlled native/fallback continuity and recovery on actual devices; callback cadence is not completed GPU frames |
+| WF-03 / 313 / 318 / 333 / A-05 | Existing served-time/transition repairs; incomplete current identity/play/scrub/nightly acceptance | Preserve independent open contracts | Inspect prior receipts; use later separately bounded cases | Requested/served/cycle/resident/drawn identity; original transition/nightly criteria; no broad battery inside860 |
+| PR245 / 802 / 892 / 333 | Current Nightly37631047631 fails before scene completion on undefined window.map jumpTo; data-contract passes. Current four-file integration clean,26 offline controls pass | Source merged and matching rollout verified; proposed892 fulfillment896 | Assess next scheduled scene on its own contract | Strict prerequisites/fixture isolation and honest refusal; a later completed scheduled scene/verdict is required for333's renderer acceptance |
+| 668 / 672 / A-06 | Historical Gulf symptom; current observed scene is Florida east coast; no new accuracy proof | Accuracy acceptance open | Establish model/product/time/grid/pixel identity before comparison | Held-out observations and offshore-versus-breaking scope; parity insufficient |
+| AS-04 | Real desktop/mobile and light/dark/beach acceptance incomplete | Open | Preserve concrete cases on existing task | Actual device/theme/hour-to-pixel and native/fallback evidence |
+| AS-06 / W-26 / D-002 / A-07 | Source publication safeguards; shared serving API; unowned canary preserved, not executed | Isolation acceptance open | Separately scoped isolated publication process | Create-only/CAS/durable acknowledgment/reader/cleanup with zero shared-production effects |
+| PR226 | Actual current append() accepted malformed synthetic merge targets; canonical ledger untouched. Old candidate also predates current actor/scoreboard guards | Current source guard still missing; retain existing226 identity | Adapt226 against current base, preserve actor/scoreboard rules and canonical history | Actual refusal before write, valid #N acceptance/audit credit, historical chain preserved; own lane/floor/count qualification |
+| PR224 / PR225 / PR222 | Retry/REST, month-seam loading and strided world-read path already present in current source, with later hardening/tests | Proposed source portions superseded/integrated; PRs and independent receipts not closed here | Assess their own receipts before closure; avoid duplicate/downgrade repairs | Original task evidence; source inspection alone does not close live/operational acceptance |
+| 149 / 217 / 266 / 282 / 283 / 291 / 298 / 299 / 309 | Historical independent obligations retained. Existing ingest/precompute/monitor receipts green on4fe, without every original contract checked | Preserve existing statuses; nine historical overdue warnings | Read each task's own receipts before further work | Original skill/cache/rollover/storage/monitor contracts; no closure from255CI |
+| PF03 / LIVE-04; AS-01 / PS-11 | Historical resource and retained-artifact/rotation acceptance outside this bounded repair | Preserve existing scopes | Follow their own evidence/authority | No shared-server stress or credential/provider action inferred from this pass |
+
+
+Next bounded source repair: adapt226 against current actor/scoreboard rules and
+canonical prefix, with actual refusal/history controls and own lane/floor/count
+qualification. Next live investigation remains860 only after stable focused
+access, matching source, healthy API, quiet ≥20min after the relevant merge,
+then one PAUSED GFS Waves scene with full counts/CPU/gaps/fallback and cleanup.
+Do not repeat253 cache repairs from old assumptions or relax scientific/FPS gates.
+
+## 2026-10-07 15:21Z — existing PR226 current-base repair
+
+898records the actual repair and controls;899tracks own-head qualification
+and conditional dev rollout, keeping the existing PR226 identity. Exact #N
+ASCII positive targets only for newly appended merges; historical reader
+and canonical893prefix retained. No served number changes. RED23 actual
+controls:16failed/7passed, all16 attributable refusal failures; GREEN23pass.
+Actor/scoreboard/floor sibling controls:76pass/0fail/error/skip. Isolated
+portable pytest9.0.2 uses real repository tests, excludes app conftest and
+forbids network; hosted normal-conftest execution remains authoritative.
+Bundled/default Python lacked pytest, so that failed invocation executed no
+controls. Actual corrected backend-directory partition:645tracked,186guards,
+157chain,299estate,2fastmcp exclusions,1historical quarantine. First root-dir
+inventory could not resolve relative chain files; corrected before floor
+change/publication. New staged file belongs only to estate: hosted1204+23
+projected1227, margin2 floor1225/reference1227. No floor/guard downgrade.
+
+Publication will retain old226813e30f9 ancestry with current source rather than
+restore obsolete actor/scoreboard/floor or legacy-credit changes. Existing
+source224/225/222 already present, so no duplicate repairs. Canonical receipts
+through893; new894-899 proposed until merge. Source255/245 already merged and
+deployed68; current226 own hosted qualification/deployment still pending.
+860 and all independent playback/time/Gulf/device/isolation/datahealth
+requirements remain open. Manifest canary untouched at baseline36689D93.
+
+## 2026-10-07 15:23Z — PR226 local gate readback
+
+Actual ledger verify against canonical893 byte prefix:899 entries OK, exit0.
+Actual docs memory audit:0FAIL9historicalWARN6NOTE, exit0. Ledger and memory
+selftests both return empty failures. Changed Python source passes the CI
+E9/F63/F7/F82 lint selection with jobs1, actual exit0. Initial default
+parallel flake8 under stdin could not spawn a valid Windows main module;
+that own process was stopped with exit1, then jobs1 resolved the invocation.
+No application/concurrency/live backend probe involved. 76offline real
+controls remain green after matched floor/reference update. Existing226
+ancestry will be retained with the current-base tree; no obsolete source
+or historical ledger is copied onto current dev. Own hosted qualification
+and current source/health readback remain required before merge.
+
+## 2026-10-07 15:26Z — PR226 published current-dev candidate
+
+900reads actual normal fast-forward publication35a093a5 and refreshed draft
+PR226 title/body; original813e30f9 anddev68 ancestry retained, ancestry merge
+full tree equal reviewedb602330e. Canonical893prefix preserved. No obsolete
+source restore or force push. Local require-history memory audit exit0 read
+before publication. Fresh own CI37643688162, LOC37643688063, Ledger37643688075,
+Lighthouse37643688182 triggered. Encoding absent by unchanged frontend/src
+filter. This is pending fresh hosted qualification; do not claim all green.
+Receipt-only continuation follows; final frozen pushed head must earn its
+own checks and actual377/4177frontend plus2425guards/2328chain/1227estate.
+899tracks conditional dev merge/readback.894-900 are proposed until merge,
+including896892fulfillment.860focus blocker and333scheduledrenderer/data
+health acceptance remain separate; no live map/battery/ingest dispatch.
