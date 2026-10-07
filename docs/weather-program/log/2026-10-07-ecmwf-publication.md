@@ -42,3 +42,10 @@ Rollback: keep draft on failed checks; revert only owned repair source/test/floo
 normal workflow and append correction, preserve ledger/log/scoreboard and unowned canary.
 External reproducible probe and selected JSON: publication-pass/ecmwf_jacobian.py,
 jacobian.json. Publication readback and hosted counts will be appended after actual results.
+
+Publication readback13:00:07Z: initiald9d507f816a95aa64ee4c3568ee278f4f55b949b
+matches local/remote/dev draftPR255, attached to this task;14diff files, including
+inherited254docs. CI37625082300/Ledger37625082319/LOC37625082553/Lighthouse37625082241
+started on own head; Encoding deliberately absent since frontend unchanged, not a
+pass/fail. Canary36689d93 unchanged.874 records873publication readback. This same-branch
+receipt amendment does not alter source/test/workflow; its hosted head remains pending872.
