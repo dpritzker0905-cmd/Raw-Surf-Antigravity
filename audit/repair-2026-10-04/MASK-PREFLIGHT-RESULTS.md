@@ -77,3 +77,29 @@ No cause attribution. Next discriminant needs separate whole-map/custom-callback
 mask prepare/paint/upload and data-encoding CPU scalars in the same low-FPS
 interval, retaining no URLs/payloads, and independent native controls. No GPU
 completion claim or budget relaxation. Current PR249 runtime76ad stays frozen.
+
+## 2026-10-07 00:48Z — merged, deployed, residual fallback read back807
+
+Exact9ee source qualified on its ownCI37551277208: all11jobs and four
+supplementary workflows successful; guards2425+chain2317+estate1201=5943backend,
+374/374suites4097/4097frontend, estate297selected295produced0silent.805 merges
+PR249 as de1bd561 at00:38:09Z.806 verifies frontend/sharedAPI matching at00:41:54Z;
+production frontendfc140024 stays frozen. Current Chrome DOM loaded served bundle
+main.266069b3.js. Paused GFS Waves, hour0, canvas3440x1822/CSS1720x911, still
+falls back at1..2FPS over12windows/15307.1ms at00:43:17.650Z.16nativecallbacks,
+0texture-helper operations,0slow engine drawcalls; engine CPU histogram14under8ms,
+2under16.6ms.17longtasks total3221ms/max220;0delivered LoAF entries does not
+exclude stalls. Timing APIs can overlap and delivery can lag. GPU completion,
+whole-map callback, outside encoding and mask refresh work remain unmeasured.
+The posthog-recorder.js wrapper is not attribution. No Play/scrub in this capture.
+
+Waves disabled (aria-pressed false), owned tab closed. PostAPI readback at
+00:48:15.8195595Z healthy exactde1bd,13310products restored complete/no errors.
+Initial sandbox DNS failure excluded; permissioned lightweight read succeeded.
+807 fulfills qualification/readback796, not original fallback acceptance.
+Next investigation separates whole custom-callback and mask prepare/paint/upload
+cost and verifies focus/visibility. PR245 combined temporary tree clean/26offline
+tests802; no current hosted/visual acceptance. Larger native controls804 were
+uneven and do not prove resolution/FPS/GPU effects. Smooth playback, exact-time,
+Gulf amplitude, real devices and actual staging publication remain open.
+No served forecast number, science flag or production frontend change.

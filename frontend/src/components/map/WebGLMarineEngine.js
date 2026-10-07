@@ -7,6 +7,7 @@
  */
 
 import { recordTruthStage } from './weatherTruthTracker';
+import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity';
 import { readMarineSurfMode } from './marineSurfMode';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
@@ -2480,19 +2481,19 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   // layer's `idle` listener re-drives this refresh once every covering tile is queryable.
   if (!isBasemapWaterSourceReady(mapInstance)) { this._lastMaskRepatchReason = 'source_not_ready'; return false; }
   try {
-    const water = prepareBasemapWaterOverlay(mapInstance);
+    const water = measureMarineCpuPhase('maskFeatureQuery', () => prepareBasemapWaterOverlay(mapInstance));
     if (!water) { this._lastMaskRepatchReason = 'overlay_not_applied'; return false; }
-    const canvas = renderMaskToCanvas(geo, bounds);
-    const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water);
+    const canvas = measureMarineCpuPhase('maskBaseCanvas', () => renderMaskToCanvas(geo, bounds));
+    const applied = measureMarineCpuPhase('maskWaterPaint', () => overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water));
     if (!applied) { this._lastMaskRepatchReason = 'overlay_not_applied'; return false; }
     // COAST SDF: re-write the signed dist-to-coast into .b on the PATCHED base coast (this re-upload
     // would otherwise revert .b to a redundant .r). Opt-in; byte-identical when off. Keeps the flag live.
     this._cachedMaskHasSDF = writeCoastDistanceField(canvas);
-    withTextureState(gl, () => {
+    measureMarineCpuPhase('maskUpload', () => withTextureState(gl, () => {
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-    });
+    }));
     // Record the TRUTH box for the hysteresis above — the STRICT viewport the painter actually
     // repainted (the old 40%-padded box claimed truth over a ring the tile queries can never
     // cover; that ring was black land = the pan/zoom "rectangle holes"). Zoom-ins inside the box
@@ -2619,12 +2620,12 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
   // skip and let the `idle`-driven refresh land the paint when every covering tile is queryable.
   if (!isBasemapWaterSourceReady(mapInstance)) return false;
   try {
-    const water = prepareBasemapWaterOverlay(mapInstance);
+    const water = measureMarineCpuPhase('maskFeatureQuery', () => prepareBasemapWaterOverlay(mapInstance));
     if (!water) return false;
     // 2048 cap: an overlay spans ≤ ~1°, so 2048 px keeps ≤ ~3 m/texel at deep zoom while the
     // paint + texImage2D upload cost 4× less than the 4096 tier (8 MB vs 32 MB per refresh).
-    const canvas = renderMaskToCanvas(geo, bounds, { maxWidth: 2048 });
-    const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water);
+    const canvas = measureMarineCpuPhase('maskBaseCanvas', () => renderMaskToCanvas(geo, bounds, { maxWidth: 2048 }));
+    const applied = measureMarineCpuPhase('maskWaterPaint', () => overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water));
     if (!applied) return false;
     // ── MASK NO-SHRINK (#11, the halo) ────────────────────────────────────────────────────────
     // Refuse a candidate mask that SHRINKS while failing to cover the viewport, when the incumbent
@@ -2675,7 +2676,7 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
     // COAST SDF for the viewport-truth overlay (the band's min-combine mask). Opt-in; byte-identical off.
     this._overlayMaskHasSDF = writeCoastDistanceField(canvas);
     // Capture before allocation binds anything; restore even when an upload throws.
-    withTextureState(gl, () => {
+    measureMarineCpuPhase('maskUpload', () => withTextureState(gl, () => {
       if (!this._overlayMaskTex) {
         this._overlayMaskTex = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
@@ -2687,7 +2688,7 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
       gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-    });
+    }));
     this._overlayMaskTexDims = { w: canvas.width, h: canvas.height }; // probe follows uploaded size
     this._overlayMaskBounds = bounds;
     // The region the painter truth-painted from tiles = the strict viewport at paint time; the
@@ -3202,4 +3203,5 @@ WebGLMarineEngine.prototype.dispose = function(gl) {
   }
 };
 
+instrumentMarineEngineCpuPhases(WebGLMarineEngine);
 export default WebGLMarineEngine;

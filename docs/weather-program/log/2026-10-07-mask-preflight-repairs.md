@@ -48,3 +48,63 @@ No cause attribution. Next discriminant needs separate whole-map/custom-callback
 mask prepare/paint/upload and data-encoding CPU scalars in the same low-FPS
 interval, retaining no URLs/payloads, and independent native controls. No GPU
 completion claim or budget relaxation. Current PR249 runtime76ad stays frozen.
+
+## 2026-10-07 00:22 Z — nightly prerequisite review802
+
+PR245ae761 merges cleanly into tested9ee3 candidate in temporary tree4e23fef7,
+without checkout changes.26offline harness regressions pass using combined source
+and unchanged current network/verdict helpers. No browser/backend run, no merge,
+no current hosted/visual acceptance borrowed from its old nightly PASS. Scope is
+only exact dummy-userGET badge isolation plus strict map/engine/control refusal;
+real app errors remain FAIL. Current maskPR249 remains frozen9ee3 for own gates.
+
+## 2026-10-07 00:40 Z — exact source qualified803 and merged805
+
+PR2499ee3 exact ownCI37551277208 all11/four supplementary successful. Strict
+actual guards2425+chain2317+estate1201=5943backend,297selected295produced0silent.
+Frontend374/374suites4097/4097tests0fail; runtime/test/workflow same qualified51d.
+805 mergesdevde1bd561f62a896c26fa9e9c2e9fe68ea401e5e8 at00:38:09Z. Initial
+00:38:52 readback still oldb8cdb2bd/APIhealthy;796 awaits correct served source.
+No served forecast number, science/serving flag or production frontend change.
+
+804 native dimension controls are descriptive only: two60frame deadlines excluded;
+one missed resident coverage. Short10frame controls at samezoom9 complete, matrices16,
+skipnull,GL0; actual canvases3200x1800/4096x2304, CPUmedians4.2/3ms. Cadence uneven,
+focus/visibility unmeasured; no resolution/comparativeFPS/fullapp/GPUcompletion proof.
+Allprobe tabs/serversclosed before upcoming dev readback. Current productionfc140024.
+
+## 2026-10-07 00:48Z — merged, deployed, residual fallback read back807
+
+Exact9ee source qualified on its ownCI37551277208: all11jobs and four
+supplementary workflows successful; guards2425+chain2317+estate1201=5943backend,
+374/374suites4097/4097frontend, estate297selected295produced0silent.805 merges
+PR249 as de1bd561 at00:38:09Z.806 verifies frontend/sharedAPI matching at00:41:54Z;
+production frontendfc140024 stays frozen. Current Chrome DOM loaded served bundle
+main.266069b3.js. Paused GFS Waves, hour0, canvas3440x1822/CSS1720x911, still
+falls back at1..2FPS over12windows/15307.1ms at00:43:17.650Z.16nativecallbacks,
+0texture-helper operations,0slow engine drawcalls; engine CPU histogram14under8ms,
+2under16.6ms.17longtasks total3221ms/max220;0delivered LoAF entries does not
+exclude stalls. Timing APIs can overlap and delivery can lag. GPU completion,
+whole-map callback, outside encoding and mask refresh work remain unmeasured.
+The posthog-recorder.js wrapper is not attribution. No Play/scrub in this capture.
+
+Waves disabled (aria-pressed false), owned tab closed. PostAPI readback at
+00:48:15.8195595Z healthy exactde1bd,13310products restored complete/no errors.
+Initial sandbox DNS failure excluded; permissioned lightweight read succeeded.
+807 fulfills qualification/readback796, not original fallback acceptance.
+Next investigation separates whole custom-callback and mask prepare/paint/upload
+cost and verifies focus/visibility. PR245 combined temporary tree clean/26offline
+tests802; no current hosted/visual acceptance. Larger native controls804 were
+uneven and do not prove resolution/FPS/GPU effects. Smooth playback, exact-time,
+Gulf amplitude, real devices and actual staging publication remain open.
+No served forecast number, science flag or production frontend change.
+
+## 2026-10-07 00:50Z — receipt publication and timestamp correction811
+
+809 publication pushed owned receipts d19f70e5; actual local/remote heads equal.
+810's hardcoded second-precision verification time was not independently captured.
+811 corrects it with renewed remote readback captured2026-10-07T00:50:33Z:
+d19f70e58fbdf2e671794089820a66134e444502. Runtime/backend/workflow unchanged;
+other chat's canary remains untouched. Ledger verifies; memory0FAIL9historicalWARN4NOTE.
+
+Receipt continuation contains only this log, ledger and STATE anchor.
