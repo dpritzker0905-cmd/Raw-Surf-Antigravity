@@ -1,12 +1,18 @@
 # Audit repair progress — 2026-10-04
 
-Current 2026-10-06 23:19Z: PR247 merged and served dev1993cc39; exact source ec34
-qualified on CI37543004057 all11/four supplementary green, actual5943backend and
-372suites4066frontend. One clean GFS Waves observation recovered from startup
-low-FPS warnings without a sustained trip; Play12/scrub13 worked, cause/smoothness
-and Gulf/device/time acceptance remain open. Waves off/tab closed/API healthy;
-production frontendfc140024 frozen. Ledger778–781; [callback report](CALLBACK-GAP-DIAGNOSIS.md).
-Older dated entries below describe their state at that time.
+Current 2026-10-07 00:48Z: PR248 cadence and PR249 mask preflight are merged
+and deployed to dev de1bd561; frontend bundle and shared API match the squash.
+PR249 exact9ee own CI37551277208 all11 and four supplementary workflows pass:
+5,943 backend tests,374 frontend suites/4,097 tests, estate0silent. Local build,
+lint ratchet, LOC and secrets pass. Native controlled snapshot reads125to9;
+ready-empty mask10to0canvas allocations,62.5to0.5ms CPU. Live paused GFS Waves
+still falls back at1..2FPS; engine-only timing cannot exclude outside work.
+Waves off, owned tab closed, post API healthy/restored complete. Production
+frontendfc140024 frozen. Ledger803–807; [mask report](MASK-PREFLIGHT-RESULTS.md).
+PR245 combined-tree26offline tests pass but current hosted/native acceptance is
+pending. Smooth playback, exact served time, Gulf storm amplitude, real devices
+and actual isolated staging publication remain open. Older dated entries below
+describe their state at that time.
 
 Latest qualification 2026-10-06 21:44Z: source0bd ownCI37533475555/all11 plus four supplementary
 passed; actual5943backend/370suites4045frontend/estate0silent.763fulfills760.

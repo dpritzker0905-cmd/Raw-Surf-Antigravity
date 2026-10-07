@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 00:06Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 00:48Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,21 +14,25 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-07 00:06Z: PR248 qualified/merged/live; residual fallback observed794.**
-  Owner776/784 authorizes qualified beneficial dev repairs.792 records dev squash
-  b8cdb2bd from exact49db source, own CI37547605295 all11 and four supplementary
-  success; actual5943backend,373suites4079frontend, estate0silent.793 reads dev
-  frontend/sharedAPI b8cdb2bd healthy, production frontendfc140024 frozen.
-  794 fulfills786 qualification/readback: clean bounded Chrome GFS Waves still
-  trips2..9FPS12windows.68nativecallbacks6texture-helper ops0slow engine drawcalls;
-  15longtasks3068ms and48LoAF12211ms overlapping. Outside paint/upload untimed800.
-  Waves disabled, owned tab closed, API healthy; no playback/time/Gulf/device proof.
-  Next mask preflight locally passes18new/133coastal tests; two valid red9fail9pass.
-  Actual native Canvas empty-water10attempts10to0allocations,62.5to0.5ms CPU.
-  No readiness/throttle/coast-policy/science change.797 local full374suites4097tests,
-  build/lint/LOC/secrets pass.799 verifies798 remote51d864 and draft PR249 OPEN/dev;
-  final receipt-only source continuation needs its own hosted gates under796.
-  Unowned canary preserved/excluded. See MASK-PREFLIGHT-RESULTS.md and current log.
+- **2026-10-07 00:48Z: PR248 and PR249 merged, dev de1bd561 served; fallback persists.**
+  Owner776/784 authorizes qualified beneficial dev repairs.792 merges cadence248
+  b8cdb2bd from exact49db;805 merges mask249 de1bd561 from exact9ee3.803 qualifies
+  ownCI37551277208 all11/four supplementary success, actual5943backend,
+  374suites4097frontend, estate0silent; local full/build/lint/LOC/secrets pass797.
+  Controlled native cadence125to9snapshot reads; ready-empty mask10to0canvases,
+  62.5to0.5ms CPU. No served number/coast policy/science switch changes.
+  806 dev frontend/sharedAPI matching de1bd, production frontendfc140024 frozen.
+  807 fulfills796: current bundle main.266069b3.js paused GFS Waves still trips
+  12windows at1..2FPS;16nativecallbacks,0texture-helper ops,0slow engine drawcalls,
+  17longtasks3221ms. Zero delivered LoAF entries does not exclude stalls.
+  Engine timing excludes whole-map/outside encode/mask work (correction800).
+  Waves off, tab closed;00:48:15Z API healthy13310products restored complete.
+  Next discriminant: whole callback and mask prepare/paint/upload CPU boundaries,
+  with focus/visibility verified; no attribution to console recorder wrapper.
+  PR245 clean combined-tree26offline tests802, still needs current qualification.
+  Smooth Play/scrub, exact served time, Gulf amplitude, device acceptance and
+  actual staging publication remain open. Unowned canary preserved/excluded.
+  See MASK-PREFLIGHT-RESULTS.md and log/2026-10-07-mask-preflight-repairs.md.
 
 - **2026-10-06 23:13Z: owner-approved PR247 merged dev1993cc39, ledger778.**
   Exact ec34 source qualified: ownCI37543004057 all11 and four supplementary
@@ -1072,7 +1076,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 801, sha256 ec8cbe07aa49eb506b908766d90a98b0f677b211f1ce7844239ef05eab944b4b**
+  **Ledger head: seq 809, sha256 a2bdaa446383f25b71bebd88a6da25c3fe5f80353d90fd26083be6c2fc260d27**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
