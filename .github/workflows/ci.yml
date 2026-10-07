@@ -1345,7 +1345,8 @@ jobs:
           # Grid HTTP response envelope: staged chain test +54 executed controls.
           # Own hostedf405 read2280; 37 scan/lease controls project2317/157files, preserve margin6.
           # Five follow-ups grade real-helper cancellation/ready frames/expired child work.
-          MIN_FILES, MIN_PASSED = 157, 2311
+          # Partial ECMWF analysis metadata: 11 executed offline controls; projected2328, margin6.
+          MIN_FILES, MIN_PASSED = 157, 2322
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

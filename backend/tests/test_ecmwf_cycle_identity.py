@@ -9,6 +9,8 @@ read by `cycle_provenance.cycle_from_points`.
 """
 from datetime import datetime, timezone
 
+import pytest
+
 from services import ecmwf_opendata_fetcher as f
 from services.weather_pipeline.cycle_provenance import cycle_from_points
 from tests.test_ecmwf_period_bands_decode import _FakeMsg, _install, _payload, _T0, _T1
@@ -55,3 +57,49 @@ def test_messages_without_an_analysis_time_are_unchanged(monkeypatch):
     points, ok, _failed, _times = f.fetch_global_coarse(_payload())
     assert points and ok
     assert not any("__model_run_time" in p for p in points)
+
+
+@pytest.mark.parametrize("missing_index", range(4))
+@pytest.mark.parametrize("explicit_none", [False, True])
+def test_partial_analysis_metadata_cannot_borrow_the_other_messages_cycle(
+        monkeypatch, missing_index, explicit_none):
+    monkeypatch.delenv("ECMWF_PERIOD_BANDS", raising=False)
+    monkeypatch.delenv("ECMWF_WAVE_ENSEMBLE", raising=False)
+    complete = _msgs(RUN_00Z, RUN_00Z)
+    _install(monkeypatch, complete)
+    baseline, *baseline_counts = f.fetch_global_coarse(_payload())
+
+    partial = _msgs(RUN_00Z, RUN_00Z)
+    if explicit_none:
+        partial[missing_index].analDate = None
+    else:
+        del partial[missing_index].analDate
+    _install(monkeypatch, partial)
+    points, *counts = f.fetch_global_coarse(_payload())
+
+    assert points and counts[0]
+    assert not any("__model_run_time" in p for p in points)
+    assert cycle_from_points(points)["model_run_time_status"] == "missing"
+    assert counts == baseline_counts
+    assert points == [{k: v for k, v in p.items() if k != "__model_run_time"} for p in baseline]
+
+
+@pytest.mark.parametrize("layer,names", [("wind", ("10u", "10v")), ("pressure", ("msl",))])
+def test_partial_analysis_metadata_is_unknown_for_other_layers(monkeypatch, layer, names):
+    messages = [_RunMsg(name, vt, 101325.0 if layer == "pressure" else 2.0, RUN_00Z)
+                for vt in (_T0, _T1) for name in names]
+    messages[-1].analDate = None
+    _install(monkeypatch, messages)
+    payload = {**_payload(), "layer": layer}
+    points, ok, _failed, _times = f.fetch_global_coarse(payload)
+    assert points and ok
+    assert not any("__model_run_time" in p for p in points)
+    assert cycle_from_points(points)["model_run_time_status"] == "missing"
+
+
+def test_unselected_parameter_without_analysis_does_not_poison_a_known_cycle(monkeypatch):
+    monkeypatch.delenv("ECMWF_PERIOD_BANDS", raising=False)
+    _install(monkeypatch, [_FakeMsg("10u", _T0, 2.0), *_msgs(RUN_00Z, RUN_00Z)])
+    points, ok, _failed, _times = f.fetch_global_coarse(_payload())
+    assert points and ok
+    assert cycle_from_points(points)["model_run_time_status"] == "known"

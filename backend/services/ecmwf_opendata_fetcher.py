@@ -377,9 +377,10 @@ def fetch_global_coarse(payload):
     ensemble_on = (layer == "waves") and wave_ensemble_enabled()
     idx_by = None    # rid -> [(r, c), ...]
     # F-05 (audit 14.0/15.0): the client resolves the latest cycle itself and the fetcher used to drop
-    # it, so 98.4% of EURO products said model_run_time "missing". Every GRIB message carries its own
-    # analysis time; one consistent value becomes the cycle, exactly as the NOAA/DWD fetchers stamp it.
+    # it, so 98.4% of EURO products said model_run_time "missing". Only a complete, consistent set
+    # of analysis times on the selected messages can establish the deterministic batch's cycle.
     cycles = set()
+    cycles_complete = True
     try:
         grbs = pygrib.open(str(target))
         for m in grbs:
@@ -398,8 +399,11 @@ def fetch_global_coarse(payload):
                           for rid, (lats, lons) in axes.items()}
             arr = np.ma.filled(np.ma.asarray(m.values, dtype=float), np.nan)
             vt = m.validDate
-            if getattr(m, "analDate", None) is not None:
-                cycles.add(m.analDate)
+            analysis_time = getattr(m, "analDate", None)
+            if analysis_time is None:
+                cycles_complete = False
+            else:
+                cycles.add(analysis_time)
             kind = (sn if sn in want_bands else
                     "u" if sn in want_u else "v" if sn in want_v else "p" if sn in want_p else
                     "h" if sn in want_h else "pk" if sn in want_pk else "mp" if sn in want_mp else "d")
@@ -595,9 +599,10 @@ def fetch_global_coarse(payload):
                 pi += 1
         return points
 
-    # Exactly one analysis time -> the cycle (UTC; pygrib's analDate is naive UTC). Zero or several ->
-    # no claim at all: cycle_from_points then reports 'missing', never a guessed run.
-    cycle_iso = (next(iter(cycles)).replace(tzinfo=timezone.utc).isoformat() if len(cycles) == 1 else None)
+    # Exactly one analysis time on EVERY selected message -> cycle (pygrib's analDate is naive UTC).
+    # Missing or conflicting metadata -> no claim: another message cannot supply the missing run.
+    cycle_iso = (next(iter(cycles)).replace(tzinfo=timezone.utc).isoformat()
+                 if cycles_complete and len(cycles) == 1 else None)
     if multi:
         return {rid: _assemble(rid) for rid in regions}, len(times_dt), 0, times
     return _assemble("__single__"), len(times_dt), 0, times

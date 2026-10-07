@@ -450,7 +450,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # WI02/WI03 add18 chain and33 guards controls, selectors checked from backend cwd.
 # WS-08 adds88 estate controls; projected1201 awaits own-source hosted confirmation.
 # PR250 actually read1201; gallery grace regression adds3, preserving estate margin2.
-_FLOOR_SET_FROM = {"guards": 2425, "chain": 2317, "estate": 1204}
+# Partial ECMWF metadata adds11 executed chain controls; projected2328, hosted confirmation pending.
+_FLOOR_SET_FROM = {"guards": 2425, "chain": 2328, "estate": 1204}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

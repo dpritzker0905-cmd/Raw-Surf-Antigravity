@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 04:22Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 11:57Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,19 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 11:57Z: WI-03 partial ECMWF cycle candidate local-qualified; unpublished.**
+  Owner865 authorizes repairs;866 reproduces false-known metadata with10 RED
+  failures. Complete selected-message analysis metadata is now required;
+  final104 offline controls pass, including unchanged wave values/times/counts.
+  Eleven new chain controls project2328/floor2322; own hosted remains pending.
+  Branch `codex/ecmwf-cycle-provenance` is stacked on unmerged receipt PR254
+  head7762ae6e; merged dev still4fe94420. No live forecast number, deployment,
+  shared-data or scientific flag change. Estimated-tail cycle warnings remain.
+  Cache repairs stay closed at documented scope. Existing860 is still blocked
+  on focused/viewport/diagnostic browser access;863 remains separately open.
+  Playback/scrub, served-time, Gulf/device and isolated staging acceptance stay
+  open. See `log/2026-10-07-ecmwf-cycle-provenance.md` for bounded evidence.
 
 - **2026-10-07 04:22Z: PR253 three-cache repairs qualified, merged and served dev4fe94420.**
   857 own d417 CI37569367813 all11/four success;377/4177 frontend and5946
@@ -1212,7 +1225,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 864, sha256 b864b6eb483c4b9eee6e66292a73e29284b66f20de4fe69c1e91df27faa8473a**
+  **Ledger head: seq 867, sha256 07afd42db98ef6bc32f3e4478910c515a1fa554c7d98fdc8ad06ff51fca19e9b**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
