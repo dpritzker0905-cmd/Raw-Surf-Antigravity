@@ -72,6 +72,8 @@ beforeEach(() => {
 afterEach(() => {
   jest.restoreAllMocks(); delete window.__RAW_DISABLE_SHELTERED_WATER__;
   delete window.__RAW_DISABLE_MASK_MINIMUM_SPAN_REUSE__;
+  delete window.__RAW_DISABLE_ACTIVE_OVERLAY_RETENTION__;
+  delete window.__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__;
 });
 
 test.each(methods)('%s: repeated empty-water attempts allocate no mask canvas', kind => {
@@ -208,4 +210,48 @@ test.each(['overlay', 'wide'])('%s: settled zoom change refreshes finest tile tr
   expect(f.refresh()).toBe(true);
   expect(f.refresh()).toBe(false);
   expect(f.map.queryRenderedFeatures).toHaveBeenCalledTimes(2);
+});
+
+test.each([8, 10, 11.999])('regional: clean active overlay survives stationary refresh at zoom%s', zoom => {
+  const f = fixture('regional'); f.addWater(); f.map.getZoom = () => zoom;
+  expect(f.refresh()).toBe(true);
+  expect(f.engine._regionalPatchState.degraded).toBe(false);
+  expect(f.engine._overlayPaintDegraded).toBe(false);
+  const truth = f.engine._overlayMaskTruthBox;
+  expect(renderMaskToCanvas).toHaveBeenCalledTimes(2); // one base, one overlay.
+  for (let i = 0; i < 10; i++) expect(f.refresh()).toBe(false);
+  expect(f.engine._overlayMaskTruthBox).toBe(truth);
+  expect(renderMaskToCanvas).toHaveBeenCalledTimes(2);
+  expect(f.gl.texImage2D).toHaveBeenCalledTimes(2);
+});
+
+test('regional: exiting the active overlay zone clears its truth', () => {
+  const f = fixture('regional'); f.addWater(); f.map.getZoom = () => 10;
+  expect(f.refresh()).toBe(true); expect(f.engine._overlayMaskTruthBox).toBeTruthy();
+  f.map.getZoom = () => 7.999; f.refresh();
+  expect(f.engine._overlayMaskBounds).toBeNull();
+  expect(f.engine._overlayMaskTruthBox).toBeNull();
+  expect(f.refresh()).toBe(false);
+});
+
+test('regional: legacy carve gate still clears below12 and rebuilds at12', () => {
+  const f = fixture('regional'); f.addWater(); f.map.getZoom = () => 12;
+  expect(f.refresh()).toBe(true);
+  window.__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ = true;
+  f.map.getZoom = () => 10; f.refresh();
+  expect(f.engine._overlayMaskBounds).toBeNull();
+  expect(f.refresh()).toBe(false);
+  f.map.getZoom = () => 12; expect(f.refresh()).toBe(true);
+  expect(f.engine._overlayMaskTruthBox).toBeTruthy();
+  expect(f.refresh()).toBe(false);
+});
+
+test('regional: retention rollback restores repeated midzoom clearing, then re-enables reuse', () => {
+  const f = fixture('regional'); f.addWater(); f.map.getZoom = () => 10;
+  window.__RAW_DISABLE_ACTIVE_OVERLAY_RETENTION__ = true;
+  expect(f.refresh()).toBe(true); expect(f.refresh()).toBe(true);
+  expect(renderMaskToCanvas).toHaveBeenCalledTimes(3);
+  delete window.__RAW_DISABLE_ACTIVE_OVERLAY_RETENTION__;
+  expect(f.refresh()).toBe(false);
+  expect(renderMaskToCanvas).toHaveBeenCalledTimes(3);
 });

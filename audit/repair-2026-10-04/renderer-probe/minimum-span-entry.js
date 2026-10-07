@@ -63,15 +63,69 @@ document.getElementById('run').addEventListener('click', () => {
       }
       }
     }
+    delete window.__RAW_DISABLE_MASK_CANVAS_CACHE__;
+    delete window.__RAW_DISABLE_MASK_MINIMUM_SPAN_REUSE__;
+    result.regionalRetention = [];
+    for (const zoom of [8, 10, 11.999, 12]) {
+      let baseline = null;
+      for (const rollback of [true, false]) {
+        window.__RAW_DISABLE_ACTIVE_OVERLAY_RETENTION__ = rollback;
+        let bound = null, flip = false, uploads = 0, overlayUploads = 0, queries = 0, pixels = null;
+        const resident = {};
+        const gl = { TEXTURE_2D: 1, TEXTURE_BINDING_2D: 2, UNPACK_FLIP_Y_WEBGL: 3,
+          getParameter: key => key === 2 ? bound : flip,
+          bindTexture: (_target, value) => { bound = value; },
+          pixelStorei: (_target, value) => { flip = value; },
+          createTexture: () => ({}), texParameteri() {}, texImage2D: (...args) => {
+            uploads++;
+            if (bound !== resident) {
+              overlayUploads++;
+              const canvas = args[5];
+              pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+            }
+          } };
+        const engine = Object.create(WebGLMarineEngine.prototype);
+        Object.assign(engine, { _cachedMaskTex: resident, _waveData: { u_oceanMaskTexture: resident },
+          _cachedMaskBounds: { west: 0, east: 4, south: 0, north: 4 },
+          _cachedMaskGeoJSON: { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {},
+            geometry: { type: 'Polygon', coordinates: [[[0,0],[1.5,0],[1.5,3],[0,3],[0,0]]] } }] } });
+        const water = { type: 'Feature', properties: { class: 'ocean' }, geometry: {
+          type: 'Polygon', coordinates: [[[1.5,1],[2,1],[2,2],[1.5,2],[1.5,1]]] } };
+        const map = { getZoom: () => zoom,
+          getStyle: () => ({ layers: [{ id: 'water', type: 'fill', source: 'fixture', 'source-layer': 'water' }] }),
+          getSource: () => ({}), isSourceLoaded: () => true, areTilesLoaded: () => true,
+          queryRenderedFeatures: () => { queries++; return [water]; }, querySourceFeatures: () => [],
+          getBounds: () => ({ getWest: () => 1, getEast: () => 2, getSouth: () => 1, getNorth: () => 2 }) };
+        const outcomes = [];
+        for (let i = 0; i < 3; i++) outcomes.push(engine.refreshMaskWithBasemapWater(gl, map));
+        let differentBytes = 0;
+        if (baseline) {
+          if (!pixels || pixels.length !== baseline.length) throw new Error('Regional pixel dimensions changed');
+          for (let i = 0; i < pixels.length; i++) if (pixels[i] !== baseline[i]) differentBytes++;
+        } else baseline = pixels;
+        let waterPixels = 0, landPixels = 0;
+        for (let i = 0; i < pixels.length; i += 4) {
+          if (pixels[i] >= 128) waterPixels++; else landPixels++;
+        }
+        result.regionalRetention.push({ zoom, rollback, attempts: 3, outcomes, uploads, overlayUploads, queries,
+          degraded: engine._overlayPaintDegraded, comparedBytes: rollback ? 0 : pixels.length,
+          differentBytes, waterPixels, landPixels, glStateRestored: bound === null && flip === false });
+      }
+    }
     result.completed = result.cases.every(row => row.uploads === (row.rollbackEnabled ? 3 : 1)
       && row.queries === row.uploads && row.degraded === false && row.glStateRestored
       && row.waterPixels > 0 && row.landPixels > 0 && row.differentBytes === 0
-      && row.firstPaintDifferentBytes === 0 && row.repeatedPaintDifferentBytes === 0);
+      && row.firstPaintDifferentBytes === 0 && row.repeatedPaintDifferentBytes === 0)
+      && result.regionalRetention.every(row => row.uploads === (row.rollback && row.zoom < 12 ? 4 : 2)
+        && row.overlayUploads === row.uploads - 1 && row.queries === row.uploads
+        && row.degraded === false && row.differentBytes === 0 && row.glStateRestored
+        && row.waterPixels > 0 && row.landPixels > 0);
   } catch (error) { result.completed = false; result.error = error.message; }
   finally {
     delete window.__RAW_DISABLE_SHELTERED_WATER__;
     delete window.__RAW_DISABLE_MASK_MINIMUM_SPAN_REUSE__;
     delete window.__RAW_DISABLE_MASK_CANVAS_CACHE__;
+    delete window.__RAW_DISABLE_ACTIVE_OVERLAY_RETENTION__;
   }
   document.getElementById('report').textContent = JSON.stringify(result, null, 2);
 });

@@ -212,3 +212,29 @@ matching served readback. No second live scene in this turn. Live smoothness,
 viewport span, playback/Gulf/time/device/cloud acceptance remain open. No
 served forecast number or science switch changed; production frontendfc140024
 frozen and other chat canary unchanged/excluded.
+
+## 2026-10-07 03:56Z - final three-cache repair, active zone included
+
+853 records a related public-engine RED1/34 in an isolated ignored root:
+regional z10 clears clean overlay truth on every refresh. Actual active carve
+minimum is8, while the stale clear still used obsolete12. The proper source
+regressions then produced4RED/36passing cases:8/10/11.999stationary plus
+reenabled rollback. Clear only below the active zone; legacy carve and the
+new __RAW_DISABLE_ACTIVE_OVERLAY_RETENTION__ rollback keep12. Below8clear,
+legacy12gate and repair rollback/re-enable are preserved.
+
+854 final full377suites4177tests,0failed/pending; lint/LOC/build pass,
+engine3207to3202.22new public controls now cover all three cache repairs.
+855 native16legs,64MiB exact finalRGBA comparisons,0different bytes. Regional
+8/10/11.999 have3legacy overlays versus1repair (each also paints1base);
+at12both retain1overlay. Floor controls remain3versus1. Every native row has
+land/water, clean verdict, restored GL state. Owned tab closed/server stopped;
+no tests/build overlapped, no backend connections or second live forecast.
+
+The previousff124 candidate qualified all11/four and actual5946backend/
+3774171frontend on CI37567230968 at03:49:10Z, but was NOT merged. That evidence
+is historical and cannot qualify the new head.851 remains open; final frontend
+floor4177 replaces its4171 baseline. New head must pass its own full hosted
+checks/counts before dev merge and matching served readback. No served forecast
+number/science activation/production frontend change. Original live smoothness,
+viewport span, playback/Gulf/time/device/staging gates remain open.

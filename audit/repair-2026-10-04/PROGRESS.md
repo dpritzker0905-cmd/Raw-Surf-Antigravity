@@ -1,5 +1,14 @@
 # Audit repair progress — 2026-10-04
 
+Current 2026-10-07 03:56Z: PR253 now covers THREE reproduced cache defects:
+minimum-span reuse, inconsistent pristine-cache contexts, and obsolete12 stale
+clearing inside the active8-to12 regional zone. Final local377/4177, lint/LOC/
+build pass; native16legs64MiB exact final pixels, fewer paints. Priorff124 hosted
+all11/four qualified, but its4171 evidence cannot qualify the updated source.
+Keep PR253 draft for new own-source hosted checks and matching served readback851.
+Dev remains1a89ed0a; production frontendfc140024 frozen. No second live scenario,
+forecast number/science activation or claim that original acceptance is closed.
+
 Current 2026-10-07 03:30Z: clean minimum-span mask reuse and pristine-context
 parity repair are locally qualified, awaiting own-source dev PR qualification.
 850 combined377suites/4171tests, lint/LOC/build pass;849 native8cases32MiB exact

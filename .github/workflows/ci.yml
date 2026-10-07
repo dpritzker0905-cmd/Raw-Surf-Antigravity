@@ -128,8 +128,8 @@ jobs:
             // Callback-gap diagnostic: +2 suites /21 fault, interval, privacy and lifecycle controls.
             // Truth cadence/lifecycle adds1suite13tests; exact-source hosted qualification required.
             // Whole-callback/mask CPU timing: +2 suites/31 controls; own hosted confirmation required.
-            // Minimum-span cache: +16 public engine/painter controls; own hosted confirmation required.
-            const MIN_SUITES = 377, MIN_TESTS = 4171;
+            // Minimum-span and active-zone cache: +22 public engine/painter controls; own hosted required.
+            const MIN_SUITES = 377, MIN_TESTS = 4177;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

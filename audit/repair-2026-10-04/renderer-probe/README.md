@@ -105,3 +105,9 @@ The map and GL are synthetic; this proves cache/pixel parity, not GPU completion
 real geography, forecast accuracy or smoothness. CSP blocks network connections.
 Keep builds/tests stopped during observation; close the owned tab and stop the
 server afterward. Generated bundles live in ignored `visual/`.
+
+The final fixture also runs regional retention at zoom8/10/11.999/12 with its
+rollback enabled/disabled. Three attempts should paint one base and one overlay;
+the obsolete-clear control paints three overlays below12. A matching synthetic
+coastline requires both land/water and exact final pixels in all eight legs.
+Together the sixteen controls compare64MiB of final RGBA bytes.

@@ -2387,17 +2387,14 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   // (A first attempt retargeted THIS texture to viewport bounds in place: one pan later the
   // out-of-bounds samples clamped to edge-water and land masking died wholesale — Istria/Susak.)
   if (span >= 30) { this._lastMaskRepatchReason = 'wide_delegate'; return this.refreshViewportOverlayMask(gl, mapInstance, true); }
-  // STALE-OVERLAY CLEAR (2026-07-04, the "bright rectangle block" at Punat z9.44 after a z12.5 zoom):
-  // the viewport-truth overlay is a DEEP-ZOOM (z≥12) crispness enhancement painted for a SMALL box.
-  // Zooming back out below z12 leaves that box resident, and it then applies its sheltered/crisp
-  // verdict over a SUB-VIEWPORT rectangle (min()-combine) while the surrounding viewport uses the
-  // base mask — a hard rectangular seam that pans with the map (live repro: z12.5→z9.44). Below the
-  // overlay-active zone for a REGIONAL grid (span<30, z<12) the overlay is never legitimately
-  // painted OR rendered, so a resident box is always stale — drop it. Wide grids (span≥30, handled
-  // above) keep their overlay: they use it at every zoom via REPLACE. Proven fix: clearing the
-  // bounds alone (no re-patch) removes the block.
+  // Clear regional overlays only below their ACTIVE carve zone; clearing below the obsolete
+  // z12 gate while midzoom carving is active discards clean truth and repaints every refresh.
+  // The legacy carve/retention rollback keeps z12. Wide-grid REPLACE is delegated above.
   try {
-    if (mapInstance.getZoom() < 12 && this._overlayMaskBounds) {
+    const overlayMinZoom = typeof window !== 'undefined' &&
+      (window.__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ === true || window.__RAW_DISABLE_ACTIVE_OVERLAY_RETENTION__ === true)
+      ? 12 : MIDZOOM_OVERLAY_CARVE_MIN_Z;
+    if (mapInstance.getZoom() < overlayMinZoom && this._overlayMaskBounds) {
       this._overlayMaskBounds = null;
       this._overlayMaskTruthBox = null;
     }

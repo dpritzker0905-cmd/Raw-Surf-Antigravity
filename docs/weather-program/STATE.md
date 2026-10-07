@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 03:30Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 03:56Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,15 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 03:56Z: final three-cache PR253 amendment local-qualified; hosted pending851.**
+  853/854 prove active8-to12 regional overlays reset at obsolete12clear;
+  RED4/36, final377/4177; lint/LOC/build pass, engine3207to3202.855 native
+  16legs64MiB final exact pixels, fewer repeated floor/regional paints, zone12
+  unchanged. Two rollback flags plus existing pristine-cache disable available.
+  Priorff124 hosted all11/four/5946backend/4171 qualified, not merged; cannot
+  qualify successor. New source own hosted and matching served remain owed851.
+  Dev1a89ed0a/production frontendfc140024; no new live scene/science/served number.
 
 - **2026-10-07 03:30Z: combined mask reuse/parity locally qualified, hosted pending851.**
   850 final377/4171frontend, lint/LOC/build pass; engine3207to3205.849 native
@@ -1190,7 +1199,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 851, sha256 bb7217829b6598797c835840ebd9603755e2716ee8f5ed30d20a749db6507eac**
+  **Ledger head: seq 855, sha256 3c8d484c61e3961cd95e7f801140705a31efeb9e03b7d19114f9a325f2faef5b**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
