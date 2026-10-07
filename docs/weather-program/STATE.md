@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 12:48Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 12:57Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,15 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 12:57Z: WI-03 publication authorized; Jacobian control qualified locally.**
+  871:156real-decoder offline cells, physical sensitivities equal across4
+  provenance modes with max delta0; wave/wind/pressure analytic interior gains
+  pass. Existing0c89source104passes; chain2328/backend5957 still projected.
+  872tracks new-source own hosted qualification, not replacement860/863.
+  873prepares branch push/dev draft; source/receipt stack inherits unmerged
+  PR254head7762ae6e. Merged dev4fe94420 unchanged; no live repeat, merge,
+  deployment, shared-data or science flag action. See own publication log.
 
 - **2026-10-07 12:48Z: assisted860 receipt retained; viewport changed, acceptance open.**
   868/869: owner quiet/access, one paused GFS Waves h0 scene; viewport540x241
@@ -1238,7 +1247,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 870, sha256 3a48250b083a35304f734cda83fdb238fa8caf5e84a6aba019630edc997336c6**
+  **Ledger head: seq 873, sha256 112c32b966b6a2d6e0d02bfa6000015d2a2d0d7733f697d59979c801e9e31b9a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
