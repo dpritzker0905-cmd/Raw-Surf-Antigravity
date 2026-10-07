@@ -317,3 +317,26 @@ source/health/quiet-period/≥20min after latest7amerge prerequisites.
 current13188, difference179.903evidence/descriptive paragraph were correct.
 External report/handoff exact text corrected; original append-only table
 retained with this correction. Cause remains unknown; no source/data action.
+
+## 2026-10-07 15:54Z — final receipt PR256 published
+
+905records normal branch push and draft PR256creation/attachment/readback
+591b9a15ca40e26d4c3aa4a56ee9c196e3ac926a. Actual source delta only3ownedweatherprogramdocs; canonical900
+prefix preserved. All source repairs254/255/245/226 already merged and
+qualified at their own scope, latest7a frontend/healthyAPI verified with
+0restoreerrors and13188manifestentries availableondemand. Proposed901-905
+including902899fulfillment remain unmerged. Newdocs final receipt-only head
+must earn its own hosted checks; no borrowing sourceCIall-green. Local
+ledger904verify/memory require-history0FAIL9WARN5NOTE actualexit0 before
+initialpush.860focusblocked/333scheduledrenderer/WI03warning/inventory and
+independent playback/time/Gulf/device/isolation/datahealth stay open.
+
+## 2026-10-07 15:55Z — final publication scanner wording correction
+
+906corrects905continuation status: gitleaks blocked the receipt-only commit
+on a compact STATE inventory label; the initial591b9a15publication succeeded,
+but the continuation was not committed/pushed. The label uses public product
+counts, not credentials. Replaced exact label with plain prose preserving
+13,367previous,13,188current,179fewer and cause unknown. No scanner suppression,
+allowlist or push-protection bypass. Actual local gates and precommit scanner
+must pass before the normal receipt continuation push.
