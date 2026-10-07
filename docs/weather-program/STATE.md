@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 23:48Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 23:50Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,9 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 23:50Z: PR259 contributor-cycle repair published for own qualification.**
+  PR259 is an open draft against dev. Initial source head f89c0809 is published; the appended publication receipt requires a new final-head CI run. Commitment 925 remains open until actual qualification and deployed source/health readback; commitment 860 and WI03 product acceptance remain independent.
 
 - **2026-10-07 23:48Z: Blend candidate qualification and conditional dev rollout owed.**
   The new contributor-cycle candidate needs its own final-head CI and conditional dev rollout. This follow-up does not close WI03 data-health acceptance or replace the quiet, stable-viewport live check in commitment 860.
@@ -1489,7 +1492,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 925, sha256 ec7b6001f4494fbcee2221e1825ee32f95e6ff23a08efc82265f71d3b51ef8e3**
+  **Ledger head: seq 926, sha256 a91e97104ba80cbe4bac6dbb5661b62ad90ac1d098082115c280fd1931b61e13**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
