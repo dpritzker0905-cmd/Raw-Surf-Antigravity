@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 17:14Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 18:11Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,23 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 18:11Z: Latest acceptance follow-up receipts prepared for normal publication.**
+  Owned codex/weather-acceptance-followup carries proposed919-922, canonical918. Normal publication final readback pending at append. PR258/source257 completed scoped qualifications;918fulfilled920.860 remainsopen/overdue due active07ingest; five dataalerts and333/live/scientific acceptance independent.
+
+- **2026-10-07 18:08Z: 860 remains blocked by active repaired-source ingest; datawarn5 retained.**
+  860 open/overdue; separately existing dispatch37658162210 active on07 source at18:04Z prevents quiet live scene. Earlier scheduled68ingest completed17:16Z. Fresh RawSurfwindow readable, focus/viewport/grid unmeasured; no input or scene activation. Datawarn5 now includes age warnings, independent WI03 remains open; no reopening253repairs.
+
+- **2026-10-07 18:06Z: PR258 qualified documentation rollout;918 fulfilled.**
+  PR258 mergeddd1f9655 after own all11/6013backend/4177frontend; canonical918. New919 onward proposed on codex/weather-acceptance-followup. Frontenddd/APIhealthy07 have identical app/workflow source, literal API dd runtime not asserted;13189 restored0errors,datawarn5.918 fulfilled at documentation scope;860/333/WI03 remain open.
+
+- **2026-10-07 18:01Z: PR258 merged devdd1f9655 (2026-10-07T18:00:16Z).**
+  Exact reviewedhead25bb7f96, source/ledgerprefix read back;
+  full merge tree equals25bb7f96; no numeric/science change.
+  Deployment source/health readback pending; no live860 repeat. Original
+  playback/time/Gulf/device/isolation/datahealth gates remain independently
+  open. Records after merged branch prefix remain local until receipt PR.
+  See own `log/2026-10-07-ecmwf-rollout.md` for actual checks/rollout progress.
 
 - **2026-10-07 17:14Z: PR258 final receipt qualification obligation recorded.**
   New documentation follow-up918 due18:30Z tracks final own receipts and conditional dev merge. PR258 draft, canonical913/proposed914-918. Source257 complete and911fulfilled916;860/333/WI03 acceptance independently open.
@@ -1463,7 +1480,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 918, sha256 c660685976764d03715ee41d49f3e5f3b07769960e286aafb8a798066cf24fbb**
+  **Ledger head: seq 922, sha256 df96f5a5a4eefe66b9f57ae485c409b1ca27382ed7a881aef50f5673e2a54678**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
