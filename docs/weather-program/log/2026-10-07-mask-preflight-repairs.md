@@ -98,3 +98,13 @@ tests802; no current hosted/visual acceptance. Larger native controls804 were
 uneven and do not prove resolution/FPS/GPU effects. Smooth playback, exact-time,
 Gulf amplitude, real devices and actual staging publication remain open.
 No served forecast number, science flag or production frontend change.
+
+## 2026-10-07 00:50Z — receipt publication and timestamp correction811
+
+809 publication pushed owned receipts d19f70e5; actual local/remote heads equal.
+810's hardcoded second-precision verification time was not independently captured.
+811 corrects it with renewed remote readback captured2026-10-07T00:50:33Z:
+d19f70e58fbdf2e671794089820a66134e444502. Runtime/backend/workflow unchanged;
+other chat's canary remains untouched. Ledger verifies; memory0FAIL9historicalWARN4NOTE.
+
+Receipt continuation contains only this log, ledger and STATE anchor.
