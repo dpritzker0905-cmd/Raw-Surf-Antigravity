@@ -116,3 +116,12 @@ no controls; the corrected actual suite passes. Exact four harness/workflow
 files only; backend, renderer, served values and CI floors remain unchanged.
 892 tracks own updated-head qualification and conditional dev merge. No new
 live battery, workflow dispatch or forecast load. 333 remains independent.
+
+## 2026-10-07 14:44Z — Existing245 publication readback
+
+893: actual fast-forward remote/local/PR245 headc638b49afd61e93087aff226f3a08a11e994eac8; draft/dev, no
+replacement PR or force push. Both originalae761537 and currentdev8e are
+ancestors. PRbaseRefOid is an older2a7 snapshot; actual live dev ref8e was
+checked separately. Own initialCI37638804647 is running; Ledger37638804657
+passed at this head. LOC/Encoding are absent by their unchanged-source filters.
+Final receipt amendment has a new full SHA and requires its own check status.
