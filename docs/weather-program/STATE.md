@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 17:09Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 17:14Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,12 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 17:14Z: PR258 final receipt qualification obligation recorded.**
+  New documentation follow-up918 due18:30Z tracks final own receipts and conditional dev merge. PR258 draft, canonical913/proposed914-918. Source257 complete and911fulfilled916;860/333/WI03 acceptance independently open.
+
+- **2026-10-07 17:13Z: Completed257 receipts pushed as draftPR258.**
+  PR258 OPEN draft on codex/interpolation-rollout-receipts; proposed914 onward, canonical913 remains. Its own final-head hosted qualification is pending; no pending merge. Source257 already matched healthy dev,911 fulfilled at source scope;860/333/WI03 remain open.
 
 - **2026-10-07 17:09Z: PR257 matching healthy dev rollout;911 fulfilled at source scope.**
   Dev frontend/API07e153ac matched at17:04:49-52Z,13197 restored and zero restore errors. Own final CI all11/6013 backend/4177 frontend qualified. Canonical913; new914 onward proposed until receipt merge. Three data warnings and860/333/remaining acceptance stay open; existing scheduled ingest remains active.
@@ -1457,7 +1463,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 916, sha256 31a65615f090c4285e11e3d8a1f54a23ce1fda47ce7357a0342dd69f74286f7a**
+  **Ledger head: seq 918, sha256 c660685976764d03715ee41d49f3e5f3b07769960e286aafb8a798066cf24fbb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
