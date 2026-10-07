@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 16:39Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 17:09Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,20 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 17:09Z: PR257 matching healthy dev rollout;911 fulfilled at source scope.**
+  Dev frontend/API07e153ac matched at17:04:49-52Z,13197 restored and zero restore errors. Own final CI all11/6013 backend/4177 frontend qualified. Canonical913; new914 onward proposed until receipt merge. Three data warnings and860/333/remaining acceptance stay open; existing scheduled ingest remains active.
+
+- **2026-10-07 17:04Z: PR257 exact qualification read back; rollout pending.**
+  Dev07e153ac equals own qualified4741 tree; all11 and6013backend/4177frontend actual passes. Canonical913, proposed914 onward.911 awaits actual deployed source/health. Three data warnings, old stored interpolation/blend evidence and860scene prerequisites remain open; no manual forecast dispatch.
+
+- **2026-10-07 17:01Z: PR257 merged dev07e153ac (2026-10-07T17:01:14Z).**
+  Exact reviewedhead4741a10d, source/ledgerprefix read back;
+  full merge tree equals4741a10d; no numeric/science change.
+  Deployment source/health readback pending; no live860 repeat. Original
+  playback/time/Gulf/device/isolation/datahealth gates remain independently
+  open. Records after merged branch prefix remain local until receipt PR.
+  See own `log/2026-10-07-ecmwf-rollout.md` for actual checks/rollout progress.
 
 - **2026-10-07 16:39Z: PR257 missed floor reference corrected.**
   Correction913 supersedes910/911 paired-reference claim. The actual companion test now uses chain2361 with floor2355;47 controls pass after1fail/46pass counterexample. PR257 remains unmerged/draft,911 open; changed head needs fresh own CI. Physical code and invariance controls unchanged.
@@ -1443,7 +1457,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 913, sha256 4b1d44475005e61b0d0438568b2628637d5686c139b3ee31bd1d719de0e36172**
+  **Ledger head: seq 916, sha256 31a65615f090c4285e11e3d8a1f54a23ce1fda47ce7357a0342dd69f74286f7a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

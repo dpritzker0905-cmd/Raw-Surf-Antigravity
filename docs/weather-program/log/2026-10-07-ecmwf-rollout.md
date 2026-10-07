@@ -371,3 +371,18 @@ Normal source push dca98fc1 and actual draft PR257 creation/attachment succeeded
 ## 2026-10-07 16:39Z — PR257 missed floor reference corrected
 
 I missed backend/tests/test_ci_floor_staleness.py _FLOOR_SET_FROM while raising the workflow chain floor. The earlier910/911 and initial PR257 paired-reference claims were inaccurate and are explicitly corrected here. Actual local47 controls reproduced1fail/46pass (reference2328 minus floor2355 is margin-27); companion chain2361 makes all47 pass with margin6 unchanged. Final73da hosted estate failed; its partition/coverage steps passed, and logs remain unavailable until workflow completion. No merge occurred, no failed gate bypassed. The corrected head must qualify freshly. This patch changes only the reference test and owned records; physical interpolation and600-call Jacobian hashes are unchanged.
+
+## 2026-10-07 17:01Z — PR257 actual merge readback
+
+PR257 MERGED2026-10-07T17:01:14Z squash07e153ac67a56659da084a69d7d70491cc8af774, exact reviewedhead4741a10d91a43c635383ae086ea67382390ab9c9.
+origin/dev equals merge; full merge tree equals4741a10d, exact priorledgerprefix retained.
+Source/health deployed readback remains pending; no scientificactivation/shareddata/main
+promotion or live860scene. User rollout authority880;863qualifiedsupplements881 preserved.
+
+## 2026-10-07 17:04Z — PR257 exact qualification read back; rollout pending
+
+Final4741 own CI37653862282 all11 passed before actual dev merge07e153ac at17:01:14Z. Actual2425guards/2361chain/1227estate=6013backend,377frontend suites/4177tests; zero failed/errors/silent. Guards2492collected186files66skips1xfail; chain158files0skips; estate299selected297produced0silent. LOC/Ledger/Lighthouse pass; Encoding absent by source filter. Failed prior73da hosted estate is confirmed exactly the companion-reference failure (1fail1226pass), not another hidden defect; correction913 retained. Description edit via GraphQL/REST failed readback; actual ready/exact-head merge succeeded independently after all-green strict source/base/prefix validation. Source diff has no physical arithmetic change;600call invariant evidence unchanged. Fresh registry comparison identifies later2absent old GFS coarse wind_waves slots but not their removal cause or earlier179difference;30retained missing-cycle interpolation frames have known matching registry donor pairs, no stored donor grid read. Existing scheduled ingest68 stillactive; no dispatch. Fresh native helper can inventory Chrome but identifies no owned RawSurf window; no appinput/scene/tabchange.17:01 source readback is still frontend589/API7a and is not rollout07 proof.911 remains open until matching deployed source and healthy readiness.
+
+## 2026-10-07 17:09Z — PR257 matching healthy dev rollout;911 fulfilled at source scope
+
+Commitment911 fulfilled at source/availability scope using actual deployment-20261007T170449.json. Frontend07e153ac and healthy API full07e153ac match the merge; complete durable restoration13197/13197, zero restore errors. Production frontendfc140024 remains. Three data-health warnings persist. Own exact4741 head passed all11 CI and6013 backend/4177 frontend tests before merge. Existing scheduled ingest remains active on68 source; no forced ingest, shared-data rewrite or live860 scene. No served physical number changed;600 actual Jacobian calls showed zero physical/Jacobian delta. Separate reconciliation and implementation handoff are refreshed from these receipts.
