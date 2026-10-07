@@ -6,6 +6,7 @@ from services.weather_pipeline.schemas import (
     NormalizedProduct, NormalizedGrid, GridVector, CoverageBounds,
     NormalizedPointResponse, NormalizedPointDetail
 )
+from services.weather_pipeline.cycle_provenance import cycle_from_points
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +278,7 @@ def estimate_euro_grid(
     skipped_invalid_anchor = 0
     skipped_gfs_resample = 0
     skipped_unresolved_direction = 0
+    icon_contributed = False
 
     for v_euro_anchor in euro_anchor_grid.vectors:
         vector_count += 1
@@ -409,6 +411,7 @@ def estimate_euro_grid(
                 is_valid=True
             )
         )
+        icon_contributed = icon_contributed or w_icon_real > 0.0
         blended_cells += 1
 
     if blended_cells == 0:
@@ -509,12 +512,40 @@ def estimate_euro_grid(
         "target_delta_hours": target_delta_hours
     }
 
+    # These are temporal dependencies of the emitted cells, including the native
+    # anchor in each trend. Optional ICON only governs provenance when used by
+    # an emitted cell, not merely available or active in the loop's last cell.
+    contributors = [("native_anchor", euro_anchor_product),
+                    ("gfs_anchor", gfs_anchor_product), ("gfs_target", gfs_target_product)]
+    if icon_contributed:
+        contributors.extend([("icon_anchor", icon_anchor_product), ("icon_target", icon_target_product)])
+    cycle_points = []
+    cycle_sources = []
+    for role, product in contributors:
+        reported_status = getattr(product, "model_run_time_status", "missing")
+        date = getattr(product, "model_run_time", None)
+        point = {"__model_run_time": date.isoformat()
+                 if reported_status == "known" and isinstance(date, datetime) else None}
+        cycle_points.append(point)
+        verified = cycle_from_points([point])
+        cycle_sources.append({
+            "role": role, "product_id": product.product_id or "", "model": product.model,
+            "provider": product.provider, "source_dataset": product.source_dataset,
+            "model_run_time": verified["model_run_time"].isoformat() if verified["model_run_time"] else None,
+            "model_run_time_status": verified["model_run_time_status"],
+            "reported_model_run_time_status": reported_status,
+        })
+    estimate_basis["cycle_semantics"] = "shared_contributor_cycle"
+    estimate_basis["cycle_sources"] = cycle_sources
+    cycle = cycle_from_points(cycle_points)
+
     est_product = NormalizedProduct(
         model="EURO",
         provider="estimated",
         domain=euro_anchor_product.domain,
         layer=euro_anchor_product.layer,
         run_time=euro_anchor_product.run_time,
+        **cycle,
         valid_time=valid_time,
         is_forecast_authoritative=False,
         is_estimated=True,

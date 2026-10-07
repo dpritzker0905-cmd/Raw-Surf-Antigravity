@@ -1348,7 +1348,9 @@ jobs:
           # Partial ECMWF analysis metadata: 11 executed offline controls; projected2328, margin6.
           # PR256 own receipt read2328; 33 interpolation-cycle controls are
           # selector-owned by chain: projected2361 across158 files, margin6.
-          MIN_FILES, MIN_PASSED = 158, 2355
+          # Blend contributor-cycle controls add35 executed tests and one chain-owned file:
+          # projected2396 across159 files, preserving the six-test margin.
+          MIN_FILES, MIN_PASSED = 159, 2390
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

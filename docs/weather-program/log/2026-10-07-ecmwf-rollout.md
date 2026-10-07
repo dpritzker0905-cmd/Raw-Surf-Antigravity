@@ -413,3 +413,15 @@ Current quiet blocker for860: existing source07 workflow_dispatch37658162210 rem
 ## 2026-10-07 18:11Z — Latest acceptance follow-up receipts prepared for normal publication
 
 Publish only owned append-only919-922 latest258 merge/qualification/918fulfillment and860active-ingest blocker receipts after actual ledger/memory/diff gate exits and normal secret-scanned commit/push; final remote readback pending at append, saved externally after push. Canonical918 prefix required. No endless docs merge chain/new replacementtask; final publication is proposed branch evidence. Reconciliation/handoff refreshed; no served number or app/workflow/science/product change, no browser input or scene.
+
+## 2026-10-07 23:45Z — Post-repair interpolation evidence observed; remaining warnings narrowed to blends
+
+Actual23:35:36cachedmetadata-only11690450byte registry read withhealthyAPI07 before/after,13213durable-restored products. Latest interpolation22known (EUROwind10,waves12);8olderretainedmissing. Current2missing-cycle marine alerts arise from463latestestimatedblends; no globaldata/science/live acceptance. Existingsource07jobfinished18:36:50Z,dddispatch22:47:02Z;newddscheduled37688577040actualstart22:47:05Zstillactive. Nojobdispatch/rerun/cancel/forecastgrid/UIscene.860quiet prerequisite fails,identity preserved; oldslot/donor-version/directpoint evidence remainWI03/WF03. Assessment saved registry-20261007T233536.json and postrepair-registry-assessment.json.
+
+## 2026-10-07 23:45Z — Blend provenance candidate locally verified without physical changes
+
+WI03blend provenance reproduced: initial34controls26REDfail8pass; firstcandidate1fail42pass exposed wrongcalm fixture (positiveunresolvedtrend legitimately refused). CorrectedfixtureclampsICONtrendzero and addedactualICONnativeidentity control;final141regressions+47lane/referencecontrols passed. Windowsinternalasyncsocketpair blocked firstsandboxrun; preciseowned65660stopped,trace retained; nativeinternal-loopback141 exited0 withapplicationnetworkforbidden. Candidateonlymetadata:source role/id/model/provider/dataset/reportedstatus/verifiedcycle,allknownsameUTC commonsharedcycle,unusedICONignored,anyearlieremittedICONuse retained despitefinalfallback. Missing/conflicting/invalid stayshonest; no point/stored-slot rewrite.2000actual immutabledd/candidatecalls zero physical/Jacobiandelta,analyticroundingerror0.0001153846153846283. New35 controls chainowned647partition159chain;2390floor2396referencepaired. No servedphysicalnumber changed; no source scientific flag/weights/horizon/Play/GPU/forecastskill acceptance. Final own hosted qualification and matching rollout pending.
+
+## 2026-10-07 23:48Z — Blend candidate qualification and conditional dev rollout owed
+
+Commitment: publish and qualify the contributor-cycle candidate using its own final-head hosted evidence, then conditionally merge into dev and read back deployed source and health. Existing source repairs and fulfilled rollout commitments remain complete at their documented scope. No served physical number changes; WI03 old slots/direct-point provenance, warning acceptance and commitment 860 remain independently open.
