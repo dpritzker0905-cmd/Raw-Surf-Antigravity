@@ -70,3 +70,11 @@ path and resolution scope. Preserve canonical864prefix, candidate879and own
 local880-884append-only records; resolve exact conflictchunks, no source/tests/
 workflows/science/shareddatachange, no admin/automerge/forcepush bypass. Final
 reconciledhead must have its own hostedchecks before retry; earlier77notborrowed.
+
+## 2026-10-07 14:15Z — Canonical stack resolution
+
+886: exact conflict-chunk replacements preserved canonical ledger through 864
+and all owned append-only additions. Merge 78495654 connects dev3310 without
+changing application/tests/workflows. 887 tracks the final candidate checks and
+matching dev source/health readback. Historical 77 checks are not new-head checks.
+No live860 repeat, production promotion, scientific change or shared-data write.

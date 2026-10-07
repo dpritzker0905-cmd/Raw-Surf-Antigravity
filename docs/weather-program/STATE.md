@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 14:10Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 14:15Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,13 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 14:15Z: PR255 stack resolved; new head qualification pending.**
+  886 preserves the exact merged ledger prefix and resolves only ACTIONS/STATE
+  conflict chunks. Application, tests and workflows remain identical to reviewed
+  77. Commitment 887 tracks final-head checks and dev deployment readback.
+  860 remains blocked on focused, stable browser access; 863 is fulfilled at the
+  qualified documentation scope recorded in 883. Broader acceptance stays open.
 
 - **2026-10-07 14:10Z:255merge refused on squash-stack memory conflicts; reconciliation.**
   885: reviewed77all11gates qualified884, but after254squash3310 GitHub
@@ -1315,7 +1322,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 885, sha256 63859864de5de2073e7445fa4a218458f87f2d6db2d6dfa3ddc7277be6f5040a**
+  **Ledger head: seq 887, sha256 ae3dc1526cc909d53664774addd56b6c68a756c3287b23183a6b09ff59db690f**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
