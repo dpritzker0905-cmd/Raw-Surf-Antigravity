@@ -3,6 +3,10 @@
 export const MARINE_CPU_PHASES = [
   'customCallback', 'engineDraw', 'waveDataUpdate', 'regionalMaskRefresh',
   'overlayMaskRefresh', 'maskFeatureQuery', 'maskBaseCanvas', 'maskWaterPaint', 'maskUpload',
+  'maskRefreshInitial', 'maskRefreshIdle', 'maskRefreshMoveEnd', 'maskRefreshZoomEnd',
+  'maskRefreshSourceWater', 'maskRefreshSourceOther', 'maskRefreshSourceUnknown', 'maskRefreshOther',
+  'maskPaintSourceFallback', 'maskPaintRenderedDamage', 'maskPaintRenderedClean',
+  'maskPaintEmpty', 'maskPaintFailed', 'maskPaintUnknown',
 ];
 const CONTEXTS = ['visibleFocused', 'visibleUnfocused', 'hidden', 'unknown'];
 const finite = n => typeof n === 'number' && Number.isFinite(n) && n >= 0;

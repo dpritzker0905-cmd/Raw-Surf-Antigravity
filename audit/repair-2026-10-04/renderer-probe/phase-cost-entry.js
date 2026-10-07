@@ -1,5 +1,6 @@
 import { createCustomLayer } from '../../../frontend/src/components/map/WebGLMarineCustomLayer';
-import { timeMarineCpuPhase } from '../../../frontend/src/components/map/marineCpuPhaseTiming';
+import { timeMarineCpuPhase, measureMarineCpuPhase } from '../../../frontend/src/components/map/marineCpuPhaseTiming';
+import { measureMarineMaskRefresh, measureMarineMaskPaint } from '../../../frontend/src/components/map/marineMaskRefreshAttribution';
 import { sampleMarineFallback, marineFallbackReceipt } from '../../../frontend/src/components/map/marineFallbackEvidence';
 const ref = current => ({ current });
 const burn = ms => { const stop = performance.now() + ms; while (performance.now() < stop) { /* bounded synthetic CPU work */ } };
@@ -22,6 +23,19 @@ document.getElementById('run').addEventListener('click', () => {
       for (let i = 0; i < 6; i++) layer.render(args);
       const receipt = marineFallbackReceipt(sampleMarineFallback(before, { now: performance.now(), fps: 0, gpu, engine }));
       result.cases.push({ deliberateCpuStalls: slow, phases: receipt.cpuPhases });
+    }
+    result.maskAttribution = [];
+    for (const [sourceId, fallback, degraded] of [['water-fixture',false,false],['other-fixture',true,true],['water-fixture',false,true]]) {
+      window.__RAW_GPU__ = {};
+      const map = {getStyle:()=>({layers:[{id:'water',source:'water-fixture'}]})};
+      const engine = {};
+      timeMarineCpuPhase('engineDraw',()=>{})();
+      const gpu=window.__RAW_GPU__,before=sampleMarineFallback(null,{now:performance.now(),fps:0,gpu,engine});
+      const expected={degraded};
+      const returned=measureMarineMaskRefresh({type:'sourcedata',sourceId},map,()=>
+        measureMarineCpuPhase('maskWaterPaint',()=>measureMarineMaskPaint({usedSourceFallback:fallback},()=>{burn(25);return expected;})));
+      const receipt=marineFallbackReceipt(sampleMarineFallback(before,{now:performance.now(),fps:0,gpu,engine}));
+      result.maskAttribution.push({fallback,degraded,returnedIdentity:returned===expected,phases:receipt.cpuPhases});
     }
     result.completed = true;
   } catch (error) { result.completed = false; result.error = error.message; }

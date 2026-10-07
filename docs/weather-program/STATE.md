@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 01:59Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 02:38Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,40 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 02:38Z: mask repaint attribution candidate, not deployed.**
+  836/837 distinguish triggering event and actual paint verdict in23fixed CPU
+  buckets, preserving source throttles/readiness/healing. Actual engine RED4
+  missing-verdict failures;171focused and377suites/4155full controls pass.
+  Native synthetic25ms attribution correct, callback calibration240.7ms/draw
+  150.2ms versus0.2ms idle; no livecause or FPS claim. Lint/LOC pass; deployed
+  build passed; hosted qualification and one served receipt pending.
+  Existing devbf72healthy/datawarn, productionfc140024 frozen. No served
+  forecast number/science activation. Canary excluded; original gates open.
+
+- **2026-10-07 02:21Z: PR251 matching dev frontend/API healthy bf72c8db.**
+  832 fulfills824 via exact public readback; production frontendfc140024 frozen.
+  Own-source hosted5946backend and376suites/4128frontend passed; strict lint0.
+  Intended gallery three-day grace restored; no historical record mutation.
+  833 preserves water-paint report and portable10633control oracle; native
+  parity passed but total-paint gain mixed, prototype unshipped. Next trace
+  actual paint verdicts and source-event invalidation. Original Play/scrub,
+  fallback, served-time, Gulf, device and staging-publication gates stay open.
+  No served forecast number/science flag change; other chat canary excluded.
+
+- **2026-10-07 02:17Z: PR251 qualified/merged bf72c8db; backend rollout pending824.**
+  830 ownb81b CI37559959669 all11/four success, actual5946backend,376/4128frontend,
+  estate298selected296results1204passed0silent; strict fatal lint0.831 merges251
+  bf72 at02:15:56Z.02:17:39Z devfrontendbf72/API healthy26a1, matchingreadback
+  pending824. Production frontendfc140024 frozen. No historical gallery mutation.
+  825 live receipt fulfills813: expensive repeated water painting outside short
+  wave callbacks, fallback persists.829 native exact-distance prototype10633
+  oracle controls/fullRGBA parity passes, total-paint benefit mixed; unshipped.
+  Next diagnose real paint invalidation and remaining map-frame/scheduler gaps;
+  do not pair nonexistent MapLibre renderstart with render completion. Portable
+  offline controls/report preserved, owned tabsclosed/serversstopped. No served
+  number/science flag change. Canary excluded. Playback/time/Gulf/device and real
+  isolated staging publication remain open. WATER-PAINT-DIAGNOSIS.md carries limits.
 
 - **2026-10-07 01:59Z: live CPU receipt825 fulfills813; costly water painting found.**
   Dev26a1cc8b/main.3de9efe1.js paused GFS Waves trip at01:58:35.523Z,12windows
@@ -1117,7 +1151,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 825, sha256 cc162aad0dcb1199c1eee52dd283db8783fd11ca4b715292f6b286ae6f2f3f16**
+  **Ledger head: seq 839, sha256 0057c9e735633deca875713d60c72560d3a6539282f3d0ff4337a7f5019becbc**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

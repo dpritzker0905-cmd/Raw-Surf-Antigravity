@@ -43,3 +43,24 @@ owner's dev approval. Production frontend remains frozen; no served forecast
 number or scientific-serving flag changes. The other chat's canary is excluded.
 
 Historical affected gallery records are not repaired by this code change.
+
+## 2026-10-07 02:17Z — exact-source hosted gallery acceptance and merge
+
+Own b81b CI37559959669 all11 jobs and four supplementary workflows succeeded,
+including manually dispatched Encoding37560053774 for the frontend-only path
+filter. Actual5946backend tests2425/2317/1204;estate298selected296results0silent.
+Frontend376suites4128tests. The strict fatal-lint step returned0 and succeeded.
+Local39isolated controls are supplementary; the configured hosted environment
+confirms all three new cases and the unchanged remaining lanes. PR251 merged
+02:15:56Z asbf72c8db. Matching served frontend/API readback824 remains pending;
+02:17:39Z frontendbf72 and healthy API26a1. No historical gallery record mutation,
+served forecast number, scientific flag or production frontend change.
+
+## 2026-10-07 02:21Z - matching served rollout
+
+Ledger832 fulfills824. At02:21:00.0403477Z the public API was healthy on full
+bf72c8db57252d55ccfaec3f55e0f9a4cc4d2f2d; dev frontend BUILD_VERSION bf72c8db
+matched. Production frontend fc140024 unchanged. PR250 and PR251 are served.
+No real gallery mutation, historical repair, served forecast number or science
+flag change. Ledger833 preserves portable offline research and its limits;
+the cache prototype remains unshipped. Original forecast acceptance stays open.

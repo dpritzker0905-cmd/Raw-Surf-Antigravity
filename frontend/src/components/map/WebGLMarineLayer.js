@@ -18,6 +18,7 @@ import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMari
 import { recordResolutionSample } from './marineResolutionWatch';
 import { markMaskViewportSettled } from './marineMaskShelter';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
+import { measureMarineMaskRefresh, createMarineMaskSourceRedrive } from './marineMaskRefreshAttribution';
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
 
@@ -679,7 +680,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     // world-grid regime lives BELOW the old z≥7 gate, so its only crisp-truth mechanism never
     // ran exactly where it was needed. The narrow path (base-mask repaint, span-dependent cost)
     // keeps z≥6 (aligned with the commit-time sites).
-    const refresh = () => {
+    const refresh = (event) => measureMarineMaskRefresh(event, mapInstance, () => {
       markMaskViewportSettled();   // settle marker for the mask-shelter debounce (default-off)
       if (!activeRef.current) return;
       let z;
@@ -723,7 +724,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
           mapInstance.triggerRepaint();
         }
       }
-    };
+    });
     // idle fires after moveend AND after tile loads settle; moveend added 2026-07-04 because idle
     // can lag seconds behind each gesture during zoom-out. Full rationale (and why the 700 ms
     // throttle is safe here) moved to GATE6_mask_settle_debounce_DO_NOT_PROMOTE.md for the LOC
@@ -740,15 +741,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     // work). Kill: __RAW_DISABLE_MASK_SOURCEDATA_REDRIVE__.
     // Pre-throttled to 250ms (the 5290f1e9 precedent: sourcedata fires at high frequency, and even
     // the "cheap" gate checks — getStyle().layers.find per event — add up during tile churn).
-    let _lastSrcDataCheck = 0;
-    const onSourceData = (e) => {
-      if (typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_SOURCEDATA_REDRIVE__ === true) return;
-      if (!e || !e.isSourceLoaded) return;
-      const now = Date.now();
-      if (now - _lastSrcDataCheck < 250) return;
-      _lastSrcDataCheck = now;
-      refresh();
-    };
+    const onSourceData = createMarineMaskSourceRedrive(refresh);
     mapInstance.on('sourcedata', onSourceData);
     // ZOOM-OUT ANTICIPATION (2026-07-05, the "~1s unclamp on fast zoom-out"): the moveend fetch only
     // starts AFTER the gesture — warm the ~2.5×-span grid the moment the gesture is clearly a

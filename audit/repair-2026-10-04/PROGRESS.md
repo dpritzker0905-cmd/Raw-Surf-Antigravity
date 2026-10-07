@@ -1,5 +1,22 @@
 # Audit repair progress — 2026-10-04
 
+Current 2026-10-07 02:21Z: PR250 renderer diagnostics and PR251 gallery grace
+repair are qualified, merged and served on dev bf72c8db. Ledger832 fulfills824:
+frontend BUILD_VERSION and healthy shared API match the exact squash;
+production frontend fc140024 remains frozen. Own PR251 hosted CI measured
+5,946 backend tests and 376 frontend suites / 4,128 tests, all lanes green.
+The first gallery expiry now receives its intended three-day grace period;
+fatal backend lint blocks CI. No historical gallery records were mutated.
+
+Live receipt825 identifies repeated water painting (4,038.3 ms across22calls)
+outside short wave callbacks (95.6 ms across18calls). The offline distance-cache
+prototype passed10633oracle controls and native pixel parity, but total-paint
+benefit was mixed; it remains unshipped. Next trace real repaint triggers and
+paint verdicts. Playback fallback, Play/scrub smoothness, served time, Gulf
+amplitude, real devices and actual isolated staging publication remain open.
+[Water paint diagnosis](WATER-PAINT-DIAGNOSIS.md),
+[gallery evidence](GALLERY-GRACE-RESULTS.md). Older dated entries retain history.
+
 Current 2026-10-07 01:59Z: PR250 dev26a1cc8b qualified/served and one live
 paused receipt captured825, fulfilling813. Fallback persists at1FPS;18whole
 callbacks95.6ms but22water-mask paints4038.3ms in17.987s, all callbacks visible

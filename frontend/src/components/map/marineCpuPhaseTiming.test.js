@@ -82,12 +82,12 @@ test('broken GPU diagnostic access cannot change the operation result', () => {
   expect(measureMarineCpuPhase('engineDraw',()=>42)).toBe(42);
   expect(snap()).toBeNull();
 });
-test('many calls retain nine scalar buckets rather than a per-call history',()=>{
+test('many calls retain fixed scalar buckets rather than a per-call history',()=>{
   baseline();for(let i=0;i<10000;i++)run('engineDraw',1);
   const state=window.__RAW_GPU__.cpuPhaseTiming;
   expect(Object.keys(state)).toEqual(['buckets','contexts','active','invalidSamples']);
-  expect(Object.keys(state.buckets)).toHaveLength(9);
-  expect(JSON.stringify(state).length).toBeLessThan(1500);
+  expect(Object.keys(state.buckets)).toHaveLength(MARINE_CPU_PHASES.length);
+  expect(JSON.stringify(state).length).toBeLessThan(4000);
 });
 test('readonly diagnostics do not interrupt drawing or masquerade as measured zero',()=>{
   const before=baseline();Object.freeze(window.__RAW_GPU__.cpuPhaseTiming);
