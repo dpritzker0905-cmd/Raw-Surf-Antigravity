@@ -25,7 +25,9 @@ is a claim, not a measurement.
   Waves disabled, owned tab closed, API healthy; no playback/time/Gulf/device proof.
   Next mask preflight locally passes18new/133coastal tests; two valid red9fail9pass.
   Actual native Canvas empty-water10attempts10to0allocations,62.5to0.5ms CPU.
-  No readiness/throttle/coast-policy/science change; full gates/publication pending.
+  No readiness/throttle/coast-policy/science change.797 local full374suites4097tests,
+  build/lint/LOC/secrets pass.799 verifies798 remote51d864 and draft PR249 OPEN/dev;
+  final receipt-only source continuation needs its own hosted gates under796.
   Unowned canary preserved/excluded. See MASK-PREFLIGHT-RESULTS.md and current log.
 
 - **2026-10-06 23:13Z: owner-approved PR247 merged dev1993cc39, ledger778.**
@@ -1070,7 +1072,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 798, sha256 f76185118fa79a152e37b0e61c418b2ec467e8a78b1ada3f7809e113edd109f2**
+  **Ledger head: seq 799, sha256 b1f24b6791c2f688f2a2dcd1f995ff397b310933e24d15f89e8ccd264b9dfeac**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
