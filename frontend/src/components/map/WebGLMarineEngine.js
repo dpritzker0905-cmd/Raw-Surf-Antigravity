@@ -29,7 +29,7 @@ import {
   encodeMarineTexture
 } from './WebGLMarineTextureEncoder';
 import { renderMaskToCanvas, overlayBasemapWaterOnMask, prepareBasemapWaterOverlay, isBasemapWaterSourceReady, maskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
-
+import { measureMarineMaskPaint } from './marineMaskRefreshAttribution';
 import { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason }
   from './marineOverlayMode';
 export { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason };
@@ -2484,7 +2484,7 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     const water = measureMarineCpuPhase('maskFeatureQuery', () => prepareBasemapWaterOverlay(mapInstance));
     if (!water) { this._lastMaskRepatchReason = 'overlay_not_applied'; return false; }
     const canvas = measureMarineCpuPhase('maskBaseCanvas', () => renderMaskToCanvas(geo, bounds));
-    const applied = measureMarineCpuPhase('maskWaterPaint', () => overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water));
+    const applied = measureMarineCpuPhase('maskWaterPaint', () => measureMarineMaskPaint(water, () => overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water)));
     if (!applied) { this._lastMaskRepatchReason = 'overlay_not_applied'; return false; }
     // COAST SDF: re-write the signed dist-to-coast into .b on the PATCHED base coast (this re-upload
     // would otherwise revert .b to a redundant .r). Opt-in; byte-identical when off. Keeps the flag live.
@@ -2625,7 +2625,7 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
     // 2048 cap: an overlay spans ≤ ~1°, so 2048 px keeps ≤ ~3 m/texel at deep zoom while the
     // paint + texImage2D upload cost 4× less than the 4096 tier (8 MB vs 32 MB per refresh).
     const canvas = measureMarineCpuPhase('maskBaseCanvas', () => renderMaskToCanvas(geo, bounds, { maxWidth: 2048 }));
-    const applied = measureMarineCpuPhase('maskWaterPaint', () => overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water));
+    const applied = measureMarineCpuPhase('maskWaterPaint', () => measureMarineMaskPaint(water, () => overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water)));
     if (!applied) return false;
     // ── MASK NO-SHRINK (#11, the halo) ────────────────────────────────────────────────────────
     // Refuse a candidate mask that SHRINKS while failing to cover the viewport, when the incumbent

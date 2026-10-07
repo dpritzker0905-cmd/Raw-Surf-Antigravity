@@ -110,3 +110,15 @@ matched. Production frontend fc140024 unchanged. PR250 and PR251 are served.
 No real gallery mutation, historical repair, served forecast number or science
 flag change. Ledger833 preserves portable offline research and its limits;
 the cache prototype remains unshipped. Original forecast acceptance stays open.
+
+## 2026-10-07 02:38Z - repaint attribution candidate
+
+836 owner continues next diagnostic; fresh APIbf72healthy/datawarn.837 actual
+engine RED4missing-verdict failures11pass; after171focused; full377/4155.
+Source throttle/healing/readiness controls preserved. Native clocks distinguish
+three25ms event/verdict legs; actual custom layer idle0.2ms versus deliberate
+240.7ms callback/150.2ms draw,6visibleFocused each. Own tabsclosed/serverstopped.
+Candidate23fixed buckets, no source IDs/history or newGPU/feature/pixel queries.
+No livecause/FPS claim. Windows harness failures excluded; CI=true build rejected
+existing warnings, deployed-config CI=false build pending. No served forecast
+number/science/production frontend change; other chat canary excluded.

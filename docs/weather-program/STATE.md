@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 02:21Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 02:38Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,16 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 02:38Z: mask repaint attribution candidate, not deployed.**
+  836/837 distinguish triggering event and actual paint verdict in23fixed CPU
+  buckets, preserving source throttles/readiness/healing. Actual engine RED4
+  missing-verdict failures;171focused and377suites/4155full controls pass.
+  Native synthetic25ms attribution correct, callback calibration240.7ms/draw
+  150.2ms versus0.2ms idle; no livecause or FPS claim. Lint/LOC pass; deployed
+  build passed; hosted qualification and one served receipt pending.
+  Existing devbf72healthy/datawarn, productionfc140024 frozen. No served
+  forecast number/science activation. Canary excluded; original gates open.
 
 - **2026-10-07 02:21Z: PR251 matching dev frontend/API healthy bf72c8db.**
   832 fulfills824 via exact public readback; production frontendfc140024 frozen.
@@ -1141,7 +1151,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 835, sha256 64359f7fd9027174306d80afa1219ca2bb522ae4404522b0fadc55e047b68fe0**
+  **Ledger head: seq 839, sha256 0057c9e735633deca875713d60c72560d3a6539282f3d0ff4337a7f5019becbc**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

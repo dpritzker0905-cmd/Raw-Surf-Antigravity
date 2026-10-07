@@ -2,6 +2,7 @@ import WebGLMarineEngine from './WebGLMarineEngine';
 import { createCustomLayer } from './WebGLMarineCustomLayer';
 import { sampleMarineFallback, marineFallbackReceipt } from './marineFallbackEvidence';
 import { snapshotMarineCpuPhases } from './marineCpuPhaseTiming';
+import { measureMarineMaskRefresh, createMarineMaskSourceRedrive } from './marineMaskRefreshAttribution';
 import { renderMaskToCanvas, overlayBasemapWaterOnMask, prepareBasemapWaterOverlay } from './WebGLMarineMaskRenderer';
 jest.mock('./maskCoastSDF',()=>({writeCoastDistanceField:()=>false}));
 jest.mock('./WebGLMarineMaskRenderer',()=>({
@@ -54,7 +55,7 @@ function maskFixture(kind){
     bindTexture:()=>{},pixelStorei:()=>{},createTexture:()=>({}),texParameteri:()=>{},texImage2D:()=>{now+=13;}};
   const map={getZoom:()=>7,getStyle:()=>({layers:[]}),getSource:()=>({}),isSourceLoaded:()=>true,areTilesLoaded:()=>true,
     getBounds:()=>({getWest:()=>1,getEast:()=>2,getSouth:()=>1,getNorth:()=>2})};
-  return {engine,refresh:()=>kind==='overlay'?engine.refreshViewportOverlayMask(gl,map):engine.refreshMaskWithBasemapWater(gl,map)};
+  return {engine,map,gl,refresh:()=>kind==='overlay'?engine.refreshViewportOverlayMask(gl,map):engine.refreshMaskWithBasemapWater(gl,map)};
 }
 test.each(['regional','overlay','wide'])('real %s refresh records actual query, canvas, paint and GL-upload boundaries',kind=>{
   const f=maskFixture(kind); expect(f.refresh()).toBe(true);
@@ -112,4 +113,45 @@ test('reversed sample time invalidates the entire phase episode even after the c
   const reversed=sampleMarineFallback(first,{now:now-1,fps:2,gpu,engine:f.engine});
   const recovered=sampleMarineFallback(reversed,{now:now+1000,fps:2,gpu,engine:f.engine});
   expect(marineFallbackReceipt(recovered).cpuPhases).toBeNull();
+});
+
+// The live receipt needs the paint verdict, not just total painter cost.
+test.each([
+  [true, {degraded:true}, 'maskPaintSourceFallback'],
+  [false, {degraded:true}, 'maskPaintRenderedDamage'],
+  [false, {degraded:false}, 'maskPaintRenderedClean'],
+  [false, false, 'maskPaintEmpty'],
+])('actual overlay attributes its returned paint verdict (fallback=%s, result=%s)', (fallback, result, phase) => {
+  prepareBasemapWaterOverlay.mockImplementation(()=>{now+=11;return {feats:[{}],usedSourceFallback:fallback};});
+  overlayBasemapWaterOnMask.mockImplementation(()=>{now+=23;return result;});
+  const f=maskFixture('overlay'); expect(f.refresh()).toBe(!!result);
+  const phases=snapshotMarineCpuPhases(window.__RAW_GPU__).buckets;
+  expect(phases[phase]).toMatchObject({calls:1,totalDurationMs:23});
+  expect(phases.maskWaterPaint).toMatchObject({calls:1,totalDurationMs:23});
+});
+
+test('actual degraded overlay retries on other-source events, heals, then retains clean truth',()=>{
+  jest.spyOn(Date,'now').mockImplementation(()=>now);
+  const f=maskFixture('overlay');f.map.getStyle=()=>({layers:[{id:'water',source:'water-fixture'}]});
+  prepareBasemapWaterOverlay.mockImplementation(()=>{now+=11;return {feats:[{}],usedSourceFallback:true};});
+  overlayBasemapWaterOnMask.mockImplementation(()=>{now+=23;return {degraded:true};});
+  const handler=createMarineMaskSourceRedrive(event=>measureMarineMaskRefresh(event,f.map,f.refresh));
+  const other={type:'sourcedata',sourceId:'other-fixture',isSourceLoaded:true};
+  now=1000;handler(other);now+=1000;handler(other);
+  expect(f.engine._overlayPaintDegraded).toBe(true);
+  expect(snapshotMarineCpuPhases(window.__RAW_GPU__).buckets.maskRefreshSourceOther).toMatchObject({calls:2,totalDurationMs:108});
+  expect(snapshotMarineCpuPhases(window.__RAW_GPU__).buckets.maskPaintSourceFallback).toMatchObject({calls:2,totalDurationMs:46});
+  prepareBasemapWaterOverlay.mockImplementation(()=>{now+=11;return {feats:[{}],usedSourceFallback:false};});
+  overlayBasemapWaterOnMask.mockImplementation(()=>{now+=23;return {degraded:false};});
+  now+=1000;handler({...other,sourceId:'water-fixture'});
+  expect(f.engine._overlayPaintDegraded).toBe(false);
+  measureMarineMaskRefresh({type:'idle'},f.map,f.refresh);
+  expect(overlayBasemapWaterOnMask).toHaveBeenCalledTimes(3);
+  expect(snapshotMarineCpuPhases(window.__RAW_GPU__).buckets.maskPaintRenderedClean.calls).toBe(1);
+});
+test('source-event attribution cannot bypass the actual tile readiness gate',()=>{
+  const f=maskFixture('overlay');f.map.areTilesLoaded=()=>false;
+  expect(measureMarineMaskRefresh({type:'sourcedata',sourceId:'composite'},f.map,f.refresh)).toBe(false);
+  expect(prepareBasemapWaterOverlay).not.toHaveBeenCalled();expect(renderMaskToCanvas).not.toHaveBeenCalled();
+  expect(snapshotMarineCpuPhases(window.__RAW_GPU__).buckets.maskRefreshSourceWater.calls).toBe(1);
 });

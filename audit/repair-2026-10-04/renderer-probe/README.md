@@ -83,3 +83,11 @@ Three measured paints per leg follow warmup, and every final RGBA byte is compar
 The CSP forbids backend/network connections. Stop builds/tests during native runs,
 close the owned tab and stop the server afterward. See `../WATER-PAINT-DIAGNOSIS.md`:
 pixel parity passed, but total paint benefit and the live cause are unproven.
+
+## Mask repaint attribution calibration
+
+The phase-cost fixture also runs three synthetic25ms painter legs through the
+actual event and verdict wrappers. Expected categories: water/clean, other
+source/source fallback, water/rendered damage. The displayed report checks
+interval isolation and return identity. Native clocks do not establish live
+paint cost, geometry correctness or smoothness. See MASK-REPAINT-ATTRIBUTION.md.
