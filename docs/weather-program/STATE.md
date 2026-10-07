@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 11:57Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 12:48Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,19 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 12:48Z: assisted860 receipt retained; viewport changed, acceptance open.**
+  868/869: owner quiet/access, one paused GFS Waves h0 scene; viewport540x241
+  to1280x631 atzoom9 prevents stationary clean-cache acceptance. 88overlay
+  refreshes/2water paints330.8ms;1061fresh callbacks, gaps17median/113p95/
+  227max ms,0fallback edges. Nested CPU phases not summed; GPU completion
+  unmeasured. Owner WavesOFF/tabclosed; post APIhealthy/dev4fe94420,
+  datawarn missing ICONmarine/EUROmarine/EUROwind cycles. No repeat scene.
+  PR253 repairs stay closed;860 remains open for stable viewport;863 remains
+  partial with draftPR254head7762ae6e (12:37Z readback). Local0c89 ECMWF
+  candidate remains unpublished; proposed receipt/local ledger records are
+  unmerged. Playback/time/Gulf/device/staging/data-health gates remain open.
+  See `log/2026-10-07-c860-assisted-live.md` for limits and handoff pointers.
 
 - **2026-10-07 11:57Z: WI-03 partial ECMWF cycle candidate local-qualified; unpublished.**
   Owner865 authorizes repairs;866 reproduces false-known metadata with10 RED
@@ -1225,7 +1238,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 867, sha256 07afd42db98ef6bc32f3e4478910c515a1fa554c7d98fdc8ad06ff51fca19e9b**
+  **Ledger head: seq 870, sha256 3a48250b083a35304f734cda83fdb238fa8caf5e84a6aba019630edc997336c6**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
