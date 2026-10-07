@@ -156,7 +156,8 @@ describe('the call site, in source', () => {
   });
   it('the tracker lives per layer, not per frame (a per-frame tracker would never see the hour hold)', () => {
     const top = src.indexOf('export function createCustomLayer');
-    const ret = src.indexOf('return {', top);
+    const ret = src.indexOf('const layer = {', top);
+    expect(ret).toBeGreaterThan(top);
     const tracker = src.indexOf('createStaleHourTracker()', top);
     expect(tracker).toBeGreaterThan(top);
     expect(tracker).toBeLessThan(ret);

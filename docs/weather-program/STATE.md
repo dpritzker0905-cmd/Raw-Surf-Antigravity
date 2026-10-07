@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 00:48Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 01:28Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,19 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 01:28Z: whole-callback/mask CPU diagnosis candidate under813.**
+  Owner812 continues qualified beneficial dev repairs under776. Fresh origin/dev
+  and healthy API de1bd561 at01:13:26Z; production frontendfc140024 frozen.
+  814 records valid integration red6fail18pass; final202focused controls pass,
+  nine scalar CPU buckets and context counts, no guard/math/policy change.
+  816 final376suites4128tests/build/lint pass;LOC0new0regressed. Final native
+  actual-layer calibration separates40ms callback/25ms draw stalls, six each,
+  visible/focused. Plain RAF30intervals median16.7ms,one300.3ms outlier,31focused
+  visible callbacks; no live-map/GPU/cause proof. Probe closed/server stopped.
+  Prior376/4126 and initial failures excluded; own hosted/rollout pending813.
+  No candidate merge/deploy/physical claim. Canary excluded. CPU-PHASE-DIAGNOSIS.md and
+  log/2026-10-07-marine-phase-timing.md carry evidence/limits.
 
 - **2026-10-07 00:48Z: PR248 and PR249 merged, dev de1bd561 served; fallback persists.**
   Owner776/784 authorizes qualified beneficial dev repairs.792 merges cadence248
@@ -1076,7 +1089,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 811, sha256 56231f7f00c76a63ae79948850e052c615b2c22bba247d523cf887f1d8fa4383**
+  **Ledger head: seq 817, sha256 345ee047b622c6222e0712d23f1b94d6239794d73cd2026e6fac88559e85ba05**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

@@ -54,3 +54,20 @@ Run alone with builds/tests stopped. Actual engine/painter/native Canvas uses
 synthetic geometry/readiness, no live backend and no GPU upload. Ten not-ready
 and ready/empty-water attempts count allocations and CPU call time. See
 `../MASK-PREFLIGHT-RESULTS.md` for before/after evidence and limits.
+
+## CPU phase calibration
+
+Run the pinned Node runtime from the repository root with
+`audit/repair-2026-10-04/renderer-probe/serve-phase-cost.cjs`. Open its localhost
+URL and press **Run CPU phase calibration**, with builds/tests stopped.
+Actual custom-layer callbacks and the scalar phase collector use a synthetic
+map and engine. Six idle callbacks are compared with six deliberately delayed
+callbacks (15 ms before draw, 25 ms inside draw), with warm-up excluded.
+The report records actual focus/visibility and keeps nested timings separate.
+This calibrates the CPU instrument; it makes no backend requests and proves
+neither live FPS, asynchronous GPU completion nor forecast accuracy.
+
+**Run RAF cadence control** separately samples30 native browser animation-frame
+intervals with no map, engine or GPU work. It records context on every callback
+and stops after45seconds if incomplete. Use it as a scheduling discriminant,
+not a graphics benchmark; incomplete or unfocused captures are not acceptance.

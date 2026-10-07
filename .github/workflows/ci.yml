@@ -127,7 +127,8 @@ jobs:
             // Local final370/4045; new exact-source hosted qualification required.
             // Callback-gap diagnostic: +2 suites /21 fault, interval, privacy and lifecycle controls.
             // Truth cadence/lifecycle adds1suite13tests; exact-source hosted qualification required.
-            const MIN_SUITES = 374, MIN_TESTS = 4097;
+            // Whole-callback/mask CPU timing: +2 suites/31 controls; own hosted confirmation required.
+            const MIN_SUITES = 376, MIN_TESTS = 4128;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

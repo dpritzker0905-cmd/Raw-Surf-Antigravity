@@ -6,6 +6,7 @@ import { resolveCoarseBridgeGrace } from './marineCoarseBridgeGrace';
 import { resolveRejectedOpacity, isGateWideView } from './marineZoomOutGate';
 import { createStaleHourTracker } from './marineStaleHour';
 import { staleWorldDimMult } from './marineStaleHourLayer';
+import { timeMarineCpuPhase } from './marineCpuPhaseTiming';
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -80,7 +81,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
   let lastErrorTime = 0;
   // WRONG-HOUR WORLD FRAME (2026-10-01, audit F-21; marineStaleHour.js): how long the selected hour has held still.
   const _staleHour = createStaleHourTracker();
-  return {
+  const layer = {
     id: LAYER_ID,
     type: 'custom',
     renderingMode: '2d',
@@ -411,4 +412,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       glRef.current = null;
     }
   };
+  // Includes argument resolution, skip paths, pre-draw work and repaint scheduling.
+  layer.render = timeMarineCpuPhase('customCallback', layer.render);
+  return layer;
 }

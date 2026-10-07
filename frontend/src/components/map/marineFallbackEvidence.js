@@ -1,3 +1,4 @@
+import { snapshotMarineCpuPhases, marineCpuPhaseDelta } from './marineCpuPhaseTiming';
 // Read existing counters only. No GL queries, pixels, payloads, location or device identity.
 const count = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
 const delta = (before, after) => before !== null && after !== null && after >= before ? after - before : null;
@@ -23,6 +24,9 @@ export function sampleMarineFallback(previous, { now, fps, gpu, engine }) {
     const latest = snapshot(gpu);
     // A new engine/counter object or decreasing cumulative counter invalidates interval deltas.
     const same = previous && previous.gpu === gpu && previous.engine === engine;
+    const phases = snapshotMarineCpuPhases(gpu);
+    const phaseValid = !!phases && (!previous || (same && now >= previous.lastAt
+      && marineCpuPhaseDelta(previous.latestPhases, phases) !== null));
     const valid = !previous || (same && now >= previous.lastAt
       && Object.keys(latest).every(key => {
         const before = previous.latest[key], after = latest[key];
@@ -37,6 +41,8 @@ export function sampleMarineFallback(previous, { now, fps, gpu, engine }) {
       firstFps: previous ? previous.firstFps : fps, lastFps: fps,
       minFps: Math.min(previous?.minFps ?? fps, fps), maxFps: Math.max(previous?.maxFps ?? fps, fps),
       intervalValid: (previous?.intervalValid ?? true) && !!valid,
+      firstPhases: previous ? previous.firstPhases : phases, latestPhases: phases,
+      phaseIntervalValid: (previous?.phaseIntervalValid ?? true) && phaseValid,
     };
   } catch (e) { return null; } // Diagnostics must never interrupt the guard.
 }
@@ -53,6 +59,7 @@ export function marineFallbackReceipt(sample) {
     fps: { first: sample.firstFps, last: sample.lastFps, min: sample.minFps, max: sample.maxFps },
     timingKind: 'cpu_call_duration_including_driver_wait',
     gpuCompletionMeasured: false,
+    cpuPhases: sample.phaseIntervalValid ? marineCpuPhaseDelta(sample.firstPhases, sample.latestPhases) : null,
     cpuCallHistogramUpperBoundsMs: [8, 16.6, 33.3, 66.6, null],
     // Null means absent/reset/unusable. A measured zero remains zero.
     deltas: {
