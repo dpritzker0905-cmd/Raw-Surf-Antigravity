@@ -367,3 +367,7 @@ The next action is candidate publication and exact-head hosted qualification, re
 ## 2026-10-07 16:30Z — PR257 interpolation candidate pushed and attached as draft
 
 Normal source push dca98fc1 and actual draft PR257 creation/attachment succeeded. Local required gates completed before push. Initial own-source hosted checks are in progress and are not proof of acceptance. This receipt-only continuation keeps source/tests/workflows unchanged and requires its own final-head hosted qualification. Dev canonical ledger906; proposed907-912 await merge. Original accepted three253 cache repairs, fulfilled863 and independent860/WI03/333 and broader playback/time/Gulf/device/isolation work are preserved.
+
+## 2026-10-07 16:39Z — PR257 missed floor reference corrected
+
+I missed backend/tests/test_ci_floor_staleness.py _FLOOR_SET_FROM while raising the workflow chain floor. The earlier910/911 and initial PR257 paired-reference claims were inaccurate and are explicitly corrected here. Actual local47 controls reproduced1fail/46pass (reference2328 minus floor2355 is margin-27); companion chain2361 makes all47 pass with margin6 unchanged. Final73da hosted estate failed; its partition/coverage steps passed, and logs remain unavailable until workflow completion. No merge occurred, no failed gate bypassed. The corrected head must qualify freshly. This patch changes only the reference test and owned records; physical interpolation and600-call Jacobian hashes are unchanged.
