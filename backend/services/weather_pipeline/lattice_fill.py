@@ -25,6 +25,7 @@ from typing import Any, List, Optional, Tuple
 
 from services.weather_pipeline.schemas import NormalizedProduct, NormalizedGrid, GridVector
 from services.weather_pipeline.estimator import blend_direction, blend_period, _direction_from_components, _finite_number
+from services.weather_pipeline.cycle_provenance import cycle_from_points
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,14 @@ def interpolate_between(a: NormalizedProduct, b: NormalizedProduct,
     if run_a is None and run_b is None:
         return None  # run_time is a required product field; brackets without one are malformed
     run_time = max(t for t in (run_a, run_b) if t is not None)
+    # Receipt time is not a model cycle. Both brackets must independently provide
+    # verified, timezone-qualified evidence for the same contributing cycle.
+    cycle = cycle_from_points([
+        {"__model_run_time": p.model_run_time.isoformat()
+         if getattr(p, "model_run_time_status", "missing") == "known"
+         and isinstance(getattr(p, "model_run_time", None), datetime) else None}
+        for p in (a, b)
+    ])
 
     return NormalizedProduct(
         model=a.model,
@@ -149,6 +158,7 @@ def interpolate_between(a: NormalizedProduct, b: NormalizedProduct,
         domain=a.domain,
         layer=a.layer,
         run_time=run_time,
+        **cycle,
         valid_time=slot,
         is_forecast_authoritative=False,
         is_estimated=True,

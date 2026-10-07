@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 15:55Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 16:27Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,26 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 16:27Z: Bounded interpolation publication and rollout obligation recorded.**
+  Existing WI03 remains open. New concrete candidate obligation911 is final-head CI qualification and conditional dev rollout by18:00Z;860/863 identities preserved. Actual95pure-controls pass; optional broader endpoint probe lacks FastAPI locally and requires real hosted dependencies. No source or data-health closure yet.
+
+- **2026-10-07 16:25Z: Interpolation cycle candidate locally verified.**
+  Candidate on codex/interpolation-cycle-provenance:33 new controls and46 combined pass;600 before/after Jacobian calls have zero physical differences. Chain floor/reference raised together. Newly generated frames only; old stored estimates and mixed-source blends remain open. Own hosted qualification pending.
+
+- **2026-10-07 16:25Z: WI03 warnings narrowed to estimated cohorts.**
+  Native cycles are known in the timestamped registry snapshot; eight selected interpolation frames and estimated blends lack cycle evidence. Inventory differences remain unattributed. Existing scheduled ingest37645014966 is active;860 not probed.
+
+- **2026-10-07 16:25Z: PR256 receipts canonical; documentation rollout verified.**
+  Dev58933417 receipts end906; new907 onward remain on the next branch. Healthy API7a is application-source equivalent to docs-only589; frontend589 observed. Data warnings remain. No live860 or product acceptance claimed.
+
+- **2026-10-07 16:13Z: PR256 merged dev58933417 (2026-10-07T16:13:08Z).**
+  Exact reviewedhead5a48c6da, source/ledgerprefix read back;
+  full merge tree equals5a48c6da; no numeric/science change.
+  Deployment source/health readback pending; no live860 repeat. Original
+  playback/time/Gulf/device/isolation/datahealth gates remain independently
+  open. Records after merged branch prefix remain local until receipt PR.
+  See own `log/2026-10-07-ecmwf-rollout.md` for actual checks/rollout progress.
 
 - **2026-10-07 15:54Z: final receipts published as draft PR256; app source equalsdev7a.**
   Canonical ledger900, proposed901-905 including226merge/899fulfillment902,
@@ -1417,7 +1437,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 906, sha256 5e37bc695171f2b8c579a2f88f4f5384e53d0be78fa3ff2638250ff3ae4aa89e**
+  **Ledger head: seq 911, sha256 eebd8866108e36519de9c211a824d53eb98dd18ea1dfca38b4de21270425c7bf**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

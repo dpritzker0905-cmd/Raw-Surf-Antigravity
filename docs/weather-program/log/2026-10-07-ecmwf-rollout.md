@@ -340,3 +340,26 @@ counts, not credentials. Replaced exact label with plain prose preserving
 13,367previous,13,188current,179fewer and cause unknown. No scanner suppression,
 allowlist or push-protection bypass. Actual local gates and precommit scanner
 must pass before the normal receipt continuation push.
+
+## 2026-10-07 16:13Z — PR256 actual merge readback
+
+PR256 MERGED2026-10-07T16:13:08Z squash58933417754641156185fc9367d8d3d5dcb85085, exact reviewedhead5a48c6da0a956581034c51fe47b5e9e8b770c7d5.
+origin/dev equals merge; full merge tree equals5a48c6da, exact priorledgerprefix retained.
+Source/health deployed readback remains pending; no scientificactivation/shareddata/main
+promotion or live860scene. User rollout authority880;863qualifiedsupplements881 preserved.
+
+## 2026-10-07 16:25Z — PR256 receipts canonical; documentation rollout verified
+
+Exact final PR256 head5a passed all11 with frontend377/4177 and backend2425+2328+1227=5980 before merge58933417 at16:13:08Z. Ledger/Lighthouse passed; LOC/Encoding absent by documentation filters. Canonical records end906. At16:22:45Z frontend589 and healthy API7a have byte-identical application/workflow source across the docs merge; API runtime589 is not asserted. Zero restore errors, durable store connected, inventory13186; production frontendfc140024 and three cycle warnings remain. An existing scheduled ingest is active; changing aggregate inventory is not an attributed loss or object-integrity acceptance. No serving number changed by receipts. New907 onward remains proposed until the next PR merges.
+
+## 2026-10-07 16:25Z — WI03 warnings narrowed to estimated cohorts
+
+Read-only registry receipt16:10:12Z maps all three live warning lanes to estimated cohorts; selected native cycles are known. Eight selected missing-cycle interpolation frames: EUROwind6, EUROmarine waves2. Missing-cycle blend counts ICONmarine348 and EUROmarine124. No donor product was fetched and no old product was rewritten. The constructor demonstrably omits metadata even for controlled same-cycle brackets; live bracket identities remain unverified. The former179-entry inventory difference has no prior identity snapshot; no expiry/purge/loss cause is claimed. The existing scheduled ingest37645014966 was read back as schedule/in-progress on repaired68 source. Latest Nightly37631047631 remains old4fe failure; no job dispatched.
+
+## 2026-10-07 16:25Z — Interpolation cycle candidate locally verified
+
+No served physical number changes: constructor metadata now carries only consistent verified evidence from both brackets using existing cycle_from_points. RED19fail/14pass; GREEN33pass; combined existing13 plus33 =46pass. Initial async runner/plugin and sandbox socketpair failures were diagnostic limitations, corrected with pinned1.3 plugin and Windows internal loopback access; no application/network forecast request. Owned stalled processes were stopped. Actual600 before/after interpolation calls show max physical-output/Jacobian difference0, analytic error3.55e-15 across aligned-direction interior controls; no forecast-skill claim. Staged selector assigns the new file to chain:646 tracked,186guards,158chain,299estate,2fastmcp,1quarantine. Chain projected2361/floor2355 and158files preserve margin6; estate1227/floor1225 untouched. Existing stored slot idempotence means this constructor does not rewrite old estimates. Mixed-source blend provenance requires a separate honest donor-evidence design under WI03; no shortcut by borrowing receipt/native timestamps.
+
+## 2026-10-07 16:27Z — Bounded interpolation publication and rollout obligation recorded
+
+The next action is candidate publication and exact-head hosted qualification, recorded as a bounded source obligation rather than a replacement for WI03/860/863. Actual95 lattice/cycle/data-health controls pass. An optional broader run had110pass and2 endpoint imports failing because portable runtime lacks FastAPI; that run is not green and is not a publication acceptance receipt. Hosted declared-dependency lanes must pass before merge. No served physical number changed. No scientific flag, manual ingest/Nightly or shared product write is part of this obligation.
