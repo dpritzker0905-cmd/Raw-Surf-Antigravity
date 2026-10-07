@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 15:23Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 15:26Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,13 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 15:26Z: PR226 pushed as a draft current-dev repair.**
+  Actual local/remote/PR head35a093a5, original226 anddev68 ancestry retained
+  with full tree equal reviewedb602330e.900records publication; receipt-only
+  continuation requires final own-head checks, not stale green.899 remains
+  open; canonical ledger893 vs proposed894-900 explicit. Source255/245
+  already deployed68;860focus/333nightly/data-health acceptance stay open.
 
 - **2026-10-07 15:21Z: existing PR226 adapted to current dev; qualification pending.**
   New23 merge-target controls RED16fail/7pass then GREEN23; actual76 local
@@ -1382,7 +1389,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 899, sha256 a70007f4e5319f2ad543125af7b4a67e54cb7a3f2b8f5218c377f75bd31d442b**
+  **Ledger head: seq 900, sha256 168ea3ec346b974fb4aa6a0f8e70eedf5f8d2a362154ba7d7beb7733ec3e2e88**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

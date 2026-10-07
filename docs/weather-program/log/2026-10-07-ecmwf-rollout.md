@@ -232,3 +232,18 @@ controls remain green after matched floor/reference update. Existing226
 ancestry will be retained with the current-base tree; no obsolete source
 or historical ledger is copied onto current dev. Own hosted qualification
 and current source/health readback remain required before merge.
+
+## 2026-10-07 15:26Z — PR226 published current-dev candidate
+
+900reads actual normal fast-forward publication35a093a5 and refreshed draft
+PR226 title/body; original813e30f9 anddev68 ancestry retained, ancestry merge
+full tree equal reviewedb602330e. Canonical893prefix preserved. No obsolete
+source restore or force push. Local require-history memory audit exit0 read
+before publication. Fresh own CI37643688162, LOC37643688063, Ledger37643688075,
+Lighthouse37643688182 triggered. Encoding absent by unchanged frontend/src
+filter. This is pending fresh hosted qualification; do not claim all green.
+Receipt-only continuation follows; final frozen pushed head must earn its
+own checks and actual377/4177frontend plus2425guards/2328chain/1227estate.
+899tracks conditional dev merge/readback.894-900 are proposed until merge,
+including896892fulfillment.860focus blocker and333scheduledrenderer/data
+health acceptance remain separate; no live map/battery/ingest dispatch.
