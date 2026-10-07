@@ -49,3 +49,36 @@ inherited254docs. CI37625082300/Ledger37625082319/LOC37625082553/Lighthouse37625
 started on own head; Encoding deliberately absent since frontend unchanged, not a
 pass/fail. Canary36689d93 unchanged.874 records873publication readback. This same-branch
 receipt amendment does not alter source/test/workflow; its hosted head remains pending872.
+
+## 2026-10-07 13:24Z — actual own hosted source qualified
+
+875 fulfills872 at exact8a54cd90beab84f845b1caf3ea11e4de6c6b855f:
+CI37625462518 all11 jobs success, frontend377 suites/4177 tests, guards2425
+passes/66 skipped/1 expected failure, chain2328 passes/157 files, estate1204
+passes/2865 skipped with298 selected/296 producing/0 silent. Sum5957 passes
+matches projection; guards counter groups its66 skips+1 xfail as67 nonpasses.
+No failed tests or errors. LOC37625462252, Ledger37625462261 and Lighthouse
+37625462255 pass at the same8a head. Encoding has no run because frontend
+unchanged; source tree equals previously qualified dev, not an Encoding pass.
+
+Source/local/remote/PR255 identity and clean checkout verified13:22:26Z;
+application/test/workflow equal tested0c89; frontend treea00d405c586e9afeff9594c04089d4e0aba0993f
+equals dev. Exact inherited ledger prefix passes874; memory0FAIL9historical
+WARN7NOTE, unowned canary36689d93 unchanged. APIhealthy/dev4fe94420; datawarn
+ICONmarine/EUROmarine/EUROwind missingcycles. PR254 still OPEN DRAFT7762ae6e.
+872 source qualification is complete, but WI-03 live data-health acceptance,
+860/863, playback/time/Gulf/device/staging remain independently open.
+
+876 records owner quiet/prepared860tab and current console-focus prerequisite
+failure. C860PREFLIGHT3 was prepared but not executed; helper prompt position
+outside window and stale addressbar focus prevent safe Enter. Owner-assisted
+request remains pending. WavesOFF, no new forecast scene, Play/scrub/stress,
+observer installation or model change. Earlier changed-viewport receipt stays
+visible; no regression or mask-repair reopening inferred from access failure.
+
+877 prepares an authorized docs-only receipt push. Its new SHA is distinct
+from hosted8a; no full-SHA green claim will be inherited. Application, tests
+and workflow remain unchanged. No merge/deploy/forecast-number/shared-data/
+scientific flag change. Do not reopen the three qualified253 repairs without
+current product-path evidence. Next bounded live work remains860 after actual
+focus/build/bounds preflight readback; do not force when access fails.

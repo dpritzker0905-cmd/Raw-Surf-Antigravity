@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-07 13:00Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-07 13:24Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,18 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-07 13:24Z: WI-03 PR255 source8a54cd90 hosted-qualified;872 fulfilled by875.**
+  Own CI37625462518 all11success: frontend377/4177; backend5957passes
+  (guards2425,chain2328,estate1204), exact projection. LOC/Ledger/Lighthouse
+  pass at8a; Encoding deliberately absent, unchangedfrontend identity proved.
+  Receipt-only amendment has a new fullSHA/check state; source/test/workflow
+  unchanged. PR255 stays draft; PR254 remains unmerged7762ae6e,863 open.
+  876: owner quiet/prepared860 tab; helper prompt-focus prerequisite pending,
+  WavesOFF and no new scene.860 stays open; earlier changed viewport retained.
+  Dev/API4fe94420 healthy; missing-cycle data warnings remain. No rollout,
+  science/shared-data changes or closure of broader acceptance gates.
+  See own `log/2026-10-07-ecmwf-publication.md`;877 prepares receipt push.
 
 - **2026-10-07 13:00Z: WI-03 repair published as attached draftPR255/dev.**
   874 reads back local/remote/PR initiald9d507f8; own CI/LOC/Ledger/
@@ -1256,7 +1268,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 874, sha256 735f6bd2dd08c2d7331cdd8f1c7cc4793b782e70e919b9ebe3d9f0ead33acfb2**
+  **Ledger head: seq 877, sha256 8dcbdbf4cfa310a74f9dffc985909c2fdc0fd5525d60403e796cf50c906a708d**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
