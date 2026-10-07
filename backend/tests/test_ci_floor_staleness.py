@@ -451,7 +451,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # WS-08 adds88 estate controls; projected1201 awaits own-source hosted confirmation.
 # PR250 actually read1201; gallery grace regression adds3, preserving estate margin2.
 # Partial ECMWF metadata adds11 executed chain controls; projected2328, hosted confirmation pending.
-_FLOOR_SET_FROM = {"guards": 2425, "chain": 2328, "estate": 1227}
+# PR256 confirmed2328 chain passes; 33 interpolation-cycle controls project2361.
+# Paired with chain floor2355; guards/estate references and budgets unchanged.
+_FLOOR_SET_FROM = {"guards": 2425, "chain": 2361, "estate": 1227}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
