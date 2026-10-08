@@ -10,9 +10,13 @@ import stripe_mcp_server
 from server import app
 from database import get_db
 from models import PaymentTransaction, LiveSessionParticipant, Profile
+from core.security import create_access_token
 
 # Create FastAPI TestClient
 client = TestClient(app)
+
+# complete-payment is completed by the surfer who started the checkout, so each call carries their token.
+SURFER_AUTH = {"Authorization": "Bearer " + create_access_token({"sub": "usr_surfer"})}
 
 @pytest.mark.asyncio
 async def test_complete_payment_stripe_error_triggers_rollback(monkeypatch):
@@ -20,7 +24,11 @@ async def test_complete_payment_stripe_error_triggers_rollback(monkeypatch):
     mock_db = MagicMock()
     mock_db.rollback = AsyncMock()
     mock_db.commit = AsyncMock()
-    mock_db.execute = AsyncMock()
+    owned_tx = MagicMock(spec=PaymentTransaction)
+    owned_tx.user_id = "usr_surfer"
+    owned_result = MagicMock()
+    owned_result.scalar_one_or_none.return_value = owned_tx
+    mock_db.execute = AsyncMock(return_value=owned_result)
     
     async def mock_get_db():
         yield mock_db
@@ -37,7 +45,8 @@ async def test_complete_payment_stripe_error_triggers_rollback(monkeypatch):
     with patch("stripe.checkout.Session.retrieve", side_effect=stripe_error):
         response = client.post(
             "/api/sessions/complete-payment",
-            json={"checkout_session_id": "cs_actual_test_id"}
+            json={"checkout_session_id": "cs_actual_test_id"},
+            headers=SURFER_AUTH,
         )
         
     assert response.status_code == 500
@@ -63,6 +72,7 @@ async def test_complete_payment_database_error_refunds_stripe_live(monkeypatch):
     mock_tx = MagicMock(spec=PaymentTransaction)
     mock_tx.payment_status = "Pending"
     mock_tx.status = "Pending"
+    mock_tx.user_id = "usr_surfer"
     mock_tx.transaction_metadata = json.dumps({
         "type": "live_session_join",
         "surfer_id": "usr_surfer",
@@ -122,7 +132,8 @@ async def test_complete_payment_database_error_refunds_stripe_live(monkeypatch):
         
         response = client.post(
             "/api/sessions/complete-payment",
-            json={"checkout_session_id": "cs_live_1234"}
+            json={"checkout_session_id": "cs_live_1234"},
+            headers=SURFER_AUTH,
         )
         
         assert response.status_code == 404
@@ -163,6 +174,7 @@ async def test_complete_payment_database_error_refunds_stripe_mock(monkeypatch):
     mock_tx = MagicMock(spec=PaymentTransaction)
     mock_tx.payment_status = "Pending"
     mock_tx.status = "Pending"
+    mock_tx.user_id = "usr_surfer"
     mock_tx.transaction_metadata = json.dumps({
         "type": "live_session_join",
         "surfer_id": "usr_surfer",
@@ -209,7 +221,8 @@ async def test_complete_payment_database_error_refunds_stripe_mock(monkeypatch):
     with patch("stripe_mcp_server.stripe_refund_payment", wraps=stripe_mcp_server.stripe_refund_payment) as mock_refund:
         response = client.post(
             "/api/sessions/complete-payment",
-            json={"checkout_session_id": "cs_test_mock_123"}
+            json={"checkout_session_id": "cs_test_mock_123"},
+            headers=SURFER_AUTH,
         )
         
         assert response.status_code == 404

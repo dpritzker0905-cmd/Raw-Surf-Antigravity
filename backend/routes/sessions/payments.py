@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
+from core.security import dev_identity_allowed, get_current_user_id
 from models import LiveSession, Notification, Profile
 from models import LiveSessionParticipant, PaymentTransaction
 from .join import CompletePaymentRequest
@@ -21,8 +22,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
+def checkout_emulation_allowed() -> bool:
+    """Whether the local checkout emulator may stand in for Stripe verification.
+
+    Only in a process that positively identifies itself as local or test (the same fail-closed
+    signal the development identity uses) and never with a live key. Everywhere else a checkout
+    session is verified with Stripe, whatever its id looks like.
+    """
+    key = STRIPE_API_KEY or ""
+    return dev_identity_allowed() and not key.startswith(("sk_live_", "rk_live_"))
+
+
 @router.post("/sessions/complete-payment")
-async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSession = Depends(get_db)):
+async def complete_session_payment(
+    data: CompletePaymentRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     """Complete a live session join after successful Stripe payment.
     
     IDEMPOTENCY: Uses SELECT FOR UPDATE on PaymentTransaction to prevent race conditions
@@ -32,14 +49,25 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
     
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=500, detail="Payment processing not configured")
-    
+
+    # Only the surfer who started this checkout may complete it; checked before any verification.
+    owner_result = await db.execute(
+        select(PaymentTransaction).where(PaymentTransaction.session_id == data.checkout_session_id)
+    )
+    owner_tx = owner_result.scalar_one_or_none()
+    if not owner_tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if owner_tx.user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot complete another user's payment")
+
+    used_emulator = data.checkout_session_id.startswith("cs_test_") and checkout_emulation_allowed()
     payment_verified = False
     payment_intent_id = None
     refund_attempted = False
     refund_successful = False
     
     try:
-        if data.checkout_session_id.startswith("cs_test_"):
+        if used_emulator:
             # Emulate checkout retrieve through mock stripe-mcp server tool path
             payment_status = 'paid'
             
@@ -252,7 +280,7 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
             if payment_verified and payment_intent_id:
                 refund_attempted = True
                 try:
-                    if data.checkout_session_id.startswith("cs_test_") or payment_intent_id.startswith("pi_test_"):
+                    if used_emulator:
                         stripe_mcp_server.stripe_refund_payment(payment_intent_id)
                     else:
                         stripe.Refund.create(payment_intent=payment_intent_id)
@@ -314,7 +342,7 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
             if payment_verified and payment_intent_id:
                 refund_attempted = True
                 try:
-                    if data.checkout_session_id.startswith("cs_test_") or payment_intent_id.startswith("pi_test_"):
+                    if used_emulator:
                         stripe_mcp_server.stripe_refund_payment(payment_intent_id)
                     else:
                         stripe.Refund.create(payment_intent=payment_intent_id)
@@ -350,7 +378,7 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
             if payment_verified and payment_intent_id:
                 refund_attempted = True
                 try:
-                    if data.checkout_session_id.startswith("cs_test_") or payment_intent_id.startswith("pi_test_"):
+                    if used_emulator:
                         stripe_mcp_server.stripe_refund_payment(payment_intent_id)
                     else:
                         stripe.Refund.create(payment_intent=payment_intent_id)
@@ -385,7 +413,7 @@ async def complete_session_payment(data: CompletePaymentRequest, db: AsyncSessio
             if payment_verified and payment_intent_id:
                 refund_attempted = True
                 try:
-                    if data.checkout_session_id.startswith("cs_test_") or payment_intent_id.startswith("pi_test_"):
+                    if used_emulator:
                         stripe_mcp_server.stripe_refund_payment(payment_intent_id)
                     else:
                         stripe.Refund.create(payment_intent=payment_intent_id)
