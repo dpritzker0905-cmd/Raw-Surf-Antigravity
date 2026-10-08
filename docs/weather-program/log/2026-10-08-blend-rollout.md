@@ -135,3 +135,22 @@ Actualautomaticrollout2026-10-08T01:52:01.809833+00:00 frontend3d21765c/API full
 ## 2026-10-08 01:52Z — PR261 rollout and remaining repair receipts prepared for normal publication
 
 Prepare normalpostmerge receiptpush with3owned docs only:ACTION/STATE/ownedOct8log, canonical948byteprefix/actualdevancestry preserved. Actual261exactsource qualification6188backend/4177frontend, fulltreeequals967,matchinghealthy3d deployment sourceavailability944fulfilled955. Proven36healthdiagcalls→36remote-listattempts and4fallbacksource-labelcounterexamples independentWI03nextrepairs; no replacementtask. Original860earliest02:07:56Z plusquiet/source/visiblefocusedstablepaused scene, datawarnings/E2E/Nightly/Gulf/device/isolation/play/scrub remainopen. No canonicalrecord rewrite/secret/scienceflag/storedproduct mutation. Actualnormalpublicationreadbackpending; carrynewestreceiptwithnextsourcePR.
+
+
+## 2026-10-08 02:00Z — WI03 bounded health and label repairs begun
+
+Owner: Ok get them done. Commitment957 appended. Local helper stopped afterappend on an incorrect hash-field assumption; ledger hashes canonical lines ratherthan storing hashfield. Correctedhelper and anchored actual957 withoutduplicatecommitment or historyrewrite. No gate/publication bypass. Actualprior956publicationd2fd completed; freshhealthy3d/complete13301restore/zeroerrors/two conflictingmarinecyclewarnings. Pending own newsource qualification/rollout; original860 and independentacceptance retained.
+
+
+## 2026-10-08 02:07Z — WI03 bounded health listing and actual EURO fallback donor labels locally verified
+
+Process-shared30s listing success/failure/unavailable cache and singleflight; current localdisk/restore values remain uncached. Publichealth exposes checked_at/age/ttl/status/cached/first_page scope. NativeEUROmiss labels actualrequestedEUROwaves/ecmwfwam and GFScomponents/ncepGFS, preserving is_estimated/nativeauthority/sample/time/cycle/physicalcalls. Legacy estimatebasis method retained becausepartition gate consumes it; additive source_method records actualdirect_point_api. No scienceflag/selection/physical/shareddata change. Ownqualification/rolloutpending957.
+
+Readback: Finalimmutable3d controls32failed5passed of37; candidate255focusedpasses includingall37 and actualpartitioneligibility. Floors/selector50passed7platformskips; tracked651/188guards160chain300estate2excluded1quarantine; projected2541guards2416chain1268estate=6225, pairedfloors2535/2410/reference2541/2416 margin6. Actual36diagcalls/version:36old versus8candidate listingattempts.3168realresolver/surf/JSON calls144scenarios720centralJacob differences0, identityerror2.274e-13. Frontendopen-meteoacceptance consumer inspected, nofrontendchange. Localhelper hash assumption stoppedafter957append then repairedanchor withoutduplicate; nonexistenttestpath ran0, corrected; backendcwdstage failed, correctedrootstagebeforeactualselector. Review corrected proposedmethodchangebeforequalification to preserveexistingpartitioneligibility. Nofailedgatebypass.
+
+
+## 2026-10-08 02:08Z — WI03 two-repair candidate prepared for normal source publication
+
+Reviewed bounded cache/freshness/error/singleflight and donorlabels candidate; actual255focused/50floors7skips/3168calls720Jacobphysical0. Ownsourcequalification/conditionaldevrolloutpending957. Proposed949-959 retainedoncanonical948/dev3d ancestry; no replacement860. NormaldraftPRdev publication pendingactualreadback.
+
+Readback: Every localmemory/ledgerprefix/LOC/lint/diff/stageddiff gateexit0; fixedcandidate source review preserveslegacy partitionclassification and exposes actual source_method. Actualfinalbaseline32failed5passed37; filesystem/sourcechecks no secrets; canary unchanged/unexecuted. pending normalcommit/push/draftPR/ownfinalheadCI.

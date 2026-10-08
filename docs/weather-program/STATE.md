@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 01:52Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 02:08Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,18 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-08 02:08Z: WI03 two-repair candidate prepared for normal source publication.**
+  Reviewed bounded cache/freshness/error/singleflight and donorlabels candidate; actual255focused/50floors7skips/3168calls720Jacobphysical0. Ownsourcequalification/conditionaldevrolloutpending957. Proposed949-959 retainedoncanonical948/dev3d ancestry; no replacement860. NormaldraftPRdev publication pendingactualreadback.
+
+
+- **2026-10-08 02:07Z: WI03 bounded health listing and actual EURO fallback donor labels locally verified.**
+  Process-shared30s listing success/failure/unavailable cache and singleflight; current localdisk/restore values remain uncached. Publichealth exposes checked_at/age/ttl/status/cached/first_page scope. NativeEUROmiss labels actualrequestedEUROwaves/ecmwfwam and GFScomponents/ncepGFS, preserving is_estimated/nativeauthority/sample/time/cycle/physicalcalls. Legacy estimatebasis method retained becausepartition gate consumes it; additive source_method records actualdirect_point_api. No scienceflag/selection/physical/shareddata change. Ownqualification/rolloutpending957.
+
+
+- **2026-10-08 02:00Z: WI03 health amplification and EURO donor labels repair begun.**
+  Commitment957 owns bounded source qualification/conditionaldevrollout; original860 retained. Prior956 publication actuald2fd completed; healthy matchingdev3d at01:59.
+
 
 - **2026-10-08 01:52Z: PR261 rollout and remaining repair receipts prepared for normal publication.**
   Canonicaldev3d21765c/ledger948; proposed949-956 actual261execution/944fulfilled955/healthpoll952/fallbacklabels953/860E2E954 preparedfornormalpush. Only3ownedweatherdocs differ; finalreadbackpending. Nextsource WI03healthpollrequests/source-labelhonesty,860firstliveafter02:07:56Z andquiet prerequisites.
@@ -1592,7 +1604,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 956, sha256 09d08dd25794912336deca7ca0aa2857744e4aa982323d59cf910a0efbe8b23e**
+  **Ledger head: seq 959, sha256 82334fab2d214fb9d66b0d70269565f57f695c43c1465c1ae1ec78f05cee9472**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

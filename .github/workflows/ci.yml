@@ -817,7 +817,8 @@ jobs:
           # WI03: 33 cycle/provenance controls in test_data_health; projected2393, margin6.
           # WI06: staged selector owns32 bounded wave-cycle retry controls; projected2425/186files, margin6.
           # Regular direct-point honesty adds99 executed controls; projected2524/187files, margin6.
-          MIN_FILES, MIN_PASSED = 187, 2518
+          # EURO donor labels add17 guards; projected2541/188files, six-test margin.
+          MIN_FILES, MIN_PASSED = 188, 2535
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1351,7 +1352,8 @@ jobs:
           # selector-owned by chain: projected2361 across158 files, margin6.
           # Blend contributor-cycle controls add35 executed tests and one chain-owned file:
           # projected2396 across159 files, preserving the six-test margin.
-          MIN_FILES, MIN_PASSED = 159, 2390
+          # Health listing cache adds20 chain controls; projected2416/160files, margin6.
+          MIN_FILES, MIN_PASSED = 160, 2410
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

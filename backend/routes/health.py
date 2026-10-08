@@ -97,6 +97,7 @@ async def health_check(
             "restore_errors": persistence_diag.get("restore_errors", []),
             "disk_product_count": persistence_diag.get("disk_product_count", 0),
             "supabase_product_count": persistence_diag.get("supabase_product_count"),
+            "supabase_listing": persistence_diag.get("supabase_listing"),
         }
     except Exception as e:
         logger.error(f"Health check weather diagnostics failed: {e}")

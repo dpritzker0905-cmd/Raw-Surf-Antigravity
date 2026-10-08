@@ -113,12 +113,12 @@ def test_provider_naive_hourly_samples_keep_existing_utc_semantics(monkeypatch, 
 
 @pytest.mark.parametrize("layer", ["waves", "swell_1", "swell_2", "wind_waves"])
 @pytest.mark.parametrize("minutes", [-60, 60])
-def test_native_euro_miss_stamps_actual_fallback_donor_without_relabelling(monkeypatch, layer, minutes):
+def test_native_euro_miss_stamps_actual_fallback_donor(monkeypatch, layer, minutes):
     donor, resolve, target, provider = prepare_direct(monkeypatch, "EURO", "marine", layer, minutes, fallback=True)
     donor["__model_run_time"] = stamp(NOW)
     result = resolve()
     assert result.is_estimated and not result.is_forecast_authoritative
-    assert result.provider == "gfs_estimated_fallback"
+    assert result.provider == ("open-meteo" if layer == "waves" else "gfs_estimated_fallback")
     assert result.fallback_reason == "copernicus_missing_fallback"
     assert result.served_valid_time == stamp(target + timedelta(minutes=minutes))
     assert result.frame_offset_hours == minutes / 60 and result.frame_substituted
