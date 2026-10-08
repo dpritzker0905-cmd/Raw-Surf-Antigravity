@@ -203,3 +203,24 @@ Readback: Actualpr262-deployment-20261008T023219.json source/HTTP/readiness/cach
 Bothbounded WI03 repairs complete at ownqualifiedsource/availabilityscope; actual957 fulfillment/cacheexecution and original860/currentforecastwork blockers retained. Canonicaldev ledger960 byteprefix andactualdevancestry preserved; newestpostmerge receiptsproposed. OnlyownedACTION/STATE/sessionlog differfromdev; normalpush/finalreadbackpending. CarryreceiptswithnextjustifiedsourcePR, no docs-onlymergechain.
 
 Readback: Actualown9602 finalCI all11/6225backend4177frontend,strictcurrentbase/head/cleanremote/sourcehash/prefix/localgates,exactmergedtree and matchinghealthyrollout/newlistingcachereadback verified. No broaderacceptanceclosure/no main/scienceflags/shareddata/forecastload mutation.
+
+
+## 2026-10-08 02:47Z — Remaining WI03 marine-cycle audit: genuine mixed donor cycles
+
+02:39 healthy deployed b02 API/restoration complete13301; datahealth stillwarn ICON/EURO marine conflicting. At02:41 cached publicregistry independently matches all479 selected conflicting estimate contributor identities and UTC cycles:348ICON/131EURO, native12Z versus GFS18Z on2026-10-07. Preserve shared-contributor uncertainty and warnings; no source defect or justified physical-value/cycle-selection repair shown. Stored donor-grid bytes not independently read: no Storage credentials in checkout/environment. WI03 investigation complete at registry scope; data-health/byte-level acceptance remainsopen. Initial offline raw-string comparison mislabeled Z/+00:00 equivalence; corrected timezone-aware comparison preserves original receipt and distinguishes12Z/18Z. No application/hosting/science/shared-product mutations, no new task or reopening253. Previous262 publication actuallycompleted atbbd7643; canonicaldev960, proposed961-966 preserved;957 fulfilled in execution965.
+
+Readback: registry-20261008T023950.json; conflicting-cohorts-20261008T024141.json retained; conflicting-cohorts-corrected.json contains479confirmed identities/cycles and equivalent/different UTC controls. Existing prior262 physical/Jacobian qualification unchanged; no fresh physical-accuracy claim. Current completed76 E2E categorical log assessment does not identify a precise assertion cause; no E2E rerun.
+
+
+## 2026-10-08 02:50Z — Commitment860 remaining check: quiet prerequisite blocked; prepared Waves off
+
+Existing860 retained open/overdue. Elapsed20minutes met;02:48 matching healthy dev/APIb02 complete13301restore zeroerrors. Human confirms otherforecast activitystopped and prepares oneownedChrome diagnostic tab; DOM GFS/none and rasterOFF verified twice, Waves neverenabled. Concurrentforecast jobs [('E2E Tests', 37717937279), ('Precompute Spot Ratings (decoupled)', 37717937273)]. Contract forbids probe under these loads, so no scene/capture/Play/scrub/stress or GPU-frame verdict. Browser readonlyDOM evaluator cannot certifydocument.hasFocus; actualfocus/viewport remainsunverified. Preparedtab handedoff Wavesoff; no unownedtabclosed. Current metadata-onlyposthealth healthy; two realmixedcycle warningsretained. Naturalb02SimParity37719305061 success48GFS comparisons,zero score/level differences,hourunverified0,33full/15degradedgeometry; thisdoesnotfulfill860 or broaderlive/scientific acceptance. No newreplacementtask, forecastworkflowdispatch/rerun/cancel or source/hostingmutation.
+
+Readback: remaining-live-prerequisites.json; pr262-deployment-20261008T024854.json; parity37719305061/parity.json. Original860 acceptance remainspending exactquiet/visiblefocused/stableviewport scalarcapture, cleanup andposthealth. No failure-prone helper input or diagnostic writes were forced.
+
+
+## 2026-10-08 02:51Z — Remaining findings and live prerequisites receipts publication
+
+Owner requested the last remaining items. Proposed967 confirms genuine mixed cycles at registry scope;968 records actual860 concurrent-load/focus prerequisites, preparedWavesOFF tab and natural parity receipt. Canonicaldev960 and proposed961-966 retained; no replacementtask or sourcefix without counterexample. Only ownedACTION/STATE/sessionlog will be committed and pushed normally; no newdocs-onlymerge/deployment. Publication pending actual cleanlocal/remote/prefix readback in remaining-publication.json.
+
+Readback: conflicting-cohorts-corrected.json and remaining-live-prerequisites.json validated. Pending: standalone memory/ledger/diff gates, normal commit/push, exact remote readback. Local CLI rejected invalid audit kind before any append; corrected to supported finding and appended967 once.
