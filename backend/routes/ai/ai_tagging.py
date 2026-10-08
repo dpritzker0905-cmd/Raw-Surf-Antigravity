@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 import json
 
 from database import get_db
+from core.security import get_current_user_id
 from models import Profile, GalleryItem, Notification, RoleEnum
 from models import AnalyticsEvent, Booking, BookingParticipant, LiveSession, LiveSessionParticipant, PhotoTag
 
@@ -380,6 +381,7 @@ async def gift_photo_to_surfer(
     photographer_id: str,
     gallery_item_id: str,
     surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -387,7 +389,10 @@ async def gift_photo_to_surfer(
     This grants access and creates/updates the PhotoTag record.
     """
     from models import PhotoTag, AnalyticsEvent
-    
+
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
+
     # Verify photographer owns the photo
     item_result = await db.execute(
         select(GalleryItem)

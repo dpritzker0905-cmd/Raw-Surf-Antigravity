@@ -12,7 +12,7 @@ import os, stripe, json, logging
 from database import get_db
 from models import Profile, PaymentTransaction, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -105,8 +105,13 @@ async def toggle_surfer_status(user_id: str, data: SurferStatusToggleRequest, db
 
 
 @router.post("/subscriptions/upgrade-tier/{user_id}")
-async def upgrade_subscription_tier(user_id: str, data: SubscriptionTierRequest, db: AsyncSession = Depends(get_db)):
+async def upgrade_subscription_tier(
+    user_id: str, data: SubscriptionTierRequest,
+    current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),
+):
     """Upgrade/downgrade subscription tier with Stripe checkout"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()
     if not user:

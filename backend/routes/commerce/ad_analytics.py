@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import logging
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query
 from deps.admin_auth import get_current_admin
 from models import Profile, CreditTransaction, Notification
 
@@ -57,7 +58,7 @@ async def get_user_ad_analytics(user_id: str, db: AsyncSession = Depends(get_db)
 
 
 @router.delete("/ads/my-submissions/{ad_id}")
-async def cancel_ad_submission(ad_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
+async def cancel_ad_submission(ad_id: str, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Cancel a pending ad and get refund"""
     config = await _get_cfg(db)
     variants = config.get("variants", [])

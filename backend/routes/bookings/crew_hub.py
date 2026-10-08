@@ -19,7 +19,7 @@ from models import (
 )
 from utils.credits import deduct_credits, add_credits, refund_credits
 from websocket_manager import broadcast_earnings_update
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -127,12 +127,15 @@ async def get_crew_hub_status(
 async def update_crew_hub_splits(
     booking_id: str,
     data: CrewHubUpdateSplitsRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Captain updates custom payment splits with granular control
     Supports: custom percentages, "Paid by Me" toggles
     """
+    if data.captain_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Get booking
     result = await db.execute(
         select(Booking).where(Booking.id == booking_id)
@@ -184,6 +187,7 @@ async def update_crew_hub_splits(
 async def captain_pay_hold(
     booking_id: str,
     captain_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -193,7 +197,10 @@ async def captain_pay_hold(
     - Scheduled: 24 hours
     """
     from datetime import timedelta
-    
+
+    if captain_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
+
     # Get booking with captain's profile
     result = await db.execute(
         select(Booking).where(Booking.id == booking_id)
@@ -317,12 +324,15 @@ async def captain_pay_hold(
 async def captain_cover_remaining(
     booking_id: str,
     data: CaptainCoverRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Captain covers the remaining unpaid balance for crew members
     Used when payment window is about to expire or captain wants to proceed
     """
+    if data.captain_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Get booking
     result = await db.execute(
         select(Booking).where(Booking.id == booking_id)
@@ -486,12 +496,15 @@ async def handle_payment_window_expiry(
 async def cancel_and_refund(
     booking_id: str,
     captain_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Cancel booking and refund all payments to credit balances
     Used when crew fails to pay within window
     """
+    if captain_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Get booking
     result = await db.execute(
         select(Booking).where(Booking.id == booking_id)

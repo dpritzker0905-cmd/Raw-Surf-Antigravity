@@ -10,6 +10,7 @@ from typing import Optional, List
 from datetime import datetime, timezone, timedelta, date
 
 from database import get_db
+from core.security import get_current_user_id
 from deps.admin_auth import get_current_admin
 from models import (
     Profile, CompetitionResult, Sponsorship, GoldPassBooking,
@@ -425,9 +426,12 @@ async def get_sponsorships(
 async def create_gold_pass_slot(
     photographer_id: str,
     data: GoldPassSlotCreate,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Photographer creates a time slot with 2-hour Gold-Pass window for Pro-Elite"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     
     # Verify photographer is vetted
     photo_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
@@ -531,9 +535,12 @@ async def get_gold_pass_slots(
 async def book_gold_pass_slot(
     slot_id: str,
     surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Book a gold-pass slot (Premium subscribers only during gold window)"""
+    if surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     
     # Get surfer
     surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
