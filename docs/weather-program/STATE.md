@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 02:08Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 02:10Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,10 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-08 02:10Z: PR262 bounded health and donor-label repairs published for own qualification.**
+  Actualinitial4179 normalpush/draftPR262dev createdandattached,clean/remotematch/base3d/openmergeable. Publicationreceipt960 carriesactualprior261post949-956 and own957-959 sourceevidence; finalcandidate willqualifyitsownchecks. Original860/datawarnings/E2E/Gulf/device/isolation/playback unchanged. Ownconditionalrolloutpending957.
+
 
 - **2026-10-08 02:08Z: WI03 two-repair candidate prepared for normal source publication.**
   Reviewed bounded cache/freshness/error/singleflight and donorlabels candidate; actual255focused/50floors7skips/3168calls720Jacobphysical0. Ownsourcequalification/conditionaldevrolloutpending957. Proposed949-959 retainedoncanonical948/dev3d ancestry; no replacement860. NormaldraftPRdev publication pendingactualreadback.
@@ -1604,7 +1608,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 959, sha256 82334fab2d214fb9d66b0d70269565f57f695c43c1465c1ae1ec78f05cee9472**
+  **Ledger head: seq 960, sha256 492804dee26b5021e8d2149dcaa3d6db4aa3301e7ccfdb156153abad548d50dd**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
