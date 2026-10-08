@@ -468,7 +468,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Live-session escrow: an 18-test estate file replaces a 2-test one on hosted 1446; projected 1462.
 # Merged #266 +16 on branch1457 ->1473; preserve the estate two-test margin.
 # PJ01 +28 executed guards controls; hosted qualification still required.
-_FLOOR_SET_FROM = {"guards": 2782, "chain": 2508, "estate": 1473}
+_FLOOR_SET_FROM = {"guards": 2810, "chain": 2508, "estate": 1473}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

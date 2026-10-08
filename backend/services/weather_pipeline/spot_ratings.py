@@ -275,6 +275,9 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
                      period_description='mixed-sea periods' if mixed_grade and len(partitions) > 1 else None)
     if why and tide_state and best_tide:
         why += f", {tide_state.get('trend', '')} tide".rstrip()
+    tide_status = ('available' if tide_state else 'unavailable') if os.environ.get('RATING_TIDE', '0') == '1' else None
+    if why and tide_status == 'unavailable' and best_tide:
+        why += ', tide adjustment unavailable'
     # ★ WHAT THE FORECAST WAS ALLOWED TO KNOW (WS-CAN-0062 / WS-OBJ-207). A VERIFIED pin on BLIND
     # geometry rendered `high conf` beside a `why` BYTE-IDENTICAL to a fully-surveyed spot's — live,
     # n=87: EIGHT `why` strings shared across full AND degraded. ⛔ THE FIX IS NOT TO MAKE
@@ -324,6 +327,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         "offshore_hs_m": round(offshore_h, 3) if offshore_h is not None else None,
         "primary_swell_hs_m": primary_swell_h,  # raw cached swell_1; unknown stays None
         "tide": tide_state,
+        "tide_status": tide_status,
         "why": why,
         # The binding constraint: which of the nine factors removed the most. See the block above.
         "limiter": _lim,

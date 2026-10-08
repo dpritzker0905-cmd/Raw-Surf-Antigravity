@@ -345,6 +345,7 @@ class SpotRatingItem(BaseModel):
     offshore_hs_m: Optional[float] = None
     primary_swell_hs_m: Optional[float] = None  # cached swell_1; None means unavailable, not total sea
     tide: Optional[dict] = None          # {height_m, norm 0..1, trend} when RATING_TIDE is on (else None)
+    tide_status: Optional[str] = None  # available | unavailable; None on legacy or unassessed frames
     why: Optional[str] = None            # short human explanation
     # Observation gate (RATING_OBS_GATE): good/epic verdicts require confirmation — >=2-model agreement
     # or a fresh user report (Surfline hybrid; the backend plays the forecaster). None fields when off.

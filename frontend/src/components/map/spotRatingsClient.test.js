@@ -2,6 +2,11 @@ import { mapSpotRatingsResponse } from './spotRatingsClient';
 import { RATING_COLOR, RATING_LABEL } from './surfRating';
 
 describe('mapSpotRatingsResponse', () => {
+  it('preserves known unavailable and available tide status through the glyph mapper', () => {
+    for (const status of ['available', 'unavailable']) {
+      expect(mapSpotRatingsResponse([{spot_id:'s',score:50,level:'fair',tide_status:status}]).s.tideStatus).toBe(status);
+    }
+  });
   it('maps a rated spot to the glyph shape, keyed by spot_id', () => {
     const out = mapSpotRatingsResponse([
       { spot_id: 'uuid-a', score: 72.4, level: 'good', confidence: 'high', why: 'clean 12s', surf_height_m: 1.83, period_s: 12.4,
@@ -16,6 +21,7 @@ describe('mapSpotRatingsResponse', () => {
       surfHeightM: 1.83,               // carried for the hover (live surf height)
       periodS: 12.4,
       tide: { height_m: -0.06, norm: 0.74, trend: 'falling' },   // carried for the card's tide line
+      tideStatus: null,
       why: 'clean 12s',
       // ⭐ ADDED 2026-08-05 — and this exact-shape assertion is WHY the addition is safe to make.
       // `toEqual` on the whole object means a field cannot be added to the mapper without landing

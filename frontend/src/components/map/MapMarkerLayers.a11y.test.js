@@ -6,6 +6,7 @@
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
+import * as tideClient from './tideClient';
 import MapMarkerLayers, {
   spotGlyphAriaLabel, clusterBubbleAriaLabel, photographerAriaLabel,
 } from './MapMarkerLayers';
@@ -71,6 +72,22 @@ describe('pure aria-label builders', () => {
 });
 
 describe('spot glyph button', () => {
+  it('keeps a known unavailable forecast tide from being replaced by the cached current tide', () => {
+    const cached = jest.spyOn(tideClient, 'getCachedTideState').mockReturnValue({height_m:1,trend:'rising'});
+    const fetch = jest.spyOn(tideClient, 'ensureTideState').mockResolvedValue(null);
+    try {
+      render(<MapMarkerLayers {...baseProps({spotClusters:[spot()],surfMode:true,
+        spotRatings:{s1:{...RATING,tideStatus:'unavailable',why:'Clean surf, tide adjustment unavailable'}}})}/>);
+      const btn=screen.getByRole('button',{name:/Sebastian Inlet/});
+      fireEvent.focus(btn);
+      fireEvent.mouseEnter(btn);
+      expect(screen.getByText(/tide adjustment unavailable/)).toBeTruthy();
+      expect(btn.getAttribute('aria-label')).not.toMatch(/tide/i);
+      expect(screen.queryByText(/Tide .*rising/)).toBeNull();
+      expect(cached).not.toHaveBeenCalled();
+      expect(fetch).not.toHaveBeenCalled();
+    } finally { jest.restoreAllMocks(); }
+  });
   it('renders a real button with the rating text equivalent as its accessible name', () => {
     render(<MapMarkerLayers {...baseProps({
       spotClusters: [spot()], surfMode: true, spotRatings: { s1: RATING },

@@ -161,7 +161,8 @@ var MapMarkerLayers = ({
         // Tide for the card + aria label — RIDES THE RATING TOGGLE (`rating` exists only in Rating
         // mode): baked payload first (authoritative — it shaped the score), else the client-side
         // fallback cell (display-only). Null when Rating is off / no data yet.
-        const tideState = rating
+        const tideUnavailable = rating?.tideStatus === 'unavailable';
+        const tideState = rating && !tideUnavailable
           ? (rating.tide || (typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_FALLBACK__
               ? null : getCachedTideState(lat, lng)) || null)
           : null;
@@ -182,9 +183,9 @@ var MapMarkerLayers = ({
               className={`relative cursor-pointer rounded-full ${BUTTON_RESET} ${FOCUS_RING}`}
               style={{ position: 'relative', width: 32, height: 32 }}
               aria-label={spotGlyphAriaLabel(cluster, rating, tideLine, heightUnit)}
-              onMouseEnter={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}
+              onMouseEnter={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide && !tideUnavailable) requestFallbackTide(lat, lng); }}
               onMouseLeave={() => setHoveredSpotId(null)}
-              onFocus={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}
+              onFocus={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide && !tideUnavailable) requestFallbackTide(lat, lng); }}
               onBlur={() => setHoveredSpotId(null)}
               onClick={(e) => {
                 e.stopPropagation();

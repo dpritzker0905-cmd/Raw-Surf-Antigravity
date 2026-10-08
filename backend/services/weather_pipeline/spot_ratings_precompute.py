@@ -344,6 +344,7 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     """Rate every spot for each (model, hour) frame and return the versioned L2 object. Bounded concurrency so
     a large spot list doesn't stampede the resolver. valid_time per frame = base_dt + hour (top-of-hour UTC)."""
     base = base_dt or _top_of_hour_utc()
+    hour_offsets = list(hour_offsets)
     sem = asyncio.Semaphore(max(1, concurrency))
 
     # LOCAL SIZE CALIBRATION (P-local): each spot's size gate saturates at its OWN good-day breaking height
@@ -400,9 +401,11 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     # a timed cooldown, including the per-spot fallback, so a refused batch cannot create a request burst.
     if spots and os.environ.get("RATING_TIDE", "0") == "1":
         try:
-            from services.weather_pipeline.tide import prewarm_tide_cache
+            from services.weather_pipeline.tide import prewarm_tide_cache, tide_forecast_days
+            days = [tide_forecast_days(base + timedelta(hours=h)) for h in hour_offsets]
+            horizon = max((d for d in days if d is not None), default=None)
             n_tide = await prewarm_tide_cache(
-                [(sp.get("latitude"), sp.get("longitude")) for sp in spots])
+                [(sp.get("latitude"), sp.get("longitude")) for sp in spots], forecast_days=horizon) if horizon else 0
             logger.info("[spot-ratings] tide cache pre-warmed: %d cells.", n_tide)
         except Exception as _te:
             logger.warning(f"[spot-ratings] tide pre-warm skipped: {_te}")

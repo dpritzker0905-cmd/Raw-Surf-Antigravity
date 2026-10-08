@@ -835,8 +835,8 @@ jobs:
           # Reference and floor move together; retain the six-test margin.
           # LIVE02 direct-flux candidate: +18 controls, projected 2683 / 193 files.
           # PJ01 dark depth policy: +28 controls, projected2711 /194 files; margin6 retained.
-          # a6 hosted2756/195; WJ01 adds26 tracked controls. Projected2782/196; margin6.
-          MIN_FILES, MIN_PASSED = 196, 2776
+          # bd4 hosted2782/196; WC02 adds28 tracked controls. Projected2810/197; margin6.
+          MIN_FILES, MIN_PASSED = 197, 2804
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

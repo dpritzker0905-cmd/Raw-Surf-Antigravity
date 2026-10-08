@@ -661,3 +661,102 @@ Fatal backend lint, backend800LOC (669 source files), repoLOC (2624 files,12 gra
 Readback: Canonical960-line ledger byte-identical prefix; memory audit0FAIL/9historicalWARN/3NOTE. Final72 visual cases include36 exact score assertions. Fresh dev E2E37819560211 failed,PR264OPEN DRAFT,origin/dev3b7ca954 unchanged. No floor/limit lowered or owner flag changed; new hosted-source qualification pending.
 
 Rollback: Revert owned source/floor/evidence changes together; retain append-only reconciliation and action history.
+
+## 2026-10-08 19:50Z — codex/a8-weather-audit-repairs at bd4aea9a (ledger seq 1091)
+
+Published bd4aea9a596186df619ba1a19c91c486026f0e2e to existing PR264 with WJ01 dark continuity source,26 controls,paired sensitivities,72 offline visual receipts, five PNGs,paired floors and owned receipts through1090. Current source CI37834670688 running; Encoding37834670634,LOC37834670683 and Ledger37834670816 success; Lighthouse37834670762 running at publication readback.
+
+Readback: Git push ordinary fast-forward a6a8e3b6 ->bd4aea9a; PR264 head matches full source SHA,OPEN DRAFT,base3b7ca954. No source qualification,merge,deploy,scientific activation or live acceptance is inferred for bd4.
+
+Rollback: Keep flags0; revert the owned source and paired floors by reviewed PR if later deployed.
+
+## 2026-10-08 19:50Z — PR264: current crossover scope and qualification limits (ledger seq 1092)
+
+Rewrote the existing PR description around the final weather frame/storage/composition boundaries, mixed-sea candidate, current SHA and its pending checks. Retained prior fixes and independent D017/Storage/860/science/UI acceptance gates. Attached PR264 to this task; no new replacement PR or task created.
+
+Readback: GitHub readback title and headbd4 match; description8040characters includes current source, previous fully qualified a6counts,26/288controls,72visuals and dedicated log handoff.
+
+Rollback: Restore the previous PR body from scratch/weather-next/pr264-pj02.md if needed; preserve append-only receipts.
+
+Post-publication1091–1092 are local receipts to carry with the next substantive publication, avoiding a self-hash-only commit chain. Published source/evidence bd4aea9a awaits its own exact-source qualification. No new commitment was substituted for860 or863.
+
+## 2026-10-08 20:44Z — WJ-01: bd4 exact-source qualification (ledger seq 1093)
+
+Published bd4aea9a own CI37834670688 completed success with all eleven jobs. Actual backend guards2782/chain2508/estate1473 and frontend378suites/4234tests. Encoding37834670634,LOC37834670683,Ledger37834670816 and Lighthouse37834670762 completed success. Qualified at source scope; all five new scientific flags remain0.
+
+Readback: GitHub exact head and job logs matched; only allowlisted pass counts retained. PR264 remains OPEN DRAFT on canonicaldev3b7ca954; devE2E37819560211 still failure.
+
+Rollback: No live mutation to roll back; retain the qualification limits.
+
+## 2026-10-08 20:44Z — WC-02: unsupported tide and current fallback reproduction (ledger seq 1094)
+
+Corrected old-source backend baseline21fail/2pass demonstrates distant endpoints, missing/nonfinite hours, fixed3-day acquisition, expired tide grade at3 actual stored spots and prewarm horizon. Frontend original source3fail/19pass demonstrates availability dropped and cached current tide replacing a known missing forecast tide. Initial test envelope omitted source and injected client duplicated a keyword; corrected before accepting evidence.
+
+Readback: Original owned source temporarily restored from HEAD, tested, and candidate bytes restored in finally blocks. Corrected identical symptom guards turn green after the repair; external network forbidden.
+
+Rollback: Keep the baseline facts; remove only scratch harnesses if no longer needed.
+
+## 2026-10-08 20:44Z — WC-02: bounded tide coverage and response-to-popup repair (ledger seq 1095)
+
+Require a finite hourly tide sample within30minutes; no endpoint extrapolation. UTC calendar horizon requests3to8days, refuses unsupported dates withoutHTTP; batchprewarm covers the longest supported frame once. Unknown keeps existing neutral grade and optional tide_status through SpotRatingsResponse/mapper; popup refuses current fallback on known unavailability and exposes the why caveat when a best-tide prior exists. Default-off/unassessed and legacy fallback remain. No owner flag or tide-fit coefficient changed.
+
+Readback: 28 new backend controls;288 affected backend passes across16modules;40 frontend passes across4modules. Governance cohort72 overlaps, not summed. Three actual stored point/rating/full-envelope unknown controls and three valid-hour controls; supported batch12 evaluations uses one3-cell8-day request, day9 makes no request.
+
+Rollback: Revert the bounded tide source/wire/mapper/popup changes and paired tests/floors together.
+
+## 2026-10-08 20:44Z — WC-02: paired stored grades and sensitivity lens (ledger seq 1096)
+
+36 offline actual stored-rating calls across Snapper/Cocoa/Trestles: expired tide grades77.3/63.4/72.6 become neutral96.1/78.7/90.1; heights4.050/4.779/6.237m unchanged. Actual central derivatives for height/period/wind/waterlevel retained; uniform1percent sea-level scaling preserves the normalized tide score at3of3spots. Tide-depth I/O off for this measurement; shared point-height controls cover its unknown path separately.
+
+Readback: paired.json names synthetic inputs, actual reference/wire, Jacobian units and exclusions. No field-skill, height-increase, current-cache cadence, hub-tide parity or playback acceptance inferred.
+
+Rollback: Retain evidence; revert source if the covered temporal contract regresses.
+
+## 2026-10-08 20:44Z — WC-02: actual map popup visual qualification (ledger seq 1097)
+
+54 offline Chrome cases:3 actual stored spot payloads x legacy-expired/fixed-expired/valid-hour x3themes x390/1280widths. Actual spot-rating mapper and keyboard-opened MapMarkerLayers popup; position wrapper stubbed, no map/GPU/liveprovider scene. Known misses show the caveat without a substituted tide line; valid tides and legacy rows show their original values. No external requests, JS errors or measured horizontal overflow. Selected before/after/control PNGs saved outside UTF8 weather-memory tree.
+
+Readback: All54 cases pass after waiting for finite entrance animations. Manually inspected darkmobile Cocoa before/after and lightdesktop Trestles valid control. Screenshots do not close contrast, hub omission, device coverage or live smoothness tasks.
+
+Rollback: Revert the local visual runner and evidence if needed; no shared tabs or data changed.
+
+### WC-02 reconciliation and recommendations
+
+| Existing task ID | Current evidence | Proposed status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| WC-02 | Expired endpoint and3-day horizon reproduced; real wire/popup repaired;28new/288affected/40frontend/54visuals | Locally verified source; hosted/live coverage pending | Qualify this exact pushed source; verify supported returned horizon under established bounded rollout contract | No unsupported tide value, neutral grade plus visible miss; actual provider coverage, shared height paths and hub/sim contracts independently evidenced |
+| WJ-01 / PJ-02 / PJ-01 / WC-01 | Published bd4 own all11green,2782/2508/1473 plus378/4234; dark candidate evidence retained | Qualified at documented source scope; owner activation/skill open | Preserve default-off flags and actual field acceptance gates | Scientific acceptance and scope-specific surface parity before owner activation |
+| AS04 / PJ-03 / WF01 | Actual earlier hub omits quality; popup caveat now visible; global contrast unresolved | Open, independent | Next bounded common size/quality disclosure and measured contrast | Quality and size shown together, accurate labels and contrast across three themes/layouts |
+| A-05 / A8-01 / D-017 | Fresh dev E2E37819560211 still failed on3b7ca954 | Open; merge held | Diagnose from retained allowlisted receipts; qualify candidate before considering any named waiver | Green dev E2E or owner explicitly waives264 by number; source CI alone insufficient |
+| 860 | No live map scene or forecast loads started | Open/held | Use exact quiet/stable/focused/paused/source/healthy contract when prerequisites hold | Counts/paint/CPU/gaps/fallback, real bounds/grid, cleanup/health; no playback inference |
+| 863 | Fulfillment883 retained | Fulfilled at recorded scope | Do not duplicate | Documentation qualification is not product acceptance |
+| 282 / 283 | Existing source repair retained; live archive acknowledgment and readers still owed | Live durability open before October14 | Bounded upload/readback under existing contract | Compressed archive acknowledgment and both actual readers at the month seam |
+
+The Marine API parameter table documents up to8forecast days and a midnight-today start:
+https://open-meteo.com/en/docs/marine-weather-api. Other parts of that page mention longer model horizons;
+this patch uses the conservative parameter limit and independently validates the returned sample, so
+requested coverage is never proof of available tide data. sea_level_height_msl includes weather effects
+above global MSL, not a chart-datum/pure astronomical tide. No observational accuracy is asserted.
+Long forecast prewarm transfers up to8/3 as many hourly slots per cell; no shared capacity acceptance is
+claimed. Cache cell limit, lock/cooldown/cancellation policy and current3day minimum remain.
+Default-off tide leaves status unassessed; legacy current fallback remains a separately tracked display
+limitation. Existing hub does not apply the tide-fit prior and has no evidence of parity from this patch.
+
+### WC-02 separate implementation handoff
+
+Source: tide.py finite/temporal guard plus tide_forecast_days; precompute longest eligible UTC frame;
+reference why/status; optional SpotRatingItem field; actual glyph mapper and fallback refusal. Regression
+family test_rating_tide_time_contract.py is tracked in guards; projected2810passes/197files with margin6,
+chain2508/estate1473 unchanged. No floor lowered. Corrected baseline21fail/2pass and frontend3fail/19pass;
+final28new/288affected/40frontend.72governance controls overlap and are not summed. Instrument preserves
+real point resolution and response model; no live data or scientific environment changes. Keep the flags
+and owner gates. Next source repair belongs to AS04/PJ-03, with WF01 contrast measured rather than inferred.
+New hosted qualification and deployment are pending; current PR remains264, not a duplicate task or PR.
+
+## 2026-10-08 20:46Z — WC-02: publication governance and existing-task reconciliation (ledger seq 1098)
+
+Fatal backend lint, backend800LOC669files, repoLOC and tracked census671files (197guards/165chain/306estate/2excluded/1quarantine) pass. Final28new/288affected backend,40frontend and54offline Chrome popup cases pass;72governance overlap is not summed. Projected2810/2508/1473 source counts; floors2804/2502/1471 retain margins. Scoreboard, five-column reconciliation, source limits and separate handoff appended; no duplicate task.
+
+Readback: Refreshed canonical origin/dev3b7ca954 and byte-identical960-line ledger prefix. Ledger1097entries valid before this receipt; memory audit0FAIL/9historicalWARN/3NOTE. ExistingPR264OPEN DRAFT and devE2E37819560211failed. No unowned source/ledger rewrite, source merge/deploy, shared-data load or scientific flag activation.
+
+Rollback: Revert owned tide source/wire/UI, controls/floors and visual runner together; retain append-only receipts.
