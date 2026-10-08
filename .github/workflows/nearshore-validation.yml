@@ -9,10 +9,16 @@
 #   default OFF and arming the lane would have accrued the bulk arm alone, never the MOP, MOP-grid or NWPS
 #   evidence the stage 4 decisions wait on. On schedule those three are ON (one CDIP request per station;
 #   the ingest's ~17 KB run artifacts; ~1 NWPS file per station); the swell-train arm stays dispatch-only
-#   (4x the point calls, and #117 measured it no better at the buoys). Backfill stays 0: an hourly run
-#   grades its own hour, and /point answers only the current GFS run's hours anyway.
-# Exit contract (scripts/run_nearshore_validation.py): 0 GRADED · 1 REFUSED (a verdict — the
-# report says why; exits 0 here so an accrual lane cannot train red-blindness) · 2 INFRA (red).
+#   (4x the point calls, and #117 measured it no better at the buoys).
+# ★ VA-03 (2026-10-08): THE JUDGE MUST NOT READ GREEN WHILE IT GRADES NOTHING. Armed off from 09-20, ~85
+#   scheduled runs were green with nothing graded. So:
+#   - an armed-off run WARNS when no run has graded in 72 h (one read of this workflow's own run list);
+#   - GRADED needs 30 station-hours (GRADED_MIN_STATION_HOURS in the runner);
+#   - REFUSED fails the run.
+#   One hour matched 7 station-hours, so a scheduled slot grades the last 24 h (measured: 24-98 station-hours,
+#   314-802 /point calls). That is why the cron is 6-hourly, not hourly: the box is one shared CPU.
+# Exit contract (scripts/run_nearshore_validation.py): 0 GRADED · 1 REFUSED (a verdict; the report says why;
+# red, VA-03) · 2 INFRA (red).
 name: Nearshore Validation (WS-CAN-0076)
 run-name: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && vars.NEARSHORE_VAL_ENABLED == '1')) && 'Nearshore requested - see validation verdict' || 'Nearshore NOT GRADED - ARMED OFF' }}
 
@@ -44,9 +50,10 @@ on:
         required: false
         default: '0'
   schedule:
-    # Hourly is the accrual rate the packet assumes; GitHub cron is BEST-EFFORT (measured
-    # delivery 5-32% on sibling lanes) — the report series is append-only, gaps are fine.
-    - cron: '20 * * * *'
+    # Six-hourly, each slot grading the last 24 h (VA-03). Off the core ingest (:15 past every 4th hour) and the
+    # precompute (:45 past 07/15/23). GitHub cron is BEST-EFFORT (a 6-hourly lane lost 75% of its slots), so
+    # expect about one graded run a day. The report series is append-only; gaps are fine.
+    - cron: '20 3,9,15,21 * * *'
 
 permissions:
   contents: read
@@ -68,9 +75,13 @@ jobs:
         id: gate
         env:
           NEARSHORE_VAL_ENABLED: ${{ vars.NEARSHORE_VAL_ENABLED }}
+          GH_TOKEN: ${{ github.token }}
         shell: python
         run: |
+          import json
           import os
+          import urllib.request
+          from datetime import datetime, timedelta, timezone
 
           event = os.environ["GITHUB_EVENT_NAME"]
           eligible = event == "workflow_dispatch" or (
@@ -78,6 +89,24 @@ jobs:
           )
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
               output.write(f"eligible={str(eligible).lower()}\n")
+
+
+          # VA-03: when did the judge last GRADE? A successful requested run (REFUSED and INFRA fail the run).
+          def last_graded(window_h=72):
+              since = datetime.now(timezone.utc) - timedelta(hours=window_h)
+              url = (f"{os.environ.get('GITHUB_API_URL', 'https://api.github.com')}/repos/{os.environ['GITHUB_REPOSITORY']}"
+                     f"/actions/workflows/nearshore-validation.yml/runs?status=success&per_page=100"
+                     f"&created=%3E%3D{since.strftime('%Y-%m-%dT%H:%M:%SZ')}")
+              request = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json",
+                                                             "Authorization": f"Bearer {os.environ['GH_TOKEN']}"})
+              with urllib.request.urlopen(request, timeout=15) as response:
+                  runs = json.load(response).get("workflow_runs") or []
+              graded = [r for r in runs if r.get("conclusion") == "success"
+                        and str(r.get("display_title", "")).startswith("Nearshore requested")
+                        and datetime.strptime(r["created_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc) >= since]
+              return max(graded, key=lambda r: r["created_at"]) if graded else None
+
+
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
               if eligible:
                   summary.write("### Nearshore validation: **REQUESTED**\n\n")
@@ -85,7 +114,22 @@ jobs:
               else:
                   summary.write("### Nearshore validation: **NOT GRADED — ARMED OFF**\n\n")
                   summary.write("The scientific validation job is skipped. No model or observation requests were made.\n\n")
-                  summary.write("A manual dispatch runs validation; scheduled accrual requires NEARSHORE_VAL_ENABLED=1.\n")
+                  summary.write("A manual dispatch runs validation; scheduled grading requires NEARSHORE_VAL_ENABLED=1.\n")
+                  try:
+                      last = last_graded()
+                  except Exception as error:  # noqa: BLE001 - any failure is reported by name, never swallowed
+                      note = (f"run history unreadable ({type(error).__name__}: {str(error)[:120]}), "
+                              "so how long the judge has graded nothing is unknown")
+                      summary.write(f"\n**WARN:** {note}.\n")
+                      print(f"::warning::Nearshore judge: {note}.")
+                  else:
+                      if last is None:
+                          note = "has graded nothing in the last 72 h, so the served breaking height has no instrument"
+                          summary.write(f"\n**WARN: the nearshore judge {note}.** Arming it is the owner's call "
+                                        "(repo variable NEARSHORE_VAL_ENABLED=1).\n")
+                          print(f"::warning::Nearshore judge {note}.")
+                      else:
+                          summary.write(f"\nThe judge last graded in run {last['id']} at {last['created_at']}.\n")
           if not eligible:
               print("::notice::Nearshore NOT GRADED — ARMED OFF; scientific validation skipped.")
 
@@ -138,7 +182,7 @@ jobs:
         env:
           NEARSHORE_VAL_MIN_MATCHED: ${{ vars.NEARSHORE_VAL_MIN_MATCHED || '1' }}
           NEARSHORE_VAL_MAX_STATIONS: ${{ vars.NEARSHORE_VAL_MAX_STATIONS || '20' }}
-          NEARSHORE_VAL_BACKFILL_H: ${{ github.event.inputs.backfill_hours || '0' }}
+          NEARSHORE_VAL_BACKFILL_H: ${{ github.event.inputs.backfill_hours || (github.event_name == 'schedule' && '24') || '0' }}
           NEARSHORE_VAL_TRAINS: ${{ github.event.inputs.trains || '0' }}
           NEARSHORE_VAL_MOP: ${{ github.event.inputs.mop || (github.event_name == 'schedule' && '1') || '0' }}
           NEARSHORE_VAL_MOP_GRID_DIR: ${{ (github.event.inputs.mop_grid == '1' || github.event_name == 'schedule') && '../mop_archive' || '' }}
@@ -160,8 +204,8 @@ jobs:
             echo "::error::INFRA, NOT A VERDICT (exit $rc): pair table, CDIP THREDDS, or the prod point API could not answer. Nothing was graded. preflight awake=${{ steps.warm.outputs.awake }}"
             exit 2
           elif [ "$rc" -eq 1 ]; then
-            echo "::warning::REFUSED — available:false; nearshore_report.json carries the counters and reason."
-            exit 0
+            echo "::error::REFUSED, nothing graded: available:false; nearshore_report.json carries the counters and reason (VA-03: no green without a grade)."
+            exit 1
           fi
           echo "GRADED — nearshore_report.json"
 

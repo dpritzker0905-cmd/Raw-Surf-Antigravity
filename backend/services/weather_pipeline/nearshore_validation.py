@@ -420,22 +420,31 @@ def match(preds: list, obs: list, tolerance_s: float = 1800.0) -> list:
 
 
 def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
-                 min_matched: int = None) -> dict:
+                 min_matched: int = None, min_station_hours: int = 0) -> dict:
     """The banked report. REFUSES (available:false + reason + counters) below the match floor —
-    the counters stay readable so the refusal explains itself."""
+    the counters stay readable so the refusal explains itself.
+
+    `min_station_hours` (VA-03, 2026-10-08) is the GRADED floor in the honest unit: distinct buoy readings, not the
+    spot-hours `min_matched` counts (linked spots share one reading). The runner passes its policy; 0 = no floor."""
     if min_matched is None:
         try:
             min_matched = max(1, int(os.environ.get("NEARSHORE_VAL_MIN_MATCHED", "1")))
         except (TypeError, ValueError):
             min_matched = 1
+    n_station_hours = len({(m.get("station"), m.get("obs_time")) for m in matched or []})
     base = {"version": 1, "generated_at": datetime.now(timezone.utc).isoformat(),
             "quantity": "transform_hs_at_station_depth_vs_cdip_hs (Hs statistic; no cap, no H1/10)",
             "n_stations": n_stations, "n_obs": n_obs, "n_preds": n_preds,
-            "n_matched": len(matched or [])}
+            "n_matched": len(matched or []), "n_station_hours": n_station_hours}
     if not matched or len(matched) < min_matched:
         return {**base, "available": False,
                 "reason": (f"no usable nearshore evidence: n_matched={len(matched or [])} "
                            f"(min {min_matched}), n_obs={n_obs}, n_preds={n_preds}"),
+                "stations": {}}
+    if n_station_hours < min_station_hours:
+        return {**base, "available": False,
+                "reason": (f"too thin to grade: station-hours={n_station_hours} (min {min_station_hours}), "
+                           f"spot-hours={len(matched)}, n_obs={n_obs}, n_preds={n_preds}"),
                 "stations": {}}
     stations = {}
     for m in matched:

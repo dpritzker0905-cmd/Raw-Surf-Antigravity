@@ -5,8 +5,10 @@ live CDIP realtime observations (QC flag==1) -> the SERVING PATH's offshore poin
 linked spot -> model_hs_at_station -> match -> build_report -> one JSON on disk.
 
 EXIT CONTRACT (int only — never SystemExit("string"), the L-2 defect):
-    0  GRADED   — report available:true
-    1  REFUSED  — a verdict: available:false (n_matched below floor); the report is still written
+    0  GRADED   — report available:true, on at least GRADED_MIN_STATION_HOURS distinct buoy readings
+    1  REFUSED  — a verdict: available:false (too few matches, or under the station-hour floor); the
+                  report is still written. The workflow fails the run on it (VA-03): a run that graded
+                  nothing must not read green.
     2  INFRA    — nothing was graded: pair table unreadable/stale, ZERO CDIP stations answering,
                   or the point API unreachable for every spot. (2 matches model_skill_census's
                   VOID and the census workflow's `rc -ge 2` branch; forecast_accuracy_monitor's
@@ -50,6 +52,10 @@ from services.weather_pipeline.surf_transform import shelf_dissipation  # noqa: 
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 UA = {"User-Agent": "raw-surf-nearshore-validation-runner"}
+# THE GRADED FLOOR (VA-03, 2026-10-08): a grade needs 30 distinct buoy readings. Before it, one matched spot-hour
+# graded. Measured on the 9 graded 24 h-backfill dispatches (2026-09-27..29): 24-98 station-hours, 8 of 9 at or
+# above 30; the one single-hour run read 7, which is why a scheduled slot now grades a 24 h backfill.
+GRADED_MIN_STATION_HOURS = 30
 
 
 def _fetch_json(url: str, timeout: float = 60.0) -> dict:
@@ -321,11 +327,11 @@ def main() -> int:
         n_obs += len(qc_filter(obs))
         matched.extend(match([p for p in preds if p["station"] == st], obs))
 
-    report = build_report(matched, n_stations=len(live_obs), n_obs=n_obs, n_preds=len(preds))
+    report = build_report(matched, n_stations=len(live_obs), n_obs=n_obs, n_preds=len(preds),
+                          min_station_hours=GRADED_MIN_STATION_HOURS)
     report["station_probe"] = {"live": sorted(live_obs), "dead_404": sorted(dead_404),
                                "infra": infra_stations}
-    report["n_spot_hours"] = len(matched)
-    report["n_station_hours"] = len({(m["station"], m["obs_time"]) for m in matched})
+    report["n_spot_hours"] = len(matched)       # n_station_hours comes from build_report, which gates on it
     report["point_api"] = {"base": args.base, "valid_time": valid_times[0], "valid_times": len(valid_times),
                            "calls": (len(preds) * (1 + len(TRAIN_LAYERS) * bool(args.trains)
                                                    + len(CONSENSUS_MEMBERS) * bool(args.consensus))) + point_fail,
