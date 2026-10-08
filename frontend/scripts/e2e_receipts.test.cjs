@@ -37,6 +37,19 @@ test('hub receipt bounds request retention', () => {
   assert.equal(stop().length, 64);
 });
 
+test('an incidental unauthorized response is retained without its identity or URL', () => {
+  const page = new EventEmitter();
+  const stop = observeHubRequests(page);
+  const request = { url: () => 'https://example.invalid/api/unclassified/private-id?private=sentinel' };
+  page.emit('response', { request: () => request, status: () => 401 });
+  page.emit('requestfinished', request);
+  const facts = stop();
+  assert.equal(facts[0].endpoint, 'other-unauthorized');
+  assert.equal(facts[0].status, 401);
+  assert.equal(facts[0].state, 'finished');
+  assert.doesNotMatch(JSON.stringify(facts), /private-id|sentinel|example/);
+});
+
 test('completed attempt is readable before reporter shutdown and excludes errors and titles', () => {
   const oldCwd = process.cwd();
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rawsurf-e2e-receipt-'));

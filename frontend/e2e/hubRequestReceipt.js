@@ -10,6 +10,12 @@ function observeHubRequests(page) {
     if (path === '/api/conditions/batch') return 'batch';
     if (/^\/api\/condition-reports\/spot\/[^/]+$/.test(path)) return 'reports';
     if (/^\/api\/posts\/spot\/[^/]+$/.test(path)) return 'posts';
+    if (/^\/api\/messages\/unread-counts\/[^/]+$/.test(path)) return 'message-badge';
+    if (/^\/api\/profiles\/[^/]+$/.test(path)) return 'profile';
+    if (/^\/api\/sessions\//.test(path)) return 'session';
+    if (/^\/api\/dispatch\/user\/[^/]+\/active$/.test(path)) return 'active-session';
+    if (/^\/api\/notifications(?:\/|$)/.test(path)) return 'notification';
+    if (/^\/api\/surf-spots\/[^/]+\/live-shooting-pulse$/.test(path)) return 'spot-pulse';
     return null;
   };
   const onRequest = request => {
@@ -20,7 +26,15 @@ function observeHubRequests(page) {
     requests.set(request, entry);
   };
   const onResponse = response => {
-    const entry = requests.get(response.request());
+    const request = response.request();
+    let entry = requests.get(request);
+    // Capture an otherwise unobserved 401 without retaining its URL or guessing its cause.
+    if (!entry && response.status() === 401 && entries.length < 64) {
+      entry = { endpoint: classify(request) || 'other-unauthorized', state: 'pending',
+        status: null, started: performance.now() };
+      entries.push(entry);
+      requests.set(request, entry);
+    }
     if (entry) entry.status = response.status();
   };
   const finish = state => request => {

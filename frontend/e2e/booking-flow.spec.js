@@ -27,6 +27,7 @@
 const { test, expect } = require('@playwright/test');
 const { stubSeededMessageBadge } = require('./seededMessageBadge');
 const { observeHubRequests } = require('./hubRequestReceipt');
+const hubReceipts = new WeakMap();
 
 // The same stub the weather spec uses. Measured sufficient to pass the route guard.
 const standardUser = {
@@ -95,7 +96,10 @@ test.describe('Explore', () => {
   // This seeded-user journey needs its incidental badge fixture to own the request.
   // Service workers can bypass page.route; anonymous journeys keep service workers enabled.
   test.use({ serviceWorkers: 'block' });
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page }, testInfo) => {
+    if (testInfo.title === 'clicking a spot opens its spot hub') {
+      hubReceipts.set(page, observeHubRequests(page));
+    }
     const badgeRequests = await signIn(page);
     await page.goto('/explore', { waitUntil: 'domcontentloaded' });
     // ★ THE ASSERTION THE OLD SETUP LACKED. Pin that we are actually ON explore, so an auth
@@ -105,6 +109,22 @@ test.describe('Explore', () => {
     await expect.poll(badgeRequests, {
       message: 'the seeded identity message badge used its declared UI fixture', timeout: 15000,
     }).toBeGreaterThan(0);
+  });
+
+  test.afterEach(async ({ page }, testInfo) => {
+    const receipt = hubReceipts.get(page);
+    if (!receipt) return;
+    hubReceipts.delete(page);
+    const path = new URL(page.url()).pathname;
+    const facts = { requests: receipt(),
+      landing: path.startsWith('/auth') ? 'auth' : path.startsWith('/spot-hub/') ? 'hub' :
+        path === '/explore' ? 'explore' : 'other',
+      hubVisible: await page.getByTestId('close-spothub-btn').isVisible().catch(() => false),
+      unavailable: await page.getByRole('heading', { name: 'Unable to load this spot' }).isVisible().catch(() => false),
+      notFound: await page.getByRole('heading', { name: 'Spot Not Found' }).isVisible().catch(() => false) };
+    console.log('HUB_REQUEST_RECEIPT ' + JSON.stringify(facts));
+    await testInfo.attach('hub-request-receipt', { contentType: 'application/json',
+      body: Buffer.from(JSON.stringify(facts)) });
   });
 
   test('explore shows the search input', async ({ page }) => {
@@ -135,22 +155,10 @@ test.describe('Explore', () => {
   // the binding constraint was this per-ASSERTION budget, which the enclosing timeout never reaches.
   // ⛔ The real fix is ordering: gate the e2e job on the backend being up, not just the frontend.
   // Until then these budgets must not be tighter than the client the app itself ships.
-  test('clicking a spot opens its spot hub', async ({ page }, testInfo) => {
-    const receipt = observeHubRequests(page);
-    try {
-      await page.locator('[data-testid^="trending-spot-"]').first().click();
-      await expect(page).toHaveURL(/\/spot-hub\//, { timeout: 15000 });
-      await expect(page.locator('[data-testid="close-spothub-btn"]')).toBeVisible({ timeout: 60000 });
-    } finally {
-      const facts = { requests: receipt(),
-        hubVisible: await page.getByTestId('close-spothub-btn').isVisible().catch(() => false),
-        unavailable: await page.getByRole('heading', { name: 'Unable to load this spot' }).isVisible().catch(() => false),
-        notFound: await page.getByRole('heading', { name: 'Spot Not Found' }).isVisible().catch(() => false) };
-      // stdout survives a job timeout; attachments survive individual test failures.
-      console.log('HUB_REQUEST_RECEIPT ' + JSON.stringify(facts));
-      await testInfo.attach('hub-request-receipt', { contentType: 'application/json',
-        body: Buffer.from(JSON.stringify(facts)) });
-    }
+  test('clicking a spot opens its spot hub', async ({ page }) => {
+    await page.locator('[data-testid^="trending-spot-"]').first().click();
+    await expect(page).toHaveURL(/\/spot-hub\//, { timeout: 15000 });
+    await expect(page.locator('[data-testid="close-spothub-btn"]')).toBeVisible({ timeout: 60000 });
   });
 
   test('navigation is present, and it is the RIGHT nav for the viewport', async ({ page, isMobile }) => {
