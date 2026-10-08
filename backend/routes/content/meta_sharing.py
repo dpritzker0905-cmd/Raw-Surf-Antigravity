@@ -13,6 +13,7 @@ import os
 import httpx
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query
 from models import Profile, Post
 
 router = APIRouter()
@@ -263,7 +264,7 @@ async def get_meta_connection_status(
 
 @router.delete("/meta/disconnect")
 async def disconnect_meta_account(
-    user_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -283,8 +284,8 @@ async def disconnect_meta_account(
 
 @router.post("/meta/share-to-facebook")
 async def share_to_facebook(
-    user_id: str,
     data: ShareToFeedRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -378,8 +379,8 @@ async def share_to_facebook(
 
 @router.post("/meta/share-to-instagram")
 async def share_to_instagram(
-    user_id: str,
     data: ShareToFeedRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

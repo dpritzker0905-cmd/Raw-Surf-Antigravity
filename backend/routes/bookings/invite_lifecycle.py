@@ -42,7 +42,8 @@ from .crud import InviteCrewRequest
 
 @router.post("/bookings/invites/{invite_id}/respond")
 async def respond_to_invite(
-    invite_id: str, user_id: str, accept: bool,
+    invite_id: str, accept: bool,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Accept or decline a booking invite - charges credits on accept"""
