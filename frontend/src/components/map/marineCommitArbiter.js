@@ -20,7 +20,7 @@
  * via arguments. First match wins.
  */
 
-import { marineFrameInstant, sameMarineFrameInstant } from './marineFrameInstant';
+import { marineFrameInstant, sameMarineFrameInstant, sameMarineRequestedInstant } from './marineFrameInstant';
 
 const ZOOMED_OUT_MAX_ZOOM_DEFAULT = 6.5;
 
@@ -113,8 +113,9 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
     const known = marineFrameInstant(resident) !== null && marineFrameInstant(incoming) !== null;
     return { verdict: 'commit', rule: known ? 'actual_frame_change' : 'actual_frame_unverified' };
   }
+  // Two labels that asked for one instant are one hour (the guards' sameMarineLabelledHour; the 2026-10-08 paused churn).
   if (ctx.absoluteFrameTime !== true && incoming.hourOffset !== undefined && resident.hourOffset !== undefined
-      && incoming.hourOffset !== resident.hourOffset) {
+      && incoming.hourOffset !== resident.hourOffset && !sameMarineRequestedInstant(resident, incoming)) {
     return { verdict: 'commit', rule: 'hour_change' };
   }
 

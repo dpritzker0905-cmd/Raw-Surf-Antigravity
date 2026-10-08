@@ -30,7 +30,7 @@
 import { arbiterDecide, isFineWorldBase, coverageWrapSafe } from './marineCommitArbiter';
 import { readMarineSurfMode } from './marineSurfMode';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity';
-import { sameMarineFrameInstant } from './marineFrameInstant';
+import { sameMarineFrameInstant, sameMarineLabelledHour } from './marineFrameInstant';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { isGateWideView, bridgeCeilDeg } from './marineZoomOutGate';
 import {
@@ -148,8 +148,8 @@ export function shouldRejectSubcoveringRegional(resident, incoming, lastZoom, vi
   if (!incoming.bounds || !isRegionalBounds(incoming.bounds) || isCoarseGlobalGrid(incoming)) return false;
   if ((resident.__sourceModel || 'GFS') !== (incoming.__sourceModel || 'GFS')) return false;
   if ((resident.__componentLayer || 'waves') !== (incoming.__componentLayer || 'waves')) return false;
-  if (forecastStateIdentityEnabled(w) ? !sameMarineFrameInstant(resident, incoming)
-    : incoming.hourOffset === undefined || resident.hourOffset === undefined || incoming.hourOffset !== resident.hourOffset) return false;
+  // Label mode reads the no-downgrade guard's "same hour" (labels, or the same requested instant: marineFrameInstant.js).
+  if (forecastStateIdentityEnabled(w) ? !sameMarineFrameInstant(resident, incoming) : !sameMarineLabelledHour(resident, incoming, w)) return false;
   if (!!resident.ratingMode !== !!incoming.ratingMode) return false;
   const vb = viewportBounds;
   if (typeof lastZoom !== 'number' || !vb) return false;   // unknown → fail open
