@@ -36,6 +36,7 @@ on:
     paths:
       - 'backend/services/weather_pipeline/break_depth_policy.py'
       - 'backend/services/weather_pipeline/partition_flux.py'
+      - 'backend/services/weather_pipeline/partition_rating.py'
       - 'backend/services/weather_pipeline/grid_resolver_selection.py'
       - 'backend/services/weather_pipeline/mop_nearshore.py'
       - 'backend/services/weather_pipeline/mop_serving.py'

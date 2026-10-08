@@ -555,3 +555,109 @@ Final affected/governance cohort339pass;45 new PJ-02 controls;36 measured-payloa
 Readback: Observed checks and staged diff clean. Memory audit0FAIL/9historicalWARN/3NOTE; overdue owner/live obligations retained. Initial root-cwd lane invocation read0 and refused; rerun from documented backend cwd gives complete669-file census. Hosted next-source qualification still pending.
 
 Rollback: Revert the candidate source with its paired floors/tests; append receipt corrections rather than erasing evidence.
+
+## 2026-10-08 19:26Z — PR #264: publish PJ-02 repair a6a8e3b6 (ledger seq 1084)
+
+Normal push published a6a8e3b69d30df2f50a3ec123d47540090e2711b with owned receipts through1083. Includes default-off partition candidate, depth wire fix, paired45-control floor raise and measured visual evidence. No force push, merge/deploy, shared-data or scientific activation.
+
+Readback: GitHub PR264 OPEN/DRAFT reads exact a6a8e3b6 head/base3b7ca954. CI37831591529 in progress; seven early source jobs green; Ledger37831591407/Encoding37831591543/LOC37831591466 success. Latest dev E2E37819560211 still completed failure.
+
+Rollback: Revert this weather source batch with floors/tests by reviewed PR; preserve append-only receipts.
+
+## 2026-10-08 19:26Z — PR #264: current composition-boundary review description (ledger seq 1085)
+
+Rewrote review title/body around the full current repair scope and actual source SHA. Includes PJ-02 default-off assumptions/controls, PJ-01 wire repair, measured/fixture visual limits and separate remaining acceptance. Historical execution detail remains in the append-only log.
+
+Readback: gh pr view reads updated title and exact a6a8e3b6 head. Description sent via body-file, no messages to another person or task. D-017 and scientific-owner gates retained.
+
+Rollback: Restore the prior PR title/body from local saved review text; no application rollback.
+
+Post-publication1084–1085 are local receipts to carry with the next substantive publication; no self-hash-only commit/merge chain. Published source/evidence a6a8e3b6 remains subject to its own running qualification.
+
+## 2026-10-08 19:45Z — PJ-01/PJ-02/WJ-02: exact a6 source qualification (ledger seq 1086)
+
+CI37831591529 on exact a6a8e3b6 completed success: eleven source jobs green,2756 guards/2508 chain/1473 estate backend passes and378 suites/4234 frontend tests. Ledger/Encoding/LOC/Lighthouse also success. PR264 remains OPEN DRAFT; canonical dev3b7ca954 preserved; dev E2E37819560211 still failed.
+
+Readback: Hosted count summaries and PR readback; fresh fetch confirms origin/dev3b7ca954. No merge/activation/live product acceptance inferred.
+
+Rollback: No application state changed; append corrections if later evidence supersedes qualification.
+
+## 2026-10-08 19:45Z — WJ-01: current stored-point crossover after height repair (ledger seq 1087)
+
+Real stored component grids through public PointResolutionService, representative/reconciliation gates and rate_one_spot reproduce71.1 ->7.1 at all three coordinates while height stays2.838 ->2.841m. Existing swell-share threshold switches exposure at50%; tallest-swell selection makes rating factors sensitive to label splitting. Corrected baseline10fail/11pass before any production edit.
+
+Readback: Initial14fail/7pass included four overly exact float comparisons; corrected to1e-12 factor tolerance before production edit. Subsequent marginal-swell test initially assumed a2-point scalar floor incorrectly; assertion corrected to the actual scalar short-period grade without changing the curve. No upstream calls in stored controls.
+
+Rollback: No live state to roll back; keep the reproduced counterexamples and test corrections.
+
+## 2026-10-08 19:45Z — WJ-01: shared default-off continuous partition grade (ledger seq 1088)
+
+Added RATING_PARTITION_CONTINUITY0: h-squared weighted exposure/period-quality/period-gate factors for complete finite component inputs. Shares scalar callbacks, retains sea cleanliness and optional gates, refuses incomplete inputs, preserves total peak period/direction fields. Reference why says mixed-sea periods; simulator explanation shares candidate factors and does not invent a graded physical period.
+
+Readback: 26 new controls and final288 affected/governance controls pass. Candidate stored grades35.5 ->34.9; actual legacy-path positive controls restore the jump. Additional91 floor/trigger/candidate checks pass after paired floor update. Cohort totals overlap and are not summed. Local runner initially placed backend files outside pytest root, applying one module autouse flags across modules; fixed ignored runner rootdir to backend. Actual simulator explanation mismatch repaired separately; final reconstruction delta0.
+
+Rollback: Keep flag0; revert helper, common factor/explanation wiring, tests and paired floors together.
+
+## 2026-10-08 19:45Z — WJ-01: paired sensitivities, scoreboard and offline visual evidence (ledger seq 1089)
+
+Three heterogeneous real geometries/36 height-and-score central columns; repeated null0, actual1% primary-period mutant detected3/3, independentKr0.9129438717. Height derivatives unchanged by rating-only candidate; warm instrument mean1.622722ms for three states/36 columns, not request/server capacity. Saved paired evidence, before/after scoreboard rows,72 actual-payload visual receipts and five representative PNGs outside the UTF8 ledger tree.
+
+Readback: Offline Chrome72pass,36 exact rounded-score assertions,three themes and390/1280 widths; external static image requests locally stubbed36; owned server/browser closed. Manually inspected dark mobile candidate and light desktop hub: conditions score35/100, hub quality still absent. Controlled confidence/data-source labels are synthetic; visual pixel rendering is not accuracy, playback or physical-device acceptance.
+
+Rollback: Revert visual runner score assertion/evidence files if needed; retain append-only scoreboard and receipt history.
+
+### WJ-01 proposed reconciliation
+
+| Existing task ID | Current evidence | Proposed status | Next action | Acceptance requirement |
+| --- | --- | --- | --- | --- |
+| PJ-02 / WJ-02 | a6 source qualified:2756/2508/1473 backend,378/4234 frontend; split controls pass | Source qualified at documented dark scope | Retain flag0 and prepare field/size/capacity evidence | Owner-coordinated activation and independent forecast skill |
+| WJ-01 | Actual stored peak crossover score71.1 ->7.1 with stable height; candidate35.5 ->34.9;26 new/288 affected controls,72 offline visuals | Dark candidate locally verified; hosted/owner/live acceptance open | Qualify newly published exact source; replay real complete component seas and all armed optional paths before activation | Stable component grade, clear fallback when components unavailable, field/displayed-level and capacity acceptance |
+| WC-02 | Existing nearest-tide/long-horizon finding retained; no new measurement this turn | Open; next bounded physics repair | Inspect actual tide cache distance and provider horizon before designing repair | Correct served-time samples, refusal of unsupported distance/horizon, point/hub/sim parity |
+| AS04 / PJ-03 / WF-01 | Candidate conditions card shows quality; actual hub fixture still omits it; earlier contrast findings retained | Open, independent UI acceptance | Fix common quality/offshore labelling and measure all affected pills | Honest size/quality together, three themes/layouts, measured contrast |
+| A-05 / A8-01 / D-017 | Fresh dev E2E37819560211 still failure on3b7ca954 | Open; merge held | Use retained allowlisted failure receipts for a causal test | Green dev E2E or explicit owner-named264 waiver; source CI alone insufficient |
+| 860 | No live scene attempted; stable focused/quiet/source/healthy prerequisites still owed | Open/held | Resume its exact paused contract only when prerequisites hold | Paint verdict/count/CPU/gaps/fallback, stable actual bounds/grid, cleanup and health readback; no playback acceptance |
+| 863 | Existing fulfillment883 retained | Fulfilled at its recorded scope | Preserve receipt, no duplicate task | Documentation qualification does not accept live product |
+| 282 / 283 | Code compression/reader seams retained; live Storage acknowledgment/readers still pending | Live durability open before October14 | Obtain bounded storage upload and both-reader receipts under established contract | Acknowledged compressed archive, production-shaped month seam and actual readable data |
+
+NOAA defines dominant period as the maximum-energy spectral peak, which may belong to swell or windsea:
+https://www.ndbc.noaa.gov/waveobs.shtml and https://www.ndbc.noaa.gov/faq/wavecalc.shtml.
+ECMWF labels swell partitions by height and publishes component heights/periods/directions:
+https://codes.ecmwf.int/grib/param-db/140123.
+These sources support preserving the actual peak fields and using component inputs. They DO NOT validate
+this candidate's quality-factor weighting, the rating coefficients or surf forecast skill.
+
+The continuous candidate weights the existing three bounded grade factors by offshore h^2 for ALL
+complete components, rather than inventing a mean/peak physical period. Sea cleanliness remains separate.
+The resulting product of averages is an explicit quality prior, not a spectral integral or observational
+fit. Missing/incomplete component data retains the legacy branch, so that path can still jump; no
+partition-resolution flag was enabled live. Optional breaker type/local/tide/observation I/O was off
+for these bounded fixtures. Field/level sweeps and the armed optional combinations remain acceptance work.
+The displayed total peak remains14s or7s as supplied. The new reference explanation identifies mixed-sea
+period grading; hub/drawer disclosure remains attached to AS04/PJ-03, not silently accepted by screenshots.
+
+Recommendations: qualify the new exact source without reopening the completed cache repairs. Continue
+with existing WC-02 tide nearest-sample/horizon work. Keep the owner flag bundle, Storage deadline,
+E2E cause and860 live contract visible; playback/scrub, Gulf/device/staging/served-time/data-health gates
+remain independent. No replacement task identity or owner flag decision was created.
+
+### Separate implementation handoff
+
+Use partition_rating.partition_factors through the shared rating_factors; do not introduce another
+height/score chain. Default RATING_PARTITION_CONTINUITY0. Inputs require finite positive-period/nonnegative
+height components and finite directions; zero energy contributes nothing. Incomplete inputs returnNone
+and keep legacy behavior. Public tests exercise stored component products and the actual resolver, not
+injected partitions. The simulator and reference explanation use the same helper; bulk peak fields stay
+unaltered. Evidence is in evidence/2026-10-08-mixed-sea/. The three science sensitivity states differ in
+component heights/periods/directions; the six stored crossover states intentionally match Claude's original
+crossing at three coordinates. Finite differences operate on rounded scores and are not an analytic
+derivative or population forecast validation. Next projected hosted passes2782guards/2508chain/1473estate,
+floors2776/2502/1471; census670files196/165/306 plus2 exclusions/1 quarantine. Preserve canonical prefix960,
+existing860/863 and all append-only evidence; no scientific switch, live load, merge or deploy this turn.
+
+## 2026-10-08 19:47Z — WJ-01: publication governance and existing-task reconciliation (ledger seq 1090)
+
+Fatal backend lint, backend800LOC (669 source files), repoLOC (2624 files,12 grandfathered nongrowing), tracked census670 files with196guards/165chain/306estate/2excluded/1quarantined, ledger and memory checks pass. Source-qualified a6 base counts2756/2508/1473 plus26 new guards project2782/2508/1473; floors2776/2502/1471 preserve margins. Proposed reconciliation and separate handoff retain WJ01/860/863 and nextWC02 rather than duplicate tasks.
+
+Readback: Canonical960-line ledger byte-identical prefix; memory audit0FAIL/9historicalWARN/3NOTE. Final72 visual cases include36 exact score assertions. Fresh dev E2E37819560211 failed,PR264OPEN DRAFT,origin/dev3b7ca954 unchanged. No floor/limit lowered or owner flag changed; new hosted-source qualification pending.
+
+Rollback: Revert owned source/floor/evidence changes together; retain append-only reconciliation and action history.

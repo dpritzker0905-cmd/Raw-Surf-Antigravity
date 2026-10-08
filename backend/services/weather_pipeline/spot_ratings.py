@@ -49,12 +49,14 @@ def spot_confidence(accuracy_flag, is_verified_peak) -> str:
     return "medium"
 
 
-def rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal) -> Optional[str]:
+def rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal, *, period_description=None) -> Optional[str]:
     """Compact explainability string. None when there's nothing to rate."""
     if level == "unknown" or surf_h_m is None:
         return None
     parts = [f"~{surf_h_m * 3.281:.1f} ft surf"]
-    if period_s:
+    if period_description:
+        parts.append(period_description)
+    elif period_s:
         parts.append(f"{period_s:.0f}s period")
     if wind_ms is not None:
         kt = wind_ms * SR.MS_TO_KT
@@ -267,7 +269,10 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         _fc = _spread_describe(spread_m, offshore_h)
     except Exception as e:   # a confidence must never break the rating it qualifies
         logger.debug(f"[spot-ratings] forecast spread unavailable for {spot.get('id')}: {e}")
-    why = rating_why(level, surf_h, why_period, wind_ms, wind_from, shore_normal)
+    from services.weather_pipeline.partition_rating import partition_factors
+    mixed_grade = partition_factors(partitions, shore_normal)
+    why = rating_why(level, surf_h, why_period, wind_ms, wind_from, shore_normal,
+                     period_description='mixed-sea periods' if mixed_grade and len(partitions) > 1 else None)
     if why and tide_state and best_tide:
         why += f", {tide_state.get('trend', '')} tide".rstrip()
     # ★ WHAT THE FORECAST WAS ALLOWED TO KNOW (WS-CAN-0062 / WS-OBJ-207). A VERIFIED pin on BLIND

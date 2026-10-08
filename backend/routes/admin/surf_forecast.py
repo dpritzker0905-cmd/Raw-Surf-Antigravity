@@ -32,6 +32,7 @@ router = APIRouter()
 _RATING_FLAGS = {
     "SURF_BREAK_DEPTH_PLAUSIBILITY": ("0", "Reject unusable break-depth samples and use labelled regional/global asset median priors", "Render env + ingestion/precompute together; owner approval and regional/field validation required"),
     "SURF_PARTITION_FLUX": ("0", "Combine Komar-equivalent flux before breaking; split-invariant bulk candidate", "Partition or period-band inputs; owner approval, field/size and capacity acceptance; coordinate Render + precompute"),
+    "RATING_PARTITION_CONTINUITY": ("0", "Energy-weight component rating factors without peak selection", "Complete component inputs; owner field/level and capacity approval; coordinate Render + precompute"),
     "SURF_EXPOSURE_FLUX": ("0", "Direct-wave height projection from cross-shore energy flux; excludes indirect arrivals", "Render env + ingestion/precompute together; owner approval and paired coastal validation required"),
     "SURF_RATING_CANONICAL_BAND": ("0", "Grade loaded coastal band cells through rate_one_spot and the full geometry chain", "Render env; owner approval and offline cost/paired science evidence before activation"),
     "ESTIMATE_CYCLE_CEILING": ("0", "Bound ICON/EURO estimate coverage to the verified native cycle plus 336 hours; preserve blend decay", "Ingestion workflows; owner approval required"),

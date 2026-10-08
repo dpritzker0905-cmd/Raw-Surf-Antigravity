@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 19:22Z** (logs: `log/2026-10-08-canonical-rating-band.md` (WC-01 dark candidate and qualified hub source), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 19:47Z** (logs: `log/2026-10-08-canonical-rating-band.md` (WC-01 dark candidate and qualified hub source), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **Audit queue, 2026-10-08:** Canonical dev 3b7ca954 and ledger prefix 960 preserved. PR #264 remains draft on b89666ad; exact CI37826576818 finished with 2709 guards passing and two depth-provenance wire failures, other ten source checks green. Wire repair now passes full response controls. PJ-02/WJ-02 dark flux candidate passes 45 new and 339 affected/governance controls; identical-sea k2/3/6 splits no longer inflate height. Three real geometries, 24 sensitivities, null0 and actual-input positive controls saved.36 offline measured-payload visual cases pass; PJ-03 hub quality omission remains open. Next source projects2756 guards/2508 chain/1473 estate; hosted qualification pending. All four new numerical flags remain0. Commitment860 held,863 fulfilled; D-017 red dev E2E, Storage durability/readers before October14 and independent playback/Gulf/device/time/data-health acceptance remain open. Next bounded item WJ-01 mixed-sea crossover; see owned log and evidence/2026-10-08-partition-flux/.
+- **Audit queue, 2026-10-08:** Canonical dev 3b7ca954 and ledger prefix960 preserved. PR #264 remains OPEN DRAFT at published a6a8e3b6, fully source-qualified: CI37831591529 eleven green jobs,2756/2508/1473 backend passes and378/4234 frontend suites/tests; Ledger/Encoding/LOC/Lighthouse green. Local WJ-01 candidate removes component crossover grading jumps using shared energy-weighted factors;26 new/288 affected controls and72 offline visuals pass. New source/evidence awaits publication and exact-source CI; projected2782/2508/1473. All five new numerical flags remain0. PJ-03 hub quality omission stays open. Commitment860 held,863 fulfilled. D-017 red dev E2E, Storage durability/readers before October14 and independent playback/Gulf/device/time/data-health acceptance remain open. Next bounded physics item WC-02 nearest-tide/horizon; see owned log and evidence/2026-10-08-mixed-sea/.
 
 - **2026-10-08 02:51Z: Remaining findings and live prerequisites receipts publication.**
   Owner requested the last remaining items. Proposed967 confirms genuine mixed cycles at registry scope;968 records actual860 concurrent-load/focus prerequisites, preparedWavesOFF tab and natural parity receipt. Canonicaldev960 and proposed961-966 retained; no replacementtask or sourcefix without counterexample. Only ownedACTION/STATE/sessionlog will be committed and pushed normally; no newdocs-onlymerge/deployment. Publication pending actual cleanlocal/remote/prefix readback in remaining-publication.json.
@@ -1646,7 +1646,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1083, sha256 542580978bf2477b603b20b0a698db0bd843af3288832ae1321f64d10ccd3562**
+  **Ledger head: seq 1090, sha256 e387e95aa2225efce780b93a9509e26ecd865d3aa8de0656839177f99c8fb53a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
