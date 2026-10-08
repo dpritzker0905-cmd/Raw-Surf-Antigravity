@@ -218,3 +218,70 @@ floors, then read its own hosted outcomes. WC-01 source e68e8c11 is separately
 qualifying on CI37818032376. Keep both new flags0. D-017, original860, Storage
 durability/readers, playback, Gulf, devices, served time and data-health acceptance
 remain independent. Revert candidate source and paired floors together if needed.
+
+## 2026-10-08 18:02Z — LIVE-02 publication on codex/a8-weather-audit-repairs (ledger seq 1057)
+
+Normal commit and push published88e87f1d09d4a667499986bcfa49f35d8cb6154d. Secret scan reports no leaks. Scientific flags unchanged; no dev merge performed by this action.
+
+Readback: GitHub PR264 reads exact88e87f1d OPEN draft. No own GitHub workflow runs exist for this head: the PR became DIRTY when canonical dev advanced concurrently; do not report queued or qualified CI for88e87f1d.
+
+Rollback: Reviewed candidate revert with paired floors; preserve append-only evidence.
+
+## 2026-10-08 18:02Z — LIVE-02 PR264 review description (ledger seq 1058)
+
+Updated existing264 body with dark direct-flux limitation, real warning delivery, paired different-sea values,135 backend and116 frontend controls, and existing owner activation boundaries. Broader acceptance remains open.
+
+Readback: Actual PR edit succeeds; source88e87f1d readback. Subsequent base conflict requires corrected integrated projections below.
+
+Rollback: Amend the PR description as verified evidence changes; append corrections.
+
+## 2026-10-08 18:02Z — WC-01 exact-source qualification e68e8c11 (ledger seq 1059)
+
+All source jobs and all four supplementary workflows on e68e8c11 complete successfully. This qualifies WC-01 source scope; no live activation or product acceptance.
+
+Readback: CI37818032376: guards2665/192 files/67 skips, chain2508/165/zero skips, estate1455/306 selected/304 producing/zero silent. Frontend378 suites/4220 tests. Lighthouse, Encoding, Ledger and LOC workflows successful.
+
+Rollback: Reviewed source revert if current regression is demonstrated; retain original860 and independent gates.
+
+## 2026-10-08 18:02Z — #266 (ledger seq 1060)
+
+Claude squash-merged the owner-authorized unrelated PR266 into dev as3b7ca95457e57374860048599bf28f8db5b9d000. Keep public receipt generic. Its earlier push/pr_open are already recorded at1020/1021; no duplicate entries.
+
+Readback: GitHub PR266 MERGED at2026-10-08T17:49:39Z, headc63b7f3d. Canonical handoff reports all14 checks passed, CI37792250278 estate1462/306 selected/zero silent. GitHub dev reads3b7ca954; weather ledger remains960.
+
+Rollback: Reviewed revert of the accepted merge if the owner requests it; no unrelated source edits by this weather session.
+
+## 2026-10-08 18:02Z — PR264 integrate current canonical dev without duplicating repairs (ledger seq 1061)
+
+Integrated accepted dev3b7ca954 into the repair branch. Only two CI-floor conflicts require resolution; unrelated canonical source is retained unchanged. Net16 canonical estate cases plus branch9 monitor and2 route cases give1473, floor1471. Guards2683/floor2677 and chain2508/floor2502 retained. Canonical ledger960 remains an unchanged prefix.
+
+Readback: Integrated135 weather/floor controls pass. Tracked partition667: guards193, chain165, estate306, two exclusions and one quarantine. Own integrated-head hosted qualification and publication remain pending.
+
+Rollback: Revert only the proposed integration or candidate via reviewed commits; preserve canonical source and append-only ledger history.
+
+## Canonical-base change and qualification correction
+
+Claude merged #266 at17:49:39Z while this weather work continued. Earlier statements
+excluding unmerged266 describe the snapshots when they were read; they are now
+superseded. Canonical dev is3b7ca954, weather ledger still960. Its accepted source
+is integrated unchanged; only CI floors conflicted. The proposed combined estate
+reading is1462 canonical +9 monitor +2 route =1473, floor1471, margin2 retained.
+Guards2683 and chain2508 are unaffected by the accepted base change.
+
+88e87f1d published successfully, but its DIRTY PR had zero own workflow runs.
+Do not describe that head as qualifying in GitHub Actions. e68e8c11 finished all
+hosted jobs:2665/2508/1455 backend,378/4220 frontend and four supplemental workflows.
+Those receipts qualify e68e8c11 only. Integrated-head checks must run again.
+The integrated135 weather/floor controls pass and partition667 remains complete.
+Scientific flags and D-017 remain unchanged; no source merge into dev by Codex.
+The owner parked an unrelated follow-up in Claude's handoff; it is not started here.
+
+| Existing task ID | Current evidence | Proposed status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| WC-01 | e68e8c11 fully passes hosted source/supplementary checks | Source scope qualified; integrated source and activation pending | Qualify integrated branch; preserve capacity and owner gates | Matching source, capacity/configuration evidence, owner activation |
+| LIVE-02 / AS04 | Source88e87f1d pushed; CI blocked by concurrent canonical-base conflict | Local source built; integrated qualification pending | Publish resolved combined source and inspect its own checks | Current-head CI and independent live/coastal acceptance |
+
+Handoff update: merged266 is now part of the base, not excluded proposal source.
+Publish integrated1473 estate projection/floor1471 with the actual immutable head.
+Next independent physics finding remains PJ-01. Original860 and all other
+acceptance identities remain open;863 remains fulfilled at documented scope.

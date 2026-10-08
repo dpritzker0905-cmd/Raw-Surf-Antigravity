@@ -1761,7 +1761,14 @@ jobs:
           # #265 contributes105 estate cases to1341; IN03 contributes9 more.
           # Combined reading1455, two-test margin; no unrelated unmerged PR is included.
           # LIVE02 real conditions boundary: +2 cases, projected 1457; retain margin2.
-          MIN_PASSED = 1455
+          # ⬆ 1339→1444 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (actor-route binding): two new
+          # estate files add 105 executed tests (74 binding + 31 guard) to the hosted 1341 read on dev
+          # baee6438 (CI 37777820792): projected 1446; 1446 - 2 = 1444; this PR must read 306 / 1446.
+          # ⬆ 1444→1460 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (live-session escrow): an
+          # 18-test estate file replaces a 2-test file on the hosted 1446 read for #265 (merged as
+          # fe5573db): 1446 - 2 + 18 = 1462; 1462 - 2 = 1460; this PR must read 306 / 1462.
+          # Merged #266 now adds net16 to the branch's 1457: 1473, margin2 retained.
+          MIN_PASSED = 1471
 
           try:
               root = ET.parse('estate.xml').getroot()

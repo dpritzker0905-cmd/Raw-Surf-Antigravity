@@ -1,5 +1,6 @@
 """Financial scheduler tasks.
 - Auto-release escrow (daily 3am)
+- Live-session escrow release (15min)
 - Weekly sales reports (Monday 9am)
 - Cleanup abandoned Stripe sessions (30min)
 - Credit transaction integrity check (daily 5am)
@@ -10,6 +11,21 @@ import os
 from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
+
+
+async def release_live_session_escrow_task():
+    """Release held live-session shares whose buyer has acted on the delivered media, or 7 days old."""
+    from database import async_session_maker
+    from services import live_session_escrow
+
+    async with async_session_maker() as db:
+        counts = await live_session_escrow.release_due(db)
+        await db.commit()
+    if counts["acted"] or counts["auto_7d"]:
+        logger.info(f"[Scheduler] Live-session escrow released: {counts}")
+    return counts
+
+
 async def auto_release_escrow_task():
     """
     Automatically release escrow to photographers 7 days after session

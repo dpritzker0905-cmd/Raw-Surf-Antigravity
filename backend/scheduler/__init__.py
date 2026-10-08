@@ -24,6 +24,7 @@ from .bookings import (
 )
 from .financial import (
     auto_release_escrow_task,
+    release_live_session_escrow_task,
     send_weekly_sales_reports_task,
     cleanup_abandoned_stripe_sessions_task,
     check_credit_transaction_integrity_task,
@@ -107,6 +108,15 @@ def start_scheduler():
         tracked('auto_escrow_release', 'Auto-release escrow 7 days after session', 'Daily 3am UTC', auto_release_escrow_task),
         CronTrigger(hour=3, minute=0),
         id='auto_escrow_release', name='Auto-release escrow 7 days after session',
+        replace_existing=True
+    )
+
+    # Live-session escrow — every 15 min: pay held buy-in shares once the buyer acts, or after 7 days
+    scheduler.add_job(
+        tracked('live_session_escrow_release', 'Release live-session buy-in shares after buyer action or 7 days',
+                'Every 15 minutes', release_live_session_escrow_task),
+        IntervalTrigger(minutes=15),
+        id='live_session_escrow_release', name='Release live-session buy-in shares',
         replace_existing=True
     )
 
@@ -296,7 +306,8 @@ def start_scheduler():
     logger.info("[Scheduler] Background scheduler started")
     logger.info("[Scheduler] Jobs: surf_alerts (15min), story_cleanup (1hr), leaderboard_reset (monthly), "
                 "grom_report (weekly), payment_expiry (5min), platform_metrics (6hr), session_reminders (5min), "
-                "auto_escrow_release (daily 3am), selection_deadline_expiry (daily 4am), weekly_sales_reports "
+                "auto_escrow_release (daily 3am), live_session_escrow_release (15min), "
+                "selection_deadline_expiry (daily 4am), weekly_sales_reports "
                 "(Monday 9am), expire_booking_invites (5min), cleanup_stripe_sessions (30min), "
                 "cleanup_expired_booking_payments (10min), credit_integrity_check (daily 5am), rate_limiter_cleanup (1hr)")
 

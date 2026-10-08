@@ -464,7 +464,10 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Nine HTTP controls project2564 guards;33 IN04/IN06 plus4 role controls project2508 chain.
 # WS04: eleven existing-file controls project2575 guards; chain/estate unchanged.
 # WS01/SV08: 49 request controls project2624 guards across190files; margin6 retained.
-_FLOOR_SET_FROM = {"guards": 2683, "chain": 2508, "estate": 1457}
+# Actor-route binding: two estate files add 105 executed tests on hosted 1341; projected 1446.
+# Live-session escrow: an 18-test estate file replaces a 2-test one on hosted 1446; projected 1462.
+# Merged #266 +16 on branch1457 ->1473; preserve the estate two-test margin.
+_FLOOR_SET_FROM = {"guards": 2683, "chain": 2508, "estate": 1473}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

@@ -356,6 +356,7 @@ async def get_job_statuses(
             ("platform_metrics_aggregation", "Aggregate platform metrics for admin dashboard", "Every 6 hours"),
             ("session_reminders", "Send session reminder notifications", "Every 5 minutes"),
             ("auto_escrow_release", "Auto-release escrow 7 days after session", "Daily 3am UTC"),
+            ("live_session_escrow_release", "Release live-session buy-in shares after buyer action or 7 days", "Every 15 minutes"),
             ("selection_deadline_expiry", "Process expired surfer selection deadlines", "Daily 4am UTC"),
             ("weekly_sales_reports", "Send weekly sales reports to photographers", "Weekly (Mon 9am UTC)"),
             ("expire_booking_invites", "Expire pending booking invites after 24 hours", "Every 5 minutes"),

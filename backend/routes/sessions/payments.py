@@ -13,6 +13,7 @@ from database import get_db
 from core.security import dev_identity_allowed, get_current_user_id
 from models import LiveSession, Notification, Profile
 from models import LiveSessionParticipant, PaymentTransaction
+from services import live_session_escrow
 from .join import CompletePaymentRequest
 
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
@@ -249,12 +250,11 @@ async def complete_session_payment(
                     locked_price_standard=locked_standard,
                     locked_price_high=locked_high,
                 )
+                # The photographer's share is held, not paid: it is released when the buyer acts on
+                # the delivered media, or after 7 days (services/live_session_escrow.py).
+                live_session_escrow.hold(participant, amount)
                 db.add(participant)
-                
-                # Credit the photographer (80% after platform fee)
-                photographer_credit = amount * 0.80
-                photographer.credit_balance = (photographer.credit_balance or 0) + photographer_credit
-                
+
                 # Notify photographer (card payment path was missing this)
                 card_notification = Notification(
                     user_id=photographer_id,

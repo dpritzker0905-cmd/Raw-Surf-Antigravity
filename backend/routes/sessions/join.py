@@ -12,6 +12,7 @@ from models import AnalyticsEvent, CreditTransaction, LiveSession, LiveSessionPa
 
 from .schemas import JoinSessionRequest
 from utils.credits import deduct_credits
+from services import live_session_escrow
 import os, stripe, logging
 import stripe_mcp_server, sqlite3
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
@@ -206,9 +207,7 @@ async def join_session(
     # ============ CREDIT PAYMENT PROCESSING ============
     payment_processed = False
     new_balance = surfer.credit_balance
-    photographer_credited = False
-    photographer_credit_amount = 0.0
-    
+
     if data.payment_method == 'credits':
         success, new_balance, error = await deduct_credits(
             user_id=surfer_id,
@@ -225,39 +224,10 @@ async def join_session(
             raise HTTPException(status_code=400, detail=error)
         
         payment_processed = True
-        
-        # Credit photographer - use proper balance based on role
-        from utils.revenue_routing import is_pro_creator, is_hobbyist_creator
-        
-        photographer_credit_amount = final_price * 0.80  # 80% after platform fee
+        # The photographer's share is not paid here: it is held on the participant row below and
+        # released when the buyer acts on the delivered media, or after 7 days
+        # (services/live_session_escrow.py).
 
-        # The earning is added to the role's bucket AND to credit_balance; credit_balance is never
-        # replaced by a bucket total, which would erase any other credit the photographer holds.
-        balance_before = photographer.credit_balance or 0
-        if is_pro_creator(photographer.role):
-            # Pro: goes to withdrawable credits
-            photographer.withdrawable_credits = (photographer.withdrawable_credits or 0) + photographer_credit_amount
-        elif is_hobbyist_creator(photographer.role):
-            # Hobbyist: goes to gear credits
-            photographer.gear_only_credits = (photographer.gear_only_credits or 0) + photographer_credit_amount
-        photographer.credit_balance = balance_before + photographer_credit_amount
-
-        photographer_credited = True
-
-        # Log the credit transaction
-        credit_tx = CreditTransaction(
-            user_id=photographer.id,
-            amount=photographer_credit_amount,
-            balance_before=balance_before,
-            balance_after=photographer.credit_balance,
-            transaction_type='live_session_earning',
-            description=f"Live session buy-in from {surfer.full_name}",
-            reference_type='live_session',
-            reference_id=surfer_id,
-            counterparty_id=surfer_id
-        )
-        db.add(credit_tx)
-    
     # ============ TRY SESSION JOIN - REFUND ON FAILURE ============
     try:
         # Determine participant role (grom_buyer if parent is buying for child)
@@ -313,9 +283,11 @@ async def join_session(
             locked_price_standard=locked_standard,
             locked_price_high=locked_high,
         )
-        
+        if payment_processed:
+            live_session_escrow.hold(participant, final_price)
+
         db.add(participant)
-        
+
         # Notify photographer
         notification = Notification(
             user_id=data.photographer_id,
