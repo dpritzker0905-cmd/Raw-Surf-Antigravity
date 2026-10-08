@@ -6,7 +6,7 @@ Minimum pricing: $5/week enforced server-side.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, update
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
@@ -16,6 +16,7 @@ import json
 import logging
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, PhotographerSubscriptionPlan, SurferPhotoSubscription,
     PaymentTransaction
@@ -31,6 +32,12 @@ if STRIPE_API_KEY:
 # ── Constants ────────────────────────────────────────────────
 MIN_WEEKLY_PRICE = 5.0
 MIN_MONTHLY_PRICE = 15.0   # ~$3.75/week equivalent
+
+
+def _require_caller(surfer_id: str, current_user_id: str) -> None:
+    """A surfer's subscriptions and quota are read and spent only by that surfer's own token."""
+    if surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on another user's subscriptions")
 
 # ── Pydantic schemas ─────────────────────────────────────────
 
@@ -257,9 +264,11 @@ async def deactivate_plan(
 async def subscribe_to_plan(
     data: SubscribeRequest,
     surfer_id: str = Query(...),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Surfer subscribes (or renews) a photographer's plan via credits or card."""
+    _require_caller(surfer_id, current_user_id)
     # Load plan
     plan_result = await db.execute(
         select(PhotographerSubscriptionPlan).where(
@@ -414,6 +423,7 @@ async def subscribe_to_plan(
 @router.post("/photo-subscriptions/complete-card-payment")
 async def complete_card_subscription(
     checkout_session_id: str = Query(...),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Complete subscription after successful Stripe card payment."""
@@ -423,13 +433,46 @@ async def complete_card_subscription(
     tx = tx_result.scalar_one_or_none()
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
+    _require_caller(tx.user_id, current_user_id)
     if tx.payment_status == 'completed':
         return {"success": True, "message": "Already activated"}
 
     meta = json.loads(tx.transaction_metadata) if tx.transaction_metadata else {}
+    if meta.get('type') != 'photo_subscription':
+        raise HTTPException(status_code=400, detail="Not a subscription payment")
     plan_id = meta.get('plan_id')
     surfer_id = tx.user_id
     photographer_id = meta.get('photographer_id')
+
+    # Activate only a checkout Stripe reports as paid, for this surfer, plan and amount.
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=500, detail="Stripe not configured")
+    try:
+        checkout = stripe.checkout.Session.retrieve(checkout_session_id)
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe verification error: {e}")
+        raise HTTPException(status_code=502, detail="Could not verify the payment")
+    if checkout.payment_status != 'paid':
+        raise HTTPException(status_code=400, detail="Payment not completed")
+    paid_meta = checkout.metadata or {}
+    if (
+        paid_meta.get('type') != 'photo_subscription'
+        or paid_meta.get('surfer_id') != surfer_id
+        or paid_meta.get('plan_id') != plan_id
+        or not isinstance(checkout.amount_total, int)
+        or abs(checkout.amount_total - (tx.amount or 0) * 100) >= 1
+    ):
+        raise HTTPException(status_code=400, detail="Payment does not match this subscription")
+
+    # Claim the transaction once, so concurrent completions cannot activate or credit twice.
+    claimed = await db.execute(
+        update(PaymentTransaction)
+        .where(PaymentTransaction.id == tx.id, PaymentTransaction.payment_status != 'completed')
+        .values(payment_status='completed', status='completed')
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount != 1:
+        return {"success": True, "message": "Already activated"}
 
     # Load plan
     plan_result = await db.execute(
@@ -526,9 +569,12 @@ async def get_my_subscriptions(user_id: str, db: AsyncSession = Depends(get_db))
 async def cancel_subscription(
     subscription_id: str,
     surfer_id: str = Query(...),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Surfer cancels a subscription (keeps access until expiry)."""
+    # Bound to the token, so the surfer_id filter below only ever finds the caller's own subscription.
+    _require_caller(surfer_id, current_user_id)
     result = await db.execute(
         select(SurferPhotoSubscription).where(
             SurferPhotoSubscription.id == subscription_id,
@@ -585,9 +631,11 @@ async def check_quota(
     surfer_id: str = Query(...),
     photographer_id: str = Query(...),
     quota_type: str = Query(...),   # 'photo', 'video', 'live_buyin', 'session'
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Check if surfer has remaining quota for a service from this photographer."""
+    _require_caller(surfer_id, current_user_id)
     now = datetime.now(timezone.utc)
     result = await db.execute(
         select(SurferPhotoSubscription).where(and_(
@@ -628,9 +676,11 @@ async def use_quota(
     photographer_id: str = Query(...),
     quota_type: str = Query(...),
     quantity: int = Query(1, ge=1),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Decrement a surfer's subscription quota (called internally on delivery)."""
+    _require_caller(surfer_id, current_user_id)
     now = datetime.now(timezone.utc)
     result = await db.execute(
         select(SurferPhotoSubscription).where(and_(

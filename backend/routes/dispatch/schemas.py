@@ -76,7 +76,8 @@ class DispatchCheckoutRequest(BaseModel):
     """Request for creating a Stripe checkout session for on-demand dispatch"""
     dispatch_id: str
     payer_id: str
-    amount: float  # Amount to charge (captain's share)
+    # Accepted for older clients but not used: the charge is derived from the dispatch record.
+    amount: Optional[float] = None
     origin_url: str
 
 
@@ -111,6 +112,17 @@ class RemindCrewRequest(BaseModel):
 
 
 # ===================== HELPER FUNCTIONS =====================
+
+
+def captain_amount_owed(dispatch) -> float:
+    """What the requester pays to start a dispatch: their share of a split request, else the deposit."""
+    if dispatch.captain_share_amount is not None:
+        return float(dispatch.captain_share_amount)
+    return float(dispatch.deposit_amount or 0)
+
+
+def to_cents(amount: float) -> int:
+    return int(round(float(amount) * 100))
 
 
 async def _get_surfer_board_description(db: AsyncSession, user_id: str) -> Optional[str]:

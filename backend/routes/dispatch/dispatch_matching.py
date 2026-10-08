@@ -22,12 +22,17 @@ from models import (
 )
 from services.onesignal_service import onesignal_service
 
-from .schemas import get_available_pros
+from .schemas import get_available_pros, captain_amount_owed
 
 logger = logging.getLogger("routes.dispatch")
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
 
 router = APIRouter(prefix="/dispatch", tags=["dispatch"])
+
+
+def _cents_match(amount_total, owed: float) -> bool:
+    """Stripe's integer total against the owed amount, within the sub-cent of float-to-cents rounding."""
+    return isinstance(amount_total, int) and abs(amount_total - owed * 100) < 1
 
 
 @router.get("/payment-success")
@@ -72,7 +77,18 @@ async def dispatch_payment_success(
                 "dispatch_id": dispatch_id,
                 "status": dispatch.status.value
             }
-        
+
+        # The paid session must be the one created for THIS request, by its requester, for the
+        # amount the record says is owed; a paid session for anything else confirms nothing here.
+        metadata = checkout_session.metadata or {}
+        if (
+            metadata.get('type') != 'on_demand_dispatch'
+            or metadata.get('dispatch_id') != dispatch_id
+            or metadata.get('user_id') != str(dispatch.requester_id)
+            or not _cents_match(checkout_session.amount_total, captain_amount_owed(dispatch))
+        ):
+            raise HTTPException(status_code=400, detail="Payment does not match this request")
+
         # Mark as paid
         dispatch.deposit_paid = True
         dispatch.deposit_paid_at = datetime.now(timezone.utc)
