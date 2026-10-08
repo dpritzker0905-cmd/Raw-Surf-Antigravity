@@ -516,3 +516,64 @@ Online design references: [Python futures](https://docs.python.org/3/library/con
 | 863 |Canonical883 fulfilled |Fulfilled |Preserve closure |No replacement task |
 
 Implementation handoff: integrate only already merged265, combine its105 estate cases with IN03's9 (1455, floor1453), and add34 chain cases (2505, floor2499;165files). Keep scientific flags off, preserve all open acceptance gates, and qualify the new exact source on hosted CI. Next evidence gap is archive Storage compatibility, followed by serving concurrency/encoding and the remaining independently tracked physics/UI work. No live forecast load or shared Storage write occurred.
+
+## 2026-10-08 14:55Z — PR264 weather candidates9f15f591 (ledger seq 1024)
+
+Committed and pushed9f15f591b51d5af86f8e19d611416622961654a4 on the existing draft264. It integrates already merged265, preserves both estate deltas, and publishes IN04/IN06 source plus receipts through1023. Unmerged266 is excluded.
+
+Readback: Local/remote/GitHub head exact9f15f591; devfe5573db is an ancestor; clean checkout immediately after push;264 OPEN DRAFT. Early import/LOC/ledger/floor/route-guard checks pass, remaining exact-head checks in progress. Local relevant210 and floor/selector/flag68 pass; staged secret scan0 leaks.
+
+Rollback: Revert the weather source and paired floor changes through review; retain merged265 and leave scientific flags off.
+
+## 2026-10-08 14:55Z — PR264 review and remaining weather acceptance (ledger seq 1025)
+
+Updated the draft description around final product-ACK and cycle-ceiling candidates, all prior repairs, scoped validation and rollback. API healthy atfe5573db; data-health WARN is preserved. No live forecast probe or shared-data write occurred.
+
+Readback: GitHub readback exact9f15f591 OPEN DRAFT;266 stillOPEN exactc63b7f3d. No Supabase/Storage/Postgres connector is available in this session, so actual bucket MIME/upload compatibility remains unverified before10-14.
+
+Rollback: Revise review facts if hosted counts or independent acceptance changes; retain original task identities.
+
+## 2026-10-08 15:33Z — WI02 / IN04: hosted qualification and lane accounting (ledger seq 1026)
+
+Run37796068008 at9f15f591 completed FAILURE: guards2520 passed/35failed/67skipped across188files; chain timed out without a final count; estate1455passed/306selected/304producing. Earlier pending statements1024 are superseded. The +1 manifest merge control belongs to guards:2555, not chain. IN04/IN06 add33 chain cases:2504, not2505. No qualified all-green current-source verdict.
+
+Readback: GitHub exact-head job readback and completed guards/estate logs; original failures share refused authoritative registration after CLI imports promoted the process to writer. Four new import/main counterexamples failed before the fix.
+
+Rollback: Retain failure evidence; qualify the corrected exact source without lowering floors.
+
+## 2026-10-08 15:33Z — A8-03 / 282 / 283: Storage compatibility configuration (ledger seq 1027)
+
+Read-only authorized browser inspection shows weather-products PRIVATE, file size Unset (50 MB), allowed MIME Any. The current October skill object is application/json,23.95 MB; dashboard modification label10/8/2026 10:31:13 AM is local UI time, not asserted UTC. Gzip MIME is allowed by bucket configuration. Actual compressed durable upload and both live readers remain unverified; deadline before10-14 stays open. Historical282 closure preserved. No bucket settings, scientific flags or Storage objects changed.
+
+Readback: Bucket and object metadata read directly in the signed-in dashboard; owned inspection tab closed. Download event timed out and no archive bytes were acquired. Configuration acceptance does not prove upload ACK or reader acceptance.
+
+Rollback: No shared-data rollback needed; preserve pending live upload/reader requirement.
+
+## 2026-10-08 15:34Z — WI02 / IN04: isolate designated-writer entrypoints (ledger seq 1028)
+
+Moved L2_WRITER default declarations from module import into main in the ingestion and two maintenance CLIs. Importing pure helpers no longer promotes the host into the designated writer; explicit CLI execution still claims its role, preserving existing0 values. Removed the temporary upload-fake workaround entirely: legacy provider fixtures remain unchanged. Real ACK-before-registration stays intact. This fix changes no served number.
+
+Readback: Four genuine baseline failures;115 after controls pass including unchanged provider fixtures, real refused/delayed ACK controls and existing writer gates. Fatal lint and LOC gates pass.
+
+Rollback: Revert only the role-entrypoint source and new regression controls through review; keep the real ACK gate.
+
+## 2026-10-08 15:34Z — PF03 / LIVE04: independent I/O admission and CPU serialization (ledger seq 1029)
+
+Default-off grid response envelope now admits at most4 I/O minis plus1 page with joint waiting queue4, and a shared1-worker encoding/compression gate. A hung mini retains its lease while available slots serve fast requests. Grid-bounded series encode off-loop for either series flag state, preserving byte identity and direct Python builder use. Queued CPU work expires before starting; HTTP cancellation does not release running work. Cooperative deadlines cannot preempt event-loop CPU, threads or shared producers. No scientific flags or served physical numbers changed.
+
+Readback: Six genuine initial HTTP failures. Final response/ownership/floor/selector run174passed unchanged. Earlier combined local run crashed in native Pydantic serialization; next run173passed/1 cancellation-control failure; isolated100+17passed and final174passed. Cause of intermittent local failures remains unproven and hosted exact-head qualification is required. Serialization Jacobian:9 heterogeneous height/period/direction columns retain sensitivity; two1percent mutants detected, not a forecast-skill claim. Tracked partition663/guards189/chain165/estate306,2fastmcp excluded/1quarantined. Paired projected pass floors2558/2502/1453 preserve margins6/6/2; hosted projections2564/2508/1455 remain pending.
+
+Rollback: Leave GRID_RESPONSE_BOUNDS off or revert response source and paired CI floor changes by reviewed PR; retain evidence and independent live acceptance.
+
+Proposed reconciliation (these additions remain on unmerged264; merged canonical identities are preserved):
+
+| Existing task ID | Current evidence | Status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| WI02/WI03 IN04 |CLI imports caused writer pollution;4 baseline failures,115 controls after; real ACK gate retained |Source repaired locally, hosted qualification pending |Publish and read exact-head guards/chain |ACK precedes authoritative registration; genuine writer execution and local-only use remain correct |
+| PF03/LIVE04 SV01/SV03 |6 genuine concurrency/encoding counterexamples; final174 combined controls;9 serialization sensitivity columns,2 mutants |Default-off source candidate; local intermittent failures retained |Exact-head hosted qualification, then owner-controlled isolated arming |Independent I/O/CPU bounds and work ownership; no hard CPU preemption claim |
+| A8-03 /282/283 |Any MIME, inherited50 MB; current JSON23.95 MB; gzip/readers/seam source present |Bucket configuration qualified; durability/readers open |Verify real compressed upload and both readers before10-14 in authorized isolated scope |Durable ACK and successful real-reader round trips; historical282 closure preserved |
+| A8-01 /A-05 |Hosted dev E2E causal hub failure unresolved |Open |Use retained diagnostic receipts to name cause with positive control |Successful genuine hub journey; D017 requires named PR waiver while red |
+| 860 /WF02 |No new stable paused receipt; no forecast load started |Open |Check matching deployment/dwell/quiet/focus before one paused scene |Paint verdicts/counts/CPU/gaps/fallback, stable bounds/grid, cleanup/health; playback separate |
+| 863 |Canonical883 fulfills rollout receipt obligation |Fulfilled |Preserve identity and closure |No replacement task |
+
+Implementation handoff: qualify this exact source first. Do not merge264 on red dev E2E without the owner naming264 in a waiver. Next evidence priority is A8-03 real compressed durability/both readers before10-14, then the remaining independent WI03/PF03/physics/UI acceptance work. Preserve dark science flags, fulfilled repairs and original860/863 identities. No shared Storage write, forecast load or unrelated266 integration occurred. The import fix changes no served number; no new skill-score claim is recorded.

@@ -6,6 +6,8 @@ import threading
 from types import SimpleNamespace as S
 
 import pytest
+
+
 import requests
 
 from scripts import ingest_forecast_ci as ci
@@ -13,6 +15,23 @@ from scheduler import forecast
 from services.weather_pipeline import store as store_module
 from services.weather_pipeline.schemas import CoverageBounds, GridVector, NormalizedGrid, NormalizedProduct
 from services.weather_pipeline.store import ProductStore
+
+
+@pytest.mark.parametrize('script', ['ingest_forecast_ci.py', 'sweep_orphaned_l2.py',
+                                   'diagnostics/purge_test_fixtures.py'])
+def test_importing_weather_cli_never_promotes_the_host_process_to_writer(monkeypatch, script):
+    import runpy
+    from pathlib import Path
+    monkeypatch.delenv('L2_WRITER', raising=False)
+    runpy.run_path(str(Path(__file__).resolve().parents[1] / 'scripts' / script))
+    assert 'L2_WRITER' not in __import__('os').environ
+
+
+def test_ingest_main_explicitly_claims_writer_role_before_its_config_check(monkeypatch):
+    monkeypatch.delenv('L2_WRITER', raising=False)
+    monkeypatch.delenv('SUPABASE_URL', raising=False)
+    assert ci.main() == 1
+    assert __import__('os').environ['L2_WRITER'] == '1'
 
 
 def product(estimated=False):

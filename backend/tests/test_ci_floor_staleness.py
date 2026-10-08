@@ -460,7 +460,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Payment caller binding: four estate files add 73 executed tests; projected 1341, margin 2.
 # A8 adds13 guards and55 chain cases; IN03 adds9 estate cases; #265 adds105 estate.
 # IN04/IN06: two new files add33 cases; behavioral merge control adds1, projected2505.
-_FLOOR_SET_FROM = {"guards": 2554, "chain": 2505, "estate": 1455}
+# Correction: merge control is guards; hosted9f15 guards2555 and estate1455.
+# Nine HTTP controls project2564 guards;33 IN04/IN06 plus4 role controls project2508 chain.
+_FLOOR_SET_FROM = {"guards": 2564, "chain": 2508, "estate": 1455}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

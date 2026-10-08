@@ -34,7 +34,9 @@ def app():
 def bounds(monkeypatch):
     monkeypatch.setenv('GRID_RESPONSE_BOUNDS', '1')
     monkeypatch.setenv('GRID_RESPONSE_DEADLINE_S', '1')
-    monkeypatch.setattr(series_response, 'ADMISSION', series_response.SeriesAdmission())
+    # These ownership/FIFO controls deliberately saturate a one-mini fixture.
+    # Default production capacity is exercised by test_grid_response_isolation.
+    monkeypatch.setattr(series_response, 'ADMISSION', series_response.SeriesAdmission(mini_slots=1))
 
 
 @pytest.mark.parametrize('series_flag', ['0', '1'])

@@ -34,7 +34,6 @@ if BACKEND_DIR not in sys.path:
 # This script IS the designated L2 pipeline writer (audit #28 designated-writer gate in store.py):
 # only boxes with L2_WRITER=1 may upload/delete manifest.json + product files. Serve-only Render and
 # local dev backends stay read-only so they can never clobber the runner's manifest again.
-os.environ.setdefault("L2_WRITER", "1")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -46,6 +45,8 @@ PRODUCT_UPLOAD_DRAIN_SECONDS = 300
 
 
 def main() -> int:
+    # Claim the CLI role only on execution; importing helpers must not promote the host.
+    os.environ.setdefault("L2_WRITER", "1")
     if not (os.environ.get("SUPABASE_URL") and
             (os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY"))):
         logger.error("SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY) are required — without "

@@ -28,7 +28,6 @@ if BACKEND_DIR not in sys.path:
 
 # Deliberate L2 maintenance tool — designated writer (audit #28 gate in store.py); deletes are
 # otherwise blocked for boxes without L2_WRITER=1.
-os.environ.setdefault("L2_WRITER", "1")
 
 # Keys the serve box needs that are NOT model products — never orphans. Match the bare folder entry
 # ("calibration") AND anything under it ("calibration/..."), since list() returns both.
@@ -67,6 +66,8 @@ def _parse_created(obj) -> "datetime | None":
 
 
 def main() -> int:
+    # Claim the CLI role only on execution; importing helpers must not promote the host.
+    os.environ.setdefault("L2_WRITER", "1")
     ap = argparse.ArgumentParser()
     ap.add_argument("--delete", action="store_true", help="actually delete (default: dry-run)")
     ap.add_argument("--yes", action="store_true", help="required with --delete to confirm")

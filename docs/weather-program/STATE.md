@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 14:51Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 15:34Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **Audit queue, 2026-10-08:** Draft264 source70098490 has passed hosted checks: guards2554, chain2471, estate1350. Owner-merged265 dev/APIfe5573db is healthy; data health remains WARN. Claude266 is OPEN and separate; its floors are not included. IN04 ACK-gated single/batch registration and IN06 default-off verified-cycle ceiling candidates pass210 combined controls, including heterogeneous Jacobian nulls and four sensitive period/direction mutants. Integration/fresh publication pending; combined projected floors retain both265 and IN03: guards2554, chain2505, estate1455. Storage MIME/ACK compatibility before10-14, hub E2E,860, actual monitor cadence, playback/Gulf/device acceptance and owner-only flags remain open.
+- **Audit queue, 2026-10-08:** Draft264 next weather candidate repairs CLI import writer-role pollution and default-off HTTP I/O/encoding isolation. Hosted9f15f591 failed (guards35 failures; chain timeout); estate1455 passed. Final local174 response/floor/selector and115 role/provider/ACK controls pass, with earlier local native serializer crash and cancellation failure retained as unresolved qualification limits. Tracked lanes189/165/306; projected passes2564/2508/1455 await exact new-source hosted CI. Storage allows Any MIME/inherited50 MB; October skill object23.95 MB, actual gzip upload/both readers remain open before10-14. Canonicaldevfe5573db and original task identities remain; unmerged266 excluded. A8-01/D017,860, monitor cadence, data-health and independent playback/Gulf/device acceptance remain open. Science flags unchanged; proposed receipts1024-1029 remain unmerged additions.
 
 - **2026-10-08 02:51Z: Remaining findings and live prerequisites receipts publication.**
   Owner requested the last remaining items. Proposed967 confirms genuine mixed cycles at registry scope;968 records actual860 concurrent-load/focus prerequisites, preparedWavesOFF tab and natural parity receipt. Canonicaldev960 and proposed961-966 retained; no replacementtask or sourcefix without counterexample. Only ownedACTION/STATE/sessionlog will be committed and pushed normally; no newdocs-onlymerge/deployment. Publication pending actual cleanlocal/remote/prefix readback in remaining-publication.json.
@@ -1646,7 +1646,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1023, sha256 b154a63e4fb3938b5c62a4d7f67176e06be2eb3d49e798211246cfaf610236af**
+  **Ledger head: seq 1029, sha256 100f3ed734290dc45388e7fafc2d25b571db5aef98306370c0013055ff9c36f4**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

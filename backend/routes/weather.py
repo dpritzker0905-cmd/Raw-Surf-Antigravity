@@ -108,7 +108,11 @@ async def get_grid_series(
         return await serve_series(lambda: build_grid_series(
             get_grid, viewport_service, model, domain, layer, bbox, hours,
             request=request, surf=surf, base_time=base_time), hours, request)
-    return await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours, request=request, surf=surf, base_time=base_time)
+    payload = await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours, request=request, surf=surf, base_time=base_time)
+    if os.environ.get("GRID_RESPONSE_BOUNDS", "0") == "1":
+        from services.weather_pipeline.grid_response import encode_series_response
+        return await encode_series_response(payload, request)
+    return payload
 
 
 @router.get("/grid", response_model=NormalizedProduct)
