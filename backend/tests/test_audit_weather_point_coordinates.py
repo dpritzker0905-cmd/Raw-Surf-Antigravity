@@ -45,7 +45,8 @@ def point_client(monkeypatch):
 def params(lane, lat=30.04, lng=-87.41):
     model, domain, layer = lane
     return {"model": model, "domain": domain, "layer": layer, "lat": lat, "lng": lng,
-            "valid_time": "2026-10-09T00:00:00Z", "grid_product_id": "offline-product",
+            "valid_time": "2026-10-09T00:00:00Z",
+            "grid_product_id": f"{model.lower()}_{domain}_{layer}_global_coarse_20261009T000000Z.json",
             "grid_bbox": "-90,20,-80,35"}
 
 

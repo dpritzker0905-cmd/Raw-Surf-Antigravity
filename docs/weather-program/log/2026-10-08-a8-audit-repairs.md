@@ -400,3 +400,37 @@ Proposed reconciliation after Claude263 merge (canonical records still end at960
 | 863 | Canonical fulfillment883 after254 merge | Fulfilled | Preserve closure | No duplicate rollout task |
 
 Implementation handoff: publish the current backend source/floors on draft264; treat all new hosted readings as pending. Do not flip any scientific switch or infer live acceptance from unit tests. Continue IN03/IN04/IN06 in order, then the owner-only arming packet and remaining serving/physics/UI work. Retain the existing task IDs and do not repeat the already verified audit section2. Storage MIME/ACK and the bounded860 receipt remain acceptance gates.
+
+## 2026-10-08 12:55Z — PR264 backend repair publication (ledger seq 1012)
+
+Pushed db29b6435fa3ad15373ed8b5189c036693dc4be4 to the existing draft PR264, including backend source, coordinated floors and Claude263 merge receipt through1011. This is candidate publication, not deployment or acceptance.
+
+Readback: GitHub264 OPEN DRAFT at exact db29b643; fresh CI37780206048 in progress. Prior e7296da0 was green; it does not qualify the new source. Netlify preview is available.
+
+Rollback: Revert db29b643 and its paired floor changes together; leave owner-only switches off.
+
+## 2026-10-08 12:55Z — PR264 review scope and 860 quiet hold (ledger seq 1013)
+
+Rewrote draft title/description around the published source, validation and rollback. The former reservation is released, but current forecast ingestion37780016571, regional ingestion37777327032, precompute37776504487 and dev E2E37777820773 are active. No860 or extra hub journey was forced. Next work remains IN03/IN04/IN06 with existing WI task identities.
+
+Readback: GitHub readback exact draft db29b643 and active workflow metadata. Backend MIME/upload-ACK and live acceptance stay open; no scientific flip or dev merge/deploy occurred.
+
+Rollback: Revise the review description when source changes; preserve the blockers and scoped receipts.
+
+## 2026-10-08 13:04Z — A8-04 hosted coordinate fixture qualification (ledger seq 1014)
+
+The first combined backend hosted run db29b643 fails24 existing coordinate positive controls: their product hint offline-product is not a legitimate filename. The floor remains intact:1317 passed plus24 failed, not a silent skip. Corrected only the positive fixture to a real lane-specific filename, preserving all coordinate and exact forwarding assertions. Other published candidates remain scoped; first-head hosted acceptance is not claimed.
+
+Readback: Completed estate job113321096927 reports24 failures, all in test_audit_weather_point_coordinates.py. Corrected real-router coordinate controls plus product-ID/read controls106passed offline with synthetic environment and blocked cloud access.
+
+Rollback: Revert the fixture change if its generated filename is shown not to match the production builder; keep strict validation and all assertions.
+
+## 2026-10-08 13:04Z — WI03 / IN03: rescue missed health-monitor slots (ledger seq 1015)
+
+Added the existing data-health workflow to the backend dispatcher with its own5-minute grace. The ingestion lanes keep their30-minute grace. Added completion-liveness fields and an ERROR when no completed monitor is observed within120minutes; dispatch acknowledgments never clear that signal and do not imply healthy data. No actual workflow was dispatched by these controls, no token or scientific switch changed.
+
+Readback: Before8failed/14passed; after23passed, including48/48 missed slots rescued exactly once over96 quarter-hour polls, active/completed-run suppression, overdue completion vs ACK and token privacy. Canonical selector owns test_workflow_dispatch.py in estate; +9 cases project1350/floor1348, unchanged file count. Actual cadence, log-alert delivery and independent external paging remain unverified.
+
+Rollback: Revert the dispatcher monitor entry and paired estate floor/reference increment; existing ingestion rescue stays intact.
+
+Reconciliation update: WI03/IN03 is now a locally qualified monitor-rescue candidate, not live cadence acceptance. A8-04 adds a corrected real-router fixture receipt; its validator and assertions are unchanged. The estate reference1350 is projected1341+9 and restores the failed24 positives without lowering the ratchet. IN04 and IN06 remain open under WI02/WI03. Implementation handoff: push this correction/monitor source, await exact-head hosted readings, then build an ACK-gated manifest publication candidate with upload-failure positive control and a verified-cycle336h ceiling candidate; keep the existing scientific switches off. The completion-overdue ERROR is an operational signal, not proof that an external page was delivered.

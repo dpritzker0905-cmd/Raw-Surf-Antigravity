@@ -1742,7 +1742,9 @@ jobs:
           # new estate files add 73 executed tests (collect-only, all passing locally) to the hosted
           # 1268 read on dev b02f43f8 (CI 37717937274: 300 files, 1268 passed): projected 1341;
           # 1341 - 2 = 1339; margin 2 kept. Hosted CI on this PR must read 304 files / 1341.
-          MIN_PASSED = 1339
+          # IN03: monitor rescue/liveness controls add9 estate cases (14->23 locally).
+          # Projected1341+9=1350; preserve two-test margin, hosted confirmation pending.
+          MIN_PASSED = 1348
 
           try:
               root = ET.parse('estate.xml').getroot()

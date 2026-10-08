@@ -131,6 +131,7 @@ def test_armed_it_dispatches_only_the_lane_whose_slot_was_missed(clean):
         "forecast-ingest.yml": [_run("2026-09-28T08:40:00Z")],             # 12:15 slot only 5 min old
         "forecast-ingest-pilots.yml": [_run("2026-09-28T10:10:47Z")],       # 11:45 slot missed
         "mop-nearshore-ingest.yml": [_run("2026-09-28T06:50:00Z")],         # 06:40 slot served
+        "data-health-monitor.yml": [_run("2026-09-28T12:05:00Z")],         # monitor slot served
     })
     out = WD.run_once(now=now, http=http)
     assert [u for u, _h, _j in http.posts] == [
@@ -170,3 +171,48 @@ def test_a_refused_dispatch_is_reported_not_claimed(clean):
 def test_the_scheduler_registers_the_job():
     src = (Path(__file__).resolve().parents[1] / "scheduler" / "__init__.py").read_text(encoding="utf-8")
     assert "id='workflow_dispatch'" in src and "workflow_dispatch.run_once()" in src
+
+
+def test_missing_half_hour_monitor_is_rescued_after_its_own_grace(clean):
+    clean.setenv('GITHUB_DISPATCH_TOKEN', FAKE_TOKEN)
+    http = _Http({})
+    out = WD.run_once(now=_utc(12, 15), http=http)
+    assert out['data-health-monitor.yml']['dispatched']
+    assert any('/data-health-monitor.yml/dispatches' in u for u, _, _ in http.posts)
+
+
+@pytest.mark.parametrize('status', ['queued', 'in_progress', 'completed'])
+def test_existing_monitor_run_is_not_doubled(clean, status):
+    clean.setenv('GITHUB_DISPATCH_TOKEN', FAKE_TOKEN)
+    out = WD.run_once(now=_utc(12, 15), http=_Http({
+        'data-health-monitor.yml': [_run('2026-09-28T12:05:00Z', status=status)]}))
+    assert not out['data-health-monitor.yml']['dispatched']
+
+
+@pytest.mark.parametrize('completed,expected', [('2026-09-28T12:10:00Z', False),
+                                             ('2026-09-28T10:00:00Z', True), (None, True)])
+def test_monitor_completion_liveness_is_distinct_from_dispatch_ack(clean, completed, expected):
+    clean.setenv('GITHUB_DISPATCH_TOKEN', FAKE_TOKEN)
+    runs = [_run('2026-09-28T12:01:00Z', status='in_progress')]
+    if completed:
+        runs.append({**_run('2026-09-28T09:00:00Z'), 'updated_at': completed})
+    out = WD.run_once(now=_utc(12, 15), http=_Http({'data-health-monitor.yml': runs}))
+    assert not out['data-health-monitor.yml']['dispatched']
+    assert out['data-health-monitor.yml']['completion_overdue'] == expected
+    assert out['data-health-monitor.yml']['last_completed_at'] == completed
+
+
+def test_monitor_rescue_covers_every_half_hour_slot_over_a_day(clean):
+    from datetime import timedelta
+    clean.setenv('GITHUB_DISPATCH_TOKEN', FAKE_TOKEN)
+    http = _Http({})
+    start = _utc(0, 0)
+    for step in range(96):
+        now = start + timedelta(minutes=15 * step)
+        out = WD.run_once(now=now, http=http)
+        if out['data-health-monitor.yml']['dispatched']:
+            stamp = now.isoformat()
+            http.runs.setdefault('data-health-monitor.yml', []).append(
+                {**_run(stamp, rid=step), 'updated_at': stamp})
+    posts = [u for u, _, _ in http.posts if '/data-health-monitor.yml/' in u]
+    assert len(posts) == 48  # One rescue per slot, no scheduled runs, no real GitHub calls.

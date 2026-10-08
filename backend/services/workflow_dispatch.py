@@ -41,7 +41,11 @@ LANES: Dict[str, Tuple[str, str]] = {
     "forecast-ingest.yml": ("15", "*/4"),
     "forecast-ingest-pilots.yml": ("45", "3,11,19"),
     "mop-nearshore-ingest.yml": ("40", "*/6"),
+    "data-health-monitor.yml": ("*/30", "*"),
 }
+MONITOR = 'data-health-monitor.yml'
+MONITOR_GRACE_MIN = 5  # A 30min grace can never expire before this lane's next slot.
+MONITOR_COMPLETION_MAX_MIN = 120
 
 _last: Dict[str, dict] = {}   # workflow -> the latest decision, for /api/health
 
@@ -108,6 +112,22 @@ def _headers() -> dict:
             "User-Agent": "raw-surf-workflow-dispatch"}
 
 
+def _monitor_completion(runs, now):
+    """A dispatch ACK is not a completed health check, nor evidence of healthy data."""
+    completed = []
+    for run in runs:
+        if run.get('status') != 'completed':
+            continue
+        stamp = _dt(run.get('updated_at') or run.get('created_at'))
+        if stamp is not None and stamp.tzinfo is not None and stamp <= now:
+            completed.append(stamp)
+    latest = max(completed, default=None)
+    age = (now - latest).total_seconds() / 60 if latest else None
+    return {'last_completed_at': latest.isoformat().replace('+00:00', 'Z') if latest else None,
+            'last_completed_age_min': round(age, 1) if age is not None else None,
+            'completion_overdue': age is None or age > MONITOR_COMPLETION_MAX_MIN}
+
+
 def run_once(now: Optional[datetime] = None, http=None) -> Dict[str, dict]:
     """One pass over every lane. Never raises: a lane that cannot be read is skipped and says why."""
     if not enabled():
@@ -123,13 +143,20 @@ def run_once(now: Optional[datetime] = None, http=None) -> Dict[str, dict]:
             resp = http.get(f"{base}/runs", headers=_headers(), params={"per_page": 10}, timeout=20)
             if resp.status_code != 200:
                 raise RuntimeError(f"runs listing HTTP {resp.status_code}")
-            fire, why = decide(resp.json().get("workflow_runs") or [], now, daily_slots(minute, hour))
+            runs = resp.json().get("workflow_runs") or []
+            grace = MONITOR_GRACE_MIN if wf == MONITOR else GRACE_MIN
+            fire, why = decide(runs, now, daily_slots(minute, hour), grace_min=grace)
             if fire:
                 post = http.post(f"{base}/dispatches", headers=_headers(), json={"ref": REF}, timeout=20)
                 if post.status_code != 204:
                     raise RuntimeError(f"dispatch HTTP {post.status_code}")
                 why = "DISPATCHED: " + why
             out[wf] = {"dispatched": fire, "why": why}
+            if wf == MONITOR:
+                out[wf].update(_monitor_completion(runs, now))
+                if out[wf]['completion_overdue']:
+                    logger.error('[workflow-dispatch] Health monitor has no completed check within %s min; '
+                                 'a dispatch ACK does not clear this condition.', MONITOR_COMPLETION_MAX_MIN)
         except Exception as e:                                          # noqa: BLE001 — one lane, never the pass
             out[wf] = {"dispatched": False, "why": f"error: {type(e).__name__}: {str(e)[:120]}"}
         out[wf]["at"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")

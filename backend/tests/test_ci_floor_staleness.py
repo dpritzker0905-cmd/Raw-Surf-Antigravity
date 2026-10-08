@@ -459,8 +459,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # EURO donor labels +17 guards and health listing +20 chain, paired six-test margins.
 # Payment caller binding: four estate files add 73 executed tests; projected 1341, margin 2.
 # A8 staged selector + collected-case delta: guards +13, chain +47 new-file/+8 existing.
-# Projection, not a hosted observation; Claude263's estate reading is unchanged.
-_FLOOR_SET_FROM = {"guards": 2554, "chain": 2471, "estate": 1341}
+# Projection, not a hosted observation; IN03 adds9 estate monitor cases to Claude263's1341.
+_FLOOR_SET_FROM = {"guards": 2554, "chain": 2471, "estate": 1350}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
