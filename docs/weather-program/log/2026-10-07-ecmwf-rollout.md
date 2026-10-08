@@ -394,3 +394,38 @@ Actual normal commit1995d329 and push exit0; noleaks found. DraftPR258 targeting
 ## 2026-10-07 17:14Z — PR258 final receipt qualification obligation recorded
 
 New918 tracks actual final PR258 receipt-head qualification/conditional dev merge by18:30Z. Initial own checks pending; publication-record continuation needs actual final remote/PR readback and its own eleven hosted jobs/counts plus Ledger/Lighthouse, honest path-filter absences. Canonical913 prefix and unchanged application/workflow tree required. No replacement for fulfilled911 or original860/333/WI03; no pending merge or broad live acceptance.
+
+## 2026-10-07 18:01Z — PR258 actual merge readback
+
+PR258 MERGED2026-10-07T18:00:16Z squashdd1f965547332be87d2456b750bf87cd4cb20595, exact reviewedhead25bb7f966d15065b1f646d8967c2a6da4789c2c3.
+origin/dev equals merge; full merge tree equals25bb7f96, exact priorledgerprefix retained.
+Source/health deployed readback remains pending; no scientificactivation/shareddata/main
+promotion or live860scene. User rollout authority880;863qualifiedsupplements881 preserved.
+
+## 2026-10-07 18:06Z — PR258 qualified documentation rollout;918 fulfilled
+
+Own PR258 final25bb passed all11 CI37657587732, actual377suites/4177frontend and2425+2361+1227=6013backend, nofailed/errors/silent; Ledger37657588063 and Lighthouse37657587676 pass. LOC/Encoding absent under docs-only filters. Strict validator exit0; merge dd1f9655 at18:00:16Z equals reviewed full tree and prior ledgerprefix. Canonical918 now contains257 receipts and911fulfillment916. Actual18:04:50-52 frontenddd/APIhealthy07, app/workflow source identical from three-doc-only diff; literal APIdd not asserted. Complete durable13189 restore0errors;productionfrontendfc140024,datawarn5.918 fulfilled at qualified documentation/availability scope. No physical number, science or shared product changed.
+
+## 2026-10-07 18:08Z — 860 remains blocked by active repaired-source ingest; datawarn5 retained
+
+Current quiet blocker for860: existing source07 workflow_dispatch37658162210 remainsactive18:04Z, created17:19:26Z and actualingeststarted17:20:19Z. This session neither dispatched nor reran/canceled it. Earlier scheduled68run37645014966 completedsuccess17:16:13Z. New run's source includes257; runtime product outcome remainspending, not a scheduled-adoption claim. Fresh oneRawSurfChrome window accessibility read only; no appinput/DevTools/forecastscene/Waves/Play/scrub/tabmutation, no new grid/viewport/focus metrics. Prior receipts cannot close860 or accept playback. APIhealthy source07,durable13189restore0errors,datawarn5 at18:04; retain missing-cycle and age alarms honestly. Original860 remains open/overdue; no replacement or fulfilled line. Next inspect existingruncompletion, then exactoriginalprerequisites; source/data/live acceptance remain separate.
+
+## 2026-10-07 18:11Z — Latest acceptance follow-up receipts prepared for normal publication
+
+Publish only owned append-only919-922 latest258 merge/qualification/918fulfillment and860active-ingest blocker receipts after actual ledger/memory/diff gate exits and normal secret-scanned commit/push; final remote readback pending at append, saved externally after push. Canonical918 prefix required. No endless docs merge chain/new replacementtask; final publication is proposed branch evidence. Reconciliation/handoff refreshed; no served number or app/workflow/science/product change, no browser input or scene.
+
+## 2026-10-07 23:45Z — Post-repair interpolation evidence observed; remaining warnings narrowed to blends
+
+Actual23:35:36cachedmetadata-only11690450byte registry read withhealthyAPI07 before/after,13213durable-restored products. Latest interpolation22known (EUROwind10,waves12);8olderretainedmissing. Current2missing-cycle marine alerts arise from463latestestimatedblends; no globaldata/science/live acceptance. Existingsource07jobfinished18:36:50Z,dddispatch22:47:02Z;newddscheduled37688577040actualstart22:47:05Zstillactive. Nojobdispatch/rerun/cancel/forecastgrid/UIscene.860quiet prerequisite fails,identity preserved; oldslot/donor-version/directpoint evidence remainWI03/WF03. Assessment saved registry-20261007T233536.json and postrepair-registry-assessment.json.
+
+## 2026-10-07 23:45Z — Blend provenance candidate locally verified without physical changes
+
+WI03blend provenance reproduced: initial34controls26REDfail8pass; firstcandidate1fail42pass exposed wrongcalm fixture (positiveunresolvedtrend legitimately refused). CorrectedfixtureclampsICONtrendzero and addedactualICONnativeidentity control;final141regressions+47lane/referencecontrols passed. Windowsinternalasyncsocketpair blocked firstsandboxrun; preciseowned65660stopped,trace retained; nativeinternal-loopback141 exited0 withapplicationnetworkforbidden. Candidateonlymetadata:source role/id/model/provider/dataset/reportedstatus/verifiedcycle,allknownsameUTC commonsharedcycle,unusedICONignored,anyearlieremittedICONuse retained despitefinalfallback. Missing/conflicting/invalid stayshonest; no point/stored-slot rewrite.2000actual immutabledd/candidatecalls zero physical/Jacobiandelta,analyticroundingerror0.0001153846153846283. New35 controls chainowned647partition159chain;2390floor2396referencepaired. No servedphysicalnumber changed; no source scientific flag/weights/horizon/Play/GPU/forecastskill acceptance. Final own hosted qualification and matching rollout pending.
+
+## 2026-10-07 23:48Z — Blend candidate qualification and conditional dev rollout owed
+
+Commitment: publish and qualify the contributor-cycle candidate using its own final-head hosted evidence, then conditionally merge into dev and read back deployed source and health. Existing source repairs and fulfilled rollout commitments remain complete at their documented scope. No served physical number changes; WI03 old slots/direct-point provenance, warning acceptance and commitment 860 remain independently open.
+
+## 2026-10-07 23:50Z — PR259 contributor-cycle repair published for own qualification
+
+Published PR259 draft from codex/blend-cycle-provenance against canonical dev dd1f9655. Initial source head f89c080993edd0caa7d8b05f5ffa6355f9426a99 read back, normal scanner/size/floor guards passed and own hosted checks started. The publication receipt is appended without rewriting canonical ledger sequence 918. Its subsequent normal commit/push must receive its own final-head qualification. No served physical number changed and no live, scientific or data-health acceptance is inferred.

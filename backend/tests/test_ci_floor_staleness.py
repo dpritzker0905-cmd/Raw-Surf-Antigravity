@@ -453,7 +453,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Partial ECMWF metadata adds11 executed chain controls; projected2328, hosted confirmation pending.
 # PR256 confirmed2328 chain passes; 33 interpolation-cycle controls project2361.
 # Paired with chain floor2355; guards/estate references and budgets unchanged.
-_FLOOR_SET_FROM = {"guards": 2425, "chain": 2361, "estate": 1227}
+# Blend contributor-cycle controls add35:2396 passes,159 files; paired floor2390.
+_FLOOR_SET_FROM = {"guards": 2425, "chain": 2396, "estate": 1227}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
