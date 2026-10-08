@@ -325,3 +325,22 @@ export function frameTimeScale(engine, nowMs = (typeof performance !== 'undefine
 export function perFrameFade(fade, scale) {
   return Math.pow(fade, scale > 0 ? scale : 1);
 }
+
+// ── MOTION FLOOR (2026-10-08, the hurricane report) ────────────────────────────────────────────
+// ADVECT_FS grows the respawn chance with speed in KNOTS (u_drop_rate + speed * u_drop_rate_bump),
+// so at 47 kn a particle lived 2.6 frames (44 ms): too short to be seen moving, and its streak was
+// no longer than a breeze's. The cap below bounds the per-60 Hz-frame drop chance to
+// 1 / minLifeFrames. Default 6 frames (100 ms) engages above ~20.6 kn only. Full rationale:
+// docs/architecture/RATIONALE-WebGLWindEngine.md §Motion floor; tests: windMotionFloor.test.js.
+// Lever: window.__RAW_WIND_MIN_LIFE_FRAMES__ (2..60). Kill: __RAW_DISABLE_WIND_MOTION_FLOOR__.
+export const MOTION_FLOOR_DEFAULT_FRAMES = 6;
+
+/** The advect shader's drop-rate cap (u_drop_cap) for the given window-like lever bag. */
+export function resolveWindMotionFloor(win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  let minLifeFrames = MOTION_FLOOR_DEFAULT_FRAMES;
+  const lever = w.__RAW_WIND_MIN_LIFE_FRAMES__;
+  if (typeof lever === 'number' && Number.isFinite(lever)) minLifeFrames = Math.max(2, Math.min(60, lever));
+  const dropCap = w.__RAW_DISABLE_WIND_MOTION_FLOOR__ === true ? 1 : 1 / minLifeFrames;
+  return { minLifeFrames, dropCap };
+}

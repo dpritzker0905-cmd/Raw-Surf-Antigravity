@@ -18,7 +18,7 @@ import {
   unbindTexture,
   createFBO,
   bindTexture,
-  encodeWindTexture, frameTimeScale, perFrameFade
+  encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor
 } from './WebGLWindUtils';
 import {
   initEngine,
@@ -766,7 +766,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // Bounded drop rate — stops steady-state density from tracking (the inverse of) wind speed.
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_density_uniform'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DENSITY_UNIFORM__ === true) ? 0.0 : 1.0);
-  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_gamma'), _windTune.speedGamma);
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_gamma'), _windTune.speedGamma); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_cap'), resolveWindMotionFloor(typeof window !== 'undefined' ? window : null).dropCap); // motion floor (2026-10-08)
   // Size monotonicity (2026-07-19): slower never draws larger than faster. Mirrored into the
   // advect stage's ink budget. Kill: __RAW_DISABLE_WIND_SIZE_MONOTONIC__.
   var _sizeMono = (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SIZE_MONOTONIC__ === true) ? 0.0 : 1.0;
