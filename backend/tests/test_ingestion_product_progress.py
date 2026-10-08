@@ -121,7 +121,7 @@ def test_prior_invocation_upload_cannot_make_an_empty_invocation_green(runtime, 
     assert ci.main() == 1
 
 
-def test_partial_product_failure_retains_acknowledged_success(runtime, monkeypatch):
+def test_partial_product_failure_fails_even_with_acknowledged_success(runtime, monkeypatch):
     monkeypatch.setenv('DATA_HEALTH_CHECK', '0')
     post = requests.post
 
@@ -133,7 +133,42 @@ def test_partial_product_failure_retains_acknowledged_success(runtime, monkeypat
     monkeypatch.setattr(requests, 'post', selective)
     monkeypatch.setattr(forecast, 'ingest_marine_forecast_task',
                         lambda: ProductStore().save_products_batch([(product(), 10), (product(True), 10)]))
-    assert ci.main() == 0  # Existing at-least-one-product contract; partial failure is logged.
+    assert ci.main() == 1
+
+
+@pytest.mark.parametrize('health,expected', [('ok', 0), ('warn', 0), ('critical', 1)])
+def test_health_verdict_controls_exit_after_real_ack(runtime, monkeypatch, health, expected):
+    from services.weather_pipeline import data_health
+    monkeypatch.setenv('DATA_HEALTH_CHECK', '1')
+    monkeypatch.setattr(data_health, 'compute_data_health',
+                        lambda store: {'status': health, 'alerts': []})
+    monkeypatch.setattr(forecast, 'ingest_marine_forecast_task',
+                        lambda: ProductStore().save_product(product()))
+    assert ci.main() == expected
+
+
+def test_failed_scheduled_lane_fails_with_real_product_ack(runtime, monkeypatch):
+    monkeypatch.setenv('DATA_HEALTH_CHECK', '0')
+
+    def ingest():
+        ProductStore().save_product(product())
+        return {'failed_jobs': ['EURO Marine Global'], 'completed_jobs': ['GFS Marine Global']}
+
+    monkeypatch.setattr(forecast, 'ingest_marine_forecast_task', ingest)
+    assert ci.main() == 1
+
+
+def test_unreadable_enabled_health_fails_after_ack(runtime, monkeypatch):
+    from services.weather_pipeline import data_health
+    monkeypatch.setenv('DATA_HEALTH_CHECK', '1')
+
+    def unreadable(store):
+        raise RuntimeError('fixture unavailable')
+
+    monkeypatch.setattr(data_health, 'compute_data_health', unreadable)
+    monkeypatch.setattr(forecast, 'ingest_marine_forecast_task',
+                        lambda: ProductStore().save_product(product()))
+    assert ci.main() == 1
 
 
 @pytest.mark.parametrize('available,writer', [(False, '1'), (True, '0')])
@@ -228,3 +263,39 @@ def test_batch_submit_failure_is_recorded_as_failure(runtime, monkeypatch):
     monkeypatch.setattr(forecast, 'ingest_marine_forecast_task',
                         lambda: ProductStore().save_products_batch([(product(), 10)]))
     assert ci.main() == 1
+
+
+@pytest.mark.parametrize('failure', ['exception', 'empty', 'none'])
+def test_actual_scheduler_returns_failed_required_job_and_continues(runtime, monkeypatch, failure):
+    from services.weather_pipeline import scheduler as pipeline
+    completed = []
+
+    class Jobs:
+        def __init__(self, store):
+            pass
+
+        def __getattr__(self, name):
+            async def run():
+                completed.append(name)
+                if name == 'ingest_euro_marine_global':
+                    if failure == 'exception':
+                        raise RuntimeError('fixture lane failure')
+                    if failure == 'empty':
+                        return False
+                return True
+            return run
+
+    async def no_wait(*args):
+        pass
+
+    monkeypatch.setattr(pipeline, 'WeatherPipelineScheduler', Jobs)
+    monkeypatch.setattr(forecast, 'ingest_global_model', no_wait)
+    monkeypatch.setattr(forecast.asyncio, 'sleep', no_wait)
+    monkeypatch.setattr(forecast.gc, 'collect', lambda: 0)
+    monkeypatch.setattr(ProductStore, 'prune_old_products', lambda *args: 0)
+    monkeypatch.setenv('MARINE_INGEST_ALL', '1')
+    monkeypatch.setenv('INGEST_PILOTS', 'skip')
+    receipt = forecast.ingest_marine_forecast_task()
+    assert 'ingest_euro_pressure_global' in completed  # Failure cannot skip other lanes.
+    assert receipt['failed_jobs'] == ([] if failure == 'none' else ['EURO Marine Global'])
+    assert receipt['completed_jobs']

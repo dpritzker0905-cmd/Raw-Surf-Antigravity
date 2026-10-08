@@ -102,7 +102,8 @@ def wire(monkeypatch):
 
     def post(url, *, headers, data, **kwargs):
         key = object_key(url)
-        payload = json.loads(data)  # the real upload_calibration_l2 serializer produced these bytes
+        from services.weather_pipeline.skill_archive_codec import decode_archive
+        payload = decode_archive(data)  # the real serializer produced these bytes
         state.writes.append((key, deepcopy(payload), headers["x-upsert"]))
         mode = state.write_modes.get(key)
         if mode == "timeout":

@@ -264,6 +264,12 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
             manifest.products = manifest.products + folded
             logger.info(f"[Product Store] Manifest reconciliation folded in {len(folded)} "
                         f"concurrent-writer entries before upload.")
+        from services.weather_pipeline.estimate_freshness import enabled, obsolete_estimate_ids
+        if enabled():
+            obsolete = obsolete_estimate_ids(manifest.products)
+            manifest.products = [product for product in manifest.products if id(product) not in obsolete]
+            if obsolete:
+                logger.info('[Product Store] Reconciliation rejected %d superseded neighbouring estimates.', len(obsolete))
         return len(folded)
     except Exception as e:
         logger.warning(f"[Product Store] Manifest reconciliation skipped (upload proceeds with local snapshot): {e}")
@@ -330,10 +336,12 @@ class ProductStore:
     _last_upload_errors: List[str] = []
     _pruned_anomalous_count: int = 0
     _pruned_anomalous_ids: List[str] = []
-    _download_locks: Dict[str, threading.Lock] = {}
+    _download_locks: Dict[str, object] = {}
     _download_locks_lock = threading.Lock()
+    _DOWNLOAD_LOCK_LIMIT = 256
     _l2_negative_cache: Dict[str, float] = {}
     _l2_negative_cache_lock = threading.Lock()
+    _L2_NEGATIVE_CACHE_LIMIT = 1024
     _L2_NEGATIVE_CACHE_TTL = 60.0
     _cached_manifest: Optional[PipelineManifest] = None
     _cached_manifest_mtime: float = 0.0
@@ -425,6 +433,9 @@ class ProductStore:
                 # caching them hard is right; the manifest must always revalidate.
                 "cache-control": manifest_cache_control(filename),
             }
+            from services.weather_pipeline.skill_archive_codec import is_scored_archive
+            if is_scored_archive(filename) and data_bytes.startswith(b'\x1f\x8b'):
+                headers['Content-Type'] = 'application/gzip'
             # Transient Supabase rejections (429 SlowDown, 5xx, dropped connections) are retried with
             # jittered backoff -- 7.5% of a pilots run's uploads were silently lost to 429 without it
             # (l2_retry.py). Non-transient answers still surface on the first attempt.

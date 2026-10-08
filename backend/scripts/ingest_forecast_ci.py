@@ -17,8 +17,9 @@ ENV (set by the workflow from repo secrets):
   COPERNICUSMARINE_SERVICE_USERNAME/PASSWORD (or your Render names) -> EURO marine; optional
   WEATHER_PROXY_URL                       -> open-meteo fallback proxy; optional
 
-Exit code: 0 if this cycle acknowledged at least one product upload and drained its product queue;
-1 otherwise. Metadata, restores and earlier invocations cannot satisfy this requirement (so a failed
+Exit code: 0 if this cycle acknowledged products, drained without failures, completed scheduled
+lanes and has no critical health verdict; 1 otherwise. Metadata, restores and earlier invocations
+cannot satisfy this requirement (so a failed
 round-trip fails the Action loudly during the verification phase).
 """
 import os
@@ -73,7 +74,7 @@ def main() -> int:
     from scheduler.forecast import ingest_marine_forecast_task
     from services.weather_pipeline.product_upload_progress import collect_product_uploads
     with collect_product_uploads() as progress:
-        ingest_marine_forecast_task()  # synchronous; manages its own event loop + per-job isolation
+        ingestion = ingest_marine_forecast_task()  # synchronous; isolates jobs and returns their outcomes
     product_diag = progress.wait(PRODUCT_UPLOAD_DRAIN_SECONDS)
     logger.info("CURRENT-CYCLE PRODUCT UPLOADS: %s", product_diag)
 
@@ -132,6 +133,7 @@ def main() -> int:
     # domain lane is fresh, present, in-parity, and full-horizon — logging a clear status and publishing
     # health.json to L2 (an external monitor / admin view can poll it). Read-only + fully guarded: a health
     # check must never break the cycle it watches. Tunable via HEALTH_* env; disable with DATA_HEALTH_CHECK=0.
+    health_failed = False
     if os.environ.get("DATA_HEALTH_CHECK", "1") == "1":
         try:
             import json as _json
@@ -139,6 +141,7 @@ def main() -> int:
             from services.weather_pipeline.data_health import compute_data_health
             _store = _HS()
             health = compute_data_health(_store)
+            health_failed = health['status'] == 'critical'
             _lvl = logging.ERROR if health["status"] == "critical" else (
                 logging.WARNING if health["status"] == "warn" else logging.INFO)
             logger.log(_lvl, "DATA HEALTH: status=%s freshest=%sh alerts=%s",
@@ -149,7 +152,8 @@ def main() -> int:
             except Exception as _hu:
                 logger.warning("DATA HEALTH: health.json upload skipped: %s", _hu)
         except Exception as _he:
-            logger.warning("DATA HEALTH: check skipped (non-fatal): %s", _he)
+            health_failed = True
+            logger.error("DATA HEALTH: enabled check could not be verified: %s", _he)
 
     # The store records L2 outcomes at class level, so a fresh instance reads this process's results.
     from services.weather_pipeline.store import ProductStore
@@ -161,7 +165,14 @@ def main() -> int:
                      "Metadata/restore/prior uploads do not qualify this cycle.", product_diag)
         return 1
     if product_diag['failed']:
-        logger.warning("Partial product-upload failure in this cycle: %s", product_diag)
+        logger.error("Partial product-upload failure in this cycle: %s", product_diag)
+        return 1
+    if isinstance(ingestion, dict) and ingestion.get('failed_jobs'):
+        logger.error("Scheduled ingestion jobs failed: %s", ingestion['failed_jobs'])
+        return 1
+    if health_failed:
+        logger.error("Current-cycle health is critical or unverified; refusing a successful exit.")
+        return 1
     if diag.get("last_upload_errors"):
         logger.warning("Some L2 uploads failed: %s", diag.get("last_upload_errors"))
     logger.info("Decoupled ingestion complete — current-cycle product objects acknowledged in L2. "

@@ -50,7 +50,10 @@ PENDING_EXPIRY_H = 96                  # unmatched past-target rows drop (buoy g
 # queued behind it: GFS_RAW (added automatically by the CONSENSUS_SERVE flip) and GFS_SCALAR, which would have
 # started evicting every lane's +72 h rows. 9 lanes x 60 x 72 = 38,880; x1.3 = 50,544 <= 54,000 (~6.5 MB object,
 # read and written only in the Actions lanes).
-PENDING_MAX_ENTRIES = 54000
+# A8-03: measured 15–20 passes/day, rather than the former 12/day projection.
+# 60 buoys × 9 lanes × 20 passes/day × (1+2+3) lead-days = 64,800;
+# 30% headroom needs 84,240. 86,400 gives one-third headroom over demand.
+PENDING_MAX_ENTRIES = 86400
 OM_MARINE = "https://marine-api.open-meteo.com/v1/marine"
 
 SOURCE_OURS = "raw_surf"

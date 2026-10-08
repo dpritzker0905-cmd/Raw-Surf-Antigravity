@@ -583,11 +583,8 @@ def load_product_helper(store, filename: str, stride: Optional[int] = None) -> O
     docs/research/DESIGN-2026-08-10-the-grid-series-load-time-stride.md
     """
     import time
-    import threading
-    from services.weather_pipeline.store import (
-        ProductStore, WEATHER_BUCKET, _get_supabase_storage,
-        _effective_load_stride, _stride_raw_grid_dicts,
-    )
+    from services.weather_pipeline.product_read_bounds import download_slot, negative_hit
+    from services.weather_pipeline.store import ProductStore, _effective_load_stride
 
     stride = _effective_load_stride(stride)
     # Strided reads get their OWN cache identity. See the warning above — this one line is what
@@ -618,59 +615,61 @@ def load_product_helper(store, filename: str, stride: Optional[int] = None) -> O
 
     filepath = store.cache_dir / filename
     if not filepath.exists():
-        with ProductStore._l2_negative_cache_lock:
-            if filename in ProductStore._l2_negative_cache:
-                fail_time = ProductStore._l2_negative_cache[filename]
-                if now - fail_time < ProductStore._L2_NEGATIVE_CACHE_TTL:
-                    logger.debug(f"[Product Store] L2 negative cache HIT for {filename}. Skipping Supabase download.")
-                    return None
-
-        with ProductStore._download_locks_lock:
-            if filename not in ProductStore._download_locks:
-                ProductStore._download_locks[filename] = threading.Lock()
-            lock = ProductStore._download_locks[filename]
-        
-        with lock:
-            if not filepath.exists():
-                with ProductStore._l2_negative_cache_lock:
-                    if filename in ProductStore._l2_negative_cache:
-                        fail_time = ProductStore._l2_negative_cache[filename]
-                        if now - fail_time < ProductStore._L2_NEGATIVE_CACHE_TTL:
-                            return None
-
-                logger.info(f"[Product Store] L1 miss for {filename}. Attempting dynamic download from L2...")
-                sb = _get_supabase_storage()
-                if sb:
-                    try:
-                        # W-23 (2026-09-30): a transient refusal (429/5xx/timeout) is retried with a short budget;
-                        # anything that means "no" (e.g. 404) fails on the first attempt, as before.
-                        from services.weather_pipeline.l2_retry import read_with_retry
-                        product_bytes = read_with_retry(
-                            lambda: sb.storage.from_(WEATHER_BUCKET).download(filename), filename)
-                        if product_bytes:
-                            temp_filepath = filepath.with_suffix(".tmp")
-                            temp_filepath.write_bytes(product_bytes)
-                            temp_filepath.rename(filepath)
-                            logger.info(f"[Product Store] Dynamically restored {filename} from L2 to L1")
-                    except Exception as e:
-                        from services.weather_pipeline.l2_retry import note_read_failure, transient_storage_error
-                        transient = transient_storage_error(e)
-                        logger.warning(f"[Product Store] Dynamic L2 download failed for {filename}"
-                                       f"{' (transient, after retries)' if transient else ''}: {e}")
-                        # ⛔ A REFUSED read is not an ABSENT file (LESSONS L-F1, L-F7): a transient failure is
-                        # negative-cached for L2_TRANSIENT_NEGATIVE_TTL_S (5 s), not the TTL that means "absent",
-                        # and recorded so the resolver's answer can say it was served around a refused read.
-                        ttl = ProductStore._L2_NEGATIVE_CACHE_TTL
-                        hold = min(ttl, float(os.environ.get("L2_TRANSIENT_NEGATIVE_TTL_S", "5"))) if transient else ttl
-                        if transient:
-                            note_read_failure(filename, e)
-                        with ProductStore._l2_negative_cache_lock:
-                            ProductStore._l2_negative_cache[filename] = time.time() - (ttl - hold)
-        
-        # Re-check filepath existence after download attempt
-        if not filepath.exists():
-            logger.warning(f"[Product Store] Stored product path not found: {filename}")
+        if negative_hit(ProductStore, filename, now):
             return None
+        with download_slot(ProductStore, filename) as lock:
+            if lock is None:
+                from services.weather_pipeline.l2_retry import note_read_failure
+                note_read_failure(filename, TimeoutError("Product read coordination capacity reached"))
+                return None
+            with lock:
+                return _download_then_load(store, filename, stride, filepath, revision_reason)
+
+    return _read_product_file(store, filename, stride, filepath, revision_reason)
+
+
+def _download_then_load(store, filename, stride, filepath, revision_reason):
+    import time
+    from services.weather_pipeline.store import ProductStore, WEATHER_BUCKET, _get_supabase_storage
+    from services.weather_pipeline.product_read_bounds import negative_hit, remember_negative
+
+    if not filepath.exists():
+        if negative_hit(ProductStore, filename, time.time()):
+            return None
+        logger.info(f"[Product Store] L1 miss for {filename}. Attempting dynamic download from L2...")
+        sb = _get_supabase_storage()
+        if sb:
+            try:
+                from services.weather_pipeline.l2_retry import read_with_retry
+                product_bytes = read_with_retry(
+                    lambda: sb.storage.from_(WEATHER_BUCKET).download(filename), filename)
+                if product_bytes:
+                    temp_filepath = filepath.with_suffix(".tmp")
+                    temp_filepath.write_bytes(product_bytes)
+                    temp_filepath.rename(filepath)
+                    logger.info(f"[Product Store] Dynamically restored {filename} from L2 to L1")
+            except Exception as e:
+                from services.weather_pipeline.l2_retry import note_read_failure, transient_storage_error
+                transient = transient_storage_error(e)
+                logger.warning(f"[Product Store] Dynamic L2 download failed for {filename}"
+                               f"{' (transient, after retries)' if transient else ''}: {e}")
+                # Keep refusal labels and the short transient hold distinct from absence.
+                ttl = ProductStore._L2_NEGATIVE_CACHE_TTL
+                hold = min(ttl, float(os.environ.get("L2_TRANSIENT_NEGATIVE_TTL_S", "5"))) if transient else ttl
+                if transient:
+                    note_read_failure(filename, e)
+                remember_negative(ProductStore, filename, time.time() - (ttl - hold))
+    if not filepath.exists():
+        return None
+    return _read_product_file(store, filename, stride, filepath, revision_reason)
+
+
+def _read_product_file(store, filename, stride, filepath, revision_reason):
+    import time
+    from services.weather_pipeline.store import ProductStore, _stride_raw_grid_dicts
+    from services.weather_pipeline.product_revision_refresh import mark_revision_refusal
+    cache_key = filename if stride <= 1 else f"{filename}#s{stride}"
+    now = time.time()
     
     try:
         with open(filepath, "r") as f:

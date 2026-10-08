@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 11:53Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 12:52Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **Audit queue, 2026-10-08:** Draft PR #264 holds A-05 / A8-01 failure receipts and the qualified WF02 / A8-05 pending-stamp guardrail repair. WF03 instant matching is locally qualified and remains dark; calendar and missing current-size label controls are qualified for the next publication. WI03 / A8-02 freshness, commitments 282 / 283 archive capacity/readers, and A8-04 product validation/read bounds remain unpublished pending Claude #263 and test-floor coordination. Its reserved routes and floors are untouched. The live hub 401 cause and commitment 860 remain open; active regional ingestion blocks the quiet probe. Owner-only scientific switches stay off.
+- **Audit queue, 2026-10-08:** Claude #263 merged into dev as baee6438 at12:34Z; receipt actor claude. Draft #264 frontend source e7296da0 passed all hosted checks; its next backend batch needs fresh hosted qualification. A8-02 dark freshness, commitments282/283 archive capacity/readers, A8-04 product/read bounds, and WI02/WI03 ingestion exit/dependency health pass396 combined offline controls. Staged selector projects +55 chain and +13 guards cases, with paired floors updated. The hub401 cause,860, Storage MIME/upload ACK and all broader acceptance remain open. Regional ingestion completed; matching deployed source,20-minute dwell and current quiet readback remain prerequisites. IN03 monitor cadence,IN04 upload-before-manifest ordering and IN06 model-cycle tail ceiling are next. Scientific owner-only switches remain off.
 
 - **2026-10-08 02:51Z: Remaining findings and live prerequisites receipts publication.**
   Owner requested the last remaining items. Proposed967 confirms genuine mixed cycles at registry scope;968 records actual860 concurrent-load/focus prerequisites, preparedWavesOFF tab and natural parity receipt. Canonicaldev960 and proposed961-966 retained; no replacementtask or sourcefix without counterexample. Only ownedACTION/STATE/sessionlog will be committed and pushed normally; no newdocs-onlymerge/deployment. Publication pending actual cleanlocal/remote/prefix readback in remaining-publication.json.
@@ -1646,7 +1646,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1003, sha256 95f82fd55980c714e3a7fd12d798f7712e41ea97f16ae658037afdcfb40c352b**
+  **Ledger head: seq 1011, sha256 eda4207b2a0ae68fbcc31bf1a60c597854c056aab6b7a6bf904f0364d7957f7b**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

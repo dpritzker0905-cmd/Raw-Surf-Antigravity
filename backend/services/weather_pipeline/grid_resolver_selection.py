@@ -55,7 +55,8 @@ def find_candidates(manifest, model, domain, layer, target_dt):
                 estimated_candidates.append((p, diff))
             else:
                 authoritative_candidates.append((p, diff))
-    return authoritative_candidates, estimated_candidates
+    from services.weather_pipeline.estimate_freshness import filter_estimate_pairs
+    return filter_estimate_pairs(authoritative_candidates, estimated_candidates)
 
 
 def prefer_overlapping_marine_region(current, authoritative, estimated, domain, req_w, req_s, req_e, req_n,

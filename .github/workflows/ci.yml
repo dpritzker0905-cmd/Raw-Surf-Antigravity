@@ -818,7 +818,9 @@ jobs:
           # WI06: staged selector owns32 bounded wave-cycle retry controls; projected2425/186files, margin6.
           # Regular direct-point honesty adds99 executed controls; projected2524/187files, margin6.
           # EURO donor labels add17 guards; projected2541/188files, six-test margin.
-          MIN_FILES, MIN_PASSED = 188, 2535
+          # A8 health dependency controls: tracked guards adds13 cases to observed2541.
+          # Projected2554; preserve six-test margin, hosted confirmation pending.
+          MIN_FILES, MIN_PASSED = 188, 2548
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1353,7 +1355,9 @@ jobs:
           # Blend contributor-cycle controls add35 executed tests and one chain-owned file:
           # projected2396 across159 files, preserving the six-test margin.
           # Health listing cache adds20 chain controls; projected2416/160files, margin6.
-          MIN_FILES, MIN_PASSED = 160, 2410
+          # A8 backend batch: three tracked files add47 cases, ingestion verdicts add8.
+          # Projected2416+55=2471 across163 files; preserve six-test margin.
+          MIN_FILES, MIN_PASSED = 163, 2465
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

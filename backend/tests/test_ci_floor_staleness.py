@@ -458,7 +458,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Regular direct-point honesty adds99 guards; paired floor2518/reference2524, margin6.
 # EURO donor labels +17 guards and health listing +20 chain, paired six-test margins.
 # Payment caller binding: four estate files add 73 executed tests; projected 1341, margin 2.
-_FLOOR_SET_FROM = {"guards": 2541, "chain": 2416, "estate": 1341}
+# A8 staged selector + collected-case delta: guards +13, chain +47 new-file/+8 existing.
+# Projection, not a hosted observation; Claude263's estate reading is unchanged.
+_FLOOR_SET_FROM = {"guards": 2554, "chain": 2471, "estate": 1341}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

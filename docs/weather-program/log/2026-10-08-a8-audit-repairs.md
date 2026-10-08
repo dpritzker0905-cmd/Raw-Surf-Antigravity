@@ -322,3 +322,81 @@ Rollback: Diagnostic kills: __RAW_DISABLE_FORECAST_CALENDAR_LOCAL_TODAY__ and __
 | A8-04 / SV02 | Qualification expanded to18 new cases plus113 existing companions/refusal cases | Corrected candidate131 passes, still unpublished | After #263 merges, stage all3 new backend suites; project29 chain cases plus18 A8-04 cases into their owning lane, update both floors in the same commit | Hosted actual collection equals projection and all relevant controls pass; no live flood |
 
 Implementation handoff: retain 860, the hub causal E2E, and all owner-only arming requirements. Do not rerun the completed section2 receipts. Publish this tested frontend batch independently of the reserved backend floors; qualify the new source before considering a named merge waiver. A8-02's selection is dark and A8-03's Storage MIME/upload-ACK compatibility still needs a released-source receipt. Remaining health, ingestion, serving, physics, UI and process items stay in the supplied queue; no closure is inferred from these unit controls.
+
+## 2026-10-08 11:56Z — PR264 frontend time and label publication (ledger seq 1004)
+
+Pushed tested frontend time/label source and receipts through seq1003 at e7296da0ae30ccd245cd0cf169db233656f8ea68. Fresh hosted checks are required. Backend candidates are outside the push; all reserved routes/floors remain untouched. No merge, dev deployment or scientific flag flip.
+
+Readback: GitHub PR264 reads OPEN DRAFT at the exact pushed source. Prior guardrail source644b9c6f CI37771266173 completed success; new source is not yet fully qualified by hosted CI.
+
+Rollback: Revert the time/label source commit; leave the instant-match flag unset/off.
+
+## 2026-10-08 11:57Z — PR264 final scope readback (ledger seq 1005)
+
+Updated the reviewer description around fetch-state guardrail, dark instant matching, viewer calendar, missing size labels and retained E2E failure evidence. Local evidence is scoped; backend and live acceptance holds remain explicit.
+
+Readback: GitHub PR264 title fix(weather): respect fetch state and cached frame instants; OPEN DRAFT sourcee7296da0.
+
+Rollback: Revise the description if final scope changes; retain append-only receipts.
+
+## 2026-10-08 11:57Z — 860 / A-05 quiet prerequisite and current data health (ledger seq 1006)
+
+Regional ingestion37766797123 remains active, so neither860 nor another hub diagnostic was forced. Metadata-only11:56Z API/dev sourceb02 matches, restorationcomplete13262 with0errors. Data health remainsWARN: ICON marine cycle conflicting, ICON weather cycle missing, EURO marine cycle conflicting, EURO wind cycle23.9h old above18h. API availability is not data acceptance.
+
+Readback: Four source/health endpoints returned200; prepared map Waves have not been enabled in this turn. Claude263 remainsOPEN with mergedAtnull; no merge action fabricated.
+
+Rollback: No application/shared-data rollback; retain the blocker and genuine warnings until separate evidence resolves them.
+
+## 2026-10-08 11:59Z — Current repair state and publication handoff (ledger seq 1007)
+
+Reconciled the current source after the frontend batch push. All three unpublished new backend suites project to the chain lane, with 47 new cases total; the actual tracked projection and both floor declarations must be updated together after Claude263 merges. Post-push receipts1004 onward remain local for the next substantive publication. No docs-only merge loop.
+
+Readback: Published frontend source e7296da0 on draft264; backend candidates remain local and the reserved files have no diff. Ledger verifies through1006 before this state note.
+
+Rollback: Append a correction if a published source or acceptance claim changes.
+
+## 2026-10-08 12:49Z — #263 (ledger seq 1008)
+
+Claude squash-merged the owner-authorized hotfix into dev at baee6438b61aed13b9cc51a3ed7cb5b8276e4376. Generic public receipt only. The route and CI-floor reservation is released.
+
+Readback: GitHub state MERGED; mergedAt 2026-10-08T12:34:17Z; mergeCommit baee6438b61aed13b9cc51a3ed7cb5b8276e4376. The canonical handoff section3 names Claude as actor and reports green hosted checks.
+
+Rollback: Revert baee6438 on dev through a reviewed PR.
+
+## 2026-10-08 12:49Z — A8 queue: integrate merged hotfix and release publication hold (ledger seq 1009)
+
+Fetched origin/dev baee6438 and merged it into the repair branch as f6ec98125985d1a44112a4a95b8c1a87ed153aaa. Existing unpublished backend repairs were retained without conflict. Regional ingestion37766797123 completed success. Previous OPEN/in-progress hold records are historical, not current.
+
+Readback: Local merge succeeded; GitHub263 MERGED and regional run COMPLETED/success. PR264 hosted checks at e7296da0 all passed before this source integration; fresh checks are required for the new head.
+
+Rollback: Revert the integration merge with mainline1 on this branch if necessary; retain Claude hotfix on dev.
+
+## 2026-10-08 12:49Z — WI02 / WI03: truthful ingestion exit and dependency health (ledger seq 1010)
+
+Reproduced four false-success exits with real product-upload controls; repaired partial-upload failures, failed scheduled jobs, critical health and unreadable enabled health. Actual scheduler now returns failed/completed jobs and continues other lanes. Legacy mixed-cycle estimates are evaluated by verified anchor/donor cycles instead of treating a normal six-hour skew as unverified. Health exposes newest native cycle age, bounded grouped anchor/donor cycle receipts, skew and actionable dependency issues. No physical payload, serving selection or scientific switch changes.
+
+Readback: Ingestion before4failed/19passed; after23passed; actual scheduler exception/empty/success controls plus existing scheduling checks30passed. Health before4failed/58passed; repaired health and estimator provenance companions138passed. The first companion run hung on Windows internal asyncio socketpair, was stopped only by its owned command line, then completed under the loopback-permitted offline runner. No cloud test or forecast load.
+
+Rollback: Revert the ingestion exit/health source commit. Leave scientific flags off; preserve original evidence.
+
+## 2026-10-08 12:52Z — A8 backend publication qualification (ledger seq 1011)
+
+After Claude263 merged, staged the three new test files before running the canonical tracked-only selector. They add47 chain cases; existing ingestion controls add8 chain cases and data-health controls add13 guards cases. Exact collection delta248 to316 =68. Updated CI floors and their reference readings together: guards2554/floor2548, chain2471/floor2465/163files, estate1341 unchanged. These are projections awaiting hosted confirmation.
+
+Readback: Combined offline backend batch396passed; floor parsing/staleness36passed; fatal flake8 passed; all660 backend Python files satisfy800LOC. Prior A8-04 compatibility and archive controls remain as qualified in the log. Scientific flags remain unset/off. No forecast traffic or shared data mutation.
+
+Rollback: Revert the backend candidate commit and its paired floor changes together; retain append-only evidence.
+
+Proposed reconciliation after Claude263 merge (canonical records still end at960 until this PR merges):
+
+| Existing task ID | Current evidence | Status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| WI02 / WI03, A8-02 |396 combined offline backend controls; normal mixed cycles OK, stale donors critical; exit failures reproduced and repaired | Candidate qualified locally | Push source with coordinated floors; inspect exact-head hosted readings | No false-green partial/critical cycle; real anchor/donor provenance and separate live health receipt |
+| 282 / 283, A8-03 | Historical282 recovery already proposed fulfilled989; gzip/readers/cap/seams qualified | Capacity repair candidate;283 acceptance open | Hosted qualification and bucket MIME/ACK compatibility receipt before10-14 | Both readers preserve bytes; durable scored/pending writes and month-seam monitor survive |
+| A8-04 / SV02 | Real builder filenames and saved registry accepted; bounded miss/concurrency controls pass | Candidate qualified locally | Hosted collection and reviewed publication | Malformed IDs refused; no active-lock eviction; bounded negative/lock pools; no live flood |
+| A-05 / A8-01 | Two diagnostic journeys fail; causal401 endpoint not identified | Open | One quiet Chrome diagnostic at released source using latest taxonomy | Named cause with positive control; genuine spot hub journey green |
+| 860 / WF02 | Fetch-stamp producer-object repair offline-qualified; regional run now complete | Open | Verify current deployment/dwell/quiet prerequisites | One stable paused GFS Waves scene; counts/verdicts/CPU/gaps/fallback and cleanup health; playback remains independent |
+| WI03 / IN03, IN04, IN06 | Audit cadence gap, premature manifest publication and receipt-based ceiling remain | Open; not closed by this batch | Monitor cadence then ACK-gated manifest publication and cycle-based horizon candidates | Scheduled liveness receipt, injected upload failure preserving durable registrations,336h cycle ceiling plus null/positive controls |
+| 863 | Canonical fulfillment883 after254 merge | Fulfilled | Preserve closure | No duplicate rollout task |
+
+Implementation handoff: publish the current backend source/floors on draft264; treat all new hosted readings as pending. Do not flip any scientific switch or infer live acceptance from unit tests. Continue IN03/IN04/IN06 in order, then the owner-only arming packet and remaining serving/physics/UI work. Retain the existing task IDs and do not repeat the already verified audit section2. Storage MIME/ACK and the bounded860 receipt remain acceptance gates.

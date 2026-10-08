@@ -2,6 +2,8 @@
 from datetime import datetime, timezone
 import math
 import os
+import json
+from services.weather_pipeline.estimate_cycle_health import estimate_cycle_report
 
 
 def _utc(value):
@@ -44,8 +46,33 @@ def summarize_model_cycles(products, now, model, domain):
             current[1].append(p)
     warn_h, critical_h = cycle_thresholds(model, domain)
     known_ages, unknown = [], set()
+    native_cycles = {}
     for _, group in cohorts.values():
         for p in group:
+            if not getattr(p, 'is_estimated', False) and getattr(p, 'model_run_time_status', '') == 'known':
+                cycle = _utc(getattr(p, 'model_run_time', None))
+                if cycle is not None and (cycle - now).total_seconds() <= 300:
+                    key = (getattr(p, 'layer', ''), getattr(p, 'region_id', None), getattr(p, 'tile_id', None))
+                    native_cycles[key] = max(cycle, native_cycles.get(key, cycle))
+    dependency_reports, dependency_reasons = {}, set()
+    dependency_verdict, mixed_verified = 'ok', False
+    for _, group in cohorts.values():
+        for p in group:
+            if getattr(p, 'is_estimated', False):
+                key = (getattr(p, 'layer', ''), getattr(p, 'region_id', None), getattr(p, 'tile_id', None))
+                dependency = estimate_cycle_report(p, now, native_cycles.get(key), cycle_thresholds)
+                if dependency is not None:
+                    report, dep_verdict, ages, anchor, mixed = dependency
+                    known_ages.extend(ages)
+                    mixed_verified |= mixed
+                    if report['issues']:
+                        dependency_reasons.update(report['issues'])
+                    if dep_verdict == 'critical' or dep_verdict == 'warn' and dependency_verdict == 'ok':
+                        dependency_verdict = dep_verdict
+                    fingerprint = json.dumps(report, sort_keys=True)
+                    row = dependency_reports.setdefault(fingerprint, {**report, 'products': 0})
+                    row['products'] += 1
+                    continue
             provenance = getattr(p, 'model_run_time_status', 'missing')
             cycle = _utc(getattr(p, 'model_run_time', None)) if provenance == 'known' else None
             if cycle is None:
@@ -68,7 +95,14 @@ def summarize_model_cycles(products, now, model, domain):
         if verdict != 'critical':
             verdict = 'warn'
         reasons.append('model cycle unverified: ' + ','.join(sorted(unknown or {'missing'})))
+    if dependency_verdict == 'critical' or dependency_verdict == 'warn' and verdict == 'ok':
+        verdict = dependency_verdict
+    reasons.extend(sorted(dependency_reasons))
+    newest_native = max(native_cycles.values(), default=None)
     return {'model_cycle_age_h': round(age_h, 1) if age_h is not None else None,
-            'model_cycle_status': 'mixed' if unknown and known_ages else ('known' if known_ages else 'unverified'),
+            'model_cycle_status': 'mixed' if known_ages and (unknown or mixed_verified) else ('known' if known_ages else 'unverified'),
+            'native_model_cycle_age_h': round(max(0, (now - newest_native).total_seconds() / 3600), 1) if newest_native else None,
+            'estimate_cycles': [dependency_reports[key] for key in sorted(dependency_reports)[:64]],
+            'estimate_cycle_groups_omitted': max(0, len(dependency_reports) - 64),
             'model_cycle_unverified': sorted(unknown), 'model_cycle_warn_h': warn_h,
             'model_cycle_critical_h': critical_h}, verdict, reasons

@@ -23,6 +23,7 @@ from services.weather_pipeline.route_helpers import (
 from services.weather_pipeline.viewport_service import ViewportService
 from services.weather_pipeline.point_resolution import PointResolutionService
 from services.weather_pipeline.grid_response import GridResponseRoute, own_grid_operation
+from services.weather_pipeline.product_read_bounds import PRODUCT_ID_PATTERN
 
 # P1 per-spot ratings (/spot-ratings): query surf spots + compute the rating at each precise location.
 from sqlalchemy import select, or_
@@ -178,14 +179,13 @@ async def get_grid(
 @router.get("/point", response_model=NormalizedPointResponse)
 async def get_point(
     # CONSENSUS (2026-09-29, D-009): the shadow product, so the nearshore judge can grade the exact built product.
-    # It resolves from stored products only (point_resolution.UPSTREAM_MODELS); the frontend never requests it.
     model: str = Query(..., pattern="^(GFS|ICON|EURO|CONSENSUS)$"),
     domain: str = Query(..., pattern="^(marine|wind|weather)$"),
     layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
     lat: float = Query(..., ge=-90, le=90, allow_inf_nan=False, description="Latitude coordinate"),
     lng: float = Query(..., ge=-180, le=180, allow_inf_nan=False, description="Longitude coordinate"),
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),
-    grid_product_id: Optional[str] = Query(None, description="The exact grid product to sample from"),
+    grid_product_id: Optional[str] = Query(None, pattern=PRODUCT_ID_PATTERN, max_length=240, description="The exact grid product to sample from"),
     grid_bbox: Optional[str] = Query(None, description="The client's viewport grid bbox")
 ):
     """

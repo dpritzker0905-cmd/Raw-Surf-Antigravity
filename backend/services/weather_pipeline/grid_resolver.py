@@ -585,6 +585,13 @@ async def resolve_grid(
 
                 overlap_manifest_item = None
                 if overlap_candidates:
+                    from services.weather_pipeline.estimate_freshness import enabled, filter_estimate_pairs
+                    if enabled():
+                        auth = [pair for pair in overlap_candidates if not pair[0].is_estimated]
+                        estimates = [pair for pair in overlap_candidates if pair[0].is_estimated]
+                        auth, estimates = filter_estimate_pairs(auth, estimates)
+                        overlap_candidates = auth + estimates
+                if overlap_candidates:
                     # Rank by: area (descending), time difference (ascending), authoritative first (is_estimated = False first)
                     overlap_candidates.sort(
                         key=lambda x: (

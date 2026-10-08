@@ -30,6 +30,7 @@ router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
 _RATING_FLAGS = {
+    "FRESH_ESTIMATE_SELECTION": ("0", "Reject older estimates only when a newer native frame covers the same class within three hours", "Render env + ingestion/precompute together; owner approval required"),
     "SAMPLER_EXACT_VALIDITY": ("0", "Honor validity before exact corner point success", "Render env"),
     "SIM_FORECAST_SERVED_GATE": ("0", "Bind real forecast rating gate to the served hour", "MCP process env"),
     "GRID_SERIES_RESPONSE_BOUNDS": ("0", "Per-process bounded series build/encoding/gzip and late-output refusal", "Render env"),

@@ -189,6 +189,10 @@ def evaluate_report(report, now, cfg):
         lines.append("skill ledger: ledgered=%s scored=%s pending=%s evicted_cap=%s"
                      % (ops.get("ledgered"), ops.get("scored"),
                         ops.get("pending_kept"), ops.get("pending_evicted_cap")))
+        from services.weather_pipeline.forecast_skill import PENDING_MAX_ENTRIES
+        if (ops.get('pending_kept') or 0) > 0.85 * PENDING_MAX_ENTRIES:
+            lines.append('::warning::SKILL PENDING CAPACITY -- pending=%s exceeds 85%% of cap=%s.'
+                         % (ops['pending_kept'], PENDING_MAX_ENTRIES))
         if (ops.get("pending_evicted_cap") or 0) > 0:
             code = max(code, RED)
             lines.append("::error::SKILL LEDGER EVICTING -- pending_evicted_cap=%s. The cap is "
@@ -267,7 +271,7 @@ def evaluate_residual_history(rows, now):
                          "history segment would not load; cannot confirm retention is alive."]
     recent = [r for r in rows if (t := _parse_iso(r.get("buoy_time"))) and now - t <= timedelta(hours=48)]
     span = [t for r in rows if (t := _parse_iso(r.get("buoy_time")))]
-    lines = ["residual history: %d rows this month, %d in trailing 48h, span %s -> %s"
+    lines = ["residual history: %d archive rows loaded, %d in trailing 48h, span %s -> %s"
              % (len(rows), len(recent),
                 min(span).strftime("%m-%dT%H:%MZ") if span else "-",
                 max(span).strftime("%m-%dT%H:%MZ") if span else "-")]
@@ -428,6 +432,10 @@ def _fetch_json(url, timeout=60):
         return None
 
 
+_L2_OBJECT_BYTES = {}
+_L2_READ_FAILURES = set()
+
+
 def _fetch_l2(key, timeout=30):
     """Storage REST GET mirroring buoy_calibration.load_calibration_l2 (stdlib, so this script
     stays runnable with no dependencies). Returns parsed JSON, or None."""
@@ -435,18 +443,40 @@ def _fetch_l2(key, timeout=30):
     tok = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not base or not tok:
         return None
+    _L2_READ_FAILURES.discard(key)
     try:
         req = urllib.request.Request(
             "%s/storage/v1/object/weather-products/%s" % (base, key),
             headers={"Authorization": "Bearer %s" % tok, "apikey": tok})
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.load(r)
+            from services.weather_pipeline.skill_archive_codec import decode_archive
+            content = r.read()
+            _L2_OBJECT_BYTES[key] = len(content)
+            rows = decode_archive(content)
+            if not isinstance(rows, list):
+                raise ValueError('archive is not a row list')
+            return rows
+    except urllib.error.HTTPError as error:
+        from types import SimpleNamespace
+        from services.weather_pipeline.l2_retry import is_missing_object
+        try:
+            body = json.loads(error.read())
+        except (ValueError, OSError):
+            body = None
+        if is_missing_object(SimpleNamespace(status_code=error.code, json=lambda: body)):
+            return None
+        _L2_READ_FAILURES.add(key)
+        print('L2 read failed: %s -> HTTP %s' % (key, error.code))
+        return None
     except Exception as e:
+        _L2_READ_FAILURES.add(key)
         print("L2 read failed: %s -> %s" % (key, e))
         return None
 
 
 def main():
+    _L2_OBJECT_BYTES.clear()
+    _L2_READ_FAILURES.clear()
     ap = argparse.ArgumentParser()
     d = default_cfg()
     ap.add_argument("--base", default="https://raw-surf-antigravity.onrender.com")
@@ -490,25 +520,41 @@ def main():
     print("\n".join(lines))
 
     if has_creds:
-        rc, rl = evaluate_residual_history(_fetch_l2("calibration/history/residuals-%s.json" % month), now)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        prev_month = (month_start - timedelta(days=1)).strftime('%Y-%m')
+        residual_key = 'calibration/history/residuals-%s.json' % month
+        residual_rows = _fetch_l2(residual_key)
+        if residual_key not in _L2_READ_FAILURES and now - month_start < timedelta(hours=24):
+            prev_residual_key = 'calibration/history/residuals-%s.json' % prev_month
+            previous = _fetch_l2(prev_residual_key)
+            if prev_residual_key in _L2_READ_FAILURES or (previous is None and residual_rows is None):
+                residual_rows = None
+            else:
+                residual_rows = (previous or []) + (residual_rows or [])
+        rc, rl = evaluate_residual_history(residual_rows, now)
         print("\n".join(rl))
         code = combine(code, rc)
-        scored_rows = _fetch_l2("calibration/skill/scored-%s.json" % month)
+        scored_key = "calibration/skill/scored-%s.json" % month
+        scored_rows = _fetch_l2(scored_key)
+        from services.weather_pipeline.skill_archive_codec import archive_size_warning
+        size_warning = archive_size_warning(scored_key, _L2_OBJECT_BYTES.get(scored_key))
+        if size_warning:
+            print(size_warning)
         # THE MONTH SEAM (2026-10-02): the archive is keyed by month but the paired gate grades the
         # TRAILING SEVEN DAYS, so for the first week of a month its window reaches into last month's
         # file. Handing it this month's alone read `n_paired=56 < 200` -> REFUSED on 2026-10-02, a
         # day after every run was green. Fetched ONLY inside that week: the object is ~33 MB.
-        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         window_rows = scored_rows
-        if scored_rows is not None and now - month_start < timedelta(days=PAIRED_WINDOW_DAYS):
-            prev_month = (month_start - timedelta(days=1)).strftime("%Y-%m")
-            window_rows = (_fetch_l2("calibration/skill/scored-%s.json" % prev_month) or []) + scored_rows
+        if scored_key not in _L2_READ_FAILURES and now - month_start < timedelta(days=PAIRED_WINDOW_DAYS):
+            prev_key = "calibration/skill/scored-%s.json" % prev_month
+            previous_rows = _fetch_l2(prev_key)
+            window_rows = None if prev_key in _L2_READ_FAILURES else (previous_rows or []) + (scored_rows or [])
         sc, sl = evaluate_scored_segment(window_rows, now, cfg=cfg)
         print("\n".join(sl))
         code = combine(code, sc)
         # Liveness keeps its own, shorter seam, unchanged: last month counts only until a fresh
         # scored target is expected in this one.
-        live_rows = window_rows if (scored_rows is not None and now - month_start < timedelta(
+        live_rows = window_rows if (scored_key not in _L2_READ_FAILURES and now - month_start < timedelta(
             hours=cfg["scoring_stale_h"] + 24)) else scored_rows
         ops = report.get("forecast_skill_ops") if isinstance(report, dict) else None
         lc, ll = evaluate_scoring_liveness(live_rows, ops, now, cfg)

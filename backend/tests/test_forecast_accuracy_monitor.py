@@ -361,11 +361,11 @@ def test_without_credentials_the_report_keeps_the_old_rule():
 
 
 def test_main_reads_last_months_archive_across_a_month_boundary(monkeypatch, capsys):
-    """00:30Z on the 1st: this month's archive is empty, last month's has a target scored 2.5 h ago."""
+    """00:30Z on the 1st: this month's archive is absent, last month's target is 2.5 h old."""
     import scripts.forecast_accuracy_monitor as fam
     now = datetime(2026, 10, 1, 0, 30, tzinfo=timezone.utc)
     report = {**_report(ops=_ZERO), "generated_at": (now - timedelta(hours=1)).isoformat()}
-    l2 = {"calibration/skill/scored-2026-10.json": [],
+    l2 = {"calibration/skill/scored-2026-10.json": None,
           "calibration/skill/scored-2026-09.json": [{"target_time": (now - timedelta(hours=2.5)).isoformat()}],
           "calibration/history/residuals-2026-10.json": []}
     monkeypatch.setenv("SUPABASE_URL", "https://storage.example.invalid")
