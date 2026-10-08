@@ -13,6 +13,9 @@ from services.weather_pipeline.schemas import (
 logger = logging.getLogger(__name__)
 
 from services.weather_pipeline.copernicus_validator import is_test_environment
+from services.weather_pipeline.persistence_diagnostics import PersistenceListingProbe
+
+_persistence_listing_probe = PersistenceListingProbe()
 
 # ── Supabase Storage L2 persistence ──────────────────────────────────────
 WEATHER_BUCKET = "weather-products"
@@ -519,26 +522,9 @@ class ProductStore:
         except Exception:
             pass
 
-        sb = _get_supabase_storage()
-        supabase_count = None
-        supabase_connected = sb is not None
-        if sb:
-            try:
-                objects = sb.storage.from_(WEATHER_BUCKET).list()
-                supabase_count = len([
-                    o for o in (objects or [])
-                    if (
-                        (isinstance(o, dict) and o.get("name", "").endswith(".json") and o.get("name") != "manifest.json") or
-                        (hasattr(o, "name") and getattr(o, "name", "").endswith(".json") and getattr(o, "name") != "manifest.json")
-                    )
-                ])
-            except Exception:
-                supabase_count = -1  # Error counting
-
         return {
             "disk_product_count": disk_count,
-            "supabase_connected": supabase_connected,
-            "supabase_product_count": supabase_count,
+            **_persistence_listing_probe.get(_get_supabase_storage, WEATHER_BUCKET),
             "last_restore_time": ProductStore._last_restore_time,
             "restored_count": ProductStore._restored_count,
             "restore_errors": ProductStore._restore_errors[-5:],

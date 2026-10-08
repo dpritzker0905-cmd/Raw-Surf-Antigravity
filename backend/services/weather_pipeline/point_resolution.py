@@ -589,7 +589,9 @@ class PointResolutionService:
                             interpolation_method="direct_point_api"
                         )
                         
-                        if model.upper() == "GFS" or is_fallback_active:
+                        if is_fallback_active:
+                            upstream_model = OpenMeteoProvider.MARINE_MODELS[fallback_model]
+                        elif model.upper() == "GFS":
                             upstream_model = "ncep_gfswave025"
                         elif model.upper() == "ICON":
                             upstream_model = "gwam"
@@ -610,19 +612,15 @@ class PointResolutionService:
                         # Set is_estimated and estimate_basis matching normalizer conformed rules
                         is_estimated = is_fallback_active
                         est_basis = None
-                        if model.upper() == "EURO" and layer.lower() in ("swell_1", "swell_2", "wind_waves") and is_fallback_active:
-                            is_estimated = True
+                        fallback_provider = "gfs_estimated_fallback"
+                        if is_fallback_active:
+                            fallback_provider = "open-meteo" if fallback_model == "EURO" else "gfs_estimated_fallback"
                             est_basis = {
-                                "type": "ecmwf_ifs_derived_fallback",
+                                "type": "ecmwf_ifs_derived_fallback" if fallback_model == "EURO" else "gfs_derived_fallback",
+                                # Preserve the existing partition eligibility classification.
                                 "method": "wave_component_ratio_estimation",
-                                "source_model": "ecmwf_wam025"
-                            }
-                        elif is_fallback_active:
-                            is_estimated = True
-                            est_basis = {
-                                "type": "gfs_derived_fallback",
-                                "method": "wave_component_ratio_estimation",
-                                "source_model": "ncep_gfswave025"
+                                "source_method": "direct_point_api",
+                                "source_model": upstream_model
                             }
 
                         # Labels flow from data truth in EVERY environment (2026-07-04): the old
@@ -630,7 +628,7 @@ class PointResolutionService:
                         # fallback-derived EURO points provider="copernicus"/is_estimated=False.
                         return NormalizedPointResponse(
                             model=model.upper(),
-                            provider="gfs_estimated_fallback" if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
+                            provider=fallback_provider if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
                             domain="marine",
                             layer=layer.lower(),
                             run_time=datetime.now(timezone.utc),
@@ -649,7 +647,7 @@ class PointResolutionService:
                             coverage_status="coarse_gap_direct_point" if coarse_last_resort is not None else "outside_grid_tile",
                             fallback_attempted=True,
                             fallback_reason="copernicus_missing_fallback" if is_fallback_active else ("coarse_sample_degraded" if coarse_last_resort is not None else "no_matching_grid_product"),
-                            upstream_provider="gfs_estimated_fallback" if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
+                            upstream_provider=fallback_provider if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
                             upstream_model=upstream_model,
                             units=units,
                             grid_parity=False,

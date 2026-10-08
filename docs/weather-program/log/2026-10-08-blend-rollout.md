@@ -103,3 +103,61 @@ Prepare normal commit/push/draftPRdev after each own localgateexit0. Reviewed22a
 ## 2026-10-08 01:27Z — PR261 published for its own final-source qualification
 
 Actualnormal publication01:26:16Z b923943b20ddbc0253b0567881bc261660c967ba clean/remotematch. PR261createddraft andattached, OPEN/MERGEABLE/base95. Own initialCI37712924860,LOC37712924845,Ledger37712924844,Lighthouse37712924873 begun; previewgreen. This948actualpublicationreceipt must be in finalqualifiedhead; newcommit/push normalhooks and ownfinalheadCI, no reuseinitialheadgreen. Candidatesource22additivebuilderlines/2resolverdiff lines;99controls/213focused/47floors and3168calls720Jacob physical0. Previouslydraftscoreboardformat fix requiredsecond missingdelimiter correction; finalmemorygate0 beforefirstpush, allcanonicalpublishedrows retained. Noacceptanceclosure860/datahealth/playback/Gulf/device/isolation.
+
+## 2026-10-08 01:48Z — PR261 exact final-source repair merged into dev
+
+ActualPR261merge2026-10-08T01:47:56Z as3d21765ca7ca2b16a3c186a6f12ef289f6abb086, qualified96704d4e9e3d67affb76e7b0aba4799b3f8f5754 fulltreeequal. SequentialsubprocesscheckTrue validate/localgate/ready/currentbase/headmatch merge; nofailedgate bypass. Actualdevancestryintegrated onidenticaltree beforepostmergeledger. Canonical948 includesprevious260rollout937-943,933/942 scopedclosure. Own944stillpending matchinghealthydeployment. No live860test/Gulf/device/playback/datahealth acceptance.
+
+## 2026-10-08 01:48Z — PR261 final source qualifies with actual6188 backend passes
+
+Actualownfinalsource967 qualifies6188backend/4177frontend all11. Guards2524+66skip1xfail,2591collected187files;chain2396/159/no skip;estate1268/300selected298produced2865skip0silent. Pairedguardsfloor2518/ref2524 and187filesconfirmed, selectorsunchanged. Metadata-only codefullphysical/Jacobian invariance3168calls720cases; no skillgain. Requestecho/selection/nativefallback/unsupportedICON andmarinezero/calm guards retained. Upstreamrawproviders stilllack verifiedcyclemarkerunless independentlysupplied; unknowncyclesstayunknown, not allpointcyclesaccepted. LOC/Ledger/Lighthouse/preview pass; Encoding absent honestly.
+
+## 2026-10-08 01:48Z — Superseded PR261 candidate CI cleanup completed
+
+Canceledonlyownb923CI/Lighthouse, initialrequestafterstateinprogress preserved; finalreadbackbothcompletedcancelled separately. New967all11sourceverdict independent, no reuseoldhead. No existingforecastjob dispatch/rerun/cancel; devmerge mayautomatically supersede E2E under existing repositorysource policy, not manualjobmutation.
+
+## 2026-10-08 01:48Z — Health diagnostic request amplification reproduced offline
+
+Offlinehealthforensics36actualget_persistence_diagnostics calls withstorage double:one listattemptpercall, successand429failure, no cooldown/cache. Sourceunchangedfrom95, methodcalledbypublichealthroute. A concreteunnecessaryupstreamrequest path canbenarrowlyrepaired withboundedcache/cooldown/freshness/failure/concurrency semantics; donotclaimthiscausedlive429orhidefailure/unknowncounts. Actualsanitizedhealth01:28 manifestdownloadfailed429, resident13247/restoreempty0 anddurableconnected preserved. E2E76 availablefinalreportartifactcount0 after40mintestbound; preciseassertioncause notobservablefromcurrentlog, no fabricatedrootcause or cache-repairregression.
+
+## 2026-10-08 01:48Z — Unchanged EURO fallback source-label mismatch reproduced
+
+Actualfourfallbackcalls at01:41:49Z:EUROwaves requestsEURO whichOpenMeteoMARINE_MODELS mapsECMWFwam025 butresponseupstream_model/basis_source reportncepGFSwave025/providergfs_estimated_fallback. Swell1/swell2/windwaves fetchGFS/ncepGFSwave025 whilebasis.source_model reportsECMWFwam025. Fixedsourceassignments existedat95 andintentionallyunchangedin261 metadatarepair; source/scientificaccuracyacceptance remainsopenWI03. Nextsmalllabelrepair mustrecordactualproviderrequestmodel throughfallbackmetadata, preserve physicalinputs/sourceeligibility/nativeauthority/estimatedsemantics andmeasure realserving/Jacobian parity. Do not fabricate modelcycle fromlabel. Firstsandboxasyncioattemptstalledbeforeoutput; ownedPIDstoppedandactualsuccessful4callrerunpermittedonlyWindowsinternalloopbacks withapplicationDNSrefused.
+
+## 2026-10-08 01:49Z — 860 timing and failed95 E2E evidence refreshed after261merge
+
+Actualfresh95E2E37710971172 completedfailure; exactjobs/steps/workloadstatuses and860earliest savedpr261-acceptance-readback.json. Prior source261qualification6188backend/4177frontend doesnotaccept E2E/device/playback. Initial3drollout01:48 stillold95/frontend95; old95restorecomplete13249/0errors nowrecoveredfromearlier429before261deployed, no causalcredit. Currenttwo cyclewarnings persist. Original860earliest2026-10-08T02:07:56+00:00 andsource/healthy/quiet/focus/stableviewport conditions, no forcedscene/Wavesactivation/newforecasts. Latesthealthamplification andfallbacklabels remain distinct verifiedoffline WI03findings despite transientrestore recovery.
+
+## 2026-10-08 01:52Z — PR261 matching healthy dev deployment verified;944 fulfilled
+
+Actualautomaticrollout2026-10-08T01:52:01.809833+00:00 frontend3d21765c/API full3d21765ca7ca2b16a3c186a6f12ef289f6abb086 healthy/complete13301restore/durableconnected/zeroerrors; productionfrontendfc140024. Sourceavailability944fulfilled bythisreceipt only. Datahealthwarn/2alerts, rawprovidersdonotmanufacturecycleidentity. Earlier95transientmanifest429 already recoveredbefore261source appears; provenhealthpollamp36calls/36listattempts andfourfallbacklabelfindings remainexistingWI03followups. Sourcefulltreequalified96704d4e head/all11/6188backend4177frontend,physical3168calls720Jacob0.860firstliveearliest02:07:56Z withactualquiet/visiblefocusedPAUSEDstableviewportcontract, no executedscene. Old95E2Efailed andnew3dE2E pending; Gulf/play/scrub/device/isolation/datahealth/Nightly independent. Actualcurrentalerts: ICON/marine: model cycle unverified: conflicting; EURO/marine: model cycle unverified: conflicting. Earliermissing statuses stay historical; currentconflicting cohort requires independentWI03 donor/grid evidence, not inference from APIavailability or this direct-point repair.
+
+## 2026-10-08 01:52Z — PR261 rollout and remaining repair receipts prepared for normal publication
+
+Prepare normalpostmerge receiptpush with3owned docs only:ACTION/STATE/ownedOct8log, canonical948byteprefix/actualdevancestry preserved. Actual261exactsource qualification6188backend/4177frontend, fulltreeequals967,matchinghealthy3d deployment sourceavailability944fulfilled955. Proven36healthdiagcalls→36remote-listattempts and4fallbacksource-labelcounterexamples independentWI03nextrepairs; no replacementtask. Original860earliest02:07:56Z plusquiet/source/visiblefocusedstablepaused scene, datawarnings/E2E/Nightly/Gulf/device/isolation/play/scrub remainopen. No canonicalrecord rewrite/secret/scienceflag/storedproduct mutation. Actualnormalpublicationreadbackpending; carrynewestreceiptwithnextsourcePR.
+
+
+## 2026-10-08 02:00Z — WI03 bounded health and label repairs begun
+
+Owner: Ok get them done. Commitment957 appended. Local helper stopped afterappend on an incorrect hash-field assumption; ledger hashes canonical lines ratherthan storing hashfield. Correctedhelper and anchored actual957 withoutduplicatecommitment or historyrewrite. No gate/publication bypass. Actualprior956publicationd2fd completed; freshhealthy3d/complete13301restore/zeroerrors/two conflictingmarinecyclewarnings. Pending own newsource qualification/rollout; original860 and independentacceptance retained.
+
+
+## 2026-10-08 02:07Z — WI03 bounded health listing and actual EURO fallback donor labels locally verified
+
+Process-shared30s listing success/failure/unavailable cache and singleflight; current localdisk/restore values remain uncached. Publichealth exposes checked_at/age/ttl/status/cached/first_page scope. NativeEUROmiss labels actualrequestedEUROwaves/ecmwfwam and GFScomponents/ncepGFS, preserving is_estimated/nativeauthority/sample/time/cycle/physicalcalls. Legacy estimatebasis method retained becausepartition gate consumes it; additive source_method records actualdirect_point_api. No scienceflag/selection/physical/shareddata change. Ownqualification/rolloutpending957.
+
+Readback: Finalimmutable3d controls32failed5passed of37; candidate255focusedpasses includingall37 and actualpartitioneligibility. Floors/selector50passed7platformskips; tracked651/188guards160chain300estate2excluded1quarantine; projected2541guards2416chain1268estate=6225, pairedfloors2535/2410/reference2541/2416 margin6. Actual36diagcalls/version:36old versus8candidate listingattempts.3168realresolver/surf/JSON calls144scenarios720centralJacob differences0, identityerror2.274e-13. Frontendopen-meteoacceptance consumer inspected, nofrontendchange. Localhelper hash assumption stoppedafter957append then repairedanchor withoutduplicate; nonexistenttestpath ran0, corrected; backendcwdstage failed, correctedrootstagebeforeactualselector. Review corrected proposedmethodchangebeforequalification to preserveexistingpartitioneligibility. Nofailedgatebypass.
+
+
+## 2026-10-08 02:08Z — WI03 two-repair candidate prepared for normal source publication
+
+Reviewed bounded cache/freshness/error/singleflight and donorlabels candidate; actual255focused/50floors7skips/3168calls720Jacobphysical0. Ownsourcequalification/conditionaldevrolloutpending957. Proposed949-959 retainedoncanonical948/dev3d ancestry; no replacement860. NormaldraftPRdev publication pendingactualreadback.
+
+Readback: Every localmemory/ledgerprefix/LOC/lint/diff/stageddiff gateexit0; fixedcandidate source review preserveslegacy partitionclassification and exposes actual source_method. Actualfinalbaseline32failed5passed37; filesystem/sourcechecks no secrets; canary unchanged/unexecuted. pending normalcommit/push/draftPR/ownfinalheadCI.
+
+
+## 2026-10-08 02:10Z — PR262 bounded health and donor-label repairs published for own qualification
+
+Actualinitial4179 normalpush/draftPR262dev createdandattached,clean/remotematch/base3d/openmergeable. Publicationreceipt960 carriesactualprior261post949-956 and own957-959 sourceevidence; finalcandidate willqualifyitsownchecks. Original860/datawarnings/E2E/Gulf/device/isolation/playback unchanged. Ownconditionalrolloutpending957.
+
+Readback: Freshgh PR262exacthead/base/state and remote/local/clean assertionspass, pr262-initial-publication.json. InitialownCI37716479043,LOC37716478969,Ledger37716478944,Lighthouse37716479097 started/queued; no earlierPR counters reused. pendingfinalhead ownCI/counters/preview and actualconditionalrollout.
