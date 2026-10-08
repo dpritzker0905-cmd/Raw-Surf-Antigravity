@@ -14,8 +14,10 @@ from sqlalchemy import select, func, Integer
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
+import math
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, Sponsorship, XPTransaction, RoleEnum,
     SponsorshipTransaction, SponsorshipType, CreditTransaction
@@ -50,6 +52,7 @@ class StokeSponsorSettings(BaseModel):
 async def create_stoke_sponsorship(
     photographer_id: str,
     data: StokeSponsorCreate,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -59,6 +62,12 @@ async def create_stoke_sponsorship(
     - Creates sponsorship record for tracking
     - Awards XP to both parties
     """
+    # The contributor is whoever holds the token, and a contribution is a positive, finite amount.
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot contribute on behalf of another user")
+    if not math.isfinite(data.amount) or data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than zero")
+
     photo_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = photo_result.scalar_one_or_none()
     if not photographer:
