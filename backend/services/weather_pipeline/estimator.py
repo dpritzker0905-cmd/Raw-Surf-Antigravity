@@ -7,6 +7,7 @@ from services.weather_pipeline.schemas import (
     NormalizedPointResponse, NormalizedPointDetail
 )
 from services.weather_pipeline.cycle_provenance import cycle_from_points
+from services.weather_pipeline.point_estimate_provenance import point_estimate_provenance
 
 logger = logging.getLogger(__name__)
 
@@ -727,8 +728,17 @@ async def resolve_euro_estimate_point(
         "euro_anchor_valid_time": anchor_dt.isoformat()
     }
     
+    contributors = [("native_anchor", "EURO", raw_euro, anchor_idx),
+                    ("gfs_anchor", "GFS", gfs_raw, gfs_anc_idx), ("gfs_target", "GFS", gfs_raw, gfs_tgt_idx)]
+    if is_icon_valid and w_icon_real > 0.0:
+        contributors.extend([("icon_anchor", "ICON", icon_raw, icon_anc_idx),
+                             ("icon_target", "ICON", icon_raw, icon_tgt_idx)])
+    provenance_basis, provenance = point_estimate_provenance(target_dt, contributors)
+    estimate_basis.update(provenance_basis)
+
     return NormalizedPointResponse(
         model="EURO", provider="estimated", domain="marine", layer=layer.lower(),
+        **provenance,
         run_time=datetime.now(timezone.utc), valid_time=target_dt,
         is_forecast_authoritative=False, is_estimated=True, point=detail,
         value_kind="wave_height", value_unit="m", display_unit_hint="ft",

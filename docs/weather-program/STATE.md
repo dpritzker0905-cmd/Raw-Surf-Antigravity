@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 00:14Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 00:40Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,15 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-08 00:40Z: Prepare normal publication of the bounded direct-point metadata candidate.**
+  New point repair local gates passed; commitment933 own hosted final-source qualification/rollout pending. Prior proposed927-932 preserved; canonicaldev76/ledger926 unchanged. Regional37704566496 and E2E37706231506 active00:40Z still block original860; no forecast scene or broad acceptance inferred.
+
+- **2026-10-08 00:39Z: Direct-point metadata repair passes actual serving controls and Jacobian comparison.**
+  WF03/WI03 finding929 narrowed and repaired locally;41 new actual serving cases,203 focused passes,2944 base/candidate calls and720 Jacobian cases physically identical. Estate projected1268/floor1266; new PR own final-head qualification pending. Canonicaldev remains76a99760/ledger926;927 onward proposed. Original860 still blocked by concurrent regional/E2E activity; no new scene or data/flag mutation.
+
+- **2026-10-08 00:38Z: Commit final-source qualification for the new direct-point metadata repair.**
+  New bounded source qualification commitment follows WF03/WI03 repair; prior925/931 fulfillment preserved. Remote own-head gates/deployment pending; original860 is still its own quiet PAUSED GFS scene contract, and broader acceptance remains open.
 
 - **2026-10-08 00:14Z: PR259 post-merge receipts prepared for normal publication.**
   Canonical dev76a99760 ends926; proposed927–932 publish actual merge/qualification, WF03/WI03 counterexample,860 blockers and925 scoped fulfillment. Only owned weather docs differ; latest merge receipt can wait for next source PR. Read back normal publication before reporting pushed.
@@ -1515,7 +1524,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 932, sha256 479f80314dd2d021fe202e4cf5d195ad318f239b7043ea9a34f07673e957f970**
+  **Ledger head: seq 935, sha256 7b7e9dccc2414f55a06586555d7757eb4a20bc65cef1dc0007af77311bb20361**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
