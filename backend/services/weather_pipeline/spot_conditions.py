@@ -536,6 +536,8 @@ async def resolve_spot_conditions_impl(
             current_conditions["rating_confirmed"] = _confirm
             current_conditions["rating"] = score
             current_conditions["rating_level"] = level
+            if getattr(geometry, "break_depth_source", None) is not None:
+                current_conditions["break_depth_source"] = geometry.break_depth_source
             # ── HOW SURE ARE WE? (2026-08-07) ─────────────────────────────────────────────────────
             # A third confidence, orthogonal to the score and to `geometry_readiness`: how much the
             # ensemble members disagree about the SEA. The hub is a surface a surfer READS — the same

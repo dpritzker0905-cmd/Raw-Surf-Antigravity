@@ -25,6 +25,7 @@ import { API_BASE } from '../../lib/apiClient';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { seriesAnchorTag, seriesAnchorParam, seriesGridPhase, alignToCadenceGrid } from './seriesAnchor';
 import { frameToMarineData } from './marineSeriesFrame';
+import { seriesInstantTarget, seriesFrameDistance, rebaseSeriesFrame } from './marineSeriesInstant';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { exactGfsPlaybackEnabled } from './marinePlaybackPolicy';
 import { isThinnedWorldGrid } from './marineExactUpgrade';
@@ -559,10 +560,10 @@ export function prewarmMarineSeries(model, layer, bounds, signal) {
 
 
 // Nearest frame (within ±1.5h, 3-hourly) for an hour within one cache entry, or null.
-function nearestFrameInEntry(entry, hourOffset) {
+function nearestFrameInEntry(entry, hourOffset, targetMs) {
   let best = null, bestDiff = Infinity;
   for (const h of entry.hours) {
-    const d = Math.abs(h - hourOffset);
+    const d = seriesFrameDistance(entry.frames.get(h), h, hourOffset, targetMs);
     if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
   }
   return (best !== null && bestDiff <= 1.5) ? { frame: best, diff: bestDiff } : null;
@@ -576,6 +577,7 @@ function nearestFrameInEntry(entry, hourOffset) {
  */
 export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
   if (!isMarineSeriesEnabled() || !bounds) return null;
+  const targetMs = seriesInstantTarget(hourOffset);
   const page = marineSeriesPageForHour(hourOffset, model);
   const now = Date.now();
   // Width of the requested viewport (deg, antimeridian-safe). A GLOBAL-width cached frame must NEVER be
@@ -603,7 +605,7 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     const _eWid = (_eb.east < _eb.west) ? (_eb.east + 360 - _eb.west) : (_eb.east - _eb.west);
     if (isRegionalViewport && _eWid >= 340) continue;
     for (const h of entry.hours) {
-      const d = Math.abs(h - hourOffset);
+      const d = seriesFrameDistance(entry.frames.get(h), h, hourOffset, targetMs);
       if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
     }
   }
@@ -629,10 +631,10 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
       // Hour-range proximity guard (was a page-index compare — meaningless across the per-cost-class
       // span regimes, where the same hour maps to different page numbers). An entry whose HOURS list
       // can't reach the ask within the 3h lattice can never pass the ±1.5h nearest gate below.
-      if (entry.hours && entry.hours.length &&
+      if (targetMs === null && entry.hours && entry.hours.length &&
           (hourOffset < entry.hours[0] - 3 || hourOffset > entry.hours[entry.hours.length - 1] + 3)) continue;
       if (!bboxContains(entry.bounds, bounds)) continue;
-      const nf = nearestFrameInEntry(entry, hourOffset);
+      const nf = nearestFrameInEntry(entry, hourOffset, targetMs);
       if (!nf) continue;
       const b = entry.bounds;
       // A GLOBAL-width frame renders coarse-clamped for a regional viewport, so DON'T prefer it. But in the
@@ -685,7 +687,7 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
   }
   if (typeof window !== 'undefined' && window.__MARINE_SERIES_DIAG__) window.__MARINE_SERIES_DIAG__.hits++;
   _seriesCache.touchFrame(best);
-  return best;
+  return rebaseSeriesFrame(best, hourOffset, targetMs);
 }
 
 export function _resetMarineSeriesForTest() {

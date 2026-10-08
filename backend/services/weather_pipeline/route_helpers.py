@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional, List, Tuple
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
+from services.weather_pipeline.grid_request_validation import validate_bbox_latitudes
 from services.weather_pipeline.schemas import (
     NormalizedProduct, CoverageBounds, GridVector
 )
@@ -33,7 +34,7 @@ def parse_valid_time(valid_time_str: str) -> datetime:
 def parse_bbox(bbox_str: str) -> Tuple[float, float, float, float]:
     """
     Parses a comma-separated bbox string into four floats: west, south, east, north.
-    Raises HTTPException(400) if malformed, invalid comma count, non-float, or NaN/Infinity.
+    Raises HTTPException(400) for malformed/nonfinite values or invalid latitude bounds.
     """
     if not bbox_str:
         raise HTTPException(status_code=400, detail="Bounding box string is empty.")
@@ -46,6 +47,7 @@ def parse_bbox(bbox_str: str) -> Tuple[float, float, float, float]:
             if math.isnan(val) or math.isinf(val):
                 raise ValueError("NaN/Infinity bounding box values are not allowed")
                 
+        validate_bbox_latitudes(*parts)
         return parts[0], parts[1], parts[2], parts[3]
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid bbox parameter format: {e}")

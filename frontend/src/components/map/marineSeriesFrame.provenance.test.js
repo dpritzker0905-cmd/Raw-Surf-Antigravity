@@ -93,7 +93,7 @@ describe('estimate provenance through the actual page and mini cache lanes', () 
     window.__RAW_DISABLE_HOUR0_FIRST__ = !mini;
     global.fetch = jest.fn(async url => {
       const hours = new URL(url, 'https://example.invalid').searchParams.get('hours');
-      return { ok: true, json: async () => ({ frames: mini && hours.includes(',') ? [] : [makeFrame()] }) };
+      return { ok: true, json: async () => ({ frames: mini && hours.includes(',') ? [] : [makeFrame({ warnings: ['HTTP 429'], fallbackReason: 'l2_read_refused', partial_coverage: true })] }) };
     });
     await ensureMarineSeries('EURO', 'waves', makeFrame().bounds, 288, new AbortController().signal, true);
     for (let i = 0; i < 24; i++) await Promise.resolve();
@@ -103,5 +103,41 @@ describe('estimate provenance through the actual page and mini cache lanes', () 
     expect(cached.estimateBasis).toEqual(basis);
     expect(cached.isEstimated).toBe(true);
     expect(cached.grid.vectors).toBe(vectors);
+    expect(cached.grid.warnings).toEqual(['HTTP 429']);
+    expect(cached.grid.fallbackReason).toBe('l2_read_refused');
+    expect(cached.grid.partial_coverage).toBe(true);
+  });
+});
+
+
+describe('series fallback receipts remain attached to their own frame', () => {
+  it.each(['GFS', 'ICON', 'EURO'])('%s retains warnings and partial coverage on grid and wrapper', model => {
+    const warnings = ['L2 read refused (HTTP 429); substitute tier served'];
+    const frame = makeFrame({ warnings, fallbackReason: 'l2_read_refused', partial_coverage: true });
+    const result = frameToMarineData(frame, model, 'waves');
+    for (const receipt of [result, result.grid]) {
+      expect(receipt.warnings).toEqual(warnings);
+      expect(receipt.fallbackReason).toBe('l2_read_refused');
+      expect(receipt.partial_coverage).toBe(true);
+    }
+    expect(result.grid.vectors).toBe(frame.vectors);
+  });
+
+  it('consumer warning edits do not mutate the cached source frame or another commit', () => {
+    const frame = makeFrame({ warnings: ['upstream unavailable'], fallbackReason: 'l2_read_refused' });
+    const first = frameToMarineData(frame, 'EURO', 'waves');
+    const second = frameToMarineData(frame, 'EURO', 'waves');
+    expect(first.grid.warnings).toEqual(frame.warnings);
+    first.grid.warnings.push('consumer-only');
+    expect(frame.warnings).toEqual(['upstream unavailable']);
+    expect(second.grid.warnings).toEqual(['upstream unavailable']);
+  });
+
+  it('a clean native frame does not inherit the previous fallback receipt', () => {
+    frameToMarineData(makeFrame({ warnings: ['HTTP 429'], fallbackReason: 'l2_read_refused', partial_coverage: true }), 'EURO', 'waves');
+    const clean = frameToMarineData(makeFrame({ is_estimated: false }), 'EURO', 'waves');
+    expect(clean.grid.warnings || []).toEqual([]);
+    expect(clean.grid.fallbackReason || null).toBeNull();
+    expect(clean.grid.partial_coverage || false).toBe(false);
   });
 });

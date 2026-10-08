@@ -18,6 +18,7 @@ import math
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from services.weather_pipeline.skill_archive_codec import encode_archive, decode_archive_response
 
 logger = logging.getLogger(__name__)
 
@@ -510,8 +511,7 @@ class CalibrationWriteError(RuntimeError):
 def upload_calibration_l2(store, obj, key: str = None, *, strict: bool = False,
                           overwrite: bool = True) -> None:
     """Persist to L2; strict callers require acknowledgment before consuming evidence."""
-    import json
-    data = json.dumps(obj, separators=(",", ":")).encode("utf-8")
+    data = encode_archive(obj, key or BUOY_CALIBRATION_L2_KEY)
     if not strict:
         options = {} if overwrite else {"overwrite": False}
         store._upload_to_supabase(key or BUOY_CALIBRATION_L2_KEY, data, **options)
@@ -553,7 +553,7 @@ def load_calibration_l2(l2_key: str = None, *, strict: bool = False):
         else:
             resp = requests.get(url, headers=headers, timeout=10)
         if resp.status_code == 200:
-            obj = resp.json()
+            obj = decode_archive_response(resp)
             if strict and obj is None:
                 raise CalibrationReadError("L2 object contains JSON null")
             return obj

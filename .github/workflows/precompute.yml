@@ -34,6 +34,9 @@ on:
   push:
     branches: [dev]
     paths:
+      - 'backend/services/weather_pipeline/break_depth_policy.py'
+      - 'backend/services/weather_pipeline/partition_flux.py'
+      - 'backend/services/weather_pipeline/partition_rating.py'
       - 'backend/services/weather_pipeline/grid_resolver_selection.py'
       - 'backend/services/weather_pipeline/mop_nearshore.py'
       - 'backend/services/weather_pipeline/mop_serving.py'
@@ -49,6 +52,7 @@ on:
       - 'backend/services/weather_pipeline/surf_point.py'
       - 'backend/services/weather_pipeline/surf_rating.py'
       - 'backend/services/weather_pipeline/surf_transform.py'
+      - 'backend/services/weather_pipeline/wave_physics.py'
       - 'backend/services/weather_pipeline/data/**'
       - '.github/workflows/precompute.yml'
   schedule:

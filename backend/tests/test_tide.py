@@ -69,6 +69,8 @@ async def test_fetch_tide_hourly_caches(monkeypatch):
 @pytest.mark.asyncio
 async def test_tide_norm_at_end_to_end(monkeypatch):
     T._reset_tide_cache_for_test()
+    from datetime import datetime, timezone
+    monkeypatch.setattr(T.time, 'time', lambda: datetime(2026, 6, 29, tzinfo=timezone.utc).timestamp())
 
     class FakeResp:
         status_code = 200

@@ -49,6 +49,7 @@ export function mapSpotRatingsResponse(spots) {
       // the card's tide line (tideClient.js) rides the Rating toggle, payload-first with a
       // client-side fallback fetch.
       tide: sp.tide || null,
+      tideStatus: sp.tide_status || null,
       why: sp.why || null,
       // ⛔ THE FOURTH POINT WHITELIST, and it was guarded by nothing until 2026-08-05.
       // `SpotRatingItem` declares 20 fields and this mapper emitted 10 — everything else was

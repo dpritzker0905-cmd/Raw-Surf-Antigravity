@@ -23,6 +23,7 @@ from services.weather_pipeline.cycle_provenance import time_provenance
 from services.weather_pipeline.surf_rating import compute_surf_rating
 
 logger = logging.getLogger(__name__)
+_AUTO_TIDE = object()
 
 # ⚠️ NOT a local `KT_TO_MS = 0.514444`. That is 1/1.943844 truncated, and it made this surface and
 # the sim reach different verdicts at exactly 3.00 kt of wind (`surf_rating.KT_TO_MS`). Read the
@@ -48,12 +49,14 @@ def spot_confidence(accuracy_flag, is_verified_peak) -> str:
     return "medium"
 
 
-def rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal) -> Optional[str]:
+def rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal, *, period_description=None) -> Optional[str]:
     """Compact explainability string. None when there's nothing to rate."""
     if level == "unknown" or surf_h_m is None:
         return None
     parts = [f"~{surf_h_m * 3.281:.1f} ft surf"]
-    if period_s:
+    if period_description:
+        parts.append(period_description)
+    elif period_s:
         parts.append(f"{period_s:.0f}s period")
     if wind_ms is not None:
         kt = wind_ms * SR.MS_TO_KT
@@ -93,7 +96,8 @@ def _persist_inputs(spot_id: str, surf_height_m=None) -> bool:
     return (int(hashlib.md5(spot_id.encode("utf-8")).hexdigest()[:8], 16) % 100) < pct
 
 
-async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None) -> dict:
+async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None, *,
+                        tide_state_override=_AUTO_TIDE) -> dict:
     """Resolve a single spot's marine + wind point and compute its rating. `spot` is a dict with
     id/name/latitude/longitude/accuracy_flag/is_verified_peak (from the DB or Supabase REST). `resolver`
     exposes `async resolve_point(model, domain, layer, lat, lng, valid_time_str)` (the live point sampler).
@@ -165,9 +169,11 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     # Tide (global, lat/lng): the tide level + the spot's best_tide prior → tide_fit factor. Gated RATING_TIDE
     # (default off) so it's opt-in; a tide miss leaves tide_norm None → neutral, never breaks the rating.
     tide_norm = None
-    tide_state = None
+    # Explicit preloaded state lets a grid cell without a best-tide prior avoid
+    # pointless per-cell tide I/O. Existing callers keep automatic resolution.
+    tide_state = None if tide_state_override is _AUTO_TIDE else tide_state_override
     best_tide = spot.get("best_tide")
-    if os.environ.get("RATING_TIDE", "0") == "1":
+    if os.environ.get("RATING_TIDE", "0") == "1" and tide_state_override is _AUTO_TIDE:
         try:
             from services.weather_pipeline.tide import tide_norm_at
             tide_state = await tide_norm_at(lat, lng, valid_time)
@@ -175,6 +181,8 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
                 tide_norm = tide_state.get("norm")
         except Exception as e:
             logger.debug(f"[spot-ratings] tide resolve failed for {spot.get('id')}: {e}")
+    elif os.environ.get("RATING_TIDE", "0") == "1" and tide_state:
+        tide_norm = tide_state.get("norm")
     # Breaker TYPE (Iribarren): bed slope + swell steepness → plunging/spilling/surging quality. Gated
     # RATING_BREAKER_TYPE (default "0"). ⚠️ 2026-08-09 dropped a FALSE "slope asset unbundled" clause — it ships since `fa86fb53`; only the flag + CONTESTED science gate it. Waiver: parity test.
     breaker_xi = None
@@ -190,9 +198,16 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     # no I/O beyond the already-loaded ETOPO shore-normal asset; None simply falls through to the
     # conservative absolute pair. Never let it break the rating.
     break_depth = None
+    break_depth_source = None
     try:
-        from services.weather_pipeline.shore_normal_asset import break_depth_at
-        break_depth = break_depth_at(lat, lng)
+        if (os.environ.get("SURF_BREAK_DEPTH_PLAUSIBILITY", "0") == "1"
+                and isinstance(marine, NormalizedPointResponse) and marine.break_depth_source is not None):
+            # Grade the geometry that produced THIS height, including cached responses.
+            break_depth = marine.break_depth_m
+            break_depth_source = marine.break_depth_source
+        else:
+            from services.weather_pipeline.shore_normal_asset import break_depth_at
+            break_depth = break_depth_at(lat, lng)
     except Exception as e:
         logger.debug(f"[spot-ratings] break-depth resolve failed for {spot.get('id')}: {e}")
     # ⚠️ KEYWORDS, NOT POSITION — this is the REFERENCE implementation, and it was the last surface
@@ -254,9 +269,15 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         _fc = _spread_describe(spread_m, offshore_h)
     except Exception as e:   # a confidence must never break the rating it qualifies
         logger.debug(f"[spot-ratings] forecast spread unavailable for {spot.get('id')}: {e}")
-    why = rating_why(level, surf_h, why_period, wind_ms, wind_from, shore_normal)
+    from services.weather_pipeline.partition_rating import partition_factors
+    mixed_grade = partition_factors(partitions, shore_normal)
+    why = rating_why(level, surf_h, why_period, wind_ms, wind_from, shore_normal,
+                     period_description='mixed-sea periods' if mixed_grade and len(partitions) > 1 else None)
     if why and tide_state and best_tide:
         why += f", {tide_state.get('trend', '')} tide".rstrip()
+    tide_status = ('available' if tide_state else 'unavailable') if os.environ.get('RATING_TIDE', '0') == '1' else None
+    if why and tide_status == 'unavailable' and best_tide:
+        why += ', tide adjustment unavailable'
     # ★ WHAT THE FORECAST WAS ALLOWED TO KNOW (WS-CAN-0062 / WS-OBJ-207). A VERIFIED pin on BLIND
     # geometry rendered `high conf` beside a `why` BYTE-IDENTICAL to a fully-surveyed spot's — live,
     # n=87: EIGHT `why` strings shared across full AND degraded. ⛔ THE FIX IS NOT TO MAKE
@@ -306,12 +327,14 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         "offshore_hs_m": round(offshore_h, 3) if offshore_h is not None else None,
         "primary_swell_hs_m": primary_swell_h,  # raw cached swell_1; unknown stays None
         "tide": tide_state,
+        "tide_status": tide_status,
         "why": why,
         # The binding constraint: which of the nine factors removed the most. See the block above.
         "limiter": _lim,
         "limiter_f": _lim_f,
         # The size/quality contradiction, or ABSENT when there is nothing to say. See block above.
         "directional_conflict": _conflict,
+        **({"break_depth_source": break_depth_source} if break_depth_source is not None else {}),
         # ★ GEOMETRY READINESS, carried from the point response (`point_resolution` stamps it where
         # `surf_height_m` is produced). NOT the same thing as `confidence` above: that grades the
         # PIN (accuracy_flag / is_verified_peak), this grades the INPUTS the forecast ran on. A

@@ -23,6 +23,7 @@ from services.weather_pipeline.route_helpers import (
 from services.weather_pipeline.viewport_service import ViewportService
 from services.weather_pipeline.point_resolution import PointResolutionService
 from services.weather_pipeline.grid_response import GridResponseRoute, own_grid_operation
+from services.weather_pipeline.product_read_bounds import PRODUCT_ID_PATTERN
 
 # P1 per-spot ratings (/spot-ratings): query surf spots + compute the rating at each precise location.
 from sqlalchemy import select, or_
@@ -101,13 +102,10 @@ async def get_grid_series(
     from services.weather_pipeline.grid_series_helper import build_grid_series
     # Same /grid resolver, including the EURO multi-hour viewport fast path. The helper
     # validates/discloses base_time and stops per-hour builds after client disconnect.
-    # Qualified response bounds include queueing, building, encoding and compression.
-    if os.environ.get("GRID_SERIES_RESPONSE_BOUNDS", "0") == "1" and os.environ.get("GRID_RESPONSE_BOUNDS", "0") != "1":
-        from services.weather_pipeline.series_response import serve_series
-        return await serve_series(lambda: build_grid_series(
-            get_grid, viewport_service, model, domain, layer, bbox, hours,
-            request=request, surf=surf, base_time=base_time), hours, request)
-    return await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours, request=request, surf=surf, base_time=base_time)
+    from services.weather_pipeline.grid_response import serve_series_builder
+    return await serve_series_builder(lambda: build_grid_series(
+        get_grid, viewport_service, model, domain, layer, bbox, hours,
+        request=request, surf=surf, base_time=base_time), hours, request)
 
 
 @router.get("/grid", response_model=NormalizedProduct)
@@ -178,14 +176,13 @@ async def get_grid(
 @router.get("/point", response_model=NormalizedPointResponse)
 async def get_point(
     # CONSENSUS (2026-09-29, D-009): the shadow product, so the nearshore judge can grade the exact built product.
-    # It resolves from stored products only (point_resolution.UPSTREAM_MODELS); the frontend never requests it.
     model: str = Query(..., pattern="^(GFS|ICON|EURO|CONSENSUS)$"),
     domain: str = Query(..., pattern="^(marine|wind|weather)$"),
     layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
     lat: float = Query(..., ge=-90, le=90, allow_inf_nan=False, description="Latitude coordinate"),
     lng: float = Query(..., ge=-180, le=180, allow_inf_nan=False, description="Longitude coordinate"),
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),
-    grid_product_id: Optional[str] = Query(None, description="The exact grid product to sample from"),
+    grid_product_id: Optional[str] = Query(None, pattern=PRODUCT_ID_PATTERN, max_length=240, description="The exact grid product to sample from"),
     grid_bbox: Optional[str] = Query(None, description="The client's viewport grid bbox")
 ):
     """
@@ -340,6 +337,7 @@ class SpotRatingItem(BaseModel):
     level: str = "unknown"               # very_poor..epic | unknown
     confidence: str = "low"              # low|medium|high (bathymetry/verification-aware)
     surf_height_m: Optional[float] = None
+    break_depth_source: Optional[str] = None  # provenance of the same depth used for this height/rating
     period_s: Optional[float] = None
     # WS-CAN-0064 batch fields — always-on in the frames for /conditions/batch; declared here or
     # Pydantic silently DROPS them at this boundary (the wire-contract guard caught exactly that).
@@ -347,6 +345,7 @@ class SpotRatingItem(BaseModel):
     offshore_hs_m: Optional[float] = None
     primary_swell_hs_m: Optional[float] = None  # cached swell_1; None means unavailable, not total sea
     tide: Optional[dict] = None          # {height_m, norm 0..1, trend} when RATING_TIDE is on (else None)
+    tide_status: Optional[str] = None  # available | unavailable; None on legacy or unassessed frames
     why: Optional[str] = None            # short human explanation
     # Observation gate (RATING_OBS_GATE): good/epic verdicts require confirmation — >=2-model agreement
     # or a fresh user report (Surfline hybrid; the backend plays the forecaster). None fields when off.

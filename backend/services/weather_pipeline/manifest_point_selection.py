@@ -62,6 +62,8 @@ def point_candidates(manifest, model, domain, layer, target_dt):
         (estimated if getattr(p, "is_estimated", False) else authoritative).append(entry)
     # A STABLE sort, so the first CONTAINING entry below is exactly `min(containing, key=...)`,
     # manifest order included on a full tie — the behaviour of the two loops this replaced.
+    from services.weather_pipeline.estimate_freshness import filter_estimate_pairs
+    authoritative, estimated = filter_estimate_pairs(authoritative, estimated)
     authoritative.sort(key=lambda e: selection_key((e[0], e[1])))
     estimated.sort(key=lambda e: selection_key((e[0], e[1])))
     return authoritative, estimated

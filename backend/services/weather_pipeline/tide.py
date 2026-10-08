@@ -29,6 +29,8 @@ _TIDE_CACHE_MAX = 2000
 _TIDE_FAILURE_COOLDOWN_S = 30.0
 _TIDE_POINT_TIMEOUT_S = 15.0
 _TIDE_BATCH_TIMEOUT_S = 60.0
+_TIDE_MAX_FORECAST_DAYS = 8  # conservative Marine API parameter limit; returned samples remain authoritative
+_TIDE_SAMPLE_DISTANCE_S = 1800.0  # nearest hourly sample covers at most half an hour
 _TIDE_FAILURE_UNTIL = {}
 _TIDE_RATE_LIMIT_UNTIL = 0.0
 _TIDE_LOCKS = {}  # (event loop, rounded cell) -> [lock, active/queued users]; removed after last user
@@ -280,7 +282,8 @@ def tide_trend_at(extrema, at):
 def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dict]:
     """PURE: tide state at ``valid_time`` from an hourly (times, levels) series. Returns
     {height_m, norm (0..1 within the surrounding ±window_h tidal window), trend ('rising'|'falling'|'slack')}
-    or None when the series can't be used. ``valid_time`` is an ISO-8601 UTC string or datetime."""
+    or None without a finite sample within 30 minutes. No endpoint extrapolation.
+    ``valid_time`` is an ISO-8601 UTC string or datetime."""
     if not times or not levels or len(times) != len(levels):
         return None
     req = valid_time if isinstance(valid_time, datetime) else _parse_iso(valid_time)
@@ -288,32 +291,36 @@ def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dic
         return None
     if req.tzinfo is None:
         req = req.replace(tzinfo=timezone.utc)
+    values = [v if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+              else None for v in levels]
     # nearest sample to valid_time
     best_i, best_d = None, None
     parsed = []
     for i, t in enumerate(times):
         dt = _parse_iso(t)
         parsed.append(dt)
-        if dt is None or levels[i] is None:
+        if dt is None or values[i] is None:
             continue
         d = abs((dt - req).total_seconds())
         if best_d is None or d < best_d:
             best_i, best_d = i, d
-    if best_i is None:
+    if best_i is None or best_d > _TIDE_SAMPLE_DISTANCE_S:
         return None
-    height = levels[best_i]
+    height = values[best_i]
     # local min/max over ±window_h (a tidal day) for the normalized position
     lo = hi = height
     for i, dt in enumerate(parsed):
-        if dt is None or levels[i] is None:
+        if dt is None or values[i] is None:
             continue
         if abs((dt - req).total_seconds()) <= window_h * 3600:
-            lo = min(lo, levels[i]); hi = max(hi, levels[i])
+            lo = min(lo, values[i]); hi = max(hi, values[i])
     norm = normalize_tide(height, lo, hi)
     # trend from the neighbouring samples
     trend = "slack"
-    prev_v = next((levels[j] for j in range(best_i - 1, -1, -1) if levels[j] is not None), None)
-    next_v = next((levels[j] for j in range(best_i + 1, len(levels)) if levels[j] is not None), None)
+    def neighbour(j):
+        return (values[j] if 0 <= j < len(values) and parsed[j] is not None
+                and abs((parsed[j] - parsed[best_i]).total_seconds()) <= 3600 else None)
+    prev_v, next_v = neighbour(best_i - 1), neighbour(best_i + 1)
     ref = next_v if next_v is not None else prev_v
     if ref is not None:
         delta = (next_v - height) if next_v is not None else (height - prev_v)
@@ -418,10 +425,25 @@ async def _prewarm_chunk(chunk, client, forecast_days):
         return sum(int(_store_series(k, item, forecast_days, now)) for k, item in zip(chunk, results))
 
 
+def tide_forecast_days(valid_time, now=None) -> Optional[int]:
+    """UTC calendar horizon for the default forecast endpoint, which starts at today's midnight.
+    Keep the three-day minimum; refuse dates before today or beyond the supported eight days."""
+    req = valid_time if isinstance(valid_time, datetime) else _parse_iso(valid_time)
+    if req is None:
+        return None
+    req = req.replace(tzinfo=timezone.utc) if req.tzinfo is None else req.astimezone(timezone.utc)
+    today = datetime.fromtimestamp(time.time() if now is None else now, timezone.utc).date()
+    days = (req.date() - today).days + 1
+    return max(3, days) if 1 <= days <= _TIDE_MAX_FORECAST_DAYS else None
+
+
 async def tide_norm_at(lat, lng, valid_time, client=None) -> Optional[dict]:
     """Convenience: fetch + resolve the tide state at a spot for ``valid_time``. Returns the tide_state_at dict
     ({height_m, norm, trend}) or None. The `norm` feeds surf_rating.tide_fit; the rest is for explainability."""
-    series = await fetch_tide_hourly(lat, lng, client=client)
+    days = tide_forecast_days(valid_time)
+    if days is None:
+        return None
+    series = await fetch_tide_hourly(lat, lng, client=client, forecast_days=days)
     if not series:
         return None
     return tide_state_at(series["time"], series["level"], valid_time)

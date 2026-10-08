@@ -8,6 +8,7 @@ import asyncio
 import gzip
 import json
 import math
+import os
 import time
 from collections import deque
 
@@ -75,10 +76,19 @@ def encode_response(payload, compress):
 
 
 class SeriesAdmission:
-    """Two per-process slots: one page and one reserved visible mini; queue <=4."""
-    def __init__(self):
+    """One page; four I/O minis under grid bounds, otherwise one; joint queue <=4."""
+    def __init__(self, mini_slots=None):
         self.active = {'mini': 0, 'page': 0}
         self.queue = {'mini': deque(), 'page': deque()}
+        self.mini_slots = mini_slots
+        self.cpu_slot = asyncio.Semaphore(1)
+
+    def limit(self, lane):
+        if lane == 'page':
+            return 1
+        if self.mini_slots is not None:
+            return self.mini_slots
+        return 4 if os.environ.get('GRID_RESPONSE_BOUNDS', '0') == '1' else 1
 
     async def acquire(self, lane, request, deadline):
         queue = self.queue[lane]
@@ -88,7 +98,7 @@ class SeriesAdmission:
             raise HTTPException(499, 'Client disconnected')
         # Queue capacity is for waiting work. An idle reserved slot remains usable
         # even when the other lane's queue is full; do not starve a visible frame.
-        if self.active[lane] == 0 and not queue:
+        if self.active[lane] < self.limit(lane) and not queue:
             self.active[lane] += 1
             return
         if sum(map(len, self.queue.values())) >= 4:
@@ -101,7 +111,7 @@ class SeriesAdmission:
                     raise HTTPException(503, 'Series response deadline exceeded', headers={'Retry-After': '1'})
                 if request is not None and await request.is_disconnected():
                     raise HTTPException(499, 'Client disconnected')
-                if queue[0] is ticket and self.active[lane] == 0:
+                if queue[0] is ticket and self.active[lane] < self.limit(lane):
                     queue.popleft()
                     self.active[lane] += 1
                     return

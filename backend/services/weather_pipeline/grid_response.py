@@ -95,6 +95,40 @@ def _finish_response(response, compress):
     return response
 
 
+async def _cpu_work(function, *args):
+    """Bound encoding/compression independently of I/O admission; own running workers."""
+    scope = _SCOPE.get()
+    remaining = scope['deadline'] - time.monotonic()
+    if remaining <= 0:
+        raise _expired()
+    slot = series_response.ADMISSION.cpu_slot
+    try:
+        await asyncio.wait_for(slot.acquire(), remaining)
+    except asyncio.TimeoutError:
+        raise _expired()
+    try:
+        if time.monotonic() >= scope['deadline']:
+            raise _expired()
+        return await asyncio.to_thread(function, *args)
+    finally:
+        slot.release()  # HTTP waiter cancellation never cancels the owned root.
+
+
+async def encode_series_response(payload, request):
+    if _SCOPE.get() is None:
+        return payload  # Direct Python use retains its builder contract.
+    return await _cpu_work(series_response.encode_response, payload, series_response.accepts_gzip(request))
+
+
+async def serve_series_builder(builder, hours, request):
+    """Dispatch the existing builder through the selected, default-off envelope."""
+    if enabled():
+        return await encode_series_response(await builder(), request)
+    if os.environ.get('GRID_SERIES_RESPONSE_BOUNDS', '0') == '1':
+        return await series_response.serve_series(builder, hours, request)
+    return await builder()
+
+
 async def serve_response(builder, request, lane, deadline):
     admission = series_response.ADMISSION  # one process budget, not a second pair of slots
     await admission.acquire(lane, request, deadline)
@@ -115,7 +149,7 @@ async def serve_response(builder, request, lane, deadline):
             response.background = None
             if time.monotonic() >= deadline:
                 raise _expired()
-            response = await asyncio.to_thread(_finish_response, response, series_response.accepts_gzip(request))
+            response = await _cpu_work(_finish_response, response, series_response.accepts_gzip(request))
             if time.monotonic() >= deadline:
                 raise _expired()
             result.set_result(response)

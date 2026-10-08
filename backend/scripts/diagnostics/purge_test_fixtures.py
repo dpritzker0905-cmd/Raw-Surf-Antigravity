@@ -14,11 +14,12 @@ backend_dir = Path(__file__).resolve().parent.parent.parent
 sys.path.append(str(backend_dir))
 
 # Deliberate L2 maintenance tool — designated writer (audit #28 gate in store.py).
-os.environ.setdefault("L2_WRITER", "1")
 
 from services.weather_pipeline.store import ProductStore, _manifest_executor, dump_manifest_for_l2
 
 async def main():
+    # Claim the CLI role only on execution; importing helpers must not promote the host.
+    os.environ.setdefault("L2_WRITER", "1")
     store = ProductStore()
     logger.info(f"Loaded ProductStore with cache_dir: {store.cache_dir}")
     

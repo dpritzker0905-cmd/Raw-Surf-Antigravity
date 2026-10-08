@@ -12,6 +12,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
 import SpotQualityBadge from './SpotQualityBadge';
+import DirectionalConflictNote from './DirectionalConflictNote';
 import { hubSourceLabel, formatWaveDirection } from './spotConditionsFormat';
 import { useSpotReadings } from '../hooks/useSpotReadings';
 import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
@@ -232,10 +233,13 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
   // Compact view for cards
   if (compact) {
-    const waveHeight = strictValues ? conditions?.current?.wave_height_ft : conditions?.current?.wave_height_ft || 0;
+    const waveHeight = strictValues || missingHeightLabelEnabled()
+      ? conditions?.current?.wave_height_ft : conditions?.current?.wave_height_ft || 0;
     const label = conditions?.current ? getConditionsLabel(waveHeight, strictValues) : "No Data";
     
     return (
+      <div className="flex flex-col gap-1">
+        <DirectionalConflictNote conflict={conditions?.current?.directional_conflict} textClass={tPrimary} />
       <div className="flex items-center gap-2">
         <Waves className="w-4 h-4 text-blue-400" />
         <span className={`text-sm ${tPrimary} font-medium`}>
@@ -267,6 +271,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
           </span>
         )}
       </div>
+      </div>
     );
   }
 
@@ -278,6 +283,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
     <div className={`${containerBg} rounded-xl border ${containerBorder} overflow-hidden`} data-testid="spot-conditions">
       {/* Header with current conditions */}
       <div className="p-4">
+        <DirectionalConflictNote conflict={current?.directional_conflict} textClass={tPrimary} />
         <div className="flex items-center justify-between mb-3">
           <h3 className={`font-bold ${tPrimary} flex items-center gap-2`}>
             <Waves className="w-5 h-5 text-blue-400" />
@@ -292,7 +298,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
           <div className="grid grid-cols-2 gap-4">
             {/* Wave Height */}
             <div className={`${cellBg} rounded-lg p-3 text-center`}>
-              <p className={`text-3xl font-bold ${tPrimary}`}>{strictValues && !validHeight(current.wave_height_ft) ? <span className="text-lg">Unavailable</span> : <>{current.wave_height_ft}<span className="text-lg">ft</span></>}</p>
+              <p className={`text-3xl font-bold ${tPrimary}`}>{(strictValues || missingHeightLabelEnabled()) && !validHeight(current.wave_height_ft) ? <span className="text-lg">Unavailable</span> : <>{current.wave_height_ft}<span className="text-lg">ft</span></>}</p>
               <p className={`text-xs ${tSecondary}`}>
                 {/* The breaking transform failed open and the OFFSHORE height stands in: say so. */}
                 {current.surf_regime === 'offshore_estimate' ? 'Offshore height (surf estimate unavailable)' : 'Wave Height'}
@@ -724,8 +730,11 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
 // Helper function
 const validHeight = value => Number.isFinite(value) && value >= 0;
+function missingHeightLabelEnabled() {
+  return !(typeof window !== 'undefined' && window.__RAW_DISABLE_MISSING_HEIGHT_LABEL__ === true);
+}
 function getConditionsLabel(waveHeightFt, strictValues = false) {
-  if (strictValues && !validHeight(waveHeightFt)) return 'Unavailable';
+  if ((strictValues || missingHeightLabelEnabled()) && !validHeight(waveHeightFt)) return 'Unavailable';
   if (waveHeightFt < 1) return "Flat";
   if (waveHeightFt < 2) return "Ankle High";
   if (waveHeightFt < 3) return "Knee High";

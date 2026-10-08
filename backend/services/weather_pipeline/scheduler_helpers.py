@@ -618,6 +618,12 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
             # a native ending shy of its nominal 240h used to truncate the estimate tail ~a day early
             # (see euro_estimate_within_ceiling). run_time lives on the loaded anchor product.
             euro_run_time = getattr(euro_anchor_product, "run_time", None)
+            from services.weather_pipeline.estimate_extension_ceiling import cycle_ceiling_enabled, extension_ceiling
+            use_cycle_ceiling = cycle_ceiling_enabled()
+            verified_ceiling = extension_ceiling(euro_anchor_product, native_limit) if use_cycle_ceiling else None
+            if use_cycle_ceiling and verified_ceiling is None:
+                logger.warning('[Pipeline Scheduler] EURO extension anchor has no valid aware time; skipping.')
+                continue
             for gfs_target_item in gfs_targets:
                 target_time = gfs_target_item.valid_time_start
                 hours_diff = (target_time - anchor_time).total_seconds() / 3600.0
@@ -625,7 +631,9 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
 
                 # gfs_targets is sorted chronologically, so the first target past the run+336h ceiling
                 # ends the run rather than generating unbounded estimates.
-                if not euro_estimate_within_ceiling(target_time, euro_run_time, anchor_time, native_limit):
+                within_ceiling = (verified_ceiling is not None and target_time <= verified_ceiling) if use_cycle_ceiling else (
+                    euro_estimate_within_ceiling(target_time, euro_run_time, anchor_time, native_limit))
+                if not within_ceiling:
                     break
 
                 # Load GFS target product
@@ -700,4 +708,3 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
             
     logger.info(f"[Pipeline Scheduler] EURO Marine Extended Estimate Ingestion job completed. Saved {total_saved} estimated product files.")
     return total_saved > 0
-

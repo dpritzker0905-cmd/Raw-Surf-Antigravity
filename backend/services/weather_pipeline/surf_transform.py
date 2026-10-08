@@ -364,12 +364,24 @@ def _shelf_cf_scale() -> float:
 def _height_exposure_factor(swell_from_deg, shore_normal_deg) -> float:
     """Swell-angle factor for the surf HEIGHT — a softened form of the rating model's
     swell_exposure (energy), since height scales gentler than energy with incidence. Head-on 1.0;
-    the exposure floor (0.10) maps to 0.595. Unknown geometry FAILS OPEN to 1.0 (07-03 lesson)."""
+    the default exposure floor (0.10) maps to 0.595. The dark flux candidate instead
+    projects direct cross-shore energy without that floor. Unknown geometry
+    FAILS OPEN to 1.0 (07-03 lesson)."""
     if not _v3("SURF_V3_EXPOSURE"):
         return 1.0
     if swell_from_deg is None or shore_normal_deg is None:
         return 1.0
-    align = math.cos(math.radians(swell_from_deg - shore_normal_deg))
+    flux = os.environ.get("SURF_EXPOSURE_FLUX", "0") == "1"
+    delta = swell_from_deg - shore_normal_deg
+    if flux and not math.isfinite(delta):
+        return 1.0
+    align = math.cos(math.radians(delta))
+    if flux:
+        # Dark direct-arrival proxy: cross-shore flux is proportional to
+        # H^2 * Cg * cos(angle). Holding Cg fixed gives this height factor.
+        # This is not a ray/refraction/diffraction model; owner validation
+        # is required before activation. Unknown geometry still fails open.
+        return math.sqrt(align) if align > 1e-15 else 0.0
     exposure = _clamp(0.10 + 0.90 * max(0.0, align), 0.0, 1.0)
     if os.environ.get("SURF_EXPOSURE_RECONCILED", "0") == "1": return math.sqrt(exposure)  # noqa: E701 - OFF by default; docs/research/FINDING-2026-08-09-the-dual-floor-reconciliation.md
     return 0.55 + 0.45 * exposure
@@ -551,6 +563,10 @@ def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_w
     the same shape `surf_rating` already accepts. Returns ``(surf_height_m, regime)``, or
     ``(None, 'unknown')`` when no partition is usable so the caller can fall back to the total field.
 
+    Default-off SURF_PARTITION_FLUX uses the same inputs in a split-invariant bulk
+    candidate: aggregate Komar-equivalent flux, then publish one breaking estimate.
+    Single-train calibration is retained; field and activation acceptance remain open.
+
     WHY THIS EXISTS — measured live against production on 2026-07-28:
 
         spot              total Hs / Tp   swell_1 Hs / Tp   windsea Hs / Tp   served -> swell-only
@@ -575,6 +591,10 @@ def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_w
     ⚠️ Each partition carries its own direction, so each gets its own shore-normal exposure factor
     inside `estimate_surf` — a shadowed dominant swell is penalised by exactly its energy share
     rather than by a blended mean bearing."""
+    if os.environ.get("SURF_PARTITION_FLUX", "0") == "1":
+        from services.weather_pipeline.partition_flux import estimate_partition_flux
+        return estimate_partition_flux(partitions, depth_m, coastal, shelf_width_km,
+                                       shore_normal_deg, magnet_factor, break_depth_m, water_level_m)
     if not partitions:
         return None, 'unknown'
     energy = 0.0

@@ -45,6 +45,29 @@ beforeEach(() => {
 
 const GOOD = { rating: 72.4, rating_level: 'good', surf_regime: 'shelf' };
 
+it.each(['light', 'dark', 'beach'].flatMap(theme => [[theme, false], [theme, true]]))(
+  'direction warning reaches the actual drawer in %s (compact=%s)', async (theme, compact) => {
+    mockTheme = theme;
+    mockApi({ ...GOOD, directional_conflict: { reason: 'size_and_quality_disagree_on_swell_exposure' } });
+    render(<SpotConditions spotId="spot-1" spotName="Peniche" compact={compact} />);
+    expect(await screen.findByRole('note', { name: 'Swell direction warning' }))
+      .toHaveTextContent('height estimate may be too high');
+  }
+);
+
+it('names the direct-wave limitation instead of calling it an upper bound', async () => {
+  mockApi({ ...GOOD, directional_conflict: { reason: 'swell_aimed_away' } });
+  render(<SpotConditions spotId="spot-1" spotName="Peniche" />);
+  expect(await screen.findByRole('note', { name: 'Swell direction warning' })).toHaveTextContent('Indirect waves');
+});
+
+it('has no direction warning for an aligned hour', async () => {
+  mockApi(GOOD);
+  render(<SpotConditions spotId="spot-1" spotName="Peniche" />);
+  await screen.findByTestId('spot-quality');
+  expect(screen.queryByRole('note', { name: 'Swell direction warning' })).not.toBeInTheDocument();
+});
+
 it.each(['light', 'dark', 'beach'])('full layout names the quality in words in %s', async (theme) => {
   mockTheme = theme;
   mockApi(GOOD);

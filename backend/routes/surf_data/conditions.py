@@ -34,7 +34,7 @@ CONDITIONS_PREVIEW_TIMEOUT_SECONDS = 3.0
 # is a surface that shows surf HEIGHT, so it must also carry QUALITY: "a size without a quality is
 # also incomplete" (CLAUDE.md, ONE FORECAST COMPOSITION). `surf_regime` + `offshore_height_ft` let the
 # UI mark the rare fail-open where the breaking transform threw and the offshore value stood in.
-_HUB_PASSTHROUGH = ("rating", "rating_level", "rating_confirmed", "surf_regime", "offshore_height_ft",
+_HUB_PASSTHROUGH = ("rating", "rating_level", "rating_confirmed", "surf_regime", "offshore_height_ft", "directional_conflict", "break_depth_source",
                     "wind_speed_kts", "wind_direction",
                     # W-34: where this hour's sea came from (a stored product or the point query). The
                     # drawer printed a hard-coded "Open-Meteo" while the manifest lane served NOAA.

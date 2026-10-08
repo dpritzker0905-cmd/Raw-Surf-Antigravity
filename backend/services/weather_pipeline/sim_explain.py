@@ -90,7 +90,9 @@ def explain(*, surf_h_m: float, tp_s: float, wind_speed_knots: float,
         # The partition branches replicate `rating_score`'s own fallbacks EXACTLY — spectral
         # exposure/cleanliness/dominant-period when trains are supplied, total-field otherwise. Any
         # drift here is what `reconstruction_error` below exists to expose.
-        _ex = SR.effective_swell_exposure(partitions, shore_normal_deg) if partitions else None
+        from services.weather_pipeline.partition_rating import partition_factors
+        mixed = partition_factors(partitions, shore_normal_deg)
+        _ex = mixed[0] if mixed else (SR.effective_swell_exposure(partitions, shore_normal_deg) if partitions else None)
         if _ex is None:
             _ex = SR.swell_exposure(swell_from_deg, shore_normal_deg)
         _ptp = SR.dominant_swell_period(partitions) if partitions else None
@@ -104,10 +106,10 @@ def explain(*, surf_h_m: float, tp_s: float, wind_speed_knots: float,
             "wind_gate": SR.wind_gate(wind_ms, wind_from_deg, shore_normal_deg),
             "oversize_gate": SR.oversize_gate(surf_h_m, reference_size_m,
                                               break_depth_m=break_depth_m),
-            "period_gate": SR.period_gate(_eff_tp),
+            "period_gate": mixed[2] if mixed else SR.period_gate(_eff_tp),
         }
         wq = SR.wind_quality(wind_ms, wind_from_deg, shore_normal_deg)
-        pq = SR.period_quality(_eff_tp)
+        pq = mixed[1] if mixed else SR.period_quality(_eff_tp)
         blend = SR.W_WIND * wq + SR.W_PERIOD * pq
 
         product = 100.0
@@ -150,7 +152,10 @@ def explain(*, surf_h_m: float, tp_s: float, wind_speed_knots: float,
             # Say the rating graded the spectrum, and WHICH period it graded — the blended
             # `period_sec` above is the sea's mean, not what period_gate/quality ran on.
             out["inputs"]["swell_trains"] = len(partitions)
-            out["inputs"]["graded_period_sec"] = round(float(_eff_tp), 1)
+            if mixed:
+                out["inputs"]["period_grading"] = "component_energy_weighted_factors"
+            else:
+                out["inputs"]["graded_period_sec"] = round(float(_eff_tp), 1)
         if engine_score is not None:
             # ⚠️ THE HONESTY CHECK. If this ever fires, the explanation is describing a different
             # composition than the one that produced the score, and saying so is the whole point.

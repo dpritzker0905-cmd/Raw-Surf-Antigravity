@@ -227,7 +227,9 @@ def test_euro_native_capability_matches_normalized_served_grid(
     local_store = store_module.ProductStore(cache_dir=tmp_path)
     monkeypatch.setattr(weather, "store", local_store)
     monkeypatch.setattr(weather.viewport_service, "is_viewport_enabled", lambda *a, **k: False)
-    valid = datetime(2035, 1, 1, 12, tzinfo=timezone.utc)
+    # This guard tests served provenance, not admission of an impossible 2035
+    # forecast. Keep the fixture within the advertised live forecast horizon.
+    valid = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     variables = WeatherNormalizer.LAYER_VARS[layer]
     raw = [{
         "latitude": lat, "longitude": lon, "__provider": fetched_by,

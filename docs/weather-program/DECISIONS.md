@@ -197,3 +197,10 @@ with a single line `Superseded by D-MMM (date)`. The newest entry is at the bott
 - **Rollback:** remove the exact dev branch value and rebuild dev; default-off source restores prior path.
 
 D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved branch override. No UI variable was saved. Use a versioned build command enabling the flag only when CONTEXT=branch-deploy and BRANCH=dev; the authorization scope is unchanged.
+
+### D-017 · A red dev E2E requires a named owner waiver before merge
+
+- **Authority:** owner's 2026-10-08 independent-audit work queue, A8-01 / A-05.
+- **Policy:** do not merge a repair while the dev E2E is red unless the owner explicitly waives that gate for the PR number. A local control, source CI or a documentation approval does not close live E2E acceptance.
+- **Evidence:** run 37717937279 failed at the 40-minute step timeout and retained no GitHub artifacts. The current diagnostic repair retains completed attempts and allowlisted hub request facts without raw browser tracing. The hub failure cause remains open.
+- **Reopen:** owner may supersede this decision explicitly; record the named PR and the acceptance work that remains.

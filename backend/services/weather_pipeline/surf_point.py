@@ -60,6 +60,7 @@ class SurfGeometry(NamedTuple):
     # How far the entry that supplied the bearing actually sits, in km. None unless the asset (or
     # overlay) answered. Trailing + defaulted so no existing construction site has to change.
     shore_normal_match_km: Optional[float] = None
+    break_depth_source: Optional[str] = None  # dark candidate: measured | regional/global_prior | unavailable
 
 
 def _shore_normal_precedence(lat: float, lng: float):
@@ -231,6 +232,13 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
         except Exception:
             pass
 
+    break_depth_source = None
+    if (coastal and os.environ.get("SURF_BREAK_DEPTH_PLAUSIBILITY", "0") == "1"
+            and os.environ.get("SURF_BREAK_DEPTH", "1") != "0"
+            and os.environ.get("SHORE_NORMAL_ASSET", "1") != "0"):
+        from services.weather_pipeline.break_depth_policy import resolve_depth
+        break_depth, break_depth_source = resolve_depth(lat, lng, break_depth)
+
     return SurfGeometry(depth_m=depth, shelf_width_km=width, coastal=coastal,
                         shore_normal_deg=normal, shore_normal_src=src,
                         magnet_factor=magnet, magnet_name=magnet_name,
@@ -238,7 +246,8 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
                         # None unless the ASSET supplied the bearing — a coarse or overridden
                         # bearing has no match distance, and saying "0 km" would claim a precision
                         # that does not exist.
-                        shore_normal_match_km=(match_km if src.startswith("etopo") else None))
+                        shore_normal_match_km=(match_km if src.startswith("etopo") else None),
+                        break_depth_source=break_depth_source)
 
 
 def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
@@ -251,7 +260,8 @@ def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
 
     ``partitions`` (optional list of {h, tp, dir, kind}) makes the estimate SPECTRAL: each swell
     train is transformed on its own period and bearing, then recombined in quadrature
-    (`estimate_surf_partitioned`). This is ONE composition, not a second forecast path — absent or
+    (`estimate_surf_partitioned`). The dark SURF_PARTITION_FLUX candidate instead combines
+    Komar-equivalent flux before breaking. This is ONE composition — absent or
     unusable partitions fall through to the total-field call below, byte-identical to before. Supply
     them wherever the caller already has swell_1 / swell_2 / wind_waves; see the measured
     contamination in `estimate_surf_partitioned`'s docstring."""

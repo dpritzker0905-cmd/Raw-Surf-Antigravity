@@ -17,6 +17,37 @@ beforeEach(() => {
 });
 afterEach(() => { delete process.env.REACT_APP_FORECAST_STATE_IDENTITY; delete process.env.REACT_APP_MARINE_VALUE_VALIDITY; });
 
+test.each(['light', 'dark', 'beach'].flatMap(theme => [true, false].flatMap(compact =>
+  [null, undefined, NaN].map(height => [theme, compact, height]))))(
+  'default %s compact=%s missing=%s cannot claim a size category', async (theme, compact, height) => {
+    mockTheme = theme;
+    process.env.REACT_APP_MARINE_VALUE_VALIDITY = 'false';
+    apiClient.get.mockImplementation(url => Promise.resolve(url.startsWith('/conditions/') ? current(height) : { data: {} }));
+    render(<SpotConditions spotId="spot" compact={compact} />);
+    expect(await screen.findAllByText('Unavailable')).toHaveLength(2);
+    expect(screen.queryByText('Flat')).toBeNull();
+    expect(screen.queryByText('Triple Overhead+')).toBeNull();
+  }
+);
+
+test.each([true, false])('default compact=%s measured zero remains Flat', async compact => {
+  process.env.REACT_APP_MARINE_VALUE_VALIDITY = 'false';
+  apiClient.get.mockImplementation(url => Promise.resolve(url.startsWith('/conditions/') ? current(0) : { data: {} }));
+  render(<SpotConditions spotId="spot" compact={compact} />);
+  expect(await screen.findAllByText('Flat')).toHaveLength(compact ? 2 : 1);
+  expect(screen.queryByText('Unavailable')).toBeNull();
+});
+
+test('the missing-label kill switch reproduces the old compact Flat positive control', async () => {
+  process.env.REACT_APP_MARINE_VALUE_VALIDITY = 'false';
+  window.__RAW_DISABLE_MISSING_HEIGHT_LABEL__ = true;
+  apiClient.get.mockImplementation(url => Promise.resolve(url.startsWith('/conditions/') ? current(null) : { data: {} }));
+  try {
+    render(<SpotConditions spotId="spot" compact />);
+    expect(await screen.findAllByText('Flat')).toHaveLength(2);
+  } finally { delete window.__RAW_DISABLE_MISSING_HEIGHT_LABEL__; }
+});
+
 test.each(['light', 'dark', 'beach'])('daily %s rows name their actual UTC calendar date, not array position', async theme => {
   mockTheme = theme;
   const now = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-04T12:00:00Z'));

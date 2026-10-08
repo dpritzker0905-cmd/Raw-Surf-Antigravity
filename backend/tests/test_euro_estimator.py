@@ -129,7 +129,10 @@ def test_grid_estimate_end_to_end(isolated_store, monkeypatch):
             coverage_mode="regional_tile"
         )
 
-    t0 = datetime(2035, 6, 4, 12, 0, 0, tzinfo=timezone.utc)
+    # Stored-tail selection: outside EURO's live native viewport window (240h),
+    # inside its advertised native+estimated horizon (336h). The old 2035 stamp
+    # also disabled native fallback, but is now an impossible forecast request.
+    t0 = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) + timedelta(hours=288)
     # Set t1 to t0 + 6 hours so that the authoritative anchor (t0) is >3 hours away 
     # from the target valid time (t1) and won't get matched as a candidate.
     t1 = t0 + timedelta(hours=6)
@@ -210,8 +213,17 @@ def test_grid_estimate_end_to_end(isolated_store, monkeypatch):
     assert point_json["product_id"] == filename
     assert abs(point_json["point"]["speed"] - 2.15) < 0.01
 
-def test_route_selection_prioritization(isolated_store):
-    t0 = datetime(2035, 6, 4, 12, 0, 0, tzinfo=timezone.utc)
+def test_route_selection_prioritization(isolated_store, monkeypatch):
+    # The contract here is manifest priority, estimate fallback and no stored
+    # coverage. An unrelated provider fixture must not supply the final miss.
+    from routes import weather
+    async def no_upstream_point(*args, **kwargs):
+        return None
+    # Patch the class: restoring an instance-bound method would leave an instance
+    # shadow that prevents subsequent provider fixtures from patching the class.
+    monkeypatch.setattr(type(weather.point_resolution_service.provider), 'fetch_point', no_upstream_point)
+    # Preserve the stored-tail lane rather than activating native viewport fallback.
+    t0 = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) + timedelta(hours=288)
     t0_str = t0.strftime("%Y-%m-%dT%H:%M:%SZ")
     bounds = CoverageBounds(west=-85.0, south=24.0, east=-79.0, north=31.0)
     

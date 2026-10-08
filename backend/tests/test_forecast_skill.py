@@ -386,7 +386,7 @@ def test_the_cap_holds_headroom_over_the_documented_production_demand(monkeypatc
     # ours + compares (ICON, EURO, CONSENSUS, GFS_RAW, GFS_SCALAR) + Open-Meteo marine + its same-model control
     # + persistence
     lanes = 1 + len(compare_models("GFS")) + 1 + 1 + 1
-    buoys, runs_per_day = 60, 12                      # NDBC map size; forecast-ingest 6 + precompute 6
+    buoys, runs_per_day = 60, 20                      # measured 15–20 production passes/day
     demand = buoys * lanes * runs_per_day * sum(h // 24 for h in LEADS_H)
     assert PENDING_MAX_ENTRIES >= demand * 1.3, (
         f"PENDING_MAX_ENTRIES={PENDING_MAX_ENTRIES} has <30% headroom over steady-state demand "

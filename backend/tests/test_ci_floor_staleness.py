@@ -458,9 +458,17 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Regular direct-point honesty adds99 guards; paired floor2518/reference2524, margin6.
 # EURO donor labels +17 guards and health listing +20 chain, paired six-test margins.
 # Payment caller binding: four estate files add 73 executed tests; projected 1341, margin 2.
+# A8 adds13 guards and55 chain cases; IN03 adds9 estate cases; #265 adds105 estate.
+# IN04/IN06: two new files add33 cases; behavioral merge control adds1, projected2505.
+# Correction: merge control is guards; hosted9f15 guards2555 and estate1455.
+# Nine HTTP controls project2564 guards;33 IN04/IN06 plus4 role controls project2508 chain.
+# WS04: eleven existing-file controls project2575 guards; chain/estate unchanged.
+# WS01/SV08: 49 request controls project2624 guards across190files; margin6 retained.
 # Actor-route binding: two estate files add 105 executed tests on hosted 1341; projected 1446.
 # Live-session escrow: an 18-test estate file replaces a 2-test one on hosted 1446; projected 1462.
-_FLOOR_SET_FROM = {"guards": 2541, "chain": 2416, "estate": 1462}
+# Merged #266 +16 on branch1457 ->1473; preserve the estate two-test margin.
+# PJ01 +28 executed guards controls; hosted qualification still required.
+_FLOOR_SET_FROM = {"guards": 2810, "chain": 2508, "estate": 1473}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

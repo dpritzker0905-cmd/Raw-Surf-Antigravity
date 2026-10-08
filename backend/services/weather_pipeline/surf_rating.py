@@ -593,13 +593,15 @@ def rating_factors(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_norm
     ★ `limiter` is argmin(factors): in a product, the smallest term is the one that removed the most.
       That single name is the attribution the payload was missing.
 
-    Pure: no I/O, no env reads. Callers decide what to publish.
+    No I/O. Dark partition grading uses the same scalar factor functions.
     """
     sg = size_score(surf_h_m, reference_size_m)
     if sg <= 0.0:
         return {"score": 0.0, "factors": {"size_gate": 0.0}, "limiter": "size_gate",
                 "limiter_value": 0.0}
-    ex = effective_swell_exposure(partitions, shore_normal_deg) if partitions else None
+    from services.weather_pipeline.partition_rating import partition_factors
+    mixed = partition_factors(partitions, shore_normal_deg)
+    ex = mixed[0] if mixed else (effective_swell_exposure(partitions, shore_normal_deg) if partitions else None)
     if ex is None:
         ex = swell_exposure(swell_from_deg, shore_normal_deg)
     if ex <= 0.0:
@@ -610,7 +612,7 @@ def rating_factors(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_norm
     bt = breaker_type_quality(breaker_xi)
     wq = wind_quality(wind_speed_ms, wind_from_deg, shore_normal_deg)
     ptp = dominant_swell_period(partitions) if partitions else None
-    pq = period_quality(ptp if ptp is not None else tp_s)
+    pq = mixed[1] if mixed else period_quality(ptp if ptp is not None else tp_s)
     # `wg` MULTIPLIES so a blown-out onshore day cannot be floored up by period (see wind_gate).
     wg = wind_gate(wind_speed_ms, wind_from_deg, shore_normal_deg)
     # `og` MULTIPLIES for the mirror-image reason: `size_score` saturates at 1.0 and has no descending
@@ -618,7 +620,7 @@ def rating_factors(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_norm
     og = oversize_gate(surf_h_m, reference_size_m, break_depth_m=break_depth_m)
     # `pg` MULTIPLIES for the third time on the same reasoning: an additive period term with a 0.40
     # floor let 2-second ripples score 76 "good" on light wind alone (see period_gate).
-    pg = period_gate(ptp if ptp is not None else tp_s)
+    pg = mixed[2] if mixed else period_gate(ptp if ptp is not None else tp_s)
     blend = W_WIND * wq + W_PERIOD * pq
     score = 100.0 * sg * ex * sc * tf * bt * wg * og * pg * blend
     # ⛔⛔ NaN MUST NOT REACH THE BUCKETS, AND THE FAILURE DIRECTION IS WHY.

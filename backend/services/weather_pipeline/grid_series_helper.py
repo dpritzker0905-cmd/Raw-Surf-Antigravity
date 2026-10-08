@@ -17,6 +17,8 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException
 from starlette.background import BackgroundTasks
+from services.weather_pipeline.grid_request_validation import validated_series_hours
+from services.weather_pipeline.route_helpers import parse_bbox
 from services.weather_pipeline.series_source_policy import (
     has_stored_series_coverage, live_lane_cannot_beat_stored, recover_missing_hours)
 
@@ -295,17 +297,12 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
         except Exception:
             return False
 
-    try:
-        hour_list = sorted({int(h) for h in hours.split(",") if h.strip() != ""})[:MAX_FRAMES]
-    except ValueError:
-        raise HTTPException(status_code=400, detail="hours must be comma-separated integers")
-    if not hour_list:
-        raise HTTPException(status_code=400, detail="no valid hours provided")
-
     # F-01 (audit 14.0): the anchor now arrives resolved from build_grid_series, which reconciles
     # the client's rounded hour with this box's floored one. The `or` keeps every direct caller of
     # this private impl (tests, any future internal path) on the historic floor behaviour.
     base = base_anchor or datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    parse_bbox(bbox)
+    hour_list = validated_series_hours(model, domain, layer, hours, base, MAX_FRAMES)
 
     # EURO/Copernicus fast path: one full-range fetch + slice all hours (the generic per-hour
     # loop below hangs for EURO — each hour is a separate ±3h CMEMS download). Additive +

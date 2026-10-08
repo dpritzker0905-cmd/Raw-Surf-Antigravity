@@ -161,3 +161,66 @@ Readback: Every localmemory/ledgerprefix/LOC/lint/diff/stageddiff gateexit0; fix
 Actualinitial4179 normalpush/draftPR262dev createdandattached,clean/remotematch/base3d/openmergeable. Publicationreceipt960 carriesactualprior261post949-956 and own957-959 sourceevidence; finalcandidate willqualifyitsownchecks. Original860/datawarnings/E2E/Gulf/device/isolation/playback unchanged. Ownconditionalrolloutpending957.
 
 Readback: Freshgh PR262exacthead/base/state and remote/local/clean assertionspass, pr262-initial-publication.json. InitialownCI37716479043,LOC37716478969,Ledger37716478944,Lighthouse37716479097 started/queued; no earlierPR counters reused. pendingfinalhead ownCI/counters/preview and actualconditionalrollout.
+
+
+## 2026-10-08 02:27Z — #262
+
+PR262 merged2026-10-08T02:27:10Z asb02f43f8dd6b8c1453c6f0fca2387a6c839f876e; exactqualified9602a1c0cce2f414fcc0dd9692926846ffc26e54, all11 ownCI/actual6225backend4177frontend/LOC/Ledger/Lighthouse/preview. Fullmergedtreeequal and devancestryintegrated beforepostreceipts. Canonical960 carries949-956 actual261receipts and957-960 newsourcecommitment/evidence. Source rolloutpending957; original860 earliest2026-10-08T02:47:10+00:00 plusquiet/source/healthy/focus/stablepausedprerequisites. No main/scienceflags/sharedproduct mutation.
+
+Readback: FreshactualghPRstate/head/merge,origin/dev andfulltree assertions; strictvalidate262 andeachlocalgateexit0 preceded exact-headmatch squashmerge. Completed ownsourcearchivepr262-final-head-20261008T022533.json; no oldheadcounters reused.
+
+
+## 2026-10-08 02:27Z — PR262 own source qualification and bounded repair completion
+
+Source scopes WI03healthamplification952 and EUROdonorlabels953 repaired and ownexactsourcequalified. Processshared30s success/error/unavailable listingcache/singleflight withfreshness/firstpagescope; currentdisk/restore remainsuncached. Actualexistingfallbackrequest donors labelled honestly; legacy partitioneligibility method retained plusactualsource_method. Physical/sample/cycle/donorselection/horizon/flags unchanged. Only source/availability followup957 rolloutpending; WI03 cyclecohort/oldslots and860/performance/playback/Gulf/device/isolation independent.
+
+Readback: OwnCI37716543508 all11:2541guards+2416chain+1268estate=6225; frontend377suites4177tests. Actualcollected2608/188guards with66skip1xfail;2416/160chain0skip;estate300selected298produced1268pass2865skip0silent. LOC/Ledger/Lighthouse/preview successful;Encoding absent byunchangedfrontendfilter. Offline37 finalcontrolsimmutable3d32fail5pass;candidate255focused;50floorpass7platformskips. Actual36reads/version:36old→8candidate listingattempts across8scenarios, concurrentone/error/expiry/unknown cases.3168calls720Jacob0, tighterselectedtime/cyclecomparisonpassed02:13; source review hasno unresolvedfinding. Setup/hash/stage/nonexistentpath failures correctedbeforepublication andretained.
+
+
+## 2026-10-08 02:27Z — PR262 superseded own CI cleanup completed
+
+Onlyowninitial4179 CI37716479043 and Lighthouse37716479097 canceled afterfinal9602 head/workflow/source checks; actualbothcompletedcancelled. CurrentownfinalCI independentlyqualifies. Existingforecastingest/E2E/precompute/Nightly hadno manualdispatch/rerun/cancel.
+
+Readback: pr262-superseded-cleanup.json preserves request/inprogressreadback; pr262-superseded-complete.json confirmsactualcompletedcancelled oninitial4179 only. No productacceptance from workflowcleanup.
+
+
+## 2026-10-08 02:28Z — 860 post-PR262 prerequisites and independent acceptance refreshed
+
+Original860 remainsopen/overdue: earliest2026-10-08T02:47:10+00:00,matchingdeployedsource/healthyAPI/quiet/focusedstablePAUSED prerequisites allrequired. First02:27rolloutreadback stillold3d; no sceneforced. Actualforecastwork[('E2E Tests', 37717937279, 'in_progress', ''), ('Precompute Spot Ratings (decoupled)', 37717937273, 'in_progress', ''), ('E2E Tests', 37714707766, 'completed', 'cancelled')]; core37710415890 completed/success; prior3dE2E37714707766 completed/cancelled. LatestrecordedNightly[{'conclusion': 'failure', 'createdAt': '2026-10-07T13:45:26Z', 'databaseId': 37631047631, 'headSha': '4fe944205a5716aa3114dfa47a79e1ee32e69cc6', 'status': 'completed'}]. No manualforecastjobmutation or productacceptancefromownCI.
+
+Readback: pr262-acceptance-readback.json actualfreshgh metadata/jobs; pr262-deployment-20261008T022738.json old3dhealthy/complete13301/zeroerrors/two conflictingmarinecyclewarnings. Datahealth/servedtime/playback/Gulf/device/isolation/Nightly independent; priorold E2Efailures notcausally attributed tocache/source repairs.
+
+
+## 2026-10-08 02:32Z — PR262 matching dev deployment and health cache receipt
+
+Ownsourcequalification/availability957 fulfilled atbounded scope: frontend/APIb02f43f8dd6b8c1453c6f0fca2387a6c839f876e matchinghealthy, restorationcomplete13301/13301,zeroerrors. Newpubliclisting statusok/first_page/TTL30/age/checked_at visible; oneboundedrepeat reuseschecked_at/status/count withcachedtrue. Datahealthwarn,alerts['ICON/marine: model cycle unverified: conflicting', 'EURO/marine: model cycle unverified: conflicting']; independentoldslot/cycle/live/playback/Gulf/device/isolationacceptance remainsopen. No manualhostingtrigger/env/scienceflag/sharedproductmutation.
+
+Readback: Actualpr262-deployment-20261008T023219.json source/HTTP/readiness/cacheassertionspassed; timestamps2026-10-08T02:32:16.848308+00:00 through2026-10-08T02:32:19.351289+00:00. Ownfinal9602 CI37716543508 all11 actual6225backend4177frontend/LOC/Ledger/Lighthouse/preview andstrictsource/prefix/localgates preceded exact-headqualifiedmerge. Offline3168calls720Jacob0 and36old→8candidate diagnosticattempts. Publiclistingfirstpagecount isnotregistry total; no live429 causal or donorprovideraccuracyclaim.
+
+
+## 2026-10-08 02:32Z — PR262 completed repair and rollout receipts prepared for publication
+
+Bothbounded WI03 repairs complete at ownqualifiedsource/availabilityscope; actual957 fulfillment/cacheexecution and original860/currentforecastwork blockers retained. Canonicaldev ledger960 byteprefix andactualdevancestry preserved; newestpostmerge receiptsproposed. OnlyownedACTION/STATE/sessionlog differfromdev; normalpush/finalreadbackpending. CarryreceiptswithnextjustifiedsourcePR, no docs-onlymergechain.
+
+Readback: Actualown9602 finalCI all11/6225backend4177frontend,strictcurrentbase/head/cleanremote/sourcehash/prefix/localgates,exactmergedtree and matchinghealthyrollout/newlistingcachereadback verified. No broaderacceptanceclosure/no main/scienceflags/shareddata/forecastload mutation.
+
+
+## 2026-10-08 02:47Z — Remaining WI03 marine-cycle audit: genuine mixed donor cycles
+
+02:39 healthy deployed b02 API/restoration complete13301; datahealth stillwarn ICON/EURO marine conflicting. At02:41 cached publicregistry independently matches all479 selected conflicting estimate contributor identities and UTC cycles:348ICON/131EURO, native12Z versus GFS18Z on2026-10-07. Preserve shared-contributor uncertainty and warnings; no source defect or justified physical-value/cycle-selection repair shown. Stored donor-grid bytes not independently read: no Storage credentials in checkout/environment. WI03 investigation complete at registry scope; data-health/byte-level acceptance remainsopen. Initial offline raw-string comparison mislabeled Z/+00:00 equivalence; corrected timezone-aware comparison preserves original receipt and distinguishes12Z/18Z. No application/hosting/science/shared-product mutations, no new task or reopening253. Previous262 publication actuallycompleted atbbd7643; canonicaldev960, proposed961-966 preserved;957 fulfilled in execution965.
+
+Readback: registry-20261008T023950.json; conflicting-cohorts-20261008T024141.json retained; conflicting-cohorts-corrected.json contains479confirmed identities/cycles and equivalent/different UTC controls. Existing prior262 physical/Jacobian qualification unchanged; no fresh physical-accuracy claim. Current completed76 E2E categorical log assessment does not identify a precise assertion cause; no E2E rerun.
+
+
+## 2026-10-08 02:50Z — Commitment860 remaining check: quiet prerequisite blocked; prepared Waves off
+
+Existing860 retained open/overdue. Elapsed20minutes met;02:48 matching healthy dev/APIb02 complete13301restore zeroerrors. Human confirms otherforecast activitystopped and prepares oneownedChrome diagnostic tab; DOM GFS/none and rasterOFF verified twice, Waves neverenabled. Concurrentforecast jobs [('E2E Tests', 37717937279), ('Precompute Spot Ratings (decoupled)', 37717937273)]. Contract forbids probe under these loads, so no scene/capture/Play/scrub/stress or GPU-frame verdict. Browser readonlyDOM evaluator cannot certifydocument.hasFocus; actualfocus/viewport remainsunverified. Preparedtab handedoff Wavesoff; no unownedtabclosed. Current metadata-onlyposthealth healthy; two realmixedcycle warningsretained. Naturalb02SimParity37719305061 success48GFS comparisons,zero score/level differences,hourunverified0,33full/15degradedgeometry; thisdoesnotfulfill860 or broaderlive/scientific acceptance. No newreplacementtask, forecastworkflowdispatch/rerun/cancel or source/hostingmutation.
+
+Readback: remaining-live-prerequisites.json; pr262-deployment-20261008T024854.json; parity37719305061/parity.json. Original860 acceptance remainspending exactquiet/visiblefocused/stableviewport scalarcapture, cleanup andposthealth. No failure-prone helper input or diagnostic writes were forced.
+
+
+## 2026-10-08 02:51Z — Remaining findings and live prerequisites receipts publication
+
+Owner requested the last remaining items. Proposed967 confirms genuine mixed cycles at registry scope;968 records actual860 concurrent-load/focus prerequisites, preparedWavesOFF tab and natural parity receipt. Canonicaldev960 and proposed961-966 retained; no replacementtask or sourcefix without counterexample. Only ownedACTION/STATE/sessionlog will be committed and pushed normally; no newdocs-onlymerge/deployment. Publication pending actual cleanlocal/remote/prefix readback in remaining-publication.json.
+
+Readback: conflicting-cohorts-corrected.json and remaining-live-prerequisites.json validated. Pending: standalone memory/ledger/diff gates, normal commit/push, exact remote readback. Local CLI rejected invalid audit kind before any append; corrected to supported finding and appended967 once.

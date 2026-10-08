@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from services.weather_pipeline.l2_retry import label_l2_read_failures
 from services.weather_pipeline.store import ProductStore
 from services.weather_pipeline.dynamic_index import DynamicProductIndex
+from services.weather_pipeline.dynamic_index_reads import dynamic_index_read_scope
 from services.weather_pipeline.sampler import PointSampler
 from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
 from services.weather_pipeline.schemas import (
@@ -729,5 +730,6 @@ class PointResolutionService:
         that has an id should pass it, or the hub and the glyphs grade the same spot differently.
         """
         from services.weather_pipeline.spot_conditions import resolve_spot_conditions_impl
-        return await resolve_spot_conditions_impl(self, model, lat, lng, forecast_days,
-                                                  spot_id=spot_id)
+        with dynamic_index_read_scope():
+            return await resolve_spot_conditions_impl(self, model, lat, lng, forecast_days,
+                                                      spot_id=spot_id)

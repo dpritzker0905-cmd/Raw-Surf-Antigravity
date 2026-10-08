@@ -323,3 +323,74 @@ def test_ratings_lane_future_frames_clamp_to_zero_age(monkeypatch):
     rep = compute_data_health(_Store(_all_healthy()), now=NOW)
     lane = rep["lanes"]["ratings/precomputed"]
     assert lane["verdict"] == "ok" and lane["age_h"] == 0.0
+
+
+def _mixed_estimate(native_age=12, donor_age=6):
+    from tests.test_estimator_cycle_provenance import donors, estimate
+    contributors = donors()
+    for role, product in contributors.items():
+        product.model_run_time = NOW - timedelta(hours=native_age if role == 'native_anchor' else donor_age)
+    result = estimate(contributors)  # The real estimator emits the legacy conflicting label.
+    p = _p('EURO', 'marine')
+    p.is_estimated = True
+    p.model_run_time, p.model_run_time_status = result.model_run_time, result.model_run_time_status
+    p.estimate_basis = result.estimate_basis
+    return p
+
+
+def _mixed_health(estimated, native_age=12):
+    products = _all_healthy()
+    native = next(p for p in products if p.model == 'EURO' and p.domain == 'marine')
+    native.model_run_time = NOW - timedelta(hours=native_age)
+    products.append(estimated)
+    return compute_data_health(_Store(products), now=NOW)['lanes']['EURO/marine']
+
+
+def test_verified_six_hour_mixed_cycles_are_healthy_and_exposed():
+    p = _mixed_estimate()
+    before = p.model_dump_json()
+    lane = _mixed_health(p)
+    assert lane['verdict'] == 'ok'
+    assert lane['model_cycle_status'] == 'mixed'
+    assert lane['native_model_cycle_age_h'] == 12
+    assert lane['estimate_cycles'][0]['cycle_skew_h'] == 6
+    assert lane['estimate_cycles'][0]['anchor_cycle'] == (NOW - timedelta(hours=12)).isoformat()
+    assert set(lane['estimate_cycles'][0]['donor_cycles']) == {'gfs_anchor', 'gfs_target'}
+    assert p.model_dump_json() == before
+
+
+@pytest.mark.parametrize('native_age,donor_age,expected', [(31, 25, 'critical'), (31, 19, 'warn'),
+                                                       (43, 6, 'critical'), (12, 0, 'ok'),
+                                                       (18, 0, 'warn'), (6, 12, 'warn')])
+def test_mixed_cycles_do_not_hide_stale_donors_anchors_or_excess_skew(native_age, donor_age, expected):
+    assert _mixed_health(_mixed_estimate(native_age, donor_age), native_age)['verdict'] == expected
+
+
+@pytest.mark.parametrize('damage', ['missing', 'different_gfs_cycles', 'old_anchor', 'wrong_model', 'future'])
+def test_mixed_cycle_damage_remains_warn(damage):
+    p = _mixed_estimate()
+    sources = {s['role']: s for s in p.estimate_basis['cycle_sources']}
+    if damage == 'missing':
+        sources['gfs_target']['model_run_time'] = None
+    elif damage == 'different_gfs_cycles':
+        sources['gfs_target']['model_run_time'] = (NOW - timedelta(hours=3)).isoformat()
+    elif damage == 'wrong_model':
+        sources['native_anchor']['model'] = 'GFS'
+    elif damage == 'future':
+        sources['gfs_target']['model_run_time'] = (NOW + timedelta(hours=1)).isoformat()
+    lane = _mixed_health(p, native_age=6 if damage == 'old_anchor' else 12)
+    assert lane['verdict'] == 'warn'
+
+
+def test_mixed_cycles_allow_real_horizon_warning_to_change_overall_verdict():
+    p = _mixed_estimate()
+    products = _all_healthy()
+    native = next(p for p in products if p.model == 'EURO' and p.domain == 'marine')
+    native.model_run_time = NOW - timedelta(hours=12)
+    products.append(p)
+    healthy = compute_data_health(_Store(products), now=NOW)
+    assert healthy['status'] == 'ok'
+    p.valid_time_end = native.valid_time_end = NOW + timedelta(hours=20)
+    collapsed = compute_data_health(_Store(products), now=NOW)
+    assert collapsed['status'] == 'warn'
+    assert any('horizon only 20.0h' in a for a in collapsed['alerts'])

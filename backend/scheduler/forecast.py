@@ -13,6 +13,8 @@ def ingest_marine_forecast_task():
     we must run it in a dedicated event loop or using asyncio.run.
     """
     logger.info("[Scheduler] Executing ingest_marine_forecast_task...")
+    outcomes = {'completed_jobs': [], 'failed_jobs': []}
+    loop = None
     try:
         # Run async function in a new loop
         loop = asyncio.new_event_loop()
@@ -24,6 +26,7 @@ def ingest_marine_forecast_task():
                 logger.info("[Scheduler] Starting legacy wind ingestion...")
                 await ingest_global_model('wind')
             except Exception as e:
+                outcomes['failed_jobs'].append('Legacy wind')
                 logger.error(f"[Scheduler] Legacy wind ingestion failed: {e}", exc_info=True)
 
             gc.collect()
@@ -33,6 +36,7 @@ def ingest_marine_forecast_task():
                 logger.info("[Scheduler] Starting legacy marine ingestion...")
                 await ingest_global_model('marine')
             except Exception as e:
+                outcomes['failed_jobs'].append('Legacy marine')
                 logger.error(f"[Scheduler] Legacy marine ingestion failed: {e}", exc_info=True)
 
             gc.collect()
@@ -239,9 +243,19 @@ def ingest_marine_forecast_task():
                 await asyncio.sleep(_stagger)
                 logger.info(f"[Scheduler] Starting scheduled job: {name}")
                 try:
-                    await job_func()
+                    result = await job_func()
+                    # Extension/pilot jobs may intentionally skip behind their kill switches.
+                    required = {name for name, _ in core_jobs[:3]} | {
+                        'GFS Marine Global', 'EURO Marine Global', 'ICON Marine Global',
+                        'GFS Pressure Global', 'ICON Pressure Global', 'EURO Pressure Global'}
+                    if result is False and name in required:
+                        outcomes['failed_jobs'].append(name)
+                        logger.error("[Scheduler] Required job '%s' produced no products", name)
+                    else:
+                        outcomes['completed_jobs'].append(name)
                     logger.info(f"[Scheduler] Completed scheduled job: {name}")
                 except Exception as e:
+                    outcomes['failed_jobs'].append(name)
                     logger.error(f"[Scheduler] Job '{name}' failed with error: {e}", exc_info=True)
                 gc.collect()
 
@@ -260,7 +274,11 @@ def ingest_marine_forecast_task():
             gc.collect()
 
         loop.run_until_complete(run_jobs())
-        loop.close()
-        logger.info("[Scheduler] Successfully completed forecast ingestion.")
+        logger.info("[Scheduler] Forecast ingestion finished: %s", outcomes)
     except Exception as e:
+        outcomes['failed_jobs'].append('scheduler')
         logger.error(f"[Scheduler] Failed to ingest forecast: {e}", exc_info=True)
+    finally:
+        if loop is not None:
+            loop.close()
+    return outcomes

@@ -44,7 +44,18 @@ def _frame_provenance(product) -> dict:
         value = cycle[key]
         if hasattr(value, "isoformat"):
             cycle[key] = value.isoformat()
+    # Preserve the resolver's degraded-answer receipt without aliasing cached warnings.
+    fallback = {}
+    warnings = getattr(product, "warnings", None)
+    if warnings:
+        fallback["warnings"] = list(warnings)
+    reason = getattr(product, "fallbackReason", None)
+    if reason is not None:
+        fallback["fallbackReason"] = reason
+    if getattr(product, "partial_coverage", False):
+        fallback["partial_coverage"] = True
     return {
+        **fallback,
         **cycle,
         "run_time": rt.strftime("%Y-%m-%dT%H:%M:%SZ") if hasattr(rt, "strftime") else rt,
         "upstream_provider": getattr(product, "upstream_provider", None),

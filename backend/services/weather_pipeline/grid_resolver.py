@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 
 from services.weather_pipeline.schemas import NormalizedProduct
 from services.weather_pipeline.l2_retry import label_l2_read_failures
+from services.weather_pipeline.grid_request_validation import validate_grid_time
 from services.weather_pipeline.route_helpers import (
     parse_valid_time, parse_bbox, filter_grid_to_bbox,
     make_unsupported_icon_swell2_grid_response, make_no_coverage_grid_response,
@@ -148,6 +149,8 @@ async def resolve_grid(
     # Immediate rejection for unsupported layer
     if model.upper() == "ICON" and layer.lower() == "swell_2":
         return make_unsupported_icon_swell2_grid_response(domain, target_dt)
+
+    validate_grid_time(model, domain, layer, target_dt)
 
     # Parse bounding box values if provided
     req_w, req_s, req_e, req_n = None, None, None, None
@@ -584,6 +587,13 @@ async def resolve_grid(
                                 overlap_candidates.append((p, 1.0, diff))
 
                 overlap_manifest_item = None
+                if overlap_candidates:
+                    from services.weather_pipeline.estimate_freshness import enabled, filter_estimate_pairs
+                    if enabled():
+                        auth = [pair for pair in overlap_candidates if not pair[0].is_estimated]
+                        estimates = [pair for pair in overlap_candidates if pair[0].is_estimated]
+                        auth, estimates = filter_estimate_pairs(auth, estimates)
+                        overlap_candidates = auth + estimates
                 if overlap_candidates:
                     # Rank by: area (descending), time difference (ascending), authoritative first (is_estimated = False first)
                     overlap_candidates.sort(

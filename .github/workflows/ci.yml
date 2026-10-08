@@ -129,7 +129,7 @@ jobs:
             // Truth cadence/lifecycle adds1suite13tests; exact-source hosted qualification required.
             // Whole-callback/mask CPU timing: +2 suites/31 controls; own hosted confirmation required.
             // Minimum-span and active-zone cache: +22 public engine/painter controls; own hosted required.
-            const MIN_SUITES = 377, MIN_TESTS = 4177;
+            const MIN_SUITES = 377, MIN_TESTS = 4191;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -820,7 +820,23 @@ jobs:
           # WI06: staged selector owns32 bounded wave-cycle retry controls; projected2425/186files, margin6.
           # Regular direct-point honesty adds99 executed controls; projected2524/187files, margin6.
           # EURO donor labels add17 guards; projected2541/188files, six-test margin.
-          MIN_FILES, MIN_PASSED = 188, 2535
+          # A8 health dependency controls: tracked guards adds13 cases to observed2541.
+          # Projected2554; preserve six-test margin, hosted confirmation pending.
+          # Correction: the +1 behavioral merge control belongs to guards, not chain.
+          # Hosted9f15 collected2555 pass-or-fail guards; nine new HTTP controls project2564.
+          # Tracked selector owns189 guards files; preserve margin6 pending exact-head CI.
+          # WS04: eleven fallback-receipt/HTTP/Jacobian controls in the existing guards file.
+          # Projected2575 passes across189files; preserve margin6 pending exact-head CI.
+          # PF03/LIVE04 WS01/SV08: 49 request/clock/fast-path/Jacobian controls.
+          # Projected2624 passes across190files; preserve margin6 pending exact-head CI.
+          # LIVE01 request-local index controls: +18, projected 2642 passed / 191 files.
+          # Preserve the six-test margin; hosted collection verifies this projection.
+          # WC01 canonical band: +23 executed controls, projected 2665 / 192 files.
+          # Reference and floor move together; retain the six-test margin.
+          # LIVE02 direct-flux candidate: +18 controls, projected 2683 / 193 files.
+          # PJ01 dark depth policy: +28 controls, projected2711 /194 files; margin6 retained.
+          # bd4 hosted2782/196; WC02 adds28 tracked controls. Projected2810/197; margin6.
+          MIN_FILES, MIN_PASSED = 197, 2804
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1355,7 +1371,11 @@ jobs:
           # Blend contributor-cycle controls add35 executed tests and one chain-owned file:
           # projected2396 across159 files, preserving the six-test margin.
           # Health listing cache adds20 chain controls; projected2416/160files, margin6.
-          MIN_FILES, MIN_PASSED = 160, 2410
+          # A8 backend batch: three tracked files add47 cases, ingestion verdicts add8.
+          # Projected2416+55=2471 across163 files; preserve six-test margin.
+          # Correction: IN04/IN06 add33 chain controls, not34:2471+33=2504.
+          # Four entrypoint role controls project2508 across165 files, preserve margin6.
+          MIN_FILES, MIN_PASSED = 165, 2502
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1740,13 +1760,17 @@ jobs:
           # new estate files add 73 executed tests (collect-only, all passing locally) to the hosted
           # 1268 read on dev b02f43f8 (CI 37717937274: 300 files, 1268 passed): projected 1341;
           # 1341 - 2 = 1339; margin 2 kept. Hosted CI on this PR must read 304 files / 1341.
+          # #265 contributes105 estate cases to1341; IN03 contributes9 more.
+          # Combined reading1455, two-test margin; no unrelated unmerged PR is included.
+          # LIVE02 real conditions boundary: +2 cases, projected 1457; retain margin2.
           # ⬆ 1339→1444 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (actor-route binding): two new
           # estate files add 105 executed tests (74 binding + 31 guard) to the hosted 1341 read on dev
           # baee6438 (CI 37777820792): projected 1446; 1446 - 2 = 1444; this PR must read 306 / 1446.
           # ⬆ 1444→1460 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (live-session escrow): an
           # 18-test estate file replaces a 2-test file on the hosted 1446 read for #265 (merged as
           # fe5573db): 1446 - 2 + 18 = 1462; 1462 - 2 = 1460; this PR must read 306 / 1462.
-          MIN_PASSED = 1460
+          # Merged #266 now adds net16 to the branch's 1457: 1473, margin2 retained.
+          MIN_PASSED = 1471
 
           try:
               root = ET.parse('estate.xml').getroot()

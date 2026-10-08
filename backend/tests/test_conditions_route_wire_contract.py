@@ -134,6 +134,22 @@ _QUALITY = {"rating": 72.4, "rating_level": "good", "rating_confirmed": False, "
             "offshore_height_ft": 4.1, "wind_speed_kts": 8.0, "wind_direction": 45.0}
 
 
+def test_directional_conflict_survives_the_real_conditions_route(monkeypatch):
+    warning = {"reason": "size_and_quality_disagree_on_swell_exposure",
+               "quality_exposure": .1, "height_exposure_factor": .595,
+               "height_implied_energy": .354, "energy_disagreement": 3.54}
+    resp = _call_route(monkeypatch, _producer_payload(directional_conflict=warning))
+    assert "error" not in resp
+    assert resp["current"]["directional_conflict"] == warning
+    assert resp["current"]["wave_height_ft"] == 5.3
+
+
+def test_directional_conflict_stays_absent_for_an_aligned_hour(monkeypatch):
+    resp = _call_route(monkeypatch, _producer_payload(directional_conflict=None))
+    assert "error" not in resp
+    assert "directional_conflict" not in resp["current"]
+
+
 def test_quality_and_provenance_reach_the_hub(monkeypatch):
     """Audit 15.0 (2026-09-26): the producer computes the rating on every request; the whitelist
     dropped it, so the hub showed a size without a quality. Measured live on 24 responses."""
