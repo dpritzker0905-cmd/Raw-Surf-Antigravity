@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 00:44Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 01:27Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,47 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-08 01:27Z: PR261 published for its own final-source qualification.**
+  PR261draft OPEN/MERGEABLE dev95; publishedb923943b actualmetadata repair. Own finalpublication receipt948 requiresnewheadqualification944. Canonical936/proposed937-948;860 quiet/restore and independentdatahealth/E2E/Gulf/device/playback acceptance open.
+
+- **2026-10-08 01:26Z: Regular direct-point candidate prepared for normal publication.**
+  Own local gatespass,9ownedpaths prepared;944hostedqualification/conditionaldevrollout pending. Canonicaldev95ledger936;937-947 proposed.860/datahealth/failedE2E and independentacceptance preserved.
+
+- **2026-10-08 01:23Z: 860 remains blocked by concurrent forecast work and restore readiness.**
+  Actual01:17 matching95/APIhealthy but restoreempty0/1error;WI03 health remains open. Core76ingest,new95E2E/precompute active. Original860 not executed; no forcedload/jobmutation; existing253scope remainscompleted.
+
+- **2026-10-08 01:23Z: Regular direct-point metadata candidate verified without physical changes.**
+  WF03/WI03 finding940 locally repaired:99new controls,213focused+47floorcontrols;3168calls/720Jacob physical0. Own hosted guards2524/2396chain/1268estate confirmation and devrollout pending944. No scientificflag/physicalvalue/shareddata change; original860 and productcontracts independent.
+
+- **2026-10-08 01:23Z: Regular direct-point source qualification and conditional dev rollout owed.**
+  Existing WF03/WI03 finding940 candidate on codex/regular-point-provenance; canonicaldev95/ledger936, carried937-943 preserved. New ownsourcequalification commitment944;860 independent quiet/readiness blockers.
+
+- **2026-10-08 01:09Z: Prepare normal publication of PR260 completed rollout and remaining findings.**
+  Canonicaldev95b8f7c8/ledger936; proposed937-943 actual260 merge/qualification,ownCI cleanup,regularpoint940,860/E2E blockers,933→942 scoped fulfillment and paired diagnostic scoreboard. Only four owned docs differ; final normal publication readback pending. Next source repair remains regular directpointWF03/WI03;860 first live scene after01:23:20Z and quiet/focus/viewport prerequisites; twoingests/newE2E currently block it.
+
+- **2026-10-08 01:07Z: PR260 matching healthy dev deployment verified;933 fulfilled.**
+  Actual frontend/API95b8f7c8 healthy/complete13247restore/zeroerrors;933 fulfilled at source/availability scope. Canonicaldev936,postmerge937 onward proposed. Two marine cyclewarnings and failed76 E2E remain independent;860 earliest01:23:20Z plus quiet prerequisites, activecore/regional blockers. Regular directpoint finding940 remains next narrowWF03/WI03 repair.
+
+- **2026-10-08 01:05Z: Original860 remains bounded and blocked; failed acceptance receipts preserved.**
+  860 earliest elapsed point01:23:20Z after260 plus actual source/healthyAPI/no concurrentforecast loads; core37710415890 and regional37704566496 active. E2E76 failed00:53:53Z, previousE2E and oldNightly failed, root/product verdict not accepted.333/WF02/WF03/AS04 independently open. No browser scene forced, callback/GPU distinction and cleanup contract retained.
+
+- **2026-10-08 01:05Z: Distinct regular direct-point metadata gap reproduced under existing WF03/WI03.**
+  Saved40 offline actual serving calls/20 +1h counterexamples in regular marine/wind/scalar direct paths; selected-frame/cycle metadata omitted. This is separate from estimated-EURO260 repair, mapped to existing WF03/WI03. No replacement task, source change, live request, product/flag mutation or physical acceptance.
+
+- **2026-10-08 01:05Z: Superseded own PR260 CI runs stopped; final-source qualification independent.**
+  Only superseded43 CI/Lighthouse canceled and completed cancellation read back; final0da source qualifies independently. Existing forecast jobs and original860 quiet prerequisites preserved.
+
+- **2026-10-08 01:05Z: PR260 own final source qualifies with actual6089 backend passes.**
+  Merged95b8f7c8 from exact0da own all11 CI/6089backend/4177frontend; LOC/Ledger/Lighthouse/preview successful. Canonicaldev936 now includes proposed927-936 and scoped925/931 closure;937 onward postmerge receipts proposed.933 deployment fulfillment still pending oldhealthy76 first01:04 source readback. Physical numbers/science flags unchanged; original860 and all product contracts remain independent.
+
+- **2026-10-08 01:04Z: PR260 merged dev95b8f7c8 (2026-10-08T01:03:20Z).**
+  Exact reviewedhead0da8ecfb, source/ledgerprefix read back;
+  full merge tree equals0da8ecfb; no numeric/science change.
+  Deployment source/health readback pending; no live860 repeat. Original
+  playback/time/Gulf/device/isolation/datahealth gates remain independently
+  open. Records after merged branch prefix remain local until receipt PR.
+  See own `log/2026-10-08-blend-rollout.md` for actual checks/rollout progress.
 
 - **2026-10-08 00:44Z: PR260 published; exact-hunk ancestry integration preserves canonical records.**
   PR260 ancestry integrated43d85f5a/base76 and nowMERGEABLE/draft. Committed935 ledger proven byte-identical to99/canonical926 prefix. Local CRLF gate failure corrected; mistaken continuation after failed local gates explicitly recorded, then own memory/prefix/LOC/lint/diff pass0. Proposed936 actual publication receipt becomes new final head;933 own CI/rollout pending,860 independent quiet blockers preserved.
@@ -1527,7 +1568,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 936, sha256 c20bda855a8629dc8b4533805950bef8b75c9d514e764851ad93759a8a9f6198**
+  **Ledger head: seq 948, sha256 6c8cc15a300f120c4bd1d1024916c845008dd5c30721b042db2b99ef715d8a13**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

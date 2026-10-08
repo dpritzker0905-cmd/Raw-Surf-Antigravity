@@ -816,7 +816,8 @@ jobs:
           # Response envelope17 + served-hour8 + staging-target8: projected2360, margin6.
           # WI03: 33 cycle/provenance controls in test_data_health; projected2393, margin6.
           # WI06: staged selector owns32 bounded wave-cycle retry controls; projected2425/186files, margin6.
-          MIN_FILES, MIN_PASSED = 186, 2419
+          # Regular direct-point honesty adds99 executed controls; projected2524/187files, margin6.
+          MIN_FILES, MIN_PASSED = 187, 2518
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

@@ -455,7 +455,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Paired with chain floor2355; guards/estate references and budgets unchanged.
 # Blend contributor-cycle controls add35:2396 passes,159 files; paired floor2390.
 # Direct-point provenance adds41 estate cases; paired floor1266/reference1268, margin2.
-_FLOOR_SET_FROM = {"guards": 2425, "chain": 2396, "estate": 1268}
+# Regular direct-point honesty adds99 guards; paired floor2518/reference2524, margin6.
+_FLOOR_SET_FROM = {"guards": 2524, "chain": 2396, "estate": 1268}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
