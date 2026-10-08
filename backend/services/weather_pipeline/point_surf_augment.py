@@ -188,6 +188,7 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             # Diagnostic only — nothing in the rating chain branches on it. Never fatal.
             response.shore_normal_source = _geo.shore_normal_src
             response.break_depth_m = _geo.break_depth_m
+            response.break_depth_source = _geo.break_depth_source
             # ── AND SAY WHEN THAT NUMBER CONTRADICTS ITS OWN QUALITY SCORE ────────────────────
             # The height just computed used `_height_exposure_factor` (floor 0.595 => 0.354 of the
             # energy); the quality chain will use `swell_exposure` (floor 0.100) on the SAME

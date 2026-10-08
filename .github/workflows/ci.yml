@@ -129,7 +129,7 @@ jobs:
             // Truth cadence/lifecycle adds1suite13tests; exact-source hosted qualification required.
             // Whole-callback/mask CPU timing: +2 suites/31 controls; own hosted confirmation required.
             // Minimum-span and active-zone cache: +22 public engine/painter controls; own hosted required.
-            const MIN_SUITES = 377, MIN_TESTS = 4188;
+            const MIN_SUITES = 377, MIN_TESTS = 4191;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -834,7 +834,8 @@ jobs:
           # WC01 canonical band: +23 executed controls, projected 2665 / 192 files.
           # Reference and floor move together; retain the six-test margin.
           # LIVE02 direct-flux candidate: +18 controls, projected 2683 / 193 files.
-          MIN_FILES, MIN_PASSED = 193, 2677
+          # PJ01 dark depth policy: +28 controls, projected2711 /194 files; margin6 retained.
+          MIN_FILES, MIN_PASSED = 194, 2705
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

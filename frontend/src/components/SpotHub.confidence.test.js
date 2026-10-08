@@ -58,6 +58,15 @@ jest.mock('./ScheduledBookingDrawer', () => ({ ScheduledBookingDrawer: () => nul
 import apiClient from '../lib/apiClient';
 import SpotHub from './SpotHub';
 
+it.each(['light', 'dark', 'beach'])('keeps selected Reports readable in %s', async theme => {
+  mockTheme = theme;
+  mockApi(FC);
+  render(<SpotHub />);
+  const button = await screen.findByRole('button', { name: /Reports/ });
+  expect(button.className).toContain(getThemeTokens(theme).textPrimary);
+  expect(button).toHaveAttribute('aria-pressed', 'true');
+});
+
 // The real shape, copied from the live production payload rather than invented.
 const FC = {
   level: 'high',

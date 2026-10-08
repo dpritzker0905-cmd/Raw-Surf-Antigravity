@@ -486,6 +486,7 @@ def geometry_payload(spot: Dict[str, Any]) -> Dict[str, Any]:
         "shelf_depth_m": geo.depth_m,
         "shelf_width_km": round(geo.shelf_width_km, 2) if geo.shelf_width_km else geo.shelf_width_km,
         "break_depth_m": geo.break_depth_m,
+        **({"break_depth_source": geo.break_depth_source} if geo.break_depth_source is not None else {}),
         "coastal": geo.coastal,
         "nearshore": geo.nearshore,
         "magnet_factor": geo.magnet_factor,

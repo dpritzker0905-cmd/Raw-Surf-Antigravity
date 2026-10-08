@@ -531,12 +531,13 @@ const SpotHub = () => {
         ].map((tab) => (
           <button
             key={tab.id}
+            aria-pressed={activeTab === tab.id}
             onClick={() => {
               setActiveTab(tab.id);
               if (tab.id === 'intel') fetchIntelData();
             }}
             className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium transition-colors relative ${
-              activeTab === tab.id ? 'text-white' : 'text-gray-500'
+              activeTab === tab.id ? textPrimary : textSecondary
             }`}
           >
             <tab.icon className="w-3.5 h-3.5" />

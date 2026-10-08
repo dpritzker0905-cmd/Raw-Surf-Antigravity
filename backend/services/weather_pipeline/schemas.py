@@ -261,6 +261,7 @@ class NormalizedPointResponse(BaseModel):
     #   consumer comes to switch on a string that never arrives.
     shore_normal_source: Optional[str] = None
     break_depth_m: Optional[float] = None        # nearshore breaking depth; None => the size cap cannot bind
+    break_depth_source: Optional[str] = None    # dark cap-depth policy; priors are not measured pin depths
     geometry_readiness: Optional[str] = None     # full | degraded | blind
     # ── THE SIZE AND THE QUALITY DISAGREE ABOUT THIS SWELL (MASTER-AUDIT-2.0 §2) ────────────────
     # "How much of this swell reaches this break" is reduced TWICE from the SAME bearing, with
@@ -371,5 +372,4 @@ class ClientDiagnosticReport(BaseModel):
         if size > 4096:
             raise ValueError(f"details too large: {size} bytes serialized (max 4096)")
         return v
-
 

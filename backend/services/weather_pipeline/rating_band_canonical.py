@@ -48,6 +48,8 @@ class _CellResolver:
                                             swell_from_deg=direction, geometry=self.geometry)
             result.surf_height_m = height
             result.surf_regime = regime
+            result.break_depth_m = self.geometry.break_depth_m
+            result.break_depth_source = self.geometry.break_depth_source
             result.shore_normal_deg = self.geometry.shore_normal_deg
         return result
 

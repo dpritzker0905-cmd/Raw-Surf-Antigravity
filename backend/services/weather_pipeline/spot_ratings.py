@@ -196,9 +196,16 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     # no I/O beyond the already-loaded ETOPO shore-normal asset; None simply falls through to the
     # conservative absolute pair. Never let it break the rating.
     break_depth = None
+    break_depth_source = None
     try:
-        from services.weather_pipeline.shore_normal_asset import break_depth_at
-        break_depth = break_depth_at(lat, lng)
+        if (os.environ.get("SURF_BREAK_DEPTH_PLAUSIBILITY", "0") == "1"
+                and isinstance(marine, NormalizedPointResponse) and marine.break_depth_source is not None):
+            # Grade the geometry that produced THIS height, including cached responses.
+            break_depth = marine.break_depth_m
+            break_depth_source = marine.break_depth_source
+        else:
+            from services.weather_pipeline.shore_normal_asset import break_depth_at
+            break_depth = break_depth_at(lat, lng)
     except Exception as e:
         logger.debug(f"[spot-ratings] break-depth resolve failed for {spot.get('id')}: {e}")
     # ⚠️ KEYWORDS, NOT POSITION — this is the REFERENCE implementation, and it was the last surface
@@ -318,6 +325,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         "limiter_f": _lim_f,
         # The size/quality contradiction, or ABSENT when there is nothing to say. See block above.
         "directional_conflict": _conflict,
+        **({"break_depth_source": break_depth_source} if break_depth_source is not None else {}),
         # ★ GEOMETRY READINESS, carried from the point response (`point_resolution` stamps it where
         # `surf_height_m` is produced). NOT the same thing as `confidence` above: that grades the
         # PIN (accuracy_flag / is_verified_peak), this grades the INPUTS the forecast ran on. A

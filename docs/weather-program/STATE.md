@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 18:02Z** (logs: `log/2026-10-08-canonical-rating-band.md` (WC-01 dark candidate and qualified hub source), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 18:43Z** (logs: `log/2026-10-08-canonical-rating-band.md` (WC-01 dark candidate and qualified hub source), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **Audit queue, 2026-10-08:** WC-01 source e68e8c11 is fully qualified on CI37818032376 (2665/2508/1455 backend, 378 suites/4220 frontend). LIVE-02 dark direct-wave flux and visible warning source 88e87f1d is pushed; its CI was blocked by a base conflict after Claude merged #266. Canonical dev is now 3b7ca954, weather ledger 960. Accepted canonical source is integrated unchanged; two floor conflicts resolve to 2683/2508/1473 with margins preserved. Integrated 135 weather/floor controls pass; frontend 116 controls and ESLint passed for the unchanged UI source. Both numerical flags stay off. D-017/red dev E2E, Storage durability/readers before October 14, original 860 and independent playback/Gulf/device/time/data-health acceptance remain open; 863 is fulfilled by 883. Integrated-head publication/CI pending. Next physics item is PJ-01; see log/2026-10-08-canonical-rating-band.md.
+- **Audit queue, 2026-10-08:** Canonical dev3b7ca954 and ledger960 remain intact. Published81fb2ac6 CI37821385194 failed only the missing wave_physics precompute path (guards2683/chain2508 pass, estate1472pass/1fail); local trigger repair passes8/8. PJ-01/WJ-04 default-off depth-prior candidate passes28 new and198 affected/trigger/floor controls with real point/rating parity and paired Jacobians; three measured-depth controls unchanged. LIVE-02/AS04 actual hub/full/compact warning visuals pass36 offline cases; Reports contrast repaired,119 frontend controls pass. Proposed counts2711/2508/1473 and378suites/4234tests require fresh hosted qualification. Three numerical flags remain0. Original860 is held for prerequisites,863 fulfilled by883; D-017, Storage durability/readers before October14, playback/Gulf/device/time/data-health acceptance stay open. Local repair/evidence publication pending. Next bounded physics item PJ-02; see log/2026-10-08-canonical-rating-band.md.
 
 - **2026-10-08 02:51Z: Remaining findings and live prerequisites receipts publication.**
   Owner requested the last remaining items. Proposed967 confirms genuine mixed cycles at registry scope;968 records actual860 concurrent-load/focus prerequisites, preparedWavesOFF tab and natural parity receipt. Canonicaldev960 and proposed961-966 retained; no replacementtask or sourcefix without counterexample. Only ownedACTION/STATE/sessionlog will be committed and pushed normally; no newdocs-onlymerge/deployment. Publication pending actual cleanlocal/remote/prefix readback in remaining-publication.json.
@@ -1646,7 +1646,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1061, sha256 d530cac734c6821340d20178b4bb17f8d0b0da519d34a0ed7febb482abc3e4c1**
+  **Ledger head: seq 1073, sha256 ec2c6b28f475e898bc65d66385f6e34326c563fdce43f6582d95d1e4006b60ec**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

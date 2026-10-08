@@ -285,3 +285,165 @@ Handoff update: merged266 is now part of the base, not excluded proposal source.
 Publish integrated1473 estate projection/floor1471 with the actual immutable head.
 Next independent physics finding remains PJ-01. Original860 and all other
 acceptance identities remain open;863 remains fulfilled at documented scope.
+
+## 2026-10-08 18:06Z — PR264 integrated weather source publication (ledger seq 1062)
+
+Normal commit hook reports no leaks and normal push publishes81fb2ac6bb6258e658caa4f023c6b3929e2e6a1c, including accepted canonical dev3b7ca954. No force push, dev merge, deployment or science activation. Weather source, floor resolutions and receipts through1061 are published; these post-publication receipts remain local for next substantive publication.
+
+Readback: GitHub264 exact81fb2ac6/base3b7ca954 OPEN draft, conflict cleared. Own CI37821385194 and Lighthouse37821385205 in progress; Ledger37821385166, LOC37821385165 and Encoding37821385214 successful. Canonical ledger960 prefix checked byte-for-byte.
+
+Rollback: Reviewed corrective/revert commit retaining accepted canonical source and append-only evidence.
+
+## 2026-10-08 18:06Z — PR264 current-base review description (ledger seq 1063)
+
+Updated264 body to accepted merged266 base, estate1473 projection/floor1471, fully qualified e68e8c11 receipts and independent current-head CI. Last completed dev E2E red; fresh3b7ca954 E2E37819560211 is in progress. D017 remains binding pending green E2E or named264 waiver.
+
+Readback: Actual PR edit and exact head/base/state readback succeed; no stale unmerged266 claim remains in current description.
+
+Rollback: Amend description only if verified evidence changes; retain historical receipts.
+
+## 2026-10-08 18:06Z — Original860 current prerequisite hold; no duplicate live probe (ledger seq 1064)
+
+Do not run the paused scene while current shared-host work is active. Existing dev E2E37819560211 and regional ingestion37820867865 are in progress. Original860 remains open; browser visibility/focus and matching deployed source have not been requalified. No forecast scene or stress/playback probe was started.
+
+Readback: Fresh readback: dev E2E3b7ca954 in_progress; regional ingestion in_progress. Earlier ingestion37816501503 also remains in_progress. This is a blocker receipt, not paused-check acceptance;863 remains fulfilled by883.
+
+Rollback: After existing jobs finish, assess prior receipts and original prerequisites before any bounded scene; no replacement task.
+
+## 2026-10-08 18:33Z — Exact81fb2ac6 CI qualification failure (ledger seq 1065)
+
+CI37821385194 completed failure: estate test_precompute_follows_pilots finds wave_physics absent from the dev push paths. Actual hosted guards2683, chain2508 pass; estate1472 pass/1fail, floor gate passes. Lighthouse success; exact combined source is not fully qualified.
+
+Readback: Hosted job113463066779 identifies the missing path; unchanged local guard reproduces1fail/7pass. No rerun, workflow dispatch or cancellation.
+
+Rollback: Preserve failed evidence and correct the execution path; do not lower floors.
+
+## 2026-10-08 18:33Z — LIVE-02 precompute trigger integration repair (ledger seq 1066)
+
+Add wave_physics and new break_depth_policy to existing dev precompute push paths. Existing contract guard passes8/8 without weakening. No live workflow is dispatched.
+
+Readback: Original missing-path failure becomes green under the same guard. Canonical accepted source remains intact.
+
+Rollback: Reviewed revert of trigger additions, retaining evidence.
+
+## 2026-10-08 18:33Z — PJ-01 and WJ-04 actual depth counterexample (ledger seq 1067)
+
+Original public geometry/height controls fail2/5: Teahupoo actual asset273m; tested Puerto coordinate has no break depth and uses shelf3490m. Three plausible measured-depth controls pass. This coordinate differs from the historical Puerto67m sample; no invented reproduction.
+
+Readback: Same unchanged two failing assertions pass after the dark candidate. Original scalar breaking/point pipeline remains the composition.
+
+Rollback: Keep original evidence; owner may reject prior model without losing task identity.
+
+## 2026-10-08 18:33Z — PJ-01 default-off common depth candidate and parity (ledger seq 1068)
+
+SURF_BREAK_DEPTH_PLAUSIBILITY defaults0. Coastal missing/nonfinite/nonpositive/>30m samples use median of >=3 distinct valid committed donors within200km, otherwise global valid median; failed/empty assets remain unknown. Plausible depths and old kill switches survive. Label measured/regional_prior/global_prior/unavailable through point, rating, hub and sim diagnostics.
+
+Readback: 27 new cases;197 affected/trigger/floor controls pass. Five actual heterogeneous paired states,15 central height sensitivity columns: two heights/levels change, three measured controls unchanged, repeated null0; actual1% cap-depth mutation detected at all5. Kr positive ratio0.9129438717. Full capacity/field accuracy unaccepted. No flag changed.
+
+Rollback: Flag0 preserves existing numbers; reviewed source/floor revert if needed.
+
+## 2026-10-08 18:33Z — AS04 offline visual checks and Reports contrast repair (ledger seq 1069)
+
+Actual hub/full/compact components rendered in isolated Chrome with synthetic API/auth/router and shipped Tailwind configuration.36 cases: three themes,390/1280 widths,two warning reasons. No external network requests transmitted;12 static image requests fulfilled locally. Visual inspection found selected Reports white on light/beach; two mounted failures before,119 frontend controls after theme tokens and aria-pressed repair.
+
+Readback: All36 warning visibility/overflow/error checks pass; representative final screenshots inspected. Reproducible frontend/scripts/check_directional_warning_visual.cjs and three sample screenshots persisted. This is component evidence, not deployed map, real device, playback or original860 acceptance. Owned browser/server closed.
+
+Rollback: Reviewed contrast revert; preserve visual evidence and remaining acceptance.
+
+
+### PJ-01 and visual reconciliation; recommendations and implementation handoff
+
+The actual before failures belong to PJ-01/WJ-04. The 30m threshold is inherited
+from the audit and existing oversize policy, not a universal oceanographic bound.
+Regional200km/three-donor and global median are explicit prior hypotheses. They
+are not measured pin bathymetry. Both reproduced affected coordinates have too
+few regional donors and receive the global9.5m prior. Do not call that regional
+field validation. The shelf depth used for friction remains unchanged.
+
+Same-input instrument (height metres, scores points, 6kt offshore, no local-size
+reference; actual full geometry and rating functions):
+
+| Spot / offshore sea | Before depth / height | Dark depth / source / height |
+|---|---|---|
+| Teahupoo12m/18s |273m /15.745549m |9.5m global_prior /7.695m |
+| Puerto10m/16s,15.858,-97.068 |missing /12.982305m |9.5m global_prior /7.695m |
+| Cocoa8m/14s |5.9m /4.779m |measured, unchanged |
+| Trestles6m/16s |9.3m /7.533m |measured, unchanged |
+| Snapper4m/14s |5m /4.05m |measured, unchanged |
+
+Fifteen central columns (Hs,Tp,angle at each state) use the existing Claude paired
+comparator definitions without rerunning its historical audit. Changed high-sea
+Hs slopes1.049703/1.038584 m/m become0 when the candidate cap binds. This is the
+intended implementation fingerprint, not proof the new ceiling matches surf.
+Null comparison0; actual1% cap-depth mutation changes all five states; independent
+unsaturated Kr0.797/0.873 control gives0.9129438717. Five-state prior-cache miss
+replay1.081ms, warm mean0.352ms; this is not process-cold, large-grid, server or
+concurrency capacity acceptance. Regression uses the actual stored point resolver
+and rate_one_spot, not only a private physics copy.
+
+Primary-source research supports separating grid bathymetry from breaking depth:
+[NOAA ETOPO](https://www.ncei.noaa.gov/products/etopo-global-relief-model) specifies
+15 arc-second bathymetry. [Bosboom and Stive, wave breaking](https://geo.libretexts.org/Bookshelves/Oceanography/Coastal_Dynamics_(Bosboom_and_Stive)/05:_Coastal_hydrodynamics/5.02:_Wave_transformation/5.2.5:_Wave_breaking)
+defines the breaker index using depth at the breaking point and notes slope and
+wave-statistic differences. Inferring that a deep pixel can miss that point is
+consistent with the reproduced asset mismatch; neither source validates our
+30m cutoff, donor radius, global median or surf-height convention. Those remain
+owner/science acceptance work.
+
+Visual coverage: actual changed components, production Tailwind utilities and
+theme tokens; external data surfaces mocked.36 cases all pass,119 mounted controls
+pass. Three saved representative final samples span all themes and layouts.
+The selected Reports contrast defect was visually found and reproduced as two
+light/beach failures, then repaired with theme text and accessible pressed state.
+Other screen defects and full-app global CSS/device acceptance are not closed by
+this harness. Font uses a local system fallback; no remote font/map loads.
+
+| Existing task ID | Current evidence | Proposed status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| PJ-01 / WJ-04 |Two real failures; dark policy, provenance,27 controls, actual point/rating parity and paired derivatives |Candidate built; product/science acceptance open |Qualify exact publication; review priors and their UI disclosure before owner activation |Regional/field truth, cap convention, capacity and owner decision |
+| LIVE-02 / AS04 disclosure |36 component visual cases and119 controls; missing precompute path corrected |Source/visual repair built; hosted/deployed acceptance open |Fresh exact-source CI and deployed warning readback when safe |Matching producer, actual UI, device and data-health evidence |
+|860 |Prior viewport changed; concurrent-load prerequisites previously fail |Open/hold |Assess existing receipts and refresh exact original prerequisites |Single focused visible paused GFS Waves scene, stable bounds/grid, paints/CPU/gaps/fallback and cleanup; no playback claim |
+|863 |Fulfilled by883, PR254 receipt qualification/merge |Fulfilled |Preserve identity; do not duplicate |Documented receipt scope only |
+| PJ-02 / WJ-02, then WJ-01 |No new closure evidence |Open |Next bounded physics repair: energy-before-breaking split invariance |Paired null, k-split positive controls, cross-spot sensitivities; owner activation |
+| WC-02 / WJ-05 / PJ-03–06 |Independent remaining evidence from Claude queue |Open |Keep existing ordering/identities; do not infer closure from PJ-01 |Own served-time, tide/wind/disclosure evidence |
+
+Recommendation: finish exact-source hosted qualification, then PJ-02; retain
+Storage upload/readers deadline and data-health obligations independently.
+Implementation handoff: branch codex/a8-weather-audit-repairs, draft264. Proposed
+counts2710/2508/1473, files194/165/306, frontend378suites/4234tests. Floors2704/2502/
+1471 and4191 preserve margins. Do not lower floors or merge under D-017 while dev
+E2E is red without an explicit owner waiver naming264. Keep all three new science
+flags0. Add user-facing prior disclosure and regional/field validation before any
+PJ-01 activation; diagnostic provenance alone is not product acceptance.
+
+## 2026-10-08 18:33Z — PJ-01 and visual reconciliation publication preparation (ledger seq 1070)
+
+Append same-input SCOREBOARD pair and detailed five-column task reconciliation, primary-source research limits, recommendations and separate implementation handoff to owned log. Exact-replace current Now entry; preserve canonical960 prefix and previously local1062–1064. No replacement tasks or completed-mask repair reopening.
+
+Readback: Local197 backend,119 frontend,36 visual cases, fatal lint, ESLint and LOC checks pass. Exact new-source hosted CI and publication still pending; candidate priors and live/product acceptance explicitly open.
+
+Rollback: Append correction if evidence changes; never rewrite ledger/log history.
+
+## 2026-10-08 18:39Z — Visual evidence storage and current original860 hold (ledger seq 1071)
+
+Move only owned synthetic PNG samples outside the UTF-8-only weather ledger directory into docs/research/weather-visual-2026-10-08. Text receipt keeps hashes and directory reference. Memory audit now0FAIL9WARN3NOTE; ledger1070 verifies. Dev E2E37819560211 and regional ingestion37820867865 remain active, so no live860 scene is started.
+
+Readback: All36 local visual checks pass; owned headless browser/server closed. Three sample PNGs persist under docs/research; canonical dev3b7ca954 unchanged. Missing browser/harness setup failures were fixed before qualified screenshots. Rejecting an append with kind correction but no corrects field created no ledger row; this publication-layout action uses doc_write.
+
+Rollback: Retain all evidence; append corrections only. Do not force a live probe or close existing obligations.
+
+## 2026-10-08 18:41Z — PJ-01 cached response provenance and final floors (ledger seq 1072)
+
+Final review grades the depth carried by the same augmented marine response that produced the height, rather than re-resolving geometry in rate_one_spot. Canonical cell adapter carries that same provenance. A cached legacy height keeps legacy grading until newly augmented; new public cached-frame control passes. No candidate label is invented for an old height.
+
+Readback: Same final-source197 affected controls pass, plus87 cached-frame/candidate/floor/band controls including the new case. Final new PJ-01 cases28; guards projection2711/floor2705 across194 files; chain2508/165 and estate1473/306 unchanged. Frontend projection378/4234 floor4191. Supersedes earlier27/2710/2704 projections, not the recorded test runs.
+
+Rollback: Flag0 preserves served numbers; revert candidate/floor changes together and retain receipts.
+
+## 2026-10-08 18:43Z — PJ-01 publication validation (ledger seq 1073)
+
+Final source cohort passes198 backend controls,119 mounted frontend controls and36 offline visual cases. Fatal backend lint, frontend ESLint, both LOC checks, staged whitespace and ledger1072 pass; memory audit0FAIL9WARN3NOTE. Add final same-source198 receipt; preserve earlier197/87 run records. Science flags remain off and fresh hosted qualification is required.
+
+Readback: Canonical960 prefix is byte-identical; partition668 files=194guards+165chain+306estate+2exclusions+1quarantine. Reviewed trigger repair, response-bound provenance and portable visual runner. No live probe, shared-data mutation or owner decision made.
+
+Rollback: Reviewed revert with matching floors; retain all before/after and visual receipts.
