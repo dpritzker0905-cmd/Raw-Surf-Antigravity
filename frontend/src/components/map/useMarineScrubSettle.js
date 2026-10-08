@@ -5,6 +5,7 @@ import { isTerminalNoCoverage } from './marineControllerCache';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { keepExactResident, tryExactUpgrade, useMarineExactUpgrade } from './marineExactUpgrade';
 import { useMarineWorldWarmOnSettle } from './marineWorldWarmOnSettle';
+import { frameServesSelectedHour } from './marineHourInstant';
 
 // True if the grid bounds fully cover the viewport bounds (small epsilon for float jitter).
 function gridCoversViewport(gb, vb) {
@@ -278,7 +279,9 @@ export function runScrubSettleCheck(ctx) {
   if (window.isScrubbingTimeline) return;
   const currentHour = timeOffsetRef.current;
   const renderedHour = marineData?.grid?.hourOffset ?? marineData?.hourOffset;
-  const hourMismatch = renderedHour !== undefined && renderedHour !== null && renderedHour !== currentHour;
+  // A label is not the data: at 3-hourly range a frame labelled 15 IS offset 16's product (the paused churn, marineHourInstant.js).
+  const hourMismatch = renderedHour !== undefined && renderedHour !== null && renderedHour !== currentHour
+    && !frameServesSelectedHour(marineData, currentHour, activeModelRef.current, activeMarineLayerRef.current || 'waves');
   const noData = !marineData || !marineData.grid?.vectors?.length;
 
   // Heatmap CLAMP: the engine grid does NOT cover the viewport at a regional zoom — a coarse-GLOBAL

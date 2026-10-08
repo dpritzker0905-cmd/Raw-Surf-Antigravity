@@ -53,12 +53,16 @@ describe.each(['guards', 'arbiter'])('%s actual frame rollover', mode => {
     if (flag === undefined) delete process.env.REACT_APP_FORECAST_STATE_IDENTITY;
     else process.env.REACT_APP_FORECAST_STATE_IDENTITY = flag;
     expect(decide(fine(), world({ served_valid_time: B })).reject).toBe(true);
-    expect(decide(fine(), world({ hourOffset: 145 })).reject).toBe(false);
+    // A label change that asked for ANOTHER instant is an hour change; one that asked for the SAME instant is the same hour in
+    // label mode too (2026-10-08 paused churn, marinePausedChurn.test.js: at 3-hourly range offset 16 and a series page's 15 ask
+    // for one product, and releasing here let the coarse world replace the fine tile while the timeline was paused).
+    expect(decide(fine(), world({ hourOffset: 145, valid_time: B })).reject).toBe(false);
+    expect(decide(fine(), world({ hourOffset: 145 })).reject).toBe(true);
   });
   it('injected operator kill restores the legacy label comparison', () => {
     const w = { ...win(), __RAW_DISABLE_FORECAST_STATE_IDENTITY__: true };
     expect(decide(fine(), world({ served_valid_time: B }), 8.5, vp, w).reject).toBe(true);
-    expect(decide(fine(), world({ hourOffset: 145 }), 8.5, vp, w).reject).toBe(false);
+    expect(decide(fine(), world({ hourOffset: 145, valid_time: B }), 8.5, vp, w).reject).toBe(false);
   });
   it.each([
     ['same frame', {}, true],

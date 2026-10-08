@@ -21,6 +21,7 @@ import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
 import { measureMarineMaskRefresh, createMarineMaskSourceRedrive } from './marineMaskRefreshAttribution';
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
+import { uploadedGridServesHour } from './marineHourInstant';
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
@@ -110,7 +111,9 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const lastSig = lastUploadedGridRef.current;
     
     const renderedDataHour = lastSig.vectorsLength > 0 ? lastSig.renderedDataHour : null;
-    const parity = active && renderedDataHour !== null && requestedHour === renderedDataHour;
+    // A frame labelled 15 IS offset 16's 12Z product at 3-hourly range: no "Stale Hour Retained" for it (marineHourInstant.js).
+    const parity = active && renderedDataHour !== null &&
+      (requestedHour === renderedDataHour || uploadedGridServesHour(lastSig, requestedHour, activeModel));
     
     let reason = 'parity_match';
     if (!active) {
@@ -381,6 +384,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       contentHash: diffResult.contentHash,
       timestamp: grid.timestamp || revision || 0,
       renderedDataHour: renderedDataHour,
+      renderedValidTime: (grid.grid && grid.grid.valid_time) || grid.valid_time || null,
       geojsonSig: geojsonSig,
       themeSig: themeSig,
       uploadSig: uploadSigResidency,

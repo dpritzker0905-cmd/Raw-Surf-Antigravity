@@ -24,7 +24,7 @@
 import { recordMarineEvent } from './marineForensics';
 import { readMarineSurfMode } from './marineSurfMode';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity';
-import { marineFrameInstant, sameMarineFrameInstant } from './marineFrameInstant';
+import { marineFrameInstant, sameMarineFrameInstant, sameMarineLabelledHour } from './marineFrameInstant';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 
 export function latToMercatorY(lat) {
@@ -290,8 +290,9 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   if (!isCoarseGlobalGrid(incoming) && !cellDowngrade && !ratingDowngrade) return false;
   if (!isRegionalBounds(resident.bounds)) return false;    // resident must itself be a regional tile
   const sameLayer = (incoming.__componentLayer || 'waves') === (resident.__componentLayer || 'waves');
-  const sameHour = absoluteFrameTime ? sameMarineFrameInstant(resident, incoming)
-    : incoming.hourOffset !== undefined && resident.hourOffset !== undefined && incoming.hourOffset === resident.hourOffset;
+  // Label mode: one hour when the labels match OR both frames asked for the same instant (3-hourly range: the selected 16 and a
+  // series page's 15 both ask for the 12Z product, and "16 !== 15" let the 2° clip replace the 0.25° tile; 2026-10-08 paused churn).
+  const sameHour = absoluteFrameTime ? sameMarineFrameInstant(resident, incoming) : sameMarineLabelledHour(resident, incoming);
   // UNKNOWN zoom must FAIL OPEN (2026-07-03): _lastZoom is only written by the render loop, so a
   // commit racing a zoom change (or arriving before the first frame / while rAF is paused) reads
   // undefined-or-stale. Treating unknown as "zoomed in" made the guard reject the coarse WHILE the
