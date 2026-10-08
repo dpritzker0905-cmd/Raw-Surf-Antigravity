@@ -1355,7 +1355,10 @@ jobs:
           # Blend contributor-cycle controls add35 executed tests and one chain-owned file:
           # projected2396 across159 files, preserving the six-test margin.
           # Health listing cache adds20 chain controls; projected2416/160files, margin6.
-          MIN_FILES, MIN_PASSED = 160, 2410
+          # ⬆ 2410→2413 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (VA-03 nearshore judge): three
+          # GRADED-floor cases in test_nearshore_validation.py on the hosted 2416 read on dev ab416298
+          # (CI 37853930681: 160 files, 2416 passed): projected 2419/160 files; 2419 - 6 = 2413, margin 6.
+          MIN_FILES, MIN_PASSED = 160, 2413
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1746,7 +1749,10 @@ jobs:
           # ⬆ 1444→1460 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (live-session escrow): an
           # 18-test estate file replaces a 2-test file on the hosted 1446 read for #265 (merged as
           # fe5573db): 1446 - 2 + 18 = 1462; 1462 - 2 = 1460; this PR must read 306 / 1462.
-          MIN_PASSED = 1460
+          # ⬆ 1460→1473 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (VA-03 nearshore judge): 13 new
+          # cases (12 workflow-gate, 1 runner floor) on the hosted 1462 read on dev ab416298 (CI 37853930681):
+          # projected 1475; 1475 - 2 = 1473, margin 2. This PR must read 306 files / 1475.
+          MIN_PASSED = 1473
 
           try:
               root = ET.parse('estate.xml').getroot()

@@ -129,3 +129,35 @@ def test_a_populated_report_carries_per_station_errors():
     assert st["n"] == 2
     assert st["mae_m"] == pytest.approx((0.2 + 0.4) / 2)
     assert st["bias_m"] == pytest.approx((-0.2 + 0.4) / 2), "bias sign: model minus observed"
+
+
+# ── the GRADED floor (VA-03, 2026-10-08): a grade needs a sample, counted in the honest unit ─────
+# Before it, one matched row graded: NEARSHORE_VAL_MIN_MATCHED defaults to 1 and counts SPOT-hours, the unit the
+# runner's COUNTING HONESTY note says no sample-size gate may read (six spots share one buoy reading at 254p1).
+
+def _rows(n_station_hours, spots_per_hour):
+    """`n_station_hours` distinct buoy readings, each matched by `spots_per_hour` linked spots."""
+    t0 = NOW.replace(minute=0, second=0, microsecond=0)
+    return [{"station": "254p1", "spot_id": f"s{k}", "obs_time": (t0 - timedelta(hours=3 * h)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+             "model_hs_m": 1.0, "obs_hs_m": 1.1}
+            for h in range(n_station_hours) for k in range(spots_per_hour)]
+
+
+def test_below_the_station_hour_floor_REFUSES_even_when_spot_hours_clear_it():
+    rep = NV.build_report(_rows(29, spots_per_hour=3), n_stations=1, n_obs=29, n_preds=87, min_station_hours=30)
+    assert rep["available"] is False
+    assert (rep["n_matched"], rep["n_station_hours"]) == (87, 29)
+    assert "station-hours=29" in rep["reason"] and "(min 30)" in rep["reason"], "the refusal must say why"
+    assert rep["stations"] == {}, "a refused sample must not publish per-station errors"
+
+
+def test_at_the_station_hour_floor_GRADES():
+    rep = NV.build_report(_rows(30, spots_per_hour=1), n_stations=1, n_obs=30, n_preds=30, min_station_hours=30)
+    assert rep["available"] is True and rep["n_station_hours"] == 30
+    assert rep["stations"]["254p1"]["n"] == 30
+
+
+def test_without_a_floor_the_report_is_unchanged_for_library_callers():
+    """CONTROL: the floor is the runner's policy (passed explicitly), not a new default for every caller."""
+    rep = NV.build_report(_rows(1, spots_per_hour=1), n_stations=1, n_obs=1, n_preds=1)
+    assert rep["available"] is True and rep["n_station_hours"] == 1

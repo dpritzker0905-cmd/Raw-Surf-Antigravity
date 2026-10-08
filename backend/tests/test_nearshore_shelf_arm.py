@@ -30,6 +30,7 @@ def _runner():
     spec = importlib.util.spec_from_file_location("run_nearshore_validation", path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
+    mod.GRADED_MIN_STATION_HOURS = 1   # a fresh copy: these grade the arms' plumbing on a few rows, not the VA-03 floor
     return mod
 
 

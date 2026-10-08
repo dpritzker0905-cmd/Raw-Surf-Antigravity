@@ -16,7 +16,7 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 |---|---|---|---|
 | S1 | Offshore skill ledger, held-out week (`/api/weather/buoy-calibration` → `forecast_skill_consensus`) | inside every precompute | MAE and bias per lead for GFS (served), EURO, ICON and the consensus candidates; `by_band`, `by_region` |
 | S2 | Public-reference gap (Forecast Accuracy Monitor, paired head-to-head) | `forecast-accuracy-monitor.yml` | how far a public reference (Open-Meteo marine, NCEP GFS-Wave 0.25°) is ahead of us, in metres |
-| S3 | Nearshore judge (`nearshore-validation.yml`) | scheduled + dispatch | MAE of the served NEARSHORE height at nearshore buoys, with MOP / NWPS / consensus arms |
+| S3 | Nearshore judge (`nearshore-validation.yml`) | dispatch; the 6-hourly schedule grades only once the owner arms it (`NEARSHORE_VAL_ENABLED=1`). It has never been armed: all 85 scheduled runs from 2026-09-20 to 10-08 graded nothing, so every S3 row below is a dispatch (VA-03, corrected 2026-10-08) | MAE of the served NEARSHORE height at nearshore buoys, with MOP / NWPS / consensus arms; GRADED needs 30 station-hours |
 | S4 | Sim parity (`sim-parity-monitor.yml`) | scheduled | spots whose served glyph and sim differ by a rating level (a composition break when attributed so) |
 | S6 | Same-model parity (`backend/scripts/same_model_parity_probe.py`) | on demand | our served GFS vs Open-Meteo's GFS-Wave 0.25 at the ledger's buoys, forecast to forecast: pipeline loss, no observation needed |
 | S5 | Data freshness | Actions run history, `/api/health` → `scheduler.workflow_dispatch` | missed ingest slots; runs per day per lane |
