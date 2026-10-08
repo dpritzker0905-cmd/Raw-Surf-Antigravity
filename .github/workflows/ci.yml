@@ -1734,7 +1734,11 @@ jobs:
           # Projected1227, preserving margin2; own exact-head hosted CI must confirm.
           # Direct-point donor-time/cycle regression adds41 executed estate controls.
           # Tracked selector300 files; projected1268 passes, preserving the two-test margin.
-          MIN_PASSED = 1266
+          # ⬆ 1266→1339 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (payment caller binding): four
+          # new estate files add 73 executed tests (collect-only, all passing locally) to the hosted
+          # 1268 read on dev b02f43f8 (CI 37717937274: 300 files, 1268 passed): projected 1341;
+          # 1341 - 2 = 1339; margin 2 kept. Hosted CI on this PR must read 304 files / 1341.
+          MIN_PASSED = 1339
 
           try:
               root = ET.parse('estate.xml').getroot()

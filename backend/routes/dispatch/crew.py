@@ -18,6 +18,7 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchNotification, DispatchRequestStatusEnum, SurfSpot,
@@ -189,16 +190,21 @@ async def pay_crew_share(
     participant_id: str,
     payer_id: str,
     payment_data: Optional[CrewPaymentRequest] = Body(default=None),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Crew member pays their share of a shared session.
-    
+
     ATOMIC TRANSACTION: This endpoint ensures that:
     1. User profile metadata is ALWAYS written to participant record
     2. Payment and metadata updates happen in the same transaction
     3. If metadata write fails, payment is rolled back
     """
+    # The payer is whoever holds the token; the participant check below then compares against it.
+    if payer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot pay on behalf of another user")
+
     # Find the participant record
     result = await db.execute(
         select(DispatchRequestParticipant)
@@ -356,7 +362,8 @@ async def crew_invite_checkout(
     participant_id: str,
     payer_id: str,
     checkout_data: CrewCheckoutRequest,
-    db: AsyncSession = Depends(get_db)\
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Create a Stripe Checkout session for a crew member to pay their share by card.
@@ -364,6 +371,9 @@ async def crew_invite_checkout(
     """
     import stripe as _stripe
     import os
+
+    if payer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot pay on behalf of another user")
 
     # Resolve participant
     result = await db.execute(
