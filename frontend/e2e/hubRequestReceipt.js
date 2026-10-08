@@ -4,6 +4,13 @@ const { performance } = require('node:perf_hooks');
 function observeHubRequests(page) {
   const entries = [];
   const requests = new Map();
+  const backendOrigin = new URL(process.env.REACT_APP_BACKEND_URL || 'https://raw-surf-antigravity.onrender.com').origin;
+  const originCategory = request => {
+    const origin = new URL(request.url()).origin;
+    if (origin === backendOrigin) return 'backend';
+    if (typeof page.url === 'function' && origin === new URL(page.url()).origin) return 'frontend';
+    return 'other';
+  };
   const classify = request => {
     const path = new URL(request.url()).pathname;
     if (/^\/api\/explore\/spot-details\/[^/]+$/.test(path)) return 'details';
@@ -25,7 +32,8 @@ function observeHubRequests(page) {
   const onRequest = request => {
     const endpoint = classify(request);
     if (!endpoint || entries.length >= 64) return;
-    const entry = { endpoint, state: 'pending', status: null, started: performance.now() };
+    const entry = { endpoint, origin: originCategory(request), timing: 'request-to-finish',
+      state: 'pending', status: null, started: performance.now() };
     entries.push(entry);
     requests.set(request, entry);
   };
@@ -34,8 +42,8 @@ function observeHubRequests(page) {
     let entry = requests.get(request);
     // Capture an otherwise unobserved 401 without retaining its URL or guessing its cause.
     if (!entry && response.status() === 401 && entries.length < 64) {
-      entry = { endpoint: classify(request) || 'other-unauthorized', state: 'pending',
-        status: null, started: performance.now() };
+      entry = { endpoint: classify(request) || 'other-unauthorized', origin: originCategory(request), state: 'pending',
+        timing: 'response-to-finish', status: null, started: performance.now() };
       entries.push(entry);
       requests.set(request, entry);
     }

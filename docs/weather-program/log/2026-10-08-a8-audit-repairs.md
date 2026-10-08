@@ -137,3 +137,93 @@ Prepared gzip scored-month archives at existing keys with byte-identical decoded
 Readback: 208 focused offline controls pass. Initial new month-seam positive fixture accidentally included future targets and refused; corrected fixture has260 past targets and gradesOK, while current/prior corrupt archives refuse. Hosted qualification, Storage MIME compatibility, compressed upload acknowledgement and post-deploy writer/reader receipts are still pending.
 
 Rollback: Deploy both readers before compressed writes; preserve existing archives and row identities. If reverting compression after any compressed write, retain gzip-compatible readers.
+
+## 2026-10-08 11:07Z — PR264 category extension 9d314a98 (ledger seq 987)
+
+Pushed the tested allowlisted response-category extension and local repair qualification receipts to draft PR264 at9d314a98. Backend source/tests and CI floors remain unpublished and unstaged.
+
+Readback: Remote push advanced8c4b0ebb to9d314a98; four Node controls pass and ledger986 verifies.
+
+Rollback: Revert the category extension by reviewed PR.
+
+## 2026-10-08 11:07Z — A-05 / A8-01 diagnostic 37766830325 cancelled before testing (ledger seq 988)
+
+Dispatched a single diagnostic then cancelled it because the same status read showed a newly active regional forecast job37766797123. Corrected the command-ordering error by cancelling before the test stage; no app probe ran. Future dispatches inspect and assess the status result before dispatching.
+
+Readback: GitHub run37766830325 completed CANCELLED, Run E2E tests SKIPPED. Only this owned diagnostic was cancelled; the scheduled regional job continues.
+
+Rollback: No application or shared-data rollback; retain the cancellation receipt.
+
+## 2026-10-08 11:07Z — Commitment282 historical writer recovery assessment (ledger seq 989)
+
+Fulfilled the original missing-object writer-recovery obligation using the owner-supplied independent audit C-282 and canonical merge receipt288. PR217 merged2026-10-02T02:42:26Z. Scored October object created06:11:21Z, residual October object05:51:50Z, pending updated2026-10-08T03:03:28Z; monitor subsequently named different causes and recovered. The lost window is2026-09-30T22:45:05Z through no later than2026-10-02T06:11:21Z, at most31.4h. This closure does not accept the new archive-size or reader-seam repairs.
+
+Readback: Assessed existing independent SQL/run receipts instead of repeating those checks. All five audited calibration passes log ledgered with zero cap evictions. Proposed fulfillment lives on this branch until a receipts PR merges.
+
+Rollback: Append a correction if historical evidence is disproved; keep A8-03 capacity and283 reader acceptance independently open.
+
+## 2026-10-08 11:07Z — Commitment309 historical missing-ops diagnosis assessment (ledger seq 990)
+
+Fulfilled309 from the owner-supplied independent audit C-309. The original HTTP400 missing-object reader cause was repaired by PR217. Audited report at2026-10-07T19:18Z contains ops: ledgered1359, scored952, pending40962, evicted0. All11 scheduled monitor runs in the audited2026-10-04T06:46Z to2026-10-07T19:18Z interval are green. Subsequent October-only window grading had a separate cause and fix; new capacity/month-boundary findings stay open.
+
+Readback: Assessed existing monitor/report/run-history evidence and canonical source/merge receipts; no repeated live forecast or SQL checks. Proposed fulfillment is not yet a merged canonical record.
+
+Rollback: Append a correction if historical recovery receipts fail verification; do not silently reopen a distinct capacity or month-seam finding.
+
+## 2026-10-08 11:07Z — WI03 / 283 candidate scoreboard and residual-seam qualification (ledger seq 991)
+
+Appended candidate scoreboard rows for16/0/16 saved-registry selections and byte-identical synthetic archive compression. Added a readable status note by exact replacement. Extended the reader repair to the residual-history first24h grace window and pending capacity warning above85percent; both current/prior corruption remain non-green.
+
+Readback: 212 focused archive/monitor/retention/retry controls pass; all658 backend Python files meet800-line gate. Backend tests/floors and Storage compatibility remain unpublished/unverified. The prior208-pass row is historical qualification of the earlier candidate, not a live acceptance claim.
+
+Rollback: Revert proposed source by reviewed PR, retaining gzip-compatible readers after any compressed write. Keep scientific flags off.
+
+## 2026-10-08 11:11Z — A8 candidate qualification details (ledger seq 992)
+
+Corrected only this session's two unpublished scoreboard additions from seven columns to six. All prior published text remains an exact prefix; candidate evidence and limitations are retained. Final archive qualification now212passes, including both reader seams and pending warning thresholds.
+
+Readback: memory_audit0FAIL8WARN4NOTE. Reverting just the residual grace in the actual monitor main makes the missing-first-month fixture failREFUSED; unchanged candidate passesOK. No network, source flags or Storage writes in that control.
+
+Rollback: Preserve the published prefix and append evidence corrections; do not weaken memory gates.
+
+## 2026-10-08 11:13Z — Proposed task reconciliation and implementation handoff
+
+The merged canonical ledger ends at 960 on dev b02f43f8. This branch's additions are proposed records until merged. The three PR253 cache repairs remain complete at their qualified scope; no current evidence reopens them. Their paused-live, playback, Gulf accuracy, served-time, device and isolated-staging requirements remain separate.
+
+| Existing task ID | Current evidence | Proposed status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| A-05 / Nightly E2E / A8-01 | Bounded Chrome receipt: 401 followed by cancelled hub requests and auth landing; successful badge/session calls excluded. PR264 retains artifacts; code checks qualified at earlier head | Open investigation; source receipts proposed in PR264 | Identify the remaining response category, repair only the relevant seeded fixture if causal, and rerun the same journey | Positive control on the actual failed journey; required E2E green or owner waiver naming the exact PR; no timeout-only acceptance |
+| WI03 / A-04 / A8-02 | Actual selection on saved 02:39Z registry: old exact-hour subject selected 16 / 0 / 16 with flag off / on / off. Real reconciliation reproduces reinsertion; coverage and unique-tail null controls pass | Dark local candidate; not deployed or armed | After reserved hotfix merges, publish with correct chain floors and request owner arming evidence | No older served cycle or receipt where a newer eligible neighbour exists unless explicitly labelled stale; verify writer and serving readback |
+| 282 | Independent historical writer recovery receipt: scored/residual objects created after PR217; pending updates and ledgered passes recovered; lost window recorded in seq989 | Fulfilled at original historical scope, proposed on this branch | Merge the assessment receipt once qualified; preserve the separate A8-03 capacity finding | Already supplied post-merge writer, residual and monitor evidence; no duplicate probe |
+| 309 | Independent audited ops/report and 11 scheduled green monitor runs; original missing-object and subsequent window causes identified | Fulfilled at historical scope, proposed seq990 | Merge assessment receipt; retain new reader and capacity findings | Existing recovery receipts satisfy the earlier missing-ops diagnosis; do not extend closure to future month seams |
+| 283 / A8-03 | Real monitor main: confirmed missing scored and residual month files borrow readable prior rows only within their windows; corrupt/non-list inputs refuse. Residual repair reverted alone makes same fixture fail | Locally qualified; release obligation open | Publish reader changes after hotfix/floor coordination; qualify hosted tests and merge before deadline | Merged repair before first November read; absent-versus-unreadable contract and both actual reader seams pass |
+| A8-03 capacity, attached to 282 / 283 work | Gzip preserves decoded bytes; both old/new formats readable. Pending population 64800: old cap loses10800, candidate loses0. Size and 85-percent-cap warnings covered | Locally qualified; live compatibility pending | Qualify Storage MIME support and compressed upload acknowledgement on the released source, then read writer/monitor receipts | No dropped evidence, acknowledged writes before pending consumption, both readers compatible; finish before 10-14 |
+| 860 | Prior assisted receipt resized the viewport and did not isolate the stable scenario; no replacement task created | Open, currently held for quiet prerequisites | Run only its original paused GFS Waves contract when source/health/quiet/visibility prerequisites hold | Stable viewport, actual grid and bounds, paint counts/verdict/cost, callback gaps and fallback; Waves off, owned-tab cleanup, post-health. No playback acceptance |
+| 863 | Canonical seq883 fulfilled after PR254 merged3310b6f5 at documented receipt scope | Complete; retain canonical identity | No replacement task and no repeat rollout qualification | Documentation scope only; independent product acceptance remains open |
+| WF02 / CX34-07 / A8-05; WF03; WI03 health; PF03 / LIVE04; AS04 | Remaining owner-supplied audit findings | Open; queue order retained | Continue A8-04 next, then guardrail, time, health, serving, physics and UI work in order | Each finding needs its own symptom-specific control and release evidence; owner-only scientific flags remain off |
+
+Implementation handoff:
+
+1. PR263 is still open at head3788b4ce. Do not touch its reserved routes, test or CI floors, and do not merge it on Claude's behalf. Read the refreshed canonical handoff section3 after its merge and record the exact pr_merge with actor claude. Its push/pr_open records are already proposed on this branch.
+2. PR264 currently carries E2E receipt tooling and proposed reconciliation records. Preserve assertion strength, raw tracing off, bounded allowlisted facts, and the no-merge-on-red policy in D017. The latest diagnostic was cancelled before tests when a scheduled regional job started. Wait for a quiet interval before a real hub probe.
+3. The backend working tree contains A8-02 and A8-03 source/tests, not published backend changes. New files test_estimate_freshness.py and test_skill_archive_codec.py both belong to the chain lane. Update both CI floor sources in the same backend commit after the reservation ends; use actual hosted collection counts. Current new case count is 29, before any later controls.
+4. FRESH_ESTIMATE_SELECTION defaults off and is registered. Preserve receipt-versus-cycle distinctions, matching coverage/resolution and unique far-horizon tails. An off/on/off selection proof is not a buoy accuracy result and does not authorize arming.
+5. Gzip writes retain existing monthly keys and strict ACK/create-only ordering. Release both compatible readers before any compressed writer runs. A rollback after compressed writes must retain compatible readers. No Storage object deletion or shared-data rewrite is authorized by the local fixture tests.
+6. Keep the residual grace at 24 hours, paired scored window at seven days and scoring liveness at its existing shorter grace. An unreadable current or previous archive must remain non-green. Pending warning above85percent is distinct from actual eviction, which stays an error.
+7. Do not repeat the independent audit's section2 controls. Use paired Jacobian controls for later physics changes, with heterogeneous states and a positive mutant. Do not add nested CPU timings or call callback cadence completed GPU frames.
+
+## 2026-10-08 11:15Z — A8 proposed reconciliation and handoff (ledger seq 993)
+
+Appended the requested task-to-evidence/status/action/acceptance table and separate implementation handoff to this session's owned log. Preserved canonical863 fulfillment and860 identity, proposed282/309 historical fulfillment, and the remaining independent acceptance gates. Candidate scoreboard rows use existing instrument IDs and preserve all published text.
+
+Readback: Exact draft head9d314a98 code, ledger and preview checks are green. Post-diagnostic metadata11:15Z: healthy API, matching b02 source, complete13234 restore, zero errors. Data health remains WARN including EURO wind23.2h old. Regional ingestion is active; no additional hub/860 probe started.
+
+Rollback: Append corrections if evidence changes; preserve historical task IDs and owner decisions.
+
+## 2026-10-08 11:18Z — A-05 / A8-01 redirect discrimination (ledger seq 994)
+
+A bounded non-forecast status read rules out the incidental account-notice candidate: HTTP 200 for the declared synthetic identity. The retained unclassified401 therefore remains unidentified. Added allowlisted origin categories backend/frontend/other and a timing discriminator: known request-to-finish versus late-discovered response-to-finish. Raw URLs, identities, headers, bodies and credentials remain excluded. No application auth change or broad fixture was introduced.
+
+Readback: Four Node receipt controls pass; existing UI assertions remain unchanged. Active regional ingestion prevents the next real hub check. Backend repairs remain local and new chain tests still wait for the reserved hotfix/floor coordination.
+
+Rollback: Revert the receipt-only extension; preserve failed-run facts and keep causal acceptance open.

@@ -47,6 +47,8 @@ test('an incidental unauthorized response is retained without its identity or UR
   assert.equal(facts[0].endpoint, 'other-unauthorized');
   assert.equal(facts[0].status, 401);
   assert.equal(facts[0].state, 'finished');
+  assert.equal(facts[0].origin, 'other');
+  assert.equal(facts[0].timing, 'response-to-finish');
   assert.doesNotMatch(JSON.stringify(facts), /private-id|sentinel|example/);
 });
 
