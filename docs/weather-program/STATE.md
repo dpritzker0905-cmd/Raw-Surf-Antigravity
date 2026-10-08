@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 01:09Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 01:26Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,18 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-08 01:26Z: Regular direct-point candidate prepared for normal publication.**
+  Own local gatespass,9ownedpaths prepared;944hostedqualification/conditionaldevrollout pending. Canonicaldev95ledger936;937-947 proposed.860/datahealth/failedE2E and independentacceptance preserved.
+
+- **2026-10-08 01:23Z: 860 remains blocked by concurrent forecast work and restore readiness.**
+  Actual01:17 matching95/APIhealthy but restoreempty0/1error;WI03 health remains open. Core76ingest,new95E2E/precompute active. Original860 not executed; no forcedload/jobmutation; existing253scope remainscompleted.
+
+- **2026-10-08 01:23Z: Regular direct-point metadata candidate verified without physical changes.**
+  WF03/WI03 finding940 locally repaired:99new controls,213focused+47floorcontrols;3168calls/720Jacob physical0. Own hosted guards2524/2396chain/1268estate confirmation and devrollout pending944. No scientificflag/physicalvalue/shareddata change; original860 and productcontracts independent.
+
+- **2026-10-08 01:23Z: Regular direct-point source qualification and conditional dev rollout owed.**
+  Existing WF03/WI03 finding940 candidate on codex/regular-point-provenance; canonicaldev95/ledger936, carried937-943 preserved. New ownsourcequalification commitment944;860 independent quiet/readiness blockers.
 
 - **2026-10-08 01:09Z: Prepare normal publication of PR260 completed rollout and remaining findings.**
   Canonicaldev95b8f7c8/ledger936; proposed937-943 actual260 merge/qualification,ownCI cleanup,regularpoint940,860/E2E blockers,933→942 scoped fulfillment and paired diagnostic scoreboard. Only four owned docs differ; final normal publication readback pending. Next source repair remains regular directpointWF03/WI03;860 first live scene after01:23:20Z and quiet/focus/viewport prerequisites; twoingests/newE2E currently block it.
@@ -1553,7 +1565,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 943, sha256 35f49f6ee0030d958aa4aafff075584945486eb83a8e0d5ae801e11b51ebd126**
+  **Ledger head: seq 947, sha256 6ed8445bae169982932759c279d148f55f4fa12cf9e06e7ece3db2b7fcf828a3**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # safe_index_get + the WIND / WEATHER-scalar direct-point builders moved to
 # point_direct_fallbacks (800-LOC split, 2026-07-03); re-exported for existing importers.
 from services.weather_pipeline.point_direct_fallbacks import (  # noqa: E402
-    safe_index_get, build_wind_direct_point_response, build_scalar_direct_point_response
+    safe_index_get, build_wind_direct_point_response, build_scalar_direct_point_response, direct_point_provenance
 )
 # The surf composition (geometry -> breaking height -> partitions -> readiness). Extracted
 # 2026-07-30 when this file hit 801 of the 800-line ratchet; it remains the SINGLE place
@@ -635,6 +635,7 @@ class PointResolutionService:
                             layer=layer.lower(),
                             run_time=datetime.now(timezone.utc),
                             valid_time=target_dt,
+                            **direct_point_provenance(raw_point, idx, target_dt),
                             is_forecast_authoritative=(not is_estimated),
                             is_estimated=is_estimated,
                             estimate_basis=est_basis,
