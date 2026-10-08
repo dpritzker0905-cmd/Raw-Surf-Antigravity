@@ -825,7 +825,9 @@ jobs:
           # Correction: the +1 behavioral merge control belongs to guards, not chain.
           # Hosted9f15 collected2555 pass-or-fail guards; nine new HTTP controls project2564.
           # Tracked selector owns189 guards files; preserve margin6 pending exact-head CI.
-          MIN_FILES, MIN_PASSED = 189, 2558
+          # WS04: eleven fallback-receipt/HTTP/Jacobian controls in the existing guards file.
+          # Projected2575 passes across189files; preserve margin6 pending exact-head CI.
+          MIN_FILES, MIN_PASSED = 189, 2569
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

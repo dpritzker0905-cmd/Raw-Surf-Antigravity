@@ -11,6 +11,9 @@ present. These are SERIALIZATION assertions: the data existed on the resolved pr
 exact line the frame dict was built.
 """
 import asyncio
+import copy
+
+import pytest
 from datetime import datetime, timedelta, timezone
 
 from services.weather_pipeline.grid_series_helper import build_grid_series
@@ -141,3 +144,110 @@ def test_missing_provenance_stays_additive_none():
     assert f["upstream_provider"] is None and f["source_dataset"] is None
     # run census still works off run_time alone
     assert resp["run_census"]["distinct_runs"] == 1
+
+
+@pytest.mark.parametrize('model', ['GFS', 'ICON', 'EURO'])
+@pytest.mark.parametrize('bounded', ['0', '1'])
+def test_actual_series_http_preserves_refused_read_and_substitute_coverage(monkeypatch, model, bounded):
+    from fastapi import FastAPI
+    from httpx import ASGITransport, AsyncClient
+    from routes import weather
+    from services.weather_pipeline import grid_resolver, series_response
+    from services.weather_pipeline.grid_response import GridResponseIngress
+    from services.weather_pipeline.l2_retry import _stamp
+    p = _product(_BASE_RUN)
+    p.model = model
+    p.partial_coverage = True
+    p = _stamp(p, [{'file': 'regional_not_served.json', 'status': 'HTTP 429'}])
+    retained = copy.deepcopy(p)
+    monkeypatch.setenv('GRID_RESPONSE_BOUNDS', bounded)
+    monkeypatch.setenv('EURO_SERIES_LIVE_COPERNICUS', '0')
+    monkeypatch.setenv('GFS_ICON_SERIES_FASTPATH', '0')
+    monkeypatch.setattr(series_response, 'ADMISSION', series_response.SeriesAdmission())
+
+    async def resolve(*args, **kwargs):
+        return p
+
+    async def passthrough(product, *args):
+        return product
+
+    monkeypatch.setattr(grid_resolver, 'resolve_grid', resolve)
+    monkeypatch.setattr('services.weather_pipeline.coarse_gulf_fill.fill_coarse_enclosed_sea_from_gfs_served', passthrough)
+
+    async def run():
+        app = FastAPI()
+        app.include_router(weather.router, prefix='/api')
+        app.add_middleware(GridResponseIngress)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url='https://offline.invalid') as client:
+            params = dict(model=model, domain='marine', layer='waves', bbox='-82,26,-78,30')
+            grid = await client.get('/api/weather/grid', params={**params, 'valid_time': p.valid_time.isoformat()})
+            series = await client.get('/api/weather/grid_series', params={**params, 'hours': '0,3'})
+            assert grid.status_code == series.status_code == 200
+            source = grid.json()
+            assert source['fallbackReason'] == 'l2_read_refused' and source['partial_coverage']
+            assert len(series.json()['frames']) == 2
+            for frame in series.json()['frames']:
+                for key in ('warnings', 'fallbackReason', 'partial_coverage'):
+                    assert frame.get(key) == source[key], key
+                assert frame['vectors'] == source['grid']['vectors']
+            assert p == retained
+    asyncio.run(run())
+
+
+def test_fallback_frame_warning_copy_does_not_alias_cached_product():
+    from services.weather_pipeline.grid_series_viewport import _frame_provenance
+    p = _product(_BASE_RUN)
+    p.warnings = ['missing regional coverage']
+    p.fallbackReason = 'l2_read_refused'
+    receipt = _frame_provenance(p)
+    assert receipt.get('warnings') == p.warnings
+    receipt['warnings'].append('client-only')
+    assert p.warnings == ['missing regional coverage']
+
+
+def test_clean_frame_does_not_invent_warning_or_fallback_metadata():
+    from services.weather_pipeline.grid_series_viewport import _frame_provenance
+    receipt = _frame_provenance(_product(_BASE_RUN))
+    assert not receipt.get('warnings') and not receipt.get('fallbackReason')
+    assert not receipt.get('partial_coverage')
+
+
+@pytest.mark.parametrize('mutant', [None, 'period', 'direction'])
+def test_fallback_receipt_preserves_series_jacobian_and_detects_numeric_mutants(monkeypatch, mutant):
+    from services.weather_pipeline import grid_series_helper as helper
+    original = helper._frame_provenance
+    if mutant:
+        def altered(product):
+            receipt = original(product)
+            if product.warnings:
+                receipt['vectors'] = [v.model_copy(update={mutant: getattr(v, mutant) * 1.01}) for v in product.grid.vectors]
+            return receipt
+        monkeypatch.setattr(helper, '_frame_provenance', altered)
+
+    def sample(state, degraded):
+        p = _product(_BASE_RUN)
+        p.grid.vectors[0].speed, p.grid.vectors[0].period, p.grid.vectors[0].direction = state
+        if degraded:
+            p.warnings = ['L2 read refused (HTTP 429)']
+            p.fallbackReason = 'l2_read_refused'
+            p.partial_coverage = True
+        async def resolve(**kwargs):
+            return p
+        vector = _build(resolve, hours='0')['frames'][0]['vectors'][0]
+        return vector.speed, vector.period, vector.direction
+
+    def compare():
+        for state in ((.3, 4.5, 7.), (1.25, 11.3, 217.5), (4.7, 17., 359.)):
+            before, after = sample(state, False), sample(state, True)
+            for column, step in enumerate((.01, .1, 1.)):
+                changed = list(state)
+                changed[column] += step
+                b, a = sample(changed, False), sample(changed, True)
+                for output in range(3):
+                    assert abs((b[output]-before[output])/step - (a[output]-after[output])/step) < 1e-10
+            assert before == after == state
+    if mutant:
+        with pytest.raises(AssertionError):
+            compare()
+    else:
+        compare()

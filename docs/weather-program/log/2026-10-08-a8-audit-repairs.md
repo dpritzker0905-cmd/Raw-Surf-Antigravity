@@ -593,3 +593,45 @@ Corrects1028/1029 local LOC-pass claim: output had been truncated and its exit c
 Readback: After extraction174 combined controls pass; backend size checker exits0 with662files/0violations, full LOC ratchet exits0 with0new/0regressed, fatal lint exits0. New exact-head hosted qualification remains pending.
 
 Rollback: Revert extraction only through review; do not bypass or raise the800line governance limit.
+
+## 2026-10-08 15:40Z — PR264 weather candidate9e3e76e8 (ledger seq 1032)
+
+Published final source9e3e76e8b10651e9aea1d86728f53d52310037ff on existing draft264. Carries repaired weather boundary source and proposed receipts through1031; canonicaldev ledger960 remains unchanged. Corrected route size is793lines; unchanged governance limits. No merge/deployment or science-flag change.
+
+Readback: Local/remote/GitHub exact9e3e76e8; clean checkout immediately after push;264 OPEN DRAFT. New exact-head CI37802505151 in progress. LOC/import/encoding/ledger/route guard/floor-staleness and preview checks success; full frontend and three backend suites pending. Final174 response/floor/selector and115 role/provider/ACK controls passed locally; earlier failures retained.
+
+Rollback: Revert owned weather source and paired CI floors by reviewed PR, retaining append-only records.
+
+## 2026-10-08 15:40Z — PR264 final review and remaining acceptance (ledger seq 1033)
+
+Updated public draft description to final weather source, genuine before/after controls, local intermittent failures, hosted failures and corrected projections. Existing reconciliation and implementation handoff remain in owned session log; unrelated266 still OPEN/unmerged and excluded. Storage upload/both readers, A8-01/D017,860, monitor cadence, physics/UI and independent live acceptance remain open. These post-push receipts are local proposed additions for the next substantive publication.
+
+Readback: GitHub readback9e3e76e8 OPEN DRAFT; early source gates success, full exact-head qualification pending. No superseded source is represented as qualified current source.
+
+Rollback: Update review/STATE only when fresh evidence changes the facts; preserve task identities and owner-only gates.
+
+## 2026-10-08 15:58Z — PF03 / LIVE04 / WS04: preserve series fallback receipts (ledger seq 1034)
+
+Genuine before controls:7 backend failures and4 client failures. Shared frame provenance now carries existing warnings, fallbackReason and partial_coverage for the generic and both viewport builders. Client series commits preserve these fields in grid/wrapper, page/mini caches, and use separate warning copies. Clean frames retain former metadata shape and do not inherit prior warnings. This changes no served physical number, forecast selection, scientific flag or shared data.
+
+Readback: After:233 combined backend controls,48 frontend/cache controls and57 paired-floor/selector controls pass; fatal backend lint, full frontend ESLint ratchet and both LOC gates exit0. Nine heterogeneous physical sensitivity columns match clean/degraded output; two1percent period/direction mutants are detected before value identity. HTTP six-case matrix covers GFS/ICON/EURO with bounds0/1 using real refused-read stamping. No live Storage429 or forecast load was generated.
+
+Rollback: Revert only warning propagation and its paired guards-floor changes by reviewed PR; preserve earlier qualified repairs and task IDs.
+
+| Existing task ID | Current evidence | Status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| PF03/LIVE04 WS04 |7 backend/4 client before failures;233 backend/48 frontend after;9 sensitivity columns and2 mutants |Source candidate repaired, own hosted qualification pending |Publish exact candidate and read hosted gates |Each degraded series frame preserves the resolver receipt through caches; no physical-value change |
+| PF03/LIVE04 WS01/SV08 |Audit far-hour and invalid-bbox amplification remains separate |Open |Next offline counterexample using current request/capability contract |Rejected requests make zero upstream fetches; valid model and dateline requests retain behavior |
+| A8-01/A-05/D017 |Latest devfe5573db E2E37787865773 failed; source CI is independently green |Open |Name cause with retained evidence and a positive control |Genuine successful hub journey or owner waiver naming264 for merge |
+| A8-03/282/283 |Bucket configuration qualified; actual compressed durability/readers missing |Open before10-14 |Isolated upload/reader receipt with safe authenticated access |Real ACK and both readers, without changing science flags or historical closure |
+| 860 |No new matching-source stable paused receipt |Open |Respect original deployment/dwell/quiet/focus and cleanup prerequisites |Paused counts/CPU/gaps/fallback; playback/Gulf/device acceptance remains separate |
+
+Implementation handoff: publish this WS04 candidate and qualify its own head. WS01/SV08 is the next bounded source investigation: use the existing capability contract, preserve valid antimeridian/archival behavior, and prove zero upstream calls for rejected requests. Do not repeat audit section2, merge red-E2E source without named264 waiver, integrate unmerged266, or arm owner-only flags.
+
+## 2026-10-08 15:59Z — PR264 source9e3e76e8: full hosted qualification (ledger seq 1035)
+
+Exact source9e3e76e8 qualified on hosted CI37802505151: guards2564passed/189files/67skipped/0failed, chain2508passed/165files/0skipped/0failed, estate1455passed/306selected/304producing/0silent. Frontend378suites/4215tests passed. All source/lint/build/LOC/ledger/Lighthouse/preview checks success; three Netlify rule checks neutral. This does not qualify the subsequent WS04 candidate or live product acceptance.
+
+Readback: Completed GitHub jobs and final summary read directly; projected counts match exactly. Latest devfe5573db E2E37787865773 failed, so D017 remains binding;264 not merged. Unrelated266 still OPEN/unmerged.
+
+Rollback: Retain true hosted receipt; revert source only through review and preserve live acceptance gates.

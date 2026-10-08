@@ -462,7 +462,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # IN04/IN06: two new files add33 cases; behavioral merge control adds1, projected2505.
 # Correction: merge control is guards; hosted9f15 guards2555 and estate1455.
 # Nine HTTP controls project2564 guards;33 IN04/IN06 plus4 role controls project2508 chain.
-_FLOOR_SET_FROM = {"guards": 2564, "chain": 2508, "estate": 1455}
+# WS04: eleven existing-file controls project2575 guards; chain/estate unchanged.
+_FLOOR_SET_FROM = {"guards": 2575, "chain": 2508, "estate": 1455}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

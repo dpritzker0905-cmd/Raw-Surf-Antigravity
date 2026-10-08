@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 15:38Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 15:59Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **Audit queue, 2026-10-08:** Draft264 next weather candidate repairs CLI import writer-role pollution and default-off HTTP I/O/encoding isolation. Hosted9f15f591 failed (guards35 failures; chain timeout); estate1455 passed. Final local174 response/floor/selector and115 role/provider/ACK controls pass, with earlier local native serializer crash and cancellation failure retained as unresolved qualification limits. Tracked lanes189/165/306; projected passes2564/2508/1455 await exact new-source hosted CI. Storage allows Any MIME/inherited50 MB; October skill object23.95 MB, actual gzip upload/both readers remain open before10-14. Canonicaldevfe5573db and original task identities remain; unmerged266 excluded. A8-01/D017,860, monitor cadence, data-health and independent playback/Gulf/device acceptance remain open. Science flags unchanged; proposed receipts1024-1029 remain unmerged additions.
+- **Audit queue, 2026-10-08:** Draft #264 source `9e3e76e8` qualified on hosted CI `37802505151`: guards 2,564, chain 2,508, estate 1,455 passes; frontend 378 suites / 4,215 tests. The next WS04 candidate preserves fallback warnings and partial coverage through backend series frames and client cache commits. Local 233 backend, 48 frontend and 57 paired floor/selector controls pass; nine physical sensitivity columns match and two 1% mutants are detected. Projected new guards 2,575 / 189 files require new-head CI. Canonical dev `fe5573db` / ledger 960 remains unchanged; unmerged #266 is excluded. Latest dev E2E `37787865773` failed, so D017 and A8-01 remain open. Storage gzip durability/readers before October 14, original 860, monitor cadence and independent playback/Gulf/device/data-health acceptance remain open. Scientific flags are unchanged. Proposed receipts through 1035 await the next publication.
 
 - **2026-10-08 02:51Z: Remaining findings and live prerequisites receipts publication.**
   Owner requested the last remaining items. Proposed967 confirms genuine mixed cycles at registry scope;968 records actual860 concurrent-load/focus prerequisites, preparedWavesOFF tab and natural parity receipt. Canonicaldev960 and proposed961-966 retained; no replacementtask or sourcefix without counterexample. Only ownedACTION/STATE/sessionlog will be committed and pushed normally; no newdocs-onlymerge/deployment. Publication pending actual cleanlocal/remote/prefix readback in remaining-publication.json.
@@ -1646,7 +1646,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1031, sha256 c7e33496e185fc49a28caad0a40d8da57dc08a47caf6d8b86d0eb008f52b0b7b**
+  **Ledger head: seq 1035, sha256 7f869a23a83993c6ac79977cddbdb8505c6d33b070dc6d73bd52836fab1841d9**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

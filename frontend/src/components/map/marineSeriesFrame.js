@@ -44,7 +44,13 @@ export function frameToMarineData(frame, model, layer) {
   // Match the per-hour mapper's contract; never infer a blend from the selected model.
   const estimateBasis = frame.estimate_basis ?? null;
   const keepEstimate = !(typeof window !== 'undefined' && window.__RAW_DISABLE_SERIES_ESTIMATE_PROVENANCE__ === true);
+  const fallbackReceipt = {
+    ...(Array.isArray(frame.warnings) && frame.warnings.length ? { warnings: [...frame.warnings] } : {}),
+    ...(frame.fallbackReason != null ? { fallbackReason: frame.fallbackReason } : {}),
+    ...(frame.partial_coverage === true ? { partial_coverage: true } : {}),
+  };
   const grid = {
+    ...fallbackReceipt,
     ...cycleProvenance,
     vectors: frame.vectors,
     cols: frame.cols,
@@ -132,6 +138,8 @@ export function frameToMarineData(frame, model, layer) {
     }
   }
   return {
+    ...fallbackReceipt,
+    ...(fallbackReceipt.warnings ? { warnings: [...fallbackReceipt.warnings] } : {}),
     type: 'FeatureCollection',
     features: [],
     grid,
