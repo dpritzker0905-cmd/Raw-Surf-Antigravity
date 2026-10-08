@@ -29,6 +29,7 @@ import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { exactGfsPlaybackEnabled } from './marinePlaybackPolicy';
 import { isThinnedWorldGrid } from './marineExactUpgrade';
 import { MarineSeriesCache } from './marineSeriesCache';
+import { finestCoveringSeriesFrame, nearestFrameInEntry } from './marineSeriesFinerEntry';
 import { marineSeriesWorkBoundsEnabled } from './marineSeriesWorkPolicy';
 import { deferMarineSeries, marineSeriesCallerAborted, resetMarineSeriesDeferred } from './marineSeriesDeferred';
 import { padRegionalBbox, normalizeRequestBbox, bboxContains } from './marineBboxGeometry';
@@ -558,16 +559,6 @@ export function prewarmMarineSeries(model, layer, bounds, signal) {
 }
 
 
-// Nearest frame (within ±1.5h, 3-hourly) for an hour within one cache entry, or null.
-function nearestFrameInEntry(entry, hourOffset) {
-  let best = null, bestDiff = Infinity;
-  for (const h of entry.hours) {
-    const d = Math.abs(h - hourOffset);
-    if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
-  }
-  return (best !== null && bestDiff <= 1.5) ? { frame: best, diff: bestDiff } : null;
-}
-
 /**
  * Return a ready-to-commit marineData for the requested hour from the cached series, or
  * null if no series / no nearby frame. Searches the page containing the hour plus its
@@ -606,6 +597,13 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
       const d = Math.abs(h - hourOffset);
       if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
     }
+  }
+  // An exact-key hit is not the end of the search: a coarse tile forced under this key must not beat a finer covering one
+  // (the paused churn's series-entry half, marineSeriesFinerEntry.js).
+  if (best !== null && bestDiff <= 1.5 && isRegionalViewport) {
+    const pick = finestCoveringSeriesFrame(_seriesCache.values(), { frame: best, diff: bestDiff },
+      { model, layer, surf: getSurfModeFlag(), bounds, hourOffset, now, ttlMs: SERIES_TTL_MS });
+    best = pick.frame; bestDiff = pick.diff;
   }
   // Containment fallback: the exact viewport key missed (e.g. just zoomed in / panned a bit), but
   // a WIDER already-warmed series (same model/layer, page-proximate) whose bbox CONTAINS this
