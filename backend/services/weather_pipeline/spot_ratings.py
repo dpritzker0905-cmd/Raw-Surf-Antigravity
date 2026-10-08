@@ -23,6 +23,7 @@ from services.weather_pipeline.cycle_provenance import time_provenance
 from services.weather_pipeline.surf_rating import compute_surf_rating
 
 logger = logging.getLogger(__name__)
+_AUTO_TIDE = object()
 
 # ⚠️ NOT a local `KT_TO_MS = 0.514444`. That is 1/1.943844 truncated, and it made this surface and
 # the sim reach different verdicts at exactly 3.00 kt of wind (`surf_rating.KT_TO_MS`). Read the
@@ -93,7 +94,8 @@ def _persist_inputs(spot_id: str, surf_height_m=None) -> bool:
     return (int(hashlib.md5(spot_id.encode("utf-8")).hexdigest()[:8], 16) % 100) < pct
 
 
-async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None) -> dict:
+async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None, *,
+                        tide_state_override=_AUTO_TIDE) -> dict:
     """Resolve a single spot's marine + wind point and compute its rating. `spot` is a dict with
     id/name/latitude/longitude/accuracy_flag/is_verified_peak (from the DB or Supabase REST). `resolver`
     exposes `async resolve_point(model, domain, layer, lat, lng, valid_time_str)` (the live point sampler).
@@ -165,9 +167,11 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     # Tide (global, lat/lng): the tide level + the spot's best_tide prior → tide_fit factor. Gated RATING_TIDE
     # (default off) so it's opt-in; a tide miss leaves tide_norm None → neutral, never breaks the rating.
     tide_norm = None
-    tide_state = None
+    # Explicit preloaded state lets a grid cell without a best-tide prior avoid
+    # pointless per-cell tide I/O. Existing callers keep automatic resolution.
+    tide_state = None if tide_state_override is _AUTO_TIDE else tide_state_override
     best_tide = spot.get("best_tide")
-    if os.environ.get("RATING_TIDE", "0") == "1":
+    if os.environ.get("RATING_TIDE", "0") == "1" and tide_state_override is _AUTO_TIDE:
         try:
             from services.weather_pipeline.tide import tide_norm_at
             tide_state = await tide_norm_at(lat, lng, valid_time)
@@ -175,6 +179,8 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
                 tide_norm = tide_state.get("norm")
         except Exception as e:
             logger.debug(f"[spot-ratings] tide resolve failed for {spot.get('id')}: {e}")
+    elif os.environ.get("RATING_TIDE", "0") == "1" and tide_state:
+        tide_norm = tide_state.get("norm")
     # Breaker TYPE (Iribarren): bed slope + swell steepness → plunging/spilling/surging quality. Gated
     # RATING_BREAKER_TYPE (default "0"). ⚠️ 2026-08-09 dropped a FALSE "slope asset unbundled" clause — it ships since `fa86fb53`; only the flag + CONTESTED science gate it. Waiver: parity test.
     breaker_xi = None

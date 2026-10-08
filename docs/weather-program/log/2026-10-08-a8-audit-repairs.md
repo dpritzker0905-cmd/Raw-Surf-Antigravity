@@ -766,3 +766,19 @@ Readback: Ignored scratch E15 JSON receipts read back. 98 hub/physics/source/cyc
 Rollback: Retain measurements as scoped evidence. Revert the cache candidate if exact-head hosted or later bounded live evidence fails; do not duplicate task identities or reopen qualified mask repairs without regression evidence.
 
 Additional readback for ledger1049: seven real local-storage/preview/size controls passed. No served number changed. Implementation handoff: qualify exact pushed cache head on its own hosted CI; preserve D017 and existing LIVE01/PF03/LIVE04 IDs. Rollout needs dev E2E green or a named #264 owner waiver, followed by its own bounded hub evidence. Original860, Storage durability/readers and independent playback/Gulf/device/time/data-health acceptance remain open.
+
+## 2026-10-08 17:10Z — LIVE01 / PF03 / LIVE04: 11c8511c weather cache candidate (ledger seq 1050)
+
+Published 11c8511c18051d14fb6d4f9566e575acb297e5f4 to existing codex/a8-weather-audit-repairs branch and draft #264. Normal commit hook reports no leaks; normal push succeeded. Source, regression controls, paired floors and proposed receipts through1049 are published; canonical dev ledger960 remains an exact prefix. Source changes no served number. New exact-head CI37814283377 is in progress and not qualified. No merge/deploy, shared-data mutation, live forecast load or science flag flip.
+
+Readback: Local HEAD, git ls-remote and PR head all match 11c8511c. Source working tree was clean after push. Prior30033 hosted source qualification remains valid at its documented scope. Post-publication receipts remain local for the next substantive commit, avoiding an endless receipts-only push cycle.
+
+Rollback: Revert the cache source and paired floors by a reviewed weather PR; retain append-only receipts.
+
+## 2026-10-08 17:10Z — #264 LIVE01 cache implementation and acceptance handoff (ledger seq 1051)
+
+Updated #264 description with the concrete request-local cache, bounded offline measurements, 98+18+7 affected controls, physical sensitivity and mutant evidence, qualified prior source and exact new-head pending CI. No replacement task created. D017 still requires dev E2E green or named #264 owner waiver; original860, Storage durability/readers before October14 and independent playback/Gulf/device/time/data-health acceptance remain open. Unrelated unmerged #266 remains excluded.
+
+Readback: GitHub PR readback OPEN/DRAFT, matching11c8511c and expected cache/source/gate sections. Candidate source qualification and product acceptance are distinguished.
+
+Rollback: Restore the previous PR description from the saved local body if inaccurate; correct the public append-only ledger rather than deleting its history.

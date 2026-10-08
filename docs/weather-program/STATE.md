@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 17:06Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 17:36Z** (logs: `log/2026-10-08-canonical-rating-band.md` (WC-01 dark candidate and qualified hub source), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **Audit queue, 2026-10-08:** Draft #264 pushed source `30033f7d` fully qualified on CI `37811275614`: guards 2,624/190 files (67 skips), chain 2,508/165 files, estate 1,455/306 selected/304 producing/zero silent, frontend 378 suites/4,220 tests. Next LIVE01 candidate reuses an unchanged dynamic index within one hub request; stat changes and successful writes reload it, expiry remains checked, mutable results and concurrent/cancelled/nested/child scopes are isolated. Real hub parses 46 before / 1 after; 98 focused companions, 18 viewport and seven disk/preview controls, nine physical sensitivity columns and two detected mutants pass. Offline 4,000-entry fixture elapsed 102.8ms scoped versus 1,474.3ms same-source uncached; single sample, not live E2E acceptance. Proposed next guards 2,642/191 files, chain 2,508, estate 1,455; paired floors preserve margins. Canonical dev `fe5573db` / ledger 960 unchanged; unmerged #266 excluded. D017/red dev E2E, Storage durability/readers before October 14, original 860 and independent playback/Gulf/device/data-health acceptance remain open; science flags unchanged. Proposed source/receipts remain on unmerged #264; new candidate publication pending.
+- **Audit queue, 2026-10-08:** Draft #264 proposed WC-01 dark canonical band now delegates to rate_one_spot/full geometry, publishes atomically and refuses unsupported optional inputs. Cocoa band97.3 versus reference78.7 reproduces before and matches after;175 affected plus40 floor controls,12 central sensitivity columns and positive mutants pass. Warm400-cell worker cost32–36ms versus9ms; owner arming/capacity acceptance pending. Prior hub source11c8511c fully qualified on CI37814283377:2642 guards/191files,2508 chain,1455 estate; new source needs own CI2665/192 projection. Canonical devfe5573db/ledger960 unchanged; unmerged266 excluded. D017/red dev E2E, Storage durability/readers before October14, original860 and independent playback/Gulf/device/time/data-health acceptance remain open;863 already fulfilled by883; science flags unchanged. All new receipts are proposed on unmerged264; see log/2026-10-08-canonical-rating-band.md.
 
 - **2026-10-08 02:51Z: Remaining findings and live prerequisites receipts publication.**
   Owner requested the last remaining items. Proposed967 confirms genuine mixed cycles at registry scope;968 records actual860 concurrent-load/focus prerequisites, preparedWavesOFF tab and natural parity receipt. Canonicaldev960 and proposed961-966 retained; no replacementtask or sourcefix without counterexample. Only ownedACTION/STATE/sessionlog will be committed and pushed normally; no newdocs-onlymerge/deployment. Publication pending actual cleanlocal/remote/prefix readback in remaining-publication.json.
@@ -1646,7 +1646,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1049, sha256 9655e498815cc967b1b12825ed83611067afc445080c7b54ad7666f1792b0571**
+  **Ledger head: seq 1053, sha256 908004e6796b04a4f2dba9276fcc69ab58d002d14c3ccb7f9cd56d0d0623e7c4**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

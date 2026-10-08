@@ -831,7 +831,9 @@ jobs:
           # Projected2624 passes across190files; preserve margin6 pending exact-head CI.
           # LIVE01 request-local index controls: +18, projected 2642 passed / 191 files.
           # Preserve the six-test margin; hosted collection verifies this projection.
-          MIN_FILES, MIN_PASSED = 191, 2636
+          # WC01 canonical band: +23 executed controls, projected 2665 / 192 files.
+          # Reference and floor move together; retain the six-test margin.
+          MIN_FILES, MIN_PASSED = 192, 2659
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

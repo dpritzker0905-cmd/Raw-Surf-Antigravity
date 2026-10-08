@@ -155,12 +155,21 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
                         _acc.append(float(r))
                     return r
 
-                n_t, n_masked = await asyncio.to_thread(
-                    rating_transform_grid,
-                    product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, chain_shore_normal_at,
-                    reference_fn=(_recording_reference_fn if reference_fn else None), gate_fn=gate_fn)
+                _canonical_band = os.environ.get("SURF_RATING_CANONICAL_BAND", "0") == "1" and layer.lower() == "waves"
+                if _canonical_band:
+                    from services.weather_pipeline.rating_band_canonical import transform_rating_band
+                    n_t, n_masked = await asyncio.to_thread(
+                        transform_rating_band, product, wind_fn,
+                        reference_fn=(_recording_reference_fn if reference_fn else None), gate_fn=gate_fn)
+                else:
+                    n_t, n_masked = await asyncio.to_thread(
+                        rating_transform_grid,
+                        product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, chain_shore_normal_at,
+                        reference_fn=(_recording_reference_fn if reference_fn else None), gate_fn=gate_fn)
                 tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn),
                        "local_size": bool(reference_fn), "obs_gate": bool(gate_fn)}
+                if _canonical_band:
+                    tag["composition"] = "rate_one_spot"
                 # `n` is the count that ANSWERED, not the count asked: reference_for returns None
                 # where a cell has too few samples, and those cells fall back to the global default.
                 # Reporting only min/p50/max would hide that distinction, and "no reference" vs
