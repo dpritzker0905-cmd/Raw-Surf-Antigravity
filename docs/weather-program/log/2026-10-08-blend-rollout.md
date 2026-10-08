@@ -103,3 +103,35 @@ Prepare normal commit/push/draftPRdev after each own localgateexit0. Reviewed22a
 ## 2026-10-08 01:27Z — PR261 published for its own final-source qualification
 
 Actualnormal publication01:26:16Z b923943b20ddbc0253b0567881bc261660c967ba clean/remotematch. PR261createddraft andattached, OPEN/MERGEABLE/base95. Own initialCI37712924860,LOC37712924845,Ledger37712924844,Lighthouse37712924873 begun; previewgreen. This948actualpublicationreceipt must be in finalqualifiedhead; newcommit/push normalhooks and ownfinalheadCI, no reuseinitialheadgreen. Candidatesource22additivebuilderlines/2resolverdiff lines;99controls/213focused/47floors and3168calls720Jacob physical0. Previouslydraftscoreboardformat fix requiredsecond missingdelimiter correction; finalmemorygate0 beforefirstpush, allcanonicalpublishedrows retained. Noacceptanceclosure860/datahealth/playback/Gulf/device/isolation.
+
+## 2026-10-08 01:48Z — PR261 exact final-source repair merged into dev
+
+ActualPR261merge2026-10-08T01:47:56Z as3d21765ca7ca2b16a3c186a6f12ef289f6abb086, qualified96704d4e9e3d67affb76e7b0aba4799b3f8f5754 fulltreeequal. SequentialsubprocesscheckTrue validate/localgate/ready/currentbase/headmatch merge; nofailedgate bypass. Actualdevancestryintegrated onidenticaltree beforepostmergeledger. Canonical948 includesprevious260rollout937-943,933/942 scopedclosure. Own944stillpending matchinghealthydeployment. No live860test/Gulf/device/playback/datahealth acceptance.
+
+## 2026-10-08 01:48Z — PR261 final source qualifies with actual6188 backend passes
+
+Actualownfinalsource967 qualifies6188backend/4177frontend all11. Guards2524+66skip1xfail,2591collected187files;chain2396/159/no skip;estate1268/300selected298produced2865skip0silent. Pairedguardsfloor2518/ref2524 and187filesconfirmed, selectorsunchanged. Metadata-only codefullphysical/Jacobian invariance3168calls720cases; no skillgain. Requestecho/selection/nativefallback/unsupportedICON andmarinezero/calm guards retained. Upstreamrawproviders stilllack verifiedcyclemarkerunless independentlysupplied; unknowncyclesstayunknown, not allpointcyclesaccepted. LOC/Ledger/Lighthouse/preview pass; Encoding absent honestly.
+
+## 2026-10-08 01:48Z — Superseded PR261 candidate CI cleanup completed
+
+Canceledonlyownb923CI/Lighthouse, initialrequestafterstateinprogress preserved; finalreadbackbothcompletedcancelled separately. New967all11sourceverdict independent, no reuseoldhead. No existingforecastjob dispatch/rerun/cancel; devmerge mayautomatically supersede E2E under existing repositorysource policy, not manualjobmutation.
+
+## 2026-10-08 01:48Z — Health diagnostic request amplification reproduced offline
+
+Offlinehealthforensics36actualget_persistence_diagnostics calls withstorage double:one listattemptpercall, successand429failure, no cooldown/cache. Sourceunchangedfrom95, methodcalledbypublichealthroute. A concreteunnecessaryupstreamrequest path canbenarrowlyrepaired withboundedcache/cooldown/freshness/failure/concurrency semantics; donotclaimthiscausedlive429orhidefailure/unknowncounts. Actualsanitizedhealth01:28 manifestdownloadfailed429, resident13247/restoreempty0 anddurableconnected preserved. E2E76 availablefinalreportartifactcount0 after40mintestbound; preciseassertioncause notobservablefromcurrentlog, no fabricatedrootcause or cache-repairregression.
+
+## 2026-10-08 01:48Z — Unchanged EURO fallback source-label mismatch reproduced
+
+Actualfourfallbackcalls at01:41:49Z:EUROwaves requestsEURO whichOpenMeteoMARINE_MODELS mapsECMWFwam025 butresponseupstream_model/basis_source reportncepGFSwave025/providergfs_estimated_fallback. Swell1/swell2/windwaves fetchGFS/ncepGFSwave025 whilebasis.source_model reportsECMWFwam025. Fixedsourceassignments existedat95 andintentionallyunchangedin261 metadatarepair; source/scientificaccuracyacceptance remainsopenWI03. Nextsmalllabelrepair mustrecordactualproviderrequestmodel throughfallbackmetadata, preserve physicalinputs/sourceeligibility/nativeauthority/estimatedsemantics andmeasure realserving/Jacobian parity. Do not fabricate modelcycle fromlabel. Firstsandboxasyncioattemptstalledbeforeoutput; ownedPIDstoppedandactualsuccessful4callrerunpermittedonlyWindowsinternalloopbacks withapplicationDNSrefused.
+
+## 2026-10-08 01:49Z — 860 timing and failed95 E2E evidence refreshed after261merge
+
+Actualfresh95E2E37710971172 completedfailure; exactjobs/steps/workloadstatuses and860earliest savedpr261-acceptance-readback.json. Prior source261qualification6188backend/4177frontend doesnotaccept E2E/device/playback. Initial3drollout01:48 stillold95/frontend95; old95restorecomplete13249/0errors nowrecoveredfromearlier429before261deployed, no causalcredit. Currenttwo cyclewarnings persist. Original860earliest2026-10-08T02:07:56+00:00 andsource/healthy/quiet/focus/stableviewport conditions, no forcedscene/Wavesactivation/newforecasts. Latesthealthamplification andfallbacklabels remain distinct verifiedoffline WI03findings despite transientrestore recovery.
+
+## 2026-10-08 01:52Z — PR261 matching healthy dev deployment verified;944 fulfilled
+
+Actualautomaticrollout2026-10-08T01:52:01.809833+00:00 frontend3d21765c/API full3d21765ca7ca2b16a3c186a6f12ef289f6abb086 healthy/complete13301restore/durableconnected/zeroerrors; productionfrontendfc140024. Sourceavailability944fulfilled bythisreceipt only. Datahealthwarn/2alerts, rawprovidersdonotmanufacturecycleidentity. Earlier95transientmanifest429 already recoveredbefore261source appears; provenhealthpollamp36calls/36listattempts andfourfallbacklabelfindings remainexistingWI03followups. Sourcefulltreequalified96704d4e head/all11/6188backend4177frontend,physical3168calls720Jacob0.860firstliveearliest02:07:56Z withactualquiet/visiblefocusedPAUSEDstableviewportcontract, no executedscene. Old95E2Efailed andnew3dE2E pending; Gulf/play/scrub/device/isolation/datahealth/Nightly independent. Actualcurrentalerts: ICON/marine: model cycle unverified: conflicting; EURO/marine: model cycle unverified: conflicting. Earliermissing statuses stay historical; currentconflicting cohort requires independentWI03 donor/grid evidence, not inference from APIavailability or this direct-point repair.
+
+## 2026-10-08 01:52Z — PR261 rollout and remaining repair receipts prepared for normal publication
+
+Prepare normalpostmerge receiptpush with3owned docs only:ACTION/STATE/ownedOct8log, canonical948byteprefix/actualdevancestry preserved. Actual261exactsource qualification6188backend/4177frontend, fulltreeequals967,matchinghealthy3d deployment sourceavailability944fulfilled955. Proven36healthdiagcalls→36remote-listattempts and4fallbacksource-labelcounterexamples independentWI03nextrepairs; no replacementtask. Original860earliest02:07:56Z plusquiet/source/visiblefocusedstablepaused scene, datawarnings/E2E/Nightly/Gulf/device/isolation/play/scrub remainopen. No canonicalrecord rewrite/secret/scienceflag/storedproduct mutation. Actualnormalpublicationreadbackpending; carrynewestreceiptwithnextsourcePR.

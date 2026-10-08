@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 01:27Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 01:52Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,30 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-08 01:52Z: PR261 rollout and remaining repair receipts prepared for normal publication.**
+  Canonicaldev3d21765c/ledger948; proposed949-956 actual261execution/944fulfilled955/healthpoll952/fallbacklabels953/860E2E954 preparedfornormalpush. Only3ownedweatherdocs differ; finalreadbackpending. Nextsource WI03healthpollrequests/source-labelhonesty,860firstliveafter02:07:56Z andquiet prerequisites.
+
+- **2026-10-08 01:52Z: PR261 matching healthy dev deployment verified;944 fulfilled.**
+  Actualfrontend/API3d21765c healthy/complete13301restore/zeroerrors;944fulfilledsource/availability. Canonical948/post949onwardproposed.860earliest02:07:56Z andactivecore/newE2E/precomputequietblocked;WI03healthamplification/source-labels/oldslot/warnings andproductacceptance independent.
+
+- **2026-10-08 01:49Z: 860 timing and failed95 E2E evidence refreshed after261merge.**
+  860 earliest2026-10-08T02:07:56+00:00 plusmatchinghealthy3d/quiet/visiblefocused stablePAUSED scene;01:48 old95notcurrent3d. Old95restore recoverednaturally13249/0error;E2E95failed. New3d E2E/precompute/forecastwork prerequisitesremainseparate;944deploymentpending.
+
+- **2026-10-08 01:48Z: Unchanged EURO fallback source-label mismatch reproduced.**
+  WI03 additionalsource-labelfollowup remains:4actualfallbackcalls showwavesEUROproxyreportingGFS andcomponentsGFSbasisreportingECMWF.261time/cycle scopecomplete; labels/healthwarnings/oldslots productacceptance open.
+
+- **2026-10-08 01:48Z: Health diagnostic request amplification reproduced offline.**
+  Nextboundedreliability repaircandidate:health persistence remote-list amplification underexistingWI03/860;36offlinecallsproved36attemptsevenonfailure. Live429 causalmechanism remainsunproven;source261 completedscope/datahealth/acceptance independent.
+
+- **2026-10-08 01:48Z: Superseded PR261 candidate CI cleanup completed.**
+  Ownsupersededb923 CI/Lighthouse cancellationcomplete; final967 qualifiesindependently. Original860quiet workloads untouched bymanualcleanup.
+
+- **2026-10-08 01:48Z: PR261 final source qualifies with actual6188 backend passes.**
+  261ownsourcequalificationcomplete:6188backend4177frontend all11/LOC/Ledger/Lighthouse/preview; actualrollout944pending. Regularpoint940 source repaircomplete,WI03/860/livecontracts independent.
+
+- **2026-10-08 01:48Z: PR261 exact final-source repair merged into dev.**
+  PR261mergeddev3d21765c canonicalledger948 afterownexact9676188backend/4177frontend gates.944deployment pending;949onwardproposed.860≥20min after2026-10-08T01:47:56Z plusquiet/source/healthy prerequisites; no numeric/scienceflags change.
 
 - **2026-10-08 01:27Z: PR261 published for its own final-source qualification.**
   PR261draft OPEN/MERGEABLE dev95; publishedb923943b actualmetadata repair. Own finalpublication receipt948 requiresnewheadqualification944. Canonical936/proposed937-948;860 quiet/restore and independentdatahealth/E2E/Gulf/device/playback acceptance open.
@@ -1568,7 +1592,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 948, sha256 6c8cc15a300f120c4bd1d1024916c845008dd5c30721b042db2b99ef715d8a13**
+  **Ledger head: seq 956, sha256 09d08dd25794912336deca7ca0aa2857744e4aa982323d59cf910a0efbe8b23e**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
