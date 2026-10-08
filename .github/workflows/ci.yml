@@ -359,6 +359,8 @@ jobs:
   # ratchet — shrink-only; regenerate with --write-baseline after triage work). This exact debt
   # was "fixed and declared complete" twice (c1526cdc, 84236b0c) and drifted back 221→226 in five
   # days — enforcement, not convention, is the control. AST-based (regex breaks on nested parens).
+  # Widened 2026-10-08: any actor-id argument (payer_id, surfer_id, captain_id, photographer_id, ...),
+  # not only `user_id`; the baseline now stores hashes, not route names, and only shrinks.
   backend-bola-guard:
     runs-on: ubuntu-latest
     steps:
@@ -1738,10 +1740,13 @@ jobs:
           # new estate files add 73 executed tests (collect-only, all passing locally) to the hosted
           # 1268 read on dev b02f43f8 (CI 37717937274: 300 files, 1268 passed): projected 1341;
           # 1341 - 2 = 1339; margin 2 kept. Hosted CI on this PR must read 304 files / 1341.
-          # ⬆ 1339→1355 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (live-session escrow): the new
-          # 18-test estate file replaces a 2-test file on the hosted 1341 read on dev baee6438
-          # (CI 37777820792): 1341 - 2 + 18 = 1357; 1357 - 2 = 1355; this PR must read 304 / 1357.
-          MIN_PASSED = 1355
+          # ⬆ 1339→1444 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (actor-route binding): two new
+          # estate files add 105 executed tests (74 binding + 31 guard) to the hosted 1341 read on dev
+          # baee6438 (CI 37777820792): projected 1446; 1446 - 2 = 1444; this PR must read 306 / 1446.
+          # ⬆ 1444→1460 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (live-session escrow): an
+          # 18-test estate file replaces a 2-test file on the hosted 1446 read for #265 (merged as
+          # fe5573db): 1446 - 2 + 18 = 1462; 1462 - 2 = 1460; this PR must read 306 / 1462.
+          MIN_PASSED = 1460
 
           try:
               root = ET.parse('estate.xml').getroot()

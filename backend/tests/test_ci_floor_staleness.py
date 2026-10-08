@@ -458,8 +458,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Regular direct-point honesty adds99 guards; paired floor2518/reference2524, margin6.
 # EURO donor labels +17 guards and health listing +20 chain, paired six-test margins.
 # Payment caller binding: four estate files add 73 executed tests; projected 1341, margin 2.
-# Live-session escrow: an 18-test estate file replaces a 2-test one; projected 1357, margin 2.
-_FLOOR_SET_FROM = {"guards": 2541, "chain": 2416, "estate": 1357}
+# Actor-route binding: two estate files add 105 executed tests on hosted 1341; projected 1446.
+# Live-session escrow: an 18-test estate file replaces a 2-test one on hosted 1446; projected 1462.
+_FLOOR_SET_FROM = {"guards": 2541, "chain": 2416, "estate": 1462}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
