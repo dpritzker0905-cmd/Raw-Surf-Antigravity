@@ -187,8 +187,10 @@ export function useWebGLGuardrail({
 
       // Bypass monitoring during active model/layer transitions — FPS drops are expected
       // while tile sources reload and the WebGL engine re-uploads textures.
+      const fetchPending = typeof window !== 'undefined' && (window.__RAW_DISABLE_GUARDRAIL_FETCH_STAMP__ === true
+        ? window.__MARINE_FETCH_PENDING__ === true : !!window.__MARINE_FETCH_PENDING__);
       if (typeof window !== 'undefined' && (window.__MARINE_TRANSITIONING__ === true
-          || window.__MARINE_FETCH_PENDING__ === true || window.__MARINE_FETCH_DEBOUNCING__ === true)) {
+          || fetchPending || window.__MARINE_FETCH_DEBOUNCING__ === true)) {
         frameCount = 0;
         lastTime = now;
         resetLowFps();

@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 11:18Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 11:35Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **Audit queue, 2026-10-08:** PR #264 is a draft for A-05 / A8-01 failure receipts. The bounded Chrome check records a 401 followed by cancelled hub requests and an auth landing; the triggering endpoint is still being isolated. WI03 / A8-02 freshness and commitments 282 / 283 archive repairs are locally qualified but unpublished. Claude #263 remains open; its reserved routes and CI floors are untouched. Owner-only flags stay off. Commitment 860 remains open and requires its own quiet, stable paused check.
+- **Audit queue, 2026-10-08:** PR #264 is a draft for A-05 / A8-01 failure receipts and the WF02 / A8-05 pending-stamp guardrail repair (70 tests and frontend lint qualified). The bounded Chrome check records a 401 followed by cancelled hub requests and an auth landing; the triggering endpoint is still being isolated. WI03 / A8-02 freshness, commitments 282 / 283 archive capacity/readers, and A8-04 product validation/read bounds are locally qualified but unpublished. Claude #263 remains open; its reserved routes and CI floors are untouched. Owner-only flags stay off. Commitment 860 and live hub causal acceptance remain open; the active regional ingestion job blocks the quiet check.
 
 - **2026-10-08 02:51Z: Remaining findings and live prerequisites receipts publication.**
   Owner requested the last remaining items. Proposed967 confirms genuine mixed cycles at registry scope;968 records actual860 concurrent-load/focus prerequisites, preparedWavesOFF tab and natural parity receipt. Canonicaldev960 and proposed961-966 retained; no replacementtask or sourcefix without counterexample. Only ownedACTION/STATE/sessionlog will be committed and pushed normally; no newdocs-onlymerge/deployment. Publication pending actual cleanlocal/remote/prefix readback in remaining-publication.json.
@@ -1646,7 +1646,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 994, sha256 4fe8884125bdf1aaec14f2c17488b70b532a1db9fbb2a08f928ca657de8aea79**
+  **Ledger head: seq 998, sha256 6f7f9b3336ca96e4241b6a5acd594adf1064ae785bfa79943484d168d2d359ba**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

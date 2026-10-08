@@ -103,7 +103,8 @@ test('a valid next projection is forwarded and clears the no-matrix stamp withou
   expect(map.triggerRepaint).toHaveBeenCalledTimes(2);
 });
 afterEach(() => {
-  ['__MARINE_ENGINE__', '__RAW_GPU__', '__MARINE_FETCH_PENDING__', '__MARINE_FETCH_DEBOUNCING__', '__FORCE_MARINE_FALLBACK__'].forEach(k => delete window[k]);
+  ['__MARINE_ENGINE__', '__RAW_GPU__', '__MARINE_FETCH_PENDING__', '__MARINE_FETCH_DEBOUNCING__', '__FORCE_MARINE_FALLBACK__',
+    '__RAW_DISABLE_GUARDRAIL_FETCH_STAMP__'].forEach(k => delete window[k]);
   jest.useRealTimers();
   jest.restoreAllMocks();
 });
@@ -180,6 +181,23 @@ test('loading breaks consecutive low-FPS evidence instead of adding to it', () =
   delete window.__MARINE_FETCH_PENDING__; s.drive(11);
   expect(s.setMarine).not.toHaveBeenCalled();
   s.drive(2);
+  expect(s.setMarine).toHaveBeenCalledWith(true);
+});
+test('the producer pending object excludes loading and resets the consecutive evidence window', () => {
+  const s = setup(); s.drive(19);
+  window.__MARINE_FETCH_PENDING__ = { model: 'GFS', layer: 'waves', hour: 0, timestamp: new Date().toISOString() };
+  s.drive(30);
+  expect(s.setMarine).not.toHaveBeenCalled();
+  window.__MARINE_FETCH_PENDING__ = null;
+  s.drive(11);
+  expect(s.setMarine).not.toHaveBeenCalled();
+  s.drive(2);
+  expect(s.setMarine).toHaveBeenCalledWith(true);
+});
+test('the pending-stamp kill switch restores the old comparison for a positive control', () => {
+  window.__RAW_DISABLE_GUARDRAIL_FETCH_STAMP__ = true;
+  window.__MARINE_FETCH_PENDING__ = { model: 'GFS', layer: 'waves', hour: 0, timestamp: new Date().toISOString() };
+  const s = setup(); s.drive(40);
   expect(s.setMarine).toHaveBeenCalledWith(true);
 });
 test('healthy actual animation is not a fallback', () => {

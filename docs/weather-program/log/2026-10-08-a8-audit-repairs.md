@@ -227,3 +227,46 @@ A bounded non-forecast status read rules out the incidental account-notice candi
 Readback: Four Node receipt controls pass; existing UI assertions remain unchanged. Active regional ingestion prevents the next real hub check. Backend repairs remain local and new chain tests still wait for the reserved hotfix/floor coordination.
 
 Rollback: Revert the receipt-only extension; preserve failed-run facts and keep causal acceptance open.
+
+## 2026-10-08 11:20Z — PR264 reconciliation publication a79a2d02 (ledger seq 995)
+
+Pushed the verified reconciliation, proposed historical fulfillments, candidate scoreboard rows and privacy-safe response-origin/timing categories to draft PR264 at a79a2d02. Backend candidates remain in the working tree; reserved routes and both CI floor sources are untouched.
+
+Readback: Git push advanced 9d314a98 to a79a2d02. Pre-publication ledger994 and memory audit 0 FAIL, 8 WARN, 4 NOTE passed. All prior exact head9d code/preview checks passed; new head checks are pending and E2E causal acceptance remains open.
+
+Rollback: Revert the proposed receipt extension by reviewed PR; preserve the ledger prefix.
+
+## 2026-10-08 11:20Z — PR264 final-scope description (ledger seq 996)
+
+Updated draft PR264 description to distinguish receipt tooling and proposed reconciliation from unpublished backend repairs. It records the observed auth landing without calling the unidentified401 causal, preserves D017 and lists open release/acceptance requirements.
+
+Readback: gh pr edit succeeded with the exact body file; no PR merge or deployment was performed.
+
+Rollback: Replace the description with a corrected final-scope description if evidence changes.
+
+## 2026-10-08 11:35Z — A8-04 / SV02: validate product ids and bound read coordination (ledger seq 997)
+
+Built public product-hint validation and bounded LRU read coordination offline. Owners and waiting readers pin the same download lock; saturation is a labelled refusal, never absence. Default limits are 256 download entries and 1024 negative entries. No served number, shared product or reserved file changed.
+
+Readback: 27 focused controls pass, including 1000 distinct misses, public request validation and concurrent deduplication under pressure. 100 revision/stride/cache/identity companion controls pass. Same saved replay: old pool 1000 locks, candidate 256; 13301 saved registry filenames accepted. Backend candidate is unpublished; new test must be staged and its owning lane floors updated after #263 merges.
+
+Rollback: Revert the candidate product-read changes; no Storage rollback is required.
+
+## 2026-10-08 11:35Z — WF02 / CX34-07 / A8-05: recognize the producer pending stamp (ledger seq 998)
+
+Reproduced fallback during loading with the producer pending object: the new exclusion test fails on the old comparison. Changed the guardrail to recognize a pending object and reset consecutive low-FPS evidence during loading. The diagnostic kill switch restores the old comparison. Actual sustained low-FPS fallback remains enabled. This changes no served number; 860 remains open.
+
+Readback: 5 guardrail suites / 70 tests pass after the repair; the old comparison fails the pending-object test. The kill-switch positive control still triggers fallback. Frontend lint ratchet passes across 1242 files with no never-zero finding or increased rule debt. All 659 backend Python files meet the 800-line gate; reserved routes and CI floors have zero diff.
+
+Rollback: Set window.__RAW_DISABLE_GUARDRAIL_FETCH_STAMP__ = true for a diagnostic rollback; revert the guardrail commit for a release rollback.
+
+
+### Additional reconciliation and implementation handoff
+
+| Existing task ID | Current evidence | Status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| A8-04 / SV02 | 27 focused + 100 companion passes; pinned owners/waiters survive pressure; 13301 saved product names accepted | Offline candidate qualified, unpublished | After #263 merges, stage the new test, project its owning lane and update both floor declarations in the same commit | Hosted request/cache controls pass; retained compatibility and labelled refusals; no shared load test |
+| WF02 / CX34-07 / A8-05 | Before pending-object test fails; after 70 passes; kill switch reproduces the old fallback | Ready for publication, live acceptance open | Publish qualified frontend repair; then release only with E2E acceptance or an owner waiver naming the PR | Commitment 860's quiet stable paused receipt on matching deployed source; no playback claim |
+| A-05 / A8-01 | Origin/family receipts are published; 401 cause remains open | Blocked on quiet live interval | Refresh the regional job and deployed source before one diagnostic hub journey | Identify the causal request and prove the targeted correction makes the real journey green |
+
+Implementation handoff: the new backend candidates remain outside #264. They require staging their test files and updating both CI floors after Claude's reservation ends. The two earlier new suites have 29 cases; A8-04 adds 14 cases whose owning lane must be projected from the selector. The pending-stamp repair can publish independently and has a diagnostic kill switch. Do not merge #264 while dev E2E is red without a waiver naming #264. Preserve the paused, quiet 860 contract and all separate playback, served-time, Gulf, device and data-health acceptance work. Owner-only scientific switches stay off.
