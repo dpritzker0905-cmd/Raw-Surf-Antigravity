@@ -32,8 +32,10 @@ jest.mock('./marineGridSeries', () => ({
 const NOW = Date.parse('2026-10-08T20:58:22Z');
 const T12 = '2026-10-09T12:00:00Z';
 const T15 = '2026-10-09T15:00:00Z';
+// EURO is listed at the same times so the "another model" controls are refused by the MODEL, not by a time that happens to differ.
 const MANIFEST = {
-  products: ['06', '09', '12', '15', '18'].map(h => ({ model: 'GFS', domain: 'marine', layer: 'waves', valid_time_start: `2026-10-09T${h}:00:00Z` })),
+  products: ['GFS', 'EURO'].flatMap(model => ['06', '09', '12', '15', '18'].map(h => (
+    { model, domain: 'marine', layer: 'waves', valid_time_start: `2026-10-09T${h}:00:00Z` }))),
 };
 // The logged viewport and grids.
 const VIEW = { west: -82.47, south: 27.03, east: -77.93, north: 29.06 };
