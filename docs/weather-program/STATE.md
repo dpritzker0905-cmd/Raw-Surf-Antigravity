@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 16:22Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 16:43Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **Audit queue, 2026-10-08:** Draft #264 source `0a4ba554` qualified on hosted CI `37805540425`: guards 2,575 / 189 files, chain 2,508 / 165 files, estate 1,455 / 306 selected files, frontend 378 suites / 4,220 tests. New WS01/SV08 candidate prepared for publication rejects far-future and invalid-latitude amplification before upstream work while preserving supported model horizons, dateline/world copies and historical replay. Local 233 focused, 141 companion and 57 floor/selector controls pass; nine physical sensitivity columns match and two 1% mutants are detected. Projected guards 2,624 / 190 files require exact new-head hosted qualification. Canonical dev `fe5573db` / ledger 960 remains unchanged; unmerged #266 is excluded. D017/red dev E2E, Storage compressed durability/readers before October 14, original 860, monitor cadence and independent playback/Gulf/device/data-health acceptance remain open. Scientific flags are unchanged. Proposed receipts through 1035 are on unmerged #264; local 1036 onward will accompany this substantive repair.
+- **Audit queue, 2026-10-08:** Draft #264 source `0a4ba554` qualified on hosted CI `37805540425`: guards 2,575 / 189 files, chain 2,508 / 165 files, estate 1,455 / 306 selected files, frontend 378 suites / 4,220 tests. Pushed request-admission source `3396d2bd` CI `37808483204` failed five legacy fixture inputs: guards 2,623 passes / 1 failure, chain 2,504 passes / 4 failures; estate and frontend pass. Fixture correction preserves all original physical/priority/coverage assertions and passes 96 combined affected controls; publication and exact new-head qualification pending. Request repair retains valid model horizons, dateline/world copies and historical replay; local 233 focused, 141 companions and 57 floor/selector controls, nine sensitivity columns and two mutants passed. Expected final counts remain 2,624 guards / 190 files, 2,508 chain / 165 files, 1,455 estate; no floors relaxed. Canonical dev `fe5573db` / ledger 960 unchanged; unmerged #266 excluded. D017/red dev E2E, Storage compressed durability/readers before October 14, original 860 and independent playback/Gulf/device/data-health acceptance stay open; science flags unchanged. Proposed through 1039 published on unmerged #264; local 1040-1044 accompany the correction. LIVE01 reproduces 46 index parses/request on current source; freshness/isolation controls are required before a cache repair.
 
 - **2026-10-08 02:51Z: Remaining findings and live prerequisites receipts publication.**
   Owner requested the last remaining items. Proposed967 confirms genuine mixed cycles at registry scope;968 records actual860 concurrent-load/focus prerequisites, preparedWavesOFF tab and natural parity receipt. Canonicaldev960 and proposed961-966 retained; no replacementtask or sourcefix without counterexample. Only ownedACTION/STATE/sessionlog will be committed and pushed normally; no newdocs-onlymerge/deployment. Publication pending actual cleanlocal/remote/prefix readback in remaining-publication.json.
@@ -1646,7 +1646,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1039, sha256 6706e7374bef934e14d600b7898b58bc9880c46b0a40e04fc6dc22153bf61cb1**
+  **Ledger head: seq 1044, sha256 3bca209457515ae4285f566cc157b697837e0c8cfa6a8c5a36e0e2d9376346d9**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

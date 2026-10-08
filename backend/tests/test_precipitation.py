@@ -127,12 +127,13 @@ def test_point_sampler_precipitation_interpolation():
 
 def test_precipitation_endpoints_validation():
     for model in ["GFS", "ICON", "EURO"]:
-        # Test valid query routes for weather precipitation in fastapi router
-        response_grid = client.get(f"/api/weather/grid?model={model}&domain=weather&layer=precipitation&valid_time=2050-06-04T12:00:00Z")
+        # A supported historical instant tests missing coverage without asking
+        # for an impossible future forecast (which is refused at admission).
+        response_grid = client.get(f"/api/weather/grid?model={model}&domain=weather&layer=precipitation&valid_time=2000-06-04T12:00:00Z")
         assert response_grid.status_code == 404
         assert response_grid.json()["reason"] == "no_backend_coverage" if model != "EURO" else "no_copernicus_coverage"
         
-        response_point = client.get(f"/api/weather/point?model={model}&domain=weather&layer=precipitation&lat=28.36&lng=-80.60&valid_time=2050-06-04T12:00:00Z")
+        response_point = client.get(f"/api/weather/point?model={model}&domain=weather&layer=precipitation&lat=28.36&lng=-80.60&valid_time=2000-06-04T12:00:00Z")
         assert response_point.status_code == 404
         assert response_point.json()["reason"] == "no_backend_coverage" if model != "EURO" else "no_copernicus_coverage"
 

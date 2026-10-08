@@ -684,3 +684,43 @@ Recommendation: finish this candidate's exact-source qualification, then investi
 Implementation handoff: validation lives at the shared resolver and at series preflight before all three assembly paths. Existing maximum48 selected offsets and historical replay remain; an unsupported selected future offset refuses the whole page. Upper bounds are catalog-owned, including GFS384 and ICON precipitation168; one rounded final hourly slot is admitted. Geographic latitude is checked without treating crossing or unwrapped longitude as an inverted box. Keep the admission evidence separate from scientific skill and paused/playback acceptance. Publish source/tests/paired floors/receipts together; qualify the new exact head. Preserve Claude266 and the current ledger prefix. No new task identity is needed.
 
 Primary references checked: [RFC7946 antimeridian bounding boxes](https://www.rfc-editor.org/rfc/rfc7946#section-5.2) and [FastAPI error handling](https://fastapi.tiangolo.com/tutorial/handling-errors/) support preserving dateline crossings and terminating invalid requests with HTTPException before downstream work. Repository contracts, not external examples, define horizons and historical behavior.
+
+## 2026-10-08 16:26Z — PR264 request-admission source3396d2bd (ledger seq 1040)
+
+Normal commit and push published3396d2bdc3c05cc559456f0020754a83e792bf27, carrying prior actual1036/1037 and new1038/1039 qualification/source receipts on unmerged264. Commit hook reports no leaks. No hook bypass, dev merge/deployment, live forecast load, shared Storage write or scientific flag action.
+
+Readback: Local/remote/PR head reads3396d2bd; immediately after push checkout clean, draft264 OPEN. Canonicaldevfe5573db remains unchanged and Claude266 is OPEN/unmerged. New-head CI37808483204 and Lighthouse37808483316 are in progress; Ledger37808483285, LOC37808483241 and Encoding37808483292 succeed. Remaining own-source qualification is pending; prior0a4 success cannot qualify3396.
+
+Rollback: Revert the request-admission commit and paired floors by reviewed PR; retain append-only receipts and earlier qualified scopes.
+
+## 2026-10-08 16:26Z — PR264 current review description and next LIVE01 investigation (ledger seq 1041)
+
+Updated the existing draft description around the actual3396 head, counted request amplification before/after, valid model/dateline/history controls, atomic invalid-page refusal and honest pending hosted qualification. The qualified0a4 warning scope is retained separately. Existing task reconciliation and implementation handoff are appended to the owned session log; no replacement task created. Next bounded source investigation is LIVE01 hub dynamic-index repetition offline; original860, Storage durability/readers, causal devE2E and owner science gates remain independent.
+
+Readback: GitHub body read back with actual3396 head,49 new request controls,233 focused/141 companion/57 floor controls and projected2624/2508/1455 counts. Named D017 merge gate is retained; no merge approval is inferred from own source CI.
+
+Rollback: Update only review/STATE with fresh evidence; preserve canonical ledger history and existing task identities.
+
+## 2026-10-08 16:33Z — PF03 / LIVE04 / LIVE01: current hub index amplification (ledger seq 1042)
+
+Reviewed and reran the originalE15 offline instrument against current3396 source, relocating only harness paths into owned scratch. Real PointResolutionService, spot-conditions producer, DynamicProductIndex, manifest selection and sampler run with in-memory stored products, explicit upstream refusal and the original thread-side rating-gate stand-in. Each measured warm request parses the dynamic index46times at0/1440/4000entries. Elapsed33.2/376.0/1127.8ms; maximum event-loop ticker gaps1.6/37.1/82.7ms. Fixture output remains wave_height_ft4.4/rating6.6/stored_product. One warm-up and one measured request per size: no p95/statistical performance or live E2E causal claim. No production source changed in this investigation.
+
+Readback: Owned scratch e15_spot_hub_path_current3396.json read back three actual rows; command exit0 and external sockets refused. Source trace: both find methods call prune_expired then _load_index, and pruning itself loads the index; hub repeated local sampling multiplies that work. Current _load_index is an unconditional file/json read, so this invocation counter measures real parses before a cache exists. Freshness, concurrent request isolation, exception/cancellation cleanup and writer invalidation remain required for a repair. Do not equate future _load_index invocation counts with actual disk parses after caching.
+
+Rollback: Retain the observed finding; discard scratch fixtures as needed. No application, shared-data or hosting rollback is necessary.
+
+## 2026-10-08 16:43Z — PR264 source3396 hosted failure retained (ledger seq 1043)
+
+Exact3396 CI37808483204 completed FAILURE. Guards:2623passed/67skipped/1failed/0errors across190files; chain2504passed/4failed/0errors across165files. Estate1455/306selected/304producing/0silent and frontend378suites/4220tests pass; lint/build/LOC/import/floor/ledger/encoding checks succeed. Five failures are test inputs now rejected at admission: two EURO stored-selection fixtures ask for2035, pressure/precipitation missing-coverage fixtures ask for2050, and one EURO fast-path fixture passes the hours string as bbox with latitude141. No current3396 hosted qualification is claimed and no gate is weakened.
+
+Readback: Actual completed job logs retained in ignored scratch; test names and counts read back. Canonicaldevfe5573db and failed devE2E37787865773 remain unchanged. Prior0a4 qualification remains separately valid.
+
+Rollback: Retain failed-head evidence; publish only corrected source/test candidate through normal hooks and require its own hosted checks.
+
+## 2026-10-08 16:43Z — WS01/SV08 fixture compatibility without assertion loss (ledger seq 1044)
+
+Corrected five legacy fixture inputs without changing production code or deleting/loosening original assertions. EURO fixtures now use+288h, outside native viewport240h but inside advertised total336h, retaining six-hour estimate separation and physical blend2.15/source identity/priority/estimated fallback/no-coverage assertions. The terminal stored-coverage check explicitly declares direct-point upstream unavailable. Pressure/precipitation use valid historical2000 timestamps to retain original404/missing-coverage checks. The EURO native fast path receives a real regional bbox and retains four native-frame assertions. Counts and paired floors stay unchanged. This changes no served physical number, scientific flag or shared product.
+
+Readback: The combined affected six-module run passes96controls, including49request guards and all six real EURO trend/missing-input/coarse fallback controls. Fatal lint and diff-check exit0. Intermediate local evidence is preserved: current-hour EURO fixtures activated native fallback (2fail/86pass);+288h restored one but direct-point fallback supplied the terminal miss (1fail/87pass); an instance-level provider patch made those pass but left a bound-method shadow, causing six later estimator controls to fail (6fail/82pass). Class-scoped patch restores correctly; final combined96pass. The issue was fixture lane/isolation, not a repaired estimator or relaxed science behavior.
+
+Rollback: Revert only the fixture compatibility correction if admission is reverted; preserve all physical/selection/coverage assertions and failure receipts.

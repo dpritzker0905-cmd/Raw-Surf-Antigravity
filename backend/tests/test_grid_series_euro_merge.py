@@ -107,7 +107,7 @@ def test_euro_series_all_native_returns_fast_path_directly(monkeypatch):
     monkeypatch.setattr(grid_series_helper, "_build_euro_marine_series", _fake_fast_path)
     out = asyncio.run(build_grid_series(
         _fake_resolve_grid, _FakeVP(), "EURO", "marine", "waves",
-        "0,3,6,141", "0,3,6,141",
+        "-82,26,-78,30", "0,3,6,141",
     ))
     # All <=240h -> fast path returns directly, every frame native.
     assert out["frame_count"] == 4
