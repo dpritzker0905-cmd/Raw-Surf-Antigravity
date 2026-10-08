@@ -457,7 +457,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Direct-point provenance adds41 estate cases; paired floor1266/reference1268, margin2.
 # Regular direct-point honesty adds99 guards; paired floor2518/reference2524, margin6.
 # EURO donor labels +17 guards and health listing +20 chain, paired six-test margins.
-_FLOOR_SET_FROM = {"guards": 2541, "chain": 2416, "estate": 1268}
+# Payment caller binding: four estate files add 73 executed tests; projected 1341, margin 2.
+_FLOOR_SET_FROM = {"guards": 2541, "chain": 2416, "estate": 1341}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
