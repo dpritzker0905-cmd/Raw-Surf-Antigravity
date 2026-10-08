@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 00:40Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 00:44Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,9 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-08 00:44Z: PR260 published; exact-hunk ancestry integration preserves canonical records.**
+  PR260 ancestry integrated43d85f5a/base76 and nowMERGEABLE/draft. Committed935 ledger proven byte-identical to99/canonical926 prefix. Local CRLF gate failure corrected; mistaken continuation after failed local gates explicitly recorded, then own memory/prefix/LOC/lint/diff pass0. Proposed936 actual publication receipt becomes new final head;933 own CI/rollout pending,860 independent quiet blockers preserved.
 
 - **2026-10-08 00:40Z: Prepare normal publication of the bounded direct-point metadata candidate.**
   New point repair local gates passed; commitment933 own hosted final-source qualification/rollout pending. Prior proposed927-932 preserved; canonicaldev76/ledger926 unchanged. Regional37704566496 and E2E37706231506 active00:40Z still block original860; no forecast scene or broad acceptance inferred.
@@ -1524,7 +1527,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 935, sha256 7b7e9dccc2414f55a06586555d7757eb4a20bc65cef1dc0007af77311bb20361**
+  **Ledger head: seq 936, sha256 c20bda855a8629dc8b4533805950bef8b75c9d514e764851ad93759a8a9f6198**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
