@@ -21,7 +21,7 @@ uniform vec2 u_wind_res;          // wind grid resolution (cols, rows)
 uniform float u_speed_scale;      // scale-invariant speed scale (float for Mercator)
 uniform float u_rand_seed;        // per-frame random seed for respawn
 uniform float u_drop_rate;        // base particle drop rate
-uniform float u_drop_rate_bump; uniform float u_dt_scale; // bump: speed-dependent drop increase; dt_scale: A15-18 elapsed 60 Hz frames (0 = unset -> 1)
+uniform float u_drop_rate_bump; uniform float u_dt_scale; uniform float u_drop_cap; // bump: speed-dependent drop increase; dt_scale: A15-18 elapsed 60 Hz frames (0 = unset -> 1); drop_cap: motion floor (0 = unset -> 1)
 uniform float u_edgeFeatherEnabled; // regional edge feather flag
 uniform vec2 u_dataBounds_min;    // regional bounds min [west, south]
 uniform vec2 u_dataBounds_max;    // regional bounds max [east, north]
@@ -206,9 +206,9 @@ void main() {
   // proper"). What the eye reads is INK, not particle count:
   //     ink(speed) ~ mark AREA(speed) x COUNT(speed),  and  COUNT ~ lifetime ~ 1/dropRate.
   //
-  // The legacy rule u_drop_rate + speed*u_drop_rate_bump is NOT a bug — measured against the
-  // webgl-wind lineage's trail rendering (ink ~ speed/dropRate) it holds ink flat to 1.06x above
-  // 4 kn. It is a well-tuned compensator and must not be "simplified" away.
+  // The legacy rule u_drop_rate + speed*u_drop_rate_bump holds trail ink flat (1.06x above 4 kn) —
+  // keep it — but its bump multiplies raw KNOTS (upstream: speed normalised to 0..1), so above ~20 kn
+  // it starved life below visible motion (47 kn: 2.6 frames). u_drop_cap below bounds it (2026-10-08).
   //
   // The clumping was introduced by THIS SESSION's low-wind size floor (DRAW_VS): it multiplied
   // calm-air mark AREA by up to ~10x — and un-zeroed the sub-0.5 kn marks that legacy had made
@@ -263,7 +263,7 @@ void main() {
   // lifetime at annulus-median speed). A deliberate, GATED ink premium like the calm floor —
   // bounded to the vortex's small screen area; the 0.002 floor (== the base drop rate) keeps
   // particles mortal. gate 0 -> dropRate unchanged.
-  dropRate = max(dropRate * mix(1.0, 0.35, vortexGate), 0.002);
+  dropRate = max(dropRate * mix(1.0, 0.35, vortexGate), 0.002); dropRate = min(dropRate, u_drop_cap > 0.0 ? u_drop_cap : 1.0); // MOTION FLOOR: life >= 1/u_drop_cap frames
   float drop = step(pow(1.0 - dropRate, u_dt_scale > 0.0 ? u_dt_scale : 1.0), rand(seed));   // A15-18
 
   // If regional grid and exits bounding box, drop it. For global grid, only drop if it exits latitude bounds.
