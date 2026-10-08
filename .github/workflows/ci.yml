@@ -1738,7 +1738,10 @@ jobs:
           # new estate files add 73 executed tests (collect-only, all passing locally) to the hosted
           # 1268 read on dev b02f43f8 (CI 37717937274: 300 files, 1268 passed): projected 1341;
           # 1341 - 2 = 1339; margin 2 kept. Hosted CI on this PR must read 304 files / 1341.
-          MIN_PASSED = 1339
+          # ⬆ 1339→1355 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (live-session escrow): the new
+          # 18-test estate file replaces a 2-test file on the hosted 1341 read on dev baee6438
+          # (CI 37777820792): 1341 - 2 + 18 = 1357; 1357 - 2 = 1355; this PR must read 304 / 1357.
+          MIN_PASSED = 1355
 
           try:
               root = ET.parse('estate.xml').getroot()
