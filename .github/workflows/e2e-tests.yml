@@ -186,10 +186,11 @@ jobs:
         # A refusal that cannot be read is indistinguishable from a pass. `list` names every test and
         # its status on stdout; `html` keeps the artifact for traces.
         run: |
+          node --test scripts/e2e_receipts.test.cjs
           # Arguments are quoted array entries, never interpolated shell source.
           # Push acceptance keeps the full suite and existing retries; filters are dispatch-only.
           # Credential-bearing browser contexts must stay untraced, including diagnostics.
-          args=(--reporter=list,html --trace=off)
+          args=(--reporter=list,html,./e2e/progressReporter.js --trace=off)
           if [ -n "$E2E_TEST_GREP" ]; then args+=(--grep "$E2E_TEST_GREP"); fi
           if [ -n "$E2E_PROJECT" ]; then args+=(--project "$E2E_PROJECT"); fi
           if [ "$E2E_DIAGNOSTIC_NO_RETRY" = "true" ]; then args+=(--retries=0); fi
@@ -200,5 +201,8 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: playwright-report
-          path: frontend/playwright-report/
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            frontend/e2e-metadata/
           retention-days: 14

@@ -26,6 +26,7 @@
  */
 const { test, expect } = require('@playwright/test');
 const { stubSeededMessageBadge } = require('./seededMessageBadge');
+const { observeHubRequests } = require('./hubRequestReceipt');
 
 // The same stub the weather spec uses. Measured sufficient to pass the route guard.
 const standardUser = {
@@ -134,11 +135,22 @@ test.describe('Explore', () => {
   // the binding constraint was this per-ASSERTION budget, which the enclosing timeout never reaches.
   // ⛔ The real fix is ordering: gate the e2e job on the backend being up, not just the frontend.
   // Until then these budgets must not be tighter than the client the app itself ships.
-  test('clicking a spot opens its spot hub', async ({ page }) => {
-    await page.locator('[data-testid^="trending-spot-"]').first().click();
-    // ⚠️ Measured: this NAVIGATES to /spot-hub/<uuid>. It is not a drawer or a [role=dialog].
-    await expect(page).toHaveURL(/\/spot-hub\//, { timeout: 15000 });
-    await expect(page.locator('[data-testid="close-spothub-btn"]')).toBeVisible({ timeout: 60000 });
+  test('clicking a spot opens its spot hub', async ({ page }, testInfo) => {
+    const receipt = observeHubRequests(page);
+    try {
+      await page.locator('[data-testid^="trending-spot-"]').first().click();
+      await expect(page).toHaveURL(/\/spot-hub\//, { timeout: 15000 });
+      await expect(page.locator('[data-testid="close-spothub-btn"]')).toBeVisible({ timeout: 60000 });
+    } finally {
+      const facts = { requests: receipt(),
+        hubVisible: await page.getByTestId('close-spothub-btn').isVisible().catch(() => false),
+        unavailable: await page.getByRole('heading', { name: 'Unable to load this spot' }).isVisible().catch(() => false),
+        notFound: await page.getByRole('heading', { name: 'Spot Not Found' }).isVisible().catch(() => false) };
+      // stdout survives a job timeout; attachments survive individual test failures.
+      console.log('HUB_REQUEST_RECEIPT ' + JSON.stringify(facts));
+      await testInfo.attach('hub-request-receipt', { contentType: 'application/json',
+        body: Buffer.from(JSON.stringify(facts)) });
+    }
   });
 
   test('navigation is present, and it is the RIGHT nav for the viewport', async ({ page, isMobile }) => {
