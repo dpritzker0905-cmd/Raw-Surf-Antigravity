@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 02:10Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 02:32Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,30 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-08 02:32Z: PR262 completed repair and rollout receipts prepared for publication.**
+  Bothbounded WI03 repairs complete at ownqualifiedsource/availabilityscope; actual957 fulfillment/cacheexecution and original860/currentforecastwork blockers retained. Canonicaldev ledger960 byteprefix andactualdevancestry preserved; newestpostmerge receiptsproposed. OnlyownedACTION/STATE/sessionlog differfromdev; normalpush/finalreadbackpending. CarryreceiptswithnextjustifiedsourcePR, no docs-onlymergechain.
+
+
+- **2026-10-08 02:32Z: PR262 matching dev deployment and health cache receipt.**
+  Ownsourcequalification/availability957 fulfilled atbounded scope: frontend/APIb02f43f8dd6b8c1453c6f0fca2387a6c839f876e matchinghealthy, restorationcomplete13301/13301,zeroerrors. Newpubliclisting statusok/first_page/TTL30/age/checked_at visible; oneboundedrepeat reuseschecked_at/status/count withcachedtrue. Datahealthwarn,alerts['ICON/marine: model cycle unverified: conflicting', 'EURO/marine: model cycle unverified: conflicting']; independentoldslot/cycle/live/playback/Gulf/device/isolationacceptance remainsopen. No manualhostingtrigger/env/scienceflag/sharedproductmutation.
+
+
+- **2026-10-08 02:28Z: 860 post-PR262 prerequisites and independent acceptance refreshed.**
+  Original860 remainsopen/overdue: earliest2026-10-08T02:47:10+00:00,matchingdeployedsource/healthyAPI/quiet/focusedstablePAUSED prerequisites allrequired. First02:27rolloutreadback stillold3d; no sceneforced. Actualforecastwork[('E2E Tests', 37717937279, 'in_progress', ''), ('Precompute Spot Ratings (decoupled)', 37717937273, 'in_progress', ''), ('E2E Tests', 37714707766, 'completed', 'cancelled')]; core37710415890 completed/success; prior3dE2E37714707766 completed/cancelled. LatestrecordedNightly[{'conclusion': 'failure', 'createdAt': '2026-10-07T13:45:26Z', 'databaseId': 37631047631, 'headSha': '4fe944205a5716aa3114dfa47a79e1ee32e69cc6', 'status': 'completed'}]. No manualforecastjobmutation or productacceptancefromownCI.
+
+
+- **2026-10-08 02:27Z: PR262 superseded own CI cleanup completed.**
+  Onlyowninitial4179 CI37716479043 and Lighthouse37716479097 canceled afterfinal9602 head/workflow/source checks; actualbothcompletedcancelled. CurrentownfinalCI independentlyqualifies. Existingforecastingest/E2E/precompute/Nightly hadno manualdispatch/rerun/cancel.
+
+
+- **2026-10-08 02:27Z: PR262 own source qualification and bounded repair completion.**
+  Source scopes WI03healthamplification952 and EUROdonorlabels953 repaired and ownexactsourcequalified. Processshared30s success/error/unavailable listingcache/singleflight withfreshness/firstpagescope; currentdisk/restore remainsuncached. Actualexistingfallbackrequest donors labelled honestly; legacy partitioneligibility method retained plusactualsource_method. Physical/sample/cycle/donorselection/horizon/flags unchanged. Only source/availability followup957 rolloutpending; WI03 cyclecohort/oldslots and860/performance/playback/Gulf/device/isolation independent.
+
+
+- **2026-10-08 02:27Z: #262.**
+  PR262 merged2026-10-08T02:27:10Z asb02f43f8dd6b8c1453c6f0fca2387a6c839f876e; exactqualified9602a1c0cce2f414fcc0dd9692926846ffc26e54, all11 ownCI/actual6225backend4177frontend/LOC/Ledger/Lighthouse/preview. Fullmergedtreeequal and devancestryintegrated beforepostreceipts. Canonical960 carries949-956 actual261receipts and957-960 newsourcecommitment/evidence. Source rolloutpending957; original860 earliest2026-10-08T02:47:10+00:00 plusquiet/source/healthy/focus/stablepausedprerequisites. No main/scienceflags/sharedproduct mutation.
+
 
 - **2026-10-08 02:10Z: PR262 bounded health and donor-label repairs published for own qualification.**
   Actualinitial4179 normalpush/draftPR262dev createdandattached,clean/remotematch/base3d/openmergeable. Publicationreceipt960 carriesactualprior261post949-956 and own957-959 sourceevidence; finalcandidate willqualifyitsownchecks. Original860/datawarnings/E2E/Gulf/device/isolation/playback unchanged. Ownconditionalrolloutpending957.
@@ -1608,7 +1632,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 960, sha256 492804dee26b5021e8d2149dcaa3d6db4aa3301e7ccfdb156153abad548d50dd**
+  **Ledger head: seq 966, sha256 e014508fe7674c2d77434f5a75d5f09682f65ab0d7f8c3f6ad4fd6e3756450dd**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
