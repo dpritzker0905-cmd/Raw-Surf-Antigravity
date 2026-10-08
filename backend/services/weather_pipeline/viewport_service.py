@@ -67,6 +67,24 @@ class ViewportService:
                 self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
         logger.warning(f"[Dynamic Viewport] Reaped cancelled shared context for {request_dedup_key} (self-heal).")
 
+    async def _register_hour_waiter(
+        self, request_dedup_key: str, context: "FetchContext", target_dt: datetime
+    ) -> Optional[asyncio.Future]:
+        """The future a sharing waiter awaits for its hour, or None when `context` is no longer the
+        live IN_FLIGHT_REQUESTS entry. Every retirement path (background-task finally, fetcher error
+        branches, _reap_shared_context) pops the key, then fails only the futures that existed — so a
+        future registered on a retired context is never resolved and its waiter (an SWR revalidation
+        holding the reval semaphore and a queue slot) hangs forever: the 2026-10-08 "2-degree wind at
+        every zoom". None sends the caller down its existing self-heal path instead."""
+        async with self.IN_FLIGHT_LOCK:
+            if self.IN_FLIGHT_REQUESTS.get(request_dedup_key) is not context:
+                return None
+            fut = context.hour_futures.get(target_dt)
+            if fut is None:
+                fut = asyncio.Future()
+                context.hour_futures[target_dt] = fut
+            return fut
+
     def __init__(
         self,
         store: Optional[ProductStore] = None,
@@ -277,15 +295,11 @@ class ViewportService:
 
                 loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
                 if not loaded_product:
-                    hour_fut = None
-                    async with self.IN_FLIGHT_LOCK:
-                        if target_dt in context.hour_futures:
-                            hour_fut = context.hour_futures[target_dt]
-                        else:
-                            hour_fut = asyncio.Future()
-                            context.hour_futures[target_dt] = hour_fut
-
-                    await asyncio.shield(hour_fut)
+                    # None = the context retired before we registered: nobody would resolve a new
+                    # future, so re-check disk and fall through to the self-heal fetch below.
+                    hour_fut = await self._register_hour_waiter(request_dedup_key, context, target_dt)
+                    if hour_fut is not None:
+                        await asyncio.shield(hour_fut)
                     loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
 
                 if loaded_product and _is_oversized_grid(loaded_product):
@@ -334,14 +348,9 @@ class ViewportService:
 
                     loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
                     if not loaded_product:
-                        hour_fut = None
-                        async with self.IN_FLIGHT_LOCK:
-                            if target_dt in context.hour_futures:
-                                hour_fut = context.hour_futures[target_dt]
-                            else:
-                                hour_fut = asyncio.Future()
-                                context.hour_futures[target_dt] = hour_fut
-                        await asyncio.shield(hour_fut)
+                        hour_fut = await self._register_hour_waiter(request_dedup_key, context, target_dt)
+                        if hour_fut is not None:   # None = retired context (see the helper)
+                            await asyncio.shield(hour_fut)
                         loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
 
                     if loaded_product and _is_oversized_grid(loaded_product):
@@ -632,12 +641,19 @@ class ViewportService:
             type(self)._REVAL_SEMAPHORE = asyncio.Semaphore(
                 max(1, int(os.environ.get("MARINE_REVAL_CONCURRENCY", "1")))
             )
+        # BOUNDED (2026-10-08): a revalidation that never returns held the semaphore and its queue
+        # slot forever, so the mid tier stopped scheduling sharpens on that instance (the orphaned
+        # hour-waiter — see _register_hour_waiter). The bound covers the fetch, not the queue wait.
+        reval_timeout_s = float(os.environ.get("VIEWPORT_REVAL_TIMEOUT_S", "90"))
         try:
             async with type(self)._REVAL_SEMAPHORE:
-                await self.fetch_viewport_grid(
-                    model=model, domain=domain, layer=layer,
-                    valid_time_str=valid_time_str, target_dt=target_dt,
-                    bbox_str=bbox_str, force_refresh=True
+                await asyncio.wait_for(
+                    self.fetch_viewport_grid(
+                        model=model, domain=domain, layer=layer,
+                        valid_time_str=valid_time_str, target_dt=target_dt,
+                        bbox_str=bbox_str, force_refresh=True
+                    ),
+                    timeout=reval_timeout_s,
                 )
             logger.info(f"[Dynamic Viewport] SWR background revalidation succeeded for {reval_key}")
         except Exception as e:

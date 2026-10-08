@@ -461,7 +461,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Actor-route binding: two estate files add 105 executed tests on hosted 1341; projected 1446.
 # Live-session escrow: an 18-test estate file replaces a 2-test one on hosted 1446; projected 1462.
 # VA-03 nearshore judge: +3 chain on hosted 2416 (floor 2413), +13 estate on hosted 1462 (floor 1473).
-_FLOOR_SET_FROM = {"guards": 2541, "chain": 2419, "estate": 1475}
+_FLOOR_SET_FROM = {"guards": 2541, "chain": 2426, "estate": 1475}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

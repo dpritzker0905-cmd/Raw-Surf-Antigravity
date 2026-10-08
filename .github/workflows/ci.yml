@@ -1358,7 +1358,10 @@ jobs:
           # ⬆ 2410→2413 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (VA-03 nearshore judge): three
           # GRADED-floor cases in test_nearshore_validation.py on the hosted 2416 read on dev ab416298
           # (CI 37853930681: 160 files, 2416 passed): projected 2419/160 files; 2419 - 6 = 2413, margin 6.
-          MIN_FILES, MIN_PASSED = 160, 2413
+          # ⬆ 160/2413 → 161/2420 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (orphaned hour-waiter):
+          # test_viewport_orphaned_hour_waiter.py (7), selector-verified into this lane; hosted reading on
+          # dev 1b21ad2a (CI 37858602008: 160 files, 2419 passed) -> projected 2426/161; 2426 - 6 = 2420.
+          MIN_FILES, MIN_PASSED = 161, 2420
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
