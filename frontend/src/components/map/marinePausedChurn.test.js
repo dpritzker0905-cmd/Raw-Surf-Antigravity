@@ -20,7 +20,9 @@ import { runScrubSettleCheck } from './useMarineScrubSettle';
 import { getMarineSeriesFrame } from './marineGridSeries';
 import { setCachedManifest } from './backendWeatherServiceClient';
 import { decideMarineCommit, __resetArbiterGraceForTests } from './marineCommitGate';
-import { frameServesSelectedHour } from './marineHourInstant';
+import fs from 'fs';
+import path from 'path';
+import { frameServesSelectedHour, uploadedGridServesHour } from './marineHourInstant';
 import { sameMarineLabelledHour, sameMarineRequestedInstant } from './marineFrameInstant';
 
 jest.mock('./marineGridSeries', () => ({
@@ -215,5 +217,40 @@ describe('sameMarineLabelledHour / sameMarineRequestedInstant (pure)', () => {
   it('needs both instants, and refuses impossible ones', () => {
     expect(sameMarineRequestedInstant({ valid_time: T12 }, {})).toBe(false);
     expect(sameMarineRequestedInstant({ valid_time: '2026-02-30T12:00:00Z' }, { valid_time: '2026-02-30T12:00:00Z' })).toBe(false);
+  });
+});
+
+// THE DISCLOSURE HALF. The recording shows "Stale Hour Retained" on some frames. WebGLMarineLayer raised it from
+// `requestedHour === renderedDataHour`, labels again, so the 12:00Z tile labelled 15 read as stale at offset 16. Held still by the
+// fix above, that tile would have kept a false warning up for good; the badge must read the same instant rule.
+describe('uploadedGridServesHour (the layer render-hour parity behind "Stale Hour Retained")', () => {
+  // The record WebGLMarineLayer keeps for the uploaded grid (lastUploadedGridRef).
+  const sig = (over = {}) => ({ activeModel: 'GFS', activeMarineLayer: 'waves', componentLayer: 'waves', vectorsLength: 1,
+    renderedDataHour: 15, renderedValidTime: T12, ...over });
+
+  it('is true for the 12:00Z tile at offset 16 (the badge was a false warning)', () => {
+    expect(uploadedGridServesHour(sig(), 16, 'GFS')).toBe(true);
+  });
+  it.each([
+    ['a genuine stale hour (12:00Z drawn, offset 18 asks for 15:00Z)', sig(), 18, 'GFS'],
+    ['another model selected than the one drawn', sig(), 16, 'EURO'],
+    ['an upload with no valid time recorded', sig({ renderedValidTime: null }), 16, 'GFS'],
+    ['a grid of another layer than the selected one', sig({ componentLayer: 'swell_1' }), 16, 'GFS'],
+    ['no upload yet', null, 16, 'GFS'],
+  ])('POSITIVE CONTROL: is false for %s, so the badge still shows', (_l, s, hour, model) => {
+    expect(uploadedGridServesHour(s, hour, model)).toBe(false);
+  });
+  it('POSITIVE CONTROL: the kill switch restores the label-only parity', () => {
+    window.__RAW_DISABLE_HOUR_BY_INSTANT__ = true;
+    expect(uploadedGridServesHour(sig(), 16, 'GFS')).toBe(false);
+  });
+
+  // No unit test mounts WebGLMarineLayer (a WebGL engine), so the wiring is asserted in SOURCE, house style
+  // (marineCommitGate.wiring.test.js), each assertion with a negative control so an empty match cannot pass for clean.
+  const LAYER_SRC = fs.readFileSync(path.join(__dirname, 'WebGLMarineLayer.js'), 'utf8');
+  it('the layer parity reads the instant rule, and the upload record carries the valid time it needs', () => {
+    expect(LAYER_SRC).toMatch(/const parity = active && renderedDataHour !== null &&\s*\(requestedHour === renderedDataHour \|\| uploadedGridServesHour\(lastSig, requestedHour, activeModel\)\)/);
+    expect(LAYER_SRC).toMatch(/renderedValidTime: \(grid\.grid && grid\.grid\.valid_time\) \|\| grid\.valid_time \|\| null,/);
+    expect(LAYER_SRC).not.toMatch(/const parity = active && renderedDataHour !== null && requestedHour === renderedDataHour;/);   // the old line is gone
   });
 });

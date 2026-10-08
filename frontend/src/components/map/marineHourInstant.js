@@ -38,3 +38,15 @@ export function frameServesSelectedHour(marineData, hourOffset, model, layer, wi
     return false;                      // best effort: the settle check keeps its label test
   }
 }
+
+/**
+ * The same question for the layer's render-hour parity (WebGLMarineLayer -> __MARINE_HEATMAP_STATUS__ -> the "Stale Hour Retained"
+ * badge). The recording showed that badge over the 12:00Z tile at offset 16: stale by label (15 != 16), current by data. Held still by
+ * the fix above, the tile would have kept that false warning up for good. `sig` is the layer's lastUploadedGridRef record; the drawn
+ * grid must be of the selected model and layer, or the label test stays the judge.
+ */
+export function uploadedGridServesHour(sig, hourOffset, selectedModel, win) {
+  if (!sig || !sig.renderedValidTime) return false;
+  const grid = { valid_time: sig.renderedValidTime, __sourceModel: sig.activeModel, __componentLayer: sig.componentLayer };
+  return frameServesSelectedHour({ grid }, hourOffset, selectedModel || 'GFS', sig.activeMarineLayer, win);
+}
