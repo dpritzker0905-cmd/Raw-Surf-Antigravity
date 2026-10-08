@@ -230,26 +230,25 @@ async def join_session(
         from utils.revenue_routing import is_pro_creator, is_hobbyist_creator
         
         photographer_credit_amount = final_price * 0.80  # 80% after platform fee
-        
+
+        # The earning is added to the role's bucket AND to credit_balance; credit_balance is never
+        # replaced by a bucket total, which would erase any other credit the photographer holds.
+        balance_before = photographer.credit_balance or 0
         if is_pro_creator(photographer.role):
             # Pro: goes to withdrawable credits
-            photographer.withdrawable_credits += photographer_credit_amount
-            photographer.credit_balance = photographer.withdrawable_credits
+            photographer.withdrawable_credits = (photographer.withdrawable_credits or 0) + photographer_credit_amount
         elif is_hobbyist_creator(photographer.role):
             # Hobbyist: goes to gear credits
-            photographer.gear_only_credits += photographer_credit_amount
-            photographer.credit_balance = photographer.gear_only_credits
-        else:
-            # Other roles: regular credit balance
-            photographer.credit_balance = (photographer.credit_balance or 0) + photographer_credit_amount
-        
+            photographer.gear_only_credits = (photographer.gear_only_credits or 0) + photographer_credit_amount
+        photographer.credit_balance = balance_before + photographer_credit_amount
+
         photographer_credited = True
-        
+
         # Log the credit transaction
         credit_tx = CreditTransaction(
             user_id=photographer.id,
             amount=photographer_credit_amount,
-            balance_before=photographer.credit_balance - photographer_credit_amount,
+            balance_before=balance_before,
             balance_after=photographer.credit_balance,
             transaction_type='live_session_earning',
             description=f"Live session buy-in from {surfer.full_name}",
