@@ -1,9 +1,11 @@
 import os
 import json
 import logging
+from copy import deepcopy
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Any, Optional
+from services.weather_pipeline.dynamic_index_reads import read_index, invalidate_index
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +27,12 @@ class DynamicProductIndex:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _load_index(self) -> List[Dict[str, Any]]:
-        if not self.index_path.exists():
-            return []
+        # Retain the independent mutable result of the original file reader.
+        return deepcopy(self._read_index())
+
+    def _read_index(self) -> List[Dict[str, Any]]:
         try:
-            with open(self.index_path, "r") as f:
-                return json.load(f)
+            return read_index(self.index_path)
         except Exception as e:
             logger.error(f"[Dynamic Index] Failed to load index: {e}")
             return []
@@ -40,6 +43,7 @@ class DynamicProductIndex:
             with open(tmp_path, "w") as f:
                 json.dump(data, f, indent=2)
             os.replace(tmp_path, self.index_path)
+            invalidate_index(self.index_path)
         except Exception as e:
             logger.error(f"[Dynamic Index] Failed to save index: {e}")
             if tmp_path.exists():
@@ -49,7 +53,7 @@ class DynamicProductIndex:
     def prune_expired(self):
         """Removes expired dynamic index entries and deletes corresponding L1 files."""
         now = datetime.now(timezone.utc)
-        items = self._load_index()
+        items = self._read_index()
         valid_items = []
         pruned_count = 0
 
@@ -139,7 +143,7 @@ class DynamicProductIndex:
     ) -> Optional[Dict[str, Any]]:
         """Finds a conformed dynamic product by model, layer, valid_time, and cache key."""
         self.prune_expired()
-        items = self._load_index()
+        items = self._read_index()
         target_ts = valid_time.timestamp()
 
         for item in items:
@@ -153,7 +157,7 @@ class DynamicProductIndex:
                     item_dt = datetime.fromisoformat(item["valid_time"].replace("Z", "+00:00"))
                     # Allow 3h time tolerance alignment
                     if abs(item_dt.timestamp() - target_ts) <= 3 * 3600:
-                        return item
+                        return deepcopy(item)
                 except ValueError:
                     continue
         return None
@@ -170,7 +174,7 @@ class DynamicProductIndex:
     ) -> Optional[Dict[str, Any]]:
         """Finds any registered dynamic product that contains the requested coordinate and time, sorted by closest match."""
         self.prune_expired()
-        items = self._load_index()
+        items = self._read_index()
         target_ts = valid_time.timestamp()
 
         candidates = []
@@ -228,6 +232,6 @@ class DynamicProductIndex:
         if candidates:
             # Sort: 1) bbox_match, 2) time_diff, 3) area (smaller is better)
             candidates.sort(key=lambda c: (c["bbox_match"], c["time_diff"], c["area"]))
-            return candidates[0]["item"]
+            return deepcopy(candidates[0]["item"])
 
         return None

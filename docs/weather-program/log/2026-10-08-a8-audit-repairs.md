@@ -724,3 +724,45 @@ Corrected five legacy fixture inputs without changing production code or deletin
 Readback: The combined affected six-module run passes96controls, including49request guards and all six real EURO trend/missing-input/coarse fallback controls. Fatal lint and diff-check exit0. Intermediate local evidence is preserved: current-hour EURO fixtures activated native fallback (2fail/86pass);+288h restored one but direct-point fallback supplied the terminal miss (1fail/87pass); an instance-level provider patch made those pass but left a bound-method shadow, causing six later estimator controls to fail (6fail/82pass). Class-scoped patch restores correctly; final combined96pass. The issue was fixture lane/isolation, not a repaired estimator or relaxed science behavior.
 
 Rollback: Revert only the fixture compatibility correction if admission is reverted; preserve all physical/selection/coverage assertions and failure receipts.
+
+## 2026-10-08 16:47Z — PR264 corrected source30033f7d (ledger seq 1045)
+
+Normal commit/push published30033f7dabb2ff3e5fce6d67fd2e107bfb37a44c, carrying actual1040-1042 publication/profile receipts and1043/1044 hosted failure/fixture correction. Commit hook reports no leaks; full LOC ratchet exits0. Production source is unchanged from3396; only five fixture-input/isolation corrections and receipts accompany the new qualification head. No assertion/floor relaxation, hook bypass, shared forecast/Storage mutation, dev merge/deployment or science action.
+
+Readback: Local/PR head reads30033f7d, checkout clean immediately after push, draft264 OPEN. Exact new CI37811275614, Ledger37811275505, LOC37811275519, Encoding37811275584 and Lighthouse37811275418 start in progress. Claude266 remains OPEN/unmerged atc63b7f3d, excluded. Prior3396 failure and0a4 success retained;30033 qualification remains pending.
+
+Rollback: Revert fixture compatibility/source admission with paired floors by reviewed PR if needed; retain append-only evidence and original task identities.
+
+## 2026-10-08 16:47Z — PR264 corrected-head review readback (ledger seq 1046)
+
+Draft description now names actual30033 source, initial3396 five-failure counts, corrected96-control combined rerun, preserved assertions and unchanged floors. Public review distinguishes qualified0a4 warning scope from pending request-admission qualification. LIVE01 fresh46-parse reproduction is recorded for the next bounded cache investigation, whose writer freshness/cancellation/isolation and physical null controls are required. Original860, causal hubE2E, Storage compressed durability/readers and owner science gates remain independent.
+
+Readback: GitHub readback correctedBody=true at actual30033 head, matching full source SHA,2623guard failure receipt and96controls. Ledger chain verifies1046; canonical devfe5573db/960 is unchanged, local post-publication receipts remain proposed.
+
+Rollback: Revise review/STATE only with fresh evidence; no app/shared-data rollback is needed for the description.
+
+## 2026-10-08 17:06Z — PF03 / LIVE04: request admission hosted qualification (ledger seq 1047)
+
+Exact pushed source 30033f7d CI 37811275614 completed SUCCESS. Actual guards 2624 passed / 67 skipped / 190 files, chain 2508 / 165 files, estate 1455 / 306 selected / 304 producing / zero silent; frontend 378 suites / 4220 tests. This qualifies request admission and corrected fixture inputs at source scope. Canonical dev fe5573db / ledger 960 remains unchanged; #266 is OPEN/unmerged. Existing dev E2E 37787865773 remains failed. D017 and live/scientific acceptance remain open.
+
+Readback: GitHub completed job logs and run conclusion read back; branches/dev and #266 read back. No live forecast workflow started.
+
+Rollback: Retain the receipt; revert the owned request-admission source and paired floors by reviewed PR if required.
+
+## 2026-10-08 17:06Z — PF03 / LIVE04 / LIVE01: request-local hub index repair (ledger seq 1048)
+
+Real hub regression failed before source editing: 46 actual json.load parses of its unchanged file. Added a fresh ContextVar scope at resolve_spot_conditions, file identity/size/nanosecond freshness checks and successful-writer invalidation. Private read-only rows feed pruning/selection; exposed results are copied. Expiry is checked on every lookup. Scope resets on exception/cancellation and inherited child contexts stop caching after parent exit. Missing/corrupt/racing files are not cached. No process TTL or served forecast formula changed; this repair changes no served number and science flags are unchanged. Python ContextVar/reset and stat platform behavior were checked against official docs: https://docs.python.org/3/library/contextvars.html and https://docs.python.org/3/library/os.html#os.stat.
+
+Readback: 18 controls pass, including the real hub seam, freshness, writer failure, mutation, concurrent/nested/child scopes, expiry and dateline ranking. Nine finite-difference columns through real sampling/geometry/composition match uncached values; two 1% numeric mutants are detected. First Windows descriptor-ctime comparison prevented caching and was corrected from observed path/fstat difference. Early test counts were corrected to retain two outside-scope parses; portable race fixture uses in-place update while the read is open. Initial physical fixture omitted required is_estimated; complete schema then passed. These failed intermediate checks are not hidden.
+
+Rollback: Revert dynamic_index_reads, its owned DynamicProductIndex and hub scope changes, new regression module and paired floors together. Preserve append-only evidence.
+
+## 2026-10-08 17:06Z — PF03 / LIVE04 / LIVE01: bounded offline index cost (ledger seq 1049)
+
+Reviewed E15 instrument rerun with actual JSON parse counting (not _load_index invocation counting). Scoped rows at index sizes 0/1440/4000: parses 1/1/1, elapsed 27.5/67.6/102.8ms, max loop gaps 2.2/8.2/13.1ms. Same changed source with only scope disabled: parses 46/46/46, elapsed 37.0/332.9/1474.3ms, max gaps 5.9/39.1/108.7ms. Original 3396 baseline was 33.2/376.0/1127.8ms and 1.6/37.1/82.7ms. All current fixtures return 4.4ft / rating6.6 / stored_product. One warm-up and one measured request per size; no statistical or live E2E verdict. Original thread-side rating gate stand-in retained only in timing instrument; tracked Jacobian control uses real composition. Actual sampler/selection/geometry and offline store/provider seams retained.
+
+Readback: Ignored scratch E15 JSON receipts read back. 98 hub/physics/source/cycle/wire/floor/selector companions and 18 offline viewport controls pass. Local environment differs from declared pins (2 different, 2 missing); hosted new-head qualification remains pending. Partition 665 = 191 guards + 165 chain + 306 estate + two named exclusions + one quarantine. Paired floor/reference now 2636/2642 with 18 new cases and unchanged six-test margin; projected hosted guards 2642 passes plus 67 skips. Fatal lint and backend/full-repo size gates pass.
+
+Rollback: Retain measurements as scoped evidence. Revert the cache candidate if exact-head hosted or later bounded live evidence fails; do not duplicate task identities or reopen qualified mask repairs without regression evidence.
+
+Additional readback for ledger1049: seven real local-storage/preview/size controls passed. No served number changed. Implementation handoff: qualify exact pushed cache head on its own hosted CI; preserve D017 and existing LIVE01/PF03/LIVE04 IDs. Rollout needs dev E2E green or a named #264 owner waiver, followed by its own bounded hub evidence. Original860, Storage durability/readers and independent playback/Gulf/device/time/data-health acceptance remain open.
