@@ -120,6 +120,15 @@ async def encode_series_response(payload, request):
     return await _cpu_work(series_response.encode_response, payload, series_response.accepts_gzip(request))
 
 
+async def serve_series_builder(builder, hours, request):
+    """Dispatch the existing builder through the selected, default-off envelope."""
+    if enabled():
+        return await encode_series_response(await builder(), request)
+    if os.environ.get('GRID_SERIES_RESPONSE_BOUNDS', '0') == '1':
+        return await series_response.serve_series(builder, hours, request)
+    return await builder()
+
+
 async def serve_response(builder, request, lane, deadline):
     admission = series_response.ADMISSION  # one process budget, not a second pair of slots
     await admission.acquire(lane, request, deadline)

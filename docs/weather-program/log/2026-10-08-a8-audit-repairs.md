@@ -577,3 +577,19 @@ Proposed reconciliation (these additions remain on unmerged264; merged canonical
 | 863 |Canonical883 fulfills rollout receipt obligation |Fulfilled |Preserve identity and closure |No replacement task |
 
 Implementation handoff: qualify this exact source first. Do not merge264 on red dev E2E without the owner naming264 in a waiver. Next evidence priority is A8-03 real compressed durability/both readers before10-14, then the remaining independent WI03/PF03/physics/UI acceptance work. Preserve dark science flags, fulfilled repairs and original860/863 identities. No shared Storage write, forecast load or unrelated266 integration occurred. The import fix changes no served number; no new skill-score claim is recorded.
+
+## 2026-10-08 15:38Z — PR264 weather candidate00e8df65 (ledger seq 1030)
+
+Committed and pushed00e8df657c6ee38db9c4d2a65114fb46a7992022 to existing draft264, carrying source repairs and receipts through1029. Devfe5573db ancestry retained; unrelated266 excluded.
+
+Readback: Local/remote/GitHub head exact00e8df65 and clean checkout immediately after push. Hosted new run37802116221 and LOC37802116134 reported weather.py803lines; candidate not qualified.
+
+Rollback: Revert owned weather source by reviewed PR; preserve dev ancestry, evidence and scientific flags.
+
+## 2026-10-08 15:38Z — PF03 / LIVE04: route file-size qualification (ledger seq 1031)
+
+Corrects1028/1029 local LOC-pass claim: output had been truncated and its exit code was not retained. Actual hosted00e8df65 correctly refused weather.py803lines. Extracted response dispatch into existing grid_response helper; limit and ratchet unchanged. New route793lines, behavior unchanged. This fix changes no served number.
+
+Readback: After extraction174 combined controls pass; backend size checker exits0 with662files/0violations, full LOC ratchet exits0 with0new/0regressed, fatal lint exits0. New exact-head hosted qualification remains pending.
+
+Rollback: Revert extraction only through review; do not bypass or raise the800line governance limit.

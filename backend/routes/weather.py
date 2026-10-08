@@ -102,17 +102,10 @@ async def get_grid_series(
     from services.weather_pipeline.grid_series_helper import build_grid_series
     # Same /grid resolver, including the EURO multi-hour viewport fast path. The helper
     # validates/discloses base_time and stops per-hour builds after client disconnect.
-    # Qualified response bounds include queueing, building, encoding and compression.
-    if os.environ.get("GRID_SERIES_RESPONSE_BOUNDS", "0") == "1" and os.environ.get("GRID_RESPONSE_BOUNDS", "0") != "1":
-        from services.weather_pipeline.series_response import serve_series
-        return await serve_series(lambda: build_grid_series(
-            get_grid, viewport_service, model, domain, layer, bbox, hours,
-            request=request, surf=surf, base_time=base_time), hours, request)
-    payload = await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours, request=request, surf=surf, base_time=base_time)
-    if os.environ.get("GRID_RESPONSE_BOUNDS", "0") == "1":
-        from services.weather_pipeline.grid_response import encode_series_response
-        return await encode_series_response(payload, request)
-    return payload
+    from services.weather_pipeline.grid_response import serve_series_builder
+    return await serve_series_builder(lambda: build_grid_series(
+        get_grid, viewport_service, model, domain, layer, bbox, hours,
+        request=request, surf=surf, base_time=base_time), hours, request)
 
 
 @router.get("/grid", response_model=NormalizedProduct)
