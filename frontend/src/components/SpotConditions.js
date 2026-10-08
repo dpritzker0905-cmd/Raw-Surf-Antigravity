@@ -232,7 +232,8 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
   // Compact view for cards
   if (compact) {
-    const waveHeight = strictValues ? conditions?.current?.wave_height_ft : conditions?.current?.wave_height_ft || 0;
+    const waveHeight = strictValues || missingHeightLabelEnabled()
+      ? conditions?.current?.wave_height_ft : conditions?.current?.wave_height_ft || 0;
     const label = conditions?.current ? getConditionsLabel(waveHeight, strictValues) : "No Data";
     
     return (
@@ -292,7 +293,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
           <div className="grid grid-cols-2 gap-4">
             {/* Wave Height */}
             <div className={`${cellBg} rounded-lg p-3 text-center`}>
-              <p className={`text-3xl font-bold ${tPrimary}`}>{strictValues && !validHeight(current.wave_height_ft) ? <span className="text-lg">Unavailable</span> : <>{current.wave_height_ft}<span className="text-lg">ft</span></>}</p>
+              <p className={`text-3xl font-bold ${tPrimary}`}>{(strictValues || missingHeightLabelEnabled()) && !validHeight(current.wave_height_ft) ? <span className="text-lg">Unavailable</span> : <>{current.wave_height_ft}<span className="text-lg">ft</span></>}</p>
               <p className={`text-xs ${tSecondary}`}>
                 {/* The breaking transform failed open and the OFFSHORE height stands in: say so. */}
                 {current.surf_regime === 'offshore_estimate' ? 'Offshore height (surf estimate unavailable)' : 'Wave Height'}
@@ -724,8 +725,11 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
 // Helper function
 const validHeight = value => Number.isFinite(value) && value >= 0;
+function missingHeightLabelEnabled() {
+  return !(typeof window !== 'undefined' && window.__RAW_DISABLE_MISSING_HEIGHT_LABEL__ === true);
+}
 function getConditionsLabel(waveHeightFt, strictValues = false) {
-  if (strictValues && !validHeight(waveHeightFt)) return 'Unavailable';
+  if ((strictValues || missingHeightLabelEnabled()) && !validHeight(waveHeightFt)) return 'Unavailable';
   if (waveHeightFt < 1) return "Flat";
   if (waveHeightFt < 2) return "Ankle High";
   if (waveHeightFt < 3) return "Knee High";

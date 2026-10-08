@@ -270,3 +270,55 @@ Rollback: Set window.__RAW_DISABLE_GUARDRAIL_FETCH_STAMP__ = true for a diagnost
 | A-05 / A8-01 | Origin/family receipts are published; 401 cause remains open | Blocked on quiet live interval | Refresh the regional job and deployed source before one diagnostic hub journey | Identify the causal request and prove the targeted correction makes the real journey green |
 
 Implementation handoff: the new backend candidates remain outside #264. They require staging their test files and updating both CI floors after Claude's reservation ends. The two earlier new suites have 29 cases; A8-04 adds 14 cases whose owning lane must be projected from the selector. The pending-stamp repair can publish independently and has a diagnostic kill switch. Do not merge #264 while dev E2E is red without a waiver naming #264. Preserve the paused, quiet 860 contract and all separate playback, served-time, Gulf, device and data-health acceptance work. Owner-only scientific switches stay off.
+
+## 2026-10-08 11:39Z — PR264 guardrail source publication (ledger seq 999)
+
+Pushed the qualified pending-stamp guardrail repair and receipts through seq998 on codex/a8-weather-audit-repairs at 644b9c6f2d7b00c9605077e7fe39ef04863f6f4c. Backend candidates remain unpublished. No merge, deployment or flag flip.
+
+Readback: GitHub PR264 reads OPEN DRAFT at the exact pushed source. Encoding Guard passes; other fresh hosted checks are in progress.
+
+Rollback: Revert the guardrail source commit; close the draft PR if abandoned.
+
+## 2026-10-08 11:39Z — PR264 review description reconciliation (ledger seq 1000)
+
+Updated PR264 title and description around the pending-stamp guardrail repair plus bounded E2E failure receipts, its 70-test qualification, and separate unpublished backend candidates. D017 named waiver and live acceptance holds remain explicit.
+
+Readback: GitHub title reads fix(map): respect pending fetch stamps and retain E2E failure receipts; OPEN DRAFT source644b9c6f. Claude263 is still open; regional pilot37766797123 still active.
+
+Rollback: Restore the preceding PR description if scope changes; retain all evidence in the append-only log.
+
+## 2026-10-08 11:53Z — A8-04 / SV02: dynamic product compatibility qualification (ledger seq 1001)
+
+Corrects the breadth of seq997 qualification: the initial candidate accepted all saved registry names but had not covered the separate dynamic viewport filename builder. Three new real-builder controls rejected legitimate dynamic products. Expanded the bounded suffix grammar to retain regional, world and antimeridian dynamic product identities. No candidate was deployed.
+
+Readback: Final 131 focused and companion controls pass, including the three formerly rejected dynamic products, an incomplete suffix rejection, 1000-miss bounds, pinned concurrent deduplication, transient refusal labels, revision refresh and strided read identity. All 13301 saved registry names still accepted. New A8-04 suite now has 18 cases, not the earlier14.
+
+Rollback: Revert the unpublished validator/read-bounds candidate; retain the original failure and correction receipts.
+
+## 2026-10-08 11:53Z — WF03 / FE02: containment matches a valid instant (ledger seq 1002)
+
+Built a dark client cache repair behind REACT_APP_MARINE_SERIES_INSTANT_MATCH, unset by default. Exact and containment selections compare frame valid_time with the current absolute target; unknown instants miss. Rebased relative hour metadata is copied, not written into cached frames; stored product and substitution receipts are preserved. Owner arming remains required.
+
+Readback: Before the repair, 5 of6 new controls fail. Final9 suites /81 tests pass. Paired real client cache replay with fake transport:417 rollover requests, wrong selected instants278 before and0 after;139 same-anchor requests have0 cached-object changes. One offline fetch seeds each paired fixture; no live requests or physical forecast accuracy claim.
+
+Rollback: Leave REACT_APP_MARINE_SERIES_INSTANT_MATCH unset/false; diagnostic kill window.__RAW_DISABLE_MARINE_SERIES_INSTANT_MATCH__ = true restores legacy matching.
+
+## 2026-10-08 11:53Z — LIVE09 / FE03 and LIVE03 / FE04: calendar and missing size labels (ledger seq 1003)
+
+Corrected the existing dark calendar helper so date-only identifiers remain intact while Today/Tomorrow follow the viewer timezone. Default current-condition size labels now show Unavailable for null, undefined and NaN in full and compact layouts; measured zero remains Flat. No physical served value or scientific flag changed. Daily numeric truth and upstream-coerced zeros remain separate acceptance work.
+
+Readback: Six timezone controls fail before the calendar repair;18 default missing-label controls fail before the size-label repair. After:3 suites /72 tests pass, including light/dark/beach and both layouts, same numeric ladder, zero and rollback controls. Latest frontend lint ratchet passes across1244 files,86 existing errors/917 existing warnings, no increased rule debt.
+
+Rollback: Diagnostic kills: __RAW_DISABLE_FORECAST_CALENDAR_LOCAL_TODAY__ and __RAW_DISABLE_MISSING_HEIGHT_LABEL__; the broader forecast identity and availability flags remain unset/off.
+
+
+### WF03 and label reconciliation; implementation handoff
+
+| Existing task ID | Current evidence | Status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| WF03 / FE02 | Paired417-request rollover replay278 wrong instants to0;139 same-anchor requests unchanged;81 passes | Locally qualified, dark and unpublished | Publish the candidate with scoreboard receipts; leave the build flag unset | Owner arming packet, hosted controls and isolated served-time/cache acceptance; no playback closure |
+| LIVE09 / FE03 | Six timezone counterexamples fail before; viewer Today and date-only calendar controls pass after | Existing dark helper repaired locally | Publish with existing forecast identity flag off | US evening, date-line, DST, month/year and device label evidence; backend daily sampling remains separate |
+| LIVE03 / FE04 | 18 default missing-label counterexamples fail before; full/compact light/dark/beach pass after | Current size-label repair qualified locally | Publish the label repair with its diagnostic rollback | Missing current height shows Unavailable; finite measured zero remains Flat; backend availability and daily numeric acceptance stay independent |
+| A8-04 / SV02 | Qualification expanded to18 new cases plus113 existing companions/refusal cases | Corrected candidate131 passes, still unpublished | After #263 merges, stage all3 new backend suites; project29 chain cases plus18 A8-04 cases into their owning lane, update both floors in the same commit | Hosted actual collection equals projection and all relevant controls pass; no live flood |
+
+Implementation handoff: retain 860, the hub causal E2E, and all owner-only arming requirements. Do not rerun the completed section2 receipts. Publish this tested frontend batch independently of the reserved backend floors; qualify the new source before considering a named merge waiver. A8-02's selection is dark and A8-03's Storage MIME/upload-ACK compatibility still needs a released-source receipt. Remaining health, ingestion, serving, physics, UI and process items stay in the supplied queue; no closure is inferred from these unit controls.
