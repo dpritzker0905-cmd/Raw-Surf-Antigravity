@@ -129,3 +129,92 @@ Built default-off SURF_RATING_CANONICAL_BAND using actual rate_one_spot and full
 Readback: Same real before/after counterexample Cocoa97.3 versus78.7 now matches. 175 affected plus40 floor controls pass;23 new cases. Three heterogeneous states/12 central columns match to1.43e-14, repeat null0,1% score and10% height mutants detected. Qualified400-cell warm medians31.996/35.920/33.048ms vs9.007/8.882/9.237ms. Fatal lint/LOC/partition pass; own hosted checks pending.
 
 Rollback: Keep flag0; revert candidate and paired floors together; preserve append-only evidence. D017 blocks merge without green dev E2E or named264 waiver.
+
+## 2026-10-08 17:54Z — WC-01 publication on codex/a8-weather-audit-repairs (ledger seq 1054)
+
+Published e68e8c11f1afbcb5542ebe0d0e68c0e5e74022f4 on existing draft264. Normal commit hook reports no leaks; normal push succeeds. No dev merge, deployment or scientific activation.
+
+Readback: GitHub PR264 reads exact e68e8c11, OPEN draft. Own CI37818032376 is in progress; source build/lint/estate jobs green, guards/chain pending. Canonical dev fe5573db remains unchanged.
+
+Rollback: Reviewed candidate revert including paired floors; retain receipts and task identities.
+
+## 2026-10-08 17:54Z — WC-01 PR264 review description (ledger seq 1055)
+
+Updated existing PR264 description with actual counterexample, atomic publication, reference/Jacobian and mutant evidence, cost limit, default-off candidate and qualified prior hub source. Existing863 fulfilled and860 open; no duplicate tasks.
+
+Readback: Read back actual PR body and source head e68e8c11; exact new-head CI pending. D017 remains binding while dev E2E is red.
+
+Rollback: Amend only the PR description if evidence changes; append a correction to memory.
+
+## 2026-10-08 17:54Z — LIVE-02 / AS04 dark direct flux and visible warning candidate (ledger seq 1056)
+
+Built default-off SURF_EXPOSURE_FLUX direct-wave proxy sqrt(max(0,cos(angle))) inside the existing height chain; no indirect/refraction-ray accuracy claim. Unknown/nonfinite geometry fails open and old kill/default/reconciled paths remain. Existing directional_conflict now survives conditions whitelist and renders in real hub plus full/compact drawer in three themes. Scientific flags unchanged.
+
+Readback: Before9 backend failures/13 passes and10 UI failures/20 passes. After135 backend controls and116 frontend controls pass. New18 physics cases,2 route cases,11 UI cases. Three heterogeneous H/Tp/geometries yield nine analytic angular derivatives and detected1% gain mutant. Paired120degree heights0.489809/0.848580/0.725127m become0 under flag; aligned heights identical. LOC/partition/fatal lint and frontend ESLint ratchet pass; new own CI pending.
+
+Rollback: Keep flag0; revert source and paired floors together. The visible legacy warning needs no science flip. Owner coastal/spectral validation remains open before arming.
+
+## LIVE-02 continuation: dark numerical candidate and visible disclosure
+
+The unchanged height path retained0.595 at back-facing bearings; the conditions
+route also dropped the existing `directional_conflict` block. The real route
+counterexample asserts a surviving height control before requiring the warning.
+The mounted hub and drawer were missing that warning in all three themes/layouts.
+Before source changes:9 backend failures/13 passes and10 UI failures/20 passes.
+
+Default-off `SURF_EXPOSURE_FLUX` uses a direct-arrival proxy inside the existing
+height transform: sqrt(max(0, cos(relative angle))). It holds group speed fixed.
+This is an inference from the cross-shore energy-flux relation, not a calibrated
+coastal ray/diffraction model. The primary textbook describes the projected flux
+and changes in wave bearing through refraction:
+[Bosboom and Stive, Coastal Dynamics §5.5.5](https://geo.libretexts.org/Bookshelves/Oceanography/Coastal_Dynamics_%28Bosboom_and_Stive%29/05%3A_Coastal_hydrodynamics/5.05%3A_Wave-induced_set-up_and_currents/5.5.5%3A_Alongshore_balance-longshore_current).
+The USACE PDF search excerpt was available, but full retrieval timed out; it is
+not used as a verified full-source citation. No accuracy or owner activation claim.
+
+Unknown or nonfinite bearings retain fail-open behavior. The existing exposure
+kill switch wins; absent/zero new flag preserves legacy and the older reconciled
+flag. A back-facing bulk bearing carries a scoped warning: indirect energy and
+component arrivals/local conditions may differ. It does not assert an empty sea.
+Spectral coherence, bathymetric refraction and field calibration remain activation
+requirements; PJ-02's energy-before-breaking work is independent and still open.
+
+The existing producer warning passes through the real conditions route without
+changing its heights. A shared text component displays it in the real hub and
+both drawer layouts, in light/dark/beach themes. Warnings name the limitation in
+words and with an accessible note label; aligned hours render no warning.
+Compact text has a separate line; it does not widen the size/quality row.
+
+Qualified checks:135 backend controls (95 affected plus40 floor controls) and
+116 frontend controls across five suites. New cases:18 physics, two real route,
+11 mounted UI. The physics file follows the existing surf composition family;
+the route fixture preserves its existing estate ownership. Partition667:
+guards193, chain165, estate306, two exclusions and one quarantine. Projections
+2683/2508/1457 and floors2677/2502/1455 retain backend margins. Frontend main floor
+adds the11 cases (4177 to4188); no suite was added and its existing margin remains.
+Final targeted heterogeneous physics rerun passes all18 cases after broadening
+the initially equal-output0.5m/10s fixtures to three distinct seas.
+
+Same-input paired heights (metres), three actual geometries and different H/Tp:
+
+| Spot / sea | Angle | Legacy | Dark flux |
+|---|---|---|---|
+| Snapper0.45m/8s |0 /60 /120 degrees |0.823208 /0.656509 /0.489809 |0.823208 /0.582096 /0 |
+| Cocoa0.8m/10s |0 /60 /120 degrees |1.426185 /1.137382 /0.848580 |1.426185 /1.008465 /0 |
+| Trestles0.6m/12s |0 /60 /120 degrees |1.218701 /0.971914 /0.725127 |1.218701 /0.861752 /0 |
+
+Nine central angular derivatives at30/60/80 degrees agree with the direct-proxy
+analytic derivative (relative tolerance0.0002); a1% off-angle gain mutant is
+detected. Head-on/kill/default controls preserve their heights. This establishes
+candidate implementation behavior, not observational forecast skill.
+
+| Existing task ID | Current evidence | Proposed status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| LIVE-02 | Dark projection and preserved legacy controls; paired different seas and positive mutant | Candidate built; owner science acceptance open | Qualify exact pushed source and assess coastal/spectral/indirect-arrival assumptions | Field/coastal validation and owner activation decision; no flag flip inferred |
+| AS04 directional disclosure | Existing warning survives route; real hub and both drawer layouts render it in three themes | Source repair built; hosted/live acceptance pending | Qualify exact pushed UI source | Deployed warning readback with matching producer; other AS04 items remain open |
+| PJ-01 / PJ-02 / WC-02 / WJ-05 | Existing Claude queue, no new closure evidence | Open | Next bounded investigation: PJ-01 real break-depth handling | Same-input before/after, distinct seas, sensitivities and positive controls; owner flips |
+
+Implementation handoff: publish this source on existing draft264 with current
+floors, then read its own hosted outcomes. WC-01 source e68e8c11 is separately
+qualifying on CI37818032376. Keep both new flags0. D-017, original860, Storage
+durability/readers, playback, Gulf, devices, served time and data-health acceptance
+remain independent. Revert candidate source and paired floors together if needed.

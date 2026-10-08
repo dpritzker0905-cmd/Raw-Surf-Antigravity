@@ -142,6 +142,19 @@ def directional_conflict(swell_from_deg, shore_normal_deg) -> Optional[dict]:
     ⭐ ABSENT WHEN IT DOES NOT BIND, mirroring `display_adjustment`: a field that is always present
     says nothing, and a caveat on every spot is a caveat nobody reads.
     """
+    # The dark direct-arrival model must disclose what its zero excludes.
+    # Keep the existing generous-height warning untouched while it is off.
+    import os
+    if (os.environ.get("SURF_EXPOSURE_FLUX", "0") == "1"
+            and os.environ.get("SURF_V3_EXPOSURE", "1") != "0"
+            and swell_from_deg is not None and shore_normal_deg is not None):
+        import math
+        if not math.isfinite(swell_from_deg - shore_normal_deg):
+            return None
+        from services.weather_pipeline.surf_transform import _height_exposure_factor
+        if _height_exposure_factor(swell_from_deg, shore_normal_deg) == 0.0:
+            return {"reason": "swell_aimed_away", "scope": "bulk_swell_bearing", "height_exposure_factor": 0.0,
+                    "means": "Bulk swell is aimed away from this coast. The direct-wave estimate excludes indirect wave energy; component arrivals and local conditions may differ."}
     ratio = directional_energy_disagreement(swell_from_deg, shore_normal_deg)
     if ratio is None or ratio < DIRECTIONAL_CONFLICT_MIN:
         return None

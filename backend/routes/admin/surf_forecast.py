@@ -30,6 +30,7 @@ router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
 _RATING_FLAGS = {
+    "SURF_EXPOSURE_FLUX": ("0", "Direct-wave height projection from cross-shore energy flux; excludes indirect arrivals", "Render env + ingestion/precompute together; owner approval and paired coastal validation required"),
     "SURF_RATING_CANONICAL_BAND": ("0", "Grade loaded coastal band cells through rate_one_spot and the full geometry chain", "Render env; owner approval and offline cost/paired science evidence before activation"),
     "ESTIMATE_CYCLE_CEILING": ("0", "Bound ICON/EURO estimate coverage to the verified native cycle plus 336 hours; preserve blend decay", "Ingestion workflows; owner approval required"),
     "FRESH_ESTIMATE_SELECTION": ("0", "Reject older estimates only when a newer native frame covers the same class within three hours", "Render env + ingestion/precompute together; owner approval required"),

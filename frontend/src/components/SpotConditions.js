@@ -12,6 +12,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
 import SpotQualityBadge from './SpotQualityBadge';
+import DirectionalConflictNote from './DirectionalConflictNote';
 import { hubSourceLabel, formatWaveDirection } from './spotConditionsFormat';
 import { useSpotReadings } from '../hooks/useSpotReadings';
 import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
@@ -237,6 +238,8 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
     const label = conditions?.current ? getConditionsLabel(waveHeight, strictValues) : "No Data";
     
     return (
+      <div className="flex flex-col gap-1">
+        <DirectionalConflictNote conflict={conditions?.current?.directional_conflict} textClass={tPrimary} />
       <div className="flex items-center gap-2">
         <Waves className="w-4 h-4 text-blue-400" />
         <span className={`text-sm ${tPrimary} font-medium`}>
@@ -268,6 +271,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
           </span>
         )}
       </div>
+      </div>
     );
   }
 
@@ -279,6 +283,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
     <div className={`${containerBg} rounded-xl border ${containerBorder} overflow-hidden`} data-testid="spot-conditions">
       {/* Header with current conditions */}
       <div className="p-4">
+        <DirectionalConflictNote conflict={current?.directional_conflict} textClass={tPrimary} />
         <div className="flex items-center justify-between mb-3">
           <h3 className={`font-bold ${tPrimary} flex items-center gap-2`}>
             <Waves className="w-5 h-5 text-blue-400" />

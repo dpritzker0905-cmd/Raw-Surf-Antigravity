@@ -364,12 +364,24 @@ def _shelf_cf_scale() -> float:
 def _height_exposure_factor(swell_from_deg, shore_normal_deg) -> float:
     """Swell-angle factor for the surf HEIGHT — a softened form of the rating model's
     swell_exposure (energy), since height scales gentler than energy with incidence. Head-on 1.0;
-    the exposure floor (0.10) maps to 0.595. Unknown geometry FAILS OPEN to 1.0 (07-03 lesson)."""
+    the default exposure floor (0.10) maps to 0.595. The dark flux candidate instead
+    projects direct cross-shore energy without that floor. Unknown geometry
+    FAILS OPEN to 1.0 (07-03 lesson)."""
     if not _v3("SURF_V3_EXPOSURE"):
         return 1.0
     if swell_from_deg is None or shore_normal_deg is None:
         return 1.0
-    align = math.cos(math.radians(swell_from_deg - shore_normal_deg))
+    flux = os.environ.get("SURF_EXPOSURE_FLUX", "0") == "1"
+    delta = swell_from_deg - shore_normal_deg
+    if flux and not math.isfinite(delta):
+        return 1.0
+    align = math.cos(math.radians(delta))
+    if flux:
+        # Dark direct-arrival proxy: cross-shore flux is proportional to
+        # H^2 * Cg * cos(angle). Holding Cg fixed gives this height factor.
+        # This is not a ray/refraction/diffraction model; owner validation
+        # is required before activation. Unknown geometry still fails open.
+        return math.sqrt(align) if align > 1e-15 else 0.0
     exposure = _clamp(0.10 + 0.90 * max(0.0, align), 0.0, 1.0)
     if os.environ.get("SURF_EXPOSURE_RECONCILED", "0") == "1": return math.sqrt(exposure)  # noqa: E701 - OFF by default; docs/research/FINDING-2026-08-09-the-dual-floor-reconciliation.md
     return 0.55 + 0.45 * exposure

@@ -38,6 +38,7 @@ import { CONFIDENCE_TEXT, confidenceDot, confidenceLabel } from './SpotCondition
 import { SpotCardSkeleton, AlertCardSkeleton } from './ui/SkeletonVariants';
 import { forecastCalendar } from './forecastCalendar';
 import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
+import DirectionalConflictNote from './DirectionalConflictNote';
 
 
 
@@ -406,6 +407,7 @@ const SpotHub = () => {
       {/* Current Conditions Card */}
       {currentConditions && (
         <div className={`mx-4 mt-3 p-3 rounded-xl border backdrop-blur-md ${cardBg}`}>
+          <DirectionalConflictNote conflict={currentConditions.directional_conflict} textClass={textPrimary} />
           <div className="flex items-center justify-between mb-2">
             <span className={`text-xs flex items-center gap-1 ${textSecondary}`}>
               <Sun className="w-3 h-3" />

@@ -129,7 +129,7 @@ jobs:
             // Truth cadence/lifecycle adds1suite13tests; exact-source hosted qualification required.
             // Whole-callback/mask CPU timing: +2 suites/31 controls; own hosted confirmation required.
             // Minimum-span and active-zone cache: +22 public engine/painter controls; own hosted required.
-            const MIN_SUITES = 377, MIN_TESTS = 4177;
+            const MIN_SUITES = 377, MIN_TESTS = 4188;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -833,7 +833,8 @@ jobs:
           # Preserve the six-test margin; hosted collection verifies this projection.
           # WC01 canonical band: +23 executed controls, projected 2665 / 192 files.
           # Reference and floor move together; retain the six-test margin.
-          MIN_FILES, MIN_PASSED = 192, 2659
+          # LIVE02 direct-flux candidate: +18 controls, projected 2683 / 193 files.
+          MIN_FILES, MIN_PASSED = 193, 2677
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1759,7 +1760,8 @@ jobs:
           # 1341 - 2 = 1339; margin 2 kept. Hosted CI on this PR must read 304 files / 1341.
           # #265 contributes105 estate cases to1341; IN03 contributes9 more.
           # Combined reading1455, two-test margin; no unrelated unmerged PR is included.
-          MIN_PASSED = 1453
+          # LIVE02 real conditions boundary: +2 cases, projected 1457; retain margin2.
+          MIN_PASSED = 1455
 
           try:
               root = ET.parse('estate.xml').getroot()

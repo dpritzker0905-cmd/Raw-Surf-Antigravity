@@ -67,7 +67,7 @@ const FC = {
   calibrated: false,
 };
 
-function mockApi(forecastConfidence, swellHeight = 0.7) {
+function mockApi(forecastConfidence, swellHeight = 0.7, directionalConflict) {
   apiClient.get.mockImplementation((url) => {
     if (url.includes('/explore/spot-details/')) {
       return Promise.resolve({
@@ -84,6 +84,7 @@ function mockApi(forecastConfidence, swellHeight = 0.7) {
             wave_direction: 286,
             swell_height_ft: swellHeight,
             ...(forecastConfidence ? { forecast_confidence: forecastConfidence } : {}),
+            ...(directionalConflict ? { directional_conflict: directionalConflict } : {}),
           },
         },
       });
@@ -107,6 +108,15 @@ beforeAll(() => {
 beforeEach(() => {
   mockTheme = 'dark';
   jest.clearAllMocks();
+});
+
+it.each(['light', 'dark', 'beach'])('names the directional upper-bound warning in the real hub in %s', async (theme) => {
+  mockTheme = theme;
+  mockApi(null, 0.7, { reason: 'size_and_quality_disagree_on_swell_exposure' });
+  render(<SpotHub />);
+  const note = await screen.findByRole('note', { name: 'Swell direction warning' });
+  expect(note).toHaveTextContent('height estimate may be too high');
+  expect(screen.getAllByText('2.1ft').length).toBeGreaterThan(0);
 });
 
 it.each([['light', null, '—ft'], ['dark', 0, '0ft'], ['beach', 1.1, '1.1ft']])(
