@@ -197,6 +197,28 @@ async def test_a_released_share_is_paid_once_and_not_refunded_by_a_late_leave(ha
     assert (await read(harness, Profile, 'owner')).credit_balance == pytest.approx(100.0 - BUYIN)
 
 
+async def test_two_concurrent_releases_of_the_same_row_pay_once(harness):
+    participant = await join(harness)
+    async with harness.maker() as first, harness.maker() as second:
+        row_a = await first.get(LiveSessionParticipant, participant.id)
+        row_b = await second.get(LiveSessionParticipant, participant.id)  # both loaded while still held
+        assert await escrow.release(first, row_a, 'acted') is True
+        await first.commit()
+        assert await escrow.release(second, row_b, 'acted') is False
+        await second.commit()
+    assert len(await earnings(harness)) == 1
+    assert (await read(harness, Profile, 'pro')).credit_balance == pytest.approx(30.0 + SHARE)
+
+
+async def test_an_early_leave_cannot_cancel_a_share_released_concurrently(harness):
+    participant = await join(harness)
+    async with harness.maker() as sweeper, harness.maker() as leaver:
+        stale = await leaver.get(LiveSessionParticipant, participant.id)
+        assert await escrow.release(sweeper, await sweeper.get(LiveSessionParticipant, participant.id), 'acted')
+        await sweeper.commit()
+        assert await escrow.cancel_for_early_leave(leaver, stale) is False
+
+
 async def test_a_row_from_before_escrow_keeps_its_promised_refund(harness):
     async with harness.maker() as db:
         legacy = LiveSessionParticipant(photographer_id='pro', surfer_id='owner', amount_paid=BUYIN,
