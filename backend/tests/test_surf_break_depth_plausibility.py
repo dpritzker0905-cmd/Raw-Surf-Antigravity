@@ -143,6 +143,10 @@ async def test_point_rating_and_geometry_share_the_same_depth(tmp_path,monkeypat
     assert rated['score'] == pytest.approx(round(score,1))
     assert rated['level'] == level
     assert rated['break_depth_source'] == g.break_depth_source
+    from routes.weather import SpotRatingItem, SpotRatingsResponse
+    wire = SpotRatingsResponse(model='GFS', valid_time=NOW.isoformat(), count=1, source='live',
+                              spots=[SpotRatingItem(**rated)]).model_dump()['spots'][0]
+    assert wire['break_depth_source'] == g.break_depth_source
 
 
 @pytest.mark.parametrize('lat,lng', [(-17.868,-149.258),(15.858,-97.068),(28.3664,-80.6015)])

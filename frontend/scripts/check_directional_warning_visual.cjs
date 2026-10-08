@@ -10,8 +10,9 @@ const out = path.resolve(process.env.WEATHER_VISUAL_OUT || path.join(root, '../s
 fs.mkdirSync(out, {recursive:true});
 const source = name => path.join(root, 'src', name);
 const write = (name, text) => fs.writeFileSync(path.join(out,name),text);
-write('fixture.js', `export const current = {wave_height_ft:4.2,wave_period:12,swell_height_ft:2.1,wind_speed:8,wind_direction:290,rating:73,rating_level:'good',directional_conflict:{reason:new URLSearchParams(location.search).get('reason')},forecast_confidence:{level:'moderate',relative_spread:.25,calibrated:false}};
-export default {get:async url=>({data:url.includes('/explore/spot-details/')?{id:'visual-fixture',name:'Offline visual fixture',region:'Fixture coast',latitude:28.3664,longitude:-80.6015,current_conditions:{...current,label:'Chest High'},forecast:[]}:url.startsWith('/conditions/')?{current,forecast:[]}:{} }),post:()=>{throw Error('Writes prohibited in visual fixture')}};`);
+const samples = process.env.WEATHER_VISUAL_FIXTURES ? JSON.parse(fs.readFileSync(process.env.WEATHER_VISUAL_FIXTURES,'utf8')) : [];
+write('fixture.js', `const samples=${JSON.stringify(samples)},sample=samples[Number(new URLSearchParams(location.search).get('sample'))];export const current = sample?.current || {wave_height_ft:4.2,wave_period:12,swell_height_ft:2.1,wind_speed:8,wind_direction:290,rating:73,rating_level:'good',label:'Chest High',directional_conflict:{reason:new URLSearchParams(location.search).get('reason')},forecast_confidence:{level:'moderate',relative_spread:.25,calibrated:false}};
+export default {get:async url=>({data:url.includes('/explore/spot-details/')?{id:'visual-fixture',name:sample?sample.name+' '+sample.stage:'Offline visual fixture',region:'Fixture coast',latitude:28.3664,longitude:-80.6015,current_conditions:current,forecast:[]}:url.startsWith('/conditions/')?{current,forecast:[]}:{} }),post:()=>{throw Error('Writes prohibited in visual fixture')}};`);
 write('auth.js', `export const useAuth=()=>({user:null});`);
 write('theme.js', `export const useTheme=()=>({theme:new URLSearchParams(location.search).get('theme')||'light'});`);
 write('router.js', `export const useParams=()=>({spotId:'visual-fixture'}); export const useNavigate=()=>()=>{}; export const useLocation=()=>({pathname:'/spot-hub/visual-fixture',search:'',state:null}); export const useSearchParams=()=>[new URLSearchParams(),()=>{}];`);
@@ -34,16 +35,19 @@ async function main(){
  let browser;
  const results=[];
  try{browser=await require('@playwright/test').chromium.launch({headless:true,channel:process.env.WEATHER_VISUAL_BROWSER_CHANNEL || 'chrome'});
- for(const width of [390,1280])for(const theme of ['light','dark','beach'])for(const surface of ['hub','full','compact'])for(const reason of ['swell_aimed_away','size_and_quality_disagree_on_swell_exposure']){
+ const cases=[];
+ if(samples.length){for(let sample=0;sample<samples.length;sample++)for(const theme of ['light','dark','beach'])for(const [width,surface] of [[390,'full'],[1280,'hub']])cases.push({sample,theme,width,surface,reason:null});}
+ else{for(const width of [390,1280])for(const theme of ['light','dark','beach'])for(const surface of ['hub','full','compact'])for(const reason of ['swell_aimed_away','size_and_quality_disagree_on_swell_exposure'])cases.push({width,theme,surface,reason});}
+ for(const {width,theme,surface,reason,sample} of cases){
   const page=await browser.newPage({viewport:{width,height:900}}),errors=[],blocked=[];
   page.on('pageerror',e=>errors.push({message:e.message,stack:e.stack}));
   page.on('console',m=>{if(m.type()==='error')errors.push({console:m.text()});});
   await page.route('**/*',route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():(blocked.push(route.request().url()),route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="400" height="300" fill="#777"/><text x="20" y="30" fill="white">Offline image fixture</text></svg>'})));
-  await page.goto('http://127.0.0.1:'+server.address().port+'/?'+new URLSearchParams({theme,surface,reason}));
-  const note=page.getByRole('note',{name:'Swell direction warning',exact:true});try{await note.waitFor({timeout:5000});}catch(e){await page.screenshot({path:path.join(out,'failure.png'),fullPage:true});console.log({width,theme,surface,errors,blocked,text:await page.locator('body').innerText()});throw e;}
+  await page.goto('http://127.0.0.1:'+server.address().port+'/?'+new URLSearchParams({theme,surface,reason,...(sample===undefined?{}:{sample})}));
+  const note=sample===undefined?page.getByRole('note',{name:'Swell direction warning',exact:true}):page.locator('main');try{await note.waitFor({timeout:5000});if(sample!==undefined)await page.getByText(new RegExp(samples[sample].current.wave_height_ft.toString().replace('.','\\.')+'\\s*ft')).first().waitFor({timeout:5000});}catch(e){await page.screenshot({path:path.join(out,'failure.png'),fullPage:true});console.log({width,theme,surface,errors,blocked,text:await page.locator('body').innerText()});throw e;}
   const bounds=await note.evaluate(e=>{const b=e.getBoundingClientRect(),s=getComputedStyle(e);return {x:b.x,y:b.y,w:b.width,h:b.height,color:s.color,font:s.fontSize,overflow:document.documentElement.scrollWidth>innerWidth,visible:b.width>0&&b.height>0&&s.visibility!=='hidden'};});
-  const file=width+'-'+theme+'-'+surface+'-'+reason+'.png';await page.screenshot({path:path.join(out,file),fullPage:true});
-  results.push({width,theme,surface,reason,file,bounds,errors,blocked});await page.close();
+  const file=width+'-'+theme+'-'+surface+'-'+(sample===undefined?reason:samples[sample].name+'-'+samples[sample].stage)+'.png';await page.screenshot({path:path.join(out,file),fullPage:true});
+  results.push({width,theme,surface,reason,sample:sample===undefined?null:samples[sample],file,bounds,errors,blocked,renderedText:await page.locator('body').innerText()});await page.close();
  }}finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
  write('receipt.json',JSON.stringify(results,null,2));
  if(results.some(r=>r.errors.length||!r.bounds.visible||r.bounds.x<0||r.bounds.x+r.bounds.w>r.width+.5||r.bounds.overflow))process.exitCode=1;

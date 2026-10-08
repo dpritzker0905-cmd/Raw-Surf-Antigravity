@@ -447,3 +447,111 @@ Final source cohort passes198 backend controls,119 mounted frontend controls and
 Readback: Canonical960 prefix is byte-identical; partition668 files=194guards+165chain+306estate+2exclusions+1quarantine. Reviewed trigger repair, response-bound provenance and portable visual runner. No live probe, shared-data mutation or owner decision made.
 
 Rollback: Reviewed revert with matching floors; retain all before/after and visual receipts.
+
+## 2026-10-08 18:45Z — PR264 break-depth and visual publication (ledger seq 1074)
+
+Normal commit hook reports no leaks and normal push publishes b89666ad0e318e93d4674bbde390505f5a99ddcd on codex/a8-weather-audit-repairs. Includes owned repairs, visual samples and receipts through1073; canonical dev3b7ca954 and ledger960 remain intact. No force push, dev merge, deployment or science flip.
+
+Readback: GitHub264 exact b89666ad/base3b7ca954 OPEN draft. New CI37826576818 in progress; Encoding37826576902 and LOC37826576702 green, import/floor jobs green. Ledger37826576874 and Lighthouse37826576985 pending. This post-publication receipt remains local for the next substantive publication.
+
+Rollback: Reviewed corrective/revert commit retaining accepted canonical source, floors and all evidence.
+
+## 2026-10-08 18:45Z — PR264 latest exact-source review description (ledger seq 1075)
+
+Update existing draft description with PJ-01 actual counterexamples, labelled default-off priors, response-bound cache control,198 backend/119 frontend/36 visual results, failed81 CI cause and local precompute fix. Preserve remaining acceptance and original task identities; no replacement tasks.
+
+Readback: Actual gh pr edit succeeded; head b89666ad and base3b7ca954 read back. Projections2711/2508/1473 and378/4234 await exact hosted counts. D-017 still requires green dev E2E or an explicit owner waiver naming264 in addition to green source checks.
+
+Rollback: Update description only when verified evidence changes; retain append-only history.
+
+## 2026-10-08 18:48Z — A8-01 current dev E2E and original860 gate refresh (ledger seq 1076)
+
+Dev E2E37819560211 on3b7ca954 completed failure at18:34:12Z. Actual failed attempts still include booking-flow137 spot hub across four browser projects and map/weather continuity/control cases;38 failed attempts across13 project/spec identities, not38 distinct tests. Existing A8-01 remains open; no new task or live rerun. Regional ingestion37820867865 remains active, so original860 still fails the quiet prerequisite.
+
+Readback: Read-only hosted step/log assessment, filtered to test identity without publishing raw console dumps. Failure cause is not established by this summary; neither masks regression nor product acceptance is inferred. New source CI37826576818 remains in progress; its Ledger37826576874 is now successful. No shared forecast activity added.
+
+Rollback: Continue diagnosis from exact failure artifacts when safe; retain D-017 green dev E2E or explicit264 waiver requirement.
+
+## 2026-10-08 19:05Z — PJ-01 qualification: rating response drops depth provenance (ledger seq 1077)
+
+Exact b89666ad CI37826576818 completed failure: guards2709pass/2fail/66skip/1xfail. Both failures concern break_depth_source absent from SpotRatingItem. Other ten source jobs succeeded; no source qualification or merge is claimed.
+
+Readback: Hosted failure receipt and same local test_spot_rating_wire_contract signal:2fail/20pass.
+
+Rollback: No state to roll back; retain the failure receipt.
+
+## 2026-10-08 19:05Z — PJ-01: declare depth provenance at rating wire boundary (ledger seq 1078)
+
+Optional break_depth_source declared on SpotRatingItem; actual point/rating parity controls now serialize the full SpotRatingsResponse. No numerical or flag change.
+
+Readback: Same wire controls plus actual depth/point/rating/envelope cohort50pass, including4 actual spot states; legacy omission remains accepted.
+
+Rollback: Revert the optional model declaration and added envelope assertion together.
+
+## 2026-10-08 19:19Z — PJ-02 / WJ-02: current partition split inflation reproduced (ledger seq 1079)
+
+Corrected real SurfGeometry public composition fixture reproduces14 failing/26 passing controls before the candidate. Identical sea labels split k2/3/6 inflate old height by1.071773/1.116123/1.196231. Independent additive algebra and invalid-train execution also fail. Initial malformed fixture construction is setup failure, not application evidence.
+
+Readback: Same actual estimate_surf_at/estimate_surf_partitioned seam; null unchanged single train and capped controls retained.
+
+Rollback: Retain counterexample evidence; no shared product or activation change.
+
+## 2026-10-08 19:19Z — PJ-02 / WJ-02: dark pre-breaking flux candidate (ledger seq 1080)
+
+Added SURF_PARTITION_FLUX default0. Aggregate surviving Komar-equivalent h²TpA^2.5 before nonlinear breaker/jack bound, then shared Kr/magnet/publisher and one final cap. Scalar coefficient is called from the existing function. Linear Komar kill, tide, statistic, source ownership, input validation and zero-arrival behavior guarded. Helper dev push re-rates through existing precompute trigger; no actual dispatch or flag flip.
+
+Readback: 45 new controls pass; final affected/governance cohort339pass. Three stored point/rating/serialized envelope cases agree at documented4/3-decimal precision. Default/no-component path unchanged.
+
+Rollback: Revert this source batch; leave all scientific flags0. Existing output remains served while off.
+
+## 2026-10-08 19:19Z — PJ-02 / WJ-02: same-input scoreboard and Jacobian receipts (ledger seq 1081)
+
+Saved three heterogeneous real-geometry states,24 height/score central columns (including nonzero oblique direction sensitivity), paired repeat-null0, all3 actual period-input mutants detected, and independent Kr ratio. Two heights change and one depth cap remains; levels retained in this small sample. Warm three-state plus24-derivative replay measured0.846ms; not process-cold or server capacity.
+
+Readback: Saved compact paired.json and append-only BEFORE/AFTER SCOREBOARD rows. Primary-source shoaling uses energy flux; Komar1972 abstract corroborates nonlinear flux exponent. Angle power2.5 is algebraic compatibility with existing height-angle calibration, not a validated physical cross-shore projection.
+
+Rollback: Append a dated correction if superseded; do not erase evidence.
+
+## 2026-10-08 19:19Z — PJ-02 / AS04: measured-payload offline visual receipt (ledger seq 1082)
+
+Real SpotHub and full SpotConditions render six actual offline producer/rating/wire BEFORE/candidate payloads across390/1280 widths and three themes.36 cases pass displayed-height/layout/console assertions;18 external static-image requests stubbed locally, no external forecast request. Four representative PNGs live outside the UTF-8-only weather ledger tree.
+
+Readback: Matched screenshot fixture values to final paired wire rows. Manually inspected dark mobile/light desktop/beach mobile; size and conditions quality readable. PJ-03 hub quality omission remains open, as do WF-01 contrast, device and full-app acceptance.
+
+Rollback: Revert runner extension or replace the owned receipt by an append-only correction; no live state rollback.
+
+### Proposed reconciliation — PJ-02 continuation
+
+All source and receipts remain proposed on PR #264; canonical dev/ledger prefix unchanged.
+
+| Existing task ID | Current evidence | Proposed status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| PJ-01 / WJ-04 | b896 CI caught missing rating wire provenance; same two controls fail before and pass after; full envelope verified | Local boundary repair complete; hosted qualification pending | Qualify next source SHA | Full source CI; labelled priors plus independent regional/field/activation acceptance |
+| PJ-02 / WJ-02 | Corrected before14fail/26pass; final45 new controls and339 affected/governance pass; k-split invariant; paired null/actual-input mutants | Dark local candidate complete at algebra/composition scope | Exact-source hosted qualification, field/size and capacity evidence | Owner activation; bulk angle/statistic/gamma assumptions remain qualified |
+| WJ-01 | Height prerequisite now built; dominant-component served period/direction and quality switching not repaired by this batch | Open | Reproduce tiny wind-sea crossover through real point/rating response | Continuous/honest mixed-sea height, period, direction and score on same reconciled components; owner acceptance |
+| AS04 / PJ-03 / WF-01 |36 offline actual-number renders; conditions show quality, hub still omits it; known contrast work separate | Partial visual evidence; existing tasks open | Repair quality/size disclosure and contrast in their queue scope | Real full-app, mobile/device and user-flow checks; no closure from controlled screenshots alone |
+| A-05 / A8-01 / D-017 | Latest dev E2E37819560211 failed; b896 source has two now locally repaired wire failures | Open; merge held | Keep hub request/attempt diagnostics and compare current red evidence | Green dev E2E or owner-named #264 waiver, plus own source qualification |
+| Commitment860 | No bounded live scene started; quiet/source/health prerequisites and existing cleanup contract retained | Open/held | Read any existing stable-viewport receipt before probing | Original exact paused contract, healthy matching source,20min/quiet window; independent playback/Gulf/device acceptance |
+| Commitment863 | Fulfilled by883 at PR254's qualified documented scope | Fulfilled; unchanged | Do not duplicate | Documentation qualification does not accept the live product |
+
+The small paired sample changes Cocoa and Trestles heights, while the selected Snapper sea stays depth capped; it does not measure forecast skill. Numerical before/after and24 sensitivity columns are in paired.json. Initial malformed NamedTuple fixture was corrected before the valid14-failure baseline; three added envelope assertions initially demanded equal precision, then were pinned to the producer's existing4-decimal point and3-decimal rating contracts, without changing application rounding.
+
+Sources: [Bosboom and Stive, shoaling](https://geo.libretexts.org/Bookshelves/Oceanography/Coastal_Dynamics_(Bosboom_and_Stive)/05:_Coastal_hydrodynamics/5.02:_Wave_transformation/5.2.02:_Shoaling) derives conservation of energy flux outside breaking under its assumptions. [Komar and Gaughan1972 abstract](https://ascelibrary.org/doi/10.1061/9780872620490.023) gives breaker height proportional to (T H²)^(2/5); search abstract readable, publisher page returned403. Neither validates the mixed-sea angle exponent, calibrated jack factor, peak-period proxy or local depth priors. A^2.5 retains single-component algebra because2.5×.4=1; it is an explicit compatibility assumption.
+
+Recommendation: qualify this default-off source batch, then WJ-01's actual mixed-sea composition. Keep WC-02 tide distance/horizon, WJ-05 missing-normal wind smoothness, PJ-03/PJ-04 UI honesty, A8-01 E2E causal acceptance and Storage durability/readers before October14 separately open. Do not activate partitions as a shortcut to closure or reopen PR253's qualified mask repairs from unrelated E2E failure identities.
+
+### Separate implementation handoff — after PJ-02
+
+1. Use partition_flux.py through estimate_surf_partitioned/estimate_surf_at; preserve SURF_PARTITION_FLUX=0 until owner acceptance. No extra upstream call is introduced. Component resolution/period bands remain existing guarded suppliers.
+2. Run test_surf_partition_flux plus the wire/cap/convention/tide/precompute controls. New45 controls project hosted guards2756 at195 files/floor2750; chain2508/floor2502 and estate1473/floor1471 unchanged. Hosted results govern, not projections.
+3. WJ-01: compare equal offshore inputs with wind sea crossing the primary swell by0.02m through the real stored point and rating response; retain heterogeneous periods/bearings, null and real input mutants. Study both height and quality switches. Do not fabricate a continuous spectrum from peak labels.
+4. Visual runner accepts WEATHER_VISUAL_FIXTURES with controlled current/wire rows;36 mobile-full/desktop-hub cases span BEFORE/candidate and three themes. Unspecified fixtures retain the original36 warning cases. Static images are stubbed, confidence is a controlled fixture, unrelated hub children are mocked; no completed GPU-frame, playback, full-app or device claim.
+5. Carry local post-push receipts with the next substantive publication; preserve canonical ledger prefix960 and actor attribution. D-017 requires an owner-named #264 waiver if dev E2E remains red; no merge, deploy, shared-data or scientific flag change occurred in this batch.
+
+## 2026-10-08 19:22Z — PJ-02: local source and governance qualification before publication (ledger seq 1083)
+
+Final affected/governance cohort339pass;45 new PJ-02 controls;36 measured-payload visual cases and original36 warning regression cases pass. Fatal backend lint, backend800LOC, repoLOC, ledger and memory checks pass. Tracked census669 partitions195guards/165chain/306estate/2excluded/1quarantined; projections2756/2508/1473 preserve6/6/2 margins, no floors lowered.
+
+Readback: Observed checks and staged diff clean. Memory audit0FAIL/9historicalWARN/3NOTE; overdue owner/live obligations retained. Initial root-cwd lane invocation read0 and refused; rerun from documented backend cwd gives complete669-file census. Hosted next-source qualification still pending.
+
+Rollback: Revert the candidate source with its paired floors/tests; append receipt corrections rather than erasing evidence.

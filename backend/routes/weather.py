@@ -337,6 +337,7 @@ class SpotRatingItem(BaseModel):
     level: str = "unknown"               # very_poor..epic | unknown
     confidence: str = "low"              # low|medium|high (bathymetry/verification-aware)
     surf_height_m: Optional[float] = None
+    break_depth_source: Optional[str] = None  # provenance of the same depth used for this height/rating
     period_s: Optional[float] = None
     # WS-CAN-0064 batch fields — always-on in the frames for /conditions/batch; declared here or
     # Pydantic silently DROPS them at this boundary (the wire-contract guard caught exactly that).

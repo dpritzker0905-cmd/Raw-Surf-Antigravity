@@ -260,7 +260,8 @@ def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
 
     ``partitions`` (optional list of {h, tp, dir, kind}) makes the estimate SPECTRAL: each swell
     train is transformed on its own period and bearing, then recombined in quadrature
-    (`estimate_surf_partitioned`). This is ONE composition, not a second forecast path — absent or
+    (`estimate_surf_partitioned`). The dark SURF_PARTITION_FLUX candidate instead combines
+    Komar-equivalent flux before breaking. This is ONE composition — absent or
     unusable partitions fall through to the total-field call below, byte-identical to before. Supply
     them wherever the caller already has swell_1 / swell_2 / wind_waves; see the measured
     contamination in `estimate_surf_partitioned`'s docstring."""

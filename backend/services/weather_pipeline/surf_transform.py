@@ -563,6 +563,10 @@ def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_w
     the same shape `surf_rating` already accepts. Returns ``(surf_height_m, regime)``, or
     ``(None, 'unknown')`` when no partition is usable so the caller can fall back to the total field.
 
+    Default-off SURF_PARTITION_FLUX uses the same inputs in a split-invariant bulk
+    candidate: aggregate Komar-equivalent flux, then publish one breaking estimate.
+    Single-train calibration is retained; field and activation acceptance remain open.
+
     WHY THIS EXISTS — measured live against production on 2026-07-28:
 
         spot              total Hs / Tp   swell_1 Hs / Tp   windsea Hs / Tp   served -> swell-only
@@ -587,6 +591,10 @@ def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_w
     ⚠️ Each partition carries its own direction, so each gets its own shore-normal exposure factor
     inside `estimate_surf` — a shadowed dominant swell is penalised by exactly its energy share
     rather than by a blended mean bearing."""
+    if os.environ.get("SURF_PARTITION_FLUX", "0") == "1":
+        from services.weather_pipeline.partition_flux import estimate_partition_flux
+        return estimate_partition_flux(partitions, depth_m, coastal, shelf_width_km,
+                                       shore_normal_deg, magnet_factor, break_depth_m, water_level_m)
     if not partitions:
         return None, 'unknown'
     energy = 0.0
