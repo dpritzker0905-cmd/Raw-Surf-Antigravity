@@ -16,6 +16,10 @@ function observeHubRequests(page) {
     if (/^\/api\/dispatch\/user\/[^/]+\/active$/.test(path)) return 'active-session';
     if (/^\/api\/notifications(?:\/|$)/.test(path)) return 'notification';
     if (/^\/api\/surf-spots\/[^/]+\/live-shooting-pulse$/.test(path)) return 'spot-pulse';
+    if (/^\/api\/compliance\/violations\/user\/[^/]+$/.test(path)) return 'account-notice';
+    const root = path.split('/')[2];
+    if (path.startsWith('/api/') && ['auth', 'bookings', 'conditions', 'explore', 'photographer',
+      'compliance', 'push', 'hashtags', 'waves', 'tos', 'livekit'].includes(root)) return `family-${root}`;
     return null;
   };
   const onRequest = request => {

@@ -14,7 +14,7 @@ test('hub receipt distinguishes pending, failed and HTTP responses without raw r
   const details = request('explore/spot-details/private-id');
   const batch = request('conditions/batch');
   const posts = request('posts/spot/private-id');
-  const unrelated = request('auth/verify');
+  const unrelated = request('unclassified/verify');
   for (const req of [details, batch, posts, unrelated]) page.emit('request', req);
   page.emit('response', { request: () => details, status: () => 503 });
   page.emit('requestfinished', details);

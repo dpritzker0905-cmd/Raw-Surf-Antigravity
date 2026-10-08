@@ -105,3 +105,35 @@ Extended bounded privacy-safe E2E receipts to setup, known incidental endpoint c
 Readback: Four Node controls pass; syntax and diff checks pass. The real auth client clears synthetic session state two seconds after a non-admin 401; this mechanism is a hypothesis until the triggering response is measured.
 
 Rollback: Revert the receipt extension commit.
+
+## 2026-10-08 10:56Z — PR264 receipt extension 8c4b0ebb (ledger seq 983)
+
+Pushed 8c4b0ebbf47233d7f38848f7ac15974c4019ad08 to the existing draft PR264. Local backend changes were not staged.
+
+Readback: Git push verified the remote branch advanced from 6941798a to 8c4b0ebb.
+
+Rollback: Revert the receipt-extension commit by reviewed PR.
+
+## 2026-10-08 10:56Z — A-05 / A8-01 diagnostic 37766160851 (ledger seq 984)
+
+One Chrome hub attempt without retries, against unchanged dev b02f43f8. Existing code CI jobs only were active at dispatch; no other forecast workflow was running.
+
+Readback: GitHub run37766160851 completed FAILURE. Setup receipt records one unclassified 401 followed by failed batch/details/pulse requests and an auth landing. Active-session and notification calls were200; badge fixture used twice; profile404. This rules out those successful incidental calls but does not yet identify the401 endpoint.
+
+Rollback: Owned hosted browser closed with the run; retain the privacy-safe receipt.
+
+## 2026-10-08 10:56Z — WI03 / A8-02 dark freshness qualification (ledger seq 985)
+
+Default-off FRESH_ESTIMATE_SELECTION guards real grid and manifest-point candidate paths, overlap selection and remote manifest reconciliation. A repeated reconcile can reintroduce a future-valid estimate after the prune exclusion is gone; the guarded reconcile removes it again. Saved registry reproduces16 stale exact-hour EURO coarse-wave selections with flag off; each selects a newer neighbouring native frame with flag on and returns to the old exact-hour frame when disabled. No network requests or shared Storage writes were made.
+
+Readback: Ten focused tests pass, including coverage/resolution/unique-tail null controls and receipt-versus-cycle separation. The16 count is from the saved02:39Z snapshot, not a fresh live served-frame census; owner arming and served readback remain open.
+
+Rollback: Keep FRESH_ESTIMATE_SELECTION unset or0; revert the candidate source if not accepted.
+
+## 2026-10-08 10:56Z — 282 / 283 / A8-03 archive qualification (ledger seq 986)
+
+Prepared gzip scored-month archives at existing keys with byte-identical decoded JSON and both readers accepting old JSON/new gzip. Pending cap86400 preserves64800 rows at20passes/day across60buoys,9lanes and24/48/72h leads; old54000 cap evicts10800. Stored-size warning starts40MiB. Actual monitor main borrows confirmed missing new-month archives only from readable previous rows; corruption and non-list JSON keep grading non-green. No shared-data writes or scientific flag changes.
+
+Readback: 208 focused offline controls pass. Initial new month-seam positive fixture accidentally included future targets and refused; corrected fixture has260 past targets and gradesOK, while current/prior corrupt archives refuse. Hosted qualification, Storage MIME compatibility, compressed upload acknowledgement and post-deploy writer/reader receipts are still pending.
+
+Rollback: Deploy both readers before compressed writes; preserve existing archives and row identities. If reverting compression after any compressed write, retain gzip-compatible readers.
