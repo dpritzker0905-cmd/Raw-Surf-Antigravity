@@ -21,6 +21,7 @@ from services.weather_pipeline.store import reconcile_manifest_products_for_uplo
 
 
 import pytest as _pytest_retention
+from test_product_ack_registration import runtime as ack_runtime  # noqa: F401
 
 
 @_pytest_retention.fixture(autouse=True)
@@ -121,16 +122,17 @@ def test_kill_switch_disables_reconciliation(monkeypatch):
     assert len(manifest.products) == 1
 
 
-def test_hot_save_paths_reconcile_before_every_upload():
+@_pytest_retention.mark.parametrize('batch', [False, True])
+def test_hot_save_paths_reconcile_before_every_upload(ack_runtime, monkeypatch, batch):
     """Guard against silently dropping the wire-up: both registration call sites must reconcile
     immediately before dump_manifest_for_l2, not just at process start."""
-    import inspect
-    from services.weather_pipeline import store_helpers
-
-    for fn in (store_helpers.save_product_helper, store_helpers.save_products_batch_helper):
-        src = inspect.getsource(fn)
-        assert "reconcile_manifest_products_for_upload(manifest)" in src
-        assert src.index("reconcile_manifest_products_for_upload(manifest)") < src.index("dump_manifest_for_l2(manifest)")
+    from test_product_ack_registration import product, save
+    monkeypatch.setattr(store_mod, '_fetch_remote_manifest_products', lambda: [_raw('concurrent_writer.json')])
+    p = product()
+    assert save(ack_runtime.store, batch, p)
+    ack_runtime.manifests.submit(lambda: None).result(2)
+    names = {p['filename'] for p in ack_runtime.state['payloads'][-1]['products']}
+    assert names == {p.product_id, 'concurrent_writer.json'}
 
 
 def test_exclude_keys_prevents_resurrecting_pruned_entries(monkeypatch):

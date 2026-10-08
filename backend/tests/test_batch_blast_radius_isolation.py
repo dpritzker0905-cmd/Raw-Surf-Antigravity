@@ -104,7 +104,9 @@ class _PoisonProduct:
         raise RuntimeError("poisoned product")
 
 
-def test_poisoned_item_costs_one_item_and_manifest_still_writes(tmp_path):
+def test_poisoned_item_costs_one_item_and_manifest_still_writes(tmp_path, monkeypatch):
+    monkeypatch.setenv('L2_WRITER', '0')  # This original control exercises local-only persistence.
+    monkeypatch.setenv('L2_WRITER_GATE', '1')
     store = ProductStore(cache_dir=tmp_path / "wp")
     good1, good2 = _real_product(0), _real_product(3)
     n = store.save_products_batch([(good1, 10.0), (_PoisonProduct(), 10.0), (good2, 10.0)])

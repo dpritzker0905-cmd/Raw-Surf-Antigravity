@@ -359,6 +359,8 @@ jobs:
   # ratchet — shrink-only; regenerate with --write-baseline after triage work). This exact debt
   # was "fixed and declared complete" twice (c1526cdc, 84236b0c) and drifted back 221→226 in five
   # days — enforcement, not convention, is the control. AST-based (regex breaks on nested parens).
+  # Widened 2026-10-08: any actor-id argument (payer_id, surfer_id, captain_id, photographer_id, ...),
+  # not only `user_id`; the baseline now stores hashes, not route names, and only shrinks.
   backend-bola-guard:
     runs-on: ubuntu-latest
     steps:
@@ -1357,7 +1359,7 @@ jobs:
           # Health listing cache adds20 chain controls; projected2416/160files, margin6.
           # A8 backend batch: three tracked files add47 cases, ingestion verdicts add8.
           # Projected2416+55=2471 across163 files; preserve six-test margin.
-          MIN_FILES, MIN_PASSED = 163, 2465
+          MIN_FILES, MIN_PASSED = 165, 2499
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1742,9 +1744,9 @@ jobs:
           # new estate files add 73 executed tests (collect-only, all passing locally) to the hosted
           # 1268 read on dev b02f43f8 (CI 37717937274: 300 files, 1268 passed): projected 1341;
           # 1341 - 2 = 1339; margin 2 kept. Hosted CI on this PR must read 304 files / 1341.
-          # IN03: monitor rescue/liveness controls add9 estate cases (14->23 locally).
-          # Projected1341+9=1350; preserve two-test margin, hosted confirmation pending.
-          MIN_PASSED = 1348
+          # #265 contributes105 estate cases to1341; IN03 contributes9 more.
+          # Combined reading1455, two-test margin; no unrelated unmerged PR is included.
+          MIN_PASSED = 1453
 
           try:
               root = ET.parse('estate.xml').getroot()

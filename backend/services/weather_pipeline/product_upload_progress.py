@@ -67,9 +67,11 @@ def collect_product_uploads():
             _active = None
 
 
-def submit_product_upload(executor, store, filename, data):
+def submit_product_upload(executor, store, filename, data, *, require_ack=False):
     with _active_lock:
         receipt = _active
     if receipt is None:
+        if require_ack:
+            return executor.submit(store._upload_to_supabase, filename, data, strict=True)
         return executor.submit(store._upload_to_supabase, filename, data)
     return receipt.submit(executor, store, filename, data)

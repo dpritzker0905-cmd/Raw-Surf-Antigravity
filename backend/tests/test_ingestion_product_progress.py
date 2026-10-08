@@ -197,9 +197,8 @@ def test_restore_progress_is_not_current_cycle_upload_progress(runtime, monkeypa
 
 
 def test_delayed_upload_is_drained_before_deciding_success(runtime, monkeypatch):
-    from services.weather_pipeline.product_upload_progress import ProductUploadProgress
     started, release = threading.Event(), threading.Event()
-    post, wait = requests.post, ProductUploadProgress.wait
+    post = requests.post
 
     def delayed(url, **kwargs):
         if url.rsplit('/', 1)[-1].startswith('gfs_marine_waves_'):
@@ -207,19 +206,18 @@ def test_delayed_upload_is_drained_before_deciding_success(runtime, monkeypatch)
             assert release.wait(2)
         return post(url, **kwargs)
 
-    def drain(self, timeout):
-        assert started.wait(2)
-        release.set()
-        return wait(self, timeout)
-
     monkeypatch.setattr(requests, 'post', delayed)
-    monkeypatch.setattr(ProductUploadProgress, 'wait', drain)
     monkeypatch.setenv('DATA_HEALTH_CHECK', '0')
     monkeypatch.setattr(forecast, 'ingest_marine_forecast_task', lambda: ProductStore().save_product(product()))
-    try:
-        assert ci.main() == 0
-    finally:
-        release.set()
+    with ThreadPoolExecutor(max_workers=1) as caller:
+        result = caller.submit(ci.main)
+        try:
+            assert started.wait(2)
+            assert not result.done()
+            assert not ProductStore().get_manifest().products
+        finally:
+            release.set()
+        assert result.result(3) == 0
 
 
 def test_timeout_and_late_previous_ack_cannot_turn_next_empty_cycle_green(runtime, monkeypatch):
@@ -238,6 +236,8 @@ def test_timeout_and_late_previous_ack_cannot_turn_next_empty_cycle_green(runtim
 
     monkeypatch.setattr(requests, 'post', delayed)
     monkeypatch.setattr(ci, 'PRODUCT_UPLOAD_DRAIN_SECONDS', .01)
+    from services.weather_pipeline import product_ack_registration
+    monkeypatch.setattr(product_ack_registration, '_timeout', lambda: .01)
     monkeypatch.setenv('DATA_HEALTH_CHECK', '0')
     monkeypatch.setattr(forecast, 'ingest_marine_forecast_task', lambda: ProductStore().save_product(product()))
     try:

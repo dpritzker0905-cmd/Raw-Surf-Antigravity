@@ -26,6 +26,7 @@ import os
 import asyncio
 import logging
 from datetime import timedelta
+from services.weather_pipeline.estimate_extension_ceiling import cycle_ceiling_enabled, extension_ceiling
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,11 @@ async def ingest_icon_marine_extended_estimates_impl(scheduler) -> bool:
 
             run_time = getattr(icon_anchor, "run_time", None) or anchor_time
             ceiling = run_time + timedelta(hours=_CEILING_HOURS)
+            if cycle_ceiling_enabled():
+                ceiling = extension_ceiling(icon_anchor, ICON_NATIVE_LIMIT_HOURS, _CEILING_HOURS)
+                if ceiling is None:
+                    logger.warning('[Pipeline Scheduler] ICON extension anchor has no valid aware time; skipping.')
+                    continue
             gfs_targets = sorted(
                 (p for p in manifest.products
                  if p.model == "GFS" and p.domain == "marine" and p.layer == layer

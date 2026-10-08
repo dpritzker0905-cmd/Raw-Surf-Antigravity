@@ -434,3 +434,85 @@ Readback: Before8failed/14passed; after23passed, including48/48 missed slots res
 Rollback: Revert the dispatcher monitor entry and paired estate floor/reference increment; existing ingestion rescue stays intact.
 
 Reconciliation update: WI03/IN03 is now a locally qualified monitor-rescue candidate, not live cadence acceptance. A8-04 adds a corrected real-router fixture receipt; its validator and assertions are unchanged. The estate reference1350 is projected1341+9 and restores the failed24 positives without lowering the ratchet. IN04 and IN06 remain open under WI02/WI03. Implementation handoff: push this correction/monitor source, await exact-head hosted readings, then build an ACK-gated manifest publication candidate with upload-failure positive control and a verified-cycle336h ceiling candidate; keep the existing scientific switches off. The completion-overdue ERROR is an operational signal, not proof that an external page was delivered.
+
+## 2026-10-08 13:07Z — PR264 monitor and coordinate correction publication (ledger seq 1016)
+
+Pushed70098490 after the real-router correction106pass, monitor23pass and floor/selector47pass. Draft review now includes the monitor candidate and preserves cadence/alert delivery,Storage compatibility,hub E2E and860 acceptance holds. IN04 and IN06 remain next, with existing WI identities. No merge,dev deployment or scientific flip.
+
+Readback: GitHub264 OPEN DRAFT at70098490; new hosted checks pending. The previous db29b643 estate failure is explicitly explained, not waived or hidden by a lowered floor. Fresh projected readings guards2554/chain2471/estate1350 remain to be observed.
+
+Rollback: Revert70098490 and its paired estate floor change together; retain the validation and append-only correction receipt.
+
+## 2026-10-08 14:51Z — claude/bind-actor-routes-batch1 (ledger seq 1017)
+
+Canonical handoff reports Claude published the separate route-hardening branch at48ae107367ef7f464d40e5c0022b152373609772, approximately13:25Z. Owner chose Guard + batch1 now.
+
+Readback: GitHub265 head and handoff agree; detailed unrelated route findings are not reproduced.
+
+Rollback: Revert its merged change through a reviewed PR.
+
+## 2026-10-08 14:51Z — #265 (ledger seq 1018)
+
+Claude opened the separate route-hardening PR against dev under the owner-approved scope.
+
+Readback: GitHub265 records head48ae1073 and subsequent mergefe5573db.
+
+Rollback: Reopen/revert the merged change only through owner-authorized review.
+
+## 2026-10-08 14:51Z — #265 (ledger seq 1019)
+
+The owner merged265 into dev asfe5573db42bb8b147f4d085a39d540134bd2f8b4. Canonical handoff explicitly attributes the merge to the owner, not Claude or Codex.
+
+Readback: GitHub mergedAt2026-10-08T13:52:40Z and mergeCommitfe5573db; healthy API version now matchesfe5573db. Handoff reports estate1446 on306 files.
+
+Rollback: Revertfe5573db on dev through a reviewed PR.
+
+## 2026-10-08 14:51Z — claude/live-session-escrow (ledger seq 1020)
+
+Handoff reports Claude published its separate escrow candidate atc63b7f3d2b5ccfcf33b9eb788f0a868998b4c3f3, approximately14:25Z, under the owner-approved design.
+
+Readback: GitHub266 OPEN at exactc63b7f3d. Codex has not modified that branch.
+
+Rollback: Close the unmerged PR or revise it in its owning session.
+
+## 2026-10-08 14:51Z — #266 (ledger seq 1021)
+
+Claude opened its separate escrow PR against dev. The owner supplied its scope; no merge authorization is inferred here.
+
+Readback: GitHub266 OPEN atc63b7f3d; its files do not include weather-feature source. Shared CI floors overlap.
+
+Rollback: Close the unmerged PR in its owning session.
+
+## 2026-10-08 14:51Z — PR264 exact-head hosted qualification (ledger seq 1022)
+
+All hosted checks at70098490 passed; Netlify rule contexts are neutral. This qualifies the published source, not live smoothness, Storage compatibility or scientific acceptance.
+
+Readback: CI37781744882: guards2554passed/67skipped on188files; chain2471passed on163files; estate1350passed/2865skipped. APIhealthy atfe5573db; datahealthWARN has three cycle-provenance alerts.
+
+Rollback: Revert the qualified source commit if its bounded contract regresses.
+
+## 2026-10-08 14:51Z — WI02 / WI03: IN04 and IN06 weather candidates (ledger seq 1023)
+
+IN04 single/batch saves register only acknowledged designated-writer uploads, retain prior local bytes/registrations on refusal, bound payload queue to4 and preserve parallel uploads. IN06 default-off ESTIMATE_CYCLE_CEILING uses verified native cycle+336h or conservative nominal-anchor fallback; blend decay stays unchanged.
+
+Readback: IN04 corrected fixture before11fail; after12controls pass. IN06 initial10counterexamples fail; repaired extension/heterogeneous Jacobian set36pass. Combined relevant batch210pass; floor/flag controls57pass. Three heterogeneous states per model yield identical retained values and sensitivities; four1% period/direction mutants detected. Initial exhausted/quantized probe was blind and was corrected, not reported as scientific parity. Fatal lint/LOC pass.
+
+Rollback: Revert candidate source and paired CI floors; leave ESTIMATE_CYCLE_CEILING off.
+
+## 2026-10-08 14:51Z — Weather forensic and Jacobian reconciliation
+
+
+Relevant history reviewed: store registration/refactor9106dbc0, manifest concurrency51cdb703, per-item isolationbe8771c3, receipt-clock tail repair04b64846, ICON tier62030654, provenance6dfe9703/1912639b and currentdb29b643/70098490. This is a scoped review of these weather paths, not a claim that every repository commit or file has been audited. Prune/restore manifest writers operate on registered entries; the shared single/batch boundary now withholds new entries until upload ACK. Existing mutable-key revisions, manifest CAS/lost updates and CDN acceptance remain independently tracked. No source from unmerged266 is integrated.
+
+Online design references: [Python futures](https://docs.python.org/3/library/concurrent.futures.html) distinguishes submitted work from its result/exception and warns about same-executor waits. The ACK barrier runs in the caller, keeps upload parallelism, and bounds queued payloads. [Supabase uploads](https://supabase.com/docs/guides/storage/uploads/standard-uploads) treats upload success/error explicitly and warns about overwrite/CDN propagation; this repair does not certify revision freshness or multi-object transactions. [ECMWF forecast time](https://codes.ecmwf.int/grib/format/grib1/ctable/5/) defines valid forecast time relative to reference time, supporting separate model-cycle and ingestion clocks.
+
+| Existing task ID | Current evidence | Proposed status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| WI02/WI03 IN04 |11 genuine failing controls before;12 repaired controls;210 combined relevant passes; delayed/refused/parallel/timeout and local-only paths covered |Candidate qualified offline |Publish exact source and inspect hosted results |Real ingestion ACK precedes registration; mutable-key/CDN and CAS receipts remain separate |
+| WI03 IN06 |10 receipt-clock failures before;36 extension/Jacobian controls after; retained values and Jacobians identical, four mutants detected |Dark candidate qualified offline |Publish; prepare owner arming evidence |Verified cycle bounds at336h, short native controls and independent released coverage receipt |
+| A8-03 /282/283 |Gzip/readers/cap/seams in qualified70098490; no bucket MIME/upload compatibility receipt |Acceptance open, deadline before10-14 |Read actual bucket configuration/compatibility in an authorized isolated scope |Both real readers and durable uploads succeed; historical282 closure stays preserved |
+| A8-01 /A-05 |Causal hub401 still unnamed;265 changed auth and266 remains separate/unmerged |Open |Bounded diagnostic when released source and quiet prerequisites hold |Named cause and positive control with genuine successful hub journey |
+| 860 /WF02 |Qualified fetch-stamp repair; stable paused live receipt still missing |Open |Refresh source/dwell/quiet/focus prerequisites |Paused counts/verdicts/CPU/gaps/fallback plus cleanup; playback independently accepted |
+| 863 |Canonical883 fulfilled |Fulfilled |Preserve closure |No replacement task |
+
+Implementation handoff: integrate only already merged265, combine its105 estate cases with IN03's9 (1455, floor1453), and add34 chain cases (2505, floor2499;165files). Keep scientific flags off, preserve all open acceptance gates, and qualify the new exact source on hosted CI. Next evidence gap is archive Storage compatibility, followed by serving concurrency/encoding and the remaining independently tracked physics/UI work. No live forecast load or shared Storage write occurred.

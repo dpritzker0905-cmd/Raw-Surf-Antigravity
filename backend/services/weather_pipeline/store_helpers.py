@@ -7,7 +7,6 @@ from typing import List, Tuple, Optional
 
 from services.weather_pipeline.schemas import PipelineManifest, NormalizedProduct, ManifestProduct
 from services.weather_pipeline.copernicus_validator import is_test_environment
-from services.weather_pipeline.product_upload_progress import submit_product_upload
 from services.weather_pipeline.ingestion_frame_validity import grid_frame_save_allowed
 
 logger = logging.getLogger(__name__)
@@ -145,201 +144,48 @@ def _build_manifest_item(product, filename: str, resolution: float, is_tf: bool)
     )
 
 
-def save_product_helper(store, product: NormalizedProduct, resolution: float = 0.25) -> Optional[str]:
-    """Helper implementing ProductStore.save_product: atomic L1 write + L2 upload + manifest register."""
-    from services.weather_pipeline.store import (
-        _upload_executor, _manifest_executor, ProductStore, dump_manifest_for_l2,
-        reconcile_manifest_products_for_upload,
-    )
-
-    if not product or not product.grid:
-        logger.warning("[Product Store] Attempted to save empty or ungrid product.")
+def _prepare_product(product, resolution, is_test_env):
+    """Validate before any write or upload; one malformed item cannot abort its batch."""
+    if not product or not product.grid or not grid_frame_save_allowed(product):
         return None
-    if not grid_frame_save_allowed(product):
-        logger.warning('[Product Store] Rejected invalid frame before storage: %s/%s/%s', product.model, product.domain, product.layer)
-        return None
-
     _apply_florida_region_defaults(product)
-
-    filename = _build_product_filename(product)
-    product.product_id = filename  # Ensure product_id is set to the saved filename
-    target_path = store.cache_dir / filename
-
-    # Double check test fixture guard before writing to disk
-    is_test_env = is_test_environment()
     is_tf = product.provider == "test-fixture" or getattr(product, "is_test_fixture", False)
     if is_tf and not is_test_env:
-        logger.error(f"[Product Store] Security Violation: Refusing to save test-fixture product '{filename}' in non-test environment.")
+        logger.error("[Product Store] Refusing test-fixture product outside a test environment.")
         return None
+    filename = _build_product_filename(product)
+    product.product_id = filename
+    return (_build_manifest_item(product, filename, resolution, is_tf), product.model_dump_json().encode("utf-8"))
 
-    # 1. Write product data atomically to disk (L1)
-    product_json_bytes = product.model_dump_json().encode("utf-8")
-    if not _write_product_to_disk(target_path, product_json_bytes):
-        return None
-    logger.info(f"[Product Store] Atomic save complete: {filename}")
 
-    # 2b. Upload product to Supabase Storage (L2 — fire-and-forget)
-    if not is_tf:
-        submit_product_upload(_upload_executor, store, filename, product_json_bytes)
-
-    # 2. Update registration in master manifest
-    if is_tf and not is_test_env:
-        logger.warning(f"[Product Store] Refusing to register test-fixture product '{filename}' in manifest in non-test environment.")
-        return filename
-
-    manifest = store.get_manifest()
-    manifest.last_manifest_update = datetime.now(timezone.utc)
-
-    # Eliminate any existing duplicate registration for the exact same slice
-    updated_products = [
-        p for p in manifest.products
-        if not (
-            p.model == product.model
-            and p.provider == product.provider
-            and p.domain == product.domain
-            and p.layer == product.layer
-            and p.valid_time_start == product.valid_time  # single frame slice
-            and p.region_id == product.region_id  # distinguish by region to avoid collisions!
-        )
-    ]
-    updated_products.append(_build_manifest_item(product, filename, resolution, is_tf))
-    manifest.products = updated_products
-
-    store._save_manifest(manifest)
-
-    # Upload updated manifest to Supabase (L2)
-    if not is_tf:
-        try:
-            reconcile_manifest_products_for_upload(manifest)
-            manifest_json = dump_manifest_for_l2(manifest)
-            _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
-        except Exception as e:
-            logger.warning(f"[Product Store] Manifest L2 upload submit failed: {e}")
-
-    with ProductStore._product_cache_lock:
-        ProductStore._product_cache.pop(filename, None)
-
-    return filename
+def save_product_helper(store, product: NormalizedProduct, resolution: float = 0.25) -> Optional[str]:
+    """Atomic registration of product bytes after an explicit designated-writer ACK."""
+    from services.weather_pipeline.product_ack_registration import save_prepared_products
+    try:
+        prepared = _prepare_product(product, resolution, is_test_environment())
+        if prepared and save_prepared_products(store, [prepared]):
+            return prepared[0].filename
+    except Exception as exc:
+        logger.error('[Product Store] Single save failed: %s', type(exc).__name__)
+    return None
 
 
 def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedProduct, float]]) -> int:
-    """Helper implementing ProductStore.save_products_batch: bulk atomic write + L2 + single manifest update."""
-    from services.weather_pipeline.store import (
-        _upload_executor, _manifest_executor, ProductStore, dump_manifest_for_l2,
-        reconcile_manifest_products_for_upload,
-    )
-
-    if not products_to_save:
-        return 0
-
+    """Parallel product uploads, per-item isolation, one ACK-gated manifest registration."""
+    from services.weather_pipeline.product_ack_registration import save_prepared_products
     is_test_env = is_test_environment()
-    manifest = store.get_manifest()
-    manifest.last_manifest_update = datetime.now(timezone.utc)
 
-    # Build dictionary from existing manifest by unique slice key
-    dict_by_slice = {}
-    for p in manifest.products:
-        key = (
-            (p.model or "").upper(),
-            (p.provider or "").lower(),
-            (p.domain or "").lower(),
-            (p.layer or "").lower(),
-            p.valid_time_start,
-            p.region_id
-        )
-        dict_by_slice[key] = p
+    def prepared():
+        for product, resolution in products_to_save:
+            try:
+                item = _prepare_product(product, resolution, is_test_env)
+                if item:
+                    yield item
+            except Exception as exc:
+                logger.error('[Product Store] Batch preparation failed: %s', type(exc).__name__)
 
-    success_count = 0
-    failed_count = 0
-    has_non_tf = False
+    return save_prepared_products(store, prepared())
 
-    for product, resolution in products_to_save:
-        # PER-ITEM ISOLATION (2026-07-20 bug-class sweep, the f9c5e59a blast-radius shape,
-        # skeptic-confirmed): this loop had NO try/except, so one escaping error (the live
-        # trigger: _upload_executor.submit raising RuntimeError('cannot schedule new futures
-        # after interpreter shutdown') when a CI run is cancelled mid-batch) aborted before
-        # _save_manifest below — the REST of the batch was lost AND every already-written
-        # item became an unregistered orphan on L1/L2 (the phantom-manifest-entry shape).
-        # One bad product must cost exactly one product; the manifest write for the saved
-        # subset must always be reached.
-        try:
-            if not product or not product.grid:
-                logger.warning("[Product Store] Attempted to save empty or ungrid product in batch.")
-                continue
-            if not grid_frame_save_allowed(product):
-                failed_count += 1
-                logger.warning('[Product Store] Rejected invalid batch frame before storage: %s/%s/%s', product.model, product.domain, product.layer)
-                continue
-
-            _apply_florida_region_defaults(product)
-
-            filename = _build_product_filename(product)
-            product.product_id = filename  # Ensure product_id is set to the saved filename
-            target_path = store.cache_dir / filename
-
-            # Double check test fixture guard before writing to disk
-            is_tf = product.provider == "test-fixture" or getattr(product, "is_test_fixture", False)
-            if is_tf and not is_test_env:
-                logger.error(f"[Product Store] Security Violation: Refusing to save test-fixture product '{filename}' in non-test environment.")
-                continue
-
-            # 1. Write product data atomically to disk (L1)
-            product_json_bytes = product.model_dump_json().encode("utf-8")
-            if not _write_product_to_disk(target_path, product_json_bytes):
-                continue
-            logger.info(f"[Product Store] Atomic save complete in batch: {filename}")
-
-            # 2. Upload product to Supabase Storage (L2 — fire-and-forget)
-            if not is_tf:
-                submit_product_upload(_upload_executor, store, filename, product_json_bytes)
-                has_non_tf = True
-
-            # 3. Add to manifest dict, updating/overwriting any existing duplicate slice
-            slice_key = (
-                (product.model or "").upper(),
-                (product.provider or "").lower(),
-                (product.domain or "").lower(),
-                (product.layer or "").lower(),
-                product.valid_time,
-                product.region_id
-            )
-            dict_by_slice[slice_key] = _build_manifest_item(product, filename, resolution, is_tf)
-            success_count += 1
-        except Exception as e:
-            failed_count += 1
-            logger.error(
-                f"[Product Store] Batch-save item failed (product_id="
-                f"{getattr(product, 'product_id', None)!r}): {type(e).__name__}: {e}"
-            )
-
-    if failed_count:
-        logger.error(
-            f"[Product Store] Batch save completed with {failed_count} failed item(s); "
-            f"{success_count} saved and registered."
-        )
-
-    manifest.products = list(dict_by_slice.values())
-    store._save_manifest(manifest)
-
-    # Upload updated manifest to Supabase (L2)
-    if has_non_tf:
-        try:
-            reconcile_manifest_products_for_upload(manifest)
-            manifest_json = dump_manifest_for_l2(manifest)
-            _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
-        except Exception as e:
-            logger.warning(f"[Product Store] Manifest L2 upload submit failed in batch: {e}")
-
-    with ProductStore._product_cache_lock:
-        for product, _ in products_to_save:
-            # getattr, not direct access: failed items may be arbitrary objects, and an
-            # exception HERE (after the manifest write) would skip the remaining cache
-            # invalidations — stale pre-overwrite copies would serve from L1 up to the TTL.
-            pid = getattr(product, "product_id", None) if product else None
-            if pid:
-                ProductStore._product_cache.pop(pid, None)
-
-    return success_count
 
 def restore_from_supabase_helper(store) -> Tuple[int, List[str]]:
     """Helper implementing restore_from_supabase for ProductStore."""

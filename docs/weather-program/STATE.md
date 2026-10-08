@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 13:04Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 14:51Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **Audit queue, 2026-10-08:** Claude #263 is merged into dev as baee6438; actor claude receipt included. Draft #264 source db29b643 publishes the qualified backend/frontend batch; first hosted estate failed24 obsolete product-hint fixtures, now corrected with106 real-router/read controls and unchanged assertions. WI03/IN03 monitor rescue passes23 controls, with +9 estate cases and paired floors prepared. The backend batch previously passed396 combined controls; fresh hosted counts remain required. The hub401 cause,860, Storage MIME/upload ACK, live monitor cadence/alert delivery and broader acceptance remain open. Current core/pilot ingestion,precompute and E2E activity block the quiet probe. IN04 ACK-before-manifest publication and IN06 cycle-based tail ceiling are next. Scientific owner-only switches remain off.
+- **Audit queue, 2026-10-08:** Draft264 source70098490 has passed hosted checks: guards2554, chain2471, estate1350. Owner-merged265 dev/APIfe5573db is healthy; data health remains WARN. Claude266 is OPEN and separate; its floors are not included. IN04 ACK-gated single/batch registration and IN06 default-off verified-cycle ceiling candidates pass210 combined controls, including heterogeneous Jacobian nulls and four sensitive period/direction mutants. Integration/fresh publication pending; combined projected floors retain both265 and IN03: guards2554, chain2505, estate1455. Storage MIME/ACK compatibility before10-14, hub E2E,860, actual monitor cadence, playback/Gulf/device acceptance and owner-only flags remain open.
 
 - **2026-10-08 02:51Z: Remaining findings and live prerequisites receipts publication.**
   Owner requested the last remaining items. Proposed967 confirms genuine mixed cycles at registry scope;968 records actual860 concurrent-load/focus prerequisites, preparedWavesOFF tab and natural parity receipt. Canonicaldev960 and proposed961-966 retained; no replacementtask or sourcefix without counterexample. Only ownedACTION/STATE/sessionlog will be committed and pushed normally; no newdocs-onlymerge/deployment. Publication pending actual cleanlocal/remote/prefix readback in remaining-publication.json.
@@ -1646,7 +1646,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1015, sha256 d7e48d3efa1ee826342942ae96a503e0a928554a63b749838bd58934296bc27a**
+  **Ledger head: seq 1023, sha256 b154a63e4fb3938b5c62a4d7f67176e06be2eb3d49e798211246cfaf610236af**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
