@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-08 15:59Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-08 16:22Z** (logs: `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **Audit queue, 2026-10-08:** Draft #264 source `9e3e76e8` qualified on hosted CI `37802505151`: guards 2,564, chain 2,508, estate 1,455 passes; frontend 378 suites / 4,215 tests. The next WS04 candidate preserves fallback warnings and partial coverage through backend series frames and client cache commits. Local 233 backend, 48 frontend and 57 paired floor/selector controls pass; nine physical sensitivity columns match and two 1% mutants are detected. Projected new guards 2,575 / 189 files require new-head CI. Canonical dev `fe5573db` / ledger 960 remains unchanged; unmerged #266 is excluded. Latest dev E2E `37787865773` failed, so D017 and A8-01 remain open. Storage gzip durability/readers before October 14, original 860, monitor cadence and independent playback/Gulf/device/data-health acceptance remain open. Scientific flags are unchanged. Proposed receipts through 1035 await the next publication.
+- **Audit queue, 2026-10-08:** Draft #264 source `0a4ba554` qualified on hosted CI `37805540425`: guards 2,575 / 189 files, chain 2,508 / 165 files, estate 1,455 / 306 selected files, frontend 378 suites / 4,220 tests. New WS01/SV08 candidate prepared for publication rejects far-future and invalid-latitude amplification before upstream work while preserving supported model horizons, dateline/world copies and historical replay. Local 233 focused, 141 companion and 57 floor/selector controls pass; nine physical sensitivity columns match and two 1% mutants are detected. Projected guards 2,624 / 190 files require exact new-head hosted qualification. Canonical dev `fe5573db` / ledger 960 remains unchanged; unmerged #266 is excluded. D017/red dev E2E, Storage compressed durability/readers before October 14, original 860, monitor cadence and independent playback/Gulf/device/data-health acceptance remain open. Scientific flags are unchanged. Proposed receipts through 1035 are on unmerged #264; local 1036 onward will accompany this substantive repair.
 
 - **2026-10-08 02:51Z: Remaining findings and live prerequisites receipts publication.**
   Owner requested the last remaining items. Proposed967 confirms genuine mixed cycles at registry scope;968 records actual860 concurrent-load/focus prerequisites, preparedWavesOFF tab and natural parity receipt. Canonicaldev960 and proposed961-966 retained; no replacementtask or sourcefix without counterexample. Only ownedACTION/STATE/sessionlog will be committed and pushed normally; no newdocs-onlymerge/deployment. Publication pending actual cleanlocal/remote/prefix readback in remaining-publication.json.
@@ -1646,7 +1646,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1035, sha256 7f869a23a83993c6ac79977cddbdb8505c6d33b070dc6d73bd52836fab1841d9**
+  **Ledger head: seq 1039, sha256 6706e7374bef934e14d600b7898b58bc9880c46b0a40e04fc6dc22153bf61cb1**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

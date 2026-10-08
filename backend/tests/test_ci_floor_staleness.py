@@ -463,7 +463,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Correction: merge control is guards; hosted9f15 guards2555 and estate1455.
 # Nine HTTP controls project2564 guards;33 IN04/IN06 plus4 role controls project2508 chain.
 # WS04: eleven existing-file controls project2575 guards; chain/estate unchanged.
-_FLOOR_SET_FROM = {"guards": 2575, "chain": 2508, "estate": 1455}
+# WS01/SV08: 49 request controls project2624 guards across190files; margin6 retained.
+_FLOOR_SET_FROM = {"guards": 2624, "chain": 2508, "estate": 1455}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

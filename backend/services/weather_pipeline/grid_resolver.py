@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 
 from services.weather_pipeline.schemas import NormalizedProduct
 from services.weather_pipeline.l2_retry import label_l2_read_failures
+from services.weather_pipeline.grid_request_validation import validate_grid_time
 from services.weather_pipeline.route_helpers import (
     parse_valid_time, parse_bbox, filter_grid_to_bbox,
     make_unsupported_icon_swell2_grid_response, make_no_coverage_grid_response,
@@ -148,6 +149,8 @@ async def resolve_grid(
     # Immediate rejection for unsupported layer
     if model.upper() == "ICON" and layer.lower() == "swell_2":
         return make_unsupported_icon_swell2_grid_response(domain, target_dt)
+
+    validate_grid_time(model, domain, layer, target_dt)
 
     # Parse bounding box values if provided
     req_w, req_s, req_e, req_n = None, None, None, None

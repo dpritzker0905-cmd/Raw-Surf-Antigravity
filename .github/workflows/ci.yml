@@ -827,7 +827,9 @@ jobs:
           # Tracked selector owns189 guards files; preserve margin6 pending exact-head CI.
           # WS04: eleven fallback-receipt/HTTP/Jacobian controls in the existing guards file.
           # Projected2575 passes across189files; preserve margin6 pending exact-head CI.
-          MIN_FILES, MIN_PASSED = 189, 2569
+          # PF03/LIVE04 WS01/SV08: 49 request/clock/fast-path/Jacobian controls.
+          # Projected2624 passes across190files; preserve margin6 pending exact-head CI.
+          MIN_FILES, MIN_PASSED = 190, 2618
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

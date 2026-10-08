@@ -635,3 +635,52 @@ Exact source9e3e76e8 qualified on hosted CI37802505151: guards2564passed/189file
 Readback: Completed GitHub jobs and final summary read directly; projected counts match exactly. Latest devfe5573db E2E37787865773 failed, so D017 remains binding;264 not merged. Unrelated266 still OPEN/unmerged.
 
 Rollback: Retain true hosted receipt; revert source only through review and preserve live acceptance gates.
+
+## 2026-10-08 16:02Z — PR264 WS04 candidate0a4ba554 (ledger seq 1036)
+
+Committed and pushed0a4ba554360fb9abe3cd6919004bbe8fab35e4d3 on the existing draft264. Carries series fallback repair, paired guards floor and receipts through1035. Prior9e3e76e8 full hosted qualification remains a prior-head receipt; new source requires its own qualification.
+
+Readback: Local/remote/GitHub exact0a4ba554; clean checkout immediately after push;264 OPEN DRAFT with own checks queued/in progress. Commit secret hook found no leaks. Canonicaldevfe5573db/ledger960 is unchanged; unmerged266 excluded.
+
+Rollback: Revert only owned weather source and paired floors by reviewed PR; preserve append-only evidence and owner gates.
+
+## 2026-10-08 16:02Z — PR264 WS04 review and next bounded serving investigation (ledger seq 1037)
+
+Updated draft description around actual new head, fallback receipts, genuine before/after and sensitivity controls, prior hosted qualification and current pending checks. WS01/SV08 far-hour/invalid-bbox upstream amplification remains the next bounded source investigation; existing capability, antimeridian and archival contracts require controls before repair. Storage durability/readers, latest failed devE2E/D017,860 and scientific/UI acceptance remain independently open.
+
+Readback: GitHub public body/head readback exact0a4ba554 OPEN DRAFT; no live forecast loads, browser test, shared Storage write, merge, deployment or science-flag change. Post-push1036/1037 remain local proposed receipts for the next substantive publication.
+
+Rollback: Revise review facts when fresh hosted or acceptance evidence changes; preserve existing IDs.
+
+## 2026-10-08 16:22Z — WS04 / PF03 / LIVE04: exact 0a4 source qualification (ledger seq 1038)
+
+Exact source0a4ba554360fb9abe3cd6919004bbe8fab35e4d3 has completed all own hosted checks. CI37805540425 succeeds: guards2575 across189files with67skips and0fail/0errors; chain2508 across165files; estate1455 across306selected/304producingfiles,0silent; frontend378suites/4220tests. Lint/build/LOC/encoding/ledger/Lighthouse/preview succeed. WS04 source repair is qualified at its documented warning/coverage scope; this is not deployment, scientific accuracy or live product acceptance.
+
+Readback: Fresh GitHub job logs and all PR264 checks read back completed/success or the explicit Pages-changed neutral result. Canonicaldevfe5573db/ledger960 unchanged; Claude266 remains OPEN atc63b7f3d and is excluded. New request-admission edits are not qualified by this prior-source receipt.
+
+Rollback: Retain qualification evidence; revert warning propagation with its paired floors only if a specific regression is found.
+
+## 2026-10-08 16:22Z — PF03 / LIVE04 / WS01 / SV08: reject impossible request amplification (ledger seq 1039)
+
+Real offline HTTP before:16fail/15pass; invalid latitude ranges/order each reach upstream, and a48-frame far-future page dispatches48fetches. Shared preflight now rejects invalid latitudes and future times beyond the catalog horizon before manifest/upstream work; series validates its whole selected page before either fast path or generic fanout and rejects datetime overflow. Mixed valid/invalid selected pages return400 atomically. The upper bound uses the server ceil-hour anchor to preserve client round-hour final slots; it does not slide with client anchor skew. Historical replay has no new lower-time cutoff. Longitude is cyclic: finite unwrapped world copies and legitimate west>east dateline views retain existing normalization. This changes no served physical number, forecast selection/scientific flag, catalog horizon, Storage setting or shared product.
+
+Readback: After:233 focused controls including49new HTTP/clock/fast-path/Jacobian cases;141 original companion controls pass;57 paired floor/selector controls pass. Six companion tests initially failed because their provenance fixture asked for2035; current supported-hour fixture preserves all provenance assertions and the same complete141-case rerun passes. Nine heterogeneous physical sensitivity columns match /grid against /grid_series, and two1percent mutants are detected before value identity. Null period and exact values survive. Fatal lint and both LOC gates exit0. Partition664=190guards+165chain+306estate+2exclusions+1quarantine. Projected2624guards/2508chain/1455estate require new-head hosted qualification. Local interpreter has2different/2absent declared pins; hostedCI remains authority. Two initial command errors selected a nonexistent anchor test and ran the selector from root; corrected runs selected the existing anchor file and ran the selector from backend. No live forecast/Storage write, dev merge/deployment or science flag action.
+
+Rollback: Revert this request-admission source, tests and paired floor changes together by reviewed PR; preserve previously qualified fixes and append-only receipts.
+
+Proposed reconciliation (canonical dev ledger960 retained; additions below are on the unmerged candidate):
+
+| Existing task ID | Current evidence | Status | Next action | Acceptance requirement |
+|---|---|---|---|---|
+| PF03/LIVE04 WS01/SV08 |16 before failures;49 new controls pass; rejected requests perform zero storage/upstream work |Source candidate repaired; hosted qualification pending |Publish exact candidate and read its own CI |Catalog/clock and both fast-path controls pass; valid dateline/historical behavior retained |
+| PF03/LIVE04 WS04 |Exact0a4 hosted2575/2508/1455 backend and4220frontend passes |Source qualified at warning/coverage scope |Preserve closure unless current regression evidence appears |Warning/substitute receipts survive both cache paths with unchanged physical values |
+| PF03/LIVE04 LIVE01 and A8-01/A-05 |Hub dynamic-index repetition and red dev journey remain independent |Open |Next offline profile of repeated hub index parsing, preserving failure evidence |A counted before/after at the actual hub seam, then genuine successful journey evidence |
+| A8-03/282/283 |Gzip source/readers and bucket configuration qualified; real durability/readers missing |Open before10-14 |Obtain bounded safe isolated Storage ACK/reader evidence |Actual compressed upload ACK and both live readers; no science flip |
+| 860 |No new deployed-source stable paused receipt |Open |Use original matching-source/dwell/quiet/focus contract and cleanup |Paint counts/CPU/gaps/fallback; independent playback/Gulf/device work retained |
+| D017 |LatestdevE2E37787865773 failed |Merge gate remains |Repair causal E2E failure or obtain named owner waiver for264 |Green dev journey or explicit owner waiver naming264 |
+
+Recommendation: finish this candidate's exact-source qualification, then investigate LIVE01's repeated hub dynamic-index parsing offline. Do not reopen PR253's qualified mask/cache repairs without current regression evidence or repeat audit section2 controls.
+
+Implementation handoff: validation lives at the shared resolver and at series preflight before all three assembly paths. Existing maximum48 selected offsets and historical replay remain; an unsupported selected future offset refuses the whole page. Upper bounds are catalog-owned, including GFS384 and ICON precipitation168; one rounded final hourly slot is admitted. Geographic latitude is checked without treating crossing or unwrapped longitude as an inverted box. Keep the admission evidence separate from scientific skill and paused/playback acceptance. Publish source/tests/paired floors/receipts together; qualify the new exact head. Preserve Claude266 and the current ledger prefix. No new task identity is needed.
+
+Primary references checked: [RFC7946 antimeridian bounding boxes](https://www.rfc-editor.org/rfc/rfc7946#section-5.2) and [FastAPI error handling](https://fastapi.tiangolo.com/tutorial/handling-errors/) support preserving dateline crossings and terminating invalid requests with HTTPException before downstream work. Repository contracts, not external examples, define horizons and historical behavior.
