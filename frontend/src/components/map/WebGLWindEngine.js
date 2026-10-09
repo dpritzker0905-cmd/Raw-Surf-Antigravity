@@ -19,7 +19,7 @@ import {
   createFBO,
   bindTexture,
   encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
-  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, windBoundsContain, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole
+  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, windBoundsContain, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade
 } from './WebGLWindUtils';
 import {
   initEngine,
@@ -828,7 +828,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // v3.12.2: No blend for fade shader outputs alpha=1.0, straight overwrite
   gl.disable(gl.BLEND);
   gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
-  gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), perFrameFade(_v2.motion ? _v2.fade : this.fadeOpacity, this._dtScale || 1)); gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_premul'), _v2.theme ? 1 : 0); // A15-18
+  gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), perFrameFade(_v2.motion ? _v2.fade : v2TrailFade(this.fadeOpacity, z, _v2), this._dtScale || 1)); gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_premul'), _v2.theme ? 1 : 0); // A15-18
   bindTexture(gl, this.screenA.tex, 0);
   if (this.fadeVAO) {
     gl.bindVertexArray(this.fadeVAO);

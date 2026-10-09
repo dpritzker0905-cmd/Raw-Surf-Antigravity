@@ -507,7 +507,7 @@ void main() {
   v_speed = length(wind);
   // SPEED-AWARE KEEP (WebGLWindUtils.v2SpeedKeep): the motion floor lets a fast mark outlive the legacy drop rule, so it
   // out-inks a slow one by legacyDrop/cap; keep fast marks in exactly that ratio and ink per area stops tracking speed.
-  if (u_v2_speedkeep.x > 0.5) keepRate *= min(1.0, u_v2_speedkeep.y / (u_v2_speedkeep.z + v_speed * u_v2_speedkeep.w));
+  if (u_v2_speedkeep.x > 0.0) keepRate *= pow(min(1.0, u_v2_speedkeep.y / (u_v2_speedkeep.z + v_speed * u_v2_speedkeep.w)), u_v2_speedkeep.x);
   if (p_rand > keepRate) { gl_Position = vec4(-2.0, -2.0, -2.0, 1.0); gl_PointSize = 0.0; return; }
   // SCREEN-SPACE wind direction for the oriented mark. Mercator convention: +y is SOUTH on screen
   // while v is NORTHWARD, so the y component is negated — the same flip the advection step uses.
