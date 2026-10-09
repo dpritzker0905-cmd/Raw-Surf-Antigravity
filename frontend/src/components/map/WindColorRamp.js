@@ -136,14 +136,15 @@ var DARK_WIND_RAMP = [
   [0,  0.90, 0.00, 1.00, 0.80], // Calm: vivid magenta (composite 269°, visΔ 26.3 @ baseA 0.44)
   [3,  0.03, 0.00, 1.00, 0.83], // Light air: pure blue (composite 234°, visΔ 42.3)
   [6,  0.00, 0.67, 1.00, 0.85], // Light breeze: azure (composite 200°, visΔ 37.4)
-  [10, 0.20, 0.95, 0.70, 0.87], // Gentle: aqua-green
-  [16, 0.38, 0.95, 0.40, 0.88], // Moderate: spring green
-  [21, 0.62, 0.92, 0.30, 0.89], // Fresh: yellow-green
-  [27, 0.85, 0.85, 0.20, 0.90], // Strong: chartreuse
-  [33, 0.97, 0.72, 0.15, 0.91], // Near gale: amber
-  [40, 0.99, 0.55, 0.12, 0.92], // Gale: orange
-  [47, 0.98, 0.35, 0.15, 0.93], // Strong gale: vermilion
-  [55, 0.95, 0.20, 0.30, 0.94], // Storm: hot red
+  // 10-55 kn: the COLOUR-BLIND PASS below (L* 83 -> 90 -> 91 -> 86 -> 77 -> 66 -> 59 -> 53: one lightness arc).
+  [10, 0.003, 0.918, 0.696, 0.87], // Gentle: aqua-green (deeper)
+  [16, 0.415, 1.000, 0.562, 0.88], // Moderate: spring green (brighter, softer)
+  [21, 0.636, 0.990, 0.371, 0.89], // Fresh: yellow-green (the arc's peak)
+  [27, 0.972, 0.843, 0.112, 0.90], // Strong: chartreuse, warmed toward lemon
+  [33, 0.963, 0.693, 0.180, 0.91], // Near gale: amber
+  [40, 0.957, 0.517, 0.165, 0.92], // Gale: orange
+  [47, 0.966, 0.352, 0.190, 0.93], // Strong gale: vermilion
+  [55, 0.952, 0.178, 0.290, 0.94], // Storm: hot red
   [63, 0.92, 0.30, 0.65, 0.95], // Violent storm: rose
   [75, 1.00, 0.75, 0.95, 0.95], // Hurricane: white-magenta
 ];
@@ -210,8 +211,24 @@ var PRE_LIGHT_LOWBAND = {
   particle: { 3: [10, 0.103, 0.701, 0.825, 0.80], 4: [16, 0.304, 0.786, 0.738, 0.82] },
   field: { 3: [10, 0.289, 0.646, 0.736, 0.80], 4: [16, 0.228, 0.803, 0.762, 0.82] },
 };
+// COLOUR-BLIND PASS (2026-10-09; frontend/scripts/wind-color, coloraide Vienot protan/deutan + Brettel tritan, floor 5 dE2000
+// between neighbouring stops). DARK: the 10-33 kn neon greens sat at one lightness (L* 84-86), so a red/green-blind viewer saw
+// one yellow from 10 to 33 kn (legend 16-21 kn protan 2.4, tint over water 21-27 kn protan 2.1; 16-21 kn was even under the
+// 9 dE normal-vision legend target at 7.9). Re-solved by the least change (every stop <= 0.05 dE_OK, ~2.5 CSS JND) with
+// every Jest gate hard and NO new lightness or chroma peak/dip in the legend or the tint over water: the greens now
+// brighten and saturate up to a 21 kn peak and the warm bands step down from it. Legend and tint >= 5.2 under all three.
+// Kill: __RAW_DISABLE_WIND_DARK_CVD__ restores the rows below (next ramp build: theme change or reload).
+var PRE_CVD = { particle: { dark: {
+  3: [10, 0.20, 0.95, 0.70, 0.87], 4: [16, 0.38, 0.95, 0.40, 0.88], 5: [21, 0.62, 0.92, 0.30, 0.89], 6: [27, 0.85, 0.85, 0.20, 0.90],
+  7: [33, 0.97, 0.72, 0.15, 0.91], 8: [40, 0.99, 0.55, 0.12, 0.92], 9: [47, 0.98, 0.35, 0.15, 0.93], 10: [55, 0.95, 0.20, 0.30, 0.94] } }, field: {} };
+var CVD_KILL = { dark: '__RAW_DISABLE_WIND_DARK_CVD__' };
 function revertRows(ramp, rows) { return ramp.map(function(stop, i) { return rows[i] ? rows[i].slice() : stop; }); }
+function cvdPassed(ramp, kind, theme, w) {
+  var pre = PRE_CVD[kind][theme];
+  return pre && w && w[CVD_KILL[theme]] === true ? revertRows(ramp, pre) : ramp;
+}
 function midbandRefined(ramp, kind, theme, w) {
+  ramp = cvdPassed(ramp, kind, theme, w);   // the older kills below win over it on the rows they share
   var out = (theme === 'light' && w && w.__RAW_DISABLE_WIND_LIGHT_LOWBAND__ === true) ? revertRows(ramp, PRE_LIGHT_LOWBAND[kind]) : ramp;
   var pre = PRE_MIDBAND_STOPS[kind][theme];
   if (!pre || !w || w.__RAW_DISABLE_WIND_MIDBAND_REFINE__ !== true) return out;
