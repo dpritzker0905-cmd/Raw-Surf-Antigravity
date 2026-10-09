@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind, getBackendWindFlag, prewarmSiblingModelWind, isRenderableWindData } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
-import { windGridsCompatible } from './WebGLWindEngine';
+import { windGridsCompatible } from './WebGLWindEngine'; import { keepResidentFine } from './windOverlayKeep';
 import { recordTruthStage } from './weatherTruthTracker';
 import { ensureWindSeries, getWindSeriesFrame, prewarmWindSeries } from './windGridSeries';
 import { isTerminalNoCoverage } from './marineControllerCache';
@@ -149,7 +149,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             const sameModel = (data.source || null) === (lg.source || null);
             const sameHour = (data.hourOffset || 0) === (lg.hourOffset || 0);
             if (twoTexLive && sameModel && sameHour && lgSpan >= 350.0) {
-              console.log('[WeatherEngine] commitWindData CHOKE: non-covering grid passes as FINE OVERLAY over the resident global base');
+              if (keepResidentFine(typeof window !== 'undefined' ? window.__WIND_FINE_OVERLAY__ : null, data, vp)) { console.log('[WeatherEngine] commitWindData CHOKE: kept the resident fine overlay (it shows more of the view, as fine or finer)'); return; } console.log('[WeatherEngine] commitWindData CHOKE: non-covering grid passes as FINE OVERLAY over the resident global base');
               windRevision.current += 1;
               return commitWindDataInner(data);
             }
