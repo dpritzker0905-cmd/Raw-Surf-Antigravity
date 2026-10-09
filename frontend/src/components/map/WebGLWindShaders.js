@@ -680,6 +680,7 @@ uniform float u_theme;       // 2026-07-18: 0=dark 1=light 2=beach — the parti
 uniform float u_theme_rim;   // 1 = theme-aware rim/core, 0 = legacy black/white (kill switch)
 uniform float u_calm_alpha_kill; // 1 = restore the 07-19 calm-alpha set (kill switch; default 0)
 uniform float u_dash;        // 2026-07-18: 1 = oriented dash, 0 = legacy round mark (kill switch)
+uniform float u_dash_thin;   // >= 1: close-zoom across-wind narrowing (WebGLWindUtils.windCloseThinFactor; 1 = as drawn)
 uniform float u_field_opacity; // heatmap u_opacity — the field is SEMI-TRANSPARENT
 uniform float u_basemap_y;     // linear luminance of the basemap showing through it
 uniform float u_casing_fixed;  // 1 = one casing pole for every mark (WebGLWindUtils.windCasingFixedPole)
@@ -708,7 +709,7 @@ void main() {
     // inside the sprite, keeps its length equal to the sprite, and cuts area by ~1/elong — so the
     // basemap shows through MORE than with the round mark it replaces.
     // 2.6:1 at the slow end easing to 1.8:1 once real motion supplies its own streak.
-    float elong = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed));
+    float elong = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed)) * max(u_dash_thin, 1.0);
     localCoord = vec2(along.x, along.y * elong * max(v_stretch, 1.0));
   }
   float dist = length(localCoord);

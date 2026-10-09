@@ -10,7 +10,9 @@
  *
  * Columns: field = line contrast kept under the colour field alone (4 particles); full = with the
  * particle pool; parts = the share of the field-only contrast the particles take away (1 - full/field);
- * lost = share of line samples left under half their contrast. View: 28-38 kn air NE of the bench
+ * lost = share of line samples left under half their contrast; sal = mean |dL*| the particles add (their visual signal);
+ * cover = share of pixels they move by more than 5 L*. Lines follow each basemap's road polarity (lighter than land in
+ * dark). View: 28-38 kn air NE of the bench
  * storm (field.js HURRICANE), where the owner's 2026-10-09 close-zoom report sat (~25-35 kn).
  */
 const fs = require('fs');
@@ -55,7 +57,7 @@ async function main() {
     await page.goto(`http://127.0.0.1:${server.address().port}/bench/index.html`);
     await page.waitForFunction(() => window.__WIND_BENCH__ && window.__WIND_BENCH__.renderer);
     console.log(`renderer: ${await page.evaluate(() => window.__WIND_BENCH__.renderer)}\n`);
-    console.log('theme  zoom | field  full   parts  lost');
+    console.log('theme  zoom | field  full   parts  lost   sal    cover');
     for (const theme of opts.themes) {
       for (const z of opts.zooms) {
         const run = async (res) => {
@@ -66,12 +68,12 @@ async function main() {
             if (r.glError) throw new Error(`GL error ${r.glError} at ${theme} z${z}`);
             rs.push(r);
           }
-          return { retain: mean(rs.map((r) => r.retain)), lost: mean(rs.map((r) => r.lost)) };
+          return { retain: mean(rs.map((r) => r.retain)), lost: mean(rs.map((r) => r.lost)), sal: rs[0].sal == null ? null : mean(rs.map((r) => r.sal)), cover: rs[0].cover == null ? null : mean(rs.map((r) => r.cover)) };
         };
         const field = await run(2), full = await run(POOL);
-        const row = { theme, z, field: +field.retain.toFixed(3), full: +full.retain.toFixed(3), parts: +(1 - full.retain / field.retain).toFixed(3), lost: +full.lost.toFixed(3) };
+        const row = { theme, z, field: +field.retain.toFixed(3), full: +full.retain.toFixed(3), parts: +(1 - full.retain / field.retain).toFixed(3), lost: +full.lost.toFixed(3), sal: full.sal, cover: full.cover };
         rows.push(row);
-        console.log(`${theme.padEnd(6)} ${String(z).padStart(4)} | ${row.field.toFixed(3)}  ${row.full.toFixed(3)}  ${row.parts.toFixed(3)}  ${row.lost.toFixed(3)}`);
+        console.log(`${theme.padEnd(6)} ${String(z).padStart(4)} | ${row.field.toFixed(3)}  ${row.full.toFixed(3)}  ${row.parts.toFixed(3)}  ${row.lost.toFixed(3)}  ${row.sal.toFixed(2).padStart(5)}  ${row.cover.toFixed(3)}`);
       }
     }
     if (opts.json) fs.writeFileSync(opts.json, JSON.stringify({ engine: source.label, view: VIEW, levers: opts.levers, rows }, null, 1));

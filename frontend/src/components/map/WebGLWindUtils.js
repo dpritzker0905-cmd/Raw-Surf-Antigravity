@@ -588,16 +588,41 @@ export function v2SpeedPremul(v2, theme, win = (typeof window !== 'undefined' ? 
 // 0.40 at z6 (the look the owner approved) to 0.58-0.64 at z7-9 (dark 0.25-0.38, beach 0.37-0.40). The field alone keeps
 // ~0.80 at every zoom: the particles are the flood. Easing light's mark opacity to 0.65 across z6-7.5 holds that share at
 // z6's level (0.35-0.43 at z7-11). Mark count, size, trails and colours are unchanged; z<=6, dark and beach are untouched.
-// Lever: __RAW_WIND_CLOSE_LAND_OPACITY__ (the close-zoom factor, 0.1-1). Kill: __RAW_DISABLE_WIND_CLOSE_LAND__.
-export const WIND_CLOSE_LAND = Object.freeze({ themes: ['light'], to: 0.65, fromZ: 6, fullZ: 7.5 });
+// It is a factor on each theme's own composite opacity (light/beach premultiplied, dark brightness-alpha); `to` lists the
+// themes it applies to. Lever: __RAW_WIND_CLOSE_LAND_OPACITY__ (the close-zoom factor, 0.1-1, any theme).
+// Kill: __RAW_DISABLE_WIND_CLOSE_LAND__.
+export const WIND_CLOSE_LAND = Object.freeze({ to: Object.freeze({ light: 0.65 }), fromZ: 6, fullZ: 7.5 });
 
-/** Factor on the premultiplied mark opacity at this zoom: 1 at z<=fromZ, `to` from fullZ, smoothstep between. */
-export function windCloseLandFactor(theme, zoom, win = (typeof window !== 'undefined' ? window : null)) {
-  const w = win || {}, c = WIND_CLOSE_LAND;
-  if (w.__RAW_DISABLE_WIND_CLOSE_LAND__ === true || !c.themes.includes(theme) || !(zoom > c.fromZ)) return 1;
-  const lev = w.__RAW_WIND_CLOSE_LAND_OPACITY__, to = (typeof lev === 'number' && lev >= 0.1 && lev <= 1) ? lev : c.to;
+/** 0 at z<=fromZ, 1 from fullZ, smoothstep between: the close-zoom ramp both close-zoom levers ride (L-V13). */
+export function windCloseRamp(zoom, c = WIND_CLOSE_LAND) {
+  if (!(zoom > c.fromZ)) return 0;
   const t = Math.min(1, (zoom - c.fromZ) / (c.fullZ - c.fromZ));
-  return 1 + (to - 1) * t * t * (3 - 2 * t);
+  return t * t * (3 - 2 * t);
+}
+
+/** Factor on the mark composite opacity at this zoom: 1 at z<=fromZ, the theme's `to` from fullZ, smoothstep between. */
+export function windCloseLandFactor(theme, zoom, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {}, c = WIND_CLOSE_LAND, lev = w.__RAW_WIND_CLOSE_LAND_OPACITY__;
+  if (w.__RAW_DISABLE_WIND_CLOSE_LAND__ === true) return 1;
+  const to = (typeof lev === 'number' && lev >= 0.1 && lev <= 1) ? lev : c.to[theme];
+  if (typeof to !== 'number') return 1;
+  return 1 + (to - 1) * windCloseRamp(zoom, c);
+}
+
+// CLOSE-ZOOM THIN MARKS (candidate lever, measured before any default). The other way to give land back: narrow each dash
+// ACROSS the wind by `to` at close zoom (DRAW_FS divides its half-width), keeping its length, count, trail and contrast.
+// Motion is carried by a mark's luminance contrast more than by its area, so a thin full-contrast streak may reveal land
+// at less cost to the animation than a fainter wide one. Lever: __RAW_WIND_CLOSE_THIN__ (1-3, any theme).
+// Kill: __RAW_DISABLE_WIND_CLOSE_THIN__.
+export const WIND_CLOSE_THIN = Object.freeze({ to: Object.freeze({}), fromZ: 6, fullZ: 7.5 });
+
+/** Across-wind narrowing factor (>= 1) for the dash at this zoom: 1 at z<=fromZ, the theme's `to` from fullZ. */
+export function windCloseThinFactor(theme, zoom, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {}, c = WIND_CLOSE_THIN, lev = w.__RAW_WIND_CLOSE_THIN__;
+  if (w.__RAW_DISABLE_WIND_CLOSE_THIN__ === true) return 1;
+  const to = (typeof lev === 'number' && lev >= 1 && lev <= 3) ? lev : c.to[theme];
+  if (typeof to !== 'number') return 1;
+  return 1 + (to - 1) * windCloseRamp(zoom, c);
 }
 
 /** Per-frame trail fade at this zoom: the wide-zoom fade, blended linearly into `baseFade` across fullBelowZ..baseFromZ. */

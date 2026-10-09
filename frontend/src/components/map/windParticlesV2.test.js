@@ -328,6 +328,6 @@ describe('engine wiring', () => {
     expect(src).toContain('gl.blendFunc(_premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);');   // _premul = _v2.theme || speed-coloured premul (windLightTheme.test.js)
     expect(src).toMatch(/if \(this\._v2Premul !== _premul\) \{ this\._v2Premul = _premul;/);
     expect(src).toContain('_premul = _v2.theme || _pm.on');
-    expect(src).toContain("'u_opacity'), _v2.theme ? _v2.composite : (_pm.on ? _pm.opacity * windCloseLandFactor(effectiveTheme, z) : finalOpacity))"); // close-zoom land: windCloseLand.test.js
+    expect(src).toContain("'u_opacity'), _v2.theme ? _v2.composite : (_pm.on ? _pm.opacity : finalOpacity) * windCloseLandFactor(effectiveTheme, z))"); // close-zoom land: windCloseLand.test.js
   });
 });
