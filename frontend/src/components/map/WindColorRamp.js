@@ -89,15 +89,16 @@ var DEFAULT_WIND_RAMP = [
 //  - light air is a soft visible tint (3 kn dE ~9-10), a breeze clear colour (6 kn dE ~15) — the owner's middle ground;
 //  - adjacent bands >= 9.5 dE apart (>= 4.9 deuteranope-simulated); lightness falls calm -> storm except one capped dip
 //    at 10 kn (needed for slow wind to show on cyan water); all stops in sRGB gamut.
-// BEACH "sea -> sunset -> dusk": sand-white, seafoam, aqua-green, sea-teal, lagoon, sea green, palm gold, sunset gold,
-// apricot, coral, hibiscus, sunset magenta, dusk violet.
+// BEACH "sea -> sunset -> dusk": sand-white, seafoam, aqua-green, jade, emerald, palm-frond, palm gold, sunset gold,
+// apricot, coral, hibiscus, sunset magenta, dusk violet. (10-21 kn were sea-teal / lagoon / sea green — the water's own
+// colours; see BEACH GREEN BAND below.)
 var BEACH_WIND_RAMP = [
   [0,  0.973, 0.953, 0.911, 0.75], // Calm: sand white (L* 95.9)
   [3,  0.471, 0.891, 0.712, 0.78], // Light air: seafoam (L* 83.2)
   [6,  0.027, 0.780, 0.643, 0.81], // Light breeze: aqua-green (L* 71.9)
-  [10, 0.361, 0.680, 0.704, 0.83], // Gentle: sea-teal (L* 66.2)
-  [16, 0.308, 0.764, 0.906, 0.85], // Moderate: lagoon blue (L* 73.8)
-  [21, 0.284, 0.748, 0.574, 0.87], // Fresh: sea green (L* 69.9)
+  [10, 0.244, 0.631, 0.479, 0.83], // Gentle: jade (L* 59.8; OKLCH 0.640/0.110/164)
+  [16, 0.229, 0.626, 0.268, 0.85], // Moderate: emerald (L* 58.4; OKLCH 0.625/0.160/145)
+  [21, 0.286, 0.496, 0.208, 0.87], // Fresh: palm-frond green (L* 47.9; OKLCH 0.540/0.120/138)
   [27, 0.635, 0.707, 0.283, 0.88], // Strong: palm gold-green (L* 70.1)
   [33, 0.825, 0.650, 0.124, 0.90], // Near gale: sunset gold (L* 70.2)
   [40, 0.862, 0.455, 0.068, 0.91], // Gale: apricot (L* 59.6)
@@ -113,9 +114,9 @@ var LIGHT_WIND_RAMP = [
   [0,  0.942, 0.964, 0.987, 0.72], // Calm: cloud white (L* 96.6)
   [3,  0.803, 0.757, 0.982, 0.75], // Light air: lavender (L* 80.8)
   [6,  0.612, 0.688, 0.897, 0.78], // Light breeze: periwinkle (L* 71.9)
-  [10, 0.116, 0.690, 0.811, 0.80], // Gentle: cerulean (L* 66.4)
-  [16, 0.332, 0.785, 0.749, 0.82], // Moderate: teal (L* 74.2)
-  [21, 0.409, 0.758, 0.514, 0.84], // Fresh: spring green (L* 71.5)
+  [10, 0.103, 0.701, 0.825, 0.80], // Gentle: cerulean (L* 67.3; +0.9 L* — the mid-band refine below)
+  [16, 0.304, 0.786, 0.738, 0.82], // Moderate: teal (L* 74.0; +2 C*)
+  [21, 0.415, 0.764, 0.520, 0.84], // Fresh: spring green (L* 72.0)
   [27, 0.615, 0.706, 0.267, 0.86], // Strong: yellow-green (L* 69.6)
   [33, 0.802, 0.643, 0.099, 0.87], // Near gale: gold (L* 69.1)
   [40, 0.842, 0.436, 0.014, 0.88], // Gale: orange (L* 57.9)
@@ -165,27 +166,67 @@ export var THEME_RAMPS = {
 // own ramp: same hues (OKLCH h fixed), L/C re-solved per band so the multiply tint carries dark's measured strength
 // (model = the GPU blend on encoded sRGB at the owner's +5-point strengths). 0 and 3 kn keep the middle-ground stops.
 // The particles keep THEME_RAMPS. Kill: __RAW_DISABLE_WIND_FIELD_RAMP__ (the field samples THEME_RAMPS again).
+// MID-BAND REFINE (2026-10-09, owner: "around 15kts is blending in with the color of the map itself ... refine this very
+// slightly"; reports/Wind particle color basemap contrast.md). Measured on the composite over the basemap WATER (light
+// 168,214,222 · beach 150,190,200): the 10-16 kn interpolation passes THROUGH the water's hue (light ~12-13 kn, beach ~13 and
+// ~17 kn, 0-4° gap), a cyan multiply over cyan water keeps only 0.51-0.68 of its over-land strength, and the 2-3 arcmin
+// streaks sat just +1.5 to +5.3 L* above their own tint (light 10 kn +6% Weber, under the ~8-11% "just usable" floor for a
+// thin line). Hue cannot fix a crossing speed and thin marks are seen by LIGHTNESS, so in LIGHT each layer gets the lever
+// that works on its own ground: the 10 kn FIELD stop darkens 3.6 L*, the PARTICLE (legend) stops hold their lightness within
+// ±1 L* and gain chroma. Solved by a maximin over 10-21 kn on water (streak vs its tint dL*/4, tint vs water dE00/14, streak
+// vs water dE00/14) with this file's windFieldLut gates hard, dark parity kept, land tint <= +0.2 dE76, no hue turned toward
+// the water, every stop <= 2 CSS JND (dE_OK <= 0.04). Light over water, 10-21 kn: streak vs its tint +1.5..+4.2 -> +3.8..+4.0
+// L* (worst ~6% -> ~15% Weber). The owner accepted light at this step.
+// BEACH GREEN BAND (owner, same day: "light mode seems acceptable, but beach mode the issue is still persisting. Use art
+// resources ... and animation resources"; research_notes/Beach wind art and motion/). The slight refine moved beach's tint by
+// ~1 dE00, and the streak's speed colour is a ~1 px core inside a white ring, so what reads as "the wind colour" is the TINT —
+// and beach's 10-21 kn tints were the water's own colours (sea-teal, lagoon, sea green on grey-blue water). Painters' rule:
+// same hue darker reads as deeper water or cloud shadow; a change of hue FAMILY reads as something on the sea. At dark-parity
+// strength the multiply only clears the water's colour category (>= 35° hue) for a tint hue <= ~165° OKLCH (turquoise 180°
+// reaches 27° at best), so the band becomes the sea-glass greens: particles (legend) jade -> emerald -> palm-frond (the art
+// research's set: adjacent 11.3 / 11.3 / 11.6 dE00, deuteranope 11.1 / 13.1 / 9.8), field solved per speed for parity +
+// windFieldLut gates + an EVEN darkening over water (15-23 L* below it, smooth across speeds — no false bands), land tint
+// <= +2.2 dE76. Over water, 8-24 kn: tint hue gap 0-36° -> 36-89°, tint vs water 12.7-16.8 -> 18.5-30.4 dE00.
+// Kill: __RAW_DISABLE_WIND_MIDBAND_REFINE__ (the stops listed below revert — beach to its pre-refine sea colours — on the
+// next ramp build: theme change or reload).
+var PRE_MIDBAND_STOPS = {
+  particle: { light: { 3: [10, 0.116, 0.690, 0.811, 0.80], 4: [16, 0.332, 0.785, 0.749, 0.82], 5: [21, 0.409, 0.758, 0.514, 0.84] },
+    beach: { 3: [10, 0.361, 0.680, 0.704, 0.83], 4: [16, 0.308, 0.764, 0.906, 0.85], 5: [21, 0.284, 0.748, 0.574, 0.87] } },
+  field: { light: { 3: [10, 0.276, 0.688, 0.789, 0.80] },
+    beach: { 3: [10, 0.008, 0.746, 0.788, 0.83], 4: [16, 0.008, 0.788, 0.967, 0.85], 5: [21, 0.016, 0.811, 0.637, 0.87] } },
+};
+function midbandRefined(ramp, kind, theme, w) {
+  var pre = PRE_MIDBAND_STOPS[kind][theme];
+  if (!pre || !w || w.__RAW_DISABLE_WIND_MIDBAND_REFINE__ !== true) return ramp;
+  return ramp.map(function(stop, i) { return pre[i] ? pre[i].slice() : stop; });
+}
 var LIGHT_FIELD_RAMP = [
   [0,  0.942, 0.964, 0.987, 0.72], [3,  0.803, 0.757, 0.982, 0.75], [6,  0.628, 0.701, 0.901, 0.78],
-  [10, 0.276, 0.688, 0.789, 0.80], [16, 0.228, 0.803, 0.762, 0.82], [21, 0.455, 0.763, 0.543, 0.84],
+  [10, 0.289, 0.646, 0.736, 0.80], [16, 0.228, 0.803, 0.762, 0.82], [21, 0.455, 0.763, 0.543, 0.84],
   [27, 0.628, 0.692, 0.432, 0.86], [33, 0.740, 0.657, 0.431, 0.87], [40, 0.753, 0.588, 0.478, 0.88],
   [47, 0.824, 0.613, 0.540, 0.90], [55, 0.858, 0.618, 0.596, 0.91], [63, 0.816, 0.601, 0.656, 0.93],
   [75, 0.736, 0.616, 0.753, 0.95],
 ];
 var BEACH_FIELD_RAMP = [
   [0,  0.973, 0.953, 0.911, 0.75], [3,  0.471, 0.891, 0.712, 0.78], [6,  0.237, 0.790, 0.664, 0.81],
-  [10, 0.008, 0.746, 0.788, 0.83], [16, 0.008, 0.788, 0.967, 0.85], [21, 0.016, 0.811, 0.637, 0.87],
+  [10, 0.034, 0.515, 0.336, 0.83], [16, 0.268, 0.720, 0.190, 0.85], [21, 0.435, 0.664, 0.005, 0.87],
   [27, 0.618, 0.702, 0.000, 0.88], [33, 0.839, 0.654, 0.027, 0.90], [40, 0.843, 0.457, 0.124, 0.91],
   [47, 0.809, 0.388, 0.311, 0.92], [55, 0.638, 0.335, 0.364, 0.93], [63, 0.497, 0.330, 0.414, 0.94],
   [75, 0.441, 0.381, 0.553, 0.95],
 ];
 export var FIELD_RAMPS = { light: LIGHT_FIELD_RAMP, beach: BEACH_FIELD_RAMP };
 
+/** The field's stops for `theme` (null = no field ramp), honouring the mid-band refine kill. */
+export function resolveFieldRamp(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : {});
+  return FIELD_RAMPS[theme] ? midbandRefined(FIELD_RAMPS[theme], 'field', theme, w) : null;
+}
+
 /** The field's own LUT texture for `theme` (null = the field samples the particle ramp). Restores the texture binding. */
 export function buildFieldRampTexture(gl, maxSpeed, theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : {});
   if (!gl || !FIELD_RAMPS[theme] || w.__RAW_DISABLE_WIND_FIELD_RAMP__ === true) return null;
-  var data = generateRampData(maxSpeed || 50, FIELD_RAMPS[theme]), prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
+  var data = generateRampData(maxSpeed || 50, resolveFieldRamp(theme, w)), prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -205,7 +246,7 @@ var LEGACY_LOW_STOPS = {
 };
 
 export function resolveThemeRamp(theme) {
-  var ramp = THEME_RAMPS[theme] || DEFAULT_WIND_RAMP;
+  var ramp = midbandRefined(THEME_RAMPS[theme] || DEFAULT_WIND_RAMP, 'particle', theme, typeof window !== 'undefined' ? window : null);
   var killed = typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_LOWBAND_RESPREAD__ === true;
   if (!killed) return ramp;
   var legacy = LEGACY_LOW_STOPS[theme] || LEGACY_LOW_STOPS.dark;
