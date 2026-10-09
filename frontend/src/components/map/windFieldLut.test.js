@@ -270,6 +270,41 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
     expect(init).toContain('if (engine._fieldRamp) gl.deleteTexture(engine._fieldRamp);');
   });
 
+  // MID-BAND REFINE (owner, 2026-10-09: "around 15kts is blending in with the color of the map itself"). Over the basemap WATER
+  // the 10-21 kn interpolation crosses the water's hue, so a 2-3 arcmin streak is seen by its LIGHTNESS against its own tint,
+  // and the band by its distance from the water. Streak = the premultiplied particle (stop alpha x theme opacity) over the
+  // field tint at the same speed. Pre-refine worst cases: light streak vs tint +1.5 L*, beach 12-17 kn streak vs water 10.2.
+  const POP = { light: 1.0, beach: 0.6 };
+  const worstOverWater = (theme, P, F, from, to) => { const out = { streakVsTintL: Infinity, streakVsWater: Infinity }, water = SURFACES[theme].water;
+    for (let v = from; v <= to; v += 0.5) { const p = sampleRamp(P, v), f = sampleRamp(F, v), a = p[3] * POP[theme];
+      const T = tinted(theme, [v, f[0], f[1], f[2]], water), S = [0, 1, 2].map((j) => p[j] * a + T[j] * (1 - a));
+      out.streakVsTintL = Math.min(out.streakVsTintL, srgbToLab(S)[0] - srgbToLab(T)[0]);
+      out.streakVsWater = Math.min(out.streakVsWater, de2000(srgbToLab(water.map((x) => x / 255)), srgbToLab(S))); }
+    return out; };
+  const ramps = (theme) => { const { resolveThemeRamp, resolveFieldRamp } = require('./WindColorRamp'); return [resolveThemeRamp(theme), resolveFieldRamp(theme, window)]; };
+  it('mid-band: 10-21 kn streaks stand >= +3.3 L* off their own tint on water, and beach 12-17 kn >= 11.5 dE2000 off the water', () => {
+    expect(worstOverWater('light', ...ramps('light'), 10, 21).streakVsTintL).toBeGreaterThanOrEqual(3.6);
+    expect(worstOverWater('beach', ...ramps('beach'), 10, 21).streakVsTintL).toBeGreaterThanOrEqual(3.3);
+    expect(worstOverWater('beach', ...ramps('beach'), 12, 17).streakVsWater).toBeGreaterThanOrEqual(11.5);
+    expect(worstOverWater('light', ...ramps('light'), 12, 17).streakVsWater).toBeGreaterThanOrEqual(13.4);
+  });
+  it('POSITIVE CONTROL + kill: __RAW_DISABLE_WIND_MIDBAND_REFINE__ restores the pre-refine stops, which fail that bar', () => {
+    window.__RAW_DISABLE_WIND_MIDBAND_REFINE__ = true;
+    try {
+      const [lp, lf] = ramps('light'), [bp, bf] = ramps('beach');
+      expect(lp[3]).toEqual([10, 0.116, 0.690, 0.811, 0.80]);
+      expect(lf[3]).toEqual([10, 0.276, 0.688, 0.789, 0.80]);
+      expect(bp[4]).toEqual([16, 0.308, 0.764, 0.906, 0.85]);
+      expect(bf[4]).toEqual([16, 0.008, 0.788, 0.967, 0.85]);
+      expect(lp[7]).toEqual(THEME_RAMPS.light[7]);   // stops outside the band are the live palette
+      expect(worstOverWater('light', lp, lf, 10, 21).streakVsTintL).toBeLessThan(2);
+      expect(worstOverWater('beach', bp, bf, 12, 17).streakVsWater).toBeLessThan(10.8);
+    } finally {
+      delete window.__RAW_DISABLE_WIND_MIDBAND_REFINE__;
+    }
+    expect(ramps('light')[0]).toBe(THEME_RAMPS.light);
+  });
+
   it('the respread kill switch restores the legacy low stops', () => {
     const { resolveThemeRamp } = require('./WindColorRamp');
     window.__RAW_DISABLE_WIND_LOWBAND_RESPREAD__ = true;

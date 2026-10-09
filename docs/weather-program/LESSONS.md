@@ -442,3 +442,14 @@ A stored estimate can be estimated again in a browser branch with different sour
   shipped build fails. One pole for every mark removed every non-calm artifact. The same bench showed that the
   speed-aware cull is exact at z7 but over-culls where fast trails bead (z8.5+), so it fades out by z9.5. Test every
   lever across the whole zoom range against a significance-tested detector before shipping it.
+- **L-V9 · Check a palette between its stops, over every real ground, not just at the stops on grey.** The owner saw
+  light/beach ~15 kt wind "blending in with the color of the map". Every stop had passed its gates, which were scored at
+  the stops and on a neutral bench grey. But the ramp interpolates, and on its way from periwinkle (6 kn) to spring
+  green (21 kn) it crossed the pale-cyan WATER's hue at ~12-13 kn (beach twice, ~13 and ~17 kn: 0-4° gap). Hue cannot
+  separate a crossing speed. A cyan multiply over cyan water also keeps only 0.51-0.68 of its over-land strength, so
+  the "flat" field strength was flat only on grey. And a 2-3 arcmin streak is seen by lightness, yet it sat +1.5 L* above
+  its own tint. The fix (#282) gives each layer the lever that works on its ground: darken the FIELD 3-4 L* (the legend
+  never shows it) and hold the particle (legend) lightness while adding chroma. A maximin solver over 10-21 kn, with
+  the repo's gates as hard constraints, found it within 2 CSS JND per stop. Instruments: a composite model
+  re-implementing the GPU blend at 0.5 kn steps over water and land, then the real-engine bench painted in the water
+  colour (reports/Wind particle color basemap contrast.md).
