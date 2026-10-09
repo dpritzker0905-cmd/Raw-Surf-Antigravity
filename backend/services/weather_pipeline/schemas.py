@@ -100,6 +100,10 @@ class NormalizedProduct(BaseModel):
     # route even when the assignment succeeds. TWO barriers; this clears both.
     # None = nothing was substituted. See `test_coarse_fill_layers.py` §3 for the round-trip guard.
     coarse_fill: Optional[Dict[str, Any]] = None
+    # The wind lane's provenance (wind_lane.apply_wind_lane): which model the served wind is at this hour ("hrrr+gfs" or
+    # "gfs"), the HRRR cycle and horizon, the time weight and how many cells HRRR carries. None = the lane did not run
+    # (off, not GFS wind, or no HRRR cycle loaded). Declared for the coarse_fill reason above: undeclared, it is lost.
+    wind_lane: Optional[Dict[str, Any]] = None
 
     # Region metadata fields for Stage 6H
     region_id: Optional[str] = None

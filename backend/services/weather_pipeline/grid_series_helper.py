@@ -544,7 +544,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             "frame_offset_hours": getattr(product, "frame_offset_hours", 0.0),
             "frame_substituted": getattr(product, "frame_substituted", False),
             **_frame_provenance(product),
-            **{k: getattr(product, k, None) for k in ("product_id", "region_id", "upstream_model")},  # STORED id (A15-09)
+            **{k: getattr(product, k, None) for k in ("product_id", "region_id", "upstream_model", "wind_lane")},  # STORED id (A15-09); lane (D-017)
         })
 
     # Merge the EURO native fast-path frames (<=240h) with the per-hour-built estimated frames

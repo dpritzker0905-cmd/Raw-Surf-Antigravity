@@ -45,6 +45,11 @@ _RATING_FLAGS = {
     "POINT_PRODUCT_IDENTITY": ("0", "Discard point hints from another model/domain; re-resolve automatically", "Render env"),
     "WIND_GRID_GFS_GLOBAL": ("0", "GFS wind grids ask Open-Meteo for gfs_global, not gfs_seamless (HRRR inside its domain): "
                                   "one model under the GFS label, so a zoom cannot swap the eye's model", "Render env"),
+    # DEFAULT ON by the owner's word (D-017, 2026-10-09: "start it switched on"). It moves only the /grid wind map:
+    # stored products, spot points, ratings and glyphs never pass through it (tests/test_wind_hrrr_lane.py pins that).
+    "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind "
+                            "tier blends the stored NOAA HRRR cycle (200 km feather, 3 h taper); 0 = the gfs_global map",
+                       "Render env"),
     "SIM_SERVED_TIME_MATCH": ("0", "Match sim tide/quality to actual baseline hour and model", "MCP process env"),
     "SIM_STRICT_INPUTS": ("0", "Refuse missing/non-finite sim forecast fields; preserve measured zero", "MCP process env"),
     # EXPLANATION, not physics: publishes `limiter`/`limiter_f` on each spot rating — which of the

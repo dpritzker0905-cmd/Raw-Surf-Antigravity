@@ -19,9 +19,12 @@ logger = logging.getLogger(__name__)
 
 
 def wind_grid_gfs_global() -> bool:
-    """WIND_GRID_GFS_GLOBAL=1 (dark): GFS wind grids ask for gfs_global. gfs_seamless is HRRR inside HRRR's domain, so a
-    "GFS" box swapped HRRR for the NOAA GFS base/recovery boxes and the eye moved 38 km (tests/test_wind_grid_gfs_global.py)."""
-    return os.environ.get("WIND_GRID_GFS_GLOBAL", "0") == "1"
+    """WIND_GRID_GFS_GLOBAL=1: GFS wind grids ask for gfs_global. gfs_seamless is HRRR inside HRRR's domain, so a
+    "GFS" box swapped HRRR for the NOAA GFS base/recovery boxes and the eye moved 38 km (tests/test_wind_grid_gfs_global.py).
+    The HRRR wind lane (WIND_HRRR_LANE, default on, weather_pipeline/wind_lane.py) implies it: the lane blends its own
+    HRRR (rotated to earth, area-mean) into a GFS base, and gfs_seamless would put Open-Meteo's HRRR, whose directions
+    are grid-relative, under the feather (tests/test_wind_hrrr_lane.py)."""
+    return os.environ.get("WIND_GRID_GFS_GLOBAL", "0") == "1" or os.environ.get("WIND_HRRR_LANE", "1") != "0"
 
 
 def is_test_environment() -> bool:
