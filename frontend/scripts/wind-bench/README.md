@@ -71,6 +71,39 @@ only the regional grid under it, or the zoom, changes? It takes about 2 minutes.
 
 Exit codes: `0` when both controls hold, `2` when either fails.
 
+## Land mode (`land-run.js`): how much land does the wind hide?
+
+```bash
+node scripts/wind-bench/land-run.js
+node scripts/wind-bench/land-run.js --themes light --zooms 6,9,11 --levers '{"__RAW_WIND_CLOSE_LAND_OPACITY__":0.8}'
+```
+
+`ink` measures the trail buffer, not what reaches the screen. A light-theme mark composites
+premultiplied at full opacity and hides what it covers, while a dark mark of the same ink is
+translucent. Land mode measures the screen instead. It takes about 3 minutes for all three themes.
+
+- **Basemap:** each frame is cleared to the theme's land colour (light `236,236,232`, beach
+  `222,208,180`). A 1-css-px line grid at 55% of that colour stands in for roads, rivers and coasts.
+- **Render:** the real engine draws on top for 180 frames.
+- **Measure:** every vertical line pixel is paired with the background 6 css px to its right.
+  - `retain`: their L* difference over the same on the bare basemap.
+  - `lost`: the share of pairs below half their contrast.
+- **Runs:** each zoom runs twice, once with the field alone (a 2×2 particle pool) and once with the
+  desktop pool.
+  - `parts` = 1 − full/field: the share of the field-only contrast that the particles take away.
+- **View:** 28-38 kn air north-east of the bench storm.
+
+Baseline, 2026-10-09 (`dev` `db037eaf`, AMD Radeon 890M):
+
+| parts | z6 | z7 | z8 | z9 | z10 | z11 |
+|---|---|---|---|---|---|---|
+| light | 0.40 | 0.58 | 0.64 | 0.60 | 0.53 | 0.54 |
+| dark | 0.00 | 0.25 | 0.28 | 0.38 | 0.24 | 0.25 |
+| beach | 0.25 | 0.37 | 0.40 | 0.37 | 0.33 | 0.35 |
+
+The field alone keeps about 0.80 in light and beach and 0.61 in dark, at every zoom.
+`WIND_CLOSE_LAND` (`WebGLWindUtils.js`) holds light's close zooms at its z6 level.
+
 ## What it renders
 
 - **Canvas:** 897 × 914 css px (the owner's map pane) at a fixed DPR 2, WebGL2. The camera is

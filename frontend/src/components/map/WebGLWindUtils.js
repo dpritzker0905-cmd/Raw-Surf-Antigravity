@@ -581,6 +581,25 @@ export function v2SpeedPremul(v2, theme, win = (typeof window !== 'undefined' ? 
   return { on, opacity: on ? opacity : 0, singleCasing: on && sc };
 }
 
+// CLOSE-ZOOM LAND, LIGHT (2026-10-09, owner: "in light mode, really close up ... wind animations are flooding too much just a
+// little bit, where it drowns out the land beneath"). Light's marks composite premultiplied at opacity 1.0, so where a trail
+// lies the land under it is gone. Above z6 the close-zoom dose holds trail INK, calibrated on dark's translucent marks, and
+// the share of the land's line contrast the particles take (bench land-run.js, beyond what the field alone costs) rose from
+// 0.40 at z6 (the look the owner approved) to 0.58-0.64 at z7-9 (dark 0.25-0.38, beach 0.37-0.40). The field alone keeps
+// ~0.80 at every zoom: the particles are the flood. Easing light's mark opacity to 0.65 across z6-7.5 holds that share at
+// z6's level (0.35-0.43 at z7-11). Mark count, size, trails and colours are unchanged; z<=6, dark and beach are untouched.
+// Lever: __RAW_WIND_CLOSE_LAND_OPACITY__ (the close-zoom factor, 0.1-1). Kill: __RAW_DISABLE_WIND_CLOSE_LAND__.
+export const WIND_CLOSE_LAND = Object.freeze({ themes: ['light'], to: 0.65, fromZ: 6, fullZ: 7.5 });
+
+/** Factor on the premultiplied mark opacity at this zoom: 1 at z<=fromZ, `to` from fullZ, smoothstep between. */
+export function windCloseLandFactor(theme, zoom, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {}, c = WIND_CLOSE_LAND;
+  if (w.__RAW_DISABLE_WIND_CLOSE_LAND__ === true || !c.themes.includes(theme) || !(zoom > c.fromZ)) return 1;
+  const lev = w.__RAW_WIND_CLOSE_LAND_OPACITY__, to = (typeof lev === 'number' && lev >= 0.1 && lev <= 1) ? lev : c.to;
+  const t = Math.min(1, (zoom - c.fromZ) / (c.fullZ - c.fromZ));
+  return 1 + (to - 1) * t * t * (3 - 2 * t);
+}
+
 /** Per-frame trail fade at this zoom: the wide-zoom fade, blended linearly into `baseFade` across fullBelowZ..baseFromZ. */
 export function v2TrailFade(baseFade, zoom, v2, win = (typeof window !== 'undefined' ? window : null)) {
   if (!v2 || !v2.density || v2.motion || (win && win.__RAW_DISABLE_WIND_WIDE_TRAILS__ === true)) return baseFade;
