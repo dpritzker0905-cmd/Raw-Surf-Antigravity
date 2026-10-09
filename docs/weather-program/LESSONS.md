@@ -498,3 +498,11 @@ A stored estimate can be estimated again in a browser branch with different sour
   eye's trail ink over its wall's went 1.21 -> 1.77 from z6 to z6.5. Any lever gated on `zoom > N` needs a ramp, or
   a one-stop zoom across N will look like a different storm. Measure each zoom-gated lever with the grid FIXED at
   N-0.5 and N+0.5 before shipping it.
+- **L-V14 · Trail ink is not land hidden. Calibrate what reaches the screen, per theme.** The close-zoom dose holds
+  the trail buffer's brightness about level from z6 to z11. That was calibrated on dark, whose marks composite
+  translucent (brightness alpha x 0.505). Light's marks composite premultiplied at opacity 1.0 and hide what they
+  cover. So the same ink took 0.40 of light's land line contrast at z6 and 0.58-0.64 at z7-9 (dark 0.25-0.38). The
+  owner saw it as "flooding ... drowns out the land". `land-run.js` measures the screen instead: a line grid on the
+  land colour, the field alone vs the full pool. It found the field innocent (about 0.80 kept at every zoom). Light's
+  mark opacity eased to 0.65 across z6-7.5 (`WIND_CLOSE_LAND`, a ramp per L-V13) holds z7-11 at 0.35-0.43. When a
+  composite changes per theme, re-measure coverage on screen, not the shared intermediate.

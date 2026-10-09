@@ -243,6 +243,79 @@ async function eyeInk(cfg) {
   }
 }
 
+/**
+ * LAND mode (land-run.js): how much of the land's line work (roads, rivers, coasts) survives the
+ * wind layer. Each frame the canvas is cleared to the theme's LAND colour with a 1-css-px dark
+ * line grid every 24 css px, then the real engine draws on top. The final canvas is read back and
+ * every vertical line pixel is paired with the background 6 css px to its right:
+ * retain = mean (L*bg - L*line) / the same on the bare basemap; lost = share of pairs below 0.5.
+ * cfg: {view, z, grid, lng, lat, theme, res, frames, seed, levers}; res 2 = the field alone (4 particles).
+ */
+const LAND = Object.freeze({ dark: [0.07, 0.08, 0.10], light: [236 / 255, 236 / 255, 232 / 255], beach: [222 / 255, 208 / 255, 180 / 255] });
+const LINE_EVERY = 24, LINE_DARKEN = 0.55, BG_OFFSET = 6;
+const lstar = (r, g, b) => {
+  const lin = (c) => { const v = c / 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const Y = 0.2126729 * lin(r) + 0.7151522 * lin(g) + 0.072175 * lin(b);
+  return Y > 216 / 24389 ? 116 * Math.cbrt(Y) - 16 : (24389 / 27) * Y;
+};
+
+async function landOne(cfg) {
+  clearLevers();
+  Object.assign(window, cfg.levers || {});
+  const realRandom = Math.random;
+  Math.random = mulberry32(seedOf({ ...cfg, view: `land-${cfg.view}` }));
+  let virtualMs = 0;
+  performance.now = () => virtualMs;
+  const engine = new Engine();
+  try {
+    engine.particleRes = cfg.res;
+    engine.init(gl);
+    engine.setWindData(gl, GRIDS.world);
+    const regional = cfg.grid === 'world' ? null : GRIDS[cfg.grid];
+    if (regional) engine.setWindData(gl, regional);
+    const cam = makeCamera(cfg.lng, cfg.lat, cfg.z, CSS_W, CSS_H);
+    const land = LAND[cfg.theme], line = land.map((c) => c * LINE_DARKEN);
+    const draw = () => {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(land[0], land[1], land[2], 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.enable(gl.SCISSOR_TEST);
+      gl.clearColor(line[0], line[1], line[2], 1);
+      for (let x = LINE_EVERY; x < CSS_W; x += LINE_EVERY) { gl.scissor(x * DPR, 0, DPR, canvas.height); gl.clear(gl.COLOR_BUFFER_BIT); }
+      for (let y = LINE_EVERY; y < CSS_H; y += LINE_EVERY) { gl.scissor(0, y * DPR, canvas.width, DPR); gl.clear(gl.COLOR_BUFFER_BIT); }
+      gl.disable(gl.SCISSOR_TEST);
+      virtualMs += FRAME_MS;
+      engine.render(gl, cam.matrix, canvas.width, canvas.height, cfg.z, cfg.theme, null, cam.viewBounds);
+    };
+    for (let i = 0; i < cfg.frames; i++) await nextFrame(draw);
+    let out = null;
+    await nextFrame(() => {
+      draw();
+      const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, px = new Uint8Array(W * H * 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      const L = (x, y) => { const p = (y * W + x) * 4; return lstar(px[p], px[p + 1], px[p + 2]); };
+      const d0 = lstar(...land.map((c) => c * 255)) - lstar(...line.map((c) => c * 255));
+      let sum = 0, n = 0, lost = 0;
+      for (let y = 0; y < H; y += 2) {
+        if ((y / DPR) % LINE_EVERY < 2) continue;                       // skip rows on a horizontal line
+        for (let x = LINE_EVERY; x + BG_OFFSET < CSS_W; x += LINE_EVERY) {
+          const r = (L((x + BG_OFFSET) * DPR, y) - L(x * DPR, y)) / d0;
+          sum += r; n++; if (r < 0.5) lost++;
+        }
+      }
+      out = { retain: +(sum / n).toFixed(3), lost: +(lost / n).toFixed(3), pairs: n, glError: gl.getError() || 0 };
+    });
+    return out;
+  } finally {
+    engine.dispose(gl);
+    delete performance.now;
+    Math.random = realRandom;
+    clearLevers();
+  }
+}
+
 const caption = (r) => `${configKey(r)} · ${figureText(r)}`;
 
 function addFigure(r) {
@@ -278,7 +351,7 @@ const PRESETS = {
   full: () => buildMatrix(),
 };
 
-window.__WIND_BENCH__ = { ready: !!gl, renderer: renderer(), dpr: DPR, runOne, run, eyeOne, eyeInk, presets: Object.keys(PRESETS), results: [] };
+window.__WIND_BENCH__ = { ready: !!gl, renderer: renderer(), dpr: DPR, runOne, run, eyeOne, eyeInk, landOne, presets: Object.keys(PRESETS), results: [] };
 
 document.getElementById('run').addEventListener('click', () => {
   const preset = document.getElementById('preset').value;
