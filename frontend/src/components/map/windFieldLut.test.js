@@ -302,6 +302,29 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
     expect(w.tintDarkMax).toBeLessThanOrEqual(24);
     expect(worstOverWater('beach', ...ramps('beach'), 12, 17).streakVsWater).toBeGreaterThanOrEqual(11.5);
   });
+  // LIGHT LOW BAND (owner: "slower wind speeds under 15kts ... too similar to the water color"): 10 kn violet side, 16 kn green
+  // side. A violet -> green ramp must hand off across the water's hue once; pin that hand-off to <= 1 kn and the tint's
+  // separation everywhere else. Cerulean/teal (the #285 stops) sat < 20° off the water hue for ~10 kn (8-18).
+  const narrowKn = (theme, P, F, from, to) => { let n = 0; for (let v = from; v <= to; v += 0.5) if (worstOverWater(theme, P, F, v, v).tintHueGap < 20) n += 0.5; return n; };
+  it('light low band: the tint leaves the water\'s hue family except a <= 1 kn hand-off; >= 14.5 dE2000 off the water 7-22 kn', () => {
+    const [lp, lf] = ramps('light');
+    expect(narrowKn('light', lp, lf, 4, 22)).toBeLessThanOrEqual(1);
+    expect(worstOverWater('light', lp, lf, 7, 22).tintVsWater).toBeGreaterThanOrEqual(14.5);
+    expect(worstOverWater('light', lp, lf, 7, 11).tintHueGap).toBeGreaterThanOrEqual(35);
+    expect(worstOverWater('light', lp, lf, 15, 22).tintHueGap).toBeGreaterThanOrEqual(35);
+  });
+  it('POSITIVE CONTROL + kill: __RAW_DISABLE_WIND_LIGHT_LOWBAND__ restores cerulean/teal, which sit on the water hue for ~10 kn', () => {
+    window.__RAW_DISABLE_WIND_LIGHT_LOWBAND__ = true;
+    try {
+      const [lp, lf] = ramps('light');
+      expect(lp[3]).toEqual([10, 0.103, 0.701, 0.825, 0.80]);
+      expect(lf[4]).toEqual([16, 0.228, 0.803, 0.762, 0.82]);
+      expect(ramps('beach')[0]).toBe(THEME_RAMPS.beach);   // light only
+      expect(narrowKn('light', lp, lf, 4, 22)).toBeGreaterThanOrEqual(8);
+    } finally {
+      delete window.__RAW_DISABLE_WIND_LIGHT_LOWBAND__;
+    }
+  });
   it('POSITIVE CONTROL + kill: __RAW_DISABLE_WIND_MIDBAND_REFINE__ restores the pre-refine stops, which fail that bar', () => {
     window.__RAW_DISABLE_WIND_MIDBAND_REFINE__ = true;
     try {

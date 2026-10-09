@@ -144,3 +144,9 @@ are then GFS: the NOAA world base, the native recovery, and Open-Meteo.
   back one post-flip viewport product against Open-Meteo `gfs_global` and `gfs_hrrr`, and rerun the eye bench on it.
 
 STATE's ledger head moves to 963.
+
+## 8. Correction: lesson numbers (merge with #288)
+
+#288 merged to dev with its own L-V11 (light's hand-off across the water's hue). This branch's lessons are renumbered
+on merge: **L-V12** (a label is not a model) and **L-V13** (a zoom-gated draw lever needs a ramp). The docs commit
+`61debe11` message and the first PR #287 body said L-V11/L-V12; read those as L-V12/L-V13.
