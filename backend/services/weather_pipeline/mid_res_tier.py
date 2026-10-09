@@ -31,6 +31,7 @@ import asyncio
 import logging
 import os
 
+from services.weather_pipeline.reval_queue import schedule_revalidation
 from services.weather_pipeline.route_helpers import filter_grid_to_bbox, get_snapped_bbox
 from services.weather_pipeline.series_vector_budget import thinning_mode
 from services.weather_pipeline.viewport_helper import _is_oversized_grid
@@ -232,6 +233,54 @@ def _apply_identity_clip(product, clip, bounds) -> None:
     grid.diagnostics = {k: v for k, v in (grid.diagnostics or {}).items() if k != "load_stride_lattice"}
 
 
+def _schedule_sharpen(product, *, model, domain, layer, bbox, span, viewport_service, valid_time,
+                      target_dt, background_tasks):
+    """Ask the sharpen queue for this hour and viewport; label `product` only when one is pending.
+
+    Called per request, on a clip-cache hit as well as on a fresh clip (2026-10-09)."""
+    # SWR SHARPEN (2026-07-05, #2 — the Irvine straddle second pass): the mid grid is the INSTANT
+    # covering preview; schedule the SAME background fine-viewport revalidation Step 3.7 uses so a
+    # dwelling viewport sharpens 2° → 0.25° on the next request (pre-mid, fine WAS the steady state
+    # for these spans — Step 3.6 serving before Step 4 had silently removed that). SPAN-CAPPED
+    # (MARINE_MID_REVAL_MAX_SPAN, default 5°): wide zoom-outs keep the mid steady-state — a 15° fine
+    # upstream fetch is a heavy call the pre-mid path never made either. is_viewport_enabled also
+    # gates model horizons (EURO 240h / ICON 168h), so estimated tail hours never spawn dead fetches.
+    # 8.0 (was 5.0, 2026-07-05 same-day fix): the frontend's 30% gesture fetch-pad (41bfebca) grows
+    # the REQUESTED span — a raw ~3.1-3.8° viewport now requests 5-6.1°, and the 5° cap silently
+    # stopped its fine sharpen (live: z7.20→7.35 off LA flips mid↔fine = a visible color step at the
+    # cap boundary). 8° ≈ the old 5° raw reach × the pad factor; a ~1k-cell background fine fetch.
+    # Per-domain reval caps. WIND (2026-07-20): the mid serves INSTANTLY at every span — that is
+    # what makes cold starts and zoom-outs feel immediate — but without a reval the mid tier
+    # silently KILLED the wind fine lane (probed: an 11x8-deg request served 8x7 mid cells where
+    # the dynamic lane had served 0.5-deg). Close-zoom wind viewports therefore schedule the same
+    # background sharpen marine uses; wide spans keep the mid steady state (a 40-deg fine build
+    # is a heavy upstream call nobody's zoom benefits from). Side effect: the dynamic lane now
+    # runs almost only from revals — open-meteo pressure drops accordingly.
+    if (domain or "").lower() == "wind":
+        _reval_cap = float(os.environ.get("WIND_MID_REVAL_MAX_SPAN", "20.0"))
+    else:
+        _reval_cap = float(os.environ.get("MARINE_MID_REVAL_MAX_SPAN", "8.0"))
+    # QUEUE CAP (2026-07-05 OOM #3): a 17-hour grid_series scheduled 17 revals in one burst — the
+    # semaphore serialized them but the queue ground the box for minutes. Cap the OUTSTANDING reval
+    # queue; skipped hours sharpen on a later request (the user dwells on one hour at a time anyway).
+    # Who gets a slot (2026-10-09): reval_queue.schedule_revalidation. A grid_series frame never takes
+    # the slot kept for the hour being viewed, and registers no key unless its fetch will run.
+    _reval_queue_max = int(os.environ.get("MARINE_REVAL_QUEUE_MAX", "2"))
+    if (
+        viewport_service is not None and valid_time is not None
+        and span <= _reval_cap
+        and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt)
+        and schedule_revalidation(
+            viewport_service, background_tasks, model, domain, layer, valid_time, target_dt, bbox,
+            f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}",
+            queue_max=_reval_queue_max,
+        )
+    ):
+        product.stale = True
+        product.staleReason = "swr_revalidation_pending"
+        product.cache_hit = "mid_res_preview"
+
+
 async def try_serve_mid_res_tier(
     store,
     *,
@@ -356,9 +405,16 @@ async def try_serve_mid_res_tier(
     _stride = _series_stride(series_stride)
     # A strided frame never reads the cache: a hit is a full-size deep copy, the cost this lane removes.
     _hit = _CLIP_CACHE.get(_ckey) if _stride <= 1 else None
+    _sharpen = dict(model=model, domain=domain, layer=layer, bbox=bbox, span=span,
+                    viewport_service=viewport_service, valid_time=valid_time, target_dt=target_dt,
+                    background_tasks=background_tasks)
     if _hit is not None:
         import copy as _copy
         product = _copy.deepcopy(_hit)  # callers mutate (surf transform) — never hand out the cached object
+        # The sharpen is THIS request's to ask for (2026-10-09). The hit used to return here, so whichever
+        # request built the clip decided every later one: a timeline frame that did not sharpen (or a
+        # /grid turned away by a full queue) left the viewed hour on the 2-degree clip for good.
+        _schedule_sharpen(product, **_sharpen)
         return product
 
     # PAD BY ONE MID CELL (2026-07-05, the San Diego "clamp+clear" second-pass report): the clip keeps
@@ -449,58 +505,10 @@ async def try_serve_mid_res_tier(
                 f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},"
                 f"{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
             )
-    # SWR SHARPEN (2026-07-05, #2 — the Irvine straddle second pass): the mid grid is the INSTANT
-    # covering preview; schedule the SAME background fine-viewport revalidation Step 3.7 uses so a
-    # dwelling viewport sharpens 2° → 0.25° on the next request (pre-mid, fine WAS the steady state
-    # for these spans — Step 3.6 serving before Step 4 had silently removed that). SPAN-CAPPED
-    # (MARINE_MID_REVAL_MAX_SPAN, default 5°): wide zoom-outs keep the mid steady-state — a 15° fine
-    # upstream fetch is a heavy call the pre-mid path never made either. is_viewport_enabled also
-    # gates model horizons (EURO 240h / ICON 168h), so estimated tail hours never spawn dead fetches.
-    # 8.0 (was 5.0, 2026-07-05 same-day fix): the frontend's 30% gesture fetch-pad (41bfebca) grows
-    # the REQUESTED span — a raw ~3.1-3.8° viewport now requests 5-6.1°, and the 5° cap silently
-    # stopped its fine sharpen (live: z7.20→7.35 off LA flips mid↔fine = a visible color step at the
-    # cap boundary). 8° ≈ the old 5° raw reach × the pad factor; a ~1k-cell background fine fetch.
-    # Per-domain reval caps. WIND (2026-07-20): the mid serves INSTANTLY at every span — that is
-    # what makes cold starts and zoom-outs feel immediate — but without a reval the mid tier
-    # silently KILLED the wind fine lane (probed: an 11x8-deg request served 8x7 mid cells where
-    # the dynamic lane had served 0.5-deg). Close-zoom wind viewports therefore schedule the same
-    # background sharpen marine uses; wide spans keep the mid steady state (a 40-deg fine build
-    # is a heavy upstream call nobody's zoom benefits from). Side effect: the dynamic lane now
-    # runs almost only from revals — open-meteo pressure drops accordingly.
-    if dom == "wind":
-        _reval_cap = float(os.environ.get("WIND_MID_REVAL_MAX_SPAN", "20.0"))
-    else:
-        _reval_cap = float(os.environ.get("MARINE_MID_REVAL_MAX_SPAN", "8.0"))
-    # QUEUE CAP (2026-07-05 OOM #3): a 17-hour grid_series scheduled 17 revals in one burst — the
-    # semaphore serialized them but the queue ground the box for minutes. Cap the OUTSTANDING reval
-    # queue; skipped hours sharpen on a later request (the user dwells on one hour at a time anyway).
-    _reval_queue_max = int(os.environ.get("MARINE_REVAL_QUEUE_MAX", "2"))
-    if (
-        viewport_service is not None and valid_time is not None
-        and span <= _reval_cap
-        and len(getattr(viewport_service, "ACTIVE_REVALIDATIONS", ())) < _reval_queue_max
-        and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt)
-    ):
-        product.stale = True
-        product.staleReason = "swr_revalidation_pending"
-        product.cache_hit = "mid_res_preview"
-        reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
-        if reval_key not in viewport_service.ACTIVE_REVALIDATIONS:
-            viewport_service.ACTIVE_REVALIDATIONS.add(reval_key)
-            if background_tasks:
-                background_tasks.add_task(
-                    viewport_service._revalidate_fetch,
-                    model, domain, layer, valid_time, target_dt, bbox, reval_key
-                )
-            else:
-                asyncio.create_task(
-                    viewport_service._revalidate_fetch(
-                        model, domain, layer, valid_time, target_dt, bbox, reval_key
-                    )
-                )
     # Store the fully-built CLIPPED product in the LRU; hits deepcopy it out. Only a SMALL clip: a world
     # clip is the whole ~15k-vector grid, so its deep copy cost more than rebuilding it (see
     # _clip_cacheable). A strided series frame never goes in -- the key has no stride, and /grid reads it.
+    # Stored BEFORE the sharpen: its SWR stamps belong to this request, never to the cache (2026-10-09).
     if not _strided and _clip_cacheable(product):
         try:
             import copy as _copy2
@@ -509,6 +517,7 @@ async def try_serve_mid_res_tier(
                 _CLIP_CACHE.pop(next(iter(_CLIP_CACHE)))  # FIFO evict oldest
         except Exception:
             pass
+    _schedule_sharpen(product, **_sharpen)
     logger.info(
         f"[Grid Route] Mid-res tier: serving global_mid '{mid_item.filename}' clipped to viewport "
         f"({span:.1f}°) for {model} {layer}"

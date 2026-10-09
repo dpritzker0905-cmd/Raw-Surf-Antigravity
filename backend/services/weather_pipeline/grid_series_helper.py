@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException
-from starlette.background import BackgroundTasks
+from services.weather_pipeline.reval_queue import SeriesFrame
 from services.weather_pipeline.series_source_policy import (
     has_stored_series_coverage, live_lane_cannot_beat_stored, recover_missing_hours)
 
@@ -417,9 +417,14 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                 #   * That schedule runs via asyncio.create_task ONLY when background_tasks is falsy; a (throwaway)
                 #     BackgroundTasks() just .add_task()s to an object that never executes outside a request — so
                 #     grid_series served the global preview FOREVER and the heatmap stayed coarse-clamped.
-                # Pass None for the FIRST hour so the regional revalidation actually fires (warming the tile once
-                # for the bbox); throwaway for the rest so we don't fan out N background fetches on the 1-CPU box.
-                bg = None if warm_regional else BackgroundTasks()
+                # The FIRST hour warms the tile once for the bbox; the rest must not fan out N background
+                # fetches on the 1-CPU box.
+                # ⛔ 2026-10-09: "the rest" got a throwaway BackgroundTasks(), which is truthy, so every site
+                # still REGISTERED the key and queued the fetch on an object nothing runs. The key was never
+                # discarded: two prefetch frames held both MARINE_REVAL_QUEUE_MAX slots for good and the hour
+                # being viewed never sharpened. SeriesFrame says what the frame is; reval_queue enforces it
+                # (no key without a task, and a warm frame never takes the slot kept for the viewed hour).
+                bg = SeriesFrame(warm=warm_regional)
                 # Per-hour timeout so a slow/stalled model (EURO dynamic) can't hang the whole
                 # series; cold budget while the L2 restore is in flight (see PER_HOUR_TIMEOUT_COLD).
                 # ── DEADLINE-CLAMPED PER-HOUR BUDGET (2026-09-21) ────────────────────────
@@ -490,7 +495,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     try:
         results = []
         if loop_hours:
-            # First hour warms the regional viewport tile (background_tasks=None → the SWR revalidation fires)
+            # First hour warms the regional viewport tile (SeriesFrame(warm=True) → the SWR revalidation fires)
             # so the NEXT series request for this bbox serves the precise regional grid instead of global-coarse.
             results = [await _build_one(loop_hours[0], warm_regional=True)]
             # The first hour is home: its geometry picks the stride for every remaining hour — and

@@ -32,6 +32,7 @@ from services.weather_pipeline.grid_resolver_selection import (
     apply_surf_regional_prefer, prefer_overlapping_marine_region,
 )
 from services.weather_pipeline.grid_resolver_surf import apply_surf_overlay
+from services.weather_pipeline.reval_queue import schedule_revalidation
 
 logger = logging.getLogger(__name__)
 
@@ -295,21 +296,16 @@ async def resolve_grid(
                                 # Preserve the existing SWR queue bound and eligibility. Fetch the
                                 # ORIGINAL viewport so a partial regional never becomes sticky.
                                 key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
-                                active = viewport_service.ACTIVE_REVALIDATIONS
                                 span = max((req_e - req_w) % 360, req_n - req_s)
                                 if (viewport_service.is_viewport_enabled(
                                         model, domain, layer, False, bbox, target_dt=target_dt)
                                         and span <= float(os.environ.get("MARINE_MID_REVAL_MAX_SPAN", "8.0"))
-                                        and (key in active or len(active) < int(os.environ.get("MARINE_REVAL_QUEUE_MAX", "2")))):
+                                        and schedule_revalidation(
+                                            viewport_service, background_tasks, model, domain, layer, valid_time,
+                                            target_dt, bbox, key,
+                                            queue_max=int(os.environ.get("MARINE_REVAL_QUEUE_MAX", "2")))):
                                     product.stale = True
                                     product.staleReason = "swr_revalidation_pending"
-                                    if key not in active:
-                                        active.add(key)
-                                        args = (model, domain, layer, valid_time, target_dt, bbox, key)
-                                        if background_tasks:
-                                            background_tasks.add_task(viewport_service._revalidate_fetch, *args)
-                                        else:
-                                            asyncio.create_task(viewport_service._revalidate_fetch(*args))
             elif candidate_product:
                 logger.warning(
                     f"[Grid Resolver] Skipping oversized stale manifest product {matching_manifest_item.filename} "
@@ -361,19 +357,8 @@ async def resolve_grid(
                         product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
                     if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
                         reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
-                        if reval_key not in viewport_service.ACTIVE_REVALIDATIONS:
-                            viewport_service.ACTIVE_REVALIDATIONS.add(reval_key)
-                            if background_tasks:
-                                background_tasks.add_task(
-                                    viewport_service._revalidate_fetch,
-                                    model, domain, layer, valid_time, target_dt, bbox, reval_key
-                                )
-                            else:
-                                asyncio.create_task(
-                                    viewport_service._revalidate_fetch(
-                                        model, domain, layer, valid_time, target_dt, bbox, reval_key
-                                    )
-                                )
+                        schedule_revalidation(viewport_service, background_tasks, model, domain, layer,
+                                              valid_time, target_dt, bbox, reval_key)
             elif candidate_product:
                 logger.warning(
                     f"[Grid Resolver] Skipping oversized stale preview product {manifest_preview_item.filename} "
@@ -452,19 +437,8 @@ async def resolve_grid(
                 preview.served_bbox = f"{preview.grid.bounds.west:.4f},{preview.grid.bounds.south:.4f},{preview.grid.bounds.east:.4f},{preview.grid.bounds.north:.4f}"
             # Kick off background revalidation so the next request resolves the precise viewport.
             reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
-            if reval_key not in viewport_service.ACTIVE_REVALIDATIONS:
-                viewport_service.ACTIVE_REVALIDATIONS.add(reval_key)
-                if background_tasks:
-                    background_tasks.add_task(
-                        viewport_service._revalidate_fetch,
-                        model, domain, layer, valid_time, target_dt, bbox, reval_key
-                    )
-                else:
-                    asyncio.create_task(
-                        viewport_service._revalidate_fetch(
-                            model, domain, layer, valid_time, target_dt, bbox, reval_key
-                        )
-                    )
+            schedule_revalidation(viewport_service, background_tasks, model, domain, layer,
+                                  valid_time, target_dt, bbox, reval_key)
             logger.info(
                 f"[Grid Route] Instant coarse preview {preview.product_id} "
                 f"({len(preview.grid.vectors)} vec) for {model} {layer}; revalidating viewport in background."
