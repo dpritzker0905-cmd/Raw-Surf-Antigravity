@@ -258,7 +258,13 @@ See §11.
 - seq 966: decision (D-017, default on).
 - seq 967: owner_action, reconstructed (the owner's WIND_GRID_GFS_GLOBAL=1 on Render, learned from the brief; its
   read-back stays with commitment 963).
-- Then pr_open, plus two commitments: the post-deploy read-back, and the >= 14-day NDBC wind grade.
+- seq 968: pr_open, PR #293 (head 69258099).
+- seq 969: commitment, due 2026-10-13T18:00Z. The live read-back: the ingest's publish line, the index, ONE /grid
+  inside HRRR with `wind_lane` (and with `wind_lane=gfs`), the lane bench on that product, and Render memory.
+- seq 970: commitment, due 2026-10-27T18:00Z. The >= 14-day NDBC wind grade, lane vs GFS, by lead and coast. D-017
+  reopens if the lane is worse by > 0.3 kn at any lead or coast.
+
+STATE's ledger head moves to 970.
 
 ## 12. Correction: the chain floor
 
