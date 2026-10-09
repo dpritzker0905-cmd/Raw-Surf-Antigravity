@@ -1,4 +1,5 @@
-"""Routes that move credits, grant paid access, or act through another user's account act only for the caller.
+"""Routes that act for a user (credits, paid access, connected accounts, messages, invites, role, status or
+verification) act only for the caller.
 
 Each route either takes the acting user from the JWT (`Depends(get_user_id_from_jwt_or_query)`; a legacy
 `user_id` query value is ignored) or compares the client-named actor with the JWT subject and answers 403.
@@ -36,6 +37,20 @@ TOKEN_IDENTITY = [
     ("POST", "/api/meta/share-to-facebook"),
     ("POST", "/api/meta/share-to-instagram"),
     ("DELETE", "/api/meta/disconnect"),
+    ("POST", "/api/messages/react/{message_id}"),
+    ("POST", "/api/crew-chat/{booking_id}/messages/{message_id}/react"),
+    ("POST", "/api/bookings/{booking_id}/invite"),
+    ("POST", "/api/bookings/{booking_id}/invite-by-handle"),
+    ("POST", "/api/dispatch/crew-invite/{participant_id}/decline"),
+    ("PUT", "/api/posts/{post_id}/session-metadata"),
+    ("POST", "/api/posts/{post_id}/invite-collaborator"),
+    ("POST", "/api/posts/{post_id}/request-collaboration"),
+    ("PUT", "/api/posts/{post_id}/collaborations/{collaboration_id}/respond"),
+    ("DELETE", "/api/posts/{post_id}/collaborations/{collaboration_id}"),
+    ("POST", "/api/posts/{post_id}/collaborations/{collaboration_id}/flag"),
+    ("POST", "/api/photographer-request"),
+    ("POST", "/api/photographer-requests/{request_id}/respond"),
+    ("POST", "/api/photographer-requests/{request_id}/cancel"),
 ]
 # The client names the actor (where, which field); it must equal the token's subject.
 NAMED_ACTOR = [
@@ -52,6 +67,15 @@ NAMED_ACTOR = [
     ("POST", "/api/career/gold-pass/{slot_id}/book", "query", "surfer_id"),
     ("POST", "/api/surfer-gallery/self-claim", "query", "surfer_id"),
     ("POST", "/api/notifications/send", "body", "sender_id"),
+    ("POST", "/api/notifications/photographer-alerts/trigger", "query", "photographer_id"),
+    ("POST", "/api/shaka/send", "query", "sender_id"),
+    ("POST", "/api/impact/instant-shaka/{sponsorship_id}", "query", "sender_id"),
+    ("POST", "/api/subscriptions/toggle-status/{user_id}", "path", "user_id"),
+    ("POST", "/api/subscriptions/parent-surfer-mode/{user_id}", "path", "user_id"),
+    ("POST", "/api/subscriptions/apply-pro/{user_id}", "path", "user_id"),
+    ("POST", "/api/profiles/{profile_id}/pro-onboarding", "path", "profile_id"),
+    ("POST", "/api/verification/pro-surfer/submit", "body", "user_id"),
+    ("POST", "/api/verification/pro-photographer/submit", "body", "user_id"),
 ]
 LOGIN_ONLY = [("POST", "/api/notifications")]
 ALL = TOKEN_IDENTITY + [(m, p) for m, p, _w, _f in NAMED_ACTOR] + LOGIN_ONLY

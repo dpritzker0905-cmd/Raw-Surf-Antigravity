@@ -319,12 +319,15 @@ async def unsubscribe_photographer_alert(
 async def trigger_photographer_alert(
     photographer_id: str,
     alert_type: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Trigger notifications for all subscribers when photographer becomes available.
     Called internally when photographer goes live, activates on-demand, etc.
     """
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     from models import PhotographerAlertSubscription, Profile
     import os
     import httpx

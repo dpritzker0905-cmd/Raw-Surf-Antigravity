@@ -464,7 +464,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Viewed hour wins the sharpen queue: +9 chain (one file) on hosted 2426 / 161 files (floor 2429).
 # Stale-cache refresh takes a queue slot: +7 chain (one new file) on hosted 2435 / 162 files (floor 2436).
 # Bounded wind native recovery: +14 guards (one new file) on hosted 2541 / 188 files (floor 2549).
-_FLOOR_SET_FROM = {"guards": 2565, "chain": 2442, "estate": 1475}
+# Actor-route binding batch 2: +69 estate (existing file) on hosted 1475 / 306 files (floor 1542).
+_FLOOR_SET_FROM = {"guards": 2565, "chain": 2442, "estate": 1544}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

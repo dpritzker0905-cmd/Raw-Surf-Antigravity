@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 import json
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, RoleEnum, SponsorshipTransaction,
     InstantShakaVideo, Notification
@@ -30,9 +31,12 @@ async def send_instant_shaka_video(
     sender_id: str,
     video_url: str,
     message: Optional[str] = None,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Send a 5-second thank you video in response to a sponsorship"""
+    if sender_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Get the sponsorship
     sponsor_result = await db.execute(
         select(SponsorshipTransaction)

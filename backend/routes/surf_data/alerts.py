@@ -13,7 +13,7 @@ from utils.geo import haversine_distance
 
 
 from database import get_db
-from core.security import get_current_user_id
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from models import (
     Profile, SurfSpot, SurfAlert, Notification, 
     PhotographerRequest, PhotographerRequestStatusEnum, RoleEnum
@@ -391,8 +391,8 @@ class PhotographerRequestResponse(BaseModel):
 
 @router.post("/photographer-request")
 async def create_photographer_request(
-    user_id: str, 
-    data: PhotographerRequestCreate, 
+    data: PhotographerRequestCreate,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -617,8 +617,8 @@ async def get_my_photographer_requests(
 @router.post("/photographer-requests/{request_id}/respond")
 async def respond_to_photographer_request(
     request_id: str,
-    user_id: str,
     data: PhotographerRequestResponse,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -688,7 +688,7 @@ async def respond_to_photographer_request(
 @router.post("/photographer-requests/{request_id}/cancel")
 async def cancel_photographer_request(
     request_id: str,
-    user_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Cancel a pending photographer request (only by requester)"""
