@@ -1618,7 +1618,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 963, sha256 7bb0b61fa83808be29810ee36475efe134d4133b14a61ed6fdee9e4139852846**
+  **Ledger head: seq 966, sha256 1c2af48748dea8902cd21d99e208a78a8edcbf99ad86978ccfd0a1e2f9eac973**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
@@ -1685,6 +1685,11 @@ direction fix (not supported by a bulk-buoy instrument; needs spectral truth).
   - light 6-10 kn deutan 4.9 -> 4.3 after #288.
   This needs a design pass on all three palettes, then an owner A/B. Lightness steps are the usual cure for the
   yellow-green/gold collapse.
+  **Update 2026-10-09 (branch `claude/wind-cvd-palettes`, log 2026-10-09-wind-cvd-palettes): awaiting the owner's A/B.**
+  Dark and beach pass every checker line; beach also passes over land. Light's legend passes; light's tint over water
+  is raised 0.3 -> 2.75 and kept as an exception for the owner to accept. Dark parity leaves light's 40-75 kn tints a
+  near-grey over the water, and a full pass needs a field redesign (offered, not shipped). Kills:
+  `__RAW_DISABLE_WIND_<DARK|BEACH|LIGHT>_CVD__`.
 
 ## Owner-only
 - Arm the nearshore judge hourly (`NEARSHORE_VAL_ENABLED=1`, a repo variable).

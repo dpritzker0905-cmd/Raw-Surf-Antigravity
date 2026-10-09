@@ -506,3 +506,13 @@ A stored estimate can be estimated again in a browser branch with different sour
   land colour, the field alone vs the full pool. It found the field innocent (about 0.80 kept at every zoom). Light's
   mark opacity eased to 0.65 across z6-7.5 (`WIND_CLOSE_LAND`, a ramp per L-V13) holds z7-11 at 0.35-0.43. When a
   composite changes per theme, re-measure coverage on screen, not the shared intermediate.
+- **L-V15 · A colour-blind solver passes by drawing stripes unless smoothness is a constraint; and a strength-pinned tint
+  has a physical ceiling.** The first dark solve cleared the 5 dE floor (coloraide Viénot/Brettel) with tiny moves, by
+  trading blue between 21 and 27 kn. 27 kn went paler than both neighbours: a chroma stripe that a lightness check
+  cannot see. Pin "no NEW lightness or chroma peak/dip" in the legend AND the tint (keep the turns the palette
+  already has, and let the tint turn where the legend turns). Then dark becomes a lightness arc, the cure the theory
+  predicts. Light/beach tints are pinned to dark's strength (24-26 dE76), and a multiply that strong darkens cyan water
+  by at most ~22 L*, so light's 40-75 kn tints are a near-grey there for everyone. A 5 dE floor on six fast-band steps
+  was out of reach smoothly (1 run of 11, and only by a redesign). Measure the CEILING (maximin) before promising a
+  floor, check the full pair matrix rather than the worst pair, and check land as well as water (log
+  2026-10-09-wind-cvd-palettes).
