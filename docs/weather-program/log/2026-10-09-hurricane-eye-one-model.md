@@ -135,3 +135,12 @@ are then GFS: the NOAA world base, the native recovery, and Open-Meteo.
 - The app's `sync_with_base_branch` failed with "Committer identity unknown"; a manual `git merge origin/dev` worked.
 - A TaskStop on a backgrounded `react-scripts test` left its node process running and writing into the same output
   file (25 bogus "worker crashed" FAILs). Kill it by PID, filtered on this worktree's path, and re-run.
+
+## 7. Ledger
+
+- seq 961: finding (the root cause).
+- seq 962: pr_open #287. Hosted CI pending at open.
+- seq 963: commitment, due 2026-10-16T18:00Z. After the owner merges #287 and flips `WIND_GRID_GFS_GLOBAL=1`, read
+  back one post-flip viewport product against Open-Meteo `gfs_global` and `gfs_hrrr`, and rerun the eye bench on it.
+
+STATE's ledger head moves to 963.
