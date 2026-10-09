@@ -9,6 +9,7 @@ import { ArrowLeft, User, Camera, Building2, Trophy, Star, Eye, EyeOff, X, Shiel
 import { ROLES } from '../constants/roles';
 import { CURRENT_TOS_VERSION } from '../constants/tos';
 import apiClient from '../lib/apiClient';
+import { wasSessionRejected } from '../lib/sessionRejection';
 import logger from '../utils/logger';
 
 const ROLE_CONFIG = {
@@ -78,12 +79,15 @@ export const Auth = () => {
   const isLogin = tab === 'login';
   const showCategorySelection = tab === 'signup' && !category;
 
-  // Auto-redirect authenticated users to feed
+  // Auto-redirect authenticated users to feed -- unless a 401 sent this tab here. Then the
+  // "signed-in" user is one the backend just refused, and forwarding it restarts the
+  // 401 -> /auth -> /feed loop (2026-10-08). Read once per visit; a real sign-in clears the mark.
+  const [sessionWasRejected] = useState(wasSessionRejected);
   useEffect(() => {
-    if (user) {
+    if (user && !sessionWasRejected) {
       navigate('/feed', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, sessionWasRejected]);
 
   // Fetch ToS content from DB when modal opens
   useEffect(() => {

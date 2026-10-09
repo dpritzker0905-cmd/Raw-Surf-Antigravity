@@ -182,7 +182,67 @@ describe('AuthContext', () => {
     });
   });
 
- // useAuth guard 
+ // Development mock identity vs. a backend that refuses it
+
+  // A development build seeds a mock admin whose token only a LOCAL backend accepts; the deployed
+  // one refuses it (fail-closed dev_identity_allowed()). After such a refusal sent the tab to the
+  // sign-in form, re-seeding handed the auth page a "signed-in" user again: the 2026-10-08 loop.
+  describe('development mock identity', () => {
+    const realNodeEnv = process.env.NODE_ENV;
+    const REJECTED_KEY = 'raw-surf-session-rejected-at';
+
+    beforeEach(() => { sessionStorage.clear(); });
+    afterEach(() => { process.env.NODE_ENV = realNodeEnv; });
+
+    it('is seeded in a development build when no session is stored', async () => {
+      process.env.NODE_ENV = 'development';
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(result.current.user?.id).toBe('dev-mock-user-id');
+      expect(JSON.parse(localStorage.getItem('raw-surf-user'))?.access_token).toBe('dev-mock-user-token');
+    });
+
+    it('is not re-seeded once a backend has refused this tab\'s session', async () => {
+      process.env.NODE_ENV = 'development';
+      sessionStorage.setItem(REJECTED_KEY, String(Date.now() - 5 * 60 * 1000));
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(result.current.user).toBeNull();
+      expect(localStorage.getItem('raw-surf-user')).toBeNull();
+    });
+
+    it('a successful login or signup clears the refused-session mark', async () => {
+      apiClient.post.mockResolvedValue({ data: { id: 'u1', access_token: 'jwt.signed.token' } });
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      sessionStorage.setItem(REJECTED_KEY, String(Date.now()));
+      await act(async () => { await result.current.login('surfer@example.invalid', 'test-only'); });
+      expect(sessionStorage.getItem(REJECTED_KEY)).toBeNull();
+
+      sessionStorage.setItem(REJECTED_KEY, String(Date.now()));
+      await act(async () => {
+        await result.current.signup('new@example.invalid', 'test-only', 'New', 'new', 'Surfer');
+      });
+      expect(sessionStorage.getItem(REJECTED_KEY)).toBeNull();
+    });
+
+    it('a failed login keeps the mark', async () => {
+      apiClient.post.mockRejectedValue(Object.assign(new Error('401'), { response: { status: 401 } }));
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      sessionStorage.setItem(REJECTED_KEY, String(Date.now()));
+      await act(async () => {
+        await expect(result.current.login('surfer@example.invalid', 'wrong')).rejects.toThrow();
+      });
+      expect(sessionStorage.getItem(REJECTED_KEY)).not.toBeNull();
+    });
+  });
+
+ // useAuth guard
 
   describe('useAuth guard', () => {
     it('throws if useAuth is called outside AuthProvider', () => {

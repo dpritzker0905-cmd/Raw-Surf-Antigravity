@@ -16,6 +16,7 @@
 
 import axios from 'axios';
 import { toast } from 'sonner';
+import { markSessionRejected, sessionRejectedRecently } from './sessionRejection';
 
 const DEFAULT_BACKEND_URL = 'https://raw-surf-antigravity.onrender.com';
 
@@ -111,16 +112,57 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// --- Track whether we've already shown the session-expired message ---
-let _sessionExpiredShown = false;
+// --- 401 -> the sign-in form: once per refused session, never a loop ---
+// The redirect is a HARD load, so module state only dedupes the 401s of one page (`_redirectPending`
+// is deliberately NOT reset by a later 2xx: that reset scheduled one redirect per 401 that followed
+// a success, i.e. several GET /auth per page). What survives the hard load is the sessionRejection
+// mark. 2026-10-08: without it, a session that re-appeared after the clear (the development mock
+// seed in AuthContext, another tab) cycled 401 -> /auth -> /feed -> 401 until the tab was closed.
+let _redirectPending = false;
+let _signInPromptShown = false;
+
+const SIGN_IN_PATH = '/auth?tab=login';
+const SESSION_TOAST_ID = 'session-expired';
+const SESSION_KEYS = ['raw-surf-user', 'raw-surf-user-original', 'impersonation_session',
+  'isGodMode', 'isPersonaBarActive', 'activePersona',
+  'godModeMinimized', 'godModeDesktopMinimized'];
+
+const clearStoredSession = () => SESSION_KEYS.forEach((k) => localStorage.removeItem(k));
+
+function handleRefusedSession() {
+  const currentPath = window.location.pathname;
+  // Not from the auth page itself, nor from the admin console (it handles its own auth errors).
+  if (currentPath.startsWith('/auth') || currentPath.startsWith('/admin')) return;
+  if (_redirectPending) return;
+
+  if (sessionRejectedRecently()) {
+    // A 401 redirect landed in this tab moments ago and the session is refused AGAIN: something
+    // re-armed it. Navigating now would be the loop. Drop what was refused and offer the form;
+    // the next navigation is the user's click.
+    clearStoredSession();
+    if (!_signInPromptShown) {
+      _signInPromptShown = true;
+      toast.error('Your session was not accepted -- please sign in.', {
+        id: SESSION_TOAST_ID,
+        duration: Infinity,
+        action: { label: 'Sign in', onClick: () => { window.location.href = SIGN_IN_PATH; } },
+      });
+    }
+    return;
+  }
+
+  _redirectPending = true;
+  markSessionRejected();
+  toast.error('Session expired -- please sign in again.', { id: SESSION_TOAST_ID, duration: 4000 });
+  setTimeout(() => {
+    clearStoredSession();
+    window.location.href = SIGN_IN_PATH;
+  }, 2000);
+}
 
 // --- Response interceptor -- handle auth errors ---
 apiClient.interceptors.response.use(
-  (response) => {
-    // Reset session-expired flag on any successful response
-    _sessionExpiredShown = false;
-    return response;
-  },
+  (response) => response,
   (error) => {
     if (!error.response) {
       // Network / CORS errors
@@ -145,29 +187,16 @@ apiClient.interceptors.response.use(
     // transient 401. That is not a real mechanism -- a cold start yields a timeout or a 502, never
     // a 401 -- and the backend is on a paid plan with no idle spin-down anyway. The SUPPRESSION is
     // left in place because it stands on its own (the admin console handles its own auth errors,
-    // and the isOnAdmin check below already blocks the redirect), but it rests on a thinner
-    // rationale than it appears to: a 401 reaching here is probably GENUINE. Worth revisiting on
-    // its own merits rather than as cold-start debris.
-    if (status === 401 && !_sessionExpiredShown) {
+    // and the /admin path check in handleRefusedSession already blocks the redirect), but it rests
+    // on a thinner rationale than it appears to: a 401 reaching here is probably GENUINE. Worth
+    // revisiting on its own merits rather than as cold-start debris.
+    if (status === 401) {
  // Skip if this is an auth call itself (login/signup) G let the caller handle it
       const isAuthCall = url.includes('/auth/login') || url.includes('/auth/signup');
  // Skip admin-only endpoints -- the admin console handles these errors itself
       const isAdminCall = url.includes('/admin/');
       if (!isAuthCall && !isAdminCall) {
-        _sessionExpiredShown = true;
-        const currentPath = window.location.pathname;
-        const isAlreadyOnAuth = currentPath.startsWith('/auth');
-        const isOnAdmin = currentPath.startsWith('/admin');
-        if (!isAlreadyOnAuth && !isOnAdmin) {
- toast.error('Session expired -- please sign in again.', { duration: 4000 });
-          setTimeout(() => {
-            // Clear ALL session data before redirecting
-            ['raw-surf-user', 'raw-surf-user-original', 'impersonation_session',
-             'isGodMode', 'isPersonaBarActive', 'activePersona',
-             'godModeMinimized', 'godModeDesktopMinimized'].forEach(k => localStorage.removeItem(k));
-            window.location.href = '/auth';
-          }, 2000);
-        }
+        handleRefusedSession();
       }
       return Promise.reject(error);
     }
