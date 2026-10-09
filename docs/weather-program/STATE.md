@@ -1678,6 +1678,13 @@ direction fix (not supported by a bulk-buoy instrument; needs spectral truth).
   z6 -> 7 is the candidate; it needs an owner A/B.
 - Wind, still open from #281/#282: a bright blob at the eyewall that the significance scanner flags in every theme (all
   bench seeds, ~37-42 kn); and particles losing salience where they match a same-coloured field at the storm's peak ring.
+- **Wind palettes fail the colour-blind floor in all three themes** (2026-10-09, `frontend/scripts/wind-color/check.mjs`,
+  coloraide Viénot/Brettel; floor 5 dE2000 between neighbouring stops). Weakest pairs:
+  - legend: light 27-33 kn protan 3.9; beach 10-16 kn tritan 1.9; dark 16-21 kn protan 2.4;
+  - tints over water: light and beach 27-33 kn deutan 0.3-0.4 (yellow-green vs gold collapse); dark 21-27 kn protan 2.1;
+  - light 6-10 kn deutan 4.9 -> 4.3 after #288.
+  This needs a design pass on all three palettes, then an owner A/B. Lightness steps are the usual cure for the
+  yellow-green/gold collapse.
 
 ## Owner-only
 - Arm the nearshore judge hourly (`NEARSHORE_VAL_ENABLED=1`, a repo variable).
