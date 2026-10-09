@@ -7,6 +7,7 @@ import { TruthOverlayVisualTab } from './TruthOverlayVisualTab';
 import { TruthOverlayGpuTab } from './TruthOverlayGpuTab';
 import { resolveTruthVerdict } from './truthVerdict';
 import { basicSourceName } from './dataOrigin';
+import { describeWindLane, windLaneOnScreen } from './windLane';
 import {
   isOpenMeteoProtocolFailed, subscribeToProtocolFailure, getOpenMeteoProtocolFailure,
   OM_PROTOCOL_DEPENDENT_LAYERS,
@@ -315,6 +316,8 @@ var TruthOverlay = ({
   // key. One definition, shared with the spot hub's source line (dataOrigin.js, W-34).
   const gridSourceDataset = marineData?.grid?.__sourceDataset || marineData?.grid?.sourceDataset || null;
   const displayProvider = basicSourceName(gridSourceDataset) || gridProvider;
+  const windLane = windLaneOnScreen();                    // the drawn wind's model by place/time (D-017)
+  const windLaneLabel = describeWindLane(windLane);
   const showExtendedWarning = activeModel === 'EURO' && timeOffsetHours > 240;
 
   // GPU metrics from window
@@ -495,6 +498,14 @@ var TruthOverlay = ({
                     {displayProvider}
                   </span>
                 </div>
+                {windLaneLabel && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }} title={windLaneLabel.text}>
+                    <span style={{ color: '#94a3b8' }}>Wind lane:</span>
+                    <span style={{ fontWeight: 600, color: '#f8fafc' }}>
+                      {windLaneLabel.short.replace('Wind: ', '')}{windLane && windLane.hrrr_cycle ? ` · HRRR ${windLane.hrrr_cycle.slice(5, 13).replace('T', ' ')}Z` : ''}
+                    </span>
+                  </div>
+                )}
                 {gridSourceDataset && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span style={{ color: '#94a3b8' }}>Source:</span>

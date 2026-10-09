@@ -197,3 +197,33 @@ with a single line `Superseded by D-MMM (date)`. The newest entry is at the bott
 - **Rollback:** remove the exact dev branch value and rebuild dev; default-off source restores prior path.
 
 D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved branch override. No UI variable was saved. Use a versioned build command enabling the flag only when CONTEXT=branch-deploy and BRANCH=dev; the authorization scope is unchanged.
+
+### D-017 · The wind map draws HRRR by place and time, DEFAULT ON (the owner waived dark-first for this lane)
+- **Decided:** by the owner, 2026-10-09, relayed in the brief from session local_e8e3ee51: "we don't need to start it
+  switched off, start it switched on, we need this to be state of the art too. So use your jacobian lens to help make
+  sure we're doing the right thing." This is an explicit exception to D-001's dark-then-flip, for the wind MAP only.
+- **Rule:** inside HRRR's domain and inside its horizon (the newest complete 00/06/12/18Z cycle, f00-f48), every GFS
+  wind tier the map is served blends one stored NOAA HRRR field per hour:
+  - the 10-deg and 2-deg world tiers, the 0.25-deg regional tiles, the dynamic viewport and the native recovery;
+  - via `weather_pipeline/wind_lane.apply_wind_lane`, which runs once in the `/grid` route that `/grid_series` calls per
+    frame;
+  - with a 200 km cos^2 feather at HRRR's edge, past its 15 km relaxation rows, and a 3 h linear taper at its horizon;
+  - speed blended as a scalar, direction from the blended vector.
+
+  Everywhere else and after the horizon the map is GFS, and the scrubber is never capped. The ingest builds the HRRR
+  field on GitHub Actions only, from NOAA's GRIB rotated to earth and area-meaned to 0.25 deg; Open-Meteo's `gfs_hrrr`
+  is grid-relative and point-sampled (LESSONS L-S19). The controls name the model in words at every hour.
+- **Kills:**
+  - `WIND_HRRR_LANE=0` (Render env) returns every product untouched, which is the gfs_global map;
+  - `window.__RAW_DISABLE_WIND_HRRR_LANE__ = true` (per session) sends `wind_lane=gfs`;
+  - `WIND_HRRR_LANE_INGEST=0` stops building it.
+- **Out of scope and unchanged:** stored products, spot points (`fetch_point` still asks `gfs_seamless`), ratings,
+  glyphs, the sim, and the surf-band wind sampler. The lane writes nothing back, and tests pin that.
+- **Evidence (log 2026-10-09-hrrr-wind-lane §5):**
+  - the eye bench's null rows hold across tier, pan, zoom and upstream: 0.0-0.2 km, the same closing T, area x1.00;
+  - the old mixed pair fails the same tolerance: 38.3 km;
+  - the feather keeps the seam term under the natural p95 at all five leads; the taper keeps every hourly step at the
+    natural 4.1-4.7 kn p95, where a hard switch reads 10.6;
+  - coastal gradient x1.37, and accuracy at 101 buoys a tie with GFS (L-S20).
+- **Reopen if:** the post-deploy read-back (ledger commitment) fails, or the >= 14-day NDBC wind grade shows the lane
+  worse than GFS at a lead or coast.

@@ -44,6 +44,7 @@ POOLED_FETCHERS = (
     "dwd_gwam_fetcher.py",
     "dwd_icon_wind_fetcher.py",
     "dwd_icon_pressure_fetcher.py",
+    "noaa_hrrr_wind_fetcher.py",      # the HRRR wind lane (D-017): helpers take the client as `requests`
 )
 
 

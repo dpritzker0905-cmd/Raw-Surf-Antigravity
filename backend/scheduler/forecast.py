@@ -40,7 +40,8 @@ def ingest_marine_forecast_task():
             # Run conformed global weather pipeline jobs
             from services.weather_pipeline.scheduler import WeatherPipelineScheduler
             from services.weather_pipeline.store import ProductStore
-            
+            from services.weather_pipeline.wind_lane_ingest import ingest_hrrr_wind_lane as _ingest_hrrr_wind_lane
+
             store = ProductStore()
             weather_scheduler = WeatherPipelineScheduler(store=store)
             
@@ -96,6 +97,9 @@ def ingest_marine_forecast_task():
                 # is minimal; each runs after a 30s stagger + gc.collect() like the rest.
                 ("Icon Wind Global", weather_scheduler.ingest_icon_wind_global),
                 ("GFS Wind Global", weather_scheduler.ingest_gfs_wind_global),
+                # The HRRR wind lane (D-017): one NOAA HRRR cycle (f00-f48, 0.25-deg area mean) to L2 for the
+                # serve box's wind_lane.apply_wind_lane. GitHub Actions only (wind_lane_ingest.should_run).
+                ("GFS Wind HRRR Lane", lambda: _ingest_hrrr_wind_lane(store)),
                 ("EURO Wind Global", weather_scheduler.ingest_euro_wind_global),
                 ("GFS Marine Global", weather_scheduler.ingest_gfs_marine_global),
                 *_marine_jobs,  # both EURO+ICON in CI (MARINE_INGEST_ALL=1); alternated on the 1-CPU Render box

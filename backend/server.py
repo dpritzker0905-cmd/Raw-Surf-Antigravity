@@ -280,7 +280,12 @@ async def run_background_cache_population():
     """
     import os
     logger.info("[lifespan] Starting background cache pre-population check...")
-    
+    try:  # the HRRR wind lane's cycle starts loading now (a background thread), so the first wind grids carry it (D-017)
+        from services.weather_pipeline.wind_lane import current_lane
+        current_lane()
+    except Exception as e:
+        logger.warning(f"[lifespan] wind lane warm-up skipped: {e}")
+
     # Store original USE_WEATHER_PROXY env var and temporarily set it to "false" to bypass proxy during pre-population
     orig_proxy = os.environ.get("USE_WEATHER_PROXY")
     os.environ["USE_WEATHER_PROXY"] = "false"
@@ -497,6 +502,9 @@ from services.request_telemetry import RequestTelemetryMiddleware
 app.add_middleware(RequestTelemetryMiddleware)
 from services.weather_pipeline.grid_response import GridResponseIngress
 app.add_middleware(GridResponseIngress)
+# The wind lane's per-session kill switch (the client sends wind_lane=gfs on /grid and /grid_series; D-017).
+from services.weather_pipeline.wind_lane import WindLaneRequestMode
+app.add_middleware(WindLaneRequestMode)
 
 # CORS ON ERROR RESPONSES (backlog ⑦, shipped 2026-07-12): unhandled exceptions bypass
 # CORSMiddleware (Starlette's ServerErrorMiddleware wraps OUTSIDE user middleware), so during
