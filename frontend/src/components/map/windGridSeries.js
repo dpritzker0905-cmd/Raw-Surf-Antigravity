@@ -23,6 +23,7 @@ import { buildTruthTag } from './weatherTruthTracker';
 // only diverges on a boundary, and this one's boundary is the antimeridian.
 import { normalizeRequestBbox } from './marineBboxGeometry';
 import { seriesAnchorTag, seriesAnchorParam } from './seriesAnchor';
+import { windLaneParam, windLaneTag } from './windLane';
 
 // pageKey (model_viewportKey_pN) -> { ts, frames: Map<hourOffset, windData>, hours: number[] }
 const _seriesCache = new Map();
@@ -114,7 +115,7 @@ function pageKey(model, bounds, page) {
   // hour OFFSET, so the same key under a different anchor names a different absolute time -- a page
   // still warm across an hour rollover served the previous hour's frames under today's offsets.
   // Shared with the marine lane; see seriesAnchor.js.
-  return `${model || 'GFS'}_${viewportKey(bounds)}_p${page}${seriesAnchorTag()}`;
+  return `${model || 'GFS'}_${viewportKey(bounds)}_p${page}${seriesAnchorTag()}${windLaneTag()}`;
 }
 
 function scheduleIdlePrefetch(fn) {
@@ -165,6 +166,7 @@ function frameToWindData(frame, model) {
     nonzeroCount,
     renderable,
     is_estimated: !!frame.is_estimated,
+    wind_lane: frame.wind_lane || null,   // HRRR near the US / GFS at this frame (windLane.js, D-017)
     ...(truthTag ? { truthTag, product_id, productId: product_id } : {}),
     __fromSeries: true,
   };
@@ -189,7 +191,7 @@ async function loadSeriesPage(model, bounds, page, signal) {
     // sat one hour off the requested hour for half of every hour. That is WORSE here than on the
     // marine lane: wind is 1-HOURLY, so every step is a real frame and the error is a directly
     // wrong hour of wind, where marine's 3-hourly cadence often absorbed it into quantisation.
-    + seriesAnchorParam();
+    + seriesAnchorParam() + windLaneParam();   // + the lane kill switch (windLane.js)
 
   const localController = new AbortController();
   const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 45000);
@@ -269,7 +271,7 @@ async function loadWindSeriesHour0(model, bounds, hourOffset, signal) {
     + `&domain=wind&layer=wind`
     + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
     + `&hours=${h}`
-    + seriesAnchorParam();   // F-01: the same anchor the paged lane sends
+    + seriesAnchorParam() + windLaneParam();   // F-01: the same anchor the paged lane sends; the lane kill switch
   const localController = new AbortController();
   const onCallerAbort = () => { try { localController.abort(); } catch (e) { /* ignore */ } };
   if (signal) { try { signal.addEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }

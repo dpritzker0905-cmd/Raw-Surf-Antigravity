@@ -19,6 +19,7 @@ import {
 import { pointRequestIdentityEnabled, createPointRequestContext } from './pointRequestIdentity';
 import { BoundedPointCache } from './BoundedPointCache';
 import { recordTruthStage } from './weatherTruthTracker';
+import { windLaneParam } from './windLane';
 
 export const windPointCache = new BoundedPointCache(50, 30000);
 
@@ -78,7 +79,9 @@ export function mapNormalizedWindGridToWebGL(json, snappedBounds, hourOffset) {
     requested_bbox: json.requested_bbox || null,
     served_bbox: json.served_bbox || null,
     run_time: json.run_time || null,
-    valid_time: json.valid_time || null
+    valid_time: json.valid_time || null,
+    // Which model the backend's wind lane put at this hour (HRRR near the US / GFS; windLane.js, D-017).
+    wind_lane: json.wind_lane || null
   };
 
   if (typeof window !== 'undefined' && hourOffset === 0) {
@@ -464,7 +467,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
 
   const { clampedBbox } = clampResult;
   const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
-  const url = `${GRID_URL}?model=${model}&domain=wind&layer=wind&valid_time=${validTimeStr}&bbox=${bboxParam}`;
+  const url = `${GRID_URL}?model=${model}&domain=wind&layer=wind&valid_time=${validTimeStr}&bbox=${bboxParam}${windLaneParam()}`;
 
   const _inFlight = inFlightWindRequests.get(url);
   if (_inFlight) {

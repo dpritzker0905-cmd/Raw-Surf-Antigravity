@@ -226,7 +226,8 @@ def build_lane(payload, requests=None, now=None):
         requests = http_session()
     now = now or datetime.now(timezone.utc)
     max_f = int(payload.get("max_f", 48))
-    cyc = pick_cycle(requests, now, max_f=48)
+    # `cycle` pins one run (a reproducible measurement or a backfill); otherwise the newest complete extended run.
+    cyc = hg.utc(payload["cycle"]) if payload.get("cycle") else pick_cycle(requests, now, max_f=48)
     if cyc is None:
         sys.stderr.write("[noaa_hrrr_wind_fetcher] no complete extended HRRR cycle on AWS Open Data\n")
         return None
