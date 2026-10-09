@@ -20,6 +20,8 @@
  * plain `texture2D` fetch, byte-for-byte the pre-change behaviour.
  */
 
+import { setGridPointRegUniform } from './gridPointRegistration';
+
 /**
  * @returns {{on: boolean, cols: number|null, rows: number|null}} what was actually set — the caller
  *   can put this straight into telemetry, and tests assert on it without a GL context.
@@ -59,5 +61,7 @@ export function setLandAwareFetchUniforms(gl, prog, waveGrid, win) {
   gl.uniform2f(gl.getUniformLocation(prog, 'u_waveTexel'),
     r.on ? 1 / r.cols : 0, r.on ? 1 / r.rows : 0);
   gl.uniform1f(gl.getUniformLocation(prog, 'u_landAwareFetch'), r.on ? 1 : 0);
+  // POINT REGISTRATION rides the same every-pass guarantee (both passes share ONE program): gridPointRegistration.js.
+  setGridPointRegUniform(gl, prog, 'u_wave_reg', waveGrid, win);
   return r;
 }

@@ -109,6 +109,8 @@ uniform float u_coastErode;             // threshold shift in normalized SDF uni
 uniform float u_coastAA;                // smoothstep half-width around the coast (normalized SDF units)
 uniform GEO_P vec2 u_waveTexel;               // 1/cols, 1/rows of the WAVE grid — land-aware fetch only
 uniform float u_landAwareFetch;         // 1 = exclude land texels from the bilinear blend
+uniform GEO_P vec4 u_wave_reg;           // POINT REGISTRATION (gridPointRegistration.js): sample bounds -> texel centres; 0 = legacy
+GEO_P vec2 ptReg(GEO_P vec2 uv, GEO_P vec4 r) { return uv + uv * r.xy + r.zw; }
 
 // LAND-AWARE WAVE FETCH (2026-08-18) — the island halo.
 //
@@ -407,6 +409,7 @@ void main() {
   }
   GEO_P float tex_v = (lat - u_dataBounds_min.y) / max(u_dataBounds_max.y - u_dataBounds_min.y, 0.0001);
   GEO_P vec2 grid_uv = vec2(tex_u, tex_v);
+  GEO_P vec2 data_uv = ptReg(grid_uv, u_wave_reg);   // data-texture lookups only; feathering/debug keep grid_uv
 
   // DECOUPLED MASK BOUNDS (2026-07-04): the ocean mask can cover different geography than the
   // data grid (a viewport-scoped basemap-truth mask while the WORLD grid is resident), so its uv
@@ -479,8 +482,8 @@ void main() {
       && (mask_u <= 0.0 || mask_u >= 1.0 || mask_v <= 0.0 || mask_v >= 1.0)) {
     oceanAlpha = 0.0;
   }
-  vec4 waveData = sampleWaveLandAware(grid_uv);
-  float depthFactor = texture2D(u_bathymetryTexture, grid_uv).r;
+  vec4 waveData = sampleWaveLandAware(data_uv);
+  float depthFactor = texture2D(u_bathymetryTexture, data_uv).r;
   float waveHeight = waveData.b * 10.0;
   
   float displayHeight = waveHeight;
@@ -627,7 +630,7 @@ void main() {
   vec3 baseDepthColor = mix(c_shelf_mid, deepNavy, t3);
 
   // ── LAYER 2: CHLOROPHYLL SATELLITE REALISM LAYER ──
-  float chlDensity = texture2D(u_chlorophyllTexture, grid_uv).r;
+  float chlDensity = texture2D(u_chlorophyllTexture, data_uv).r;
   vec3 chlorophyllGreen = vec3(0.06, 0.42, 0.24);
 
   // ── LAYER 3: SHALLOW WATER SHELF GLOW ──

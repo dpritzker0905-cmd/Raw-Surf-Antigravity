@@ -2,6 +2,7 @@
  * WebGLWindShaders.js
  * GPU-native shaders for raw wind particle simulation.
  */
+import { GLSL_PT_REG } from './gridPointRegistration';
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -48,6 +49,7 @@ uniform vec2 u_fineBounds_min;    // fine grid bounds [west, south]
 uniform vec2 u_fineBounds_max;    // fine grid bounds [east, north]
 uniform float u_fine_enabled;
 uniform float u_fine_feather_frac; // feather band as a fraction of the fine grid span
+uniform vec4 u_base_reg; uniform vec4 u_fine_reg; // POINT REGISTRATION (gridPointRegistration.js): sample bounds -> texel centres; 0 = legacy
 uniform float u_fine_wide_fade;   // wide-zoom fade [0..1] — rides ONLY the vortex persistence/
                                   // gamma gate (its particle hoarding depletes the rest of the
                                   // viewport at wide zoom). The DATA blend fw never fades:
@@ -91,6 +93,7 @@ vec4 encodePos(vec2 pos) {
 }
 
 // Pseudo-random hash
+${GLSL_PT_REG}
 float rand(vec2 co) {
   return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
@@ -130,7 +133,7 @@ void main() {
   vec2 tex_uv = vec2(tex_u, tex_v);
 
   // Lookup wind at this position
-  vec4 windData = texture2D(u_wind, tex_uv);
+  vec4 windData = texture2D(u_wind, ptReg(tex_uv, u_base_reg));
   vec2 wind = mix(u_wind_min, u_wind_max, vec2(windData.r, windData.g));
   // Fine-overlay lookup: inside the fine grid, advect from the SHARPER field, feather-blended
   // into the base so there is no velocity step at the seam (and never a data edge to fall off).
@@ -147,15 +150,15 @@ void main() {
     if (f_u > 0.0 && f_u < 1.0 && f_v > 0.0 && f_v < 1.0) {
       float fEdge = min(min(f_u, 1.0 - f_u), min(f_v, 1.0 - f_v));
       float fw = smoothstep(0.0, max(u_fine_feather_frac, 0.001), fEdge);
-      vec4 fineData = texture2D(u_wind_fine, vec2(f_u, f_v));
+      vec4 fineData = texture2D(u_wind_fine, ptReg(vec2(f_u, f_v), u_fine_reg));
       vec2 fineWind = mix(u_fine_min, u_fine_max, vec2(fineData.r, fineData.g));
       wind = mix(wind, fineWind, fw);
       if (u_vortex_levers > 0.5) {
         // central-difference curl on the fine grid (4 taps, one cell each side)
-        vec2 wr = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, vec2(f_u + u_fine_texel.x, f_v)).rg);
-        vec2 wl = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, vec2(f_u - u_fine_texel.x, f_v)).rg);
-        vec2 wu2 = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, vec2(f_u, f_v + u_fine_texel.y)).rg);
-        vec2 wd2 = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, vec2(f_u, f_v - u_fine_texel.y)).rg);
+        vec2 wr = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, ptReg(vec2(f_u + u_fine_texel.x, f_v), u_fine_reg)).rg);
+        vec2 wl = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, ptReg(vec2(f_u - u_fine_texel.x, f_v), u_fine_reg)).rg);
+        vec2 wu2 = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, ptReg(vec2(f_u, f_v + u_fine_texel.y), u_fine_reg)).rg);
+        vec2 wd2 = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, ptReg(vec2(f_u, f_v - u_fine_texel.y), u_fine_reg)).rg);
         // cell km carries the fine box's MEAN cosLat (engine-side): a box is <= 13 deg of
         // latitude, so the cos varies < ~7% across it — irrelevant to a 0.25..0.8 gate band —
         // and one convention is shared with the HEATMAP debug view (no drift between the two).
@@ -407,6 +410,7 @@ uniform vec2 u_fineBounds_min;
 uniform vec2 u_fineBounds_max;
 uniform float u_fine_enabled;
 uniform float u_fine_feather_frac;
+uniform vec4 u_base_reg; uniform vec4 u_fine_reg; // point registration (see ADVECT_FS)
 uniform float u_edgeFeatherEnabled;
 uniform float u_edge_feather_frac;  // 2026-07-19: feather width as a fraction of grid span (see edgeFade)
 uniform float u_debug_mode;
@@ -430,6 +434,7 @@ float latToMercatorY(float lat) {
 }
 
 // Pseudo-random hash
+${GLSL_PT_REG}
 float rand(vec2 co) {
   return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
@@ -482,7 +487,7 @@ void main() {
   vec2 tex_uv = vec2(tex_u, tex_v);
 
   // Speed for coloring
-  vec4 windColor = texture2D(u_wind, tex_uv);
+  vec4 windColor = texture2D(u_wind, ptReg(tex_uv, u_base_reg));
   vec2 wind = mix(u_wind_min, u_wind_max, vec2(windColor.r, windColor.g));
   // Fine-overlay lookup (mirrors ADVECT_FS): the mark must be coloured and oriented by the field
   // that actually advected it, or speed/colour truth breaks inside the fine box.
@@ -498,7 +503,7 @@ void main() {
     if (f_u > 0.0 && f_u < 1.0 && f_v > 0.0 && f_v < 1.0) {
       float fEdge = min(min(f_u, 1.0 - f_u), min(f_v, 1.0 - f_v));
       float fw = smoothstep(0.0, max(u_fine_feather_frac, 0.001), fEdge);
-      vec4 fineColor = texture2D(u_wind_fine, vec2(f_u, f_v));
+      vec4 fineColor = texture2D(u_wind_fine, ptReg(vec2(f_u, f_v), u_fine_reg));
       vec2 fineWind = mix(u_fine_min, u_fine_max, vec2(fineColor.r, fineColor.g));
       wind = mix(wind, fineWind, fw);
     }
@@ -832,9 +837,11 @@ uniform float u_fine_singlepass;
 uniform vec2 u_fine_texel;
 uniform vec2 u_fine_cell_km;
 uniform float u_debug_mode;
+uniform vec4 u_base_reg; uniform vec4 u_fine_reg; // point registration: u_base_reg = whatever u_wind holds in this pass
 varying vec2 v_uv;
 
 // v3.15: Premium 7-stop Windy/Ventusky-grade color ramp per theme
+${GLSL_PT_REG}
 vec3 ramp(float t, float theme) {
   // Dark theme: deep navy > teal > cyan > green-yellow > amber > hot red > white/magenta
   // Light theme: pale ice > sky blue > medium blue > indigo > purple > rose > near-white
@@ -892,19 +899,19 @@ void main() {
       gl_FragColor = vec4(v_uv.x, 1.0 - v_uv.y, 1.0, u_opacity);
       return;
     } else if (u_debug_mode > 8.5 && u_debug_mode < 9.5) { // 'vortex' gate view -> 9.0
-      vec2 wr = mix(u_wind_min, u_wind_max, texture2D(u_wind, vec2(v_uv.x + u_fine_texel.x, v_uv.y)).rg);
-      vec2 wl = mix(u_wind_min, u_wind_max, texture2D(u_wind, vec2(v_uv.x - u_fine_texel.x, v_uv.y)).rg);
-      vec2 wu2 = mix(u_wind_min, u_wind_max, texture2D(u_wind, vec2(v_uv.x, v_uv.y + u_fine_texel.y)).rg);
-      vec2 wd2 = mix(u_wind_min, u_wind_max, texture2D(u_wind, vec2(v_uv.x, v_uv.y - u_fine_texel.y)).rg);
+      vec2 wr = mix(u_wind_min, u_wind_max, texture2D(u_wind, ptReg(vec2(v_uv.x + u_fine_texel.x, v_uv.y), u_base_reg)).rg);
+      vec2 wl = mix(u_wind_min, u_wind_max, texture2D(u_wind, ptReg(vec2(v_uv.x - u_fine_texel.x, v_uv.y), u_base_reg)).rg);
+      vec2 wu2 = mix(u_wind_min, u_wind_max, texture2D(u_wind, ptReg(vec2(v_uv.x, v_uv.y + u_fine_texel.y), u_base_reg)).rg);
+      vec2 wd2 = mix(u_wind_min, u_wind_max, texture2D(u_wind, ptReg(vec2(v_uv.x, v_uv.y - u_fine_texel.y), u_base_reg)).rg);
       float curlz = (wr.y - wl.y) / (2.0 * u_fine_cell_km.x) - (wu2.x - wd2.x) / (2.0 * u_fine_cell_km.y);
-      vec2 wc = mix(u_wind_min, u_wind_max, texture2D(u_wind, v_uv).rg);
+      vec2 wc = mix(u_wind_min, u_wind_max, texture2D(u_wind, ptReg(v_uv, u_base_reg)).rg);
       float Rd = abs(curlz) * u_fine_cell_km.y / (length(wc) + 2.0);
       float g = smoothstep(0.5, 1.2, Rd);
       gl_FragColor = vec4(g, 0.0, 0.0, max(g, 0.15));
       return;
     }
   }
-  vec4 encoded = texture2D(u_wind, v_uv);
+  vec4 encoded = texture2D(u_wind, ptReg(v_uv, u_base_reg));
   vec2 wind = mix(u_wind_min, u_wind_max, encoded.rg);
   // SINGLE-PASS fine composite (see uniform block): inside the fine box, mix toward the fine
   // texture's wind by the SAME feather weight the legacy overlay edge used — then one draw,
@@ -915,7 +922,7 @@ void main() {
     if (fRel.x > 0.0 && fRel.x < 1.0 && fRel.y > 0.0 && fRel.y < 1.0) {
       float fEdge = min(min(fRel.x, 1.0 - fRel.x), min(fRel.y, 1.0 - fRel.y));
       float fw = smoothstep(0.0, max(u_cutout_feather, 0.001), fEdge) * u_cutout_strength;
-      vec2 fineWind = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, fRel).rg);
+      vec2 fineWind = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, ptReg(fRel, u_fine_reg)).rg);
       wind = mix(wind, fineWind, fw);
     }
   }

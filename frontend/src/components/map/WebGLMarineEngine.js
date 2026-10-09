@@ -34,6 +34,7 @@ import { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CA
   from './marineOverlayMode';
 export { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason };
 import { setLandAwareFetchUniforms } from './marineLandAwareFetch';
+import { setGridPointRegUniform } from './gridPointRegistration';
 import { populateCrestDiagnostics, marineForensicFrameEvidence } from './WebGLMarineEngineDiagnostics';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, COARSE_CREST_BAND_MIN_ZOOM } from './marineZoomThresholds';
 import {
@@ -1935,7 +1936,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // Coarse-band nearest-cell direction (vortex band, default mode): crest orientation snaps to the nearest
       // coarse cell-center heading — matches ADVECT so orientation == motion. 0 outside the band.
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_coarseNearestDir'), coarseNearestDir);
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_waveGridSize'), _wgCols, _wgRows);
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_waveGridSize'), _wgCols, _wgRows); setGridPointRegUniform(gl, this.drawProgram, 'u_wave_reg', this._waveData.waveGrid);
 
       // Zoom-band crest SELF-CONTRAST (2026-07-03): full strength where the crest palette collides
       // with the heatmap palette (user-reported z3.65–4.25 wash-out), ramping in from z3.0 and out
@@ -2224,7 +2225,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // Coarse-band nearest-cell direction (matches DRAW): advect along the nearest cell-center heading so the
       // per-cell motion is uniform — the bilinear swirl cannot form. 0 outside the vortex band.
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_coarseNearestDir'), coarseNearestDir);
-      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_waveGridSize'), _wgCols, _wgRows);
+      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_waveGridSize'), _wgCols, _wgRows); setGridPointRegUniform(gl, this.advectProgram, 'u_wave_reg', this._waveData.waveGrid);
 
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
