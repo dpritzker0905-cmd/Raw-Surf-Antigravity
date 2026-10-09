@@ -392,9 +392,7 @@ varying float v_alpha;
 varying vec4 v_debug_color;
 varying vec2 v_dir;              // 2026-07-18: screen-space wind direction — the mark is ORIENTED
 uniform float u_v2_density; uniform float u_v2_motion; uniform float u_v2_keep; uniform vec4 u_v2_speedkeep; uniform float u_v2_px_per_kn; uniform float u_v2_speed_max; uniform float u_v2_gamma; varying float v_stretch; // PARTICLES V2
-uniform float u_dash_thin;     // >= 1: close-zoom across-wind narrowing (WebGLWindUtils.windCloseThinFactor; 1 = as drawn)
-uniform float u_dash_min_css;  // the narrowest the dash may get across the wind, in css px (WIND_CLOSE_THIN.minCssPx)
-varying float v_thin;          // the narrowing this mark actually gets (u_dash_thin, capped by the width floor)
+uniform float u_dash_thin; uniform float u_dash_min_css; varying float v_thin; // close-zoom thin marks: narrowing, width floor (css px), this mark's share (WebGLWindUtils WIND_CLOSE_THIN)
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
@@ -659,15 +657,8 @@ void main() {
     gl_PointSize = mix(min(gl_PointSize, cap10), cap10, lift);
   }
 
-  // CLOSE-ZOOM THIN MARKS, WIDTH FLOOR (2026-10-09). Narrowing by u_dash_thin never takes a dash below u_dash_min_css
-  // across the wind. Without it, slow marks (already narrow: elong 2.6) went to ~1 css px at thin 2, their anti-aliased
-  // edge ate most of their ink, and the wind bench found recurring ink HOLES at ~8 kn and BLOBS at ~22 kn at z6.5-8 in
-  // every theme (3 seeds; none with the lever off). elong0 mirrors DRAW_FS's elongation; marks already at the floor
-  // are not narrowed at all.
-  float elong0 = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed));
-  float widthCap = gl_PointSize / (elong0 * max(u_dash_min_css * max(u_dpr, 1.0), 0.5));
-  v_thin = clamp(u_dash_thin, 1.0, max(widthCap, 1.0));
-
+  // CLOSE-ZOOM THIN MARKS: never narrow a dash below u_dash_min_css across the wind (DRAW_FS's elongation; why: WIND_CLOSE_THIN).
+  v_thin = clamp(u_dash_thin, 1.0, max(gl_PointSize / (mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed)) * max(u_dash_min_css * max(u_dpr, 1.0), 0.5)), 1.0));
   v_stretch = 1.0; // V2: stretch the mark along the flow by its own per-frame step, so the stamps join into a streak
   if (u_v2_motion > 0.5 && gl_PointSize > 0.0) { float stepPx = v_speed * u_v2_px_per_kn * pow(clamp(v_speed / max(u_v2_speed_max, 1.0), 0.02, 1.0), u_v2_gamma - 1.0) * max(u_dpr, 1.0);
     v_stretch = (gl_PointSize + stepPx) / gl_PointSize; gl_PointSize += stepPx; }

@@ -82,8 +82,7 @@ describe('wiring', () => {
   it('the dash narrows across the wind by the thin factor, capped per mark by the width floor (DRAW_VS -> DRAW_FS)', () => {
     expect(src).toContain("'u_dash_thin'), windCloseThinFactor(effectiveTheme, z));");
     expect(src).toContain("'u_dash_min_css'), WIND_CLOSE_THIN.minCssPx);");
-    expect(shaders).toContain('float widthCap = gl_PointSize / (elong0 * max(u_dash_min_css * max(u_dpr, 1.0), 0.5));');
-    expect(shaders).toContain('v_thin = clamp(u_dash_thin, 1.0, max(widthCap, 1.0));');
+    expect(shaders).toContain('v_thin = clamp(u_dash_thin, 1.0, max(gl_PointSize / (mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed)) * max(u_dash_min_css * max(u_dpr, 1.0), 0.5)), 1.0));');
     expect(shaders).toContain('float elong = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed)) * max(v_thin, 1.0);');
     expect(WIND_CLOSE_THIN.minCssPx).toBe(1.5);
   });

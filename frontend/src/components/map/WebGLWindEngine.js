@@ -878,8 +878,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // Oriented dash — direction is carried by ELONGATION, not by mark area.
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DASH__ === true) ? 0.0 : 1.0);
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_thin'), windCloseThinFactor(effectiveTheme, z)); // close-zoom thin marks
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_min_css'), WIND_CLOSE_THIN.minCssPx); // ... never below this width
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_thin'), windCloseThinFactor(effectiveTheme, z)); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_min_css'), WIND_CLOSE_THIN.minCssPx); // close-zoom thin marks + width floor
   // COMPOSITED BACKGROUND (round 6). The wind field is SEMI-TRANSPARENT, so a particle sits on the
   // ramp blended over the BASEMAP — in light mode only ~23% ramp at low wind. The casing must pick
   // its pole from that composite, not from the ramp colour, or it inverts (measured 1.71:1 at
