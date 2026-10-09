@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wind bench</title>
+<style>
+  :root { --bg: #111317; --fg: #dde1e6; --muted: #9aa3ad; --line: #2a2f36; --flag: #ffb347; }
+  @media (prefers-color-scheme: light) { :root { --bg: #f6f7f9; --fg: #1d232a; --muted: #56606b; --line: #d5d9de; --flag: #a14a00; } }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 13px/1.4 system-ui, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 15px; margin: 0; }
+  #status { color: var(--muted); margin: 0; flex: 1 1 320px; }
+  button, select { font: inherit; padding: 4px 10px; }
+  button:focus-visible, select:focus-visible { outline: 2px solid var(--flag); outline-offset: 2px; }
+  #gl { position: absolute; left: -10000px; top: 0; width: 897px; height: 914px; }
+  #table { margin: 0; padding: 12px 16px; overflow-x: auto; font: 12px/1.35 ui-monospace, Consolas, monospace; }
+  #sheet { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 16px; }
+  figure { margin: 0; width: 224px; border: 2px solid transparent; }
+  figure.flagged { border-color: var(--flag); }
+  figure img { width: 224px; display: block; }
+  figcaption { font-size: 10px; line-height: 1.25; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Wind bench</h1>
+  <label>Matrix
+    <select id="preset">
+      <option value="control">positive control (dark z8, 2 runs)</option>
+      <option value="dark">dark, every view (26 runs)</option>
+      <option value="full">full: 13 views × 3 themes × 2 variants (78 runs)</option>
+    </select>
+  </label>
+  <button id="run" type="button">Run</button>
+  <p id="status" role="status" aria-live="polite">loading</p>
+</header>
+<canvas id="gl" aria-hidden="true"></canvas>
+<pre id="table" aria-label="Results table"></pre>
+<div id="sheet" aria-label="Contact sheet"></div>
+<script src="bench.js"></script>
+</body>
+</html>
