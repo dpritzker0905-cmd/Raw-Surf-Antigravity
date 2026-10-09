@@ -461,3 +461,15 @@ A stored estimate can be estimated again in a browser branch with different sour
   <= ~165° OKLCH. So the band became jade -> emerald -> palm-frond: tint 36-89° off the water's hue, 18.5-30 dE00 from it
   (was 0-36°, 12.7-17). Search on the TINT first, because it drives what is seen. Add an even-darkening term, or the
   solver picks a neon tint whose lightness swings and draws false bands.
+- **L-V10 · A data layer added with no anchor buries the map's context, so put it under the borders and labels.** The owner
+  could not see "the continent/land below the hurricane" in light mode up close. Fix it without touching colour or
+  animation. The wind custom layer was added with no `beforeId`, so it drew ABOVE every basemap layer, and the storm's
+  tint and opaque streaks crossed the state lines and city names. The tinted basemaps open their borders+labels block at
+  `admin-1-boundary-bg`. Insert the data layer just before the first `admin-*` layer; this is the weather-map
+  convention (Windy, Ventusky). Labels name the land but do not draw it: light's blue-family tints make tinted land read
+  as water, and these Mapbox styles have no coastline stroke. So draw the basemap's OWN water-polygon outline as a thin
+  line just above the data layer. It uses the same source and source-layer as the `water` fill, so it sits exactly on
+  the map's coast at every zoom. Opacity 0.42 read cleanly in light, while 0.6 got busy in the Mississippi delta. Beach got
+  the same two changes at 0.28 (the owner asked for "slightly less bold"); dark keeps its approved look. To verify, use a
+  local page with real MapLibre, the real Mapbox style and the real wind engine as a custom layer, side by side; unit
+  tests cannot see layer order (WebGLWindUtils.windLayerBeforeId / windCoastlineLayer).
