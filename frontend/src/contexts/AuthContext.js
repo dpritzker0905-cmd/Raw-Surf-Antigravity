@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import apiClient from '../lib/apiClient';
+import { clearSessionRejected, wasSessionRejected } from '../lib/sessionRejection';
 
 const AuthContext = createContext();
 
@@ -31,7 +32,11 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let storedUser = localStorage.getItem('raw-surf-user');
-    if (!storedUser && process.env.NODE_ENV === 'development') {
+    // The mock identity only works against a LOCAL backend; a deployed one refuses its token. Once a
+    // backend has refused this tab's session (a 401 sent it to the sign-in form), re-seeding hands
+    // the auth page a "signed-in" user the server just rejected -- that re-seed drove the 2026-10-08
+    // 401 -> /auth -> /feed loop. A successful login or signup clears the mark.
+    if (!storedUser && process.env.NODE_ENV === 'development' && !wasSessionRejected()) {
       const mockDevUser = {
         id: 'dev-mock-user-id',
         email: 'dev@rawsurf.com',
@@ -104,6 +109,7 @@ export const AuthProvider = ({ children }) => {
     const userData = response.data;
     setUser(userData);
     localStorage.setItem('raw-surf-user', JSON.stringify(userData));
+    clearSessionRejected();
     document.documentElement.classList.remove('no-god-mode');
     return userData;
   }, []);
@@ -116,6 +122,7 @@ export const AuthProvider = ({ children }) => {
     const userData = response.data;
     setUser(userData);
     localStorage.setItem('raw-surf-user', JSON.stringify(userData));
+    clearSessionRejected();
     document.documentElement.classList.remove('no-god-mode');
     return userData;
   }, []);
