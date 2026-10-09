@@ -416,3 +416,12 @@ export function v2KeepRate(densityPer100, cssW, cssH, pool, globalBox, zoom) {
 export function v2DropRule(lifeS) {
   return [1 / (60 * lifeS), V2_DEFAULTS.bumpAtMax];
 }
+
+// ── NO-DOWNGRADE (2026-10-08 live test; windTwoTexture.test.js) ────────────────────────────────
+/** True when bounds `a` contain bounds `b` (degrees; antimeridian-aware on both). */
+export function windBoundsContain(a, b) {
+  if (!a || !b) return false;
+  const span = (x) => (x.east < x.west ? (x.east + 360) - x.west : x.east - x.west);
+  const off = ((((b.west - a.west) % 360) + 360) % 360);
+  return off + span(b) <= span(a) + 1e-9 && b.south >= a.south - 1e-9 && b.north <= a.north + 1e-9;
+}

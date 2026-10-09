@@ -19,7 +19,7 @@ import {
   createFBO,
   bindTexture,
   encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
-  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY
+  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, windBoundsContain
 } from './WebGLWindUtils';
 import {
   initEngine,
@@ -216,11 +216,7 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   }
   var verdict = 'base';
 
-  // COARSE-OVERLAY GUARD (2026-07-21, user "grid shape / small clamp"). The FINE overlay must
-  // SHARPEN the base. A compatible regional grid that is CLEARLY coarser than the resident global
-  // base (a 5x4 `swr_revalidation_pending` SWR preview over the sharp 2° world base) would render a
-  // blocky patch on top of good data — keep the base, ignore the preview. Kill:
-  // __RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__.
+  // COARSE-OVERLAY GUARD (2026-07-21) + NO-DOWNGRADE (2026-10-08): rationale in RATIONALE-WebGLWindEngine.md.
   if (windCoarseOverlayGuardEnabled(typeof window !== 'undefined' ? window : null)
       && windBaseOverlayEnabled(typeof window !== 'undefined' ? window : null)
       && !windGridIsGlobal(windGrid)
@@ -229,6 +225,9 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
       && windGridClearlyCoarserThan(windGrid, this._windData.windGrid)) {
     return 'noop_coarse';
   }
+  if (windCoarseOverlayGuardEnabled(typeof window !== 'undefined' ? window : null) && !windGridIsGlobal(windGrid) && this._windFine?.windGrid
+      && windGridsCompatible(this._windFine.windGrid, windGrid) && windGridClearlyCoarserThan(windGrid, this._windFine.windGrid)
+      && windBoundsContain(this._windFine.windGrid.bounds, windGrid.bounds)) return 'noop_coarser_than_fine'; // never downgrade the view
 
   // BASE+OVERLAY filing (2026-07-19, queue #9). A REGIONAL grid arriving while a GLOBAL base of
   // the same model+hour is resident files as the FINE overlay — the base stays resident, so a

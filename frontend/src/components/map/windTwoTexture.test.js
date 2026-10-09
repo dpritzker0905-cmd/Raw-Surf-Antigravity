@@ -416,3 +416,59 @@ describe('coarse-overlay guard (the "grid shape / small clamp")', () => {
     expect(engine._windFine).toBeTruthy();
   });
 });
+
+// ── 4. NO-DOWNGRADE (2026-10-08 live test): a resident FINE overlay is never replaced by a clearly
+// coarser compatible grid that lies inside it (z6 -> z9 over the Gulf: a 4x4 2-deg mid clip displaced the
+// 1-deg viewport product that still covered the screen). ──
+describe('setWindData — never downgrade the resident fine overlay', () => {
+  const { windBoundsContain } = require('./WebGLWindUtils');
+  const FINE_1DEG = { ...FINE_GRID, bounds: { west: -95, south: 19, east: -84, north: 29 }, cols: 12, rows: 11 };   // 1.0 deg
+  const MID_INSIDE = { ...FINE_GRID, bounds: { west: -92, south: 22, east: -86, north: 28 }, cols: 4, rows: 4 };   // 2.0 deg, inside
+  const MID_OUTSIDE = { ...FINE_GRID, bounds: { west: -82, south: 22, east: -76, north: 28 }, cols: 4, rows: 4 };  // 2.0 deg, panned away
+  const FINER_INSIDE = { ...FINE_GRID, bounds: { west: -91, south: 23, east: -87, north: 27 }, cols: 17, rows: 17 }; // 0.25 deg
+  const setup = () => {
+    const { gl } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    engine.setWindData(gl, grid(GLOBAL_GRID, 37, 17, 20));
+    expect(engine.setWindData(gl, grid(FINE_1DEG, 12, 11, 30))).toBe('fine');
+    return { gl, engine };
+  };
+  afterEach(() => { delete window.__RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__; });
+
+  it('ignores a coarser grid inside the resident fine box (the live z9 case)', () => {
+    const { gl, engine } = setup();
+    const before = engine._windFine;
+    expect(engine.setWindData(gl, grid(MID_INSIDE, 4, 4, 25))).toBe('noop_coarser_than_fine');
+    expect(engine._windFine).toBe(before);
+  });
+  it('still files a coarser grid that reaches outside the box (the view moved on)', () => {
+    const { gl, engine } = setup();
+    expect(engine.setWindData(gl, grid(MID_OUTSIDE, 4, 4, 25))).toBe('fine');
+    expect(engine._windFine.windGrid.bounds).toEqual(MID_OUTSIDE.bounds);
+  });
+  it('a finer grid inside the box replaces it (sharpening is never blocked)', () => {
+    const { gl, engine } = setup();
+    expect(engine.setWindData(gl, grid(FINER_INSIDE, 17, 17, 31))).toBe('fine');
+    expect(engine._windFine.windGrid.cols).toBe(17);
+  });
+  it('a different hour is not "compatible", so it files normally', () => {
+    const { gl, engine } = setup();
+    const later = { ...MID_INSIDE, hourOffset: 3, valid_time: '2026-07-19T15:00:00Z' };
+    expect(engine.setWindData(gl, grid(later, 4, 4, 25))).not.toBe('noop_coarser_than_fine');
+  });
+  it('kill switch restores the old filing', () => {
+    const { gl, engine } = setup();
+    window.__RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__ = true;
+    expect(engine.setWindData(gl, grid(MID_INSIDE, 4, 4, 25))).toBe('fine');
+  });
+  it('windBoundsContain: plain, edge, outside, antimeridian', () => {
+    const a = { west: -95, south: 19, east: -84, north: 29 };
+    expect(windBoundsContain(a, { west: -92, south: 22, east: -86, north: 28 })).toBe(true);
+    expect(windBoundsContain(a, a)).toBe(true);
+    expect(windBoundsContain(a, { west: -96, south: 22, east: -86, north: 28 })).toBe(false);
+    expect(windBoundsContain(a, { west: -92, south: 18, east: -86, north: 28 })).toBe(false);
+    expect(windBoundsContain({ west: 170, south: -10, east: -170, north: 10 }, { west: 175, south: -5, east: -175, north: 5 })).toBe(true);
+    expect(windBoundsContain({ west: 170, south: -10, east: -170, north: 10 }, { west: -175, south: -5, east: -160, north: 5 })).toBe(false);
+    expect(windBoundsContain(null, a)).toBe(false);
+  });
+});

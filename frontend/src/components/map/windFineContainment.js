@@ -47,3 +47,19 @@ export function windCacheTtlMs(entry) {
   if (!d || !d.stale) return TTL_FRESH_MS;
   return d.staleReason === 'swr_revalidation_pending' ? TTL_SHARPENING_MS : TTL_STALE_MS;
 }
+
+// DATELINE (2026-10-08 live test, the "solid line in the Pacific"): map.getBounds() reports UNWRAPPED
+// longitudes across +-180 (west -257, east -99.6 at z2), and the wind tier only treated west > east as
+// crossing — it requested a fine box clamped at -180 whose edge sat on the dateline mid-screen. Normalise
+// first: a view wholly beyond +-180 shifts by 360 (keeps its fine box); a view that straddles the dateline
+// comes back in wrapped form (west > east), which the tier already serves with the global product.
+export function windDatelineNormalize(west, east) {
+  if (!Number.isFinite(west) || !Number.isFinite(east)) return { west, east };
+  if (east - west >= 360) return { west: -180, east: 180 };
+  let w = west, e = east;
+  while (e < -180) { w += 360; e += 360; }
+  while (w > 180) { w -= 360; e -= 360; }
+  if (w < -180) w += 360;          // straddles -180
+  else if (e > 180) e -= 360;      // straddles +180
+  return { west: w, east: e };
+}

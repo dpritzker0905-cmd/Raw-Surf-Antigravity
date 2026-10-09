@@ -186,3 +186,20 @@ don't like it, we can turn it off". Both halves default ON with independent kill
 
 Verified: all wind programs compile and link on WebGL1 and WebGL2 (ANGLE) with every v2 uniform active; point-size
 range 1-1024.
+
+## setWindData — COARSE-OVERLAY GUARD + NO-DOWNGRADE (relocated verbatim + extended, 2026-10-08)
+
+```
+  // COARSE-OVERLAY GUARD (2026-07-21, user "grid shape / small clamp"). The FINE overlay must
+  // SHARPEN the base. A compatible regional grid that is CLEARLY coarser than the resident global
+  // base (a 5x4 `swr_revalidation_pending` SWR preview over the sharp 2° world base) would render a
+  // blocky patch on top of good data — keep the base, ignore the preview. Kill:
+  // __RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__.
+```
+
+NO-DOWNGRADE (2026-10-08, live test after #271/#272): zooming z6 -> z9 over the Gulf, the backend answered the z9 request
+with a 4x4 2-deg mid clip (its two-slot reval queue was full of timeline-prefetch frames, so no sharpen was scheduled), and
+the engine filed it over the resident 1-deg viewport product that still covered the screen — the guard above only compared
+against the 2-deg BASE. A compatible incoming regional grid that is clearly coarser (>1.3x cell) than the resident FINE
+overlay AND lies inside it is now ignored ('noop_coarser_than_fine'); one that reaches outside the box still files (the old
+box no longer covers the view). Same kill switch: __RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__.
