@@ -820,7 +820,11 @@ jobs:
           # WI06: staged selector owns32 bounded wave-cycle retry controls; projected2425/186files, margin6.
           # Regular direct-point honesty adds99 executed controls; projected2524/187files, margin6.
           # EURO donor labels add17 guards; projected2541/188files, six-test margin.
-          MIN_FILES, MIN_PASSED = 188, 2535
+          # ⬆ 188/2535 → 189/2549 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (a pan never costs a full-forecast
+          # wind native recovery): tests/test_wind_native_recovery_bounded.py (14), selector-verified into this lane;
+          # hosted reading on dev 9ef7a3c0 (CI 37880486038: 188 files, 2541 passed) -> projected 2555/189;
+          # 2555 - 6 = 2549.
+          MIN_FILES, MIN_PASSED = 189, 2549
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

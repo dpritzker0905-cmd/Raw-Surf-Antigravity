@@ -20,6 +20,8 @@ Two rules, both enforced here so no site can drift:
 import asyncio
 import logging
 import os
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import timezone
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,29 @@ class SeriesFrame:
 
     def __repr__(self):
         return f"SeriesFrame(warm={self.warm})"
+
+
+# The grid_series frame the running work belongs to; None means a /grid request, the hour being viewed.
+# A failed fine-wind fetch starts a native recovery deep inside viewport_service, where no
+# `background_tasks` reaches, and on 2026-10-09 the warm frame of timeline page 2 (+144 h) started
+# full-forecast recoveries that the viewed hour then waited behind. asyncio copies the context into
+# every task, so a sharpen or a recovery a frame starts keeps the frame (wind_native_recovery reads it).
+_SERIES_FRAME: ContextVar = ContextVar("series_frame", default=None)
+
+
+@contextmanager
+def series_frame_scope(frame):
+    """Run the body as `frame`'s work (grid_series_helper._build_one wraps each frame's resolve)."""
+    token = _SERIES_FRAME.set(frame if isinstance(frame, SeriesFrame) else None)
+    try:
+        yield
+    finally:
+        _SERIES_FRAME.reset(token)
+
+
+def current_series_frame():
+    """The SeriesFrame whose work this is, or None for the viewed hour."""
+    return _SERIES_FRAME.get()
 
 
 def reval_key(model, domain, layer, target_dt, bbox) -> str:

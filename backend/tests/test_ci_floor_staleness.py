@@ -463,7 +463,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # VA-03 nearshore judge: +3 chain on hosted 2416 (floor 2413), +13 estate on hosted 1462 (floor 1473).
 # Viewed hour wins the sharpen queue: +9 chain (one file) on hosted 2426 / 161 files (floor 2429).
 # Stale-cache refresh takes a queue slot: +7 chain (one new file) on hosted 2435 / 162 files (floor 2436).
-_FLOOR_SET_FROM = {"guards": 2541, "chain": 2442, "estate": 1475}
+# Bounded wind native recovery: +14 guards (one new file) on hosted 2541 / 188 files (floor 2549).
+_FLOOR_SET_FROM = {"guards": 2555, "chain": 2442, "estate": 1475}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

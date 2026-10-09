@@ -17,12 +17,16 @@ async def fetch_icon_wind_global_coarse(
     resolution: float = 10.0,
     forecast_days: int = 8,
     timeout_sec: Optional[int] = None,
+    valid_window: Optional[dict] = None,
 ) -> Optional[List[dict]]:
     """BACKGROUND-ONLY: coarse GLOBAL ICON 10m wind grid direct from DWD opendata (icosahedral GRIB).
     Slow (~5-8 min) — scheduler ingestion or the wind native-recovery lane ONLY (never the serve
     path). Native horizon ~7.5 days (180h). ``timeout_sec`` bounds the subprocess (recovery passes
-    ~900s; unset keeps the scheduler's 1800s default). None in test env."""
+    ~900s; unset keeps the scheduler's 1800s default). ``valid_window`` ({"start", "end"} ISO) keeps
+    only the steps inside it — the recovery's bound (services/_fetch_window.py). None in test env."""
     kwargs = {"timeout": int(timeout_sec)} if timeout_sec else {}
+    if valid_window:
+        kwargs["extra_payload"] = {"valid_window": valid_window}
     return await run_fetcher_subprocess(
         "dwd_icon_wind_fetcher.py", bbox, resolution, forecast_days,
         log_tag="DWD ICON-Wind", out_prefix="iconwind_global", **kwargs,
