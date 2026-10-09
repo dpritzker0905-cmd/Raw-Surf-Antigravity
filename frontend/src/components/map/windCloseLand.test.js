@@ -36,15 +36,15 @@ describe('close-zoom opacity factor', () => {
       const to = WIND_CLOSE_LAND.to[t];
       for (const z of [7.5, 9, 11]) expect(windCloseLandFactor(t, z, {})).toBeCloseTo(typeof to === 'number' ? to : 1, 12);
     }
-    expect(WIND_CLOSE_LAND.to.light).toBe(0.65);
+    expect(WIND_CLOSE_LAND.to).toEqual({});              // superseded by thin marks; kept as the A/B lever
   });
   it('never brightens: every table value is in (0, 1]', () => {
     for (const v of Object.values(WIND_CLOSE_LAND.to)) { expect(v).toBeGreaterThan(0); expect(v).toBeLessThanOrEqual(1); }
   });
   it('lever sets the close-zoom factor for any theme (0.1-1, numbers only); kill restores 1', () => {
     expect(windCloseLandFactor('dark', 9, { __RAW_WIND_CLOSE_LAND_OPACITY__: 0.8 })).toBeCloseTo(0.8, 12);
-    expect(windCloseLandFactor('light', 9, { __RAW_WIND_CLOSE_LAND_OPACITY__: 0.05 })).toBeCloseTo(WIND_CLOSE_LAND.to.light, 12);
-    expect(windCloseLandFactor('light', 9, { __RAW_WIND_CLOSE_LAND_OPACITY__: '0.8' })).toBeCloseTo(WIND_CLOSE_LAND.to.light, 12);
+    expect(windCloseLandFactor('light', 9, { __RAW_WIND_CLOSE_LAND_OPACITY__: 0.05 })).toBe(1);
+    expect(windCloseLandFactor('light', 9, { __RAW_WIND_CLOSE_LAND_OPACITY__: '0.8' })).toBe(1);
     for (const t of THEMES) expect(windCloseLandFactor(t, 9, { __RAW_DISABLE_WIND_CLOSE_LAND__: true })).toBe(1);
   });
 });
@@ -58,9 +58,16 @@ describe('close-zoom thin marks', () => {
     }
     for (const v of Object.values(WIND_CLOSE_THIN.to)) expect(v).toBeGreaterThanOrEqual(1);
   });
+  it('the calibrated values: light and beach 2.0, dark 1.5 (gentler); never wider than as drawn, never past 3x', () => {
+    expect(WIND_CLOSE_THIN.to).toEqual({ light: 2.0, beach: 2.0, dark: 1.5 });
+    for (const t of THEMES) for (let z = 2; z <= 14; z += 0.25) {
+      const f = windCloseThinFactor(t, z, {});
+      expect(f).toBeGreaterThanOrEqual(1); expect(f).toBeLessThanOrEqual(3);
+    }
+  });
   it('lever (1-3, numbers only) and kill', () => {
     expect(windCloseThinFactor('dark', 9, { __RAW_WIND_CLOSE_THIN__: 1.6 })).toBeCloseTo(1.6, 12);
-    expect(windCloseThinFactor('dark', 9, { __RAW_WIND_CLOSE_THIN__: 0.5 })).toBeCloseTo(WIND_CLOSE_THIN.to.dark || 1, 12);
+    expect(windCloseThinFactor('dark', 9, { __RAW_WIND_CLOSE_THIN__: 0.5 })).toBeCloseTo(WIND_CLOSE_THIN.to.dark, 12);
     for (const t of THEMES) expect(windCloseThinFactor(t, 9, { __RAW_DISABLE_WIND_CLOSE_THIN__: true })).toBe(1);
   });
 });

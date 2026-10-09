@@ -589,9 +589,10 @@ export function v2SpeedPremul(v2, theme, win = (typeof window !== 'undefined' ? 
 // ~0.80 at every zoom: the particles are the flood. Easing light's mark opacity to 0.65 across z6-7.5 holds that share at
 // z6's level (0.35-0.43 at z7-11). Mark count, size, trails and colours are unchanged; z<=6, dark and beach are untouched.
 // It is a factor on each theme's own composite opacity (light/beach premultiplied, dark brightness-alpha); `to` lists the
-// themes it applies to. Lever: __RAW_WIND_CLOSE_LAND_OPACITY__ (the close-zoom factor, 0.1-1, any theme).
-// Kill: __RAW_DISABLE_WIND_CLOSE_LAND__.
-export const WIND_CLOSE_LAND = Object.freeze({ to: Object.freeze({ light: 0.65 }), fromZ: 6, fullZ: 7.5 });
+// themes it applies to. SUPERSEDED as light's default by WIND_CLOSE_THIN (below), which returns the same land at full
+// mark contrast; kept as the owner's A/B lever. Lever: __RAW_WIND_CLOSE_LAND_OPACITY__ (the close-zoom factor, 0.1-1,
+// any theme). Kill: __RAW_DISABLE_WIND_CLOSE_LAND__.
+export const WIND_CLOSE_LAND = Object.freeze({ to: Object.freeze({}), fromZ: 6, fullZ: 7.5 });
 
 /** 0 at z<=fromZ, 1 from fullZ, smoothstep between: the close-zoom ramp both close-zoom levers ride (L-V13). */
 export function windCloseRamp(zoom, c = WIND_CLOSE_LAND) {
@@ -609,12 +610,23 @@ export function windCloseLandFactor(theme, zoom, win = (typeof window !== 'undef
   return 1 + (to - 1) * windCloseRamp(zoom, c);
 }
 
-// CLOSE-ZOOM THIN MARKS (candidate lever, measured before any default). The other way to give land back: narrow each dash
-// ACROSS the wind by `to` at close zoom (DRAW_FS divides its half-width), keeping its length, count, trail and contrast.
-// Motion is carried by a mark's luminance contrast more than by its area, so a thin full-contrast streak may reveal land
-// at less cost to the animation than a fainter wide one. Lever: __RAW_WIND_CLOSE_THIN__ (1-3, any theme).
-// Kill: __RAW_DISABLE_WIND_CLOSE_THIN__.
-export const WIND_CLOSE_THIN = Object.freeze({ to: Object.freeze({}), fromZ: 6, fullZ: 7.5 });
+// CLOSE-ZOOM THIN MARKS (2026-10-09, owner: "Dont assume that beach mode and dark mode cannot be improved a little bit ...
+// We need this to be state of the art"). Narrows each dash ACROSS the wind by `to` at close zoom (DRAW_FS divides its
+// half-width); length, count, trail, colour and contrast are unchanged. Why width:
+//   - the outlier: zoomBoost widens a 30 kn dash from ~3 css px at z6 to ~5.8 at z9 and ~6.9 at z11, while no leading
+//     wind map draws wider than ~3 px at z6-11 (Windy 2.3-3.1 px; reports/Wind particle close zoom legibility.md);
+//   - perception: opacity IS the luminance contrast that carries motion (fainter marks also look slower); width beyond
+//     ~3 px adds little visibility. Count is cheapest, but the owner wants "plenty", so width it is;
+//   - measured (bench land-run.js + map-run.js: the owner's real basemaps, served and storm-strength grids): at equal land
+//     returned, thin keeps each mark's contrast (light z8: 15.5 vs 15.7 dL* per marked pixel) where opacity 0.65 cut it
+//     to 13.1, and keeps as much or more total signal.
+// Calibrated so each theme's particle land cost at z>=7.5 returns to its own approved z6 level (synthetic lines):
+//   light 2.0 (z7-11 0.42/0.45/0.41/0.34/0.36 vs z6 0.40; was 0.58-0.64), replacing #291's opacity 0.65;
+//   beach 2.0 (0.27/0.28/0.26/0.21/0.23 vs 0.25; was 0.37-0.40);
+//   dark  1.5 (0.26/0.28/0.24/0.19/0.20 vs 0.24; was 0.31/0.34/0.29 at z7-9), gentler: on the real map dark's close-zoom
+//   cost already matches its z6, but bright marks on a dark map read wider than their pixels (irradiation).
+// Lever: __RAW_WIND_CLOSE_THIN__ (1-3, any theme). Kill: __RAW_DISABLE_WIND_CLOSE_THIN__.
+export const WIND_CLOSE_THIN = Object.freeze({ to: Object.freeze({ light: 2.0, beach: 2.0, dark: 1.5 }), fromZ: 6, fullZ: 7.5 });
 
 /** Across-wind narrowing factor (>= 1) for the dash at this zoom: 1 at z<=fromZ, the theme's `to` from fullZ. */
 export function windCloseThinFactor(theme, zoom, win = (typeof window !== 'undefined' ? window : null)) {

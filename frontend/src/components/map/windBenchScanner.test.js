@@ -6,7 +6,7 @@
 import {
   DEFAULTS, mulberry32, upperMedian, blockStats, ringResiduals, findClusters, nullMaxSizes, quantileOf, scanBlocks,
 } from '../../../scripts/wind-bench/scanner';
-import { POSITIVE_CONTROL, VIEWS, buildMatrix, controlConfigs, evaluateControl } from '../../../scripts/wind-bench/matrix';
+import { POSITIVE_CONTROL, VIEWS, VARIANTS, CONTROL_VARIANTS, buildMatrix, controlConfigs, evaluateControl } from '../../../scripts/wind-bench/matrix';
 import { identicalVariantPairs } from '../../../scripts/wind-bench/report';
 import { sameShape, recurringShapes, mergeSeeds, controlAcrossSeeds } from '../../../scripts/wind-bench/replicates';
 
@@ -192,7 +192,12 @@ describe('the matrix', () => {
   });
   test('the control runs dark z8 on the 0.25 deg grid, blind variant first', () => {
     expect(controlConfigs().map((c) => [c.view, c.z, c.grid, c.theme, c.variant]))
-      .toEqual([[POSITIVE_CONTROL.view, 8, 'fine', 'dark', 'shipped'], [POSITIVE_CONTROL.view, 8, 'fine', 'dark', 'candidate']]);
+      .toEqual([[POSITIVE_CONTROL.view, 8, 'fine', 'dark', 'controlShipped'], [POSITIVE_CONTROL.view, 8, 'fine', 'dark', 'controlCandidate']]);
+  });
+  test('the control arms are the matrix pair with the dark palette pinned, and stay out of the default matrix', () => {
+    expect(CONTROL_VARIANTS.controlShipped.levers).toEqual({ ...VARIANTS.shipped.levers, __RAW_DISABLE_WIND_DARK_CVD__: true });
+    expect(CONTROL_VARIANTS.controlCandidate.levers).toEqual({ __RAW_DISABLE_WIND_DARK_CVD__: true });
+    expect([...new Set(buildMatrix().map((c) => c.variant))]).toEqual(['shipped', 'candidate']);
   });
   test('an unknown id throws instead of running a smaller matrix', () => {
     expect(() => buildMatrix({ views: ['fine-z12'] })).toThrow(/unknown view/);
@@ -245,12 +250,13 @@ describe('replicates: an artifact counts only when it recurs', () => {
   });
 
   test('the control must hold in every seed: one BLIND seed makes the run BLIND', () => {
+    const B = POSITIVE_CONTROL.blindVariant, F = POSITIVE_CONTROL.fixedVariant;
     const r = (variant, seed, significant) => ({ view: 'fine-z8', theme: 'dark', variant, seed, significant });
     const both = [shape('HOLE', 40, 44, [400, 400]), shape('BLOB', 38, 34, [300, 300])];
-    const pass = [r('shipped', 0, both), r('candidate', 0, []), r('shipped', 1, both), r('candidate', 1, [])];
+    const pass = [r(B, 0, both), r(F, 0, []), r(B, 1, both), r(F, 1, [])];
     expect(controlAcrossSeeds(pass)).toMatchObject({ status: 'PASS', seeds: ['0:PASS', '1:PASS'] });
-    const blind = [r('shipped', 0, both), r('candidate', 0, []), r('shipped', 1, both.slice(0, 1)), r('candidate', 1, [])];
+    const blind = [r(B, 0, both), r(F, 0, []), r(B, 1, both.slice(0, 1)), r(F, 1, [])];
     expect(controlAcrossSeeds(blind)).toMatchObject({ status: 'BLIND', seed: 1 });
-    expect(controlAcrossSeeds([r('candidate', 0, [])])).toBeNull();
+    expect(controlAcrossSeeds([r(F, 0, [])])).toBeNull();
   });
 });

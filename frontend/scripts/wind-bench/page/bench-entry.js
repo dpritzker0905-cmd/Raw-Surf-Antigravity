@@ -9,7 +9,7 @@ const EngineModule = require('wind-bench-engine');
 const { benchGrids, sampleSpeed } = require('../field');
 const { makeCamera } = require('../camera');
 const { mulberry32, blockStats, scanBlocks } = require('../scanner');
-const { BASEMAP, VARIANTS, buildMatrix, controlConfigs } = require('../matrix');
+const { BASEMAP, ALL_VARIANTS, buildMatrix, controlConfigs } = require('../matrix');
 const { formatTable, figureText, configKey } = require('../report');
 const { mergeSeeds, controlAcrossSeeds } = require('../replicates');
 const { KM_PER_DEG, thresholdRamp, eyeGeometry } = require('../eye');
@@ -78,7 +78,7 @@ function readTrail(engine) {
 }
 
 async function runOne(cfg) {
-  const variant = VARIANTS[cfg.variant];
+  const variant = ALL_VARIANTS[cfg.variant];
   if (!variant) throw new Error('unknown variant ' + cfg.variant);
   const realRandom = Math.random;
   clearLevers();
