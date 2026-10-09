@@ -155,6 +155,50 @@ the owner sees an A/B without a deploy.
 
 Instrument choices and their sources: `reports/Wind particle close zoom legibility.md`.
 
+## Path mode (`path-run.js`): wind colour vs map colour, through every kind of camera move
+
+```bash
+node scripts/wind-bench/path-run.js                                   # light, beach, dark; every path
+node scripts/wind-bench/path-run.js --themes beach --paths erratic --seeds 1,2,3
+node scripts/wind-bench/path-run.js --field --paths erratic,jitter    # the colour field alone: glued to the map?
+node scripts/wind-bench/path-run.js --arms '{"off":{"__RAW_DISABLE_WIND_BASEMAP_MUTE__":true},"mute":{}}'
+```
+
+The owner asked for tests "through zooms and pans of all types, even erratic", after reporting "ambiguity to the wind
+color vs the color of the map". Same basemaps, engine, data and token as map mode.
+
+**Paths** (`paths.js`). A virtual 60 Hz camera, at rest before and after each path:
+- `pan`: steady drag at z8;
+- `fling`: release into inertia;
+- `zoomIn` z5 → z10.5 and `zoomOut` z11 → z5;
+- `pinch`: an off-centre focal point that drifts;
+- `jitter`: z5.7-7.9 at 2 Hz across the close-zoom ramp, with a circling pan;
+- `erratic`: a seeded random walk with bursts to 2500 px/s and 4 z/s, pauses and one-frame jumps (3 seeds span
+  z4.5-11).
+
+**Two passes, so no paint change happens mid-path.**
+1. At rest at every sample camera: the original map, its water mask and its line work.
+2. The path flown with the basemap mute as the app sets it. Each sample is captured twice without advancing the
+   engine: wind on, and the map alone as shown.
+
+MapLibre fades paint over 300 ms and re-parses tiles in a worker for data-driven colours, so the bench sets the
+transition to 0 and settles before reading (LESSONS L-V19).
+
+**Metrics** (`ambiguity.js`, half CSS-pixel scale, CIEDE2000):
+
+| column | meaning |
+|---|---|
+| `hue30` | wind-coloured pixels whose hue sits > 30° off the legend colour for the TRUE speed under them (the served grid, sampled per pixel). The ground bending the wind into another band's colour; dark's alpha-over is the null control |
+| `conv` / `mapLk` | wind-touched pixels within 5 ΔE00 of another map feature's colour: the style's own area palette (convention) / the colours on screen |
+| `windLk` | map area painted in legend colours (C* ≥ 10, within 8 ΔE00) |
+| `coast/bare` | ΔE00 across every coastline crossing (water 2 px in, land 3 px in, past the stroke), under the wind / on the original map |
+| `keptMp` / `keptCm` | the original map's colour edges (ΔE00 ≥ 8, hue-only edges included) kept in the map as shown / under the wind |
+| `retL` / `retW` | map mode's L* line retention, land / water, against the original map |
+| `cover`, `pops` | pixels the wind visibly changes; flash or drop-out samples |
+| `warpW` / `warpM` | `--field` only: the previous sample warped by the exact camera change, wind on / map alone. The excess is the field's own swimming or popping |
+
+It writes `out/<tag>-sheet.html`, every sampled frame with its numbers.
+
 ## Lane mode (`lane-run.js`): the HRRR wind lane across tiers, pans, upstreams and zooms
 
 ```bash

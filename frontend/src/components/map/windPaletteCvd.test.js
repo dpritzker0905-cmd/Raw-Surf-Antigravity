@@ -6,6 +6,7 @@
  * clipping, then CIEDE2000 in Lab D65. The port is anchored to coloraide's own output below.
  */
 import { resolveThemeRamp, resolveFieldRamp } from './WindColorRamp';
+import { muteColor, windBasemapMuteAmount, windBasemapWaterL } from './windBasemapMute';
 
 const dec = (c) => (Math.abs(c) <= 0.04045 ? c / 12.92 : Math.sign(c) * Math.pow((Math.abs(c) + 0.055) / 1.055, 2.4));
 const mm = (M, v) => M.map((r) => r[0] * v[0] + r[1] * v[1] + r[2] * v[2]);
@@ -169,5 +170,32 @@ describe('LIGHT: the legend passes; the tint over water is raised but stays a do
       delete window.__RAW_DISABLE_WIND_LIGHT_CVD__;
     }
     expect(live()[0][7]).not.toEqual([33, 0.802, 0.643, 0.099, 0.87]);
+  });
+});
+
+// THE MUTED GROUND (2026-10-09, windBasemapMute.js). While the wind is on, light and beach show their basemap with 85% of
+// its chroma removed and the water a little darker, so the tint the eye sees sits on THAT ground, not on the cyan water.
+describe('the tint over the ground the wind actually sits on (basemap muted under the wind)', () => {
+  const groundOf = (theme, surface) => {
+    const m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${MODEL[theme][surface].join(', ')})`, windBasemapMuteAmount(theme, {}), surface === 'water' ? windBasemapWaterL(theme, {}) : 1));
+    return [+m[1], +m[2], +m[3]];
+  };
+  const tintOn = (theme, [kn, r, g, b], ground) => { const m = MODEL[theme], s = Math.min(1, m.op * (m.baseA + (1 - m.baseA) * ss(0, m.end, kn)) * m.k);
+    return ground.map((v, i) => (v / 255) * (1 - s * (1 - [r, g, b][i]))); };
+  const pairsOn = (theme, field, ground) => neighbours(field.filter((s) => s[0] >= 3), (s) => tintOn(theme, s, ground));
+  it('BEACH: every neighbouring tint over the muted water and the muted land stays >= 5 dE2000 for all three', () => {
+    const F = resolveFieldRamp('beach', window);
+    expect(weakest(pairsOn('beach', F, groundOf('beach', 'water'))).d).toBeGreaterThanOrEqual(5);   // 5.08 at water x0.94
+    expect(weakest(pairsOn('beach', F, groundOf('beach', 'land'))).d).toBeGreaterThanOrEqual(5);
+  });
+  it('LIGHT (known gap): over a neutral ground the field\'s 27-33 kn pair collapses for a deuteranope; muted water now behaves as light\'s own land always has', () => {
+    // Light's land is near-grey (236,236,232), and its tint there was already at 1.8 for 27-33 kn (deutan) before the mute;
+    // the cyan water used to split that pair (2.8). Muted, the water reads like the land (1.9). Fixing it is a light FIELD
+    // colour-blind pass on a neutral ground (8 pairs under 5): a separate palette change for the owner's A/B. Never lower.
+    const F = resolveFieldRamp('light', window), land = pairsOn('light', F, groundOf('light', 'land')), water = pairsOn('light', F, groundOf('light', 'water'));
+    expect(weakest(water).d).toBeGreaterThanOrEqual(1.85);
+    expect(weakest(land).d).toBeGreaterThanOrEqual(1.8);
+    expect(weakest(water).kn).toBe('27-33');
+    expect(weakest(waterPairs('light', F, 'land')).d).toBeLessThan(2);    // the same gap on the unmuted land, today
   });
 });

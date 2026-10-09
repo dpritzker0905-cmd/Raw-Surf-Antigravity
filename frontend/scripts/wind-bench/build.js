@@ -54,6 +54,10 @@ function buildBench({ srcRoot, outDir, page = 'bench' }) {
         alias: {
           'wind-bench-engine$': path.join(srcRoot, ENGINE_REL),
           'wind-bench-utils$': path.join(srcRoot, 'components', 'map', 'WebGLWindUtils.js'),
+          'wind-bench-ramp$': path.join(srcRoot, 'components', 'map', 'WindColorRamp.js'),
+          // The basemap mute (2026-10-09) on refs that have it; a no-op stand-in on older refs (the A/B baseline).
+          'wind-bench-mute$': fs.existsSync(path.join(srcRoot, 'components', 'map', 'windBasemapMute.js'))
+            ? path.join(srcRoot, 'components', 'map', 'windBasemapMute.js') : path.join(__dirname, 'page', 'mute-stub.js'),
         },
       },
       plugins: [new webpack.DefinePlugin({ 'process.env': JSON.stringify({ NODE_ENV: 'development' }) })],
