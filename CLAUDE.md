@@ -5,7 +5,8 @@ explicit-instruction + confirmation handshake (BRAIN_RULES §22).
 
 - `backend/`: FastAPI (`server.py`; Render runs `uvicorn server:app`), Python 3.12. ONE 1-CPU Render box serves
   production AND dev, so anything heavy pointed at it degrades the live site.
-- `frontend/`: React (CRA via craco) + MapLibre GL, Node 18.20.2 (`frontend/.node-version`), deployed on Netlify.
+- `frontend/`: React (CRA via craco) + MapLibre GL, Node 24.21.0 (`frontend/.node-version`; Netlify and CI match),
+  deployed on Netlify.
 - Supabase: Postgres + Storage (weather products live in the `weather-products` bucket).
 - **History, not current architecture:** the root-level `*HANDOFF*`, `*AUDIT*` and `*FINDINGS*` files and
   `MASTER_WEATHER_SIMULATION_REPORT_11.0.md` (Jun–Aug 2026), and `docs/README.md` (May 2026, "Open-Meteo raster
@@ -22,12 +23,14 @@ flake8 --max-line-length=150 --select=E9,F63,F7,F82 .    # the CI lint gate
 python scripts/check_file_size.py --path . --max-lines 800
 ```
 
-Frontend: run from `frontend/`. Tests sit beside the code (`src/components/map/*.test.js`).
+Frontend: run from `frontend/`. Tests sit beside the code (`src/components/map/*.test.js`) AND in `src/tests/`
+(legend/ramp pins live there); run both trees before pushing a palette or shader change.
 
 ```bash
-CI=true npx react-scripts test --watchAll=false src/components/map
+CI=true npx react-scripts test --watchAll=false src/components/map src/tests
 npm run build
 node scripts/check_eslint.js   # CI's shrink-only lint-debt ratchet; a green Jest run says nothing about it
+node scripts/wind-color/check.mjs   # wind palettes as COMPOSITED over each basemap, incl. colour-blind (its README)
 ```
 
 - **Test floors are shrink-only.** For a new backend test, `git add` it first (no lane claims an untracked file), then

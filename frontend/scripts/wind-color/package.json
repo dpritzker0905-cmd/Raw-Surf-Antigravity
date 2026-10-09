@@ -1,0 +1,12 @@
+{
+  "name": "wind-color-checker",
+  "private": true,
+  "description": "Dev tool: checks the wind palettes as they are actually composited over each basemap (not the bare swatches).",
+  "type": "module",
+  "scripts": {
+    "check": "node check.mjs"
+  },
+  "devDependencies": {
+    "culori": "^4.0.2"
+  }
+}
