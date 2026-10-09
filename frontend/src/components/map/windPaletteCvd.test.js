@@ -5,7 +5,7 @@
  * here: Vienot 1999 for protan/deutan, Brettel 1997 for tritan (the DaltonLens review's picks), on linear sRGB, with no
  * clipping, then CIEDE2000 in Lab D65. The port is anchored to coloraide's own output below.
  */
-import { resolveThemeRamp } from './WindColorRamp';
+import { resolveThemeRamp, resolveFieldRamp } from './WindColorRamp';
 
 const dec = (c) => (Math.abs(c) <= 0.04045 ? c / 12.92 : Math.sign(c) * Math.pow((Math.abs(c) + 0.055) / 1.055, 2.4));
 const mm = (M, v) => M.map((r) => r[0] * v[0] + r[1] * v[1] + r[2] * v[2]);
@@ -41,12 +41,16 @@ const lab = (rgb) => labLin(rgb.map(dec));
 // The composite the checker scores (check.mjs MODEL = HEATMAP_FS / windFieldLut.test.js): dark draws the field OVER the
 // map at its stop alpha; light/beach multiply it in. Water as measured on each basemap.
 const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
-const MODEL = { dark: { over: true, op: 0.48, baseA: 0.44, end: 5, k: 1, water: [93, 117, 126] } };
-const tintOverWater = (theme, [kn, r, g, b]) => { const m = MODEL[theme], s = Math.min(1, m.op * (m.baseA + (1 - m.baseA) * ss(0, m.end, kn)) * m.k);
-  const w = m.water.map((v) => v / 255); return m.over ? [r, g, b].map((c, i) => c * s + w[i] * (1 - s)) : w.map((v, i) => v * (1 - s * (1 - [r, g, b][i]))); };
+const MODEL = {
+  dark: { over: true, op: 0.48, baseA: 0.44, end: 5, k: 1, water: [93, 117, 126] },
+  beach: { op: 0.55, baseA: 0.45, end: 7, k: 0.60 / 0.55, water: [150, 190, 200], land: [222, 208, 180] },
+};
+const tintOver = (theme, [kn, r, g, b], surface = 'water') => { const m = MODEL[theme], s = Math.min(1, m.op * (m.baseA + (1 - m.baseA) * ss(0, m.end, kn)) * m.k);
+  const w = m[surface].map((v) => v / 255); return m.over ? [r, g, b].map((c, i) => c * s + w[i] * (1 - s)) : w.map((v, i) => v * (1 - s * (1 - [r, g, b][i]))); };
+const tintOverWater = (theme, stop) => tintOver(theme, stop, 'water');
 const neighbours = (stops, colour) => stops.slice(1).map((s, i) => ({ kn: `${stops[i][0]}-${s[0]}`, d: worstCvd(colour(stops[i]), colour(s)) }));
 const legendPairs = (ramp) => neighbours(ramp, (s) => s.slice(1, 4));
-const waterPairs = (theme, field) => neighbours(field.filter((s) => s[0] >= 3), (s) => tintOverWater(theme, s));
+const waterPairs = (theme, field, surface = 'water') => neighbours(field.filter((s) => s[0] >= 3), (s) => tintOver(theme, s, surface));
 const weakest = (pairs) => pairs.reduce((w, p) => (p.d < w.d ? p : w));
 // A stop that sits above (or below) BOTH neighbours by more than `tol` is a new band edge: the eye reads it as a stripe.
 const peaks = (vals, tol) => vals.slice(1, -1).map((v, i) => [i + 1, Math.min(Math.abs(v - vals[i]), Math.abs(v - vals[i + 2])), (v - vals[i]) * (v - vals[i + 2]) > 0])
@@ -93,5 +97,40 @@ describe('DARK passes the colour-blind floor (legend and tint over water)', () =
       delete window.__RAW_DISABLE_WIND_DARK_CVD__;
     }
     expect(live()[4]).not.toEqual([16, 0.38, 0.95, 0.40, 0.88]);
+  });
+});
+
+describe('BEACH passes the colour-blind floor (legend, tint over water AND over land)', () => {
+  const live = () => [resolveThemeRamp('beach'), resolveFieldRamp('beach', window)];
+  it('every neighbouring legend stop and every neighbouring tint, on water and on land, is >= 5 dE2000 for all three', () => {
+    const [P, F] = live();
+    expect(weakest(legendPairs(P)).d).toBeGreaterThanOrEqual(5);
+    expect(weakest(waterPairs('beach', F)).d).toBeGreaterThanOrEqual(5);
+    expect(weakest(waterPairs('beach', F, 'land')).d).toBeGreaterThanOrEqual(5);
+  });
+  it('without false bands: the tint turns in lightness only at 10 kn (shipped) and where the legend turns (21 kn dip, 27-33 kn jump)', () => {
+    const F = live()[1].filter((s) => s[0] >= 3), at = (i) => F[i][0];
+    for (const surface of ['water', 'land']) {
+      const L = F.map((s) => lab(tintOver('beach', s, surface))[0]), C = F.map((s) => { const q = lab(tintOver('beach', s, surface)); return Math.hypot(q[1], q[2]); });
+      peaks(L, 1).forEach((i) => expect([10, 21, 27, 33]).toContain(at(i)));
+      expect(peaks(C, 1)).toEqual([]);
+    }
+    const P = live()[0], LP = P.map((s) => lab(s.slice(1, 4))[0]);
+    peaks(LP, 1).forEach((i) => expect(P[i][0]).toBe(21));   // the legend keeps its one turn: the deep palm-frond 21 kn
+  });
+  it('POSITIVE CONTROL + kill: __RAW_DISABLE_WIND_BEACH_CVD__ restores the shipped rows, where gold and yellow-green collapse', () => {
+    window.__RAW_DISABLE_WIND_BEACH_CVD__ = true;
+    try {
+      const [P, F] = live();
+      expect(P[3]).toEqual([10, 0.244, 0.631, 0.479, 0.83]);
+      expect(F[6]).toEqual([27, 0.618, 0.702, 0.000, 0.88]);
+      expect(F[3]).toEqual(live()[1][3]);   // rows the pass never touched stay the live palette
+      expect(waterPairs('beach', F).find((p) => p.kn === '27-33').d).toBeLessThan(1);   // coloraide: deutan 0.4
+      expect(legendPairs(P).find((p) => p.kn === '10-16').d).toBeLessThan(2.5);          // coloraide: tritan 1.9
+      expect(resolveThemeRamp('dark')[4]).not.toEqual([16, 0.38, 0.95, 0.40, 0.88]);   // beach only
+    } finally {
+      delete window.__RAW_DISABLE_WIND_BEACH_CVD__;
+    }
+    expect(live()[1][6]).not.toEqual([27, 0.618, 0.702, 0.000, 0.88]);
   });
 });
