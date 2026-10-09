@@ -355,21 +355,27 @@ export function resolveWindMotionFloor(win = (typeof window !== 'undefined' ? wi
 // THEME: a premultiplied-alpha trail buffer (dark marks were transparent under the brightness-alpha
 // composite) + one neutral body colour per theme over the luminance-adaptive casing; near-opaque
 // heads clear 3:1 against the field at every speed in all three themes (modelled in the test).
-// Kill: __RAW_DISABLE_WIND_CALIBRATION_V2__ / __RAW_DISABLE_WIND_THEME_V2__. Levers: __RAW_WIND_V2_DENSITY__
+// Kill density: __RAW_DISABLE_WIND_DENSITY_V2__ (or __RAW_DISABLE_WIND_CALIBRATION_V2__). Opt-in: __RAW_WIND_MOTION_V2__,
+// __RAW_WIND_THEME_V2__. Levers: __RAW_WIND_V2_DENSITY__
 // (heads per 100x100 css px), __RAW_WIND_V2_FADE__ (tail), __RAW_WIND_V2_SPEED__ (x nominal), __RAW_WIND_V2_LIFE_S__, __RAW_WIND_V2_OPACITY__.
 // Rationale and measurements: docs/architecture/RATIONALE-WebGLWindEngine.md "Particles v2".
 // densityPer100 + fade are calibrated TOGETHER for ink parity with the shipped look (GPU A/B, 2026-10-08): long-lived
 // heads drag tails, so the shipped head count (~130) carpeted the field (95% coverage); 12 heads + fade 0.93 match it.
-export const V2_DEFAULTS = Object.freeze({ densityPer100: 12, fade: 0.93, margin: 0.1, speedMul: 1.16, lifeS: 2.0, bumpAtMax: 0.01, composite: 0.95 });
+// SYNC (2026-10-08, owner: "we were close before ... solid color particles"): density control is the ONLY v2 half on by
+// default, held at 490 marks per 100x100 css px = the measured pre-v2 look the owner approved at z6 and full zoom-out
+// (z2 487 / z3 173 / z4 78 / z5 216 / z6 493 on dev, 2026-10-08). v2 motion (12 heads + fade 0.93 ink parity) and the
+// neutral theme are opt-in: __RAW_WIND_MOTION_V2__ / __RAW_WIND_THEME_V2__ = true.
+export const V2_DEFAULTS = Object.freeze({ densityPer100: 490, densityPer100Motion: 12, fade: 0.93, margin: 0.1, speedMul: 1.16, lifeS: 2.0, bumpAtMax: 0.01, composite: 0.95 });
 export const V2_BODY = Object.freeze({ dark: [0.96, 0.98, 1.0], light: [0.05, 0.10, 0.22], beach: [0.08, 0.10, 0.20] });
 
 export function resolveWindParticlesV2(win = (typeof window !== 'undefined' ? window : null)) {
   const w = win || {};
   const num = (k, lo, hi, d) => ((typeof w[k] === 'number' && Number.isFinite(w[k])) ? Math.max(lo, Math.min(hi, w[k])) : d);
   return {
-    calib: w.__RAW_DISABLE_WIND_CALIBRATION_V2__ !== true,
-    theme: w.__RAW_DISABLE_WIND_THEME_V2__ !== true,
-    densityPer100: num('__RAW_WIND_V2_DENSITY__', 5, 1000, V2_DEFAULTS.densityPer100),
+    density: w.__RAW_DISABLE_WIND_DENSITY_V2__ !== true && w.__RAW_DISABLE_WIND_CALIBRATION_V2__ !== true,
+    motion: w.__RAW_WIND_MOTION_V2__ === true && w.__RAW_DISABLE_WIND_CALIBRATION_V2__ !== true,
+    theme: w.__RAW_WIND_THEME_V2__ === true && w.__RAW_DISABLE_WIND_THEME_V2__ !== true,
+    densityPer100: num('__RAW_WIND_V2_DENSITY__', 5, 2000, w.__RAW_WIND_MOTION_V2__ === true ? V2_DEFAULTS.densityPer100Motion : V2_DEFAULTS.densityPer100),
     speedMul: num('__RAW_WIND_V2_SPEED__', 0.25, 4, V2_DEFAULTS.speedMul),
     lifeS: num('__RAW_WIND_V2_LIFE_S__', 0.2, 10, V2_DEFAULTS.lifeS),
     composite: num('__RAW_WIND_V2_OPACITY__', 0.2, 1, V2_DEFAULTS.composite),
