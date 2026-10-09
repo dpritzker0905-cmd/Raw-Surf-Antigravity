@@ -132,8 +132,10 @@ class ViewportService:
         domain: str,
         layer: str,
         target_dt: datetime,
-        bbox_str: str
+        bbox_str: str,
+        background_tasks=None,
     ) -> Optional[NormalizedProduct]:
+        """`background_tasks`: the caller's, for a stale hit's refresh (see reval_queue.schedule_revalidation)."""
         from services.weather_pipeline.viewport_helper import get_cached_dynamic_product_helper
         return await get_cached_dynamic_product_helper(
             service=self,
@@ -141,7 +143,8 @@ class ViewportService:
             domain=domain,
             layer=layer,
             target_dt=target_dt,
-            bbox_str=bbox_str
+            bbox_str=bbox_str,
+            background_tasks=background_tasks,
         )
 
     async def fetch_viewport_grid_upstream(

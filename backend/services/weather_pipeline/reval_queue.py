@@ -20,6 +20,7 @@ Two rules, both enforced here so no site can drift:
 import asyncio
 import logging
 import os
+from datetime import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,15 @@ class SeriesFrame:
 
     def __repr__(self):
         return f"SeriesFrame(warm={self.warm})"
+
+
+def reval_key(model, domain, layer, target_dt, bbox) -> str:
+    """The queue key for one viewport fetch. The hour comes from the parsed `target_dt`, never the client's
+    string: /grid sends `...T00:00:00.000Z` and grid_series `...T00:00:00Z`, and as two keys one fetch
+    could take two slots."""
+    if target_dt.tzinfo is not None:
+        target_dt = target_dt.astimezone(timezone.utc)
+    return f"{model.lower()}_{domain.lower()}_{layer.lower()}_{target_dt:%Y-%m-%dT%H:%M:%SZ}_{bbox}"
 
 
 def _interactive_reserve() -> int:
