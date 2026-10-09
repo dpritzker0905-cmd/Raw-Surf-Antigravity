@@ -155,6 +155,49 @@ the owner sees an A/B without a deploy.
 
 Instrument choices and their sources: `reports/Wind particle close zoom legibility.md`.
 
+## Lane mode (`lane-run.js`): the HRRR wind lane across tiers, pans, upstreams and zooms
+
+```bash
+node scripts/wind-bench/lane-run.js
+node scripts/wind-bench/lane-run.js --images out/lane-images --json out/lane.json
+```
+
+The same instrument as eye mode, on the tiers AS `/grid` SERVES THEM after the HRRR wind lane (backend
+`weather_pipeline/wind_lane.py`, D-017). `fixtures/lane-*.json` and `fixtures/gfs-*.json` are built by
+`backend/scripts/wind_lane_bench_fixtures.py`, which runs the production `apply_wind_lane` on 2026-10-09 15Z tiers:
+- NOAA GFS 12Z f003;
+- Open-Meteo `gfs_global`;
+- the HRRR 12Z lane, f00-f08.
+
+The tiers:
+- the 2-degree world tier;
+- a 0.25-degree tile;
+- Open-Meteo dynamic boxes A and B;
+- NOAA native-recovery boxes A, C and D;
+- the 3 h taper's steps;
+- the `florida_east_coast` tile with and without the lane.
+
+Rows:
+- **Null (gated):**
+  - tier/pan: four boxes, two GFS upstreams, vs box B;
+  - zoom: z5.5-7;
+  - upstream: the same box from Open-Meteo and from the NOAA recovery, i.e. the breaker/cache order.
+- **Positive (gated):** the old mixed pair (eye-mode fixtures A and B) must not be the same eye.
+- **Reported:**
+  - the lattice (0.25 vs 0.5 deg);
+  - the eye through the taper.
+
+Exit `0` when every null holds and the positive control fails, `2` otherwise. `--images` writes PNGs of the drawn
+field with the 30-kn (eye) or 15-kn (coast) contour in white. They come from `eyeShot` in the page.
+
+2026-10-09 (AMD 890M, D3D11):
+- every null row: 0.0-0.2 km, the same 40-kn closing T, area x1.00;
+- positive: 38.3 km;
+- lattice: 0.5 km, area x0.30;
+- taper steps: 6.5-10.2 km per hour.
+
+See `docs/weather-program/log/2026-10-09-hrrr-wind-lane.md` §5.
+
 ## What it renders
 
 - **Canvas:** 897 × 914 css px (the owner's map pane) at a fixed DPR 2, WebGL2. The camera is

@@ -212,6 +212,20 @@ before starting it.
   INPUTS, which already hold the sampled height, so a sampler candidate would read "0 changes": L-S4's blindness in a
   new shape. Price a change upstream of the persisted inputs by re-sampling the products (and grade it with a ledger
   lane). (2026-09-30)
+- **L-S19 · A provider's model is not the model's field: read the source's own metadata before you trust the
+  provider's.** Open-Meteo's `gfs_hrrr` is HRRR's values, but with two of HRRR's own properties lost on the way.
+  - **The winds are grid-relative.** The GRIB's section-3 component flag says so, and the provider serves them as
+    earth-relative: -alpha in direction, 11-17 deg at US coasts.
+  - **Point-sampled at the node.** Its 3 km cell is taken at each 0.25-deg node: 5.2 kn p95 of aliasing.
+
+  Neither is visible in its JSON. The check that found them was the GRIB itself (`grid_section`, `check_grid`) and a
+  sign test against a third model (GFS) where the error must flip with longitude. Then truth confirmed it: 101 NDBC
+  buoys, +0.47-0.69 kn vector RMSE unrotated. When a provider repackages a model, test its grid convention, units and
+  sampling against the model's own metadata. (2026-10-09, log 2026-10-09-hrrr-wind-lane §2)
+- **L-S20 · Sharper is not more accurate: grade detail and skill separately, and claim only what was measured.** The
+  HRRR lane draws 1.37x the coastal gradient of GFS (19/19 valid times). At 101 NDBC buoys over 5 days it ties GFS
+  (vector RMSE 5.97 vs 5.99 kn at 3 h, 6.61 vs 6.47 at 24 h; 45/88 buoys better). "HRRR's sharper coast" was true;
+  "more accurate" would have been an assumption. (2026-10-09, same log §5)
 - **L-F7 · The serve path has the failed-vs-absent trap too.** A Supabase 429 on a regional tile made `/grid` answer
   from the 2-degree tier with `coverage_scope: regional`, `fallbackReason: null`, and the log called it
   "regional-quality at zoom-out" at INFO: 9 of 57 requests in one burst. A refused read must retry, then name its

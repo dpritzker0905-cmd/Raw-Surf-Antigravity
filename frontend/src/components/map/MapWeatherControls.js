@@ -9,7 +9,7 @@ import { getHeightUnit, setHeightUnit, M_TO_FT } from './heightUnits';
 import { windLegendGradientCSS, windLegendStops } from './WindColorRamp';
 import { valueTicks, evenTicks, dropCollisions, LegendTicks } from './legendTicks';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
-import ForecastTimeStatus from './ForecastTimeStatus';
+import TimelineStatus from './TimelineStatus';
 import { forecastReadout } from './forecastReadout';
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
@@ -584,7 +584,7 @@ export var MapWeatherControls = ({
           </div>
         )}
 
-        {!isRadar && SURF_TOGGLE_LAYERS.includes(activeLayer) && <ForecastTimeStatus model={activeModel} layer={activeLayer} hour={currentTimeOffset} theme={theme} />}
+        <TimelineStatus model={activeModel} layer={activeLayer} hour={currentTimeOffset} theme={theme} showTime={!isRadar && SURF_TOGGLE_LAYERS.includes(activeLayer)} showWind={!isRadar && activeModel === 'GFS' && (activeLayers || []).includes('wind')} />
         {/* v3.8: Day tick labels beneath scrubber — classic slider only (the wheel's drum
             carries its own day ticks + labels). */}
         {!useWheel && !isRadar && maxForecastHours > 24 && (

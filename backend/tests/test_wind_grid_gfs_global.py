@@ -70,7 +70,10 @@ async def _models_sent(monkeypatch, model, domain, layer):
 
 @pytest.mark.asyncio
 async def test_default_is_unchanged_gfs_wind_grid_still_asks_for_gfs_seamless(monkeypatch):
+    # The pre-lane default. Since D-017 the HRRR wind lane (WIND_HRRR_LANE, default on) implies gfs_global too
+    # (tests/test_wind_hrrr_lane.py), so the pre-lane behaviour is pinned with the lane killed.
     monkeypatch.delenv('WIND_GRID_GFS_GLOBAL', raising=False)
+    monkeypatch.setenv('WIND_HRRR_LANE', '0')
     assert await _models_sent(monkeypatch, 'GFS', 'wind', 'wind') == {'gfs_seamless'}
 
 
@@ -93,6 +96,7 @@ async def test_flag_on_touches_only_gfs_wind(monkeypatch, model, domain, layer, 
 
 @pytest.mark.parametrize('value,on', [('1', True), ('0', False), ('', False), ('true', False)])
 def test_flag_reads_the_environment_at_call_time(monkeypatch, value, on):
+    monkeypatch.setenv('WIND_HRRR_LANE', '0')          # the flag alone (the lane implies it; D-017)
     monkeypatch.setenv('WIND_GRID_GFS_GLOBAL', value)
     assert provider.wind_grid_gfs_global() is on
 

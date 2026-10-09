@@ -190,6 +190,61 @@ async function eyeOne(cfg) {
 }
 
 /**
+ * A picture of what the engine draws for {base, fine, lng, lat, z, theme}: one heatmap frame with the theme's real
+ * colour ramp (the particle pool 2x2, so the field is not hidden), on an opaque dark ground, downscaled to `width` css
+ * px. Returns a PNG data URL (lane-run.js writes before/after images with it).
+ */
+async function eyeShot(cfg) {
+  clearLevers();
+  Object.assign(window, cfg.levers || {});
+  const engine = new Engine();
+  try {
+    engine.particleRes = 2;
+    engine.init(gl);
+    engine.setWindData(gl, cfg.base);
+    if (cfg.fine) engine.setWindData(gl, cfg.fine);
+    const cam = makeCamera(cfg.lng, cfg.lat, cfg.z, CSS_W, CSS_H);
+    const draw = () => {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0.06, 0.08, 0.11, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      engine.render(gl, cam.matrix, canvas.width, canvas.height, cfg.z, cfg.theme || 'dark', null, cam.viewBounds);
+    };
+    await nextFrame(draw);
+    const w = cfg.width || 520, h = Math.round(w * CSS_H / CSS_W);
+    const c2 = document.createElement('canvas');
+    c2.width = w; c2.height = h;
+    const ctx = c2.getContext('2d');
+    await nextFrame(() => { draw(); ctx.drawImage(canvas, 0, 0, w, h); });
+    if (cfg.contourKn) {
+      // The T-kn contour, as eyeOne reads it: swap in the white-below-T ramp, read back, paint the mask's edge white.
+      const ramp = thresholdRamp(engine._maxWindSpeed, cfg.contourKn);
+      [engine._colorRamp, engine._fieldRamp].filter(Boolean).forEach((tex) => {
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.RGBA, gl.UNSIGNED_BYTE, ramp);
+      });
+      const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, px = new Uint8Array(W * H * 4);
+      await nextFrame(() => { draw(); gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px); });
+      const on = (x, y) => px[((H - 1 - y) * W + x) * 4] > 8;
+      ctx.fillStyle = '#ffffff';
+      for (let y = 1; y < H - 1; y += 1) {
+        for (let x = 1; x < W - 1; x += 1) {
+          if (on(x, y) && (!on(x - 1, y) || !on(x + 1, y) || !on(x, y - 1) || !on(x, y + 1))) {
+            ctx.fillRect(Math.floor(x * w / W), Math.floor(y * h / H), 1, 1);
+          }
+        }
+      }
+    }
+    const url = c2.toDataURL('image/png');
+    return { url, maxSpeed: +engine._maxWindSpeed.toFixed(1), fineActive: !!engine._windFine };
+  } finally {
+    engine.dispose(gl);
+    clearLevers();
+  }
+}
+
+/**
  * EYE mode, particles: the trail ink the respawn and density levers produce in the eye (disc of
  * `rKm` around `ref`) and on its wall (annulus `wallKm`), after `frames` real frames with a fixed
  * grid. If those levers reshaped the eye, the eye/wall ink ratio would move with zoom.
@@ -366,7 +421,7 @@ const PRESETS = {
   full: () => buildMatrix(),
 };
 
-window.__WIND_BENCH__ = { ready: !!gl, renderer: renderer(), dpr: DPR, runOne, run, eyeOne, eyeInk, landOne, presets: Object.keys(PRESETS), results: [] };
+window.__WIND_BENCH__ = { ready: !!gl, renderer: renderer(), dpr: DPR, runOne, run, eyeOne, eyeInk, eyeShot, landOne, presets: Object.keys(PRESETS), results: [] };
 
 document.getElementById('run').addEventListener('click', () => {
   const preset = document.getElementById('preset').value;
