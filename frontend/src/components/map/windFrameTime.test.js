@@ -59,5 +59,5 @@ test('the engine feeds all three per-frame processes the same elapsed-time scale
   expect(src).toMatch(/\* \(this\._dtScale = frameTimeScale\(this\)\)/);
   expect(src).toContain("'u_dt_scale'), this._dtScale || 1)");
   // particles v2 (2026-10-08) feeds its own calibrated fade through the SAME per-frame scaling
-  expect(src).toContain("'u_fade'), perFrameFade(_v2.motion ? _v2.fade : this.fadeOpacity, this._dtScale || 1))");
+  expect(src).toContain("'u_fade'), perFrameFade(_v2.motion ? _v2.fade : v2TrailFade(this.fadeOpacity, z, _v2), this._dtScale || 1))");
 });
