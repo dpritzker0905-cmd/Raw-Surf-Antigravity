@@ -41,6 +41,10 @@ node check.mjs --strict         # exit 1 on any RED line (for CI)
 | speed-colour core vs its tint | The streak's ~1 px colour core against the tint it sits on. Watch item only: the white ring carries the motion | \|ΔL*\| ≥ 3 |
 | colour-blind | Neighbouring legend stops and neighbouring tints over water, via coloraide (Viénot protan/deutan, Brettel tritan) | ≥ 5 ΔE2000 |
 
+The checker does not run in CI. `src/components/map/windPaletteCvd.test.js` pins the colour-blind lines there with a JS
+port of coloraide's models, anchored to coloraide's output. It also pins one accepted gap: light's tint over water is
+at 2.75, not 5 (log `docs/weather-program/log/2026-10-09-wind-cvd-palettes.md`).
+
 ## Why coloraide and not culori for colour blindness
 
 culori's Machado filter rendered a textbook red/green pair 17.6 ΔE2000 apart under deuteranopia. Both coloraide models

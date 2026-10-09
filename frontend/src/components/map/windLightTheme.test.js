@@ -74,7 +74,7 @@ describe('wiring', () => {
     expect(src).toContain('if (this._v2Premul !== _premul) { this._v2Premul = _premul;');
     expect(src).toContain("gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_premul'), _premul ? 1 : 0)");
     expect(src).toContain("gl.blendFunc(_premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _premul ? 1 : 0);");
-    expect(src).toContain("_v2.theme ? _v2.composite : (_pm.on ? _pm.opacity * windCloseLandFactor(effectiveTheme, z) : finalOpacity)");
+    expect(src).toContain("_v2.theme ? _v2.composite : (_pm.on ? _pm.opacity : finalOpacity) * windCloseLandFactor(effectiveTheme, z))");
     expect(src).not.toMatch(/u_premul'\), _v2\.theme \?/);
   });
   it('DRAW_FS drops the inner ring under the single-casing option, as the neutral theme always did', () => {

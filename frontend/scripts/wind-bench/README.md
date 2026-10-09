@@ -83,26 +83,77 @@ premultiplied at full opacity and hides what it covers, while a dark mark of the
 translucent. Land mode measures the screen instead. It takes about 3 minutes for all three themes.
 
 - **Basemap:** each frame is cleared to the theme's land colour (light `236,236,232`, beach
-  `222,208,180`). A 1-css-px line grid at 55% of that colour stands in for roads, rivers and coasts.
+  `222,208,180`, dark `0.07,0.08,0.10`). A 1-css-px line grid stands in for roads, rivers and coasts,
+  in each basemap's own road polarity: 55% of the land colour in light and beach, and lighter than the
+  land in dark, as navigation-night draws its roads. The first version drew dark's lines darker than its
+  land, and dark read a false 0.00 at z6.
 - **Render:** the real engine draws on top for 180 frames.
 - **Measure:** every vertical line pixel is paired with the background 6 css px to its right.
   - `retain`: their L* difference over the same on the bare basemap.
   - `lost`: the share of pairs below half their contrast.
+  - `sal`: the mean |dL*| the particles add over the field alone (their visual signal).
+  - `cover`: the share of pixels they move by more than 5 L*. `sal / cover` is the contrast per
+    marked pixel, which is what separates a thin crisp mark from a faint wide one.
 - **Runs:** each zoom runs twice, once with the field alone (a 2×2 particle pool) and once with the
   desktop pool.
   - `parts` = 1 − full/field: the share of the field-only contrast that the particles take away.
-- **View:** 28-38 kn air north-east of the bench storm.
+- **View:** 28-38 kn air north-east of the bench storm. Because the line grid is the same at every zoom,
+  this mode is the one to compare ZOOMS with (the real map's content changes with the camera).
 
-Baseline, 2026-10-09 (`dev` `db037eaf`, AMD Radeon 890M):
+`parts` on 2026-10-09 (AMD Radeon 890M), before and after `WIND_CLOSE_LAND` (light 0.65, beach 0.65, dark 0.8):
 
 | parts | z6 | z7 | z8 | z9 | z10 | z11 |
 |---|---|---|---|---|---|---|
-| light | 0.40 | 0.58 | 0.64 | 0.60 | 0.53 | 0.54 |
-| dark | 0.00 | 0.25 | 0.28 | 0.38 | 0.24 | 0.25 |
-| beach | 0.25 | 0.37 | 0.40 | 0.37 | 0.33 | 0.35 |
+| light, `dev` before #291 | 0.40 | 0.58 | 0.64 | 0.60 | 0.53 | 0.54 |
+| light, 0.65 | 0.40 | 0.43 | 0.43 | 0.40 | 0.35 | 0.36 |
+| beach, before | 0.25 | 0.37 | 0.40 | 0.37 | 0.33 | 0.35 |
+| beach, 0.65 | 0.25 | 0.27 | 0.26 | 0.25 | 0.21 | 0.23 |
+| dark, before | 0.24 | 0.31 | 0.34 | 0.29 | 0.25 | 0.26 |
+| dark, 0.8 | 0.25 | 0.27 | 0.28 | 0.24 | 0.21 | 0.22 |
 
-The field alone keeps about 0.80 in light and beach and 0.61 in dark, at every zoom.
-`WIND_CLOSE_LAND` (`WebGLWindUtils.js`) holds light's close zooms at its z6 level.
+The field alone keeps about 0.80 in light and beach and 0.49 in dark, at every zoom.
+
+## Map mode (`map-run.js`): the owner's real basemaps
+
+```bash
+node scripts/wind-bench/map-run.js                      # served strength, all themes, z6-11
+node scripts/wind-bench/map-run.js --scale 2.3          # storm strength (Mobile Bay median ~30 kn)
+node scripts/wind-bench/map-run.js --themes dark --zooms 8,9 --arms '{"now":{},"thin":{"__RAW_WIND_CLOSE_THIN__":2}}'
+```
+
+Land mode answers "how does the cost move with zoom" on fixed content. Map mode answers "what does
+the owner actually see":
+
+- **Basemap:** the Mapbox styles the app loads (navigation-day-v1, outdoors-v11,
+  navigation-night-v1) in MapLibre 5.
+- **Engine:** the real engine as a custom layer at the app's slot, under borders and labels, with the
+  app's coastline above it.
+- **Data:** a served grid, `fixtures/eye-2026-10-09-gfs-native.json` (GFS, 0.25°), over a 2° world
+  base, viewed at Mobile Bay, the owner's view.
+- **Token:** it needs `REACT_APP_MAPBOX_TOKEN` (the app's public token) from the environment or
+  `frontend/.env`. The runner hands it to the page in memory and never writes or prints it. A run
+  costs a few hundred Mapbox tile requests.
+
+Each camera is shot three ways from the same tiles and particle seed: `off` (no wind), `field` (a
+2×2 pool) and `full` (scored at 5 moments 0.2 s apart; medians). The metrics are computed at CSS-pixel
+scale over the basemap's own EDGE pixels (gradient ≥ 0.04 with the wind off), each scored between
+that line's own line pixel and ground pixel as found on the bare basemap:
+
+| column | meaning |
+|---|---|
+| `retF` / `retP` | share of each line's bare-basemap L* contrast kept under the field / field + particles |
+| `pLoss` | the particles' share: 1 − retP/retF (the twin of land mode's `parts`) |
+| `lostP` | share of lines under half their contrast |
+| `3:1F` / `3:1P` | share of the basemap's ≥ 3:1 lines still ≥ 3:1 (WCAG 1.4.11) |
+| `gsP` | a GMSD-style gradient similarity, as a cross-check; it cannot tell whose edge it is |
+| `sal` | mean \|dL*\| the particles add over the field alone |
+
+Score each line between its own two pixels. The first version took a 5×5 min/max AFTER compositing,
+so a particle's bright ring counted as line contrast, and lines read as more legible with particles
+on (85% → 94% at 3:1). It also writes `out/map-sheet.html` (off | field | full per arm), which is how
+the owner sees an A/B without a deploy.
+
+Instrument choices and their sources: `reports/Wind particle close zoom legibility.md`.
 
 ## Lane mode (`lane-run.js`): the HRRR wind lane across tiers, pans, upstreams and zooms
 
@@ -219,6 +270,14 @@ marks went dark (a HOLE near 44 kn here); just outside it, a ring over-inked (a 
 - **BLIND:** `shipped` lacks either shape (±5 kn), so the scanner is blind and the run is invalid.
 - **FAIL:** `candidate` still shows either shape.
 - **PASS:** `shipped` shows both shapes and `candidate` shows neither.
+
+The control runs its own arms, `controlShipped` and `controlCandidate`: the pair above with the
+dark palette PINNED (`__RAW_DISABLE_WIND_DARK_CVD__`). #292's colour-blind dark palette made the HOLE
+too faint to score, and the control went BLIND on a healthy scanner. The field still crosses the casing
+pole at about 41 kn, but the warm bands above it are lighter. A control must not depend on the palette
+of the day. The full matrix still renders the shipped palette, and on a tree without the lever the pin
+is simply unread. On 2026-10-09 it read PASS on `dev` (HOLE 41 blocks @ 44.1 kn, BLOB 35 @ 35 kn) and
+on the merged close-zoom work (HOLE 47 @ 44 kn, BLOB 42 @ 34.3 kn).
 
 ### Baseline, 2026-10-09 (AMD Radeon 890M, D3D11, headless Chromium)
 
