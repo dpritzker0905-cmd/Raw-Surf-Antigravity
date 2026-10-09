@@ -27,6 +27,11 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
+try:
+    from _fetch_window import window_f_hours            # script-by-path
+except ImportError:  # pragma: no cover - package-context fallback
+    from services._fetch_window import window_f_hours
+
 S3_BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 GRID = "pgrb2.0p25"
 HTTP_TIMEOUT = 60
@@ -170,6 +175,8 @@ def fetch_global_coarse(payload):
     if not prefix:
         sys.stderr.write("[noaa_gfs_wind_fetcher] no complete GFS atmos cycle found on AWS Open Data\n")
         return ({} if multi else []), 0, 0, None
+    # A native recovery asks for the viewed hour's steps only (services/_fetch_window.py); ingest sends no window.
+    f_hours = window_f_hours(f_hours, cycle_dt, payload.get("valid_window"))
 
     tmp = Path(tempfile.gettempdir())
     series_by = {rid: [{"wind_speed_10m": [], "wind_direction_10m": []}

@@ -16,7 +16,7 @@ import time
 from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException
-from services.weather_pipeline.reval_queue import SeriesFrame
+from services.weather_pipeline.reval_queue import SeriesFrame, series_frame_scope
 from services.weather_pipeline.series_source_policy import (
     has_stored_series_coverage, live_lane_cannot_beat_stored, recover_missing_hours)
 
@@ -455,13 +455,16 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                 _kw = {}
                 if bound["stride"] > 1 and _resolver_takes_series_stride(resolve_grid):
                     _kw["series_stride"] = bound["stride"]
-                product = await asyncio.wait_for(
-                    resolve_grid(
-                        model=model, domain=domain, layer=layer,
-                        valid_time=vt_str, bbox=bbox, surf=surf, background_tasks=bg, **_kw
-                    ),
-                    timeout=_t,
-                )
+                # The frame also marks what it starts deeper down, where `bg` does not reach: a failed
+                # fine-wind fetch's native recovery (wind_native_recovery, 2026-10-09).
+                with series_frame_scope(bg):
+                    product = await asyncio.wait_for(
+                        resolve_grid(
+                            model=model, domain=domain, layer=layer,
+                            valid_time=vt_str, bbox=bbox, surf=surf, background_tasks=bg, **_kw
+                        ),
+                        timeout=_t,
+                    )
             # Bound this hour BEFORE the gather can collect it — the whole point (see above).
             _g = getattr(product, "grid", None) if product is not None else None
             if _g is not None and getattr(_g, "vectors", None):
