@@ -32,7 +32,7 @@ from services.weather_pipeline.grid_resolver_selection import (
     apply_surf_regional_prefer, prefer_overlapping_marine_region,
 )
 from services.weather_pipeline.grid_resolver_surf import apply_surf_overlay
-from services.weather_pipeline.reval_queue import schedule_revalidation
+from services.weather_pipeline.reval_queue import reval_key, schedule_revalidation
 
 logger = logging.getLogger(__name__)
 
@@ -225,8 +225,11 @@ async def resolve_grid(
 
     # Step 1 & 2: Exact/fresh or stale dynamic cache hit for snapped viewport
     if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
+        # background_tasks: a stale (>30 min) hit refreshes through reval_queue like every other site, so
+        # a series frame starts nothing and the viewed hour's /grid keeps its slot (2026-10-09).
         product = await viewport_service.get_cached_dynamic_product(
-            model=model, domain=domain, layer=layer, target_dt=target_dt, bbox_str=bbox
+            model=model, domain=domain, layer=layer, target_dt=target_dt, bbox_str=bbox,
+            background_tasks=background_tasks,
         )
         if product is not None:
             from services.weather_pipeline.dynamic_cycle_policy import superseded_dynamic
@@ -295,7 +298,7 @@ async def resolve_grid(
                                 product.coverage_scope = "regional_partial"
                                 # Preserve the existing SWR queue bound and eligibility. Fetch the
                                 # ORIGINAL viewport so a partial regional never becomes sticky.
-                                key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
+                                key = reval_key(model, domain, layer, target_dt, bbox)
                                 span = max((req_e - req_w) % 360, req_n - req_s)
                                 if (viewport_service.is_viewport_enabled(
                                         model, domain, layer, False, bbox, target_dt=target_dt)
@@ -356,9 +359,9 @@ async def resolve_grid(
                     if product.grid and product.grid.bounds:
                         product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
                     if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
-                        reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
+                        key = reval_key(model, domain, layer, target_dt, bbox)
                         schedule_revalidation(viewport_service, background_tasks, model, domain, layer,
-                                              valid_time, target_dt, bbox, reval_key)
+                                              valid_time, target_dt, bbox, key)
             elif candidate_product:
                 logger.warning(
                     f"[Grid Resolver] Skipping oversized stale preview product {manifest_preview_item.filename} "
@@ -436,9 +439,9 @@ async def resolve_grid(
             if preview.grid and preview.grid.bounds:
                 preview.served_bbox = f"{preview.grid.bounds.west:.4f},{preview.grid.bounds.south:.4f},{preview.grid.bounds.east:.4f},{preview.grid.bounds.north:.4f}"
             # Kick off background revalidation so the next request resolves the precise viewport.
-            reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
+            key = reval_key(model, domain, layer, target_dt, bbox)
             schedule_revalidation(viewport_service, background_tasks, model, domain, layer,
-                                  valid_time, target_dt, bbox, reval_key)
+                                  valid_time, target_dt, bbox, key)
             logger.info(
                 f"[Grid Route] Instant coarse preview {preview.product_id} "
                 f"({len(preview.grid.vectors)} vec) for {model} {layer}; revalidating viewport in background."
