@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-09: light and beach wind read true: the basemap is muted under the wind (client only; PR open).**
+- **2026-10-09: light and beach wind read true: the basemap is muted under the wind (client only; PR #296).**
   - **The defect.** The owner saw "ambiguity to the wind color vs the color of the map". The field multiplies into
     full-colour basemaps, so a 33-40 kn gold over cyan water came out green (a 16-21 kn colour on the legend). New
     path bench (`frontend/scripts/wind-bench/path-run.js`: pans, flings, zooms, pinch, jitter, erratic walks; real
@@ -1642,7 +1642,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 977, sha256 dbd6554de2543202a194de17dd1baacfb2c467a59b53bc57b177bfe2698b8869**
+  **Ledger head: seq 978, sha256 f62a83912bc4ed50c14a7df293c1aad4d90ddd763a73557be78ce687c298d547**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
