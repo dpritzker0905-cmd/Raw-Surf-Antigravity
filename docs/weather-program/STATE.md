@@ -14,6 +14,16 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-09 16:03Z: hurricane eye on a one-stop zoom diagnosed; dark fix `WIND_GRID_GFS_GLOBAL` in review.**
+  The owner's two zoom stops filed fine overlays from two upstreams that share the GFS label:
+  - Open-Meteo `gfs_seamless` = HRRR in its domain;
+  - the NOAA-GFS native recovery, used while Open-Meteo's breaker was open.
+
+  Eye bench (new, `frontend/scripts/wind-bench/eye-run.js`): the eye moves 38.3 km, its weakest wall point drops
+  16 kn and its area changes x2.17; with the flag, 9.1 km / 2 kn / x0.71. Null and positive controls PASS. The flag
+  is dark (served wind speeds move in HRRR's domain), and the flip is owner-only. Log
+  `log/2026-10-09-hurricane-eye-one-model.md`.
+
 - **2026-10-08 02:10Z: PR262 bounded health and donor-label repairs published for own qualification.**
   Actualinitial4179 normalpush/draftPR262dev createdandattached,clean/remotematch/base3d/openmergeable. Publicationreceipt960 carriesactualprior261post949-956 and own957-959 sourceevidence; finalcandidate willqualifyitsownchecks. Original860/datawarnings/E2E/Gulf/device/isolation/playback unchanged. Ownconditionalrolloutpending957.
 
@@ -1653,12 +1663,19 @@ direction fix (not supported by a bulk-buoy instrument; needs spectral truth).
 - Marine Nightly zoomlab: 12 MULT0 animation frames (2026-09-29) and 15 s API timeouts (2026-09-28). n = 2. The MULT0 frames are F-22: diagnosed and FIXED in the client 2026-10-02 (see Now); not yet read back on the nightly.
 - The live `/spot-ratings` fallback still rates on the global default when its climatology read fails (#162
   residual; failing closed there needs a frontend decision).
-- **Hurricane eye changes shape while the hour is fixed (owner, 2026-10-09, LIVE data, not scrubbing).** It changes when
-  panning. n = 1, not yet measured. Hypothesis to test first: a pan swaps the viewport grid (world 2° / clip / 0.25°
-  fine; different bounds or resolution), and the eye is only a few cells wide, so the bilinear-sampled vortex reshapes.
-  The other suspect is the viewport-biased respawn and density changing with the view. Instruments: the committed wind
-  bench (#284), pan the camera over a fixed field and compare eye radius and shape per grid, plus a still-camera live
-  readback of which grid is drawn.
+- **Hurricane eye changes shape while the hour is fixed (owner, 2026-10-09): DIAGNOSED 2026-10-09, fix dark on
+  branch `claude/wind-eye-one-model`** (log `2026-10-09-hurricane-eye-one-model.md`). The bounds/bilinear hypothesis
+  is ruled out: the same data in another box draws the identical eye (0 km). The real cause is two models under one
+  label. A one-stop zoom changed the snapped box, and the two boxes came from different lanes:
+  - Open-Meteo `gfs_seamless`, which is HRRR inside HRRR's domain (405/405 nodes equal `gfs_hrrr`);
+  - the native recovery, which is NOAA GFS.
+
+  Measured on the wind bench (eye mode): the eye centre moves 38.3 km, the weakest wall point drops 16 kn, and the
+  eye's area changes x2.17. `WIND_GRID_GFS_GLOBAL=1` (Render env, default 0) cuts that to 9.1 km / 2 kn / x0.71.
+  Owner-only: the flip.
+- Wind, open (measured 2026-10-09, same log): above z6 the speed-aware draw cull switches on at full strength in one
+  step, so with the grid fixed the eye's trail ink over its wall's goes 1.21 (z6) -> 1.77 (z6.5). A fade-in over
+  z6 -> 7 is the candidate; it needs an owner A/B.
 - Wind, still open from #281/#282: a bright blob at the eyewall that the significance scanner flags in every theme (all
   bench seeds, ~37-42 kn); and particles losing salience where they match a same-coloured field at the storm's peak ring.
 

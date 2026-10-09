@@ -473,3 +473,18 @@ A stored estimate can be estimated again in a browser branch with different sour
   the same two changes at 0.28 (the owner asked for "slightly less bold"); dark keeps its approved look. To verify, use a
   local page with real MapLibre, the real Mapbox style and the real wind engine as a custom layer, side by side; unit
   tests cannot see layer order (WebGLWindUtils.windLayerBeforeId / windCoastlineLayer).
+- **L-V11 · Before blaming the renderer, ask which upstream built each grid: a label is not a model.** The owner saw
+  the hurricane eye change on a one-stop zoom at a fixed hour. The leading hypothesis was rendering (a few-cell eye
+  resampled on another box). The null control killed it in one run: the same data cropped to the other box drew the
+  identical eye (0 km, x1.00). The real cause was in the data. The two zoom stops' boxes came from two lanes that
+  share the label GFS / `gfs_seamless`: Open-Meteo's `gfs_seamless` is HRRR inside HRRR's domain (405/405 nodes equal
+  `gfs_hrrr`), and the native recovery is NOAA GFS. The engine's "never blend two models" check compares labels, so it
+  could not see this. Instruments that settled it: the console's `maxWindSpeed` flipping per stop, Render's
+  per-product upstream lines, Open-Meteo queried per model at the served nodes, and a bench with the real engine and
+  the served grids as fixtures (log 2026-10-09-hurricane-eye-one-model). When two grids of one field disagree, diff
+  their VALUES on shared nodes before their geometry.
+- **L-V12 · A draw lever that steps at a zoom boundary reads as the picture changing shape.** Above z6 the speed-aware
+  cull switches on at full strength in one step. It fades out at 7.5-9.5 but has no fade-in. With the grid fixed, the
+  eye's trail ink over its wall's went 1.21 -> 1.77 from z6 to z6.5. Any lever gated on `zoom > N` needs a ramp, or
+  a one-stop zoom across N will look like a different storm. Measure each zoom-gated lever with the grid FIXED at
+  N-0.5 and N+0.5 before shipping it.
