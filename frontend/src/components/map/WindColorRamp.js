@@ -247,22 +247,37 @@ var PRE_CVD = {
   },
 };
 var CVD_KILL = { dark: '__RAW_DISABLE_WIND_DARK_CVD__', beach: '__RAW_DISABLE_WIND_BEACH_CVD__', light: '__RAW_DISABLE_WIND_LIGHT_CVD__' };
+// LIGHT, ON A NEUTRAL GROUND (2026-10-09, owner: "then do the light colour-blind palette pass"). With the basemap muted
+// under the wind (windBasemapMute.js), light's tint sits on grey water and grey land, where its fast bands had always
+// collapsed for a deuteranope (27-33 kn: 1.8 on its own near-grey land, 1.9 on the muted water). Same solver as the pass
+// above, every Jest gate hard, NO new lightness/chroma peak or dip on any ground (muted or not), the unmuted water held at
+// its 2.75 and the land not lowered. Five field stops move <= 0.014 dE_OK (total 0.040; L* within 1.6): 33 and 40 kn a
+// touch deeper, 21 kn a touch less green. Weakest neighbouring tints: muted water 1.92 -> 2.58, muted land 1.85 -> 2.59,
+// unmuted land 1.83 -> 2.52, unmuted water 2.75 (kept). THE CEILING IS ~2.6 under light's rules, not 5 (4 + 6 maximin
+// seeds: 2.36-2.64). What binds is smoothness: a pass that may draw new lightness bands reaches 5.2 only with 4.5-8 L*
+// stripes at 33/47/63 kn (L-V15); 3 L* bands reach ~4. Removing the strength parity alone reaches ~3.2. Five needs a
+// redesign of the warm fast-band hues (log 2026-10-09-light-neutral-cvd). Kill: __RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__
+// (light field rows below; the older kills still win on the rows they share).
+var PRE_NEUTRAL_CVD_LIGHT_FIELD = { 3: [10, 0.719, 0.640, 0.914, 0.80], 5: [21, 0.462, 0.759, 0.538, 0.84], 6: [27, 0.631, 0.705, 0.434, 0.86],
+  7: [33, 0.687, 0.634, 0.429, 0.87], 8: [40, 0.751, 0.595, 0.470, 0.88] };
 function revertRows(ramp, rows) { return ramp.map(function(stop, i) { return rows[i] ? rows[i].slice() : stop; }); }
 function cvdPassed(ramp, kind, theme, w) {
   var pre = PRE_CVD[kind][theme];
   return pre && w && w[CVD_KILL[theme]] === true ? revertRows(ramp, pre) : ramp;
 }
 function midbandRefined(ramp, kind, theme, w) {
+  if (kind === 'field' && theme === 'light' && w && w.__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__ === true) ramp = revertRows(ramp, PRE_NEUTRAL_CVD_LIGHT_FIELD);
   ramp = cvdPassed(ramp, kind, theme, w);   // the older kills below win over it on the rows they share
   var out = (theme === 'light' && w && w.__RAW_DISABLE_WIND_LIGHT_LOWBAND__ === true) ? revertRows(ramp, PRE_LIGHT_LOWBAND[kind]) : ramp;
   var pre = PRE_MIDBAND_STOPS[kind][theme];
   if (!pre || !w || w.__RAW_DISABLE_WIND_MIDBAND_REFINE__ !== true) return out;
   return revertRows(out, pre);
 }
-var LIGHT_FIELD_RAMP = [   // 6-63 kn: the COLOUR-BLIND PASS (each stop <= 0.05 dE_OK; 33 kn a deeper, 55 kn a cooler tint)
+var LIGHT_FIELD_RAMP = [   // 6-63 kn: the COLOUR-BLIND PASS (each stop <= 0.05 dE_OK; 33 kn a deeper, 55 kn a cooler tint);
+  // 10-40 kn: the NEUTRAL-GROUND pass (each <= 0.014 dE_OK; see PRE_NEUTRAL_CVD_LIGHT_FIELD)
   [0,  0.942, 0.964, 0.987, 0.72], [3,  0.803, 0.757, 0.982, 0.75], [6,  0.631, 0.705, 0.891, 0.78],
-  [10, 0.719, 0.640, 0.914, 0.80], [16, 0.466, 0.625, 0.412, 0.82], [21, 0.462, 0.759, 0.538, 0.84],
-  [27, 0.631, 0.705, 0.434, 0.86], [33, 0.687, 0.634, 0.429, 0.87], [40, 0.751, 0.595, 0.470, 0.88],
+  [10, 0.710, 0.639, 0.913, 0.80], [16, 0.466, 0.625, 0.412, 0.82], [21, 0.462, 0.747, 0.521, 0.84],
+  [27, 0.634, 0.708, 0.432, 0.86], [33, 0.670, 0.618, 0.409, 0.87], [40, 0.742, 0.579, 0.462, 0.88],
   [47, 0.834, 0.599, 0.536, 0.90], [55, 0.783, 0.591, 0.571, 0.91], [63, 0.782, 0.608, 0.683, 0.93],
   [75, 0.736, 0.616, 0.753, 0.95],
 ];
