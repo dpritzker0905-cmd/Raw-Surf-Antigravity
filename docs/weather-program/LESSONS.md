@@ -414,3 +414,11 @@ A stored estimate can be estimated again in a browser branch with different sour
   three data bugs the offline harness could not: unwrapped `map.getBounds()` across +-180 requesting a fine box
   clamped at -180 (a seam line mid-Pacific, #275); a coarser grid overwriting a finer overlay still on screen (#275);
   the backend's two-slot sharpen queue filled by timeline-prefetch frames so the viewed hour never sharpened (open).
+- **L-V6 · A flat head count is not a flat look: calibrate the INK at every zoom you ship.** #276 held 490 marks per
+  100x100 css px at every zoom from anchors measured at z2-z6 only. Above z6 each mark lays far more ink (the z>6 step
+  mode, zoom-grown marks), so the trail buffer saturated (z7.5: 99.8% of the screen inked vs 19.4% before) and the
+  owner saw "diamonds in the red wind": the mark colour became the picture and the grid's top-speed cells read as solid
+  bilinear diamonds. The instrument that settled it reads the trail framebuffer (mean brightness = the composite's
+  alpha); a dose sweep per zoom then set the close-zoom curve to the approved ink (~150/255). L-V3's own caveat
+  ("head count alone is not ink") was written and then not applied: the test suite asserted the flat count at z7.5-z14,
+  so it encoded the bug. Measure the quantity the eye sees at every zoom the change touches, before shipping.
