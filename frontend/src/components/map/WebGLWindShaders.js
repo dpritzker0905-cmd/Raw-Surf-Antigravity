@@ -21,7 +21,7 @@ uniform vec2 u_wind_res;          // wind grid resolution (cols, rows)
 uniform float u_speed_scale;      // scale-invariant speed scale (float for Mercator)
 uniform float u_rand_seed;        // per-frame random seed for respawn
 uniform float u_drop_rate;        // base particle drop rate
-uniform float u_drop_rate_bump; uniform float u_dt_scale; uniform float u_drop_cap; uniform float u_v2_calib; uniform vec4 u_v2_box; uniform vec2 u_v2_drop; // bump: speed-dependent drop increase; dt_scale: A15-18 elapsed 60 Hz frames (0 = unset -> 1); drop_cap: motion floor (0 = unset -> 1)
+uniform float u_drop_rate_bump; uniform float u_dt_scale; uniform float u_drop_cap; uniform float u_v2_density; uniform float u_v2_motion; uniform vec4 u_v2_box; uniform vec2 u_v2_drop; // bump: speed-dependent drop increase; dt_scale: A15-18 elapsed 60 Hz frames (0 = unset -> 1); drop_cap: motion floor (0 = unset -> 1)
 uniform float u_edgeFeatherEnabled; // regional edge feather flag
 uniform vec2 u_dataBounds_min;    // regional bounds min [west, south]
 uniform vec2 u_dataBounds_max;    // regional bounds max [east, north]
@@ -263,7 +263,7 @@ void main() {
   // lifetime at annulus-median speed). A deliberate, GATED ink premium like the calm floor —
   // bounded to the vortex's small screen area; the 0.002 floor (== the base drop rate) keeps
   // particles mortal. gate 0 -> dropRate unchanged.
-  if (u_v2_calib > 0.5) dropRate = max(u_v2_drop.x + u_v2_drop.y * clamp(speed / max(u_speed_max, 1.0), 0.0, 1.0), speed < 1.0 ? 0.04 : 0.0); // V2: ~2 s life, calm keeps 25 frames
+  if (u_v2_motion > 0.5) dropRate = max(u_v2_drop.x + u_v2_drop.y * clamp(speed / max(u_speed_max, 1.0), 0.0, 1.0), speed < 1.0 ? 0.04 : 0.0); // V2: ~2 s life, calm keeps 25 frames
   dropRate = max(dropRate * mix(1.0, 0.35, vortexGate), 0.002); dropRate = min(dropRate, u_drop_cap > 0.0 ? u_drop_cap : 1.0); // MOTION FLOOR: life >= 1/u_drop_cap frames
   float drop = step(pow(1.0 - dropRate, u_dt_scale > 0.0 ? u_dt_scale : 1.0), rand(seed));   // A15-18
 
@@ -276,7 +276,7 @@ void main() {
   if (isOob) {
     drop = 1.0;
   }
-  if (u_v2_calib > 0.5) { // V2: recycle anything that leaves the padded viewport (x wraps in global space)
+  if (u_v2_density > 0.5) { // V2: recycle anything that leaves the padded viewport (x wraps in global space)
     float inX = (u_zoom > 6.0) ? step(u_v2_box.x, nextPos.x) * step(nextPos.x, u_v2_box.z) : step(fract(nextPos.x - u_v2_box.x), u_v2_box.z - u_v2_box.x);
     drop = max(drop, 1.0 - inX * step(u_v2_box.y, nextPos.y) * step(nextPos.y, u_v2_box.w)); }
 
@@ -365,7 +365,7 @@ void main() {
     }
     newPos = vec2((randLng + 180.0) / 360.0, randY);
   }
-  if (u_v2_calib > 0.5) { newPos = mix(u_v2_box.xy, u_v2_box.zw, randVal); if (u_zoom <= 6.0) newPos.x = fract(newPos.x); } // V2: respawn in view
+  if (u_v2_density > 0.5) { newPos = mix(u_v2_box.xy, u_v2_box.zw, randVal); if (u_zoom <= 6.0) newPos.x = fract(newPos.x); } // V2: respawn in view
   pos = mix(nextPos, newPos, drop);
   if (u_zoom <= 6.0) {
     pos.y = clamp(pos.y, 0.001, 0.999);
@@ -388,7 +388,7 @@ varying float v_speed;
 varying float v_alpha;
 varying vec4 v_debug_color;
 varying vec2 v_dir;              // 2026-07-18: screen-space wind direction — the mark is ORIENTED
-uniform float u_v2_calib; uniform float u_v2_keep; uniform float u_v2_px_per_kn; uniform float u_v2_speed_max; uniform float u_v2_gamma; varying float v_stretch; // PARTICLES V2
+uniform float u_v2_density; uniform float u_v2_motion; uniform float u_v2_keep; uniform float u_v2_px_per_kn; uniform float u_v2_speed_max; uniform float u_v2_gamma; varying float v_stretch; // PARTICLES V2
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
@@ -453,7 +453,7 @@ void main() {
     float keepFloor = (u_closezoom_density > 0.5) ? 0.70 : 0.45;
     keepRate = mix(1.0, keepFloor, smoothstep(4.0, 8.0, u_zoom));
   }
-  if (u_v2_calib > 0.5) keepRate = u_v2_keep; // V2: density pinned in screen space (WebGLWindUtils.v2KeepRate)
+  if (u_v2_density > 0.5) keepRate = u_v2_keep; // V2: density pinned in screen space (WebGLWindUtils.v2KeepRate)
   if (p_rand > keepRate) {
     gl_Position = vec4(-2.0, -2.0, -2.0, 1.0);
     return;
@@ -652,7 +652,7 @@ void main() {
   }
 
   v_stretch = 1.0; // V2: stretch the mark along the flow by its own per-frame step, so the stamps join into a streak
-  if (u_v2_calib > 0.5 && gl_PointSize > 0.0) { float stepPx = v_speed * u_v2_px_per_kn * pow(clamp(v_speed / max(u_v2_speed_max, 1.0), 0.02, 1.0), u_v2_gamma - 1.0) * max(u_dpr, 1.0);
+  if (u_v2_motion > 0.5 && gl_PointSize > 0.0) { float stepPx = v_speed * u_v2_px_per_kn * pow(clamp(v_speed / max(u_v2_speed_max, 1.0), 0.02, 1.0), u_v2_gamma - 1.0) * max(u_dpr, 1.0);
     v_stretch = (gl_PointSize + stepPx) / gl_PointSize; gl_PointSize += stepPx; }
   // Debug mode colors
   if (u_debug_mode > 0.5) {

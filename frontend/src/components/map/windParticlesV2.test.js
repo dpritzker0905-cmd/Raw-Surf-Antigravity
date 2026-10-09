@@ -42,16 +42,20 @@ function drawnPer100(z, w = W, h = H, pool = POOL, lat = 24, lng = -89.5) {
 }
 
 describe('resolver', () => {
-  it('both halves default ON at the owner-approved calibration', () => {
+  // SYNC (2026-10-08, owner: "we were close before you made major changes in v2 by making solid color particles").
+  it('default = DENSITY control only, at the measured pre-v2 look (490); motion and neutral theme are opt-in', () => {
     const r = resolveWindParticlesV2({});
-    expect(r).toMatchObject({ calib: true, theme: true, densityPer100: 12, fade: 0.93, speedMul: 1.16, lifeS: 2.0, composite: 0.95 });
+    expect(r).toMatchObject({ density: true, motion: false, theme: false, densityPer100: 490 });
   });
-  it('each half has its own kill switch', () => {
-    expect(resolveWindParticlesV2({ __RAW_DISABLE_WIND_CALIBRATION_V2__: true })).toMatchObject({ calib: false, theme: true });
-    expect(resolveWindParticlesV2({ __RAW_DISABLE_WIND_THEME_V2__: true })).toMatchObject({ calib: true, theme: false });
+  it('opt-ins and kills', () => {
+    expect(resolveWindParticlesV2({ __RAW_WIND_MOTION_V2__: true })).toMatchObject({ density: true, motion: true, theme: false, densityPer100: 12, fade: 0.93, speedMul: 1.16, lifeS: 2.0 });
+    expect(resolveWindParticlesV2({ __RAW_WIND_THEME_V2__: true })).toMatchObject({ theme: true, composite: 0.95 });
+    expect(resolveWindParticlesV2({ __RAW_WIND_THEME_V2__: true, __RAW_DISABLE_WIND_THEME_V2__: true }).theme).toBe(false);
+    expect(resolveWindParticlesV2({ __RAW_DISABLE_WIND_DENSITY_V2__: true }).density).toBe(false);
+    expect(resolveWindParticlesV2({ __RAW_DISABLE_WIND_CALIBRATION_V2__: true, __RAW_WIND_MOTION_V2__: true })).toMatchObject({ density: false, motion: false });
   });
   it('levers are clamped and junk is ignored', () => {
-    expect(resolveWindParticlesV2({ __RAW_WIND_V2_DENSITY__: 9999 }).densityPer100).toBe(1000);
+    expect(resolveWindParticlesV2({ __RAW_WIND_V2_DENSITY__: 9999 }).densityPer100).toBe(2000);
     expect(resolveWindParticlesV2({ __RAW_WIND_V2_SPEED__: 0 }).speedMul).toBe(0.25);
     expect(resolveWindParticlesV2({ __RAW_WIND_V2_LIFE_S__: '3' }).lifeS).toBe(2.0);
     expect(resolveWindParticlesV2({ __RAW_WIND_V2_OPACITY__: NaN }).composite).toBe(0.95);
@@ -63,7 +67,9 @@ describe('density is a design constant, not an accident of zoom', () => {
   // The target is INK parity with the shipped look, calibrated on the GPU (2026-10-08 A/B, real shaders): long-lived
   // heads drag tails, so the shipped head count (~130) carpeted 95% of the field; 12 heads + fade 0.93 matched the
   // shipped dark ink (mean alpha 0.112 vs 0.094, coverage 19% vs 12%). Held at EVERY zoom.
-  it.each([1, 2, 3, 4, 5, 6, 6.2, 7, 7.5, 8, 9, 10, 11, 12, 14])('z%d draws the designed density (12 heads / 100x100 css px)', (z) => {
+  // SYNC: the default target is the owner-approved pre-v2 look measured on dev (z2 487, z6 493 marks per 100x100
+  // css px; the trough it removes: z3 173, z4 78, z5 216). Opt-in v2 motion uses its own 12-head ink-parity value.
+  it.each([1, 2, 3, 4, 5, 6, 6.2, 7, 7.5, 8, 9, 10, 11, 12, 14])('z%d draws the designed density (490 / 100x100 css px)', (z) => {
     expect(drawnPer100(z)).toBeCloseTo(V2_DEFAULTS.densityPer100, 1);
   });
   it('the measured shipped curve swung 12x; v2 is flat', () => {
@@ -171,15 +177,16 @@ describe('theme contrast: >= 3:1 against the field at every speed, every theme (
 
 describe('shader wiring', () => {
   it('advect: v2 drop rule, recycle on exit, respawn inside the box', () => {
-    expect(ADVECT_FS).toMatch(/uniform float u_v2_calib; uniform vec4 u_v2_box; uniform vec2 u_v2_drop;/);
-    expect(ADVECT_FS).toContain('if (u_v2_calib > 0.5) dropRate = max(u_v2_drop.x + u_v2_drop.y * clamp(speed / max(u_speed_max, 1.0), 0.0, 1.0), speed < 1.0 ? 0.04 : 0.0);');
+    expect(ADVECT_FS).toMatch(/uniform float u_v2_density; uniform float u_v2_motion; uniform vec4 u_v2_box; uniform vec2 u_v2_drop;/);
+    expect(ADVECT_FS).toContain('if (u_v2_motion > 0.5) dropRate = max(u_v2_drop.x + u_v2_drop.y * clamp(speed / max(u_speed_max, 1.0), 0.0, 1.0), speed < 1.0 ? 0.04 : 0.0);');
     expect(ADVECT_FS).toContain('drop = max(drop, 1.0 - inX * step(u_v2_box.y, nextPos.y) * step(nextPos.y, u_v2_box.w));');
     expect(ADVECT_FS).toContain('newPos = mix(u_v2_box.xy, u_v2_box.zw, randVal); if (u_zoom <= 6.0) newPos.x = fract(newPos.x);');
     // ordering: the v2 rule precedes the vortex lever and the motion floor, which still apply on top
     expect(ADVECT_FS.indexOf('u_v2_drop.x')).toBeLessThan(ADVECT_FS.indexOf('mix(1.0, 0.35, vortexGate)'));
   });
   it('draw: density cull and step stretch; the fragment stays a dash of the base width', () => {
-    expect(DRAW_VS).toContain('if (u_v2_calib > 0.5) keepRate = u_v2_keep;');
+    expect(DRAW_VS).toContain('if (u_v2_density > 0.5) keepRate = u_v2_keep;');
+    expect(DRAW_VS).toContain('if (u_v2_motion > 0.5 && gl_PointSize > 0.0) {');   // the stretch belongs to MOTION
     expect(DRAW_VS).toMatch(/v_stretch = \(gl_PointSize \+ stepPx\) \/ gl_PointSize; gl_PointSize \+= stepPx;/);
     expect(DRAW_FS).toContain('localCoord = vec2(along.x, along.y * elong * max(v_stretch, 1.0));');
   });
@@ -194,13 +201,14 @@ describe('shader wiring', () => {
 
 describe('engine wiring', () => {
   const src = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
-  it('speed: the z6 speed everywhere, no min-step clamp under v2', () => {
-    expect(src).toContain('const stableSpeedScale = ((z > 6.0 || _v2.calib)');
-    expect(src).toContain('(this.speedFactor * (_v2.calib ? _v2.speedMul : 1) * Math.pow(0.5, z) * 0.00025)');
+  it('speed and fade: the v2 values apply only under opt-in MOTION (the default keeps the pre-v2 step and fade)', () => {
+    expect(src).toContain('const stableSpeedScale = ((z > 6.0 || _v2.motion)');
+    expect(src).toContain('(this.speedFactor * (_v2.motion ? _v2.speedMul : 1) * Math.pow(0.5, z) * 0.00025)');
+    expect(src).toContain('perFrameFade(_v2.motion ? _v2.fade : this.fadeOpacity');
   });
   it('binds every v2 uniform on the programs that declare it', () => {
-    for (const u of ['u_v2_calib', 'u_v2_box', 'u_v2_drop']) expect(src).toContain(`this.advectProgram, '${u}')`);
-    for (const u of ['u_v2_calib', 'u_v2_keep', 'u_v2_px_per_kn', 'u_v2_speed_max', 'u_v2_gamma', 'u_v2_theme', 'u_v2_body']) expect(src).toContain(`this.drawProgram, '${u}')`);
+    for (const u of ['u_v2_density', 'u_v2_motion', 'u_v2_box', 'u_v2_drop']) expect(src).toContain(`this.advectProgram, '${u}')`);
+    for (const u of ['u_v2_density', 'u_v2_motion', 'u_v2_keep', 'u_v2_px_per_kn', 'u_v2_speed_max', 'u_v2_gamma', 'u_v2_theme', 'u_v2_body']) expect(src).toContain(`this.drawProgram, '${u}')`);
     expect(src).toContain("this.fadeProgram, 'u_premul')");
     expect(src).toContain("this.screenProgram, 'u_premul')");
   });

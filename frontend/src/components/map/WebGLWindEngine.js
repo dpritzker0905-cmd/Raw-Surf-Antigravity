@@ -540,8 +540,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // we use tile-relative coordinates. This prevents the wind animation from
   // exploding in speed. Also, we scale the tile coordinate size to increase precision.
   const _v2 = this._v2 = resolveWindParticlesV2(typeof window !== 'undefined' ? window : null); // PARTICLES V2
-  const stableSpeedScale = ((z > 6.0 || _v2.calib)
-    ? (this.speedFactor * (_v2.calib ? _v2.speedMul : 1) * Math.pow(0.5, z) * 0.00025)
+  const stableSpeedScale = ((z > 6.0 || _v2.motion)
+    ? (this.speedFactor * (_v2.motion ? _v2.speedMul : 1) * Math.pow(0.5, z) * 0.00025)
     : Math.max(2.5e-6, this.speedFactor * Math.pow(0.5, z) * 0.00025)) * _rmScale * (this._dtScale = frameTimeScale(this)); // A15-18: per 60 Hz frame
 
   // v3.22: Compute camera center and tile origin for high-precision advection
@@ -763,7 +763,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_density_uniform'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DENSITY_UNIFORM__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_gamma'), _windTune.speedGamma); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_cap'), resolveWindMotionFloor(typeof window !== 'undefined' ? window : null).dropCap); // motion floor (2026-10-08)
-  var _v2Box = v2GlobalBox(vb, _v2.margin), _v2Drop = v2DropRule(_v2.lifeS); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_v2_calib'), _v2.calib ? 1 : 0); gl.uniform4fv(gl.getUniformLocation(this.advectProgram, 'u_v2_box'), v2RespawnBox(_v2Box, isHighZoom, tileOriginX, tileOriginY, tileWidth)); gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_v2_drop'), _v2Drop[0], _v2Drop[1]);
+  var _v2Box = v2GlobalBox(vb, _v2.margin), _v2Drop = v2DropRule(_v2.lifeS); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_v2_density'), _v2.density ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_v2_motion'), _v2.motion ? 1 : 0); gl.uniform4fv(gl.getUniformLocation(this.advectProgram, 'u_v2_box'), v2RespawnBox(_v2Box, isHighZoom, tileOriginX, tileOriginY, tileWidth)); gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_v2_drop'), _v2Drop[0], _v2Drop[1]);
   // Size monotonicity (2026-07-19): slower never draws larger than faster. Mirrored into the
   // advect stage's ink budget. Kill: __RAW_DISABLE_WIND_SIZE_MONOTONIC__.
   var _sizeMono = (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SIZE_MONOTONIC__ === true) ? 0.0 : 1.0;
@@ -828,7 +828,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // v3.12.2: No blend for fade shader outputs alpha=1.0, straight overwrite
   gl.disable(gl.BLEND);
   gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
-  gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), perFrameFade(_v2.calib ? _v2.fade : this.fadeOpacity, this._dtScale || 1)); gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_premul'), _v2.theme ? 1 : 0); // A15-18
+  gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), perFrameFade(_v2.motion ? _v2.fade : this.fadeOpacity, this._dtScale || 1)); gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_premul'), _v2.theme ? 1 : 0); // A15-18
   bindTexture(gl, this.screenA.tex, 0);
   if (this.fadeVAO) {
     gl.bindVertexArray(this.fadeVAO);
@@ -900,7 +900,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var _dpr = (typeof window !== 'undefined' && Number(window.__RAW_WIND_DPR__))
     || (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dpr'), Math.max(1, Math.min(3, _dpr)));
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_calib'), _v2.calib ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_keep'), v2KeepRate(_v2.densityPer100, screenWidth / Math.max(1, _dpr), screenHeight / Math.max(1, _dpr), this.particleRes * this.particleRes, _v2Box, z)); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_px_per_kn'), stableSpeedScale * 512 * Math.pow(2, z)); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_speed_max'), _speedMax); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_gamma'), _windTune.speedGamma); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_theme'), _v2.theme ? 1 : 0); gl.uniform3fv(gl.getUniformLocation(this.drawProgram, 'u_v2_body'), V2_BODY[effectiveTheme] || V2_BODY.dark);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_density'), _v2.density ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_motion'), _v2.motion ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_keep'), v2KeepRate(_v2.densityPer100, screenWidth / Math.max(1, _dpr), screenHeight / Math.max(1, _dpr), this.particleRes * this.particleRes, _v2Box, z)); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_px_per_kn'), stableSpeedScale * 512 * Math.pow(2, z)); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_speed_max'), _speedMax); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_gamma'), _windTune.speedGamma); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_theme'), _v2.theme ? 1 : 0); gl.uniform3fv(gl.getUniformLocation(this.drawProgram, 'u_v2_body'), V2_BODY[effectiveTheme] || V2_BODY.dark);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edge_feather_frac'), edgeFeatherFrac);
   // v3.22: Bind tile origin and width for high zoom precision

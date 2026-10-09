@@ -392,3 +392,25 @@ before starting it.
 ### 2026-10-04 00:17Z — estimated source ownership is a measured contract
 
 A stored estimate can be estimated again in a browser branch with different source times and masks. Check full per-coordinate fields and product/run/served-time identity; matching maxima or nonzero HTTP responses do not establish parity. A finite-difference source control distinguishes a displayed value that follows the served target from one that ignores it. Keep changed values dark under D-001; consistent inputs alone prove neither forecast skill nor a default-device graphics fix.
+
+### 2026-10-08 — wind visuals: one variable at a time, the owner's eye decides
+
+- **L-V1 · A visual redesign is judged on the live site, so it ships one variable at a time.** #273 ("particles v2")
+  changed density model, lifetime, fade, mark stretch, speed, the trail compositing AND the particle colour together,
+  default-on. The owner rejected it ("we were close before you made major changes in v2 by making solid color
+  particles") and could not say which part helped or hurt. Rule: bug fixes may ship default-on; a VISUAL change ships
+  behind a lever, is A/B'd in the owner's own pane (or the PR's Netlify deploy preview — the backend CORS allows
+  `*.netlify.app`), and becomes a default only on the owner's explicit yes. #276 split #273 accordingly.
+- **L-V2 · Survey research informs; the owner's taste decides.** A cited survey (reports/Wind particle color strategy.md)
+  found every leading wind map uses neutral particles over a coloured field; the owner prefers the speed-coloured look.
+  Keep particles speed-coloured and improve legibility inside that look unless the owner asks otherwise.
+- **L-V3 · Calibrate to the approved look by measuring it.** "More density" was answered with the owner-approved
+  pre-v2 view measured on dev (drawn marks per 100x100 css px: z2 487, z3 173, z4 78, z5 216, z6 493), not with a
+  theory; #276 holds 490 at every zoom. Head count alone is not ink: v2's 2 s lives at the shipped head count
+  carpeted 95% of the field.
+- **L-V4 · Reset every lever after an A/B in the owner's pane, and say so.** A leftover mix (theme off + density 40 +
+  fade 0.95) was judged as "the wind looks worse".
+- **L-V5 · Live-test the dateline, wide zoom and close zoom before calling a wind change done.** The live test found
+  three data bugs the offline harness could not: unwrapped `map.getBounds()` across +-180 requesting a fine box
+  clamped at -180 (a seam line mid-Pacific, #275); a coarser grid overwriting a finer overlay still on screen (#275);
+  the backend's two-slot sharpen queue filled by timeline-prefetch frames so the viewed hour never sharpened (open).
