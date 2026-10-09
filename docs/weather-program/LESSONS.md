@@ -453,3 +453,11 @@ A stored estimate can be estimated again in a browser branch with different sour
   the repo's gates as hard constraints, found it within 2 CSS JND per stop. Instruments: a composite model
   re-implementing the GPU blend at 0.5 kn steps over water and land, then the real-engine bench painted in the water
   colour (reports/Wind particle color basemap contrast.md).
+  The slight version was not enough for BEACH ("the issue is still persisting"). A refine cannot rescue a palette that
+  uses the ground's own colour family: beach's 10-21 kn stops were sea-teal, lagoon and sea green, painted on grey-blue
+  water. The streak's speed colour is only a ~1 px core inside a white ring, so the TINT is what reads as "the wind
+  colour". Painters' rule: the same hue made darker reads as deeper water; a different hue family reads as something on
+  the sea. At dark-parity strength a multiply clears the water's colour category (>= 35° hue) only for a tint hue
+  <= ~165° OKLCH. So the band became jade -> emerald -> palm-frond: tint 36-89° off the water's hue, 18.5-30 dE00 from it
+  (was 0-36°, 12.7-17). Search on the TINT first, because it drives what is seen. Add an even-darkening term, or the
+  solver picks a neon tint whose lightness swings and draws false bands.
