@@ -12,6 +12,7 @@ import json
 import logging
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query
 from models import Profile, Booking, CrewChatMessage, Notification
 
 logger = logging.getLogger(__name__)
@@ -123,8 +124,8 @@ async def verify_chat_access(booking_id: str, user_id: str, db: AsyncSession) ->
 async def add_message_reaction(
     booking_id: str,
     message_id: str,
-    user_id: str,
     emoji: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

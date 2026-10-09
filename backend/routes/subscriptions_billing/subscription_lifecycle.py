@@ -81,8 +81,13 @@ async def get_account_billing_status(user_id: str, db: AsyncSession = Depends(ge
 
 
 @router.post("/subscriptions/toggle-status/{user_id}")
-async def toggle_surfer_status(user_id: str, data: SurferStatusToggleRequest, db: AsyncSession = Depends(get_db)):
+async def toggle_surfer_status(
+    user_id: str, data: SurferStatusToggleRequest,
+    current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),
+):
     """Toggle between Regular and Competitive Surfer status"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     if data.status not in SURFER_STATUSES:
         raise HTTPException(status_code=400, detail="Invalid status")
     result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -195,8 +200,13 @@ async def update_grom_subscription(parent_id: str, data: GromSubscriptionRequest
 
 
 @router.post("/subscriptions/parent-surfer-mode/{user_id}")
-async def toggle_parent_surfer_mode(user_id: str, data: ParentSurferModeRequest, db: AsyncSession = Depends(get_db)):
+async def toggle_parent_surfer_mode(
+    user_id: str, data: ParentSurferModeRequest,
+    current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),
+):
     """Toggle Active Surfer Mode for Grom Parents"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -211,8 +221,13 @@ async def toggle_parent_surfer_mode(user_id: str, data: ParentSurferModeRequest,
 
 
 @router.post("/subscriptions/apply-pro/{user_id}")
-async def apply_for_pro_vetting(user_id: str, db: AsyncSession = Depends(get_db)):
+async def apply_for_pro_vetting(
+    user_id: str,
+    current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),
+):
     """Apply for Pro Surfer/Photographer vetting"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()
     if not user:

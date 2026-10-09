@@ -13,6 +13,7 @@ from datetime import datetime, timezone, timedelta
 import json
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query
 from models import (
     Profile, Post, PostCollaboration, Notification, SurfSpot
 )
@@ -122,8 +123,8 @@ async def auto_fill_conditions(spot_id: str, session_date: datetime, db: AsyncSe
 @router.put("/posts/{post_id}/session-metadata")
 async def update_post_session_metadata(
     post_id: str,
-    user_id: str,
     data: SessionMetadata,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -225,8 +226,8 @@ async def get_post_collaborators(
 @router.post("/posts/{post_id}/invite-collaborator")
 async def invite_collaborator(
     post_id: str,
-    user_id: str,  # Post author
     data: InviteCollaboratorRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),  # Post author
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -297,8 +298,8 @@ async def invite_collaborator(
 @router.post("/posts/{post_id}/request-collaboration")
 async def request_collaboration(
     post_id: str,
-    user_id: str,  # User requesting to join
     data: RequestCollaborationRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),  # User requesting to join
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -386,8 +387,8 @@ async def request_collaboration(
 async def respond_to_collaboration(
     post_id: str,
     collaboration_id: str,
-    user_id: str,  # User responding (either author or collaborator depending on who initiated)
     data: RespondToCollaborationRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),  # the author or the collaborator, whoever did not initiate
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -457,7 +458,7 @@ async def respond_to_collaboration(
 async def untag_collaboration(
     post_id: str,
     collaboration_id: str,
-    user_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -494,8 +495,8 @@ async def untag_collaboration(
 async def flag_collaboration(
     post_id: str,
     collaboration_id: str,
-    user_id: str,
     data: FlagCollaborationRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

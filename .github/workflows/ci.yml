@@ -1770,7 +1770,11 @@ jobs:
           # ⬆ 1460→1473 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (VA-03 nearshore judge): 13 new
           # cases (12 workflow-gate, 1 runner floor) on the hosted 1462 read on dev ab416298 (CI 37853930681):
           # projected 1475; 1475 - 2 = 1473, margin 2. This PR must read 306 files / 1475.
-          MIN_PASSED = 1473
+          # ⬆ 1473→1542 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (actor-route binding, batch 2):
+          # the existing binding file adds 69 executed tests (23 routes x 3) to the hosted 1475 read on dev
+          # 84a1bb0f (CI 37964123006: 306 selected, 1475 passed): projected 1544; 1544 - 2 = 1542, margin 2.
+          # This PR must read 306 files / 1544.
+          MIN_PASSED = 1542
 
           try:
               root = ET.parse('estate.xml').getroot()

@@ -18,7 +18,7 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
-from core.security import get_current_user_id
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchNotification, DispatchRequestStatusEnum, SurfSpot,
@@ -110,7 +110,7 @@ async def get_crew_invites(
 @router.post("/crew-invite/{participant_id}/decline")
 async def decline_crew_invite(
     participant_id: str,
-    user_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

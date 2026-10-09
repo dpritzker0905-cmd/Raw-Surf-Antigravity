@@ -502,7 +502,12 @@ async def update_subscription(
     return {"message": "Subscription updated", "subscription_tier": profile.subscription_tier}
 
 @router.post("/profiles/{profile_id}/pro-onboarding")
-async def submit_pro_onboarding(profile_id: str, data: ProOnboardingRequest, db: AsyncSession = Depends(get_db)):
+async def submit_pro_onboarding(
+    profile_id: str, data: ProOnboardingRequest,
+    current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),
+):
+    if profile_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == profile_id))
     profile = result.scalar_one_or_none()
     if not profile:
