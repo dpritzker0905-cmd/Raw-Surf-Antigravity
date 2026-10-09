@@ -44,6 +44,7 @@ const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e
 const MODEL = {
   dark: { over: true, op: 0.48, baseA: 0.44, end: 5, k: 1, water: [93, 117, 126] },
   beach: { op: 0.55, baseA: 0.45, end: 7, k: 0.60 / 0.55, water: [150, 190, 200], land: [222, 208, 180] },
+  light: { op: 0.65, baseA: 0.42, end: 7, k: 0.70 / 0.65, water: [168, 214, 222], land: [236, 236, 232] },
 };
 const tintOver = (theme, [kn, r, g, b], surface = 'water') => { const m = MODEL[theme], s = Math.min(1, m.op * (m.baseA + (1 - m.baseA) * ss(0, m.end, kn)) * m.k);
   const w = m[surface].map((v) => v / 255); return m.over ? [r, g, b].map((c, i) => c * s + w[i] * (1 - s)) : w.map((v, i) => v * (1 - s * (1 - [r, g, b][i]))); };
@@ -132,5 +133,41 @@ describe('BEACH passes the colour-blind floor (legend, tint over water AND over 
       delete window.__RAW_DISABLE_WIND_BEACH_CVD__;
     }
     expect(live()[1][6]).not.toEqual([27, 0.618, 0.702, 0.000, 0.88]);
+  });
+});
+
+describe('LIGHT: the legend passes; the tint over water is raised but stays a documented exception', () => {
+  const live = () => [resolveThemeRamp('light'), resolveFieldRamp('light', window)];
+  it('every neighbouring legend stop is >= 5 dE2000 for all three dichromacies', () => {
+    expect(weakest(legendPairs(live()[0])).d).toBeGreaterThanOrEqual(5);
+  });
+  it('EXCEPTION (owner to accept): the tint over water clears 2.6, not 5 -- dark parity leaves the 40-75 kn tints near-grey there', () => {
+    // At 24-26 dE76 (dark's strength), light's pale warm 40-75 kn fields cancel the cyan water: C* 2-16 at L* 61-64. The best
+    // smooth solve under every gate reached 5 over water once in 11 runs, by redesigning the field (not shipped). Raise this
+    // pin if the tint improves; never lower it.
+    const pairs = waterPairs('light', live()[1]);
+    expect(weakest(pairs).d).toBeGreaterThanOrEqual(2.6);
+    expect(pairs.filter((p) => p.d < 5).map((p) => p.kn)).toEqual(expect.arrayContaining(['47-55']));
+  });
+  it('without false bands: the tint turns in lightness only where the shipped one did (16 kn dip, 21 kn peak; 40 kn on land)', () => {
+    const F = live()[1].filter((s) => s[0] >= 3), at = (i) => F[i][0];
+    for (const surface of ['water', 'land']) {
+      const L = F.map((s) => lab(tintOver('light', s, surface))[0]);
+      peaks(L, 1).forEach((i) => expect([16, 21, 40]).toContain(at(i)));
+    }
+  });
+  it('POSITIVE CONTROL + kill: __RAW_DISABLE_WIND_LIGHT_CVD__ restores the shipped rows, where gold meets yellow-green', () => {
+    window.__RAW_DISABLE_WIND_LIGHT_CVD__ = true;
+    try {
+      const [P, F] = live();
+      expect(P[7]).toEqual([33, 0.802, 0.643, 0.099, 0.87]);
+      expect(F[10]).toEqual([55, 0.858, 0.618, 0.596, 0.91]);
+      expect(F[4]).toEqual(live()[1][4]);   // 16 kn: never touched by the pass
+      expect(legendPairs(P).find((p) => p.kn === '27-33').d).toBeLessThan(4.5);         // coloraide: protan 3.9
+      expect(waterPairs('light', F).find((p) => p.kn === '27-33').d).toBeLessThan(0.5);  // coloraide: deutan 0.3
+    } finally {
+      delete window.__RAW_DISABLE_WIND_LIGHT_CVD__;
+    }
+    expect(live()[0][7]).not.toEqual([33, 0.802, 0.643, 0.099, 0.87]);
   });
 });

@@ -113,13 +113,13 @@ var BEACH_WIND_RAMP = [
 // invisible. 10/16 kn were cerulean/teal — the water's own colours; see LIGHT LOW BAND below.)
 var LIGHT_WIND_RAMP = [
   [0,  0.942, 0.964, 0.987, 0.72], // Calm: cloud white (L* 96.6)
-  [3,  0.803, 0.757, 0.982, 0.75], // Light air: lavender (L* 80.8)
-  [6,  0.612, 0.688, 0.897, 0.78], // Light breeze: periwinkle (L* 71.9)
-  [10, 0.747, 0.652, 0.997, 0.80], // Gentle: light violet (L* 73.3; OKLCH 0.780/0.125/296)
+  [3,  0.803, 0.759, 0.965, 0.75], // Light air: lavender (L* 80.7)
+  [6,  0.631, 0.688, 0.883, 0.78], // Light breeze: periwinkle (L* 72.1)
+  [10, 0.746, 0.650, 0.997, 0.80], // Gentle: light violet (L* 73.1; OKLCH 0.780/0.125/296)
   [16, 0.545, 0.672, 0.377, 0.82], // Moderate: sage leaf (L* 66.2; OKLCH 0.700/0.108/128)
   [21, 0.415, 0.764, 0.520, 0.84], // Fresh: spring green (L* 72.0)
-  [27, 0.615, 0.706, 0.267, 0.86], // Strong: yellow-green (L* 69.6)
-  [33, 0.802, 0.643, 0.099, 0.87], // Near gale: gold (L* 69.1)
+  [27, 0.610, 0.708, 0.289, 0.86], // Strong: yellow-green (L* 69.7)
+  [33, 0.804, 0.641, 0.027, 0.87], // Near gale: gold (L* 69.0)
   [40, 0.842, 0.436, 0.014, 0.88], // Gale: orange (L* 57.9)
   [47, 0.825, 0.317, 0.104, 0.90], // Strong gale: red-orange (L* 51.5)
   [55, 0.752, 0.167, 0.184, 0.91], // Storm: red (L* 42.9)
@@ -222,20 +222,31 @@ var PRE_LIGHT_LOWBAND = {
 // plus the land surface held to the floor too, and the tint allowed to turn only where the LEGEND turns (21 kn dips, 27-33
 // kn jumps up): the 27 kn field lifts to a light lime-gold (tint over water L* 60 -> 68), 40 kn becomes a clearer apricot,
 // the legend moves <= 0.013 dE_OK. Legend, tint over water and tint over land >= 5.2 under all three.
-// Kill: __RAW_DISABLE_WIND_<DARK|BEACH>_CVD__ restores that theme's rows below (next ramp build: theme change or reload).
+// LIGHT, PARTIAL (an exception for the owner): the legend passes (6-10 kn deutan 4.3 -> 5.2, 27-33 kn protan 3.9 -> 5.2) and
+// the tint over water's weakest pair rises 0.3 -> 2.75, but the tint cannot reach 5 there at dark parity. Light's pale
+// warm 40-75 kn fields cancel the cyan water to a near-grey (C* 2-16, L* 61-64; 40-47 kn is 3.9 dE even in normal vision),
+// and a 24-26 dE76 tint can darken the water by at most ~22 L*. Under the same gates the solver reached 5 over water in
+// 1 run of 11, by redesigning the field (21-27 kn pale, stops up to 0.18 dE_OK, land worse): not shipped. The streaks
+// and the legend carry the fast bands. Kill: __RAW_DISABLE_WIND_<DARK|BEACH|LIGHT>_CVD__ restores that theme's rows below
+// (next ramp build: theme change or reload).
 var PRE_CVD = {
   particle: {
     dark: { 3: [10, 0.20, 0.95, 0.70, 0.87], 4: [16, 0.38, 0.95, 0.40, 0.88], 5: [21, 0.62, 0.92, 0.30, 0.89], 6: [27, 0.85, 0.85, 0.20, 0.90],
       7: [33, 0.97, 0.72, 0.15, 0.91], 8: [40, 0.99, 0.55, 0.12, 0.92], 9: [47, 0.98, 0.35, 0.15, 0.93], 10: [55, 0.95, 0.20, 0.30, 0.94] },
     beach: { 3: [10, 0.244, 0.631, 0.479, 0.83], 4: [16, 0.229, 0.626, 0.268, 0.85], 6: [27, 0.635, 0.707, 0.283, 0.88], 7: [33, 0.825, 0.650, 0.124, 0.90] },
+    light: { 1: [3, 0.803, 0.757, 0.982, 0.75], 2: [6, 0.612, 0.688, 0.897, 0.78], 3: [10, 0.747, 0.652, 0.997, 0.80], 6: [27, 0.615, 0.706, 0.267, 0.86],
+      7: [33, 0.802, 0.643, 0.099, 0.87] },
   },
   field: {
     beach: { 2: [6, 0.237, 0.790, 0.664, 0.81], 4: [16, 0.268, 0.720, 0.190, 0.85], 5: [21, 0.435, 0.664, 0.005, 0.87], 6: [27, 0.618, 0.702, 0.000, 0.88],
       7: [33, 0.839, 0.654, 0.027, 0.90], 8: [40, 0.843, 0.457, 0.124, 0.91], 9: [47, 0.809, 0.388, 0.311, 0.92], 10: [55, 0.638, 0.335, 0.364, 0.93],
       11: [63, 0.497, 0.330, 0.414, 0.94], 12: [75, 0.441, 0.381, 0.553, 0.95] },
+    light: { 2: [6, 0.628, 0.701, 0.901, 0.78], 3: [10, 0.724, 0.641, 0.912, 0.80], 5: [21, 0.455, 0.763, 0.543, 0.84], 6: [27, 0.628, 0.692, 0.432, 0.86],
+      7: [33, 0.740, 0.657, 0.431, 0.87], 8: [40, 0.753, 0.588, 0.478, 0.88], 9: [47, 0.824, 0.613, 0.540, 0.90], 10: [55, 0.858, 0.618, 0.596, 0.91],
+      11: [63, 0.816, 0.601, 0.656, 0.93] },
   },
 };
-var CVD_KILL = { dark: '__RAW_DISABLE_WIND_DARK_CVD__', beach: '__RAW_DISABLE_WIND_BEACH_CVD__' };
+var CVD_KILL = { dark: '__RAW_DISABLE_WIND_DARK_CVD__', beach: '__RAW_DISABLE_WIND_BEACH_CVD__', light: '__RAW_DISABLE_WIND_LIGHT_CVD__' };
 function revertRows(ramp, rows) { return ramp.map(function(stop, i) { return rows[i] ? rows[i].slice() : stop; }); }
 function cvdPassed(ramp, kind, theme, w) {
   var pre = PRE_CVD[kind][theme];
@@ -248,11 +259,11 @@ function midbandRefined(ramp, kind, theme, w) {
   if (!pre || !w || w.__RAW_DISABLE_WIND_MIDBAND_REFINE__ !== true) return out;
   return revertRows(out, pre);
 }
-var LIGHT_FIELD_RAMP = [
-  [0,  0.942, 0.964, 0.987, 0.72], [3,  0.803, 0.757, 0.982, 0.75], [6,  0.628, 0.701, 0.901, 0.78],
-  [10, 0.724, 0.641, 0.912, 0.80], [16, 0.466, 0.625, 0.412, 0.82], [21, 0.455, 0.763, 0.543, 0.84],
-  [27, 0.628, 0.692, 0.432, 0.86], [33, 0.740, 0.657, 0.431, 0.87], [40, 0.753, 0.588, 0.478, 0.88],
-  [47, 0.824, 0.613, 0.540, 0.90], [55, 0.858, 0.618, 0.596, 0.91], [63, 0.816, 0.601, 0.656, 0.93],
+var LIGHT_FIELD_RAMP = [   // 6-63 kn: the COLOUR-BLIND PASS (each stop <= 0.05 dE_OK; 33 kn a deeper, 55 kn a cooler tint)
+  [0,  0.942, 0.964, 0.987, 0.72], [3,  0.803, 0.757, 0.982, 0.75], [6,  0.631, 0.705, 0.891, 0.78],
+  [10, 0.719, 0.640, 0.914, 0.80], [16, 0.466, 0.625, 0.412, 0.82], [21, 0.462, 0.759, 0.538, 0.84],
+  [27, 0.631, 0.705, 0.434, 0.86], [33, 0.687, 0.634, 0.429, 0.87], [40, 0.751, 0.595, 0.470, 0.88],
+  [47, 0.834, 0.599, 0.536, 0.90], [55, 0.783, 0.591, 0.571, 0.91], [63, 0.782, 0.608, 0.683, 0.93],
   [75, 0.736, 0.616, 0.753, 0.95],
 ];
 var BEACH_FIELD_RAMP = [   // 6 and 16-75 kn: the COLOUR-BLIND PASS (27 kn lifts to a light lime-gold, 40 kn a clearer apricot)
