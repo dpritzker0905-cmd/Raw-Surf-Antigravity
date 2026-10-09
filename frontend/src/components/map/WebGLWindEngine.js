@@ -14,7 +14,7 @@
 
 import { generateRampData } from './WindColorRamp';
 import {
-  createTexture,
+  createTexture, bindWindPointReg,
   unbindTexture,
   createFBO,
   bindTexture,
@@ -623,7 +623,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_max_speed'), this._maxWindSpeed);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edge_feather_frac'), edgeFeatherFrac);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edge_feather_frac'), edgeFeatherFrac); bindWindPointReg(gl, this.heatmapProgram, this._windData.windGrid, fine && fine.windGrid);
   // BASE-PASS CUTOUT + SINGLE-PASS BASE+FINE (the hairline-seam fix): one draw, one alpha —
   // full rationale: docs/architecture/RATIONALE-WebGLWindEngine.md. Legacy two-pass kept for
   // the kill switch + vortex debug. Kill: __RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__.
@@ -707,7 +707,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_max'), fine.uMax[0], fine.uMax[1]);
       gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), 1.0);
       gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edge_feather_frac'), fineFeatherFrac);
-      gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_enabled'), 0.0);
+      gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_enabled'), 0.0); bindWindPointReg(gl, this.heatmapProgram, fine.windGrid, fine.windGrid);
       // VORTEX GATE DEBUG VIEW: __GPU_DEBUG__.mode='vortex' paints the R-gate on THIS pass only
       // (the base pass keeps its normal render — 10-deg cells cannot resolve a vortex anyway).
       var _vortexDebug = (typeof window !== 'undefined' && window.__GPU_DEBUG__ && window.__GPU_DEBUG__.mode === 'vortex') ? 9.0 : debugModeVal;
@@ -763,7 +763,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_density_uniform'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DENSITY_UNIFORM__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_gamma'), _windTune.speedGamma); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_cap'), resolveWindMotionFloor(typeof window !== 'undefined' ? window : null).dropCap); // motion floor (2026-10-08)
-  var _v2Box = v2GlobalBox(vb, _v2.margin), _v2Drop = v2DropRule(_v2.lifeS); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_v2_density'), _v2.density ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_v2_motion'), _v2.motion ? 1 : 0); gl.uniform4fv(gl.getUniformLocation(this.advectProgram, 'u_v2_box'), v2RespawnBox(_v2Box, isHighZoom, tileOriginX, tileOriginY, tileWidth)); gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_v2_drop'), _v2Drop[0], _v2Drop[1]);
+  var _v2Box = v2GlobalBox(vb, _v2.margin), _v2Drop = v2DropRule(_v2.lifeS); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_v2_density'), _v2.density ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_v2_motion'), _v2.motion ? 1 : 0); gl.uniform4fv(gl.getUniformLocation(this.advectProgram, 'u_v2_box'), v2RespawnBox(_v2Box, isHighZoom, tileOriginX, tileOriginY, tileWidth)); gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_v2_drop'), _v2Drop[0], _v2Drop[1]); bindWindPointReg(gl, this.advectProgram, this._windData.windGrid, fine && fine.windGrid);
   // Size monotonicity (2026-07-19): slower never draws larger than faster. Mirrored into the
   // advect stage's ink budget. Kill: __RAW_DISABLE_WIND_SIZE_MONOTONIC__.
   var _sizeMono = (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SIZE_MONOTONIC__ === true) ? 0.0 : 1.0;
@@ -902,7 +902,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dpr'), Math.max(1, Math.min(3, _dpr)));
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_density'), _v2.density ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_motion'), _v2.motion ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_keep'), v2KeepRate(_v2.densityPer100, screenWidth / Math.max(1, _dpr), screenHeight / Math.max(1, _dpr), this.particleRes * this.particleRes, _v2Box, z)); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_px_per_kn'), stableSpeedScale * 512 * Math.pow(2, z)); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_speed_max'), _speedMax); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_gamma'), _windTune.speedGamma); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_theme'), _v2.theme ? 1 : 0); gl.uniform3fv(gl.getUniformLocation(this.drawProgram, 'u_v2_body'), V2_BODY[effectiveTheme] || V2_BODY.dark);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edge_feather_frac'), edgeFeatherFrac);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edge_feather_frac'), edgeFeatherFrac); bindWindPointReg(gl, this.drawProgram, this._windData.windGrid, fine && fine.windGrid);
   // v3.22: Bind tile origin and width for high zoom precision
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth);

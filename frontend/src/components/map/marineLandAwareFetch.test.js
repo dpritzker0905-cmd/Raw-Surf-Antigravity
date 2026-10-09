@@ -11,12 +11,13 @@ import { HEATMAP_FS } from './WebGLMarineShaders';
  * is H = sum(w_i h_i), the defect is dH/dh_land > 0, and the fix zeroes those weights.
  */
 const fakeGl = () => {
-  const calls = { u2: {}, u1: {}, order: [] };
+  const calls = { u2: {}, u1: {}, u4: {}, order: [] };
   return {
     calls,
     getUniformLocation: (p, n) => ({ p, n }),
     uniform2f: (loc, a, b) => { calls.u2[loc.n] = [a, b]; calls.order.push(loc.n); },
     uniform1f: (loc, a) => { calls.u1[loc.n] = a; calls.order.push(loc.n); },
+    uniform4f: (loc, a, b, c, d) => { calls.u4[loc.n] = [a, b, c, d]; calls.order.push(loc.n); },
   };
 };
 
@@ -71,7 +72,8 @@ describe('setLandAwareFetchUniforms', () => {
       setLandAwareFetchUniforms(gl, {}, null, ON);
       expect(gl.calls.u2.u_waveTexel).toEqual([0, 0]);
       expect(gl.calls.u1.u_landAwareFetch).toBe(0);
-      expect(gl.calls.order).toEqual(['u_waveTexel', 'u_landAwareFetch']);
+      expect(gl.calls.order).toEqual(['u_waveTexel', 'u_landAwareFetch', 'u_wave_reg']);
+      expect(gl.calls.u4.u_wave_reg).toEqual([0, 0, 0, 0]);   // no grid -> legacy mapping (gridPointRegistration.js)
     });
   });
 
@@ -129,7 +131,7 @@ describe('the weighting math, on the measured Madeira numbers', () => {
 
 describe('HEATMAP_FS wiring', () => {
   it('routes the wave read through the land-aware fetch, and only there', () => {
-    expect(HEATMAP_FS).toContain('vec4 waveData = sampleWaveLandAware(grid_uv);');
+    expect(HEATMAP_FS).toContain('vec4 waveData = sampleWaveLandAware(data_uv);');   // data_uv = point-registered grid_uv
     // the only remaining direct reads are the four footprint fetches inside the helper itself
     expect((HEATMAP_FS.match(/texture2D\(u_waveTexture/g) || []).length).toBe(5);
   });

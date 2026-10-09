@@ -2,6 +2,7 @@
  * WebGLWindUtils.js
  * standard WebGL utilities for the GPU Wind engine.
  */
+import { setGridPointRegUniform } from './gridPointRegistration';
 
 export function createShader(gl, type, source) {
   const shader = gl.createShader(type);
@@ -430,4 +431,10 @@ export function windBoundsContain(a, b) {
   const span = (x) => (x.east < x.west ? (x.east + 360) - x.west : x.east - x.west);
   const off = ((((b.west - a.west) % 360) + 360) % 360);
   return off + span(b) <= span(a) + 1e-9 && b.south >= a.south - 1e-9 && b.north <= a.north + 1e-9;
+}
+
+// ── POINT REGISTRATION (2026-10-08, the post-pan field shift; gridPointRegistration.js) ──────────
+/** Binds u_base_reg (the texture bound as u_wind in this pass) and u_fine_reg on `prog`. */
+export function bindWindPointReg(gl, prog, baseGrid, fineGrid, win) {
+  return [setGridPointRegUniform(gl, prog, 'u_base_reg', baseGrid, win), setGridPointRegUniform(gl, prog, 'u_fine_reg', fineGrid, win)];
 }
