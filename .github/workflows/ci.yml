@@ -824,7 +824,10 @@ jobs:
           # wind native recovery): tests/test_wind_native_recovery_bounded.py (14), selector-verified into this lane;
           # hosted reading on dev 9ef7a3c0 (CI 37880486038: 188 files, 2541 passed) -> projected 2555/189;
           # 2555 - 6 = 2549.
-          MIN_FILES, MIN_PASSED = 189, 2549
+          # ⬆ 189/2549 → 190/2559 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (GFS wind grids ask for gfs_global,
+          # dark): tests/test_wind_grid_gfs_global.py (10), selector-verified into this lane; hosted reading on dev
+          # 8ba4aae6 (CI 37948644845: 2555 passed) -> projected 2565/190; 2565 - 6 = 2559.
+          MIN_FILES, MIN_PASSED = 190, 2559
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

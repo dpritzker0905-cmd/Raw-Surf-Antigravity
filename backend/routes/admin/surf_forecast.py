@@ -43,6 +43,8 @@ _RATING_FLAGS = {
     "SURF_REQUESTED_HORIZON": ("0", "Resolve only requested spot forecast days; current-only never fetches future frames", "Render env + ingestion/precompute/monitor together"),
     "SURF_STRICT_AVAILABILITY": ("0", "Keep missing/invalid spot sea unavailable; preserve measured zero", "Render env + ingestion/precompute/monitor together"),
     "POINT_PRODUCT_IDENTITY": ("0", "Discard point hints from another model/domain; re-resolve automatically", "Render env"),
+    "WIND_GRID_GFS_GLOBAL": ("0", "GFS wind grids ask Open-Meteo for gfs_global, not gfs_seamless (HRRR inside its domain): "
+                                  "one model under the GFS label, so a zoom cannot swap the eye's model", "Render env"),
     "SIM_SERVED_TIME_MATCH": ("0", "Match sim tide/quality to actual baseline hour and model", "MCP process env"),
     "SIM_STRICT_INPUTS": ("0", "Refuse missing/non-finite sim forecast fields; preserve measured zero", "MCP process env"),
     # EXPLANATION, not physics: publishes `limiter`/`limiter_f` on each spot rating — which of the

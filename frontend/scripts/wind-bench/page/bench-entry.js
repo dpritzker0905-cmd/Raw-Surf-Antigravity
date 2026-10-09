@@ -12,6 +12,7 @@ const { mulberry32, blockStats, scanBlocks } = require('../scanner');
 const { BASEMAP, VARIANTS, buildMatrix, controlConfigs } = require('../matrix');
 const { formatTable, figureText, configKey } = require('../report');
 const { mergeSeeds, controlAcrossSeeds } = require('../replicates');
+const { KM_PER_DEG, thresholdRamp, eyeGeometry } = require('../eye');
 
 const Engine = EngineModule.default || EngineModule.WebGLWindEngine || EngineModule;
 const params = new URLSearchParams(window.location.search);
@@ -139,6 +140,109 @@ async function runOne(cfg) {
   }
 }
 
+/**
+ * EYE mode (eye.js): one heatmap frame of the real engine per threshold, its LUT swapped for a
+ * white-below-T ramp, read back as the eye's T-kn contour. cfg: {base, fine, lng, lat, z,
+ * thresholds, ref, theme, levers}. The particle pool is 2x2 so the trails cannot cover the field.
+ */
+async function eyeOne(cfg) {
+  clearLevers();
+  Object.assign(window, cfg.levers || {});
+  const engine = new Engine();
+  try {
+    engine.particleRes = 2;
+    engine.init(gl);
+    engine.setWindData(gl, cfg.base);
+    const verdict = cfg.fine ? engine.setWindData(gl, cfg.fine) : null;
+    const cam = makeCamera(cfg.lng, cfg.lat, cfg.z, CSS_W, CSS_H);
+    const draw = () => {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      engine.render(gl, cam.matrix, canvas.width, canvas.height, cfg.z, cfg.theme || 'dark', null, cam.viewBounds);
+    };
+    await nextFrame(draw);                       // builds the ramps for this grid's max speed
+    const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, px = new Uint8Array(W * H * 4);
+    const pxKm = (360 / (512 * Math.pow(2, cfg.z) * DPR)) * KM_PER_DEG * Math.cos(cfg.ref.lat * Math.PI / 180);
+    const pxToLngLat = (x, y) => cam.unproject(x / DPR, y / DPR);
+    const eyes = {};
+    for (const T of cfg.thresholds) {
+      const ramp = thresholdRamp(engine._maxWindSpeed, T);
+      [engine._colorRamp, engine._fieldRamp].filter(Boolean).forEach((tex) => {
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.RGBA, gl.UNSIGNED_BYTE, ramp);
+      });
+      await nextFrame(() => {
+        draw();
+        gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      });
+      const mask = new Uint8Array(W * H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) mask[y * W + x] = px[((H - 1 - y) * W + x) * 4] > 8 ? 1 : 0;
+      eyes[T] = eyeGeometry(mask, W, H, pxToLngLat, pxKm, cfg.ref);
+    }
+    const err = gl.getError();
+    return { verdict, fineActive: !!engine._windFine, maxSpeed: +engine._maxWindSpeed.toFixed(1), fineOverlay: window.__WIND_FINE_OVERLAY__, eyes, glError: err !== gl.NO_ERROR ? err : null };
+  } finally {
+    engine.dispose(gl);
+    clearLevers();
+  }
+}
+
+/**
+ * EYE mode, particles: the trail ink the respawn and density levers produce in the eye (disc of
+ * `rKm` around `ref`) and on its wall (annulus `wallKm`), after `frames` real frames with a fixed
+ * grid. If those levers reshaped the eye, the eye/wall ink ratio would move with zoom.
+ */
+async function eyeInk(cfg) {
+  const realRandom = Math.random;
+  clearLevers();
+  Math.random = mulberry32(cfg.seed || 1);
+  let virtualMs = 0;
+  performance.now = () => virtualMs;
+  const engine = new Engine();
+  try {
+    engine.particleRes = cfg.res || 384;
+    engine.init(gl);
+    engine.setWindData(gl, cfg.base);
+    if (cfg.fine) engine.setWindData(gl, cfg.fine);
+    const cam = makeCamera(cfg.lng, cfg.lat, cfg.z, CSS_W, CSS_H);
+    const draw = () => {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      virtualMs += FRAME_MS;
+      engine.render(gl, cam.matrix, canvas.width, canvas.height, cfg.z, cfg.theme || 'dark', null, cam.viewBounds);
+    };
+    for (let i = 0; i < (cfg.frames || 180); i++) await nextFrame(draw);
+    let out = null;
+    await nextFrame(() => {
+      draw();
+      const { pixels, W, H } = readTrail(engine);
+      const cos = Math.cos(cfg.ref.lat * Math.PI / 180), acc = { eye: [0, 0], wall: [0, 0] };
+      for (let y = 0; y < H; y += 2) {
+        for (let x = 0; x < W; x += 2) {
+          const ll = cam.unproject(x / DPR, (H - 1 - y) / DPR);
+          const dKm = Math.hypot((ll.lng - cfg.ref.lng) * cos, ll.lat - cfg.ref.lat) * KM_PER_DEG;
+          const k = dKm <= cfg.rKm ? 'eye' : (dKm >= cfg.wallKm[0] && dKm <= cfg.wallKm[1] ? 'wall' : null);
+          if (!k) continue;
+          const p = (y * W + x) * 4;
+          acc[k][0] += Math.max(pixels[p], pixels[p + 1], pixels[p + 2]); acc[k][1]++;
+        }
+      }
+      const eye = acc.eye[0] / Math.max(acc.eye[1], 1), wall = acc.wall[0] / Math.max(acc.wall[1], 1);
+      out = { eyeInk: +eye.toFixed(1), wallInk: +wall.toFixed(1), ratio: +(eye / Math.max(wall, 1e-6)).toFixed(3) };
+    });
+    return out;
+  } finally {
+    engine.dispose(gl);
+    delete performance.now;
+    Math.random = realRandom;
+    clearLevers();
+  }
+}
+
 const caption = (r) => `${configKey(r)} · ${figureText(r)}`;
 
 function addFigure(r) {
@@ -174,7 +278,7 @@ const PRESETS = {
   full: () => buildMatrix(),
 };
 
-window.__WIND_BENCH__ = { ready: !!gl, renderer: renderer(), dpr: DPR, runOne, run, presets: Object.keys(PRESETS), results: [] };
+window.__WIND_BENCH__ = { ready: !!gl, renderer: renderer(), dpr: DPR, runOne, run, eyeOne, eyeInk, presets: Object.keys(PRESETS), results: [] };
 
 document.getElementById('run').addEventListener('click', () => {
   const preset = document.getElementById('preset').value;

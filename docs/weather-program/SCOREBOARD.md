@@ -35,6 +35,7 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 
 | S18 | Dark served-time/model comparison (`tests/test_audit_sim_time_contract.py`) | local synthetic HTTP | requested-hour null Jacobian, actual-hour query mapping, mixed/stale frame refusal and flag-off control; not forecast skill |
 | S19 | Strava owner and OAuth state boundary (`tests/test_audit_strava_authority.py`) | local HTTP/JWT/SQLite | caller perturbation with zero denied provider/profile effects; nonce expiry/one-use controls; not live Postgres concurrency |
+| S20 | Wind eye stability (`frontend/scripts/wind-bench/eye-run.js`) | on demand, offline (real engine on the GPU; served grids as fixtures) | where the drawn hurricane eye sits, the highest speed its wall stays closed to, and its area, per overlay grid and zoom; null controls (same data in another box, same grid at another zoom) and a positive control (2-deg overlay); particle trail ink eye/wall with the grid fixed |
 
 ## Rows
 
@@ -240,3 +241,6 @@ number, the nearshore judge and the sim-parity monitor are the instruments.
 
 | 2026-10-08 02:07Z | WI03 health/listing and fallback labels BEFORE | Immutable3d actual diagnostics/serving; diagnostic scope | 37 controls:32failed5passed;36 diagnostic reads→36 listing attempts across8 scenarios;4 source-label mismatches | Offline production methods with storage/provider/geometry doubles | No physical/forecast-skill or live429 causal claim |
 | 2026-10-08 02:07Z | WI03 health/listing and fallback labels AFTER candidate | Same37 controls within255focused passes; diagnostic scope | 36 reads→8 listing attempts; actual donor labels aligned;30s expiry/error/freshness/singleflight disclosed | 3168 serving calls/720 centralJacob:physicaloutput/Jacobian0; partitioneligibility retained | Ownhosted/rolloutpending957; no scienceflags/stored-product rewrite or productacceptance |
+| 2026-10-09 16:00Z | `8ba4aae6` | S20 | Eye drawn from served box A (NOAA GFS 06Z, native recovery) vs served box B (Open-Meteo gfs_seamless = HRRR), same 15Z hour, z5.5-7 — BEFORE | centre shift 38.3 km; weakest wall 48 -> 32 kn (-16); area x2.17 at 32 kn; null box 0 km x1.00; null zoom <= 0.3 km; positive control PASS | log 2026-10-09-hurricane-eye-one-model §3; fixtures read 15:34Z |
+| 2026-10-09 16:00Z | `8ba4aae6` | S20 | Same pair with box B from Open-Meteo gfs_global (GFS 06Z) = what `WIND_GRID_GFS_GLOBAL=1` serves — dark AFTER candidate | centre shift 9.1 km; wall -2 kn; area x0.71 at 46 kn; same-lane boxes 0 km. No served number moves until the owner flips the flag | same log §3-4 |
+| 2026-10-09 16:00Z | `8ba4aae6` | S20 | Particle trail ink eye (<=25 km) / wall (50-90 km), grid fixed, z5.5 / 6 / 6.5 / 7 (2 seeds) | A 1.18 / 1.21 / 1.77 / 1.57; B 1.08 / 1.12 / 1.50 / 1.40 — the step at z6 is the speed-keep cull switching on; not changed (owner A/B first) | same log §3 |

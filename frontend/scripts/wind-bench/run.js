@@ -13,12 +13,12 @@
  * Exit: 0 control PASS · 1 control FAIL (or --strict and the candidate has an artifact) · 2 BLIND or error.
  */
 const fs = require('fs');
-const http = require('http');
 const path = require('path');
 const { FRONTEND, engineSource, buildBench } = require('./build');
 const { POSITIVE_CONTROL, buildMatrix, controlConfigs } = require('./matrix');
 const { configKey, formatTable, contactSheetHtml } = require('./report');
 const { mergeSeeds, controlAcrossSeeds } = require('./replicates');
+const { serveDir, gpuArgs } = require('./serve');
 
 const SOURCE_LINES = fs.readFileSync(__filename, 'utf8').split('\n');
 const HELP = SOURCE_LINES.slice(2, SOURCE_LINES.findIndex((l) => l.trim() === '*/')).map((l) => l.replace(/^ \*\s?/, '')).join('\n');
@@ -52,27 +52,6 @@ function parseArgs(argv) {
     else throw usageError(`unknown option ${a} (try --help)`);
   }
   return opts;
-}
-
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json' };
-
-function serveDir(root, port) {
-  const server = http.createServer((req, res) => {
-    const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '') || 'index.html';
-    const file = path.resolve(root, rel.endsWith('/') ? rel + 'index.html' : rel);
-    if (!file.startsWith(path.resolve(root) + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
-      res.writeHead(404); res.end('not found'); return;
-    }
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
-    fs.createReadStream(file).pipe(res);
-  });
-  return new Promise((resolve) => server.listen(port || 0, '127.0.0.1', () => resolve(server)));
-}
-
-function gpuArgs(mode) {
-  if (mode === 'swiftshader') return ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
-  const angle = { win32: 'd3d11', darwin: 'metal', linux: 'vulkan' }[process.platform] || 'default';
-  return [`--use-angle=${angle}`, '--ignore-gpu-blocklist', '--enable-gpu'];
 }
 
 function stamp() {

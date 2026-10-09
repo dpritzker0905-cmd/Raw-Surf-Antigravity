@@ -40,6 +40,37 @@ artifact anywhere), `--no-control`, `--port`, `--out`.
 
 Exit codes: `0` control PASS, `1` control FAIL, `2` BLIND, a GL error or a crash.
 
+## Eye mode (`eye-run.js`): does the hurricane eye hold still?
+
+```bash
+node scripts/wind-bench/eye-run.js
+node scripts/wind-bench/eye-run.js --ref origin/dev --json out/eye.json
+```
+
+It asks one question: with the hour fixed, does the drawn eye keep its place, size and shape when
+only the regional grid under it, or the zoom, changes? It takes about 2 minutes.
+
+- **Field:** the page draws one heatmap frame through the real engine for each threshold from 30 to
+  50 kn (2-kn steps). The colour LUT is swapped for a ramp that is white below T and black above, so
+  the readback is the eye's T-kn contour exactly as the shader samples it: point registration,
+  bilinear filtering, and the base+fine composite with its feather. `eye.js` takes each enclosed
+  contour near the storm (one that touches the edge is an OPEN eye) and reports:
+  - the lowest T that closes it (its centre is about where the drawn wind is lowest);
+  - the highest T it stays closed to (the eyewall's weakest point);
+  - the radius and aspect at that T.
+- **Grids:** `fixtures/eye-2026-10-09-*.json` are the two products the owner's zoom stops swapped
+  between (2026-10-09 15Z, Gulf). One is NOAA GFS from the native recovery; the other is Open-Meteo
+  `gfs_seamless`, which is HRRR inside HRRR's domain. A third holds Open-Meteo `gfs_global` on the
+  second box. The world base is 2° and copies those nodes.
+- **Null controls:** the same data cropped to the other box, and the same grid at z5.5-7. Both must
+  draw the same eye (≤ 5 km, the same closing T, area within 10%).
+- **Positive control:** a 2° clip of the base as the overlay must change the eye.
+- **Particles:** after 180 real frames, the trail ink inside the eye (≤ 25 km) over the ink on its
+  wall (50-90 km), for two seeds. This shows whether the zoom-dependent respawn and density levers
+  reshape the eye while the grid is fixed.
+
+Exit codes: `0` when both controls hold, `2` when either fails.
+
 ## What it renders
 
 - **Canvas:** 897 × 914 css px (the owner's map pane) at a fixed DPR 2, WebGL2. The camera is
