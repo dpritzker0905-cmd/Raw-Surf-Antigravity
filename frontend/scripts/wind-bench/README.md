@@ -125,6 +125,11 @@ every `__RAW_*` window key between configurations, so levers never leak.
 
 ## Limits
 
+- Numbers repeat exactly for one browser on one GPU, not across them. On 2026-10-09 the in-app
+  browser pane read candidate ink 165 where headless Chromium read 159 for the same commit.
+  Compare variants within one run, or two `--ref` runs on the same machine.
+- The in-tab page is driven by requestAnimationFrame, which a hidden tab or pane pauses. Keep it
+  visible while it runs, or use the headless runner.
 - It is the engine on a synthetic field, not the app. MapLibre, the basemap tiles, real served
   grids and the owner's display are outside it, so a visual change still needs the owner's eyes
   in their browser before it ships.

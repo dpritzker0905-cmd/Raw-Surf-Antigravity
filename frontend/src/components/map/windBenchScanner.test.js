@@ -65,11 +65,11 @@ describe('ringResiduals: ink over the median of the blocks 2-4 away', () => {
     expect(res[at(5, 2, 2)]).toBeNaN();
   });
   test('invalid blocks get no residual and are nobody\'s reference', () => {
-    const ink = grid(12, 12, (x) => (x < 3 ? 0 : 100)); // no grid over the first 3 columns: ink 0
+    const ink = grid(12, 12, (x, y) => (x < 3 || y < 3 ? 0 : 100)); // no grid over an L of 3 rows + 3 columns: ink 0
     const valid = Uint8Array.from(ink, (v) => (v > 0 ? 1 : 0));
     const res = ringResiduals(ink, 12, 12, valid);
     expect(res[at(12, 1, 5)]).toBeNaN();
-    expect(res[at(12, 4, 5)]).toBe(1); // without the mask the empty columns would drag it into a "blob"
+    expect(res[at(12, 4, 4)]).toBe(1); // 45 of its 72 ring blocks have no data: unmasked, its reference would be 0
   });
   test('a zero reference median gives no residual', () => {
     expect(ringResiduals(grid(12, 12, () => 0), 12, 12)[at(12, 6, 6)]).toBeNaN();
@@ -134,6 +134,16 @@ describe('the permutation null and scanBlocks on a known storm', () => {
     const scan = scanBlocks({ bw, bh, ink, speed: calm });
     expect(scan.significant.find((c) => c.kind === 'HOLE')).toMatchObject({ calm: true, kn: 3 });
     expect(scan.artifacts).toBe(1);
+  });
+
+  test('a cluster exactly as big as chance makes is NOT significant', () => {
+    // One dim block in a flat field: wherever a shuffle puts it, it is a cluster of 1, so chance is 1.
+    const lone = grid(bw, bh, (x, y) => (x === 10 && y === 10 ? 40 : 100));
+    const scan = scanBlocks({ bw, bh, ink: lone, speed: speed.map(() => 20) });
+    expect(scan.nullMaxima.every((m) => m === 1)).toBe(true);
+    expect(scan.chanceBlocks).toBe(1);
+    expect(scan.clusters).toBe(1);
+    expect(scan.significant).toEqual([]);
   });
 
   test('a texture-only field has no artifacts, and only clusters bigger than chance survive', () => {
