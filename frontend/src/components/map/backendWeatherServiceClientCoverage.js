@@ -6,6 +6,8 @@
  */
 
 // Manifest cache state - owned here to prevent circular imports
+import { windDatelineNormalize } from './windFineContainment';
+
 let cachedManifest = null;
 
 export function getCachedManifest() {
@@ -300,6 +302,7 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
     // coarse resolution (5°) for efficiency. Viewport-clipped wind grids cause
     // visible rectangular edges when panning.
     if (inferredDomain === 'wind') {
+      ({ west, east } = windDatelineNormalize(west, east)); // unwrapped bounds -> wrapped/shifted (windFineContainment.js)
       // WIND VIEWPORT-FINE TIER (2026-07-19 — the circulation-centre data root).
       // The v3.15 rule above globalized EVERY wind request, and the global wind manifest product
       // is 37x17 = 10-DEGREE cells. A tropical circulation (~300-500 km, Invest 91L) is SUB-CELL
