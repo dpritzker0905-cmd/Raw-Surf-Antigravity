@@ -1653,6 +1653,14 @@ direction fix (not supported by a bulk-buoy instrument; needs spectral truth).
 - Marine Nightly zoomlab: 12 MULT0 animation frames (2026-09-29) and 15 s API timeouts (2026-09-28). n = 2. The MULT0 frames are F-22: diagnosed and FIXED in the client 2026-10-02 (see Now); not yet read back on the nightly.
 - The live `/spot-ratings` fallback still rates on the global default when its climatology read fails (#162
   residual; failing closed there needs a frontend decision).
+- **Hurricane eye changes shape while the hour is fixed (owner, 2026-10-09, LIVE data, not scrubbing).** It changes when
+  panning. n = 1, not yet measured. Hypothesis to test first: a pan swaps the viewport grid (world 2° / clip / 0.25°
+  fine; different bounds or resolution), and the eye is only a few cells wide, so the bilinear-sampled vortex reshapes.
+  The other suspect is the viewport-biased respawn and density changing with the view. Instruments: the committed wind
+  bench (#284), pan the camera over a fixed field and compare eye radius and shape per grid, plus a still-camera live
+  readback of which grid is drawn.
+- Wind, still open from #281/#282: a bright blob at the eyewall that the significance scanner flags in every theme (all
+  bench seeds, ~37-42 kn); and particles losing salience where they match a same-coloured field at the storm's peak ring.
 
 ## Owner-only
 - Arm the nearshore judge hourly (`NEARSHORE_VAL_ENABLED=1`, a repo variable).

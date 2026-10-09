@@ -12,6 +12,7 @@
  */
 import { memo, useEffect, useRef } from 'react';
 import WebGLWindEngine from './WebGLWindEngine';
+import { windLayerBeforeId, windCoastlineLayer, WIND_COASTLINE } from './WebGLWindUtils';
 import { getWindParticleRes } from './deviceTier';
 import { registerWindEngine, unregisterWindEngine } from '../../engine/RenderPlanDispatcher';
 
@@ -215,6 +216,10 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
+  // The coastline line (if this theme has one) follows the wind toggle.
+  useEffect(() => {
+    try { if (mapInstance && mapInstance.getLayer(WIND_COASTLINE.id)) mapInstance.setLayoutProperty(WIND_COASTLINE.id, 'visibility', active ? 'visible' : 'none'); } catch (e) { /* style mid-load */ }
+  }, [active, mapInstance]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
   useEffect(() => { themeRef.current = theme; }, [theme]);
@@ -264,8 +269,16 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
       if (!mapInstance.getLayer(LAYER_ID)) {
         layerAddedRef.current = false;
         try {
-          mapInstance.addLayer(customLayer);
+          // Under the basemap's borders + labels where enabled (WebGLWindUtils.windLayerBeforeId); on top otherwise.
+          let beforeId, styleLayers;
+          try { styleLayers = mapInstance.getStyle()?.layers; beforeId = windLayerBeforeId(styleLayers, themeRef.current); } catch (e) { beforeId = undefined; }
+          mapInstance.addLayer(customLayer, beforeId);
           layerAddedRef.current = true;
+          // The basemap's own coastline, just above the wind (WebGLWindUtils.windCoastlineLayer); shown only while wind is on.
+          try {
+            const coast = windCoastlineLayer(styleLayers, themeRef.current, activeRef.current);
+            if (coast && !mapInstance.getLayer(coast.id)) mapInstance.addLayer(coast, beforeId);
+          } catch (e) { /* cosmetic: the wind layer stands without it */ }
           console.log(`[WebGLWind] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
         } catch (e) {
           console.warn('[WebGLWind] Failed to add layer:', e.message);
@@ -284,6 +297,7 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
         }
+        if (mapInstance.getLayer(WIND_COASTLINE.id)) mapInstance.removeLayer(WIND_COASTLINE.id);
       } catch (e) { /* map may be disposed */ }
       layerAddedRef.current = false;
       unregisterWindEngine();

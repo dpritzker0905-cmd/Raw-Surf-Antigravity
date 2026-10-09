@@ -519,6 +519,52 @@ export function v2FieldTint(theme, win = (typeof window !== 'undefined' ? window
   return (typeof s === 'number' && s > 0 && s <= 2) ? s : (V2_FIELD_TINT.strength[theme] || 1);
 }
 
+// WIND UNDER THE LABELS (2026-10-09, owner: "on light mode, its hard to see the continent/land below the hurricane ... when
+// zoomed up a little closer. How do we keep the coloring ... but make the land a little more visible, without ruining the
+// wind animation?"). The wind custom layer was added with no anchor, so it sat ABOVE every basemap layer: country/state
+// borders and every place name were tinted and crossed by streaks, and the land's only remaining cue near the storm was a
+// ~10 L* land/water step that a strong tint compresses. Weather maps (Windy, Ventusky) draw the colour layer UNDER borders
+// and labels. Both tinted basemaps (navigation-day-v1, outdoors-v11) open their borders+labels block at
+// 'admin-1-boundary-bg' (layer 96/98 of 118/121), so the wind goes just before the first 'admin-*' layer: the tint still
+// multiplies land, water, roads and buildings; borders and names draw crisp on top. Colours and animation are untouched.
+// Light and beach (owner: "check beach mode to see if we can make similar changes to the land and labels, maybe slightly
+// less bold"); dark keeps its approved look. Lever: __RAW_WIND_UNDER_LABELS_THEMES__ = 'light,beach,dark'; kill:
+// __RAW_DISABLE_WIND_UNDER_LABELS__ (the layer returns to the top on the next style load: theme change or reload).
+export var WIND_UNDER_LABELS = { themes: ['light', 'beach'] };
+/** The basemap layer id to insert the wind layer before (undefined = on top), from the style's layer list. */
+export function windLayerBeforeId(layers, theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  if (w.__RAW_DISABLE_WIND_UNDER_LABELS__ === true || !Array.isArray(layers)) return undefined;
+  const themes = typeof w.__RAW_WIND_UNDER_LABELS_THEMES__ === 'string' ? w.__RAW_WIND_UNDER_LABELS_THEMES__.split(',') : WIND_UNDER_LABELS.themes;
+  if (!themes.includes(theme)) return undefined;
+  const hit = layers.find((l) => l && typeof l.id === 'string' && /^admin-/.test(l.id));
+  return hit ? hit.id : undefined;
+}
+
+// COASTLINE ABOVE THE WIND (same report). Labels above the wind name the land but do not draw it: light's 6-16 kn tints are
+// blue-family, so near a storm the tinted land reads like the water and these basemaps carry no coastline stroke. Windy and
+// Ventusky draw coastlines above their colour layer; this draws the basemap's OWN water-polygon outlines (same source and
+// source-layer as its 'water' fill, so the line sits exactly on the map's coast at every zoom) as a thin slate line just
+// above the wind, under the borders + labels. Owner-pane bench, z6.4 Gulf storm: the Louisiana coast, delta and lakes read
+// through the storm at 0.42 opacity in light (0.6 got busy in the delta) and at 0.28 in beach (the owner asked for "slightly
+// less bold" there; its green band already separates land a little). Visible only while wind is on. Dark: none.
+// Levers: __RAW_WIND_COASTLINE_THEMES__, __RAW_WIND_COASTLINE_OPACITY__ (0.1-1); kill: __RAW_DISABLE_WIND_COASTLINE__.
+export var WIND_COASTLINE = { id: 'wind-coastline', themes: ['light', 'beach'], color: 'rgb(45, 58, 72)', opacity: { light: 0.42, beach: 0.28 },
+  width: ['interpolate', ['linear'], ['zoom'], 3, 0.4, 6, 0.7, 9, 1.1, 12, 1.4] };
+/** The coastline line-layer spec for this style + theme, or null (theme off, kill, or no 'water' fill to trace). */
+export function windCoastlineLayer(layers, theme, visible, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  if (w.__RAW_DISABLE_WIND_COASTLINE__ === true || !Array.isArray(layers)) return null;
+  const themes = typeof w.__RAW_WIND_COASTLINE_THEMES__ === 'string' ? w.__RAW_WIND_COASTLINE_THEMES__.split(',') : WIND_COASTLINE.themes;
+  if (!themes.includes(theme)) return null;
+  const water = layers.find((l) => l && l.id === 'water' && l.type === 'fill' && l.source && l['source-layer']);
+  if (!water) return null;
+  const op = w.__RAW_WIND_COASTLINE_OPACITY__;
+  return { id: WIND_COASTLINE.id, type: 'line', source: water.source, 'source-layer': water['source-layer'],
+    layout: { visibility: visible ? 'visible' : 'none', 'line-join': 'round' },
+    paint: { 'line-color': WIND_COASTLINE.color, 'line-opacity': (typeof op === 'number' && op >= 0.1 && op <= 1) ? op : (WIND_COASTLINE.opacity[theme] || 0.3), 'line-width': WIND_COASTLINE.width } };
+}
+
 /** { on, opacity, singleCasing } for this theme (off whenever the neutral-body v2 theme is on: it owns the premul path). */
 export function v2SpeedPremul(v2, theme, win = (typeof window !== 'undefined' ? window : null)) {
   const w = win || {};
