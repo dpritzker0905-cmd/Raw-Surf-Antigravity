@@ -376,6 +376,7 @@ export function resolveWindParticlesV2(win = (typeof window !== 'undefined' ? wi
     motion: w.__RAW_WIND_MOTION_V2__ === true && w.__RAW_DISABLE_WIND_CALIBRATION_V2__ !== true,
     theme: w.__RAW_WIND_THEME_V2__ === true && w.__RAW_DISABLE_WIND_THEME_V2__ !== true,
     densityPer100: num('__RAW_WIND_V2_DENSITY__', 5, 2000, w.__RAW_WIND_MOTION_V2__ === true ? V2_DEFAULTS.densityPer100Motion : V2_DEFAULTS.densityPer100),
+    closeInk: typeof w.__RAW_WIND_V2_DENSITY__ !== 'number' && w.__RAW_WIND_MOTION_V2__ !== true && w.__RAW_DISABLE_WIND_CLOSEZOOM_INK__ !== true,
     speedMul: num('__RAW_WIND_V2_SPEED__', 0.25, 4, V2_DEFAULTS.speedMul),
     lifeS: num('__RAW_WIND_V2_LIFE_S__', 0.2, 10, V2_DEFAULTS.lifeS),
     composite: num('__RAW_WIND_V2_OPACITY__', 0.2, 1, V2_DEFAULTS.composite),
@@ -416,6 +417,20 @@ export function v2KeepRate(densityPer100, cssW, cssH, pool, globalBox, zoom) {
   const screenArea = Math.max(1, cssW * cssH);
   const inView = pool * Math.min(1, screenArea / boxArea);   // steady state: every live particle is in the box
   return Math.max(0.002, Math.min(1, (densityPer100 * screenArea / 1e4) / Math.max(1, inView)));
+}
+
+// CLOSE-ZOOM INK (2026-10-08, owner: "I see diamonds now in the red wind"). Holding 490 marks at EVERY zoom saturated the
+// trail buffer above z6, where each mark lays far more ink (the z>6 step mode + zoom-grown marks): at z7.5 99.8% of the
+// screen was inked (19.4% before #276) and the mark colour became the picture, so the grid's top-speed cells read as
+// solid dark diamonds. Above z6 the density holds the owner-approved close-up INK instead (mean trail-buffer brightness
+// ~150/255: pre-#276 z6 156, z9 147). Doses measured for ~150 on dev 744a7132 (Gulf hurricane): z6.5 165, z7 120,
+// z8 70, z9 45, z10 32, z11.5 30. The lever __RAW_WIND_V2_DENSITY__ stays flat. Kill: __RAW_DISABLE_WIND_CLOSEZOOM_INK__.
+export const V2_CLOSE_INK = Object.freeze({ atZ6: 220, halvingsPerZoom: 0.75, floor: 30 });
+
+/** Marks per 100x100 css px to draw at this zoom: the flat target at z<=6, the close-zoom ink curve above. */
+export function v2DensityAt(v2, zoom) {
+  if (!v2.closeInk || !(zoom > 6)) return v2.densityPer100;
+  return Math.max(V2_CLOSE_INK.floor, V2_CLOSE_INK.atZ6 * Math.pow(2, -V2_CLOSE_INK.halvingsPerZoom * (zoom - 6)));
 }
 
 /** Mean-life drop chance per 60 Hz frame at calm, and the bump at the grid's max speed (upstream webgl-wind shape). */
