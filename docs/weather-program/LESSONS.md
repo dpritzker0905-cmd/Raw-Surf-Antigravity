@@ -422,3 +422,11 @@ A stored estimate can be estimated again in a browser branch with different sour
   alpha); a dose sweep per zoom then set the close-zoom curve to the approved ink (~150/255). L-V3's own caveat
   ("head count alone is not ink") was written and then not applied: the test suite asserted the flat count at z7.5-z14,
   so it encoded the bug. Measure the quantity the eye sees at every zoom the change touches, before shipping.
+- **L-V7 · Know a grid's registration before you draw it.** The backend serves point-registered grids (bounds = sample
+  extents, cols = span/res + 1); every heat-map shader drew them as cell-edge rasters, misplacing each sample by up to
+  half a cell, differently per grid, so each post-pan viewport grid slid the field (the owner's "slight shift ... a
+  second or two later"; 28 css px measured at z7). Nobody saw it for months because a single grid looks plausible;
+  it only shows when two grids of the same place disagree. Instruments that settled it: still-camera frame
+  cross-correlation with a null control, and a GPU placement check through the real shader (hot sample drawn at
+  -3.636 vs the model's -3.636; -4.000 after the fix). Whenever two products of one field meet (base/fine, world/clip,
+  hour A/hour B), test that they put the same coordinate in the same pixel (#279, gridPointRegistration.js).
