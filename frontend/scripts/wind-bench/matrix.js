@@ -36,18 +36,32 @@ const VARIANTS = Object.freeze({
   candidate: { label: 'engine as written', levers: {} },
 });
 
+// The positive control's own arms: the pair above with the DARK PALETTE PINNED to the one the control was calibrated on.
+// #292's colour-blind dark palette (2026-10-09) left the re-created casing defect's HOLE too faint to score (the field still
+// crosses the casing pole at ~41 kn, but the warm bands above it are lighter), and the control went BLIND on a healthy
+// scanner. A control must not depend on the palette of the day; the full matrix still renders the shipped palette.
+// On a tree without the lever the pin is simply unread (the arms equal shipped/candidate).
+const PIN = Object.freeze({ __RAW_DISABLE_WIND_DARK_CVD__: true });
+const CONTROL_VARIANTS = Object.freeze({
+  controlShipped: { label: 'shipped, dark palette pinned (positive control)', levers: { ...VARIANTS.shipped.levers, ...PIN } },
+  controlCandidate: { label: 'engine as written, dark palette pinned (positive control)', levers: { ...VARIANTS.candidate.levers, ...PIN } },
+});
+/** Every variant a configuration may name (the matrix's own, then the control's). */
+const ALL_VARIANTS = Object.freeze({ ...VARIANTS, ...CONTROL_VARIANTS });
+
 /**
  * POSITIVE CONTROL: a bench that cannot see a known defect proves nothing when it sees none.
  * With the fixed-casing kill switch on, the per-pixel casing pole traces each top-speed contour:
  * a dark-cored HOLE inside it (about 44 kn here) and an over-inked BLOB ring outside it (about
  * 34 kn). Dark z8 on the 0.25 deg grid shows both. The shipped variant MUST show both (or the
- * scanner is blind and the run proves nothing); the candidate must show neither.
+ * scanner is blind and the run proves nothing); the candidate must show neither. Both arms pin the
+ * dark palette (CONTROL_VARIANTS) so a palette change cannot blind the instrument.
  */
 const POSITIVE_CONTROL = Object.freeze({
   view: 'fine-z8',
   theme: 'dark',
-  blindVariant: 'shipped',
-  fixedVariant: 'candidate',
+  blindVariant: 'controlShipped',
+  fixedVariant: 'controlCandidate',
   expect: [{ kind: 'HOLE', kn: 44 }, { kind: 'BLOB', kn: 34 }],
   tolKn: 5,
 });
@@ -90,7 +104,7 @@ function buildMatrix(opts = {}) {
   const views = pick(VIEWS, opts.views, 'view');
   const themes = pick(THEMES, opts.themes, 'theme');
   const variantIds = opts.variants || Object.keys(VARIANTS);
-  variantIds.forEach((v) => { if (!VARIANTS[v]) throw new Error(`unknown variant "${v}" (have: ${Object.keys(VARIANTS).join(', ')})`); });
+  variantIds.forEach((v) => { if (!ALL_VARIANTS[v]) throw new Error(`unknown variant "${v}" (have: ${Object.keys(ALL_VARIANTS).join(', ')})`); });
   const seeds = Array.from({ length: Math.max(1, opts.seeds || 1) }, (_, k) => (opts.seed || 0) + k);
   const configs = [];
   views.forEach((view) => themes.forEach((theme) => seeds.forEach((seed) => variantIds.forEach((variant) => configs.push({
@@ -106,4 +120,4 @@ function controlConfigs(opts = {}) {
   return buildMatrix({ ...opts, views: [c.view], themes: [c.theme], variants: [c.blindVariant, c.fixedVariant] });
 }
 
-module.exports = { CENTER, VIEWS, THEMES, BASEMAP, VARIANTS, POSITIVE_CONTROL, controlHits, evaluateControl, buildMatrix, controlConfigs };
+module.exports = { CENTER, VIEWS, THEMES, BASEMAP, VARIANTS, CONTROL_VARIANTS, ALL_VARIANTS, POSITIVE_CONTROL, controlHits, evaluateControl, buildMatrix, controlConfigs };

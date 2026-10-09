@@ -392,6 +392,7 @@ varying float v_alpha;
 varying vec4 v_debug_color;
 varying vec2 v_dir;              // 2026-07-18: screen-space wind direction — the mark is ORIENTED
 uniform float u_v2_density; uniform float u_v2_motion; uniform float u_v2_keep; uniform vec4 u_v2_speedkeep; uniform float u_v2_px_per_kn; uniform float u_v2_speed_max; uniform float u_v2_gamma; varying float v_stretch; // PARTICLES V2
+uniform float u_dash_thin; uniform float u_dash_min_css; varying float v_thin; // close-zoom thin marks: narrowing, width floor (css px), this mark's share (WebGLWindUtils WIND_CLOSE_THIN)
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
@@ -656,6 +657,8 @@ void main() {
     gl_PointSize = mix(min(gl_PointSize, cap10), cap10, lift);
   }
 
+  // CLOSE-ZOOM THIN MARKS: never narrow a dash below u_dash_min_css across the wind (DRAW_FS's elongation; why: WIND_CLOSE_THIN).
+  v_thin = clamp(u_dash_thin, 1.0, max(gl_PointSize / (mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed)) * max(u_dash_min_css * max(u_dpr, 1.0), 0.5)), 1.0));
   v_stretch = 1.0; // V2: stretch the mark along the flow by its own per-frame step, so the stamps join into a streak
   if (u_v2_motion > 0.5 && gl_PointSize > 0.0) { float stepPx = v_speed * u_v2_px_per_kn * pow(clamp(v_speed / max(u_v2_speed_max, 1.0), 0.02, 1.0), u_v2_gamma - 1.0) * max(u_dpr, 1.0);
     v_stretch = (gl_PointSize + stepPx) / gl_PointSize; gl_PointSize += stepPx; }
@@ -680,6 +683,7 @@ uniform float u_theme;       // 2026-07-18: 0=dark 1=light 2=beach — the parti
 uniform float u_theme_rim;   // 1 = theme-aware rim/core, 0 = legacy black/white (kill switch)
 uniform float u_calm_alpha_kill; // 1 = restore the 07-19 calm-alpha set (kill switch; default 0)
 uniform float u_dash;        // 2026-07-18: 1 = oriented dash, 0 = legacy round mark (kill switch)
+varying float v_thin;        // close-zoom across-wind narrowing for THIS mark (DRAW_VS: u_dash_thin under the width floor)
 uniform float u_field_opacity; // heatmap u_opacity — the field is SEMI-TRANSPARENT
 uniform float u_basemap_y;     // linear luminance of the basemap showing through it
 uniform float u_casing_fixed;  // 1 = one casing pole for every mark (WebGLWindUtils.windCasingFixedPole)
@@ -708,7 +712,7 @@ void main() {
     // inside the sprite, keeps its length equal to the sprite, and cuts area by ~1/elong — so the
     // basemap shows through MORE than with the round mark it replaces.
     // 2.6:1 at the slow end easing to 1.8:1 once real motion supplies its own streak.
-    float elong = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed));
+    float elong = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed)) * max(v_thin, 1.0);
     localCoord = vec2(along.x, along.y * elong * max(v_stretch, 1.0));
   }
   float dist = length(localCoord);

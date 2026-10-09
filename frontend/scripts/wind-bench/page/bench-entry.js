@@ -9,7 +9,7 @@ const EngineModule = require('wind-bench-engine');
 const { benchGrids, sampleSpeed } = require('../field');
 const { makeCamera } = require('../camera');
 const { mulberry32, blockStats, scanBlocks } = require('../scanner');
-const { BASEMAP, VARIANTS, buildMatrix, controlConfigs } = require('../matrix');
+const { BASEMAP, ALL_VARIANTS, buildMatrix, controlConfigs } = require('../matrix');
 const { formatTable, figureText, configKey } = require('../report');
 const { mergeSeeds, controlAcrossSeeds } = require('../replicates');
 const { KM_PER_DEG, thresholdRamp, eyeGeometry } = require('../eye');
@@ -78,7 +78,7 @@ function readTrail(engine) {
 }
 
 async function runOne(cfg) {
-  const variant = VARIANTS[cfg.variant];
+  const variant = ALL_VARIANTS[cfg.variant];
   if (!variant) throw new Error('unknown variant ' + cfg.variant);
   const realRandom = Math.random;
   clearLevers();
@@ -300,14 +300,19 @@ async function eyeInk(cfg) {
 
 /**
  * LAND mode (land-run.js): how much of the land's line work (roads, rivers, coasts) survives the
- * wind layer. Each frame the canvas is cleared to the theme's LAND colour with a 1-css-px dark
- * line grid every 24 css px, then the real engine draws on top. The final canvas is read back and
- * every vertical line pixel is paired with the background 6 css px to its right:
- * retain = mean (L*bg - L*line) / the same on the bare basemap; lost = share of pairs below 0.5.
+ * wind layer. Each frame the canvas is cleared to the theme's LAND colour with a 1-css-px line grid
+ * every 24 css px in the basemap's own road polarity (darker than land in light and beach, lighter
+ * in dark, as navigation-night draws them), then the real engine draws on top. The final canvas is
+ * read back and every vertical line pixel is paired with the background 6 css px to its right:
+ * retain = mean (L*line - L*bg) / the same on the bare basemap; lost = share of pairs below 0.5.
+ * A field-only run (res <= 2) caches its L* image; the next full run of the same view and seed
+ * then also returns sal (mean |dL*| the particles add) and cover (share of pixels moved > 5 L*).
  * cfg: {view, z, grid, lng, lat, theme, res, frames, seed, levers}; res 2 = the field alone (4 particles).
  */
 const LAND = Object.freeze({ dark: [0.07, 0.08, 0.10], light: [236 / 255, 236 / 255, 232 / 255], beach: [222 / 255, 208 / 255, 180 / 255] });
-const LINE_EVERY = 24, LINE_DARKEN = 0.55, BG_OFFSET = 6;
+const LINE = Object.freeze({ dark: [0.30, 0.34, 0.40], light: LAND.light.map((c) => c * 0.55), beach: LAND.beach.map((c) => c * 0.55) });
+const LINE_EVERY = 24, BG_OFFSET = 6;
+const fieldCache = new Map();
 const lstar = (r, g, b) => {
   const lin = (c) => { const v = c / 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
   const Y = 0.2126729 * lin(r) + 0.7151522 * lin(g) + 0.072175 * lin(b);
@@ -329,7 +334,7 @@ async function landOne(cfg) {
     const regional = cfg.grid === 'world' ? null : GRIDS[cfg.grid];
     if (regional) engine.setWindData(gl, regional);
     const cam = makeCamera(cfg.lng, cfg.lat, cfg.z, CSS_W, CSS_H);
-    const land = LAND[cfg.theme], line = land.map((c) => c * LINE_DARKEN);
+    const land = LAND[cfg.theme], line = LINE[cfg.theme];
     const draw = () => {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.viewport(0, 0, canvas.width, canvas.height);
@@ -350,17 +355,27 @@ async function landOne(cfg) {
       const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, px = new Uint8Array(W * H * 4);
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
-      const L = (x, y) => { const p = (y * W + x) * 4; return lstar(px[p], px[p + 1], px[p + 2]); };
-      const d0 = lstar(...land.map((c) => c * 255)) - lstar(...line.map((c) => c * 255));
+      const Limg = new Float32Array(W * H);
+      for (let i = 0; i < W * H; i++) Limg[i] = lstar(px[i * 4], px[i * 4 + 1], px[i * 4 + 2]);
+      const L = (x, y) => Limg[y * W + x];
+      const d0 = lstar(...line.map((c) => c * 255)) - lstar(...land.map((c) => c * 255));
       let sum = 0, n = 0, lost = 0;
       for (let y = 0; y < H; y += 2) {
         if ((y / DPR) % LINE_EVERY < 2) continue;                       // skip rows on a horizontal line
         for (let x = LINE_EVERY; x + BG_OFFSET < CSS_W; x += LINE_EVERY) {
-          const r = (L((x + BG_OFFSET) * DPR, y) - L(x * DPR, y)) / d0;
+          const r = (L(x * DPR, y) - L((x + BG_OFFSET) * DPR, y)) / d0;
           sum += r; n++; if (r < 0.5) lost++;
         }
       }
       out = { retain: +(sum / n).toFixed(3), lost: +(lost / n).toFixed(3), pairs: n, glError: gl.getError() || 0 };
+      const key = `${cfg.theme}/${cfg.z}/${cfg.lng}/${cfg.lat}/${cfg.seed}/${cfg.frames}/${JSON.stringify(cfg.levers || {})}`;
+      if (cfg.res <= 2) fieldCache.set(key, Limg);
+      else if (fieldCache.has(key)) {
+        const F = fieldCache.get(key); let s = 0, c = 0;
+        for (let i = 0; i < W * H; i++) { const d = Math.abs(Limg[i] - F[i]); s += d; if (d > 5) c++; }
+        out.sal = +(s / (W * H)).toFixed(3); out.cover = +(c / (W * H)).toFixed(4);
+        fieldCache.delete(key);
+      }
     });
     return out;
   } finally {

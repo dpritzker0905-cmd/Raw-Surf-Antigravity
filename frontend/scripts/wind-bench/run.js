@@ -142,9 +142,9 @@ async function main() {
     if (!control) { console.log('positive control not run (--no-control): no verdict.'); return glErrors.length ? 2 : 0; }
     if (control.status === 'BLIND' || glErrors.length) return 2;
     if (control.status === 'FAIL') return 1;
-    const strictHits = merged.filter((r) => r.variant === POSITIVE_CONTROL.fixedVariant && r.artifacts > 0);
+    const strictHits = merged.filter((r) => r.variant === 'candidate' && r.artifacts > 0);
     if (opts.strict && strictHits.length) {
-      console.log(`--strict: ${POSITIVE_CONTROL.fixedVariant} has artifacts in ${strictHits.map(configKey).join(', ')}`);
+      console.log(`--strict: candidate has artifacts in ${strictHits.map(configKey).join(', ')}`);
       return 1;
     }
     return 0;

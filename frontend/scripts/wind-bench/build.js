@@ -35,19 +35,27 @@ function engineSource(ref, cacheDir) {
   return { srcRoot, label: `${ref} @ ${sha.slice(0, 12)}` };
 }
 
-function buildBench({ srcRoot, outDir }) {
+/** Bundle one bench page: `page` is 'bench' (index.html + bench.js) or 'map' (map.html + map.js, MAP mode). */
+function buildBench({ srcRoot, outDir, page = 'bench' }) {
   const webpack = require(path.join(NODE_MODULES, 'webpack'));
+  const html = page === 'map' ? 'map.html' : 'index.html';
   fs.mkdirSync(outDir, { recursive: true });
-  fs.copyFileSync(path.join(__dirname, 'page', 'index.html'), path.join(outDir, 'index.html'));
+  fs.copyFileSync(path.join(__dirname, 'page', html), path.join(outDir, html));
   return new Promise((resolve, reject) => {
     webpack({
       mode: 'development',
       devtool: false,
       target: 'web',
       performance: { hints: false },
-      entry: path.join(__dirname, 'page', 'bench-entry.js'),
-      output: { path: outDir, filename: 'bench.js' },
-      resolve: { modules: [NODE_MODULES], alias: { 'wind-bench-engine$': path.join(srcRoot, ENGINE_REL) } },
+      entry: path.join(__dirname, 'page', `${page}-entry.js`),
+      output: { path: outDir, filename: `${page}.js` },
+      resolve: {
+        modules: [NODE_MODULES],
+        alias: {
+          'wind-bench-engine$': path.join(srcRoot, ENGINE_REL),
+          'wind-bench-utils$': path.join(srcRoot, 'components', 'map', 'WebGLWindUtils.js'),
+        },
+      },
       plugins: [new webpack.DefinePlugin({ 'process.env': JSON.stringify({ NODE_ENV: 'development' }) })],
     }, (err, stats) => {
       if (err) return reject(err);

@@ -520,3 +520,35 @@ A stored estimate can be estimated again in a browser branch with different sour
   land colour, the field alone vs the full pool. It found the field innocent (about 0.80 kept at every zoom). Light's
   mark opacity eased to 0.65 across z6-7.5 (`WIND_CLOSE_LAND`, a ramp per L-V13) holds z7-11 at 0.35-0.43. When a
   composite changes per theme, re-measure coverage on screen, not the shared intermediate.
+- **L-V15 · A colour-blind solver passes by drawing stripes unless smoothness is a constraint; and a strength-pinned tint
+  has a physical ceiling.** The first dark solve cleared the 5 dE floor (coloraide Viénot/Brettel) with tiny moves, by
+  trading blue between 21 and 27 kn. 27 kn went paler than both neighbours: a chroma stripe that a lightness check
+  cannot see. Pin "no NEW lightness or chroma peak/dip" in the legend AND the tint (keep the turns the palette
+  already has, and let the tint turn where the legend turns). Then dark becomes a lightness arc, the cure the theory
+  predicts. Light/beach tints are pinned to dark's strength (24-26 dE76), and a multiply that strong darkens cyan water
+  by at most ~22 L*, so light's 40-75 kn tints are a near-grey there for everyone. A 5 dE floor on six fast-band steps
+  was out of reach smoothly (1 run of 11, and only by a redesign). Measure the CEILING (maximin) before promising a
+  floor, check the full pair matrix rather than the worst pair, and check land as well as water (log
+  2026-10-09-wind-cvd-palettes).
+- **L-V16 · A lever that reshapes the TRAIL must re-pass the scanner; one that scales the COMPOSITE cannot draw a
+  pattern.** The research case for thinner marks over fainter ones was strong:
+  - zoomBoost widens a dash to ~5.8 css px at z9, while no leading wind map draws wider than ~3 px;
+  - opacity is the luminance contrast that carries motion;
+  - at equal land returned, thin kept each mark's contrast (15.5 vs 15.7 dL* per marked pixel; opacity gave 13.1).
+
+  The 3-seed scanner overruled it. Thin marks added recurring ink bands at ~17-24 kn and holes at ~8 kn at z6.5-8
+  in every theme: 10 shapes in 7 of 12 views, against 4 in 3 on dev and on #292 alone. Width floors of 1.5 and 2.5 css
+  px did not cure it. The bands sit where the speed-aware cull (calibrated on the wide mark) runs at full strength,
+  and none appeared at z9. A composite factor scales the finished picture uniformly, so it shipped (light 0.65, beach
+  0.65, dark 0.8). Thin stays a lever until V2_SPEED_KEEP_INK is re-calibrated for it. Theory picks the candidates;
+  the forensic instruments pick the default.
+- **L-V17 · Score a line between its own two pixels, and pin a positive control's inputs.** Two instruments went wrong
+  quietly on 2026-10-09:
+  - **The WCAG 3:1 check.** It took a 5x5 min/max after compositing, so a particle's bright ring counted as road
+    contrast, and lines read as MORE legible with particles on (85% -> 94%). Find each line's line pixel and ground
+    pixel on the bare basemap, then score those same two pixels (map-run.js).
+  - **The scanner's positive control.** It went BLIND because #292 changed the dark palette, not because the
+    scanner broke. Its arms now pin that palette (CONTROL_VARIANTS).
+
+  Before trusting a new metric, ask whether the thing under test can supply the signal the metric is looking for,
+  and whether an unrelated change can starve the control of its defect.
