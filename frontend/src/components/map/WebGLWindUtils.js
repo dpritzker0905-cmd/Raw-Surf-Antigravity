@@ -528,9 +528,11 @@ export function v2FieldTint(theme, win = (typeof window !== 'undefined' ? window
 // 'admin-1-boundary-bg' (layer 96/98 of 118/121), so the wind goes just before the first 'admin-*' layer: the tint still
 // multiplies land, water, roads and buildings; borders and names draw crisp on top. Colours and animation are untouched.
 // Light and beach (owner: "check beach mode to see if we can make similar changes to the land and labels, maybe slightly
-// less bold"); dark keeps its approved look. Lever: __RAW_WIND_UNDER_LABELS_THEMES__ = 'light,beach,dark'; kill:
+// less bold"), then dark (owner: "dark mode could benefit with a light border and labels, similar to the other modes, but
+// designed for the dark map"; navigation-night-v1 opens the same block at 'admin-1-boundary-bg', layer 97 of 119, and its
+// own labels are light text on dark halos). Lever: __RAW_WIND_UNDER_LABELS_THEMES__; kill:
 // __RAW_DISABLE_WIND_UNDER_LABELS__ (the layer returns to the top on the next style load: theme change or reload).
-export var WIND_UNDER_LABELS = { themes: ['light', 'beach'] };
+export var WIND_UNDER_LABELS = { themes: ['light', 'beach', 'dark'] };
 /** The basemap layer id to insert the wind layer before (undefined = on top), from the style's layer list. */
 export function windLayerBeforeId(layers, theme, win = (typeof window !== 'undefined' ? window : null)) {
   const w = win || {};
@@ -547,9 +549,12 @@ export function windLayerBeforeId(layers, theme, win = (typeof window !== 'undef
 // source-layer as its 'water' fill, so the line sits exactly on the map's coast at every zoom) as a thin slate line just
 // above the wind, under the borders + labels. Owner-pane bench, z6.4 Gulf storm: the Louisiana coast, delta and lakes read
 // through the storm at 0.42 opacity in light (0.6 got busy in the delta) and at 0.28 in beach (the owner asked for "slightly
-// less bold" there; its green band already separates land a little). Visible only while wind is on. Dark: none.
+// less bold" there; its green band already separates land a little). DARK gets a LIGHT line designed for the dark map: pale
+// slate at 0.45 read through the bright streaks on the bench, where a warm sand line sank into dark's yellow-green tint and
+// 0.28 was lost in the streak texture. Visible only while wind is on.
 // Levers: __RAW_WIND_COASTLINE_THEMES__, __RAW_WIND_COASTLINE_OPACITY__ (0.1-1); kill: __RAW_DISABLE_WIND_COASTLINE__.
-export var WIND_COASTLINE = { id: 'wind-coastline', themes: ['light', 'beach'], color: 'rgb(45, 58, 72)', opacity: { light: 0.42, beach: 0.28 },
+export var WIND_COASTLINE = { id: 'wind-coastline', themes: ['light', 'beach', 'dark'],
+  color: { light: 'rgb(45, 58, 72)', beach: 'rgb(45, 58, 72)', dark: 'rgb(200, 214, 228)' }, opacity: { light: 0.42, beach: 0.28, dark: 0.45 },
   width: ['interpolate', ['linear'], ['zoom'], 3, 0.4, 6, 0.7, 9, 1.1, 12, 1.4] };
 /** The coastline line-layer spec for this style + theme, or null (theme off, kill, or no 'water' fill to trace). */
 export function windCoastlineLayer(layers, theme, visible, win = (typeof window !== 'undefined' ? window : null)) {
@@ -562,7 +567,7 @@ export function windCoastlineLayer(layers, theme, visible, win = (typeof window 
   const op = w.__RAW_WIND_COASTLINE_OPACITY__;
   return { id: WIND_COASTLINE.id, type: 'line', source: water.source, 'source-layer': water['source-layer'],
     layout: { visibility: visible ? 'visible' : 'none', 'line-join': 'round' },
-    paint: { 'line-color': WIND_COASTLINE.color, 'line-opacity': (typeof op === 'number' && op >= 0.1 && op <= 1) ? op : (WIND_COASTLINE.opacity[theme] || 0.3), 'line-width': WIND_COASTLINE.width } };
+    paint: { 'line-color': WIND_COASTLINE.color[theme] || WIND_COASTLINE.color.light, 'line-opacity': (typeof op === 'number' && op >= 0.1 && op <= 1) ? op : (WIND_COASTLINE.opacity[theme] || 0.3), 'line-width': WIND_COASTLINE.width } };
 }
 
 /** { on, opacity, singleCasing } for this theme (off whenever the neutral-body v2 theme is on: it owns the premul path). */

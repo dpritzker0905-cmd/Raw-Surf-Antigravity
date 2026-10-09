@@ -108,14 +108,15 @@ var BEACH_WIND_RAMP = [
   [75, 0.322, 0.173, 0.514, 0.95], // Hurricane: dusk violet (L* 27.4)
 ];
 
-// LIGHT "dawn sky -> storm": cloud white, lavender, periwinkle, cerulean, teal, spring green, yellow-green, gold, orange,
-// red-orange, red, crimson, plum. (Lavender/periwinkle, not sky blue, open the ramp: blue on the pale-cyan water is invisible.)
+// LIGHT "dawn sky -> storm": cloud white, lavender, periwinkle, light violet, sage leaf, spring green, yellow-green, gold,
+// orange, red-orange, red, crimson, plum. (Lavender/periwinkle, not sky blue, open the ramp: blue on the pale-cyan water is
+// invisible. 10/16 kn were cerulean/teal — the water's own colours; see LIGHT LOW BAND below.)
 var LIGHT_WIND_RAMP = [
   [0,  0.942, 0.964, 0.987, 0.72], // Calm: cloud white (L* 96.6)
   [3,  0.803, 0.757, 0.982, 0.75], // Light air: lavender (L* 80.8)
   [6,  0.612, 0.688, 0.897, 0.78], // Light breeze: periwinkle (L* 71.9)
-  [10, 0.103, 0.701, 0.825, 0.80], // Gentle: cerulean (L* 67.3; +0.9 L* — the mid-band refine below)
-  [16, 0.304, 0.786, 0.738, 0.82], // Moderate: teal (L* 74.0; +2 C*)
+  [10, 0.747, 0.652, 0.997, 0.80], // Gentle: light violet (L* 73.3; OKLCH 0.780/0.125/296)
+  [16, 0.545, 0.672, 0.377, 0.82], // Moderate: sage leaf (L* 66.2; OKLCH 0.700/0.108/128)
   [21, 0.415, 0.764, 0.520, 0.84], // Fresh: spring green (L* 72.0)
   [27, 0.615, 0.706, 0.267, 0.86], // Strong: yellow-green (L* 69.6)
   [33, 0.802, 0.643, 0.099, 0.87], // Near gale: gold (L* 69.1)
@@ -192,17 +193,33 @@ export var THEME_RAMPS = {
 var PRE_MIDBAND_STOPS = {
   particle: { light: { 3: [10, 0.116, 0.690, 0.811, 0.80], 4: [16, 0.332, 0.785, 0.749, 0.82], 5: [21, 0.409, 0.758, 0.514, 0.84] },
     beach: { 3: [10, 0.361, 0.680, 0.704, 0.83], 4: [16, 0.308, 0.764, 0.906, 0.85], 5: [21, 0.284, 0.748, 0.574, 0.87] } },
-  field: { light: { 3: [10, 0.276, 0.688, 0.789, 0.80] },
+  field: { light: { 3: [10, 0.276, 0.688, 0.789, 0.80], 4: [16, 0.228, 0.803, 0.762, 0.82] },
     beach: { 3: [10, 0.008, 0.746, 0.788, 0.83], 4: [16, 0.008, 0.788, 0.967, 0.85], 5: [21, 0.016, 0.811, 0.637, 0.87] } },
 };
+// LIGHT LOW BAND (owner, later the same day: "in light mode, I think those slower wind speeds under 15kts animation color
+// looks to similar to the water color of the map ... refine this like you did with color skills"). Measured over light water,
+// the tint sat 0-26° off the water's hue from 8 to 18 kn (0° at 12 kn): cerulean (10) and teal (16) ARE the water's colours.
+// Same cure as beach: leave the water's family. 10 kn goes to the violet side (light violet; tint 298° OKLCH), 16 kn to the
+// green side (sage leaf; tint 138°). A violet -> green ramp must hand off across the water's hue somewhere; the solver keeps
+// that hand-off to ~1 kn (13 kn) where it used to span 8-18 kn. Over water: tint >= 35° off the water's hue at every speed
+// 4-22 kn except 12.5-13.5, tint vs water 13.8-16.3 -> 14.9-22.2 dE00, streak vs its tint +4.0..+5.9 L* over 7-16 kn (was
+// +3.8..+4.0), all windFieldLut gates and dark parity held. Owner-pane A/B on the real map: research_notes/Beach wind art and
+// motion/. (Softening the basemap water instead was measured too: +2-3 dE00 at the cost of the land/water step, 16 -> 10-12.)
+// Kill: __RAW_DISABLE_WIND_LIGHT_LOWBAND__ restores the cerulean/teal stops (the midband kill, if also set, wins).
+var PRE_LIGHT_LOWBAND = {
+  particle: { 3: [10, 0.103, 0.701, 0.825, 0.80], 4: [16, 0.304, 0.786, 0.738, 0.82] },
+  field: { 3: [10, 0.289, 0.646, 0.736, 0.80], 4: [16, 0.228, 0.803, 0.762, 0.82] },
+};
+function revertRows(ramp, rows) { return ramp.map(function(stop, i) { return rows[i] ? rows[i].slice() : stop; }); }
 function midbandRefined(ramp, kind, theme, w) {
+  var out = (theme === 'light' && w && w.__RAW_DISABLE_WIND_LIGHT_LOWBAND__ === true) ? revertRows(ramp, PRE_LIGHT_LOWBAND[kind]) : ramp;
   var pre = PRE_MIDBAND_STOPS[kind][theme];
-  if (!pre || !w || w.__RAW_DISABLE_WIND_MIDBAND_REFINE__ !== true) return ramp;
-  return ramp.map(function(stop, i) { return pre[i] ? pre[i].slice() : stop; });
+  if (!pre || !w || w.__RAW_DISABLE_WIND_MIDBAND_REFINE__ !== true) return out;
+  return revertRows(out, pre);
 }
 var LIGHT_FIELD_RAMP = [
   [0,  0.942, 0.964, 0.987, 0.72], [3,  0.803, 0.757, 0.982, 0.75], [6,  0.628, 0.701, 0.901, 0.78],
-  [10, 0.289, 0.646, 0.736, 0.80], [16, 0.228, 0.803, 0.762, 0.82], [21, 0.455, 0.763, 0.543, 0.84],
+  [10, 0.724, 0.641, 0.912, 0.80], [16, 0.466, 0.625, 0.412, 0.82], [21, 0.455, 0.763, 0.543, 0.84],
   [27, 0.628, 0.692, 0.432, 0.86], [33, 0.740, 0.657, 0.431, 0.87], [40, 0.753, 0.588, 0.478, 0.88],
   [47, 0.824, 0.613, 0.540, 0.90], [55, 0.858, 0.618, 0.596, 0.91], [63, 0.816, 0.601, 0.656, 0.93],
   [75, 0.736, 0.616, 0.753, 0.95],
