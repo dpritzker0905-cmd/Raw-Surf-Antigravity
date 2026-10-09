@@ -18,6 +18,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_DEFAULTS, V2_BODY,
+  v2DensityAt, V2_CLOSE_INK,
 } from './WebGLWindUtils';
 import { ADVECT_FS, DRAW_VS, DRAW_FS, FADE_FS, SCREEN_FS } from './WebGLWindShaders';
 import { THEME_RAMPS, sampleRamp } from './WindColorRamp';
@@ -38,7 +39,7 @@ function drawnPer100(z, w = W, h = H, pool = POOL, lat = 24, lng = -89.5) {
   const world = 512 * Math.pow(2, z);
   const boxArea = (box[2] - box[0]) * world * (box[3] - box[1]) * world;
   const inView = pool * Math.min(1, (w * h) / boxArea);
-  return inView * v2KeepRate(V2_DEFAULTS.densityPer100, w, h, pool, box, z) / (w * h / 1e4);
+  return inView * v2KeepRate(v2DensityAt(resolveWindParticlesV2({}), z), w, h, pool, box, z) / (w * h / 1e4);
 }
 
 describe('resolver', () => {
@@ -69,21 +70,51 @@ describe('density is a design constant, not an accident of zoom', () => {
   // shipped dark ink (mean alpha 0.112 vs 0.094, coverage 19% vs 12%). Held at EVERY zoom.
   // SYNC: the default target is the owner-approved pre-v2 look measured on dev (z2 487, z6 493 marks per 100x100
   // css px; the trough it removes: z3 173, z4 78, z5 216). Opt-in v2 motion uses its own 12-head ink-parity value.
-  it.each([1, 2, 3, 4, 5, 6, 6.2, 7, 7.5, 8, 9, 10, 11, 12, 14])('z%d draws the designed density (490 / 100x100 css px)', (z) => {
-    expect(drawnPer100(z)).toBeCloseTo(V2_DEFAULTS.densityPer100, 1);
+  // CLOSE-ZOOM INK (2026-10-08, owner: "I see diamonds now in the red wind"): a flat head count is NOT a flat look — above
+  // z6 each mark lays far more ink, so 490 saturated the trail buffer. The design constant is the INK, held by the curve.
+  it.each([1, 2, 3, 4, 5, 6, 6.2, 7, 7.5, 8, 9, 10, 11, 12, 14])('z%d draws the designed density for its zoom', (z) => {
+    expect(drawnPer100(z)).toBeCloseTo(v2DensityAt(resolveWindParticlesV2({}), z), 1);
   });
-  it('the measured shipped curve swung 12x; v2 is flat', () => {
+  it('the measured shipped curve swung 12x; v2 is flat from z2 to z6, where a mark lays the same ink', () => {
     const shipped = [476, 187, 100, 294, 257, 42, 124, 138, 54, 40, 56];        // GFS, z2..z12 (REPORT.md)
     expect(Math.max(...shipped) / Math.min(...shipped)).toBeGreaterThan(11);
-    const v2 = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((z) => drawnPer100(z));
+    const v2 = [2, 3, 4, 5, 6].map((z) => drawnPer100(z));
     expect(Math.max(...v2) / Math.min(...v2)).toBeLessThan(1.02);
   });
   it('a phone with a smaller pool still reaches the target (390x844, pool 256^2)', () => {
-    expect(drawnPer100(9, 390, 844, 256 * 256)).toBeCloseTo(V2_DEFAULTS.densityPer100, 1);
+    expect(drawnPer100(9, 390, 844, 256 * 256)).toBeCloseTo(v2DensityAt(resolveWindParticlesV2({}), 9), 1);
   });
   it('a pool too small for a huge screen draws everything it has (keep capped at 1), never more', () => {
     const box = v2GlobalBox(viewport(24, -89.5, 9, 3840, 2160), V2_DEFAULTS.margin);
     expect(v2KeepRate(500, 3840, 2160, 64 * 64, box, 9)).toBe(1);
+  });
+});
+
+describe('close-zoom ink: above z6 the density holds the owner-approved close-up ink, not the z<=6 head count', () => {
+  const v2 = resolveWindParticlesV2({});
+  // Live on dev 744a7132 (Gulf hurricane, 961x914 css px): the dose giving mean trail-buffer brightness ~150/255, the
+  // owner-approved close-up ink (pre-#276: z6 156, z9 147). Flat 490 measured 201-233 there = saturation (z7.5: 99.8%
+  // of the screen inked vs 19.4% pre-#276; the top-speed grid cells read as solid dark diamonds).
+  it.each([[6.5, 165], [7, 120], [8, 70], [9, 45], [10, 32], [11.5, 30]])('z%d is within 15%% of the measured dose %d', (z, dose) => {
+    expect(Math.abs(v2DensityAt(v2, z) / dose - 1)).toBeLessThan(0.15);
+  });
+  it('z<=6 keeps the owner-approved 490; the curve never rises with zoom and floors at the measured z11.5 dose', () => {
+    [1, 3, 5, 6].forEach((z) => expect(v2DensityAt(v2, z)).toBe(490));
+    let prev = Infinity;
+    for (let z = 6.01; z <= 14; z += 0.25) { const d = v2DensityAt(v2, z); expect(d).toBeLessThanOrEqual(prev); prev = d; }
+    expect(v2DensityAt(v2, 14)).toBe(V2_CLOSE_INK.floor);
+  });
+  it('POSITIVE CONTROL: the #276 flat target is over 3x the close-zoom dose from z7.5 on', () => {
+    [7.5, 9, 12].forEach((z) => expect(V2_DEFAULTS.densityPer100 / v2DensityAt(v2, z)).toBeGreaterThan(3));
+  });
+  it('a numeric density lever stays flat at every zoom; opt-in motion keeps its own value; the kill restores flat 490', () => {
+    expect(v2DensityAt(resolveWindParticlesV2({ __RAW_WIND_V2_DENSITY__: 100 }), 9)).toBe(100);
+    expect(v2DensityAt(resolveWindParticlesV2({ __RAW_WIND_MOTION_V2__: true }), 9)).toBe(12);
+    expect(v2DensityAt(resolveWindParticlesV2({ __RAW_DISABLE_WIND_CLOSEZOOM_INK__: true }), 9)).toBe(490);
+  });
+  it('the engine draws the zoom-resolved density', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
+    expect(src).toContain('v2KeepRate(v2DensityAt(_v2, z), ');
   });
 });
 
