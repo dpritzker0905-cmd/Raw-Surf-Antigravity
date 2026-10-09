@@ -18,8 +18,8 @@ import { DRAW_FS, HEATMAP_FS } from './WebGLWindShaders';
 const v2 = resolveWindParticlesV2({});
 
 describe('speed-coloured premultiplied marks', () => {
-  it('light 0.9 and beach 0.6 with the double casing; dark untouched', () => {
-    expect(v2SpeedPremul(v2, 'light', {})).toEqual({ on: true, opacity: 0.9, singleCasing: false });
+  it('light 1.0 and beach 0.6 with the double casing; dark untouched', () => {
+    expect(v2SpeedPremul(v2, 'light', {})).toEqual({ on: true, opacity: 1.0, singleCasing: false });
     expect(v2SpeedPremul(v2, 'beach', {})).toEqual({ on: true, opacity: 0.6, singleCasing: false });
     expect(v2SpeedPremul(v2, 'dark', {})).toEqual({ on: false, opacity: 0, singleCasing: false });
     expect(V2_SPEED_PREMUL.themes).toEqual(['light', 'beach']);
@@ -31,15 +31,15 @@ describe('speed-coloured premultiplied marks', () => {
   it('bench levers: theme list, opacity (clamped), single casing', () => {
     expect(v2SpeedPremul(v2, 'dark', { __RAW_WIND_PREMUL_THEMES__: 'dark' }).on).toBe(true);
     expect(v2SpeedPremul(v2, 'light', { __RAW_WIND_PREMUL_OPACITY__: 0.5 }).opacity).toBe(0.5);
-    expect(v2SpeedPremul(v2, 'light', { __RAW_WIND_PREMUL_OPACITY__: 7 }).opacity).toBe(0.9);
+    expect(v2SpeedPremul(v2, 'light', { __RAW_WIND_PREMUL_OPACITY__: 7 }).opacity).toBe(1.0);
     expect(v2SpeedPremul(v2, 'light', { __RAW_WIND_SINGLE_CASING__: true }).singleCasing).toBe(true);
   });
 });
 
 describe('field tint, not cover: the basemap stays legible', () => {
-  it('light and beach tint at 1.0; dark keeps the approved alpha-over field', () => {
-    expect(v2FieldTint('light', {})).toBe(1);
-    expect(v2FieldTint('beach', {})).toBe(1);
+  it('light and beach tint (5 points more solid than the legacy opacity, owner); dark keeps the approved alpha-over field', () => {
+    expect(0.65 * v2FieldTint('light', {})).toBeCloseTo(0.70, 12);
+    expect(0.55 * v2FieldTint('beach', {})).toBeCloseTo(0.60, 12);
     expect(v2FieldTint('dark', {})).toBe(0);
     expect(V2_FIELD_TINT.themes).toEqual(['light', 'beach']);
     expect(v2FieldTint('light', { __RAW_DISABLE_WIND_FIELD_TINT__: true })).toBe(0);

@@ -80,36 +80,49 @@ var DEFAULT_WIND_RAMP = [
 // advance, visΔ floors (>=12 @0kn, >=20 @3kn — achieved 25-45 @0kn), composite sat floors,
 // >=18° wheel clearance from the 75 kn stop, haze guard <=0.55*opacity. Pinned by
 // windFieldLut.test.js (composite gaps + visibility floors at the NEW alphas).
+// LIGHT + BEACH REDESIGN (2026-10-09, owner: "light mode needs color corrections" / "beach mode colors seem off ... use
+// artistic skill" / "careful not to completely block land mass"; slow wind: owner chose the MIDDLE GROUND). Supersedes the
+// 07-20 saturated-calm stops (hot pink / electric violet washed every calm landmass) together with the field tint and the
+// speed-coloured premultiplied marks (WebGLWindUtils.v2FieldTint / v2SpeedPremul). Designed in OKLCH on the 13 Beaufort
+// anchors, checked in CIEDE2000 under the multiply tint over the measured basemaps:
+//  - calm (0 kn) is ~colourless (dE <= ~1 on water and land): no wind, no wash;
+//  - light air is a soft visible tint (3 kn dE ~9-10), a breeze clear colour (6 kn dE ~15) — the owner's middle ground;
+//  - adjacent bands >= 9.5 dE apart (>= 4.9 deuteranope-simulated); lightness falls calm -> storm except one capped dip
+//    at 10 kn (needed for slow wind to show on cyan water); all stops in sRGB gamut.
+// BEACH "sea -> sunset -> dusk": sand-white, seafoam, aqua-green, sea-teal, lagoon, sea green, palm gold, sunset gold,
+// apricot, coral, hibiscus, sunset magenta, dusk violet.
 var BEACH_WIND_RAMP = [
-  [0,  1.00, 0.32, 0.78, 0.75], // Calm: hot pink (composite 261°, visΔ 25.0)
-  [3,  0.94, 0.22, 0.49, 0.78], // Light air: raspberry (composite 314°, visΔ 42.5)
-  [6,  0.85, 0.53, 0.47, 0.81], // Light breeze: terracotta (composite 7°, visΔ 32.7)
-  [10, 0.95, 0.82, 0.06, 0.83], // Gentle: yellow-gold
-  [16, 0.72, 0.90, 0.12, 0.85], // Moderate: lime
-  [21, 0.35, 0.88, 0.25, 0.87], // Fresh: green
-  [27, 0.10, 0.88, 0.55, 0.88], // Strong: spring green
-  [33, 0.00, 0.86, 0.80, 0.90], // Near gale: turquoise
-  [40, 0.00, 0.72, 0.92, 0.91], // Gale: cyan-blue
-  [47, 0.10, 0.55, 0.95, 0.92], // Strong gale: royal blue
-  [55, 0.35, 0.35, 0.93, 0.93], // Storm: indigo
-  [63, 0.60, 0.25, 0.90, 0.94], // Violent storm: violet
-  [75, 0.88, 0.20, 0.88, 0.95], // Hurricane: magenta
+  [0,  0.973, 0.953, 0.911, 0.75], // Calm: sand white (L* 95.9)
+  [3,  0.471, 0.891, 0.712, 0.78], // Light air: seafoam (L* 83.2)
+  [6,  0.027, 0.780, 0.643, 0.81], // Light breeze: aqua-green (L* 71.9)
+  [10, 0.361, 0.680, 0.704, 0.83], // Gentle: sea-teal (L* 66.2)
+  [16, 0.308, 0.764, 0.906, 0.85], // Moderate: lagoon blue (L* 73.8)
+  [21, 0.284, 0.748, 0.574, 0.87], // Fresh: sea green (L* 69.9)
+  [27, 0.635, 0.707, 0.283, 0.88], // Strong: palm gold-green (L* 70.1)
+  [33, 0.825, 0.650, 0.124, 0.90], // Near gale: sunset gold (L* 70.2)
+  [40, 0.862, 0.455, 0.068, 0.91], // Gale: apricot (L* 59.6)
+  [47, 0.822, 0.325, 0.239, 0.92], // Strong gale: coral (L* 52.0)
+  [55, 0.739, 0.212, 0.305, 0.93], // Storm: hibiscus (L* 44.2)
+  [63, 0.582, 0.149, 0.411, 0.94], // Violent storm: sunset magenta (L* 35.5)
+  [75, 0.322, 0.173, 0.514, 0.95], // Hurricane: dusk violet (L* 27.4)
 ];
 
+// LIGHT "dawn sky -> storm": cloud white, lavender, periwinkle, cerulean, teal, spring green, yellow-green, gold, orange,
+// red-orange, red, crimson, plum. (Lavender/periwinkle, not sky blue, open the ramp: blue on the pale-cyan water is invisible.)
 var LIGHT_WIND_RAMP = [
-  [0,  0.54, 0.00, 0.92, 0.72], // Calm: electric violet (composite 243°, visΔ 45.1 @ baseA 0.42)
-  [3,  0.01, 0.00, 0.52, 0.75], // Light air: navy-indigo (composite 222°, visΔ 80.1)
-  [6,  0.06, 0.50, 0.78, 0.78], // Light breeze: cerulean (composite 201°, visΔ 66.9)
-  [10, 0.03, 0.42, 0.40, 0.80], // Gentle: pine teal
-  [16, 0.08, 0.46, 0.20, 0.82], // Moderate: forest green
-  [21, 0.30, 0.47, 0.10, 0.84], // Fresh: olive
-  [27, 0.52, 0.44, 0.03, 0.86], // Strong: dark gold
-  [33, 0.65, 0.38, 0.02, 0.87], // Near gale: bronze
-  [40, 0.72, 0.28, 0.04, 0.88], // Gale: burnt orange
-  [47, 0.75, 0.18, 0.08, 0.90], // Strong gale: brick
-  [55, 0.70, 0.08, 0.22, 0.91], // Storm: crimson
-  [63, 0.58, 0.05, 0.38, 0.93], // Violent storm: wine
-  [75, 0.40, 0.02, 0.45, 0.95], // Hurricane: deep violet
+  [0,  0.942, 0.964, 0.987, 0.72], // Calm: cloud white (L* 96.6)
+  [3,  0.803, 0.757, 0.982, 0.75], // Light air: lavender (L* 80.8)
+  [6,  0.612, 0.688, 0.897, 0.78], // Light breeze: periwinkle (L* 71.9)
+  [10, 0.116, 0.690, 0.811, 0.80], // Gentle: cerulean (L* 66.4)
+  [16, 0.332, 0.785, 0.749, 0.82], // Moderate: teal (L* 74.2)
+  [21, 0.409, 0.758, 0.514, 0.84], // Fresh: spring green (L* 71.5)
+  [27, 0.615, 0.706, 0.267, 0.86], // Strong: yellow-green (L* 69.6)
+  [33, 0.802, 0.643, 0.099, 0.87], // Near gale: gold (L* 69.1)
+  [40, 0.842, 0.436, 0.014, 0.88], // Gale: orange (L* 57.9)
+  [47, 0.825, 0.317, 0.104, 0.90], // Strong gale: red-orange (L* 51.5)
+  [55, 0.752, 0.167, 0.184, 0.91], // Storm: red (L* 42.9)
+  [63, 0.608, 0.084, 0.311, 0.93], // Violent storm: crimson (L* 34.2)
+  [75, 0.395, 0.104, 0.440, 0.95], // Hurricane: plum (L* 25.8)
 ];
 
 var DARK_WIND_RAMP = [
@@ -143,6 +156,43 @@ export var THEME_RAMPS = {
   light: LIGHT_WIND_RAMP,
   dark: DARK_WIND_RAMP
 };
+
+// FIELD RAMPS (2026-10-09, owner: "I like this transparency and animation level [dark], can we match this with light and
+// beach but keep ... seeing the land mass ... keep the colors"). Dark's field carries a FLAT strength per band (bench dE76,
+// basemap vs field: 6 kn 23 · 10 kn 29.5 · 16 kn 32 · 21 kn 31.5 · 27 kn 30 · 33 kn 28.5 · 40 kn 26 · 47+ kn ~24-25). With the
+// particle palettes as the field, light's storm bands ran up to 2x that (dark ink on a white map) and beach's 10-27 kn ~2/3.
+// Re-tuning the SHARED ramp would have made light's hurricane PARTICLES pastel, so the tinted themes give the field its
+// own ramp: same hues (OKLCH h fixed), L/C re-solved per band so the multiply tint carries dark's measured strength
+// (model = the GPU blend on encoded sRGB at the owner's +5-point strengths). 0 and 3 kn keep the middle-ground stops.
+// The particles keep THEME_RAMPS. Kill: __RAW_DISABLE_WIND_FIELD_RAMP__ (the field samples THEME_RAMPS again).
+var LIGHT_FIELD_RAMP = [
+  [0,  0.942, 0.964, 0.987, 0.72], [3,  0.803, 0.757, 0.982, 0.75], [6,  0.628, 0.701, 0.901, 0.78],
+  [10, 0.276, 0.688, 0.789, 0.80], [16, 0.228, 0.803, 0.762, 0.82], [21, 0.455, 0.763, 0.543, 0.84],
+  [27, 0.628, 0.692, 0.432, 0.86], [33, 0.740, 0.657, 0.431, 0.87], [40, 0.753, 0.588, 0.478, 0.88],
+  [47, 0.824, 0.613, 0.540, 0.90], [55, 0.858, 0.618, 0.596, 0.91], [63, 0.816, 0.601, 0.656, 0.93],
+  [75, 0.736, 0.616, 0.753, 0.95],
+];
+var BEACH_FIELD_RAMP = [
+  [0,  0.973, 0.953, 0.911, 0.75], [3,  0.471, 0.891, 0.712, 0.78], [6,  0.237, 0.790, 0.664, 0.81],
+  [10, 0.008, 0.746, 0.788, 0.83], [16, 0.008, 0.788, 0.967, 0.85], [21, 0.016, 0.811, 0.637, 0.87],
+  [27, 0.618, 0.702, 0.000, 0.88], [33, 0.839, 0.654, 0.027, 0.90], [40, 0.843, 0.457, 0.124, 0.91],
+  [47, 0.809, 0.388, 0.311, 0.92], [55, 0.638, 0.335, 0.364, 0.93], [63, 0.497, 0.330, 0.414, 0.94],
+  [75, 0.441, 0.381, 0.553, 0.95],
+];
+export var FIELD_RAMPS = { light: LIGHT_FIELD_RAMP, beach: BEACH_FIELD_RAMP };
+
+/** The field's own LUT texture for `theme` (null = the field samples the particle ramp). Restores the texture binding. */
+export function buildFieldRampTexture(gl, maxSpeed, theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : {});
+  if (!gl || !FIELD_RAMPS[theme] || w.__RAW_DISABLE_WIND_FIELD_RAMP__ === true) return null;
+  var data = generateRampData(maxSpeed || 50, FIELD_RAMPS[theme]), prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  gl.bindTexture(gl.TEXTURE_2D, prev);
+  return tex;
+}
 
 // KILL SWITCH for the low-band respread (added late — shipping palette constants without one
 // violated the every-lever-kill-switched rule): __RAW_DISABLE_WIND_LOWBAND_RESPREAD__ = true

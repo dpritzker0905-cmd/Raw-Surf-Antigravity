@@ -12,7 +12,7 @@
  * 5. Final composite: render trail texture to screen canvas
  */
 
-import { generateRampData } from './WindColorRamp';
+import { generateRampData, buildFieldRampTexture } from './WindColorRamp';
 import {
   createTexture, bindWindPointReg,
   unbindTexture,
@@ -391,7 +391,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     this._currentTheme = activeTheme;
     var rampData = generateRampData(this._maxWindSpeed, null, activeTheme);
     if (this._colorRamp) gl.deleteTexture(this._colorRamp);
-    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
+    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
     console.log('[WebGLWind] Color ramp updated for theme:', activeTheme);
   }
   if (!matrix || !matrix.length) {
@@ -680,7 +680,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
   bindTexture(gl, this._windData.texture, 0);
-  if (this._colorRamp) bindTexture(gl, this._colorRamp, 1);
+  if (this._colorRamp) bindTexture(gl, (_ft > 0 && this._fieldRamp) || this._colorRamp, 1); // tinted themes: the field's own ramp
     var heatOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
     if (this.heatmapVAO) {
       gl.bindVertexArray(this.heatmapVAO);
@@ -1082,7 +1082,7 @@ WebGLWindEngine.prototype.setTheme = function(gl, theme) {
     this._currentTheme = activeTheme;
     var rampData = generateRampData(this._maxWindSpeed, null, activeTheme);
     if (this._colorRamp) gl.deleteTexture(this._colorRamp);
-    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
+    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
     console.log('[WebGLWind] Theme set to:', activeTheme);
   }
 };
