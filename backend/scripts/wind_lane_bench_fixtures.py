@@ -33,7 +33,7 @@ from services.weather_pipeline.schemas import (CoverageBounds, GridVector, Norma
                                                NormalizedProduct)
 
 VALID = datetime(2026, 10, 9, 15, tzinfo=timezone.utc)
-KN = 1.0 / 0.514444
+from services.weather_pipeline import surf_rating as SR                # noqa: E402 - the one knots constant
 
 
 def gfs_field(path):
@@ -41,7 +41,7 @@ def gfs_field(path):
     try:
         import pygrib
         g = pygrib.open(path).read()
-        return np.ma.filled(g[0].values, np.nan) * KN, np.ma.filled(g[1].values, np.nan) * KN
+        return np.ma.filled(g[0].values, np.nan) * SR.MS_TO_KT, np.ma.filled(g[1].values, np.nan) * SR.MS_TO_KT
     except ImportError:                                    # no pygrib wheel on Windows: the Rust decoder
         import gribberish
         data = open(path, "rb").read()
@@ -49,7 +49,7 @@ def gfs_field(path):
         offs = {k.split(":")[0]: v[1] for k, v in m.items()}
         u = np.asarray(gribberish.parse_grib_message(data, offs["UGRD"]).data()).reshape(721, 1440)
         v = np.asarray(gribberish.parse_grib_message(data, offs["VGRD"]).data()).reshape(721, 1440)
-        return u * KN, v * KN
+        return u * SR.MS_TO_KT, v * SR.MS_TO_KT
 
 
 def lattice(w, s, e, n, res):

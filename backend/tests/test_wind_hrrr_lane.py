@@ -30,7 +30,8 @@ from services.weather_pipeline.schemas import CoverageBounds, GridVector, Normal
 
 CYCLE = datetime(2026, 10, 9, 12, tzinfo=timezone.utc)
 HORIZON = CYCLE + timedelta(hours=48)
-HRRR_KN = 30.0                       # HRRR: 30 kn from 090 everywhere it has cells
+HRRR_MS = 15.45                      # HRRR: 15.45 m/s (exact at the lane's 0.05 m/s step) from 090 where it has cells
+HRRR_KN = HRRR_MS * __import__("services.weather_pipeline.surf_rating", fromlist=["x"]).MS_TO_KT  # ~30.03 kn served
 GFS_KN = 10.0                        # the tier's GFS: 10 kn from 180
 
 
@@ -41,7 +42,7 @@ def lane_obj(hours=None):
     lon = la["lon0"] + la["res"] * np.arange(la["nlon"])
     LA, LO = np.meshgrid(lat, lon, indexing="ij")
     inside = hg.edge_km_np(LA, LO) > 0.0
-    u = np.where(inside, -HRRR_KN, np.nan)                     # from 090 -> toward west: u = -30, v = 0
+    u = np.where(inside, -HRRR_MS, np.nan)                     # from 090 -> toward west, native m/s like the GRIB
     v = np.where(inside, 0.0, np.nan)
     U = np.repeat(u[None], len(hours), 0)
     V = np.repeat(v[None], len(hours), 0)

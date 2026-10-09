@@ -11,8 +11,9 @@ WHY NOAA AND NOT OPEN-METEO (measured 2026-10-09, log 2026-10-09-hrrr-wind-lane.
     quota and names the run.
 
 WHAT IT WRITES: one JSON object for one HRRR cycle (the newest 00/06/12/18Z run with all of f00-f48 published), the
-area-mean wind on the lattice `LATTICE` for every hour f00..f48, in knots, as zlib+base64 int16 arrays shaped
-(hour, lat, lon), scale 0.1 kn, -32768 where no HRRR cell falls in the lattice cell. ~3-5 MB per cycle.
+area-mean wind on the lattice `LATTICE` for every hour f00..f48, in NATIVE m/s (the serve lane converts with
+surf_rating.MS_TO_KT, the one knots constant: tests/test_wind_unit_constant_parity.py), as zlib+base64 int16 arrays
+shaped (hour, lat, lon), scale 0.05 m/s (~0.1 kn), -32768 where no HRRR cell falls in the lattice cell. ~3-5 MB.
 Each cell: SCALAR-mean speed with the VECTOR-mean direction (LESSONS L-S16: a speed averaged as a vector can only
 shrink; a direction is a vector quantity).
 
@@ -43,8 +44,7 @@ HTTP_TIMEOUT = 60
 FORMAT = "hrrr-wind-lane/1"
 WIND_VARS = (("UGRD", "10 m above ground"), ("VGRD", "10 m above ground"))
 MISSING = -32768
-SCALE = 0.1                                       # kn per int16 unit
-KN_PER_MS = 1.0 / 0.514444
+SCALE = 0.05                                      # m/s per int16 unit (~0.1 kn)
 
 # The lattice: every 0.25 deg node whose cell can hold an HRRR cell (the domain spans 21.14-52.62N, 134.10-60.92W).
 LATTICE = {"lat0": 21.0, "lon0": -134.25, "res": 0.25, "nlat": 128, "nlon": 295}
@@ -154,20 +154,20 @@ def area_mean(u_e, v_e, idx, ncells):
 
 
 def encode(arr):
-    """float knots -> zlib+base64 int16 (scale 0.1 kn, MISSING where NaN)."""
+    """float m/s -> zlib+base64 int16 (scale 0.05 m/s, MISSING where NaN)."""
     import numpy as np
     q = np.where(np.isfinite(arr), np.clip(np.round(arr / SCALE), -32767, 32767), MISSING).astype("<i2")
     return base64.b64encode(zlib.compress(q.tobytes(), 6)).decode("ascii")
 
 
 def decode_q(b64, shape):
-    """`encode`'s raw int16 array (0.1 kn units, MISSING where no HRRR cell): what the serve lane keeps in memory."""
+    """`encode`'s raw int16 array (0.05 m/s units, MISSING where no HRRR cell): what the serve lane keeps in memory."""
     import numpy as np
     return np.frombuffer(zlib.decompress(base64.b64decode(b64)), dtype="<i2").reshape(shape)
 
 
 def dequantize(q):
-    """int16 (0.1 kn) -> float32 knots, NaN where MISSING."""
+    """int16 (0.05 m/s) -> float32 m/s, NaN where MISSING."""
     import numpy as np
     out = q.astype(np.float32) * np.float32(SCALE)
     out[q == MISSING] = np.nan
@@ -175,7 +175,7 @@ def dequantize(q):
 
 
 def decode(b64, shape):
-    """Inverse of `encode` -> float32 array in knots, NaN where MISSING (tests, bench fixtures)."""
+    """Inverse of `encode` -> float32 array in m/s, NaN where MISSING (tests, bench fixtures)."""
     import numpy as np
     q = decode_q(b64, shape)
     out = q.astype(np.float32) * np.float32(SCALE)
@@ -264,7 +264,7 @@ def build_lane(payload, requests=None, now=None):
                 raise RuntimeError("U and V disagree on grid- vs earth-relative")
             if rel_u:
                 u, v = hg.rotate_to_earth(u, v, lon_all)
-            mu, mv = area_mean(u * KN_PER_MS, v * KN_PER_MS, idx, ncells)
+            mu, mv = area_mean(u, v, idx, ncells)                     # m/s, as the GRIB carries it
             us.append(mu.reshape(lat["nlat"], lat["nlon"]))
             vs.append(mv.reshape(lat["nlat"], lat["nlon"]))
             hours.append((cyc + timedelta(hours=f)).strftime("%Y-%m-%dT%H:%M:%SZ"))
@@ -282,7 +282,7 @@ def build_lane(payload, requests=None, now=None):
         "horizon": hours[-1],
         "hours": hours,
         "lattice": dict(lat),
-        "units": "kn", "scale": SCALE, "missing": MISSING,
+        "units": "m/s", "scale": SCALE, "missing": MISSING,
         "encoding": "zlib+base64 int16 little-endian, shape (hour, lat, lon)",
         "u": encode(U), "v": encode(V),
         "steps_ok": len(hours), "steps_failed": failed,

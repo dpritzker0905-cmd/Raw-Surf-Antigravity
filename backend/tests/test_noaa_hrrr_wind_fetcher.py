@@ -78,11 +78,12 @@ def test_area_mean_is_scalar_speed_along_the_vector_direction():
     assert (mu[2], mv[2]) == (0.0, 0.0)
 
 
-def test_encoding_round_trips_to_a_tenth_of_a_knot():
-    a = np.array([[0.0, 12.34, -7.77], [np.nan, 3276.6, -0.04]])
+def test_encoding_round_trips_to_a_fortieth_of_a_metre_per_second():
+    # native m/s, step 0.05 (~0.1 kn); the serve lane converts with surf_rating.MS_TO_KT, the one knots constant
+    a = np.array([[0.0, 12.34, -7.77], [np.nan, 1638.3, -0.04]])
     b = f.decode(f.encode(a), a.shape)
     assert np.isnan(b[1, 0])
-    assert np.nanmax(np.abs(b - a)) <= 0.05 + 1e-6
+    assert np.nanmax(np.abs(b - a)) <= 0.025 + 1e-4
 
 
 IDX = """1:0:d=2026100912:REFC:entire atmosphere:3 hour fcst:
@@ -142,7 +143,7 @@ def test_pick_cycle_takes_the_newest_complete_extended_run():
 
 def test_build_lane_end_to_end(monkeypatch):
     """A uniform grid-relative wind (toward grid +y, 10 m/s) everywhere: every lattice node inside HRRR must read the
-    EARTH-relative vector at its longitude, in knots; nodes off HRRR must be missing; a failed step is skipped."""
+    EARTH-relative vector at its longitude, in native m/s; nodes off HRRR must be missing; a failed step is skipped."""
     cyc = datetime(2026, 10, 9, 12, tzinfo=timezone.utc)
     n = hg.NX * hg.NY
 
@@ -164,11 +165,11 @@ def test_build_lane_end_to_end(monkeypatch):
         return int(round((lat - la["lat0"]) / la["res"])), int(round((lon - la["lon0"]) / la["res"]))
     r, c = node(27.75, -87.5)                                       # the Gulf eye's neighbourhood
     alpha = hg.rotation_rad(-87.5)
-    kn = 10.0 / 0.514444
-    assert U[0, r, c] == pytest.approx(kn * math.sin(alpha), abs=0.12)
-    assert V[0, r, c] == pytest.approx(kn * math.cos(alpha), abs=0.12)
-    r, c = node(45.0, -70.0)                                        # New England: alpha ~ +17 deg, u > 0
-    assert U[0, r, c] > 5.0
+    assert lane["units"] == "m/s"
+    assert U[0, r, c] == pytest.approx(10.0 * math.sin(alpha), abs=0.06)
+    assert V[0, r, c] == pytest.approx(10.0 * math.cos(alpha), abs=0.06)
+    r, c = node(45.0, -70.0)                                        # New England: alpha ~ +17 deg, u ~ +2.9 m/s
+    assert U[0, r, c] > 2.5
     r, c = node(21.0, -100.0)                                       # south of HRRR's edge
     assert np.isnan(U[0, r, c])
     assert np.isfinite(U[0]).mean() == pytest.approx(0.75, abs=0.05)   # measured share on the real grid: 0.749

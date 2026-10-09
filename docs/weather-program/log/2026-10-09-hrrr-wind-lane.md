@@ -271,3 +271,24 @@ STATE's ledger head moves to 970.
 The chain lane gains 2 tests: `test_fetcher_http_pooling` parametrizes over `POOLED_FETCHERS`, which the new fetcher
 joins. Floor 163/2436 -> 163/2438, `_FLOOR_SET_FROM["chain"]` 2442 -> 2444 (hosted dev db037eaf: 163 files,
 2442 passed).
+
+## 13. Correction: the lane stores native m/s (19:51Z)
+
+The hosted-equivalent guards run found the fetcher and the fixture script writing their own knots constant
+(`1/0.514444`). `test_wind_unit_constant_parity` allows one pair, `surf_rating.MS_TO_KT`, read as an attribute,
+because a truncated copy once flipped a rating at a strict `< 3.0 kt` edge.
+
+The fix:
+- the lane now stores native m/s, as the GRIB carries it (int16, step 0.05 m/s, about 0.1 kn; `units: "m/s"`);
+- `wind_lane.Lane.sample` converts once with `SR.MS_TO_KT`;
+- the fixture script reads the same constant.
+
+The lane object and fixtures were rebuilt and the bench rerun:
+- null tier/pan/zoom/upstream: 0.0-0.1 km, the same 40-kn closing T, x1.00;
+- positive: 38.3 km;
+- lattice: 0.5-0.6 km, area x0.28;
+- taper: 10.3 / 9.0 / 9.5 / 6.5 km per step, 32.9 km if hard.
+
+The §5 eye rows above were measured on the earlier knots encoding and stay as written; these supersede them for the
+shipped code (SCOREBOARD row). The same run also listed 9 other guards failures. With a short `--basetemp` all 9 pass:
+they were Windows path-length artifacts of a long temp root, like 31 of chain's 32.

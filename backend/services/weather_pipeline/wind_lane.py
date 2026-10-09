@@ -70,11 +70,10 @@ def _grid():
 
 
 class Lane:
-    """One HRRR cycle on the lattice, kept as int16 (0.1 kn), shape (hour, lat, lon): 7.4 MB for 49 hours. Only the
-    hour a request needs is turned into floats."""
+    """One HRRR cycle on the lattice, kept as int16 (0.05 m/s), shape (hour, lat, lon): 7.4 MB for 49 hours. Only the
+    hour a request needs is turned into floats, in knots via surf_rating.MS_TO_KT (the one knots constant)."""
 
     def __init__(self, obj, key=None):
-        import numpy as np
         try:
             from services.noaa_hrrr_wind_fetcher import decode_q, FORMAT, MISSING
         except ImportError:  # pragma: no cover
@@ -116,7 +115,8 @@ class Lane:
             from services.noaa_hrrr_wind_fetcher import dequantize
         except ImportError:  # pragma: no cover
             from noaa_hrrr_wind_fetcher import dequantize
-        U, V = dequantize(self.uq[k]), dequantize(self.vq[k])
+        from services.weather_pipeline import surf_rating as SR
+        U, V = dequantize(self.uq[k]) * SR.MS_TO_KT, dequantize(self.vq[k]) * SR.MS_TO_KT
         su = np.zeros(y.shape)
         sv = np.zeros(y.shape)
         sw = np.zeros(y.shape)
