@@ -117,7 +117,7 @@ marks went dark (a HOLE near 44 kn here); just outside it, a ring over-inked (a 
 
 | engine | shipped | candidate | verdict |
 |---|---|---|---|
-| PR #281 head (`ad228735`) | HOLE 41 blocks @ 44.1 kn, BLOB 35 @ 35 kn (in each of 3 seeds) | none | **PASS** |
+| `dev` with #281 (`9ef7a3c0`; `frontend/src` identical to the #281 head `ad228735`) | HOLE 41 blocks @ 44.1 kn, BLOB 35 @ 35 kn (in each of 3 seeds) | none | **PASS** |
 | `dev` before #281 (`f364efce`) | HOLE 41 @ 44.1 kn, BLOB 35 @ 35 kn | the same, plus the "rendered IDENTICALLY" warning (that tree has no kill switches) | **FAIL** |
 
 Full matrix on PR #281 with `--seeds 3`:
