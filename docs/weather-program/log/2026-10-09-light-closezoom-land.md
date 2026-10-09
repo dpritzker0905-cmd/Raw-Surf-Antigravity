@@ -141,3 +141,50 @@ work when done using forensics. And lets fix the #292 to merge into this work".
 - **Cost, stated plainly:** thinner marks lay less trail ink. Dark close-zoom ink is 124-134, against 151-158 on dev
   (owner-approved ~150). Count is unchanged. The lever lets the owner try a milder dark setting:
   `__RAW_WIND_CLOSE_THIN__ = 1.25`.
+
+### Round 2b · the scanner overruled thin marks; the shipped setting is per-theme opacity
+
+The decision above (thin marks as the default) did not survive the 3-seed scanner run.
+- **Scanner (fine-z6.5..z9, 3 seeds, 3 themes):**
+  - Thin marks: 10 recurring shapes in 7 of 12 views. dev had 4 in 3, and #292 alone the same 4 in 3.
+  - The new shapes: ink BLOBS at ~17-24 kn (3-11 blocks) and HOLES at ~8 kn, at z6.5-8 only. No theme showed any at z9.
+  - Width floors of 1.5 and 2.5 css px (DRAW_VS v_thin) did not cure it; 2.5 was worse (9 of 9 views, a light z8
+    blob of 18).
+  - The z6.5-8 band is where the speed-aware cull runs at full strength (V2_SPEED_KEEP_FADE 7.5 -> 9.5). Its dose was
+    calibrated on the wide mark, so narrowing the mark changes which speeds out-ink their neighbours.
+- **Shipped instead:** WIND_CLOSE_LAND per theme (light 0.65, unchanged from #291; beach 0.65; dark 0.8).
+  - A composite factor scales the finished picture uniformly: it cannot draw a pattern, and the trail buffer is
+    untouched.
+  - Thin stays a lever (default off, with its width floor) until the speed-keep dose is re-calibrated for it (L-V16).
+
+### Final forensic battery (opacity setting)
+- **Scanner, 3 seeds:**
+  - Candidate: 4 recurring shapes in 3 of 12 views, the same shapes as dev and #292 (dark z6.5 HOLE 8 kn / BLOB 22 kn;
+    dark and light z7 BLOB 17 kn).
+  - Trail ink is unchanged (dark z8 159 = dev).
+  - Pinned positive control: PASS in all 3 seeds.
+- **Land, synthetic, parts z7/z8/z9/z10/z11 (z6):**
+
+  | | before (kill) | final |
+  |---|---|---|
+  | light | 0.58/0.64/0.60/0.53/0.54 (0.40) | 0.43/0.43/0.40/0.35/0.36 |
+  | beach | 0.37/0.40/0.37/0.32/0.34 (0.25) | 0.27/0.26/0.25/0.21/0.23 |
+  | dark | 0.31/0.35/0.30/0.26/0.27 (0.25) | 0.27/0.28/0.24/0.21/0.22 |
+
+  - z<=6 and the field columns are identical in both arms.
+  - Dark's particle signal stays at or above its z6 through z9 (9.1-11.2 vs 8.9).
+- **Jacobian, the cost:** contrast per marked pixel at z8 drops 16% in light (15.7 -> 13.2), 15% in dark (19.3 ->
+  16.4) and 1% in beach. This is the price of opacity over width, stated in the PR.
+- **Real map, storm, land pLoss z7-11 (kill -> final):**
+  - light 0.29/0.25/0.19/0.26/0.24 -> 0.21/0.16/0.12/0.16/0.15 (z6 0.23)
+  - beach 0.18/0.19/0.17/0.18/0.20 -> 0.13/0.12/0.11/0.12/0.13 (z6 0.12)
+  - dark 0.20/0.20/0.16/0.15/0.18 -> 0.17/0.16/0.13/0.12/0.15 (z6 0.20)
+
+  Dark's WCAG 3:1 kept rises 2-3 points.
+- **Real map, served, z7/z9/z11:** light 0.19/0.11/0.13 -> 0.13/0.07/0.08; beach 0.12/0.10/0.15 -> 0.09/0.07/0.10;
+  dark 0.12/0.10/0.13 -> 0.11/0.08/0.10.
+- **Eye bench (final):** null and positive controls PASS. Particle eye/wall is z6 1.24 -> z6.5 1.82; dev reads 1.21 ->
+  1.77. That is the same pre-existing L-V13 step, slightly moved by #292's palette; the opacity factor does not touch
+  the trail.
+- **Checks:** Jest, both trees: 287 suites / 3558 tests pass. The ESLint ratchet is clean. `craco build` compiles. The
+  palette checker shows 0 red normal-vision lines; its one colour-blind red is #292's documented light-tint exception.

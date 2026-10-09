@@ -36,15 +36,15 @@ describe('close-zoom opacity factor', () => {
       const to = WIND_CLOSE_LAND.to[t];
       for (const z of [7.5, 9, 11]) expect(windCloseLandFactor(t, z, {})).toBeCloseTo(typeof to === 'number' ? to : 1, 12);
     }
-    expect(WIND_CLOSE_LAND.to).toEqual({});              // superseded by thin marks; kept as the A/B lever
+    expect(WIND_CLOSE_LAND.to).toEqual({ light: 0.65, beach: 0.65, dark: 0.8 });
   });
   it('never brightens: every table value is in (0, 1]', () => {
     for (const v of Object.values(WIND_CLOSE_LAND.to)) { expect(v).toBeGreaterThan(0); expect(v).toBeLessThanOrEqual(1); }
   });
   it('lever sets the close-zoom factor for any theme (0.1-1, numbers only); kill restores 1', () => {
     expect(windCloseLandFactor('dark', 9, { __RAW_WIND_CLOSE_LAND_OPACITY__: 0.8 })).toBeCloseTo(0.8, 12);
-    expect(windCloseLandFactor('light', 9, { __RAW_WIND_CLOSE_LAND_OPACITY__: 0.05 })).toBe(1);
-    expect(windCloseLandFactor('light', 9, { __RAW_WIND_CLOSE_LAND_OPACITY__: '0.8' })).toBe(1);
+    expect(windCloseLandFactor('light', 9, { __RAW_WIND_CLOSE_LAND_OPACITY__: 0.05 })).toBeCloseTo(0.65, 12);
+    expect(windCloseLandFactor('light', 9, { __RAW_WIND_CLOSE_LAND_OPACITY__: '0.8' })).toBeCloseTo(0.65, 12);
     for (const t of THEMES) expect(windCloseLandFactor(t, 9, { __RAW_DISABLE_WIND_CLOSE_LAND__: true })).toBe(1);
   });
 });
@@ -58,8 +58,8 @@ describe('close-zoom thin marks', () => {
     }
     for (const v of Object.values(WIND_CLOSE_THIN.to)) expect(v).toBeGreaterThanOrEqual(1);
   });
-  it('the calibrated values: light and beach 2.0, dark 1.5 (gentler); never wider than as drawn, never past 3x', () => {
-    expect(WIND_CLOSE_THIN.to).toEqual({ light: 2.0, beach: 2.0, dark: 1.5 });
+  it('no theme default (lever only: it reshapes the trail pattern under the speed-aware cull); never past 1-3x', () => {
+    expect(WIND_CLOSE_THIN.to).toEqual({});
     for (const t of THEMES) for (let z = 2; z <= 14; z += 0.25) {
       const f = windCloseThinFactor(t, z, {});
       expect(f).toBeGreaterThanOrEqual(1); expect(f).toBeLessThanOrEqual(3);
@@ -67,7 +67,7 @@ describe('close-zoom thin marks', () => {
   });
   it('lever (1-3, numbers only) and kill', () => {
     expect(windCloseThinFactor('dark', 9, { __RAW_WIND_CLOSE_THIN__: 1.6 })).toBeCloseTo(1.6, 12);
-    expect(windCloseThinFactor('dark', 9, { __RAW_WIND_CLOSE_THIN__: 0.5 })).toBeCloseTo(WIND_CLOSE_THIN.to.dark, 12);
+    expect(windCloseThinFactor('dark', 9, { __RAW_WIND_CLOSE_THIN__: 0.5 })).toBe(1);
     for (const t of THEMES) expect(windCloseThinFactor(t, 9, { __RAW_DISABLE_WIND_CLOSE_THIN__: true })).toBe(1);
   });
 });
@@ -79,8 +79,29 @@ describe('wiring', () => {
     expect(src).toContain("_v2.theme ? _v2.composite : (_pm.on ? _pm.opacity : finalOpacity) * windCloseLandFactor(effectiveTheme, z))");
     expect(src.match(/windCloseLandFactor\(/g)).toHaveLength(1);
   });
-  it('the dash narrows across the wind by the thin factor (DRAW_FS), bound once per frame', () => {
+  it('the dash narrows across the wind by the thin factor, capped per mark by the width floor (DRAW_VS -> DRAW_FS)', () => {
     expect(src).toContain("'u_dash_thin'), windCloseThinFactor(effectiveTheme, z));");
-    expect(shaders).toContain('float elong = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed)) * max(u_dash_thin, 1.0);');
+    expect(src).toContain("'u_dash_min_css'), WIND_CLOSE_THIN.minCssPx);");
+    expect(shaders).toContain('float widthCap = gl_PointSize / (elong0 * max(u_dash_min_css * max(u_dpr, 1.0), 0.5));');
+    expect(shaders).toContain('v_thin = clamp(u_dash_thin, 1.0, max(widthCap, 1.0));');
+    expect(shaders).toContain('float elong = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed)) * max(v_thin, 1.0);');
+    expect(WIND_CLOSE_THIN.minCssPx).toBe(1.5);
+  });
+  // The floor in numbers (DRAW_VS arithmetic): a dash's across-wind width is size / (elong * thin).
+  const across = (sizeDev, kn, thin, dpr = 2) => {
+    const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    const elong0 = 1.8 + (2.6 - 1.8) * ss(10, 0.5, kn);
+    const capped = Math.min(Math.max(thin, 1), Math.max(sizeDev / (elong0 * WIND_CLOSE_THIN.minCssPx * dpr), 1));
+    return sizeDev / (elong0 * capped);
+  };
+  it('a slow z8 mark (9.4 device px, 5 kn) stops at the 1.5 css px floor instead of going ~1 css px', () => {
+    expect(across(9.4, 5, 2.0)).toBeCloseTo(3.0, 6);           // 1.5 css px at DPR 2 (unfloored it would be 2.1)
+    expect(across(9.4, 5, 1.0)).toBeGreaterThan(4);            // untouched without the lever
+  });
+  it('a fast z8 mark (16 device px, 22 kn) still gets the full narrowing', () => {
+    expect(across(16, 22, 2.0)).toBeCloseTo(16 / (1.8 * 2), 6);
+  });
+  it('a mark already under the floor is never narrowed, nor widened', () => {
+    expect(across(4, 5, 2.0)).toBeCloseTo(4 / (1.8 + 0.8 * 0.5), 0);
   });
 });

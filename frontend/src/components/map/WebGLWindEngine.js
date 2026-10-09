@@ -19,7 +19,7 @@ import {
   createFBO,
   bindTexture,
   encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
-  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, windBoundsContain, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor
+  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, windBoundsContain, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN
 } from './WebGLWindUtils';
 import {
   initEngine,
@@ -879,6 +879,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DASH__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_thin'), windCloseThinFactor(effectiveTheme, z)); // close-zoom thin marks
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_min_css'), WIND_CLOSE_THIN.minCssPx); // ... never below this width
   // COMPOSITED BACKGROUND (round 6). The wind field is SEMI-TRANSPARENT, so a particle sits on the
   // ramp blended over the BASEMAP — in light mode only ~23% ramp at low wind. The casing must pick
   // its pole from that composite, not from the ramp colour, or it inverts (measured 1.71:1 at

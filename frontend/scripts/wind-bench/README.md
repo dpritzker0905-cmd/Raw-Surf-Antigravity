@@ -75,7 +75,7 @@ Exit codes: `0` when both controls hold, `2` when either fails.
 
 ```bash
 node scripts/wind-bench/land-run.js
-node scripts/wind-bench/land-run.js --themes light --zooms 6,9,11 --levers '{"__RAW_WIND_CLOSE_THIN__":1.5}'
+node scripts/wind-bench/land-run.js --themes light --zooms 6,9,11 --levers '{"__RAW_WIND_CLOSE_LAND_OPACITY__":0.8}'
 ```
 
 `ink` measures the trail buffer, not what reaches the screen. A light-theme mark composites
@@ -100,16 +100,16 @@ translucent. Land mode measures the screen instead. It takes about 3 minutes for
 - **View:** 28-38 kn air north-east of the bench storm. Because the line grid is the same at every zoom,
   this mode is the one to compare ZOOMS with (the real map's content changes with the camera).
 
-`parts` on 2026-10-09 (AMD Radeon 890M), before and after `WIND_CLOSE_THIN`:
+`parts` on 2026-10-09 (AMD Radeon 890M), before and after `WIND_CLOSE_LAND` (light 0.65, beach 0.65, dark 0.8):
 
 | parts | z6 | z7 | z8 | z9 | z10 | z11 |
 |---|---|---|---|---|---|---|
 | light, `dev` before #291 | 0.40 | 0.58 | 0.64 | 0.60 | 0.53 | 0.54 |
-| light, thin 2.0 | 0.40 | 0.42 | 0.45 | 0.41 | 0.34 | 0.36 |
+| light, 0.65 | 0.40 | 0.43 | 0.43 | 0.40 | 0.35 | 0.36 |
 | beach, before | 0.25 | 0.37 | 0.40 | 0.37 | 0.33 | 0.35 |
-| beach, thin 2.0 | 0.25 | 0.27 | 0.28 | 0.26 | 0.21 | 0.23 |
+| beach, 0.65 | 0.25 | 0.27 | 0.26 | 0.25 | 0.21 | 0.23 |
 | dark, before | 0.24 | 0.31 | 0.34 | 0.29 | 0.25 | 0.26 |
-| dark, thin 1.5 | 0.25 | 0.26 | 0.28 | 0.24 | 0.20 | 0.21 |
+| dark, 0.8 | 0.25 | 0.27 | 0.28 | 0.24 | 0.21 | 0.22 |
 
 The field alone keeps about 0.80 in light and beach and 0.49 in dark, at every zoom.
 
