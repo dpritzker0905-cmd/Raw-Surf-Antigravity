@@ -97,3 +97,92 @@ Resolver `resolveWindMotionFloor` (WebGLWindUtils.js), bound every frame next to
 `window.__RAW_DISABLE_WIND_MOTION_FLOOR__ = true` (cap 1.0 = the uncapped rule). Tests:
 `windMotionFloor.test.js`; the density gate's mirror (`windParticleDensity.test.js`) carries the
 cap.
+
+## DRAW_FS casing (relocated verbatim from WebGLWindShaders.js, 2026-10-08)
+
+Moved under the LOC ratchet so the particles-v2 hooks fit (the block below is unchanged source comment text).
+
+```
+  // Enhance particle contrast over heatmaps. THE STRUCTURAL PROBLEM (2026-07-18 EVE-3, user
+  // report: "wind animations are hard to see as they blend too much with their heatmap colors"):
+  // the particle and the field beneath it sample the SAME ramp at the SAME normalised speed —
+  // texture2D(u_color_ramp, v_speed/u_max_speed) here vs ramp(speed/u_max_speed, u_theme) in
+  // HEATMAP_FS — so a particle's colour is IDENTICAL to the pixel behind it BY CONSTRUCTION. No
+  // palette edit can fix that; only a luminance separation can, which is what rim+core are for.
+  //
+  // THE GAP: rim/core were FIXED black/white, and this program was the one wind program that never
+  // received u_theme (the engine bound it to heatmapProgram only). Tuned against the dark theme,
+  // they invert in light mode — there the field ramp is DEEP NAVY/TEAL on a LIGHT basemap, so a
+  // 98%-black rim is camouflage against the very field it must separate from. Beach's bright
+  // coral/yellow field washes out the white core for the same reason, mirrored.
+  // Now theme-aware: the rim always runs AWAY from the local field's luminance.
+  // Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__ (u_theme_rim = 0.0 -> the legacy black/white pair).
+  // DUAL-TONE CASING (2026-07-18 EVE-3 round 2 — the cartographic halo/casing technique).
+  // A PER-THEME CONSTANT rim was still wrong. Measured contrast of the shipped rim against the
+  // field colour it must separate from, per ramp stop (scripts/probe_wind_contrast.js):
+  //   dark  worst 5.48:1 @39kn · light worst 3.78:1 @21kn · beach worst 3.30:1 @39kn
+  // The light ramp's luminance is NON-MONOTONIC — it PEAKS at the 21 kn gold (Y=0.460) — so a
+  // fixed near-white rim has the least headroom exactly in the common moderate-wind band. That is
+  // the "still hard to see at SOME wind speeds" report, and it is not fixable by choosing a better
+  // constant: a MID-luminance field contrasts poorly against BOTH poles at once.
+  //
+  // The fix is the technique mapmakers use for labels/lines over arbitrary terrain: give the mark
+  // its OWN high-contrast edge. An outer ring and an inner ring at OPPOSITE luminance poles put a
+  // ~21:1 boundary INSIDE the mark, so legibility stops depending on the field's luminance at all.
+  // The orientation flips on the LOCAL field luminance (APCA coefficients) so the OUTER ring is
+  // always the one opposing the field — that also makes the rule self-theming: the dark theme's
+  // neon ramp is BRIGHT (Y 0.72-0.85) so it resolves to the dark-outer/light-inner pair the dark
+  // theme was originally tuned with, while light's dark navy ramp resolves to the inverse.
+  // The BODY keeps the speed colour: truth (colour == speed) is never traded away.
+  // Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__ -> the legacy fixed black-rim/white-core pair.
+```
+
+## Wind anim tuning (relocated verbatim from WebGLWindEngine.js, 2026-10-08)
+
+```
+// WIND ANIM TUNING (2026-07-06, user request: "+~10% wind animation presence at z3.3-4.69" and
+// "slower winds move slower, faster winds move faster"): motion was ALREADY linearly proportional
+// to |wind| (webgl-wind lineage — offset ∝ decoded u/v); gamma > 1 adds perceptual CONTRAST by
+// damping slow particles relative to fast ones (pow(speedNorm, gamma-1)); gamma 1.0 = exact linear.
+// Levers: __RAW_WIND_LOWBAND_BIAS__ (0..1, default 0.012 ≈ +10% on-screen in-band),
+// __RAW_WIND_SPEED_GAMMA__ (0.5..3, default 1.15), kill __RAW_DISABLE_WIND_SPEED_GAMMA__ → 1.0.
+```
+
+## Particles v2 — calibration + theme (2026-10-08, the zoom audit)
+
+Audit: `audit/wind-zoom-2026-10-08/REPORT.md` (live sweep, GFS/EURO/ICON, z2-z14). Owner direction: "a good amount
+of animations visible, but it definitely needs to be intended"; the z6 speed approved; then "test it on, and if we
+don't like it, we can turn it off". Both halves default ON with independent kill switches.
+
+**Calibration** (`__RAW_DISABLE_WIND_CALIBRATION_V2__`):
+- *Density is decoupled from lifetime.* Shipped: respawn = uniform-global + a zoom-ramped viewport bias below z6,
+  uniform over a 4,096-8,192 px tile above it, and lifetime set by the ink budget — measured 476 / 42 / 138 drawn
+  marks per 100x100 css px at z2 / z7 / z9 (12x swing, cliff at z6/z7). v2 respawns only inside the padded viewport
+  (10% margin, `v2GlobalBox` / `v2RespawnBox`), recycles a particle the moment it leaves, and a deterministic draw
+  cull (`v2KeepRate`) holds one screen density at every zoom.
+- *Lifetime follows perception, not ink:* ~2 s at calm, ~0.9 s at the grid max (`v2DropRule`; upstream webgl-wind
+  shape: base + 0.01 x speed normalised to the grid max). Leaders run 1-6 s; shipped was 0.1-0.2 s above 10 kn.
+- *Ink parity, measured on the GPU.* Long-lived heads drag tails, so the shipped head count (~130) carpeted 95% of
+  the field. A real-shader A/B (synthetic 100 kn storm, z5, dark theme) matched the shipped ink with 12 heads per
+  100x100 css px and fade 0.93: mean mark alpha 0.112 vs 0.094, coverage 19% vs 12% (5 heads / fade 0.965 gave
+  0.084 / 15%: sparser, longer streaks). Levers `__RAW_WIND_V2_DENSITY__`, `__RAW_WIND_V2_FADE__`.
+- *No beads:* each mark stretches along the flow by its own per-frame step (`v_stretch`), so consecutive stamps
+  overlap by the base length at any speed.
+- *Speed:* the owner-approved z6 speed (x1.16 of nominal; the shipped `Math.max(2.5e-6, ...)` clamp ran z5.78-6.0
+  16% fast and nowhere else) everywhere, with no clamp. Lever `__RAW_WIND_V2_SPEED__`.
+
+**Theme** (`__RAW_DISABLE_WIND_THEME_V2__`):
+- *Premultiplied trail buffer.* FADE_FS faded RGB and pinned alpha to 1, and SCREEN_FS derived alpha from
+  brightness — so a dark mark (light/beach theme casing's black ring) composited as transparent: the pale light-mode
+  marks. v2 fades RGBA together and composites premultiplied (ONE, ONE_MINUS_SRC_ALPHA); the buffer is cleared on
+  every mode flip.
+- *One neutral body per theme* (white on dark, deep navy on light and beach — `V2_BODY`), a single adaptive casing
+  ring, speed carried by the field colour plus the mark's opacity (0.85 -> 1.0) and streak length. The shipped marks
+  shared the field's hue at the same speed, so they relied on luminance alone, and colour-only motion reads slower
+  (Cavanagh 1984).
+- *Contrast:* the field composite is mid-luminance (Y 0.25-0.55) at most speeds in every theme; with near-opaque
+  heads (composite 0.95) the body or ring clears WCAG 1.4.11's 3:1 against it at every speed (worst: dark 3.05 @8 kn,
+  light 3.34 @5 kn, beach 3.07 @2 kn — pinned in `windParticlesV2.test.js`). Lever `__RAW_WIND_V2_OPACITY__`.
+
+Verified: all wind programs compile and link on WebGL1 and WebGL2 (ANGLE) with every v2 uniform active; point-size
+range 1-1024.

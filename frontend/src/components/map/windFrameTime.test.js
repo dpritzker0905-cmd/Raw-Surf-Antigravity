@@ -58,5 +58,6 @@ test('the engine feeds all three per-frame processes the same elapsed-time scale
   const src = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
   expect(src).toMatch(/\* \(this\._dtScale = frameTimeScale\(this\)\)/);
   expect(src).toContain("'u_dt_scale'), this._dtScale || 1)");
-  expect(src).toContain("'u_fade'), perFrameFade(this.fadeOpacity, this._dtScale || 1))");
+  // particles v2 (2026-10-08) feeds its own calibrated fade through the SAME per-frame scaling
+  expect(src).toContain("'u_fade'), perFrameFade(_v2.calib ? _v2.fade : this.fadeOpacity, this._dtScale || 1))");
 });

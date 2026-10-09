@@ -18,7 +18,8 @@ import {
   unbindTexture,
   createFBO,
   bindTexture,
-  encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor
+  encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
+  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY
 } from './WebGLWindUtils';
 import {
   initEngine,
@@ -34,12 +35,7 @@ function latToMercatorY(lat) {
   return (1.0 - Math.log(Math.tan(rad) + 1.0 / Math.cos(rad)) / Math.PI) / 2.0;
 }
 
-// WIND ANIM TUNING (2026-07-06, user request: "+~10% wind animation presence at z3.3-4.69" and
-// "slower winds move slower, faster winds move faster"): motion was ALREADY linearly proportional
-// to |wind| (webgl-wind lineage — offset ∝ decoded u/v); gamma > 1 adds perceptual CONTRAST by
-// damping slow particles relative to fast ones (pow(speedNorm, gamma-1)); gamma 1.0 = exact linear.
-// Levers: __RAW_WIND_LOWBAND_BIAS__ (0..1, default 0.012 ≈ +10% on-screen in-band),
-// __RAW_WIND_SPEED_GAMMA__ (0.5..3, default 1.15), kill __RAW_DISABLE_WIND_SPEED_GAMMA__ → 1.0.
+// WIND ANIM TUNING (2026-07-06): rationale relocated to docs/architecture/RATIONALE-WebGLWindEngine.md "Wind anim tuning".
 export function resolveWindAnimTuning(win) {
   const w = win || {};
   let lowBandBias = 0.012;
@@ -544,8 +540,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // v3.23: Disable the minimum advection step clamp at high zooms (z > 6) since
   // we use tile-relative coordinates. This prevents the wind animation from
   // exploding in speed. Also, we scale the tile coordinate size to increase precision.
-  const stableSpeedScale = ((z > 6.0)
-    ? (this.speedFactor * Math.pow(0.5, z) * 0.00025)
+  const _v2 = this._v2 = resolveWindParticlesV2(typeof window !== 'undefined' ? window : null); // PARTICLES V2
+  const stableSpeedScale = ((z > 6.0 || _v2.calib)
+    ? (this.speedFactor * (_v2.calib ? _v2.speedMul : 1) * Math.pow(0.5, z) * 0.00025)
     : Math.max(2.5e-6, this.speedFactor * Math.pow(0.5, z) * 0.00025)) * _rmScale * (this._dtScale = frameTimeScale(this)); // A15-18: per 60 Hz frame
 
   // v3.22: Compute camera center and tile origin for high-precision advection
@@ -767,6 +764,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_density_uniform'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DENSITY_UNIFORM__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_gamma'), _windTune.speedGamma); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_cap'), resolveWindMotionFloor(typeof window !== 'undefined' ? window : null).dropCap); // motion floor (2026-10-08)
+  var _v2Box = v2GlobalBox(vb, _v2.margin), _v2Drop = v2DropRule(_v2.lifeS); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_v2_calib'), _v2.calib ? 1 : 0); gl.uniform4fv(gl.getUniformLocation(this.advectProgram, 'u_v2_box'), v2RespawnBox(_v2Box, isHighZoom, tileOriginX, tileOriginY, tileWidth)); gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_v2_drop'), _v2Drop[0], _v2Drop[1]);
   // Size monotonicity (2026-07-19): slower never draws larger than faster. Mirrored into the
   // advect stage's ink budget. Kill: __RAW_DISABLE_WIND_SIZE_MONOTONIC__.
   var _sizeMono = (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SIZE_MONOTONIC__ === true) ? 0.0 : 1.0;
@@ -823,6 +821,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var tmp = this.particleStateA; this.particleStateA = this.particleStateB; this.particleStateB = tmp;
 
   // Step 2: Fade screen A screen B (RGB fade, alpha=1.0)
+  if (this._v2Premul !== _v2.theme) { this._v2Premul = _v2.theme; [this.screenA, this.screenB].forEach((sb) => { gl.bindFramebuffer(gl.FRAMEBUFFER, sb.fbo); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }); } // V2: premultiplied trails start clean
   gl.useProgram(this.fadeProgram);
   unbindTexture(gl, this.screenB.tex);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
@@ -830,7 +829,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // v3.12.2: No blend for fade shader outputs alpha=1.0, straight overwrite
   gl.disable(gl.BLEND);
   gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
-  gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), perFrameFade(this.fadeOpacity, this._dtScale || 1)); // A15-18
+  gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), perFrameFade(_v2.calib ? _v2.fade : this.fadeOpacity, this._dtScale || 1)); gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_premul'), _v2.theme ? 1 : 0); // A15-18
   bindTexture(gl, this.screenA.tex, 0);
   if (this.fadeVAO) {
     gl.bindVertexArray(this.fadeVAO);
@@ -902,6 +901,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var _dpr = (typeof window !== 'undefined' && Number(window.__RAW_WIND_DPR__))
     || (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dpr'), Math.max(1, Math.min(3, _dpr)));
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_calib'), _v2.calib ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_keep'), v2KeepRate(_v2.densityPer100, screenWidth / Math.max(1, _dpr), screenHeight / Math.max(1, _dpr), this.particleRes * this.particleRes, _v2Box, z)); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_px_per_kn'), stableSpeedScale * 512 * Math.pow(2, z)); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_speed_max'), _speedMax); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_gamma'), _windTune.speedGamma); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_theme'), _v2.theme ? 1 : 0); gl.uniform3fv(gl.getUniformLocation(this.drawProgram, 'u_v2_body'), V2_BODY[effectiveTheme] || V2_BODY.dark);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edge_feather_frac'), edgeFeatherFrac);
   // v3.22: Bind tile origin and width for high zoom precision
@@ -988,7 +988,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.useProgram(this.screenProgram);
   gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.blendFunc(_v2.theme ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _v2.theme ? 1 : 0);
   bindTexture(gl, this.screenB.tex, 0);
   if (this.screenVAO) {
     gl.bindVertexArray(this.screenVAO);
@@ -1006,7 +1006,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   if (z >= 4.0 && z <= 9.0) {
     finalOpacity = 0.505;
   }
-  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), finalOpacity);
+  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), _v2.theme ? _v2.composite : finalOpacity);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
