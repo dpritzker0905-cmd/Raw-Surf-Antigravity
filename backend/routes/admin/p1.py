@@ -11,6 +11,7 @@ from datetime import datetime, timezone, timedelta
 import json
 
 from database import get_db
+from core.security import get_current_user_id
 from deps.admin_auth import get_current_admin
 from models import (
     Profile, VerificationRequest, ImpersonationSession, FraudAlert, 
@@ -55,9 +56,12 @@ class ReviewVerificationRequest(BaseModel):
 @router.post("/verification/pro-surfer/submit")
 async def submit_pro_surfer_verification(
     data: ProSurferVerificationRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Submit a Pro Surfer verification request (WSL verification)"""
+    if data.user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Check for existing pending request
     existing = await db.execute(
         select(VerificationRequest).where(
@@ -104,9 +108,12 @@ async def submit_pro_surfer_verification(
 @router.post("/verification/pro-photographer/submit")
 async def submit_pro_photographer_verification(
     data: ProPhotographerVerificationRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Submit an Approved Pro Photographer verification request"""
+    if data.user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Check for existing pending request
     existing = await db.execute(
         select(VerificationRequest).where(

@@ -12,7 +12,7 @@ import json
 import httpx
 import logging
 from models import Conversation, Message, MessageReaction, Notification, Profile
-from core.security import get_current_user_id
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from services.private_media import delivery_url_for_media, upload_private_media
 
 from .schemas import (
@@ -33,7 +33,8 @@ class ReactionRequest(BaseModel):
 
 
 @router.post("/messages/react/{message_id}")
-async def add_reaction(message_id: str, user_id: str, data: ReactionRequest, db: AsyncSession = Depends(get_db)):
+async def add_reaction(message_id: str, data: ReactionRequest,
+                       user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Add or toggle an emoji reaction on a message (Shaka 🤙, Wave 🌊, Heart ❤️, Fire 🔥)"""
     
     # Validate emoji is in allowed list
