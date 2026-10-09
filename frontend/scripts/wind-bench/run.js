@@ -4,8 +4,9 @@
  * headless Chromium on this machine's GPU, prints the table and the positive-control verdict, and
  * writes a contact sheet. Offline: it never touches the backend. See README.md.
  *
- *   node scripts/wind-bench/run.js                 # full matrix: 13 views x 3 themes x 2 variants
+ *   node scripts/wind-bench/run.js                 # full matrix: 13 views x 3 themes x 2 variants (~5 min)
  *   node scripts/wind-bench/run.js --control       # positive control only (2 runs, ~10 s)
+ *   node scripts/wind-bench/run.js --seeds 3       # replicates: count only artifacts that recur (~14 min)
  *   node scripts/wind-bench/run.js --ref origin/dev --themes dark
  *   node scripts/wind-bench/run.js --serve         # serve the page for a browser tab instead
  *
@@ -15,10 +16,12 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const { FRONTEND, engineSource, buildBench } = require('./build');
-const { POSITIVE_CONTROL, buildMatrix, controlConfigs, evaluateControl } = require('./matrix');
+const { POSITIVE_CONTROL, buildMatrix, controlConfigs } = require('./matrix');
 const { configKey, formatTable, contactSheetHtml } = require('./report');
+const { mergeSeeds, controlAcrossSeeds } = require('./replicates');
 
-const HELP = fs.readFileSync(__filename, 'utf8').split('\n').slice(2, 12).map((l) => l.replace(/^ \*\s?/, '')).join('\n');
+const SOURCE_LINES = fs.readFileSync(__filename, 'utf8').split('\n');
+const HELP = SOURCE_LINES.slice(2, SOURCE_LINES.findIndex((l) => l.trim() === '*/')).map((l) => l.replace(/^ \*\s?/, '')).join('\n');
 const usageError = (msg) => Object.assign(new Error(msg), { usage: true });
 
 function parseArgs(argv) {
@@ -44,6 +47,8 @@ function parseArgs(argv) {
     else if (a === '--json') opts.json = path.resolve(val());
     else if (a === '--strict') opts.strict = true;
     else if (a === '--real-clock') opts.clock = 'real';
+    else if (a === '--seed') opts.seed = Number(val());
+    else if (a === '--seeds') opts.seeds = Number(val());
     else throw usageError(`unknown option ${a} (try --help)`);
   }
   return opts;
@@ -125,7 +130,7 @@ async function main() {
   }
 
   try {
-    const shape = { views: opts.views, themes: opts.themes, variants: opts.variants, frames: opts.frames, res: opts.res, clock: opts.clock };
+    const shape = { views: opts.views, themes: opts.themes, variants: opts.variants, frames: opts.frames, res: opts.res, clock: opts.clock, seed: opts.seed, seeds: opts.seeds };
     let configs;
     try { configs = opts.controlOnly ? controlConfigs(shape) : buildMatrix(shape); } catch (e) { throw usageError(e.message); }
     if (opts.control && !opts.controlOnly) {
@@ -133,20 +138,20 @@ async function main() {
       configs = configs.concat(controlConfigs(shape).filter((c) => !have.has(configKey(c))));
     }
     const { results, renderer, errors } = await runHeadless(`${base}/bench/index.html`, configs, opts);
-    const find = (variant) => results.find((r) => r.view === POSITIVE_CONTROL.view && r.theme === POSITIVE_CONTROL.theme && r.variant === variant);
-    const blind = find(POSITIVE_CONTROL.blindVariant), fixed = find(POSITIVE_CONTROL.fixedVariant);
-    const control = blind && fixed ? evaluateControl(blind, fixed) : null;
+    const merged = mergeSeeds(results);
+    const control = controlAcrossSeeds(results);
 
-    const table = formatTable(results, control);
+    const table = formatTable(merged, control);
     console.log('\n' + table);
     const runDir = path.join(opts.out, 'runs', `${stamp()}${opts.ref ? '-' + opts.ref.replace(/[^\w.-]+/g, '_') : ''}`);
     fs.mkdirSync(runDir, { recursive: true });
-    const meta = { engine: source.label, renderer, frames: opts.frames, particles: `${opts.res}²`, date: new Date().toISOString() };
-    const slim = results.map(({ shot, ...r }) => r);
-    fs.writeFileSync(path.join(runDir, 'contact-sheet.html'), contactSheetHtml(results, control, meta));
-    fs.writeFileSync(path.join(runDir, 'report.json'), JSON.stringify({ meta, control, results: slim }, null, 1));
+    const meta = { engine: source.label, renderer, frames: opts.frames, particles: `${opts.res}²`, seeds: opts.seeds || 1, date: new Date().toISOString() };
+    const slim = (rows) => rows.map(({ shot, ...r }) => r);
+    const report = JSON.stringify({ meta, control, merged: slim(merged), results: slim(results) }, null, 1);
+    fs.writeFileSync(path.join(runDir, 'contact-sheet.html'), contactSheetHtml(merged, control, meta));
+    fs.writeFileSync(path.join(runDir, 'report.json'), report);
     fs.writeFileSync(path.join(runDir, 'table.txt'), table + '\n');
-    if (opts.json) fs.writeFileSync(opts.json, JSON.stringify({ meta, control, results: slim }, null, 1));
+    if (opts.json) fs.writeFileSync(opts.json, report);
     console.log(`\ncontact sheet: ${path.join(runDir, 'contact-sheet.html')}`);
     if (errors.size) {
       console.log(`page errors (${errors.size} distinct):`);
@@ -158,7 +163,7 @@ async function main() {
     if (!control) { console.log('positive control not run (--no-control): no verdict.'); return glErrors.length ? 2 : 0; }
     if (control.status === 'BLIND' || glErrors.length) return 2;
     if (control.status === 'FAIL') return 1;
-    const strictHits = results.filter((r) => r.variant === POSITIVE_CONTROL.fixedVariant && r.artifacts > 0);
+    const strictHits = merged.filter((r) => r.variant === POSITIVE_CONTROL.fixedVariant && r.artifacts > 0);
     if (opts.strict && strictHits.length) {
       console.log(`--strict: ${POSITIVE_CONTROL.fixedVariant} has artifacts in ${strictHits.map(configKey).join(', ')}`);
       return 1;

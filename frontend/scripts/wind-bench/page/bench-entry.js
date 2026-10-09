@@ -9,8 +9,9 @@ const EngineModule = require('wind-bench-engine');
 const { benchGrids, sampleSpeed } = require('../field');
 const { makeCamera } = require('../camera');
 const { mulberry32, blockStats, scanBlocks } = require('../scanner');
-const { BASEMAP, VARIANTS, POSITIVE_CONTROL, buildMatrix, controlConfigs, evaluateControl } = require('../matrix');
-const { formatTable, configKey } = require('../report');
+const { BASEMAP, VARIANTS, buildMatrix, controlConfigs } = require('../matrix');
+const { formatTable, figureText, configKey } = require('../report');
+const { mergeSeeds, controlAcrossSeeds } = require('../replicates');
 
 const Engine = EngineModule.default || EngineModule.WebGLWindEngine || EngineModule;
 const params = new URLSearchParams(window.location.search);
@@ -43,7 +44,7 @@ function clearLevers() {
 // (paired rows), so two variants whose levers the engine ignores must give identical numbers.
 function seedOf(cfg) {
   let h = 2166136261;
-  for (const ch of `${cfg.view}/${cfg.theme}/${cfg.res}/${cfg.frames}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  for (const ch of `${cfg.view}/${cfg.theme}/${cfg.res}/${cfg.frames}/${cfg.seed || 0}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   return h >>> 0;
 }
 
@@ -138,11 +139,7 @@ async function runOne(cfg) {
   }
 }
 
-function caption(r) {
-  const art = r.significant.filter((c) => !c.calm).map((c) => `${c.kind} ${c.blocks}@${c.kn}kn`).join(', ');
-  return [r.view, r.theme, r.variant, `ink ${r.ink}`, `sat ${r.saturated}`, `storm/slow ${r.stormSlow ?? '-'}`,
-    `artifacts ${r.artifacts}${art ? ' (' + art + ')' : ''}`, `${r.msPerFrame} ms`].join(' · ');
-}
+const caption = (r) => `${configKey(r)} · ${figureText(r)}`;
 
 function addFigure(r) {
   const fig = document.createElement('figure');
@@ -165,10 +162,8 @@ async function run(configs) {
     addFigure(r);
   }
   window.__WIND_BENCH__.results = results;
-  const find = (variant) => results.find((r) => r.view === POSITIVE_CONTROL.view && r.theme === POSITIVE_CONTROL.theme && r.variant === variant);
-  const blind = find(POSITIVE_CONTROL.blindVariant), fixed = find(POSITIVE_CONTROL.fixedVariant);
-  const control = blind && fixed ? evaluateControl(blind, fixed) : null;
-  document.getElementById('table').textContent = formatTable(results, control);
+  const control = controlAcrossSeeds(results);
+  document.getElementById('table').textContent = formatTable(mergeSeeds(results), control);
   setStatus(`done: ${results.length} configurations` + (control ? ` · positive control ${control.status}` : ''));
   return results;
 }

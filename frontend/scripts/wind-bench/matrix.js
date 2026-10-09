@@ -74,8 +74,9 @@ function evaluateControl(blindScan, fixedScan, control = POSITIVE_CONTROL) {
 }
 
 /**
- * The run list, ordered view -> theme -> variant so each variant pair renders back to back.
- * `views`, `themes` and `variants` are id lists; unknown ids throw rather than run a smaller matrix.
+ * The run list, ordered view -> theme -> seed -> variant so each variant pair renders back to back
+ * from the same particles. `views`, `themes` and `variants` are id lists; unknown ids throw rather
+ * than run a smaller matrix. `seeds` replicates every configuration (seed, seed+1, ...).
  */
 function buildMatrix(opts = {}) {
   const pick = (all, ids, what) => {
@@ -90,11 +91,12 @@ function buildMatrix(opts = {}) {
   const themes = pick(THEMES, opts.themes, 'theme');
   const variantIds = opts.variants || Object.keys(VARIANTS);
   variantIds.forEach((v) => { if (!VARIANTS[v]) throw new Error(`unknown variant "${v}" (have: ${Object.keys(VARIANTS).join(', ')})`); });
+  const seeds = Array.from({ length: Math.max(1, opts.seeds || 1) }, (_, k) => (opts.seed || 0) + k);
   const configs = [];
-  views.forEach((view) => themes.forEach((theme) => variantIds.forEach((variant) => configs.push({
+  views.forEach((view) => themes.forEach((theme) => seeds.forEach((seed) => variantIds.forEach((variant) => configs.push({
     view: view.id, z: view.z, grid: view.grid, theme, variant, lng: CENTER.lng, lat: CENTER.lat,
-    frames: opts.frames || 180, res: opts.res || 384, clock: opts.clock || 'virtual',
-  }))));
+    frames: opts.frames || 180, res: opts.res || 384, clock: opts.clock || 'virtual', seed,
+  })))));
   return configs;
 }
 

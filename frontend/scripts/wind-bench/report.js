@@ -4,7 +4,7 @@
 
 const { POSITIVE_CONTROL } = require('./matrix');
 
-const configKey = (c) => `${c.view}/${c.theme}/${c.variant}`;
+const configKey = (c) => `${c.view}/${c.theme}/${c.variant}${c.seed ? `#${c.seed}` : ''}`;
 const pad = (s, n) => String(s).padStart(n);
 const padR = (s, n) => String(s).padEnd(n);
 const fmt = (x, dp) => (x == null || Number.isNaN(x) ? '-' : Number(x).toFixed(dp));
@@ -42,17 +42,23 @@ function formatTable(results, control) {
 
 function summaryLines(results, control) {
   const out = [];
+  const seeds = Math.max(1, ...results.map((r) => r.seeds || 1));
   variantsOf(results).forEach((v) => {
     const rs = results.filter((r) => r.variant === v);
     const flagged = rs.filter((r) => r.artifacts > 0);
     const ms = rs.map((r) => r.msPerFrame).filter((x) => x != null);
     const ink = rs.map((r) => r.ink).filter((x) => x != null);
+    const flicker = rs.reduce((a, r) => a + (r.flicker || 0), 0);
     out.push(`${padR(v, 10)} artifacts ${pad(rs.reduce((a, r) => a + r.artifacts, 0), 3)} in ${flagged.length}/${rs.length} views`
+      + (seeds > 1 ? ` (+${flicker} flickering, not counted)` : '')
       + ` · ink ${fmt(Math.min(...ink), 0)}-${fmt(Math.max(...ink), 0)}`
       + ` · ${fmt(Math.min(...ms), 1)}-${fmt(Math.max(...ms), 1)} ms/frame`);
   });
   out.push('columns: ink = mean trail max-RGB (0-255) · sat = share of pixels > 200 · st/sl = lit-pixel brightness, fastest over slowest non-calm 5-kn band on screen'
     + ' · art = significant non-calm clusters/blocks · ms = rAF interval');
+  out.push(seeds > 1
+    ? `${seeds} seeds: numbers are seed means; art counts only shapes that recur in a majority of seeds.`
+    : 'ONE seed: 1-4 block clusters at the null floor come and go between seeds. Quote artifact counts from --seeds 3.');
   identicalVariantPairs(results).forEach(([a, b]) => out.push(
     `⚠ ${a} and ${b} rendered IDENTICALLY in every view: this engine reads none of the levers that tell them apart.`));
   if (control) out.push('', formatControl(control));
@@ -83,11 +89,20 @@ function formatControl(control, def = POSITIVE_CONTROL) {
   const want = def.expect.map((e) => `${e.kind} ~${e.kn}±${def.tolKn} kn`).join(' + ');
   const blind = control.blindHits.map(hitText).filter(Boolean);
   const fixed = control.fixedHits.map(hitText).filter(Boolean);
-  const head = `POSITIVE CONTROL (${def.theme} ${def.view}, expects ${want}): ${control.status}`;
+  const perSeed = control.seeds && control.seeds.length > 1 ? ` [seed:verdict ${control.seeds.join(' ')}]` : '';
+  const head = `POSITIVE CONTROL (${def.theme} ${def.view}, expects ${want}): ${control.status}${perSeed}`;
   if (control.status === 'BLIND') {
     return `${head}\n  ${def.blindVariant} shows ${blind.length ? blind.join('; ') : 'none of it'}: the scanner cannot see the known defect, so this run proves nothing.`;
   }
   return `${head}\n  ${def.blindVariant} (must fail): ${blind.join('; ')}\n  ${def.fixedVariant} (must pass): ${fixed.length ? fixed.join('; ') : 'none of it'}`;
+}
+
+/** Caption text for one (merged) row: the metrics and each counted artifact, with its recurrence. */
+function figureText(r) {
+  const art = r.significant.filter((c) => !c.calm)
+    .map((c) => `${c.kind} ${c.blocks}@${c.kn}kn${c.of > 1 ? ` in ${c.seen}/${c.of} seeds` : ''}`).join(', ');
+  const flicker = r.flicker ? ` · ${r.flicker} flickering` : '';
+  return `ink ${r.ink} · sat ${r.saturated} · storm/slow ${r.stormSlow ?? '-'} · artifacts ${r.artifacts}${art ? ` (${art})` : ''}${flicker} · ${r.msPerFrame} ms`;
 }
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
@@ -102,8 +117,7 @@ function contactSheetHtml(results, control, meta = {}) {
     groups.get(k).push(r);
   });
   const figure = (r) => {
-    const art = r.significant.filter((c) => !c.calm).map((c) => `${c.kind} ${c.blocks}@${c.kn}kn`).join(', ');
-    const text = `${r.variant} · ink ${r.ink} · sat ${r.saturated} · storm/slow ${r.stormSlow ?? '-'} · artifacts ${r.artifacts}${art ? ` (${art})` : ''} · ${r.msPerFrame} ms`;
+    const text = `${r.variant} · ${figureText(r)}`;
     return `<figure${r.artifacts ? ' class="flagged"' : ''}><img src="${r.shot}" alt="${esc(`${r.view} ${r.theme} ${text}`)}"><figcaption>${esc(text)}</figcaption></figure>`;
   };
   const rows = [...groups.entries()].map(([k, rs]) => `<section><h2>${esc(k)}</h2><div class="row">${
@@ -129,4 +143,4 @@ ${rows}
 `;
 }
 
-module.exports = { configKey, formatTable, formatControl, identicalVariantPairs, contactSheetHtml };
+module.exports = { configKey, formatTable, formatControl, figureText, identicalVariantPairs, contactSheetHtml };

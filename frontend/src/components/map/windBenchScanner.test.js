@@ -8,6 +8,7 @@ import {
 } from '../../../scripts/wind-bench/scanner';
 import { POSITIVE_CONTROL, VIEWS, buildMatrix, controlConfigs, evaluateControl } from '../../../scripts/wind-bench/matrix';
 import { identicalVariantPairs } from '../../../scripts/wind-bench/report';
+import { sameShape, recurringShapes, mergeSeeds, controlAcrossSeeds } from '../../../scripts/wind-bench/replicates';
 
 const grid = (bw, bh, fn) => Float64Array.from({ length: bw * bh }, (_, i) => fn(i % bw, Math.floor(i / bw)));
 const at = (bw, x, y) => y * bw + x;
@@ -197,9 +198,59 @@ describe('the matrix', () => {
     expect(() => buildMatrix({ views: ['fine-z12'] })).toThrow(/unknown view/);
     expect(() => buildMatrix({ variants: ['nope'] })).toThrow(/unknown variant/);
   });
+  test('--seeds replicates every configuration, variant pairs still back to back', () => {
+    const m = buildMatrix({ seeds: 3, seed: 5 });
+    expect(m).toHaveLength(78 * 3);
+    expect(m.slice(0, 4).map((c) => [c.view, c.theme, c.seed, c.variant]))
+      .toEqual([['world-z2', 'dark', 5, 'shipped'], ['world-z2', 'dark', 5, 'candidate'], ['world-z2', 'dark', 6, 'shipped'], ['world-z2', 'dark', 6, 'candidate']]);
+  });
   test('variants that rendered identically everywhere are reported (an ignored lever)', () => {
     const r = (variant, ink) => ({ view: 'fine-z8', theme: 'dark', variant, ink, saturated: 0.2, stormSlow: 0.65, artifactBlocks: 0, clusters: 3 });
     expect(identicalVariantPairs([r('shipped', 133), r('candidate', 133)])).toEqual([['shipped', 'candidate']]);
     expect(identicalVariantPairs([r('shipped', 133), r('candidate', 159)])).toEqual([]);
+  });
+});
+
+describe('replicates: an artifact counts only when it recurs', () => {
+  const shape = (kind, blocks, kn, at, calm = false) => ({ kind, blocks, kn, at, res: kind === 'HOLE' ? 0.6 : 1.6, calm });
+  const run = (seed, significant, extra = {}) => ({ view: 'fine-z7', theme: 'dark', variant: 'candidate', seed, significant, ink: 150, saturated: 0.2, stormSlow: 0.9, msPerFrame: 16.7, artifacts: significant.filter((c) => !c.calm).length, ...extra });
+
+  test('the same kind near the same place is the same shape; size widens the reach', () => {
+    expect(sameShape(shape('BLOB', 4, 17, [600, 300]), shape('BLOB', 3, 16, [640, 330]))).toBe(true);   // 50 px apart
+    expect(sameShape(shape('BLOB', 4, 17, [600, 300]), shape('HOLE', 4, 17, [600, 300]))).toBe(false);
+    expect(sameShape(shape('BLOB', 4, 17, [600, 300]), shape('BLOB', 4, 17, [700, 300]))).toBe(false);  // 100 px: too far for 4 blocks
+    expect(sameShape(shape('HOLE', 64, 47, [400, 400]), shape('HOLE', 60, 47, [500, 400]))).toBe(true);  // 100 px: within reach of 64 blocks
+  });
+
+  test('a shape seen in 3 of 3 seeds is stable, one seen in 1 of 3 is flicker, calm ones are ignored', () => {
+    const runs = [
+      run(0, [shape('BLOB', 4, 16.9, [600, 300]), shape('HOLE', 2, 41, [100, 800])]),
+      run(1, [shape('BLOB', 4, 16.9, [610, 290]), shape('HOLE', 9, 3, [50, 50], true)]),
+      run(2, [shape('BLOB', 3, 15.9, [590, 300])]),
+    ];
+    const shapes = recurringShapes(runs);
+    expect(shapes).toHaveLength(2);
+    expect(shapes[0]).toMatchObject({ kind: 'BLOB', seen: 3, of: 3, stable: true, blocks: 4 });
+    expect(shapes[1]).toMatchObject({ kind: 'HOLE', seen: 1, of: 3, stable: false });
+    const [row] = mergeSeeds(runs);
+    expect(row).toMatchObject({ seeds: 3, artifacts: 1, artifactBlocks: 4, flicker: 1, ink: 150 });
+    expect(row.significant.map((c) => c.kind)).toEqual(['BLOB']);
+  });
+
+  test('two seeds of three is a majority; one seed is passed through untouched', () => {
+    const two = mergeSeeds([run(0, [shape('HOLE', 5, 8, [200, 200])]), run(1, [shape('HOLE', 6, 8, [210, 200])]), run(2, [])]);
+    expect(two[0]).toMatchObject({ artifacts: 1, flicker: 0 });
+    const one = mergeSeeds([run(0, [shape('HOLE', 1, 40, [200, 200])])]);
+    expect(one[0]).toMatchObject({ seeds: 1, artifacts: 1, flicker: 0 });
+  });
+
+  test('the control must hold in every seed: one BLIND seed makes the run BLIND', () => {
+    const r = (variant, seed, significant) => ({ view: 'fine-z8', theme: 'dark', variant, seed, significant });
+    const both = [shape('HOLE', 40, 44, [400, 400]), shape('BLOB', 38, 34, [300, 300])];
+    const pass = [r('shipped', 0, both), r('candidate', 0, []), r('shipped', 1, both), r('candidate', 1, [])];
+    expect(controlAcrossSeeds(pass)).toMatchObject({ status: 'PASS', seeds: ['0:PASS', '1:PASS'] });
+    const blind = [r('shipped', 0, both), r('candidate', 0, []), r('shipped', 1, both.slice(0, 1)), r('candidate', 1, [])];
+    expect(controlAcrossSeeds(blind)).toMatchObject({ status: 'BLIND', seed: 1 });
+    expect(controlAcrossSeeds([r('candidate', 0, [])])).toBeNull();
   });
 });
