@@ -101,7 +101,7 @@ class _ViewportService:
     def is_viewport_enabled(self, *a, **k):
         return True
 
-    async def get_cached_dynamic_product(self, *, model, domain, layer, target_dt, bbox_str):
+    async def get_cached_dynamic_product(self, *, model, domain, layer, target_dt, bbox_str, background_tasks=None):
         return copy.deepcopy(self.dynamic.get((target_dt, bbox_str)))
 
     async def _find_any_cached_product(self, *a, **k):
@@ -198,14 +198,16 @@ async def test_viewed_hour_gets_its_sharpen_while_the_timeline_prefetch_is_in_fl
 
     h.vs.holding = False
     bg = BackgroundTasks()
-    viewed = await h.grid(0, bg)
+    # +3 h, not hour 0: hour 0 at this box is the h0 mini's own warm-up, which the viewed request now
+    # joins in flight (one key per hour and box, test_one_hour_and_box_is_one_key_whatever_the_client_spelling).
+    viewed = await h.grid(3, bg)
     assert viewed.grid.diagnostics.get("mid_res_tier") is True
     assert viewed.staleReason == "swr_revalidation_pending", (
         f"the viewed hour was turned away; the queue held {sorted(h.vs.ACTIVE_REVALIDATIONS)}")
     assert len(bg.tasks) == 1, "the viewed hour's sharpen must actually be queued"
 
     await bg()                                     # FastAPI runs it once the response is sent
-    again = await h.grid(0, BackgroundTasks())
+    again = await h.grid(3, BackgroundTasks())
     assert again.is_dynamic_viewport_product is True
     assert again.staleReason is None
     await h.release_and_drain()
@@ -257,7 +259,7 @@ async def test_positive_control_without_the_reserve_the_prefetch_takes_the_viewe
     await _client_timeline(h)
     h.vs.holding = False
     bg = BackgroundTasks()
-    viewed = await h.grid(0, bg)
+    viewed = await h.grid(3, bg)                   # +3 h: hour 0 would join the h0 mini's warm-up in flight
     assert viewed.staleReason is None and bg.tasks == []
     assert len(h.vs.ACTIVE_REVALIDATIONS) == 2
     await h.release_and_drain()
@@ -317,6 +319,20 @@ async def test_a_page_warms_one_viewport_even_when_the_warm_up_finishes_first(mo
     await h.series(PAGE_1)
     await h.release_and_drain()
     assert len(h.vs.started) == 1, f"one warm-up per page, got {len(h.vs.started)}"
+
+
+async def test_one_hour_and_box_is_one_key_whatever_the_client_spelling(monkeypatch):
+    """grid_series asks for `...T00:00:00Z`, /grid for `...T00:00:00.000Z`. One hour and box is one fetch,
+    so the viewed hour finds the warm frame's sharpen in flight instead of queueing a second copy."""
+    h = _Harness(monkeypatch)
+    await h.series("144")                          # the page's warm frame: sharpen scheduled, held
+    assert len(h.vs.ACTIVE_REVALIDATIONS) == 1
+    bg = BackgroundTasks()
+    viewed = await h.grid(144, bg)
+    assert viewed.staleReason == "swr_revalidation_pending"
+    assert bg.tasks == [], f"a second key for one fetch: {sorted(h.vs.ACTIVE_REVALIDATIONS)}"
+    assert len(h.vs.ACTIVE_REVALIDATIONS) == 1
+    await h.release_and_drain()
 
 
 async def test_a_repeat_while_its_sharpen_is_in_flight_still_reads_pending(monkeypatch):

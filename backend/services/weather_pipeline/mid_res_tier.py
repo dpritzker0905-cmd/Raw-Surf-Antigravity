@@ -31,7 +31,7 @@ import asyncio
 import logging
 import os
 
-from services.weather_pipeline.reval_queue import schedule_revalidation
+from services.weather_pipeline.reval_queue import reval_key, schedule_revalidation
 from services.weather_pipeline.route_helpers import filter_grid_to_bbox, get_snapped_bbox
 from services.weather_pipeline.series_vector_budget import thinning_mode
 from services.weather_pipeline.viewport_helper import _is_oversized_grid
@@ -272,7 +272,7 @@ def _schedule_sharpen(product, *, model, domain, layer, bbox, span, viewport_ser
         and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt)
         and schedule_revalidation(
             viewport_service, background_tasks, model, domain, layer, valid_time, target_dt, bbox,
-            f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}",
+            reval_key(model, domain, layer, target_dt, bbox),
             queue_max=_reval_queue_max,
         )
     ):

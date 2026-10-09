@@ -1365,7 +1365,11 @@ jobs:
           # sharpen queue): test_reval_viewed_hour_wins.py (9), selector-verified into this lane; hosted
           # reading on dev c687b6b1 (CI 37865521312: 161 files, 2426 passed) -> projected 2435/162;
           # 2435 - 6 = 2429.
-          MIN_FILES, MIN_PASSED = 162, 2429
+          # ⬆ 162/2429 → 163/2436 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (the stale-cache refresh
+          # takes a queue slot): test_stale_cache_reval_bounded.py (6) plus 1 in test_reval_viewed_hour_wins.py,
+          # selector-verified into this lane; hosted reading on #277 head 4cbf59d7 (CI 37872426321: 162 files,
+          # 2435 passed) -> projected 2442/163; 2442 - 6 = 2436.
+          MIN_FILES, MIN_PASSED = 163, 2436
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
