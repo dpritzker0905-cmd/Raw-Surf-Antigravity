@@ -683,6 +683,7 @@ uniform float u_dash;        // 2026-07-18: 1 = oriented dash, 0 = legacy round 
 uniform float u_field_opacity; // heatmap u_opacity — the field is SEMI-TRANSPARENT
 uniform float u_basemap_y;     // linear luminance of the basemap showing through it
 uniform float u_casing_fixed;  // 1 = one casing pole for every mark (WebGLWindUtils.windCasingFixedPole)
+uniform float u_single_casing; // 1 = rim only, no white inner ring (WebGLWindUtils.v2SpeedPremul)
 varying vec2 v_dir;          // screen-space wind direction from DRAW_VS
 varying float v_stretch; uniform float u_v2_theme; uniform vec3 u_v2_body; // PARTICLES V2
 void main() {
@@ -759,7 +760,7 @@ void main() {
     float innerL = 1.0 - outerL;                   // opposes the outer ring
     float outer = smoothstep(0.38, 0.50, dist);
     float inner = smoothstep(0.38, 0.26, dist) * smoothstep(0.10, 0.20, dist);
-    rgb = mix(rgb, vec3(innerL), inner * 0.92 * (1.0 - u_v2_theme)); // V2: single thin casing
+    rgb = mix(rgb, vec3(innerL), inner * 0.92 * (1.0 - max(u_v2_theme, u_single_casing))); // single thin casing
     rgb = mix(rgb, vec3(outerL), outer * 0.98);
   } else {
     float rim = smoothstep(0.28, 0.46, dist);
@@ -811,6 +812,7 @@ uniform float u_edge_feather_frac;  // 2026-07-19: absolute-width feather (see D
 uniform sampler2D u_color_ramp;     // 2026-07-19: the SAME Beaufort LUT the particles use
 uniform float u_field_lut;          // 1 = sample the LUT (default), 0 = legacy inline 7-stop ramp
 uniform float u_calm_alpha_kill;    // 1 = restore the 07-19 calm-alpha set (kill switch; default 0)
+uniform float u_field_tint;         // > 0: TINT the basemap (multiply blend) instead of covering it (WebGLWindUtils.v2FieldTint)
 // BASE-PASS CUTOUT under a resident fine overlay (2026-07-19, queue #9). The overlay pass draws
 // ON TOP with its own feathered edge; without a complementary hole the two semi-transparent
 // alphas COMPOUND inside the overlay (a visibly brighter rectangle). The base fades out exactly
@@ -982,7 +984,7 @@ void main() {
   vec3 fieldRgb = (u_field_lut > 0.5)
     ? texture2D(u_color_ramp, vec2(t, 0.5)).rgb
     : ramp(t, u_theme);
-  gl_FragColor = vec4(fieldRgb * alpha, alpha);
+  gl_FragColor = u_field_tint > 0.0 ? vec4(mix(vec3(1.0), fieldRgb, clamp(alpha * u_field_tint, 0.0, 1.0)), 1.0) : vec4(fieldRgb * alpha, alpha);
 }`;
 
 export const SCREEN_VS = `

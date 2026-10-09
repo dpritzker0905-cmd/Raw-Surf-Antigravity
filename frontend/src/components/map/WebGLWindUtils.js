@@ -484,6 +484,52 @@ export function windCasingFixedPole(win = (typeof window !== 'undefined' ? windo
 // 126-148 at 60 fps with no new artifacts, blending to the calibrated close-zoom fade by z6.5. Kill: __RAW_DISABLE_WIND_WIDE_TRAILS__.
 export const V2_WIDE_TRAILS = Object.freeze({ fade: 0.985, fullBelowZ: 5.5, baseFromZ: 6.5 });
 
+// SPEED-COLOURED PREMULTIPLIED COMPOSITE (2026-10-09, owner: "light mode needs color corrections, and possibly beach mode
+// does"). The legacy screen pass takes a mark's ALPHA from its BRIGHTNESS, at 0.48-0.505 opacity: a light-theme mark is
+// a DARK speed colour, so it renders near-transparent and only its white inner casing ring shows (pale cream streaks).
+// #273's premultiplied trail buffer shows dark marks at true colour but was tied to the neutral body the owner
+// rejected; this decouples it. Per theme: premultiplied trails + speed-coloured body, optionally the single (rim-only)
+// casing, at a calibrated composite opacity. Bench levers: __RAW_WIND_PREMUL_THEMES__ ('light,beach'),
+// __RAW_WIND_PREMUL_OPACITY__, __RAW_WIND_SINGLE_CASING__. Kill: __RAW_DISABLE_WIND_SPEED_PREMUL__.
+// Calibrated on the real-engine bench against dark's approved salience (CIE dL* of particles vs the field alone, z3/z7/z9),
+// re-run after the 2026-10-09 palettes + field ramps: light 1.0 -> 85-89% of dark's dL* with ~2x its chroma contrast
+// (combined dE 96-122% of dark), beach 0.6 -> 95-110%; the double casing keeps the dark rim's LIGHTNESS contrast
+// (rim-only marks were colourful but near-isoluminant with the field: dL* 0.6 vs 2.7, the weak-motion case).
+export const V2_SPEED_PREMUL = Object.freeze({ themes: ['light', 'beach'], opacity: Object.freeze({ light: 1.0, beach: 0.6 }), singleCasing: false });
+
+// FIELD TINT, NOT COVER (2026-10-09, owner: "be careful not to completely block land mass underneath ... be innovative").
+// The field pass emits premultiplied colour but blends with SRC_ALPHA, so it lays colour x a^2 over basemap x (1 - a): in
+// light mode (a ~0.65) a muddy grey veil that kept only 0.41 of the basemap's line contrast (dark: 0.51). A multiply blend
+// TINTS instead: out = basemap x (1 - s(1 - colour)) — identical colour over plain white, and coastlines/labels keep their
+// Weber contrast because line and background are scaled alike (cartography's thematic-overlay technique).
+// Bench levers: __RAW_WIND_FIELD_TINT__ (strength), __RAW_WIND_FIELD_TINT_THEMES__. Kill: __RAW_DISABLE_WIND_FIELD_TINT__.
+// Bench (basemap line grid under the layer; retained line contrast field+particles): light 0.40 -> 0.65, beach 0.47 -> 0.85
+// (dark, untouched: 0.50); field chroma light 19-24 -> 25-29 C*, beach unchanged; particle salience at dark parity.
+// Owner, after the live preview: "reduce the transparency by 5% on beach and light modes winds" — full-wind field opacity
+// +5 points (light 0.65 -> 0.70, beach 0.55 -> 0.60), i.e. the tint strength x (op + 0.05) / op.
+export const V2_FIELD_TINT = Object.freeze({ themes: ['light', 'beach'], strength: Object.freeze({ light: 0.70 / 0.65, beach: 0.60 / 0.55 }) });
+
+/** Field tint strength for this theme (0 = the legacy alpha-over field). */
+export function v2FieldTint(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  if (w.__RAW_DISABLE_WIND_FIELD_TINT__ === true) return 0;
+  const themes = typeof w.__RAW_WIND_FIELD_TINT_THEMES__ === 'string' ? w.__RAW_WIND_FIELD_TINT_THEMES__.split(',') : V2_FIELD_TINT.themes;
+  if (!themes.includes(theme)) return 0;
+  const s = w.__RAW_WIND_FIELD_TINT__;
+  return (typeof s === 'number' && s > 0 && s <= 2) ? s : (V2_FIELD_TINT.strength[theme] || 1);
+}
+
+/** { on, opacity, singleCasing } for this theme (off whenever the neutral-body v2 theme is on: it owns the premul path). */
+export function v2SpeedPremul(v2, theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  if (!v2 || v2.theme || w.__RAW_DISABLE_WIND_SPEED_PREMUL__ === true) return { on: false, opacity: 0, singleCasing: false };
+  const themes = typeof w.__RAW_WIND_PREMUL_THEMES__ === 'string' ? w.__RAW_WIND_PREMUL_THEMES__.split(',') : V2_SPEED_PREMUL.themes;
+  const on = themes.includes(theme), op = w.__RAW_WIND_PREMUL_OPACITY__;
+  const opacity = (typeof op === 'number' && op >= 0.1 && op <= 1) ? op : (V2_SPEED_PREMUL.opacity[theme] || 0.8);
+  const sc = typeof w.__RAW_WIND_SINGLE_CASING__ === 'boolean' ? w.__RAW_WIND_SINGLE_CASING__ : V2_SPEED_PREMUL.singleCasing;
+  return { on, opacity: on ? opacity : 0, singleCasing: on && sc };
+}
+
 /** Per-frame trail fade at this zoom: the wide-zoom fade, blended linearly into `baseFade` across fullBelowZ..baseFromZ. */
 export function v2TrailFade(baseFade, zoom, v2, win = (typeof window !== 'undefined' ? window : null)) {
   if (!v2 || !v2.density || v2.motion || (win && win.__RAW_DISABLE_WIND_WIDE_TRAILS__ === true)) return baseFade;

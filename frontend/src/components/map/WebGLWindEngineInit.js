@@ -139,7 +139,7 @@ export function initEngine(engine, gl) {
     gl.bindVertexArray(null);
   }
 
-  engine._colorRamp = null;
+  engine._colorRamp = null; engine._fieldRamp = null;
   engine._currentTheme = null;
   engine._initialized = true;
   console.log('[WebGLWind] Initialized: ' + (engine.particleRes * engine.particleRes) + ' particles');
@@ -181,7 +181,7 @@ export function disposeEngine(engine, gl) {
   if (engine.particleStateB) gl.deleteTexture(engine.particleStateB);
   if (engine._windData?.texture) gl.deleteTexture(engine._windData.texture);
   if (engine._windFine?.texture) gl.deleteTexture(engine._windFine.texture);
-  if (engine._colorRamp) gl.deleteTexture(engine._colorRamp);
+  if (engine._colorRamp) gl.deleteTexture(engine._colorRamp); if (engine._fieldRamp) gl.deleteTexture(engine._fieldRamp);
   if (engine.screenA) { gl.deleteFramebuffer(engine.screenA.fbo); gl.deleteTexture(engine.screenA.tex); }
   if (engine.screenB) { gl.deleteFramebuffer(engine.screenB.fbo); gl.deleteTexture(engine.screenB.tex); }
   
@@ -199,7 +199,7 @@ export function disposeEngine(engine, gl) {
   engine.particleStateB = null;
   engine._windData = null;
   engine._windFine = null;
-  engine._colorRamp = null;
+  engine._colorRamp = null; engine._fieldRamp = null;
   engine.screenA = null;
   engine.screenB = null;
   engine._initialized = false;

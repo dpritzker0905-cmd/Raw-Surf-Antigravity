@@ -304,7 +304,7 @@ describe('shader wiring', () => {
   });
   it('theme: neutral body, single casing, speed -> opacity; premultiplied fade and composite', () => {
     expect(DRAW_FS).toContain('if (u_v2_theme > 0.5) rgb = u_v2_body;');
-    expect(DRAW_FS).toContain('inner * 0.92 * (1.0 - u_v2_theme)');
+    expect(DRAW_FS).toContain('inner * 0.92 * (1.0 - max(u_v2_theme, u_single_casing))');
     expect(DRAW_FS).toContain('(u_v2_theme > 0.5 ? mix(0.85, 1.0, smoothstep(0.0, 40.0, v_speed)) : color.a)');
     expect(FADE_FS).toContain('u_premul > 0.5 ? floor(color * 255.0 * u_fade) / 255.0 :');
     expect(SCREEN_FS).toContain('u_premul > 0.5 ? color * u_opacity :');
@@ -325,8 +325,9 @@ describe('engine wiring', () => {
     expect(src).toContain("this.screenProgram, 'u_premul')");
   });
   it('premultiplied composite: ONE / ONE_MINUS_SRC_ALPHA, a clean buffer on every mode flip, the v2 composite opacity', () => {
-    expect(src).toContain('gl.blendFunc(_v2.theme ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);');
-    expect(src).toMatch(/if \(this\._v2Premul !== _v2\.theme\) \{ this\._v2Premul = _v2\.theme;/);
-    expect(src).toContain("'u_opacity'), _v2.theme ? _v2.composite : finalOpacity)");
+    expect(src).toContain('gl.blendFunc(_premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);');   // _premul = _v2.theme || speed-coloured premul (windLightTheme.test.js)
+    expect(src).toMatch(/if \(this\._v2Premul !== _premul\) \{ this\._v2Premul = _premul;/);
+    expect(src).toContain('_premul = _v2.theme || _pm.on');
+    expect(src).toContain("'u_opacity'), _v2.theme ? _v2.composite : (_pm.on ? _pm.opacity : finalOpacity))");
   });
 });

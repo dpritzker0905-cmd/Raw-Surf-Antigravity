@@ -69,6 +69,9 @@ describe('wind legend is derived from the shipped ramp', () => {
     // the legend is the only thing telling a beach-theme user which end they are looking at. That
     // makes the derivation above load-bearing for beach in a way it is not for dark. Pinned so a
     // palette edit that tightens it further has to change this number deliberately.
+    // Re-measured 2026-10-09 after the light/beach redesign (#282): calm is now a near-white wash
+    // and hurricane a deep plum in both, so the ends moved APART -- light 0.63 -> 1.95 ("dawn
+    // sky -> storm"), beach 0.34 -> 1.83 ("sea -> sunset -> dusk"). Dark is unchanged.
     const dist = {};
     for (const theme of THEMES) {
       const ramp = resolveThemeRamp(theme);
@@ -76,7 +79,7 @@ describe('wind legend is derived from the shipped ramp', () => {
       const [, r1, g1, b1] = ramp[ramp.length - 1];
       dist[theme] = +(Math.abs(r0 - r1) + Math.abs(g0 - g1) + Math.abs(b0 - b1)).toFixed(2);
     }
-    expect(dist).toEqual({ dark: 0.9, light: 0.63, beach: 0.34 });
+    expect(dist).toEqual({ dark: 0.9, light: 1.95, beach: 1.83 });
   });
 
   it('every theme has a ramp (no silent fallback to the default table)', () => {

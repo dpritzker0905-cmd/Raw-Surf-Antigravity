@@ -17,7 +17,7 @@
  * Kill: __RAW_DISABLE_WIND_FIELD_LUT__ -> the legacy inline ramp (kept in the shader).
  */
 import { HEATMAP_FS } from './WebGLWindShaders';
-import { THEME_RAMPS, sampleRamp } from './WindColorRamp';
+import { THEME_RAMPS, FIELD_RAMPS, sampleRamp, buildFieldRampTexture } from './WindColorRamp';
 
 const rgbToHueDeg = ([r, g, b]) => {
   const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
@@ -77,10 +77,11 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
     }
   });
 
-  it('adjacent low-band HUE GAPS are >= 18 deg in every theme (the slow-wind sensitivity pin)', () => {
+  it('adjacent low-band HUE GAPS are >= 18 deg in dark (the slow-wind sensitivity pin)', () => {
     // 2026-07-19: dark's 0-3-6 kn gaps measured 12/10/11 deg — one cyan family. The spread
-    // redistributed the low stops; this pin stops them drifting back together.
-    for (const theme of ['dark', 'light', 'beach']) {
+    // redistributed the low stops; this pin stops them drifting back together. Light and beach were
+    // redesigned 2026-10-09 to separate bands by lightness AND hue; they are gated in CIEDE2000 below.
+    for (const theme of ['dark']) {
       const ramp = THEME_RAMPS[theme];
       for (let i = 1; i < ramp.length && ramp[i][0] <= 21; i++) {
         const a = rgbToHueDeg([ramp[i - 1][1], ramp[i - 1][2], ramp[i - 1][3]]);
@@ -133,7 +134,7 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
       const bm = BASEMAP[theme].map((v) => v / 255);
       return rgbToHueDeg([bm[0] * (1 - a) + r * a, bm[1] * (1 - a) + g * a, bm[2] * (1 - a) + b * a]);
     };
-    for (const theme of ['dark', 'light', 'beach']) {
+    for (const theme of ['dark']) {   // light/beach now TINT (multiply) — gated by the CIEDE2000 tests below
       const ramp = THEME_RAMPS[theme];
       for (let i = 1; i < ramp.length && ramp[i][0] <= 21; i++) {
         const a = compositeHue(theme, ramp[i - 1]);
@@ -179,7 +180,7 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
       light: { 0: 42, 3: 74, 6: 62 },
       beach: { 0: 23.8, 3: 39, 6: 30 },
     };
-    for (const theme of ['dark', 'light', 'beach']) {
+    for (const theme of ['dark']) {   // light/beach: superseded by the owner's 2026-10-09 middle ground (below)
       const ramp = THEME_RAMPS[theme];
       for (const stop of ramp) {
         const floor = FLOORS[theme][stop[0]];
@@ -187,6 +188,86 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
         expect(visDelta(theme, stop)).toBeGreaterThanOrEqual(floor);
       }
     }
+  });
+
+  // ── LIGHT + BEACH (2026-10-09 redesign; owner chose the MIDDLE GROUND for slow wind) ─────────────────────
+  // The field now TINTS the basemap (multiply blend, WebGLWindUtils.v2FieldTint): out = basemap x (1 - s(1 - colour)) on the
+  // ENCODED values the GPU blends, s = opacity x (baseA + (1 - baseA) smoothstep(0, 7, kn)) x strength. Distances in CIEDE2000.
+  const srgbToLab = (rgb) => { const d = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)); const [R, G, B] = rgb.map(d);
+    const X = (0.4124 * R + 0.3576 * G + 0.1805 * B) / 0.95047, Y = 0.2126 * R + 0.7152 * G + 0.0722 * B, Z = (0.0193 * R + 0.1192 * G + 0.9505 * B) / 1.08883;
+    const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116); return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))]; };
+  const de2000 = ([L1, a1, b1], [L2, a2, b2]) => { const rad = Math.PI / 180, C1 = Math.hypot(a1, b1), C2 = Math.hypot(a2, b2), Cb = (C1 + C2) / 2, G = 0.5 * (1 - Math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)));
+    const a1p = a1 * (1 + G), a2p = a2 * (1 + G), C1p = Math.hypot(a1p, b1), C2p = Math.hypot(a2p, b2), h1p = (Math.atan2(b1, a1p) / rad + 360) % 360, h2p = (Math.atan2(b2, a2p) / rad + 360) % 360;
+    let dhp = h2p - h1p; if (C1p * C2p === 0) dhp = 0; else if (dhp > 180) dhp -= 360; else if (dhp < -180) dhp += 360;
+    const dHp = 2 * Math.sqrt(C1p * C2p) * Math.sin((dhp * rad) / 2), Lbp = (L1 + L2) / 2, Cbp = (C1p + C2p) / 2;
+    let hbp = h1p + h2p; if (C1p * C2p !== 0) hbp = Math.abs(h1p - h2p) > 180 ? (h1p + h2p + 360) / 2 : (h1p + h2p) / 2;
+    const T = 1 - 0.17 * Math.cos((hbp - 30) * rad) + 0.24 * Math.cos(2 * hbp * rad) + 0.32 * Math.cos((3 * hbp + 6) * rad) - 0.2 * Math.cos((4 * hbp - 63) * rad);
+    const SL = 1 + (0.015 * (Lbp - 50) ** 2) / Math.sqrt(20 + (Lbp - 50) ** 2), SC = 1 + 0.045 * Cbp, SH = 1 + 0.015 * Cbp * T;
+    const RT = -2 * Math.sqrt(Cbp ** 7 / (Cbp ** 7 + 25 ** 7)) * Math.sin(60 * Math.exp(-(((hbp - 275) / 25) ** 2)) * rad);
+    return Math.sqrt(((L2 - L1) / SL) ** 2 + ((C2p - C1p) / SC) ** 2 + (dHp / SH) ** 2 + RT * ((C2p - C1p) / SC) * (dHp / SH)); };
+  const TINT = { light: { op: 0.65, baseA: 0.42, k: 0.70 / 0.65 }, beach: { op: 0.55, baseA: 0.45, k: 0.60 / 0.55 } };
+  const SURFACES = { light: { water: [168, 214, 222], land: [236, 236, 232] }, beach: { water: [150, 190, 200], land: [222, 208, 180] } };
+  const ss = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  const tinted = (theme, [kn, r, g, b], bm) => { const t = TINT[theme], s = Math.min(1, t.op * (t.baseA + (1 - t.baseA) * ss(0, 7, kn)) * t.k);
+    return bm.map((v, i) => (v / 255) * (1 - s * (1 - [r, g, b][i]))); };
+  it('light/beach slow wind: calm is clean, light air a soft visible tint, a breeze clear colour — on water AND land', () => {
+    const MIDDLE = { 0: [0, 2.5], 3: [9, Infinity], 6: [14, Infinity] };   // [min, max] dE vs the bare surface
+    for (const theme of ['light', 'beach']) for (const [where, bm] of Object.entries(SURFACES[theme])) for (const stop of FIELD_RAMPS[theme]) {   // the FIELD tints the map
+      const band = MIDDLE[stop[0]]; if (!band) continue;
+      const d = de2000(srgbToLab(bm.map((v) => v / 255)), srgbToLab(tinted(theme, stop, bm)));
+      expect(d).toBeGreaterThanOrEqual(stop[0] === 6 && where === 'land' ? 15 : band[0]);
+      expect(d).toBeLessThanOrEqual(band[1]);
+    }
+  });
+  it('light/beach: adjacent stops >= 9 dE2000 apart through 27 kn, and >= 5.5 apart once tinted onto the map below 21 kn', () => {
+    for (const theme of ['light', 'beach']) {
+      const ramp = THEME_RAMPS[theme];
+      for (let i = 1; i < ramp.length && ramp[i][0] <= 27; i++) expect(de2000(srgbToLab(ramp[i - 1].slice(1, 4)), srgbToLab(ramp[i].slice(1, 4)))).toBeGreaterThanOrEqual(9);
+      const field = FIELD_RAMPS[theme];
+      for (const bm of Object.values(SURFACES[theme])) for (let i = 1; i < field.length && field[i][0] <= 21; i++) {
+        expect(de2000(srgbToLab(tinted(theme, field[i - 1], bm)), srgbToLab(tinted(theme, field[i], bm)))).toBeGreaterThanOrEqual(5.5);
+      }
+    }
+  });
+  it('POSITIVE CONTROL: the 07-20 saturated calm stops would fail the clean-calm bar (hot pink / electric violet washed calm land)', () => {
+    const OLD_CALM = { light: [0, 0.54, 0.00, 0.92], beach: [0, 1.00, 0.32, 0.78] };
+    for (const theme of ['light', 'beach']) {
+      const bm = SURFACES[theme].land;
+      expect(de2000(srgbToLab(bm.map((v) => v / 255)), srgbToLab(tinted(theme, OLD_CALM[theme], bm)))).toBeGreaterThan(10);
+    }
+  });
+
+  // DARK PARITY (owner: "I like this transparency [dark] ... match this with light and beach"). Bench dE76 of the map with
+  // vs without the field, per band, dark (approved): the light/beach FIELD ramps must carry the same strength per band.
+  const DARK_STRENGTH = { 6: 23.2, 10: 29.5, 16: 32.0, 21: 31.5, 27: 30.4, 33: 28.5, 40: 26.3, 47: 24.7, 55: 24, 63: 24, 75: 24 };
+  const BENCH_BASEMAP = { light: [0.86, 0.88, 0.90], beach: [0.62, 0.58, 0.50] };
+  const dE76 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const strength = (theme, stop) => { const bm = BENCH_BASEMAP[theme].map((v) => v * 255); return dE76(srgbToLab(bm.map((v) => v / 255)), srgbToLab(tinted(theme, stop, bm))); };
+  it('light/beach FIELD carries the measured dark strength in every band from 6 to 75 kn (within 1 dE)', () => {
+    for (const theme of ['light', 'beach']) for (const stop of FIELD_RAMPS[theme]) {
+      const target = DARK_STRENGTH[stop[0]]; if (target === undefined) continue;
+      expect(Math.abs(strength(theme, stop) - target)).toBeLessThanOrEqual(target === 32.0 && theme === 'beach' ? 2.2 : 1.0);
+    }
+  });
+  it('POSITIVE CONTROL: the particle palette as the field overshoots the light storm bands by more than 40%', () => {
+    const storm = THEME_RAMPS.light.filter((st) => st[0] >= 40);
+    storm.forEach((st) => expect(strength('light', st) / DARK_STRENGTH[st[0]]).toBeGreaterThan(1.4));
+  });
+  it('the field and the particles share hue identity: every field stop is within 25 deg of the particle stop hue (chromatic stops)', () => {
+    for (const theme of ['light', 'beach']) FIELD_RAMPS[theme].forEach((st, i) => {
+      const p = THEME_RAMPS[theme][i]; const sat = (c) => Math.max(...c) - Math.min(...c); if (sat(p.slice(1, 4)) < 0.15 || sat(st.slice(1, 4)) < 0.1) return;
+      let d = Math.abs(rgbToHueDeg(st.slice(1, 4)) - rgbToHueDeg(p.slice(1, 4))); if (d > 180) d = 360 - d; expect(d).toBeLessThanOrEqual(25);
+    });
+  });
+  it('the field ramp texture exists only for tinted themes, honours its kill switch, and binds only on the tinted field pass', () => {
+    const fakeGl = { TEXTURE_2D: 1, TEXTURE_BINDING_2D: 2, getParameter: () => null, createTexture: () => ({ t: 1 }), bindTexture: () => {}, texParameteri: () => {}, texImage2D: () => {} };
+    expect(buildFieldRampTexture(fakeGl, 50, 'dark', {})).toBeNull();
+    expect(buildFieldRampTexture(fakeGl, 50, 'light', {})).toEqual({ t: 1 });
+    expect(buildFieldRampTexture(fakeGl, 50, 'light', { __RAW_DISABLE_WIND_FIELD_RAMP__: true })).toBeNull();
+    const fs = require('fs'), path = require('path'); const eng = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8'), init = fs.readFileSync(path.join(__dirname, 'WebGLWindEngineInit.js'), 'utf8');
+    expect(eng).toContain('bindTexture(gl, (_ft > 0 && this._fieldRamp) || this._colorRamp, 1)');
+    expect(eng.split('this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme)').length - 1).toBe(2);
+    expect(init).toContain('if (engine._fieldRamp) gl.deleteTexture(engine._fieldRamp);');
   });
 
   it('the respread kill switch restores the legacy low stops', () => {
