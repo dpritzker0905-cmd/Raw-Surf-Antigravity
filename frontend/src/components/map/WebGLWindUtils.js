@@ -372,12 +372,14 @@ export const V2_BODY = Object.freeze({ dark: [0.96, 0.98, 1.0], light: [0.05, 0.
 export function resolveWindParticlesV2(win = (typeof window !== 'undefined' ? window : null)) {
   const w = win || {};
   const num = (k, lo, hi, d) => ((typeof w[k] === 'number' && Number.isFinite(w[k])) ? Math.max(lo, Math.min(hi, w[k])) : d);
+  const closeInk = typeof w.__RAW_WIND_V2_DENSITY__ !== 'number' && w.__RAW_WIND_MOTION_V2__ !== true && w.__RAW_DISABLE_WIND_CLOSEZOOM_INK__ !== true;
   return {
     density: w.__RAW_DISABLE_WIND_DENSITY_V2__ !== true && w.__RAW_DISABLE_WIND_CALIBRATION_V2__ !== true,
     motion: w.__RAW_WIND_MOTION_V2__ === true && w.__RAW_DISABLE_WIND_CALIBRATION_V2__ !== true,
     theme: w.__RAW_WIND_THEME_V2__ === true && w.__RAW_DISABLE_WIND_THEME_V2__ !== true,
     densityPer100: num('__RAW_WIND_V2_DENSITY__', 5, 2000, w.__RAW_WIND_MOTION_V2__ === true ? V2_DEFAULTS.densityPer100Motion : V2_DEFAULTS.densityPer100),
-    closeInk: typeof w.__RAW_WIND_V2_DENSITY__ !== 'number' && w.__RAW_WIND_MOTION_V2__ !== true && w.__RAW_DISABLE_WIND_CLOSEZOOM_INK__ !== true,
+    closeInk,
+    speedKeep: closeInk && w.__RAW_DISABLE_WIND_SPEED_KEEP__ !== true,
     speedMul: num('__RAW_WIND_V2_SPEED__', 0.25, 4, V2_DEFAULTS.speedMul),
     lifeS: num('__RAW_WIND_V2_LIFE_S__', 0.2, 10, V2_DEFAULTS.lifeS),
     composite: num('__RAW_WIND_V2_OPACITY__', 0.2, 1, V2_DEFAULTS.composite),
@@ -431,7 +433,62 @@ export const V2_CLOSE_INK = Object.freeze({ atZ6: 220, halvingsPerZoom: 0.75, fl
 /** Marks per 100x100 css px to draw at this zoom: the flat target at z<=6, the close-zoom ink curve above. */
 export function v2DensityAt(v2, zoom) {
   if (!v2.closeInk || !(zoom > 6)) return v2.densityPer100;
-  return Math.max(V2_CLOSE_INK.floor, V2_CLOSE_INK.atZ6 * Math.pow(2, -V2_CLOSE_INK.halvingsPerZoom * (zoom - 6)));
+  const dose = (c) => Math.max(c.floor, c.atZ6 * Math.pow(2, -c.halvingsPerZoom * (zoom - 6)));
+  if (!v2.speedKeep) return dose(V2_CLOSE_INK);
+  // the two curves are each measured for their own cull state: blend them by the cull's own weight
+  return dose(V2_CLOSE_INK) + (dose(V2_SPEED_KEEP_INK) - dose(V2_CLOSE_INK)) * v2SpeedKeepExp(zoom);
+}
+
+// SPEED-AWARE KEEP (2026-10-08, owner: "I personally like the speed changes"). The motion floor (u_drop_cap, #268) lets a
+// fast mark outlive the legacy drop rule, so its trail out-inks a slow one by legacyDrop/cap (2.2x at 45 kn); a count dosed
+// on storm bands therefore starved calm air (z9 eye area 92 vs 149 pre-#276). Above z6 the draw cull keeps a mark with
+// min(1, cap / legacyDrop(speed)): ink per area stops tracking speed and the freed budget lifts the close-zoom count.
+// Dose measured live (dev 74ce023c, Gulf hurricane, cull on): z6.5 297 -> 169, z7 229 -> 160, z8 136 -> 162, z9 80 -> ~155
+// (eye area 70 -> 133, 100 -> 151; pre-#276 149), z11.5 52 -> 146; trimmed to 350 / floor 50 for ~150.
+// Kill: __RAW_DISABLE_WIND_SPEED_KEEP__ (back to the #278 curve, no speed cull).
+export const V2_SPEED_KEEP_INK = Object.freeze({ atZ6: 350, halvingsPerZoom: 0.75, floor: 50 });
+
+/** Draw-keep factor for a mark at `speedKn` under the motion floor (the GLSL twin lives in DRAW_VS). */
+export function v2SpeedKeep(speedKn, dropCap, dropRate, bump) {
+  return Math.min(1, dropCap / (dropRate + speedKn * bump));
+}
+
+// ZOOM FADE (bench, real engine, all three themes): the cull is exact at z7 (storm/slow trail brightness 0.99-1.01) but
+// overcorrects closer in, where a fast mark's per-frame jump outruns its own length and its trail beads (0.76 at
+// z8.5-z10 at full strength, 0.83-0.85 even at keep^0.5). Fading k from 1 at z7.5 to 0 at z9.5 gave 0.88-1.14 at
+// z7-z11 in dark, beach and light with 0 artifacts; the dose blends the two measured curves by the same k.
+export const V2_SPEED_KEEP_FADE = Object.freeze({ fullBelowZ: 7.5, offFromZ: 9.5 });
+/** Cull exponent k at this zoom: 1 (full) at z<=7.5, 0 (off) at z>=9.5, linear between. */
+export function v2SpeedKeepExp(zoom) {
+  const f = V2_SPEED_KEEP_FADE; return Math.min(1, Math.max(0, (f.offFromZ - zoom) / (f.offFromZ - f.fullBelowZ)));
+}
+/** DRAW_VS u_v2_speedkeep: [exponent k (0 = off), drop cap, base drop, bump]; on only where the close-zoom ink curve applies. */
+export function v2SpeedKeepUniform(v2, zoom, dropCap, dropRate, bump, win = (typeof window !== 'undefined' ? window : null)) {
+  const lev = win && win.__RAW_WIND_SPEED_KEEP_EXP__, k = (typeof lev === 'number' && lev > 0 && lev <= 2) ? lev : v2SpeedKeepExp(zoom);
+  return [v2.density && v2.speedKeep && zoom > 6 ? k : 0, dropCap, dropRate, bump];
+}
+
+// FIXED CASING POLE (2026-10-08, the diamonds the owner circled): DRAW_FS picked each mark's casing pole per pixel with
+// step(0.179, fieldY). In dark theme the field crosses 0.179 only in calm air and at ~43-44 kn, so 5 of 784 blocks flipped
+// to a dark-cored mark that the brightness-alpha composite nearly hides: grid-cell-shaped holes (ink 0.56-0.69 of the
+// surroundings at the owner's two spots; 1.00-1.06 with one pole, artifact clusters 2 -> 0). Light and beach never cross.
+// Kill: __RAW_DISABLE_WIND_FIXED_CASING__ (back to the per-pixel pole).
+export function windCasingFixedPole(win = (typeof window !== 'undefined' ? window : null)) {
+  return !(win && win.__RAW_DISABLE_WIND_FIXED_CASING__ === true);
+}
+
+// WIDE-ZOOM TRAILS (2026-10-08, owner: "Zooms out should have a decent particle density. Its been too sparse"). Zoomed out a
+// mark moves few pixels per frame, so its trail is short and the screen thin (bench ink z2-z5 91-109 vs ~150 up close);
+// more heads cannot help (a 512^2 pool measured identical: the density target, not the pool, sets the count). Longer
+// trails can: the leaders keep ~1-1.3 s at global scale vs our 0.47 s. Fade 0.985 (~1.1 s) at z<=5.5 lifted bench ink to
+// 126-148 at 60 fps with no new artifacts, blending to the calibrated close-zoom fade by z6.5. Kill: __RAW_DISABLE_WIND_WIDE_TRAILS__.
+export const V2_WIDE_TRAILS = Object.freeze({ fade: 0.985, fullBelowZ: 5.5, baseFromZ: 6.5 });
+
+/** Per-frame trail fade at this zoom: the wide-zoom fade, blended linearly into `baseFade` across fullBelowZ..baseFromZ. */
+export function v2TrailFade(baseFade, zoom, v2, win = (typeof window !== 'undefined' ? window : null)) {
+  if (!v2 || !v2.density || v2.motion || (win && win.__RAW_DISABLE_WIND_WIDE_TRAILS__ === true)) return baseFade;
+  const t = Math.min(1, Math.max(0, (zoom - V2_WIDE_TRAILS.fullBelowZ) / (V2_WIDE_TRAILS.baseFromZ - V2_WIDE_TRAILS.fullBelowZ)));
+  return V2_WIDE_TRAILS.fade + (baseFade - V2_WIDE_TRAILS.fade) * t;
 }
 
 /** Mean-life drop chance per 60 Hz frame at calm, and the bump at the grid's max speed (upstream webgl-wind shape). */

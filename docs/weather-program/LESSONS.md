@@ -430,3 +430,15 @@ A stored estimate can be estimated again in a browser branch with different sour
   cross-correlation with a null control, and a GPU placement check through the real shader (hot sample drawn at
   -3.636 vs the model's -3.636; -4.000 after the fix). Whenever two products of one field meet (base/fine, world/clip,
   hour A/hour B), test that they put the same coordinate in the same pixel (#279, gridPointRegistration.js).
+- **L-V8 · A hard per-pixel threshold on an interpolated grid draws the grid.** DRAW_FS chose each mark's casing pole
+  with step(0.179, fieldY). The field is a bilinear interpolation of 0.25-2 deg cells, so the threshold's contour around
+  each top-speed cell is a diamond. Inside it the marks flipped to a dark core that the brightness-alpha composite nearly
+  hides, which left a hole (0.56-0.69 of the surrounding ink). The marks just outside it over-inked into a ring (1.66x).
+  The owner saw "diamonds" and "rectangles"; that first hurricane report ("44 kt or higher ... in the shape of a
+  diamond") sat right on the dark-theme crossing at ~43-44 kn. Spot checks and theory missed it twice.
+  What settled it was a whole-screen scanner: per-block ink against the median of its ring, with a permutation null
+  (30 shuffles) so only clusters larger than chance count, calm air (<5 kn) labelled as natural, and a camera-stability
+  guard. A real-engine bench then ran a synthetic field across 13 zooms x 3 themes, with a positive control that the
+  shipped build fails. One pole for every mark removed every non-calm artifact. The same bench showed that the
+  speed-aware cull is exact at z7 but over-culls where fast trails bead (z8.5+), so it fades out by z9.5. Test every
+  lever across the whole zoom range against a significance-tested detector before shipping it.
