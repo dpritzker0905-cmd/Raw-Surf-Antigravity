@@ -388,7 +388,7 @@ varying float v_speed;
 varying float v_alpha;
 varying vec4 v_debug_color;
 varying vec2 v_dir;              // 2026-07-18: screen-space wind direction — the mark is ORIENTED
-uniform float u_v2_density; uniform float u_v2_motion; uniform float u_v2_keep; uniform float u_v2_px_per_kn; uniform float u_v2_speed_max; uniform float u_v2_gamma; varying float v_stretch; // PARTICLES V2
+uniform float u_v2_density; uniform float u_v2_motion; uniform float u_v2_keep; uniform vec4 u_v2_speedkeep; uniform float u_v2_px_per_kn; uniform float u_v2_speed_max; uniform float u_v2_gamma; varying float v_stretch; // PARTICLES V2
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
@@ -453,11 +453,7 @@ void main() {
     float keepFloor = (u_closezoom_density > 0.5) ? 0.70 : 0.45;
     keepRate = mix(1.0, keepFloor, smoothstep(4.0, 8.0, u_zoom));
   }
-  if (u_v2_density > 0.5) keepRate = u_v2_keep; // V2: density pinned in screen space (WebGLWindUtils.v2KeepRate)
-  if (p_rand > keepRate) {
-    gl_Position = vec4(-2.0, -2.0, -2.0, 1.0);
-    return;
-  }
+  if (u_v2_density > 0.5) keepRate = u_v2_keep; // V2: density pinned in screen space (WebGLWindUtils.v2KeepRate); cull after v_speed
 
   vec4 encoded = texture2D(u_particles, uv);
   vec2 pos = decodePos(encoded);
@@ -504,6 +500,10 @@ void main() {
     }
   }
   v_speed = length(wind);
+  // SPEED-AWARE KEEP (WebGLWindUtils.v2SpeedKeep): the motion floor lets a fast mark outlive the legacy drop rule, so it
+  // out-inks a slow one by legacyDrop/cap; keep fast marks in exactly that ratio and ink per area stops tracking speed.
+  if (u_v2_speedkeep.x > 0.5) keepRate *= min(1.0, u_v2_speedkeep.y / (u_v2_speedkeep.z + v_speed * u_v2_speedkeep.w));
+  if (p_rand > keepRate) { gl_Position = vec4(-2.0, -2.0, -2.0, 1.0); gl_PointSize = 0.0; return; }
   // SCREEN-SPACE wind direction for the oriented mark. Mercator convention: +y is SOUTH on screen
   // while v is NORTHWARD, so the y component is negated — the same flip the advection step uses.
   // Falls back to +x for a genuinely zero vector so normalize() cannot produce NaN.
@@ -677,6 +677,7 @@ uniform float u_calm_alpha_kill; // 1 = restore the 07-19 calm-alpha set (kill s
 uniform float u_dash;        // 2026-07-18: 1 = oriented dash, 0 = legacy round mark (kill switch)
 uniform float u_field_opacity; // heatmap u_opacity — the field is SEMI-TRANSPARENT
 uniform float u_basemap_y;     // linear luminance of the basemap showing through it
+uniform float u_casing_fixed;  // 1 = one casing pole for every mark (WebGLWindUtils.windCasingFixedPole)
 varying vec2 v_dir;          // screen-space wind direction from DRAW_VS
 varying float v_stretch; uniform float u_v2_theme; uniform vec3 u_v2_body; // PARTICLES V2
 void main() {
@@ -746,7 +747,9 @@ void main() {
     }
     float fieldA = u_field_opacity * (baseA + (1.0 - baseA) * smoothstep(0.0, rampEnd, v_speed));
     float fieldY = mix(u_basemap_y, rampY, clamp(fieldA, 0.0, 1.0));
-    float fieldIsBright = step(0.179, fieldY);
+    // FIXED POLE: a per-pixel step flipped the casing where the field crosses 0.179 (dark theme: calm air, ~43 kn) and
+    // cut grid-cell-shaped holes, the "diamonds in the red wind". One pole for every mark: the bright-field one.
+    float fieldIsBright = (u_casing_fixed > 0.5) ? 1.0 : step(0.179, fieldY);
     float outerL = mix(1.0, 0.0, fieldIsBright);   // opposes the field
     float innerL = 1.0 - outerL;                   // opposes the outer ring
     float outer = smoothstep(0.38, 0.50, dist);

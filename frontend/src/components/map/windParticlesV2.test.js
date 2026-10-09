@@ -18,7 +18,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_DEFAULTS, V2_BODY,
-  v2DensityAt, V2_CLOSE_INK,
+  v2DensityAt, V2_CLOSE_INK, V2_SPEED_KEEP_INK, v2SpeedKeep, v2SpeedKeepUniform, windCasingFixedPole,
 } from './WebGLWindUtils';
 import { ADVECT_FS, DRAW_VS, DRAW_FS, FADE_FS, SCREEN_FS } from './WebGLWindShaders';
 import { THEME_RAMPS, sampleRamp } from './WindColorRamp';
@@ -91,7 +91,7 @@ describe('density is a design constant, not an accident of zoom', () => {
 });
 
 describe('close-zoom ink: above z6 the density holds the owner-approved close-up ink, not the z<=6 head count', () => {
-  const v2 = resolveWindParticlesV2({});
+  const v2 = resolveWindParticlesV2({ __RAW_DISABLE_WIND_SPEED_KEEP__: true });   // the #278 curve (no speed cull)
   // Live on dev 744a7132 (Gulf hurricane, 961x914 css px): the dose giving mean trail-buffer brightness ~150/255, the
   // owner-approved close-up ink (pre-#276: z6 156, z9 147). Flat 490 measured 201-233 there = saturation (z7.5: 99.8%
   // of the screen inked vs 19.4% pre-#276; the top-speed grid cells read as solid dark diamonds).
@@ -106,6 +106,7 @@ describe('close-zoom ink: above z6 the density holds the owner-approved close-up
   });
   it('POSITIVE CONTROL: the #276 flat target is over 3x the close-zoom dose from z7.5 on', () => {
     [7.5, 9, 12].forEach((z) => expect(V2_DEFAULTS.densityPer100 / v2DensityAt(v2, z)).toBeGreaterThan(3));
+    [7.5, 9, 12].forEach((z) => expect(V2_DEFAULTS.densityPer100 / v2DensityAt(resolveWindParticlesV2({}), z)).toBeGreaterThan(3));
   });
   it('a numeric density lever stays flat at every zoom; opt-in motion keeps its own value; the kill restores flat 490', () => {
     expect(v2DensityAt(resolveWindParticlesV2({ __RAW_WIND_V2_DENSITY__: 100 }), 9)).toBe(100);
@@ -115,6 +116,57 @@ describe('close-zoom ink: above z6 the density holds the owner-approved close-up
   it('the engine draws the zoom-resolved density', () => {
     const src = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
     expect(src).toContain('v2KeepRate(v2DensityAt(_v2, z), ');
+  });
+});
+
+describe('speed-aware keep: ink per area stops tracking speed (no speed-shaped patches)', () => {
+  const CAP = 1 / 6, RATE = 0.002, BUMP = 0.008;                     // resolveWindMotionFloor + engine defaults
+  const legacyLife = (s) => 1 / (RATE + s * BUMP);                   // frames, before the motion floor
+  const flooredLife = (s) => 1 / Math.min(RATE + s * BUMP, CAP);     // frames, as drawn since #268
+  it('POSITIVE CONTROL: without the keep, a 45 kn mark out-inks a 15 kn one by >2x (ink ~ speed x life)', () => {
+    expect((45 * flooredLife(45)) / (15 * flooredLife(15))).toBeGreaterThan(2);
+  });
+  it('the keep is exactly legacy-life / floored-life, so kept ink per area equals the legacy rule at every speed', () => {
+    for (let s = 0; s <= 80; s += 0.5) {
+      expect(v2SpeedKeep(s, CAP, RATE, BUMP) * flooredLife(s)).toBeCloseTo(legacyLife(s), 9);
+    }
+    expect(v2SpeedKeep(10, CAP, RATE, BUMP)).toBe(1);                // under the floor nothing is culled
+    expect(v2SpeedKeep(45, CAP, RATE, BUMP)).toBeCloseTo(0.46, 2);
+  });
+  it('z<=6 is untouched (490, no cull); above z6 the freed budget lifts the count ~1.6x over the #278 curve', () => {
+    const on = resolveWindParticlesV2({}), off = resolveWindParticlesV2({ __RAW_DISABLE_WIND_SPEED_KEEP__: true });
+    expect(on.speedKeep).toBe(true);
+    [3, 6].forEach((z) => { expect(v2DensityAt(on, z)).toBe(490); expect(v2SpeedKeepUniform(on, z, CAP, RATE, BUMP)[0]).toBe(0); });
+    [6.5, 7, 8, 9, 10].forEach((z) => { expect(v2DensityAt(on, z) / v2DensityAt(off, z)).toBeGreaterThan(1.5); expect(v2SpeedKeepUniform(on, z, CAP, RATE, BUMP)).toEqual([1, CAP, RATE, BUMP]); });
+    expect(v2DensityAt(on, 14)).toBe(V2_SPEED_KEEP_INK.floor);
+  });
+  it('kills and levers: the kill, a numeric density lever, motion v2 and density-off all switch the cull off', () => {
+    [{ __RAW_DISABLE_WIND_SPEED_KEEP__: true }, { __RAW_WIND_V2_DENSITY__: 80 }, { __RAW_WIND_MOTION_V2__: true }, { __RAW_DISABLE_WIND_DENSITY_V2__: true }]
+      .forEach((lev) => expect(v2SpeedKeepUniform(resolveWindParticlesV2(lev), 9, CAP, RATE, BUMP)[0]).toBe(0));
+  });
+  it('the cull runs AFTER the speed is known, and only through the uniform', () => {
+    const vs = DRAW_VS, iSpeed = vs.indexOf('v_speed = length(wind);'), iCull = vs.indexOf('if (p_rand > keepRate)');
+    expect(iSpeed).toBeGreaterThan(0);
+    expect(iCull).toBeGreaterThan(iSpeed);
+    expect(vs.split('if (p_rand > keepRate)').length - 1).toBe(1);
+    expect(vs).toContain('keepRate *= min(1.0, u_v2_speedkeep.y / (u_v2_speedkeep.z + v_speed * u_v2_speedkeep.w));');
+  });
+});
+
+describe('fixed casing pole: no grid-cell-shaped holes where the field crosses the luminance threshold', () => {
+  // Live scan (dev 74ce023c, dark, z8.58, Gulf hurricane): the per-pixel pole cut two holes at the owner's two spots
+  // (ink 0.56 / 0.69 of the surrounding ring, 43 / 42 kn, field Y 0.175 / 0.181); one pole: 0 artifact clusters.
+  it('default on; the kill restores the per-pixel pole', () => {
+    expect(windCasingFixedPole({})).toBe(true);
+    expect(windCasingFixedPole({ __RAW_DISABLE_WIND_FIXED_CASING__: true })).toBe(false);
+  });
+  it('DRAW_FS gates the per-pixel step behind u_casing_fixed', () => {
+    expect(DRAW_FS).toContain('float fieldIsBright = (u_casing_fixed > 0.5) ? 1.0 : step(0.179, fieldY);');
+  });
+  it('the engine binds both uniforms on the draw program', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
+    expect(src).toContain("'u_casing_fixed'), windCasingFixedPole() ? 1 : 0)");
+    expect(src).toContain("'u_v2_speedkeep'), v2SpeedKeepUniform(_v2, z, resolveWindMotionFloor(");
   });
 });
 
