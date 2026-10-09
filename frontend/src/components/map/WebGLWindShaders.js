@@ -21,7 +21,7 @@ uniform vec2 u_wind_res;          // wind grid resolution (cols, rows)
 uniform float u_speed_scale;      // scale-invariant speed scale (float for Mercator)
 uniform float u_rand_seed;        // per-frame random seed for respawn
 uniform float u_drop_rate;        // base particle drop rate
-uniform float u_drop_rate_bump; uniform float u_dt_scale; uniform float u_drop_cap; // bump: speed-dependent drop increase; dt_scale: A15-18 elapsed 60 Hz frames (0 = unset -> 1); drop_cap: motion floor (0 = unset -> 1)
+uniform float u_drop_rate_bump; uniform float u_dt_scale; uniform float u_drop_cap; uniform float u_v2_calib; uniform vec4 u_v2_box; uniform vec2 u_v2_drop; // bump: speed-dependent drop increase; dt_scale: A15-18 elapsed 60 Hz frames (0 = unset -> 1); drop_cap: motion floor (0 = unset -> 1)
 uniform float u_edgeFeatherEnabled; // regional edge feather flag
 uniform vec2 u_dataBounds_min;    // regional bounds min [west, south]
 uniform vec2 u_dataBounds_max;    // regional bounds max [east, north]
@@ -263,6 +263,7 @@ void main() {
   // lifetime at annulus-median speed). A deliberate, GATED ink premium like the calm floor —
   // bounded to the vortex's small screen area; the 0.002 floor (== the base drop rate) keeps
   // particles mortal. gate 0 -> dropRate unchanged.
+  if (u_v2_calib > 0.5) dropRate = max(u_v2_drop.x + u_v2_drop.y * clamp(speed / max(u_speed_max, 1.0), 0.0, 1.0), speed < 1.0 ? 0.04 : 0.0); // V2: ~2 s life, calm keeps 25 frames
   dropRate = max(dropRate * mix(1.0, 0.35, vortexGate), 0.002); dropRate = min(dropRate, u_drop_cap > 0.0 ? u_drop_cap : 1.0); // MOTION FLOOR: life >= 1/u_drop_cap frames
   float drop = step(pow(1.0 - dropRate, u_dt_scale > 0.0 ? u_dt_scale : 1.0), rand(seed));   // A15-18
 
@@ -275,6 +276,9 @@ void main() {
   if (isOob) {
     drop = 1.0;
   }
+  if (u_v2_calib > 0.5) { // V2: recycle anything that leaves the padded viewport (x wraps in global space)
+    float inX = (u_zoom > 6.0) ? step(u_v2_box.x, nextPos.x) * step(nextPos.x, u_v2_box.z) : step(fract(nextPos.x - u_v2_box.x), u_v2_box.z - u_v2_box.x);
+    drop = max(drop, 1.0 - inX * step(u_v2_box.y, nextPos.y) * step(nextPos.y, u_v2_box.w)); }
 
   // Random new position for respawned particles
   vec2 randVal = vec2(rand(seed + 1.3), rand(seed + 2.1));
@@ -361,7 +365,7 @@ void main() {
     }
     newPos = vec2((randLng + 180.0) / 360.0, randY);
   }
-  
+  if (u_v2_calib > 0.5) { newPos = mix(u_v2_box.xy, u_v2_box.zw, randVal); if (u_zoom <= 6.0) newPos.x = fract(newPos.x); } // V2: respawn in view
   pos = mix(nextPos, newPos, drop);
   if (u_zoom <= 6.0) {
     pos.y = clamp(pos.y, 0.001, 0.999);
@@ -384,6 +388,7 @@ varying float v_speed;
 varying float v_alpha;
 varying vec4 v_debug_color;
 varying vec2 v_dir;              // 2026-07-18: screen-space wind direction — the mark is ORIENTED
+uniform float u_v2_calib; uniform float u_v2_keep; uniform float u_v2_px_per_kn; uniform float u_v2_speed_max; uniform float u_v2_gamma; varying float v_stretch; // PARTICLES V2
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
@@ -448,6 +453,7 @@ void main() {
     float keepFloor = (u_closezoom_density > 0.5) ? 0.70 : 0.45;
     keepRate = mix(1.0, keepFloor, smoothstep(4.0, 8.0, u_zoom));
   }
+  if (u_v2_calib > 0.5) keepRate = u_v2_keep; // V2: density pinned in screen space (WebGLWindUtils.v2KeepRate)
   if (p_rand > keepRate) {
     gl_Position = vec4(-2.0, -2.0, -2.0, 1.0);
     return;
@@ -645,6 +651,9 @@ void main() {
     gl_PointSize = mix(min(gl_PointSize, cap10), cap10, lift);
   }
 
+  v_stretch = 1.0; // V2: stretch the mark along the flow by its own per-frame step, so the stamps join into a streak
+  if (u_v2_calib > 0.5 && gl_PointSize > 0.0) { float stepPx = v_speed * u_v2_px_per_kn * pow(clamp(v_speed / max(u_v2_speed_max, 1.0), 0.02, 1.0), u_v2_gamma - 1.0) * max(u_dpr, 1.0);
+    v_stretch = (gl_PointSize + stepPx) / gl_PointSize; gl_PointSize += stepPx; }
   // Debug mode colors
   if (u_debug_mode > 0.5) {
     if (u_debug_mode < 5.5) v_debug_color = vec4(uv.x, uv.y, 0.0, 1.0);
@@ -669,6 +678,7 @@ uniform float u_dash;        // 2026-07-18: 1 = oriented dash, 0 = legacy round 
 uniform float u_field_opacity; // heatmap u_opacity — the field is SEMI-TRANSPARENT
 uniform float u_basemap_y;     // linear luminance of the basemap showing through it
 varying vec2 v_dir;          // screen-space wind direction from DRAW_VS
+varying float v_stretch; uniform float u_v2_theme; uniform vec3 u_v2_body; // PARTICLES V2
 void main() {
   if (v_debug_color.a > 0.5) {
     gl_FragColor = v_debug_color;
@@ -692,7 +702,7 @@ void main() {
     // basemap shows through MORE than with the round mark it replaces.
     // 2.6:1 at the slow end easing to 1.8:1 once real motion supplies its own streak.
     float elong = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed));
-    localCoord = vec2(along.x, along.y * elong);
+    localCoord = vec2(along.x, along.y * elong * max(v_stretch, 1.0));
   }
   float dist = length(localCoord);
   if (dist > 0.5) discard;
@@ -703,39 +713,10 @@ void main() {
   float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);
   vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));
   
-  // Enhance particle contrast over heatmaps. THE STRUCTURAL PROBLEM (2026-07-18 EVE-3, user
-  // report: "wind animations are hard to see as they blend too much with their heatmap colors"):
-  // the particle and the field beneath it sample the SAME ramp at the SAME normalised speed —
-  // texture2D(u_color_ramp, v_speed/u_max_speed) here vs ramp(speed/u_max_speed, u_theme) in
-  // HEATMAP_FS — so a particle's colour is IDENTICAL to the pixel behind it BY CONSTRUCTION. No
-  // palette edit can fix that; only a luminance separation can, which is what rim+core are for.
-  //
-  // THE GAP: rim/core were FIXED black/white, and this program was the one wind program that never
-  // received u_theme (the engine bound it to heatmapProgram only). Tuned against the dark theme,
-  // they invert in light mode — there the field ramp is DEEP NAVY/TEAL on a LIGHT basemap, so a
-  // 98%-black rim is camouflage against the very field it must separate from. Beach's bright
-  // coral/yellow field washes out the white core for the same reason, mirrored.
-  // Now theme-aware: the rim always runs AWAY from the local field's luminance.
-  // Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__ (u_theme_rim = 0.0 -> the legacy black/white pair).
-  // DUAL-TONE CASING (2026-07-18 EVE-3 round 2 — the cartographic halo/casing technique).
-  // A PER-THEME CONSTANT rim was still wrong. Measured contrast of the shipped rim against the
-  // field colour it must separate from, per ramp stop (scripts/probe_wind_contrast.js):
-  //   dark  worst 5.48:1 @39kn · light worst 3.78:1 @21kn · beach worst 3.30:1 @39kn
-  // The light ramp's luminance is NON-MONOTONIC — it PEAKS at the 21 kn gold (Y=0.460) — so a
-  // fixed near-white rim has the least headroom exactly in the common moderate-wind band. That is
-  // the "still hard to see at SOME wind speeds" report, and it is not fixable by choosing a better
-  // constant: a MID-luminance field contrasts poorly against BOTH poles at once.
-  //
-  // The fix is the technique mapmakers use for labels/lines over arbitrary terrain: give the mark
-  // its OWN high-contrast edge. An outer ring and an inner ring at OPPOSITE luminance poles put a
-  // ~21:1 boundary INSIDE the mark, so legibility stops depending on the field's luminance at all.
-  // The orientation flips on the LOCAL field luminance (APCA coefficients) so the OUTER ring is
-  // always the one opposing the field — that also makes the rule self-theming: the dark theme's
-  // neon ramp is BRIGHT (Y 0.72-0.85) so it resolves to the dark-outer/light-inner pair the dark
-  // theme was originally tuned with, while light's dark navy ramp resolves to the inverse.
-  // The BODY keeps the speed colour: truth (colour == speed) is never traded away.
-  // Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__ -> the legacy fixed black-rim/white-core pair.
+  // CASING (dual-tone, theme-aware rim; 2026-07-18 rounds 2-6): rationale relocated verbatim to
+  // docs/architecture/RATIONALE-WebGLWindEngine.md "DRAW_FS casing". Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__.
   vec3 rgb = color.rgb;
+  if (u_v2_theme > 0.5) rgb = u_v2_body; // V2: one neutral body per theme; the field carries the speed colour
   if (u_theme_rim > 0.5) {
     // THE POLE MUST BE CHOSEN FROM THE COMPOSITED BACKGROUND, NOT THE RAMP COLOUR
     // (2026-07-18 round 6 — the root behind "light mode is really hard to see").
@@ -770,7 +751,7 @@ void main() {
     float innerL = 1.0 - outerL;                   // opposes the outer ring
     float outer = smoothstep(0.38, 0.50, dist);
     float inner = smoothstep(0.38, 0.26, dist) * smoothstep(0.10, 0.20, dist);
-    rgb = mix(rgb, vec3(innerL), inner * 0.92);
+    rgb = mix(rgb, vec3(innerL), inner * 0.92 * (1.0 - u_v2_theme)); // V2: single thin casing
     rgb = mix(rgb, vec3(outerL), outer * 0.98);
   } else {
     float rim = smoothstep(0.28, 0.46, dist);
@@ -780,7 +761,7 @@ void main() {
   }
   
   // v3.20: Use color.a from the theme color ramp LUT to regulate particle transparency
-  float alpha = v_alpha * soft * color.a;
+  float alpha = v_alpha * soft * (u_v2_theme > 0.5 ? mix(0.85, 1.0, smoothstep(0.0, 40.0, v_speed)) : color.a);
   gl_FragColor = vec4(rgb * alpha, alpha);
 }`;
 
@@ -1006,24 +987,26 @@ export const SCREEN_FS = `
 precision mediump float;
 uniform sampler2D u_screen;
 uniform float u_opacity;
+uniform float u_premul;          // V2 theme: premultiplied trails (dark marks show)
 varying vec2 v_uv;
 void main() {
   vec4 color = texture2D(u_screen, v_uv);
   // v3.12.2: FBO uses RGB-fade (alpha=1.0), so derive alpha from brightness.
   // Black = transparent, bright = opaque. Creates proper vapor trail effect.
   float brightness = max(color.r, max(color.g, color.b));
-  gl_FragColor = vec4(color.rgb, brightness * u_opacity);
+  gl_FragColor = u_premul > 0.5 ? color * u_opacity : vec4(color.rgb, brightness * u_opacity);
 }`;
 
 export const FADE_FS = `
 precision mediump float;
 uniform sampler2D u_screen;
 uniform float u_fade;
+uniform float u_premul;          // V2 theme: fade RGBA together (premultiplied)
 varying vec2 v_uv;
 void main() {
   vec4 color = texture2D(u_screen, v_uv);
   // v3.12.2 CRITICAL FIX: Fade RGB, keep alpha=1.0 (mapbox/webgl-wind technique).
   // Fading alpha causes compound decay invisible trails.
   // Fading RGB creates visible dimming premultiplied blend makes black = transparent.
-  gl_FragColor = vec4(floor(color.rgb * 255.0 * u_fade) / 255.0, 1.0);
+  gl_FragColor = u_premul > 0.5 ? floor(color * 255.0 * u_fade) / 255.0 : vec4(floor(color.rgb * 255.0 * u_fade) / 255.0, 1.0);
 }`;

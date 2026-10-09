@@ -344,3 +344,75 @@ export function resolveWindMotionFloor(win = (typeof window !== 'undefined' ? wi
   const dropCap = w.__RAW_DISABLE_WIND_MOTION_FLOOR__ === true ? 1 : 1 / minLifeFrames;
   return { minLifeFrames, dropCap };
 }
+
+// ── PARTICLES V2 (2026-10-08 wind zoom audit; windParticlesV2.test.js) ─────────────────────────
+// CALIBRATION: density is decoupled from lifetime. Particles respawn only inside the padded viewport
+// (and are recycled the moment they leave it), so the on-screen count is pool x screen/box area at
+// every zoom; a deterministic draw cull then pins it to one screen density at every zoom. That frees the
+// lifetime to follow perception research (~1-2 s, the leaders' range) instead of the 0.1-0.2 s the
+// ink budget forced. Marks stretch along the flow by their own per-frame step (no beads), and the
+// step uses the owner-approved z6 speed everywhere (the z5.78-6.0 clamp ran 16% fast; it is gone).
+// THEME: a premultiplied-alpha trail buffer (dark marks were transparent under the brightness-alpha
+// composite) + one neutral body colour per theme over the luminance-adaptive casing; near-opaque
+// heads clear 3:1 against the field at every speed in all three themes (modelled in the test).
+// Kill: __RAW_DISABLE_WIND_CALIBRATION_V2__ / __RAW_DISABLE_WIND_THEME_V2__. Levers: __RAW_WIND_V2_DENSITY__
+// (heads per 100x100 css px), __RAW_WIND_V2_FADE__ (tail), __RAW_WIND_V2_SPEED__ (x nominal), __RAW_WIND_V2_LIFE_S__, __RAW_WIND_V2_OPACITY__.
+// Rationale and measurements: docs/architecture/RATIONALE-WebGLWindEngine.md "Particles v2".
+// densityPer100 + fade are calibrated TOGETHER for ink parity with the shipped look (GPU A/B, 2026-10-08): long-lived
+// heads drag tails, so the shipped head count (~130) carpeted the field (95% coverage); 12 heads + fade 0.93 match it.
+export const V2_DEFAULTS = Object.freeze({ densityPer100: 12, fade: 0.93, margin: 0.1, speedMul: 1.16, lifeS: 2.0, bumpAtMax: 0.01, composite: 0.95 });
+export const V2_BODY = Object.freeze({ dark: [0.96, 0.98, 1.0], light: [0.05, 0.10, 0.22], beach: [0.08, 0.10, 0.20] });
+
+export function resolveWindParticlesV2(win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  const num = (k, lo, hi, d) => ((typeof w[k] === 'number' && Number.isFinite(w[k])) ? Math.max(lo, Math.min(hi, w[k])) : d);
+  return {
+    calib: w.__RAW_DISABLE_WIND_CALIBRATION_V2__ !== true,
+    theme: w.__RAW_DISABLE_WIND_THEME_V2__ !== true,
+    densityPer100: num('__RAW_WIND_V2_DENSITY__', 5, 1000, V2_DEFAULTS.densityPer100),
+    speedMul: num('__RAW_WIND_V2_SPEED__', 0.25, 4, V2_DEFAULTS.speedMul),
+    lifeS: num('__RAW_WIND_V2_LIFE_S__', 0.2, 10, V2_DEFAULTS.lifeS),
+    composite: num('__RAW_WIND_V2_OPACITY__', 0.2, 1, V2_DEFAULTS.composite),
+    fade: num('__RAW_WIND_V2_FADE__', 0.8, 0.995, V2_DEFAULTS.fade),
+    margin: V2_DEFAULTS.margin,
+  };
+}
+
+const mercYOf = (lat) => {
+  const r = Math.max(-85.051129, Math.min(85.051129, lat)) * Math.PI / 180;
+  return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2;
+};
+
+/** Padded viewport in GLOBAL Mercator units [x0, y0, x1, y1] (x may leave [0,1]; y clamped to the drawable band). */
+export function v2GlobalBox(vb, margin) {
+  let x0 = (vb[0] + 180) / 360, x1 = (vb[2] + 180) / 360;
+  if (x1 < x0) x1 += 1;                                      // antimeridian-crossing bounds
+  const yN = mercYOf(vb[3]), yS = mercYOf(vb[1]);
+  const px = (x1 - x0) * margin, py = (yS - yN) * margin;
+  let bx0 = x0 - px, bx1 = x1 + px;
+  if (bx1 - bx0 >= 1) { bx0 = 0; bx1 = 1; }                  // a whole world in view: respawn everywhere
+  return [bx0, Math.max(mercYOf(85), yN - py), bx1, Math.min(mercYOf(-80), yS + py)];
+}
+
+/** The respawn box in the ADVECT position space: global at z<=6, tile-relative [0,1] above. */
+export function v2RespawnBox(globalBox, hiZoom, tileOriginX, tileOriginY, tileWidth) {
+  if (!hiZoom) return globalBox;
+  const [x0, y0, x1, y1] = globalBox;
+  const k = Math.round((tileOriginX + tileWidth / 2) - (x0 + x1) / 2);   // same world copy as the tile
+  const t = (v, o) => Math.max(0, Math.min(1, (v - o) / tileWidth));
+  return [t(x0 + k, tileOriginX), t(y0, tileOriginY), t(x1 + k, tileOriginX), t(y1, tileOriginY)];
+}
+
+/** Fraction of particles to draw so the on-screen density is densityPer100 marks per 100x100 css px. */
+export function v2KeepRate(densityPer100, cssW, cssH, pool, globalBox, zoom) {
+  const world = 512 * Math.pow(2, zoom);
+  const boxArea = Math.max(1, (globalBox[2] - globalBox[0]) * world * (globalBox[3] - globalBox[1]) * world);
+  const screenArea = Math.max(1, cssW * cssH);
+  const inView = pool * Math.min(1, screenArea / boxArea);   // steady state: every live particle is in the box
+  return Math.max(0.002, Math.min(1, (densityPer100 * screenArea / 1e4) / Math.max(1, inView)));
+}
+
+/** Mean-life drop chance per 60 Hz frame at calm, and the bump at the grid's max speed (upstream webgl-wind shape). */
+export function v2DropRule(lifeS) {
+  return [1 / (60 * lifeS), V2_DEFAULTS.bumpAtMax];
+}
