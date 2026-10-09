@@ -141,12 +141,12 @@ async function main() {
       ];
       const items = [];
       for (const [name, base, fine, at, z, contourKn, caption] of shots) {
-        const r = await page.evaluate((c) => window.__WIND_BENCH__.eyeShot(c), { base, fine, lng: at.lng, lat: at.lat, z, theme: 'dark', width: 520, contourKn });
+        const r = await page.evaluate((c) => window.__WIND_BENCH__.eyeShot(c), { base, fine, lng: at.lng, lat: at.lat, z, theme: 'dark', width: 400, contourKn });
         fs.writeFileSync(path.join(opts.images, `${name}.png`), Buffer.from(r.url.split(',')[1], 'base64'));
         items.push({ name, caption });
       }
       fs.writeFileSync(path.join(opts.images, 'index.html'), `<!doctype html><meta charset="utf-8"><title>Wind lane images</title>
-<body style="background:#111;color:#ddd;font:14px system-ui">${items.map((i) => `<figure style="display:inline-block;margin:8px"><img src="${i.name}.png" width="520"><figcaption>${i.caption}</figcaption></figure>`).join('')}</body>`);
+<body style="background:#111;color:#ddd;font:14px system-ui">${items.map((i) => `<figure style="display:inline-block;margin:8px"><img src="${i.name}.png" width="400"><figcaption>${i.caption}</figcaption></figure>`).join('')}</body>`);
       console.log(`images: ${opts.images}`);
     }
     if (opts.json) fs.writeFileSync(opts.json, JSON.stringify({ engine: source.label, ref: REF, zooms: ZOOMS, results: R, rows }, null, 1));

@@ -160,10 +160,24 @@ def encode(arr):
     return base64.b64encode(zlib.compress(q.tobytes(), 6)).decode("ascii")
 
 
-def decode(b64, shape):
-    """Inverse of `encode` -> float32 array in knots, NaN where MISSING (used by the serve lane and tests)."""
+def decode_q(b64, shape):
+    """`encode`'s raw int16 array (0.1 kn units, MISSING where no HRRR cell): what the serve lane keeps in memory."""
     import numpy as np
-    q = np.frombuffer(zlib.decompress(base64.b64decode(b64)), dtype="<i2").reshape(shape)
+    return np.frombuffer(zlib.decompress(base64.b64decode(b64)), dtype="<i2").reshape(shape)
+
+
+def dequantize(q):
+    """int16 (0.1 kn) -> float32 knots, NaN where MISSING."""
+    import numpy as np
+    out = q.astype(np.float32) * np.float32(SCALE)
+    out[q == MISSING] = np.nan
+    return out
+
+
+def decode(b64, shape):
+    """Inverse of `encode` -> float32 array in knots, NaN where MISSING (tests, bench fixtures)."""
+    import numpy as np
+    q = decode_q(b64, shape)
     out = q.astype(np.float32) * np.float32(SCALE)
     out[q == MISSING] = np.nan
     return out

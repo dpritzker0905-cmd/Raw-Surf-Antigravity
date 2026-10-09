@@ -31,7 +31,6 @@ import os
 import threading
 import time
 from contextvars import ContextVar
-from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -71,14 +70,15 @@ def _grid():
 
 
 class Lane:
-    """One HRRR cycle on the lattice: int16 knots x 0.1, shape (hour, lat, lon)."""
+    """One HRRR cycle on the lattice, kept as int16 (0.1 kn), shape (hour, lat, lon): 7.4 MB for 49 hours. Only the
+    hour a request needs is turned into floats."""
 
     def __init__(self, obj, key=None):
         import numpy as np
         try:
-            from services.noaa_hrrr_wind_fetcher import decode, FORMAT
+            from services.noaa_hrrr_wind_fetcher import decode_q, FORMAT, MISSING
         except ImportError:  # pragma: no cover
-            from noaa_hrrr_wind_fetcher import decode, FORMAT
+            from noaa_hrrr_wind_fetcher import decode_q, FORMAT, MISSING
         if obj.get("format") != FORMAT:
             raise ValueError(f"wind lane format {obj.get('format')!r} != {FORMAT!r}")
         hg = _grid()
@@ -90,9 +90,9 @@ class Lane:
         self.lat0, self.lon0, self.res = float(la["lat0"]), float(la["lon0"]), float(la["res"])
         self.nlat, self.nlon = int(la["nlat"]), int(la["nlon"])
         shape = (len(obj["hours"]), self.nlat, self.nlon)
-        self.u = decode(obj["u"], shape)
-        self.v = decode(obj["v"], shape)
-        if not (np.isfinite(self.u).any() and np.isfinite(self.v).any()):
+        self.uq = decode_q(obj["u"], shape)
+        self.vq = decode_q(obj["v"], shape)
+        if not ((self.uq != MISSING).any() and (self.vq != MISSING).any()):
             raise ValueError("wind lane holds no HRRR cell")
 
     def time_weight(self, valid):
@@ -112,6 +112,11 @@ class Lane:
         y0 = np.floor(y + 1e-9).astype(int)
         x0 = np.floor(x + 1e-9).astype(int)
         ty, tx = np.clip(y - y0, 0.0, 1.0), np.clip(x - x0, 0.0, 1.0)
+        try:
+            from services.noaa_hrrr_wind_fetcher import dequantize
+        except ImportError:  # pragma: no cover
+            from noaa_hrrr_wind_fetcher import dequantize
+        U, V = dequantize(self.uq[k]), dequantize(self.vq[k])
         su = np.zeros(y.shape)
         sv = np.zeros(y.shape)
         sw = np.zeros(y.shape)
@@ -120,7 +125,7 @@ class Lane:
                 yy, xx = y0 + dy, x0 + dx
                 inb = (yy >= 0) & (yy < self.nlat) & (xx >= 0) & (xx < self.nlon)
                 yc, xc = np.clip(yy, 0, self.nlat - 1), np.clip(xx, 0, self.nlon - 1)
-                cu, cv = self.u[k, yc, xc], self.v[k, yc, xc]
+                cu, cv = U[yc, xc], V[yc, xc]
                 w = wy * wx * (inb & np.isfinite(cu) & np.isfinite(cv))
                 su += np.where(w > 0, w * np.nan_to_num(cu), 0.0)
                 sv += np.where(w > 0, w * np.nan_to_num(cv), 0.0)

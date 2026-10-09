@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-09 16:03Z** (logs: `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-09 19:44Z** (logs: `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -13,6 +13,18 @@ diagnostics stamps, #213), `log/2026-10-01-coarse-fill-shared-vectors.md` (#211)
 is a claim, not a measurement.
 
 ## Now
+
+- **2026-10-09 19:44Z: the HRRR wind lane, chosen by place and time, built DEFAULT ON (owner, D-017); PR open.**
+  - **What it does:** inside HRRR's domain and its 48 h horizon, every GFS wind tier blends one stored NOAA HRRR field
+    per hour (ingest on GitHub Actions; serve-time `wind_lane.apply_wind_lane` in `/grid`). It uses a 200 km feather and
+    a 3 h taper. GFS covers everywhere else and after the horizon, and the controls name the model in words.
+  - **Kills:** `WIND_HRRR_LANE=0` and `window.__RAW_DISABLE_WIND_HRRR_LANE__`.
+  - **Eye bench:** the same eye across tier, pan, zoom and upstream (0.0-0.2 km, x1.00); the old mixed pair still
+    fails (38.3 km).
+  - **Found:** Open-Meteo's `gfs_hrrr` serves grid-relative winds (11-17 deg at the coasts) and point-samples. Spot
+    points (`fetch_point`, `gfs_seamless`) still carry this; that is an owner D-001 question.
+  - **At 101 NDBC buoys over 5 days the lane TIES GFS on accuracy;** its gain is coastal detail, gradient x1.37
+    (L-S20). Log `log/2026-10-09-hrrr-wind-lane.md`.
 
 - **2026-10-09 16:03Z: hurricane eye on a one-stop zoom diagnosed; dark fix `WIND_GRID_GFS_GLOBAL` in review.**
   The owner's two zoom stops filed fine overlays from two upstreams that share the GFS label:
@@ -1672,7 +1684,10 @@ direction fix (not supported by a bulk-buoy instrument; needs spectral truth).
 
   Measured on the wind bench (eye mode): the eye centre moves 38.3 km, the weakest wall point drops 16 kn, and the
   eye's area changes x2.17. `WIND_GRID_GFS_GLOBAL=1` (Render env, default 0) cuts that to 9.1 km / 2 kn / x0.71.
-  Owner-only: the flip.
+  Owner-only: the flip. **Flipped by the owner (Render), and superseded by the HRRR wind lane (D-017, default on,
+  2026-10-09):** the model is now chosen by place and time on every tier. Lane bench: 0.0-0.2 km across tier, pan,
+  zoom and upstream. Still open: the lattice changes with zoom (0.5 -> 0.25 deg at ~z8 draws the same eye x0.30 in
+  area, 0.5 km apart). Log `2026-10-09-hrrr-wind-lane.md` §9.
 - Wind, open (measured 2026-10-09, same log): above z6 the speed-aware draw cull switches on at full strength in one
   step, so with the grid fixed the eye's trail ink over its wall's goes 1.21 (z6) -> 1.77 (z6.5). A fade-in over
   z6 -> 7 is the candidate; it needs an owner A/B.

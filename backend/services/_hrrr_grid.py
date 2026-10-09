@@ -115,8 +115,8 @@ def space_weight_np(lat_deg, lon_deg, feather_km, inner_km=RELAXATION_KM):
     d = edge_km_np(lat_deg, lon_deg) - inner_km
     if feather_km <= 0.0:
         return np.where(d > 0.0, 1.0, 0.0)
-    return np.where(d <= 0.0, 0.0, np.where(d >= feather_km, 1.0,
-                                             np.sin(0.5 * np.pi * np.clip(d, 0.0, feather_km) / feather_km) ** 2))
+    ramp = np.sin(0.5 * np.pi * np.clip(d, 0.0, feather_km) / feather_km) ** 2
+    return np.where(d <= 0.0, 0.0, np.where(d >= feather_km, 1.0, ramp))
 
 
 def rotation_rad(lon_deg):

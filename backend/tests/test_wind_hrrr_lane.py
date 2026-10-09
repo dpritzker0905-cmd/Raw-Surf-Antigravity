@@ -329,8 +329,8 @@ def test_the_point_lane_still_asks_open_meteo_for_gfs_seamless(monkeypatch):
     assert sent == ["gfs_seamless"]
 
 
-@pytest.mark.parametrize("lane_env,flag_env,expected", [(None, None, True), ("1", "0", True), ("0", "0", False),
-                                                         ("0", "1", True)])
+@pytest.mark.parametrize("lane_env,flag_env,expected",
+                         [(None, None, True), ("1", "0", True), ("0", "0", False), ("0", "1", True)])
 def test_the_lane_puts_a_gfs_base_under_the_feather(monkeypatch, lane_env, flag_env, expected):
     """With the lane on, Open-Meteo's GFS wind GRIDS must be gfs_global: gfs_seamless would put Open-Meteo's HRRR,
     whose directions are grid-relative (11-17 deg off at the coasts), under the 200 km feather."""
