@@ -13,6 +13,7 @@
 import { memo, useEffect, useRef } from 'react';
 import WebGLWindEngine from './WebGLWindEngine';
 import { windLayerBeforeId, windCoastlineLayer, WIND_COASTLINE } from './WebGLWindUtils';
+import { syncWindBasemapMute } from './windBasemapMute';
 import { getWindParticleRes } from './deviceTier';
 import { registerWindEngine, unregisterWindEngine } from '../../engine/RenderPlanDispatcher';
 
@@ -216,13 +217,22 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
-  // The coastline line (if this theme has one) follows the wind toggle.
+  // The coastline line (if this theme has one) and the basemap mute (windBasemapMute.js) follow the wind toggle.
   useEffect(() => {
     try { if (mapInstance && mapInstance.getLayer(WIND_COASTLINE.id)) mapInstance.setLayoutProperty(WIND_COASTLINE.id, 'visibility', active ? 'visible' : 'none'); } catch (e) { /* style mid-load */ }
+    syncWindBasemapMute(mapInstance, themeRef.current, active, LAYER_ID);
   }, [active, mapInstance]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
   useEffect(() => { themeRef.current = theme; }, [theme]);
+  // A theme change brings new basemap colours (a fresh style, or one diffed into this style, where the wind layer stays
+  // and is not re-added): re-sync the basemap mute once the map settles.
+  useEffect(() => {
+    if (!mapInstance) return undefined;
+    const resync = () => syncWindBasemapMute(mapInstance, themeRef.current, activeRef.current, LAYER_ID);
+    mapInstance.once('idle', resync);
+    return () => { try { mapInstance.off('idle', resync); } catch (e) { /* map disposed */ } };
+  }, [theme, mapInstance]);
   useEffect(() => { dataRef.current = data; }, [data]);
   useEffect(() => { deliveryQueueRef.current = deliveryQueue; }, [deliveryQueue]);
 
@@ -279,6 +289,8 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
             const coast = windCoastlineLayer(styleLayers, themeRef.current, activeRef.current);
             if (coast && !mapInstance.getLayer(coast.id)) mapInstance.addLayer(coast, beforeId);
           } catch (e) { /* cosmetic: the wind layer stands without it */ }
+          // A new style (first load, theme change) starts unmuted: mute its colours under the wind while the wind is on.
+          syncWindBasemapMute(mapInstance, themeRef.current, activeRef.current, LAYER_ID);
           console.log(`[WebGLWind] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
         } catch (e) {
           console.warn('[WebGLWind] Failed to add layer:', e.message);
@@ -294,6 +306,7 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
       try {
         mapInstance.off('styledata', handleStyleData);
         mapInstance.off('style.load', handleStyleData);
+        syncWindBasemapMute(mapInstance, themeRef.current, false, LAYER_ID);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
         }

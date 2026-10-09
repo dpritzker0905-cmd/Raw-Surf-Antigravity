@@ -552,3 +552,23 @@ A stored estimate can be estimated again in a browser branch with different sour
 
   Before trusting a new metric, ask whether the thing under test can supply the signal the metric is looking for,
   and whether an unrelated change can starve the control of its defect.
+- **L-V18 · A colour encoding must be read back from the screen: check the hue against the legend at the TRUE value.**
+  For weeks every palette round asked whether light's and beach's multiply tint was VISIBLE over the water (ΔE from the
+  ground). None asked whether it still showed the legend's colour for that speed. The path bench's `hue30` samples the
+  served grid under every pixel and compares the hue on screen with the legend's: on a z8 pan, 55% (light) and 43%
+  (beach) of the wind-coloured pixels sat more than 30° off. A 33-40 kn gold multiplied into cyan water came out green,
+  which is a 16-21 kn colour on the legend. Dark's alpha-over read 3%, the null control. The owner had called this
+  "ambiguity between the wind colour and the map colour". Muting the ground's chroma under the wind (the leaders'
+  answer) brought it to 2% and 1% (log 2026-10-09-wind-basemap-mute). Also gate the colour-blind floor on EVERY ground
+  the tint sits on: light's field had collapsed to 1.8 on its own near-grey land all along, and the CI pin only looked
+  at the water.
+- **L-V19 · MapLibre paint changes are neither instant nor synchronous: settle before you read.** Two things went wrong
+  in the bench, and both make paint state lag behind setPaintProperty:
+  - `setPaintProperty` fades over the style's transition (300 ms by default). With the bench's virtual clock still
+    during a capture, the water mask and the "original" frame were read mid-fade.
+  - A data-driven colour (a `match` on class) makes MapLibre re-parse the source's tiles in a worker. One frame later,
+    some layers still show the old colour. A per-sample mute toggle corrupted the frames after it, and a one-frame
+    round trip read "exact" only because the mute had never landed.
+
+  Set the transition to 0, take references in a separate settled pass (`idle`), and never toggle paint mid-path. In the
+  app, the first mute re-parses the visible tiles once.

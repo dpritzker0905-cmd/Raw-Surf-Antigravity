@@ -6,8 +6,11 @@
 // lived in the composite between the stops, not in the swatches. Libraries: culori (CIEDE2000, Lab) here; coloraide
 // (Vienot/Brettel colour-blind models) in cvd_check.py, called automatically when ./.venv exists.
 //
+// Basemap mute (2026-10-09, src/components/map/windBasemapMute.js): while the wind is on, light and beach show their
+// ground with most of its chroma removed and the water a little darker. The surfaces below are the basemap's own colours;
+// they are muted with the app's own function before compositing (--no-mute models the map as it was before).
 // Usage (from this folder):  npm i; py -3.12 -m venv .venv; .venv/Scripts/python -m pip install coloraide==8.13
-//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict]
+//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute]
 // Exit code 1 with --strict when any RED line is printed (here or in the colour-blind check).
 import fs from 'fs';
 import path from 'path';
@@ -23,6 +26,18 @@ const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); re
 // The real ramps, straight from the source the app ships (export keywords stripped; the module has no imports).
 const src = fs.readFileSync(RAMP_SRC, 'utf8').replace(/^export /gm, '');
 const { THEME_RAMPS, FIELD_RAMPS } = new Function(src + '; return { THEME_RAMPS, FIELD_RAMPS };')();
+// The app's basemap mute, from its source (no imports; export keywords stripped): the ground the wind actually sits on.
+const muteSrc = fs.readFileSync(path.join(HERE, '..', '..', 'src', 'components', 'map', 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '');
+const { muteColor, windBasemapMuteAmount, windBasemapWaterL } = new Function(muteSrc + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL };')();
+const NO_MUTE = args.includes('--no-mute');
+// --mute-amount / --water-l: explore other mute settings (the app's own lever names, passed as levers).
+const LEVERS = { ...(arg('--mute-amount') ? { __RAW_WIND_BASEMAP_MUTE__: Number(arg('--mute-amount')) } : {}), ...(arg('--water-l') ? { __RAW_WIND_BASEMAP_WATER_L__: Number(arg('--water-l')) } : {}) };
+const groundOf = (theme, surf, c) => {
+  const amount = NO_MUTE ? 0 : windBasemapMuteAmount(theme, LEVERS);
+  if (!(amount > 0)) return c;
+  const m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${c.join(', ')})`, amount, surf === 'water' ? windBasemapWaterL(theme, LEVERS) : 1));
+  return [+m[1], +m[2], +m[3]];
+};
 
 // Composite model — keep in sync with HEATMAP_FS / DRAW_FS and windFieldLut.test.js (TINT, SURFACES, BASEMAP).
 const MODEL = {
@@ -32,7 +47,9 @@ const MODEL = {
 };
 // tintFromKn: 3 kn is the owner's "middle ground" (a deliberately soft tint, ~9-11 dE00), so the tint floor starts at 6 kn.
 // blendRedKn: a violet -> green ramp must hand off across a cyan water's hue once; > 2 kn of it is a real blend zone.
-const TARGET = { hueGapWatch: 20, blendRedKn: 2, tintDE: 14, tintFromKn: 6, streakDL: 3, adjDE: 9 };
+// hueHeldKn: speeds (3-40 kn) whose tint over this ground sits > 30 deg off the legend colour's own hue (the ground
+// bending the wind into another band's colour); the path bench's hue30 asks the same question of real frames.
+const TARGET = { hueGapWatch: 20, blendRedKn: 2, tintDE: 14, tintFromKn: 6, streakDL: 3, adjDE: 9, hueHeldKn: 2 };
 
 const lab = converter('lab65'), rgb = (a) => ({ mode: 'rgb', r: a[0], g: a[1], b: a[2] });
 const de = (a, b) => differenceCiede2000()(rgb(a), rgb(b));
@@ -47,24 +64,29 @@ const out = {}; let red = 0;
 const flag = (bad, watch) => (bad ? (red++, 'RED ') : watch ? 'warn' : ' ok ');
 for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dark'])) {
   const m = MODEL[theme], P = THEME_RAMPS[theme], F = (FIELD_RAMPS && FIELD_RAMPS[theme]) || P, rows = [];
-  console.log(`\n=== ${theme.toUpperCase()}  (${m.kind} field; ${Object.keys(m.surfaces).join(' + ')})`);
+  const muted = !NO_MUTE && windBasemapMuteAmount(theme, LEVERS) > 0;
+  console.log(`\n=== ${theme.toUpperCase()}  (${m.kind} field; ${Object.keys(m.surfaces).join(' + ')}${muted ? '; basemap muted under the wind' : ''})`);
   // Legend stops: adjacent separation in normal vision (colour-blind separation: cvd_check.py).
   const adj = P.slice(1).map((s, i) => ({ kn: `${P[i][0]}-${s[0]}`, de: de(P[i].slice(1, 4), s.slice(1, 4)) }));
   const worstAdj = adj.reduce((w, x) => (x.de < w.de ? x : w));
   console.log(`[${flag(worstAdj.de < TARGET.adjDE)}] legend: weakest neighbours ${worstAdj.kn} kn at ${worstAdj.de.toFixed(1)} dE00 (target >= ${TARGET.adjDE})`);
   const tintStops = {};
   for (const [surf, bm0] of Object.entries(m.surfaces)) {
-    const bm = bm0.map((x) => x / 255), hb = hue(bm), blend = [];
+    const bm = groundOf(theme, surf, bm0).map((x) => x / 255), hb = hue(bm), blend = [], bent = [];
     tintStops[surf] = F.filter((st) => st[0] >= 3).map((st) => ({ kn: st[0], rgb: tintOver(m, st[0], st.slice(1, 4), bm) }));
     for (let v = 1; v <= 40; v += 0.5) {
       const f = sample(F, v), p = sample(P, v), T = tintOver(m, v, f.slice(0, 3), bm);
       const r = { surf, v, tintDE: de(bm, T), hueGap: hgap(hue(T), hb), tintDL: L(T) - L(bm) };
       if (m.pop) { const a = p[3] * m.pop, S = p.slice(0, 3).map((c, j) => c * a + T[j] * (1 - a)); r.streakDL = L(S) - L(T); }
-      rows.push(r); if (r.hueGap < TARGET.hueGapWatch && v >= 3) blend.push(v);
+      rows.push(r); if (r.hueGap < TARGET.hueGapWatch && v >= 3 && !muted) blend.push(v);
+      const lc = lab(rgb(p.slice(0, 3))), tc = lab(rgb(T));
+      if (v >= 3 && Math.hypot(lc.a, lc.b) >= 10 && Math.hypot(tc.a, tc.b) >= 6 && hgap(hue(T), hue(p.slice(0, 3))) > 30) bent.push(v);
     }
     const mine = rows.filter((r) => r.surf === surf && r.v >= TARGET.tintFromKn), wDE = mine.reduce((w, r) => (r.tintDE < w.tintDE ? r : w)), wS = m.pop ? mine.reduce((w, r) => (Math.abs(r.streakDL) < Math.abs(w.streakDL) ? r : w)) : null;
     console.log(`[${flag(wDE.tintDE < TARGET.tintDE * 0.8, wDE.tintDE < TARGET.tintDE)}] ${surf}: tint is weakest at ${wDE.v} kn, ${wDE.tintDE.toFixed(1)} dE00 off the ${surf} (target >= ${TARGET.tintDE})`);
-    if (surf === 'water') console.log(`[${flag(blend.length * 0.5 > TARGET.blendRedKn, blend.length > 0)}] ${surf}: speeds where the tint sits < ${TARGET.hueGapWatch} deg off the ${surf} hue (reads as more ${surf}): ${blend.length ? blend[0] + '-' + blend[blend.length - 1] + ' kn (' + blend.length * 0.5 + ' kn)' : 'none'}`);
+    if (m.kind === 'multiply') console.log(`[${flag(bent.length * 0.5 > TARGET.hueHeldKn, bent.length > 0)}] ${surf}: speeds whose tint sits > 30 deg off the legend's own hue (the ground bends the wind's colour): ${bent.length ? bent.length * 0.5 + ' kn of 3-40 (' + bent[0] + '-' + bent[bent.length - 1] + ' kn)' : 'none'} (target <= ${TARGET.hueHeldKn} kn)`);
+    // A grey ground has no hue for the tint to hide in: the "reads as more water" line only applies to the unmuted map.
+    if (surf === 'water' && !muted) console.log(`[${flag(blend.length * 0.5 > TARGET.blendRedKn, blend.length > 0)}] ${surf}: speeds where the tint sits < ${TARGET.hueGapWatch} deg off the ${surf} hue (reads as more ${surf}): ${blend.length ? blend[0] + '-' + blend[blend.length - 1] + ' kn (' + blend.length * 0.5 + ' kn)' : 'none'}`);
     // The streak is a white ring around a ~1 px speed-colour core; the ring carries the motion, so a core that matches its
     // tint in lightness is a watch item (the core's colour stops reading), not a failure.
     if (wS) console.log(`[${flag(false, Math.abs(wS.streakDL) < TARGET.streakDL)}] ${surf}: speed-colour core vs its own tint is weakest at ${wS.v} kn, ${wS.streakDL.toFixed(1)} L* (watch below |${TARGET.streakDL}| L*)`);
