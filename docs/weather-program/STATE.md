@@ -23,7 +23,7 @@ is a claim, not a measurement.
     / x0.94 beach). hue30 falls to 0.7-3% on every path, L* lines rise, the coast's colour contrast falls 9-17%, zero
     flashes.
   - **Kill:** `__RAW_DISABLE_WIND_BASEMAP_MUTE__`. Log `log/2026-10-09-wind-basemap-mute.md`; LESSONS L-V18, L-V19.
-  - **Merged** as #296 (ce8ada1d). **Light colour-blind pass on the neutral ground: PR open.** Every ground lifts from
+  - **Merged** as #296 (ce8ada1d). **Light colour-blind pass on the neutral ground: PR #297.** Every ground lifts from
     1.8-1.9 to ~2.6, the ceiling under light's rules; 5 needs a warm fast-band redesign (log
     `log/2026-10-09-light-neutral-cvd.md`).
 
@@ -1643,7 +1643,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 979, sha256 8e8abe06c1847576355727180686a062b6f45ab5ef2bd41b1201d5c6d41acfd0**
+  **Ledger head: seq 980, sha256 ef393d854a24bf4cb19c036a0cfe53a1c88e051bb7da63c96430179a3bea4681**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
