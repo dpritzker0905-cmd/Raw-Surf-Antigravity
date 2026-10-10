@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-10 16:37Z: dark's wind look for light and beach: measured, two candidates built, DEFAULT OFF (client only; PR_PENDING to dev, owner A/B).**
+- **2026-10-10 16:37Z: dark's wind look for light and beach: measured, two candidates built, DEFAULT OFF (client only; PR #308 to dev, stacked on #307; owner A/B).**
   Owner: "I like the way dark theme does the animations of the wind ... light and beach [should] reflect similarly of
   this style, but with their own color schemes".
   - **What dark's look is** (new bench columns, `style.js`): every streak pixel is lighter than the colour under it
@@ -1792,7 +1792,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1025, sha256 52c39d7e5e9826b2a8e2008e751cfbbd00338969f2007d1ad497b834ba99d482**
+  **Ledger head: seq 1027, sha256 12d33557cdd0feafad942bb4a56d2a9b6eff8f5d91b69c375602ef69545b1785**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
