@@ -79,6 +79,10 @@ export function mapNormalizedWindGridToWebGL(json, snappedBounds, hourOffset) {
     requested_bbox: json.requested_bbox || null,
     served_bbox: json.served_bbox || null,
     run_time: json.run_time || null,
+    // The model CYCLE (run_time is the legacy ingest stamp, one per built box): windTierMosaic.js merges two boxes of one cycle only.
+    model_run_time: json.model_run_time || null, model_run_time_status: json.model_run_time_status || null,
+    // The frame really served (valid_time echoes the asked hour; grid_resolver.stamp_frame_honesty).
+    served_valid_time: json.served_valid_time || null, frame_substituted: !!json.frame_substituted,
     valid_time: json.valid_time || null,
     // Which model the backend's wind lane put at this hour (HRRR near the US / GFS; windLane.js, D-017).
     wind_lane: json.wind_lane || null

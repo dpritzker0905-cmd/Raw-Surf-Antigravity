@@ -226,6 +226,15 @@ before starting it.
   HRRR lane draws 1.37x the coastal gradient of GFS (19/19 valid times). At 101 NDBC buoys over 5 days it ties GFS
   (vector RMSE 5.97 vs 5.99 kn at 3 h, 6.61 vs 6.47 at 24 h; 45/88 buoys better). "HRRR's sharper coast" was true;
   "more accurate" would have been an assumption. (2026-10-09, same log §5)
+- **L-S21 · An equivalence check that never ran the new path proves nothing; assert the path was taken.** The first
+  real-file proof of the strided world read said "old == new" on 207,872 cells, and the new path was not taken once:
+  the live files declare no `resolution`, the guard required one, and every hour fell back to the old path, so it
+  compared the old path with itself. The CPU column caught it (no faster, and 7 full L1 entries in "new" mode). The
+  test now asserts the lane's own trace (its `#s{stride}` L1 key) beside each equality. Second point from the same
+  profile: profile a 1-CPU box on ONE core (`psutil.Process().cpu_affinity([n])`). Unpinned, the load threads'
+  GIL hand-offs across cores doubled and scattered every reading (5-10 s for a page that costs 2.1-2.9 s pinned).
+  (2026-10-02, commitment 228; log `2026-10-02-commitments-182-228.md`. Written as "L-S19" on closed PR #222 and
+  never merged; recovered 2026-10-10, renumbered because dev's L-S19 is another lesson.)
 - **L-F7 · The serve path has the failed-vs-absent trap too.** A Supabase 429 on a regional tile made `/grid` answer
   from the 2-degree tier with `coverage_scope: regional`, `fallbackReason: null`, and the log called it
   "regional-quality at zoom-out" at INFO: 9 of 57 requests in one burst. A refused read must retry, then name its
@@ -380,6 +389,18 @@ before starting it.
   padding or a coarser lattice moves served values. The replay (`windSeriesPan.replay.test.js`) takes the view sequence straight from the request log and a mock `fetch` that honours `AbortSignal`: 8 fast pans
   go from 776 frames requested / 384 far-hour to 440 / 48, and the box builds 237 frames instead of 661. It does NOT remove the per-view build, and the server amplifier (a 16-day fetch and a serial,
   single-slot background build that the next box cancels) stays open. (2026-10-10, log `2026-10-10-wind-series-supersede.md`)
+- **L-P30 · "Superseded" is a claim about the SOURCE; a closed PR also carries records, and they do not travel with a
+  re-landed diff.** #222, #224 and #225 were closed after "a hunk-by-hunk comparison found the source fully integrated",
+  which was true: 86-100% of each code file is on dev. What the comparison never looked at was lost for a week: two
+  session logs, 99 lines of a third, a lesson, a still-live database finding (`public.surf_reports` grants nothing to
+  `service_role`), and two read-back commitments, one of which had quietly been satisfied and one never done. Six older
+  PRs were closed as "at least partly superseded" with no check at all; reading them against dev found a fix that
+  failed the nightly the day before (an API timeout graded as a renderer crash) and a bounds mislabel still drawn on
+  every thinned world frame. Before closing a PR unmerged: diff its `docs/weather-program/` and its ledger lines
+  against dev as well as its source, carry over every finding and open commitment, and write down what was dropped
+  on purpose. Presence of the PR's lines on dev is a first pass only (9-28% for the six, though most of their fixes
+  were there in another form): classify each BEHAVIOUR as on dev, fixed differently, obsolete or still missing, and
+  show the live defect before calling it missing. (2026-10-10, log `2026-10-10-closed-pr-audit.md`)
 - **L-P31 · Profile one unit of an amplifier before choosing what to cut, and replay it on the heap it runs on.** The brief, and my first design, bounded HOURS (385 built per fresh wind box -> the asked-for ones plus a window). The profile of one fresh box said 163 of its 201 seconds were a FULL `gc.collect()` the background helper runs after every hour (`fbff4ace`, a June memory fix for a 512 MB box), on the event-loop thread, and 3.9 s were the normalizer: fewer hours alone would have left each at ~0.4 s. The same replay measured 0.047 s per collection in a bare test process and 0.42 s once the app was imported, because a full collection walks the whole heap, so a lean-heap harness understates this class of cost 9x (the serve process, ~1.65 GB RSS, matches the observed ~0.5 s per hour and the page tails that timed out at 20 s by construction). Say which heap each timing came from. A second amplifier hid behind the first: the next box's cancel fails the unresolved hour futures of the old task, its waiters take the self-heal path and cancel the NEW box's task in turn (19 cancels and 20 fetches for two boxes with a page in flight each; the pages got 30 and 33 of 48 frames), so look for cancel -> fail -> retry loops wherever one slot is shared. Mechanized: `test_wind_bg_build_bounded.py` counts hours, full collections, fetches and cancels per scenario with the flag off (pinned) and on; `HARNESS_TABLE=1 HARNESS_GC=real HARNESS_HEAP=app` prints the table. (2026-10-10, log `2026-10-10-wind-bg-build-bounded.md`)
 - **L-F14 · An exhaustive sweep sees only what its fixtures contain: put the SERVED product in its alphabet, and read a divergence count against the rule switched off.** The 3,000-fixture guard-vs-arbiter
   differential and the 37,268-interleaving sequence sweep both use a 10-degree world grid; the backend has served a 2-degree world frame since 2026-07-23. The F-22 sweep (a bridge in the loop, both commit modes,
@@ -604,3 +625,26 @@ A stored estimate can be estimated again in a browser branch with different sour
      `--mute-check`.
   2. A read-back reports what was done (`layers > 0`, or the reason it stood down), never what was asked for.
   3. After a merge, read the effect on the deployed build before calling it live (the kin of L-V19: settle, then read).
+- **L-V22 · When a coarser grid covers more, file it AROUND the finer one, not instead of it. And check the instrument
+  is following the feature you named.** After #298 the eye still changed on a zoom-out: the engine holds one fine
+  overlay, so the covering 0.5° or 1° box replaced the 0.25° box (ladder bench: 21 km, -12 kn and x2.9 in area at the
+  1° step; x1.7 at the 0.5° step). Three things the measurement settled before any code:
+  - **The tiers already agree** (0.009 kn at 405 shared nodes): the lattices nest on whole degrees. So "resample the
+    tiers consistently" was not the fix; the area mean, the other consistent resample, loses the eye (35 km, x16).
+  - **Keeping the fine box and letting the base draw the rest holds the eye and loses the picture** (9.6% of the view
+    10 kn or more off, against 0.9%). Measure what an option gives up, on the whole view, beside what it fixes.
+  - **A second texture level was not needed.** Resampling the coarse box onto the fine lattice on the CPU draws what
+    the shader would have drawn from it (bilinear of bilinear on a nested lattice is exact), so one texture carries both
+    (`windTierMosaic.js`).
+  The instrument had its own defect: "the eye at T" was the nearest closed contour, and once the eye opened at 40 kn a
+  9-km pocket 100 km away took its place, so the weakest wall read 2 kn high in every row. A feature tracked across a
+  sweep must be the SAME feature at each step (here: nested, no smaller, centred within its own radius). Print the
+  per-step geometry once before trusting a summary of it.
+  And L-V21 nearly repeated itself: the merge rule first compared `run_time`, which on a dynamic box is the per-box
+  ingest stamp, so in the app it would have refused every merge while the bench (fixtures with no run fields) passed
+  every row. Build a rule's test inputs with the app's own mapper, and give the bench a control that fails when the
+  rule under test never fires.
+  A cold review then found what my own tests could not: I had re-pointed an existing guard (never downgrade the view)
+  at a new object and lost its old meaning, and my "same valid time" compared a field the server fills with the ASKED
+  hour. Tests written by the author pin the author's model of the change. For a default-on change, have someone who has
+  not seen the reasoning read the diff and run it, and replay each guard the diff touches in its old cases.

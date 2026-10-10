@@ -435,7 +435,7 @@ describe('setWindData — a base-resolution clip never displaces a finer overlay
     expect(engine.setWindData(gl, grid(fine, fine.cols, fine.rows, 30))).toBe('fine');
     return { gl, engine };
   };
-  afterEach(() => { delete window.__RAW_DISABLE_WIND_CLIP_KEEP_FINE__; });
+  afterEach(() => { delete window.__RAW_DISABLE_WIND_CLIP_KEEP_FINE__; delete window.__RAW_DISABLE_WIND_TIER_MOSAIC__; });
 
   it('keeps the 1-deg box when the 2-deg clip of a wider view arrives (the z6 swap in the owner log)', () => {
     const { gl, engine } = setup();
@@ -444,21 +444,150 @@ describe('setWindData — a base-resolution clip never displaces a finer overlay
     expect(engine._windFine).toBe(before);
     expect(engine._windFine.windGrid.cols).toBe(18);
   });
-  it('POSITIVE CONTROL: the kill switch files the clip again (the swap comes back)', () => {
+  it('POSITIVE CONTROL: with this rule and the tier mosaic both killed the clip is filed again (the swap comes back)', () => {
     const { gl, engine } = setup();
     window.__RAW_DISABLE_WIND_CLIP_KEEP_FINE__ = true;
+    window.__RAW_DISABLE_WIND_TIER_MOSAIC__ = true;
     expect(engine.setWindData(gl, grid(CLIP_2DEG, 13, 14, 25))).toBe('fine');
     expect(engine._windFine.windGrid.cols).toBe(13);
   });
-  it('a 1-deg box that covers a wider view still replaces a 0.5-deg one (it carries data the base lacks)', () => {
+  it('with this rule alone killed, the tier mosaic still keeps the 1-deg nodes inside the clip (windTierMosaic.js)', () => {
+    const { gl, engine } = setup();
+    window.__RAW_DISABLE_WIND_CLIP_KEEP_FINE__ = true;
+    expect(engine.setWindData(gl, grid(CLIP_2DEG, 13, 14, 25))).toBe('fine');
+    expect(engine._windFine.windGrid.__tierMosaic.inner.cols).toBe(18);
+    expect(engine._windFine.windGrid.cols).toBe(25);                 // the clip's 24 deg at the box's 1-deg spacing
+  });
+  it('a 1-deg box that covers a wider view is still filed over a 0.5-deg one (it carries data the base lacks)', () => {
     const { gl, engine } = setup(BOX_05);
     expect(engine.setWindData(gl, grid(BOX_1DEG, 18, 13, 25))).toBe('fine');
+    expect(engine._windFine.windGrid.bounds).toEqual(BOX_1DEG.bounds);
   });
   it('with no finer overlay resident, the clip files as before (harmless: the nodes of the base itself)', () => {
     const { gl } = makeMockGL();
     const engine = new WebGLWindEngine();
     engine.setWindData(gl, grid(WORLD_2DEG, 181, 84, 20));
     expect(engine.setWindData(gl, grid(CLIP_2DEG, 13, 14, 25))).toBe('fine');
+  });
+});
+
+// ── 4c. TIER MOSAIC (2026-10-09, owner: the eye must hold through a whole zoom): a coarser box that covers a wider view no
+// longer REPLACES the finer box it overlaps; the engine files their mosaic on the finer lattice (windTierMosaic.js). The
+// ladder bench measured the swap: 0.25 -> 0.5 deg redraws the eye x3.6 larger, 0.5 -> 1 deg moves it 21 km. ──
+describe('setWindData — a coarser covering box keeps the finer nodes it overlaps (tier mosaic)', () => {
+  const WORLD_2DEG = { ...GLOBAL_GRID, cols: 181, rows: 84 };
+  const BOX_025 = { ...FINE_GRID, bounds: { west: -90, south: 25, east: -85, north: 30 }, cols: 21, rows: 21, product_id: 'z8' };   // the z8 box
+  const BOX_05 = { ...FINE_GRID, bounds: { west: -93, south: 23, east: -83, north: 32 }, cols: 21, rows: 19, product_id: 'z6.5' };  // the z6.5 box
+  const BOX_1 = { ...FINE_GRID, bounds: { west: -96, south: 20, east: -79, north: 35 }, cols: 18, rows: 16, product_id: 'z5.5' };   // the z5.5 box
+  const CLIP_2 = { ...FINE_GRID, bounds: { west: -104, south: 12, east: -72, north: 42 }, cols: 17, rows: 16, product_id: 'clip' }; // its cold 2-deg clip
+  const setup = () => {
+    const { gl, deleted } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    engine.setWindData(gl, grid(WORLD_2DEG, 181, 84, 20));
+    expect(engine.setWindData(gl, grid(BOX_025, 21, 21, 60))).toBe('fine');
+    return { gl, engine, deleted };
+  };
+  const centre = (g) => g.vectors[Math.floor(g.rows / 2) * g.cols + Math.floor(g.cols / 2)];
+  beforeEach(() => { delete window.__WIND_TIER_MOSAIC__; });
+  afterEach(() => { delete window.__RAW_DISABLE_WIND_TIER_MOSAIC__; });
+
+  it('zoom out one tier: the 0.5-deg box is filed on the 0.25-deg lattice with the fine nodes inside it', () => {
+    const { gl, engine } = setup();
+    expect(engine.setWindData(gl, grid(BOX_05, 21, 19, 30))).toBe('fine');
+    const g = engine._windFine.windGrid;
+    expect(g.bounds).toEqual(BOX_05.bounds);                       // the whole incoming box is drawn
+    expect([g.cols, g.rows]).toEqual([41, 37]);                    // at the finer spacing
+    expect(g.__tierMosaic.kept).toEqual(BOX_025.bounds);
+    expect(centre(g).u).toBe(60);                                  // -88, 27.5: the fine box's own value
+    expect(g.vectors[0].u).toBe(30);                               // the corner: the incoming box's
+    expect(engine._maxWindSpeed).toBe(60);                         // the ramp still spans the storm
+    expect(window.__WIND_TIER_MOSAIC__.built).toBe(1);
+  });
+  it('POSITIVE CONTROL: the kill switch replaces the fine box again (the eye is redrawn from every 2nd node)', () => {
+    const { gl, engine } = setup();
+    window.__RAW_DISABLE_WIND_TIER_MOSAIC__ = true;
+    expect(engine.setWindData(gl, grid(BOX_05, 21, 19, 30))).toBe('fine');
+    expect(engine._windFine.windGrid.cols).toBe(21);
+    expect(engine._windFine.windGrid.__tierMosaic).toBeUndefined();
+    expect(centre(engine._windFine.windGrid).u).toBe(30);
+  });
+  it('the whole way out and back: 0.5 deg, 1 deg, the 2-deg clip, then 0.5 deg again, the fine nodes never leave', () => {
+    const { gl, engine } = setup();
+    engine.setWindData(gl, grid(BOX_05, 21, 19, 30));
+    expect(engine.setWindData(gl, grid(BOX_1, 18, 16, 20))).toBe('fine');
+    let g = engine._windFine.windGrid;
+    expect([g.cols, g.rows, g.__tierMosaic.outer.product_id, g.__tierMosaic.inner.product_id]).toEqual([69, 61, 'z5.5', 'z8']);
+    const before = engine._windFine;
+    expect(engine.setWindData(gl, grid(CLIP_2, 17, 16, 15))).toBe('noop_base_clip');   // #298 still holds over a mosaic
+    expect(engine._windFine).toBe(before);
+    expect(engine.setWindData(gl, grid(BOX_05, 21, 19, 30))).toBe('fine');              // zooming back in: finer than the 1-deg surround
+    g = engine._windFine.windGrid;
+    expect([g.cols, g.rows, g.__tierMosaic.outer.product_id]).toEqual([41, 37, 'z6.5']);
+    expect(centre(g).u).toBe(60);
+    expect(engine.setWindData(gl, grid(BOX_025, 21, 21, 60))).toBe('fine');             // and to the fine box itself: plain again
+    expect(engine._windFine.windGrid.__tierMosaic).toBeUndefined();
+  });
+  it('NO-OP GUARD: the same served box arriving again over its own mosaic touches no GL state', () => {
+    const { gl, engine, deleted } = setup();
+    engine.setWindData(gl, grid(BOX_05, 21, 19, 30));
+    const held = engine._windFine, n = deleted.length;
+    expect(engine.setWindData(gl, grid(BOX_05, 21, 19, 30))).toBe('noop');
+    expect(engine._windFine).toBe(held);
+    expect(deleted.length).toBe(n);
+  });
+  it('"inside the fine box" is judged on the truly fine box, not on the mosaic\'s rim', () => {
+    const { gl, engine } = setup();
+    engine.setWindData(gl, grid(BOX_1, 18, 16, 20));
+    const held = engine._windFine;
+    const inside = { ...FINE_GRID, bounds: { west: -89, south: 26, east: -86, north: 29 }, cols: 7, rows: 7 };          // 0.5 deg, inside the 0.25-deg box
+    expect(engine.setWindData(gl, grid(inside, 7, 7, 30))).toBe('noop_coarser_than_fine');
+    expect(engine._windFine).toBe(held);
+    expect(engine.setWindData(gl, grid(BOX_05, 21, 19, 30))).toBe('fine');                                               // inside the mosaic, wider than the fine box
+    expect(engine._windFine.windGrid.__tierMosaic.outer.product_id).toBe('z6.5');
+  });
+  // Review finding (2026-10-10): with a mosaic resident, "coarser" was measured against the mosaic's fine lattice and
+  // "inside" against the fine box only, so the pre-mosaic rule (coarser than the SERVED box and inside it) was lost.
+  it('NEVER DOWNGRADE the served surround: a grid coarser than the served box and inside it is still a no-op', () => {
+    const { gl, engine } = setup();
+    engine.setWindData(gl, grid(BOX_05, 21, 19, 30));                                                                     // mosaic: 0.5-deg surround
+    const held = engine._windFine;
+    const oneInside = { ...FINE_GRID, bounds: { west: -92, south: 24, east: -84, north: 31 }, cols: 9, rows: 8 };         // 1 deg, inside the 0.5-deg box, wider than the fine one
+    expect(engine.setWindData(gl, grid(oneInside, 9, 8, 20))).toBe('noop_coarser_than_fine');
+    expect(engine._windFine).toBe(held);
+    window.__RAW_DISABLE_WIND_TIER_MOSAIC__ = true;                                                                       // the old engine agreed
+    const old = setup();
+    old.engine.setWindData(old.gl, grid(BOX_05, 21, 19, 30));
+    expect(old.engine.setWindData(old.gl, grid(oneInside, 9, 8, 20))).toBe('noop_coarser_than_fine');
+  });
+  it('the 2026-10-08 live case over a mosaic: a 2-deg mid clip inside the served box, under a 10-deg world base', () => {
+    const { gl } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    engine.setWindData(gl, grid(GLOBAL_GRID, 37, 17, 20));                                                                // 10 deg: #298's clip rule does not apply
+    engine.setWindData(gl, grid(BOX_025, 21, 21, 60));
+    engine.setWindData(gl, grid(BOX_05, 21, 19, 30));
+    const held = engine._windFine;
+    const midClip = { ...FINE_GRID, bounds: { west: -92, south: 24, east: -84, north: 30 }, cols: 5, rows: 4 };            // 2 deg
+    expect(engine.setWindData(gl, grid(midClip, 5, 4, 15))).toBe('noop_coarser_than_fine');
+    expect(engine._windFine).toBe(held);
+  });
+  it('"inside the fine nodes" means the nodes the mosaic KEPT: a fine box that hangs outside the surround does not veto there', () => {
+    const { gl, engine } = setup();                                                                                       // fine: -90..-85 / 25..30
+    const shifted = { ...FINE_GRID, bounds: { west: -88, south: 27, east: -78, north: 36 }, cols: 21, rows: 19 };          // 0.5 deg; keeps -88..-85 / 27..30 only
+    engine.setWindData(gl, grid(shifted, 21, 19, 30));
+    expect(engine._windFine.windGrid.__tierMosaic.kept).toEqual({ west: -88, south: 27, east: -85, north: 30 });
+    const back = { ...FINE_GRID, bounds: { west: -90, south: 25, east: -85, north: 30 }, cols: 11, rows: 11 };             // 0.5 deg on the fine box's own bounds
+    expect(engine.setWindData(gl, grid(back, 11, 11, 30))).toBe('fine');                                                  // not a no-op: the mosaic draws nothing west of -88
+    expect(engine._windFine.windGrid.bounds).toEqual(back.bounds);
+    expect(centre(engine._windFine.windGrid).u).toBe(60);                                                                 // and the fine nodes come back with it
+  });
+  it('another hour, or a box the fine one has left, files plain as before', () => {
+    const a = setup();
+    expect(a.engine.setWindData(a.gl, grid({ ...BOX_05, hourOffset: 3, valid_time: '2026-07-19T15:00:00Z' }, 21, 19, 30))).toBe('base');
+    const b = setup();
+    const away = { ...FINE_GRID, bounds: { west: -80, south: 10, east: -70, north: 20 }, cols: 11, rows: 11 };
+    expect(b.engine.setWindData(b.gl, grid(away, 11, 11, 30))).toBe('fine');
+    expect(b.engine._windFine.windGrid.__tierMosaic).toBeUndefined();
+    expect(b.engine._windFine.windGrid.cols).toBe(11);
   });
 });
 
