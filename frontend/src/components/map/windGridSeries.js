@@ -118,7 +118,67 @@ function pageKey(model, bounds, page) {
   return `${model || 'GFS'}_${viewportKey(bounds)}_p${page}${seriesAnchorTag()}${windLaneTag()}`;
 }
 
-function scheduleIdlePrefetch(fn) {
+// ── LATEST VIEW OWNS THE SERIES WORK (2026-10-10, the Gulf pan that read /api/health at 10-13 s) ──────
+// Measured from the Render request log (one client, 00:04-00:07Z): every settled pan sent a mini
+// plus TWO 48-frame pages (hours 0..141 and 144..285) for a fresh unsnapped box, ~20 s of the 1-CPU
+// box each, and nothing ever cancelled the previous pan's work, because the warm effect's one
+// AbortController is only aborted on a model change. On the server a new box starts a 16-day
+// upstream fetch and CANCELS the single background build for the model/domain, so a stale pan's
+// far-page prefetch restarted work the user had already moved away from.
+//
+// Two rules, nothing else changed (the request box is byte-identical: the server's resolution is a
+// STEP function of the snapped area, so touching the box would move served values):
+//   1. SUPERSEDE: work carries the signal of the view that asked for it (windSeriesWork), and
+//      every entry point refuses an already-aborted signal.
+//   2. DWELL: the adjacent page (a scrub convenience, not what is on screen) is prefetched only
+//      after the view has stayed put, and dies with the view. A scrub still prewarms every page
+//      (prewarmWindSeries), so the 14-day scrubber is never capped.
+// Kill: window.__RAW_DISABLE_WIND_SERIES_SUPERSEDE__ = true restores the previous behaviour exactly.
+export function windSeriesSupersedeEnabled() {
+  return !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SERIES_SUPERSEDE__ === true);
+}
+
+// The identity of a view's series work: page 0's key (model, anchor, lane, snapped viewport).
+// Any wide view collapses to the one 'global' key, so world work is shared and never aborted by pans.
+export function windSeriesViewportIdentity(model, bounds) {
+  return pageKey(model, bounds, 0);
+}
+
+function callerAborted(signal) {
+  return windSeriesSupersedeEnabled() && !!(signal && signal.aborted);
+}
+
+// How long a view must stay put before its adjacent page is prefetched. Chosen from the live trace:
+// pans arrived 5, 77, 51 s apart and a cold page takes ~20 s, so 30 s after page 0 lands skips the
+// pans of an exploring user and still warms the page for one who stops to look. Tunable per session.
+const WIND_ADJACENT_DWELL_MS = 30000;
+function adjacentDwellMs() {
+  const o = typeof window !== 'undefined' ? window.__WIND_SERIES_ADJ_DWELL_MS__ : undefined;
+  return Number.isFinite(o) && o >= 0 ? o : WIND_ADJACENT_DWELL_MS;
+}
+const _pendingAdjacent = new Map();   // pageKey -> { timer, signal, onAbort }
+
+function clearPendingAdjacent(key) {
+  const e = _pendingAdjacent.get(key);
+  if (!e) return;
+  clearTimeout(e.timer);
+  if (e.signal && e.onAbort) { try { e.signal.removeEventListener('abort', e.onAbort); } catch (err) { /* ignore */ } }
+  _pendingAdjacent.delete(key);
+}
+
+function scheduleIdlePrefetch(fn, key, signal) {
+  if (windSeriesSupersedeEnabled()) {
+    // Dwell, deduped per page, cancelled with the view that scheduled it.
+    if (_pendingAdjacent.has(key) || callerAborted(signal)) return;
+    const entry = { signal, onAbort: () => clearPendingAdjacent(key) };
+    entry.timer = setTimeout(() => {
+      clearPendingAdjacent(key);
+      if (!callerAborted(signal)) fn();
+    }, adjacentDwellMs());
+    _pendingAdjacent.set(key, entry);
+    if (signal) { try { signal.addEventListener('abort', entry.onAbort, { once: true }); } catch (e) { /* ignore */ } }
+    return;
+  }
   if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
     const id = window.requestIdleCallback(() => { _idleTimers.delete(id); fn(); }, { timeout: 2500 });
     _idleTimers.add(id);
@@ -174,6 +234,9 @@ function frameToWindData(frame, model) {
 
 async function loadSeriesPage(model, bounds, page, signal) {
   if (!isWindSeriesEnabled() || !bounds || page < 0 || page > LAST_PAGE) return;
+  // A view that has already been superseded asks for nothing: addEventListener('abort') below never
+  // fires for a signal that is aborted before it is attached, so without this the fetch went out.
+  if (callerAborted(signal)) return;
   const key = pageKey(model, bounds, page);
   const existing = _seriesCache.get(key);
   if (existing && Date.now() - existing.ts < SERIES_TTL_MS) return;
@@ -261,6 +324,7 @@ async function loadSeriesPage(model, bounds, page, signal) {
 async function loadWindSeriesHour0(model, bounds, hourOffset, signal) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_HOUR0_FIRST__ === true) return;
   if (!isWindSeriesEnabled() || !bounds) return;
+  if (callerAborted(signal)) return;
   const page = windSeriesPageForHour(hourOffset);
   const h0key = `${pageKey(model, bounds, page)}_h0`;
   const existing = _seriesCache.get(h0key);
@@ -302,7 +366,7 @@ async function loadWindSeriesHour0(model, bounds, hourOffset, signal) {
 }
 
 export async function ensureWindSeries(model, bounds, hourOffset = 0, signal) {
-  if (!isWindSeriesEnabled() || !bounds) return;
+  if (!isWindSeriesEnabled() || !bounds || callerAborted(signal)) return;
   const page = windSeriesPageForHour(hourOffset);
   // Race the mini ahead of the page when the page is COLD. Fire-and-forget: it must not delay the
   // page load it exists to beat, and a warm page needs no first-paint shortcut.
@@ -312,12 +376,20 @@ export async function ensureWindSeries(model, bounds, hourOffset = 0, signal) {
     loadWindSeriesHour0(model, bounds, hourOffset, signal);
   }
   await loadSeriesPage(model, bounds, page, signal);
+  if (windSeriesSupersedeEnabled()) {
+    // loadSeriesPage returns AT ONCE when this page is already in flight (the mount kick and the first
+    // moveend are two calls for one view). Wait for that flight, so the adjacent page's dwell is
+    // measured from page 0 landing for every caller, and a view that was left meanwhile asks for nothing.
+    const flying = _inFlight.get(pk);
+    if (flying) { try { await flying; } catch (e) { /* the flight settles quietly */ } }
+    if (callerAborted(signal)) return;
+  }
   for (const adj of [page + 1, page - 1]) {
     if (adj < 0 || adj > LAST_PAGE) continue;
     const k = pageKey(model, bounds, adj);
     const cached = _seriesCache.get(k);
     if ((cached && Date.now() - cached.ts < SERIES_TTL_MS) || _inFlight.has(k)) continue;
-    scheduleIdlePrefetch(() => { loadSeriesPage(model, bounds, adj, signal); });
+    scheduleIdlePrefetch(() => { loadSeriesPage(model, bounds, adj, signal); }, k, signal);
   }
 }
 
@@ -327,7 +399,7 @@ export async function ensureWindSeries(model, bounds, hourOffset = 0, signal) {
  * prefetch never runs during active scrubbing). Fire-and-forget; deduped + TTL'd.
  */
 export function prewarmWindSeries(model, bounds, signal) {
-  if (!isWindSeriesEnabled() || !bounds) return;
+  if (!isWindSeriesEnabled() || !bounds || callerAborted(signal)) return;
   for (let page = 0; page <= LAST_PAGE; page++) {
     loadSeriesPage(model, bounds, page, signal);
   }
@@ -373,6 +445,7 @@ export function _resetWindSeriesForTest() {
     try { clearTimeout(id); if (typeof window !== 'undefined' && window.cancelIdleCallback) window.cancelIdleCallback(id); } catch (e) { /* ignore */ }
   }
   _idleTimers.clear();
+  for (const k of Array.from(_pendingAdjacent.keys())) clearPendingAdjacent(k);
   _windActiveLoads = 0;
   _windWaiters.length = 0;
 }

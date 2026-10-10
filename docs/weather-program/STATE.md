@@ -14,6 +14,22 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-10 01:5xZ: a small wind pan re-requested the whole 14-day timeline and the box read /api/health at 10-13 s
+  (client fix built; PR #300 to dev).** Render request log, 00:04-00:07Z, one client: every settled pan sent a mini plus two
+  48-frame pages (hours 0..141 and 144..285) for a fresh unsnapped box, ~20 s of the 1-CPU box each, and nothing
+  cancelled the previous pan's work (the warm effect's one `AbortController` was only aborted on a model change).
+  - **Server amplifier (NOT fixed):** for wind GFS every fresh box starts a 16-day upstream fetch and a serial
+    background build of all its hours, in ONE slot per model/domain that the next box cancels (`Canceling stale
+    background task for gfs_wind`, 5 times in 6 minutes). A cold 48-frame page needs ~24 s against a 20 s deadline, so
+    its tail times out by construction. Bounding that build is the larger follow-up; `/grid` and the series lane also
+    send DIFFERENT boxes for one pan (a second fetch), which can flip the 0.5°/1° resolution step, so it ships dark.
+  - **Fix (client only, on):** the latest regional view owns the series work (`windSeriesWarm.js`, sharing marine's
+    intent factory), and the adjacent page waits for a 30 s rest. Scrub start still loads every page (the 14-day
+    scrubber is not capped); the request box is byte-identical. Offline replay of the logged views: 582 -> 486 frames
+    requested (288 -> 192 far-hour); eight fast pans 776 -> 440 requested, 661 -> 237 built. Kill
+    `__RAW_DISABLE_WIND_SERIES_SUPERSEDE__`. Log `log/2026-10-10-wind-series-supersede.md`; LESSONS L-P29. Live
+    read-back owed (ledger seq 989).
+
 - **2026-10-10 01:1xZ: CORRECTION. The basemap mute (#296) never ran in the app; the fix is PR #299 (client only).**
   - **What the owner's console showed** (live dev, build `0f73e2fb`): `window.__WIND_BASEMAP_MUTE__` =
     `{ applied: true, layers: 0 }`. Nothing was muted. My claim below ("the basemap is muted under the wind") was false
@@ -1670,7 +1686,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 987, sha256 0ecebc91c83933b84608564ef21151f16fff42fc59319983c7512c399dfa28aa**
+  **Ledger head: seq 990, sha256 4de45911f73e681c81956dce3322ad4c06703d60ab48ec31f7d0edd316f14eff**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
