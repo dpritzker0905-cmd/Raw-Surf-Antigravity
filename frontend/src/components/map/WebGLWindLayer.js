@@ -84,6 +84,7 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
           }
         }
         // Convert Float64Array → Float32Array for gl.uniformMatrix4fv compatibility
+        var _matrix64 = _matrix;   // kept whole for the trail buffer's camera (windTrailAnchor.js): pixel-exact at any zoom
         if (_matrix && _matrix instanceof Float64Array) {
           _matrix = new Float32Array(_matrix);
         }
@@ -169,6 +170,7 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
           // Fallback: global bounds
         }
 
+        engine._trailMatrix = _matrix64 || _matrix;
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, worldOffsets, viewportBounds);
       } catch (e) {
         errorCount++;

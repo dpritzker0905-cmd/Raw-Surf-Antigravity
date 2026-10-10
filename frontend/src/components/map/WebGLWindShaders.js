@@ -2,7 +2,7 @@
  * WebGLWindShaders.js
  * GPU-native shaders for raw wind particle simulation.
  */
-import { GLSL_PT_REG } from './gridPointRegistration';
+import { GLSL_PT_REG } from './gridPointRegistration'; import { GLSL_TRAIL_UV } from './windTrailAnchor';
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -392,7 +392,7 @@ varying float v_alpha;
 varying vec4 v_debug_color;
 varying vec2 v_dir;              // 2026-07-18: screen-space wind direction — the mark is ORIENTED
 uniform float u_v2_density; uniform float u_v2_motion; uniform float u_v2_keep; uniform vec4 u_v2_speedkeep; uniform float u_v2_px_per_kn; uniform float u_v2_speed_max; uniform float u_v2_gamma; varying float v_stretch; // PARTICLES V2
-uniform float u_dash_thin; uniform float u_dash_min_css; varying float v_thin; // close-zoom thin marks: narrowing, width floor (css px), this mark's share (WebGLWindUtils WIND_CLOSE_THIN)
+uniform float u_trail_dk; uniform float u_dash_thin; uniform float u_dash_min_css; varying float v_thin; // close-zoom thin marks: narrowing, width floor (css px), this mark's share (WebGLWindUtils WIND_CLOSE_THIN)
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
@@ -662,6 +662,7 @@ void main() {
   v_stretch = 1.0; // V2: stretch the mark along the flow by its own per-frame step, so the stamps join into a streak
   if (u_v2_motion > 0.5 && gl_PointSize > 0.0) { float stepPx = v_speed * u_v2_px_per_kn * pow(clamp(v_speed / max(u_v2_speed_max, 1.0), 0.02, 1.0), u_v2_gamma - 1.0) * max(u_dpr, 1.0);
     v_stretch = (gl_PointSize + stepPx) / gl_PointSize; gl_PointSize += stepPx; }
+  gl_PointSize *= 1.0 + u_trail_dk; // TRAILS ANCHORED TO THE MAP: the mark at the trail buffer's own scale (0 = the screen's; windTrailAnchor.js)
   // Debug mode colors
   if (u_debug_mode > 0.5) {
     if (u_debug_mode < 5.5) v_debug_color = vec4(uv.x, uv.y, 0.0, 1.0);
@@ -1000,27 +1001,26 @@ void main() {
 }`;
 
 export const SCREEN_FS = `
-precision mediump float;
+${GLSL_TRAIL_UV}
 uniform sampler2D u_screen;
 uniform float u_opacity;
 uniform float u_premul;          // V2 theme: premultiplied trails (dark marks show)
 varying vec2 v_uv;
 void main() {
-  vec4 color = texture2D(u_screen, v_uv);
-  // v3.12.2: FBO uses RGB-fade (alpha=1.0), so derive alpha from brightness.
-  // Black = transparent, bright = opaque. Creates proper vapor trail effect.
+  vec4 color = trailTexel(u_screen, v_uv);   // through the trail buffer's camera (windTrailAnchor.js)
+  // v3.12.2: FBO uses RGB-fade (alpha=1.0), so derive alpha from brightness: black = transparent, bright = opaque.
   float brightness = max(color.r, max(color.g, color.b));
   gl_FragColor = u_premul > 0.5 ? color * u_opacity : vec4(color.rgb, brightness * u_opacity);
 }`;
 
 export const FADE_FS = `
-precision mediump float;
+${GLSL_TRAIL_UV}
 uniform sampler2D u_screen;
 uniform float u_fade;
 uniform float u_premul;          // V2 theme: fade RGBA together (premultiplied)
 varying vec2 v_uv;
 void main() {
-  vec4 color = texture2D(u_screen, v_uv);
+  vec4 color = trailTexel(u_screen, v_uv);   // yesterday's ink, moved with the map (windTrailAnchor.js)
   // v3.12.2 CRITICAL FIX: Fade RGB, keep alpha=1.0 (mapbox/webgl-wind technique).
   // Fading alpha causes compound decay invisible trails.
   // Fading RGB creates visible dimming premultiplied blend makes black = transparent.
