@@ -12,6 +12,7 @@
  *   node scripts/wind-bench/path-run.js --bare                            # the basemap alone, without the app's own layers
  *   node scripts/wind-bench/path-run.js --mute-check                      # the mute alone: round trip, then satellite on / off
  *   node scripts/wind-bench/path-run.js --flow                            # do the streaks run along the wind while the camera moves?
+ *   node scripts/wind-bench/path-run.js --flow --hash-all --json a.json   # hash the trail buffer at EVERY sample (to compare two engines exactly)
  *
  * Needs REACT_APP_MAPBOX_TOKEN like map-run.js (environment or frontend/.env; passed to the page in memory, never written
  * or printed). Tiles come from Mapbox; the wind comes from the served-grid fixture, so the backend is never called.
@@ -80,6 +81,7 @@ function parseArgs(argv) {
     else if (a === '--sheet') opts.sheet = path.resolve(val());
     else if (a === '--field') opts.field = true;
     else if (a === '--flow') opts.flow = true;
+    else if (a === '--hash-all') opts.hashAll = true;
     else if (a === '--bare') opts.bare = true;
     else if (a === '--mute-check') opts.muteCheck = true;
     else throw new Error(`unknown option ${a}`);
@@ -165,7 +167,7 @@ async function flowMode(page, opts, label) {
         const frames = pathFrames(name, seed), samples = sampleIndexes(frames.length, opts.every), kinds = motionOf(frames, samples);
         for (const [arm, levers] of Object.entries(opts.arms)) {
           const t0 = Date.now();
-          const res = await page.evaluate((c) => window.__MAP_BENCH__.flowRun(c), { theme, frames, samples, res: opts.res, seed, levers, warm: 120, shots: true, hashBefore: motionOf(frames, frames.map((_, i) => i)).indexOf('move') });
+          const res = await page.evaluate((c) => window.__MAP_BENCH__.flowRun(c), { theme, frames, samples, res: opts.res, seed, levers, warm: 120, shots: true, hashBefore: opts.hashAll ? frames.length : motionOf(frames, frames.map((_, i) => i)).indexOf('move') });
           if (res.glError) throw new Error(`GL error ${res.glError} at ${theme} ${name} ${arm}`);
           const sum = summarizeFlow(res.rows, kinds), modes = res.anchor ? Object.entries(res.anchor.modes).map(([k, v]) => `${k} ${v}`).join(', ') : 'no read-back (an engine without the anchor)';
           console.log(`${theme.padEnd(6)} ${name.padEnd(8)} ${arm.padEnd(9)} ${String(seed).padStart(4)} | ${f3(sum.rest)}  ${f3(sum.move)} (${f3(sum.move10)})  ${f3(sum.settle)} | ${String(sum.blocks).padStart(6)} ${String(sum.miss).padStart(4)} | ${modes}  [${((Date.now() - t0) / 1000).toFixed(0)} s]`);
@@ -181,7 +183,8 @@ async function flowMode(page, opts, label) {
     if (!s) continue;
     pairs++;
     const where = `${a.theme} ${a.path}${a.path === 'erratic' ? ' ' + a.seed : ''}`;
-    const before = a.rows.map((r, n) => n).filter((n) => a.rows[n].hash != null && s.rows[n].hash != null);
+    const firstMove = a.kinds.indexOf('move');
+    const before = a.rows.map((r, n) => n).filter((n) => (firstMove < 0 || n < firstMove) && a.rows[n].hash != null && s.rows[n].hash != null);
     const same = before.filter((n) => a.rows[n].hash === s.rows[n].hash).length;
     same0 += same; before0 += before.length;
     const v = flowVerdict(a.path, a.sum, s.sum, same, before.length);
