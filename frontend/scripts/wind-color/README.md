@@ -34,7 +34,12 @@ node check.mjs --theme light    # one theme
 node check.mjs --strict         # exit 1 on any RED line (for CI)
 node check.mjs --no-mute        # the unmuted basemap (the kill switch's picture)
 node check.mjs --mute-amount 0.7 --water-l 0.95   # explore other mute settings (the app's lever values)
+node check.mjs --look moderate  # light's look A/B (window.__RAW_WIND_LIGHT_LOOK__: moderate | deep | ink)
 ```
+
+`--look` resolves the field and the marks as the app does with that lever set (`resolveFieldRamp`, `resolveMarkRamp` in
+`WindColorRamp.js`); the legend never moves. A look that gives the marks their own colours adds a watch line for them (normal vision
+and colour-blind), never a red one: the streaks' separation has never been a gate.
 
 ## What it reports, per theme
 
@@ -47,7 +52,7 @@ node check.mjs --mute-amount 0.7 --water-l 0.95   # explore other mute settings 
 | speeds < 20° off the water hue | Speeds whose tint reads as "more water" (unmuted map only: a grey ground has no hue to hide in) | ≤ 2 kn wide; a violet → green ramp must cross a cyan water's hue once |
 | speeds > 30° off the legend's own hue | Speeds whose tint the ground bends into another band's colour (a 33 kn gold multiplied into cyan water came out green). The path bench's `hue30` asks the same of real frames | ≤ 2 kn |
 | speed-colour core vs its tint | The streak's ~1 px colour core against the tint it sits on. Watch item only: the white ring carries the motion | \|ΔL*\| ≥ 3 |
-| colour-blind | Neighbouring legend stops and neighbouring tints over water, via coloraide (Viénot protan/deutan, Brettel tritan) | ≥ 5 ΔE2000 |
+| colour-blind | Neighbouring legend stops, and neighbouring tints over water and (light and beach) land, via coloraide (Viénot protan/deutan, Brettel tritan). The land line is new on 2026-10-10: the muted ground is two grounds | ≥ 5 ΔE2000 |
 
 The checker does not run in CI. `src/components/map/windPaletteCvd.test.js` pins the colour-blind lines there with a JS
 port of coloraide's models, anchored to coloraide's output. Since 2026-10-10 light's tint reaches the floor on the

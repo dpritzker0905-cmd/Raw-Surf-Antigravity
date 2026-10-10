@@ -10,6 +10,8 @@
  *
  * Needs REACT_APP_MAPBOX_TOKEN (the app's public token) in the environment or in frontend/.env. The runner passes it to
  * the page in memory; it is never written to disk or printed. Tiles come from Mapbox (a few hundred requests per run).
+ * --offline: no token and no network; a synthetic basemap (each theme's measured land and water, a rough coast, a road lattice;
+ * map-entry.js OFFLINE). Compare arms within one offline run, not its numbers with a Mapbox run.
  * View: Mobile Bay (the owner's 2026-10-09 report), ~300 km north of the 15Z Gulf eye; the grid is the served GFS
  * native product (fixtures/eye-2026-10-09-gfs-native.json, 0.25 deg, -90..-78 / 25..32) over a 2-deg world base.
  *
@@ -57,6 +59,7 @@ function parseArgs(argv) {
     else if (a === '--crop') { const [size, fmt] = val().split(':'); opts.crop = [...size.split('x').map(Number), fmt === 'jpeg' ? 'jpeg' : 'png']; }   // WxH[:jpeg] device px: a centre crop of every shot, pixel for pixel
     else if (a === '--lng') opts.lng = Number(val());
     else if (a === '--lat') opts.lat = Number(val());
+    else if (a === '--offline') opts.offline = true;
     else throw new Error(`unknown option ${a}`);
   }
   return opts;
@@ -86,8 +89,8 @@ figure{margin:0 16px 14px}figure img{width:448px;margin-right:4px}figcaption{mar
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
-  const token = readToken();
-  if (!token) throw new Error('REACT_APP_MAPBOX_TOKEN not found (environment or frontend/.env)');
+  const token = opts.offline ? '' : readToken();
+  if (!token && !opts.offline) throw new Error('REACT_APP_MAPBOX_TOKEN not found (environment or frontend/.env); --offline runs on a synthetic basemap');
   const source = engineSource(opts.ref, path.join(opts.out, 'cache'));
   const built = await buildBench({ srcRoot: source.srcRoot, outDir: path.join(opts.out, opts.tag), page: 'map' });
   console.log(`engine: ${source.label} · bundle ${(built.bytes / 1024).toFixed(0)} KiB · arms ${Object.keys(opts.arms).join(', ')}`);
@@ -102,8 +105,8 @@ async function main() {
     await page.goto(`http://127.0.0.1:${server.address().port}/${opts.tag}/map.html`);
     await page.waitForFunction(() => window.__MAP_BENCH__ && window.__MAP_BENCH__.ready);
     const fine = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'eye-2026-10-09-gfs-native.json'), 'utf8'));
-    const info = await page.evaluate((fx) => window.__MAP_BENCH__.init({ fine: fx.fine, scale: fx.scale }), { fine, scale: opts.scale });
-    console.log(`maplibre ${await page.evaluate(() => window.__MAP_BENCH__.maplibre)} · served grid ${info.fine} x${opts.scale} · view ${VIEW.lng},${VIEW.lat}\n`);
+    const info = await page.evaluate((fx) => window.__MAP_BENCH__.init({ fine: fx.fine, scale: fx.scale, offline: fx.offline }), { fine, scale: opts.scale, offline: !!opts.offline });
+    console.log(`maplibre ${await page.evaluate(() => window.__MAP_BENCH__.maplibre)} · served grid ${info.fine} x${opts.scale} · view ${VIEW.lng},${VIEW.lat}${opts.offline ? ' · OFFLINE synthetic basemap' : ''}\n`);
     console.log('theme  z    arm    | LAND retF  retP  pLoss lostP 3:1F  3:1P  gsP    sal | WATER retF retP  pLoss lostP 3:1F  3:1P  gsP    sal');
     for (const theme of opts.themes) {
       for (const z of opts.zooms) {

@@ -52,6 +52,10 @@ const CONTROL_VARIANTS = Object.freeze({
 const LEVER_VARIANTS = Object.freeze({
   glow: { label: 'glow (dark\'s pipeline on the light grounds)', levers: { __RAW_WIND_GLOW__: true } },
   ink: { label: 'ink (the mirror: multiplied into the map)', levers: { __RAW_WIND_INK__: true } },
+  // Light's look A/B (WindColorRamp.js windLightLook): light only; the other themes draw as the engine is written.
+  'light-moderate': { label: 'light look A, moderate (deeper field + dark\'s streak method)', levers: { __RAW_WIND_LIGHT_LOOK__: 'moderate' } },
+  'light-deep': { label: 'light look A, deep', levers: { __RAW_WIND_LIGHT_LOOK__: 'deep' } },
+  'light-ink': { label: 'light look B (ink, own warm colours, cover cap)', levers: { __RAW_WIND_LIGHT_LOOK__: 'ink' } },
 });
 /** Every variant a configuration may name (the matrix's own, the control's, then the named candidates). */
 const ALL_VARIANTS = Object.freeze({ ...VARIANTS, ...CONTROL_VARIANTS, ...LEVER_VARIANTS });

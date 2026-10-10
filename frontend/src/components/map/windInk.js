@@ -55,9 +55,28 @@
  *         Ink wins when both are set.
  * Kills:  window.__RAW_DISABLE_WIND_INK__, window.__RAW_DISABLE_WIND_GLOW__. Read at every frame; a change of model
  *         clears the trail buffers once.
+ *
+ * LIGHT'S LOOK, AN A/B (window.__RAW_WIND_LIGHT_LOOK__, default off; WindColorRamp.js holds the colours and the full comment). Light
+ * only, and it wins over the glow and ink levers there. 'moderate' and 'deep' (A) draw dark's streak method over a deeper field, with
+ * the streak colours already at full brightness (white 0: the field's own hue, lifted); 'ink' (B) draws ink over today's field with a
+ * strength CAP where the marks cover most of the ground: SCREEN_FS reads how much of a ~11 device-px neighbourhood holds ink and eases
+ * the ink's strength to `cap` times itself from 40% to 85% cover (GLSL_INK_COVER). Isolated streaks keep their full strength; a
+ * carpet of them over warm-band water no longer takes the sea from L* 52 to 29. Sub-levers as above (opacity, ring, white, spine) and
+ * __RAW_WIND_INK_CAP__ (0.1-1). Kill: window.__RAW_DISABLE_WIND_LIGHT_LOOK__.
  */
+import { windLightLook } from './WindColorRamp';
 
 const OFF = Object.freeze({ mode: 0, on: false, glow: false, opacity: 0, spine: 0, purity: 0, density: 1, white: 0 });
+
+// The marks of each light look (bench-tuned, log 2026-10-10-light-look-ab). A: dark's streak method (mode 2) over the deeper field. Map
+// bench, offline basemap, z6, served strength, over land: moderate at opacity 1.0 sat on the wash line (the picture ended at L* 71.1 with
+// no darker pixel; WASH_BAR, scripts/wind-bench/style.js), at 0.8 it ends at 69.9 with streaks +10.5 L* over the field (dark's band is
+// +9.5 to +14.5); deep at 1.0 ends at 65.0 with +13.0. A ring of 0.25 (dark's is 1, beach's 0.35) keeps more of the streak's colour.
+export const WIND_LIGHT_LOOK = Object.freeze({
+  moderate: Object.freeze({ mode: 2, opacity: 0.8, ring: 0.25, white: 0 }),
+  deep: Object.freeze({ mode: 2, opacity: 1.0, ring: 0.25, white: 0 }),
+  ink: Object.freeze({ mode: 1, opacity: 0.9, spine: 0, cap: 0.5 }),
+});
 
 export const WIND_INK = Object.freeze({
   themes: Object.freeze([]),                                  // default off: the owner picks from the A/B first
@@ -96,6 +115,8 @@ const inRange = (v, lo, hi) => typeof v === 'number' && v >= lo && v <= hi;
 export function windInk(theme, v2, win = (typeof window !== 'undefined' ? window : null)) {
   const w = win || {};
   if (!v2 || v2.theme || theme === 'dark') return OFF;
+  const look = theme === 'light' ? windLightLook(w) : null;
+  if (look) return lookMarks(WIND_LIGHT_LOOK[look], w);
   if (w.__RAW_DISABLE_WIND_INK__ !== true && themesOf(w.__RAW_WIND_INK__, WIND_INK.themes).includes(theme)) {
     const op = w.__RAW_WIND_INK_OPACITY__, sp = w.__RAW_WIND_INK_SPINE__, pu = w.__RAW_WIND_INK_PURITY__, de = w.__RAW_WIND_INK_DENSITY__;
     return { mode: 1, on: true, glow: false, white: 0,
@@ -108,6 +129,18 @@ export function windInk(theme, v2, win = (typeof window !== 'undefined' ? window
       opacity: inRange(op, 0.1, 1) ? op : (WIND_GLOW.opacity[theme] || 0.6), white: inRange(wh, 0, 1) ? wh : perTheme(WIND_GLOW.white, theme) };
   }
   return OFF;
+}
+
+/** A light look's marks, with the glow / ink sub-levers honoured (the bench tunes through them). */
+function lookMarks(k, w) {
+  if (k.mode === 1) {
+    const op = w.__RAW_WIND_INK_OPACITY__, sp = w.__RAW_WIND_INK_SPINE__, cap = w.__RAW_WIND_INK_CAP__;
+    return { mode: 1, on: true, glow: false, white: 0, purity: 0, density: 1, opacity: inRange(op, 0.1, 1) ? op : k.opacity,
+      spine: inRange(sp, 0, 1) ? sp : k.spine, cap: inRange(cap, 0.1, 1) ? cap : k.cap };
+  }
+  const op = w.__RAW_WIND_GLOW_OPACITY__, wh = w.__RAW_WIND_GLOW_WHITE__, ri = w.__RAW_WIND_GLOW_RING__;
+  return { mode: 2, on: false, glow: true, purity: 0, density: 1, opacity: inRange(op, 0.1, 1) ? op : k.opacity,
+    spine: inRange(ri, 0, 1) ? ri : k.ring, white: inRange(wh, 0, 1) ? wh : k.white };
 }
 
 /** Clear both trail buffers to "nothing drawn": white paper for ink, transparent black for light (dark, glow, premultiplied). */
@@ -139,6 +172,36 @@ vec3 inkOf(vec3 c) {
 vec3 glowOf(vec3 c) {
   return mix(c / max(max(c.r, c.g), max(c.b, 0.001)), vec3(1.0), u_ink_k.z - 1.0);
 }`;
+
+/**
+ * Ink's strength cap where its marks cover most of the ground, for SCREEN_FS (after GLSL_TRAIL_UV, whose v_uv and u_trail_d it reads).
+ * 16 taps on two rings (5 and 11 device px) round the pixel, through the trail buffer's camera: the share that holds ink (1 - its
+ * darkest channel, the one the ink absorbs most, > 0.12; a tap outside the buffer is blank paper, as trailTexel reads it) eases the
+ * strength from 1 to u_ink_cap between 40% and 85% cover. u_ink_cap >= 1 (every other model, and the buffer copy) returns 1 before any
+ * fetch.
+ */
+export const GLSL_INK_COVER = `uniform float u_ink_cap;   // < 1: ink's strength where its marks cover most of the ground (windInk.js); 1 = no cap
+uniform vec2 u_ink_px;     // one trail-buffer pixel, in uv
+float inkCapOf(sampler2D tex) {
+  if (u_ink_cap > 0.999) return 1.0;
+  TRAIL_HP vec3 q = vec3(v_uv, 1.0) + u_trail_d * vec3(v_uv, 1.0);
+  TRAIL_HP vec2 p = q.xy / q.z;
+  float n = 0.0;
+  for (int i = 0; i < 16; i++) {
+    float a = float(i) * 0.3927, r = mod(float(i), 2.0) < 0.5 ? 5.0 : 11.0;
+    vec2 o = p + vec2(cos(a), sin(a)) * r * u_ink_px;
+    vec3 c = texture2D(tex, o).rgb;
+    n += step(0.12, 1.0 - min(c.r, min(c.g, c.b))) * step(0.0, o.x) * step(o.x, 1.0) * step(0.0, o.y) * step(o.y, 1.0);
+  }
+  return mix(1.0, u_ink_cap, smoothstep(0.4, 0.85, n / 16.0));
+}`;
+
+/** GLSL_INK_COVER's ease, for the tests: the strength factor at a cover share (0-1). */
+export function inkCapAt(cover, cap) {
+  if (!(cap < 0.999)) return 1;
+  const t = Math.min(1, Math.max(0, (cover - 0.4) / 0.45)), e = t * t * (3 - 2 * t);
+  return 1 + (cap - 1) * e;
+}
 
 /** GLSL_INK_MARK's inkOf, for the tests and the lab: [r, g, b] 0-1. */
 export function inkOf(c, purity, density) {
