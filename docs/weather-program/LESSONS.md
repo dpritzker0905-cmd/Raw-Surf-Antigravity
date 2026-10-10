@@ -648,3 +648,20 @@ A stored estimate can be estimated again in a browser branch with different sour
   at a new object and lost its old meaning, and my "same valid time" compared a field the server fills with the ASKED
   hour. Tests written by the author pin the author's model of the change. For a default-on change, have someone who has
   not seen the reasoning read the diff and run it, and replay each guard the diff touches in its old cases.
+- **L-V23 · A colour-blind redesign needs stripe rules on BOTH lightness and chroma, a hue-monotone rule, every Jest pin as a hard
+  constraint, and the right starting basin.** The light fast bands (6-75 kn field tints, muted ground) could not pass 5 dE2000 at
+  2.6 under #297's rules, and four solver traps hid the real answer:
+  1. A solver given only a lightness rule reaches 5.22 on every seed by drawing CHROMA stripes (C* 23, 11, 33, 10, 7, 21); given
+     lightness and chroma rules but free hue it zig-zags HUE between yellow and blue neighbours. Pin all three (L never rises, C no
+     peak/dip > 1, hue monotone with a step bound).
+  2. A stripe-free class with a ceiling of 5.7-7.3 existed all along (tint-space search); the stop-wise local search sat at 2.5-4
+     because it started from today's flat-lightness basin. A ceiling from a local search is a lower bound. Build the shape (steady
+     descent, 21 kn tint <= today's L*) and polish it.
+  3. The binding gate was not the one I suspected: dropping one family at a time showed the 10-21 kn streak-vs-tint gate, not hue
+     identity or the strength cap, held a stalled polish at 3.7-4.0. Run the one-family-at-a-time sensitivity before arguing.
+  4. My replica of the Jest "no new lightness turn" pin was weaker than the real one (unmuted grounds, allowed turns at 16, 21, 40
+     only): two candidates carried a 6 kn dip that real Jest caught. Run the real suites with the candidate as the default
+     (`gatereport.js`) and read the failing tests; the replica is for solving, Jest is the authority.
+  What gives for a smooth pass is only the dark-parity strength pin for 27-75 kn (about 1 dE of floor per 7 dE76). A wind A/B
+  shows the wind AS DRAWN, colour and particles: a colour-only render is a labelled test view (owner, 2026-10-10). (log
+  2026-10-09-light-fastband-cvd)
