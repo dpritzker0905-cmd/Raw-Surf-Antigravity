@@ -15,7 +15,7 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-10 01:5xZ: a small wind pan re-requested the whole 14-day timeline and the box read /api/health at 10-13 s
-  (client fix built; PR to dev).** Render request log, 00:04-00:07Z, one client: every settled pan sent a mini plus two
+  (client fix built; PR #300 to dev).** Render request log, 00:04-00:07Z, one client: every settled pan sent a mini plus two
   48-frame pages (hours 0..141 and 144..285) for a fresh unsnapped box, ~20 s of the 1-CPU box each, and nothing
   cancelled the previous pan's work (the warm effect's one `AbortController` was only aborted on a model change).
   - **Server amplifier (NOT fixed):** for wind GFS every fresh box starts a 16-day upstream fetch and a serial
@@ -1666,7 +1666,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 985, sha256 8305386575b3ea2708de6669b37eff8794a12df5d1bc52a65f443f8e42e75a25**
+  **Ledger head: seq 986, sha256 e2a379a9eaa2e1e64ee523001db64b14ad2c9087ddb6091a6108f0eb50053858**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
