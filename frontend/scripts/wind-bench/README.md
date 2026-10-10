@@ -155,6 +155,40 @@ the owner sees an A/B without a deploy.
 
 Instrument choices and their sources: `reports/Wind particle close zoom legibility.md`.
 
+### The style columns (`style.js`): what do the marks look like against what they sit on?
+
+```bash
+node scripts/wind-bench/map-run.js --themes dark,light,beach --zooms 6,8          # the second table is the style table
+node scripts/wind-bench/map-run.js --themes light,beach --zooms 6,8 --arms '{"now":{},"glow":{"__RAW_WIND_GLOW__":true},"ink":{"__RAW_WIND_INK__":true}}'
+node scripts/wind-bench/map-run.js --crop 900x640            # also write a centre crop of every shot at DEVICE resolution (PNG)
+node scripts/wind-bench/map-run.js --crop 900x640:jpeg       # the same as JPEG, for a page that embeds many of them
+node scripts/wind-bench/map-run.js --lng -90.1 --lat 29.9    # another camera
+```
+
+"Dark looks great, light and beach look pale" is a statement about the streaks, so map mode reads them directly. A MARK
+pixel is one the particles changed by more than 4 dE76 against the field-only frame from the same camera, tiles and
+seed. Over the mark pixels of each surface, at device resolution (a streak is 1.5-4 CSS px wide):
+
+| column | meaning |
+|---|---|
+| `cover` | share of the surface's pixels that are mark pixels |
+| `dL med [p10, p90]` | signed L* of a mark pixel against the field under it (+ = lighter than its ground) |
+| `\|dL\|` | mean \|dL\|: how hard a mark stands off its ground |
+| `strong` | share of mark pixels at least 15 L* off the ground |
+| `lighter` | share of mark pixels lighter than their ground: 1 = light on dark, 0 = ink on paper, in between = a mark whose halves cancel |
+| `L f>mark` | median L* of the field under the marks, then of the marks |
+| `C* f>mark` | median chroma of the field under the marks, then of the marks: does the mark carry colour or wash it out? |
+| `dh` | median hue difference, mark against field, where both are chromatic |
+
+- **What dark reads** (Mobile Bay, served strength, land): `lighter` 0.97-1.00, `dL` +9.5 to +14.5, chroma kept or raised,
+  `dh` 3-4 degrees. A streak is one polarity and a brighter shade of the colour it rides on.
+- **What light and beach read today:** `lighter` 0.63-0.91, `dL` +2.5 to +5.5, chroma lowered. A black rim, a white ring
+  and a dark core share two or three pixels and cancel.
+- **`--crop`** exists because the 448 px contact sheet turns 1 px streaks into texture. Judge a look on the crop.
+- The two candidates built on these columns are `windInk.js` (`__RAW_WIND_GLOW__`, `__RAW_WIND_INK__`, both default
+  off). The artifact scanner can name them: `node scripts/wind-bench/run.js --seeds 3 --themes light,beach --variants candidate,glow,ink`.
+  They stay out of the default matrix.
+
 ## Path mode (`path-run.js`): wind colour vs map colour, through every kind of camera move
 
 ```bash

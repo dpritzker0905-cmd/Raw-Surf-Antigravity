@@ -46,8 +46,15 @@ const CONTROL_VARIANTS = Object.freeze({
   controlShipped: { label: 'shipped, dark palette pinned (positive control)', levers: { ...VARIANTS.shipped.levers, ...PIN } },
   controlCandidate: { label: 'engine as written, dark palette pinned (positive control)', levers: { ...VARIANTS.candidate.levers, ...PIN } },
 });
-/** Every variant a configuration may name (the matrix's own, then the control's). */
-const ALL_VARIANTS = Object.freeze({ ...VARIANTS, ...CONTROL_VARIANTS });
+// Default-off candidates a run may NAME (--variants candidate,glow,ink); the default matrix stays shipped + candidate.
+// windInk.js: dark's wind look for the light grounds. A lever that changes how the trail is laid must pass --seeds 3
+// against the engine as written before it becomes a default (LESSONS L-V16).
+const LEVER_VARIANTS = Object.freeze({
+  glow: { label: 'glow (dark\'s pipeline on the light grounds)', levers: { __RAW_WIND_GLOW__: true } },
+  ink: { label: 'ink (the mirror: multiplied into the map)', levers: { __RAW_WIND_INK__: true } },
+});
+/** Every variant a configuration may name (the matrix's own, the control's, then the named candidates). */
+const ALL_VARIANTS = Object.freeze({ ...VARIANTS, ...CONTROL_VARIANTS, ...LEVER_VARIANTS });
 
 /**
  * POSITIVE CONTROL: a bench that cannot see a known defect proves nothing when it sees none.

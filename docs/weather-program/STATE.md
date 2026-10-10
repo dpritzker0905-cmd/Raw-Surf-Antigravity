@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-10 14:40Z** (logs: `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-10 16:37Z** (logs: `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,22 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-10 14:40Z: light's wind field from 6 kn up is A, steady descent (client only; PR #307 to dev).** Owner,
+- **2026-10-10 16:37Z: dark's wind look for light and beach: measured, two candidates built, DEFAULT OFF (client only; PR #308 to dev; #307 under it merged 18:49Z; the owner picked GLOW 18:37Z, default-on work follows in its own PR).**
+  Owner: "I like the way dark theme does the animations of the wind ... light and beach [should] reflect similarly of
+  this style, but with their own color schemes".
+  - **What dark's look is** (new bench columns, `style.js`): every streak pixel is lighter than the colour under it
+    (+9.5 to +14.5 L*) and keeps its colour. Light and beach today: a mix of lighter and darker at +2.5 to +5.5, paler
+    than the field (a black rim, a white ring and a dark core cancel).
+  - **Glow** (`__RAW_WIND_GLOW__`): dark's own pipeline on the light map; the tint under the marks leaves the room.
+    One polarity, colour kept, the map's lines survive better than today. Signal against dark on land: light
+    71 / 60 / 54 / 81%, beach 80 / 92 / 90 / 81% (z4/6/8/10).
+  - **Ink** (`__RAW_WIND_INK__`): the mirror (ink on paper, multiplied in). Land 96 / 107 / 105 / 113% (light), most
+    colourful; fails over warm-band water at wide zoom (olive brown) and darkens storm water.
+  - **Owner's call:** today, glow or ink, per theme, from the A/B page (https://claude.ai/artifact/8LihWH7nhRsnFjJifr9WRK) and the lab
+    (https://claude.ai/artifact/7FMWEapCfMSd8XjqQLMgpm). My recommendation: glow for both. Owed before a default: the 3-seed scanner.
+    Log `log/2026-10-10-dark-style-light-beach.md`; LESSONS L-V26.
+
+- **2026-10-10 14:40Z: light's wind field from 6 kn up is A, steady descent (client only; #307 MERGED 2026-10-10 18:49Z, dev 90849fe9).** Owner,
   after the A/B of three redesigns (#304): "I like A too" (D-018).
   - **The change.** A's rows are light's default field; `__RAW_DISABLE_WIND_LIGHT_FASTBAND__` restores the field before
     it; each older light-field kill steps back past A first. The A/B lever and candidates B and C are gone.
@@ -1777,7 +1792,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1024, sha256 a77a2add1512b0a88339a8a82b97431b0172cb8fe1b64244a3c818c36479a376**
+  **Ledger head: seq 1028, sha256 81fb793d94c9fe60092061e8299c6fef908e3893d61c209925a52245543fd3d8**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
