@@ -14,6 +14,16 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-10 04:3xZ: three light fast-band redesigns reach the colour-blind floor, DEFAULT OFF (client only; PR open, owner A/B).**
+  - **The finding.** With the basemap muted, the whole 6-75 kn light field tint ramp sat under 5 dE2000 for some colour-blind
+    viewer (weakest 2.58), not only the fast bands. A stripe-free redesign exists; only the dark-parity strength pin for 27-75 kn
+    has to give (about 1 dE of floor per 7 dE76).
+  - **The levers.** `window.__RAW_WIND_LIGHT_FASTBAND__ = 'a' | 'b' | 'c'` (read at the next ramp build; unset is today's ramp).
+    A steady descent (5.22 water / 5.26 land, strength to x1.83 dark, one gate re-scoped), B blue-violet end (5.22 / 5.27, three
+    gates), C gentle (5.01 / 5.10, strength to x1.51, one gate). Legend, particles, beach and dark untouched.
+  - **Owner's call:** pick A, B, C or none from the A/B page (https://claude.ai/artifact/S3Tw5rDU1oVF8ArDf4YKrW). Log
+    `log/2026-10-09-light-fastband-cvd.md`; LESSONS L-V22.
+
 - **2026-10-10 01:5xZ: a small wind pan re-requested the whole 14-day timeline and the box read /api/health at 10-13 s
   (client fix built; PR #300 to dev).** Render request log, 00:04-00:07Z, one client: every settled pan sent a mini plus two
   48-frame pages (hours 0..141 and 144..285) for a fresh unsnapped box, ~20 s of the 1-CPU box each, and nothing
