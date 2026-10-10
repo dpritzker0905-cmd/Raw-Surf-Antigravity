@@ -14,8 +14,12 @@ every number below is the offline bench (real engine on the GPU, real basemaps) 
 | bounded wind background build | #303 merged | backend, dark flag `WIND_BG_BUILD_BOUNDED` |
 | light's fast bands | #304 merged 04:40Z | three palette candidates behind default-off levers, for the owner's A/B |
 
-All five were merged by the owner before this branch was pushed; it was merged with dev at `541117de` (one import-line
-conflict in `WebGLWindEngine.js` with #302, both kept) and every check below was re-run on the merged tree. #305 (their
+All five were on dev before this branch was pushed; it was merged with dev at `541117de` (one import-line
+conflict in `WebGLWindEngine.js` with #302, both kept) and every check below was re-run on the merged tree.
+**Correction (05:45Z):** this log first said the owner merged all five. The ledger records #299 and #300 as merged by
+the owner on GitHub; #301-#304 were merged by the light fast-band session, #302-#304 while two slow backend lanes
+were still pending (its read-back is in #305, due 07:00Z). I had read the GitHub account name, which every session
+shares, as the owner's hand. #305 (their
 merge ledger lines) is open, so this branch's ledger lines and its will need a re-chain, whichever merges second
 (LESSONS L-P21).
 

@@ -32,7 +32,8 @@ is a claim, not a measurement.
   - **Limits:** fresh ground has no trail history (the fling's remaining gap); jitter barely gains; at z14 and beyond a
     new mark can land a fraction of a pixel from its carried ink (the 32-bit mark matrix); not yet seen in the app.
     **Bench:** its seeded runs no longer depend on the run before (the engine's random stream is its own).
-  - **Side sessions read first:** #300-#304 all merged by the owner by 04:40Z; #305 (their merge ledger lines) open.
+  - **Side sessions read first:** #300-#304 all on dev by 04:40Z (#301-#304 merged by the light fast-band session,
+    #302-#304 with two slow lanes pending: its read-back is in #305, open).
   - **Next, measured, not built:** curves between grid points (the 0.5 deg eye is drawn 1.7-2.2x its true area with
     straight lines, 1.0-1.3x with curves), on #302's ladder bench, for the owner's A/B. Still owed: the deployed read of
     #299 (`__WIND_BASEMAP_MUTE__.layers`). Log `log/2026-10-10-wind-trail-anchor.md`; LESSONS L-V24.
