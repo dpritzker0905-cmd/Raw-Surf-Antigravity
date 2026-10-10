@@ -1,19 +1,17 @@
 /**
- * LIGHT FAST-BAND CANDIDATES (2026-10-09): window.__RAW_WIND_LIGHT_FASTBAND__ = 'a' | 'b' | 'c', DEFAULT OFF.
+ * LIGHT'S FIELD FROM 6 KN UP IS "A, STEADY DESCENT" (owner, 2026-10-10: "I like A too").
  *
- * The neutral-ground pass (windPaletteCvd.test.js) proved ~2.6 dE2000 is the ceiling for light's field tints under light's
- * rules; the colour-blind floor is 5 (frontend/scripts/wind-color). These three redesigns of the field reach it on the muted
- * ground, water AND land, for protan, deutan and tritan, WITHOUT a lightness or chroma stripe in the fast bands. They are
- * levers for the owner's A/B and change nothing until the flag is set: the default ramp, the legend, beach and dark are
- * pinned unchanged below.
- *
- * Which of the repo's other palette gates each candidate changes is in the log (2026-10-09-light-fastband-cvd), measured by
- * making the candidate the default and running windFieldLut / windParticleContrast / windParticlesV2 / windPaletteCvd /
- * windLegendFromRamp: the dark-parity strength test (27-75 kn re-scoped), the pins that assume the default rows (the
- * "tint clears 2.6" exception, the neutral-CVD and low-band kill controls) and, for candidate b, hue identity at 63 and 75 kn.
- * Everything else holds. The pins below are the candidates' OWN versions of the gates they re-scope.
+ * The neutral-ground pass (windPaletteCvd.test.js) proved ~2.6 dE2000 was the ceiling for light's field tints under light's
+ * old rules; the colour-blind floor is 5 (frontend/scripts/wind-color). Three redesigns reached it on the muted ground
+ * (log 2026-10-09-light-fastband-cvd); the owner saw them as drawn and picked A. This file pins:
+ *   - the default field IS the rows the owner's A/B drew, and the kill switch (window.__RAW_DISABLE_WIND_LIGHT_FASTBAND__)
+ *     restores the field before it, byte for byte;
+ *   - every older light-field kill still draws exactly what it drew before A (an older kill steps back past A first);
+ *   - what A buys (the floor, on muted water AND land, with no lightness or chroma stripe in the fast bands) and what it
+ *     costs (27-75 kn are stronger than dark's: the one gate A re-scopes; windFieldLut.test.js pins the strengths).
+ * The A/B lever (window.__RAW_WIND_LIGHT_FASTBAND__) and candidates B and C are gone (log 2026-10-10-light-fastband-a-default).
  */
-import { resolveThemeRamp, resolveFieldRamp, lightFastBandId, FIELD_RAMPS, THEME_RAMPS } from './WindColorRamp';
+import { resolveThemeRamp, resolveFieldRamp, FIELD_RAMPS, THEME_RAMPS } from './WindColorRamp';
 import { muteColor, windBasemapMuteAmount, windBasemapWaterL } from './windBasemapMute';
 
 // ── colour-blind model: coloraide 8.13 (Vienot protan/deutan, Brettel tritan), as windPaletteCvd.test.js ──────────────────
@@ -70,87 +68,125 @@ const strength = (stop) => { const a = srgbToLab(BENCH.map((v) => v / 255)), b =
 const hueDeg = ([r, g, b]) => { const mx = Math.max(r, g, b), mn = Math.min(r, g, b); if (mx === mn) return 0; let h;
   if (mx === r) h = ((g - b) / (mx - mn)) % 6; else if (mx === g) h = (b - r) / (mx - mn) + 2; else h = (r - g) / (mx - mn) + 4; return ((h * 60) + 360) % 360; };
 
-// ── the candidates and what each one re-scopes ──────────────────────────────────────────────────────────────────────────
-// strengthMax: the strongest 27-75 kn band (bench dE76; dark's own is 24-30.4). hueRescoped: stops whose hue identity is re-scoped.
-// floor: the weakest neighbouring tint over the muted water AND land the candidate must keep (dE2000, protan/deutan/tritan).
-// lightnessTurns: kn where the tint may turn in lightness on the UNMUTED grounds (today's pin allows 16, 21 and 40; b adds a 6 kn dip and the
-// 10 kn peak after it, 1.6-2.6 L* each; a and c keep only the 16 kn dip and make it shallower, 2-3 L* against today's 4.7-5.9).
-const CANDIDATES = {
-  a: { name: 'steady descent', floor: 5.15, strengthMax: 45, hueRescoped: [], lightnessTurns: [16, 21, 40], minLandL: 57, minWaterL: 43 },
-  b: { name: 'blue-violet end', floor: 5.15, strengthMax: 41, hueRescoped: [63, 75], lightnessTurns: [6, 10, 16, 21, 40], minLandL: 60, minWaterL: 46 },
-  c: { name: 'gentle', floor: 5.0, strengthMax: 37, hueRescoped: [], lightnessTurns: [16, 21, 40], minLandL: 63, minWaterL: 48 },
+// ── A, and the field before it ──────────────────────────────────────────────────────────────────────────────────────────
+// Captured from the code as it stood on dev 9eccf149, not typed: A_ROWS is what window.__RAW_WIND_LIGHT_FASTBAND__ = 'a' resolved to
+// (the rows the owner's A/B page drew), PRE_A the default field then, OLDER_KILL_PICTURES what each older kill resolved to.
+const A_ROWS = [
+  [6, 0.711, 0.727, 0.967, 0.78], [10, 0.717, 0.581, 0.819, 0.80], [16, 0.467, 0.622, 0.412, 0.82], [21, 0.450, 0.762, 0.543, 0.84],
+  [27, 0.703, 0.717, 0.395, 0.86], [33, 0.625, 0.590, 0.324, 0.87], [40, 0.600, 0.484, 0.332, 0.88], [47, 0.701, 0.443, 0.438, 0.90],
+  [55, 0.679, 0.326, 0.414, 0.91], [63, 0.611, 0.348, 0.534, 0.93], [75, 0.562, 0.358, 0.652, 0.95],
+];
+const PRE_A = [
+  [0, 0.942, 0.964, 0.987, 0.72], [3, 0.803, 0.757, 0.982, 0.75], [6, 0.631, 0.705, 0.891, 0.78], [10, 0.710, 0.639, 0.913, 0.80],
+  [16, 0.466, 0.625, 0.412, 0.82], [21, 0.462, 0.747, 0.521, 0.84], [27, 0.634, 0.708, 0.432, 0.86], [33, 0.670, 0.618, 0.409, 0.87],
+  [40, 0.742, 0.579, 0.462, 0.88], [47, 0.834, 0.599, 0.536, 0.90], [55, 0.783, 0.591, 0.571, 0.91], [63, 0.782, 0.608, 0.683, 0.93],
+  [75, 0.736, 0.616, 0.753, 0.95],
+];
+const OLDER_KILL_PICTURES = {
+  __RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__: [
+    [0, 0.942, 0.964, 0.987, 0.72], [3, 0.803, 0.757, 0.982, 0.75], [6, 0.631, 0.705, 0.891, 0.78], [10, 0.719, 0.640, 0.914, 0.80],
+    [16, 0.466, 0.625, 0.412, 0.82], [21, 0.462, 0.759, 0.538, 0.84], [27, 0.631, 0.705, 0.434, 0.86], [33, 0.687, 0.634, 0.429, 0.87],
+    [40, 0.751, 0.595, 0.470, 0.88], [47, 0.834, 0.599, 0.536, 0.90], [55, 0.783, 0.591, 0.571, 0.91], [63, 0.782, 0.608, 0.683, 0.93],
+    [75, 0.736, 0.616, 0.753, 0.95],
+  ],
+  __RAW_DISABLE_WIND_LIGHT_CVD__: [
+    [0, 0.942, 0.964, 0.987, 0.72], [3, 0.803, 0.757, 0.982, 0.75], [6, 0.628, 0.701, 0.901, 0.78], [10, 0.724, 0.641, 0.912, 0.80],
+    [16, 0.466, 0.625, 0.412, 0.82], [21, 0.455, 0.763, 0.543, 0.84], [27, 0.628, 0.692, 0.432, 0.86], [33, 0.740, 0.657, 0.431, 0.87],
+    [40, 0.753, 0.588, 0.478, 0.88], [47, 0.824, 0.613, 0.540, 0.90], [55, 0.858, 0.618, 0.596, 0.91], [63, 0.816, 0.601, 0.656, 0.93],
+    [75, 0.736, 0.616, 0.753, 0.95],
+  ],
+  __RAW_DISABLE_WIND_LIGHT_LOWBAND__: [
+    [0, 0.942, 0.964, 0.987, 0.72], [3, 0.803, 0.757, 0.982, 0.75], [6, 0.631, 0.705, 0.891, 0.78], [10, 0.289, 0.646, 0.736, 0.80],
+    [16, 0.228, 0.803, 0.762, 0.82], [21, 0.462, 0.747, 0.521, 0.84], [27, 0.634, 0.708, 0.432, 0.86], [33, 0.670, 0.618, 0.409, 0.87],
+    [40, 0.742, 0.579, 0.462, 0.88], [47, 0.834, 0.599, 0.536, 0.90], [55, 0.783, 0.591, 0.571, 0.91], [63, 0.782, 0.608, 0.683, 0.93],
+    [75, 0.736, 0.616, 0.753, 0.95],
+  ],
+  __RAW_DISABLE_WIND_MIDBAND_REFINE__: [
+    [0, 0.942, 0.964, 0.987, 0.72], [3, 0.803, 0.757, 0.982, 0.75], [6, 0.631, 0.705, 0.891, 0.78], [10, 0.276, 0.688, 0.789, 0.80],
+    [16, 0.228, 0.803, 0.762, 0.82], [21, 0.462, 0.747, 0.521, 0.84], [27, 0.634, 0.708, 0.432, 0.86], [33, 0.670, 0.618, 0.409, 0.87],
+    [40, 0.742, 0.579, 0.462, 0.88], [47, 0.834, 0.599, 0.536, 0.90], [55, 0.783, 0.591, 0.571, 0.91], [63, 0.782, 0.608, 0.683, 0.93],
+    [75, 0.736, 0.616, 0.753, 0.95],
+  ],
 };
-const live = (id) => resolveFieldRamp('light', id ? { __RAW_WIND_LIGHT_FASTBAND__: id } : {});
+const ALL_OLDER_KILLS_PICTURE = [
+  [0, 0.942, 0.964, 0.987, 0.72], [3, 0.803, 0.757, 0.982, 0.75], [6, 0.628, 0.701, 0.901, 0.78], [10, 0.276, 0.688, 0.789, 0.80],
+  [16, 0.228, 0.803, 0.762, 0.82], [21, 0.455, 0.763, 0.543, 0.84], [27, 0.628, 0.692, 0.432, 0.86], [33, 0.740, 0.657, 0.431, 0.87],
+  [40, 0.753, 0.588, 0.478, 0.88], [47, 0.824, 0.613, 0.540, 0.90], [55, 0.858, 0.618, 0.596, 0.91], [63, 0.816, 0.601, 0.656, 0.93],
+  [75, 0.736, 0.616, 0.753, 0.95],
+];
+const KILL = '__RAW_DISABLE_WIND_LIGHT_FASTBAND__';
+const live = (w = {}) => resolveFieldRamp('light', w);
 const FAST = (field) => field.filter((s) => s[0] >= 21);
 
-describe('the lever is DEFAULT OFF and touches only light\'s field', () => {
-  it('unset, blank or unknown: the ramp is today\'s, byte for byte', () => {
-    for (const flag of [undefined, '', 'z', 'ab', 1, true, null]) {
-      expect(resolveFieldRamp('light', { __RAW_WIND_LIGHT_FASTBAND__: flag })).toEqual(FIELD_RAMPS.light);
-      expect(lightFastBandId({ __RAW_WIND_LIGHT_FASTBAND__: flag })).toBeNull();
-    }
-    expect(resolveFieldRamp('light', {})).toEqual(FIELD_RAMPS.light);
+describe('A is light\'s default field, with a kill switch back to the field before it', () => {
+  it('the default field is A\'s rows from 6 kn up; 0 and 3 kn and every alpha are as they were', () => {
+    expect(live().filter((s) => s[0] >= 6)).toEqual(A_ROWS);
+    expect(FIELD_RAMPS.light).toEqual(live());
+    expect(live().slice(0, 2)).toEqual(PRE_A.slice(0, 2));
+    expect(live().map((s) => [s[0], s[4]])).toEqual(PRE_A.map((s) => [s[0], s[4]]));
   });
-  it.each(Object.keys(CANDIDATES))('candidate %s changes light\'s FIELD stops 6-75 kn only: not 0 or 3 kn, not the legend, beach or dark', (id) => {
-    const base = FIELD_RAMPS.light, next = live(id);
-    expect(next).toHaveLength(base.length);
-    expect(next.map((s) => s[0])).toEqual(base.map((s) => s[0]));
-    next.forEach((s, i) => { if (s[0] <= 3) expect(s).toEqual(base[i]); else expect(s.slice(1, 4)).not.toEqual(base[i].slice(1, 4)); expect(s[4]).toBe(base[i][4]); });   // alphas stay the stop's own
-    expect(resolveFieldRamp('light', { __RAW_WIND_LIGHT_FASTBAND__: id.toUpperCase() })).toEqual(next);          // case-insensitive
-    expect(resolveFieldRamp('beach', { __RAW_WIND_LIGHT_FASTBAND__: id })).toEqual(FIELD_RAMPS.beach);
-    expect(resolveFieldRamp('dark', { __RAW_WIND_LIGHT_FASTBAND__: id })).toBeNull();
-    expect(resolveThemeRamp('light')).toEqual(THEME_RAMPS.light);                                                // the legend is the particle ramp: never touched
-    window.__RAW_WIND_LIGHT_FASTBAND__ = id;
-    try { expect(resolveThemeRamp('light')).toEqual(THEME_RAMPS.light); expect(resolveThemeRamp('beach')).toEqual(THEME_RAMPS.beach); } finally { delete window.__RAW_WIND_LIGHT_FASTBAND__; }
-    expect(FIELD_RAMPS.light).toEqual(resolveFieldRamp('light', {}));                                           // resolving never mutates the shipped table
+  it('the kill switch restores the field before A, byte for byte, and only when it is exactly true', () => {
+    expect(live({ [KILL]: true })).toEqual(PRE_A);
+    for (const v of [undefined, false, 'true', 1, null]) expect(live({ [KILL]: v })).toEqual(live());
+    expect(FIELD_RAMPS.light).toEqual(live());   // resolving never mutates the shipped table
   });
-  it('the older kill switches stand the lever down and restore the older rows they own', () => {
-    for (const kill of ['__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__', '__RAW_DISABLE_WIND_LIGHT_CVD__', '__RAW_DISABLE_WIND_LIGHT_LOWBAND__', '__RAW_DISABLE_WIND_MIDBAND_REFINE__']) {
-      for (const id of Object.keys(CANDIDATES)) {
-        expect(lightFastBandId({ __RAW_WIND_LIGHT_FASTBAND__: id, [kill]: true })).toBeNull();
-        expect(resolveFieldRamp('light', { __RAW_WIND_LIGHT_FASTBAND__: id, [kill]: true })).toEqual(resolveFieldRamp('light', { [kill]: true }));
-      }
+  it('light only, field only: beach, dark and the legend do not move, with or without the kill', () => {
+    for (const w of [{}, { [KILL]: true }]) {
+      expect(resolveFieldRamp('beach', w)).toEqual(FIELD_RAMPS.beach);
+      expect(resolveFieldRamp('dark', w)).toBeNull();
     }
+    window[KILL] = true;
+    try { expect(resolveThemeRamp('light')).toEqual(THEME_RAMPS.light); expect(resolveThemeRamp('beach')).toEqual(THEME_RAMPS.beach); } finally { delete window[KILL]; }
+  });
+  it('each older kill switch still draws exactly what it drew before A: it steps back past A first, so no kill draws a mix', () => {
+    for (const [kill, picture] of Object.entries(OLDER_KILL_PICTURES)) {
+      expect(live({ [kill]: true })).toEqual(picture);
+      expect(live({ [kill]: true, [KILL]: true })).toEqual(picture);
+    }
+    expect(live(Object.fromEntries(Object.keys(OLDER_KILL_PICTURES).map((k) => [k, true])))).toEqual(ALL_OLDER_KILLS_PICTURE);
+  });
+  it('the A/B lever is gone: the old candidate flag changes nothing', () => {
+    for (const id of ['a', 'b', 'c', 'B']) expect(live({ __RAW_WIND_LIGHT_FASTBAND__: id })).toEqual(live());
+    expect(live({ __RAW_WIND_LIGHT_FASTBAND__: 'c', [KILL]: true })).toEqual(PRE_A);
   });
 });
 
 describe('the colour-blind floor on the muted ground (what shows with the wind on)', () => {
-  it('POSITIVE CONTROL: today\'s field leaves a neighbouring tint pair under 3 dE2000 for some viewer, on water and on land', () => {
-    expect(weakest(pairs(live(), GROUNDS.waterM)).d).toBeLessThan(3);
-    expect(weakest(pairs(live(), GROUNDS.landM)).d).toBeLessThan(3);
+  it('every neighbouring tint over the muted water AND the muted land is >= 5.15 dE2000 for protan, deutan and tritan', () => {
+    expect(weakest(pairs(live(), GROUNDS.waterM)).d).toBeGreaterThanOrEqual(5.15);   // 5.22 at 40-47 kn
+    expect(weakest(pairs(live(), GROUNDS.landM)).d).toBeGreaterThanOrEqual(5.15);    // 5.26 at 16-21 kn
   });
-  it.each(Object.keys(CANDIDATES))('candidate %s: every neighbouring tint over the muted water AND the muted land is >= 5 dE2000 for protan, deutan and tritan', (id) => {
-    expect(weakest(pairs(live(id), GROUNDS.waterM)).d).toBeGreaterThanOrEqual(CANDIDATES[id].floor);
-    expect(weakest(pairs(live(id), GROUNDS.landM)).d).toBeGreaterThanOrEqual(CANDIDATES[id].floor);
+  it('POSITIVE CONTROL + kill: the field before A leaves a neighbouring pair under 3 for some viewer, on water and on land', () => {
+    expect(weakest(pairs(live({ [KILL]: true }), GROUNDS.waterM)).d).toBeLessThan(3);   // 2.58 at 6-10 kn
+    expect(weakest(pairs(live({ [KILL]: true }), GROUNDS.landM)).d).toBeLessThan(3);    // 2.59 at 55-63 kn
   });
-  it.each(Object.keys(CANDIDATES))('candidate %s: the kill-switch picture (unmuted water and land) is not made worse than the default\'s pins', (id) => {
-    expect(weakest(pairs(live(id), GROUNDS.water)).d).toBeGreaterThanOrEqual(2.74);   // windPaletteCvd.test.js: the unmuted water, 2.75 today
-    expect(weakest(pairs(live(id), GROUNDS.land)).d).toBeGreaterThanOrEqual(2.5);     // ...and the unmuted land, 2.52 today
+  it('with the basemap mute off (unmuted water and land) the tint is better than it was, never worse', () => {
+    expect(weakest(pairs(live(), GROUNDS.water)).d).toBeGreaterThanOrEqual(3.0);    // 3.04; was 2.75
+    expect(weakest(pairs(live(), GROUNDS.land)).d).toBeGreaterThanOrEqual(5.15);    // 5.21; was 2.52
   });
-  it('mutation: reverting ONE fast row of a candidate to today\'s drops it under the pin (the pin has teeth)', () => {
-    const next = live('a'), base = FIELD_RAMPS.light;
-    for (const kn of [6, 10, 21, 27, 33, 40]) { const i = next.findIndex((s) => s[0] === kn); const broken = next.map((s) => s.slice()); broken[i] = base[i].slice();
+  it('mutation: putting ONE row back to the field before A drops it under the pin (the pin has teeth)', () => {
+    for (const kn of [6, 10, 21, 27, 33, 40]) { const i = PRE_A.findIndex((s) => s[0] === kn); const broken = live().map((s) => s.slice()); broken[i] = PRE_A[i].slice();
       expect(Math.min(weakest(pairs(broken, GROUNDS.waterM)).d, weakest(pairs(broken, GROUNDS.landM)).d)).toBeLessThan(5.15); }
   });
 });
 
 describe('no stripes: the fast bands descend steadily and add no lightness or chroma peak or dip', () => {
-  it.each(Object.keys(CANDIDATES))('candidate %s: 21-75 kn tint lightness never rises with speed, and has no L* or C* peak/dip (prominence > 1), on muted water and land', (id) => {
+  it('21-75 kn tint lightness never rises with speed, and has no L* or C* peak/dip (prominence > 1), on muted water and land', () => {
     for (const ground of [GROUNDS.waterM, GROUNDS.landM]) {
-      const q = FAST(live(id)).map((s) => lab(tintOn(s, ground))), L = q.map((x) => x[0]), C = q.map(chroma);
+      const q = FAST(live()).map((s) => lab(tintOn(s, ground))), L = q.map((x) => x[0]), C = q.map(chroma);
       L.forEach((v, i) => { if (i) expect(v).toBeLessThanOrEqual(L[i - 1] + 0.3); });
       expect(peaks(L, 1)).toEqual([]);
       expect(peaks(C, 1)).toEqual([]);
     }
   });
-  it.each(Object.keys(CANDIDATES))('candidate %s: on the unmuted water and land the tint turns in lightness only where the pin allows', (id) => {
-    for (const ground of [GROUNDS.water, GROUNDS.land]) {
-      const F = live(id).filter((s) => s[0] >= 3), L = F.map((s) => lab(tintOn(s, ground))[0]);
-      peaks(L, 1).forEach((i) => expect(CANDIDATES[id].lightnessTurns).toContain(F[i][0]));
+  it('on all four grounds the tint turns in lightness once, at the 16 kn dip it always had (shallower now)', () => {
+    for (const ground of Object.values(GROUNDS)) {
+      const F = live().filter((s) => s[0] >= 3), L = F.map((s) => lab(tintOn(s, ground))[0]);
+      expect(peaks(L, 1).map((i) => F[i][0])).toEqual([16]);
     }
   });
   it('POSITIVE CONTROL: one pale row among darker neighbours draws a stripe, and the stripe tests see it', () => {
-    const f = live('a').map((s) => s.slice()), j = f.findIndex((s) => s[0] === 47);
+    const f = live().map((s) => s.slice()), j = f.findIndex((s) => s[0] === 47);
     f[j] = [f[j][0], ...f[j].slice(1, 4).map((c) => c + (1 - c) * 0.5), f[j][4]];   // 47 kn half-way to white: a pale band between two darker neighbours
     const L = FAST(f).map((s) => lab(tintOn(s, GROUNDS.waterM))[0]);
     expect(peaks(L, 1).length).toBeGreaterThan(0);
@@ -158,22 +194,25 @@ describe('no stripes: the fast bands descend steadily and add no lightness or ch
   });
 });
 
-describe('the gates a candidate RE-SCOPES, and its own version of each', () => {
-  it.each(Object.keys(CANDIDATES))('candidate %s: dark parity holds within 1 dE76 for 6-21 kn; 27-75 kn are never weaker than dark and stay under the cap', (id) => {
-    live(id).forEach((s) => { const t = DARK_STRENGTH[s[0]]; if (t === undefined) return;
+describe('the one gate A re-scopes (strength against dark), and the gates it keeps', () => {
+  it('6-21 kn carry dark\'s strength within 1 dE76; 27-75 kn are stronger than dark, never weaker, and stay under 45 (x1.9 dark at most)', () => {
+    live().forEach((s) => { const t = DARK_STRENGTH[s[0]]; if (t === undefined) return;
       if (s[0] <= 21) expect(Math.abs(strength(s) - t)).toBeLessThanOrEqual(1.0);
-      else { expect(strength(s)).toBeGreaterThanOrEqual(t - 1.0); expect(strength(s)).toBeLessThanOrEqual(CANDIDATES[id].strengthMax); }
+      else { expect(strength(s)).toBeGreaterThanOrEqual(t + 2); expect(strength(s)).toBeLessThanOrEqual(45); expect(strength(s) / t).toBeLessThanOrEqual(1.9); }
     });
   });
-  it.each(Object.keys(CANDIDATES))('candidate %s: hue identity holds (field within 25 deg of the legend stop), except where it is re-scoped', (id) => {
-    live(id).forEach((st, i) => { const p = THEME_RAMPS.light[i], sat = (c) => Math.max(...c) - Math.min(...c);
-      if (sat(p.slice(1, 4)) < 0.15 || sat(st.slice(1, 4)) < 0.1 || CANDIDATES[id].hueRescoped.includes(st[0])) return;
+  it('POSITIVE CONTROL + kill: the field before A sat within 1 dE76 of dark from 6 to 75 kn', () => {
+    live({ [KILL]: true }).forEach((s) => { const t = DARK_STRENGTH[s[0]]; if (t !== undefined) expect(Math.abs(strength(s) - t)).toBeLessThanOrEqual(1.0); });
+  });
+  it('hue identity holds at every stop: the field is within 25 deg of the legend stop (no exception)', () => {
+    live().forEach((st, i) => { const p = THEME_RAMPS.light[i], sat = (c) => Math.max(...c) - Math.min(...c);
+      if (sat(p.slice(1, 4)) < 0.15 || sat(st.slice(1, 4)) < 0.1) return;
       let d = Math.abs(hueDeg(st.slice(1, 4)) - hueDeg(p.slice(1, 4))); if (d > 180) d = 360 - d; expect(d).toBeLessThanOrEqual(25); });
   });
-  it.each(Object.keys(CANDIDATES))('candidate %s: the land is never blocked and every tint stays visible (>= 14 dE2000 off the ground, 6-40 kn)', (id) => {
-    const F = live(id);
-    expect(Math.min(...FAST(F).map((s) => lab(tintOn(s, GROUNDS.landM))[0]))).toBeGreaterThanOrEqual(CANDIDATES[id].minLandL);
-    expect(Math.min(...FAST(F).map((s) => lab(tintOn(s, GROUNDS.waterM))[0]))).toBeGreaterThanOrEqual(CANDIDATES[id].minWaterL);
+  it('the land is never blocked and every tint stays visible (>= 14 dE2000 off the ground, 6-40 kn)', () => {
+    const F = live();
+    expect(Math.min(...FAST(F).map((s) => lab(tintOn(s, GROUNDS.landM))[0]))).toBeGreaterThanOrEqual(57);    // 58.5 at 75 kn (was 70)
+    expect(Math.min(...FAST(F).map((s) => lab(tintOn(s, GROUNDS.waterM))[0]))).toBeGreaterThanOrEqual(43);   // 44.5
     for (const ground of [GROUNDS.waterM, GROUNDS.landM]) F.filter((s) => s[0] >= 6 && s[0] <= 40).forEach((s) => expect(de2000(lab(ground.map((v) => v / 255)), lab(tintOn(s, ground)))).toBeGreaterThanOrEqual(14));
   });
 });

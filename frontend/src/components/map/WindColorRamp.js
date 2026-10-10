@@ -265,50 +265,30 @@ function cvdPassed(ramp, kind, theme, w) {
   var pre = PRE_CVD[kind][theme];
   return pre && w && w[CVD_KILL[theme]] === true ? revertRows(ramp, pre) : ramp;
 }
-// LIGHT FAST-BAND REDESIGN, THREE CANDIDATES (2026-10-09; owner A/B, DEFAULT OFF). The neutral-ground pass above proved ~2.6 is the
-// ceiling for light's field tints under light's rules (log 2026-10-09-light-neutral-cvd); five needs a redesign. Measured since: on the
-// muted ground every neighbouring tint pair from 6 kn up sat below 5 for some viewer (6-10 deutan 2.6, 16-21 4.5, 21-27 3.0, 27-75 kn
-// 2.6-4.0), so the fix is the whole 6-75 kn field, not only the warm bands. Lightness alone cannot carry it (the multiply tint bottoms
-// out at 0.3 x ground, L* ~33): the pass is a steady lightness descent AND a steady hue sweep through yellow -> red -> plum, so a
-// deuteranope gets the blue-yellow axis as well. Window flag: window.__RAW_WIND_LIGHT_FASTBAND__ = 'a' | 'b' | 'c' (read at the next
-// ramp build: theme change or reload; unset = today's ramp). The LEGEND (particle ramp) is untouched; only light's FIELD rows below move.
-//   a  STEADY DESCENT. Warm hues kept (hue identity to the legend within the original 25 deg); strength climbs with speed (to 44 dE76).
-//      Weakest neighbouring tint 5.22 (muted water) / 5.26 (muted land). Changes only the dark-parity gate, for 27-75 kn.
-//   b  BLUE-VIOLET END. 63-75 kn end blue-violet (tint hue ~290 deg, not plum ~312); strength to 40. Weakest 5.22 / 5.27. Three named
-//      exceptions: dark parity 27-75 kn, hue identity at 63 and 75 kn only, and two small lightness turns (a 6 kn dip and the 10 kn peak
-//      after it, 1.6-2.6 L* each; today's only turn is the 16 kn dip, which a and c make shallower).
-//   c  GENTLE. The smallest change (0.62 dE_OK) and the softest strength (to 36; tint over muted land never darker than L* 63); 40-55 kn
-//      stay low-chroma. Weakest 5.005 / 5.10: a pass with no margin. Changes only the dark-parity gate, for 27-75 kn.
-// All three: muted water AND muted land, every neighbouring tint >= 5 dE2000 for protan, deutan and tritan; no lightness or chroma
-// peak/dip (prominence > 1) in 21-75 kn on either ground; 6-21 kn stay within 1 dE76 of dark's strength. Unmuted water and land are
-// not made worse (>= 2.75 / 2.5). Gate-by-gate report: log 2026-10-09-light-fastband-cvd. The older kill switches stand the lever down.
-var LIGHT_FASTBAND_ROWS = {
-  a: [[6, 0.711, 0.727, 0.967, 0.78], [10, 0.717, 0.581, 0.819, 0.80], [16, 0.467, 0.622, 0.412, 0.82], [21, 0.450, 0.762, 0.543, 0.84],
-    [27, 0.703, 0.717, 0.395, 0.86], [33, 0.625, 0.590, 0.324, 0.87], [40, 0.600, 0.484, 0.332, 0.88], [47, 0.701, 0.443, 0.438, 0.90],
-    [55, 0.679, 0.326, 0.414, 0.91], [63, 0.611, 0.348, 0.534, 0.93], [75, 0.562, 0.358, 0.652, 0.95]],
-  b: [[6, 0.510, 0.650, 0.762, 0.78], [10, 0.729, 0.644, 0.924, 0.80], [16, 0.468, 0.623, 0.407, 0.82], [21, 0.461, 0.752, 0.545, 0.84],
-    [27, 0.620, 0.731, 0.409, 0.86], [33, 0.678, 0.573, 0.255, 0.87], [40, 0.857, 0.489, 0.410, 0.88], [47, 0.751, 0.376, 0.338, 0.90],
-    [55, 0.650, 0.391, 0.492, 0.91], [63, 0.559, 0.418, 0.596, 0.93], [75, 0.452, 0.439, 0.725, 0.95]],
-  c: [[6, 0.622, 0.728, 0.954, 0.78], [10, 0.732, 0.574, 0.803, 0.80], [16, 0.467, 0.624, 0.413, 0.82], [21, 0.458, 0.756, 0.546, 0.84],
-    [27, 0.683, 0.717, 0.409, 0.86], [33, 0.630, 0.606, 0.391, 0.87], [40, 0.721, 0.574, 0.499, 0.88], [47, 0.615, 0.472, 0.400, 0.90],
-    [55, 0.713, 0.432, 0.488, 0.91], [63, 0.655, 0.450, 0.594, 0.93], [75, 0.615, 0.458, 0.700, 0.95]],
-};
+// LIGHT'S FIELD FROM 6 KN UP IS "A, STEADY DESCENT" (owner, 2026-10-10, after the A/B of three redesigns: "I like A too"). The
+// neutral-ground pass above proved ~2.6 is the ceiling for light's field tints at dark's strength; five needed a redesign. On the muted
+// ground every neighbouring tint pair from 6 kn up sat below 5 for some viewer (6-10 deutan 2.6, 16-21 4.5, 21-27 3.0, 27-75 kn 2.6-4.0),
+// so the fix is the whole 6-75 kn field, not only the warm bands. Lightness alone cannot carry it (the multiply tint bottoms out at
+// 0.3 x ground, L* ~33): A is a steady lightness descent AND a steady hue sweep through yellow -> red -> plum, so a deuteranope gets the
+// blue-yellow axis as well. Warm hues kept (hue identity to the legend within 25 deg); the LEGEND (particle ramp) is untouched.
+//   WHAT IT BUYS: weakest neighbouring tint 5.22 (muted water) / 5.26 (muted land) for protan, deutan and tritan (2.58 / 2.59 before); no
+//   lightness or chroma peak/dip (prominence > 1) in 21-75 kn on either ground; the 16 kn dip is shallower (2.4 L* against 4.6).
+//   WHAT IT COSTS, the one gate it re-scopes: 27-75 kn are stronger than dark's (33-44 dE76 against 24-30; x1.83 at 75 kn, the land under
+//   it L* 58.5 against 70). 6-21 kn stay within 1 dE76 of dark.
+// The two candidates not taken (B blue-violet end, C gentle) and the gate-by-gate report: log 2026-10-09-light-fastband-cvd.
+// Kill: __RAW_DISABLE_WIND_LIGHT_FASTBAND__ restores the rows below (next ramp build: theme change or reload). Each OLDER light-field
+// kill steps back past A first, so it draws exactly what it drew before A, never a mix of A's rows and older ones.
+var PRE_FASTBAND_LIGHT_FIELD = { 2: [6, 0.631, 0.705, 0.891, 0.78], 3: [10, 0.710, 0.639, 0.913, 0.80], 4: [16, 0.466, 0.625, 0.412, 0.82], 5: [21, 0.462, 0.747, 0.521, 0.84],
+  6: [27, 0.634, 0.708, 0.432, 0.86], 7: [33, 0.670, 0.618, 0.409, 0.87], 8: [40, 0.742, 0.579, 0.462, 0.88], 9: [47, 0.834, 0.599, 0.536, 0.90],
+  10: [55, 0.783, 0.591, 0.571, 0.91], 11: [63, 0.782, 0.608, 0.683, 0.93], 12: [75, 0.736, 0.616, 0.753, 0.95] };
 var LIGHT_FIELD_OLDER_KILLS = ['__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__', '__RAW_DISABLE_WIND_LIGHT_CVD__', '__RAW_DISABLE_WIND_LIGHT_LOWBAND__', '__RAW_DISABLE_WIND_MIDBAND_REFINE__'];
-/** The fast-band candidate the lever names for light's field ('a' | 'b' | 'c', any case), or null (unset, unknown, or an older kill set). */
-export function lightFastBandId(w) {
-  var id = w && typeof w.__RAW_WIND_LIGHT_FASTBAND__ === 'string' ? w.__RAW_WIND_LIGHT_FASTBAND__.toLowerCase() : '';
-  return LIGHT_FASTBAND_ROWS[id] && !LIGHT_FIELD_OLDER_KILLS.some(function(k) { return w[k] === true; }) ? id : null;
-}
-function fastBandCandidate(ramp, kind, theme, w) {
-  var id = kind === 'field' && theme === 'light' ? lightFastBandId(w) : null;
-  if (!id) return ramp;
-  return ramp.map(function(stop) {
-    var row = LIGHT_FASTBAND_ROWS[id].find(function(r) { return r[0] === stop[0]; });
-    return row ? row.slice() : stop;
-  });
+function beforeFastBand(ramp, kind, theme, w) {
+  if (kind !== 'field' || theme !== 'light' || !w) return ramp;
+  var back = w.__RAW_DISABLE_WIND_LIGHT_FASTBAND__ === true || LIGHT_FIELD_OLDER_KILLS.some(function(k) { return w[k] === true; });
+  return back ? revertRows(ramp, PRE_FASTBAND_LIGHT_FIELD) : ramp;
 }
 function midbandRefined(ramp, kind, theme, w) {
-  ramp = fastBandCandidate(ramp, kind, theme, w);
+  ramp = beforeFastBand(ramp, kind, theme, w);
   if (kind === 'field' && theme === 'light' && w && w.__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__ === true) ramp = revertRows(ramp, PRE_NEUTRAL_CVD_LIGHT_FIELD);
   ramp = cvdPassed(ramp, kind, theme, w);   // the older kills below win over it on the rows they share
   var out = (theme === 'light' && w && w.__RAW_DISABLE_WIND_LIGHT_LOWBAND__ === true) ? revertRows(ramp, PRE_LIGHT_LOWBAND[kind]) : ramp;
@@ -316,13 +296,13 @@ function midbandRefined(ramp, kind, theme, w) {
   if (!pre || !w || w.__RAW_DISABLE_WIND_MIDBAND_REFINE__ !== true) return out;
   return revertRows(out, pre);
 }
-var LIGHT_FIELD_RAMP = [   // 6-63 kn: the COLOUR-BLIND PASS (each stop <= 0.05 dE_OK; 33 kn a deeper, 55 kn a cooler tint);
-  // 10-40 kn: the NEUTRAL-GROUND pass (each <= 0.014 dE_OK; see PRE_NEUTRAL_CVD_LIGHT_FIELD)
-  [0,  0.942, 0.964, 0.987, 0.72], [3,  0.803, 0.757, 0.982, 0.75], [6,  0.631, 0.705, 0.891, 0.78],
-  [10, 0.710, 0.639, 0.913, 0.80], [16, 0.466, 0.625, 0.412, 0.82], [21, 0.462, 0.747, 0.521, 0.84],
-  [27, 0.634, 0.708, 0.432, 0.86], [33, 0.670, 0.618, 0.409, 0.87], [40, 0.742, 0.579, 0.462, 0.88],
-  [47, 0.834, 0.599, 0.536, 0.90], [55, 0.783, 0.591, 0.571, 0.91], [63, 0.782, 0.608, 0.683, 0.93],
-  [75, 0.736, 0.616, 0.753, 0.95],
+var LIGHT_FIELD_RAMP = [   // 6-75 kn: A, STEADY DESCENT (see PRE_FASTBAND_LIGHT_FIELD: the colour-blind floor on the muted ground;
+  // 27-75 kn stronger than dark's). 0 and 3 kn are the calm stops they were
+  [0,  0.942, 0.964, 0.987, 0.72], [3,  0.803, 0.757, 0.982, 0.75], [6,  0.711, 0.727, 0.967, 0.78],
+  [10, 0.717, 0.581, 0.819, 0.80], [16, 0.467, 0.622, 0.412, 0.82], [21, 0.450, 0.762, 0.543, 0.84],
+  [27, 0.703, 0.717, 0.395, 0.86], [33, 0.625, 0.590, 0.324, 0.87], [40, 0.600, 0.484, 0.332, 0.88],
+  [47, 0.701, 0.443, 0.438, 0.90], [55, 0.679, 0.326, 0.414, 0.91], [63, 0.611, 0.348, 0.534, 0.93],
+  [75, 0.562, 0.358, 0.652, 0.95],
 ];
 var BEACH_FIELD_RAMP = [   // 6 and 16-75 kn: the COLOUR-BLIND PASS (27 kn lifts to a light lime-gold, 40 kn a clearer apricot)
   [0,  0.973, 0.953, 0.911, 0.75], [3,  0.471, 0.891, 0.712, 0.78], [6,  0.253, 0.783, 0.635, 0.81],

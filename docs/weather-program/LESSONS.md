@@ -689,3 +689,13 @@ A stored estimate can be estimated again in a browser branch with different sour
      zoom wobble re-laid the ink every frame, and that the kill switch was not exact off desktop. The date line then
      taught the bench one more thing: a median cannot see one wiped frame (0.713 against 0.715), so the clear itself is
      gated from the engine's read-back. (log 2026-10-10-wind-trail-anchor)
+- **L-V25 · When a new default replaces rows that older kill switches partly own, every older kill steps back past the new
+  default first; and the old pictures are captured from the code, not typed.** Light's field has four older kills, each
+  restoring a few rows. Making A the default by swapping the rows alone would have left each of them drawing a ramp nobody
+  had measured: A's rows with a few older ones mixed in (the fast-band log saw it as two kill controls going red). Rules:
+  1. A kill switch promises a picture that existed. When the default moves, an older kill first restores the whole
+     default it was written against, then its own rows. One test pins every older kill's ramp, byte for byte.
+  2. Take the "before" from the running code before the edit (a scratch test wrote the default, the candidate and each
+     kill's ramp to a file) and generate the pins from that file. Hand-copied rows are a second source of truth.
+  3. A re-scoped gate keeps its old form as a positive control behind the kill: the field before A still sits within
+     1 dE76 of dark, and still reads ~2.6 on every ground. (log 2026-10-10-light-fastband-a-default)

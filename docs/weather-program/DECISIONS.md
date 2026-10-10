@@ -227,3 +227,24 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   - coastal gradient x1.37, and accuracy at 101 buoys a tie with GFS (L-S20).
 - **Reopen if:** the post-deploy read-back (ledger commitment) fails, or the >= 14-day NDBC wind grade shows the lane
   worse than GFS at a lead or coast.
+
+### D-018 · Light's wind field from 6 kn up is "A, steady descent"; dark parity is re-scoped for light's 27-75 kn
+- **Decided:** by the owner, 2026-10-10 14:21Z: "I like A too". It answered this session's recommendation ("My pick is A,
+  unless the coast looks too heavy to you under the storm bands, in which case C") after the A/B page of three
+  redesigns (#304; log 2026-10-09-light-fastband-cvd).
+- **Rule:** light's field tint, 6-75 kn, is candidate A's rows (`LIGHT_FIELD_RAMP` in `WindColorRamp.js`). The legend, the
+  particles, beach and dark do not move. Client only; no served number moves.
+- **What it buys:** every neighbouring tint on the muted ground is at least 5 dE2000 apart for protan, deutan and
+  tritan viewers (5.22 on the muted water, 5.26 on the muted land; 2.58 and 2.59 before), with no lightness or chroma
+  stripe from 21 kn up.
+- **What it gives up (superseded in part):** the owner's dark-parity approval ("I like this transparency [dark] ... match
+  this with light and beach") no longer holds for LIGHT from 27 to 75 kn. There the field is stronger than dark's
+  (33-44 dE76 against 24-30; x1.83 at 75 kn). Beach in every band, and light from 6 to 21 kn, keep dark's strength
+  within 1 dE76.
+- **Kill:** `window.__RAW_DISABLE_WIND_LIGHT_FASTBAND__ = true` restores the field before A (read at the next ramp build:
+  switch the theme away and back). Each older light-field kill steps back past A first.
+- **Not kept:** the A/B lever `window.__RAW_WIND_LIGHT_FASTBAND__` and candidates B and C. B reached the same floor only by
+  re-scoping two more gates; C cleared the floor by 0.005. Their rows are in `541117de`.
+- **Evidence (log 2026-10-10-light-fastband-a-default):** the palette checker's colour-blind RED lines for light go 1 -> 0;
+  on the real basemap the map's line work keeps the same contrast at everyday strength and loses up to 7 points over
+  water at storm strength.

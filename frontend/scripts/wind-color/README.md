@@ -48,11 +48,11 @@ node check.mjs --mute-amount 0.7 --water-l 0.95   # explore other mute settings 
 | colour-blind | Neighbouring legend stops and neighbouring tints over water, via coloraide (Viénot protan/deutan, Brettel tritan) | ≥ 5 ΔE2000 |
 
 The checker does not run in CI. `src/components/map/windPaletteCvd.test.js` pins the colour-blind lines there with a JS
-port of coloraide's models, anchored to coloraide's output. It also pins one accepted gap: light's tint over water is
-at 2.75, not 5 (log `docs/weather-program/log/2026-10-09-wind-cvd-palettes.md`). With the basemap muted, light's tint over
-water reads like its tint over its own near-grey land always has: 1.9 (27-33 kn, deuteranope; the land was already
-1.8). That is pinned too, as a known gap whose fix is a light field pass on a neutral ground (log
-`docs/weather-program/log/2026-10-09-wind-basemap-mute.md`).
+port of coloraide's models, anchored to coloraide's output. Since 2026-10-10 light's tint reaches the floor on the
+muted ground the wind sits on (A, steady descent: 5.22 over the muted water, 5.26 over the muted land;
+`windLightFastBand.test.js`, log `docs/weather-program/log/2026-10-10-light-fastband-a-default.md`). One accepted gap is
+left and pinned: over light's own cyan water, which shows only with the basemap mute killed, the weakest pair is 3.04
+(10-16 kn).
 
 ## Why coloraide and not culori for colour blindness
 
