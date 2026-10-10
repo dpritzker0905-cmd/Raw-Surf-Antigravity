@@ -249,6 +249,78 @@ field with the 30-kn (eye) or 15-kn (coast) contour in white. They come from `ey
 
 See `docs/weather-program/log/2026-10-09-hrrr-wind-lane.md` §5.
 
+## Ladder mode (`ladder-run.js`): the eye through a whole zoom, z5.5 → z9 and back
+
+```bash
+node scripts/wind-bench/ladder-run.js
+node scripts/wind-bench/ladder-run.js --fresh --json out/ladder.json --images out/ladder-images
+node scripts/wind-bench/ladder-run.js --arms now,mosaic
+```
+
+Eye mode compares two grids. Ladder mode replays a zoom: at each of 15 stops (z5.5, 6, … 9, then back out) the real
+engine receives, in order, every grid the client would have committed so far, and the eye is measured against the stop
+before it and against the truth. It takes about 4 minutes, 8 with `--fresh`.
+
+- **What arrives at each stop** (`ladder.js`, pinned to its sources by `src/components/map/windBenchLadder.test.js`):
+  - the request box: the app's own `clampViewportBbox` (pad up to 1°, snapped to whole degrees);
+  - the tier: `choose_adaptive_resolution`: 0.25° up to 25 deg², 0.5° up to 100, 1° up to 400;
+  - the server's two answers to a box it has not built: the 2° world clip first (stale, sharpen pending), then the box;
+  - the client cache: the exact box, else the FIRST cached box that contains the view and is fine enough. With it, three
+    boxes reach the server (z5.5 at 1°, z6.5 at 0.5°, z8 at 0.25°). On the way out z7.5 is handed the 0.5° box although
+    the 0.25° box also contains it. `--fresh` adds the path where every stop gets its own box.
+- **One field for every tier** (`eye.truthField`): the served 0.25° tile `fixtures/lane-tile025.json` (HRRR lane
+  included), with the 2° world tier beyond its box. Each tier is that field point-sampled at its lattice, as the server's
+  tiers are: the fixtures agree at shared nodes (0.25° vs 0.5°: mean |ΔV| 0.009 kn over 405 nodes; vs 2°: 0.000).
+- **Truth:** the 0.25° lattice over the widest box, drawn at each stop's zoom.
+- **Eye columns:** centre shift, weakest-wall change and area ratio, as in eye mode, with one change: each next contour
+  must be the same eye grown (`eyeSummary(..., { nested: true })`). Without it, once the eye opens at 40 kn, a 9-km
+  closed pocket 100 km north counted as "the eye at 40 kn".
+- **Field column:** a second readback bins the drawn speed in 5-kn steps over the whole view (every 8th device pixel).
+  It reports the mean difference from the truth and the share of the view 10 kn or more off, so an option that holds
+  the eye by giving up the rest of the picture shows.
+- **z9** is drawn through the z8.5 camera: the 38-kn contour does not fit the z9 pane (±60 km). Both views lie inside
+  every box resident there, so the engine composes the same field.
+
+Arms (`--arms`):
+
+| arm | what it is |
+|---|---|
+| `now` | the mosaic's kill switch: a coarser covering box replaces the finer one |
+| `keep70`, `keepCentre` | option (a), emulated in the page: the finest overlay is kept while it covers ≥ 70% of the view, or its centre; the 2° base draws the rest |
+| `mosaic` | the engine as written (`windTierMosaic.js`): the coarser box is filed around the finer nodes. A third texture level would draw this same picture |
+| `oneLattice` | option (c): the server answers every box at 0.25° |
+| `meanTiers` | option (d): the coarser tiers as area means of the finest |
+
+Controls (exit `0` when all hold, `2` otherwise):
+- **null, zoom:** the truth grid draws the same eye at every zoom;
+- **null, lattice:** the `oneLattice` arm matches the truth at every stop;
+- **null, resampling:** a mosaic whose fine box lies away from the storm draws the eye of the coarse box alone;
+- **positive:** the `now` arm must move the eye on the way out.
+
+2026-10-10 (AMD 890M, D3D11), change from the stop before (centre, weakest wall, area). Truth: eye at -87.65, 27.64,
+closed 26-38 kn, r 30 km.
+
+| stop, tier change | `now` | `keep70` | `keepCentre` | `mosaic` | `oneLattice` | `meanTiers` |
+|---|---|---|---|---|---|---|
+| in z6.5, 1° → 0.5° | 21.4 km, +12 kn, x0.34 | same | same | same | 0.1 km, 0, x1 | 30.8 km, +8 kn, x0.24 |
+| in z8, 0.5° → 0.25° | 0.4 km, 0, x0.58 | same | same | same | 0.1 km, 0, x1 | 6.1 km, +4 kn, x0.33 |
+| out z7.5, 0.25° → 0.5° | 0.4 km, 0, x1.71 | held | held | 0.1 km, 0, x1 | 0.1 km, 0, x1 | 6.1 km, -4 kn, x3.02 |
+| out z6.5 | none | 0.4 km, 0, x1.72 | held | 0.0 km, 0, x1 | 0.0 km, 0, x1 | none |
+| out z6, 0.5° → 1° | 21.4 km, -12 kn, x2.94 | held | held | 0.1 km, 0, x1 | 0.1 km, 0, x1 | 30.8 km, -8 kn, x4.24 |
+| out z5.5 | none | 21.3 km, -12 kn, x2.94 | held | 0.1 km, 0, x1 | 0.1 km, 0, x1 | none |
+
+Drawn field against the truth on the way out (mean kn; share of the view ≥ 10 kn off):
+
+| arm | z7.5 | z7 | z6.5 | z6 | z5.5 |
+|---|---|---|---|---|---|
+| `now` | 1.68; 3.0% | 1.27; 1.5% | 1.09; 0.9% | 1.77; 4.7% | 0.99; 2.3% |
+| `keep70` | 0.00; 0.0% | 0.64; 1.3% | 1.09; 0.9% | 0.73; 0.4% | 0.99; 2.3% |
+| `keepCentre` | 0.01; 0.0% | 0.64; 1.3% | 2.09; 9.6% | 1.90; 6.6% | 1.18; 3.5% |
+| `mosaic` | 0.01; 0.0% | 0.14; 0.0% | 0.51; 0.1% | 0.88; 1.5% | 0.51; 0.8% |
+| `meanTiers` | 2.80; 12.4% | 1.96; 6.2% | 1.46; 3.1% | 2.08; 5.9% | 1.21; 2.9% |
+
+Both paths give the same summary. See `docs/weather-program/log/2026-10-10-wind-eye-zoom-ladder.md`.
+
 ## What it renders
 
 - **Canvas:** 897 × 914 css px (the owner's map pane) at a fixed DPR 2, WebGL2. The camera is

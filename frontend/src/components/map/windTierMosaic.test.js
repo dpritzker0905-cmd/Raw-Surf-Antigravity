@@ -171,4 +171,11 @@ describe('bookkeeping and wiring', () => {
     expect(eng).toContain("if (windBoundsContain(tierInner(this._windFine.windGrid).bounds, windGrid.bounds)) return 'noop_coarser_than_fine';");
     expect(eng).toContain('residentSameSlot = tierOuter(this._windFine.windGrid);');
   });
+  it('the overlay read-back the commit gate consults reports the lattice of the SERVED box, mosaic or not', () => {
+    const eng = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
+    expect(eng).toContain('? { active: true, bounds: fine.bounds, cols: tierOuter(fine.windGrid)?.cols, rows: tierOuter(fine.windGrid)?.rows,');
+    // keepResidentFine (WeatherEngine's gate) then sees the cell the server sent: a mosaic of a 1-deg box reads 1 deg.
+    const m = tierMosaic(BOX1, FINE, WIN());
+    expect((m.bounds.east - m.bounds.west) / (tierOuter(m).cols - 1)).toBe(1);
+  });
 });
