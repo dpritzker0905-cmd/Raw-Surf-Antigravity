@@ -371,6 +371,15 @@ before starting it.
   the wash drawn, heat 0 by the gate's own decision and a covering clip not yet committed, in a run the verdict itself calls observable. My own harness had the same flaw: "HEAT0" was reported as
   "heat map faded" and read as vanished, while the wash stays. Say what a number is, not what its name suggests. Mechanized: `scn_heatfade.js` records the gate inputs and the pixels per frame;
   `runs/f22/nightly_2026-10-01_mult0_frames.json` keeps the extract. (2026-10-02, same log)
+- **L-P29 · Speculative work belongs to the view that asked for it; count requests per gesture, offline, from the log's own sequence.** The wind map's warm effect made ONE
+  `AbortController` per effect, so a pan never cancelled the previous pan's 14-day timeline: a mini plus two 48-frame pages (~20 s of the 1-CPU box each) per settled pan, and
+  `/api/health` read 10-13 s while the owner panned (Render log, 2026-10-10 00:04Z). The marine lane already had the fix (`createMarineViewportIntent`: identity from the series key, the latest
+  regional view owns the work) behind a build flag; wind never got it. Port what a sibling lane already has before inventing, and share one implementation (`createSeriesViewportIntent`). Two more rules from the
+  measurement: (1) a convenience prefetch (the adjacent page) waits for evidence the user stayed, and a scrub still loads everything, so the contract that says never cap the scrubber holds;
+  (2) do not touch the request box to dedupe: the server's resolution is a step function of the snapped area (`sqrt(area/400)`: 98 deg² -> 0.5°, 105 -> 1°) and the Gulf view sits on the step, so
+  padding or a coarser lattice moves served values. The replay (`windSeriesPan.replay.test.js`) takes the view sequence straight from the request log and a mock `fetch` that honours `AbortSignal`: 8 fast pans
+  go from 776 frames requested / 384 far-hour to 440 / 48, and the box builds 237 frames instead of 661. It does NOT remove the per-view build, and the server amplifier (a 16-day fetch and a serial,
+  single-slot background build that the next box cancels) stays open. (2026-10-10, log `2026-10-10-wind-series-supersede.md`)
 - **L-F14 · An exhaustive sweep sees only what its fixtures contain: put the SERVED product in its alphabet, and read a divergence count against the rule switched off.** The 3,000-fixture guard-vs-arbiter
   differential and the 37,268-interleaving sequence sweep both use a 10-degree world grid; the backend has served a 2-degree world frame since 2026-07-23. The F-22 sweep (a bridge in the loop, both commit modes,
   41,472 interleavings) used the 2-degree frame and found two differences no earlier sweep could see, both older than this fix and not changed by it: the arbiter's rule 7 (`tier_downgrade`) rejects a 10-degree
@@ -579,3 +588,18 @@ A stored estimate can be estimated again in a browser branch with different sour
   base clipped to a box. Because it covered the view, it replaced the 1° box, and the next delivery filed the box again
   (last arrival wins). Ask what a candidate grid ADDS over what is already drawn: a base-resolution clip adds nothing.
   When two grids of one field draw a feature differently, compare their lattices as well as their values (L-V7).
+- **L-V21 · A bench that draws the basemap alone cannot test a rule that reads the style. Give the instrument the app's
+  layer stack, and make the read-back report the effect.** The basemap mute (#296) measured 38% -> 3% on the path bench,
+  merged, and never ran in the app. Its rule stood down for any raster layer in the style, and the app keeps a satellite
+  photo and 18 weather-wash slots mounted and hidden under the wind (`MapWebGL.js`). The bench's map had none of them.
+  Two more things hid it:
+  - `getStyle().layers` leaves custom layers out (MapLibre `_serializedAllLayers`), so the wind layer's slot was never
+    found and "under the wind" meant the whole style, in the bench and in the app alike;
+  - the read-back said `applied: true` with `layers: 0`, and I told the owner to read `applied: true` as success. The
+    owner's console paste showed the 0.
+  Rules:
+  1. An instrument for code that READS app state carries that state (here the layer stack, pinned to the app's source
+     by a wiring test), and its positive control is the shipped code run on it: `path-run.js --ref <commit>`,
+     `--mute-check`.
+  2. A read-back reports what was done (`layers > 0`, or the reason it stood down), never what was asked for.
+  3. After a merge, read the effect on the deployed build before calling it live (the kin of L-V19: settle, then read).
