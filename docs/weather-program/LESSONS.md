@@ -737,3 +737,7 @@ A stored estimate can be estimated again in a browser branch with different sour
      size and place showed the same shapes, two of them crossing a counting threshold.
   6. **A shell default is not a place for JSON.** `${2:-{"a":{}}}` ends at the first closing brace: one bench arm ran
      where two were asked for. Read JSON from a file. (log 2026-10-10-dark-style-light-beach)
+  7. **"Every" needs every one measured.** Two themes were measured and three were written: dark's nearest segment sat
+     three percent from the trigger. A reviewer with no part in the work computed it in minutes, along with an older
+     kill that no longer drew what it drew. Keep that review for any PR that changes what is drawn, and give a rule's
+     trigger a margin a test can see. (same log, "Independent review")

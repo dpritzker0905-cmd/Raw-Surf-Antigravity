@@ -332,3 +332,19 @@ describe('the engine wiring', () => {
     expect(ENGINE).toContain("if (_ink.mode) gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_single_casing'), 1 - _ink.spine);");
   });
 });
+
+describe('glow lever edge cases (independent review of the default flip, 2026-10-10)', () => {
+  it('false turns glow off for the session, as it did while glow was a lever; other unknown values keep the default', () => {
+    for (const theme of ['light', 'beach']) expect(windInk(theme, V2, { __RAW_WIND_GLOW__: false })).toMatchObject({ mode: 0, glow: false });
+    for (const v of [null, undefined, 0, 1, {}]) expect(windInk('light', V2, { __RAW_WIND_GLOW__: v }).glow).toBe(true);
+    expect(windInk('light', V2, { __RAW_WIND_INK__: false }).on).toBe(false);
+    expect(windInk('light', V2, { __RAW_WIND_INK__: false }).glow).toBe(true);
+  });
+  it('a theme the lever names that glow has no numbers for draws with finite numbers (light\'s white and ring), never NaN', () => {
+    const g = windInk('storm', V2, { __RAW_WIND_GLOW__: 'storm' });
+    expect(g.glow).toBe(true);
+    for (const k of ['opacity', 'white', 'spine']) expect(Number.isFinite(g[k])).toBe(true);
+    expect(g.white).toBe(WIND_GLOW.white.light);
+    expect(g.spine).toBe(WIND_GLOW.ring.light);
+  });
+});

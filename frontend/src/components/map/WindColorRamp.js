@@ -345,7 +345,7 @@ export function resolveFieldRamp(theme, win) {
 export function buildFieldRampTexture(gl, maxSpeed, theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : {});
   if (!gl || !FIELD_RAMPS[theme] || w.__RAW_DISABLE_WIND_FIELD_RAMP__ === true) return null;
-  var data = generateRampData(maxSpeed || 50, resolveFieldRamp(theme, w)), prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
+  var data = generateRampData(maxSpeed || 50, resolveFieldRamp(theme, w), null, w), prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -438,12 +438,17 @@ function lerpStop(a, b, t) {
 // colour ran on the straight sRGB line. Light's 10 kn violet and 16 kn green sit on opposite sides of the colour wheel (172 deg),
 // so that line runs through GREY: at 13 kn the field over the muted land was L* 69.6 / C* 1.0, a grey veil at the commonest wind
 // speeds, entered and left at 9 dE00 per knot (the hard lines), and the streaks and the legend bar greyed with it. A segment whose
-// straight midpoint keeps under 3/4 of its ends' chroma is now walked round the wheel in OKLCH (lightness and chroma straight, hue
+// straight midpoint keeps under HALF of its ends' chroma is now walked round the wheel in OKLCH (lightness and chroma straight, hue
 // by the shortest arc; two near-opposite hues go by the cool side, through cyan, the one family no other band uses), as 1 kn
 // waypoints. Today that is ONE segment, light's 10-16 kn, in the field and in the particle ramp: violet, blue, azure, teal, green
-// (C* 19-22 over the muted land throughout). Every other segment of every theme keeps 0.90 or more and is not touched, byte for byte.
-// Kill: __RAW_DISABLE_WIND_HUE_PATH__ (next ramp build: theme change or reload).
-var HUE_PATH_KEEP = 0.75;
+// (C* 19-22 over the muted land throughout). That segment keeps 0.07-0.09; every other segment of light and beach keeps 0.90 or
+// more and dark's weakest (6-10 kn) 0.78, so the trigger at one half has a wide margin on both sides and nothing else is touched,
+// byte for byte (windClearLowBand.test.js pins the margin: a palette edit that drifts a segment toward the trigger fails there).
+// Kill: __RAW_DISABLE_WIND_HUE_PATH__ (next ramp build: theme change or reload). Every OLDER ramp kill stands the path down too,
+// so that kill draws exactly what it drew: its rows AND the straight line between them.
+var HUE_PATH_KEEP = 0.5;
+var HUE_PATH_OLDER_KILLS = ['__RAW_DISABLE_WIND_LIGHT_FASTBAND__', '__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__', '__RAW_DISABLE_WIND_LIGHT_CVD__', '__RAW_DISABLE_WIND_LIGHT_LOWBAND__',
+  '__RAW_DISABLE_WIND_MIDBAND_REFINE__', '__RAW_DISABLE_WIND_BEACH_CVD__', '__RAW_DISABLE_WIND_DARK_CVD__', '__RAW_DISABLE_WIND_LOWBAND_RESPREAD__', '__RAW_DISABLE_WIND_FIELD_RAMP__'];
 function srgbToLin(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
 function linToSrgb(c) { return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; }
 /** sRGB [r, g, b] 0-1 -> OKLCH [L, C, hue deg] (Ottosson 2020). */
@@ -477,7 +482,8 @@ function mixHue(a, b, t) {
 /** The ramp with 1 kn waypoints on every segment that would otherwise lose its colour (the ramp itself when none does, or killed). */
 export function huePathStops(ramp, win) {
   var w = win || (typeof window !== 'undefined' ? window : null);
-  if (!ramp || (w && w.__RAW_DISABLE_WIND_HUE_PATH__ === true)) return ramp;
+  if (!ramp || ramp.length < 2) return ramp;
+  if (w && (w.__RAW_DISABLE_WIND_HUE_PATH__ === true || HUE_PATH_OLDER_KILLS.some(function(k) { return w[k] === true; }))) return ramp;
   var out = [ramp[0]];
   for (var i = 1; i < ramp.length; i++) {
     var a = ramp[i - 1], b = ramp[i], ca = toOklch(a.slice(1, 4)), cb = toOklch(b.slice(1, 4));
@@ -520,8 +526,8 @@ export function sampleRamp(ramp, speed) {
  * @param {string} [theme] - 'dark', 'light', or 'beach' — selects themed ramp
  * @returns {Uint8Array} 256×1 RGBA data (1024 bytes)
  */
-export function generateRampData(maxSpeed, ramp, theme) {
-  var stops = huePathStops(ramp || (theme ? resolveThemeRamp(theme) : DEFAULT_WIND_RAMP));   // HUE PATH: no segment runs through grey
+export function generateRampData(maxSpeed, ramp, theme, win) {
+  var stops = huePathStops(ramp || (theme ? resolveThemeRamp(theme) : DEFAULT_WIND_RAMP), win);   // HUE PATH: no segment runs through grey
   var data = new Uint8Array(256 * 4);
 
   for (var i = 0; i < 256; i++) {

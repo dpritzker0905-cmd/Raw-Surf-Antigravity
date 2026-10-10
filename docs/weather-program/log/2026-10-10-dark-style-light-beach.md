@@ -296,3 +296,30 @@ than the ring.
   that disagree on speed at their border). The colours no longer turn it grey; the seam is data, not palette.
 - The Canvas2D fallback (`WindParticleOverlay.js`) samples the straight ramp still.
 - The streaks' colour-blind separation was not checked (the legend and its stops are unchanged and pass).
+
+### Independent review of the change (19:55Z): what it found, and what changed
+
+A reviewer with no part in the work read the diff of the three source files and computed against it. No crash, NaN or
+out-of-range colour: the OKLab constants match Ottosson's, the arc and its wrap-around hold, the gamut fallback gave no
+bad value in 200,000 random pairs. Four things were wrong. All are fixed in the same PR, each test written and seen red
+first.
+
+1. **An older kill did not draw what it drew.** Its rows stepped back, but the path still bent them: the 10-16 kn of
+   light's older rows (0.16-0.18 kept) under three of the older kills, and beach's legend under
+   `__RAW_DISABLE_WIND_LOWBAND_RESPREAD__` (0.30). Every older ramp kill now stands the path down too.
+2. **A sentence above is wrong: "every other segment of every theme keeps 0.90 or more".** That was measured for light
+   and beach and written for three themes. Dark's 6-10 kn keeps 0.78, three percent above the trigger as first written
+   (3/4). Dark never bent, but a small palette edit could have moved dark's look with no test failing. The trigger is
+   now one half (light's 10-16 kn keeps 0.07-0.09, and nothing shipped sits between 1/4 and 3/4), and a test pins that
+   margin. Read "under 3/4" in Fix 1 above as "under half".
+3. **`window.__RAW_WIND_GLOW__ = false` left glow on.** While glow was a lever, false meant off. It does again.
+4. **A theme the lever names without numbers of its own would have sent NaN to the shader.** It draws with light's
+   white and ring. The app cannot reach this (the engine passes light, beach or dark); a hand-set lever could.
+
+Also: the table builder honours a kill handed to it (it read only the global one), and a ramp too short to have a
+segment comes back as it came.
+
+Left as limits: the Canvas2D fallback samples the straight ramp; the colour-blind check reads the 13 stops, not the
+five waypoints between 10 and 16 kn.
+
+After the fixes: 25 deliberate breaks, 25 red. Jest map + `src/tests`: 301 suites, 3851 tests.

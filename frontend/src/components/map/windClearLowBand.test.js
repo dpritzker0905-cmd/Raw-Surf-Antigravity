@@ -9,7 +9,8 @@
  *     between them runs through grey: a grey veil at the commonest wind speeds, with a 9 dE00-per-knot edge on each side.
  *   - light, calm: 92.4 / 0.6 against a bare ground of 93.4 / 0.5. Calm air drew the greyed map itself, then climbed to
  *     lavender within 3 kn: a difference too small to see followed by a steep one, which draws an edge round every calm patch.
- *   - beach has no such segment (every one keeps 0.92 of its colour or more); only its calm was bare (83.0 / 3.5).
+ *   - beach has no such segment (every one keeps 0.92 of its colour or more; dark's weakest keeps 0.78); only its calm was bare
+ *     (83.0 / 3.5).
  * This file pins the two fixes (WindColorRamp.js: HUE PATH, CLEAR CALM), their kill switches, and what neither may touch.
  * 3, 6 and 10 kn are NOT changed: their strength is dark's and their steps hold the colour-blind floor (windFieldLut.test.js,
  * windPaletteCvd.test.js). A lilac that light cannot carry more colour (C* 15 at L* 85 is the sRGB ceiling over this ground).
@@ -200,5 +201,52 @@ describe('clear calm: calm air is a pale tint of the theme\'s own first colour, 
     for (const theme of ['light', 'beach']) {
       for (const v of [3, 6, 10]) expect(sampleRamp(field(theme), v)).toEqual(sampleRamp(killed(theme), v));
     }
+  });
+});
+
+describe('hue path: what the independent review of the change found (2026-10-10)', () => {
+  const kept = (a, b) => toOklch([1, 2, 3].map((j) => (a[j] + b[j]) / 2))[1] / ((toOklch(a.slice(1, 4))[1] + toOklch(b.slice(1, 4))[1]) / 2);
+  const OLDER = ['__RAW_DISABLE_WIND_LIGHT_FASTBAND__', '__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__', '__RAW_DISABLE_WIND_LIGHT_CVD__', '__RAW_DISABLE_WIND_LIGHT_LOWBAND__',
+    '__RAW_DISABLE_WIND_MIDBAND_REFINE__', '__RAW_DISABLE_WIND_BEACH_CVD__', '__RAW_DISABLE_WIND_DARK_CVD__', '__RAW_DISABLE_WIND_LOWBAND_RESPREAD__', '__RAW_DISABLE_WIND_FIELD_RAMP__'];
+  afterEach(() => { for (const k of OLDER) delete window[k]; });
+
+  it('every older ramp kill stands the path down too: that kill draws what it drew, the rows AND the line between them', () => {
+    for (const k of OLDER) {
+      const w = { [k]: true };
+      for (const theme of ['light', 'beach']) { const f = resolveFieldRamp(theme, w); expect(huePathStops(f, w)).toBe(f); }
+      window[k] = true;
+      for (const theme of ['light', 'beach', 'dark']) {
+        const p = resolveThemeRamp(theme);
+        expect(huePathStops(p)).toBe(p);
+        expect(windLegendGradientCSS(theme).split('%').length - 1).toBe(13);
+      }
+      delete window[k];
+    }
+  });
+
+  it('the trigger has a wide margin: a shipped segment either loses most of its colour (under 1/4 kept) or keeps over 3/4', () => {
+    const seen = [];
+    for (const theme of ['light', 'beach', 'dark']) {
+      for (const ramp of [resolveThemeRamp(theme), resolveFieldRamp(theme, {})].filter(Boolean)) {
+        for (let i = 1; i < ramp.length; i++) seen.push(kept(ramp[i - 1], ramp[i]));
+      }
+    }
+    expect(seen.filter((r) => r < 0.25)).toHaveLength(2);                        // light's 10-16 kn, in the field and in the particle ramp
+    expect(seen.filter((r) => r >= 0.25 && r <= 0.75)).toEqual([]);              // nothing sits near the trigger (0.5)
+    const nearest = Math.min(...seen.filter((r) => r > 0.75));
+    expect(nearest).toBeGreaterThan(0.76); expect(nearest).toBeLessThan(0.80);   // dark's 6-10 kn, 0.78: the nearest that does NOT bend
+  });
+
+  it('a kill handed to the table builder is honoured, and a ramp too short to have a segment comes back untouched', () => {
+    const ramp = resolveFieldRamp('light', {});
+    const viaArg = Array.from(generateRampData(75, ramp, undefined, { [KILL_PATH]: true }));
+    window[KILL_PATH] = true;
+    const viaWindow = Array.from(generateRampData(75, ramp));
+    delete window[KILL_PATH];
+    expect(viaArg).toEqual(viaWindow);
+    expect(Array.from(generateRampData(75, ramp))).not.toEqual(viaWindow);
+    const empty = [], one = [[0, 1, 1, 1, 1]];
+    expect(huePathStops(empty, {})).toBe(empty);
+    expect(huePathStops(one, {})).toBe(one);
   });
 });

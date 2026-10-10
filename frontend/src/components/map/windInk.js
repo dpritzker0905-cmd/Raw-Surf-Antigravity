@@ -77,7 +77,9 @@ export const WIND_GLOW = Object.freeze({
   ring: Object.freeze({ light: 0.5, beach: 0.35 }),    // strength of dark's white inner ring (1 = dark's own, 0 = a pure colour body)
 });
 
-const themesOf = (lever, fallback) => (lever === true ? ['light', 'beach'] : (typeof lever === 'string' ? lever.split(',') : fallback));
+// true = both themes, false = none (a session's off switch), a string = that list; anything else is not a setting: the default stands.
+const themesOf = (lever, fallback) => (lever === true ? ['light', 'beach'] : (lever === false ? [] : (typeof lever === 'string' ? lever.split(',') : fallback)));
+const perTheme = (table, theme) => (theme in table ? table[theme] : table.light);   // a theme the lever names without numbers of its own draws with light's
 const inRange = (v, lo, hi) => typeof v === 'number' && v >= lo && v <= hi;
 
 /**
@@ -95,8 +97,8 @@ export function windInk(theme, v2, win = (typeof window !== 'undefined' ? window
   }
   if (w.__RAW_DISABLE_WIND_GLOW__ !== true && themesOf(w.__RAW_WIND_GLOW__, WIND_GLOW.themes).includes(theme)) {
     const op = w.__RAW_WIND_GLOW_OPACITY__, wh = w.__RAW_WIND_GLOW_WHITE__, ri = w.__RAW_WIND_GLOW_RING__;
-    return { mode: 2, on: false, glow: true, spine: inRange(ri, 0, 1) ? ri : WIND_GLOW.ring[theme], purity: 0, density: 1,
-      opacity: inRange(op, 0.1, 1) ? op : (WIND_GLOW.opacity[theme] || 0.6), white: inRange(wh, 0, 1) ? wh : WIND_GLOW.white[theme] };
+    return { mode: 2, on: false, glow: true, spine: inRange(ri, 0, 1) ? ri : perTheme(WIND_GLOW.ring, theme), purity: 0, density: 1,
+      opacity: inRange(op, 0.1, 1) ? op : (WIND_GLOW.opacity[theme] || 0.6), white: inRange(wh, 0, 1) ? wh : perTheme(WIND_GLOW.white, theme) };
   }
   return OFF;
 }
