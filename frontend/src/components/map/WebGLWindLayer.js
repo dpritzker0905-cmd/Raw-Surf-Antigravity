@@ -13,7 +13,7 @@
 import { memo, useEffect, useRef } from 'react';
 import WebGLWindEngine from './WebGLWindEngine';
 import { windLayerBeforeId, windCoastlineLayer, WIND_COASTLINE } from './WebGLWindUtils';
-import { syncWindBasemapMute } from './windBasemapMute';
+import { syncWindBasemapMute, windBasemapMuteStale } from './windBasemapMute';
 import { getWindParticleRes } from './deviceTier';
 import { registerWindEngine, unregisterWindEngine } from '../../engine/RenderPlanDispatcher';
 
@@ -295,6 +295,9 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
         } catch (e) {
           console.warn('[WebGLWind] Failed to add layer:', e.message);
         }
+      } else if (windBasemapMuteStale(mapInstance, themeRef.current, activeRef.current, LAYER_ID)) {
+        // A satellite photo or a weather wash came on (or went) under the wind, or an earlier sync met a style mid-load.
+        syncWindBasemapMute(mapInstance, themeRef.current, activeRef.current, LAYER_ID);
       }
     };
 
