@@ -339,3 +339,19 @@ out from the glow. I may have made a mistake telling you glow was a good option,
   that on a pale ground the mark should be at or below the ground's lightness (ink's polarity) with a dark edge; ink as
   built fails over warm-band water at wide zoom. That design work is handed to a cloud session (the owner's usage here
   is nearly spent); it ships default off, for the owner's A/B.
+
+## 20:28Z: beach comes off glow too, on the owner's word
+
+Owner, 20:25-20:28Z: "you can even take the glow off beach, or match it to dark mode. We really just need to replicate dark
+mode, but with proper setup for the colors for each modes schema"; "If dark mode doesn't have glow, than beach shouldnt
+have glow.... we need to replicate our science from dark mode"; "I think beach mode too, needs it off glow. Beach mode
+needs dark mode's science too".
+
+- **Changed:** `WIND_GLOW.themes = []`. No theme draws glow by default; light and beach both draw the marks before it. The
+  hue path and the calm tint stay. `window.__RAW_WIND_GLOW__ = true` (or `'beach'`) draws it for a session.
+- **A naming problem, told to the owner:** "glow" in the code is dark's own streak pipeline translated for a light
+  ground, not an effect dark lacks, and it is the version of beach he called "a lot better" twenty minutes earlier. He
+  asked for it off three times, so it is off; the name misled, and the reply says so and gives the line that brings it
+  back. In anything written for the owner it is "dark's streak method".
+- **What is owed:** dark's look rebuilt per theme, which for light means a field deep enough to give the streaks room
+  (the cloud session started at 20:27Z), default off, for the owner's A/B. The 3-10 kn lilac question folds into it.

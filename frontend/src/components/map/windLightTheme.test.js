@@ -24,7 +24,8 @@ describe('speed-coloured premultiplied marks', () => {
   it('light 1.0 and beach 0.6 with the double casing; dark untouched', () => {
     expect(v2SpeedPremul(v2, 'light', NO_GLOW)).toEqual({ on: true, opacity: 1.0, singleCasing: false });
     expect(v2SpeedPremul(v2, 'beach', NO_GLOW)).toEqual({ on: true, opacity: 0.6, singleCasing: false });
-    expect(v2SpeedPremul(v2, 'beach', {})).toEqual({ on: false, opacity: 0, singleCasing: false });   // glow owns beach's marks
+    expect(v2SpeedPremul(v2, 'beach', {})).toEqual({ on: true, opacity: 0.6, singleCasing: false });  // beach came off glow too (the owner's word)
+    expect(v2SpeedPremul(v2, 'beach', { __RAW_WIND_GLOW__: true })).toEqual({ on: false, opacity: 0, singleCasing: false });   // its lever still stands this down
     expect(v2SpeedPremul(v2, 'light', {})).toEqual({ on: true, opacity: 1.0, singleCasing: false });  // light came off glow (it washed out live)
     expect(v2SpeedPremul(v2, 'dark', {})).toEqual({ on: false, opacity: 0, singleCasing: false });
     expect(V2_SPEED_PREMUL.themes).toEqual(['light', 'beach']);

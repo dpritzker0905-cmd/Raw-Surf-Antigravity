@@ -276,3 +276,6 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Amended 2026-10-10 20:23Z (owner, from the app):** "Beach mode look a lot better, but light mode washes out from the glow.
   I may have made a mistake telling you glow was a good option". Rule 1 now holds for BEACH only. Light draws the marks
   before glow until its own mark is designed and A/B'd; rules 2 and 3 (calm tint, hue path) stand for both themes.
+- **Amended again 2026-10-10 20:28Z (owner):** "I think beach mode too, needs it off glow. Beach mode needs dark mode's science
+  too". Rule 1 is suspended for both themes: no theme draws glow by default. The lever stays. Dark's look, rebuilt for each
+  theme's own ground and colours, comes back as candidates for the owner's A/B.
