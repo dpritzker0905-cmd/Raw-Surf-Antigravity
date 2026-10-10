@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-10 04:33Z** (logs: `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-10 14:40Z** (logs: `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,21 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-10 05:3xZ: the wind's trails are anchored to the map (client only; PR #306 to dev).** Owner: "study all
+- **2026-10-10 14:40Z: light's wind field from 6 kn up is A, steady descent (client only; PR #307 to dev).** Owner,
+  after the A/B of three redesigns (#304): "I like A too" (D-018).
+  - **The change.** A's rows are light's default field; `__RAW_DISABLE_WIND_LIGHT_FASTBAND__` restores the field before
+    it; each older light-field kill steps back past A first. The A/B lever and candidates B and C are gone.
+  - **What it buys.** Every neighbouring tint on the muted ground is at least 5 dE2000 apart for colour-blind viewers
+    (5.22 water, 5.26 land; 2.58 and 2.59 before). The palette checker's colour-blind RED lines for light: 1 -> 0.
+  - **What it costs.** Light's 27-75 kn field is stronger than dark's (x1.83 at 75 kn): dark parity is re-scoped for
+    those bands only. On the real basemap the map's lines keep their contrast at everyday strength (within 0.7 of a
+    point); at storm strength they lose up to 1.3 points on land and up to 7.4 over water.
+  - **Tests first:** pins generated from the running code, watched fail, then the rows moved; seven deliberate breaks
+    each turn a pin red. Jest map + `src/tests` 298 suites / 3786 tests.
+  - **Still owed:** the owner's look in light theme after the deploy; the deployed reads for #306 and #299 (seq 1018).
+    Log `log/2026-10-10-light-fastband-a-default.md`; LESSONS L-V25.
+
+- **2026-10-10 05:3xZ: the wind's trails are anchored to the map (client only; merged as #306, 9eccf149, 14:15Z).** Owner: "study all
   of our sub work tree work, then ... work forward on making this state of the art".
   - **The defect.** The trail buffer lived on the screen: a pan smeared every trail along the drag, a zoom along rays
     from the focal point, so the wind's direction was unreadable while the map moved.
@@ -38,7 +52,7 @@ is a claim, not a measurement.
     straight lines, 1.0-1.3x with curves), on #302's ladder bench, for the owner's A/B. Still owed: the deployed read of
     #299 (`__WIND_BASEMAP_MUTE__.layers`). Log `log/2026-10-10-wind-trail-anchor.md`; LESSONS L-V24.
 
-- **2026-10-10 04:3xZ: three light fast-band redesigns reach the colour-blind floor, DEFAULT OFF (client only; merged as #304, 541117de; owner A/B pending).**
+- **2026-10-10 04:3xZ: three light fast-band redesigns reach the colour-blind floor, DEFAULT OFF (client only; merged as #304, 541117de; the owner picked A on 2026-10-10 and the lever is gone: see the top entry).**
   - **The finding.** With the basemap muted, the whole 6-75 kn light field tint ramp sat under 5 dE2000 for some colour-blind
     viewer (weakest 2.58), not only the fast bands. A stripe-free redesign exists; only the dark-parity strength pin for 27-75 kn
     has to give (about 1 dE of floor per 7 dE76).
@@ -1763,7 +1777,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1020, sha256 000c9b2ea717900bd7a1907f797f5db68093b03d588f7622a6c378bab93a03d4**
+  **Ledger head: seq 1024, sha256 a77a2add1512b0a88339a8a82b97431b0172cb8fe1b64244a3c818c36479a376**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

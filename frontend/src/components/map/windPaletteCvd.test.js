@@ -137,18 +137,18 @@ describe('BEACH passes the colour-blind floor (legend, tint over water AND over 
   });
 });
 
-describe('LIGHT: the legend passes; the tint over water is raised but stays a documented exception', () => {
+describe('LIGHT: the legend passes; the tint passes on the muted ground the wind sits on (its own cyan water stays an exception)', () => {
   const live = () => [resolveThemeRamp('light'), resolveFieldRamp('light', window)];
   it('every neighbouring legend stop is >= 5 dE2000 for all three dichromacies', () => {
     expect(weakest(legendPairs(live()[0])).d).toBeGreaterThanOrEqual(5);
   });
-  it('EXCEPTION (owner to accept): the tint over water clears 2.6, not 5 -- dark parity leaves the 40-75 kn tints near-grey there', () => {
-    // At 24-26 dE76 (dark's strength), light's pale warm 40-75 kn fields cancel the cyan water: C* 2-16 at L* 61-64. The best
-    // smooth solve under every gate reached 5 over water once in 11 runs, by redesigning the field (not shipped). Raise this
-    // pin if the tint improves; never lower it.
+  it('EXCEPTION, UNMUTED WATER ONLY (the picture with the basemap mute killed): the tint clears 3.0 there, not 5', () => {
+    // With the wind on, the basemap is muted (windBasemapMute.js) and the tint clears 5 on that ground: pinned in the last
+    // describe below and in windLightFastBand.test.js. Over light's own cyan water, which shows only when the mute is
+    // killed, the slow bands still crowd (3.04 at 10-16 kn; 2.75 before A). Raise this pin if the tint improves; never lower it.
     const pairs = waterPairs('light', live()[1]);
-    expect(weakest(pairs).d).toBeGreaterThanOrEqual(2.6);
-    expect(pairs.filter((p) => p.d < 5).map((p) => p.kn)).toEqual(expect.arrayContaining(['47-55']));
+    expect(weakest(pairs).d).toBeGreaterThanOrEqual(3.0);
+    expect(weakest(pairs).kn).toBe('10-16');
   });
   it('without false bands: the tint turns in lightness only where the shipped one did (16 kn dip, 21 kn peak; 40 kn on land)', () => {
     const F = live()[1].filter((s) => s[0] >= 3), at = (i) => F[i][0];
@@ -188,15 +188,24 @@ describe('the tint over the ground the wind actually sits on (basemap muted unde
     expect(weakest(pairsOn('beach', F, groundOf('beach', 'water'))).d).toBeGreaterThanOrEqual(5);   // 5.08 at water x0.94
     expect(weakest(pairsOn('beach', F, groundOf('beach', 'land'))).d).toBeGreaterThanOrEqual(5);
   });
-  it('LIGHT, NEUTRAL-GROUND PASS: every ground lifts to ~2.6 (from 1.8-1.9); the ceiling under light\'s rules, never lower', () => {
-    // On a neutral ground light's fast bands collapse for a deuteranope (27-33 kn: 1.8 on its own near-grey land, 1.9 on the
-    // muted water). The pass lifts the weakest neighbouring tint on every ground to ~2.6 without a new band (5 needs a
-    // redesign of the warm fast-band hues: log 2026-10-09-light-neutral-cvd).
+  it('LIGHT: every neighbouring tint over the muted water and the muted land is >= 5 dE2000 for all three (A, steady descent)', () => {
+    // The neutral-ground pass lifted every ground to ~2.6, the ceiling at dark's strength (log 2026-10-09-light-neutral-cvd).
+    // A (the owner's pick, 2026-10-10) lets 27-75 kn run stronger than dark and reaches the floor: 5.22 on the muted water,
+    // 5.26 on the muted land (log 2026-10-09-light-fastband-cvd).
     const F = resolveFieldRamp('light', window);
-    expect(weakest(pairsOn('light', F, groundOf('light', 'water'))).d).toBeGreaterThanOrEqual(2.55);
-    expect(weakest(pairsOn('light', F, groundOf('light', 'land'))).d).toBeGreaterThanOrEqual(2.55);
-    expect(weakest(waterPairs('light', F, 'land')).d).toBeGreaterThanOrEqual(2.5);    // the unmuted land: 1.83 before
-    expect(weakest(waterPairs('light', F)).d).toBeGreaterThanOrEqual(2.74);           // the unmuted water: kept
+    expect(weakest(pairsOn('light', F, groundOf('light', 'water'))).d).toBeGreaterThanOrEqual(5);
+    expect(weakest(pairsOn('light', F, groundOf('light', 'land'))).d).toBeGreaterThanOrEqual(5);
+    expect(weakest(waterPairs('light', F, 'land')).d).toBeGreaterThanOrEqual(5);      // the unmuted land: 5.21 (2.52 before A)
+    expect(weakest(waterPairs('light', F)).d).toBeGreaterThanOrEqual(3.0);            // the unmuted water: 3.04 (2.75 before A)
+  });
+  it('POSITIVE CONTROL + kill: __RAW_DISABLE_WIND_LIGHT_FASTBAND__ restores the neutral-ground field, ~2.6 on every ground (never lower)', () => {
+    const F = resolveFieldRamp('light', { __RAW_DISABLE_WIND_LIGHT_FASTBAND__: true });
+    for (const d of [weakest(pairsOn('light', F, groundOf('light', 'water'))).d, weakest(pairsOn('light', F, groundOf('light', 'land'))).d]) {
+      expect(d).toBeGreaterThanOrEqual(2.55); expect(d).toBeLessThan(3);
+    }
+    expect(weakest(waterPairs('light', F, 'land')).d).toBeGreaterThanOrEqual(2.5);
+    expect(weakest(waterPairs('light', F)).d).toBeGreaterThanOrEqual(2.74);
+    expect(resolveFieldRamp('beach', { __RAW_DISABLE_WIND_LIGHT_FASTBAND__: true })).toEqual(resolveFieldRamp('beach', {}));   // light only
   });
   it('POSITIVE CONTROL + kill: __RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__ restores the rows where 27-33 kn collapses on grey', () => {
     window.__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__ = true;
@@ -210,6 +219,6 @@ describe('the tint over the ground the wind actually sits on (basemap muted unde
     } finally {
       delete window.__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__;
     }
-    expect(resolveFieldRamp('light', window)[7]).toEqual([33, 0.670, 0.618, 0.409, 0.87]);
+    expect(resolveFieldRamp('light', window)[7]).toEqual([33, 0.625, 0.590, 0.324, 0.87]);   // A's 33 kn row: the live field again
   });
 });

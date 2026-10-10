@@ -17,7 +17,7 @@
  * Kill: __RAW_DISABLE_WIND_FIELD_LUT__ -> the legacy inline ramp (kept in the shader).
  */
 import { HEATMAP_FS } from './WebGLWindShaders';
-import { THEME_RAMPS, FIELD_RAMPS, sampleRamp, buildFieldRampTexture } from './WindColorRamp';
+import { THEME_RAMPS, FIELD_RAMPS, sampleRamp, buildFieldRampTexture, resolveFieldRamp } from './WindColorRamp';
 
 const rgbToHueDeg = ([r, g, b]) => {
   const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
@@ -243,15 +243,25 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
   const BENCH_BASEMAP = { light: [0.86, 0.88, 0.90], beach: [0.62, 0.58, 0.50] };
   const dE76 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
   const strength = (theme, stop) => { const bm = BENCH_BASEMAP[theme].map((v) => v * 255); return dE76(srgbToLab(bm.map((v) => v / 255)), srgbToLab(tinted(theme, stop, bm))); };
-  it('light/beach FIELD carries the measured dark strength in every band from 6 to 75 kn (within 1 dE)', () => {
+  // LIGHT FROM 27 KN IS STRONGER THAN DARK, BY THE OWNER'S PICK (2026-10-10, after the A/B: "I like A too"). The colour-blind floor on
+  // the muted ground cannot be had at dark's strength: each extra ~7 dE76 of strength buys ~1 dE2000 of floor (log
+  // 2026-10-09-light-fastband-cvd). Light's 27-75 kn field is "A, steady descent" (windLightFastBand.test.js); its own measured
+  // strengths are the pin. 6-21 kn stay at dark's. window.__RAW_DISABLE_WIND_LIGHT_FASTBAND__ restores dark parity in every band.
+  const LIGHT_FAST_STRENGTH = { 27: 33.2, 33: 34.1, 40: 33.2, 47: 33.1, 55: 41.1, 63: 40.4, 75: 43.8 };
+  it('beach FIELD carries the measured dark strength 6-75 kn, light 6-21 kn (within 1 dE); light 27-75 kn carries A\'s own strengths (within 1 dE)', () => {
     for (const theme of ['light', 'beach']) for (const stop of FIELD_RAMPS[theme]) {
-      const target = DARK_STRENGTH[stop[0]]; if (target === undefined) continue;
+      const target = theme === 'light' && LIGHT_FAST_STRENGTH[stop[0]] !== undefined ? LIGHT_FAST_STRENGTH[stop[0]] : DARK_STRENGTH[stop[0]]; if (target === undefined) continue;
       expect(Math.abs(strength(theme, stop) - target)).toBeLessThanOrEqual(target === 32.0 && theme === 'beach' ? 2.2 : 1.0);
     }
   });
-  it('POSITIVE CONTROL: the particle palette as the field overshoots the light storm bands by more than 40%', () => {
+  it('POSITIVE CONTROL + kill: __RAW_DISABLE_WIND_LIGHT_FASTBAND__ restores the light field that carried dark\'s strength 6-75 kn (within 1 dE)', () => {
+    const before = resolveFieldRamp('light', { __RAW_DISABLE_WIND_LIGHT_FASTBAND__: true });
+    before.forEach((stop) => { const target = DARK_STRENGTH[stop[0]]; if (target !== undefined) expect(Math.abs(strength('light', stop) - target)).toBeLessThanOrEqual(1.0); });
+    expect(before.filter((stop) => stop[0] >= 27).every((stop) => Math.abs(strength('light', stop) - LIGHT_FAST_STRENGTH[stop[0]]) > 1.0)).toBe(true);   // and fails A's pin
+  });
+  it('POSITIVE CONTROL: the particle palette as the field overshoots light\'s own storm bands by more than 30% (dark\'s by more than 100%)', () => {
     const storm = THEME_RAMPS.light.filter((st) => st[0] >= 40);
-    storm.forEach((st) => expect(strength('light', st) / DARK_STRENGTH[st[0]]).toBeGreaterThan(1.4));
+    storm.forEach((st) => { expect(strength('light', st) / LIGHT_FAST_STRENGTH[st[0]]).toBeGreaterThan(1.3); expect(strength('light', st) / DARK_STRENGTH[st[0]]).toBeGreaterThan(2.0); });
   });
   it('the field and the particles share hue identity: every field stop is within 25 deg of the particle stop hue (chromatic stops)', () => {
     for (const theme of ['light', 'beach']) FIELD_RAMPS[theme].forEach((st, i) => {
