@@ -162,10 +162,17 @@ node scripts/wind-bench/path-run.js                                   # light, b
 node scripts/wind-bench/path-run.js --themes beach --paths erratic --seeds 1,2,3
 node scripts/wind-bench/path-run.js --field --paths erratic,jitter    # the colour field alone: glued to the map?
 node scripts/wind-bench/path-run.js --arms '{"off":{"__RAW_DISABLE_WIND_BASEMAP_MUTE__":true},"mute":{}}'
+node scripts/wind-bench/path-run.js --bare                            # the basemap alone, without the app's own layers
 ```
 
 The owner asked for tests "through zooms and pans of all types, even erratic", after reporting "ambiguity to the wind
 color vs the color of the map". Same basemaps, engine, data and token as map mode.
+
+**The map carries the app's layer stack** (`page/map-entry.js` `addAppStack`; LESSONS L-V21). The app keeps a satellite
+photo and 18 weather-wash slots mounted and hidden under the wind layer, and draws radar frames above it. The first
+version of this bench drew the basemap alone: a mute that stood down for any raster layer measured 38% → 3% here and
+never ran in the app (live dev read `layers: 0`). Each run's line ends with what the mute did (`muted N layers`, or
+`NOT muted (imagery:<layer>)`). `--ref <commit>` with the stack is the positive control for a rule that reads the style.
 
 **Paths** (`paths.js`). A virtual 60 Hz camera, at rest before and after each path:
 - `pan`: steady drag at z8;

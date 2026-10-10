@@ -579,3 +579,18 @@ A stored estimate can be estimated again in a browser branch with different sour
   base clipped to a box. Because it covered the view, it replaced the 1° box, and the next delivery filed the box again
   (last arrival wins). Ask what a candidate grid ADDS over what is already drawn: a base-resolution clip adds nothing.
   When two grids of one field draw a feature differently, compare their lattices as well as their values (L-V7).
+- **L-V21 · A bench that draws the basemap alone cannot test a rule that reads the style. Give the instrument the app's
+  layer stack, and make the read-back report the effect.** The basemap mute (#296) measured 38% -> 3% on the path bench,
+  merged, and never ran in the app. Its rule stood down for any raster layer in the style, and the app keeps a satellite
+  photo and 18 weather-wash slots mounted and hidden under the wind (`MapWebGL.js`). The bench's map had none of them.
+  Two more things hid it:
+  - `getStyle().layers` leaves custom layers out (MapLibre `_serializedAllLayers`), so the wind layer's slot was never
+    found and "under the wind" meant the whole style, in the bench and in the app alike;
+  - the read-back said `applied: true` with `layers: 0`, and I told the owner to read `applied: true` as success. The
+    owner's console paste showed the 0.
+  Rules:
+  1. An instrument for code that READS app state carries that state (here the layer stack, pinned to the app's source
+     by a wiring test), and its positive control is the shipped code run on it: `path-run.js --ref <commit>`,
+     `--mute-check`.
+  2. A read-back reports what was done (`layers > 0`, or the reason it stood down), never what was asked for.
+  3. After a merge, read the effect on the deployed build before calling it live (the kin of L-V19: settle, then read).

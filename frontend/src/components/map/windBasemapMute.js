@@ -19,7 +19,15 @@
  * above the wind. Satellite is not touched either: a style with imagery under the wind keeps its photo. The palette, the field, the particles and every served number are unchanged. Off again when the wind is
  * off; a theme change loads a fresh style, and the layer re-applies it.
  *
- * Read-back: window.__WIND_BASEMAP_MUTE__ = { applied, layers, amount, waterL, theme, at } after every sync.
+ * THE APP'S STACK (2026-10-09, live dev read { applied: true, layers: 0 }: nothing had ever been muted). The first build
+ * stood down for ANY raster layer in the style, and the app keeps a satellite photo and 18 weather-wash slots mounted and
+ * HIDDEN under the wind (MapWebGL.js); the path bench drew the basemap alone and never met them. getStyle() also leaves
+ * custom layers out, so the wind layer's own slot was never found and "under the wind" meant the whole style. Now: only a
+ * raster SHOWING under the wind (visible, opacity not 0) is imagery; the slot comes from the style's draw order; the ocean
+ * mask's own layers are left to OceanMask; and the layer re-syncs when imagery appears or goes (windBasemapMuteStale).
+ *
+ * Read-back: window.__WIND_BASEMAP_MUTE__ = { applied, layers, amount, waterL, theme, at, reason? } after every sync;
+ * applied is true only when layers > 0, and reason names the imagery that stood it down ('imagery:<layer id>').
  * Lever: window.__RAW_WIND_BASEMAP_MUTE__ (0-1, the share of chroma removed, any theme).
  * Kill: window.__RAW_DISABLE_WIND_BASEMAP_MUTE__ (the map keeps its own colours under the wind).
  */
@@ -107,18 +115,30 @@ const AREA_COLOR_PROPS = {
   hillshade: ['hillshade-shadow-color', 'hillshade-highlight-color', 'hillshade-accent-color'],
 };
 
+// OceanMask.js repaints land and inland water in the theme's colours on its own sync, and shows them only while a marine
+// layer is on: its layers are left to it (muting them here would be undone, or copied, by that sync).
+const APP_OWNED = /^ocean-mask-/;
+/** A raster layer that is on screen: visible, and not parked at opacity 0 (how the app holds its idle weather slots). */
+const showing = (l) => !!l && l.type === 'raster' && (l.layout || {}).visibility !== 'none' && (l.paint || {})['raster-opacity'] !== 0;
+const belowWind = (layers, windId) => { const end = layers.findIndex((l) => l && l.id === windId); return end >= 0 ? layers.slice(0, end) : layers; };
+
+/** The id of the first raster layer SHOWING under the wind layer (a satellite photo, a weather wash), or null. */
+export function windBasemapImagery(layers, windId) {
+  const hit = Array.isArray(layers) ? belowWind(layers, windId).find(showing) : null;
+  return hit ? hit.id : null;
+}
+
 /**
  * The paint changes for one style: every area colour of the layers BELOW the wind layer (before `windId` in the order;
  * the whole list when it is absent), plus the colours of line layers named water* (rivers and the water's own outlines).
- * Layers named water* also take `waterL` on their lightness. A style with a raster layer under the wind (satellite) is
- * left alone: the photo is the map. [{ id, prop, from, to }] for properties the style sets.
+ * Layers named water* also take `waterL` on their lightness. With imagery showing under the wind (windBasemapImagery)
+ * the style is left alone: the photo is the map. [{ id, prop, from, to }] for properties the style sets.
  */
 export function windBasemapMutePlan(layers, windId, amount, waterL = 1) {
-  if (!Array.isArray(layers) || !(amount > 0)) return [];
-  const end = layers.findIndex((l) => l && l.id === windId), below = end >= 0 ? layers.slice(0, end) : layers, plan = [];
-  if (below.some((l) => l && l.type === 'raster')) return plan;
-  for (const l of below) {
-    if (!l || !l.paint) continue;
+  if (!Array.isArray(layers) || !(amount > 0) || windBasemapImagery(layers, windId)) return [];
+  const plan = [];
+  for (const l of belowWind(layers, windId)) {
+    if (!l || !l.paint || APP_OWNED.test(l.id)) continue;
     const props = AREA_COLOR_PROPS[l.type] || (l.type === 'line' && /^water/.test(l.id) ? ['line-color'] : []);
     for (const prop of props) {
       if (l.paint[prop] === undefined) continue;
@@ -145,23 +165,70 @@ export function syncWindBasemapMute(map, theme, active, windId, win = (typeof wi
   return r;
 }
 
+/**
+ * The style's layers in DRAW order. getStyle() leaves custom layers out (MapLibre's _serializedAllLayers), so the wind
+ * layer's own slot comes from the style's order (as waterTempAnchor.js reads it), each custom layer kept as a stub.
+ */
+function orderedLayers(map) {
+  const st = map.getStyle(), order = map.style._order;
+  if (!st || !Array.isArray(st.layers)) throw new Error('style not loaded');
+  if (!Array.isArray(order)) return st.layers;
+  const byId = new Map(st.layers.map((l) => [l.id, l]));
+  return order.map((id) => byId.get(id) || { id, type: 'custom' });
+}
+
+/** The raster layers under the wind as `showing` reads them, off the live map: no getStyle(), this runs on every styledata. */
+function liveRasters(map, windId) {
+  const order = map.style._order, out = [];
+  if (!Array.isArray(order) || typeof map.getLayoutProperty !== 'function') return orderedLayers(map);
+  for (const id of order) {
+    if (id === windId) break;
+    const l = map.getLayer(id);
+    if (l && l.type === 'raster') out.push({ id, type: 'raster', layout: { visibility: map.getLayoutProperty(id, 'visibility') }, paint: { 'raster-opacity': map.getPaintProperty(id, 'raster-opacity') } });
+  }
+  return out;
+}
+
+/** What this map should have now: { amount (0 = unmuted), waterL, imagery (the id standing it down, or null) }. */
+function wanted(map, theme, active, windId, win) {
+  const base = active && map.getLayer(windId) ? windBasemapMuteAmount(theme, win) : 0;   // 0: wind off, dark, the kill
+  const imagery = base > 0 ? windBasemapImagery(liveRasters(map, windId), windId) : null;
+  return { amount: imagery ? 0 : base, waterL: windBasemapWaterL(theme, win), imagery };
+}
+
+/**
+ * True when a sync would change something: the wind is on and the basemap is not muted, or the reverse (the wind went
+ * off, a satellite photo or a weather wash came on under it), or the theme or a lever moved. Cheap (no getStyle()), for
+ * the layer's styledata handler. It does not ask whether someone repainted a muted colour: a writer that re-asserts its
+ * colour on every style change would then trade writes with this one for ever.
+ */
+export function windBasemapMuteStale(map, theme, active, windId, win = (typeof window !== 'undefined' ? window : null)) {
+  if (!map || !map.style || !APPLIED || typeof map.getPaintProperty !== 'function') return false;
+  try {
+    const w = wanted(map, theme, active, windId, win), prev = APPLIED.get(map);
+    if (!(w.amount > 0)) return !!prev;
+    return !prev || prev.theme !== theme || prev.amount !== w.amount || prev.waterL !== w.waterL;
+  } catch (e) {
+    return false;
+  }
+}
+
 function syncOnce(map, theme, active, windId, win) {
   if (!map || !map.style || !APPLIED || typeof map.getPaintProperty !== 'function') return { applied: false, layers: 0, amount: 0 };
   try {
-    const amount = active && map.getLayer(windId) ? windBasemapMuteAmount(theme, win) : 0, waterL = windBasemapWaterL(theme, win);
+    const { amount, waterL, imagery } = wanted(map, theme, active, windId, win);
     const prev = APPLIED.get(map);
     if (prev) {
       const mine = prev.plan.filter((p) => map.getLayer(p.id) && same(map.getPaintProperty(p.id, p.prop), p.to));
-      if (mine.length === prev.plan.length && prev.theme === theme && prev.amount === amount && prev.waterL === waterL) return { applied: true, layers: prev.layers, amount };
+      if (mine.length === prev.plan.length && prev.theme === theme && prev.amount === amount && prev.waterL === waterL) return { applied: prev.layers > 0, layers: prev.layers, amount };
       for (const p of mine) map.setPaintProperty(p.id, p.prop, p.from);   // restore only what is still ours
       APPLIED.delete(map);
     }
-    if (!(amount > 0)) return { applied: false, layers: 0, amount: 0 };
-    const plan = windBasemapMutePlan(map.getStyle().layers, windId, amount, waterL);
+    if (!(amount > 0)) return { applied: false, layers: 0, amount: 0, ...(imagery ? { reason: `imagery:${imagery}` } : {}) };
+    const plan = windBasemapMutePlan(orderedLayers(map), windId, amount, waterL), layers = new Set(plan.map((p) => p.id)).size;
+    APPLIED.set(map, { theme, amount, waterL, plan, layers });   // recorded BEFORE the writes: one that throws is undone by the next sync
     for (const p of plan) map.setPaintProperty(p.id, p.prop, p.to);
-    const layers = new Set(plan.map((p) => p.id)).size;
-    APPLIED.set(map, { theme, amount, waterL, plan, layers });
-    return { applied: true, layers, amount };
+    return { applied: layers > 0, layers, amount };
   } catch (e) {
     return { applied: false, layers: 0, amount: 0, error: e.message };   // a style mid-load: the next styledata retries
   }
