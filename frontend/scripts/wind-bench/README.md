@@ -206,6 +206,65 @@ transition to 0 and settles before reading (LESSONS L-V19).
 
 It writes `out/<tag>-sheet.html`, every sampled frame with its numbers.
 
+### Flow mode (`path-run.js --flow`): do the streaks still run along the wind while the camera moves?
+
+```bash
+node scripts/wind-bench/path-run.js --flow                              # light, beach, dark; every path, `turn` and `dateline`; both arms
+node scripts/wind-bench/path-run.js --flow --themes dark --paths pan,zoomOut
+node scripts/wind-bench/path-run.js --flow --ref origin/dev             # an engine without the anchor: both arms smear
+node scripts/wind-bench/path-run.js --flow --hash-all --json a.json     # hash the trail buffer at EVERY sample, to compare two engines exactly
+```
+
+The instrument behind `windTrailAnchor.js` (trails anchored to the map). A trail is drawn along the air's path, so the
+wind's ink should vary across the wind and hardly along it. A trail buffer that stays on the screen smears every trail
+along the camera's motion instead: a pan turns the field into streaks parallel to the drag, a zoom into rays from the
+focal point.
+
+- **`flow`** (`flow.js`): the share of the ink's gradient energy that lies ACROSS the served wind direction.
+  - The ink is (map + wind) minus (the map alone, same camera, engine not advanced), in L* at CSS-pixel scale.
+  - The wind's direction comes from the served grid, per 16 px block. 1 = every streak runs along the wind, 0.5 = no
+    direction, 0 = every streak runs across it. A dash has two ends, so a field at rest reads 0.66-0.85, not 1.
+  - Blocks are left out where the map has line work (its residue under a tint would read as ink), where the wind is
+    under 5 kn, or where there is almost no ink.
+- **Arms.** `anchored` (the default engine) and `screen` (`__RAW_DISABLE_WIND_TRAIL_ANCHOR__`).
+- **Columns.** Medians over the samples at rest, while the camera moves (p10 in brackets), and in the second after it
+  stops; then what the trail buffer did, counted per frame (`pan`: whole-pixel shifts, `view`: looked at through a zoom,
+  `relay`: ink re-laid, `turn`: re-laid for a turn or tilt, `jump`: cleared, `off`: the screen buffer).
+- **Two flow-only paths.**
+  - `turn`: a two-finger turn of the map, 70° there and back (`flow.js` `turned` scores a turned map).
+  - `dateline`: a steady drag east across the 180th meridian at z5. The view centre wraps there, so the map's matrix
+    jumps one world in one frame; its frames carry the wrapped longitude, as the map reports it.
+  - Frames may also carry a `pitch`; a tilted map is drawn and captured but not scored.
+- **The engine is drawn in every visible copy of the world**, as the app's layer computes them (`worldOffsets`: `[0]`
+  away from the date line, so no other mode's picture changes).
+
+**Gates** (`FLOW_GATE`, exit 1), set at about a third of what the first full run measured:
+
+| check | rule |
+|---|---|
+| positive control | on `pan`, the `screen` arm falls at least 0.08 below its own rest reading |
+| null control | before the camera first moves, both arms lay the SAME ink: the engine's trail buffer is hashed, sample for sample |
+| the result | while moving, `anchored` beats `screen` by 0.05 on every path (no worse than -0.01 on `jitter`); on `pan` it stays within 0.05 of its rest reading |
+| nothing cleared | the `anchored` arm never clears its buffer (`jump`) on a scripted path |
+
+Three limits to read the table with:
+- **A zoom path's rest reading is taken at its first zoom only**, and the reading changes with zoom (the marks do), so
+  nothing is gated on it there.
+- **Ground that has just come into view has no trail history yet.** A fling or a fast zoom-out shows marks without
+  their tails for the first half second, anchored or not, so `anchored` reads below its rest level on those paths. It
+  still reads well above `screen`, whose tails point the wrong way.
+- **A median cannot see one bad frame.** Before its fix, the date line cleared the trails once per crossing and moved
+  the pan's median from 0.715 to 0.713. That is why "nothing cleared" is its own gate, read from the engine's
+  read-back.
+
+**The engine's random stream is its own.** The engine draws from `Math.random` every frame (the respawn seed) and
+MapLibre draws from it too (an id per worker request). A tile that happened to load mid-run shifted every later
+respawn, so the same seed laid different ink depending on which run came before. `page/map-entry.js` now swaps the
+seeded stream in for the engine's frame only. Found by the null control above; it applies to map and path mode too
+(their seeded runs no longer depend on the run before).
+
+It writes `out/<tag>-flow-sheet.html`, every sampled frame with its reading.
+
 ## Lane mode (`lane-run.js`): the HRRR wind lane across tiers, pans, upstreams and zooms
 
 ```bash
