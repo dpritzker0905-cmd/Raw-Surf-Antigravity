@@ -59,6 +59,9 @@ class ViewportService:
     ACTIVE_BG_TASKS: Dict[str, asyncio.Task] = {}
     # The context each slot's task is serving, weakly: the raw 16-day list must not outlive its task.
     ACTIVE_BG_CONTEXTS: Dict[str, "weakref.ref[FetchContext]"] = {}
+    # Tasks a newer box replaced in the slot but did not cancel (WIND_BG_BUILD_BOUNDED: a request waits on them).
+    # asyncio holds tasks weakly, so the set is what keeps them alive until they finish.
+    KEPT_BG_TASKS: set = set()
 
     ACTIVE_REVALIDATIONS = set()
 
@@ -469,6 +472,8 @@ class ViewportService:
                     # Cancelling it fails the hour a request is still waiting on, and that request then
                     # refetches the old box and cancels THIS box's task in turn.
                     logger.info(f"[Dynamic Viewport] Keeping background task for {bg_key}: a request is waiting on it")
+                    self.KEPT_BG_TASKS.add(old_task)
+                    old_task.add_done_callback(self.KEPT_BG_TASKS.discard)
                 else:
                     logger.info(f"[Dynamic Viewport] Canceling stale background task for {bg_key}")
                     old_task.cancel()
@@ -497,7 +502,12 @@ class ViewportService:
             self.ACTIVE_BG_TASKS[bg_key] = task
             self.ACTIVE_BG_CONTEXTS[bg_key] = weakref.ref(context)
 
-            gc.collect()
+            # A full collection walks the whole serve heap (0.42 s measured) and this one runs BEFORE the fetcher
+            # returns its hour: the bounded build leaves the full pass to the task's own `finally`.
+            if wind_bg_bounded(domain):
+                gc.collect(1)
+            else:
+                gc.collect()
             if target_normalized_product and _is_oversized_grid(target_normalized_product):
                 raise ValueError(
                     f"Freshly normalized product {target_normalized_product.product_id} is oversized: "

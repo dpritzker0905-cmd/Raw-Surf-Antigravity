@@ -2,15 +2,17 @@
 
 ⛔ WHAT THE FLAG REPLACES. For wind, `viewport_service.fetch_viewport_grid_upstream` fetches the whole forecast
 (16 days, ~385 hourly steps) for every fresh snapped box, normalizes the one hour that was asked for, and hands the
-rest to `viewport_helper.bg_process_remaining_hours_helper`. That task then normalizes, serialises and indexes EVERY
-remaining hour, one at a time, with a full `gc.collect()` after each, in ONE slot per model/domain that the next
-box cancels ("Canceling stale background task for gfs_wind", 5 times in 6 minutes on 2026-10-10 00:04Z).
+rest to `viewport_helper.bg_process_remaining_hours_helper`. That task normalizes, serialises and indexes EVERY
+remaining hour, one at a time, with a full `gc.collect()` after each, in ONE slot per model/domain that the next box
+cancels ("Canceling stale background task for gfs_wind", 5 times in 6 minutes on 2026-10-10 00:04Z).
 
-Measured offline (tests/test_wind_bg_build_bounded.py, the real normalizer and bg helper behind a mock 16-day
-upstream): one fresh box costs 385 hours, 391 full collections, 163 of the build's 173 CPU-seconds in
-`gc.collect()` (0.42 s each, on the event-loop thread) and 3.4 s in the normalizer. So the cost per hour is the
-collection, not the physics, and ~337 of the 385 hours were never asked for. A cold 48-frame page then needs
-48 x ~0.45 s = ~22 s against GRID_SERIES_DEADLINE_S = 20 s, which is why its tail timed out by construction.
+Measured offline (tests/test_wind_bg_build_bounded.py: the real normalizer and bg helper behind a mock 16-day
+upstream, process imported with the app): one fresh box = 385 hours and 386 full collections; profiled, 163 of its 201 s
+were `gc.collect()` (0.42 s each, on the event-loop thread; 0.047 s in a bare process, because a full collection walks
+the whole heap) and 3.9 s the normalizer. So the cost per hour is the collection, not the physics, and ~337 of the 385
+hours were never asked for. A cold 48-frame page then needs 48 x ~0.45 s = ~22 s against GRID_SERIES_DEADLINE_S = 20
+(27 of 48 frames arrived in the replay), which is why its tail timed out by construction. Second amplifier: the next
+box's cancel fails the unresolved hour futures, their waiters take the self-heal path and cancel the NEW box's task in turn.
 
 WITH THE FLAG ON (wind only; marine and the stored products never pass through here):
 1. The hours that are WAITED FOR are built first, exactly as before.
@@ -19,15 +21,15 @@ WITH THE FLAG ON (wind only; marine and the stored products never pass through h
 3. The task then lingers WIND_BG_LINGER_S seconds (default 3) for late waiters of the same page (a 48-frame page
    registers its hours a few at a time) and retires. Its context leaves IN_FLIGHT_REQUESTS exactly as it does today.
 4. Between hours it runs a young-generation `gc.collect(1)`, not a full one; the final full collection stays.
-5. A new box no longer cancels a task that still has a waiter, because cancelling it failed that waiter's hour and
-   sent it down the self-heal path (a second 16-day fetch for the old box that cancelled the new box's task).
-Hours that were not built still resolve on demand: the next request for one finds no file, becomes the fetcher
-(a cache hit in the provider's 5-minute grid cache, else one upstream fetch) and builds it.
+5. A new box no longer cancels a task that still has a waiter (it is held in ViewportService.KEPT_BG_TASKS; asyncio
+   holds tasks weakly). A task with no waiter is speculative work and is still cancelled, as today.
+Hours that were not built still resolve on demand: the next request for one finds no file (the cache key embeds the
+hour), becomes the fetcher (a hit in the provider's 5-minute grid cache, else one upstream fetch) and builds it.
 
 THE SERVED NUMBERS DO NOT MOVE: every hour that is built goes through the same normalizer call with the same
 arguments (tests pin the vectors equal, flag on vs off). What changes is WHICH hours are built, WHEN, and what the
-event loop pays for them. It ships off because it changes build behaviour and memory behaviour for every wind user;
-only the owner flips it (D-001).
+event loop pays for them. It ships off because it changes build and memory behaviour for every wind user; only the
+owner flips it (D-001). Log: docs/weather-program/log/2026-10-10-wind-bg-build-bounded.md.
 """
 import asyncio
 import logging

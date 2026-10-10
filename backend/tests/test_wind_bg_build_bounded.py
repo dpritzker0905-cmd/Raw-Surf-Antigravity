@@ -7,14 +7,17 @@ fetches 16 days (~385 hourly steps), normalizes the one hour asked for, and `bg_
 normalizes, serialises and indexes EVERY other hour serially, with a FULL `gc.collect()` after each.
 
 MEASURED HERE, offline: the real ViewportService + normalizer + bg helper behind a mock 16-day upstream (nothing
-touches the live backend, CLAUDE.md). `HARNESS_GC=real` runs the collections for real; the default only counts them.
-Flag off, before this change (python 3.12, this machine, heap = the test process with the app imported):
-- one fresh box (mini + cold 48-frame page): 385 hours normalized, 157-173 CPU-seconds, of which `gc.collect()` was
-  163 (391 calls, 0.42 s each, on the event-loop thread) and the normalizer 1.6-3.4. The cost per hour is the
-  collection, not the physics. A cold page of 48 hours at ~0.45 s needs ~22 s against GRID_SERIES_DEADLINE_S = 20.
-- two boxes one hour apart, the second landing while the first page is in flight: 19 "Canceling stale background
+touches the live backend, CLAUDE.md). `HARNESS_GC=real` runs the collections for real (the default only counts them) and
+`HARNESS_HEAP=app` imports the route stack first, because a full collection walks the whole heap: 0.047 s each in a
+bare test process, 0.42 s in one that has imported the app.
+Flag off, before this change (python 3.12, this machine, the test process with the app imported):
+- cProfile of one fresh box: `gc.collect()` was 163 of 201 s (391 calls, 0.42 s each, on the event-loop thread), the
+  dynamic index's json.dump 10.7 s, the normalizer 3.9 s. The cost per hour is the collection, not the physics.
+- one fresh box (mini + cold 48-frame page, then rest): 385 hours normalized, 386 full collections, 211 CPU-seconds,
+  and the page got 27 of its 48 frames (the tail timed out against GRID_SERIES_DEADLINE_S = 20).
+- two boxes one degree apart, the second landing while the first page is in flight: 19 "Canceling stale background
   task", 20 fetch_grid calls for 2 boxes (18 of them provider-cache re-entries by cancelled waiters), 431 hours
-  normalized (21 of them twice), 211 CPU-seconds, and 30 and 29 of the 48 frames of the two pages.
+  normalized (18 of them twice), 230 CPU-seconds, and 30 and 33 of the 48 frames of the two pages.
 The table for the flag on is in docs/weather-program/log/2026-10-10-wind-bg-build-bounded.md.
 
 `make_rig` builds a ViewportService over a temp store, a mock upstream that honours the provider's 5-minute grid
@@ -103,7 +106,9 @@ class Rig:
         async def resolve_grid(model, domain, layer, valid_time, bbox, surf=False, background_tasks=None, **kw):
             t = datetime.fromisoformat(valid_time.replace("Z", "+00:00"))
             return await self.service.fetch_viewport_grid(model, domain, layer, valid_time, t, bbox)
-        return await build_grid_series(resolve_grid, self.service, "GFS", "wind", "wind", box, _csv(hours))
+        # base_time pins the series to BASE (fixed at import): a run that crosses a UTC hour boundary cannot shift it.
+        return await build_grid_series(resolve_grid, self.service, "GFS", "wind", "wind", box, _csv(hours),
+                                       base_time=BASE.strftime("%Y-%m-%dT%H:%M:%SZ"))
 
     async def hour(self, box, h):
         t = BASE + timedelta(hours=h)
@@ -112,7 +117,8 @@ class Rig:
     async def settle(self, timeout=60.0):
         t0 = time.monotonic()
         while time.monotonic() - t0 < timeout:
-            tasks = [t for t in ViewportService.ACTIVE_BG_TASKS.values() if not t.done()]
+            tasks = [t for t in [*ViewportService.ACTIVE_BG_TASKS.values(), *ViewportService.KEPT_BG_TASKS]
+                     if not t.done()]
             if not tasks:
                 return
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -121,7 +127,8 @@ class Rig:
     async def stop(self):
         """End whatever is still building (the flag-off build would run the whole forecast)."""
         self.meter.release()
-        tasks = [t for t in ViewportService.ACTIVE_BG_TASKS.values() if not t.done()]
+        tasks = [t for t in [*ViewportService.ACTIVE_BG_TASKS.values(), *ViewportService.KEPT_BG_TASKS]
+                 if not t.done()]
         for t in tasks:
             t.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
@@ -210,6 +217,7 @@ def make_rig(tmp_path, monkeypatch, caplog):
         ViewportService.IN_FLIGHT_REQUESTS.clear()
         ViewportService.ACTIVE_BG_TASKS.clear()
         ViewportService.ACTIVE_BG_CONTEXTS.clear()
+        ViewportService.KEPT_BG_TASKS.clear()
         ViewportService.NEGATIVE_CACHE.clear()
 
     def make(flag):
@@ -217,7 +225,9 @@ def make_rig(tmp_path, monkeypatch, caplog):
             monkeypatch.setenv(FLAG, "1")
         else:
             monkeypatch.delenv(FLAG, raising=False)
-        monkeypatch.setenv("WIND_BG_LINGER_S", os.environ.get("WIND_BG_LINGER_S", "0.5"))
+        monkeypatch.setenv("WIND_BG_LINGER_S", os.environ.get("WIND_BG_LINGER_S", "1.0"))
+        if os.environ.get("HARNESS_HEAP") == "app":
+            import routes.weather  # noqa: F401  the serve process's heap: a full collection walks all of it
         reset_class_state()
         ViewportService.IN_FLIGHT_LOCK = asyncio.Lock()
         with ProductStore._product_cache_lock:
@@ -306,8 +316,8 @@ async def test_on_a_young_generation_collection_replaces_the_full_one_per_hour(m
     rig = make_rig(flag=True)
     await rig.page(BOX_A, [0])
     await rig.settle()
-    assert rig.meter.full_collections() == 2, "the spawn's and the task's final one, never one per hour"
-    assert sum(1 for g, _ in rig.meter.gc if g == 1) == len(rig.meter.built()) - 1
+    assert rig.meter.full_collections() == 1, "only the task's final one: not one per hour, not the spawn's"
+    assert sum(1 for g, _ in rig.meter.gc if g == 1) == len(rig.meter.built()),         "a young-generation pass after the spawn and after each background hour"
 
 
 async def test_on_changes_no_served_number(make_rig):
@@ -357,9 +367,11 @@ async def test_a_new_box_does_not_cancel_a_task_a_request_is_waiting_on(make_rig
     await rig.page(BOX_B, [0])                           # another box lands while A's page is waiting
     assert rig.logged("Canceling stale background task") == 0
     assert rig.logged("Keeping background task") == 1
+    assert len(ViewportService.KEPT_BG_TASKS) == 1, "the replaced task is held until it finishes (asyncio keeps tasks weakly)"
     rig.meter.release()
     frames = (await page_a)["frames"]
     await rig.settle()
+    assert not ViewportService.KEPT_BG_TASKS
     assert [f["hour_offset"] for f in frames] == PAGE0
     assert rig.meter.calls(BOX_A) == 1 and rig.meter.misses() == 2, \
         "box A is fetched once (its mini's); only box B's mini is a second upstream fetch"
@@ -401,7 +413,7 @@ async def test_a_context_nobody_can_wait_on_does_not_linger(make_rig, monkeypatc
 
 
 async def test_a_registered_context_lingers_for_late_waiters_then_retires(make_rig, monkeypatch):
-    monkeypatch.setenv("WIND_BG_LINGER_S", "0.4")
+    monkeypatch.setenv("WIND_BG_LINGER_S", "0.6")
     rig = make_rig(flag=True)
     await rig.page(BOX_A, [0])
     task = rig.service.ACTIVE_BG_TASKS["gfs_wind"]
@@ -411,7 +423,7 @@ async def test_a_registered_context_lingers_for_late_waiters_then_retires(make_r
             window_done = time.monotonic()
         await asyncio.sleep(0.01)
     ended = time.monotonic()
-    assert window_done is not None and ended - window_done >= 0.3, "it waited out the 0.4 s linger after the window"
+    assert window_done is not None and ended - window_done >= 0.3, "it waited out the 0.6 s linger after the window"
     assert not ViewportService.IN_FLIGHT_REQUESTS, "it retired its context, as the unbounded build does"
 
 
@@ -561,7 +573,7 @@ async def _table_row(make_rig, scenario, flag):
     rig.row(f"TABLE {scenario:<18} flag {'on ' if flag else 'off'} (gc {os.environ.get('HARNESS_GC', 'counted')})", frames)
     print(f"   cpu until the last page returned={t_end - rig._cpu0:.1f}s, until the build ended={rig.cpu_s():.1f}s, "
           f"normalize cpu={sum(c for _, _, c in rig.meter.normalized):.1f}s, "
-          f"gc seconds={sum(t for _, t in rig.meter.gc):.1f}s")
+          f"gc seconds={sum(t for _, t in rig.meter.gc):.1f}s, gc-tracked objects={len(__import__('gc').get_objects()):,}")
 
 
 if os.environ.get("HARNESS_TABLE"):
