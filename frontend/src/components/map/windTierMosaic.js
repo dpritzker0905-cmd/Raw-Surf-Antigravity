@@ -15,27 +15,59 @@
  * No served number moves; a zoom-in still files the finer box as before.
  * Kill: window.__RAW_DISABLE_WIND_TIER_MOSAIC__ (a coarser covering box replaces the finer one again).
  */
-export const TIER_MOSAIC = Object.freeze({ coarserBy: 1.3, minInnerCells: 4, featherCells: 2, maxNodes: 40000 });
+import { windBoundsContain } from './WebGLWindUtils';
+
+export const TIER_MOSAIC = Object.freeze({ coarserBy: 1.3, minInnerCells: 4, featherCells: 2, maxNodes: 40000, maxInnerOlderMs: 30 * 60 * 1000 });
 
 /** The truly fine grid a resident overlay carries: a mosaic's inner box, else the grid itself. */
 export const tierInner = (g) => (g && g.__tierMosaic ? g.__tierMosaic.inner : g);
 /** The served product a resident overlay was last filed from: a mosaic's outer box, else the grid itself. */
 export const tierOuter = (g) => (g && g.__tierMosaic ? g.__tierMosaic.outer : g);
+/** The bounds of the truly fine nodes a resident overlay DRAWS: the window a mosaic kept, else the grid's own bounds. */
+export const tierKept = (g) => (g && g.__tierMosaic ? g.__tierMosaic.kept : (g && g.bounds) || null);
+
+const lngCell = (g) => (g && g.bounds && g.cols > 1 ? (g.bounds.west > g.bounds.east ? g.bounds.east + 360 - g.bounds.west : g.bounds.east - g.bounds.west) / (g.cols - 1) : Infinity);
+/**
+ * NEVER DOWNGRADE THE VIEW, mosaic or not (the engine asks this of a grid clearly coarser than the resident overlay's
+ * lattice). True when `incoming` adds nothing: it lies inside the fine nodes the overlay draws, or it lies inside the
+ * overlay and is clearly coarser than the SERVED box around those nodes too. For a plain overlay both are the engine's
+ * pre-mosaic rule (coarser than the resident and inside it).
+ */
+export function tierKeepsOver(resident, incoming) {
+  if (!resident || !resident.bounds || !incoming || !incoming.bounds) return false;
+  if (windBoundsContain(tierKept(resident), incoming.bounds)) return true;
+  const outer = tierOuter(resident);
+  return outer !== resident && lngCell(incoming) > lngCell(outer) * TIER_MOSAIC.coarserBy && windBoundsContain(resident.bounds, incoming.bounds);
+}
 
 const plain = (g) => !!(g && g.bounds && g.cols > 1 && g.rows > 1 && g.bounds.west < g.bounds.east && g.bounds.south < g.bounds.north
   && Array.isArray(g.vectors) && g.vectors.length === g.cols * g.rows);
 const cellOf = (g) => [(g.bounds.east - g.bounds.west) / (g.cols - 1), (g.bounds.north - g.bounds.south) / (g.rows - 1)];
 const modelOf = (g) => g.source || (g.truthTag && g.truthTag.model) || null;
-const validOf = (g) => Date.parse(g.valid_time || g.validTime || '');
-const runOf = (g) => g.run_time || g.runTime || g.model_run_time || null;
+// The frame a grid really carries. /grid echoes the REQUESTED hour in `valid_time` and names a nearest-frame stand-in
+// in `served_valid_time` (grid_resolver.stamp_frame_honesty): a stored 3-hourly tile can sit 1.5 h from the asked hour.
+const frameOf = (g) => Date.parse(g.served_valid_time || g.valid_time || g.validTime || '');
+const builtOf = (g) => Date.parse(g.run_time || '');
+const laneOf = (g) => (g.wind_lane ? `${g.wind_lane.lane || ''}|${g.wind_lane.hrrr_cycle || ''}` : null);
+// The model CYCLE a grid verifiably names. Never `run_time`: on a dynamic box that is the legacy INGEST stamp
+// (normalizer.py: `run_time = ingested_at`), one per built box, so two boxes of one cycle never share it.
+const runOf = (g) => (g.model_run_time && g.model_run_time_status === 'known' ? g.model_run_time : null);
 
-/** The same air: one model, one hour, one valid time, one model run when both say; never stale data inside a fresh box. */
+/**
+ * The same air: one model, one asked hour, one SERVED frame, one model cycle and one wind lane (HRRR cycle) when both
+ * name them. And never older data inside a newer box: not a stale fine grid inside a fresh one, nor a fine grid BUILT
+ * more than 30 minutes before the box (the server rebuilds a dynamic box it has held that long, viewport_helper.py, and
+ * Open-Meteo boxes do not name their cycle, so the build clock is the only bound on a cycle change).
+ */
 export function tierSameAir(outer, inner) {
   if (!modelOf(outer) || modelOf(outer) !== modelOf(inner)) return false;
   if ((outer.hourOffset || 0) !== (inner.hourOffset || 0)) return false;
-  const vo = validOf(outer), vi = validOf(inner);
-  if (!isFinite(vo) || vo !== vi) return false;
+  const fo = frameOf(outer), fi = frameOf(inner);
+  if (!isFinite(fo) || fo !== fi) return false;
   if (runOf(outer) && runOf(inner) && runOf(outer) !== runOf(inner)) return false;
+  if (laneOf(outer) && laneOf(inner) && laneOf(outer) !== laneOf(inner)) return false;
+  const bo = builtOf(outer), bi = builtOf(inner);
+  if (isFinite(bo) && isFinite(bi) && bo - bi > TIER_MOSAIC.maxInnerOlderMs) return false;
   return !(inner.stale === true && outer.stale !== true);
 }
 
@@ -54,7 +86,7 @@ const r6 = (x) => +x.toFixed(6);
 
 /**
  * The mosaic of `incoming` (a coarser box) around the fine grid `resident` carries, or null when there is nothing to
- * keep: the kill switch, another model / hour / run, an incoming grid that is not a coarser tier, a fine box that no
+ * keep: the kill switch, other air (tierSameAir), an incoming grid that is not a coarser tier, a fine box that no
  * longer overlaps it by `minInnerCells` cells, an antimeridian box, or a lattice above `maxNodes` nodes.
  */
 export function tierMosaic(incoming, resident, win = (typeof window !== 'undefined' ? window : null)) {

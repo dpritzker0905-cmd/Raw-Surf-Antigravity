@@ -13,10 +13,10 @@
  */
 
 import { generateRampData, buildFieldRampTexture } from './WindColorRamp';
-import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tierInner, tierOuter } from './windTierMosaic';
+import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tierKeepsOver, tierOuter } from './windTierMosaic';
 import {
   createTexture, bindWindPointReg, unbindTexture, createFBO, bindTexture, encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
-  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, windBoundsContain, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN
+  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN
 } from './WebGLWindUtils';
 import {
   initEngine,
@@ -224,7 +224,7 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   }
   if (windCoarseOverlayGuardEnabled(typeof window !== 'undefined' ? window : null) && !windGridIsGlobal(windGrid) && this._windFine?.windGrid
       && windGridsCompatible(this._windFine.windGrid, windGrid) && windGridClearlyCoarserThan(windGrid, this._windFine.windGrid)) {
-    if (windBoundsContain(tierInner(this._windFine.windGrid).bounds, windGrid.bounds)) return 'noop_coarser_than_fine'; // never downgrade the view
+    if (tierKeepsOver(this._windFine.windGrid, windGrid)) return 'noop_coarser_than_fine'; // never downgrade the view: inside the resident (windTierMosaic.js)
     if (baseClipKeepsFine(windGrid, this._windData?.windGrid, this._windFine.windGrid)) return 'noop_base_clip'; // only the base's own nodes: keep the finer box (windOverlayKeep.js)
     windGrid = tierMosaic(windGrid, this._windFine.windGrid) || windGrid; // a coarser covering box keeps the finer nodes it overlaps (windTierMosaic.js)
   }

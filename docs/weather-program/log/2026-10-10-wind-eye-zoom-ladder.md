@@ -41,9 +41,10 @@ Two things I had to settle before trusting it:
   default, so their published numbers stand; lane mode's "40-kn closing T" on the 0.5° boxes is that pocket (the eye
   itself closes to 38 kn). Recorded here, not changed: every row of those modes carries it alike.
 
-Controls, all four passing (exit 0): the truth grid draws the same eye at every zoom (0.0-0.3 km, 0 kn, x1); the
+Controls, all passing (exit 0): the truth grid draws the same eye at every zoom (0.0-0.3 km, 0 kn, x1); the
 `oneLattice` arm matches the truth at every stop; a mosaic whose fine box lies away from the storm draws the coarse
-box's own eye (0.1 km, 0 kn, x1; field 0.07 kn); the `now` arm moves the eye on the way out (positive).
+box's own eye (0.1 km, 0 kn, x1; field 0.07 kn); the `now` arm moves the eye on the way out (positive); and the mosaic
+arm really drew mosaics on grids stamped as the app's are (engaged; see "Found before the push").
 
 ## What dev does today (the `now` arm)
 
@@ -97,13 +98,16 @@ whole view (mean; a second readback, 5-kn bins).
   lattices nest), with the fine nodes kept where the two overlap and blended over two cells at the fine box's inner
   edges, as the shader blends a fine box into the base;
 - the mosaic remembers its inner grid, so a second step out (0.5° then 1°) keeps the ORIGINAL 0.25° nodes;
-- "inside the fine box" (`noop_coarser_than_fine`) is judged on the truly fine box, so zooming back in over a mosaic
-  still files the 0.5° box as the new surround;
+- the never-downgrade rule (`noop_coarser_than_fine`) holds over a mosaic (`tierKeepsOver`): a grid is refused when it
+  lies inside the fine nodes the mosaic kept, or inside the mosaic and coarser than the served box around them. Zooming
+  back in still files the 0.5° box as the new surround, because it is not coarser than the 1° box it replaces;
 - a re-delivery of the same served box over its own mosaic is a no-op (no texture upload);
 - `window.__WIND_FINE_OVERLAY__` keeps reporting the SERVED box's lattice, so the commit gate in `WeatherEngine.js`
   decides exactly as before;
-- it returns null, and the engine files the box as before, for another model, hour, valid time or model run, stale data
-  inside a fresh box, under four cells of overlap, an antimeridian box, a non-finite vector, or more than 40,000 nodes.
+- it returns null, and the engine files the box as before, for other air (`tierSameAir`: another model, asked hour,
+  SERVED frame, verified model cycle or HRRR cycle; a stale fine grid inside a fresh box; a fine grid built more than 30
+  minutes before the box), under four cells of overlap, an antimeridian box, a non-finite vector, or more than 40,000
+  nodes.
 
 No served number moves, no request is added, no shader changes. Kill: `window.__RAW_DISABLE_WIND_TIER_MOSAIC__`.
 Console: `window.__WIND_TIER_MOSAIC__` (`built`, `last`). The engine file stays at its ratchet baseline (1095 lines).
@@ -116,13 +120,62 @@ edges.
 **#298's kill switch** (`__RAW_DISABLE_WIND_CLIP_KEEP_FINE__`) no longer brings the z6 swap back on its own: with it
 set, the mosaic keeps the finer nodes inside the clip. Both switches together restore the old filing (tested).
 
-Tests: `windTierMosaic.test.js` (16: the values node by node, ladders, every null return, wiring),
-`windTwoTexture.test.js` (+7: the engine through 0.5°, 1°, the 2° clip and back; the kill switch; the no-op guard),
+Tests: `windTierMosaic.test.js` (26: the values node by node, ladders, every null return, the app's own grids, the two
+rules, wiring), `windTwoTexture.test.js` (+10: the engine through 0.5°, 1°, the 2° clip and back; the kill switch; the
+no-op guard; the review's three sequences),
 `windBenchLadder.test.js` (13: the mirrored rules against their sources, the plan, the field helpers, the nested
-summary). Map and legend trees: 294 suites, 3707 tests (run before the last wiring pin was added; its suite re-run alone,
-16 passed). `check_eslint.js` and `loc_ratchet.py` pass.
+summary). `check_eslint.js`, `loc_ratchet.py` and a production build pass. Suite totals: the PR description.
+
+## Found before the push: the first build would have been inert in the app
+
+The mosaic refuses to merge two model runs. Its first version read the run from `run_time`. On a dynamic box that field
+is the legacy INGEST stamp (`normalizer.py`: `run_time = ingested_at`), one value per built box, and the app's mapper
+(`mapNormalizedWindGridToWebGL`) passes it through. Two boxes of one cycle therefore never share it: in the app the
+rule would have refused every merge, while the bench passed every row, because its fixtures carry no run fields. This
+is LESSONS L-V21's trap again (a rule tested on a state the app does not have), caught by reading the mapper before the
+push, not by a test.
+
+- **Fix:** the rule compares the verified model cycle only (`model_run_time` with `model_run_time_status` 'known', as
+  `marineStaleHour.js` does); the mapper now carries those two fields on wind grids. A cycle the server could not verify
+  does not block a merge: the model, the hour and the valid time are the gate.
+- **Mechanised:** three tests build both boxes with the app's own mapper from the `/grid` response shape. With the old
+  rule put back they fail (3 red of 19), with the fix they pass. The ladder bench now stamps its grids as the app's are
+  (a distinct ingest `run_time` each, one known cycle) and exits 2 if the mosaic arm drew no mosaic (the `engaged`
+  control), so an inert rule can no longer pass as "the same as now".
 
 **Scoreboard:** no row. This changes no served number.
+
+## Independent review before the push: three more defects, all fixed
+
+A second agent read the diff cold and ran the engine. It confirmed the `run_time` defect above on its own and found:
+
+1. **The never-downgrade rule was lost over a mosaic** (`WebGLWindEngine.js`, the `noop_coarser_than_fine` line). I had
+   measured "coarser" against the mosaic's fine lattice and "inside" against the fine box only. A 1° grid inside a
+   resident 0.5° surround, or the 2026-10-08 live case (a 2° mid clip inside the served box under a 10° world base),
+   was filed and downgraded the surround; the engine before this PR refused both. Tier boxes cannot trigger it (a
+   coarser tier's box is always the larger one); an off-tier answer can.
+2. **The opposite error on the same line:** "inside the fine box" used the fine grid's full bounds, although a mosaic
+   may have kept only part of it. A grid inside the unkept part was refused where the mosaic draws the base.
+   - **Fix for both:** `tierKeepsOver`: inside the nodes the mosaic KEPT, or inside the mosaic and clearly coarser than
+     the served box. For a plain overlay it is the old rule exactly. Three engine tests were red before it and are green.
+3. **"The same valid time" was the same ASKED hour.** `/grid` echoes the request in `valid_time` and names the frame it
+   really served in `served_valid_time` (`grid_resolver.stamp_frame_honesty`); a stored 3-hourly tile can stand in 1.5 h
+   away. The mapper now carries `served_valid_time`, and the rule compares the served frame.
+   - **And the cycle gate does not bite on the default path:** Open-Meteo boxes carry no verified cycle (status
+     'missing'), so a fine box built before an upstream update could have stayed inside every later box for as long as
+     the view kept overlapping it. The rule now also refuses a fine grid BUILT more than 30 minutes before the box
+     (`run_time`, the ingest clock, which is the right field for that), the age at which the server itself rebuilds a
+     dynamic box (`viewport_helper.py`, 1800 s). It also refuses two boxes stamped with different HRRR cycles.
+
+Not defects, recorded: drag-scrub series frames carry no top-level `valid_time`, so they are never merged and replace as
+before; the kill switch leaves a resident mosaic in place until another box arrives.
+
+**One measured side effect on the particles.** The advection shader's vortex gate reads the overlay's cell size, which
+is the fine one across a mosaic, its resampled surround included. With the drawn field identical (the resampling null),
+a storm that sits in the surround gets a little less trail ink on its wall: 193.2 against 207.9 (-7%), the eye 216.0
+against 218.4, so the eye/wall ratio reads 1.118 against 1.050 (z6, 180 frames, seeds 1-2; the two seeds agree to
+0.002). For scale, the same ratio moves from 1.2 to 1.8 between z5.5 and z7 on one grid. It does not touch a storm
+inside the fine nodes, which is the case the fix is for. The ladder bench reports the row on every run.
 
 ## For the owner: the first zoom-in needs the server (design, not built)
 
@@ -165,8 +218,10 @@ insertion-order pick (z7.5 on the way out) is harmless once the mosaic keeps the
   dev after the merge, over a storm: zoom to z8 or closer, wait for the fine box, zoom out by stops. Expect
   `window.__WIND_TIER_MOSAIC__.built` to rise and the eye to hold; `window.__RAW_DISABLE_WIND_TIER_MOSAIC__ = true` and
   a pan bring the old behaviour back.
-- **Different GFS runs in one picture.** The mosaic refuses grids that name different model runs, and files them as
-  before. Whether the dynamic boxes carry a run time on the client was not checked; when one side does not say, the
-  mosaic is built.
+- **Different GFS cycles in one picture.** The mosaic refuses two boxes whose VERIFIED cycles differ. Open-Meteo boxes do
+  not name their cycle (by code reading, `cycle_from_points` returns 'missing'; no live response was read), so on the
+  default path the bound is the build clock: fine nodes are never kept inside a box built more than 30 minutes after
+  them. Within those 30 minutes an upstream cycle change is possible and would be merged. The 2-deg base and the boxes
+  can already be of different cycles, which #298's log left open and this does not change.
 - **One storm, one hour, one pane size.** A wider pane asks for wider boxes (the owner's 18x13 box at z6.6), which moves
   the stops at which the tiers change, not the rule.

@@ -296,6 +296,12 @@ Controls (exit `0` when all hold, `2` otherwise):
 - **null, lattice:** the `oneLattice` arm matches the truth at every stop;
 - **null, resampling:** a mosaic whose fine box lies away from the storm draws the eye of the coarse box alone;
 - **positive:** the `now` arm must move the eye on the way out.
+- **engaged:** the `mosaic` arm must really draw mosaics. Every bench grid is stamped as `/grid` serves a dynamic box (a
+  distinct ingest `run_time`, one known `model_run_time`), because a merge rule that reads those fields is otherwise
+  invisible here: the first version compared `run_time` and would never have fired in the app.
+- **particles (reported, not gated):** the trail ink in the eye over the ink on its wall, for a storm in a mosaic's
+  resampled surround against the same storm on the plain coarse box. The drawn field is the same; the vortex gate reads
+  the overlay's cell size. 2026-10-10: 1.118 against 1.050 (wall ink -7%).
 
 2026-10-10 (AMD 890M, D3D11), change from the stop before (centre, weakest wall, area). Truth: eye at -87.65, 27.64,
 closed 26-38 kn, r 30 km.

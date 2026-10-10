@@ -25,8 +25,8 @@
  *   node scripts/wind-bench/ladder-run.js --fresh --json out/ladder.json --images out/ladder-images
  *
  * Exit: 0 when the nulls hold (same grid at every zoom; the oneLattice arm at every stop; a mosaic whose fine box is
- * away from the storm draws the coarse box's own eye) and the positive control shows (the `now` arm moves the eye on
- * the way out); 2 otherwise.
+ * away from the storm draws the coarse box's own eye), the positive control shows (the `now` arm moves the eye on the
+ * way out) and the mosaic arm really drew mosaics on grids stamped as the app's are; 2 otherwise.
  */
 const fs = require('fs');
 const path = require('path');
@@ -75,6 +75,18 @@ function parseArgs(argv) {
 const fx = (name) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', `${name}.json`), 'utf8'));
 const boxId = (b) => `${b.west}_${b.south}_${b.east}_${b.north}`;
 
+/**
+ * A bench grid stamped as /grid serves a dynamic box and the app's mapper keeps it: `run_time` is the INGEST clock, one
+ * value per built box (normalizer.py), and the model cycle is `model_run_time` with status 'known'. Without the stamps
+ * the bench cannot see a merge rule that reads them: the mosaic first compared `run_time` and would never have built in
+ * the app while every row here passed (found before the push, 2026-10-10; LESSONS L-V21's trap).
+ */
+let ingestSeq = 0;
+function asServed(g) {
+  const at = new Date(Date.parse('2026-10-09T15:20:00Z') + 5000 * ingestSeq++).toISOString();   // built seconds apart, as a zoom is
+  return { ...g, run_time: at, model_run_time: '2026-10-09T12:00:00Z', model_run_time_status: 'known' };
+}
+
 /** The field, the 2-deg world base, and a maker of the grid one served item becomes under an arm's tier rule. */
 function world() {
   const tile = gridFromFixture(fx('lane-tile025'), 'lane_tile025');
@@ -88,7 +100,7 @@ function world() {
       else if (tier === 'fine') g = latticeGrid(truth, item.box, 0.25, `box_${boxId(item.box)}_fine`, valid);
       else if (tier === 'mean' && item.step > 0.25) g = meanGrid(truth, item.box, item.step, 0.25, `box_${boxId(item.box)}_mean`, valid);
       else g = latticeGrid(truth, item.box, item.step, `box_${boxId(item.box)}_${item.step}`, valid);
-      made.set(key, g);
+      made.set(key, asServed(g));
     }
     return made.get(key);
   };
@@ -127,7 +139,7 @@ async function main() {
 
     // TRUTH: the 0.25-deg lattice over the widest box, at every zoom of the path (also the zoom null).
     const wide = plan([ZOOMS[0]], REF, PANE)[0].box;
-    const truthGrid = latticeGrid(W.truth, wide, 0.25, 'truth_025', W.valid);
+    const truthGrid = asServed(latticeGrid(W.truth, wide, 0.25, 'truth_025', W.valid));
     const truth = {};
     for (const z of ZOOMS) {
       truth[z] = await eye({ fine: truthGrid, z, levers: MOSAIC_OFF });
@@ -168,11 +180,25 @@ async function main() {
 
     // NULL, the mosaic's resampling: a fine box AWAY from the storm, then the 1-deg box. The eye is drawn from the 1-deg
     // nodes resampled onto the fine lattice, and must be the eye the 1-deg box draws alone.
-    const oneDeg = latticeGrid(W.truth, wide, 1, 'null_box_1', W.valid);
-    const away = latticeGrid(W.truth, { west: -84, south: 21, east: -80, north: 25 }, 0.25, 'null_away_025', W.valid);
+    const oneDeg = asServed(latticeGrid(W.truth, wide, 1, 'null_box_1', W.valid));
+    const away = asServed(latticeGrid(W.truth, { west: -84, south: 21, east: -80, north: 25 }, 0.25, 'null_away_025', W.valid));
     const plainEye = await eye({ fine: oneDeg, z: 6, levers: MOSAIC_OFF });
     const mosaicEye = await eye({ fine: away, after: [{ grid: oneDeg, view: null }], z: 6, levers: {} });
     const nullMosaic = { cmp: cmp(plainEye, mosaicEye), built: mosaicEye.mosaics, field: binDiff(plainEye.bins, mosaicEye.bins, BIN_KN) };
+
+    // PARTICLES over a resampled surround (reported, not gated). The drawn FIELD of the two states above is the same; the
+    // advection shader's vortex gate reads the overlay's cell size, which is the fine one in a mosaic's surround too.
+    // Trail ink in the 1-deg eye (25 km) over ink on its wall (50-90 km) after 180 frames, seeds 1-2, as eye mode does.
+    const ink = async (cfg) => {
+      const runs = [];
+      for (const seed of [1, 2]) {
+        runs.push(await page.evaluate((c) => window.__WIND_BENCH__.eyeInk(c),
+          { base: W.base, lng: REF.lng, lat: REF.lat, z: 6, ref: plainEye.summary.centre, rKm: 25, wallKm: [50, 90], seed, ...cfg }));
+      }
+      const mean = (k) => +((runs[0][k] + runs[1][k]) / 2).toFixed(k === 'ratio' ? 3 : 1);
+      return { ratio: mean('ratio'), eyeInk: mean('eyeInk'), wallInk: mean('wallInk'), seeds: runs.map((r) => r.ratio) };
+    };
+    const particles = { plain: await ink({ fine: oneDeg, levers: MOSAIC_OFF }), mosaic: await ink({ fine: away, after: [{ grid: oneDeg }], levers: {} }) };
 
     const summarise = (rows) => {
       const worst = (leg, key) => rows.filter((r) => r.leg === leg && r[key]).reduce((m, r) => {
@@ -201,10 +227,14 @@ async function main() {
     const nullLatticeOk = !R.oneLattice || R.oneLattice.every((r) => sameEye(r.truth, NULL_TOL));
     const nullMosaicOk = nullMosaic.built >= 1 && sameEye(nullMosaic.cmp, NULL_TOL);
     const positiveOk = !R.now || R.now.some((r) => r.leg === 'out' && r.step && !sameEye(r.step, NULL_TOL));
+    const builtOk = !R.mosaic || R.mosaic.filter((r) => r.leg === 'out' && r.fine && r.fine.mosaic).length >= 5;
     console.log(`\nnull, same grid at every zoom:            ${nullZoomOk ? 'PASS' : 'FAIL'}  (${ZOOMS.map((z) => `z${z}: ${fmtCmp(nullZoom[z])}`).join(' | ')})`);
     console.log(`null, one lattice at every stop:          ${nullLatticeOk ? 'PASS' : 'FAIL'}`);
     console.log(`null, a mosaic away from the storm:       ${nullMosaicOk ? 'PASS' : 'FAIL'}  (${fmtCmp(nullMosaic.cmp)}; ${nullMosaic.built} built; field ${nullMosaic.field.meanKn} kn)`);
+    const fmtInk = (p) => `eye/wall ${p.ratio} (${p.seeds.join(', ')}), eye ${p.eyeInk}, wall ${p.wallInk}`;
+    console.log(`particles over a resampled surround (z6, trail ink, seeds 1-2): plain 1 deg ${fmtInk(particles.plain)} | mosaic ${fmtInk(particles.mosaic)}`);
     console.log(`positive, the 'now' arm moves on the way out: ${positiveOk ? 'PASS' : 'BLIND'}`);
+    console.log(`engaged, the mosaic arm drew mosaics on app-stamped grids: ${builtOk ? 'PASS' : 'INERT'}`);
 
     if (opts.images) {
       fs.mkdirSync(opts.images, { recursive: true });
@@ -230,11 +260,11 @@ async function main() {
       const slim = (rows) => rows.map(({ summary: s, ...r }) => ({ ...r, eye: s }));
       fs.writeFileSync(opts.json, JSON.stringify({
         engine: source.label, ref: REF, pane: PANE, path: PATH, thresholds: THRESHOLDS, binKn: BIN_KN,
-        truth: Object.fromEntries(ZOOMS.map((z) => [z, truth[z].summary])), nullZoom, nullMosaic,
+        truth: Object.fromEntries(ZOOMS.map((z) => [z, truth[z].summary])), nullZoom, nullMosaic, particles,
         paths: Object.fromEntries(Object.entries(paths).map(([p, arms]) => [p, Object.fromEntries(Object.entries(arms).map(([a, rows]) => [a, slim(rows)]))])), summary,
       }, null, 1));
     }
-    return nullZoomOk && nullLatticeOk && nullMosaicOk && positiveOk ? 0 : 2;
+    return nullZoomOk && nullLatticeOk && nullMosaicOk && positiveOk && builtOk ? 0 : 2;
   } finally {
     await browser.close();
     server.close();

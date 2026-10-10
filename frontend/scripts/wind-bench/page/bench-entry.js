@@ -297,6 +297,7 @@ async function eyeShot(cfg) {
 async function eyeInk(cfg) {
   const realRandom = Math.random;
   clearLevers();
+  Object.assign(window, cfg.levers || {});
   Math.random = mulberry32(cfg.seed || 1);
   let virtualMs = 0;
   performance.now = () => virtualMs;
@@ -306,6 +307,7 @@ async function eyeInk(cfg) {
     engine.init(gl);
     engine.setWindData(gl, cfg.base);
     if (cfg.fine) engine.setWindData(gl, cfg.fine);
+    for (const item of cfg.after || []) engine.setWindData(gl, item.grid || item);   // later arrivals, as in eyeOne
     const cam = makeCamera(cfg.lng, cfg.lat, cfg.z, CSS_W, CSS_H);
     const draw = () => {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
