@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-10 01:1xZ: CORRECTION. The basemap mute (#296) never ran in the app; the fix is PR_PENDING (client only).**
+- **2026-10-10 01:1xZ: CORRECTION. The basemap mute (#296) never ran in the app; the fix is PR #299 (client only).**
   - **What the owner's console showed** (live dev, build `0f73e2fb`): `window.__WIND_BASEMAP_MUTE__` =
     `{ applied: true, layers: 0 }`. Nothing was muted. My claim below ("the basemap is muted under the wind") was false
     in the app from the merge on; ledger 985 (finding), 986 (correction).
@@ -1670,7 +1670,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 986, sha256 6e54ea19ceb1120252e8d049ddfb0dc69d2654e38729124fc748b42eb002eaee**
+  **Ledger head: seq 987, sha256 0ecebc91c83933b84608564ef21151f16fff42fc59319983c7512c399dfa28aa**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
