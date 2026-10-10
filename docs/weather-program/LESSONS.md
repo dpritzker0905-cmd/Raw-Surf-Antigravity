@@ -624,3 +624,26 @@ A stored estimate can be estimated again in a browser branch with different sour
      `--mute-check`.
   2. A read-back reports what was done (`layers > 0`, or the reason it stood down), never what was asked for.
   3. After a merge, read the effect on the deployed build before calling it live (the kin of L-V19: settle, then read).
+- **L-V22 · When a coarser grid covers more, file it AROUND the finer one, not instead of it. And check the instrument
+  is following the feature you named.** After #298 the eye still changed on a zoom-out: the engine holds one fine
+  overlay, so the covering 0.5° or 1° box replaced the 0.25° box (ladder bench: 21 km, -12 kn and x2.9 in area at the
+  1° step; x1.7 at the 0.5° step). Three things the measurement settled before any code:
+  - **The tiers already agree** (0.009 kn at 405 shared nodes): the lattices nest on whole degrees. So "resample the
+    tiers consistently" was not the fix; the area mean, the other consistent resample, loses the eye (35 km, x16).
+  - **Keeping the fine box and letting the base draw the rest holds the eye and loses the picture** (9.6% of the view
+    10 kn or more off, against 0.9%). Measure what an option gives up, on the whole view, beside what it fixes.
+  - **A second texture level was not needed.** Resampling the coarse box onto the fine lattice on the CPU draws what
+    the shader would have drawn from it (bilinear of bilinear on a nested lattice is exact), so one texture carries both
+    (`windTierMosaic.js`).
+  The instrument had its own defect: "the eye at T" was the nearest closed contour, and once the eye opened at 40 kn a
+  9-km pocket 100 km away took its place, so the weakest wall read 2 kn high in every row. A feature tracked across a
+  sweep must be the SAME feature at each step (here: nested, no smaller, centred within its own radius). Print the
+  per-step geometry once before trusting a summary of it.
+  And L-V21 nearly repeated itself: the merge rule first compared `run_time`, which on a dynamic box is the per-box
+  ingest stamp, so in the app it would have refused every merge while the bench (fixtures with no run fields) passed
+  every row. Build a rule's test inputs with the app's own mapper, and give the bench a control that fails when the
+  rule under test never fires.
+  A cold review then found what my own tests could not: I had re-pointed an existing guard (never downgrade the view)
+  at a new object and lost its old meaning, and my "same valid time" compared a field the server fills with the ASKED
+  hour. Tests written by the author pin the author's model of the change. For a default-on change, have someone who has
+  not seen the reasoning read the diff and run it, and replay each guard the diff touches in its old cases.
