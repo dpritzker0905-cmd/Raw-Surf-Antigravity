@@ -9,9 +9,13 @@
  *   node scripts/wind-bench/path-run.js --arms '{"now":{},"mute":{"__RAW_WIND_BASEMAP_MUTE__":0.8}}'
  *   node scripts/wind-bench/path-run.js --ref origin/dev --json out/path-dev.json
  *   node scripts/wind-bench/path-run.js --field --paths erratic,jitter    # the colour field alone: does it stay glued?
+ *   node scripts/wind-bench/path-run.js --bare                            # the basemap alone, without the app's own layers
+ *   node scripts/wind-bench/path-run.js --mute-check                      # the mute alone: round trip, then satellite on / off
  *
  * Needs REACT_APP_MAPBOX_TOKEN like map-run.js (environment or frontend/.env; passed to the page in memory, never written
  * or printed). Tiles come from Mapbox; the wind comes from the served-grid fixture, so the backend is never called.
+ * The map carries THE APP'S STACK around the basemap (its hidden satellite and weather-wash layers under the wind, a
+ * radar frame above it: page/map-entry.js addAppStack), because a rule that reads the style must meet the app's style.
  *
  * Columns per (theme, path, arm), medians over the samples (p90 in brackets where the tail matters):
  *   conv      wind-touched pixels that now wear another class of the STYLE's own area colours (water, park, wood, sand:
@@ -63,6 +67,8 @@ function parseArgs(argv) {
     else if (a === '--arms') opts.arms = JSON.parse(val());
     else if (a === '--sheet') opts.sheet = path.resolve(val());
     else if (a === '--field') opts.field = true;
+    else if (a === '--bare') opts.bare = true;
+    else if (a === '--mute-check') opts.muteCheck = true;
     else throw new Error(`unknown option ${a}`);
   }
   for (const p of opts.paths) if (!PATH_NAMES.includes(p)) throw new Error(`unknown path ${p} (${PATH_NAMES.join(', ')})`);
@@ -126,7 +132,26 @@ async function main() {
     await page.goto(`http://127.0.0.1:${server.address().port}/${opts.tag}/map.html`);
     await page.waitForFunction(() => window.__MAP_BENCH__ && window.__MAP_BENCH__.ready && window.__MAP_BENCH__.pathRun);
     const fine = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'eye-2026-10-09-gfs-native.json'), 'utf8'));
-    await page.evaluate((fx) => window.__MAP_BENCH__.init({ fine: fx.fine, scale: fx.scale }), { fine, scale: opts.scale });
+    await page.evaluate((fx) => window.__MAP_BENCH__.init({ fine: fx.fine, scale: fx.scale, bare: fx.bare }), { fine, scale: opts.scale, bare: !!opts.bare });
+    if (opts.muteCheck) {
+      // The basemap mute on the real map, no path: mute + restore must give the map back, and a satellite photo shown
+      // under the wind must stand the mute down and bring it back when hidden (windBasemapMuteStale, the layer's probe).
+      const cam = { lng: -88.05, lat: 30.45, z: 8 }, f = (x) => (x == null ? 'n/a' : typeof x === 'number' ? x.toFixed(3) : String(x));
+      const muted = (m) => !!m.applied && m.layers > 0;
+      const rb = (m) => (m.applied ? `muted ${m.layers}` : `not muted${m.reason ? ` (${m.reason})` : ''}${m.error ? ` (error: ${m.error})` : ''}`);
+      let bad = 0;
+      for (const theme of opts.themes) {
+        const rt = await page.evaluate((c) => window.__MAP_BENCH__.muteRoundTrip(c), { theme, ...cam });
+        console.log(`${theme.padEnd(6)} round trip: ${rb(rt.mute)}; muted map differs on ${(100 * rt.mutedMoved).toFixed(1)}% of pixels; after restore mean dE00 ${f(rt.mean)}, max ${f(rt.max)}`);
+        if (opts.bare) continue;
+        const im = await page.evaluate((c) => window.__MAP_BENCH__.muteImagery(c), { theme, ...cam });
+        console.log(`${''.padEnd(6)} satellite:  wind on ${rb(im.on)} (stale before ${f(im.staleOff)}, after ${f(im.staleOn)}) -> photo shown: stale ${f(im.staleShown)}, ${rb(im.shown)}, max dE00 to the original map ${f(im.shownMaxDE)} -> hidden: stale ${f(im.staleHidden)}, ${rb(im.hidden)}`);
+        const expectMute = theme !== 'dark';
+        if (rt.max > 1 || muted(rt.mute) !== expectMute || muted(im.on) !== expectMute || muted(im.hidden) !== expectMute || im.shown.applied || im.shownMaxDE > 1 || (expectMute && !(im.staleOff && !im.staleOn && im.staleShown && im.staleHidden))) bad++;
+      }
+      console.log(bad ? `\nMUTE CHECK FAILED on ${bad} theme(s)` : '\nmute check passed');
+      return bad ? 1 : 0;
+    }
     console.log(`\ntheme  path     arm      seed | hue30 (p90)    conv   mapLk  windLk coast/bare    keptMp keptCm retL  retW  cover  pops miss${opts.field ? ' | warpW (p90)   warpM (p90)' : ''} | commonest convention swaps`);
     for (const theme of opts.themes) {
       for (const name of opts.paths) {
@@ -137,7 +162,7 @@ async function main() {
             const res = await page.evaluate((c) => window.__MAP_BENCH__.pathRun(c), { theme, frames, samples, res: opts.res, seed, levers, warm: 120, shots: true, fieldOnly: opts.field });
             if (res.glError) throw new Error(`GL error ${res.glError} at ${theme} ${name} ${arm}`);
             const sum = summarize(res.rows);
-            console.log(`${theme.padEnd(6)} ${name.padEnd(8)} ${arm.padEnd(8)} ${String(seed).padStart(4)} | ${line(sum, opts.field)} | ${sum.convSwaps.join(' · ')}  [${((Date.now() - t0) / 1000).toFixed(0)} s${res.mute && res.mute.applied ? `, muted ${res.mute.layers} layers` : ''}]`);
+            console.log(`${theme.padEnd(6)} ${name.padEnd(8)} ${arm.padEnd(8)} ${String(seed).padStart(4)} | ${line(sum, opts.field)} | ${sum.convSwaps.join(' · ')}  [${((Date.now() - t0) / 1000).toFixed(0)} s${res.mute && res.mute.applied ? `, muted ${res.mute.layers} layers` : ''}${res.mute && res.mute.reason ? `, NOT muted (${res.mute.reason})` : ''}]`);
             runs.push({ theme, path: name, arm, seed, mute: res.mute, sum, rows: res.rows });
           }
         }

@@ -14,6 +14,25 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-10 01:1xZ: CORRECTION. The basemap mute (#296) never ran in the app; the fix is PR_PENDING (client only).**
+  - **What the owner's console showed** (live dev, build `0f73e2fb`): `window.__WIND_BASEMAP_MUTE__` =
+    `{ applied: true, layers: 0 }`. Nothing was muted. My claim below ("the basemap is muted under the wind") was false
+    in the app from the merge on; ledger 985 (finding), 986 (correction).
+  - **Cause.** The plan stood down for ANY raster layer in the style. The app keeps `esri-satellite-layer` and 18
+    weather-wash slots mounted and hidden under the wind (`MapWebGL.js`). `getStyle().layers` also leaves the custom
+    wind layer out, so "under the wind" was the whole style. The path bench drew the basemap alone.
+  - **Fix.** Imagery = a raster SHOWING under the wind; the wind's slot from the style's draw order; `ocean-mask-*`
+    left to OceanMask; the read-back reports the effect (`applied` only when `layers > 0`, else `reason`); re-sync when
+    imagery appears or goes (`windBasemapMuteStale`).
+  - **Evidence** (path bench, now with the app's layer stack; hue30, kill -> default): deployed code light 46.5 -> 46.6 /
+    26.8 -> 26.6 / 58.9 -> 58.5 %, beach 39.8 -> 39.8 / 7.4 -> 7.4 / 49.3 -> 49.3 % (0 layers); the fix light 46.5 ->
+    1.5 / 27.0 -> 2.7 / 58.7 -> 3.5 %, beach 39.8 -> 0.6 / 7.4 -> 0.6 / 49.3 -> 0.4 %; dark 2.5 / 3.7 / 4.1 % in both arms.
+    `path-run.js --mute-check`: the fix passes, the deployed code fails.
+  - **Open for the owner:** a weather wash under the wind stands the mute down, as satellite does (today's look kept;
+    unmeasured). **Not yet read on the deployed build:** expect `layers` 9 in light, 17 in beach.
+  - **The eye read-back in the same paste shows no defect:** every product was the 2-deg world clip (views 26-140 deg
+    wide), so #298's rule had nothing to protect. Log `log/2026-10-09-wind-mute-app-stack.md`; LESSONS L-V21.
+
 - **2026-10-10 00:1xZ: the hurricane eye moved on a z6 zoom stop because a 2-deg clip replaced the finer box (client fix,
   PR #298).** Every wind tier point-samples at its own spacing; the 2-deg world clip of a wide view (the base's own
   nodes) was filed over the 1-deg box and back. `windOverlayKeep.baseClipKeepsFine` keeps the finer box (eye bench: 0 km
@@ -22,6 +41,7 @@ is a claim, not a measurement.
   `log/2026-10-09-wind-eye-tier-keep.md`; LESSONS L-V20.
 
 - **2026-10-09: light and beach wind read true: the basemap is muted under the wind (client only; #296 merged).**
+  **⚠ INERT IN THE APP until the fix above merges: the mute never ran there (correction, ledger 986).**
   - **The defect.** The owner saw "ambiguity to the wind color vs the color of the map". The field multiplies into
     full-colour basemaps, so a 33-40 kn gold over cyan water came out green (a 16-21 kn colour on the legend). New
     path bench (`frontend/scripts/wind-bench/path-run.js`: pans, flings, zooms, pinch, jitter, erratic walks; real
@@ -1650,7 +1670,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 983, sha256 dfd8db971b15db25217e28e7bcf14cac857a906573251c7aa85546cbf8ee7867**
+  **Ledger head: seq 986, sha256 6e54ea19ceb1120252e8d049ddfb0dc69d2654e38729124fc748b42eb002eaee**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
