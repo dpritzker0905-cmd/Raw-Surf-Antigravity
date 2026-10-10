@@ -14,6 +14,22 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-10 01:5xZ: a small wind pan re-requested the whole 14-day timeline and the box read /api/health at 10-13 s
+  (client fix built; PR to dev).** Render request log, 00:04-00:07Z, one client: every settled pan sent a mini plus two
+  48-frame pages (hours 0..141 and 144..285) for a fresh unsnapped box, ~20 s of the 1-CPU box each, and nothing
+  cancelled the previous pan's work (the warm effect's one `AbortController` was only aborted on a model change).
+  - **Server amplifier (NOT fixed):** for wind GFS every fresh box starts a 16-day upstream fetch and a serial
+    background build of all its hours, in ONE slot per model/domain that the next box cancels (`Canceling stale
+    background task for gfs_wind`, 5 times in 6 minutes). A cold 48-frame page needs ~24 s against a 20 s deadline, so
+    its tail times out by construction. Bounding that build is the larger follow-up; `/grid` and the series lane also
+    send DIFFERENT boxes for one pan (a second fetch), which can flip the 0.5°/1° resolution step, so it ships dark.
+  - **Fix (client only, on):** the latest regional view owns the series work (`windSeriesWarm.js`, sharing marine's
+    intent factory), and the adjacent page waits for a 30 s rest. Scrub start still loads every page (the 14-day
+    scrubber is not capped); the request box is byte-identical. Offline replay of the logged views: 582 -> 486 frames
+    requested (288 -> 192 far-hour); eight fast pans 776 -> 440 requested, 661 -> 237 built. Kill
+    `__RAW_DISABLE_WIND_SERIES_SUPERSEDE__`. Log `log/2026-10-10-wind-series-supersede.md`; LESSONS L-P29. Live
+    read-back owed (ledger seq 985).
+
 - **2026-10-10 00:1xZ: the hurricane eye moved on a z6 zoom stop because a 2-deg clip replaced the finer box (client fix,
   PR #298).** Every wind tier point-samples at its own spacing; the 2-deg world clip of a wide view (the base's own
   nodes) was filed over the 1-deg box and back. `windOverlayKeep.baseClipKeepsFine` keeps the finer box (eye bench: 0 km
@@ -1650,7 +1666,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 983, sha256 dfd8db971b15db25217e28e7bcf14cac857a906573251c7aa85546cbf8ee7867**
+  **Ledger head: seq 985, sha256 8305386575b3ea2708de6669b37eff8794a12df5d1bc52a65f443f8e42e75a25**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
