@@ -14,6 +14,30 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-10 05:3xZ: the wind's trails are anchored to the map (client only; PR #306 to dev).** Owner: "study all
+  of our sub work tree work, then ... work forward on making this state of the art".
+  - **The defect.** The trail buffer lived on the screen: a pan smeared every trail along the drag, a zoom along rays
+    from the focal point, so the wind's direction was unreadable while the map moved.
+  - **The fix** (`windTrailAnchor.js`): the buffer keeps its own camera. A pan moves the ink by whole pixels (exact);
+    a zoom is looked at through the buffer and re-laid only past 1.2x, on a zoom-out (1.15x wider, feathered) or at
+    rest; a turn or tilt goes through the ground-plane homography; the date line is read in the nearest copy of the
+    world; a still camera is the identity. Kill `__RAW_DISABLE_WIND_TRAIL_ANCHOR__` (dev's engine bit for bit: 232 of 232 trail buffers);
+    read-back `__WIND_TRAIL_ANCHOR__`. No served number moves.
+  - **Evidence** (wind bench flow mode, `path-run.js --flow`: share of trail ink running along the served wind while
+    the camera moves, screen buffer -> anchored, ranges over the three themes): pan 0.59-0.62 -> 0.73-0.78, fling 0.51-0.55 -> 0.62-0.71, zoom in 0.54-0.63 -> 0.70-0.77, zoom out 0.53-0.63 -> 0.75-0.77, pinch 0.57-0.60 -> 0.71-0.78, turn 0.52-0.53 -> 0.69-0.70, date line 0.52-0.53 -> 0.68-0.71, erratic 0.52-0.67 -> 0.65-0.85, jitter 0.57-0.62 -> 0.61-0.67. At rest pan 0.76-0.80, turn 0.76-0.80.
+    Null control 258 of 258 trail buffers identical at rest; dev's engine fails the gate; no path clears the
+    buffer.
+  - **Reviewed before the push** (an independent read of the diff): the date line cleared the trails, a zoom wobble
+    re-laid the ink every frame, the kill switch was not exact off desktop. All three fixed, tested and benched.
+  - **Limits:** fresh ground has no trail history (the fling's remaining gap); jitter barely gains; at z14 and beyond a
+    new mark can land a fraction of a pixel from its carried ink (the 32-bit mark matrix); not yet seen in the app.
+    **Bench:** its seeded runs no longer depend on the run before (the engine's random stream is its own).
+  - **Side sessions read first:** #300-#304 all on dev by 04:40Z (#301-#304 merged by the light fast-band session,
+    #302-#304 with two slow lanes pending: its read-back is in #305, merged 14:02Z).
+  - **Next, measured, not built:** curves between grid points (the 0.5 deg eye is drawn 1.7-2.2x its true area with
+    straight lines, 1.0-1.3x with curves), on #302's ladder bench, for the owner's A/B. Still owed: the deployed read of
+    #299 (`__WIND_BASEMAP_MUTE__.layers`). Log `log/2026-10-10-wind-trail-anchor.md`; LESSONS L-V24.
+
 - **2026-10-10 04:3xZ: three light fast-band redesigns reach the colour-blind floor, DEFAULT OFF (client only; merged as #304, 541117de; owner A/B pending).**
   - **The finding.** With the basemap muted, the whole 6-75 kn light field tint ramp sat under 5 dE2000 for some colour-blind
     viewer (weakest 2.58), not only the fast bands. A stripe-free redesign exists; only the dark-parity strength pin for 27-75 kn
@@ -1739,7 +1763,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1015, sha256 781a9ea1d45404ae6862c00540b29a351ec5039a8cc981e04fc5422f90e4bcc3**
+  **Ledger head: seq 1020, sha256 000c9b2ea717900bd7a1907f797f5db68093b03d588f7622a6c378bab93a03d4**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

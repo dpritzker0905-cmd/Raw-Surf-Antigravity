@@ -14,6 +14,7 @@
 
 import { generateRampData, buildFieldRampTexture } from './WindColorRamp';
 import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tierKeepsOver, tierOuter } from './windTierMosaic';
+import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor';
 import {
   createTexture, bindWindPointReg, unbindTexture, createFBO, bindTexture, encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
   resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN
@@ -411,35 +412,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     }
     this.screenA = createFBO(gl, gl.NEAREST, screenWidth, screenHeight);
     this.screenB = createFBO(gl, gl.NEAREST, screenWidth, screenHeight);
-    this._screenW = screenWidth; this._screenH = screenHeight;
+    this._screenW = screenWidth; this._screenH = screenHeight; this._trail = null;
   }
 
-  // v3.15: Clear trail FBOs during genuine zoom transitions only.
-  // Track camera center to distinguish zoom from pan (pan causes micro zoom jitter).
-  var currentZoom = typeof zoom === 'number' ? zoom : 6;
-  if (this._lastRenderZoom !== undefined) {
-    var zoomDelta = Math.abs(currentZoom - this._lastRenderZoom);
-    // v3.15: Only clear on genuine zoom changes (> 0.15), not pan-induced float jitter.
-    // During panning, mapbox can report sub-0.01 zoom fluctuations that falsely trigger
-    // trail clears, causing the "grid flash" artifact.
-    if (zoomDelta > 0.15) {
-      // Additional guard: accumulate zoom delta across frames to filter jitter
-      this._zoomDeltaAccum = (this._zoomDeltaAccum || 0) + zoomDelta;
-      if (this._zoomDeltaAccum > 0.25) {
-        // Genuine zoom change — clear trail buffers
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
-        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
-        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        this._zoomDeltaAccum = 0;
-      }
-    } else {
-      // Small delta — likely pan jitter, decay accumulator
-      this._zoomDeltaAccum = Math.max(0, (this._zoomDeltaAccum || 0) - 0.02);
-    }
-  }
-  this._lastRenderZoom = currentZoom;
+  // TRAILS ANCHORED TO THE MAP: this frame's trail-buffer camera (windTrailAnchor.js). With its kill switch on, the buffer
+  // is the screen again and a genuine zoom jump clears it, as before.
+  const _trail = windTrailFrame(this, gl, this._trailMatrix || matrix, screenWidth, screenHeight, typeof zoom === 'number' ? zoom : 6);
   const webglState = captureWebGLState(gl);
   try {
     gl.disable(gl.DEPTH_TEST);
@@ -829,7 +807,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.disable(gl.BLEND);
   gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
   gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), perFrameFade(_v2.motion ? _v2.fade : v2TrailFade(this.fadeOpacity, z, _v2), this._dtScale || 1)); gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_premul'), _premul ? 1 : 0); // A15-18
-  bindTexture(gl, this.screenA.tex, 0);
+  bindTexture(gl, this.screenA.tex, 0); bindTrailUv(gl, this.fadeProgram, _trail.fade, _trail.fadeLinear, _trail.feather);
   if (this.fadeVAO) {
     gl.bindVertexArray(this.fadeVAO);
   } else {
@@ -859,7 +837,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
-  gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
+  gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, _trail.draw || mat4); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_trail_dk'), _trail.dk);
   var bnd = this._windData.bounds;
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), dataBoundsMinX, bnd.south);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), dataBoundsMaxX, bnd.north);
@@ -964,7 +942,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
   gl.uniform1i(gl.getUniformLocation(this.screenProgram, 'u_screen'), 0);
   gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 1.0);
-  bindTexture(gl, this.screenB.tex, 0);
+  bindTexture(gl, this.screenB.tex, 0); bindTrailUv(gl, this.screenProgram, TRAIL_IDENTITY, false);
   if (this.screenVAO) {
     gl.bindVertexArray(this.screenVAO);
   } else {
@@ -989,7 +967,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.blendFunc(_premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _premul ? 1 : 0);
-  bindTexture(gl, this.screenB.tex, 0);
+  bindTexture(gl, this.screenB.tex, 0); bindTrailUv(gl, this.screenProgram, _trail.view, _trail.viewLinear);
   if (this.screenVAO) {
     gl.bindVertexArray(this.screenVAO);
   } else {

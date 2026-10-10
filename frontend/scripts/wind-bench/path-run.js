@@ -11,6 +11,8 @@
  *   node scripts/wind-bench/path-run.js --field --paths erratic,jitter    # the colour field alone: does it stay glued?
  *   node scripts/wind-bench/path-run.js --bare                            # the basemap alone, without the app's own layers
  *   node scripts/wind-bench/path-run.js --mute-check                      # the mute alone: round trip, then satellite on / off
+ *   node scripts/wind-bench/path-run.js --flow                            # do the streaks run along the wind while the camera moves?
+ *   node scripts/wind-bench/path-run.js --flow --hash-all --json a.json   # hash the trail buffer at EVERY sample (to compare two engines exactly)
  *
  * Needs REACT_APP_MAPBOX_TOKEN like map-run.js (environment or frontend/.env; passed to the page in memory, never written
  * or printed). Tiles come from Mapbox; the wind comes from the served-grid fixture, so the backend is never called.
@@ -33,13 +35,24 @@
  * With --field (the colour field alone, 2x2 particles): warpW / warpM = mean dE00 between each sample and the previous one
  * warped by the exact camera change, wind on / map alone (p99 and share > 5 dE00 in the JSON). warpW - warpM is the
  * wind's own swimming, popping or drop-out in motion.
+ *
+ * With --flow (flow.js; arms default to `anchored` and `screen`, the trail anchor's kill switch): the share of the wind's
+ * ink that varies ACROSS the served wind direction (1 = every streak runs along the wind, 0.5 = no direction), medians
+ * over the samples taken at rest, while the camera moves (p10 in brackets) and in the second after it stops. Gated
+ * (FLOW_GATE; exit 1): on `pan` the `screen` arm must fall while moving (the positive control: a trail buffer left on
+ * the screen smears along the camera's motion) and `anchored` must hold its rest reading; before the camera first moves
+ * both arms must lay the SAME ink, trail buffer for trail buffer (the null control: a still camera is the identity);
+ * while moving, `anchored` must beat `screen` on every path (no worse on `jitter`) and must never clear its buffer.
  */
 const fs = require('fs');
 const path = require('path');
 const { FRONTEND, engineSource, buildBench } = require('./build');
 const { serveDir, gpuArgs } = require('./serve');
-const { PATH_NAMES, pathFrames, sampleIndexes } = require('./paths');
+const { PATH_NAMES, FLOW_PATH_NAMES, pathFrames, sampleIndexes } = require('./paths');
 const { pops } = require('./ambiguity');
+const { motionOf } = require('./flow');
+
+const FLOW_ARMS = { anchored: {}, screen: { __RAW_DISABLE_WIND_TRAIL_ANCHOR__: true } };
 
 function readToken() {
   if (process.env.REACT_APP_MAPBOX_TOKEN) return process.env.REACT_APP_MAPBOX_TOKEN;
@@ -58,20 +71,24 @@ function parseArgs(argv) {
     else if (a === '--gl') opts.gl = val();
     else if (a === '--headed') opts.headed = true;
     else if (a === '--themes') opts.themes = val().split(',');
-    else if (a === '--paths') opts.paths = val().split(',');
+    else if (a === '--paths') { opts.paths = val().split(','); opts.pathsGiven = true; }
     else if (a === '--seeds') opts.seeds = val().split(',').map(Number);
-    else if (a === '--every') opts.every = Number(val());
+    else if (a === '--every') { opts.every = Number(val()); opts.everyGiven = true; }
     else if (a === '--res') opts.res = Number(val());
     else if (a === '--scale') opts.scale = Number(val());
     else if (a === '--tag') opts.tag = val().replace(/[^a-z0-9-]/gi, '');
-    else if (a === '--arms') opts.arms = JSON.parse(val());
+    else if (a === '--arms') { opts.arms = JSON.parse(val()); opts.armsGiven = true; }
     else if (a === '--sheet') opts.sheet = path.resolve(val());
     else if (a === '--field') opts.field = true;
+    else if (a === '--flow') opts.flow = true;
+    else if (a === '--hash-all') opts.hashAll = true;
     else if (a === '--bare') opts.bare = true;
     else if (a === '--mute-check') opts.muteCheck = true;
     else throw new Error(`unknown option ${a}`);
   }
-  for (const p of opts.paths) if (!PATH_NAMES.includes(p)) throw new Error(`unknown path ${p} (${PATH_NAMES.join(', ')})`);
+  if (opts.flow) { if (!opts.armsGiven) opts.arms = FLOW_ARMS; if (!opts.everyGiven) opts.every = 3; if (!opts.pathsGiven) opts.paths = PATH_NAMES.concat(FLOW_PATH_NAMES); }
+  const known = opts.flow ? PATH_NAMES.concat(FLOW_PATH_NAMES) : PATH_NAMES;
+  for (const p of opts.paths) if (!known.includes(p)) throw new Error(`unknown path ${p} (${known.join(', ')}${opts.flow ? '' : `; ${FLOW_PATH_NAMES.join(', ')} with --flow`})`);
   return opts;
 }
 
@@ -114,6 +131,88 @@ body{margin:0;background:#111317;color:#dde1e6;font:12px/1.4 system-ui,sans-seri
 <h1>${esc(label)}</h1>${body}</body></html>`;
 }
 
+/** One flow run: the share of ink across the wind at rest, while the camera moves, and in the second after it stops. */
+function summarizeFlow(rows, kinds) {
+  const of = (kind) => rows.filter((r, n) => kinds[n] === kind && r.flow != null).map((r) => r.flow);
+  return { rest: q(of('rest'), 0.5), move: q(of('move'), 0.5), move10: q(of('move'), 0.1), settle: q(of('settle'), 0.5), nRest: of('rest').length, nMove: of('move').length,
+    blocks: q(rows.map((r) => r.blocks), 0.5), miss: rows.filter((r) => !r.tiles).length };
+}
+
+// The gates, set at about a third of what the first full run measured (2026-10-10; README "Flow mode"):
+//   smear    the screen arm must fall at least this far below its own rest reading on `pan` (the positive control);
+//   gain     the anchored arm must beat the screen arm by this much while moving, on every path but `jitter`;
+//   jitter   a 2 Hz zoom across 2.2 levels re-lays the ink every other frame: there the anchored arm must be no worse;
+//   hold     on `pan` (one zoom, so the rest reading is the right yardstick) the anchored arm must stay within this of it;
+//   kept     no scripted path may make the anchored arm clear its buffer (read-back mode `jump`). A median hides one
+//            wiped frame: the date line cleared the trails once per crossing and moved the pan's median by 0.002.
+// A zoom path's rest reading is taken at its first zoom only and the reading changes with zoom, so nothing is gated on it.
+const FLOW_GATE = { smear: 0.08, gain: 0.05, jitter: -0.01, hold: 0.05 };
+
+/** The checks on one (theme, path, seed) with both arms. `same` / `still`: trail buffers identical before the camera first moves. */
+function flowVerdict(pathName, anchored, screen, same, still, jumps = 0, gate = FLOW_GATE) {
+  const num = (x) => typeof x === 'number';
+  const out = { null0: still > 0 && same === still, kept: !(jumps > 0) };
+  out.better = num(anchored.move) && num(screen.move) && anchored.move >= screen.move + (pathName === 'jitter' ? gate.jitter : gate.gain);
+  if (pathName === 'pan') {
+    out.seen = num(screen.move) && num(screen.rest) && screen.move <= screen.rest - gate.smear;
+    out.held = num(anchored.move) && num(anchored.rest) && anchored.move >= anchored.rest - gate.hold;
+  }
+  return out;
+}
+
+async function flowMode(page, opts, label) {
+  const runs = [];
+  console.log('\ntheme  path     arm       seed |  rest   move (p10)  settle | blocks miss | what the trail buffer did');
+  for (const theme of opts.themes) {
+    for (const name of opts.paths) {
+      for (const seed of (name === 'erratic' ? opts.seeds : [opts.seeds[0]])) {
+        const frames = pathFrames(name, seed), samples = sampleIndexes(frames.length, opts.every), kinds = motionOf(frames, samples);
+        for (const [arm, levers] of Object.entries(opts.arms)) {
+          const t0 = Date.now();
+          const res = await page.evaluate((c) => window.__MAP_BENCH__.flowRun(c), { theme, frames, samples, res: opts.res, seed, levers, warm: 120, shots: true, hashBefore: opts.hashAll ? frames.length : motionOf(frames, frames.map((_, i) => i)).indexOf('move') });
+          if (res.glError) throw new Error(`GL error ${res.glError} at ${theme} ${name} ${arm}`);
+          const sum = summarizeFlow(res.rows, kinds), modes = res.anchor ? Object.entries(res.anchor.modes).map(([k, v]) => `${k} ${v}`).join(', ') : 'no read-back (an engine without the anchor)';
+          console.log(`${theme.padEnd(6)} ${name.padEnd(8)} ${arm.padEnd(9)} ${String(seed).padStart(4)} | ${f3(sum.rest)}  ${f3(sum.move)} (${f3(sum.move10)})  ${f3(sum.settle)} | ${String(sum.blocks).padStart(6)} ${String(sum.miss).padStart(4)} | ${modes}  [${((Date.now() - t0) / 1000).toFixed(0)} s]`);
+          runs.push({ theme, path: name, arm, seed, sum, kinds, rows: res.rows, anchor: res.anchor });
+        }
+      }
+    }
+  }
+  const bad = [];
+  let seenAny = false, pairs = 0, same0 = 0, before0 = 0;
+  for (const a of runs.filter((r) => r.arm === 'anchored')) {
+    const s = runs.find((r) => r.arm === 'screen' && r.theme === a.theme && r.path === a.path && r.seed === a.seed);
+    if (!s) continue;
+    pairs++;
+    const where = `${a.theme} ${a.path}${a.path === 'erratic' ? ' ' + a.seed : ''}`;
+    const firstMove = a.kinds.indexOf('move');
+    const before = a.rows.map((r, n) => n).filter((n) => (firstMove < 0 || n < firstMove) && a.rows[n].hash != null && s.rows[n].hash != null);
+    const same = before.filter((n) => a.rows[n].hash === s.rows[n].hash).length;
+    same0 += same; before0 += before.length;
+    const jumps = (a.anchor && a.anchor.modes && a.anchor.modes.jump) || 0;
+    const v = flowVerdict(a.path, a.sum, s.sum, same, before.length, jumps);
+    if (!v.kept) bad.push(`${where}: the anchored arm cleared its trail buffer ${jumps} time(s) (a jump) on a scripted path`);
+    if (v.seen) seenAny = true;
+    if (!v.null0) bad.push(`${where}: before the camera moves the two arms laid different ink on ${before.length - same} of ${before.length} samples (a still camera must be the identity)`);
+    if (!v.better) bad.push(`${where}: anchored ${f3(a.sum.move)} against screen ${f3(s.sum.move)} while moving`);
+    if (v.seen === false) bad.push(`${where}: the screen arm did not fall while panning (${f3(s.sum.move)} vs ${f3(s.sum.rest)} at rest): the instrument did not see the smear`);
+    if (v.held === false) bad.push(`${where}: the anchored trails lost their direction on a steady pan (${f3(a.sum.move)} vs ${f3(a.sum.rest)} at rest)`);
+  }
+  if (pairs && !seenAny && runs.some((r) => r.path === 'pan')) bad.push('no pan showed the smear on the screen arm (positive control)');
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const body = runs.map((run) => `<h2>${esc(`${run.theme} · ${run.path} · ${run.arm} · seed ${run.seed}`)} — along the wind: at rest ${f3(run.sum.rest)}, moving ${f3(run.sum.move)}</h2><div class="row">`
+    + run.rows.map((r, n) => `<figure><img alt="${esc(`${run.theme} ${run.path} ${run.arm} frame ${r.i}`)}" src="${r.shot}"><figcaption>f${r.i} z${r.z.toFixed(1)} · ${run.kinds[n]} · ${f3(r.flow)}</figcaption></figure>`).join('') + '</div>').join('\n');
+  const sheetPath = opts.sheet || path.join(opts.out, `${opts.tag}-flow-sheet.html`);
+  fs.writeFileSync(sheetPath, `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Wind flow bench</title><style>
+body{margin:0;background:#111317;color:#dde1e6;font:12px/1.4 system-ui,sans-serif}h1{font-size:15px;margin:12px 16px}h2{font-size:13px;margin:14px 16px 4px}
+.row{display:flex;flex-wrap:wrap;gap:4px;margin:0 16px}figure{margin:0}figure img{width:200px;display:block}figcaption{font-size:10px}</style></head><body>
+<h1>${esc(`Wind flow bench · ${label} · share of the wind's ink across the served wind direction`)}</h1>${body}</body></html>`);
+  console.log(`\ncontact sheet: ${sheetPath}`);
+  if (opts.json) fs.writeFileSync(opts.json, JSON.stringify({ engine: label, arms: opts.arms, gate: FLOW_GATE, runs: runs.map((r) => ({ ...r, rows: r.rows.map(({ shot, ...x }) => x) })) }, null, 1));
+  console.log(bad.length ? `\nFLOW CHECK FAILED:\n  ${bad.join('\n  ')}` : pairs ? `\nflow check passed on ${pairs} run pair(s): before the camera moves both arms laid the same ink (${same0} of ${before0} trail buffers identical); while it moves the anchored trails keep the wind's direction better than the screen's` : '\n(no anchored/screen pair: nothing gated)');
+  return bad.length ? 1 : 0;
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const token = readToken();
@@ -152,6 +251,7 @@ async function main() {
       console.log(bad ? `\nMUTE CHECK FAILED on ${bad} theme(s)` : '\nmute check passed');
       return bad ? 1 : 0;
     }
+    if (opts.flow) return await flowMode(page, opts, `${source.label} · Gulf coast · served GFS 2026-10-09 15Z`);
     console.log(`\ntheme  path     arm      seed | hue30 (p90)    conv   mapLk  windLk coast/bare    keptMp keptCm retL  retW  cover  pops miss${opts.field ? ' | warpW (p90)   warpM (p90)' : ''} | commonest convention swaps`);
     for (const theme of opts.themes) {
       for (const name of opts.paths) {
@@ -181,4 +281,4 @@ async function main() {
 
 if (require.main === module) main().then((code) => { process.exitCode = code; }, (e) => { console.error(e.stack || e.message); process.exitCode = 2; });
 
-module.exports = { summarize };
+module.exports = { summarize, summarizeFlow, flowVerdict, FLOW_GATE };

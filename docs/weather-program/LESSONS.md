@@ -665,3 +665,27 @@ A stored estimate can be estimated again in a browser branch with different sour
   What gives for a smooth pass is only the dark-parity strength pin for 27-75 kn (about 1 dE of floor per 7 dE76). A wind A/B
   shows the wind AS DRAWN, colour and particles: a colour-only render is a labelled test view (owner, 2026-10-10). (log
   2026-10-09-light-fastband-cvd)
+- **L-V24 · Try a rendering algorithm where it can be SEEN before porting it, measure the picture's own property, and have
+  someone who did not write it read the diff.** Anchoring the wind's trails to the map (`windTrailAnchor.js`) was designed
+  in a standalone lab page first. Two ideas that are correct on paper failed there in minutes:
+  - resampling the trail buffer through the camera change every frame blurred the trails for as long as a zoom lasted
+    (a bilinear resample per frame compounds);
+  - re-laying the ink into a wider buffer on a zoom-out left a box where the old buffer had ended.
+  The survivor (the buffer keeps its own camera: whole-pixel shifts for a pan, one resample at display for a zoom, a
+  feathered re-lay) was ported once and passed its bench on the first run. Rules:
+  1. For a change to how the picture is built, write the smallest page that can show the artifact, try the
+     alternatives there, and port the one that survives.
+  2. Measure the property the viewer reads, not a proxy for it. Flow mode asks "do the streaks run along the served
+     wind?" of the composited frame, with the shipped engine as the positive control (it must fall while the camera
+     moves) and bit-identical trail buffers at rest as the null control.
+  3. A null control that asks for identical output will find every shared source of chance. It found that the bench's
+     seeded runs depended on the run before (the engine and MapLibre both draw from `Math.random`), and that the canvas
+     is not a fair thing to hash (the basemap under the wind is not bit-stable between runs). Hash what the code under
+     test owns.
+  4. Say where the result stops. Ground that has just come into view has no trail history, so a fling reads below rest,
+     anchored or not; the gate there compares the arms, and the README says why.
+  5. A passing bench is not a review. Every camera in my tests and my bench stayed in one copy of the world; a reader
+     given the diff and seven questions found in fifteen minutes that crossing the date line cleared the trails, that a
+     zoom wobble re-laid the ink every frame, and that the kill switch was not exact off desktop. The date line then
+     taught the bench one more thing: a median cannot see one wiped frame (0.713 against 0.715), so the clear itself is
+     gated from the engine's read-back. (log 2026-10-10-wind-trail-anchor)

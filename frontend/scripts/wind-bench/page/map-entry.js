@@ -27,7 +27,8 @@ const { mulberry32 } = require('../scanner');
 const { resolveThemeRamp, sampleRamp } = require('wind-bench-ramp');
 const { syncWindBasemapMute } = require('wind-bench-mute');
 const { labTable, binOf, binImage, binMask, stylePalette, frameMetrics, coastMetrics, colourEdges, warpDiff, hueFidelity, labOf } = require('../ambiguity');
-const { sampleSpeed } = require('../field');
+const { sampleSpeed, sampleWind } = require('../field');
+const { flowAlignment, turned } = require('../flow');
 const { latOf, mercY, TILE_PX } = require('../camera');
 // The colour parser always comes from the working tree (a --ref build may predate it); it only reads the style.
 const { parseColor } = require('../../../src/components/map/windBasemapMute');
@@ -54,9 +55,20 @@ function transformRequest(url) {   // mirrors mapUtils.mapboxTransformRequest (t
 }
 
 let GRIDS = null;
-const state = { map: null, theme: null, gl: null, engine: null, active: false, res: 384, levers: {} };
+const state = { map: null, theme: null, gl: null, engine: null, rng: null, active: false, res: 384, levers: {} };
 
 function clearLevers() { Object.keys(window).filter((k) => k.startsWith('__RAW_')).forEach((k) => { delete window[k]; }); }
+
+/**
+ * The copies of the world the particles are drawn in, as the app's layer computes them (WebGLWindLayer.js): [0] for
+ * every view away from the date line, [0, 360] or [-360, 0] astride it, three copies when zoomed far out.
+ */
+function worldOffsets(centerLng, canvasWidth, zoom) {
+  const span = (canvasWidth * 360) / (256 * Math.pow(2, zoom)), pad = zoom < 3.5 ? 180 : 10, out = [];
+  const lo = Math.floor((centerLng - span / 2 - pad + 180) / 360) * 360, hi = Math.ceil((centerLng + span / 2 + pad - 180) / 360) * 360;
+  for (let o = lo; o <= hi; o += 360) out.push(o);
+  return out.length ? out : [0];
+}
 
 function windLayer() {
   return {
@@ -66,7 +78,14 @@ function windLayer() {
       if (!state.active || !state.engine) return;
       const matrix = (args && args.length >= 16) ? args : (args.defaultProjectionData?.mainMatrix || args.mercatorMatrix || args.mainMatrix);
       const map = state.map, b = map.getBounds(), c = map.getCanvas();
-      state.engine.render(gl, matrix, c.width, c.height, map.getZoom(), state.theme, [0], [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
+      // THE ENGINE'S RANDOM STREAM IS ITS OWN. The engine draws from Math.random every frame (the respawn seed) and
+      // MapLibre draws from it too (an id per worker request), so a tile that happened to load mid-run shifted every
+      // later respawn: the same seed laid different ink depending on which run came before (found 2026-10-10, flow
+      // mode's null control). The seeded stream is swapped in for the engine's frame only.
+      Math.random = state.rng || realRandom;
+      try {
+        state.engine.render(gl, matrix, c.width, c.height, map.getZoom(), state.theme, worldOffsets(map.getCenter().lng, c.width, map.getZoom()), [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
+      } finally { Math.random = realRandom; }
     },
     onRemove() {},
   };
@@ -122,13 +141,16 @@ function disposeEngine() {
 
 function newEngine(res, seed) {
   disposeEngine();
-  Math.random = mulberry32(seed);
-  const e = new Engine();
-  e.particleRes = res;
-  e.init(state.gl);
-  e.setWindData(state.gl, GRIDS.world);
-  e.setWindData(state.gl, GRIDS.fine);
-  state.engine = e;
+  state.rng = mulberry32(seed);
+  Math.random = state.rng;
+  try {
+    const e = new Engine();
+    e.particleRes = res;
+    e.init(state.gl);
+    e.setWindData(state.gl, GRIDS.world);
+    e.setWindData(state.gl, GRIDS.fine);
+    state.engine = e;
+  } finally { Math.random = realRandom; }
 }
 
 function readCanvas(map) {
@@ -357,7 +379,7 @@ function smallShot(map, width = 300) {
   return t.toDataURL('image/jpeg', 0.8);
 }
 
-const camOf = (f) => ({ center: [f.lng, f.lat], zoom: f.z });
+const camOf = (f) => ({ center: [f.lng, f.lat], zoom: f.z, bearing: f.bearing || 0, pitch: f.pitch || 0 });
 
 /** The served speed (kn) under every analysis pixel (row 0 = screen bottom): the fine grid inside it, else the world base. */
 function speedsAt(cam, w, h) {
@@ -521,6 +543,83 @@ async function pathRun(cfg) {
 }
 
 /**
+ * FLOW mode (2026-10-10): do the wind's streaks still run along the wind while the camera moves? The path is flown once
+ * at a virtual 60 Hz; at each sample the same camera is captured twice without advancing the engine (map + wind, the map
+ * alone) and ../flow.js scores the ink between them against the served wind direction.
+ * cfg: {theme, frames: [{lng, lat, z, bearing?, pitch?}], samples: [frame index], res, seed, levers, warm, shots, shotWidth,
+ * hashBefore: samples before this frame also carry a hash of the engine's trail buffer}.
+ * A turned map is scored (flow.js `turned`); a TILTED one is drawn and captured but not scored (its ground is in perspective).
+ */
+/**
+ * FNV-1a over the engine's own trail buffer (the ink, before it meets the map): two runs laid the same ink exactly when
+ * this agrees. The canvas is not used for this: the basemap under it (label placement, tile arrival) is not bit-stable
+ * from one run to the next.
+ */
+function trailHash() {
+  const gl = state.gl, e = state.engine;
+  if (!e || !e.screenB) return null;
+  const W = e._screenW, H = e._screenH, px = new Uint8Array(W * H * 4), prev = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, e.screenB.fbo);
+  gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, prev);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < px.length; i++) { h ^= px[i]; h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16);
+}
+
+async function flowRun(cfg) {
+  const map = await ensureMap(cfg.theme), theme = cfg.theme, S = new Set(cfg.samples);
+  state.active = false;
+  clearLevers(); Object.assign(window, cfg.levers || {});
+  map.jumpTo(camOf(cfg.frames[0]));
+  const mute = syncWindBasemapMute(map, theme, true, WIND_ID);
+  await idle(map);
+  for (let n = 0; n < cfg.samples.length; n += 4) { map.jumpTo(camOf(cfg.frames[cfg.samples[n]])); await idle(map); }   // warm the tile cache along the path
+  map.jumpTo(camOf(cfg.frames[0])); await idle(map);
+  state.active = true;
+  newEngine(cfg.res, cfg.seed);
+  delete window.__WIND_TRAIL_ANCHOR__;
+  const rows = [];
+  let vms = realNow();
+  performance.now = () => vms;
+  const frame = async () => { map.triggerRepaint(); await once(map, 'render'); };
+  try {
+    for (let i = 0; i < (cfg.warm || 120); i++) { vms += FRAME_MS; await frame(); }
+    for (let i = 0; i < cfg.frames.length; i++) {
+      const cam = cfg.frames[i];
+      map.jumpTo(camOf(cam));
+      vms += FRAME_MS;
+      await frame();
+      if (!S.has(i)) continue;
+      const tiles = map.areTilesLoaded(), compRaw = readCanvas(map), shot = cfg.shots ? smallShot(map, cfg.shotWidth) : null;
+      const hash = i < (cfg.hashBefore || 0) ? trailHash() : null;
+      state.active = false;
+      await frame();                                    // same camera, wind layer skipped, clock not advanced
+      const offRaw = readCanvas(map);
+      state.active = true;
+      const comp = cssImage(compRaw.px, compRaw.W, compRaw.H), off = cssImage(offRaw.px, offRaw.W, offRaw.H);
+      const k = 1 / (TILE_PX * Math.pow(2, cam.z)), cx = (cam.lng + 180) / 360, cy = mercY(cam.lat);
+      const t = turned(cam.bearing || 0);   // image rows run from the screen's bottom, so +row is up the screen
+      const windAt = (x, y) => {
+        const [east, north] = t.toGround(x - CSS_W / 2, y - CSS_H / 2), lng = ((((cx + east * k) * 360) % 360) + 360) % 360 - 180, lat = latOf(cy - north * k);
+        const uv = sampleWind(GRIDS.fine, lng, lat) || sampleWind(GRIDS.world, lng, lat);
+        return uv && t.toScreen(uv[0], uv[1]);
+      };
+      const f = cam.pitch ? { flow: null, blocks: 0, ink: 0 } : flowAlignment(comp, off, windAt);
+      rows.push({ i, z: cam.z, bearing: cam.bearing || 0, tiles, flow: f.flow == null ? null : +f.flow.toFixed(4), blocks: f.blocks, ink: +f.ink.toFixed(2), hash, shot });
+    }
+    return { theme, mute, rows, anchor: window.__WIND_TRAIL_ANCHOR__ || null, glError: state.gl.getError() || 0 };
+  } finally {
+    delete performance.now;
+    state.active = false;
+    disposeEngine();
+    syncWindBasemapMute(map, theme, false, WIND_ID);
+    Math.random = realRandom;
+    clearLevers();
+  }
+}
+
+/**
  * Round trip of the basemap mute on the real style: the map before muting vs after mute + restore (same camera, wind
  * off). A restore that misses a property shows here. Returns the mean and max dE00 and the share of pixels > 1 dE00.
  */
@@ -581,5 +680,5 @@ function init(fixtures) {
   return { fine: `${fine.cols}x${fine.rows}`, bounds: fixtures.fine.bounds };
 }
 
-window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
+window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, flowRun, worldOffsets, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
 document.getElementById('status').textContent = 'ready';
