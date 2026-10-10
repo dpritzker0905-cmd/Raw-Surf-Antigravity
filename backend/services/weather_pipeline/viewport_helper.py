@@ -15,6 +15,7 @@ from services.weather_pipeline.route_helpers import (
 from services.weather_pipeline.schemas import NormalizedProduct
 from services.weather_pipeline.normalizer import WeatherNormalizer
 from services.weather_pipeline.reval_queue import SeriesFrame, schedule_revalidation
+from services.weather_pipeline.wind_bg_build import Linger, window_indices, wind_bg_bounded
 
 logger = logging.getLogger(__name__)
 
@@ -367,6 +368,11 @@ async def bg_process_remaining_hours_helper(
         remaining_indices = [i for i in range(len(times)) if i != target_idx]
 
         processed_indices = {target_idx}
+        # WIND_BG_BUILD_BOUNDED (default off, see wind_bg_build.py): build the waited-for hours and a window
+        # around the fetch's hour, linger briefly for late waiters, then retire. `speculative is None` = today.
+        bounded = wind_bg_bounded(domain)
+        speculative = window_indices(target_idx, len(times)) if bounded else None
+        linger = Linger(service, request_dedup_key, context) if bounded else None
 
         is_conjoined = model.upper() in ("GFS", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
         if is_conjoined:
@@ -387,13 +393,17 @@ async def bg_process_remaining_hours_helper(
 
             if next_idx is None:
                 for idx in remaining_indices:
-                    if idx not in processed_indices:
+                    if idx not in processed_indices and (speculative is None or idx in speculative):
                         next_idx = idx
                         break
 
             if next_idx is None:
+                if linger is not None and await linger.wait():
+                    continue
                 break
 
+            if linger is not None:
+                linger.worked()
             processed_indices.add(next_idx)
             t_str = times[next_idx]
             
@@ -523,8 +533,14 @@ async def bg_process_remaining_hours_helper(
             # Yield to the event loop
             await asyncio.sleep(0.001)
 
-            # Force garbage collection to reclaim memory from Pydantic models after every hour
-            gc.collect()
+            # Force garbage collection to reclaim memory from Pydantic models after every hour. A FULL collection
+            # walks the whole serve heap (measured 0.42 s each on the event-loop thread, 163 of a 385-hour
+            # build's 173 CPU-seconds); the bounded build keeps a young-generation pass here and the full one
+            # in the `finally` below.
+            if bounded:
+                gc.collect(1)
+            else:
+                gc.collect()
 
     except asyncio.CancelledError:
         logger.info(f"[Dynamic Viewport BG] Background task for {model} {domain} {layer} was cancelled.")

@@ -13,11 +13,11 @@
  */
 
 import { generateRampData, buildFieldRampTexture } from './WindColorRamp';
-import { baseClipKeepsFine } from './windOverlayKeep';
+import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tierKeepsOver, tierOuter } from './windTierMosaic';
 import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor';
 import {
   createTexture, bindWindPointReg, unbindTexture, createFBO, bindTexture, encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
-  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, windBoundsContain, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN
+  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN
 } from './WebGLWindUtils';
 import {
   initEngine,
@@ -208,7 +208,7 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
         && windGridIsGlobal(windGrid) === windGridIsGlobal(this._windData.windGrid)) {
       residentSameSlot = this._windData.windGrid;
     } else if (this._windFine?.windGrid && !windGridIsGlobal(windGrid)) {
-      residentSameSlot = this._windFine.windGrid;
+      residentSameSlot = tierOuter(this._windFine.windGrid); // a mosaic's own served box (windTierMosaic.js)
     }
     if (residentSameSlot && windGridsIdentical(residentSameSlot, windGrid)) return 'noop';
   }
@@ -225,8 +225,9 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   }
   if (windCoarseOverlayGuardEnabled(typeof window !== 'undefined' ? window : null) && !windGridIsGlobal(windGrid) && this._windFine?.windGrid
       && windGridsCompatible(this._windFine.windGrid, windGrid) && windGridClearlyCoarserThan(windGrid, this._windFine.windGrid)) {
-    if (windBoundsContain(this._windFine.windGrid.bounds, windGrid.bounds)) return 'noop_coarser_than_fine'; // never downgrade the view
+    if (tierKeepsOver(this._windFine.windGrid, windGrid)) return 'noop_coarser_than_fine'; // never downgrade the view: inside the resident (windTierMosaic.js)
     if (baseClipKeepsFine(windGrid, this._windData?.windGrid, this._windFine.windGrid)) return 'noop_base_clip'; // only the base's own nodes: keep the finer box (windOverlayKeep.js)
+    windGrid = tierMosaic(windGrid, this._windFine.windGrid) || windGrid; // a coarser covering box keeps the finer nodes it overlaps (windTierMosaic.js)
   }
 
   // BASE+OVERLAY filing (2026-07-19, queue #9). A REGIONAL grid arriving while a GLOBAL base of
@@ -492,7 +493,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       ? 'partial_regional_coverage'
       : 'full_coverage';
     window.__WIND_FINE_OVERLAY__ = fine
-      ? { active: true, bounds: fine.bounds, cols: fine.windGrid?.cols, rows: fine.windGrid?.rows,
+      ? { active: true, bounds: fine.bounds, cols: tierOuter(fine.windGrid)?.cols, rows: tierOuter(fine.windGrid)?.rows, // the SERVED box's lattice, mosaic or not
           wideFade: +fineWideFade.toFixed(2) }
       : { active: false };
   }
