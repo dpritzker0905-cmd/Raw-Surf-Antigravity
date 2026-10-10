@@ -50,6 +50,13 @@ _RATING_FLAGS = {
     "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind "
                             "tier blends the stored NOAA HRRR cycle (200 km feather, 3 h taper); 0 = the gfs_global map",
                        "Render env"),
+    # SERVE-BOX COST, not physics (2026-10-10): no wind number moves (tests/test_wind_bg_build_bounded.py pins the
+    # vectors equal, on vs off). Off, a fresh wind box builds all ~385 hourly steps in the background with a full
+    # gc.collect() each (0.42 s on the event loop) and a new box cancels the task a request may be waiting on.
+    "WIND_BG_BUILD_BOUNDED": ("0", "Wind background build: only the hours a request waits for plus a +-6 h window, a short "
+                                   "linger for late waiters, young-generation GC per hour, and a new box no longer cancels "
+                                   "a task that has a waiter (serve-box CPU and event-loop time; no served number moves)",
+                              "Render env"),
     "SIM_SERVED_TIME_MATCH": ("0", "Match sim tide/quality to actual baseline hour and model", "MCP process env"),
     "SIM_STRICT_INPUTS": ("0", "Refuse missing/non-finite sim forecast fields; preserve measured zero", "MCP process env"),
     # EXPLANATION, not physics: publishes `limiter`/`limiter_f` on each spot rating — which of the

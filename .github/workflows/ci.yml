@@ -831,7 +831,11 @@ jobs:
           # files selector-verified into this lane -- test_wind_hrrr_grid (20), test_noaa_hrrr_wind_fetcher (14),
           # test_wind_hrrr_lane (33), test_wind_hrrr_lane_ingest (9) = 76; hosted reading on dev db037eaf (CI 37971676215:
           # 190 files, 2565 passed) -> projected 2641/194; 2641 - 6 = 2635. This PR must read 194 files / 2641.
-          MIN_FILES, MIN_PASSED = 194, 2635
+          # ⬆ 194/2635 → 195/2652 on 2026-10-10, IN THE SAME COMMIT THAT CAUSES IT (a fresh wind box builds the hours
+          # asked for, dark): tests/test_wind_bg_build_bounded.py (17), selector-verified into this lane; hosted reading
+          # on dev 9e11676c (CI 38013820511: 194 files, 2641 passed, 67 skipped) -> projected 2658/195; 2658 - 6 = 2652.
+          # This PR must read 195 files / 2658.
+          MIN_FILES, MIN_PASSED = 195, 2652
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
