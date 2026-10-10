@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-10 01:47Z** (logs: `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-10 02:53Z** (logs: `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -15,7 +15,7 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-10 01:47Z: the hurricane eye holds through a zoom-out: a coarser covering box no longer replaces the finer one
-  (client only, on; PR to dev). The first zoom-in still needs the server (design for the owner, not built).**
+  (client only, on; PR #302 to dev). The first zoom-in still needs the server (design for the owner, not built).**
   - **Measured** (wind bench ladder mode: the real engine, the z5.5 -> z9 -> z5.5 replay with the client's request box
     and cache rule and the server's tier rule mirrored and pinned to their sources). On `dev`, zooming out redrew the eye
     at each tier: 0.25 -> 0.5 deg area x1.71; 0.5 -> 1 deg 21.4 km, wall -12 kn, area x2.94. The tiers agree at shared
@@ -32,7 +32,10 @@ is a claim, not a measurement.
     ingest from the GFS field the regional pass already downloads (0 Open-Meteo calls, 0 CPU on the Render box at
     ingest), served dark. Serving every box at 0.25 deg costs x5.5 location-calls (62% of the daily quota for one
     ladder). Log `log/2026-10-10-wind-eye-zoom-ladder.md`; LESSONS L-V22.
-  - **Not yet seen in the app** (the bench is the engine, not MapLibre). Live read-back owed after the merge.
+  - **Three defects in the first build, fixed before the push** (ledger 994): the merge rule compared `run_time` (a
+    per-box ingest stamp: inert in the app); the never-downgrade rule was lost over a mosaic; "same valid time" was the
+    asked hour, not the served frame. Fine nodes are never kept inside a box built more than 30 minutes after them.
+  - **Not yet seen in the app** (the bench is the engine, not MapLibre). Live read-back owed after the merge (ledger 996).
 
 - **2026-10-10 01:5xZ: a small wind pan re-requested the whole 14-day timeline and the box read /api/health at 10-13 s
   (client fix built; PR #300 to dev).** Render request log, 00:04-00:07Z, one client: every settled pan sent a mini plus two
@@ -1706,7 +1709,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 990, sha256 4de45911f73e681c81956dce3322ad4c06703d60ab48ec31f7d0edd316f14eff**
+  **Ledger head: seq 996, sha256 2b48e99d6175ecc1a720d236feff92dbb39c9027ce86cf7d9060bf327bcf8b0a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
