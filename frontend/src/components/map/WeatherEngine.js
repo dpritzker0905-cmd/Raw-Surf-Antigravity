@@ -4,7 +4,8 @@ import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
 import { windGridsCompatible } from './WebGLWindEngine'; import { keepResidentFine } from './windOverlayKeep';
 import { recordTruthStage } from './weatherTruthTracker';
-import { ensureWindSeries, getWindSeriesFrame, prewarmWindSeries } from './windGridSeries';
+import { getWindSeriesFrame, prewarmWindSeries } from './windGridSeries';
+import { startWindSeriesWarm } from './windSeriesWarm';
 import { isTerminalNoCoverage } from './marineControllerCache';
 
 // Module-level scrub log throttle (max once per 2s)
@@ -693,44 +694,9 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
   // a no-op until enabled, so the default wind path is unchanged.
   useEffect(() => {
     if (!mapInstance || !isWindActive) return;
-    let cancelled = false;
-    const controller = new AbortController();
-    const kick = () => {
-      if (cancelled || !mapInstance) return;
-      try {
-        const b = mapInstance.getBounds();
-        ensureWindSeries(
-          activeModel,
-          { west: b.getWest(), south: Math.max(-85, b.getSouth()), east: b.getEast(), north: Math.min(85, b.getNorth()) },
-          timeOffsetHours,
-          controller.signal
-        );
-      } catch (e) { /* map not ready — ignore */ }
-    };
-    const t = setTimeout(kick, 600);
-    const onIdle = () => kick();
-    mapInstance.on('moveend', onIdle);
-    // On scrub start, eagerly load EVERY page so any hour the user jumps to during a fast drag
-    // is already cached (the during-drag path reads getWindSeriesFrame synchronously).
-    const onScrubStart = () => {
-      if (cancelled || !mapInstance) return;
-      try {
-        const b = mapInstance.getBounds();
-        prewarmWindSeries(
-          activeModel,
-          { west: b.getWest(), south: Math.max(-85, b.getSouth()), east: b.getEast(), north: Math.min(85, b.getNorth()) },
-          controller.signal
-        );
-      } catch (e) { /* map not ready — ignore */ }
-    };
-    if (typeof window !== 'undefined') window.addEventListener('timeline_scrub_start', onScrubStart);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-      controller.abort();
-      try { mapInstance.off('moveend', onIdle); } catch (e) { /* ignore */ }
-      if (typeof window !== 'undefined') window.removeEventListener('timeline_scrub_start', onScrubStart);
-    };
+    // The wiring lives in windSeriesWarm.js (so the pan replay drives this exact code). Work belongs
+    // to the view that asked for it: a pan aborts the previous pan's series requests.
+    return startWindSeriesWarm({ map: mapInstance, model: activeModel, hour: timeOffsetHours });
     // Page is intentionally NOT a dep (mirror useMarineOrchestrator). prewarmWindSeries loads ALL
     // pages on settle + scrub-start; re-running per page crossing only ABORTS the in-flight warm via
     // the cleanup's controller.abort(), so a fast multi-page scrub perpetually killed its own wind
