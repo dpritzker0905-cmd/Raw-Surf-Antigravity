@@ -33,18 +33,19 @@ is a claim, not a measurement.
     new mark can land a fraction of a pixel from its carried ink (the 32-bit mark matrix); not yet seen in the app.
     **Bench:** its seeded runs no longer depend on the run before (the engine's random stream is its own).
   - **Side sessions read first:** #300-#304 all on dev by 04:40Z (#301-#304 merged by the light fast-band session,
-    #302-#304 with two slow lanes pending: its read-back is in #305, open).
+    #302-#304 with two slow lanes pending: its read-back is in #305, merged 14:02Z).
   - **Next, measured, not built:** curves between grid points (the 0.5 deg eye is drawn 1.7-2.2x its true area with
     straight lines, 1.0-1.3x with curves), on #302's ladder bench, for the owner's A/B. Still owed: the deployed read of
     #299 (`__WIND_BASEMAP_MUTE__.layers`). Log `log/2026-10-10-wind-trail-anchor.md`; LESSONS L-V24.
 
-- **2026-10-10 04:3xZ: three light fast-band redesigns reach the colour-blind floor, DEFAULT OFF (client only; PR open, owner A/B).**
+- **2026-10-10 04:3xZ: three light fast-band redesigns reach the colour-blind floor, DEFAULT OFF (client only; merged as #304, 541117de; owner A/B pending).**
   - **The finding.** With the basemap muted, the whole 6-75 kn light field tint ramp sat under 5 dE2000 for some colour-blind
     viewer (weakest 2.58), not only the fast bands. A stripe-free redesign exists; only the dark-parity strength pin for 27-75 kn
     has to give (about 1 dE of floor per 7 dE76).
   - **The levers.** `window.__RAW_WIND_LIGHT_FASTBAND__ = 'a' | 'b' | 'c'` (read at the next ramp build; unset is today's ramp).
     A steady descent (5.22 water / 5.26 land, strength to x1.83 dark, one gate re-scoped), B blue-violet end (5.22 / 5.27, three
     gates), C gentle (5.01 / 5.10, strength to x1.51, one gate). Legend, particles, beach and dark untouched.
+  - **Merged with #301-#303 as one ledger chain** (squashes 3c607174, 04a437a6, 5a3ecb68, 541117de; #302-#304 at the owner's "merge anyway" with some CI lanes still pending: a read-back commitment is in the ledger).
   - **Owner's call:** pick A, B, C or none from the A/B page (https://claude.ai/artifact/S3Tw5rDU1oVF8ArDf4YKrW). Log
     `log/2026-10-09-light-fastband-cvd.md`; LESSONS L-V23.
 
@@ -1762,7 +1763,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1013, sha256 1c67de2f8952915201774a31475224faa6231d8d285465f08c77202cc1510862**
+  **Ledger head: seq 1020, sha256 000c9b2ea717900bd7a1907f797f5db68093b03d588f7622a6c378bab93a03d4**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

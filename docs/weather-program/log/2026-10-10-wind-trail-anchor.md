@@ -207,5 +207,20 @@ under the wind (label placement, tile arrival) is not bit-stable between runs. I
 3. **Trail history for ground that has just come into view** (the fling's remaining gap). Not designed.
 4. **Marks at z14 and beyond**: fold the tile origin into the matrix in 64 bits, so the shader multiplies small numbers.
 
-Records: PR #306; LESSONS L-V24; ledger seq 1011-1013 (1013 is the live read-back, due 2026-10-17); the lab `reports/anchored-drift.html` and its philosophy
+Records: PR #306; LESSONS L-V24; ledger seq 1016-1018 (1018 is the live read-back, due 2026-10-17; written as 1011-1013, re-appended after #305: see the last section); the lab `reports/anchored-drift.html` and its philosophy
 `reports/Anchored Drift.md` (both untracked); frames `reports/wind-trail-anchor-ab.html` (untracked).
+
+## The ledger re-chained after #305 (14:09Z)
+
+- The owner: "merge 306" (2026-10-10 14:04Z). #305 had merged at 14:02:26Z (`8f44c7cd`), taking the ledger to seq 1015,
+  so this branch conflicted with `dev` in `ACTIONS.jsonl` and `STATE.md` and nowhere else.
+- `dev` was merged into the branch. The ledger is `dev`'s byte for byte, with this branch's own three lines re-appended
+  after it: 1011 -> 1016 (finding), 1012 -> 1017 (`pr_open #306`), 1013 -> 1018 (the read-back commitment). Only `seq`
+  and `prev` changed: their `at` (05:31:51Z, 05:33:04Z) is later than `dev`'s last line (04:40:37Z), so no time moved.
+- Seq 1019 records #305's merge, read from GitHub and marked reconstructed. This session did not see who merged it:
+  the GitHub account is shared by the owner and every session.
+- STATE: this session's "Now" entry stays on top; the light fast-band line under it takes `dev`'s wording (it names its
+  merge); the anchor is the new head.
+- Seq 1020 closes commitment 1015 (the light fast-band session's, overdue since 07:00Z): the lanes that were pending
+  when #302-#304 merged are all green, on the PRs and on `dev`'s CI for each merge commit. Nothing to fix.
+- Still owed after #306 merges: its own `pr_merge #306` line (the next PR records it), and commitment 1018.
