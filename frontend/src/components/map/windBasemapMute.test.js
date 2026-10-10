@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   WIND_BASEMAP_MUTE, windBasemapMuteAmount, windBasemapWaterL, parseColor, oklab, muteColor, muteValue, windBasemapMutePlan, syncWindBasemapMute,
+  windBasemapImagery, windBasemapMuteStale,
 } from './windBasemapMute';
 
 const close = (a, b, eps) => Math.abs(a - b) <= eps;
@@ -117,19 +118,117 @@ describe('levers and defaults', () => {
   });
 });
 
-/** A map that keeps a live style (paint values as set) and counts writes. */
+/**
+ * A map that keeps a live style (paint values as set) and counts writes. Like MapLibre (5.24 _serializedAllLayers),
+ * getStyle() LEAVES CUSTOM LAYERS OUT: the wind layer's own slot is only in style._order.
+ */
 function fakeMap(layers = STYLE()) {
   const live = new Map(layers.map((l) => [l.id, JSON.parse(JSON.stringify(l))]));
   const map = {
-    style: {}, writes: 0,
+    style: { _order: layers.map((l) => l.id) }, writes: 0, failOn: null,
     getLayer: (id) => live.get(id),
-    getStyle: () => ({ layers: [...live.values()].map((l) => JSON.parse(JSON.stringify(l))) }),
+    getStyle: () => ({ layers: [...live.values()].filter((l) => l.type !== 'custom').map((l) => JSON.parse(JSON.stringify(l))) }),
     getPaintProperty: (id, p) => (live.get(id).paint || {})[p],
-    setPaintProperty: (id, p, v) => { map.writes++; const l = live.get(id); l.paint = l.paint || {}; if (v === undefined) delete l.paint[p]; else l.paint[p] = JSON.parse(JSON.stringify(v)); },
+    getLayoutProperty: (id, p) => (live.get(id).layout || {})[p],
+    setLayoutProperty: (id, p, v) => { const l = live.get(id); l.layout = { ...(l.layout || {}), [p]: v }; },
+    setPaintProperty: (id, p, v) => {
+      if (map.failOn === id) { map.failOn = null; throw new Error('style mid-load'); }
+      map.writes++; const l = live.get(id); l.paint = l.paint || {}; if (v === undefined) delete l.paint[p]; else l.paint[p] = JSON.parse(JSON.stringify(v));
+    },
     paint: () => JSON.stringify([...live.values()].map((l) => l.paint)),
   };
   return map;
 }
+
+/**
+ * THE APP'S STACK around the basemap (MapWebGL.js, OceanMask.js; pinned by the wiring tests below). The app keeps its
+ * satellite photo and 18 weather-wash slots MOUNTED AND HIDDEN under the wind layer, the ocean mask's own fills too, and
+ * draws radar frames above it. `on` shows layers by id prefix (visibility), `opacity` gives the shown ones an opacity.
+ */
+const WASHES = ['rain', 'satellite', 'pressure', 'temperature', 'water_temp', 'fog'];
+function APP({ on = [], opacity = ['interpolate', ['linear'], ['zoom'], 2, 0.6, 12, 0.78] } = {}) {
+  const shown = (id) => on.some((p) => id.startsWith(p));
+  const raster = (id, op) => ({ id, type: 'raster', layout: { visibility: shown(id) ? 'visible' : 'none' }, paint: { 'raster-opacity': shown(id) ? op : 0 } });
+  const S = STYLE(), out = [];
+  for (const l of S) {
+    if (l.id === 'landcover') out.push(raster('esri-satellite-layer', 1), { id: 'ocean-mask-fill', type: 'fill', layout: { visibility: 'none' }, paint: { 'fill-color': 'hsl(40, 30%, 85%)' } }, { id: 'ocean-mask-inland-water', type: 'fill', layout: { visibility: 'none' }, paint: { 'fill-color': 'hsl(196, 80%, 70%)' } });
+    if (l.id === 'wind') out.push(...WASHES.flatMap((k) => [0, 1, 2].map((s) => raster(`${k}-slot-${s}-layer`, s === 1 ? opacity : 0))));
+    out.push(l);
+    if (l.id === 'wind') out.push({ id: 'park-above', type: 'fill', paint: { 'fill-color': 'hsl(100, 45%, 80%)' } });
+  }
+  out.push({ id: 'rv-radar-frame', type: 'raster', paint: { 'raster-opacity': 0.8 } }, { id: 'spot-geofences-layer', type: 'circle', paint: { 'circle-color': '#06b6d4' } });
+  return out;
+}
+const BASEMAP_AREAS = ['land', 'landcover', 'hillshade', 'water', 'waterway', 'building'];
+
+describe('THE APP\'S STACK (live dev 2026-10-09: __WIND_BASEMAP_MUTE__ read { applied: true, layers: 0 }; nothing was muted)', () => {
+  it('hidden satellite and weather slots under the wind do NOT stand the mute down: the basemap is muted', () => {
+    const plan = windBasemapMutePlan(APP(), 'wind', 0.85, 0.9);
+    expect(new Set(plan.map((p) => p.id))).toEqual(new Set(BASEMAP_AREAS));
+    expect(windBasemapImagery(APP(), 'wind')).toBeNull();
+  });
+  it('a satellite photo SHOWING under the wind still keeps its map (positive control)', () => {
+    const sat = APP({ on: ['esri-satellite'] });
+    expect(windBasemapImagery(sat, 'wind')).toBe('esri-satellite-layer');
+    expect(windBasemapMutePlan(sat, 'wind', 0.85, 0.9)).toEqual([]);
+  });
+  it('a weather wash showing under the wind stands it down too (unmeasured with the mute: today\'s look is kept)', () => {
+    const rain = APP({ on: ['rain-slot'] });
+    expect(windBasemapImagery(rain, 'wind')).toBe('rain-slot-1-layer');     // slots 0 and 2 are visible at opacity 0
+    expect(windBasemapMutePlan(rain, 'wind', 0.85, 0.9)).toEqual([]);
+  });
+  it('visible at opacity 0 is not on screen; a raster ABOVE the wind (radar) is not under it', () => {
+    expect(windBasemapImagery(APP({ on: ['fog-slot'], opacity: 0 }), 'wind')).toBeNull();
+    expect(APP().some((l) => l.id === 'rv-radar-frame' && l.type === 'raster' && !(l.layout || {}).visibility)).toBe(true);
+    expect(windBasemapImagery(APP(), 'wind')).toBeNull();
+  });
+  it('the ocean mask\'s own layers are left to OceanMask (it repaints them on its own sync)', () => {
+    expect(windBasemapMutePlan(APP(), 'wind', 0.85, 0.9).some((p) => /^ocean-mask-/.test(p.id))).toBe(false);
+  });
+  it('the sync finds the wind layer\'s slot although getStyle() leaves custom layers out: nothing above it is touched', () => {
+    const map = fakeMap(APP()), win = {};
+    expect(map.getStyle().layers.some((l) => l.id === 'wind')).toBe(false);
+    expect(syncWindBasemapMute(map, 'light', true, 'wind', win)).toMatchObject({ applied: true, layers: 6, amount: 0.85 });
+    expect(map.getPaintProperty('park-above', 'fill-color')).toBe('hsl(100, 45%, 80%)');
+    expect(map.getPaintProperty('water', 'fill-color')).toBe(muteColor('hsl(196, 80%, 70%)', 0.85, 0.9));
+  });
+  it('read-back says WHY nothing is muted: applied is false with the imagery\'s id, never true with 0 layers', () => {
+    const map = fakeMap(APP({ on: ['esri-satellite'] })), win = {}, before = map.paint();
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    expect(win.__WIND_BASEMAP_MUTE__).toMatchObject({ applied: false, layers: 0, amount: 0, reason: 'imagery:esri-satellite-layer' });
+    expect(map.paint()).toBe(before);
+    const bare = fakeMap([{ id: 'road', type: 'line', paint: { 'line-color': '#fff' } }, { id: 'wind', type: 'custom' }]);
+    expect(syncWindBasemapMute(bare, 'light', true, 'wind', {})).toMatchObject({ applied: false, layers: 0 });
+  });
+  it('satellite switched on while muted: stale, restored exactly; switched off again: stale, muted again; steady: no work', () => {
+    const map = fakeMap(APP()), before = map.paint();
+    expect(windBasemapMuteStale(map, 'beach', true, 'wind', {})).toBe(true);          // wind on, not muted yet
+    syncWindBasemapMute(map, 'beach', true, 'wind', {});
+    const muted = map.paint(), w = map.writes;
+    expect(windBasemapMuteStale(map, 'beach', true, 'wind', {})).toBe(false);
+    map.setLayoutProperty('esri-satellite-layer', 'visibility', 'visible');
+    map.setPaintProperty('esri-satellite-layer', 'raster-opacity', 1);
+    expect(windBasemapMuteStale(map, 'beach', true, 'wind', {})).toBe(true);
+    expect(syncWindBasemapMute(map, 'beach', true, 'wind', {})).toMatchObject({ applied: false, reason: 'imagery:esri-satellite-layer' });
+    expect(JSON.parse(map.paint()).filter((p) => !p || p['raster-opacity'] === undefined)).toEqual(JSON.parse(before).filter((p) => !p || p['raster-opacity'] === undefined));
+    expect(windBasemapMuteStale(map, 'beach', true, 'wind', {})).toBe(false);
+    map.setLayoutProperty('esri-satellite-layer', 'visibility', 'none');
+    expect(windBasemapMuteStale(map, 'beach', true, 'wind', {})).toBe(true);
+    expect(syncWindBasemapMute(map, 'beach', true, 'wind', {})).toMatchObject({ applied: true, layers: 6 });
+    expect(JSON.parse(map.paint())[0]).toEqual(JSON.parse(muted)[0]);
+    expect(map.writes).toBeGreaterThan(w);
+    expect(windBasemapMuteStale(map, 'beach', false, 'wind', {})).toBe(true);         // wind off while muted
+    expect(windBasemapMuteStale(map, 'dark', true, 'wind', {})).toBe(true);           // another theme's amount
+  });
+  it('a write that throws part-way is undone by the next sync, and the re-plan starts from the ORIGINAL colours', () => {
+    const map = fakeMap(APP());
+    map.failOn = 'water';
+    expect(syncWindBasemapMute(map, 'light', true, 'wind', {})).toMatchObject({ applied: false, error: 'style mid-load' });
+    expect(syncWindBasemapMute(map, 'light', true, 'wind', {})).toMatchObject({ applied: true, layers: 6 });
+    expect(map.getPaintProperty('land', 'background-color')).toBe(muteColor('hsl(35, 12%, 89%)', 0.85));   // muted once, not twice
+    expect(map.getPaintProperty('water', 'fill-color')).toBe(muteColor('hsl(196, 80%, 70%)', 0.85, 0.9));
+  });
+});
 
 describe('syncWindBasemapMute', () => {
   it('mutes while the wind is on, is idempotent, and restores the exact original colours', () => {
@@ -183,7 +282,7 @@ describe('syncWindBasemapMute', () => {
 describe('wiring', () => {
   const layer = fs.readFileSync(path.join(__dirname, 'WebGLWindLayer.js'), 'utf8');
   it('the wind layer syncs the mute on its toggle, after (re)adding itself to a style, and restores on teardown', () => {
-    expect(layer).toContain("import { syncWindBasemapMute } from './windBasemapMute';");
+    expect(layer).toContain("import { syncWindBasemapMute, windBasemapMuteStale } from './windBasemapMute';");
     expect(layer).toContain('syncWindBasemapMute(mapInstance, themeRef.current, active, LAYER_ID);');
     expect(layer).toContain('syncWindBasemapMute(mapInstance, themeRef.current, activeRef.current, LAYER_ID);');
     expect(layer).toContain('syncWindBasemapMute(mapInstance, themeRef.current, false, LAYER_ID);');
@@ -195,5 +294,20 @@ describe('wiring', () => {
     expect(layer).toContain("mapInstance.once('idle', resync);");
     expect(layer).toContain('const resync = () => syncWindBasemapMute(mapInstance, themeRef.current, activeRef.current, LAYER_ID);');
     expect(layer).toContain('}, [theme, mapInstance]);');
+  });
+  it('every style change asks whether the mute is stale (imagery shown or hidden under the wind), and syncs only then', () => {
+    expect(layer).toContain('} else if (windBasemapMuteStale(mapInstance, themeRef.current, activeRef.current, LAYER_ID)) {');
+    const probe = layer.indexOf('windBasemapMuteStale(mapInstance'), handler = layer.indexOf('const handleStyleData = () => {'), bound = layer.indexOf("mapInstance.on('styledata', handleStyleData);");
+    expect(probe).toBeGreaterThan(handler);
+    expect(bound).toBeGreaterThan(probe);
+  });
+  it('THE STACK THESE TESTS ASSUME IS THE APP\'S: hidden rasters under the wind, the wind layer\'s id, the mask\'s ids', () => {
+    const app = fs.readFileSync(path.join(__dirname, 'MapWebGL.js'), 'utf8'), mask = fs.readFileSync(path.join(__dirname, 'OceanMask.js'), 'utf8');
+    expect(layer).toContain("var LAYER_ID = 'webgl-wind-particles';");
+    expect(app).toContain('id="esri-satellite-layer"');
+    expect(app).toContain("layout={{ visibility: activeLayers.includes('satellite') ? 'visible' : 'none' }}");
+    expect(app).toContain("if (mapInstance.getLayer('webgl-wind-particles')) setOmSlotsBeforeId('webgl-wind-particles');");   // the slots sit just under the wind
+    expect(app).toContain("visibility: (!hideForTransition && activeLayers.includes(layerKey)) ? 'visible' : 'none'");
+    for (const id of ['MASK_BUFFER', 'MASK_FILL', 'MASK_LINE', 'MASK_INLAND_WATERWAY', 'MASK_INLAND_WATER']) expect(mask).toMatch(new RegExp(`const ${id}\\s*= 'ocean-mask-`));
   });
 });

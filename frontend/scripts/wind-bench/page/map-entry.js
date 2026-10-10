@@ -93,7 +93,26 @@ async function ensureMap(theme) {
   map.addLayer(windLayer(), windLayerBeforeId(layers, theme, {}));
   const coast = windCoastlineLayer(layers, theme, true, {});
   if (coast) map.addLayer(coast, windLayerBeforeId(layers, theme, {}));
+  if (!state.bare) addAppStack(map, layers);
   return map;
+}
+
+// THE APP'S STACK (MapWebGL.js; pinned in windBasemapMute.test.js). The app keeps a satellite photo and 18 weather-wash
+// slots MOUNTED AND HIDDEN under the wind layer, and draws radar frames above it. The first path bench drew the basemap
+// alone, so a mute that stood down for any raster layer passed here and never ran in the app (live dev, 2026-10-09: the
+// read-back said layers 0). Hidden layers load no tiles; the frame above the wind is a clear 1x1 tile at opacity 0.01, so
+// no pixel changes. `--bare` (init { bare }) gives the old instrument.
+const CLEAR_TILE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+const APP_WASHES = ['rain', 'satellite', 'pressure', 'temperature', 'water_temp', 'fog'];
+function addAppStack(map, layers) {
+  const raster = (id, layout, opacity, before) => {
+    map.addSource(`${id}-source`, { type: 'raster', tiles: [CLEAR_TILE], tileSize: 256 });
+    map.addLayer({ id, type: 'raster', source: `${id}-source`, layout, paint: { 'raster-opacity': opacity, 'raster-fade-duration': 0 } }, before);
+  };
+  const ground = layers.find((l) => l.id === 'landcover' || l.id === 'water');
+  raster('esri-satellite-layer', { visibility: 'none' }, 1, ground && ground.id);
+  for (const k of APP_WASHES) for (const s of [0, 1, 2]) raster(`${k}-slot-${s}-layer`, { visibility: 'none' }, 0, WIND_ID);
+  raster('bench-radar-frame', {}, 0.01, undefined);
 }
 
 function disposeEngine() {
@@ -525,13 +544,42 @@ async function muteRoundTrip(cfg) {
   return { mute, mean: sum / A.bins.length, max, over1: over / A.bins.length, mutedMoved: moved / A.bins.length, tiles: map.areTilesLoaded() };
 }
 
+/**
+ * The mute against imagery on the real map and the real library (the app's stack is needed): the wind on, muted; the
+ * satellite photo shown under the wind, as the app shows it (the layer's visibility) -> stale, and the sync stands down
+ * with the original colours back; hidden again -> stale, muted again. Returns each step's read-back.
+ */
+async function muteImagery(cfg) {
+  const map = await ensureMap(cfg.theme), mod = require('wind-bench-mute');
+  if (!map.getLayer('esri-satellite-layer')) throw new Error('muteImagery needs the app stack (not --bare)');
+  const stale = () => (mod.windBasemapMuteStale ? mod.windBasemapMuteStale(map, cfg.theme, true, WIND_ID) : null);
+  state.active = false;
+  clearLevers();
+  syncWindBasemapMute(map, cfg.theme, false, WIND_ID);
+  map.jumpTo(camOf(cfg)); await idle(map);
+  const a = readCanvas(map), staleOff = stale(), on = syncWindBasemapMute(map, cfg.theme, true, WIND_ID), staleOn = stale();
+  map.setLayoutProperty('esri-satellite-layer', 'visibility', 'visible');
+  const staleShown = stale(), shown = syncWindBasemapMute(map, cfg.theme, true, WIND_ID);
+  await idle(map);
+  const b = readCanvas(map);
+  map.setLayoutProperty('esri-satellite-layer', 'visibility', 'none');
+  const staleHidden = stale(), hidden = syncWindBasemapMute(map, cfg.theme, true, WIND_ID);
+  syncWindBasemapMute(map, cfg.theme, false, WIND_ID);
+  await idle(map);
+  const A = binImage(a.px, a.W, a.H, ANALYSIS), B = binImage(b.px, b.W, b.H, ANALYSIS);
+  let max = 0;
+  for (let i = 0; i < A.bins.length; i++) max = Math.max(max, LUT.de(A.bins[i], B.bins[i]));
+  return { staleOff, on, staleOn, staleShown, shown, shownMaxDE: max, staleHidden, hidden };
+}
+
 /** fixtures: {fine, scale}. scale multiplies u and v (1 = as served; 2.3 puts Mobile Bay's median at ~30 kn, the owner's case). */
 function init(fixtures) {
+  state.bare = fixtures.bare === true;
   const k = fixtures.scale || 1, fx = { ...fixtures.fine, u: fixtures.fine.u.map((u) => u * k), v: fixtures.fine.v.map((v) => v * k) };
   const fine = gridFromFixture(fx, 'served_fine');
   GRIDS = { fine, world: worldBase([fine]) };
   return { fine: `${fine.cols}x${fine.rows}`, bounds: fixtures.fine.bounds };
 }
 
-window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, muteRoundTrip, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
+window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
 document.getElementById('status').textContent = 'ready';
