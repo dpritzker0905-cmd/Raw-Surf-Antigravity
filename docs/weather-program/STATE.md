@@ -14,13 +14,14 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-10 04:3xZ: three light fast-band redesigns reach the colour-blind floor, DEFAULT OFF (client only; PR open, owner A/B).**
+- **2026-10-10 04:3xZ: three light fast-band redesigns reach the colour-blind floor, DEFAULT OFF (client only; merged as #304, 541117de; owner A/B pending).**
   - **The finding.** With the basemap muted, the whole 6-75 kn light field tint ramp sat under 5 dE2000 for some colour-blind
     viewer (weakest 2.58), not only the fast bands. A stripe-free redesign exists; only the dark-parity strength pin for 27-75 kn
     has to give (about 1 dE of floor per 7 dE76).
   - **The levers.** `window.__RAW_WIND_LIGHT_FASTBAND__ = 'a' | 'b' | 'c'` (read at the next ramp build; unset is today's ramp).
     A steady descent (5.22 water / 5.26 land, strength to x1.83 dark, one gate re-scoped), B blue-violet end (5.22 / 5.27, three
     gates), C gentle (5.01 / 5.10, strength to x1.51, one gate). Legend, particles, beach and dark untouched.
+  - **Merged with #301-#303 as one ledger chain** (squashes 3c607174, 04a437a6, 5a3ecb68, 541117de; #302-#304 at the owner's "merge anyway" with some CI lanes still pending: a read-back commitment is in the ledger).
   - **Owner's call:** pick A, B, C or none from the A/B page (https://claude.ai/artifact/S3Tw5rDU1oVF8ArDf4YKrW). Log
     `log/2026-10-09-light-fastband-cvd.md`; LESSONS L-V23.
 
@@ -1738,7 +1739,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1010, sha256 d2d80c0ae34977ae8735cf9a56b556bf20cf31792671ef9da6a8cdac6d63ff43**
+  **Ledger head: seq 1015, sha256 781a9ea1d45404ae6862c00540b29a351ec5039a8cc981e04fc5422f90e4bcc3**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
