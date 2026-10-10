@@ -603,7 +603,7 @@ A stored estimate can be estimated again in a browser branch with different sour
      `--mute-check`.
   2. A read-back reports what was done (`layers > 0`, or the reason it stood down), never what was asked for.
   3. After a merge, read the effect on the deployed build before calling it live (the kin of L-V19: settle, then read).
-- **L-V22 · A colour-blind redesign needs stripe rules on BOTH lightness and chroma, a hue-monotone rule, every Jest pin as a hard
+- **L-V23 · A colour-blind redesign needs stripe rules on BOTH lightness and chroma, a hue-monotone rule, every Jest pin as a hard
   constraint, and the right starting basin.** The light fast bands (6-75 kn field tints, muted ground) could not pass 5 dE2000 at
   2.6 under #297's rules, and four solver traps hid the real answer:
   1. A solver given only a lightness rule reaches 5.22 on every seed by drawing CHROMA stripes (C* 23, 11, 33, 10, 7, 21); given
