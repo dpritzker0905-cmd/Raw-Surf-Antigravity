@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-10 05:3xZ: the wind's trails are anchored to the map (client only; PR_PENDING to dev).** Owner: "study all
+- **2026-10-10 05:3xZ: the wind's trails are anchored to the map (client only; PR #306 to dev).** Owner: "study all
   of our sub work tree work, then ... work forward on making this state of the art".
   - **The defect.** The trail buffer lived on the screen: a pan smeared every trail along the drag, a zoom along rays
     from the focal point, so the wind's direction was unreadable while the map moved.
@@ -1761,7 +1761,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1011, sha256 7ad8e1d4b1d5256c2a36d36e08a6225acb24e4132bceab6b616cb917fd4c9ff5**
+  **Ledger head: seq 1013, sha256 1c67de2f8952915201774a31475224faa6231d8d285465f08c77202cc1510862**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

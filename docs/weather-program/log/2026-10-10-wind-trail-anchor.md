@@ -127,7 +127,7 @@ Controls:
   ground exactly as with the legacy buffer at rest, and the trails keep their lines while it pans.
 
 Tests: `windTrailAnchor.test.js` (26) and `windBenchFlow.test.js` (15). Jest map + `src/tests`: 298 suites, 3797 tests.
-Lint ratchet and line ratchets pass; a production build passed before the review fixes (CI builds the final tree).
+Lint ratchet and line ratchets pass; a production build of the final tree passes.
 #302's ladder bench still passes on the merged tree (exit 0: the eye results are untouched).
 
 ## An independent review before the push: four findings, all acted on
@@ -203,5 +203,5 @@ under the wind (label placement, tile arrival) is not bit-stable between runs. I
 3. **Trail history for ground that has just come into view** (the fling's remaining gap). Not designed.
 4. **Marks at z14 and beyond**: fold the tile origin into the matrix in 64 bits, so the shader multiplies small numbers.
 
-Records: LESSONS L-V24; ledger seq 1011 (the finding); the lab `reports/anchored-drift.html` and its philosophy
+Records: PR #306; LESSONS L-V24; ledger seq 1011-1013 (1013 is the live read-back, due 2026-10-17); the lab `reports/anchored-drift.html` and its philosophy
 `reports/Anchored Drift.md` (both untracked); frames `reports/wind-trail-anchor-ab.html` (untracked).
