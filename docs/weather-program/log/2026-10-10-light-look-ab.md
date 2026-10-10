@@ -145,3 +145,90 @@ Tuning that set the marks (z6, served strength, offline map; the end column reco
   streak's colour; the light-air lilacs still read paler than their field, which sRGB cannot avoid).
 - **B over the water:** at served strength its marks cover 87% of the Gulf, and the crop shows the sea as a flat dark olive. The
   corrected inks are right band by band; the darkening is everywhere at once. The cap halves it and cannot stop it.
+
+## The final run (21:43-22:50Z): light's four looks at z4, z6 and z8
+
+`map-run.js --offline --gl swiftshader`, Mobile Bay, the served GFS of 2026-10-09 15Z at served strength, 180 frames, seed 1, the
+marks as tuned (moderate opacity 0.8 / ring 0.25; deep 1.0 / 0.25; ink 0.9 with cap 0.5). Step = median L* of a streak pixel against
+the field under it; ends = field L* + cover x step (`style.js`); wash = ends above 71 with under 15% of the streak pixels darker.
+
+| look | z4 land: step, lighter, chroma, ends | z6 land | z8 land | water ends z4 / z6 / z8 |
+|---|---|---|---|---|
+| today | +7.5, 0.76, 21.5 -> 20.0, 77.1 (24% darker: an edge) | +6.0, 0.72, 19.5 -> 19.0, 75.0 | +5.5, 0.88, 20 -> 19, **74.3 wash** | **73.5 wash** / **73.5 wash** / 63.0 |
+| A moderate | +10.5, 1.00, 36 -> 40, **73.3 wash** | +9.5, 1.00, 37 -> 33, 69.5 | +6.0, 1.00, 38 -> 36, 67.7 | 67.5 / 68.1 / 53.8 |
+| A deep | +14.5, 1.00, 40.5 -> 49, 70.3 | +12.0, 1.00, 40 -> 39, 64.5 | +7.5, 1.00, 43 -> 44, 62.3 | 64.6 / 67.3 / 50.0 |
+| B ink | -7.0, 0.00, 21.5 -> 30, 65.4 | -7.0, 0.00, 19.5 -> 29, 67.7 | -5.0, 0.00, 20 -> 28, 70.1 | 59.4 / 59.1 / 55.2 |
+
+Lines of the map kept over land, field and streaks together (the field alone in brackets), z4 / z6 / z8: today 0.37 / 0.49 / 0.57
+(0.80 / 0.82 / 0.77); moderate 0.50 / 0.57 / 0.58 (0.74 / 0.74 / 0.66); deep 0.41 / 0.48 / 0.51 (0.68 / 0.68 / 0.60); ink 0.76 /
+0.77 / 0.72 (today's field). Streak signal over land (mean L* the streaks add): today 6.7 / 5.2 / 3.2; moderate 8.0 / 4.7 / 2.9;
+deep 11.6 / 6.5 / 4.1; ink 5.4 / 4.4 / 3.3 (dark at z6: 9.0, beach with dark's streak method: 7.4).
+
+- **A deep is the one that does what dark does at the wide and middle zooms:** +14.5 and +12.0 L* (dark's band +9.5 to +14.5), every
+  streak pixel lighter, the field's colour raised or kept (dh 1-2 degrees), and no wash at any zoom (closest: 70.3, z4 over land).
+  The deeper field costs line contrast on its own (0.68 against 0.82), its streaks take less than today's, and together it keeps
+  the map's lines about as today does (0.41 / 0.48 / 0.51 against 0.37 / 0.49 / 0.57).
+- **A moderate keeps the most land of the two (0.50-0.58) and washes out at z4** (73.3 over land), the wide zoom where streaks cover
+  three quarters of the land. Its z6 step (+9.5) is at the bottom of dark's band.
+- **At z8 every streak is under dark's band** (moderate +6.0, deep +7.5): the close-zoom land factor (`WIND_CLOSE_LAND`, light 0.65)
+  thins every theme's streaks from z6 to z7.5. Dark's own z8 follows in the next section.
+- **B over the water:** its marks darken the sea by only 2.5-6 L* at the median, yet at z4 and z6 they cover 76-87% of it and the
+  crop shows a flat, dark olive sea. Over land it keeps the most map (0.72-0.77) and the streaks carry colour (C* 28-30).
+- **Today washes out over the water at z4 and z6** (73.5) and over land at z8 (74.3): the marks before glow are not clear of the bar
+  either; what keeps them off it over land at z4 and z6 is their darker share (24-28%).
+
+## Dark at z4 and z8, and beach (22:50-23:10Z)
+
+| | z4 land: step, ends | z6 land | z8 land | water steps z4 / z6 / z8 |
+|---|---|---|---|---|
+| dark | +18.5, 39.7 | +17.0, 31.8 | +12.5, 29.8 | +11.5 / +10.5 / +7.0 |
+| light A deep | +14.5, 70.3 | +12.0, 64.5 | +7.5, 62.3 | +15.5 / +19.0 / +10.0 |
+
+The offline map reads dark 3-4 L* above the Mapbox run (+9.5 to +14.5): its dark land (`0.07, 0.08, 0.10`) is darker than the
+night style's. Against dark ON THE SAME MAP, deep reaches 78% / 71% / 60% of dark's step over land (z4 / z6 / z8) and beats it over
+the water; against the Mapbox band it sits inside at z4 and z6.
+
+### Beach: how far from dark, and what would close the gap (reported, not changed)
+
+Since #310 (the owner, 20:28Z: "Beach mode needs dark mode's science too") beach draws the marks before dark's streak method by
+default; its lever still draws it.
+
+| beach | z6 land: step, lighter, chroma field -> streak, ends | z6 water | share of dark's step (same map) |
+|---|---|---|---|
+| today's default, the marks before (Mapbox run, earlier log) | +3.5, 0.68, 40.5 -> 34.5 | - | 27% of the Mapbox dark's +13.0 |
+| dark's streak method, as tuned (opacity 0.9, ring 0.35, no white) | +12.5, 1.00, 31 -> 44.5, 67.6 | +12.0, 68.8 | 74% (Mapbox run: +9.0, 69%) |
+| the same, a little stronger (opacity 1.0, ring 0.5) | +14.0, 1.00, 31 -> 42, 68.4 | +14.0, **70.5** | 82% |
+
+- **Most of beach's gap closes by turning dark's streak method back on:** from 27% of dark's step to 74%, one polarity, and colour
+  raised 1.4 times (dark's 1.07). Over the water beach steps further than dark (+12.0 against +10.5).
+- **The stronger tune buys 8 points** and leaves the water's picture at L* 70.5, half a point under the wash line: little is left above
+  it. The rest of the gap is the ground: dark's streaks sit on L* 24-44, beach's on 58-61. Beach already has the room light lacked;
+  a deeper beach field (A's method) would add more, at the cost of its land.
+- The owner can see both on #311's preview (the A/B page gives the lines). Nothing about beach changes in this PR.
+
+## Storm strength (the served wind x 2.3, z6; 23:10-23:30Z)
+
+| look | land: step, lighter, chroma field -> streak, ends | water: step, field L* -> ends |
+|---|---|---|
+| dark | +18.5, 1.00, 21 -> 23.5, 35.6 | +12.0, 43 -> 52.2 |
+| today | +6.5, 0.72, 20.5 -> 21.5, 76.1 (28% darker) | +9.5 (31% darker), 51.5 -> 60.3 |
+| A moderate | +11.0, 1.00, 34 -> 39.5, **71.5 wash** | +13.5, 36.5 -> 48.2 |
+| A deep | +15.0, 1.00, 35.5 -> 47.5, 68.4 | +19.0, 32 -> 48.9 |
+| B ink | -6.0, 0.00, 21 -> 32, 67.5 | -11.0, 51.5 -> 41.6 |
+
+- **Deep holds at storm strength:** +15.0 over land, the colour raised 1.3 times, no wash. Its crop reads like a strong weather map: a
+  teal and green land, yellow and orange bands at the coast, a magenta front, a violet sea under lighter violet streaks.
+- **Moderate washes again over land** (71.5), as at z4: its ground is about the shallowest dark's method can sit on.
+- **B's fix halves the storm darkening** (the sea ends at L* 41.6 where the earlier ink took 52.5 to 29) and the crop still shows the
+  stormy sea as one flat dark violet block, the streaks barely visible in it. The comment in `windInk.js` that said the cap stopped it
+  is corrected.
+
+## The A/B page
+
+https://claude.ai/artifact/QtM5WrEghrV4Xr126Mq4vE (private to the owner): the recommendation, the four looks at z4, z6 and z8 with dark
+beside each, storm strength, beach with dark's streak method (two strengths), the band-by-band swatches over the muted land and water,
+the numbers, and the lines to try each look on the deploy preview (https://deploy-preview-311--rawsurf.netlify.app; `/map?windLook=`
+on a phone; beach through its existing lever).
+
+**Recommendation: A, deep.** The step back if the land reads too dark: A, moderate (it washes at z4 and in a storm). B is not
+recommended: it fails over the sea.

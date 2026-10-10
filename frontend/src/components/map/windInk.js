@@ -60,8 +60,9 @@
  * only, and it wins over the glow and ink levers there. 'moderate' and 'deep' (A) draw dark's streak method over a deeper field, with
  * the streak colours already at full brightness (white 0: the field's own hue, lifted); 'ink' (B) draws ink over today's field with a
  * strength CAP where the marks cover most of the ground: SCREEN_FS reads how much of a ~11 device-px neighbourhood holds ink and eases
- * the ink's strength to `cap` times itself from 40% to 85% cover (GLSL_INK_COVER). Isolated streaks keep their full strength; a
- * carpet of them over warm-band water no longer takes the sea from L* 52 to 29. Sub-levers as above (opacity, ring, white, spine) and
+ * the ink's strength to `cap` times itself from 40% to 85% cover (GLSL_INK_COVER). Isolated streaks keep their full strength. The cap
+ * eases a carpet of them, it does not stop it: at storm strength (z6) the sea ends at L* 42 where the earlier ink took it to 29, and
+ * where the marks cover most of the water it still reads as one flat dark sea (log 2026-10-10-light-look-ab). Sub-levers as above (opacity, ring, white, spine) and
  * __RAW_WIND_INK_CAP__ (0.1-1). Kill: window.__RAW_DISABLE_WIND_LIGHT_LOOK__.
  */
 import { windLightLook } from './WindColorRamp';
