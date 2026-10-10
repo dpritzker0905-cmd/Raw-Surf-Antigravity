@@ -25,7 +25,7 @@ is a claim, not a measurement.
     longer cancels a task that has a waiter. Per fresh box that rests: 385 -> 54 hours, 211 -> 2.5 CPU-s, 27 -> 48
     frames; 6-view pan 595 -> 324 hours, 23 -> 0 cancels, 362 -> 14.7 CPU-s. No served number moves (vectors pinned
     equal); unbuilt hours resolve on demand. Peak RSS of a 385-hour build 262 / 261 / 262 MB with no / young / full
-    per-hour collections. 17 tests, 12 mutations red. Log `log/2026-10-10-wind-bg-build-bounded.md`; LESSONS L-P30;
+    per-hour collections. 17 tests, 12 mutations red. Log `log/2026-10-10-wind-bg-build-bounded.md`; LESSONS L-P31;
     ledger 991-994.
   - **What flipping it costs:** scrubbing a rested view to an hour outside the window is a cache miss (provider cache
     inside 5 minutes, else one fresh fetch). Read-back owed after a flip (commitment 993, due 2026-10-24).
