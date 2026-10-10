@@ -248,3 +248,28 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Evidence (log 2026-10-10-light-fastband-a-default):** the palette checker's colour-blind RED lines for light go 1 -> 0;
   on the real basemap the map's line work keeps the same contrast at everyday strength and loses up to 7 points over
   water at storm strength.
+
+### D-019 · Glow is the wind mark in light and beach; calm is a pale tint; a ramp never runs through grey
+- **Decided:** by the owner, 2026-10-10 18:37Z, after the A/B page of today, glow and ink in the real engine: "I like glow
+  better". In the same hour: "the light wind color also looks like fog visually, a lot, in light mode. And slightly in
+  beach mode. This needs to be part of this work", and "I do see hard lines in between very light winds and other wind
+  fields".
+- **Rule:**
+  1. Glow draws the wind marks in light and beach (`WIND_GLOW.themes`, `windInk.js`). Dark is the look itself and never
+     uses it; ink stays a lever. Beach's streaks carry no white and a 0.35 ring; light's keep 20% white and a 0.5 ring.
+  2. Calm air is a pale tint of the theme's own first colour (light a pale rose, beach a pale seafoam), never the bare
+     map, and weaker than the 3 kn tint.
+  3. Between two stops a ramp keeps its colour: a segment that would run through grey on the straight sRGB line is
+     walked round the hue wheel (`huePathStops`). The field, the streaks and the legend bar all draw that path.
+- **What it re-scopes:** the 2026-07 "calm is clean" bar (calm within 2.5 dE of the surface). It was set on a map that
+  kept its colour under the wind; under the basemap mute a clean calm is grey.
+- **What it does not change:** light's 3, 6 and 10 kn stops and A's rows (D-018), the legend's 13 stops, beach from 3 kn
+  up, dark. No served number moves.
+- **Not decided (the owner's):** light's 3-10 kn lilac is as vivid as its lightness allows and still reads pale. A deeper
+  field there (stronger than dark's), another hue family, or as it is.
+- **Kills:** `window.__RAW_DISABLE_WIND_GLOW__`, `window.__RAW_DISABLE_WIND_CALM_CLEAR__`,
+  `window.__RAW_DISABLE_WIND_HUE_PATH__` (the last two are read at the next ramp build: switch the theme away and back).
+- **Evidence (log 2026-10-10-dark-style-light-beach, "18:37Z on"):** light's field at 13 kn over land goes from C* 1.0 to
+  19.7; calm sits 9.3 (light) and 8.1 (beach) dE00 off the bare ground, from 1.2 and 1.3; beach's streaks are 1.15 to
+  1.43 times as colourful as the field with every mark pixel still lighter; the 3-seed scanner finds no shape the marks
+  before glow do not have.

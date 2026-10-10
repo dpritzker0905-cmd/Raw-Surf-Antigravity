@@ -14,7 +14,17 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-10 16:37Z: dark's wind look for light and beach: measured, two candidates built, DEFAULT OFF (client only; PR #308 to dev; #307 under it merged 18:49Z; the owner picked GLOW 18:37Z, default-on work follows in its own PR).**
+- **2026-10-10 19:45Z: glow is the default wind mark in light and beach; the grey veil and the bare calm are gone (client only; its own PR to dev; owner's pick, D-019).**
+  Owner: "I like glow better"; "the light wind color also looks like fog visually, a lot, in light mode"; "hard lines in
+  between very light winds and other wind fields". Measured: light's field between its 10 kn violet and 16 kn green ran
+  through grey (C* 1.0 at 13 kn over land), and calm drew the bare greyed map. Fixed: a ramp segment that would lose its
+  colour is walked round the hue wheel (`huePathStops`; light's 10-16 kn only; field, streaks and legend bar), and calm
+  is a pale tint (light rose, beach seafoam). Beach's streaks carry no white (1.15-1.43x the field's chroma, one
+  polarity). 3-seed scanner: no shape the marks before glow lack. Kills: `__RAW_DISABLE_WIND_GLOW__`,
+  `__RAW_DISABLE_WIND_CALM_CLEAR__`, `__RAW_DISABLE_WIND_HUE_PATH__`. **Open, the owner's:** light's 3-10 kn lilac is as
+  vivid as its lightness allows and still pale (deeper field, another hue, or as is). **Owed:** the look in the app
+  (commitments 1027 and the one this PR adds). Log `2026-10-10-dark-style-light-beach` ("18:37Z on"), LESSONS L-V27.
+- **2026-10-10 16:37Z: dark's wind look for light and beach: measured, two candidates built, DEFAULT OFF (client only; #308 MERGED 2026-10-10 19:17Z, dev 55fca955; the owner picked GLOW 18:37Z, see the entry above).**
   Owner: "I like the way dark theme does the animations of the wind ... light and beach [should] reflect similarly of
   this style, but with their own color schemes".
   - **What dark's look is** (new bench columns, `style.js`): every streak pixel is lighter than the colour under it
@@ -1792,7 +1802,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1028, sha256 81fb793d94c9fe60092061e8299c6fef908e3893d61c209925a52245543fd3d8**
+  **Ledger head: seq 1032, sha256 ce1a54e739c1ee15c3c0eada5f42ed853f5c457686b9a1d7b4580fffec71effb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

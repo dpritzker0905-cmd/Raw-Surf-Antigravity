@@ -42,6 +42,8 @@ node check.mjs --mute-amount 0.7 --water-l 0.95   # explore other mute settings 
 |---|---|---|
 | legend | Weakest pair of neighbouring legend stops, normal vision | ≥ 9 ΔE2000 |
 | tint off the water / land | Weakest tint at 6 kn and above. 3 kn is the owner's deliberately soft "middle ground" | ≥ 14 ΔE2000 |
+| weakest colour on the path | The field's lowest chroma anywhere from 3 to 40 kn, read BETWEEN the stops as the app draws them (`huePathStops`). A straight sRGB line between two opposite hues runs through grey: light's 10-16 kn drew C* 1.0 at 13 kn (the owner's "looks like fog") | ≥ 8 C* |
+| calm off the ground | Calm against the bare ground. Under the basemap mute the bare ground is grey, so calm is a tint the eye can name, and weaker than the 3 kn tint | ≥ 5 ΔE2000, below the 3 kn tint |
 | speeds < 20° off the water hue | Speeds whose tint reads as "more water" (unmuted map only: a grey ground has no hue to hide in) | ≤ 2 kn wide; a violet → green ramp must cross a cyan water's hue once |
 | speeds > 30° off the legend's own hue | Speeds whose tint the ground bends into another band's colour (a 33 kn gold multiplied into cyan water came out green). The path bench's `hue30` asks the same of real frames | ≤ 2 kn |
 | speed-colour core vs its tint | The streak's ~1 px colour core against the tint it sits on. Watch item only: the white ring carries the motion | \|ΔL*\| ≥ 3 |

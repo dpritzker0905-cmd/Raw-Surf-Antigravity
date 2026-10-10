@@ -15,7 +15,7 @@
  * CALM as vivid magenta (0.90, 0.00, 1.00), and magenta on the stale legend sat at the far-right
  * HURRICANE end. These tests make the legend structurally incapable of disagreeing with the ramp.
  */
-import { THEME_RAMPS, resolveThemeRamp, windLegendGradientCSS, windLegendStops } from '../components/map/WindColorRamp';
+import { THEME_RAMPS, resolveThemeRamp, windLegendGradientCSS, windLegendStops, huePathStops } from '../components/map/WindColorRamp';
 
 const THEMES = ['dark', 'light', 'beach'];
 
@@ -29,8 +29,10 @@ describe('wind legend is derived from the shipped ramp', () => {
       const pct = `${((s[0] / max) * 100).toFixed(1)}%`;
       expect(css).toContain(`${rgba} ${pct}`);
     }
-    // one CSS stop per ramp stop — no invented colours, none dropped
-    expect(css.split('rgba(').length - 1).toBe(ramp.length);
+    // one CSS stop per ramp stop, none dropped; plus the HUE PATH's 1 kn waypoints where a segment would run through grey (light's
+    // 10-16 kn only), so the bar draws the path the map draws (WindColorRamp.js, windClearLowBand.test.js)
+    expect(css.split('rgba(').length - 1).toBe(ramp.length + (theme === 'light' ? 5 : 0));
+    expect(huePathStops(ramp).filter((s) => !ramp.includes(s)).map((s) => s[0])).toEqual(theme === 'light' ? [11, 12, 13, 14, 15] : []);
   });
 
   it.each(THEMES)('%s: the legend covers the ramp\'s full range, not the legacy 50 kn cap', (theme) => {

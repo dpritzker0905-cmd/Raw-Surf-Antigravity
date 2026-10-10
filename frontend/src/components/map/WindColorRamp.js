@@ -282,13 +282,35 @@ var PRE_FASTBAND_LIGHT_FIELD = { 2: [6, 0.631, 0.705, 0.891, 0.78], 3: [10, 0.71
   6: [27, 0.634, 0.708, 0.432, 0.86], 7: [33, 0.670, 0.618, 0.409, 0.87], 8: [40, 0.742, 0.579, 0.462, 0.88], 9: [47, 0.834, 0.599, 0.536, 0.90],
   10: [55, 0.783, 0.591, 0.571, 0.91], 11: [63, 0.782, 0.608, 0.683, 0.93], 12: [75, 0.736, 0.616, 0.753, 0.95] };
 var LIGHT_FIELD_OLDER_KILLS = ['__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__', '__RAW_DISABLE_WIND_LIGHT_CVD__', '__RAW_DISABLE_WIND_LIGHT_LOWBAND__', '__RAW_DISABLE_WIND_MIDBAND_REFINE__'];
+// CLEAR CALM (2026-10-10, owner: "the light wind color also looks like fog visually, a lot, in light mode. And slightly in beach
+// mode"; "I do see hard lines in between very light winds and other wind fields"). Measured on the composite over the muted LAND
+// (scripts/wind-color, L* / C*): the calm stops were near white at the tint's weakest strength (0.29), so calm air drew the BARE
+// map. Since the basemap is greyed under the wind (windBasemapMute.js), bare is grey: light 92.4 / 0.6 on a ground of 93.4 / 0.5,
+// reaching lavender (85.2 / 12.3) within 3 kn; beach 83.0 / 3.5 on 83.9 / 2.2, reaching seafoam within 3 kn at 5.7 dE00 per knot,
+// its steepest step anywhere. Calm is now a pale tint of each theme's own first colour, solved FROM the composite wanted:
+//   light  88.5 / 7.0, a pale rose (dark's calm is magenta; 9.3 dE00 off the land, weaker than 3 kn's 12.5, and 7.4 from it);
+//   beach  82.2 / 7.5, a pale seafoam (8.1 off the land, 7.8 from 3 kn).
+// The calm edge's steepest step falls from 5.1 to 3.6 dE00 per knot in light and from 5.7 to 3.5 in beach.
+// The stops are deeper than they draw because calm tints at 0.29 strength. This RE-SCOPES the 2026-07 "calm is clean" bar
+// (windFieldLut.test.js): that bar was set on a map that kept its colour under the wind. A near-white lilac cannot carry more
+// (gamut: C* 8 at L* 89), and 3-10 kn stay as they were: their strength is dark's (D-018's field contract) and their steps hold
+// the colour-blind floor. The LEGEND (particle ramp) is untouched. Kill: __RAW_DISABLE_WIND_CALM_CLEAR__ (the rows below);
+// every older field kill of the theme steps back past it first, so it draws exactly what it drew before.
+var PRE_CLEAR_FIELD = { light: { 0: [0, 0.942, 0.964, 0.987, 0.72] }, beach: { 0: [0, 0.973, 0.953, 0.911, 0.75] } };
+var BEACH_FIELD_OLDER_KILLS = ['__RAW_DISABLE_WIND_BEACH_CVD__', '__RAW_DISABLE_WIND_MIDBAND_REFINE__'];
+function beforeClearCalm(ramp, kind, theme, w) {
+  if (kind !== 'field' || !PRE_CLEAR_FIELD[theme] || !w) return ramp;
+  var older = theme === 'light' ? LIGHT_FIELD_OLDER_KILLS.concat('__RAW_DISABLE_WIND_LIGHT_FASTBAND__') : BEACH_FIELD_OLDER_KILLS;
+  var back = w.__RAW_DISABLE_WIND_CALM_CLEAR__ === true || older.some(function(k) { return w[k] === true; });
+  return back ? revertRows(ramp, PRE_CLEAR_FIELD[theme]) : ramp;
+}
 function beforeFastBand(ramp, kind, theme, w) {
   if (kind !== 'field' || theme !== 'light' || !w) return ramp;
   var back = w.__RAW_DISABLE_WIND_LIGHT_FASTBAND__ === true || LIGHT_FIELD_OLDER_KILLS.some(function(k) { return w[k] === true; });
   return back ? revertRows(ramp, PRE_FASTBAND_LIGHT_FIELD) : ramp;
 }
 function midbandRefined(ramp, kind, theme, w) {
-  ramp = beforeFastBand(ramp, kind, theme, w);
+  ramp = beforeFastBand(beforeClearCalm(ramp, kind, theme, w), kind, theme, w);
   if (kind === 'field' && theme === 'light' && w && w.__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__ === true) ramp = revertRows(ramp, PRE_NEUTRAL_CVD_LIGHT_FIELD);
   ramp = cvdPassed(ramp, kind, theme, w);   // the older kills below win over it on the rows they share
   var out = (theme === 'light' && w && w.__RAW_DISABLE_WIND_LIGHT_LOWBAND__ === true) ? revertRows(ramp, PRE_LIGHT_LOWBAND[kind]) : ramp;
@@ -297,15 +319,15 @@ function midbandRefined(ramp, kind, theme, w) {
   return revertRows(out, pre);
 }
 var LIGHT_FIELD_RAMP = [   // 6-75 kn: A, STEADY DESCENT (see PRE_FASTBAND_LIGHT_FIELD: the colour-blind floor on the muted ground;
-  // 27-75 kn stronger than dark's). 0 and 3 kn are the calm stops they were
-  [0,  0.942, 0.964, 0.987, 0.72], [3,  0.803, 0.757, 0.982, 0.75], [6,  0.711, 0.727, 0.967, 0.78],
+  // 27-75 kn stronger than dark's). 3 kn is the stop it was; calm: CLEAR CALM (PRE_CLEAR_FIELD)
+  [0,  0.970, 0.741, 0.866, 0.72], [3,  0.803, 0.757, 0.982, 0.75], [6,  0.711, 0.727, 0.967, 0.78],
   [10, 0.717, 0.581, 0.819, 0.80], [16, 0.467, 0.622, 0.412, 0.82], [21, 0.450, 0.762, 0.543, 0.84],
   [27, 0.703, 0.717, 0.395, 0.86], [33, 0.625, 0.590, 0.324, 0.87], [40, 0.600, 0.484, 0.332, 0.88],
   [47, 0.701, 0.443, 0.438, 0.90], [55, 0.679, 0.326, 0.414, 0.91], [63, 0.611, 0.348, 0.534, 0.93],
   [75, 0.562, 0.358, 0.652, 0.95],
 ];
 var BEACH_FIELD_RAMP = [   // 6 and 16-75 kn: the COLOUR-BLIND PASS (27 kn lifts to a light lime-gold, 40 kn a clearer apricot)
-  [0,  0.973, 0.953, 0.911, 0.75], [3,  0.471, 0.891, 0.712, 0.78], [6,  0.253, 0.783, 0.635, 0.81],
+  [0,  0.713, 0.981, 0.860, 0.75], [3,  0.471, 0.891, 0.712, 0.78], [6,  0.253, 0.783, 0.635, 0.81],   // calm: CLEAR CALM
   [10, 0.034, 0.515, 0.336, 0.83], [16, 0.177, 0.713, 0.291, 0.85], [21, 0.439, 0.672, 0.000, 0.87],
   [27, 0.650, 0.908, 0.240, 0.88], [33, 0.808, 0.633, 0.003, 0.90], [40, 0.961, 0.488, 0.284, 0.91],
   [47, 0.790, 0.381, 0.308, 0.92], [55, 0.621, 0.314, 0.321, 0.93], [63, 0.498, 0.330, 0.430, 0.94],
@@ -369,7 +391,7 @@ export function resolveThemeRamp(theme) {
  * otherwise — R11-11 item 3, the same defect one level down.
  */
 export function windLegendGradientCSS(theme) {
-  var ramp = resolveThemeRamp(theme);
+  var ramp = huePathStops(resolveThemeRamp(theme));   // the bar draws the path the map draws
   var max = ramp[ramp.length - 1][0] || 1;
   var css = ramp.map(function (s) {
     return 'rgba(' + Math.round(s[1] * 255) + ',' + Math.round(s[2] * 255) + ','
@@ -412,6 +434,65 @@ function lerpStop(a, b, t) {
   ];
 }
 
+// HUE PATH (2026-10-10, the same two owner reports as CLEAR CALM). A ramp is a list of stops, and between two stops the
+// colour ran on the straight sRGB line. Light's 10 kn violet and 16 kn green sit on opposite sides of the colour wheel (172 deg),
+// so that line runs through GREY: at 13 kn the field over the muted land was L* 69.6 / C* 1.0, a grey veil at the commonest wind
+// speeds, entered and left at 9 dE00 per knot (the hard lines), and the streaks and the legend bar greyed with it. A segment whose
+// straight midpoint keeps under 3/4 of its ends' chroma is now walked round the wheel in OKLCH (lightness and chroma straight, hue
+// by the shortest arc; two near-opposite hues go by the cool side, through cyan, the one family no other band uses), as 1 kn
+// waypoints. Today that is ONE segment, light's 10-16 kn, in the field and in the particle ramp: violet, blue, azure, teal, green
+// (C* 19-22 over the muted land throughout). Every other segment of every theme keeps 0.90 or more and is not touched, byte for byte.
+// Kill: __RAW_DISABLE_WIND_HUE_PATH__ (next ramp build: theme change or reload).
+var HUE_PATH_KEEP = 0.75;
+function srgbToLin(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+function linToSrgb(c) { return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; }
+/** sRGB [r, g, b] 0-1 -> OKLCH [L, C, hue deg] (Ottosson 2020). */
+export function toOklch(c) {
+  var r = srgbToLin(c[0]), g = srgbToLin(c[1]), b = srgbToLin(c[2]);
+  var l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b), m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  var s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  var A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+  return [0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, Math.sqrt(A * A + B * B), (Math.atan2(B, A) * 180 / Math.PI + 360) % 360];
+}
+function fromOklch(L, C, h) {
+  var A = C * Math.cos(h * Math.PI / 180), B = C * Math.sin(h * Math.PI / 180);
+  var l = Math.pow(L + 0.3963377774 * A + 0.2158037573 * B, 3), m = Math.pow(L - 0.1055613458 * A - 0.0638541728 * B, 3), s = Math.pow(L - 0.0894841775 * A - 1.2914855480 * B, 3);
+  return [linToSrgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s), linToSrgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    linToSrgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s)];
+}
+/** Signed hue travel from hp to hq, by the shortest arc; near-opposite hues (over 150 deg) go by the side that passes cyan (200 deg). */
+function hueArc(hp, hq) {
+  var d = ((hq - hp + 540) % 360) - 180;
+  if (Math.abs(d) <= 150) return d;
+  var viaCool = d > 0 ? ((200 - hp + 360) % 360) <= d : ((hp - 200 + 360) % 360) <= -d;
+  return viaCool ? d : (d > 0 ? d - 360 : d + 360);
+}
+function mixHue(a, b, t) {
+  var p = toOklch(a), q = toOklch(b), hp = p[1] < 0.02 ? q[2] : p[2], hq = q[1] < 0.02 ? p[2] : q[2];
+  var L = p[0] + (q[0] - p[0]) * t, C = p[1] + (q[1] - p[1]) * t, h = hp + hueArc(hp, hq) * t, out = fromOklch(L, C, h);
+  var outside = function(x) { return !(x >= -0.0005 && x <= 1.0005); };
+  for (var i = 0; i < 40 && out.some(outside); i++) { C *= 0.94; out = fromOklch(L, C, h); }   // a displayable colour of the same hue
+  return out.map(function(x) { return Math.min(1, Math.max(0, x)); });
+}
+/** The ramp with 1 kn waypoints on every segment that would otherwise lose its colour (the ramp itself when none does, or killed). */
+export function huePathStops(ramp, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null);
+  if (!ramp || (w && w.__RAW_DISABLE_WIND_HUE_PATH__ === true)) return ramp;
+  var out = [ramp[0]];
+  for (var i = 1; i < ramp.length; i++) {
+    var a = ramp[i - 1], b = ramp[i], ca = toOklch(a.slice(1, 4)), cb = toOklch(b.slice(1, 4));
+    var mid = toOklch([(a[1] + b[1]) / 2, (a[2] + b[2]) / 2, (a[3] + b[3]) / 2]);
+    if (mid[1] < HUE_PATH_KEEP * (ca[1] + cb[1]) / 2) {
+      for (var n = Math.max(2, Math.round(b[0] - a[0])), k = 1; k < n; k++) {
+        var c = mixHue(a.slice(1, 4), b.slice(1, 4), k / n);
+        out.push([a[0] + (b[0] - a[0]) * k / n, c[0], c[1], c[2], a[4] + (b[4] - a[4]) * k / n]);
+      }
+    }
+    out.push(b);
+  }
+  return out.length === ramp.length ? ramp : out;
+}
+
 /**
  * Sample the color ramp at a given wind speed.
  * @param {number[][]} ramp
@@ -440,7 +521,7 @@ export function sampleRamp(ramp, speed) {
  * @returns {Uint8Array} 256×1 RGBA data (1024 bytes)
  */
 export function generateRampData(maxSpeed, ramp, theme) {
-  var stops = ramp || (theme ? resolveThemeRamp(theme) : DEFAULT_WIND_RAMP);
+  var stops = huePathStops(ramp || (theme ? resolveThemeRamp(theme) : DEFAULT_WIND_RAMP));   // HUE PATH: no segment runs through grey
   var data = new Uint8Array(256 * 4);
 
   for (var i = 0; i < 256; i++) {

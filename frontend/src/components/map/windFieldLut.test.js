@@ -210,8 +210,15 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
   const ss = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
   const tinted = (theme, [kn, r, g, b], bm) => { const t = TINT[theme], s = Math.min(1, t.op * (t.baseA + (1 - t.baseA) * ss(0, 7, kn)) * t.k);
     return bm.map((v, i) => (v / 255) * (1 - s * (1 - [r, g, b][i]))); };
-  it('light/beach slow wind: calm is clean, light air a soft visible tint, a breeze clear colour — on water AND land', () => {
-    const MIDDLE = { 0: [0, 2.5], 3: [9, Infinity], 6: [14, Infinity] };   // [min, max] dE vs the bare surface
+  // CALM IS A PALE TINT (2026-10-10, owner: "the light wind color also looks like fog visually, a lot, in light mode", "hard lines in
+  // between very light winds and other wind fields"). The bar here was "calm is clean" (<= 2.5 dE off the surface), set in 2026-07 on a
+  // map that kept its colour under the wind. Since 2026-10-09 the basemap is greyed there, so a clean calm draws grey, and a tint below the
+  // threshold of seeing followed by the climb to 3 kn draws an edge round every calm patch. Calm is now a tint the eye can name,
+  // weaker than light air's, and still far below the saturated stops of 2026-07 (the positive control below).
+  it('light/beach slow wind: calm is a pale tint, light air a soft visible tint, a breeze clear colour — on water AND land', () => {
+    // These are the basemaps' OWN surfaces (the picture with the basemap mute killed): beach's seafoam calm is 4.5 off its own teal water.
+    // Over the muted ground that draws, calm is 5 or more on every surface (windClearLowBand.test.js).
+    const MIDDLE = { 0: [4, 11.5], 3: [9, Infinity], 6: [14, Infinity] };   // [min, max] dE vs the bare surface
     for (const theme of ['light', 'beach']) for (const [where, bm] of Object.entries(SURFACES[theme])) for (const stop of FIELD_RAMPS[theme]) {   // the FIELD tints the map
       const band = MIDDLE[stop[0]]; if (!band) continue;
       const d = de2000(srgbToLab(bm.map((v) => v / 255)), srgbToLab(tinted(theme, stop, bm)));
@@ -225,15 +232,17 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
       for (let i = 1; i < ramp.length && ramp[i][0] <= 27; i++) expect(de2000(srgbToLab(ramp[i - 1].slice(1, 4)), srgbToLab(ramp[i].slice(1, 4)))).toBeGreaterThanOrEqual(9);
       const field = FIELD_RAMPS[theme];
       for (const bm of Object.values(SURFACES[theme])) for (let i = 1; i < field.length && field[i][0] <= 21; i++) {
-        expect(de2000(srgbToLab(tinted(theme, field[i - 1], bm)), srgbToLab(tinted(theme, field[i], bm)))).toBeGreaterThanOrEqual(5.5);
+        // the calm pair is 5.3 over light's own cyan water (the picture with the basemap mute killed); over the muted ground that draws
+        // it is 6.1 and 7.4 (windClearLowBand.test.js)
+        expect(de2000(srgbToLab(tinted(theme, field[i - 1], bm)), srgbToLab(tinted(theme, field[i], bm)))).toBeGreaterThanOrEqual(i === 1 ? 5.0 : 5.5);
       }
     }
   });
-  it('POSITIVE CONTROL: the 07-20 saturated calm stops would fail the clean-calm bar (hot pink / electric violet washed calm land)', () => {
+  it('POSITIVE CONTROL: the 07-20 saturated calm stops would fail the pale-calm bar (hot pink / electric violet washed calm land)', () => {
     const OLD_CALM = { light: [0, 0.54, 0.00, 0.92], beach: [0, 1.00, 0.32, 0.78] };
     for (const theme of ['light', 'beach']) {
       const bm = SURFACES[theme].land;
-      expect(de2000(srgbToLab(bm.map((v) => v / 255)), srgbToLab(tinted(theme, OLD_CALM[theme], bm)))).toBeGreaterThan(10);
+      expect(de2000(srgbToLab(bm.map((v) => v / 255)), srgbToLab(tinted(theme, OLD_CALM[theme], bm)))).toBeGreaterThan(11.5 * 1.5);
     }
   });
 

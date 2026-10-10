@@ -119,10 +119,11 @@ const live = (w = {}) => resolveFieldRamp('light', w);
 const FAST = (field) => field.filter((s) => s[0] >= 21);
 
 describe('A is light\'s default field, with a kill switch back to the field before it', () => {
-  it('the default field is A\'s rows from 6 kn up; 0 and 3 kn and every alpha are as they were', () => {
+  it('the default field is A\'s rows from 6 kn up; 3 kn and every alpha are as they were; calm is the clear calm (windClearLowBand.test.js)', () => {
     expect(live().filter((s) => s[0] >= 6)).toEqual(A_ROWS);
     expect(FIELD_RAMPS.light).toEqual(live());
-    expect(live().slice(0, 2)).toEqual(PRE_A.slice(0, 2));
+    expect(live()[1]).toEqual(PRE_A[1]);
+    expect(live()[0]).toEqual([0, 0.970, 0.741, 0.866, 0.72]);   // a pale rose tint; PRE_A[0] (cloud white) drew the bare greyed map
     expect(live().map((s) => [s[0], s[4]])).toEqual(PRE_A.map((s) => [s[0], s[4]]));
   });
   it('the kill switch restores the field before A, byte for byte, and only when it is exactly true', () => {
