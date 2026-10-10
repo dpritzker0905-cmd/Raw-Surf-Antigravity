@@ -226,6 +226,15 @@ before starting it.
   HRRR lane draws 1.37x the coastal gradient of GFS (19/19 valid times). At 101 NDBC buoys over 5 days it ties GFS
   (vector RMSE 5.97 vs 5.99 kn at 3 h, 6.61 vs 6.47 at 24 h; 45/88 buoys better). "HRRR's sharper coast" was true;
   "more accurate" would have been an assumption. (2026-10-09, same log §5)
+- **L-S21 · An equivalence check that never ran the new path proves nothing; assert the path was taken.** The first
+  real-file proof of the strided world read said "old == new" on 207,872 cells, and the new path was not taken once:
+  the live files declare no `resolution`, the guard required one, and every hour fell back to the old path, so it
+  compared the old path with itself. The CPU column caught it (no faster, and 7 full L1 entries in "new" mode). The
+  test now asserts the lane's own trace (its `#s{stride}` L1 key) beside each equality. Second point from the same
+  profile: profile a 1-CPU box on ONE core (`psutil.Process().cpu_affinity([n])`). Unpinned, the load threads'
+  GIL hand-offs across cores doubled and scattered every reading (5-10 s for a page that costs 2.1-2.9 s pinned).
+  (2026-10-02, commitment 228; log `2026-10-02-commitments-182-228.md`. Written as "L-S19" on closed PR #222 and
+  never merged; recovered 2026-10-10, renumbered because dev's L-S19 is another lesson.)
 - **L-F7 · The serve path has the failed-vs-absent trap too.** A Supabase 429 on a regional tile made `/grid` answer
   from the 2-degree tier with `coverage_scope: regional`, `fallbackReason: null`, and the log called it
   "regional-quality at zoom-out" at INFO: 9 of 57 requests in one burst. A refused read must retry, then name its
@@ -380,6 +389,18 @@ before starting it.
   padding or a coarser lattice moves served values. The replay (`windSeriesPan.replay.test.js`) takes the view sequence straight from the request log and a mock `fetch` that honours `AbortSignal`: 8 fast pans
   go from 776 frames requested / 384 far-hour to 440 / 48, and the box builds 237 frames instead of 661. It does NOT remove the per-view build, and the server amplifier (a 16-day fetch and a serial,
   single-slot background build that the next box cancels) stays open. (2026-10-10, log `2026-10-10-wind-series-supersede.md`)
+- **L-P30 · "Superseded" is a claim about the SOURCE; a closed PR also carries records, and they do not travel with a
+  re-landed diff.** #222, #224 and #225 were closed after "a hunk-by-hunk comparison found the source fully integrated",
+  which was true: 86-100% of each code file is on dev. What the comparison never looked at was lost for a week: two
+  session logs, 99 lines of a third, a lesson, a still-live database finding (`public.surf_reports` grants nothing to
+  `service_role`), and two read-back commitments, one of which had quietly been satisfied and one never done. Six older
+  PRs were closed as "at least partly superseded" with no check at all; reading them against dev found a fix that
+  failed the nightly the day before (an API timeout graded as a renderer crash) and a bounds mislabel still drawn on
+  every thinned world frame. Before closing a PR unmerged: diff its `docs/weather-program/` and its ledger lines
+  against dev as well as its source, carry over every finding and open commitment, and write down what was dropped
+  on purpose. Presence of the PR's lines on dev is a first pass only (9-28% for the six, though most of their fixes
+  were there in another form): classify each BEHAVIOUR as on dev, fixed differently, obsolete or still missing, and
+  show the live defect before calling it missing. (2026-10-10, log `2026-10-10-closed-pr-audit.md`)
 - **L-F14 · An exhaustive sweep sees only what its fixtures contain: put the SERVED product in its alphabet, and read a divergence count against the rule switched off.** The 3,000-fixture guard-vs-arbiter
   differential and the 37,268-interleaving sequence sweep both use a 10-degree world grid; the backend has served a 2-degree world frame since 2026-07-23. The F-22 sweep (a bridge in the loop, both commit modes,
   41,472 interleavings) used the 2-degree frame and found two differences no earlier sweep could see, both older than this fix and not changed by it: the arbiter's rule 7 (`tier_downgrade`) rejects a 10-degree

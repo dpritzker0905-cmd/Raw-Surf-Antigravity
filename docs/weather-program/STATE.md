@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-09 19:44Z** (logs: `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-10 02:32Z** (logs: `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -1686,7 +1686,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 990, sha256 4de45911f73e681c81956dce3322ad4c06703d60ab48ec31f7d0edd316f14eff**
+  **Ledger head: seq 995, sha256 f976b86839a1978c7bb330a8177e5369d4592462fbe47177c403e6507ed8aada**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
@@ -1761,11 +1761,34 @@ direction fix (not supported by a bulk-buoy instrument; needs spectral truth).
   is raised 0.3 -> 2.75 and kept as an exception for the owner to accept. Dark parity leaves light's 40-75 kn tints a
   near-grey over the water, and a full pass needs a field redesign (offered, not shipped). Kills:
   `__RAW_DISABLE_WIND_<DARK|BEACH|LIGHT>_CVD__`.
+  **Update 2026-10-10: on dev.** #292 was CLOSED unmerged and carried whole by #294 (`1cdcd8d3`); #297 then moved five
+  light field rows on the muted ground. Verified on dev `9e11676c`: all 36 rows #292 changed are still changed, the
+  three kills restore the shipped rows, `windPaletteCvd.test.js` passes (14 tests) and 10 mutations turn it red, and
+  the checker shows one red line, light's tint over water at 2.6 (log 2026-10-10-closed-pr-audit).
+- **Thinned world forecast frames are drawn stretched north** (2026-10-10, found by the closed-PR audit; closed #27 and
+  #23 carried the fix, never merged). A 48-frame world page is thinned 4x to 46 x 21: its top row is 80N, its `bounds`
+  still say 84N (`series_vector_budget._decimate_frame` rewrites vectors, cols and rows, never bounds), and the client
+  spreads rows across the bounds (`gridPointRegistration.js`). Measured with dev's own function: data at 0N is drawn
+  at 2.0N, 24N at 26.6N, 40N at 43.0N. It shows while scrubbing or playing at far zoom, until the exact frame lands
+  for a settled hour (`marineExactUpgrade.js`). Same family: `normalizer.py` stamps the REQUESTED bbox as bounds (the
+  10-deg world product ends at 80N and says 85N). Not yet checked: which consumers besides the heat map read those
+  bounds. The fix changes a served field (`bounds`), so build it dark and let the owner flip it.
+- **The retained coarse world base is reused on shape, not content** (2026-10-10, same audit; closed #23 carried the
+  fix). `coarseBaseKey` holds model, layer, cols, rows, bounds, hour offset and rating flavour, but no run or valid
+  time, so a new world grid for the same offset (a new run, or an hour rollover in a long-open tab) keeps the old
+  pixels as the base that regional commits fade over. Read from the code; not yet reproduced on screen.
+- **Owed read-back: the strided world read on the deployed box** (the commitment closed #222 carried; the code landed
+  2026-10-03 through `7cd898f4`). SCOREBOARD has no S11 row after that date. It needs live load (S11 par2 and seq), so
+  it waits for the owner's go-ahead.
 
 ## Owner-only
 - Arm the nearshore judge hourly (`NEARSHORE_VAL_ENABLED=1`, a repo variable).
 - Every served-number flip: the consensus (after PR C) and MOP (after spot checks).
 - Unfreeze the production frontend.
+- `GRANT SELECT ON public.surf_reports TO service_role;` as a migration (found 2026-10-02 on closed #225, never
+  recorded on dev; re-checked 2026-10-10: only `postgres` holds a grant, the sibling `surf_spots` grants SELECT to
+  `service_role`). Until then `rating_confirmation.fetch_recent_reports_via_rest` and `report_calibration` are refused
+  and the rating gate runs without user condition reports. Latent today: 4 rows, newest 2026-03-19.
 - Also open: stale island products in `/products`; the A15-07 Satellite label; band spot-anchoring; real-device
   checks (#85 phone banding, #87 120 Hz wind); F-09 temperature capability rows; A15-11 detach-vs-budget.
 
