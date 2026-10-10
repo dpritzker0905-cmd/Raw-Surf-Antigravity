@@ -58,7 +58,7 @@ describe('the lever: default off, light and beach only', () => {
     expect(on({}).spine).toBe(WIND_INK.spine);
     expect(on({ __RAW_WIND_INK_SPINE__: 0.4 }).spine).toBe(0.4);
     for (const bad of [-0.1, 1.1, '0.4', NaN]) expect(on({ __RAW_WIND_INK_SPINE__: bad }).spine).toBe(WIND_INK.spine);
-    expect(windInk('light', V2, {})).toEqual({ mode: 0, on: false, glow: false, opacity: 0, spine: 0, purity: 0, density: 1, white: 0 });
+    expect(windInk('light', V2, { __RAW_DISABLE_WIND_GLOW__: true })).toEqual({ mode: 0, on: false, glow: false, opacity: 0, spine: 0, purity: 0, density: 1, white: 0 });
     expect(windInk('light', V2, { __RAW_WIND_INK__: true }).mode).toBe(1);
   });
   it('purity and density levers are taken only inside their ranges', () => {
@@ -72,13 +72,19 @@ describe('the lever: default off, light and beach only', () => {
   });
 });
 
-describe('GLOW, the second candidate: dark\'s own pipeline on a light ground (default off)', () => {
-  it('is off until its lever is set, never on for dark, and ink wins when both are set', () => {
-    for (const theme of ['light', 'beach', 'dark']) expect(windInk(theme, V2, {}).glow).toBe(false);
-    expect(WIND_GLOW.themes).toEqual([]);
+describe('GLOW, the default in light and beach (the owner\'s pick, D-019): dark\'s own pipeline on a light ground', () => {
+  it('is on by default in light and beach, never in dark; the kill restores the marks before it; ink wins when its lever is set', () => {
+    expect(WIND_GLOW.themes).toEqual(['light', 'beach']);
+    for (const theme of ['light', 'beach']) {
+      expect(windInk(theme, V2, {})).toMatchObject({ mode: 2, on: false, glow: true, opacity: WIND_GLOW.opacity[theme], white: WIND_GLOW.white[theme], spine: WIND_GLOW.ring[theme] });
+      expect(windInk(theme, V2, { __RAW_DISABLE_WIND_GLOW__: true })).toMatchObject({ mode: 0, on: false, glow: false });
+      expect(windInk(theme, V2, { __RAW_DISABLE_WIND_GLOW__: 1 }).glow).toBe(true);   // only exactly true
+    }
+    expect(windInk('dark', V2, {})).toMatchObject({ mode: 0, glow: false });
     const g = windInk('light', V2, { __RAW_WIND_GLOW__: true });
-    expect(g).toMatchObject({ mode: 2, on: false, glow: true, opacity: WIND_GLOW.opacity.light, white: WIND_GLOW.white });
-    expect(windInk('beach', V2, { __RAW_WIND_GLOW__: 'light' }).glow).toBe(false);
+    expect(g).toMatchObject({ mode: 2, on: false, glow: true, opacity: WIND_GLOW.opacity.light, white: WIND_GLOW.white.light });
+    expect(windInk('beach', V2, { __RAW_WIND_GLOW__: 'light' }).glow).toBe(false);   // a theme list narrows it for a session
+    expect(windInk('light', V2, { __RAW_WIND_INK__: true })).toMatchObject({ mode: 1, on: true, glow: false });
     expect(windInk('dark', V2, { __RAW_WIND_GLOW__: true }).glow).toBe(false);
     expect(windInk('light', V2, { __RAW_WIND_GLOW__: true, __RAW_WIND_INK__: true })).toMatchObject({ mode: 1, on: true, glow: false });
     expect(windInk('light', V2, { __RAW_WIND_GLOW__: true, __RAW_DISABLE_WIND_GLOW__: true }).mode).toBe(0);
@@ -97,15 +103,21 @@ describe('GLOW, the second candidate: dark\'s own pipeline on a light ground (de
     expect(on({ __RAW_WIND_GLOW_OPACITY__: 0.6 }).opacity).toBe(0.6);
     expect(on({ __RAW_WIND_GLOW_WHITE__: 0.5 }).white).toBe(0.5);
     for (const bad of [0, 1.2, '0.6', NaN]) expect(on({ __RAW_WIND_GLOW_OPACITY__: bad }).opacity).toBe(WIND_GLOW.opacity.beach);
-    for (const bad of [-0.1, 1.1, '0.5', NaN]) expect(on({ __RAW_WIND_GLOW_WHITE__: bad }).white).toBe(WIND_GLOW.white);
-    expect(on({}).spine).toBe(WIND_GLOW.ring);                       // glow's white inner ring rides the same uniform as ink's spine
+    for (const bad of [-0.1, 1.1, '0.5', NaN]) expect(on({ __RAW_WIND_GLOW_WHITE__: bad }).white).toBe(WIND_GLOW.white.beach);
+    expect(on({}).spine).toBe(WIND_GLOW.ring.beach);                       // glow's white inner ring rides the same uniform as ink's spine
     expect(on({ __RAW_WIND_GLOW_RING__: 0.2 }).spine).toBe(0.2);
-    for (const bad of [-0.1, 1.1, '0.2', NaN]) expect(on({ __RAW_WIND_GLOW_RING__: bad }).spine).toBe(WIND_GLOW.ring);
+    for (const bad of [-0.1, 1.1, '0.2', NaN]) expect(on({ __RAW_WIND_GLOW_RING__: bad }).spine).toBe(WIND_GLOW.ring.beach);
+    // STREAK COLOUR, per theme: beach's hues are vivid when light, so its streaks carry no white and a weaker ring; light's lilacs are
+    // not, and without the white its marks fall on both sides of the ground (bench: 0.83 lighter against 0.99), so light keeps it.
+    expect(WIND_GLOW.white).toEqual({ light: 0.2, beach: 0 });
+    expect(WIND_GLOW.ring).toEqual({ light: 0.5, beach: 0.35 });
+    expect(glowOf([0.471, 0.891, 0.712], WIND_GLOW.white.beach)).toEqual([0.471 / 0.891, 1, 0.712 / 0.891]);   // seafoam at full brightness, no white
   });
-  it('stands the premultiplied composite down for its theme, so the engine runs dark\'s path there (and leaves ink and the default alone)', () => {
-    expect(v2SpeedPremul(V2, 'light', {}).on).toBe(true);
+  it('stands the premultiplied composite down for its theme, so the engine runs dark\'s path there (and leaves ink and dark alone)', () => {
+    expect(v2SpeedPremul(V2, 'light', { __RAW_DISABLE_WIND_GLOW__: true }).on).toBe(true);            // the marks before glow
+    expect(v2SpeedPremul(V2, 'light', {})).toEqual({ on: false, opacity: 0, singleCasing: false });   // glow, the default
     expect(v2SpeedPremul(V2, 'light', { __RAW_WIND_GLOW__: true })).toEqual({ on: false, opacity: 0, singleCasing: false });
-    expect(v2SpeedPremul(V2, 'beach', { __RAW_WIND_GLOW__: 'light' }).on).toBe(true);
+    expect(v2SpeedPremul(V2, 'beach', { __RAW_WIND_GLOW__: 'light' }).on).toBe(true);                 // narrowed to light: beach draws the marks before glow
     expect(v2SpeedPremul(V2, 'light', { __RAW_WIND_INK__: true }).on).toBe(true);
     expect(v2SpeedPremul(V2, 'dark', { __RAW_WIND_GLOW__: true })).toEqual(v2SpeedPremul(V2, 'dark', {}));
   });
@@ -318,5 +330,21 @@ describe('the engine wiring', () => {
   });
   it('drops the white inner ring for ink marks (a spine lever can bring a darker core back)', () => {
     expect(ENGINE).toContain("if (_ink.mode) gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_single_casing'), 1 - _ink.spine);");
+  });
+});
+
+describe('glow lever edge cases (independent review of the default flip, 2026-10-10)', () => {
+  it('false turns glow off for the session, as it did while glow was a lever; other unknown values keep the default', () => {
+    for (const theme of ['light', 'beach']) expect(windInk(theme, V2, { __RAW_WIND_GLOW__: false })).toMatchObject({ mode: 0, glow: false });
+    for (const v of [null, undefined, 0, 1, {}]) expect(windInk('light', V2, { __RAW_WIND_GLOW__: v }).glow).toBe(true);
+    expect(windInk('light', V2, { __RAW_WIND_INK__: false }).on).toBe(false);
+    expect(windInk('light', V2, { __RAW_WIND_INK__: false }).glow).toBe(true);
+  });
+  it('a theme the lever names that glow has no numbers for draws with finite numbers (light\'s white and ring), never NaN', () => {
+    const g = windInk('storm', V2, { __RAW_WIND_GLOW__: 'storm' });
+    expect(g.glow).toBe(true);
+    for (const k of ['opacity', 'white', 'spine']) expect(Number.isFinite(g[k])).toBe(true);
+    expect(g.white).toBe(WIND_GLOW.white.light);
+    expect(g.spine).toBe(WIND_GLOW.ring.light);
   });
 });

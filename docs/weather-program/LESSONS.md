@@ -717,3 +717,27 @@ A stored estimate can be estimated again in a browser branch with different sour
      sees (comments stripped), and a program used for two passes sets its mode uniform in both.
   4. **Research written before the bench is a hypothesis too.** The report concluded for ink from the first prototype;
      the bench then showed glow. The result went back to the writer. (log 2026-10-10-dark-style-light-beach)
+
+- **L-V27 · A ramp is its path, not its stops; and a bar carries the ground it was set on.** The owner: "the light wind
+  color also looks like fog". Every gate light's field had passed read the STOPS: the colour-blind floor, dark's strength
+  per band, the hue against the legend. Between the 10 kn violet and the 16 kn green the field drew pure grey (C* 1.0 at
+  13 kn), and no gate looked there. Rules:
+  1. **Read a ramp between its stops.** Two neighbours on opposite sides of the hue wheel blend through grey on the
+     straight sRGB line. The checker now reads the weakest colour on the PATH (`veilC`), and the app walks such a
+     segment round the wheel.
+  2. **A bar names a ground; when the ground changes, re-read the bar.** "Calm is clean" was right on a map that kept
+     its colour and drew grey the day the basemap was muted under the wind. Nothing failed, because the test still used
+     the unmuted surface. After any change to what the wind sits on, list the bars that say "the map" and re-run them
+     on the new ground.
+  3. **Before asking a tint for more colour, compute what exists.** A lilac over a near-white ground tops out at C* 15
+     at L* 84.5. The first attempt deepened three stops and broke four bars in turn before the ceiling was computed.
+  4. **White in a small mark is paid in colour only where the hue can be light.** Taking it out kept beach at 1.00
+     lighter and dropped light to 0.83. Measure the polarity, not only the chroma, per theme.
+  5. **Compare scanner SHAPES, not counts, between marks of different brightness.** Glow read 7 against 5; kind, band,
+     size and place showed the same shapes, two of them crossing a counting threshold.
+  6. **A shell default is not a place for JSON.** `${2:-{"a":{}}}` ends at the first closing brace: one bench arm ran
+     where two were asked for. Read JSON from a file. (log 2026-10-10-dark-style-light-beach)
+  7. **"Every" needs every one measured.** Two themes were measured and three were written: dark's nearest segment sat
+     three percent from the trigger. A reviewer with no part in the work computed it in minutes, along with an older
+     kill that no longer drew what it drew. Keep that review for any PR that changes what is drawn, and give a rule's
+     trigger a margin a test can see. (same log, "Independent review")

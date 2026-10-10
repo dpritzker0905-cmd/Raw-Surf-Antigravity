@@ -16,11 +16,15 @@ import { v2SpeedPremul, V2_SPEED_PREMUL, v2FieldTint, V2_FIELD_TINT, resolveWind
 import { DRAW_FS, HEATMAP_FS } from './WebGLWindShaders';
 
 const v2 = resolveWindParticlesV2({});
+// These are the marks BEFORE glow (windInk.js). Glow is the default in light and beach since 2026-10-10 (D-019) and stands this
+// composite down, so the tests of it run with glow's kill switch set.
+const NO_GLOW = { __RAW_DISABLE_WIND_GLOW__: true };
 
 describe('speed-coloured premultiplied marks', () => {
   it('light 1.0 and beach 0.6 with the double casing; dark untouched', () => {
-    expect(v2SpeedPremul(v2, 'light', {})).toEqual({ on: true, opacity: 1.0, singleCasing: false });
-    expect(v2SpeedPremul(v2, 'beach', {})).toEqual({ on: true, opacity: 0.6, singleCasing: false });
+    expect(v2SpeedPremul(v2, 'light', NO_GLOW)).toEqual({ on: true, opacity: 1.0, singleCasing: false });
+    expect(v2SpeedPremul(v2, 'beach', NO_GLOW)).toEqual({ on: true, opacity: 0.6, singleCasing: false });
+    for (const theme of ['light', 'beach']) expect(v2SpeedPremul(v2, theme, {})).toEqual({ on: false, opacity: 0, singleCasing: false });   // glow owns the marks
     expect(v2SpeedPremul(v2, 'dark', {})).toEqual({ on: false, opacity: 0, singleCasing: false });
     expect(V2_SPEED_PREMUL.themes).toEqual(['light', 'beach']);
   });
@@ -30,9 +34,9 @@ describe('speed-coloured premultiplied marks', () => {
   });
   it('bench levers: theme list, opacity (clamped), single casing', () => {
     expect(v2SpeedPremul(v2, 'dark', { __RAW_WIND_PREMUL_THEMES__: 'dark' }).on).toBe(true);
-    expect(v2SpeedPremul(v2, 'light', { __RAW_WIND_PREMUL_OPACITY__: 0.5 }).opacity).toBe(0.5);
-    expect(v2SpeedPremul(v2, 'light', { __RAW_WIND_PREMUL_OPACITY__: 7 }).opacity).toBe(1.0);
-    expect(v2SpeedPremul(v2, 'light', { __RAW_WIND_SINGLE_CASING__: true }).singleCasing).toBe(true);
+    expect(v2SpeedPremul(v2, 'light', { ...NO_GLOW, __RAW_WIND_PREMUL_OPACITY__: 0.5 }).opacity).toBe(0.5);
+    expect(v2SpeedPremul(v2, 'light', { ...NO_GLOW, __RAW_WIND_PREMUL_OPACITY__: 7 }).opacity).toBe(1.0);
+    expect(v2SpeedPremul(v2, 'light', { ...NO_GLOW, __RAW_WIND_SINGLE_CASING__: true }).singleCasing).toBe(true);
   });
 });
 

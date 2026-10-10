@@ -1,5 +1,6 @@
 /**
- * DARK'S WIND LOOK FOR LIGHT GROUNDS: two candidates, both DEFAULT OFF (levers for the owner's A/B). 2026-10-10.
+ * DARK'S WIND LOOK FOR LIGHT GROUNDS. GLOW IS THE DEFAULT in light and beach (owner, 2026-10-10, after the A/B of today,
+ * glow and ink: "I like glow better"); ink stays a lever. Kill: window.__RAW_DISABLE_WIND_GLOW__ (the marks as they were).
  *
  * Owner: "I like the way dark theme does the animations of the wind, the color, everything. We need the light theme and
  * beach theme's to reflect similarly of this style, but with their own color schemes that fit with their theme colors and
@@ -37,6 +38,7 @@
  *
  * Nothing about the particles' motion changes in either: positions, count, size, lifetime and fade rate are the engine's.
  *
+ * Default: glow in light and beach. window.__RAW_WIND_GLOW__ = 'light' or 'beach' narrows it to one theme for a session.
  * Levers: window.__RAW_WIND_INK__  = true (light and beach) | 'light' | 'beach' | 'light,beach';
  *           __RAW_WIND_INK_OPACITY__ (0.1-1), __RAW_WIND_INK_SPINE__ (0-1: a darker inner ring; 0 = pure colour),
  *           __RAW_WIND_INK_PURITY__ (0-1) and __RAW_WIND_INK_DENSITY__ (0.5-4): the ink's colour, see inkOf;
@@ -59,13 +61,25 @@ export const WIND_INK = Object.freeze({
 });
 
 export const WIND_GLOW = Object.freeze({
-  themes: Object.freeze([]),                                  // default off
+  themes: Object.freeze(['light', 'beach']),                  // the owner's pick (D-019); dark is the look itself and never uses it
   opacity: Object.freeze({ light: 1.0, beach: 0.9 }),   // calibrated on the bench against dark (log 2026-10-10-dark-style-light-beach)
-  white: 0.2,     // share of white mixed into the full-brightness legend colour
-  ring: 0.5,      // strength of dark's white inner ring (1 = dark's own, 0 = a pure colour body)
+  // STREAK COLOUR, PER THEME (owner, 2026-10-10: "the wind animations in beach mode could be improved ... perhaps they should have
+  // color"; "In dark mode, the wind animations themselves seem like they change color, whereas in light and beach modes, they do
+  // not"). White inside a 2-3 px mark is averaged into it by the eye (colour is seen at about a third of the sharpness of
+  // lightness), so the white share and the white ring are what a streak's colour pays for its lightness. Bench, z6 over land
+  // (step over the field, share of mark pixels lighter, chroma field -> mark):
+  //   beach  20% white, ring 0.5: +10.5 L*, 1.00, 40.5 -> 41.5 | no white, ring 0.5: +9.5, 1.00, -> 45.5 | ring 0.25: +8.5, 1.00, -> 50.0
+  //   light  20% white, ring 0.5:  +6.0 L*, 0.99, 20.5 -> 23.0 | no white, ring 0.5: +4.0, 0.83, -> 26.0 | ring 0.25: +2.0, 0.76, -> 29.0
+  // Beach's hues are vivid when light (seafoam, green, lime, gold), so its streaks drop the white and stay one polarity. Light's
+  // low band is lilac, which sRGB cannot make both light and vivid: without the white its marks fall on both sides of the ground
+  // and cancel, so light keeps it (log 2026-10-10-dark-style-light-beach, "Streak colour").
+  white: Object.freeze({ light: 0.2, beach: 0 }),      // share of white mixed into the full-brightness legend colour
+  ring: Object.freeze({ light: 0.5, beach: 0.35 }),    // strength of dark's white inner ring (1 = dark's own, 0 = a pure colour body)
 });
 
-const themesOf = (lever, fallback) => (lever === true ? ['light', 'beach'] : (typeof lever === 'string' ? lever.split(',') : fallback));
+// true = both themes, false = none (a session's off switch), a string = that list; anything else is not a setting: the default stands.
+const themesOf = (lever, fallback) => (lever === true ? ['light', 'beach'] : (lever === false ? [] : (typeof lever === 'string' ? lever.split(',') : fallback)));
+const perTheme = (table, theme) => (theme in table ? table[theme] : table.light);   // a theme the lever names without numbers of its own draws with light's
 const inRange = (v, lo, hi) => typeof v === 'number' && v >= lo && v <= hi;
 
 /**
@@ -83,8 +97,8 @@ export function windInk(theme, v2, win = (typeof window !== 'undefined' ? window
   }
   if (w.__RAW_DISABLE_WIND_GLOW__ !== true && themesOf(w.__RAW_WIND_GLOW__, WIND_GLOW.themes).includes(theme)) {
     const op = w.__RAW_WIND_GLOW_OPACITY__, wh = w.__RAW_WIND_GLOW_WHITE__, ri = w.__RAW_WIND_GLOW_RING__;
-    return { mode: 2, on: false, glow: true, spine: inRange(ri, 0, 1) ? ri : WIND_GLOW.ring, purity: 0, density: 1,
-      opacity: inRange(op, 0.1, 1) ? op : (WIND_GLOW.opacity[theme] || 0.6), white: inRange(wh, 0, 1) ? wh : WIND_GLOW.white };
+    return { mode: 2, on: false, glow: true, spine: inRange(ri, 0, 1) ? ri : perTheme(WIND_GLOW.ring, theme), purity: 0, density: 1,
+      opacity: inRange(op, 0.1, 1) ? op : (WIND_GLOW.opacity[theme] || 0.6), white: inRange(wh, 0, 1) ? wh : perTheme(WIND_GLOW.white, theme) };
   }
   return OFF;
 }

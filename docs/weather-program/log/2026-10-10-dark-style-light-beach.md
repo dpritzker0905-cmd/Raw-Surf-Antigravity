@@ -131,3 +131,195 @@ went back to the writer.
   and pass). Glow's body is a lighter shade of the legend colour, ink's is the legend colour.
 - Glow over light land stays under dark's strength. Ink would need a palette for the warm band before it could ship.
 - The Canvas2D fallback is untouched.
+
+## 18:37Z on: the owner picks glow; the fog, the hard lines and the streak colour
+
+Owner, 18:37Z: "I like glow better. I do see hard lines in between very light winds and other wind fields. ... lets use it
+to merge and push, and make all this work properly to state of the art". 18:40Z: "the light wind color also looks like fog
+visually, a lot, in light mode. And slightly in beach mode. This needs to be part of this work." 18:45-18:50Z: "beach mode
+only needs very slight adjustments I think. light mode is the one that looks like fog"; "the wind animations in beach mode
+could be improved ... perhaps they should have color to the animations"; "In dark mode, the wind animations themselves seem
+like they change color, whereas in light and beach modes, they do not".
+
+Merged on that word: #307 (dev `90849fe9`, 18:49Z) and #308 (dev `55fca955`, 19:17Z; the levers, default off). The work
+below is its own PR.
+
+### What the fog is, measured
+
+Instrument: the palette checker's model (`frontend/scripts/wind-color`: the field as composited over the muted ground,
+CIELAB L* / C*), then the wind bench on the real engine and basemap.
+
+| light, over the muted land | 10 kn | 11 | 12 | 13 | 14 | 15 | 16 kn |
+|---|---|---|---|---|---|---|---|
+| before (straight sRGB line between the stops) | 71.4 / 22.5 | 70.8 / 15.3 | 70.2 / 8.0 | **69.6 / 1.0** | 69.1 / 6.9 | 68.6 / 14.4 | 68.2 / 21.8 |
+| after (the path round the hue wheel) | 71.4 / 22.5 | 71.0 / 22.1 | 70.6 / 20.2 | 70.0 / 19.7 | 69.4 / 21.1 | 68.9 / 21.3 | 68.2 / 21.8 |
+
+Three causes, largest first:
+
+1. **A grey veil at the commonest wind speeds (light only).** The 10 kn violet and the 16 kn green are 172 degrees apart
+   in hue; the straight line between them keeps 7% of their chroma at the midpoint. Every other segment of every theme
+   keeps 0.90 or more (beach 0.92 or more), which is why beach reads only slightly foggy. The same line greyed the
+   streaks and the legend bar from 11 to 15 kn. On the bench crop (Mobile Bay z6) it is a grey band across the whole
+   picture between the lavender land and the teal coast.
+2. **Calm drew the bare map, and the bare map is grey.** The calm stops were near white and the tint is weakest at calm
+   (0.29), so calm air showed the ground itself: light 92.4 / 0.6 on 93.4 / 0.5, beach 83.0 / 3.5 on 83.9 / 2.2. That was
+   the 2026-07 design ("calm is clean"), set on a map that kept its colour; since the basemap mute (2026-10-09) the
+   ground under the wind is grey. A difference under the threshold of seeing, then the climb to the 3 kn tint (beach's
+   steepest step anywhere, 5.7 dE00 per knot at 2.5 kn), draws an edge round every calm patch: the "hard lines between
+   very light winds and other wind fields".
+3. **The 3-10 kn lilac is pale, and cannot be otherwise at its lightness.** Over this near-white ground a multiply tint in
+   the lilac family tops out at C* 15 at L* 84.5, 23 at 78.5, 45 at 71 (sRGB gamut; the blue channel is already at 1).
+   The stops use about 85% of that. NOT FIXED here, see "Tried and taken back".
+
+### Fix 1: HUE PATH (`WindColorRamp.js`, `huePathStops`)
+
+A segment whose straight midpoint keeps under 3/4 of its ends' chroma is walked round the hue wheel in OKLCH (lightness
+and chroma straight, hue by the shortest arc; near-opposite hues go by the cool side, through cyan, the one family no
+other band uses), as 1 kn waypoints. Today that is one segment, light's 10-16 kn, in the field and in the particle ramp
+(so the streaks and the legend bar take it too): violet, blue, azure, teal, green. Dark and beach get the very same
+ramp object back; their lookup tables do not move. Kill: `window.__RAW_DISABLE_WIND_HUE_PATH__`.
+
+### Fix 2: CLEAR CALM
+
+Calm is a pale tint of each theme's own first colour, solved from the composite wanted (the stop is deeper than it
+draws, because calm tints at 0.29):
+
+| | calm before | calm now | off the bare ground (dE00) | off the 3 kn tint |
+|---|---|---|---|---|
+| light | 92.4 / 0.6 | 88.5 / 7.0, a pale rose (dark's calm is magenta) | 1.2 -> 9.3 (3 kn: 12.5) | 7.4 |
+| beach | 83.0 / 3.5 | 82.2 / 7.5, a pale seafoam | 1.3 -> 8.1 (3 kn: 15.5) | 7.8 |
+
+The calm edge is gentler: its steepest step falls from 5.1 to 3.6 dE00 per knot in light and from 5.7 to 3.5 in beach
+(beach's steepest anywhere). Kill: `window.__RAW_DISABLE_WIND_CALM_CLEAR__`; every older
+field kill steps back past it.
+
+### Tried and taken back: deeper lilacs at 3, 6 and 10 kn
+
+Solving 3 / 6 / 10 kn for more colour (84.5 / 14.2, 78.0 / 22.8, 69.5 / 32.0) raised the field's chroma on the bench
+(z8 land 16.0 -> 27.0) and broke four bars in turn: 6-10 kn for deuteranopes (4.4, floor 5); with that widened, 3-6 kn
+for protanopes (4.6); then dark's strength per band (3.6 dE76 over at 10 kn; the bar is 1) and the unmuted-water
+exception (2.89, bar 3.0). Those rows are A's, and A was tuned to exactly those bars. So 3, 6 and 10 kn are unchanged,
+byte for byte, and the pale lilac stays. Making it read as clear colour needs a field stronger than dark's at 3-10 kn
+or another hue family there: the owner's decision, with an A/B.
+
+### Streak colour (`windInk.js`, per theme)
+
+Bench, glow marks over the final colours (step over the field, share of mark pixels lighter, chroma field -> mark):
+
+| z6 over land | 20% white, ring 0.5 | no white, ring 0.5 | no white, ring 0.25 | no white, no ring |
+|---|---|---|---|---|
+| beach | +10.5, 1.00, 40.5 -> 41.5 | +9.5, 1.00, -> 45.5 | +8.5, 1.00, -> 50.0 | +8.0, 1.00, -> 53.5 |
+| light | +6.0, 0.99, 20.5 -> 23.0 | +4.0, 0.83, -> 26.0 | +2.0, 0.76, -> 29.0 | -0.5, 0.45, -> 30.5 |
+
+Beach's hues are vivid when light, so its streaks drop the white and stay one polarity: default **no white, ring 0.35**.
+Measured at that default: z4 +9.5, 1.00, 49.5 -> 58.0; z6 +9.0, 1.00, 40.5 -> 48.0; z8 +6.5, 1.00, 40.5 -> 46.5 over
+land; over water z6 +10.0, 0.99, 34.5 -> 49.5 and z8 +4.0, 0.99, 22.5 -> 30.0. The streak is 1.15 to 1.43 times as
+colourful as the field under it (it was 0.96 to 1.16), for 1 to 2 L* of its step. Light's lilacs cannot be both light
+and vivid: without the white its marks fall on both sides of the ground and cancel, which is the look glow replaced. Light
+keeps **20% white, ring 0.5** (z4 +9.0, 0.99, 24.5 -> 28.0; z6 +6.0, 0.99, 20.5 -> 23.0; z8 +5.0, 1.00, 22.5 -> 23.5).
+Above 10 kn light's streaks now carry the path's blue, teal and green; below it they stay a pale lilac.
+
+### Glow is the default (D-019), and the scan
+
+`WIND_GLOW.themes = ['light', 'beach']`; kill `window.__RAW_DISABLE_WIND_GLOW__` (the marks as they were).
+
+3-seed artifact scanner, the marks before glow against glow (`run.js --seeds 3 --themes light,beach --variants
+candidate,glow`, run `20261010-193528`, positive control PASS on all three seeds): 5 recurring shapes in 4 of 26 views
+before, 7 in 5 of 26 with glow. Shape by shape (kind, speed band, size, place) they are the same shapes:
+- fine-z7: a 4-block BLOB at 17 kn at [384, 512]. The marks before glow have it in light on all three seeds; in beach it
+  sat under the counting threshold (beach's old marks drew at 0.6) and glow's brighter trail crosses it.
+- world-z4 light: the same three near-calm HOLEs (2 to 5 kn, 10-21 blocks) in both; one is counted as non-calm when its
+  mean speed reads 5-6 kn (two of three seeds with glow) and as calm at 5 kn (before).
+No shape appears that the marks before glow do not have. Glow lays more ink (trail mean 100-161 against 82-145) at the
+same frame time (16.8-17.1 ms).
+
+### Before and after on the real map (both arms drawn with glow marks; field chroma under the marks, land)
+
+| light | z4 | z6 | z8 |
+|---|---|---|---|
+| before | 22.5 | 17.5 | 16.0 |
+| after | 24.5 | 20.5 | 22.5 |
+
+Beach's field reads the same to the digit at all three views (there is almost no calm air in them).
+
+### The steepest step, in context
+
+| steepest change per knot (dE00) | where | 0-3 kn | 3-6 | 6-10 | 10-16 |
+|---|---|---|---|---|---|
+| dark, the look to carry over | 13.1 at 5.75 kn | 6.0 | 13.1 | 7.2 | 1.7 |
+| light, land, before | 9.0 at 13 kn | 5.1 | 2.5 | 2.9 | 9.0 (into and out of grey) |
+| light, land, after | 10.7 at 12 kn | 3.6 | 2.5 | 2.9 | 10.7 (violet to green in 6 kn, in colour) |
+| beach, land, before -> after | 5.7 at 2.5 kn -> 3.5 | 5.7 -> 3.5 | 3.1 | 3.0 | 2.1 |
+
+The 10-16 kn handoff is still light's steepest part, now a quick sweep through blue and teal instead of a grey stripe,
+and under dark's own steepest (13.1). Making it gentler means moving the 10 or the 16 kn stop: the owner's decision.
+
+### Bars re-scoped, each with its reason in the test
+
+- `windFieldLut.test.js`: "calm is clean" (<= 2.5 dE off the surface) becomes "calm is a pale tint" (4 to 11.5 on the
+  basemaps' own surfaces, weaker than light air's). Its positive control (the 2026-07 saturated calm) still fails.
+- same file: the calm pair's bar on the basemaps' own surfaces is 5.0 (it is 5.3 over light's own cyan water, the
+  picture with the mute killed); over the muted ground that draws it is 6.1 and 7.4, pinned in the new file.
+- `windLightFastBand.test.js`: calm is the clear calm stop; 3 kn and A's rows from 6 kn up are as they were.
+- `windLegendFromRamp.test.js`: light's bar has 18 stops (13 + the path's five), dark's and beach's 13.
+- `windLightTheme.test.js`: the premultiplied marks are tested under glow's kill switch.
+
+### Research
+
+Three researchers and a writer: `reports/Wind fog look and streak colour.md`, notes in `research_notes/Wind fog look and
+streak colour/` (main checkout, untracked). What it added: fog is colours converging on one light grey, a filter darkens
+and keeps contrast (so a multiply tint never loses the map's lines: the fog is colour statistics); calm should differ
+from the ground by nothing or by at least a just-nameable step, never by a sub-threshold one (the toe); colour is seen
+at about a third of the sharpness of lightness, so white inside a 2-3 px mark is averaged into it; no leading product
+draws speed-coloured streaks over a speed-coloured field. Where the bench overruled the notes: they placed the fog at
+3-6 kn (it is at 13 kn), set chroma targets a multiply tint cannot reach, and expected the white share to matter more
+than the ring.
+
+### Controls
+
+- Dark's and beach's ramps come back as the same object from the path; their lookup tables are equal with the kill on
+  and off. Light's tables differ between 10 and 16 kn and nowhere else.
+- 3, 6 and 10 kn sample exactly what they sampled; the legend's 13 stops are untouched.
+- 19 deliberate breaks, 19 turn a pin red (`mutate_clear.py`: the keep threshold at 0 and at 2, the warm way
+  round, a fifth of the chroma, the table or the bar not taking the path, both kills, the calm rows, an older kill not
+  stepping back, glow off by default or on in dark, beach keeping the white).
+- Palette checker `--strict`: 0 red, 0 colour-blind red. It gained two gates: the field's weakest colour on the PATH from
+  3 to 40 kn (>= 8 C*), and calm against the bare ground (>= 5 dE00, weaker than 3 kn).
+- Jest map + `src/tests`: 301 suites, 3846 tests. ESLint ratchet: no rule over baseline. Production build compiles.
+
+### Limits and what is owed
+
+- **Not seen in the app.** The pictures are the bench's. A phone at 3x was not measured.
+- **The pale lilac at 3-10 kn in light is still pale** (cause 3). The owner's decision: a deeper field there, another hue
+  family, or as it is.
+- **A sharp vertical edge in the bench's z4 picture** is the seam between its fine grid and its 2-degree base (two grids
+  that disagree on speed at their border). The colours no longer turn it grey; the seam is data, not palette.
+- The Canvas2D fallback (`WindParticleOverlay.js`) samples the straight ramp still.
+- The streaks' colour-blind separation was not checked (the legend and its stops are unchanged and pass).
+
+### Independent review of the change (19:55Z): what it found, and what changed
+
+A reviewer with no part in the work read the diff of the three source files and computed against it. No crash, NaN or
+out-of-range colour: the OKLab constants match Ottosson's, the arc and its wrap-around hold, the gamut fallback gave no
+bad value in 200,000 random pairs. Four things were wrong. All are fixed in the same PR, each test written and seen red
+first.
+
+1. **An older kill did not draw what it drew.** Its rows stepped back, but the path still bent them: the 10-16 kn of
+   light's older rows (0.16-0.18 kept) under three of the older kills, and beach's legend under
+   `__RAW_DISABLE_WIND_LOWBAND_RESPREAD__` (0.30). Every older ramp kill now stands the path down too.
+2. **A sentence above is wrong: "every other segment of every theme keeps 0.90 or more".** That was measured for light
+   and beach and written for three themes. Dark's 6-10 kn keeps 0.78, three percent above the trigger as first written
+   (3/4). Dark never bent, but a small palette edit could have moved dark's look with no test failing. The trigger is
+   now one half (light's 10-16 kn keeps 0.07-0.09, and nothing shipped sits between 1/4 and 3/4), and a test pins that
+   margin. Read "under 3/4" in Fix 1 above as "under half".
+3. **`window.__RAW_WIND_GLOW__ = false` left glow on.** While glow was a lever, false meant off. It does again.
+4. **A theme the lever names without numbers of its own would have sent NaN to the shader.** It draws with light's
+   white and ring. The app cannot reach this (the engine passes light, beach or dark); a hand-set lever could.
+
+Also: the table builder honours a kill handed to it (it read only the global one), and a ramp too short to have a
+segment comes back as it came.
+
+Left as limits: the Canvas2D fallback samples the straight ramp; the colour-blind check reads the 13 stops, not the
+five waypoints between 10 and 16 kn.
+
+After the fixes: 25 deliberate breaks, 25 red. Jest map + `src/tests`: 301 suites, 3851 tests.

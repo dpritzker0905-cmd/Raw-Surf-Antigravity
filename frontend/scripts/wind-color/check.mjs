@@ -25,7 +25,7 @@ const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); re
 
 // The real ramps, straight from the source the app ships (export keywords stripped; the module has no imports).
 const src = fs.readFileSync(RAMP_SRC, 'utf8').replace(/^export /gm, '');
-const { THEME_RAMPS, FIELD_RAMPS } = new Function(src + '; return { THEME_RAMPS, FIELD_RAMPS };')();
+const { THEME_RAMPS, FIELD_RAMPS, huePathStops } = new Function(src + '; return { THEME_RAMPS, FIELD_RAMPS, huePathStops };')();
 // The app's basemap mute, from its source (no imports; export keywords stripped): the ground the wind actually sits on.
 const muteSrc = fs.readFileSync(path.join(HERE, '..', '..', 'src', 'components', 'map', 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '');
 const { muteColor, windBasemapMuteAmount, windBasemapWaterL } = new Function(muteSrc + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL };')();
@@ -49,7 +49,13 @@ const MODEL = {
 // blendRedKn: a violet -> green ramp must hand off across a cyan water's hue once; > 2 kn of it is a real blend zone.
 // hueHeldKn: speeds (3-40 kn) whose tint over this ground sits > 30 deg off the legend colour's own hue (the ground
 // bending the wind into another band's colour); the path bench's hue30 asks the same question of real frames.
-const TARGET = { hueGapWatch: 20, blendRedKn: 2, tintDE: 14, tintFromKn: 6, streakDL: 3, adjDE: 9, hueHeldKn: 2 };
+// veilC: the weakest colour (CIELAB C*) the field may draw anywhere from 3 to 40 kn. A tint with no colour over a greyed map
+// is a grey veil (the owner's "looks like fog"): light drew C* 1.0 at 13 kn, where the straight sRGB line from the 10 kn
+// violet to the 16 kn green crossed grey. Checked on the PATH between the stops, where it lived.
+// calmDE: calm is either the bare map or a tint the eye can name, never in between: a difference under the threshold of
+// seeing, then a steep climb, is the toe that draws an edge round every calm patch (Kovesi 2015). Under the basemap mute the
+// bare map is grey, so calm is a pale tint: at least calmDE off the ground, and weaker than the 3 kn tint.
+const TARGET = { hueGapWatch: 20, blendRedKn: 2, tintDE: 14, tintFromKn: 6, streakDL: 3, adjDE: 9, hueHeldKn: 2, veilC: 8, calmDE: 5 };
 
 const lab = converter('lab65'), rgb = (a) => ({ mode: 'rgb', r: a[0], g: a[1], b: a[2] });
 const de = (a, b) => differenceCiede2000()(rgb(a), rgb(b));
@@ -74,8 +80,16 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
   for (const [surf, bm0] of Object.entries(m.surfaces)) {
     const bm = groundOf(theme, surf, bm0).map((x) => x / 255), hb = hue(bm), blend = [], bent = [];
     tintStops[surf] = F.filter((st) => st[0] >= 3).map((st) => ({ kn: st[0], rgb: tintOver(m, st[0], st.slice(1, 4), bm) }));
+    const Fp = huePathStops(F), Pp = huePathStops(P);   // what the app draws BETWEEN the stops (WindColorRamp.js, HUE PATH)
+    if (m.kind === 'multiply') {
+      let veil = { c: Infinity, v: 0 };
+      for (let v = 3; v <= 40; v += 0.25) { const t = lab(rgb(tintOver(m, v, sample(Fp, v).slice(0, 3), bm))), c = Math.hypot(t.a, t.b); if (c < veil.c) veil = { c, v }; }
+      console.log(`[${flag(veil.c < TARGET.veilC)}] ${surf}: the field's weakest colour from 3 to 40 kn is C* ${veil.c.toFixed(1)} at ${veil.v} kn (a grey veil below ${TARGET.veilC})`);
+      const calm = de(bm, tintOver(m, 0, sample(Fp, 0).slice(0, 3), bm)), three = de(bm, tintOver(m, 3, sample(Fp, 3).slice(0, 3), bm));
+      console.log(`[${flag(calm < TARGET.calmDE || calm >= three)}] ${surf}: calm sits ${calm.toFixed(1)} dE00 off the bare ${surf} (a tint from ${TARGET.calmDE}; weaker than 3 kn's ${three.toFixed(1)})`);
+    }
     for (let v = 1; v <= 40; v += 0.5) {
-      const f = sample(F, v), p = sample(P, v), T = tintOver(m, v, f.slice(0, 3), bm);
+      const f = sample(Fp, v), p = sample(Pp, v), T = tintOver(m, v, f.slice(0, 3), bm);
       const r = { surf, v, tintDE: de(bm, T), hueGap: hgap(hue(T), hb), tintDL: L(T) - L(bm) };
       if (m.pop) { const a = p[3] * m.pop, S = p.slice(0, 3).map((c, j) => c * a + T[j] * (1 - a)); r.streakDL = L(S) - L(T); }
       rows.push(r); if (r.hueGap < TARGET.hueGapWatch && v >= 3 && !muted) blend.push(v);

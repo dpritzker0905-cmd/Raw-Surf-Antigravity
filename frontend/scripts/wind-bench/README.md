@@ -159,7 +159,7 @@ Instrument choices and their sources: `reports/Wind particle close zoom legibili
 
 ```bash
 node scripts/wind-bench/map-run.js --themes dark,light,beach --zooms 6,8          # the second table is the style table
-node scripts/wind-bench/map-run.js --themes light,beach --zooms 6,8 --arms '{"now":{},"glow":{"__RAW_WIND_GLOW__":true},"ink":{"__RAW_WIND_INK__":true}}'
+node scripts/wind-bench/map-run.js --themes light,beach --zooms 6,8 --arms '{"before":{"__RAW_DISABLE_WIND_GLOW__":true},"glow":{},"ink":{"__RAW_WIND_INK__":true}}'
 node scripts/wind-bench/map-run.js --crop 900x640            # also write a centre crop of every shot at DEVICE resolution (PNG)
 node scripts/wind-bench/map-run.js --crop 900x640:jpeg       # the same as JPEG, for a page that embeds many of them
 node scripts/wind-bench/map-run.js --lng -90.1 --lat 29.9    # another camera
@@ -185,8 +185,9 @@ seed. Over the mark pixels of each surface, at device resolution (a streak is 1.
 - **What light and beach read today:** `lighter` 0.63-0.91, `dL` +2.5 to +5.5, chroma lowered. A black rim, a white ring
   and a dark core share two or three pixels and cancel.
 - **`--crop`** exists because the 448 px contact sheet turns 1 px streaks into texture. Judge a look on the crop.
-- The two candidates built on these columns are `windInk.js` (`__RAW_WIND_GLOW__`, `__RAW_WIND_INK__`, both default
-  off). The artifact scanner can name them: `node scripts/wind-bench/run.js --seeds 3 --themes light,beach --variants candidate,glow,ink`.
+- The two models built on these columns are in `windInk.js`. Glow is the default in light and beach since 2026-10-10
+  (D-019; kill `__RAW_DISABLE_WIND_GLOW__` draws the marks before it); ink is a lever (`__RAW_WIND_INK__`), default
+  off. The artifact scanner can name them: `node scripts/wind-bench/run.js --seeds 3 --themes light,beach --variants candidate,glow,ink`.
   They stay out of the default matrix.
 
 ## Path mode (`path-run.js`): wind colour vs map colour, through every kind of camera move
