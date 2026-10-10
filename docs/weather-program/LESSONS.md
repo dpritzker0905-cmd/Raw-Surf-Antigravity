@@ -748,3 +748,17 @@ A stored estimate can be estimated again in a browser branch with different sour
   (coverage x lightness step, and the share of mark pixels darker than the ground) before the next mark design; (3) on a
   pale ground a mark that can only lighten has no edge: check polarity against the GROUND's lightness, not only for
   consistency. (log 2026-10-10-dark-style-light-beach, "20:23Z")
+- **L-V29 · Test a bar on its anchors before you trust its form; the obvious product can rank the reference worst.** L-V28 asked
+  for a wash number, "coverage x lightness step". Measured on one bench run, dark (the look being copied) added the MOST lightness
+  (+7.8 over land), beach (liked live) +6.6, and light under dark's streak method (washed out live) the least, +3.3. The second form
+  tried, the share of the ground's headroom used, ranked beach (0.17) above the failure (0.11). What separated all three was where the
+  picture ENDS (field L* + coverage x step: dark 32, beach 68, the failure 74) and whether any mark keeps a darker edge. Rules: (1) put
+  the reference and the known failure through a new bar before writing it into a test; (2) say how many anchors a bar stands on
+  (here two) and call it provisional until it has more; (3) the same measure then caught a candidate (A moderate at z4 and in a
+  storm) that every palette gate had passed. (log 2026-10-10-light-look-ab)
+- **L-P32 · A branch cut from an open PR's head can miss its last commit; re-fetch the base before the first push.** This session
+  branched from #310's head at 20:31Z; #310 had taken one more commit 56 s earlier (the owner's beach decision, ledger seq 1039) and
+  merged two minutes later. The first push of #311 carried #310's older commits and ledger lines that forked dev's chain at 1039.
+  Rules: (1) before the first push of a stacked branch, `git fetch` its base and compare heads; (2) if the base merged, rebuild on the
+  merged commit in a separate worktree (L-P14) and re-append the ledger lines after the base's head; (3) read the base's newest
+  commit message: here it carried the owner's newest words, which changed what this session owed. (log 2026-10-10-light-look-ab)
