@@ -741,3 +741,10 @@ A stored estimate can be estimated again in a browser branch with different sour
      three percent from the trigger. A reviewer with no part in the work computed it in minutes, along with an older
      kill that no longer drew what it drew. Keep that review for any PR that changes what is drawn, and give a rule's
      trigger a margin a test can see. (same log, "Independent review")
+- **L-V28 · A pick made on still crops is a hypothesis until the owner has seen it move.** Glow was picked from an A/B page of
+  crops, scanned, benched and made light's default; live, it washed light out within the hour. The bench had the numbers
+  (marks on 34-81% of the pixels, every one lighter, +5 to +12 L*) and no bar on their product. Rules: (1) a new default
+  that has only been seen as stills ships to ONE theme or behind a lever first; (2) give the bench a wash number
+  (coverage x lightness step, and the share of mark pixels darker than the ground) before the next mark design; (3) on a
+  pale ground a mark that can only lighten has no edge: check polarity against the GROUND's lightness, not only for
+  consistency. (log 2026-10-10-dark-style-light-beach, "20:23Z")
