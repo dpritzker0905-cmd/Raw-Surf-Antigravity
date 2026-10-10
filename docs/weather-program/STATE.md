@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-10 14:40Z: light's wind field from 6 kn up is A, steady descent (client only; PR_PENDING to dev).** Owner,
+- **2026-10-10 14:40Z: light's wind field from 6 kn up is A, steady descent (client only; PR #307 to dev).** Owner,
   after the A/B of three redesigns (#304): "I like A too" (D-018).
   - **The change.** A's rows are light's default field; `__RAW_DISABLE_WIND_LIGHT_FASTBAND__` restores the field before
     it; each older light-field kill steps back past A first. The A/B lever and candidates B and C are gone.
@@ -1777,7 +1777,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1022, sha256 e523d7f7961ec82a6ce1dd0fcf517e4c9ae7b477d2f2244a773e4ae9a8590eda**
+  **Ledger head: seq 1024, sha256 a77a2add1512b0a88339a8a82b97431b0172cb8fe1b64244a3c818c36479a376**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
