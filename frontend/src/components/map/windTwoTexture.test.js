@@ -420,6 +420,48 @@ describe('coarse-overlay guard (the "grid shape / small clamp")', () => {
 // ── 4. NO-DOWNGRADE (2026-10-08 live test): a resident FINE overlay is never replaced by a clearly
 // coarser compatible grid that lies inside it (z6 -> z9 over the Gulf: a 4x4 2-deg mid clip displaced the
 // 1-deg viewport product that still covered the screen). ──
+// ── 4b. BASE-RESOLUTION CLIP (2026-10-09, owner: "the zoom eye of storm movement ... still happening"): with the app's
+// real 2-deg world base resident, the 2-deg world clip the server sends for a wide view (z~6) must not replace the
+// finer 1-deg box that is drawing the storm (its eye moves 17-25 km between the two lattices; windOverlayKeep.js). ──
+describe('setWindData — a base-resolution clip never displaces a finer overlay', () => {
+  const WORLD_2DEG = { ...GLOBAL_GRID, cols: 181, rows: 84 };                                                     // 2.0 deg
+  const BOX_1DEG = { ...FINE_GRID, bounds: { west: -95, south: 24, east: -78, north: 36 }, cols: 18, rows: 13 };   // the owner's 18x13
+  const CLIP_2DEG = { ...FINE_GRID, bounds: { west: -100, south: 16, east: -76, north: 42 }, cols: 13, rows: 14 };  // the live 13x14 clip
+  const BOX_05 = { ...FINE_GRID, bounds: { west: -91, south: 25, east: -84, north: 31 }, cols: 15, rows: 13 };     // 0.5 deg
+  const setup = (fine = BOX_1DEG) => {
+    const { gl } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    engine.setWindData(gl, grid(WORLD_2DEG, 181, 84, 20));
+    expect(engine.setWindData(gl, grid(fine, fine.cols, fine.rows, 30))).toBe('fine');
+    return { gl, engine };
+  };
+  afterEach(() => { delete window.__RAW_DISABLE_WIND_CLIP_KEEP_FINE__; });
+
+  it('keeps the 1-deg box when the 2-deg clip of a wider view arrives (the z6 swap in the owner log)', () => {
+    const { gl, engine } = setup();
+    const before = engine._windFine;
+    expect(engine.setWindData(gl, grid(CLIP_2DEG, 13, 14, 25))).toBe('noop_base_clip');
+    expect(engine._windFine).toBe(before);
+    expect(engine._windFine.windGrid.cols).toBe(18);
+  });
+  it('POSITIVE CONTROL: the kill switch files the clip again (the swap comes back)', () => {
+    const { gl, engine } = setup();
+    window.__RAW_DISABLE_WIND_CLIP_KEEP_FINE__ = true;
+    expect(engine.setWindData(gl, grid(CLIP_2DEG, 13, 14, 25))).toBe('fine');
+    expect(engine._windFine.windGrid.cols).toBe(13);
+  });
+  it('a 1-deg box that covers a wider view still replaces a 0.5-deg one (it carries data the base lacks)', () => {
+    const { gl, engine } = setup(BOX_05);
+    expect(engine.setWindData(gl, grid(BOX_1DEG, 18, 13, 25))).toBe('fine');
+  });
+  it('with no finer overlay resident, the clip files as before (harmless: the nodes of the base itself)', () => {
+    const { gl } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    engine.setWindData(gl, grid(WORLD_2DEG, 181, 84, 20));
+    expect(engine.setWindData(gl, grid(CLIP_2DEG, 13, 14, 25))).toBe('fine');
+  });
+});
+
 describe('setWindData — never downgrade the resident fine overlay', () => {
   const { windBoundsContain } = require('./WebGLWindUtils');
   const FINE_1DEG = { ...FINE_GRID, bounds: { west: -95, south: 19, east: -84, north: 29 }, cols: 12, rows: 11 };   // 1.0 deg

@@ -153,7 +153,9 @@ async function eyeOne(cfg) {
     engine.particleRes = 2;
     engine.init(gl);
     engine.setWindData(gl, cfg.base);
-    const verdict = cfg.fine ? engine.setWindData(gl, cfg.fine) : null;
+    let verdict = cfg.fine ? engine.setWindData(gl, cfg.fine) : null;
+    // cfg.after: grids delivered after the fine one, in order (a zoom's later arrivals); the last verdict is reported.
+    for (const g of cfg.after || []) verdict = engine.setWindData(gl, g);
     const cam = makeCamera(cfg.lng, cfg.lat, cfg.z, CSS_W, CSS_H);
     const draw = () => {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);

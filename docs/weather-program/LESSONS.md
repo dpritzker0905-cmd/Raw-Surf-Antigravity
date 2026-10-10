@@ -572,3 +572,10 @@ A stored estimate can be estimated again in a browser branch with different sour
 
   Set the transition to 0, take references in a separate settled pass (`idle`), and never toggle paint mid-path. In the
   app, the first mute re-parses the visible tiles once.
+- **L-V20 · Every zoom tier is its own sampling lattice. A grid that repeats the base's nodes must never displace a finer
+  one.** After #287/#293 made every tier one model, the owner still saw the eye move on a zoom stop. The tiers
+  point-sample the field at 2°, 1°, 0.5° and 0.25°, and an eye smaller than a cell is redrawn from other nodes at each
+  one. The eye bench measured the same storm at 1°: 17-25 km off, wall -8 to -12 kn, area x4. The 2° tier is the world
+  base clipped to a box. Because it covered the view, it replaced the 1° box, and the next delivery filed the box again
+  (last arrival wins). Ask what a candidate grid ADDS over what is already drawn: a base-resolution clip adds nothing.
+  When two grids of one field draw a feature differently, compare their lattices as well as their values (L-V7).

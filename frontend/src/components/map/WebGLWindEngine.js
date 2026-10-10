@@ -13,12 +13,9 @@
  */
 
 import { generateRampData, buildFieldRampTexture } from './WindColorRamp';
+import { baseClipKeepsFine } from './windOverlayKeep';
 import {
-  createTexture, bindWindPointReg,
-  unbindTexture,
-  createFBO,
-  bindTexture,
-  encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
+  createTexture, bindWindPointReg, unbindTexture, createFBO, bindTexture, encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
   resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, windBoundsContain, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN
 } from './WebGLWindUtils';
 import {
@@ -226,8 +223,10 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
     return 'noop_coarse';
   }
   if (windCoarseOverlayGuardEnabled(typeof window !== 'undefined' ? window : null) && !windGridIsGlobal(windGrid) && this._windFine?.windGrid
-      && windGridsCompatible(this._windFine.windGrid, windGrid) && windGridClearlyCoarserThan(windGrid, this._windFine.windGrid)
-      && windBoundsContain(this._windFine.windGrid.bounds, windGrid.bounds)) return 'noop_coarser_than_fine'; // never downgrade the view
+      && windGridsCompatible(this._windFine.windGrid, windGrid) && windGridClearlyCoarserThan(windGrid, this._windFine.windGrid)) {
+    if (windBoundsContain(this._windFine.windGrid.bounds, windGrid.bounds)) return 'noop_coarser_than_fine'; // never downgrade the view
+    if (baseClipKeepsFine(windGrid, this._windData?.windGrid, this._windFine.windGrid)) return 'noop_base_clip'; // only the base's own nodes: keep the finer box (windOverlayKeep.js)
+  }
 
   // BASE+OVERLAY filing (2026-07-19, queue #9). A REGIONAL grid arriving while a GLOBAL base of
   // the same model+hour is resident files as the FINE overlay — the base stays resident, so a
