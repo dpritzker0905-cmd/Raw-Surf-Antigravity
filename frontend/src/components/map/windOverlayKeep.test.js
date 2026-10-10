@@ -4,7 +4,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { keepResidentFine, viewCoverFrac, cellDeg, OVERLAY_KEEP } from './windOverlayKeep';
+import { keepResidentFine, viewCoverFrac, cellDeg, OVERLAY_KEEP, baseClipKeepsFine } from './windOverlayKeep';
 
 // The owner's view (screenshot geometry, 2026-10-09 ~20:52Z) and the two grids from the log.
 const VIEW = { west: -89.70, south: 29.23, east: -86.66, north: 30.83 };
@@ -58,5 +58,39 @@ describe('wiring', () => {
     const keepAt = src.indexOf('if (keepResidentFine('), passAt = src.indexOf("non-covering grid passes as FINE OVERLAY over the resident global base");
     expect(keepAt).toBeGreaterThan(0);
     expect(keepAt).toBeLessThan(passAt);
+  });
+});
+
+describe('a base-resolution clip never displaces a finer overlay (the eye moving on a z6 stop, 2026-10-09)', () => {
+  const WORLD = { bounds: { west: -180, south: -80, east: 180, north: 85 }, cols: 181 };      // 2.0 deg
+  const CLIP = { bounds: { west: -100, south: 16, east: -76, north: 42 }, cols: 13 };          // 2.0 deg: the live 13x14
+  const BOX1 = { bounds: { west: -95, south: 24, east: -78, north: 36 }, cols: 18 };           // 1.0 deg: the owner's 18x13
+  const BOX05 = { bounds: { west: -91, south: 25, east: -84, north: 31 }, cols: 15 };          // 0.5 deg
+  it('the owner case: the 2-deg clip keeps off the 1-deg box', () => {
+    expect(baseClipKeepsFine(CLIP, WORLD, BOX1, {})).toBe(true);
+  });
+  it('POSITIVE CONTROL: the kill switch lets the clip through again', () => {
+    expect(baseClipKeepsFine(CLIP, WORLD, BOX1, { __RAW_DISABLE_WIND_CLIP_KEEP_FINE__: true })).toBe(false);
+  });
+  it('a grid finer than the base is not a clip: a 1-deg box still replaces a 0.5-deg one by the old rules', () => {
+    expect(baseClipKeepsFine(BOX1, WORLD, BOX05, {})).toBe(false);
+  });
+  it('a resident no finer than the clip is not protected; missing grids never block', () => {
+    expect(baseClipKeepsFine(CLIP, WORLD, { bounds: CLIP.bounds, cols: 13 }, {})).toBe(false);
+    expect(baseClipKeepsFine(CLIP, null, BOX1, {})).toBe(false);
+    expect(baseClipKeepsFine(CLIP, WORLD, null, {})).toBe(false);
+    expect(baseClipKeepsFine(null, WORLD, BOX1, {})).toBe(false);
+  });
+  it('an antimeridian clip measures its cells across the seam', () => {
+    const pacific = { bounds: { west: 170, south: -30, east: -170, north: -10 }, cols: 11 }; // 20 deg / 10 = 2.0 deg
+    const fineP = { bounds: { west: 175, south: -25, east: -175, north: -15 }, cols: 21 };   // 0.5 deg
+    expect(baseClipKeepsFine(pacific, WORLD, fineP, {})).toBe(true);
+  });
+  it('wiring: the engine asks before filing a coarser grid, after the inside-the-box rule', () => {
+    const eng = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
+    expect(eng).toContain("import { baseClipKeepsFine } from './windOverlayKeep';");
+    const inside = eng.indexOf("return 'noop_coarser_than_fine';"), clip = eng.indexOf("if (baseClipKeepsFine(windGrid, this._windData?.windGrid, this._windFine.windGrid)) return 'noop_base_clip';");
+    expect(inside).toBeGreaterThan(0);
+    expect(clip).toBeGreaterThan(inside);
   });
 });

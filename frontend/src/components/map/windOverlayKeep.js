@@ -36,6 +36,31 @@ export function cellDeg(bounds, cols) {
 }
 
 /**
+ * A BASE-RESOLUTION CLIP NEVER DISPLACES A FINER OVERLAY (2026-10-09, owner: "investigate the zoom eye of storm movement
+ * again, its still happening as I test live dev"). The server answers a wide view (spans ~20-180 deg, about z3-6) with the
+ * 2-deg WORLD grid clipped to the box (mid_res_tier.filter_grid_to_bbox: the base's own nodes, no resampling), and a
+ * narrower view with a fetched 1 / 0.5 / 0.25-deg box. Every tier point-samples the field at its own spacing, so a
+ * hurricane eye smaller than a cell is redrawn from different nodes at each tier (eye bench: the same 0.5-deg storm
+ * drawn at a 1-deg spacing moves 17-25 km, its weakest wall drops 8-12 kn and its area grows x4). The engine filed any
+ * covering grid as the fine overlay, so a z6 stop swapped the 1-deg box for the 2-deg clip and back (the owner's log:
+ * "FINE overlay filed ... (29x24)" / "(18x13)" in turn). The clip carries nothing the resident world base does not
+ * already draw, so it must never replace a finer overlay: the finer box keeps drawing the eye, the base the rest.
+ * Kill: window.__RAW_DISABLE_WIND_CLIP_KEEP_FINE__.
+ */
+const cellOf = (g) => {
+  if (!g || !g.bounds || !(g.cols > 1)) return Infinity;
+  const b = g.bounds, span = b.west > b.east ? b.east + 360 - b.west : b.east - b.west;
+  return span / (g.cols - 1);
+};
+/** True when `incoming` is no finer than the world `base` (within 1.3x) and the resident `fine` is clearly finer (1.3x). */
+export function baseClipKeepsFine(incoming, base, fine, win = (typeof window !== 'undefined' ? window : null)) {
+  if (win && win.__RAW_DISABLE_WIND_CLIP_KEEP_FINE__ === true) return false;
+  const ci = cellOf(incoming), cb = cellOf(base), cf = cellOf(fine);
+  if (!isFinite(ci) || !isFinite(cb) || !isFinite(cf)) return false;
+  return cb <= ci * 1.3 && ci > cf * 1.3;
+}
+
+/**
  * True when the incoming NON-covering grid should be dropped because the engine's resident fine overlay is the better
  * picture of this view: it still shows >= 70% of it, the incoming shows no more of it, and the incoming is not markedly
  * finer. `resident` is the engine's window.__WIND_FINE_OVERLAY__ ({ active, bounds, cols }).
