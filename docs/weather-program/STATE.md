@@ -15,13 +15,13 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-10 00:1xZ: the hurricane eye moved on a z6 zoom stop because a 2-deg clip replaced the finer box (client fix,
-  PR open).** Every wind tier point-samples at its own spacing; the 2-deg world clip of a wide view (the base's own
+  PR #298).** Every wind tier point-samples at its own spacing; the 2-deg world clip of a wide view (the base's own
   nodes) was filed over the 1-deg box and back. `windOverlayKeep.baseClipKeepsFine` keeps the finer box (eye bench: 0 km
   vs 17-25 km / no closed eye). Kill `__RAW_DISABLE_WIND_CLIP_KEEP_FINE__`. Still open: zoom-IN lattice refinement
-  (1 → 0.5 → 0.25 deg) and the 10-s grid_series timeouts while panning (health 10-13 s). Log
+  (1 -> 0.5 -> 0.25 deg) and the 10-s grid_series timeouts while panning (health 10-13 s). Log
   `log/2026-10-09-wind-eye-tier-keep.md`; LESSONS L-V20.
 
-- **2026-10-09: light and beach wind read true: the basemap is muted under the wind (client only; PR #296).**
+- **2026-10-09: light and beach wind read true: the basemap is muted under the wind (client only; #296 merged).**
   - **The defect.** The owner saw "ambiguity to the wind color vs the color of the map". The field multiplies into
     full-colour basemaps, so a 33-40 kn gold over cyan water came out green (a 16-21 kn colour on the legend). New
     path bench (`frontend/scripts/wind-bench/path-run.js`: pans, flings, zooms, pinch, jitter, erratic walks; real
@@ -30,8 +30,9 @@ is a claim, not a measurement.
     / x0.94 beach). hue30 falls to 0.7-3% on every path, L* lines rise, the coast's colour contrast falls 9-17%, zero
     flashes.
   - **Kill:** `__RAW_DISABLE_WIND_BASEMAP_MUTE__`. Log `log/2026-10-09-wind-basemap-mute.md`; LESSONS L-V18, L-V19.
-  - **Next (owner asked):** the light colour-blind pass on the neutral ground (ceiling ~2.6 under light's rules, from
-    1.9).
+  - **Merged** as #296 (ce8ada1d). **Light colour-blind pass on the neutral ground: merged as #297 (af0fa421).** Every ground lifts from
+    1.8-1.9 to ~2.6, the ceiling under light's rules; 5 needs a warm fast-band redesign (log
+    `log/2026-10-09-light-neutral-cvd.md`).
 
 - **2026-10-09 19:44Z: the HRRR wind lane, chosen by place and time, built DEFAULT ON (owner, D-017); PR open.**
   - **What it does:** inside HRRR's domain and its 48 h horizon, every GFS wind tier blends one stored NOAA HRRR field
@@ -1649,7 +1650,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 979, sha256 54bd8359636bb30b31f7c1a0de17c1a63f3501be10ab5136e5480cafdc864c06**
+  **Ledger head: seq 983, sha256 dfd8db971b15db25217e28e7bcf14cac857a906573251c7aa85546cbf8ee7867**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
