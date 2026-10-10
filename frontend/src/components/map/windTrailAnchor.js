@@ -14,6 +14,8 @@
  *     magnification passes `maxMagnify`, when the view starts to outgrow the buffer (zoom-out: the buffer is re-laid
  *     wider and the old ink feathered toward its old edge, so no box shows), or once the scale has come to rest;
  *   - a turn or a tilt of the map re-lays the ink every frame through the exact ground-plane homography;
+ *   - at the date line the view centre wraps and the map's matrix jumps one world in a single frame, with the same ink
+ *     on screen: the buffer's camera is taken in whichever copy of the world is nearest the view;
  *   - marks are drawn into the buffer with the buffer's camera (the map's matrix with its ground plane swapped).
  * A still camera is the identity in every pass: the legacy fetch, bit for bit.
  *
@@ -23,23 +25,30 @@
 
 export const TRAIL_ANCHOR = Object.freeze({
   maxMagnify: 1.2,     // the most the screen may magnify the buffer before the ink is re-laid one to one (= the respawn box's 10% pad)
+  widen: 1.15,         // a zoom-out re-lays the ink into a buffer this much wider than the view: short of maxMagnify, so a
+                       // small zoom wobble after it (a pinch held still) cannot trip the one-to-one re-lay and widen again
   feather: 0.09,       // share of the old buffer over which old ink thins out when the buffer is re-laid wider
   settleFrames: 12,    // frames at a steady scale before a magnified buffer is re-laid one to one
   snapPx: 0.25,        // a change that moves no screen edge by this much is not a turn, a tilt or a zoom
   jump: 2.2,           // a one-frame change of scale beyond this keeps nothing worth showing: start clean
 });
 
-/** The fragment-shader half, shared by FADE_FS and SCREEN_FS (it carries their precision line). */
+/**
+ * The fragment-shader half, shared by FADE_FS and SCREEN_FS. It declares their uv varying. Only the uv arithmetic is high
+ * precision (a whole-pixel shift must land on a texel centre); the colour arithmetic keeps each shader's own mediump line,
+ * so with the transform at zero the pass does what it did before, operation for operation.
+ */
 export const GLSL_TRAIL_UV = `#ifdef GL_FRAGMENT_PRECISION_HIGH
-precision highp float;
+#define TRAIL_HP highp
 #else
-precision mediump float;
+#define TRAIL_HP mediump
 #endif
-uniform mat3 u_trail_d;         // (this pass's uv -> the trail buffer's uv) MINUS identity: all zeros = the plain fetch
-uniform float u_trail_feather;  // > 0: old ink thins toward the old buffer's edge
-vec4 trailTexel(sampler2D tex, vec2 uv) {
-  vec3 q = vec3(uv, 1.0) + u_trail_d * vec3(uv, 1.0);
-  vec2 p = q.xy / q.z;
+uniform TRAIL_HP mat3 u_trail_d;  // (this pass's uv -> the trail buffer's uv) MINUS identity: all zeros = the plain fetch
+uniform float u_trail_feather;    // > 0: old ink thins toward the old buffer's edge
+varying TRAIL_HP vec2 v_uv;
+vec4 trailTexel(sampler2D tex) {
+  TRAIL_HP vec3 q = vec3(v_uv, 1.0) + u_trail_d * vec3(v_uv, 1.0);
+  TRAIL_HP vec2 p = q.xy / q.z;
   if (p.x < 0.0 || p.x > 1.0 || p.y < 0.0 || p.y > 1.0) return vec4(0.0);
   vec4 c = texture2D(tex, p);
   return u_trail_feather > 0.0 ? c * smoothstep(0.0, u_trail_feather, min(min(p.x, 1.0 - p.x), min(p.y, 1.0 - p.y))) : c;
@@ -98,6 +107,10 @@ function drawMatrix(matrix, P) {
 
 const translated = (P, tx, ty) => [P[0] + tx * P[6], P[1] + tx * P[7], P[2] + tx * P[8], P[3] + ty * P[6], P[4] + ty * P[7], P[5] + ty * P[8], P[6], P[7], P[8]];
 const scaled = (P, k) => [P[0] * k, P[1] * k, P[2] * k, P[3] * k, P[4] * k, P[5] * k, P[6], P[7], P[8]];
+/** The same camera looking at the copy of the world `s` worlds east (mercator X + s). */
+const worldShifted = (P, s) => [P[0], P[1], P[2] + s * P[0], P[3], P[4], P[5] + s * P[3], P[6], P[7], P[8] + s * P[6]];
+/** screen clip -> buffer clip, scaled so its last entry is 1 (null when it has none). */
+const viewOf = (P, invPn) => { const V = mul3(P, invPn); return Number.isFinite(V[8]) && V[8] !== 0 ? V.map((x) => x / V[8]) : null; };
 /** Map scale of a ground plane (clip units per mercator unit at the view centre). */
 const scaleOf = (P) => Math.sqrt(Math.abs(P[0] * P[4] - P[1] * P[3])) / Math.abs(P[8] || 1);
 
@@ -119,9 +132,14 @@ export function stepTrailAnchor(state, matrix, w, h, cfg = TRAIL_ANCHOR) {
   const fresh = (mode, clear) => ({ ...OFF, state: { P: Pn, scale: sNow, still: 0 }, clear, mode });
   if (!state || !state.P) return fresh('start', false);
 
-  let V = mul3(state.P, invPn);                      // screen clip -> buffer clip
-  if (!Number.isFinite(V[8]) || V[8] === 0) return fresh('jump', true);
-  V = V.map((x) => x / V[8]);
+  // THE DATE LINE. The world repeats, and the view centre wraps at +-180: the map's matrix then jumps one world in X in a
+  // single frame while the same ink is on screen. Read the buffer's camera in whichever copy of the world is nearest.
+  let Pb = state.P, V = viewOf(Pb, invPn);           // screen clip -> buffer clip
+  if (!V) return fresh('jump', true);
+  for (const s of [-1, 1]) {
+    const Ps = worldShifted(state.P, s), Vs = viewOf(Ps, invPn);
+    if (Vs && Math.abs(Vs[2]) < Math.abs(V[2])) { Pb = Ps; V = Vs; }
+  }
   const k = Math.sqrt(Math.abs(V[0] * V[4] - V[1] * V[3]));   // buffer px per screen px
   const still = Math.abs(sNow / state.scale - 1) < 1e-9 ? state.still + 1 : 0;
   if (!(k > 1 / cfg.jump && k < cfg.jump) || Math.abs(V[2]) > 3 || Math.abs(V[5]) > 3) return fresh('jump', true);
@@ -133,18 +151,18 @@ export function stepTrailAnchor(state, matrix, w, h, cfg = TRAIL_ANCHOR) {
   // so the zoom-out can grow into it), a magnification past the cap, or a magnified buffer whose scale has come to rest.
   let relay = null, feather = 0, mode = 'relay';
   if (turned) { relay = Pn; mode = 'turn'; }
-  else if (k > 1.001) { relay = scaled(Pn, 1 / cfg.maxMagnify); feather = cfg.feather; }
+  else if (k > 1.001) { relay = scaled(Pn, 1 / cfg.widen); feather = cfg.feather; }
   else if (k < 1 / cfg.maxMagnify || (Math.abs(k - 1) >= 1e-6 && still > cfg.settleFrames)) relay = Pn;
 
   let P, fade, fadeLinear;
   if (relay) {
     const invRelay = inv3(relay);
     if (!invRelay) return fresh('jump', true);
-    P = relay; fade = uvDelta(mul3(state.P, invRelay)); fadeLinear = true;
+    P = relay; fade = uvDelta(mul3(Pb, invRelay)); fadeLinear = true;
   } else {
     // whole pixels toward the view centre; the remainder (under half a pixel) stays in P
     const nx = Math.round(V[2] * w / 2), ny = Math.round(V[5] * h / 2);
-    P = translated(state.P, -2 * nx / w, -2 * ny / h);
+    P = translated(Pb, -2 * nx / w, -2 * ny / h);
     fade = (nx || ny) ? new Float32Array([0, 0, 0, 0, 0, 0, nx / w, ny / h, 0]) : ZERO3;
     fadeLinear = false; mode = Math.abs(k - 1) < 1e-6 ? 'pan' : 'view';
   }

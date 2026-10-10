@@ -59,6 +59,17 @@ const state = { map: null, theme: null, gl: null, engine: null, rng: null, activ
 
 function clearLevers() { Object.keys(window).filter((k) => k.startsWith('__RAW_')).forEach((k) => { delete window[k]; }); }
 
+/**
+ * The copies of the world the particles are drawn in, as the app's layer computes them (WebGLWindLayer.js): [0] for
+ * every view away from the date line, [0, 360] or [-360, 0] astride it, three copies when zoomed far out.
+ */
+function worldOffsets(centerLng, canvasWidth, zoom) {
+  const span = (canvasWidth * 360) / (256 * Math.pow(2, zoom)), pad = zoom < 3.5 ? 180 : 10, out = [];
+  const lo = Math.floor((centerLng - span / 2 - pad + 180) / 360) * 360, hi = Math.ceil((centerLng + span / 2 + pad - 180) / 360) * 360;
+  for (let o = lo; o <= hi; o += 360) out.push(o);
+  return out.length ? out : [0];
+}
+
 function windLayer() {
   return {
     id: WIND_ID, type: 'custom', renderingMode: '2d',
@@ -73,7 +84,7 @@ function windLayer() {
       // mode's null control). The seeded stream is swapped in for the engine's frame only.
       Math.random = state.rng || realRandom;
       try {
-        state.engine.render(gl, matrix, c.width, c.height, map.getZoom(), state.theme, [0], [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
+        state.engine.render(gl, matrix, c.width, c.height, map.getZoom(), state.theme, worldOffsets(map.getCenter().lng, c.width, map.getZoom()), [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
       } finally { Math.random = realRandom; }
     },
     onRemove() {},
@@ -590,7 +601,7 @@ async function flowRun(cfg) {
       const k = 1 / (TILE_PX * Math.pow(2, cam.z)), cx = (cam.lng + 180) / 360, cy = mercY(cam.lat);
       const t = turned(cam.bearing || 0);   // image rows run from the screen's bottom, so +row is up the screen
       const windAt = (x, y) => {
-        const [east, north] = t.toGround(x - CSS_W / 2, y - CSS_H / 2), lng = (cx + east * k) * 360 - 180, lat = latOf(cy - north * k);
+        const [east, north] = t.toGround(x - CSS_W / 2, y - CSS_H / 2), lng = ((((cx + east * k) * 360) % 360) + 360) % 360 - 180, lat = latOf(cy - north * k);
         const uv = sampleWind(GRIDS.fine, lng, lat) || sampleWind(GRIDS.world, lng, lat);
         return uv && t.toScreen(uv[0], uv[1]);
       };
@@ -669,5 +680,5 @@ function init(fixtures) {
   return { fine: `${fine.cols}x${fine.rows}`, bounds: fixtures.fine.bounds };
 }
 
-window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, flowRun, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
+window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, flowRun, worldOffsets, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
 document.getElementById('status').textContent = 'ready';

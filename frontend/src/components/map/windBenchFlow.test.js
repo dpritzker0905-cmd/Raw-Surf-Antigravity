@@ -104,7 +104,7 @@ describe('a turned map', () => {
   });
 
   test('the turn path: flow mode only, deterministic, north-up and at rest at both ends, 70 degrees at its widest', () => {
-    expect(FLOW_PATH_NAMES).toEqual(['turn']);
+    expect(FLOW_PATH_NAMES).toEqual(['turn', 'dateline']);
     expect(PATH_NAMES).not.toContain('turn');
     const f = pathFrames('turn');
     expect(pathFrames('turn')).toEqual(f);
@@ -115,6 +115,22 @@ describe('a turned map', () => {
     expect(Math.max(...f.map((x) => x.bearing || 0))).toBe(70);
     const kinds = motionOf(f, f.map((_, i) => i));
     expect(kinds.filter((k) => k === 'move').length).toBe(120);
+  });
+});
+
+describe('the date line path', () => {
+  test('flow mode only; at rest at both ends; crosses lng 180 once, and its frames carry the WRAPPED longitude', () => {
+    expect(PATH_NAMES).not.toContain('dateline');
+    const f = pathFrames('dateline');
+    expect(pathFrames('dateline')).toEqual(f);
+    expect(f[1]).toEqual(f[0]);
+    expect(f[f.length - 1]).toEqual(f[f.length - 2]);
+    for (const x of f) { expect(x.lng).toBeGreaterThanOrEqual(-180); expect(x.lng).toBeLessThan(180); expect(x.z).toBe(5); }
+    const flips = f.filter((x, i) => i > 0 && Math.abs(x.lng - f[i - 1].lng) > 180);
+    expect(flips.length).toBe(1);                                    // one wrap: the frame after lng 180 reads about -180
+    expect(f[0].lng).toBeGreaterThan(170);
+    expect(f[f.length - 1].lng).toBeLessThan(-160);
+    expect(motionOf(f, f.map((_, i) => i)).filter((k) => k === 'move').length).toBe(90);
   });
 });
 
@@ -129,7 +145,7 @@ describe('the runner', () => {
 
   test('flowVerdict on a pan: the screen arm must smear, the same ink at rest, the anchored arm must hold and win', () => {
     const screen = { rest: 0.80, move: 0.62 }, anchored = { rest: 0.80, move: 0.78 };
-    expect(flowVerdict('pan', anchored, screen, 7, 7)).toEqual({ null0: true, better: true, seen: true, held: true });
+    expect(flowVerdict('pan', anchored, screen, 7, 7)).toEqual({ null0: true, kept: true, better: true, seen: true, held: true });
     expect(flowVerdict('pan', anchored, { rest: 0.80, move: 0.80 - FLOW_GATE.smear + 0.01 }, 7, 7).seen).toBe(false);   // a blind instrument
     expect(flowVerdict('pan', anchored, screen, 6, 7).null0).toBe(false);                                               // one still buffer differs
     expect(flowVerdict('pan', anchored, screen, 0, 0).null0).toBe(false);                                               // no still sample is not a pass
@@ -139,7 +155,9 @@ describe('the runner', () => {
 
   test('flowVerdict elsewhere: anchored must beat screen while moving (no worse on jitter); nothing hangs on a zoom path rest reading', () => {
     const screen = { rest: 0.85, move: 0.60 };
-    expect(flowVerdict('zoomOut', { rest: 0.85, move: 0.70 }, screen, 7, 7)).toEqual({ null0: true, better: true });
+    expect(flowVerdict('zoomOut', { rest: 0.85, move: 0.70 }, screen, 7, 7)).toEqual({ null0: true, kept: true, better: true });
+    // one cleared frame hardly moves a median (the date line: 0.713 against 0.715), so the clear itself is gated
+    expect(flowVerdict('dateline', { rest: 0.72, move: 0.713 }, { rest: 0.72, move: 0.526 }, 7, 7, 1)).toEqual({ null0: true, kept: false, better: true });
     expect(flowVerdict('fling', { rest: 0.85, move: 0.60 + FLOW_GATE.gain - 0.01 }, screen, 7, 7).better).toBe(false);
     expect(flowVerdict('jitter', { rest: 0.85, move: 0.60 }, screen, 7, 7).better).toBe(true);
     expect(flowVerdict('jitter', { rest: 0.85, move: 0.60 + FLOW_GATE.jitter - 0.01 }, screen, 7, 7).better).toBe(false);

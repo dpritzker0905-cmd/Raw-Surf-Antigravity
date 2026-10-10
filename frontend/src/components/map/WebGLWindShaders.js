@@ -1001,26 +1001,26 @@ void main() {
 }`;
 
 export const SCREEN_FS = `
+precision mediump float;
 ${GLSL_TRAIL_UV}
 uniform sampler2D u_screen;
 uniform float u_opacity;
 uniform float u_premul;          // V2 theme: premultiplied trails (dark marks show)
-varying vec2 v_uv;
 void main() {
-  vec4 color = trailTexel(u_screen, v_uv);   // through the trail buffer's camera (windTrailAnchor.js)
+  vec4 color = trailTexel(u_screen);   // through the trail buffer's camera; it declares v_uv (windTrailAnchor.js)
   // v3.12.2: FBO uses RGB-fade (alpha=1.0), so derive alpha from brightness: black = transparent, bright = opaque.
   float brightness = max(color.r, max(color.g, color.b));
   gl_FragColor = u_premul > 0.5 ? color * u_opacity : vec4(color.rgb, brightness * u_opacity);
 }`;
 
 export const FADE_FS = `
+precision mediump float;
 ${GLSL_TRAIL_UV}
 uniform sampler2D u_screen;
 uniform float u_fade;
 uniform float u_premul;          // V2 theme: fade RGBA together (premultiplied)
-varying vec2 v_uv;
 void main() {
-  vec4 color = trailTexel(u_screen, v_uv);   // yesterday's ink, moved with the map (windTrailAnchor.js)
+  vec4 color = trailTexel(u_screen);   // yesterday's ink, moved with the map; it declares v_uv (windTrailAnchor.js)
   // v3.12.2 CRITICAL FIX: Fade RGB, keep alpha=1.0 (mapbox/webgl-wind technique).
   // Fading alpha causes compound decay invisible trails.
   // Fading RGB creates visible dimming premultiplied blend makes black = transparent.

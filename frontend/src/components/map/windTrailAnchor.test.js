@@ -55,7 +55,8 @@ function fly(cams, { tolPan = 0.5 + 1e-6 } = {}) {
         expect(px(through(step.view, uvOf(Pn, X, Y)), uvOf(step.state.P, X, Y))).toBeLessThan(step.viewLinear ? 1e-3 : tolPan * Math.SQRT2);
       }
       // marks are drawn with the buffer's camera
-      expect(Array.from(planeOf(step.draw)).map((x) => +x.toPrecision(5))).toEqual(step.state.P.map((x) => +Math.fround(x).toPrecision(5)));
+      expect(Array.from(planeOf(step.draw))).toEqual(step.state.P.map((x) => Math.fround(x)));
+      expect([step.draw[2], step.draw[6], step.draw[10], step.draw[14]]).toEqual([0, 0, 0, 0]);   // depth flattened: nothing here is depth tested
     }
     state = step.state; prevP = step.state.P;
     steps.push(step);
@@ -75,7 +76,7 @@ describe('a still camera', () => {
     }
   });
 
-  test('the zero transform is the plain fetch, bit for bit', () => {
+  test('the zero transform leaves every uv exactly where it is (the arithmetic; the GPU side is the bench, --hash-all)', () => {
     for (const uv of [[0.5 / W, 0.5 / H], [0.3333333, 0.7777777], [(W - 0.5) / W, (H - 0.5) / H]]) expect(through(TRAIL_IDENTITY, uv)).toEqual(uv);
   });
 });
@@ -140,7 +141,7 @@ describe('a zoom out', () => {
     const steps = fly(cams);
     expect([steps[1].mode, steps[1].fadeLinear]).toEqual(['relay', true]);
     expect(steps[1].feather).toBe(TRAIL_ANCHOR.feather);
-    expect(steps[1].k).toBeCloseTo(1 / TRAIL_ANCHOR.maxMagnify, 9);
+    expect(steps[1].k).toBeCloseTo(1 / TRAIL_ANCHOR.widen, 9);
     let state = null;
     for (const cam of cams) {
       const m = camMatrix(cam), s = stepTrailAnchor(state, m, W, H);
@@ -148,7 +149,17 @@ describe('a zoom out', () => {
       for (const uv of [[0, 0], [1, 0], [0, 1], [1, 1]]) for (const v of through(s.view, uv)) { expect(v).toBeGreaterThan(-1e-3); expect(v).toBeLessThan(1 + 1e-3); }
       state = s.state;
     }
-    expect(steps.slice(1).filter((s) => s.mode === 'relay').length).toBeLessThanOrEqual(6);
+    expect(steps.slice(1).filter((s) => s.mode === 'relay').length).toBeLessThanOrEqual(7);   // 1.2 levels at 0.2 a re-lay, not 40
+  });
+
+  test('a zoom wobble does not re-lay the ink every frame (the wider buffer stops short of the one-to-one cap)', () => {
+    expect(TRAIL_ANCHOR.widen).toBeLessThan(TRAIL_ANCHOR.maxMagnify);
+    for (const amp of [0.0015, 0.005, 0.02]) {             // a pinch held still: finger noise of 0.3 to 4 px on a 300 px spread
+      const cams = [START];
+      for (let i = 1; i <= 90; i++) cams.push({ ...START, z: 8 + (i % 2 ? -amp : amp) });
+      const relays = fly(cams).slice(1).filter((s) => s.mode === 'relay');
+      expect(relays.length).toBeLessThanOrEqual(1);
+    }
   });
 
   test('a pan during a zoom keeps the buffer centred on the view by whole pixels', () => {
@@ -160,6 +171,42 @@ describe('a zoom out', () => {
       expect(Math.abs(c[0] - 0.5) * W).toBeLessThanOrEqual(0.5 / s.k + 1e-3);
       expect(Math.abs(c[1] - 0.5) * H).toBeLessThanOrEqual(0.5 / s.k + 1e-3);
     }
+  });
+});
+
+describe('the date line', () => {
+  // The view centre wraps at +-180 (MapLibre, renderWorldCopies): the matrix jumps one world in X in one frame.
+  const wrap = (cx) => cx - Math.floor(cx);
+
+  test.each([3, 5, 8])('a drag across it at z%i is still a whole-pixel pan: nothing is cleared, nothing is lost', (z) => {
+    const cams = [];
+    for (let i = -20; i <= 20; i++) cams.push({ cx: wrap(1 + i * 3.4 * perPx(z)), cy: 0.42, z });   // east across lng 180
+    let state = null;
+    for (const [n, cam] of cams.entries()) {
+      const s = stepTrailAnchor(state, camMatrix(cam), W, H);
+      if (n > 0) {
+        expect([s.mode, s.clear]).toEqual(['pan', false]);
+        expect(Math.abs(s.fade[6] * W - 3.4)).toBeLessThanOrEqual(1);          // 3 or 4 px, never a world
+        expect(s.fade[7]).toBe(0);
+      }
+      state = s.state;
+    }
+  });
+
+  test('the other way, and during a zoom', () => {
+    const cams = [];
+    for (let i = -15; i <= 15; i++) cams.push({ cx: wrap(1 - i * 5.1 * perPx(5)), cy: 0.42, z: 5 + (i + 15) * 0.01 });
+    let state = null;
+    for (const [n, cam] of cams.entries()) {
+      const s = stepTrailAnchor(state, camMatrix(cam), W, H);
+      if (n > 0) { expect(s.clear).toBe(false); expect(['view', 'relay']).toContain(s.mode); }
+      state = s.state;
+    }
+  });
+
+  test('a real jump of half a world is still a jump', () => {
+    const a = stepTrailAnchor(null, camMatrix({ cx: 0.25, cy: 0.42, z: 5 }), W, H);
+    expect(stepTrailAnchor(a.state, camMatrix({ cx: 0.75, cy: 0.42, z: 5 }), W, H).mode).toBe('jump');
   });
 });
 
@@ -267,11 +314,14 @@ describe('wiring', () => {
   test('both trail passes fetch through the buffer camera, and carry the high-precision line', () => {
     for (const src of [FADE_FS, SCREEN_FS]) {
       expect(src).toContain(GLSL_TRAIL_UV);
-      expect(src).toContain('trailTexel(u_screen, v_uv)');
-      expect(src).not.toMatch(/texture2D\(u_screen, v_uv\)/);
-      expect(src.match(/precision \w+ float;/g)).toEqual(['precision highp float;', 'precision mediump float;']);
+      expect(src).toContain('vec4 color = trailTexel(u_screen);');
+      expect(src).not.toMatch(/texture2D\(u_screen/);
+      expect(src.match(/precision \w+ float;/g)).toEqual(['precision mediump float;']);   // the colour arithmetic is what it was
+      expect(src.match(/varying [^;]*v_uv;/g)).toEqual(['varying TRAIL_HP vec2 v_uv;']);   // declared once, by the shared block
+      expect(src.indexOf('precision mediump float;')).toBeLessThan(src.indexOf('#ifdef GL_FRAGMENT_PRECISION_HIGH'));
     }
-    expect(GLSL_TRAIL_UV).toContain('vec3(uv, 1.0) + u_trail_d * vec3(uv, 1.0)');   // zeros = the plain fetch
+    expect(GLSL_TRAIL_UV).toContain('TRAIL_HP vec3 q = vec3(v_uv, 1.0) + u_trail_d * vec3(v_uv, 1.0);');   // zeros = the plain fetch
+    expect(GLSL_TRAIL_UV).toContain('uniform TRAIL_HP mat3 u_trail_d;');
   });
 
   test('marks take the buffer scale last, after the dash geometry is settled', () => {
@@ -283,7 +333,19 @@ describe('wiring', () => {
     const engine = read('WebGLWindEngine.js'), layer = read('WebGLWindLayer.js');
     expect(engine.match(/windTrailFrame\(/g).length).toBe(1);
     expect(engine).toContain("windTrailFrame(this, gl, this._trailMatrix || matrix, screenWidth, screenHeight,");
-    expect(engine).toContain('bindTrailUv(gl, this.fadeProgram, _trail.fade, _trail.fadeLinear, _trail.feather);');
+    // each site: the pass's program is in use, the texture it reads is bound on the active unit, THEN the transform, THEN the draw
+    const site = (line, use) => {
+      const at = engine.indexOf(line), used = engine.lastIndexOf('gl.useProgram(', at), drawn = engine.indexOf('gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);', at);
+      expect(at).toBeGreaterThan(0);
+      expect(engine.slice(used, used + use.length)).toBe(use);
+      expect(drawn).toBeGreaterThan(at);
+      expect(engine.slice(at + line.length, drawn)).not.toMatch(/gl\.useProgram\(|bindTexture\(gl, [^)]*, 0\)|bindTrailUv\(/);   // nothing rebinds before the draw
+    };
+    site('bindTexture(gl, this.screenA.tex, 0); bindTrailUv(gl, this.fadeProgram, _trail.fade, _trail.fadeLinear, _trail.feather);', 'gl.useProgram(this.fadeProgram);');
+    site('bindTexture(gl, this.screenB.tex, 0); bindTrailUv(gl, this.screenProgram, TRAIL_IDENTITY, false);', 'gl.useProgram(this.screenProgram);');
+    site('bindTexture(gl, this.screenB.tex, 0); bindTrailUv(gl, this.screenProgram, _trail.view, _trail.viewLinear);', 'gl.useProgram(this.screenProgram);');
+    expect(engine.match(/bindTrailUv\(/g).length).toBe(3);
+    expect(engine.indexOf('const _trail = windTrailFrame(')).toBeLessThan(engine.indexOf('gl.useProgram(this.fadeProgram);'));
     expect(engine).toContain("'u_matrix'), false, _trail.draw || mat4); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_trail_dk'), _trail.dk);");
     expect(engine).toContain('bindTrailUv(gl, this.screenProgram, TRAIL_IDENTITY, false);');
     expect(engine).toContain('bindTrailUv(gl, this.screenProgram, _trail.view, _trail.viewLinear);');

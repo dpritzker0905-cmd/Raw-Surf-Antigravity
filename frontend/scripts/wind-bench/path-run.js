@@ -42,7 +42,7 @@
  * (FLOW_GATE; exit 1): on `pan` the `screen` arm must fall while moving (the positive control: a trail buffer left on
  * the screen smears along the camera's motion) and `anchored` must hold its rest reading; before the camera first moves
  * both arms must lay the SAME ink, trail buffer for trail buffer (the null control: a still camera is the identity);
- * while moving, `anchored` must beat `screen` on every path (no worse on `jitter`).
+ * while moving, `anchored` must beat `screen` on every path (no worse on `jitter`) and must never clear its buffer.
  */
 const fs = require('fs');
 const path = require('path');
@@ -142,14 +142,16 @@ function summarizeFlow(rows, kinds) {
 //   smear    the screen arm must fall at least this far below its own rest reading on `pan` (the positive control);
 //   gain     the anchored arm must beat the screen arm by this much while moving, on every path but `jitter`;
 //   jitter   a 2 Hz zoom across 2.2 levels re-lays the ink every other frame: there the anchored arm must be no worse;
-//   hold     on `pan` (one zoom, so the rest reading is the right yardstick) the anchored arm must stay within this of it.
+//   hold     on `pan` (one zoom, so the rest reading is the right yardstick) the anchored arm must stay within this of it;
+//   kept     no scripted path may make the anchored arm clear its buffer (read-back mode `jump`). A median hides one
+//            wiped frame: the date line cleared the trails once per crossing and moved the pan's median by 0.002.
 // A zoom path's rest reading is taken at its first zoom only and the reading changes with zoom, so nothing is gated on it.
 const FLOW_GATE = { smear: 0.08, gain: 0.05, jitter: -0.01, hold: 0.05 };
 
 /** The checks on one (theme, path, seed) with both arms. `same` / `still`: trail buffers identical before the camera first moves. */
-function flowVerdict(pathName, anchored, screen, same, still, gate = FLOW_GATE) {
+function flowVerdict(pathName, anchored, screen, same, still, jumps = 0, gate = FLOW_GATE) {
   const num = (x) => typeof x === 'number';
-  const out = { null0: still > 0 && same === still };
+  const out = { null0: still > 0 && same === still, kept: !(jumps > 0) };
   out.better = num(anchored.move) && num(screen.move) && anchored.move >= screen.move + (pathName === 'jitter' ? gate.jitter : gate.gain);
   if (pathName === 'pan') {
     out.seen = num(screen.move) && num(screen.rest) && screen.move <= screen.rest - gate.smear;
@@ -187,7 +189,9 @@ async function flowMode(page, opts, label) {
     const before = a.rows.map((r, n) => n).filter((n) => (firstMove < 0 || n < firstMove) && a.rows[n].hash != null && s.rows[n].hash != null);
     const same = before.filter((n) => a.rows[n].hash === s.rows[n].hash).length;
     same0 += same; before0 += before.length;
-    const v = flowVerdict(a.path, a.sum, s.sum, same, before.length);
+    const jumps = (a.anchor && a.anchor.modes && a.anchor.modes.jump) || 0;
+    const v = flowVerdict(a.path, a.sum, s.sum, same, before.length, jumps);
+    if (!v.kept) bad.push(`${where}: the anchored arm cleared its trail buffer ${jumps} time(s) (a jump) on a scripted path`);
     if (v.seen) seenAny = true;
     if (!v.null0) bad.push(`${where}: before the camera moves the two arms laid different ink on ${before.length - same} of ${before.length} samples (a still camera must be the identity)`);
     if (!v.better) bad.push(`${where}: anchored ${f3(a.sum.move)} against screen ${f3(s.sum.move)} while moving`);

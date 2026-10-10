@@ -13,7 +13,9 @@
  * Every path holds still before and after, so the trails settle and the first and last samples are at rest.
  *
  * FLOW mode only (flow.js scores a turned map; the colour metrics assume north-up):
- *   turn     a two-finger turn of the map, 70 degrees there and back, with a slow drift (frames carry `bearing`).
+ *   turn     a two-finger turn of the map, 70 degrees there and back, with a slow drift (frames carry `bearing`);
+ *   dateline a steady drag east across the 180th meridian at z5, off Fiji. The view centre WRAPS there (frames carry
+ *            the wrapped longitude, as the map itself reports it), so the map's matrix jumps one world in one frame.
  */
 const { mercY, latOf, TILE_PX } = require('./camera');
 const { mulberry32 } = require('./scanner');
@@ -130,7 +132,15 @@ PATHS.turn = function turn() {
   return c.frames;
 };
 
-const FLOW_PATH_NAMES = ['turn'];                             // scored by flow mode only
+PATHS.dateline = function dateline() {
+  const c = track(178.6, -17.5, 5), wrapLng = (f) => ({ ...f, lng: ((f.lng + 540) % 360) - 180 });
+  c.hold(20);
+  for (let i = 0; i < 90; i++) { c.pan(700 / 90, 0); c.emit(); }
+  c.hold(30);
+  return c.frames.map(wrapLng);
+};
+
+const FLOW_PATH_NAMES = ['turn', 'dateline'];                 // scored by flow mode only
 const PATH_NAMES = Object.keys(PATHS).filter((n) => !FLOW_PATH_NAMES.includes(n));
 
 /** Frames for a named path (seed only matters for erratic). */
