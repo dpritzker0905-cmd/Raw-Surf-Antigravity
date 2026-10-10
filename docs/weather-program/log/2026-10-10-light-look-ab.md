@@ -111,3 +111,37 @@ Deliberate breaks of `WindColorRamp.js`, each against `windLightLook.test.js` (4
 waypoints removed (2 red), the older kill let back onto the look's field path (2 red), the loose address pattern back (1 red), the look
 read for every theme (2 red), the lever defaulting to a look (13 red). 5 of 5 caught. Not caught by Jest: the cover taps' edge rule
 (GLSL; the bench draws it) and the checker lines (a dev tool, run by hand).
+
+## 21:45Z: PR #311 opened
+
+Against `dev`. STATE "Now" carries it.
+
+**Correction (22:30Z), the base and the ledger.** This branch was cut from #310's head at 20:31Z; #310 had taken one more commit at
+20:30:56Z (the owner took beach off glow too, ledger seq 1039, a decision) and merged at 20:33:17Z. The first push of this PR therefore
+carried #310's two older commits and ledger lines numbered 1039-1040 that forked dev's chain. Rebuilt on dev `e0af8880` in a separate
+worktree (LESSONS L-P14), the ledger lines re-chained after dev's head: seq 1040 `pr_merge #310` (it had none), seq 1041 `pr_open #311`,
+seq 1042 the commitment (the owner's pick on the A/B and the 3-seed scan, due 2026-10-17). The forked 1039-1040 never reached dev.
+The owner's words at 20:25-20:28Z ("If dark mode doesn't have glow, than beach shouldnt have glow.... we need to replicate our science
+from dark mode"; "Beach mode needs dark mode's science too") reached this session through that commit, after the handover had asked
+for beach to be reported, not changed: see "Beach" below. The final bench run (z4, z6, z8 at served strength; z6 at storm strength;
+the beach-gap arm) and the scanner were still running when the PR opened; their results follow below.
+
+Tuning that set the marks (z6, served strength, offline map; the end column recomputed with the final bar):
+
+| arm | land: step, lighter, chroma field -> streak, picture ends | water: step, ends | lines kept (land) | streak signal (land) |
+|---|---|---|---|---|
+| dark | +17.0, 1.00, 20.5 -> 22.0, 31.8 | +10.5, 50.1 | 0.414 | 8.99 |
+| beach (today, glow) | +12.5, 1.00, 31.0 -> 44.5, 67.6 | +12.0, 68.8 | 0.583 | 7.44 |
+| light today | +6.0, 0.72, 19.5 -> 19.0, 75.0 (28% darker: an edge) | +11.5, 73.4 | 0.491 | 5.18 |
+| light glow (the live failure) | +8.0, 1.00, 19.5 -> 23.0, 74.3 | +13.5, 73.7 | 0.587 | 4.18 |
+| A moderate, opacity 1.0, ring 0.5 | +12.5, 1.00, 36.5 -> 29.0, **71.1** | +18.5, **71.7** | 0.520 | 7.25 |
+| A moderate, opacity 0.8 | +10.5, 1.00, 36.5 -> 29.5, 69.9 | +15.0, 68.5 | 0.562 | 5.81 |
+| A moderate, ring 0.25 | +12.0, 1.00, 36.5 -> 31.5, 70.8 | +17.5, 70.9 | 0.519 | 6.82 |
+| A deep, opacity 1.0, ring 0.5 | +13.0, 1.00, 40.5 -> 35.5, 65.0 | +20.0, 68.1 | 0.482 | 7.20 |
+| B ink | -7.0, 0.00 (all darker), 19.5 -> 29.0, 67.7 | -4.5, 59.1 | 0.773 | 4.33 |
+
+- **Moderate at full strength sits on the wash line** (71.1 over land, 71.7 over water): a ground of L* 65 is about the shallowest dark's
+  streak method can sit on. Set: moderate opacity 0.8, ring 0.25; deep opacity 1.0, ring 0.25 (a lighter ring keeps more of the
+  streak's colour; the light-air lilacs still read paler than their field, which sRGB cannot avoid).
+- **B over the water:** at served strength its marks cover 87% of the Gulf, and the crop shows the sea as a flat dark olive. The
+  corrected inks are right band by band; the darkening is everywhere at once. The cap halves it and cannot stop it.
