@@ -29,6 +29,7 @@ const { syncWindBasemapMute } = require('wind-bench-mute');
 const { labTable, binOf, binImage, binMask, stylePalette, frameMetrics, coastMetrics, colourEdges, warpDiff, hueFidelity, labOf } = require('../ambiguity');
 const { sampleSpeed, sampleWind } = require('../field');
 const { flowAlignment, turned } = require('../flow');
+const { markStyle } = require('../style');
 const { latOf, mercY, TILE_PX } = require('../camera');
 // The colour parser always comes from the working tree (a --ref build may predate it); it only reads the style.
 const { parseColor } = require('../../../src/components/map/windBasemapMute');
@@ -55,7 +56,7 @@ function transformRequest(url) {   // mirrors mapUtils.mapboxTransformRequest (t
 }
 
 let GRIDS = null;
-const state = { map: null, theme: null, gl: null, engine: null, rng: null, active: false, res: 384, levers: {} };
+const state = { map: null, theme: null, gl: null, engine: null, rng: null, active: false, res: 384, levers: {}, crop: null };
 
 function clearLevers() { Object.keys(window).filter((k) => k.startsWith('__RAW_')).forEach((k) => { delete window[k]; }); }
 
@@ -167,6 +168,15 @@ function thumb(map) {
   return t.toDataURL('image/jpeg', 0.82);
 }
 
+/** A centre crop at DEVICE resolution (what the screen shows, pixel for pixel), as a PNG data URL; null when no crop is asked for. */
+function cropShot(map) {
+  if (!state.crop) return null;
+  const c = map.getCanvas(), t = document.createElement('canvas');
+  t.width = Math.min(state.crop[0], c.width); t.height = Math.min(state.crop[1], c.height);
+  t.getContext('2d').drawImage(c, Math.round((c.width - t.width) / 2), Math.round((c.height - t.height) / 2), t.width, t.height, 0, 0, t.width, t.height);
+  return state.crop[2] === 'jpeg' ? t.toDataURL('image/jpeg', 0.92) : t.toDataURL('image/png');
+}
+
 /** Render `frames` engine frames on a virtual 60 Hz clock, then read the canvas back. */
 async function animate(map, frames) {
   let vms = realNow();
@@ -177,7 +187,7 @@ async function animate(map, frames) {
       map.triggerRepaint();
       await once(map, 'render');
     }
-    return { ...readCanvas(map), shot: thumb(map) };
+    return { ...readCanvas(map), shot: thumb(map), crop: cropShot(map) };
   } finally { delete performance.now; }
 }
 
@@ -306,8 +316,9 @@ function particleSignal(full, field, mask) {
 
 const SAMPLES = 5, SAMPLE_GAP = 12;   // the full layer is scored at 5 moments 0.2 s apart; medians are reported
 
-/** cfg: {theme, z, lng, lat, frames, res, seed, levers}. Returns metrics plus three thumbnails. */
+/** cfg: {theme, z, lng, lat, frames, res, seed, levers, crop: [w, h] device px}. Returns metrics plus three thumbnails (and crops). */
 async function shoot(cfg) {
+  state.crop = Array.isArray(cfg.crop) ? cfg.crop : null;
   const map = await ensureMap(cfg.theme);
   map.jumpTo({ center: [cfg.lng, cfg.lat], zoom: cfg.z });
   state.active = false;
@@ -324,7 +335,8 @@ async function shoot(cfg) {
     const fieldLines = lineSurvival(off, field, edges);
     newEngine(cfg.res, cfg.seed);
     let fullRaw = await animate(map, cfg.frames);
-    const shotFull = fullRaw.shot, samples = [];
+    const shotFull = fullRaw.shot, cropFull = fullRaw.crop, samples = [];
+    const style = markStyle(fullRaw.px, fieldRaw.px, maskDev);   // the marks against the field under them, at device resolution (../style.js)
     for (let s = 0; s < SAMPLES; s++) {
       if (s) fullRaw = await animate(map, SAMPLE_GAP);
       const full = cssImage(fullRaw.px, W, H);
@@ -344,12 +356,14 @@ async function shoot(cfg) {
     };
     let wet = 0; for (let i = 0; i < mask.length; i++) wet += mask[i];
     return {
-      theme: cfg.theme, z: cfg.z, waterShare: +(wet / mask.length).toFixed(3), land: surf(0), water: surf(1),
+      theme: cfg.theme, z: cfg.z, waterShare: +(wet / mask.length).toFixed(3), land: surf(0), water: surf(1), style: { land: style[0], water: style[1] },
       glError: state.gl.getError() || 0, shots: { off: offRaw.shot, field: fieldRaw.shot, full: shotFull },
+      crops: state.crop ? { off: offRaw.crop, field: fieldRaw.crop, full: cropFull } : null,
     };
   } finally {
     Math.random = realRandom;
     clearLevers();
+    state.crop = null;
   }
 }
 

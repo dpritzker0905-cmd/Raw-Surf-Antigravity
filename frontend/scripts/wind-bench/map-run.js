@@ -26,6 +26,7 @@ const fs = require('fs');
 const path = require('path');
 const { FRONTEND, engineSource, buildBench } = require('./build');
 const { serveDir, gpuArgs } = require('./serve');
+const { styleCell, STYLE_HEADER } = require('./style');
 
 const VIEW = { lng: -88.05, lat: 30.45 };
 
@@ -53,6 +54,9 @@ function parseArgs(argv) {
     else if (a === '--tag') opts.tag = val().replace(/[^a-z0-9-]/gi, '');
     else if (a === '--arms') opts.arms = JSON.parse(val());
     else if (a === '--sheet') opts.sheet = path.resolve(val());
+    else if (a === '--crop') { const [size, fmt] = val().split(':'); opts.crop = [...size.split('x').map(Number), fmt === 'jpeg' ? 'jpeg' : 'png']; }   // WxH[:jpeg] device px: a centre crop of every shot, pixel for pixel
+    else if (a === '--lng') opts.lng = Number(val());
+    else if (a === '--lat') opts.lat = Number(val());
     else throw new Error(`unknown option ${a}`);
   }
   return opts;
@@ -104,14 +108,22 @@ async function main() {
     for (const theme of opts.themes) {
       for (const z of opts.zooms) {
         for (const [arm, levers] of Object.entries(opts.arms)) {
-          const r = await page.evaluate((c) => window.__MAP_BENCH__.shoot(c), { theme, z, lng: VIEW.lng, lat: VIEW.lat, frames: opts.frames, res: 384, seed: opts.seed, levers });
+          const r = await page.evaluate((c) => window.__MAP_BENCH__.shoot(c), { theme, z, lng: opts.lng == null ? VIEW.lng : opts.lng, lat: opts.lat == null ? VIEW.lat : opts.lat, frames: opts.frames, res: 384, seed: opts.seed, levers, crop: opts.crop });
           if (r.glError) throw new Error(`GL error ${r.glError} at ${theme} z${z} ${arm}`);
           r.arm = arm;
+          if (r.crops) {
+            const dir = path.join(opts.out, `${opts.tag}-crops`);
+            fs.mkdirSync(dir, { recursive: true });
+            for (const [kind, url] of Object.entries(r.crops)) if (url) fs.writeFileSync(path.join(dir, `${theme}-z${z}-${arm}-${kind}.${opts.crop[2] === 'jpeg' ? 'jpg' : 'png'}`), Buffer.from(url.split(',')[1], 'base64'));
+            delete r.crops;
+          }
           console.log(`${theme.padEnd(6)} ${String(z).padEnd(4)} ${arm.padEnd(6)} | ${row(r)}`);
           results.push(r);
         }
       }
     }
+    console.log(`\nMARKS against the field under them (style.js; dL: + = lighter than the ground)\ntheme  z    arm      | LAND  ${STYLE_HEADER} | WATER ${STYLE_HEADER}`);
+    for (const r of results) if (r.style) console.log(`${r.theme.padEnd(6)} ${String(r.z).padEnd(4)} ${r.arm.padEnd(8)} | ${styleCell(r.style.land)} | ${styleCell(r.style.water)}`);
     const sheetPath = opts.sheet || path.join(opts.out, 'map-sheet.html');
     fs.writeFileSync(sheetPath, sheet(results, opts, `Wind map bench · ${source.label} · Mobile Bay · served GFS 2026-10-09 15Z`));
     console.log(`\ncontact sheet: ${sheetPath}`);

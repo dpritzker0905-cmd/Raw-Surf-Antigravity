@@ -45,13 +45,14 @@ export const GLSL_TRAIL_UV = `#ifdef GL_FRAGMENT_PRECISION_HIGH
 #endif
 uniform TRAIL_HP mat3 u_trail_d;  // (this pass's uv -> the trail buffer's uv) MINUS identity: all zeros = the plain fetch
 uniform float u_trail_feather;    // > 0: old ink thins toward the old buffer's edge
+uniform float u_ink;              // 1: the buffer holds ink on white paper (windInk.js), so an empty texel is white; 0: it is nothing
 varying TRAIL_HP vec2 v_uv;
 vec4 trailTexel(sampler2D tex) {
   TRAIL_HP vec3 q = vec3(v_uv, 1.0) + u_trail_d * vec3(v_uv, 1.0);
   TRAIL_HP vec2 p = q.xy / q.z;
-  if (p.x < 0.0 || p.x > 1.0 || p.y < 0.0 || p.y > 1.0) return vec4(0.0);
+  if (p.x < 0.0 || p.x > 1.0 || p.y < 0.0 || p.y > 1.0) return vec4(u_ink);
   vec4 c = texture2D(tex, p);
-  return u_trail_feather > 0.0 ? c * smoothstep(0.0, u_trail_feather, min(min(p.x, 1.0 - p.x), min(p.y, 1.0 - p.y))) : c;
+  return u_trail_feather > 0.0 ? mix(vec4(u_ink), c, smoothstep(0.0, u_trail_feather, min(min(p.x, 1.0 - p.x), min(p.y, 1.0 - p.y)))) : c;
 }`;
 
 export function windTrailAnchorEnabled(win = (typeof window !== 'undefined' ? window : null)) {
@@ -211,7 +212,8 @@ export function windTrailFrame(engine, gl, matrix, w, h, zoom, win = (typeof win
   }
   engine._trail = step.state;
   if (clear && engine.screenA && engine.screenB) {
-    for (const s of [engine.screenA, engine.screenB]) { gl.bindFramebuffer(gl.FRAMEBUFFER, s.fbo); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
+    const k = engine._inkWas === 1 ? 1 : 0;   // an ink buffer (windInk.js, model 1) is cleared to white paper
+    for (const s of [engine.screenA, engine.screenB]) { gl.bindFramebuffer(gl.FRAMEBUFFER, s.fbo); gl.clearColor(k, k, k, k); gl.clear(gl.COLOR_BUFFER_BIT); }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
   if (win) {

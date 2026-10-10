@@ -2,7 +2,7 @@
  * WebGLWindShaders.js
  * GPU-native shaders for raw wind particle simulation.
  */
-import { GLSL_PT_REG } from './gridPointRegistration'; import { GLSL_TRAIL_UV } from './windTrailAnchor';
+import { GLSL_PT_REG } from './gridPointRegistration'; import { GLSL_TRAIL_UV } from './windTrailAnchor'; import { GLSL_INK_MARK } from './windInk';
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -690,7 +690,7 @@ uniform float u_basemap_y;     // linear luminance of the basemap showing throug
 uniform float u_casing_fixed;  // 1 = one casing pole for every mark (WebGLWindUtils.windCasingFixedPole)
 uniform float u_single_casing; // 1 = rim only, no white inner ring (WebGLWindUtils.v2SpeedPremul)
 varying vec2 v_dir;          // screen-space wind direction from DRAW_VS
-varying float v_stretch; uniform float u_v2_theme; uniform vec3 u_v2_body; // PARTICLES V2
+varying float v_stretch; uniform float u_v2_theme; uniform vec3 u_v2_body; ${GLSL_INK_MARK} // PARTICLES V2; INK (windInk.js)
 void main() {
   if (v_debug_color.a > 0.5) {
     gl_FragColor = v_debug_color;
@@ -728,7 +728,7 @@ void main() {
   // CASING (dual-tone, theme-aware rim; 2026-07-18 rounds 2-6): rationale relocated verbatim to
   // docs/architecture/RATIONALE-WebGLWindEngine.md "DRAW_FS casing". Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__.
   vec3 rgb = color.rgb;
-  if (u_v2_theme > 0.5) rgb = u_v2_body; // V2: one neutral body per theme; the field carries the speed colour
+  if (u_v2_theme > 0.5) rgb = u_v2_body; if (u_ink > 0.5) rgb = inkOf(rgb); else if (u_ink_k.z > 0.5) rgb = glowOf(rgb); // V2: one neutral body per theme. INK / GLOW: the legend colour as ink, or as a light tint (windInk.js)
   if (u_theme_rim > 0.5) {
     // THE POLE MUST BE CHOSEN FROM THE COMPOSITED BACKGROUND, NOT THE RAMP COLOUR
     // (2026-07-18 round 6 — the root behind "light mode is really hard to see").
@@ -760,7 +760,7 @@ void main() {
     float fieldY = mix(u_basemap_y, rampY, clamp(fieldA, 0.0, 1.0));
     // FIXED POLE: a per-pixel step flipped the casing where the field crosses 0.179 (dark theme: calm air, ~43 kn) and
     // cut grid-cell-shaped holes, the "diamonds in the red wind". One pole for every mark: the bright-field one.
-    float fieldIsBright = (u_casing_fixed > 0.5) ? 1.0 : step(0.179, fieldY);
+    float fieldIsBright = (u_casing_fixed > 0.5) ? 1.0 : step(0.179, fieldY); fieldIsBright *= 1.0 - u_ink;   // ink: a WHITE rim (no ink) carves
     float outerL = mix(1.0, 0.0, fieldIsBright);   // opposes the field
     float innerL = 1.0 - outerL;                   // opposes the outer ring
     float outer = smoothstep(0.38, 0.50, dist);
@@ -1005,12 +1005,12 @@ precision mediump float;
 ${GLSL_TRAIL_UV}
 uniform sampler2D u_screen;
 uniform float u_opacity;
-uniform float u_premul;          // V2 theme: premultiplied trails (dark marks show)
+uniform float u_premul; uniform float u_glow;   // V2 theme: premultiplied trails (dark marks show). GLOW: dark's composite with the colour renormalised (windInk.js)
 void main() {
   vec4 color = trailTexel(u_screen);   // through the trail buffer's camera; it declares v_uv (windTrailAnchor.js)
   // v3.12.2: FBO uses RGB-fade (alpha=1.0), so derive alpha from brightness: black = transparent, bright = opaque.
   float brightness = max(color.r, max(color.g, color.b));
-  gl_FragColor = u_premul > 0.5 ? color * u_opacity : vec4(color.rgb, brightness * u_opacity);
+  gl_FragColor = u_ink > 0.5 ? vec4(mix(vec3(1.0), color.rgb, u_opacity), 1.0) : (u_premul > 0.5 ? color * u_opacity : vec4(u_glow > 0.5 ? color.rgb / max(brightness, 0.004) : color.rgb, brightness * (u_glow > 0.5 ? brightness : 1.0) * u_opacity));   // ink: multiplied into the map; glow: a tail loses strength, not colour
 }`;
 
 export const FADE_FS = `
@@ -1024,5 +1024,5 @@ void main() {
   // v3.12.2 CRITICAL FIX: Fade RGB, keep alpha=1.0 (mapbox/webgl-wind technique).
   // Fading alpha causes compound decay invisible trails.
   // Fading RGB creates visible dimming premultiplied blend makes black = transparent.
-  gl_FragColor = u_premul > 0.5 ? floor(color * 255.0 * u_fade) / 255.0 : vec4(floor(color.rgb * 255.0 * u_fade) / 255.0, 1.0);
+  gl_FragColor = u_ink > 0.5 ? vec4(1.0 - floor((1.0 - color.rgb) * 255.0 * u_fade) / 255.0, 1.0) : (u_premul > 0.5 ? floor(color * 255.0 * u_fade) / 255.0 : vec4(floor(color.rgb * 255.0 * u_fade) / 255.0, 1.0));   // ink fades to paper
 }`;

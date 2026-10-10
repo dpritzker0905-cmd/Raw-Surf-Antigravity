@@ -3,6 +3,7 @@
  * standard WebGL utilities for the GPU Wind engine.
  */
 import { setGridPointRegUniform } from './gridPointRegistration';
+import { windInk } from './windInk';
 
 export function createShader(gl, type, source) {
   const shader = gl.createShader(type);
@@ -573,7 +574,9 @@ export function windCoastlineLayer(layers, theme, visible, win = (typeof window 
 /** { on, opacity, singleCasing } for this theme (off whenever the neutral-body v2 theme is on: it owns the premul path). */
 export function v2SpeedPremul(v2, theme, win = (typeof window !== 'undefined' ? window : null)) {
   const w = win || {};
-  if (!v2 || v2.theme || w.__RAW_DISABLE_WIND_SPEED_PREMUL__ === true) return { on: false, opacity: 0, singleCasing: false };
+  const ink = windInk(theme, v2, w);   // windInk.js: glow runs dark's path (premultiplied off); ink keeps this path's flags and brings its own strength
+  if (ink.on) return { on: true, opacity: ink.opacity, singleCasing: false };
+  if (!v2 || v2.theme || w.__RAW_DISABLE_WIND_SPEED_PREMUL__ === true || ink.glow) return { on: false, opacity: 0, singleCasing: false };
   const themes = typeof w.__RAW_WIND_PREMUL_THEMES__ === 'string' ? w.__RAW_WIND_PREMUL_THEMES__.split(',') : V2_SPEED_PREMUL.themes;
   const on = themes.includes(theme), op = w.__RAW_WIND_PREMUL_OPACITY__;
   const opacity = (typeof op === 'number' && op >= 0.1 && op <= 1) ? op : (V2_SPEED_PREMUL.opacity[theme] || 0.8);

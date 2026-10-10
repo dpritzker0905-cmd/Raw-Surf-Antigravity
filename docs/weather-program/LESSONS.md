@@ -699,3 +699,21 @@ A stored estimate can be estimated again in a browser branch with different sour
      kill's ramp to a file) and generate the pins from that file. Hand-copied rows are a second source of truth.
   3. A re-scoped gate keeps its old form as a positive control behind the kill: the field before A still sits within
      1 dE76 of dark, and still reads ~2.6 on every ground. (log 2026-10-10-light-fastband-a-default)
+- **L-V26 · Before copying a look, measure it; and the mirror of a look is a hypothesis.** The owner: "I like the way dark
+  theme does the animations of the wind ... light and beach [should] reflect similarly". Weeks of palette work had never
+  asked what dark's streaks ARE. Rules, each paid for the same day:
+  1. **Turn "looks great / looks pale" into columns.** The bench's style columns (`style.js`) read three things off the
+     picture: which side of their ground the mark pixels fall on, how far, and whether they keep its colour. Dark: all
+     on one side (+10 to +14 L*), colour kept. Light and beach: a mix of both sides at a third of that, colour lost.
+     The defect had a name within the hour: a mark whose halves cancel.
+  2. **Build the obvious dual AND the literal port.** Ink (darker marks, multiplied in) was the mirror the theory and the
+     research report both pointed to. It was right on land and failed in one view, wide zoom over warm water, because a
+     darkened yellow is brown. Dark's own pipeline moved onto the light map looked impossible on paper ("a light ground
+     has no room above it") and worked, because the field tint under the marks lowers the ground. Judge at device
+     resolution, at more than one zoom, at storm strength too.
+  3. **A string pin passes on broken GLSL.** Three shader bugs went through 30 green tests and were caught only by the GPU
+     bench: a uniform declared behind a `//` comment, a composite branch left on for the buffer-to-buffer copy (nothing
+     ever faded), and a tail law off by a power (the map whited out). Now pinned: the tests read the source the compiler
+     sees (comments stripped), and a program used for two passes sets its mode uniform in both.
+  4. **Research written before the bench is a hypothesis too.** The report concluded for ink from the first prototype;
+     the bench then showed glow. The result went back to the writer. (log 2026-10-10-dark-style-light-beach)
