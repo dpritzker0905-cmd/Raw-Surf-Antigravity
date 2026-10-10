@@ -144,7 +144,20 @@ async function runOne(cfg) {
  * EYE mode (eye.js): one heatmap frame of the real engine per threshold, its LUT swapped for a
  * white-below-T ramp, read back as the eye's T-kn contour. cfg: {base, fine, lng, lat, z,
  * thresholds, ref, theme, levers}. The particle pool is 2x2 so the trails cannot cover the field.
+ * LADDER mode (ladder-run.js) adds: `after` items as {grid, view: [w, s, e, n]} (the view each grid
+ * was served for), `keepFinest` (option (a), emulated here: a delivery clearly coarser than the
+ * resident overlay is not handed to the engine while that overlay still covers `minCover` of the
+ * delivery's view, or its centre), and `bins` (thresholds for a per-pixel map of the drawn speed).
  */
+const gridCell = (g) => (g.bounds.east - g.bounds.west) / (g.cols - 1);
+function keepsFinest(rule, resident, g, view) {
+  if (!rule || !resident || !view || !(gridCell(g) > gridCell(resident) * 1.3)) return false;
+  const b = resident.bounds, cx = (view[0] + view[2]) / 2, cy = (view[1] + view[3]) / 2;
+  if (rule.centre) return b.west <= cx && b.east >= cx && b.south <= cy && b.north >= cy;
+  const w = Math.max(0, Math.min(b.east, view[2]) - Math.max(b.west, view[0])), h = Math.max(0, Math.min(b.north, view[3]) - Math.max(b.south, view[1]));
+  return (w * h) / ((view[2] - view[0]) * (view[3] - view[1])) >= rule.minCover;
+}
+
 async function eyeOne(cfg) {
   clearLevers();
   Object.assign(window, cfg.levers || {});
@@ -152,10 +165,16 @@ async function eyeOne(cfg) {
   try {
     engine.particleRes = 2;
     engine.init(gl);
+    delete window.__WIND_TIER_MOSAIC__;
     engine.setWindData(gl, cfg.base);
     let verdict = cfg.fine ? engine.setWindData(gl, cfg.fine) : null;
+    const verdicts = cfg.fine ? [verdict] : [];
     // cfg.after: grids delivered after the fine one, in order (a zoom's later arrivals); the last verdict is reported.
-    for (const g of cfg.after || []) verdict = engine.setWindData(gl, g);
+    for (const item of cfg.after || []) {
+      const g = item.grid || item;
+      verdict = keepsFinest(cfg.keepFinest, engine._windFine && engine._windFine.windGrid, g, item.view) ? 'noop_keep_finest' : engine.setWindData(gl, g);
+      verdicts.push(verdict);
+    }
     const cam = makeCamera(cfg.lng, cfg.lat, cfg.z, CSS_W, CSS_H);
     const draw = () => {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -183,8 +202,28 @@ async function eyeOne(cfg) {
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) mask[y * W + x] = px[((H - 1 - y) * W + x) * 4] > 8 ? 1 : 0;
       eyes[T] = eyeGeometry(mask, W, H, pxToLngLat, pxKm, cfg.ref);
     }
+    // The drawn speed as a coarse map: per sampled pixel (every 8th device px), how many of cfg.bins it is below.
+    let bins = null;
+    if (cfg.bins) {
+      const S = 8, bw = Math.floor(W / S), bh = Math.floor(H / S);
+      bins = new Array(bw * bh).fill(0);
+      for (const T of cfg.bins) {
+        const ramp = thresholdRamp(engine._maxWindSpeed, T);
+        [engine._colorRamp, engine._fieldRamp].filter(Boolean).forEach((tex) => {
+          gl.bindTexture(gl.TEXTURE_2D, tex);
+          gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.RGBA, gl.UNSIGNED_BYTE, ramp);
+        });
+        await nextFrame(() => { draw(); gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px); });
+        for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) if (px[((H - 1 - y * S) * W + x * S) * 4] > 8) bins[y * bw + x]++;
+      }
+    }
     const err = gl.getError();
-    return { verdict, fineActive: !!engine._windFine, maxSpeed: +engine._maxWindSpeed.toFixed(1), fineOverlay: window.__WIND_FINE_OVERLAY__, eyes, glError: err !== gl.NO_ERROR ? err : null };
+    const fg = engine._windFine && engine._windFine.windGrid;
+    return {
+      verdict, verdicts, fineActive: !!engine._windFine, maxSpeed: +engine._maxWindSpeed.toFixed(1), fineOverlay: window.__WIND_FINE_OVERLAY__, eyes, bins,
+      fineGrid: fg ? { cols: fg.cols, rows: fg.rows, bounds: fg.bounds, cell: +gridCell(fg).toFixed(4), mosaic: !!fg.__tierMosaic } : null,
+      mosaics: window.__WIND_TIER_MOSAIC__ ? window.__WIND_TIER_MOSAIC__.built : 0, glError: err !== gl.NO_ERROR ? err : null,
+    };
   } finally {
     engine.dispose(gl);
     clearLevers();
@@ -205,6 +244,10 @@ async function eyeShot(cfg) {
     engine.init(gl);
     engine.setWindData(gl, cfg.base);
     if (cfg.fine) engine.setWindData(gl, cfg.fine);
+    for (const item of cfg.after || []) {
+      const g = item.grid || item;
+      if (!keepsFinest(cfg.keepFinest, engine._windFine && engine._windFine.windGrid, g, item.view)) engine.setWindData(gl, g);
+    }
     const cam = makeCamera(cfg.lng, cfg.lat, cfg.z, CSS_W, CSS_H);
     const draw = () => {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -254,6 +297,7 @@ async function eyeShot(cfg) {
 async function eyeInk(cfg) {
   const realRandom = Math.random;
   clearLevers();
+  Object.assign(window, cfg.levers || {});
   Math.random = mulberry32(cfg.seed || 1);
   let virtualMs = 0;
   performance.now = () => virtualMs;
@@ -263,6 +307,7 @@ async function eyeInk(cfg) {
     engine.init(gl);
     engine.setWindData(gl, cfg.base);
     if (cfg.fine) engine.setWindData(gl, cfg.fine);
+    for (const item of cfg.after || []) engine.setWindData(gl, item.grid || item);   // later arrivals, as in eyeOne
     const cam = makeCamera(cfg.lng, cfg.lat, cfg.z, CSS_W, CSS_H);
     const draw = () => {
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);

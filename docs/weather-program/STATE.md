@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-09 19:44Z** (logs: `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-10 04:33Z** (logs: `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -23,6 +23,48 @@ is a claim, not a measurement.
     gates), C gentle (5.01 / 5.10, strength to x1.51, one gate). Legend, particles, beach and dark untouched.
   - **Owner's call:** pick A, B, C or none from the A/B page (https://claude.ai/artifact/S3Tw5rDU1oVF8ArDf4YKrW). Log
     `log/2026-10-09-light-fastband-cvd.md`; LESSONS L-V23.
+
+- **2026-10-10 02:5xZ: the wind server amplifier is measured and a dark fix is built (PR #303, `WIND_BG_BUILD_BOUNDED`,
+  default OFF; the owner flips it).** Offline replay (real `ViewportService` + normalizer + bg helper, mock 16-day
+  upstream, app heap, collections run for real; nothing replayed live). The cost per background hour was a FULL
+  `gc.collect()` on the event loop (163 of 201 profiled seconds; 0.42-0.58 s each with the app imported, 0.047 s bare:
+  it walks the whole heap), not the physics, and ~337 of a box's 385 hours were never asked for, so a cold 48-frame page
+  lost its tail by construction (27 of 48 frames). A second amplifier: the next box's cancel fails the hours its own
+  waiters wait on, they self-heal and cancel the NEW box's task (19 cancels, 20 fetches for two boxes).
+  - **Fix (wind only, flag off):** waited-for hours + a +-6 h window, a 3 s linger, young-generation GC, a new box no
+    longer cancels a task that has a waiter. Per fresh box that rests: 385 -> 54 hours, 211 -> 2.5 CPU-s, 27 -> 48
+    frames; 6-view pan 595 -> 324 hours, 23 -> 0 cancels, 362 -> 14.7 CPU-s. No served number moves (vectors pinned
+    equal); unbuilt hours resolve on demand. Peak RSS of a 385-hour build 262 / 261 / 262 MB with no / young / full
+    per-hour collections. 17 tests, 12 mutations red. Log `log/2026-10-10-wind-bg-build-bounded.md`; LESSONS L-P31;
+    ledger 991-994.
+  - **What flipping it costs:** scrubbing a rested view to an hour outside the window is a cache miss (provider cache
+    inside 5 minutes, else one fresh fetch). Read-back owed after a flip (commitment 993, due 2026-10-24).
+  - **Still open, owner's call:** `/grid` and the series lane send DIFFERENT boxes for one pan (two 16-day fetches);
+    sharing the box can flip the 0.5/1 degree step (area 100 deg2), so it ships dark (ledger 992). Next hotspot: the
+    dynamic index rewrites its file on every `add_product`.
+
+- **2026-10-10 01:47Z: the hurricane eye holds through a zoom-out: a coarser covering box no longer replaces the finer one
+  (client only, on; PR #302 to dev). The first zoom-in still needs the server (design for the owner, not built).**
+  - **Measured** (wind bench ladder mode: the real engine, the z5.5 -> z9 -> z5.5 replay with the client's request box
+    and cache rule and the server's tier rule mirrored and pinned to their sources). On `dev`, zooming out redrew the eye
+    at each tier: 0.25 -> 0.5 deg area x1.71; 0.5 -> 1 deg 21.4 km, wall -12 kn, area x2.94. The tiers agree at shared
+    nodes (0.009 kn), so the cause is the lattice alone.
+  - **Fix.** `windTierMosaic.js`: the engine files the coarser box AROUND the finer nodes it overlaps, on the finer
+    lattice (one texture, no shader change, no request added, no served number moves). Every stop out: 0.1 km, 0 kn, x1;
+    the drawn field is closer to the truth than before at every stop (worst 0.88 kn against 1.77). Kill
+    `__RAW_DISABLE_WIND_TIER_MOSAIC__`; console `window.__WIND_TIER_MOSAIC__`.
+  - **Options rejected on the same instrument:** keep the finest and let the base draw the rest (holds the eye, 9.6% of
+    the view 10 kn or more off against 0.9%); a third texture level (the same picture as the mosaic, three shaders);
+    area-mean tiers (35 km off, area x16).
+  - **Open, the owner's decision:** the FIRST zoom-in on a storm still changes the eye twice (1 -> 0.5 deg: 21.4 km,
+    +12 kn; 0.5 -> 0.25 deg: area x0.58). Only the server can remove it. Recommended design: 0.25-deg storm tiles cut at
+    ingest from the GFS field the regional pass already downloads (0 Open-Meteo calls, 0 CPU on the Render box at
+    ingest), served dark. Serving every box at 0.25 deg costs x5.5 location-calls (62% of the daily quota for one
+    ladder). Log `log/2026-10-10-wind-eye-zoom-ladder.md`; LESSONS L-V22.
+  - **Three defects in the first build, fixed before the push** (ledger 994): the merge rule compared `run_time` (a
+    per-box ingest stamp: inert in the app); the never-downgrade rule was lost over a mosaic; "same valid time" was the
+    asked hour, not the served frame. Fine nodes are never kept inside a box built more than 30 minutes after them.
+  - **Not yet seen in the app** (the bench is the engine, not MapLibre). Live read-back owed after the merge (ledger 996).
 
 - **2026-10-10 01:5xZ: a small wind pan re-requested the whole 14-day timeline and the box read /api/health at 10-13 s
   (client fix built; PR #300 to dev).** Render request log, 00:04-00:07Z, one client: every settled pan sent a mini plus two
@@ -1696,7 +1738,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 993, sha256 6b007682da81d616fc404c320bb97bf4869377516fbf836167a703529fdd6002**
+  **Ledger head: seq 1009, sha256 c6140562e79ae7b323f9cf8dabc8060118e37af494da5fd25e57a75174533eac**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
@@ -1771,11 +1813,34 @@ direction fix (not supported by a bulk-buoy instrument; needs spectral truth).
   is raised 0.3 -> 2.75 and kept as an exception for the owner to accept. Dark parity leaves light's 40-75 kn tints a
   near-grey over the water, and a full pass needs a field redesign (offered, not shipped). Kills:
   `__RAW_DISABLE_WIND_<DARK|BEACH|LIGHT>_CVD__`.
+  **Update 2026-10-10: on dev.** #292 was CLOSED unmerged and carried whole by #294 (`1cdcd8d3`); #297 then moved five
+  light field rows on the muted ground. Verified on dev `9e11676c`: all 36 rows #292 changed are still changed, the
+  three kills restore the shipped rows, `windPaletteCvd.test.js` passes (14 tests) and 10 mutations turn it red, and
+  the checker shows one red line, light's tint over water at 2.6 (log 2026-10-10-closed-pr-audit).
+- **Thinned world forecast frames are drawn stretched north** (2026-10-10, found by the closed-PR audit; closed #27 and
+  #23 carried the fix, never merged). A 48-frame world page is thinned 4x to 46 x 21: its top row is 80N, its `bounds`
+  still say 84N (`series_vector_budget._decimate_frame` rewrites vectors, cols and rows, never bounds), and the client
+  spreads rows across the bounds (`gridPointRegistration.js`). Measured with dev's own function: data at 0N is drawn
+  at 2.0N, 24N at 26.6N, 40N at 43.0N. It shows while scrubbing or playing at far zoom, until the exact frame lands
+  for a settled hour (`marineExactUpgrade.js`). Same family: `normalizer.py` stamps the REQUESTED bbox as bounds (the
+  10-deg world product ends at 80N and says 85N). Not yet checked: which consumers besides the heat map read those
+  bounds. The fix changes a served field (`bounds`), so build it dark and let the owner flip it.
+- **The retained coarse world base is reused on shape, not content** (2026-10-10, same audit; closed #23 carried the
+  fix). `coarseBaseKey` holds model, layer, cols, rows, bounds, hour offset and rating flavour, but no run or valid
+  time, so a new world grid for the same offset (a new run, or an hour rollover in a long-open tab) keeps the old
+  pixels as the base that regional commits fade over. Read from the code; not yet reproduced on screen.
+- **Owed read-back: the strided world read on the deployed box** (the commitment closed #222 carried; the code landed
+  2026-10-03 through `7cd898f4`). SCOREBOARD has no S11 row after that date. It needs live load (S11 par2 and seq), so
+  it waits for the owner's go-ahead.
 
 ## Owner-only
 - Arm the nearshore judge hourly (`NEARSHORE_VAL_ENABLED=1`, a repo variable).
 - Every served-number flip: the consensus (after PR C) and MOP (after spot checks).
 - Unfreeze the production frontend.
+- `GRANT SELECT ON public.surf_reports TO service_role;` as a migration (found 2026-10-02 on closed #225, never
+  recorded on dev; re-checked 2026-10-10: only `postgres` holds a grant, the sibling `surf_spots` grants SELECT to
+  `service_role`). Until then `rating_confirmation.fetch_recent_reports_via_rest` and `report_calibration` are refused
+  and the rating gate runs without user condition reports. Latent today: 4 rows, newest 2026-03-19.
 - Also open: stale island products in `/products`; the A15-07 Satellite label; band spot-anchoring; real-device
   checks (#85 phone banding, #87 120 Hz wind); F-09 temperature capability rows; A15-11 detach-vs-budget.
 
