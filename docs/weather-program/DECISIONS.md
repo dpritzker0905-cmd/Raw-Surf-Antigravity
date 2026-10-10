@@ -273,3 +273,6 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   19.7; calm sits 9.3 (light) and 8.1 (beach) dE00 off the bare ground, from 1.2 and 1.3; beach's streaks are 1.15 to
   1.43 times as colourful as the field with every mark pixel still lighter; the 3-seed scanner finds no shape the marks
   before glow do not have.
+- **Amended 2026-10-10 20:23Z (owner, from the app):** "Beach mode look a lot better, but light mode washes out from the glow.
+  I may have made a mistake telling you glow was a good option". Rule 1 now holds for BEACH only. Light draws the marks
+  before glow until its own mark is designed and A/B'd; rules 2 and 3 (calm tint, hue path) stand for both themes.

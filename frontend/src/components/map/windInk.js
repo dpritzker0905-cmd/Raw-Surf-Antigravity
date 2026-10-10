@@ -1,6 +1,10 @@
 /**
- * DARK'S WIND LOOK FOR LIGHT GROUNDS. GLOW IS THE DEFAULT in light and beach (owner, 2026-10-10, after the A/B of today,
- * glow and ink: "I like glow better"); ink stays a lever. Kill: window.__RAW_DISABLE_WIND_GLOW__ (the marks as they were).
+ * DARK'S WIND LOOK FOR LIGHT GROUNDS. GLOW IS THE DEFAULT IN BEACH (owner, 2026-10-10, after the A/B of today, glow and ink:
+ * "I like glow better"; seen live: "Beach mode look a lot better"). LIGHT CAME OFF IT THE SAME DAY: it was light's default for
+ * one build, and seen live "light mode washes out from the glow" (owner). A mark that is only ever lighter, on a ground that is
+ * already pale, lifts the whole picture and has no dark edge left to bite with; the bench crops did not show that as the app
+ * does. Light draws the marks before glow until its own mark is designed. Ink stays a lever.
+ * Kill: window.__RAW_DISABLE_WIND_GLOW__ (the marks as they were, in beach too).
  *
  * Owner: "I like the way dark theme does the animations of the wind, the color, everything. We need the light theme and
  * beach theme's to reflect similarly of this style, but with their own color schemes that fit with their theme colors and
@@ -38,7 +42,7 @@
  *
  * Nothing about the particles' motion changes in either: positions, count, size, lifetime and fade rate are the engine's.
  *
- * Default: glow in light and beach. window.__RAW_WIND_GLOW__ = 'light' or 'beach' narrows it to one theme for a session.
+ * Default: glow in beach. window.__RAW_WIND_GLOW__ = true draws it in light too for a session; false draws it nowhere.
  * Levers: window.__RAW_WIND_INK__  = true (light and beach) | 'light' | 'beach' | 'light,beach';
  *           __RAW_WIND_INK_OPACITY__ (0.1-1), __RAW_WIND_INK_SPINE__ (0-1: a darker inner ring; 0 = pure colour),
  *           __RAW_WIND_INK_PURITY__ (0-1) and __RAW_WIND_INK_DENSITY__ (0.5-4): the ink's colour, see inkOf;
@@ -61,7 +65,7 @@ export const WIND_INK = Object.freeze({
 });
 
 export const WIND_GLOW = Object.freeze({
-  themes: Object.freeze(['light', 'beach']),                  // the owner's pick (D-019); dark is the look itself and never uses it
+  themes: Object.freeze(['beach']),   // beach: the owner's pick (D-019). Light came off it: live, it washed out. Dark is the look itself
   opacity: Object.freeze({ light: 1.0, beach: 0.9 }),   // calibrated on the bench against dark (log 2026-10-10-dark-style-light-beach)
   // STREAK COLOUR, PER THEME (owner, 2026-10-10: "the wind animations in beach mode could be improved ... perhaps they should have
   // color"; "In dark mode, the wind animations themselves seem like they change color, whereas in light and beach modes, they do

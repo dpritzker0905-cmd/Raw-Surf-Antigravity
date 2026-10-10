@@ -323,3 +323,19 @@ Left as limits: the Canvas2D fallback samples the straight ramp; the colour-blin
 five waypoints between 10 and 16 kn.
 
 After the fixes: 25 deliberate breaks, 25 red. Jest map + `src/tests`: 301 suites, 3851 tests.
+
+## 20:23Z: seen live, light washes out under glow; light comes off it, beach keeps it
+
+#309 merged at 20:09Z (dev `c06a8e3d`). Owner, 20:23Z, from the app: "Beach mode look a lot better, but light mode washes
+out from the glow. I may have made a mistake telling you glow was a good option, when maybe its not. ... Fix light mode."
+
+- **Changed now:** `WIND_GLOW.themes = ['beach']`. Light draws the marks it drew before glow. The hue path and the clear
+  calm stay in both themes. `window.__RAW_WIND_GLOW__ = true` still draws glow in light for a session.
+- **Why the bench did not warn:** it had the numbers and no bar on them. A glow mark is only ever lighter than its
+  ground. Light's ground is already L* 74-88, so marks on a third to four fifths of the pixels at +5 to +12 L* lift the
+  whole picture, and nothing darker is left to give a streak an edge. The marks before glow put 15-36% of their pixels
+  darker than the ground. The picking was done on still crops; the wash is what the eye sums over the moving field.
+- **Not done here:** a mark for light that is crisp and coloured without lifting the picture. The research's reading is
+  that on a pale ground the mark should be at or below the ground's lightness (ink's polarity) with a dark edge; ink as
+  built fails over warm-band water at wide zoom. That design work is handed to a cloud session (the owner's usage here
+  is nearly spent); it ships default off, for the owner's A/B.

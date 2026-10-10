@@ -14,7 +14,12 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-10 19:45Z: glow is the default wind mark in light and beach; the grey veil and the bare calm are gone (client only; PR #309 to dev; owner's pick, D-019).**
+- **2026-10-10 20:30Z: light is OFF glow again (seen live it washes out); beach keeps it (client only; owner's word).**
+  Owner, from the app after #309: "Beach mode look a lot better, but light mode washes out from the glow." `WIND_GLOW.themes`
+  is `['beach']`; light draws the marks before glow; the hue path and the clear calm stay in both. **Open:** a mark for
+  light that is crisp and coloured without lifting the picture (handed to a cloud session, default off, owner's A/B).
+  DECISIONS D-019 (amended), LESSONS L-V28, log `2026-10-10-dark-style-light-beach` ("20:23Z").
+- **2026-10-10 19:45Z: glow is the default wind mark in light and beach; the grey veil and the bare calm are gone (client only; #309 MERGED 2026-10-10 20:09Z, dev c06a8e3d; light came off glow the same day, see above).**
   Owner: "I like glow better"; "the light wind color also looks like fog visually, a lot, in light mode"; "hard lines in
   between very light winds and other wind fields". Measured: light's field between its 10 kn violet and 16 kn green ran
   through grey (C* 1.0 at 13 kn over land), and calm drew the bare greyed map. Fixed: a ramp segment that would lose its
@@ -1802,7 +1807,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1035, sha256 b31a43b0fd920535377d124141124f74dfdcb3165bc9cf403325e5945b48930a**
+  **Ledger head: seq 1037, sha256 60897b59157417f3c93fe2ac8790c5094b2c6a9545e9b34d2b44e74b4878b0c7**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
