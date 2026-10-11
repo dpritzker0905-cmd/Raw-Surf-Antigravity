@@ -695,6 +695,18 @@ describe('the shader and the engine wiring (string pins; the GPU bench is the au
     expect(ENGINE).not.toMatch(/bindTexture\(gl, [^)]*, 5\)/);                                 // unit 5 is the mask's alone (0-3 are the engine's; the state isolation restores 0-6)
     expect(ENGINE).not.toContain('resolveMarkRamp');                                           // the engine reads the drawn tables, never the rollback ones
   });
+  it('the wind bench can name the kill, and hands the engine the offline basemap\'s own coast', () => {
+    const { buildMatrix, ALL_VARIANTS } = require('../../../scripts/wind-bench/matrix');
+    const { offlineLand, GULF, ATLANTIC } = require('../../../scripts/wind-bench/page/offline-coast');
+    expect(ALL_VARIANTS['before-rules'].levers).toEqual(KILL);                                // `candidate` draws the default; this is the arm to scan it against
+    expect(ALL_VARIANTS.candidate.levers).toEqual({});
+    expect(buildMatrix({ themes: ['light', 'beach'], variants: ['candidate', 'before-rules'], views: ['world-z4'] })).toHaveLength(4);
+    const land = offlineLand();                                                                // the whole map with the two seas cut out by the even-odd rule
+    expect(land.features).toHaveLength(1);
+    expect(land.features[0].geometry.type).toBe('Polygon');
+    expect(land.features[0].geometry.coordinates.slice(1)).toEqual([GULF, ATLANTIC]);
+    for (const ring of land.features[0].geometry.coordinates) expect(ring[0]).toEqual(ring[ring.length - 1]);   // closed rings
+  });
   it('the table\'s rows are land first, sea second, as the shader reads them', () => {
     const marks = drawnMarkRampData(75, 'light', {}), m = resolveDrawnMarks('light', {});
     expect(Array.from(marks.subarray(0, 1024))).toEqual(Array.from(generateRampData(75, m.land, 'light', {})));

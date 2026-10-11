@@ -201,6 +201,21 @@ its mark pixels are darker than the ground (`style.js`). Two live anchors make i
   crops run as on the real styles. No labels, no coastline stroke, no terrain: compare arms within one offline run, not with a Mapbox
   run. Its control (light at z6, today against glow) read +6.0 / 0.72 lighter and +8.0 / 1.00, against the Mapbox run's +5.0 / 0.64 and
   +7.0 / 0.98: the same order, about 1 L* high. In a container without a GPU add `--gl swiftshader` (about 5 minutes a shot).
+- **The land mask** (2026-10-11, dark's rules, DECISIONS D-020). Light and beach pick each mark's streak row by the land under it
+  (`src/components/map/windLandMask.js`), from a land file the engine fetches at the page's origin. `map-run.js` serves it: the
+  app's own Natural Earth file on the real basemaps, and the OFFLINE basemap's own coast with `--offline` (`page/offline-coast.js`:
+  the offline map is not the Earth, and a mark over its land must not draw a sea row where the real Gulf is). The page waits for
+  the mask to settle before a mark is scored. The MARKS table ends with what the mark shader was told on the shot's last frame:
+  `mask 1` = it read the mask; `mask 0` = every mark drew its land row (dark, the kill, an engine before the mask, or a file that
+  failed, which it says). **`--no-land-file` is the mask's control:** no file is served, the fetch fails, every mark draws its land
+  row. On 2026-10-11 (z6, served strength) the LAND columns were identical with and without the file, and the WATER step fell from
+  +17.5 to +12.5 (light) and +18.5 to +14.5 (beach) with it, the sea's streaks nearly twice as colourful (C* 32.5 → 53.5,
+  40.0 → 55.0): the mask is aligned and does what it was solved to do. `path-run.js` serves the app's file too. The scanner page
+  (`run.js`) has no basemap and serves none: its marks draw their land rows.
+- **Dark's rules are the default in light and beach**, so `candidate` and an empty arm draw them. Their kill is the arm to compare
+  against: `--arms '{"today":{"__RAW_DISABLE_WIND_DARK_RULES__":true},"rules":{}}'` in map mode, `--variants
+  candidate,before-rules` for the scanner. Control for the kill on the GPU: `--ref <the commit before>` with an empty arm reads
+  the same on every metric as the working tree under the kill (2026-10-11: light, beach and dark at z6, identical).
 - **Light's look A/B** (`window.__RAW_WIND_LIGHT_LOOK__`, `WindColorRamp.js`): the scanner names it `--variants
   candidate,light-moderate,light-deep,light-ink`.
 - The two models built on these columns are in `windInk.js`. Glow is the default in light and beach since 2026-10-10

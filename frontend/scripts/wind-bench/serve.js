@@ -20,10 +20,24 @@ function serveDir(root, port) {
   return new Promise((resolve) => server.listen(port || 0, '127.0.0.1', () => resolve(server)));
 }
 
+/**
+ * The land file the engine's land mask fetches from the page's origin (src/components/map/windLandMask.js: /ne_50m_land.json), written
+ * into the served folder. 'app' = the app's own Natural Earth file (the real basemaps); 'offline' = the offline basemap's own coast
+ * (page/offline-coast.js); 'none' = no file: the fetch fails and every mark draws its land row (the control for the mask).
+ */
+function writeLandFile(root, mode) {
+  const file = path.join(root, 'ne_50m_land.json');
+  fs.mkdirSync(root, { recursive: true });
+  if (mode === 'none') { fs.rmSync(file, { force: true }); return 'none'; }
+  if (mode === 'offline') fs.writeFileSync(file, JSON.stringify(require('./page/offline-coast').offlineLand()));
+  else fs.copyFileSync(path.join(__dirname, '..', '..', 'public', 'ne_50m_land.json'), file);
+  return mode === 'offline' ? 'offline' : 'app';
+}
+
 function gpuArgs(mode) {
   if (mode === 'swiftshader') return ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
   const angle = { win32: 'd3d11', darwin: 'metal', linux: 'vulkan' }[process.platform] || 'default';
   return [`--use-angle=${angle}`, '--ignore-gpu-blocklist', '--enable-gpu'];
 }
 
-module.exports = { serveDir, gpuArgs };
+module.exports = { serveDir, gpuArgs, writeLandFile };

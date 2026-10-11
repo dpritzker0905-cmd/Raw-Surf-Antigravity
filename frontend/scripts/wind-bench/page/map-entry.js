@@ -65,12 +65,7 @@ const OFFLINE = {
   beach: { land: 'rgb(222, 208, 180)', water: 'rgb(150, 190, 200)', road: 'rgb(155, 146, 126)' },
   dark: { land: 'rgb(18, 20, 26)', water: 'rgb(93, 117, 126)', road: 'rgb(77, 87, 102)' },
 };
-const GULF = [[-98, 18], [-98, 26], [-97.2, 27.8], [-96.5, 28.4], [-95, 29.1], [-94, 29.6], [-93, 29.75], [-92, 29.6], [-91, 29.3], [-90.2, 29.1],
-  [-89.4, 29], [-89.2, 29.3], [-89.6, 29.6], [-89.5, 30.1], [-89, 30.35], [-88.4, 30.38], [-88.1, 30.25], [-88.05, 30.5], [-88, 30.68], [-87.9, 30.6],
-  [-87.9, 30.25], [-87.5, 30.27], [-86.5, 30.4], [-85.7, 30.15], [-85.3, 29.7], [-84.4, 29.9], [-83.5, 29.6], [-82.8, 28.9], [-82.7, 27.9],
-  [-82.2, 26.8], [-81.5, 25.9], [-81, 25.2], [-80.4, 25.2], [-80, 23], [-75, 18], [-98, 18]];
-const ATLANTIC = [[-80.4, 25.2], [-80, 26.5], [-80.6, 28.5], [-81.4, 30.5], [-81.2, 31.5], [-80, 32.5], [-78, 33.8], [-76, 35], [-75.5, 36], [-70, 40],
-  [-55, 40], [-55, 15], [-75, 18], [-80, 23], [-80.4, 25.2]];
+const { GULF, ATLANTIC } = require('./offline-coast');   // shared with the runner: the engine's land mask reads the same coast
 function offlineStyle(theme) {
   const c = OFFLINE[theme] || OFFLINE.light, feats = [];
   const poly = (ring) => feats.push({ type: 'Feature', properties: { kind: 'water' }, geometry: { type: 'Polygon', coordinates: [ring] } });
@@ -133,6 +128,7 @@ async function idle(map) { if (!map.loaded() || !map.areTilesLoaded()) await onc
 async function ensureMap(theme) {
   if (state.map && state.theme === theme) return state.map;
   if (state.map) { disposeEngine(); state.map.remove(); state.map = null; }
+  delete window.__WIND_LAND_MASK__;   // the land mask's load state belongs to a map's GL context: the last map's is not this one's
   state.theme = theme;
   const map = new maplibregl.Map({
     container: 'map', style: state.offline ? offlineStyle(theme) : `mapbox://styles/mapbox/${STYLES[theme]}`, transformRequest, center: [-88, 30.5], zoom: 6,
@@ -187,6 +183,23 @@ function newEngine(res, seed) {
     e.setWindData(state.gl, GRIDS.fine);
     state.engine = e;
   } finally { Math.random = realRandom; }
+}
+
+/**
+ * Dark's rules pick each mark's streak row by a land mask that loads OFF the frame (src/components/map/windLandMask.js; its state is
+ * window.__WIND_LAND_MASK__). Wait until it has settled, so a sample never mixes land rows and sea rows by the luck of the load.
+ * Returns 'ready' | 'failed' | 'loading' (timed out) | 'off' (nothing on this map has asked for it yet: dark, the kill, or an engine
+ * before the mask). It is the FILE's state on this map; whether a shot's marks read it is landMaskOn (the shader's own answer).
+ */
+async function landMaskSettled() {
+  const t0 = realNow(), m = () => window.__WIND_LAND_MASK__;
+  while (m() && m().status === 'loading' && realNow() - t0 < 20000) await new Promise((resolve) => setTimeout(resolve, 50));
+  return m() ? m().status : 'off';
+}
+/** What the mark shader was told on the last frame: 1 = it reads the mask (sea rows over the sea), 0 = every mark draws its land row. */
+function landMaskOn() {
+  const gl = state.gl, p = state.engine && state.engine.drawProgram, loc = p ? gl.getUniformLocation(p, 'u_land_on') : null;
+  return loc ? gl.getUniform(p, loc) : null;
 }
 
 function readCanvas(map) {
@@ -365,6 +378,7 @@ async function shoot(cfg) {
     state.active = true;
     newEngine(2, cfg.seed);
     const fieldRaw = await animate(map, cfg.frames);
+    const landMask = await landMaskSettled();               // asked for on the field pass's first frame; settled before any mark is scored
     const { W, H } = offRaw, mask = cssMask(maskDev, W, H);
     const off = cssImage(offRaw.px, W, H), field = cssImage(fieldRaw.px, W, H), edges = edgeSet(off, mask);
     const fieldLines = lineSurvival(off, field, edges);
@@ -372,6 +386,7 @@ async function shoot(cfg) {
     let fullRaw = await animate(map, cfg.frames);
     const shotFull = fullRaw.shot, cropFull = fullRaw.crop, samples = [];
     const style = markStyle(fullRaw.px, fieldRaw.px, maskDev);   // the marks against the field under them, at device resolution (../style.js)
+    const landOn = landMaskOn();
     for (let s = 0; s < SAMPLES; s++) {
       if (s) fullRaw = await animate(map, SAMPLE_GAP);
       const full = cssImage(fullRaw.px, W, H);
@@ -392,6 +407,7 @@ async function shoot(cfg) {
     let wet = 0; for (let i = 0; i < mask.length; i++) wet += mask[i];
     return {
       theme: cfg.theme, z: cfg.z, waterShare: +(wet / mask.length).toFixed(3), land: surf(0), water: surf(1), style: { land: style[0], water: style[1] },
+      landMask: { status: landMask, on: landOn },
       glError: state.gl.getError() || 0, shots: { off: offRaw.shot, field: fieldRaw.shot, full: shotFull },
       crops: state.crop ? { off: offRaw.crop, field: fieldRaw.crop, full: cropFull } : null,
     };
@@ -550,6 +566,7 @@ async function pathRun(cfg) {
   performance.now = () => vms;
   const frame = async () => { map.triggerRepaint(); await once(map, 'render'); };
   try {
+    vms += FRAME_MS; await frame(); await landMaskSettled();   // the land mask (dark's rules) settles before the warm-up lays a trail
     for (let i = 0; i < (cfg.warm || 120); i++) { vms += FRAME_MS; await frame(); }
     for (let i = 0; i < cfg.frames.length; i++) {
       map.jumpTo(camOf(cfg.frames[i]));
@@ -633,6 +650,7 @@ async function flowRun(cfg) {
   performance.now = () => vms;
   const frame = async () => { map.triggerRepaint(); await once(map, 'render'); };
   try {
+    vms += FRAME_MS; await frame(); await landMaskSettled();   // the land mask (dark's rules) settles before the warm-up lays a trail
     for (let i = 0; i < (cfg.warm || 120); i++) { vms += FRAME_MS; await frame(); }
     for (let i = 0; i < cfg.frames.length; i++) {
       const cam = cfg.frames[i];

@@ -47,7 +47,7 @@
 const fs = require('fs');
 const path = require('path');
 const { FRONTEND, engineSource, buildBench } = require('./build');
-const { serveDir, gpuArgs } = require('./serve');
+const { serveDir, gpuArgs, writeLandFile } = require('./serve');
 const { PATH_NAMES, FLOW_PATH_NAMES, pathFrames, sampleIndexes } = require('./paths');
 const { pops } = require('./ambiguity');
 const { motionOf } = require('./flow');
@@ -220,6 +220,7 @@ async function main() {
   const source = engineSource(opts.ref, path.join(opts.out, 'cache'));
   const built = await buildBench({ srcRoot: source.srcRoot, outDir: path.join(opts.out, opts.tag), page: 'map' });
   console.log(`engine: ${source.label} · bundle ${(built.bytes / 1024).toFixed(0)} KiB · arms ${Object.keys(opts.arms).join(', ')} · paths ${opts.paths.join(', ')} · seeds ${opts.seeds.join(',')}`);
+  writeLandFile(opts.out, 'app');   // the engine's land mask (dark's rules) reads the app's own land file from the page's origin
   const server = await serveDir(opts.out);
   const { chromium } = require(path.join(FRONTEND, 'node_modules', 'playwright'));
   const browser = await chromium.launch({ headless: !opts.headed, args: gpuArgs(opts.gl) });

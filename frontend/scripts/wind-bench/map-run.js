@@ -12,6 +12,10 @@
  * the page in memory; it is never written to disk or printed. Tiles come from Mapbox (a few hundred requests per run).
  * --offline: no token and no network; a synthetic basemap (each theme's measured land and water, a rough coast, a road lattice;
  * map-entry.js OFFLINE). Compare arms within one offline run, not its numbers with a Mapbox run.
+ * The land mask (dark's rules: a mark picks its streak row by the land under it, windLandMask.js) reads the land file this runner
+ * serves: the app's Natural Earth file on the real basemaps, the offline basemap's own coast with --offline. --no-land-file serves
+ * none, so the mask fails and every mark draws its land row: the control for the mask. The MARKS table ends with what the mark shader
+ * was told (`mask 1` = it read the mask).
  * View: Mobile Bay (the owner's 2026-10-09 report), ~300 km north of the 15Z Gulf eye; the grid is the served GFS
  * native product (fixtures/eye-2026-10-09-gfs-native.json, 0.25 deg, -90..-78 / 25..32) over a 2-deg world base.
  *
@@ -27,7 +31,7 @@
 const fs = require('fs');
 const path = require('path');
 const { FRONTEND, engineSource, buildBench } = require('./build');
-const { serveDir, gpuArgs } = require('./serve');
+const { serveDir, gpuArgs, writeLandFile } = require('./serve');
 const { styleCell, STYLE_HEADER } = require('./style');
 
 const VIEW = { lng: -88.05, lat: 30.45 };
@@ -60,6 +64,7 @@ function parseArgs(argv) {
     else if (a === '--lng') opts.lng = Number(val());
     else if (a === '--lat') opts.lat = Number(val());
     else if (a === '--offline') opts.offline = true;
+    else if (a === '--no-land-file') opts.noLandFile = true;
     else throw new Error(`unknown option ${a}`);
   }
   return opts;
@@ -75,6 +80,12 @@ function row(r) {
   }
   const c = (s) => `${f3(s.field.retain)} ${f3(s.full.retain)} ${f3(s.pLoss)} ${f3(s.full.lost)} ${f3(s.field.wcag)} ${f3(s.full.wcag)} ${f3(s.full.gs)} ${s.sal == null ? '  -  ' : s.sal.toFixed(2).padStart(5)}`;
   return `${c(r.land)} | ${c(r.water)}`;
+}
+
+/** What the mark shader was told on the shot's last frame (1 = it read the land mask), and why not when a file was asked for and is not there. */
+function maskCell(m) {
+  if (!m || m.on == null) return 'mask -';
+  return `mask ${m.on}${m.on ? '' : (m.status === 'failed' ? ' (land file failed)' : (m.status === 'loading' ? ' (still loading)' : ''))}`;
 }
 
 function sheet(results, opts, label) {
@@ -94,6 +105,7 @@ async function main() {
   const source = engineSource(opts.ref, path.join(opts.out, 'cache'));
   const built = await buildBench({ srcRoot: source.srcRoot, outDir: path.join(opts.out, opts.tag), page: 'map' });
   console.log(`engine: ${source.label} · bundle ${(built.bytes / 1024).toFixed(0)} KiB · arms ${Object.keys(opts.arms).join(', ')}`);
+  const land = writeLandFile(opts.out, opts.noLandFile ? 'none' : (opts.offline ? 'offline' : 'app'));
   const server = await serveDir(opts.out);
   const { chromium } = require(path.join(FRONTEND, 'node_modules', 'playwright'));
   const browser = await chromium.launch({ headless: !opts.headed, args: gpuArgs(opts.gl) });
@@ -106,7 +118,7 @@ async function main() {
     await page.waitForFunction(() => window.__MAP_BENCH__ && window.__MAP_BENCH__.ready);
     const fine = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'eye-2026-10-09-gfs-native.json'), 'utf8'));
     const info = await page.evaluate((fx) => window.__MAP_BENCH__.init({ fine: fx.fine, scale: fx.scale, offline: fx.offline }), { fine, scale: opts.scale, offline: !!opts.offline });
-    console.log(`maplibre ${await page.evaluate(() => window.__MAP_BENCH__.maplibre)} · served grid ${info.fine} x${opts.scale} · view ${VIEW.lng},${VIEW.lat}${opts.offline ? ' · OFFLINE synthetic basemap' : ''}\n`);
+    console.log(`maplibre ${await page.evaluate(() => window.__MAP_BENCH__.maplibre)} · served grid ${info.fine} x${opts.scale} · view ${VIEW.lng},${VIEW.lat}${opts.offline ? ' · OFFLINE synthetic basemap' : ''} · land file: ${land}\n`);
     console.log('theme  z    arm    | LAND retF  retP  pLoss lostP 3:1F  3:1P  gsP    sal | WATER retF retP  pLoss lostP 3:1F  3:1P  gsP    sal');
     for (const theme of opts.themes) {
       for (const z of opts.zooms) {
@@ -126,7 +138,7 @@ async function main() {
       }
     }
     console.log(`\nMARKS against the field under them (style.js; dL: + = lighter than the ground)\ntheme  z    arm      | LAND  ${STYLE_HEADER} | WATER ${STYLE_HEADER}`);
-    for (const r of results) if (r.style) console.log(`${r.theme.padEnd(6)} ${String(r.z).padEnd(4)} ${r.arm.padEnd(8)} | ${styleCell(r.style.land)} | ${styleCell(r.style.water)}`);
+    for (const r of results) if (r.style) console.log(`${r.theme.padEnd(6)} ${String(r.z).padEnd(4)} ${r.arm.padEnd(8)} | ${styleCell(r.style.land)} | ${styleCell(r.style.water)} | ${maskCell(r.landMask)}`);
     const sheetPath = opts.sheet || path.join(opts.out, 'map-sheet.html');
     fs.writeFileSync(sheetPath, sheet(results, opts, `Wind map bench · ${source.label} · Mobile Bay · served GFS 2026-10-09 15Z`));
     console.log(`\ncontact sheet: ${sheetPath}`);
