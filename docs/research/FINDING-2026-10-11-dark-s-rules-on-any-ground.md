@@ -166,3 +166,24 @@ Some vendor hosts were unreachable from the research sandbox. Items marked [exce
 - Beach: dark's streak method today stops at 74-82% of dark's step. Its own dusk field (clause 2) plus the guard (clause 3) is the
   missing half.
 - The solver in the lab (`solveTheme`) produces both tables per theme in milliseconds. A port is a table, not a rewrite.
+
+## 8. Update, 2026-10-11 later: built into the app, ON by default (DECISIONS D-020)
+
+The owner asked to see the five clauses in the app with the default on. They are built (`windDarkRules.js`, `windLandMask.js`;
+log `docs/weather-program/log/2026-10-11-dark-rules-default.md`). Sections 6 and 7 above describe the state before that.
+Reading the solved tables per knot, not at the 13 stops this note scored, changed three things from the lab's solver:
+
+- **The lab's hand-over at the guard's edge was a hard line.** Light's field crosses from green to yellow-green between 25 and
+  26 kn, and the ground stepped from L* 55.5 to 74.1 in that one knot (beach: 6.1 L* at 27-28 kn). The guard now reaches 4 kn
+  outward along speed: 4.4 L* a knot at the steepest, every Beaufort stop it did not touch unchanged. The table in section 2 is
+  the lab's; the built grounds between 22 and 26 kn (light) and 24 and 28 kn (beach) are lighter than it.
+- **Clause 3 does not hold a ground at L* 76 in either theme.** The fields were already deeper than that at every guarded speed
+  (light L* 75 to 63 at 27-42 kn, beach 73 to 66 at 29-38 kn), and a multiply tint cannot lift a ground. In practice the guard
+  leaves those speeds as they were drawn before.
+- **Clause 5's floor is reached over a held ground, and it is a pale band.** Over light's land at 26-30 kn (beach 27-29) the
+  streak wants dark's step above an L* 74 ground, runs to the colour floor and comes out near white (C* 25). Whitening it there
+  buys 2 to 4 L* for 70 C*. This note's own clause ("no streak buys lightness with its hue") is not met there. Not changed:
+  it is the rule as written, and the owner's to judge on the map.
+
+The colour-blind floor by the checker's method (coloraide; this note used Machado): light 4.9 over land and 3.9 over water,
+beach 3.2 and 3.1, against 5.1 to 5.3 before. Under the project's bar of 5 on all four.

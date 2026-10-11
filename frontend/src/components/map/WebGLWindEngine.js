@@ -12,7 +12,7 @@
  * 5. Final composite: render trail texture to screen canvas
  */
 
-import { generateRampData, buildFieldRampTexture, resolveMarkRamp, windLightLook } from './WindColorRamp';
+import { buildFieldRampTexture, drawnMarkRampData, windLookKey, windDarkRulesOn } from './WindColorRamp'; import { bindLandMask } from './windLandMask';
 import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tierKeepsOver, tierOuter } from './windTierMosaic';
 import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk';
 import {
@@ -387,12 +387,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
   // Update color ramp when theme changes or if texture is not yet created
   // v3.15: Use _currentTheme (set by setTheme) as fallback when theme param not passed
-  var activeTheme = theme || this._currentTheme || 'dark', lightLook = windLightLook();   // the light-look A/B lever (WindColorRamp.js): a change rebuilds at once
-  if (activeTheme !== this._currentTheme || !this._colorRamp || lightLook !== (this._lightLook || null)) {
-    this._currentTheme = activeTheme; this._lightLook = lightLook;
-    var rampData = generateRampData(this._maxWindSpeed, resolveMarkRamp(activeTheme), activeTheme);   // null: the legend's own ramp
+  var activeTheme = theme || this._currentTheme || 'dark', lookKey = windLookKey(activeTheme);   // the light-look lever and dark's rules (WindColorRamp.js): a change rebuilds at once
+  if (activeTheme !== this._currentTheme || !this._colorRamp || lookKey !== this._lookKey) {
+    this._currentTheme = activeTheme; this._lookKey = lookKey;
+    var rampData = drawnMarkRampData(this._maxWindSpeed, activeTheme);   // two rows, over land and over sea: equal unless dark's rules draw
     if (this._colorRamp) gl.deleteTexture(this._colorRamp);
-    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
+    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 2); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
     console.log('[WebGLWind] Color ramp updated for theme:', activeTheme);
   }
   if (!matrix || !matrix.length) {
@@ -832,7 +832,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.useProgram(this.drawProgram);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_wind'), 1);
-  gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_color_ramp'), 2);
+  gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_color_ramp'), 2); bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme));   // dark's rules: land and sea rows
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_max_speed'), this._maxWindSpeed);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
@@ -1057,12 +1057,12 @@ WebGLWindEngine.prototype.reinitParticles = function(gl, opts) {
  */
 WebGLWindEngine.prototype.setTheme = function(gl, theme) {
   if (!gl || !this._initialized) return;
-  var activeTheme = theme || 'dark', lightLook = windLightLook();
-  if (activeTheme !== this._currentTheme || !this._colorRamp || lightLook !== (this._lightLook || null)) {
-    this._currentTheme = activeTheme; this._lightLook = lightLook;
-    var rampData = generateRampData(this._maxWindSpeed, resolveMarkRamp(activeTheme), activeTheme);
+  var activeTheme = theme || 'dark', lookKey = windLookKey(activeTheme);
+  if (activeTheme !== this._currentTheme || !this._colorRamp || lookKey !== this._lookKey) {
+    this._currentTheme = activeTheme; this._lookKey = lookKey;
+    var rampData = drawnMarkRampData(this._maxWindSpeed, activeTheme);
     if (this._colorRamp) gl.deleteTexture(this._colorRamp);
-    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
+    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 2); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
     console.log('[WebGLWind] Theme set to:', activeTheme);
   }
 };

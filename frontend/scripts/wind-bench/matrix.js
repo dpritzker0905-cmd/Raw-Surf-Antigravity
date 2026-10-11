@@ -56,6 +56,9 @@ const LEVER_VARIANTS = Object.freeze({
   'light-moderate': { label: 'light look A, moderate (deeper field + dark\'s streak method)', levers: { __RAW_WIND_LIGHT_LOOK__: 'moderate' } },
   'light-deep': { label: 'light look A, deep', levers: { __RAW_WIND_LIGHT_LOOK__: 'deep' } },
   'light-ink': { label: 'light look B (ink, own warm colours, cover cap)', levers: { __RAW_WIND_LIGHT_LOOK__: 'ink' } },
+  // Dark's rules are the DEFAULT in light and beach since 2026-10-11 (D-020), so `candidate` draws them. This is their kill: the
+  // marks and tables before them, the arm to scan the default against.
+  'before-rules': { label: 'the tables before dark\'s rules (their kill)', levers: { __RAW_DISABLE_WIND_DARK_RULES__: true } },
 });
 /** Every variant a configuration may name (the matrix's own, the control's, then the named candidates). */
 const ALL_VARIANTS = Object.freeze({ ...VARIANTS, ...CONTROL_VARIANTS, ...LEVER_VARIANTS });

@@ -65,7 +65,8 @@
  * where the marks cover most of the water it still reads as one flat dark sea (log 2026-10-10-light-look-ab). Sub-levers as above (opacity, ring, white, spine) and
  * __RAW_WIND_INK_CAP__ (0.1-1). Kill: window.__RAW_DISABLE_WIND_LIGHT_LOOK__.
  */
-import { windLightLook } from './WindColorRamp';
+import { windLightLook, windDarkRulesOn } from './WindColorRamp';
+import { DARK_RULES } from './windDarkRules';
 
 const OFF = Object.freeze({ mode: 0, on: false, glow: false, opacity: 0, spine: 0, purity: 0, density: 1, white: 0 });
 
@@ -129,6 +130,7 @@ export function windInk(theme, v2, win = (typeof window !== 'undefined' ? window
     return { mode: 2, on: false, glow: true, spine: inRange(ri, 0, 1) ? ri : perTheme(WIND_GLOW.ring, theme), purity: 0, density: 1,
       opacity: inRange(op, 0.1, 1) ? op : (WIND_GLOW.opacity[theme] || 0.6), white: inRange(wh, 0, 1) ? wh : perTheme(WIND_GLOW.white, theme) };
   }
+  if (windDarkRulesOn(theme, w)) return lookMarks(DARK_RULES, w);   // DARK'S RULES, on by default (windDarkRules.js): dark's streak method on their tables
   return OFF;
 }
 

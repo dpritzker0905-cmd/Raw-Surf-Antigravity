@@ -220,7 +220,7 @@ async function main() {
   const source = engineSource(opts.ref, path.join(opts.out, 'cache'));
   const built = await buildBench({ srcRoot: source.srcRoot, outDir: path.join(opts.out, opts.tag), page: 'map' });
   console.log(`engine: ${source.label} · bundle ${(built.bytes / 1024).toFixed(0)} KiB · arms ${Object.keys(opts.arms).join(', ')} · paths ${opts.paths.join(', ')} · seeds ${opts.seeds.join(',')}`);
-  const server = await serveDir(opts.out);
+  const server = await serveDir(opts.out, undefined, { land: 'app' });   // the engine's land mask (dark's rules) reads the app's own land file
   const { chromium } = require(path.join(FRONTEND, 'node_modules', 'playwright'));
   const browser = await chromium.launch({ headless: !opts.headed, args: gpuArgs(opts.gl) });
   const runs = [];
@@ -262,8 +262,8 @@ async function main() {
             const res = await page.evaluate((c) => window.__MAP_BENCH__.pathRun(c), { theme, frames, samples, res: opts.res, seed, levers, warm: 120, shots: true, fieldOnly: opts.field });
             if (res.glError) throw new Error(`GL error ${res.glError} at ${theme} ${name} ${arm}`);
             const sum = summarize(res.rows);
-            console.log(`${theme.padEnd(6)} ${name.padEnd(8)} ${arm.padEnd(8)} ${String(seed).padStart(4)} | ${line(sum, opts.field)} | ${sum.convSwaps.join(' · ')}  [${((Date.now() - t0) / 1000).toFixed(0)} s${res.mute && res.mute.applied ? `, muted ${res.mute.layers} layers` : ''}${res.mute && res.mute.reason ? `, NOT muted (${res.mute.reason})` : ''}]`);
-            runs.push({ theme, path: name, arm, seed, mute: res.mute, sum, rows: res.rows });
+            console.log(`${theme.padEnd(6)} ${name.padEnd(8)} ${arm.padEnd(8)} ${String(seed).padStart(4)} | ${line(sum, opts.field)} | ${sum.convSwaps.join(' · ')}  [${((Date.now() - t0) / 1000).toFixed(0)} s${res.landMask && res.landMask.on != null ? `, mask ${res.landMask.on}${res.landMask.status === 'failed' ? ' (land file failed)' : ''}` : ''}${res.mute && res.mute.applied ? `, muted ${res.mute.layers} layers` : ''}${res.mute && res.mute.reason ? `, NOT muted (${res.mute.reason})` : ''}]`);
+            runs.push({ theme, path: name, arm, seed, mute: res.mute, landMask: res.landMask, sum, rows: res.rows });
           }
         }
       }

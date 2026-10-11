@@ -9,6 +9,7 @@
  *   - NO DOM or React dependency
  *   - Pure color math + GL texture creation
  */
+import { DARK_RULES, solveDarkRules } from './windDarkRules';
 
 /**
  * v3.11.3: Scientific wind speed color ramp (meteorological convention).
@@ -427,12 +428,74 @@ export function resolveMarkRamp(theme, win) {
   return look === 'ink' ? revertRows(resolveThemeRamp(theme), LIGHT_INK_MARK_ROWS) : null;
 }
 
+/**
+ * DARK'S RULES (windDarkRules.js; owner 2026-10-11, D-020): ON for light and beach. `__RAW_DISABLE_WIND_DARK_RULES__ = true` draws
+ * both exactly as before; `__RAW_WIND_DARK_RULES__` = true | false | 'light' | 'beach' narrows them.
+ * A theme draws dark's rules WHOLE or not at all (the dimmed field, the land and sea streak rows and dark's streak method belong
+ * together), so every older lever that draws a theme its own way holds that theme on the tables it was built on: an explicit light
+ * look, the ink and glow levers (windInk.js reads the same ones) and the neutral-body v2 theme. This is the one place that decides;
+ * the engine's tables, its land mask and windInk all ask it (windDarkRules.test.js sweeps every combination).
+ *
+ * EVERY OLDER KILL KEEPS ITS MEANING. A kill is how a past change is rolled back, and each is documented to restore what was drawn
+ * before it (DECISIONS D-018, D-019). Dark's rules are solved on the default field rows, dark's default legend, the multiply tint at
+ * its default strength and the muted ground, so a kill or bench lever that changes one of those would otherwise draw a mix nobody
+ * built (independent review, 2026-10-11: under the field-tint kill the field sampled the marks' two-row table). Set, each of the
+ * keys below stands dark's rules down for the session, in both themes: it draws exactly what it drew before them. A NEW kill that
+ * touches the tables, the field's blend or strength, the marks' composite or the ground joins DARK_RULES_HOLDS (the test fails on an
+ * unclassified kill).
+ */
+export var DARK_RULES_HOLDS = ['__RAW_DISABLE_WIND_LIGHT_LOOK__', '__RAW_DISABLE_WIND_INK__', '__RAW_DISABLE_WIND_GLOW__', '__RAW_DISABLE_WIND_THEME_V2__',   // the looks
+  '__RAW_DISABLE_WIND_HUE_PATH__', '__RAW_DISABLE_WIND_CALM_CLEAR__', '__RAW_DISABLE_WIND_LIGHT_FASTBAND__', '__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__', '__RAW_DISABLE_WIND_LIGHT_CVD__',   // the tables' rows
+  '__RAW_DISABLE_WIND_LIGHT_LOWBAND__', '__RAW_DISABLE_WIND_MIDBAND_REFINE__', '__RAW_DISABLE_WIND_BEACH_CVD__', '__RAW_DISABLE_WIND_DARK_CVD__', '__RAW_DISABLE_WIND_LOWBAND_RESPREAD__', '__RAW_DISABLE_WIND_FIELD_RAMP__',
+  '__RAW_DISABLE_WIND_FIELD_TINT__', '__RAW_DISABLE_WIND_FIELD_LUT__', '__RAW_DISABLE_WIND_CALM_ALPHA_V3__', '__RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__', '__RAW_DISABLE_WIND_SPEED_PREMUL__',   // the composites
+  '__RAW_DISABLE_WIND_BASEMAP_MUTE__'];   // the ground
+export var DARK_RULES_STEERS = ['__RAW_WIND_FIELD_TINT__', '__RAW_WIND_FIELD_TINT_THEMES__', '__RAW_WIND_PREMUL_THEMES__', '__RAW_WIND_BASEMAP_MUTE__', '__RAW_WIND_BASEMAP_WATER_L__'];   // bench levers on the same things: set at all
+export function windDarkRulesOn(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null) || {}, i;
+  if ((theme !== 'light' && theme !== 'beach') || w.__RAW_DISABLE_WIND_DARK_RULES__ === true || (theme === 'light' && windLightLook(w))) return false;
+  for (i = 0; i < DARK_RULES_HOLDS.length; i++) if (w[DARK_RULES_HOLDS[i]] === true) return false;
+  for (i = 0; i < DARK_RULES_STEERS.length; i++) if (w[DARK_RULES_STEERS[i]] !== undefined && w[DARK_RULES_STEERS[i]] !== null) return false;
+  var names = function(lever) { return lever === true || (typeof lever === 'string' && lever.split(',').indexOf(theme) >= 0); };
+  if (names(w.__RAW_WIND_INK__) || names(w.__RAW_WIND_GLOW__) || w.__RAW_WIND_THEME_V2__ === true) return false;
+  var lever = w.__RAW_WIND_DARK_RULES__;
+  return (lever === true ? ['light', 'beach'] : (lever === false ? [] : (typeof lever === 'string' ? lever.split(',') : DARK_RULES.themes))).indexOf(theme) >= 0;
+}
+var SOLVED = {};
+function darkRulesTables(theme, w) {
+  // The solver reads a colour between two stops on the straight sRGB line, and light's 10-16 kn straight line is GREY (D-019, HUE PATH):
+  // it is given the field's own path, whatever older kill is set, as a light look's tables are.
+  var field = huePathStops(resolveFieldRamp(theme, w), {}), dark = resolveThemeRamp('dark'), key = theme + JSON.stringify(field) + JSON.stringify(dark);
+  if (!SOLVED[key]) SOLVED[key] = solveDarkRules(theme, field, dark);
+  return SOLVED[key];
+}
+/** The field's stops as DRAWN: dark's rules' dimmed field when they are on, else resolveFieldRamp's. */
+export function resolveDrawnField(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : {});
+  return windDarkRulesOn(theme, w) ? copyRows(darkRulesTables(theme, w).field) : resolveFieldRamp(theme, w);
+}
+/** The marks' stops as DRAWN, { land, water } (null = the legend's ramp). Off: both are resolveMarkRamp's. */
+export function resolveDrawnMarks(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null);
+  if (!windDarkRulesOn(theme, w)) { var m = resolveMarkRamp(theme, w); return { land: m, water: m }; }
+  var t = darkRulesTables(theme, w);
+  return { land: copyRows(t.land), water: copyRows(t.water) };
+}
+/** The marks' LUT, 256 x 2 RGBA: row 0 over land, row 1 over sea (DRAW_FS mixes them by windLandMask.js). Off: two equal rows. */
+export function drawnMarkRampData(maxSpeed, theme, win) {
+  var m = resolveDrawnMarks(theme, win), land = generateRampData(maxSpeed, m.land, theme, win);
+  var data = new Uint8Array(256 * 2 * 4);
+  data.set(land, 0); data.set(m.water === m.land ? land : generateRampData(maxSpeed, m.water, theme, win), 256 * 4);
+  return data;
+}
+/** What the marks' and field's tables depend on besides the theme: a change rebuilds them at once (WebGLWindEngine). */
+export function windLookKey(theme, win) { return (windLightLook(win) || '') + '|' + (windDarkRulesOn(theme, win) ? 'dark-rules' : ''); }
+
 /** The field's own LUT texture for `theme` (null = the field samples the particle ramp). Restores the texture binding. */
 export function buildFieldRampTexture(gl, maxSpeed, theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : {});
-  var look = theme === 'light' && LIGHT_LOOK_FIELD[windLightLook(w)];   // a look's field is drawn even under the field-ramp kill (its marks are not a field)
+  var look = (theme === 'light' && LIGHT_LOOK_FIELD[windLightLook(w)]) || windDarkRulesOn(theme, w);   // a look's field is drawn even under the field-ramp kill (its marks are not a field)
   if (!gl || !FIELD_RAMPS[theme] || (w.__RAW_DISABLE_WIND_FIELD_RAMP__ === true && !look)) return null;
-  var data = generateRampData(maxSpeed || 50, resolveFieldRamp(theme, w), null, look ? {} : w), prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
+  var data = generateRampData(maxSpeed || 50, resolveDrawnField(theme, w), null, look ? {} : w), prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);

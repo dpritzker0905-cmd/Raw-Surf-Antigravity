@@ -116,14 +116,14 @@ describe('off: the lever unset, killed, or not a look', () => {
     expect(windLightLook(killed)).toBeNull();
     expect(bytes(generateRampData(50, resolveFieldRamp('light', killed), null, killed))).toBe(bytes(generateRampData(50, DEFAULT_FIELD, null, {})));
     expect(resolveMarkRamp('light', killed)).toBeNull();
-    expect(windInk('light', V2, killed)).toEqual(windInk('light', V2, {}));
+    expect(windInk('light', V2, killed)).toEqual(windInk('light', V2, { __RAW_DISABLE_WIND_DARK_RULES__: true }));   // the marks before any look (the plain default draws dark's rules since D-020)
   });
   it('the engine builds the marks table from resolveMarkRamp, which is null when off: the same bytes as the legend\'s own table', () => {
     expect(bytes(generateRampData(50, resolveMarkRamp('light', {}), 'light'))).toBe(bytes(generateRampData(50, null, 'light')));
-    expect(ENGINE).toMatch(/generateRampData\(this\._maxWindSpeed, resolveMarkRamp\(activeTheme\), activeTheme\)/);
-    expect(ENGINE.match(/resolveMarkRamp\(activeTheme\)/g)).toHaveLength(2);   // render and setTheme
-    // a change of look rebuilds the tables at once; with the lever unset the key stays null and nothing rebuilds
-    expect(ENGINE.match(/lightLook !== \(this\._lightLook \|\| null\)/g)).toHaveLength(2);
+    // since D-020 the engine builds the DRAWN table (two rows, land and sea: both resolveMarkRamp's when dark's rules do not draw)
+    // and keys its rebuild on the look and on dark's rules (windDarkRules.test.js pins the rest)
+    expect(ENGINE.match(/drawnMarkRampData\(this\._maxWindSpeed, activeTheme\)/g)).toHaveLength(2);   // render and setTheme
+    expect(ENGINE.match(/lookKey !== this\._lookKey/g)).toHaveLength(2);
   });
   it.each(LOOKS)('%s: beach and dark never move, and the legend bar never moves', (look) => {
     for (const theme of ['beach', 'dark']) {
