@@ -16,6 +16,7 @@ from models import LiveSessionParticipant, PaymentTransaction
 from services import live_session_escrow
 from .join import CompletePaymentRequest
 from utils.scheduled_booking_payment import cents, field, metadata_of
+from utils.payment_reconciliation import PaymentNeedsReconciliation, record_case
 from starlette.concurrency import run_in_threadpool
 
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
@@ -68,6 +69,7 @@ async def complete_session_payment(
     used_emulator = (data.checkout_session_id.startswith("cs_test_") and checkout_emulation_allowed()
                      and metadata_of(owner_tx).get('type') != 'live_session_join')
     payment_verified = False
+    transaction_id = owner_tx.id
     payment_intent_id = None
     refund_attempted = False
     refund_successful = False
@@ -194,7 +196,7 @@ async def complete_session_payment(
             LiveSession.status == 'active'
         ).with_for_update().execution_options(populate_existing=True))).one_or_none()
         if photographer is None or not photographer.is_shooting or active_live_session is None:
-            raise HTTPException(status_code=409, detail='Purchased session is unavailable; contact support for payment reconciliation')
+            raise PaymentNeedsReconciliation(tx.id, 'live_session_unavailable', checkout_session)
         
         # Also check if participant already exists (belt + suspenders)
         existing_participant_result = await db.execute(
@@ -205,7 +207,7 @@ async def complete_session_payment(
             .where(LiveSessionParticipant.status == 'active')
         )
         if existing_participant_result.scalar_one_or_none():
-            raise HTTPException(status_code=409, detail='Another paid participation exists; contact support for payment reconciliation')
+            raise PaymentNeedsReconciliation(tx.id, 'duplicate_live_participation', checkout_session)
 
         payment_verified = True
         
@@ -291,6 +293,8 @@ async def complete_session_payment(
                 await db.flush()
                 
         except Exception as nested_err:
+            if not used_emulator:
+                raise PaymentNeedsReconciliation(transaction_id, 'live_fulfillment_failed', checkout_session) from nested_err
             # The nested transaction is automatically rolled back, releasing any locks acquired inside it
             # (but the outer transaction's row-level lock on PaymentTransaction remains active).
             # Perform Stripe refund rollback
@@ -352,7 +356,12 @@ async def complete_session_payment(
             "photographer_name": photographer.full_name
         }
         
+    except PaymentNeedsReconciliation as problem:
+        raise HTTPException(status_code=409, detail=await record_case(db, problem)) from problem
     except HTTPException as e:
+        if not used_emulator and payment_verified:
+            problem = PaymentNeedsReconciliation(transaction_id, 'live_fulfillment_failed', checkout_session)
+            raise HTTPException(status_code=409, detail=await record_case(db, problem)) from e
         if not refund_attempted:
             await db.rollback()
             refunded = False
@@ -389,6 +398,9 @@ async def complete_session_payment(
         raise e
 
     except stripe.error.StripeError as e:
+        if not used_emulator and payment_verified:
+            problem = PaymentNeedsReconciliation(transaction_id, 'live_fulfillment_failed', checkout_session)
+            raise HTTPException(status_code=409, detail=await record_case(db, problem)) from e
         if not refund_attempted:
             await db.rollback()
             refunded = False
@@ -424,6 +436,9 @@ async def complete_session_payment(
             raise HTTPException(status_code=500, detail=f"Payment verification failed: {str(e)}")
 
     except Exception as e:
+        if not used_emulator and payment_verified:
+            problem = PaymentNeedsReconciliation(transaction_id, 'live_fulfillment_failed', checkout_session)
+            raise HTTPException(status_code=409, detail=await record_case(db, problem)) from e
         if not refund_attempted:
             await db.rollback()
             refunded = False

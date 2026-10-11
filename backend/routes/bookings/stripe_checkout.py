@@ -25,6 +25,7 @@ from models import (
 from utils.credits import deduct_credits
 from utils.scheduled_booking_payment import cents, fulfill_scheduled_booking
 from utils.checkout_persistence import commit_checkout
+from utils.payment_reconciliation import PaymentNeedsReconciliation, record_case
 from core.security import get_current_user_id
 
 from .crud import (
@@ -207,6 +208,8 @@ async def booking_payment_success(
         booking, _ = await fulfill_scheduled_booking(db, transaction, session, booking_id)
         await db.commit()
         return {'success': True, 'message': 'Booking confirmed!', 'booking_id': booking.id, 'status': booking.status}
+    except PaymentNeedsReconciliation as problem:
+        raise HTTPException(status_code=409, detail=await record_case(db, problem)) from problem
     except stripe.error.StripeError as exc:
         await db.rollback()
         logger.warning('Scheduled checkout verification failed: %s', type(exc).__name__)

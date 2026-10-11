@@ -1793,7 +1793,9 @@ jobs:
           # Hosted qualification pending; no push or deployment in the local repair batch.
           # Booking payment repair: +53 executed estate controls -> projected1624, margin2.
           # PostgreSQL/provider/hosted release qualification remains outstanding.
-          MIN_PASSED = 1622
+          # Payment reconciliation: +24 executed estate controls -> projected1648, margin2.
+          # PostgreSQL concurrency is separately required by payment-release-gates.yml.
+          MIN_PASSED = 1646
 
           try:
               root = ET.parse('estate.xml').getroot()

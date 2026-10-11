@@ -16,8 +16,11 @@ from core.security import get_current_user_id
 from models import Profile, PaymentTransaction
 from utils.payment_fulfillment import fulfill_wallet_payment
 from utils.scheduled_booking_payment import fulfill_scheduled_booking, is_scheduled_booking
+from utils.payment_reconciliation import PaymentNeedsReconciliation, record_case
 
 router = APIRouter()
+from routes.payment_recovery import router as recovery_router
+router.include_router(recovery_router)
 logger = logging.getLogger(__name__)
 
 import stripe
@@ -80,6 +83,7 @@ class StripeCheckout:
                 self.status = s.status
                 self.currency = s.currency
                 self.metadata = s.metadata
+                self.payment_intent = getattr(s, 'payment_intent', None)
         return LocalStatus(session)
 
     async def handle_webhook(self, body: bytes, signature: str) -> WebhookResponse:
@@ -318,6 +322,8 @@ async def get_checkout_status(
             "metadata": status.metadata
         }
     
+    except PaymentNeedsReconciliation as problem:
+        raise HTTPException(status_code=409, detail=await record_case(db, problem)) from problem
     except HTTPException:
         await db.rollback()
         raise
@@ -432,6 +438,8 @@ async def stripe_webhook(
         
         return {"status": "received"}
     
+    except PaymentNeedsReconciliation as problem:
+        return dict(status='received', **await record_case(db, problem))
     except HTTPException:
         await db.rollback()
         raise

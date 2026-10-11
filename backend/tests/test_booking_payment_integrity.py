@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import time
 import uuid
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
@@ -17,7 +18,8 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core.security import create_access_token
@@ -55,6 +57,12 @@ async def harness(tmp_path, schema, monkeypatch):
     package.__path__ = [str(Path(__file__).parents[1] / 'routes/bookings')]
     monkeypatch.setitem(sys.modules, package.__name__, package)
     module = importlib.import_module('repair_booking_routes.stripe_checkout')
+    # Load recovery without importing the entire routes package into this focused harness.
+    recovery_spec = importlib.util.spec_from_file_location('repair_payment_recovery',
+        Path(__file__).parents[1] / 'routes/payment_recovery.py')
+    recovery = importlib.util.module_from_spec(recovery_spec)
+    recovery_spec.loader.exec_module(recovery)
+    monkeypatch.setitem(sys.modules, 'routes.payment_recovery', recovery)
     push = ModuleType('routes.notifications.push')
     push.notify_booking = AsyncMock()
     monkeypatch.setitem(sys.modules, push.__name__, push)
@@ -77,9 +85,25 @@ async def harness(tmp_path, schema, monkeypatch):
     monkeypatch.setattr(module, 'stripe_mcp_server', SimpleNamespace(DB_PATH='unused',
         stripe_create_checkout_session=lambda **kwargs: {
             'checkout_session_id': 'legacy-simulation', 'url': 'https://checkout.example.invalid/simulation'}), raising=False)
-    dbfile = tmp_path / 'booking.sqlite'
-    shutil.copyfile(schema, dbfile)
-    engine = create_async_engine(f'sqlite+aiosqlite:///{dbfile}')
+    pg_url = os.environ.get('PAYMENT_TEST_DATABASE_URL')
+    pg_schema = None
+    if pg_url:
+        parsed = make_url(pg_url)
+        if parsed.host not in ('localhost', '127.0.0.1', '::1') or not parsed.database.startswith('rawsurf_payment_gate'):
+            raise RuntimeError('Payment fixtures refuse non-loopback or non-disposable PostgreSQL')
+        pg_schema = 'payment_' + uuid.uuid4().hex
+        engine = create_async_engine(pg_url, connect_args={'server_settings': {'search_path': pg_schema,
+                                                                            'application_name': 'payment-gates'}})
+        async with engine.begin() as conn:
+            for role in ('anon', 'authenticated', 'service_role'):
+                await conn.execute(text(f"DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='{role}') "
+                                        f"THEN CREATE ROLE {role} NOLOGIN; END IF; END $$"))
+            await conn.execute(text(f'CREATE SCHEMA "{pg_schema}"'))
+            await conn.run_sync(Base.metadata.create_all)
+    else:
+        dbfile = tmp_path / 'booking.sqlite'
+        shutil.copyfile(schema, dbfile)
+        engine = create_async_engine(f'sqlite+aiosqlite:///{dbfile}')
     sessions = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
     async with sessions() as db:
         db.add_all([Profile(id=actor, user_id=actor, email=f'{actor}@example.invalid', full_name=actor,
@@ -113,7 +137,11 @@ async def harness(tmp_path, schema, monkeypatch):
     async with AsyncClient(transport=ASGITransport(app=app, raise_app_exceptions=False),
                            base_url='https://test.invalid') as client:
         yield SimpleNamespace(client=client, sessions=sessions, module=module, app=app, session=session,
-                              created=created, retrieved=retrieved, push=push, webhook_secret=webhook_secret)
+                              created=created, retrieved=retrieved, push=push, webhook_secret=webhook_secret, engine=engine,
+                              payments=payments, recovery=recovery)
+    if pg_schema:
+        async with engine.begin() as conn:
+            await conn.execute(text(f'DROP SCHEMA "{pg_schema}" CASCADE'))
     await engine.dispose()
 
 

@@ -13,6 +13,7 @@ from sqlalchemy import select
 
 from models import Booking, BookingParticipant, Notification, PaymentTransaction
 from utils.credits import add_credits, deduct_credits
+from utils.payment_reconciliation import PaymentNeedsReconciliation
 
 
 def cents(value):
@@ -82,19 +83,19 @@ async def fulfill_scheduled_booking(db, transaction, session, booking_id=None):
     if not valid:
         raise HTTPException(status_code=400, detail='Payment evidence does not match booking')
     if booking.status not in ('Pending Payment', 'Confirmed'):
-        raise HTTPException(status_code=409, detail='Booking no longer accepts payment; contact support for reconciliation')
+        raise PaymentNeedsReconciliation(tx.id, 'booking_unavailable', session)
     paid = tx.payment_status.lower() == 'paid' and tx.status.lower() == 'completed'
     if paid and booking.status == 'Confirmed':
         return booking, False
     if tx.payment_status.lower() != 'pending' or tx.status.lower() != 'pending' or booking.status != 'Pending Payment':
-        raise HTTPException(status_code=409, detail='Payment requires reconciliation')
+        raise PaymentNeedsReconciliation(tx.id, 'local_payment_state', session)
     # A paid receipt can arrive after checkout expires. Provider completion is
     # evidence of payment; delivery time is not. Cancelled bookings still fail above.
     participant = (await db.scalars(select(BookingParticipant).where(
         BookingParticipant.booking_id == booking.id, BookingParticipant.participant_id == booking.creator_id
     ).with_for_update().execution_options(populate_existing=True))).one_or_none()
     if participant is None or participant.payment_status != 'Pending' or cents(participant.paid_amount) != applied:
-        raise HTTPException(status_code=409, detail='Booking participation requires reconciliation')
+        raise PaymentNeedsReconciliation(tx.id, 'booking_participation', session)
 
     # Preserve the existing wallet accounting: provider funding followed by the
     # matching booking debit. Both entries and all entitlements share one commit.
