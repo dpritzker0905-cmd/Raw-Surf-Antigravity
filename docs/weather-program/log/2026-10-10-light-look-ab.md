@@ -302,3 +302,32 @@ rules as dark mode. Learn from all our past mistakes and find more best practice
   - Dark reads lower in the lab (+5.5 / +6.0) than on the real map (+9.5 to +14.5).
   - A deep's olive and brown are computed in the lab's colour model, not read off the engine.
 - **No default moved and no served number changed.** #311 stays as it was; its recommendation now carries the olive/brown caveat.
+
+## 2026-10-11 14:10Z · Hand-off
+
+Owner: "push anything needing pushing then give me a hand off report".
+
+- **Pushed in this step:**
+  - The lab's source, `frontend/scripts/wind-lab/`. Its build is byte-identical to the published page, and it reran headless from
+    the repo with the same readouts. It is outside every CI gate: ESLint, LOC and encoding all scan `frontend/src` only.
+  - STATE: the 06:10Z entry, the #311 olive/brown caveat, and the stamp.
+  - This section.
+- **Branch `claude/fervent-rubin-aa8708`** (PR #311, open, base dev `e0af8880`):
+  - 2882147 was green on every check, `mergeable_state` clean, with no reviews (read 06:31Z and 10:33Z).
+  - No default moved and no served number changed in this session. Ledger head is unchanged at seq 1042.
+- **Owed, all the owner's:**
+  1. A pick among #311's looks, made on the preview with the olive/brown caveat in view. Ledger seq 1042, due 2026-10-17, is open
+     until then.
+  2. The D-018 re-scope, if A is picked.
+  3. Beach: dark's streak method at 0.9 or 1.0 opacity, or the five clauses.
+  4. Whether to build the five clauses into the app. That needs a land mask the wind layer lacks.
+- **Next session, if the owner says build:**
+  - Port `solveTheme` (`frontend/scripts/wind-lab/core.js`) to produce light's and beach's tables, behind a new default-off lever.
+  - Add a coarse land mask to the composite for clause 4, or test a blend whose step does not grow on a darker ground.
+  - Run `check.mjs --strict`, the 3-seed scanner, and the bench with the wash columns, then give the owner an A/B.
+  - Read the FINDING first; it lists the lab's limits.
+- **Not done:**
+  - Nothing of this session has been seen in the app.
+  - The A/B page's generator (`gen.mjs` and its templates) lived only in the session's scratch space and was not committed. The
+    published page and its crops are the record, and a later session can read them back from the artifact.
+  - The audit's two OVERDUE commitments (seq 860, 957) belong to other sessions and need live acceptance runs; they were left alone.

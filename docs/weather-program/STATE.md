@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-11 05:38Z** (logs: `log/2026-10-10-light-look-ab.md` (light's look A/B, default off: a deeper field + dark's streak method, or ink; #311), `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-11 14:10Z** (logs: `log/2026-10-10-light-look-ab.md` (light's look A/B, default off: a deeper field + dark's streak method, or ink; #311), `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,6 +14,20 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-11 06:10Z: dark's rules restated for any ground (docs and a model lab on #311's branch; NO app change).** Owner:
+  "we need the light mode and beach mode's wind animations to follow the same rules as dark mode". Five clauses:
+  1. Use the ground-independent composite: #311's streak method. Dark's own formula darkens any lighter ground.
+  2. Make room with one dusk factor, not a ceiling per band.
+  3. Hold orange and yellow grounds light: dimmed on a pale page they read brown and olive.
+  4. Solve land and sea separately.
+  5. Keep a colour floor (C* 25).
+
+  In the Ground Truth lab, light and beach then read 98-100% of streak pixels lighter, at +8 (land) and +14.5 to +17.3 (sea) L*,
+  with no wash. Colour-blind floor: beach 3.65 (today 3.46); light 4.60 land / 3.50 sea (today 4.84 / 4.83).
+  **It flags #311's A deep: olive at 33 kn and brown at 40 kn over land.** FINDING
+  `docs/research/FINDING-2026-10-11-dark-s-rules-on-any-ground.md`, LESSONS L-V30 to L-V33, lab source `frontend/scripts/wind-lab/`.
+  **Waiting on the owner:** whether to build the five clauses into the app for light and beach behind a lever. Clause 4 needs a
+  land mask the wind layer does not have. Log `2026-10-10-light-look-ab` ("Hand-off").
 - **2026-10-10 22:18Z: light's own wind look, an A/B, DEFAULT OFF (#311 OPEN, client only).** What light lacks to carry dark's
   look is the GROUND (dark's streaks brighten a dark ground; light's is near white). One lever, light only:
   `window.__RAW_WIND_LIGHT_LOOK__` = `'moderate'` | `'deep'` (A: a deeper field solved from the composite wanted, then dark's streak
@@ -22,7 +36,8 @@ is a claim, not a measurement.
   method already has room on its ground (measured in the log); its line is in the A/B. New instruments: map mode `--offline` (no
   token) and the wash columns (`style.js`). **Recommended: A deep** (inside dark's step at z4-z6 and at storm strength, never washes;
   moderate washes at z4 and in a storm; B's sea goes flat olive and it fails the 3-seed scanner, 22 shapes in 8 of 13 views; A adds
-  no shape the engine lacks). A/B page: https://claude.ai/artifact/QtM5WrEghrV4Xr126Mq4vE. **Waiting on the owner:** his eye on the
+  no shape the engine lacks; **caveat 2026-10-11: its 33 kn ground is olive and its 40 kn ground brown over land**, see the entry
+  above). A/B page: https://claude.ai/artifact/QtM5WrEghrV4Xr126Mq4vE. **Waiting on the owner:** his eye on the
   deploy preview and a pick. **Owed:** ledger seq 1042 (the pick). Log `2026-10-10-light-look-ab`.
 - **2026-10-10 20:30Z: light AND beach are OFF glow (light washed out live; the owner then took beach off too; client only; PR #310 MERGED 2026-10-10 20:33Z, dev e0af8880).**
   Owner, from the app after #309: "Beach mode look a lot better, but light mode washes out from the glow." `WIND_GLOW.themes`
