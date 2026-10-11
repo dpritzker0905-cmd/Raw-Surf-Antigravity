@@ -253,3 +253,19 @@ run `20261011-041316` (13 views x 4 variants x 3 seeds, SwiftShader, about 100 s
 - **B's rows are void: the scanner could not read an ink buffer.** Every trail reader takes a trail as light on black; an ink buffer is
   ink on white paper, so the scanner read paper as solid ink (mean 228-254 of 255) and found nothing. Fixed in the bench
   (`bench-entry.js` reads an ink buffer inverted), and B scanned on its own after this run: next section.
+
+## B, scanned with its ink read (2026-10-11 04:16-05:37Z)
+
+`run.js --seeds 3 --themes light --variants light-ink --no-control`, run `20261011-053705`, the bench reading the ink buffer inverted
+(paper as empty). The candidate's renders are deterministic per seed (seeded by view, theme and seed, not variant), so the main run's
+candidate rows are its comparison.
+
+- **B fails the gate: 22 recurring shapes in 8 of 13 views** (+3 flickering), against the engine as written's 3 in 3. Many are large:
+  BLOBs of 25-95 blocks at 13-31 kn (world-z2 18.3 kn 95 blocks; fine-z6.5 28.4 kn 68), HOLEs of 8-89 blocks at 5-10 kn, one HOLE at
+  45 kn. None sits at a candidate shape's place.
+- **What they are:** ink's strength varies with its colour. A mark's ink is 1 minus its darkest channel: the light-air lilac
+  (0.80, 0.76, 0.98) lays 0.24, the warm and green inks 0.9-1.0. The scanner, built for a trail of near-even brightness, reads that
+  4x range as density: light air as holes, 13-31 kn as blobs. The particles move as the engine's do; the unevenness is ink's own
+  palette, and on screen it is real (light air nearly unmarked, the 13-31 kn bands heavily inked).
+- With the flat olive sea (above), **B is not a look to ship as built.** A fix would need inks of even strength across the bands (a
+  lilac ink is pale by nature), which is a different palette: noted, not built.
