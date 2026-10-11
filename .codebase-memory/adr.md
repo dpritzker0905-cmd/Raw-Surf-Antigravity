@@ -4,6 +4,9 @@ pressure forecast grids out to ~14 days for GFS / ICON / EURO, consumed by the f
 marine+wind heatmap engines and the timeline scrubber. (This ADR is scoped to the weather subsystem —
 the most decision-dense part of the repo.)
 
+> **Dated correction, 2026-10-11:** The stack below is historical. Current live health reported a 2,048 MB container limit; canonical scheduled ingest is GitHub Actions -> `ingest_forecast_ci.py`, with scheduler rescue jobs distinct from primary ingest. Use `CLAUDE.md` and `docs/weather-program/STATE.md` for current architecture and the [verified app audit](../docs/audits/2026-10-11-app-forensic-jacobian-audit.md) for this observation. No blanket validation of other historical claims is implied.
+> metadata.verified: 2026-10-11 (correction and pointer only)
+
 ## STACK
 - Backend: FastAPI on Render **1-CPU / 512MB** (the dominant constraint behind nearly every weather decision). APScheduler runs ingestion.
 - Upstream: Open-Meteo, fetched through a **Netlify function proxy** (`WEATHER_PROXY_URL` = dev--rawsurf.netlify.app/.netlify/functions/weather-proxy) with a short (~10-26s) function timeout + retries. EURO **marine** = Copernicus (separate provider/path). EURO wind model = ecmwf_ifs, GFS = ncep_gfs, ICON = dwd_icon.

@@ -2,6 +2,8 @@
 
 > Comprehensive guide to all features, components, and their relationships.
 > Last Updated: April 9, 2026
+> Historical feature snapshot. Verified audit pointer (2026-10-11): [whole-app forensic and Jacobian audit](../docs/audits/2026-10-11-app-forensic-jacobian-audit.md). Use its evidence levels and pending-work notes; feature presence here is not current end-to-end certification.
+> metadata.verified: 2026-10-11 (pointer and historical status only)
 
 ## Table of Contents
 1. [Core Architecture](#core-architecture)
