@@ -12,8 +12,11 @@
 // WHAT IT READS (2026-10-11, DECISIONS D-020): the tables the app DRAWS. Light and beach draw dark's rules by default (windDarkRules.js:
 // a dimmed field, and streak rows of their own over land and over sea, laid by dark's streak method), so that is what is judged.
 // --today reads the tables before them (window.__RAW_DISABLE_WIND_DARK_RULES__ = true: what the kill restores).
+// 2026-10-11, D-021: with the white streak light draws its deeper field and one streak row; --before-white reads dark's rules as they
+// drew before it (window.__RAW_DISABLE_WIND_WHITE_STREAK__ = true). The mark lines below judge the streak's colour CORE; its white
+// ring, which carries the motion, is not modelled here (the GPU bench's style columns read it).
 // Usage (from this folder):  npm i; py -3.12 -m venv .venv; .venv/Scripts/python -m pip install coloraide==8.13
-//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today]
+//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today] [--before-white]
 //                            node check.mjs --look moderate|deep|ink   (light's look A/B, window.__RAW_WIND_LIGHT_LOOK__)
 // Exit code 1 with --strict when any RED line is printed (here or in the colour-blind check).
 import fs from 'fs';
@@ -31,15 +34,16 @@ const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); re
 // solver of dark's rules (windDarkRules.js, which has no imports): it is loaded first and handed in.
 const source = (file) => fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
 const { DARK_RULES, solveDarkRules } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windDarkRules.js')) + '; return { DARK_RULES, solveDarkRules };')();
-const { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn } = new Function('DARK_RULES', 'solveDarkRules',
-  source(RAMP_SRC) + '; return { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn };')(DARK_RULES, solveDarkRules);
+const { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn } = new Function('DARK_RULES', 'solveDarkRules',
+  source(RAMP_SRC) + '; return { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn };')(DARK_RULES, solveDarkRules);
 // The app's basemap mute, from its source (no imports; export keywords stripped): the ground the wind actually sits on.
 const muteSrc = fs.readFileSync(path.join(HERE, '..', '..', 'src', 'components', 'map', 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '');
 const { muteColor, windBasemapMuteAmount, windBasemapWaterL } = new Function(muteSrc + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL };')();
 const NO_MUTE = args.includes('--no-mute');
 // --mute-amount / --water-l: explore other mute settings (the app's own lever names, passed as levers).
 const LEVERS = { ...(arg('--mute-amount') ? { __RAW_WIND_BASEMAP_MUTE__: Number(arg('--mute-amount')) } : {}), ...(arg('--water-l') ? { __RAW_WIND_BASEMAP_WATER_L__: Number(arg('--water-l')) } : {}),
-  ...(arg('--look') ? { __RAW_WIND_LIGHT_LOOK__: arg('--look') } : {}), ...(args.includes('--today') ? { __RAW_DISABLE_WIND_DARK_RULES__: true } : {}) };
+  ...(arg('--look') ? { __RAW_WIND_LIGHT_LOOK__: arg('--look') } : {}), ...(args.includes('--today') ? { __RAW_DISABLE_WIND_DARK_RULES__: true } : {}),
+  ...(args.includes('--before-white') ? { __RAW_DISABLE_WIND_WHITE_STREAK__: true } : {}) };
 const groundOf = (theme, surf, c) => {
   const amount = NO_MUTE ? 0 : windBasemapMuteAmount(theme, LEVERS);
   if (!(amount > 0)) return c;
@@ -90,7 +94,7 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
   };
   const isBand = (s) => P.some((p) => p[0] === s[0]);   // the 13 Beaufort bands (a row a knot, or A's 11-15 kn waypoints, is a path, not bands)
   const muted = !NO_MUTE && windBasemapMuteAmount(theme, LEVERS) > 0;
-  console.log(`\n=== ${theme.toUpperCase()}  (${m.kind} field; ${Object.keys(m.surfaces).join(' + ')}${muted ? '; basemap muted under the wind' : ''}${rules ? "; AS DRAWN: dark's rules" : (m.kind === 'multiply' && args.includes('--today') ? '; TODAY: the tables before dark\'s rules' : '')})`);
+  console.log(`\n=== ${theme.toUpperCase()}  (${m.kind} field; ${Object.keys(m.surfaces).join(' + ')}${muted ? '; basemap muted under the wind' : ''}${rules ? "; AS DRAWN: dark's rules" + (windWhiteStreakOn(theme, LEVERS) ? ', with the white streak' : ', before the white streak') : (m.kind === 'multiply' && args.includes('--today') ? '; TODAY: the tables before dark\'s rules' : '')})`);
   // Legend stops: adjacent separation in normal vision (colour-blind separation: cvd_check.py).
   const adj = P.slice(1).map((s, i) => ({ kn: `${P[i][0]}-${s[0]}`, de: de(P[i].slice(1, 4), s.slice(1, 4)) }));
   const worstAdj = adj.reduce((w, x) => (x.de < w.de ? x : w));
@@ -135,7 +139,7 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
   // The marks' colour-blind watch reads them as drawn over the muted water: ink is never seen bare (it multiplies into the tint).
   const wg = groundOf(theme, 'water', m.surfaces.water).map((x) => x / 255);
   const shown = K ? KS.water.filter(isBand).map((k) => [k[0], ...(look === 'ink' || rules ? markOn(k.slice(1), tintOver(m, k[0], sample(F, k[0]).slice(0, 3), wg)) : k.slice(1, 4)), k[4]]) : null;
-  out[theme] = { legendAdjacent: adj, rows, tintStops, drawn: rules ? 'dark-rules' : (look || 'today'), stops: { particle: P, field: F, ...(shown ? { marks: shown } : {}) } };
+  out[theme] = { legendAdjacent: adj, rows, tintStops, drawn: rules ? (windWhiteStreakOn(theme, LEVERS) ? 'white-streak' : 'dark-rules') : (look || 'today'), stops: { particle: P, field: F, ...(shown ? { marks: shown } : {}) } };
 }
 const jsonPath = arg('--json') || path.join(os.tmpdir(), 'wind-color-check.json');
 fs.writeFileSync(jsonPath, JSON.stringify(out, null, 1));

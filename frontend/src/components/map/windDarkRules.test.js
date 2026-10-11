@@ -15,6 +15,11 @@
  * resolveThemeRamp. Those are now the ROLLBACK tables: what the kill restores. None of their bars moved.
  * The GPU bench is the authority for what is drawn (LESSONS L-V26.3): scripts/wind-bench/map-run.js --offline.
  * The land mask itself (its upload, its bind, its retries) is windLandMask.test.js.
+ *
+ * SINCE THE WHITE STREAK (D-021, windWhiteStreak.test.js): the default draws dark's rules with dark's own white ring, and light draws
+ * its deeper field under it. `B` below is that change's kill (window.__RAW_DISABLE_WIND_WHITE_STREAK__ = true): dark's rules exactly
+ * as PR #312 drew them. Everything in this file that reads the SOLVED tables or the quarter-ring marks reads them under `B`, so it
+ * still pins what that kill restores. The lever sweeps run both with and without it.
  */
 import fs from 'fs';
 import path from 'path';
@@ -30,8 +35,10 @@ import { muteColor, windBasemapMuteAmount, windBasemapWaterL } from './windBasem
 const V2 = resolveWindParticlesV2({});
 const ENGINE = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
 const KILL = { __RAW_DISABLE_WIND_DARK_RULES__: true };
+const B = { __RAW_DISABLE_WIND_WHITE_STREAK__: true };   // before the white streak: dark's rules as PR #312 drew them
 const THEMES = ['light', 'beach'];
 const RULES_MARKS = { mode: 2, on: false, glow: true, purity: 0, density: 1, opacity: 1.0, spine: 0.25, white: 0 };   // dark's streak method, DARK_RULES' strength and ring
+const WHITE_MARKS = { ...RULES_MARKS, spine: 1 };   // the default since D-021: the same method with dark's own ring
 const MARKS_OFF = { mode: 0, on: false, glow: false, opacity: 0, spine: 0, purity: 0, density: 1, white: 0 };
 
 // ── colour model: CIELAB D65 and CIEDE2000, as windLightLook.test.js (coloraide 8.13's matrices) ──────────────────────────────────────
@@ -77,7 +84,7 @@ const KNOTS = Array.from({ length: 76 }, (_, kn) => kn);
 const lumY = (rgb) => mm(RGB2XYZ, rgb.map(dec))[1];
 const median = (a) => { const s = [...a].sort((x, y) => x - y); return (s[(s.length - 1) >> 1] + s[s.length >> 1]) / 2; };
 // The tables as drawn (T), and the grounds under each speed: today's (the rollback field on its hue path) and the drawn one.
-const T = Object.fromEntries(THEMES.map((t) => [t, { field: resolveDrawnField(t, {}), ...resolveDrawnMarks(t, {}), today: huePathStops(resolveFieldRamp(t, {}), {}) }]));
+const T = Object.fromEntries(THEMES.map((t) => [t, { field: resolveDrawnField(t, B), ...resolveDrawnMarks(t, B), today: huePathStops(resolveFieldRamp(t, {}), {}) }]));
 const todayGround = (theme, surface, kn) => groundUnder(theme, surface, kn, sampleRamp(T[theme].today, kn).slice(0, 3));
 const drawnGround = (theme, surface, kn) => groundUnder(theme, surface, kn, T[theme].field[kn].slice(1, 4));
 const solved = (theme, opts) => { const t = solveDarkRules(theme, T[theme].today, resolveThemeRamp('dark'), opts); return (surface, kn) => groundUnder(theme, surface, kn, t.field[kn].slice(1, 4)); };
@@ -131,8 +138,9 @@ describe('the default: dark\'s rules draw light and beach, never dark', () => {
   });
   it('the marks are dark\'s streak method at the rules\' strength and ring, and the premultiplied composite stands down for them', () => {
     for (const theme of THEMES) {
-      expect(windInk(theme, V2, {})).toEqual(RULES_MARKS);
-      expect(v2SpeedPremul(V2, theme, {})).toEqual({ on: false, opacity: 0, singleCasing: false });
+      expect(windInk(theme, V2, B)).toEqual(RULES_MARKS);
+      expect(windInk(theme, V2, {})).toEqual(WHITE_MARKS);                                       // since D-021: dark's own ring
+      for (const w of [{}, B]) expect(v2SpeedPremul(V2, theme, w)).toEqual({ on: false, opacity: 0, singleCasing: false });
     }
     expect(windInk('dark', V2, {})).toEqual(MARKS_OFF);
     // the bench tunes them through the glow sub-levers, as it tunes a light look
@@ -140,10 +148,10 @@ describe('the default: dark\'s rules draw light and beach, never dark', () => {
   });
   it('the field and the marks it draws are not the tables it drew before', () => {
     for (const theme of THEMES) {
-      expect(resolveDrawnField(theme, {})).not.toEqual(resolveFieldRamp(theme, {}));
-      const m = resolveDrawnMarks(theme, {});
+      for (const w of [{}, B]) expect(resolveDrawnField(theme, w)).not.toEqual(resolveFieldRamp(theme, w));
+      const m = resolveDrawnMarks(theme, B);
       expect(m.land).not.toBeNull(); expect(m.water).not.toEqual(m.land);
-      expect(fnv(fieldBytes(theme, {}))).not.toBe(fnv(fieldBytes(theme, KILL)));
+      for (const w of [{}, B]) expect(fnv(fieldBytes(theme, w))).not.toBe(fnv(fieldBytes(theme, KILL)));
     }
     expect(resolveDrawnField('dark', {})).toBeNull();
     expect(resolveDrawnMarks('dark', {})).toEqual({ land: null, water: null });
@@ -210,7 +218,8 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
     expect(fnv(drawnMarkRampData(50, 'light', w))).toBe(fnv(drawnMarkRampData(50, 'light', KILL)));
     expect(fnv(fieldBytes('light', w))).toBe(fnv(fieldBytes('light', KILL)));
     expect(windInk('light', V2, w)).toEqual(MARKS_OFF);
-    expect(windInk('beach', V2, w)).toEqual(RULES_MARKS);
+    expect(windInk('beach', V2, w)).toEqual(WHITE_MARKS);
+    expect(windInk('beach', V2, { ...w, ...B })).toEqual(RULES_MARKS);
   });
   it.each(['moderate', 'deep', 'ink'])('an explicit light look (%s) holds light: its own field, marks and mark model; beach keeps dark\'s rules', (look) => {
     for (const w of [{ __RAW_WIND_LIGHT_LOOK__: look }, { location: { search: `?windLook=${look}` } }]) {
@@ -221,7 +230,8 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
       expect(resolveDrawnMarks('light', w)).toEqual({ land: marks, water: marks });
       expect(windInk('light', V2, w).mode).toBe(look === 'ink' ? 1 : 2);
       expect(windInk('light', V2, w).opacity).not.toBeUndefined();
-      expect(windInk('beach', V2, w)).toEqual(RULES_MARKS);
+      expect(windInk('beach', V2, w)).toEqual(WHITE_MARKS);
+      expect(windInk('beach', V2, { ...w, ...B })).toEqual(RULES_MARKS);
     }
     const killed = { __RAW_WIND_LIGHT_LOOK__: look, __RAW_DISABLE_WIND_LIGHT_LOOK__: true };   // the look's kill draws what it drew: light before any look
     expect(windDarkRulesOn('light', killed)).toBe(false);
@@ -240,10 +250,11 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
           expect(fnv(fieldBytes(theme, w))).toBe(fnv(fieldBytes(theme, KILL)));
         }
         expect(windDarkRulesOn(other, { [lever]: theme })).toBe(true);                 // a lever that names one theme leaves the other alone
-        expect(windInk(other, V2, { [lever]: theme })).toEqual(RULES_MARKS);
+        expect(windInk(other, V2, { [lever]: theme })).toEqual(WHITE_MARKS);
         for (const w of [{ [lever]: false }, { [lever]: 1 }, { [lever]: 'dark' }]) {   // off, or not a setting: the default stands
           expect(windDarkRulesOn(theme, w)).toBe(true);
-          expect(windInk(theme, V2, w)).toEqual(RULES_MARKS);
+          expect(windInk(theme, V2, w)).toEqual(WHITE_MARKS);
+          expect(windInk(theme, V2, { ...w, ...B })).toEqual(RULES_MARKS);
         }
         for (const w of [{ [lever]: true, [kill]: true }, { [kill]: true }]) {   // the kill is an older kill: it restores the marks before the lever
           expect(windDarkRulesOn(theme, w)).toBe(false);
@@ -267,14 +278,15 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
       __RAW_WIND_LIGHT_LOOK__: [undefined, 'deep', 'ink'], __RAW_WIND_INK__: [undefined, true, 'beach'], __RAW_DISABLE_WIND_INK__: [undefined, true],
       __RAW_WIND_GLOW__: [undefined, true, 'light', false], __RAW_DISABLE_WIND_GLOW__: [undefined, true], __RAW_WIND_THEME_V2__: [undefined, true],
       __RAW_DISABLE_WIND_FIELD_TINT__: [undefined, true], __RAW_WIND_PREMUL_THEMES__: [undefined, 'light'],
+      __RAW_DISABLE_WIND_WHITE_STREAK__: [undefined, true],
     };
     let combos = [{}];
     for (const [k, vs] of Object.entries(VALUES)) combos = combos.flatMap((c) => vs.map((v) => (v === undefined ? c : { ...c, [k]: v })));
-    expect(combos).toHaveLength(2 * 5 * 3 * 3 * 2 * 4 * 2 * 2 * 2 * 2);
+    expect(combos).toHaveLength(2 * 5 * 3 * 3 * 2 * 4 * 2 * 2 * 2 * 2 * 2);
     let on = 0;
     for (const w of combos) for (const theme of ['light', 'beach', 'dark']) {
       const rules = windDarkRulesOn(theme, w), v2 = resolveWindParticlesV2(w), marks = windInk(theme, v2, w);
-      if (rules) { on++; expect(marks).toEqual(RULES_MARKS); expect(v2SpeedPremul(v2, theme, w).on).toBe(false); }
+      if (rules) { on++; expect(marks).toEqual(w.__RAW_DISABLE_WIND_WHITE_STREAK__ ? RULES_MARKS : WHITE_MARKS); expect(v2SpeedPremul(v2, theme, w).on).toBe(false); }
       else {   // off: the marks are exactly what the kill draws under the same levers, and so are both tables
         expect(marks).toEqual(windInk(theme, v2, { ...w, ...KILL }));
         expect(resolveDrawnField(theme, w)).toEqual(resolveFieldRamp(theme, w));
@@ -282,15 +294,16 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
       }
       expect(windLookKey(theme, w).endsWith('|dark-rules')).toBe(rules);   // and the engine's rebuild key says which
     }
-    expect(on).toBe(39);   // the sweep reaches both branches: 39 of the 34,560 theme-and-lever cases draw the rules, and no older lever or kill is among them
+    expect(on).toBe(78);   // the sweep reaches both branches: 78 of the 69,120 theme-and-lever cases draw the rules (39 with the white streak, 39 under its kill), and no older lever or kill is among them
   });
   it('the engine rebuilds its tables at once when any of them flips (the look key)', () => {
     const base = windLookKey('light', {});
-    expect(base).toBe('|dark-rules');
-    for (const w of [KILL, { __RAW_WIND_DARK_RULES__: 'beach' }, { __RAW_WIND_LIGHT_LOOK__: 'deep' }, { __RAW_WIND_INK__: true }, { __RAW_WIND_GLOW__: 'light' }, { __RAW_WIND_THEME_V2__: true }]) expect(windLookKey('light', w)).not.toBe(base);
+    expect(base).toBe('white|dark-rules');
+    for (const w of [KILL, B, { __RAW_WIND_DARK_RULES__: 'beach' }, { __RAW_WIND_LIGHT_LOOK__: 'deep' }, { __RAW_WIND_INK__: true }, { __RAW_WIND_GLOW__: 'light' }, { __RAW_WIND_THEME_V2__: true }]) expect(windLookKey('light', w)).not.toBe(base);
     expect(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).not.toBe(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'ink' }));
     expect(windLookKey('dark', {})).toBe('|');
-    expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep|dark-rules');   // the key carries the look for every theme; beach's tables do not move with it
+    expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep+white|dark-rules');   // the key carries the look for every theme; beach's tables do not move with it
+    expect(windLookKey('beach', { ...B, __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep|dark-rules');
   });
 });
 
@@ -341,6 +354,7 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
     // Anything else is listed below with its family. An unlisted kill fails here, so the question is asked when the kill is written (L-V36).
     const ORTHOGONAL = [
       '__RAW_DISABLE_WIND_DARK_RULES__',                                                                       // this change's own kill
+      '__RAW_DISABLE_WIND_WHITE_STREAK__',                                                                     // the white streak's (D-021): it picks which of dark's rules' tables and ring draw, and stands down with them
       // how many marks, where, how long, how fast (the particles' motion and density)
       '__RAW_DISABLE_WIND_CALIBRATION_V2__', '__RAW_DISABLE_WIND_DENSITY_V2__', '__RAW_DISABLE_WIND_DENSITY_UNIFORM__', '__RAW_DISABLE_WIND_VIEWPORT_DENSITY__', '__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__',
       '__RAW_DISABLE_WIND_CLOSEZOOM_INK__', '__RAW_DISABLE_WIND_SPEED_KEEP__', '__RAW_DISABLE_WIND_SPEED_GAMMA__', '__RAW_DISABLE_WIND_MOTION_FLOOR__', '__RAW_DISABLE_WIND_RESPAWN_LNG_WRAP__',
@@ -389,7 +403,7 @@ describe('the solved tables: the five rules', () => {
   });
   it('RULE 1, light only adds: every texel of the drawn tables steps LIGHTER than the ground under it, over land and over sea', () => {
     for (const theme of THEMES) for (const max of [50, 75]) {
-      const marks = drawnMarkRampData(max, theme, {}), field = fieldBytes(theme, {}, max);
+      const marks = drawnMarkRampData(max, theme, B), field = fieldBytes(theme, B, max);
       for (let i = 0; i < 256; i++) {
         const kn = (i / 255) * max, F = [0, 1, 2].map((c) => field[i * 4 + c] / 255);
         for (const [row, surface] of [[0, 'land'], [1, 'water']]) {
@@ -423,9 +437,9 @@ describe('the solved tables: the five rules', () => {
   });
   it('reads the same grounds from the tables as from the bytes the engine uploads (the LUT is the tables)', () => {
     for (const theme of THEMES) {
-      const field = fieldBytes(theme, {}, 75), want = generateRampData(75, T[theme].field, null, {});
+      const field = fieldBytes(theme, B, 75), want = generateRampData(75, T[theme].field, null, {});
       expect(fnv(field)).toBe(fnv(want));
-      const marks = drawnMarkRampData(75, theme, {});
+      const marks = drawnMarkRampData(75, theme, B);
       expect(fnv(marks.subarray(0, 1024))).toBe(fnv(generateRampData(75, T[theme].land, theme, {})));
       expect(fnv(marks.subarray(1024))).toBe(fnv(generateRampData(75, T[theme].water, theme, {})));
       expect(todayGround(theme, 'land', 6)).not.toEqual(drawnGround(theme, 'land', 6));
@@ -529,7 +543,7 @@ describe('the streaks against dark\'s own step (rules 1, 4 and 5)', () => {
   });
 });
 
-describe('the colour-blind floor, reported as it is: the new default is UNDER the project\'s bar of 5', () => {
+describe('the colour-blind floor, reported as it is: the fields dark\'s rules solve are UNDER the project\'s bar of 5 (beach still draws its one; light\'s deeper field holds 5: windLightLook.test.js)', () => {
   // The bar: neighbouring Beaufort bands' grounds from 3 kn up at least 5 dE2000 apart for protan, deutan and tritan viewers, by the
   // checker's method (coloraide). The tables before this change reach it on the muted ground (5.08 to 5.26; windLightFastBand,
   // windPaletteCvd). Dark's rules do not: dusk draws the bands' lightness together. Nothing here lowers that bar or any test that holds
@@ -599,7 +613,7 @@ describe('the shader and the engine wiring (string pins; the GPU bench is the au
     for (const ring of land.features[0].geometry.coordinates) expect(ring[0]).toEqual(ring[ring.length - 1]);   // closed rings
   });
   it('the table\'s rows are land first, sea second, as the shader reads them', () => {
-    const marks = drawnMarkRampData(75, 'light', {}), m = resolveDrawnMarks('light', {});
+    const marks = drawnMarkRampData(75, 'light', B), m = resolveDrawnMarks('light', B);
     expect(Array.from(marks.subarray(0, 1024))).toEqual(Array.from(generateRampData(75, m.land, 'light', {})));
     expect(Array.from(marks.subarray(1024))).toEqual(Array.from(generateRampData(75, m.water, 'light', {})));
     expect(fnv(marks.subarray(0, 1024))).not.toBe(fnv(marks.subarray(1024)));

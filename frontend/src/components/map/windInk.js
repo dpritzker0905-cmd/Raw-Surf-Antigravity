@@ -45,7 +45,11 @@
  *
  * Nothing about the particles' motion changes in either: positions, count, size, lifetime and fade rate are the engine's.
  *
- * Default: glow in no theme. window.__RAW_WIND_GLOW__ = true draws it in light and beach for a session, 'beach' in beach only.
+ * 2026-10-11, THE WHITE STREAK (D-021; windDarkRules.js WHITE_STREAK): light and beach draw dark's streak method (mode 2 below) with
+ * DARK'S OWN RING (1), over a field deep enough to show white light. What the attempts above missed is in that file's comment: a dark
+ * streak is white light, and the field under it carries the colour. Kill: window.__RAW_DISABLE_WIND_WHITE_STREAK__.
+ *
+ * Default: the glow LEVER in no theme. window.__RAW_WIND_GLOW__ = true draws it in light and beach for a session, 'beach' in beach only.
  * Levers: window.__RAW_WIND_INK__  = true (light and beach) | 'light' | 'beach' | 'light,beach';
  *           __RAW_WIND_INK_OPACITY__ (0.1-1), __RAW_WIND_INK_SPINE__ (0-1: a darker inner ring; 0 = pure colour),
  *           __RAW_WIND_INK_PURITY__ (0-1) and __RAW_WIND_INK_DENSITY__ (0.5-4): the ink's colour, see inkOf;
@@ -65,8 +69,8 @@
  * where the marks cover most of the water it still reads as one flat dark sea (log 2026-10-10-light-look-ab). Sub-levers as above (opacity, ring, white, spine) and
  * __RAW_WIND_INK_CAP__ (0.1-1). Kill: window.__RAW_DISABLE_WIND_LIGHT_LOOK__.
  */
-import { windLightLook, windDarkRulesOn } from './WindColorRamp';
-import { DARK_RULES } from './windDarkRules';
+import { windLightLook, windDarkRulesOn, windWhiteStreakOn } from './WindColorRamp';
+import { DARK_RULES, WHITE_STREAK } from './windDarkRules';
 
 const OFF = Object.freeze({ mode: 0, on: false, glow: false, opacity: 0, spine: 0, purity: 0, density: 1, white: 0 });
 
@@ -130,7 +134,8 @@ export function windInk(theme, v2, win = (typeof window !== 'undefined' ? window
     return { mode: 2, on: false, glow: true, spine: inRange(ri, 0, 1) ? ri : perTheme(WIND_GLOW.ring, theme), purity: 0, density: 1,
       opacity: inRange(op, 0.1, 1) ? op : (WIND_GLOW.opacity[theme] || 0.6), white: inRange(wh, 0, 1) ? wh : perTheme(WIND_GLOW.white, theme) };
   }
-  if (windDarkRulesOn(theme, w)) return lookMarks(DARK_RULES, w);   // DARK'S RULES, on by default (windDarkRules.js): dark's streak method on their tables
+  // DARK'S RULES, on by default (windDarkRules.js): dark's streak method on their tables, with dark's own white ring (WHITE_STREAK)
+  if (windDarkRulesOn(theme, w)) return lookMarks(windWhiteStreakOn(theme, w) ? WHITE_STREAK : DARK_RULES, w);
   return OFF;
 }
 
