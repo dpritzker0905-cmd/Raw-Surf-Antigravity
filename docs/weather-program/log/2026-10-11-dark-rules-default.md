@@ -262,6 +262,19 @@ dark's rules lacks:**
 The trail is brighter under dark's streak method (ink 98-162 against 82-145), which carries an existing shape over a counting
 threshold. With the mask in the first run the default's ink read 93-160: the sea rows lay less.
 
+## 17:02Z · PR #312 marked ready; hand-off
+
+- **#312 is ready for review** at `1c51b6c7` plus this note (it was a draft while the review ran). Ledger 1048 (the scanner
+  correction) and 1049 (the review and its fix pass). The production build (`craco build`, CI=false) built on the final code; no warning
+  in it names a file of this change.
+- **The palette checker after the fix pass:** the same output as before it (as drawn: exit 1, the four colour-blind lines; `--today`: 0).
+- **For the owner:** merge #312 to see it on the dev site. To turn it off in a session: `window.__RAW_DISABLE_WIND_DARK_RULES__ = true`.
+- **Owed:** ledger 1047 (due 2026-10-18): the read-back on the deployed build and the owner's verdict.
+- **Recommended next, its own change and its own kill (one visual variable at a time):** where dark's step is out of reach above a held
+  ground, let a streak stop short and keep its colour. It removes the pale band at 26-30 kn over land and the one-knot saturation step
+  at its edge in beach. Proposed as a follow-up session, not built.
+- **Other sessions' overdue commitments** (13, each a live read-back of backend or app work) were left alone.
+
 ## Known limits
 
 - The grounds the solver assumes are the wind bench's offline basemap colours, muted as the app mutes them, not the live Mapbox map.
