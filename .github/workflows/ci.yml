@@ -1789,7 +1789,9 @@ jobs:
           # ⬆ 1542→1543 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (the HRRR wind lane, D-017): the new spawned
           # fetcher noaa_hrrr_wind_fetcher.py adds one parametrized case to test_fetcher_script_imports.py; hosted 1544 on
           # dev db037eaf (CI 37971676215) -> projected 1545; 1545 - 2 = 1543. This PR must read 306 files / 1545.
-          MIN_PASSED = 1543
+          # Post ownership repair: +26 executed estate controls -> projected1571, margin2.
+          # Hosted qualification pending; no push or deployment in the local repair batch.
+          MIN_PASSED = 1569
 
           try:
               root = ET.parse('estate.xml').getroot()

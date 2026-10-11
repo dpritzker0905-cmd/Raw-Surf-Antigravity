@@ -10,6 +10,7 @@ from typing import Optional
 from datetime import datetime, timedelta
 
 from database import get_db
+from core.security import get_current_user_id
 from models import Profile, Post
 
 router = APIRouter()
@@ -22,8 +23,8 @@ class PostSettingsUpdate(BaseModel):
 @router.patch("/posts/{post_id}/settings")
 async def update_post_settings(
     post_id: str,
-    user_id: str,
     settings: PostSettingsUpdate,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update post settings (hide likes, disable comments)"""
@@ -62,8 +63,8 @@ class PostUpdate(BaseModel):
 @router.patch("/posts/{post_id}")
 async def update_post(
     post_id: str,
-    user_id: str,
     data: PostUpdate,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update post caption, location, or session conditions"""
@@ -110,7 +111,7 @@ async def update_post(
 @router.delete("/posts/{post_id}")
 async def delete_post(
     post_id: str,
-    user_id: str,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a post"""
