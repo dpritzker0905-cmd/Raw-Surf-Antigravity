@@ -120,10 +120,10 @@ describe('off: the lever unset, killed, or not a look', () => {
   });
   it('the engine builds the marks table from resolveMarkRamp, which is null when off: the same bytes as the legend\'s own table', () => {
     expect(bytes(generateRampData(50, resolveMarkRamp('light', {}), 'light'))).toBe(bytes(generateRampData(50, null, 'light')));
-    expect(ENGINE).toMatch(/generateRampData\(this\._maxWindSpeed, resolveMarkRamp\(activeTheme\), activeTheme\)/);
-    expect(ENGINE.match(/resolveMarkRamp\(activeTheme\)/g)).toHaveLength(2);   // render and setTheme
-    // a change of look rebuilds the tables at once; with the lever unset the key stays null and nothing rebuilds
-    expect(ENGINE.match(/lightLook !== \(this\._lightLook \|\| null\)/g)).toHaveLength(2);
+    // since D-020 the engine builds the drawn table (two rows, land and sea) and keys its rebuild on the look and dark's rules
+    expect(ENGINE.match(/drawnMarkRampData\(this\._maxWindSpeed, activeTheme\)/g)).toHaveLength(2);   // render and setTheme
+    expect(ENGINE.match(/createTexture\(gl, gl\.LINEAR, rampData, 256, 2\)/g)).toHaveLength(2);
+    expect(ENGINE.match(/lookKey !== this\._lookKey/g)).toHaveLength(2);
   });
   it.each(LOOKS)('%s: beach and dark never move, and the legend bar never moves', (look) => {
     for (const theme of ['beach', 'dark']) {

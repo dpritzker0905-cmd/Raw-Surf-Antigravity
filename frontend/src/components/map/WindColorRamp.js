@@ -9,6 +9,7 @@
  *   - NO DOM or React dependency
  *   - Pure color math + GL texture creation
  */
+import { DARK_RULES, solveDarkRules } from './windDarkRules';
 
 /**
  * v3.11.3: Scientific wind speed color ramp (meteorological convention).
@@ -427,12 +428,51 @@ export function resolveMarkRamp(theme, win) {
   return look === 'ink' ? revertRows(resolveThemeRamp(theme), LIGHT_INK_MARK_ROWS) : null;
 }
 
+/**
+ * DARK'S RULES (windDarkRules.js; owner 2026-10-11, D-020): ON for light and beach. `__RAW_DISABLE_WIND_DARK_RULES__ = true` draws
+ * both exactly as before; `__RAW_WIND_DARK_RULES__` = true | false | 'light' | 'beach' narrows them. An explicit light look holds light.
+ */
+export function windDarkRulesOn(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null) || {};
+  if (w.__RAW_DISABLE_WIND_DARK_RULES__ === true || (theme === 'light' && windLightLook(w))) return false;
+  var lever = w.__RAW_WIND_DARK_RULES__;
+  var themes = lever === true ? ['light', 'beach'] : (lever === false ? [] : (typeof lever === 'string' ? lever.split(',') : DARK_RULES.themes));
+  return (theme === 'light' || theme === 'beach') && themes.indexOf(theme) >= 0;
+}
+var SOLVED = {};
+function darkRulesTables(theme, w) {
+  var field = resolveFieldRamp(theme, w), dark = resolveThemeRamp('dark'), key = theme + JSON.stringify(field) + JSON.stringify(dark);
+  if (!SOLVED[key]) SOLVED[key] = solveDarkRules(theme, field, dark);
+  return SOLVED[key];
+}
+/** The field's stops as DRAWN: dark's rules' dimmed field when they are on, else resolveFieldRamp's. */
+export function resolveDrawnField(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : {});
+  return windDarkRulesOn(theme, w) ? copyRows(darkRulesTables(theme, w).field) : resolveFieldRamp(theme, w);
+}
+/** The marks' stops as DRAWN, { land, water } (null = the legend's ramp). Off: both are resolveMarkRamp's. */
+export function resolveDrawnMarks(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null);
+  if (!windDarkRulesOn(theme, w)) { var m = resolveMarkRamp(theme, w); return { land: m, water: m }; }
+  var t = darkRulesTables(theme, w);
+  return { land: copyRows(t.land), water: copyRows(t.water) };
+}
+/** The marks' LUT, 256 x 2 RGBA: row 0 over land, row 1 over sea (DRAW_FS mixes them by windLandMask.js). Off: two equal rows. */
+export function drawnMarkRampData(maxSpeed, theme, win) {
+  var m = resolveDrawnMarks(theme, win), land = generateRampData(maxSpeed, m.land, theme, win);
+  var data = new Uint8Array(256 * 2 * 4);
+  data.set(land, 0); data.set(m.water === m.land ? land : generateRampData(maxSpeed, m.water, theme, win), 256 * 4);
+  return data;
+}
+/** What the marks' and field's tables depend on besides the theme: a change rebuilds them at once (WebGLWindEngine). */
+export function windLookKey(theme, win) { return (windLightLook(win) || '') + '|' + (windDarkRulesOn(theme, win) ? 'dark-rules' : ''); }
+
 /** The field's own LUT texture for `theme` (null = the field samples the particle ramp). Restores the texture binding. */
 export function buildFieldRampTexture(gl, maxSpeed, theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : {});
-  var look = theme === 'light' && LIGHT_LOOK_FIELD[windLightLook(w)];   // a look's field is drawn even under the field-ramp kill (its marks are not a field)
+  var look = (theme === 'light' && LIGHT_LOOK_FIELD[windLightLook(w)]) || windDarkRulesOn(theme, w);   // a look's field is drawn even under the field-ramp kill (its marks are not a field)
   if (!gl || !FIELD_RAMPS[theme] || (w.__RAW_DISABLE_WIND_FIELD_RAMP__ === true && !look)) return null;
-  var data = generateRampData(maxSpeed || 50, resolveFieldRamp(theme, w), null, look ? {} : w), prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
+  var data = generateRampData(maxSpeed || 50, resolveDrawnField(theme, w), null, look ? {} : w), prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
