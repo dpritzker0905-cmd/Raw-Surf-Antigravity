@@ -269,3 +269,36 @@ candidate rows are its comparison.
   palette, and on screen it is real (light air nearly unmarked, the 13-31 kn bands heavily inked).
 - With the flat olive sea (above), **B is not a look to ship as built.** A fix would need inks of even strength across the bands (a
   lilac ink is pale by nature), which is a different palette: noted, not built.
+
+## 2026-10-11 05:47-06:10Z · Ground Truth: dark's rules on any ground (owner's ask, no app change)
+
+Owner, 2026-10-11 (via the algorithmic-art skill): "we need the light mode and beach mode's wind animations to follow the same
+rules as dark mode. Learn from all our past mistakes and find more best practices and tools".
+
+- **Built:** Ground Truth, a p5.js + WebGL lab that draws one seeded wind three times (dark, beach, light). It uses the engine's
+  particle law, casing, 8-bit floor fade, colour tables and composites, and measures each frame like the bench (step, lighter
+  share, end/wash, APCA, sea shift, colour-blind floor, weakest chroma). It is a private artifact:
+  https://claude.ai/artifact/LtiAmMargo1QsXHcXmBEYX. Its source is outside the repo; its colour tables are copied from
+  `WindColorRamp.js` at a12135b.
+- **Found** (docs/research/FINDING-2026-10-11-dark-s-rules-on-any-ground.md, LESSONS L-V30 to L-V33):
+  - Dark's composite only adds light on black; its ground-independent form is #311's streak method.
+  - Room comes from one dusk factor, not a per-band ceiling.
+  - Orange and yellow grounds are renamed brown and olive when dimmed on a pale page. **#311's A deep has this at 33 and 40 kn.**
+  - The relation needs land and sea solved separately.
+- **Lab defaults** (ceiling L* 58, guard L* 76, colour floor C* 25):
+  - Light land and sea: +8.0 / +17.3, 98-100% lighter, no wash.
+  - Beach: +7.8 / +14.8, 99-100% lighter.
+  - Today's light and beach: +3.0 to +12.0; beach land washes (end 78.6).
+  - Colour-blind floor (Machado, grounds): beach 3.65 / 3.63 (today 3.46 / 3.45); light 4.60 / 3.50 (today 4.84 / 4.83).
+  - Light's sea floor is the open cost.
+- **Research:** three subagents.
+  - Engine rules, with file:line references: the FINDING's section 1.
+  - Every past wind-look mistake: section 3.
+  - Outside practice and tools (Esri flow renderer, earth.nullschool, webgl-wind, APCA, gamut cusps, Luo-Li 2018, Ware 2014,
+    DaltonLens, culori, Color.js, pixelmatch, FLIP): sections 4 and 5.
+- **Not verified:**
+  - Nothing was seen in the app, and the owner has not seen the lab.
+  - The lab's grounds are flat colours at zoom 5.
+  - Dark reads lower in the lab (+5.5 / +6.0) than on the real map (+9.5 to +14.5).
+  - A deep's olive and brown are computed in the lab's colour model, not read off the engine.
+- **No default moved and no served number changed.** #311 stays as it was; its recommendation now carries the olive/brown caveat.

@@ -762,3 +762,23 @@ A stored estimate can be estimated again in a browser branch with different sour
   Rules: (1) before the first push of a stacked branch, `git fetch` its base and compare heads; (2) if the base merged, rebuild on the
   merged commit in a separate worktree (L-P14) and re-append the ledger lines after the base's head; (3) read the base's newest
   commit message: here it carried the owner's newest words, which changed what this session owed. (log 2026-10-10-light-look-ab)
+- **L-V30 · Restate a reference's rule in the form that holds on the new ground before you copy it.** Dark's streak composite
+  (`c·b·op + dst·(1 − b·op)`) only "adds light" because its ground is near black: it removes b·op of the ground and adds colour in
+  proportion to b², so on a lighter ground every fading tail darkens it (the Ground Truth lab: light's land −5 L*, 38% of streak
+  pixels lighter). The 2026-10-09 "pale cream streaks" on light were the same law. The ground-independent form is #311's streak
+  method, `Ŝ·b²·op + dst·(1 − b²·op)` (98-100% lighter in the same lab). Rule: when copying a look, derive which clause of its
+  formula depends on its ground, and write that clause so it holds on every ground. (docs/research/FINDING-2026-10-11-dark-s-rules-on-any-ground.md)
+- **L-V31 · Dim a ground by one factor; never push every band to one ceiling.** Making room for lighter streaks by clamping each
+  band's ground to a ceiling equalised their lightness, the one channel colour-blind viewers keep: light's floor fell to 0.4.
+  Dimming every band by one factor in linear light (dusk) kept 4.6. A guard set at a level two neighbouring bands both reach
+  merged them the same way (guard L* 68: 0.42). Rule: any per-band lift or clamp is checked for bands it makes equal. (same note)
+- **L-V32 · A colour can be renamed by its surround: a dim orange is brown and a dim yellow olive on a pale page.** Brown and olive
+  are related colours that exist only below a brighter surround; the same chromaticity reads as yellow light on a night map. This
+  is B ink's flat olive sea, and #311's A deep has it too: computed over light's muted land, its 33 kn ground is rgb(144, 127, 71)
+  (L* 53.5, olive) and its 40 kn ground rgb(136, 106, 71) (L* 46.8, brown). No gate asked. Rule: a palette gate on a pale ground
+  names its colours (hue family vs lightness), and orange-to-yellow grounds keep their lightness. (same note)
+- **L-V33 · A relation to the ground means the ground actually under the mark: land and sea separately.** Dark's land and sea are
+  both near black, so one streak colour per speed serves both. Light's sea is far darker than its land under the tint, so one colour
+  stepped +24 L* over the sea and washed it (end 75.1). Solved per ground the sea read +17.3, end 68.1. The engine has no land mask,
+  so this needs one. Rule: when a rule is relational, check every distinct ground it meets, not the one the table was solved on.
+  (same note)
