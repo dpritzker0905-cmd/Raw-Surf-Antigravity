@@ -68,7 +68,7 @@ the streak wants dark's step above it and runs to the colour floor: a near-white
 | 30 kn | 71.8 | 98.2 / 25.8, +21.7 | 94.1 / 93.6, +18.2 | 3.5 |
 
 It is the colour floor as the rule set states it (C* 25), so it ships as specified. On the storm crop it is a cream band between the
-green and the yellow. **Recommended next, the owner's call after he has seen it:** where dark's step is out of reach, let a streak stop
+green and the yellow. **Recommended next, the owner's call once it has been seen on the map:** where dark's step is out of reach, let a streak stop
 2 to 4 L* short and keep its colour.
 
 ## Measurements
@@ -167,9 +167,44 @@ wind is a dark khaki.
   1045 (`pr_open #312`), 1046 (the default flip, in code on #312), 1047 (commitment: the read-back on the deployed build, due 2026-10-18).
 - **STATE:** #311 MERGED; the new entry at the top of Now; the ledger head.
 
+## 16:00-16:05Z · The same bench on the REAL basemaps (Mapbox, the app's public token from the local env file)
+
+`map-run.js` without `--offline`: Mapbox navigation-day (light), outdoors (beach) and navigation-night (dark), Mobile Bay, the served GFS
+wind, the app's own Natural Earth land file for the mask (`mask 1` on every `rules` row). Tiles came from Mapbox; no request reached the
+Raw Surf backend. This answers the first known limit below for one camera: the solver's flat grounds against a real map.
+
+| | LAND step | lighter | end | lines kept | WATER step | lighter | end | lines kept |
+|---|---|---|---|---|---|---|---|---|
+| light z4, today | +5.0 | 0.66 | 77.6 | 0.706 | +9.5 | 0.88 | 73.6 wash | 0.727 |
+| light z4, rules | +14.0 | 1.00 | 65.3 | 0.556 | +11.5 | 0.99 | 57.1 | 0.518 |
+| light z6, today | +4.5 | 0.63 | 76.9 | 0.685 | +9.5 | 0.85 | 73.0 | 0.781 |
+| light z6, rules | +11.5 | 1.00 | 60.5 | 0.590 | +11.5 | 0.99 | 65.8 | 0.648 |
+| light z8, today | +4.5 | 0.80 | 77.5 | 0.700 | +5.5 | 0.83 | 63.0 | 0.757 |
+| light z8, rules | +7.0 | 1.00 | 59.2 | 0.574 | +5.0 | 1.00 | 61.6 | 0.645 |
+| beach z4, today | +2.5 | 0.63 | 73.9 | 0.627 | +6.0 | 0.82 | 66.8 | 0.810 |
+| beach z4, rules | +14.5 | 1.00 | 70.4 | 0.582 | +17.5 | 1.00 | 64.2 | 0.817 |
+| beach z6, today | +3.5 | 0.68 | 69.7 | 0.744 | +6.0 | 0.79 | 67.2 | 0.759 |
+| beach z6, rules | +12.5 | 1.00 | 61.7 | 0.653 | +13.0 | 0.99 | 65.5 | 0.694 |
+| beach z8, today | +3.5 | 0.91 | 70.0 | 0.690 | +4.0 | 0.84 | 61.8 | 0.786 |
+| beach z8, rules | +7.5 | 1.00 | 60.4 | 0.593 | +5.5 | 1.00 | 61.8 | 0.721 |
+| dark z4 | +14.5 | 0.99 | 44.9 | 0.599 | +11.0 | 0.96 | 51.0 | 0.733 |
+| dark z6 | +13.0 | 0.97 | 39.9 | 0.654 | +10.0 | 0.93 | 50.0 | 0.790 |
+| dark z8 | +10.5 | 1.00 | 40.3 | 0.669 | +7.0 | 0.92 | 44.5 | 0.814 |
+
+- **Over land the step is dark's at z4 and z6:** light 97% and 88% of it, beach 100% and 96% (before: 34-35% and 17-27%). At z8, 67% and 71%.
+- **Every streak pixel over land is lighter than its ground, and no surface reads wash** (light's water at z4 did).
+- **The lines over land keep about what dark's keep:** light 0.56 / 0.59 / 0.57 and beach 0.58 / 0.65 / 0.59 against dark's 0.60 / 0.65 /
+  0.67. That is 0.05 to 0.15 less than before (0.63 to 0.74). Of the lines that were at least 3:1 on the bare map, light keeps 0.67 at
+  z6 over land (0.79 before; dark 0.59) and 0.39 over water (0.59 before; dark 0.48).
+- **The mask on a real coast** (`--no-land-file` against the app's file, z6): LAND identical; WATER step +16.5 → +11.5 (light) and
+  +16.5 → +13.0 (beach), the end 69.8 → 65.8 and 68.5 → 65.5, the streaks' chroma 33.0 → 51.5 and 41.0 → 55.0.
+- On the crops the place names keep their halos and read; the pale patch is there on the delta south of New Orleans (land under
+  26-30 kn).
+
 ## Known limits
 
 - The grounds the solver assumes are the wind bench's offline basemap colours, muted as the app mutes them, not the live Mapbox map.
+  Checked on the real basemaps for one camera (the section above); not in the app.
 - The land mask's texel is about 20 km: the hand-over between land and sea rows is soft near coasts at z8 and beyond.
 - The mask costs one fetch of a 2.8 MB file the app already serves, and one rasterisation of 1,420 polygons into a 2048 x 2048 canvas in an
   idle callback. Not timed on a phone.

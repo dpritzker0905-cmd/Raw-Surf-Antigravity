@@ -25,14 +25,16 @@ is a claim, not a measurement.
     Read-back: `window.__WIND_ENGINE__._lookKey` ends with `|dark-rules`; `window.__WIND_LAND_MASK__.status` is `ready`.
   - **Measured** (offline map bench, land, z4 / z6 / z8): step +16.0 / +13.5 / +8.0 (light) and +18.0 / +15.5 / +8.5 (beach), against
     dark's +18.5 / +17.0 / +12.5 and +6 to +7 before; every streak pixel lighter than its ground; no surface reads wash (three did).
+    On the REAL Mapbox basemaps (same bench, the app's land file): step over land 97% / 88% / 67% of dark's for light and 100% / 96% /
+    71% for beach (34-35% and 17-27% before at z4-z6), every streak pixel lighter, no wash.
     3-seed scanner: no shape the engine before lacks (7 recurring against 5, each at a place the kill arm has it).
   - **Costs, said plainly:** the colour-blind floor of 5 does NOT hold as drawn (`check.mjs --strict` exits 1: light 4.9 over land and
-    3.9 over water, beach 3.2 and 3.1; 5.1 to 5.3 before); the map's lines keep less over land (z6: light 0.43 against 0.50, beach 0.48
-    against 0.60); a pale band over land at 26-30 kn (the guard keeps that ground light, the streak stops at the colour floor).
+    3.9 over water, beach 3.2 and 3.1; 5.1 to 5.3 before); the map's lines keep less over land (real basemaps, z6: light 0.59 against
+    0.69, beach 0.65 against 0.74; dark's own 0.65); a pale band over land at 26-30 kn (the guard keeps that ground light, the streak stops at the colour floor).
   - **Changed from the lab's solver** (rulings, each with a control in `windDarkRules.test.js`): the solver reads the hue path (the
     port had brought the 13 kn grey back); the guard reaches 4 kn outward along speed (the lab's hand-over stepped light's ground
     18.6 L* in one knot; now 4.4); calm keeps its tint.
-  - **Not verified:** nothing has been seen in the app. **Waiting on the owner:** the merge, then his eye on the map (keep, turn off,
+  - **Not verified:** nothing has been seen in the app. **Waiting on the owner:** the merge, then the owner's eye on the map (keep, turn off,
     or tune). **Owed:** ledger seq 1047 (the read-back on the deployed build). Log `2026-10-11-dark-rules-default`, LESSONS L-V34 to
     L-V37.
 - **2026-10-11 06:10Z: dark's rules restated for any ground (docs and a model lab on #311's branch; NO app change).** Owner:

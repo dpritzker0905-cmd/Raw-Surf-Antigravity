@@ -316,7 +316,7 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   `'beach'`. Read at once: the engine rebuilds its tables on the change.
 - **Read-back:** `window.__WIND_ENGINE__._lookKey` ends with `|dark-rules` in light and beach;
   `window.__WIND_LAND_MASK__.status` is `ready` once the land mask is loaded (until then every mark draws its land row).
-- **Not decided (the owner's, after he has seen it):** keep, turn off, or tune. Known knobs: the ceilings, the guard and its
+- **Not decided (the owner's, once it has been seen on the map):** keep, turn off, or tune. Known knobs: the ceilings, the guard and its
   reach, the colour floor, and whether a streak may stop short of dark's step to keep its colour where the ground is held.
 - **Evidence (log 2026-10-11-dark-rules-default):** offline map bench, z4 / z6 / z8 over land: step +16.0 / +13.5 / +8.0 (light)
   and +18.0 / +15.5 / +8.5 (beach) against dark's +18.5 / +17.0 / +12.5 and +6 to +7 before; 100% of streak pixels lighter than
