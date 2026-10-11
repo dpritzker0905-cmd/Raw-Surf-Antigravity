@@ -390,7 +390,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var activeTheme = theme || this._currentTheme || 'dark', lookKey = windLookKey(activeTheme);   // the light-look lever and dark's rules (WindColorRamp.js): a change rebuilds at once
   if (activeTheme !== this._currentTheme || !this._colorRamp || lookKey !== this._lookKey) {
     this._currentTheme = activeTheme; this._lookKey = lookKey;
-    var rampData = drawnMarkRampData(this._maxWindSpeed, activeTheme);   // two rows, over land and over sea: equal unless dark's rules draw
+    var rampData = drawnMarkRampData(this._maxWindSpeed, activeTheme);   // two rows, over land and over sea: equal unless dark's rules draw rows of their own
     if (this._colorRamp) gl.deleteTexture(this._colorRamp);
     this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 2); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
     console.log('[WebGLWind] Color ramp updated for theme:', activeTheme);

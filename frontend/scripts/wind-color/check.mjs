@@ -33,7 +33,7 @@ const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); re
 // The real ramps, straight from the source the app ships (import lines and export keywords stripped). WindColorRamp.js imports the
 // solver of dark's rules (windDarkRules.js, which has no imports): it is loaded first and handed in.
 const source = (file) => fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
-const { DARK_RULES, solveDarkRules } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windDarkRules.js')) + '; return { DARK_RULES, solveDarkRules };')();
+const { DARK_RULES, WHITE_STREAK, solveDarkRules } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windDarkRules.js')) + '; return { DARK_RULES, WHITE_STREAK, solveDarkRules };')();
 const { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn } = new Function('DARK_RULES', 'solveDarkRules',
   source(RAMP_SRC) + '; return { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn };')(DARK_RULES, solveDarkRules);
 // The app's basemap mute, from its source (no imports; export keywords stripped): the ground the wind actually sits on.
@@ -82,14 +82,15 @@ const out = {}; let red = 0;
 const flag = (bad, watch) => (bad ? (red++, 'RED ') : watch ? 'warn' : ' ok ');
 for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dark'])) {
   // The field and the marks as the app DRAWS them (WindColorRamp.js resolveDrawnField / resolveDrawnMarks; the legend never moves).
-  // Dark's rules: a row a knot, and the marks' rows differ over land and over sea. --today or a look lever: the tables before them
-  // (FIELD_RAMPS / THEME_RAMPS, or the look's own), one marks table for both grounds.
+  // Dark's rules: beach draws a row a knot, and its marks' rows differ over land and over sea; light under the white streak draws its
+  // deeper field's stops and ONE marks row for both grounds. --today or a look lever: the tables before dark's rules (FIELD_RAMPS /
+  // THEME_RAMPS, or the look's own), one marks table for both grounds.
   const rules = windDarkRulesOn(theme, LEVERS), m = MODEL[theme], P = THEME_RAMPS[theme], F = resolveDrawnField(theme, LEVERS) || P, KS = resolveDrawnMarks(theme, LEVERS), K = KS.land, rows = [];
   // How the marks are laid (keep in sync with windInk.js WIND_LIGHT_LOOK and DARK_RULES): ink multiplied into the tint, A's lifted colour
   // laid over it; dark's rules by the engine's own law (the colour at full light, laid at alpha^2 x opacity).
   const look = theme === 'light' ? LEVERS.__RAW_WIND_LIGHT_LOOK__ : null, LOOK_OP = { ink: 0.9, moderate: 1.0, deep: 1.0 };
   const markOn = (k, T) => {
-    if (rules) { const w = k[3] * k[3] * DARK_RULES.opacity; return T.map((x, j) => k[j] * w + x * (1 - w)); }
+    if (rules) { const w = k[3] * k[3] * (windWhiteStreakOn(theme, LEVERS) ? WHITE_STREAK : DARK_RULES).opacity; return T.map((x, j) => k[j] * w + x * (1 - w)); }
     return look === 'ink' ? T.map((x, j) => x * (1 - LOOK_OP.ink * (1 - k[j]))) : T.map((x, j) => k[j] * LOOK_OP[look] + x * (1 - LOOK_OP[look]));
   };
   const isBand = (s) => P.some((p) => p[0] === s[0]);   // the 13 Beaufort bands (a row a knot, or A's 11-15 kn waypoints, is a path, not bands)
@@ -100,7 +101,8 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
   const worstAdj = adj.reduce((w, x) => (x.de < w.de ? x : w));
   console.log(`[${flag(worstAdj.de < TARGET.adjDE)}] legend: weakest neighbours ${worstAdj.kn} kn at ${worstAdj.de.toFixed(1)} dE00 (target >= ${TARGET.adjDE})`);
   if (K) {   // a look's own mark colours: a watch line (the streaks' separation has never been a gate; the field and the legend carry the bands)
-    for (const [where, Kx] of (KS.water === KS.land ? [['', K]] : [[' over land', KS.land], [' over sea', KS.water]])) {
+    const oneRow = KS.water === KS.land || JSON.stringify(KS.water) === JSON.stringify(KS.land);   // resolveDrawnMarks hands out copies: compare the rows, not the references
+    for (const [where, Kx] of (oneRow ? [['', K]] : [[' over land', KS.land], [' over sea', KS.water]])) {
       const KB = Kx.filter(isBand);
       const kAdj = KB.slice(1).map((s, i) => ({ kn: `${KB[i][0]}-${s[0]}`, de: de(KB[i].slice(1, 4), s.slice(1, 4)) })).reduce((w, x) => (x.de < w.de ? x : w));
       console.log(`[${flag(false, kAdj.de < TARGET.adjDE)}] marks${where} (their own colours): weakest neighbours ${kAdj.kn} kn at ${kAdj.de.toFixed(1)} dE00 (watch below ${TARGET.adjDE})`);

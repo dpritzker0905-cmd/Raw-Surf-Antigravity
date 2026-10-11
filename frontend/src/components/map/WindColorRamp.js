@@ -481,7 +481,7 @@ function darkRulesTables(theme, w) {
   if (!SOLVED[key]) SOLVED[key] = solveDarkRules(theme, field, dark);
   return SOLVED[key];
 }
-/** The field's stops as DRAWN: dark's rules' dimmed field when they are on, else resolveFieldRamp's. */
+/** The field's stops as DRAWN: dark's rules' field when they are on (beach's dimmed one; light's deeper one under the white streak), else resolveFieldRamp's. */
 export function resolveDrawnField(theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : {});
   return windDarkRulesOn(theme, w) ? copyRows(darkRulesTables(theme, w).field) : resolveFieldRamp(theme, w);
@@ -493,7 +493,7 @@ export function resolveDrawnMarks(theme, win) {
   var t = darkRulesTables(theme, w);
   return { land: copyRows(t.land), water: copyRows(t.water) };
 }
-/** The marks' LUT, 256 x 2 RGBA: row 0 over land, row 1 over sea (DRAW_FS mixes them by windLandMask.js). Off: two equal rows. */
+/** The marks' LUT, 256 x 2 RGBA: row 0 over land, row 1 over sea (DRAW_FS mixes them by windLandMask.js). Two equal rows when dark's rules are off, and for light under the white streak. */
 export function drawnMarkRampData(maxSpeed, theme, win) {
   var m = resolveDrawnMarks(theme, win), land = generateRampData(maxSpeed, m.land, theme, win);
   var data = new Uint8Array(256 * 2 * 4);
@@ -610,7 +610,7 @@ function lerpStop(a, b, t) {
 // (C* 19-22 over the muted land throughout). That segment keeps 0.07-0.09; every other segment of light and beach keeps 0.90 or
 // more and dark's weakest (6-10 kn) 0.78, so the trigger at one half has a wide margin on both sides and nothing else is touched,
 // byte for byte (windClearLowBand.test.js pins the margin: a palette edit that drifts a segment toward the trigger fails there).
-// Light's look A/B (default off, windLightLook above) keeps the same margin: its fields' 10-16 kn keep 0.07-0.13 and walk the path, and
+// Light's look A/B (windLightLook above; its 'deep' tables are light's default since D-021) keeps the same margin: its fields' 10-16 kn keep 0.07-0.13 and walk the path, and
 // A's streak tables carry their own 1 kn waypoints, so every one of their segments keeps 0.92 or more (windLightLook.test.js).
 // Kill: __RAW_DISABLE_WIND_HUE_PATH__ (next ramp build: theme change or reload). Every OLDER ramp kill stands the path down too,
 // so that kill draws exactly what it drew: its rows AND the straight line between them.

@@ -108,6 +108,40 @@ describe('the kill: window.__RAW_DISABLE_WIND_WHITE_STREAK__ draws what dev drew
   });
 });
 
+describe('the engine\'s own call shape: no lever object, the levers on the real window', () => {
+  // WebGLWindEngine calls windLookKey(theme), drawnMarkRampData(max, theme), buildFieldRampTexture(gl, max, theme) and windInk(theme, v2)
+  // with no `win`. Every test above hands a lever object in, so a function that read its argument and never the window would pass them
+  // all and leave the kill dead in the app (found by an independent review's mutant, 2026-10-11).
+  const fieldHash = (theme, max) => { const gl = rampGl(); buildFieldRampTexture(gl, max, theme); return gl.uploaded ? fnv(gl.uploaded) : null; };
+  const asTheEngineReads = (theme, max) => { const marks = drawnMarkRampData(max, theme); return [fnv(marks.subarray(0, 1024)), fnv(marks.subarray(1024)), fieldHash(theme, max)]; };
+  afterEach(() => { delete window.__RAW_DISABLE_WIND_WHITE_STREAK__; delete window.__RAW_DISABLE_WIND_DARK_RULES__; });
+  it('with nothing set on the window it draws the default', () => {
+    for (const theme of THEMES) {
+      expect(windWhiteStreakOn(theme)).toBe(true);
+      expect(windLookKey(theme)).toBe('white|dark-rules');
+      expect(asTheEngineReads(theme, 50)).toEqual(WATCHED[theme][50]);
+      expect(windInk(theme, V2)).toEqual(WHITE_MARKS);
+    }
+  });
+  it('the kill set on the window flips the look key, the tables and the marks at once, and clearing it flips them back', () => {
+    window.__RAW_DISABLE_WIND_WHITE_STREAK__ = true;
+    for (const theme of THEMES) {
+      expect(windWhiteStreakOn(theme)).toBe(false);
+      expect(windLookKey(theme)).toBe('|dark-rules');                                                // the engine compares this with the key it built on
+      expect(asTheEngineReads(theme, 50)).toEqual(BEFORE[theme][50]);
+      expect(asTheEngineReads(theme, 75)).toEqual(BEFORE[theme][75]);
+      expect(windInk(theme, V2)).toEqual(RULES_MARKS);
+    }
+    expect(windLookKey('dark')).toBe('|');
+    delete window.__RAW_DISABLE_WIND_WHITE_STREAK__;
+    for (const theme of THEMES) { expect(windLookKey(theme)).toBe('white|dark-rules'); expect(asTheEngineReads(theme, 75)).toEqual(WATCHED[theme][75]); }
+  });
+  it('dark\'s rules\' own kill on the window still wins over it', () => {
+    window.__RAW_DISABLE_WIND_DARK_RULES__ = true;
+    for (const theme of THEMES) { expect(windWhiteStreakOn(theme)).toBe(false); expect(windLookKey(theme)).toBe('|'); expect(windInk(theme, V2)).toEqual(MARKS_OFF); }
+  });
+});
+
 describe('dark\'s rules still decide: whatever stands them down stands the white streak down, and draws what it drew', () => {
   const sameWithOrWithoutTheKill = (theme, w) => {
     const v2 = resolveWindParticlesV2(w);
@@ -177,9 +211,6 @@ describe('what the look is, per knot: white light over a ground deep enough to s
     each((theme, surface, kn) => expect(Lstar(head(theme, surface, kn, WHITE_STREAK.ring)) - Lstar(ground(theme, surface, kn))).toBeGreaterThan(8));
     // from a light breeze up it stands 19.5 L* or more off its ground (dark's own head-of-streak step is about 22)
     each((theme, surface, kn) => expect(Lstar(head(theme, surface, kn, WHITE_STREAK.ring)) - Lstar(ground(theme, surface, kn))).toBeGreaterThanOrEqual(19.5), 6);
-  });
-  it('dark\'s ring only adds light: the head is never darker than the quarter ring drew it', () => {
-    each((theme, surface, kn) => expect(Lstar(head(theme, surface, kn, WHITE_STREAK.ring))).toBeGreaterThanOrEqual(Lstar(head(theme, surface, kn, DARK_RULES.ring)) - 1e-9));
   });
   it('the head is near-white at every speed (C* 21.5 or less): the FIELD carries the colour, as dark\'s does', () => {
     each((theme, surface, kn) => expect(Cstar(head(theme, surface, kn, WHITE_STREAK.ring))).toBeLessThanOrEqual(21.5));

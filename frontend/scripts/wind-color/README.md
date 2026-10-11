@@ -44,6 +44,7 @@ node check.mjs --no-mute        # the unmuted basemap (the kill switch's picture
 node check.mjs --mute-amount 0.7 --water-l 0.95   # explore other mute settings (the app's lever values)
 node check.mjs --look moderate  # light's look A/B (window.__RAW_WIND_LIGHT_LOOK__: moderate | deep | ink)
 node check.mjs --today          # the tables before dark's rules (what the kill restores)
+node check.mjs --before-white   # dark's rules before the white streak (window.__RAW_DISABLE_WIND_WHITE_STREAK__: what that kill restores)
 ```
 
 `--look` resolves the field and the marks as the app does with that lever set (`resolveFieldRamp`, `resolveMarkRamp` in
@@ -70,19 +71,27 @@ muted ground the wind sits on (A, steady descent: 5.22 over the muted water, 5.2
 left and pinned: over light's own cyan water, which shows only with the basemap mute killed, the weakest pair is 3.04
 (10-16 kn).
 
-**As drawn since 2026-10-11, the colour-blind floor does NOT hold** (`node check.mjs --strict` exits 1, four red lines).
-Dark's rules dim the field by one factor, which draws the bands' lightness together:
+**As drawn, the colour-blind floor holds in light and does NOT hold in beach** (`node check.mjs --strict` exits 1, two
+red lines, both beach's). Dark's rules dim beach's field by one factor, which draws the bands' lightness together. Light
+drew the same kind of field from 2026-10-11 (D-020) until the white streak (D-021, the same day) gave it the deeper field
+of its A/B, which was solved to hold the floor:
 
-| Tint over the muted ground | `--today` | as drawn | weakest pair |
-|---|---|---|---|
-| light, water | 5.2 | **3.9** | 16-21 kn, deutan |
-| light, land | 5.3 | **4.9** | 55-63 kn, tritan |
-| beach, water | 5.1 | **3.1** | 16-21 kn, protan |
-| beach, land | 5.2 | **3.2** | 16-21 kn, protan |
+| Tint over the muted ground | `--today` | `--before-white` | as drawn | weakest pair as drawn |
+|---|---|---|---|---|
+| light, water | 5.2 | 3.9 | 5.5 | 40-47 kn, tritan |
+| light, land | 5.3 | 4.9 | 5.6 | 55-63 kn, tritan |
+| beach, water | 5.1 | 3.1 | **3.1** | 16-21 kn, protan |
+| beach, land | 5.2 | 3.2 | **3.2** | 16-21 kn, protan |
 
-The owner chose to see dark's rules on first and judge them (D-020). `windDarkRules.test.js` pins these numbers as
-under the bar, so a green Jest run never reads as "the floor holds". The older tests still hold the bar of 5 on the
-`--today` tables.
+The owner chose to see dark's rules on first and judge them (D-020), and then dark's own white streak over them (D-021).
+`windDarkRules.test.js` pins the `--before-white` numbers as under the bar, so a green Jest run never reads as "the floor
+holds"; `windLightLook.test.js` holds light's deeper field at 5. The older tests still hold the bar of 5 on the `--today`
+tables.
+
+The mark lines judge a streak's colour CORE. Under the white streak the core sits under a white ring that carries the
+motion, which this checker does not model (the wind bench's style columns read it). One known unevenness: the same light
+tables read through `--look deep` and through the default give different mark lines (the look path lays the core at its
+alpha, the default by the engine's own law, alpha squared); both are watch lines, never gates.
 
 ## Why coloraide and not culori for colour blindness
 

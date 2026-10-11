@@ -51,7 +51,9 @@ export const DARK_RULES = Object.freeze({
  * layers: a colour field that says how fast, and white wisps that say which way. It only LOOKS coloured: the field shows through.
  * Every attempt to copy it gave light's and beach's streaks a colour of their own instead; `ring: 0.25` above cut the white to a
  * quarter and filled the body with the hue's most saturated colour, and the owner took beach for dark and rejected both themes.
- * With dark's own ring the streaks read as dark's do: their ground's colour x 0.98-1.09, 13 to 17.5 L* lighter (GPU bench, real map).
+ * With dark's own ring the streaks stand off as dark's do (GPU bench, the real basemaps, over land at zooms 4 to 10): +8.5 to +15.5 L*
+ * in light and +8.0 to +17.0 in beach, against dark's +9.5 to +14.5; chroma 1.05-1.14 times the field's in beach and 0.67-0.96 in
+ * light (dark: 1.02-1.10), where the quarter ring drew 1.3 to 2.2 times.
  *
  * White light shows only on a ground deeper than itself. Beach's field (above) already is. Light draws the deeper field of its A/B
  * with that field's own streak row (WindColorRamp.js LIGHT_LOOK_FIELD.deep / LIGHT_LOOK_MARKS.deep: one row, since a white streak
