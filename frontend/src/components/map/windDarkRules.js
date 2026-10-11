@@ -13,8 +13,12 @@
  *      laid at alpha b^2). Dark's own formula darkens any ground lighter than black.
  *   2. ROOM: the theme's own field colour is dimmed by ONE factor in linear light (dusk), so the everyday-wind ground (6-27 kn,
  *      over land) sits at or under `ceil` L*. One factor keeps the bands' relations; a ceiling per band flattened them.
- *   3. NAMES: an orange or yellow ground (OKLCH h 35-126) is held at or above `guard` L*: dimmed on a pale page an orange reads
- *      brown and a yellow olive, while a dim blue is still navy and a dim red still maroon.
+ *      Calm keeps its tint: under 3 kn the ground dims only as far as the weak calm tint can still colour it (D-019).
+ *   3. NAMES: an orange or yellow ground (OKLCH h 35-126) is never dimmed below `guard` L*: dimmed on a pale page an orange reads
+ *      brown and a yellow olive, while a dim blue is still navy and a dim red still maroon. A tint cannot LIFT a ground, and
+ *      today's fields are already deeper than the guard at those hues (light L* 75-63 at 27-42 kn, beach 73-66 at 29-38 kn), so
+ *      in practice the guard leaves those speeds as they are drawn today. It reaches `ease` knots outward along speed, so the
+ *      ground climbs to a held band over a band's width instead of in one knot (those few speeds sit above `ceil`).
  *   4. THE GROUND UNDER THE MARK: land and sea get their own streak colours, each one dark's step above its own ground (dark's
  *      step over dark's land, and over dark's sea). The marks pick a row by a land mask (windLandMask.js).
  *   5. COLOUR FLOOR: a streak keeps at least `cMin` CIELAB chroma; it never buys lightness with its hue.
@@ -31,6 +35,7 @@ export const DARK_RULES = Object.freeze({
   themes: Object.freeze(['light', 'beach']),
   ceil: Object.freeze({ light: 58, beach: 62 }),   // beach's ground is already deeper: it needs less dusk (log 2026-10-10-light-look-ab)
   guard: 76,
+  ease: 4,          // knots to each side over which the guard's hand-over is eased (solveDarkRules: no hard line at its edge)
   cMin: 25,
   opacity: 1.0,
   ring: 0.25,
@@ -124,15 +129,34 @@ function cusp(h) {
  * fieldRows: the theme's own field stops (its hues); darkRows: dark's particle stops (dark's steps).
  */
 export function solveDarkRules(theme, fieldRows, darkRows, opts) {
-  const o = Object.assign({ ceil: DARK_RULES.ceil[theme] || 58, guard: DARK_RULES.guard, cMin: DARK_RULES.cMin, op: DARK_RULES.opacity }, opts || {});
-  const base = GROUND[theme].land, out = { field: [], land: [], water: [] };
+  const o = Object.assign({ ceil: DARK_RULES.ceil[theme] || 58, guard: DARK_RULES.guard, cMin: DARK_RULES.cMin, op: DARK_RULES.opacity, ease: DARK_RULES.ease, calm: true }, opts || {});
+  const base = GROUND[theme].land, out = { field: [], land: [], water: [] }, today = [];
   let yMax = 0;
-  for (let kn = EVERYDAY[0]; kn <= EVERYDAY[1]; kn++) yMax = Math.max(yMax, lumY(tint(base, fieldS(theme, kn), sample(fieldRows, kn))));
+  for (let kn = 0; kn <= 75; kn++) {   // today's ground under each speed, and how far the name guard holds it
+    const F0 = sample(fieldRows, kn), s = fieldS(theme, kn), G0 = tint(base, s, F0), hue = okHue(G0);
+    today.push({ F0, s, G0, w: ss(35, 55, hue) * ss(126, 116, hue), kG: o.guard > 0 ? Math.min(1, yOfL(o.guard) / lumY(G0)) : 0 });
+    if (kn >= EVERYDAY[0] && kn <= EVERYDAY[1]) yMax = Math.max(yMax, lumY(G0));
+  }
   const kU = Math.min(1, yOfL(o.ceil) / yMax);
+  // NO HARD LINE AT THE GUARD'S EDGE (LESSONS L-V8). The guard is a rule about HUE, and a ramp crosses a hue in a knot or two: light's
+  // field leaves green for yellow-green between 25 and 26 kn, where the lab's hand-over (10 degrees of hue) stepped the ground from
+  // L* 55.5 to 74.1 in ONE knot, a contour line on every storm. The guard therefore reaches `ease` knots OUTWARD along the speed axis,
+  // falling off in a straight line: a held speed keeps its full guard (no yellow is dimmed for it), and the speeds beside it climb to
+  // it over a band's width. Outward only, so the Beaufort stops on both sides keep their grounds and the colour-blind floor keeps its
+  // pairs (eased to both sides, light's 27 kn dimmed toward 33 kn and the floor fell from 4.6 to 2.2). 0 = the lab's hand-over.
+  const guardAt = (kn) => {
+    let w = 0;
+    for (let j = -o.ease; j <= o.ease; j++) if (today[kn + j]) w = Math.max(w, today[kn + j].w * (1 - Math.abs(j) / (o.ease + 1)));
+    return w;
+  };
   for (let kn = 0; kn <= 75; kn++) {
-    const F0 = sample(fieldRows, kn), s = fieldS(theme, kn), G0 = tint(base, s, F0), hue = okHue(G0), D = sample(darkRows, kn), Ad = D[3];
-    const w = ss(35, 55, hue) * ss(126, 116, hue), kG = o.guard > 0 ? Math.min(1, yOfL(o.guard) / lumY(G0)) : 0;
-    const k = kU + (Math.max(kU, kG) - kU) * w;                                                 // dusk, or the name guard
+    const { F0, s, G0, kG } = today[kn], D = sample(darkRows, kn), Ad = D[3];
+    let k = kU + (Math.max(kU, kG) - kU) * guardAt(kn);                                         // dusk, or the name guard
+    const lowest = (kk) => Math.min(...G0.map((g, c) => 1 - (1 - enc(dec(g) * kk) / base[c]) / s));
+    // CALM KEEPS ITS TINT (D-019: calm is a pale tint of the theme's first colour, never grey). Under 3 kn the tint is at its weakest
+    // (0.29 in light) and cannot both dim the ground by dusk's factor and colour it: clamped, light's calm drew a grey (C* 0.7).
+    // There the ground dims only as far as the tint reaches WITH its colour.
+    if (o.calm && kn < 3 && lowest(k) < 0) { let lo = k, hi = 1; for (let n = 0; n < 22; n++) { const m = (lo + hi) / 2; if (lowest(m) < 0) lo = m; else hi = m; } k = hi; }
     const F = G0.map((g, c) => clamp01(1 - (1 - enc(dec(g) * k) / base[c]) / s));               // the tint that lays it
     out.field.push([kn, F[0], F[1], F[2], F0[3]]);
     for (const surface of ['land', 'water']) {

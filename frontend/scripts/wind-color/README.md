@@ -15,6 +15,14 @@ stops, not from the swatches. No palette plugin or connector models a multiply b
 
 It loads the real ramps from `src/components/map/WindColorRamp.js`. Change a stop there and run it again.
 
+**It reads what the app DRAWS** (2026-10-11, DECISIONS D-020). Light and beach draw dark's rules by default
+(`windDarkRules.js`): a dimmed field, and streak rows of their own over land and over sea, laid by dark's streak method.
+The checker resolves the tables with `resolveDrawnField` / `resolveDrawnMarks`, lays each ground's own streak row by the
+engine's law (the colour at full light at alpha² × opacity), and reads the field at the 13 Beaufort stops for the
+colour-blind lines. `--today` reads the tables before dark's rules, which is what
+`window.__RAW_DISABLE_WIND_DARK_RULES__ = true` restores. Control for this change: `--today` prints what the checker
+printed before it, line for line (JSON within 1e-16).
+
 ## Setup (once)
 
 ```powershell
@@ -35,6 +43,7 @@ node check.mjs --strict         # exit 1 on any RED line (for CI)
 node check.mjs --no-mute        # the unmuted basemap (the kill switch's picture)
 node check.mjs --mute-amount 0.7 --water-l 0.95   # explore other mute settings (the app's lever values)
 node check.mjs --look moderate  # light's look A/B (window.__RAW_WIND_LIGHT_LOOK__: moderate | deep | ink)
+node check.mjs --today          # the tables before dark's rules (what the kill restores)
 ```
 
 `--look` resolves the field and the marks as the app does with that lever set (`resolveFieldRamp`, `resolveMarkRamp` in
@@ -60,6 +69,20 @@ muted ground the wind sits on (A, steady descent: 5.22 over the muted water, 5.2
 `windLightFastBand.test.js`, log `docs/weather-program/log/2026-10-10-light-fastband-a-default.md`). One accepted gap is
 left and pinned: over light's own cyan water, which shows only with the basemap mute killed, the weakest pair is 3.04
 (10-16 kn).
+
+**As drawn since 2026-10-11, the colour-blind floor does NOT hold** (`node check.mjs --strict` exits 1, four red lines).
+Dark's rules dim the field by one factor, which draws the bands' lightness together:
+
+| Tint over the muted ground | `--today` | as drawn | weakest pair |
+|---|---|---|---|
+| light, water | 5.2 | **3.9** | 16-21 kn, deutan |
+| light, land | 5.3 | **4.9** | 55-63 kn, tritan |
+| beach, water | 5.1 | **3.1** | 16-21 kn, protan |
+| beach, land | 5.2 | **3.2** | 16-21 kn, protan |
+
+The owner chose to see dark's rules on first and judge them (D-020). `windDarkRules.test.js` pins these numbers as
+under the bar, so a green Jest run never reads as "the floor holds". The older tests still hold the bar of 5 on the
+`--today` tables.
 
 ## Why coloraide and not culori for colour blindness
 

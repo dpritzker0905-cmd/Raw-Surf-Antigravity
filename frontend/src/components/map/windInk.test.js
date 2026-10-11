@@ -19,6 +19,9 @@ import { THEME_RAMPS, resolveFieldRamp } from './WindColorRamp';
 import { muteColor, windBasemapMuteAmount, windBasemapWaterL } from './windBasemapMute';
 
 const V2 = resolveWindParticlesV2({});
+// Dark's rules draw light and beach by default since 2026-10-11 (D-020; windDarkRules.test.js). The ink and glow levers and the marks
+// before them are read here with that kill set: what each lever does on the tables it was built on.
+const RULES_OFF = { __RAW_DISABLE_WIND_DARK_RULES__: true };
 const ENGINE = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
 const fakeGl = () => {
   const calls = [];
@@ -82,17 +85,17 @@ describe('GLOW, the default in light and beach (the owner\'s pick, D-019): dark\
       expect(windInk(theme, V2, { __RAW_DISABLE_WIND_DARK_RULES__: true })).toMatchObject({ mode: 0, on: false, glow: false });
       const lever = { __RAW_WIND_GLOW__: true };
       expect(windInk(theme, V2, lever)).toMatchObject({ mode: 2, on: false, glow: true, opacity: WIND_GLOW.opacity[theme], white: WIND_GLOW.white[theme], spine: WIND_GLOW.ring[theme] });
-      expect(windInk(theme, V2, { ...lever, __RAW_DISABLE_WIND_GLOW__: true })).toMatchObject({ mode: 0, on: false, glow: false });
+      expect(windInk(theme, V2, { ...lever, ...RULES_OFF, __RAW_DISABLE_WIND_GLOW__: true })).toMatchObject({ mode: 0, on: false, glow: false });
       expect(windInk(theme, V2, { ...lever, __RAW_DISABLE_WIND_GLOW__: 1 }).glow).toBe(true);   // only exactly true
     }
     expect(windInk('dark', V2, {})).toMatchObject({ mode: 0, glow: false });
     const g = windInk('light', V2, { __RAW_WIND_GLOW__: true });
     expect(g).toMatchObject({ mode: 2, on: false, glow: true, opacity: WIND_GLOW.opacity.light, white: WIND_GLOW.white.light });
-    expect(windInk('beach', V2, { __RAW_WIND_GLOW__: 'light' }).glow).toBe(false);   // a theme list narrows it for a session
+    expect(windInk('beach', V2, { ...RULES_OFF, __RAW_WIND_GLOW__: 'light' }).glow).toBe(false);   // a theme list narrows it for a session
     expect(windInk('light', V2, { __RAW_WIND_INK__: true })).toMatchObject({ mode: 1, on: true, glow: false });
     expect(windInk('dark', V2, { __RAW_WIND_GLOW__: true }).glow).toBe(false);
     expect(windInk('light', V2, { __RAW_WIND_GLOW__: true, __RAW_WIND_INK__: true })).toMatchObject({ mode: 1, on: true, glow: false });
-    expect(windInk('light', V2, { __RAW_WIND_GLOW__: true, __RAW_DISABLE_WIND_GLOW__: true }).mode).toBe(0);
+    expect(windInk('light', V2, { ...RULES_OFF, __RAW_WIND_GLOW__: true, __RAW_DISABLE_WIND_GLOW__: true }).mode).toBe(0);
     expect(windInk('light', { ...V2, theme: true }, { __RAW_WIND_GLOW__: true }).mode).toBe(0);
   });
   it('a tail fades by dark\'s own law: the light a mark adds falls with the SQUARE of the buffer level, so half-faded ink is a quarter as strong', () => {
@@ -119,13 +122,14 @@ describe('GLOW, the default in light and beach (the owner\'s pick, D-019): dark\
     expect(glowOf([0.471, 0.891, 0.712], WIND_GLOW.white.beach)).toEqual([0.471 / 0.891, 1, 0.712 / 0.891]);   // seafoam at full brightness, no white
   });
   it('stands the premultiplied composite down for its theme, so the engine runs dark\'s path there (and leaves ink and dark alone)', () => {
-    expect(v2SpeedPremul(V2, 'light', { __RAW_DISABLE_WIND_GLOW__: true }).on).toBe(true);            // the marks before glow
+    expect(v2SpeedPremul(V2, 'light', { ...RULES_OFF, __RAW_DISABLE_WIND_GLOW__: true }).on).toBe(true);   // the marks before glow
     expect(v2SpeedPremul(V2, 'beach', { __RAW_WIND_GLOW__: 'beach' })).toEqual({ on: false, opacity: 0, singleCasing: false });   // glow, by its lever
-    expect(v2SpeedPremul(V2, 'beach', { __RAW_DISABLE_WIND_DARK_RULES__: true }).on).toBe(true);     // beach draws the marks before glow
-    expect(v2SpeedPremul(V2, 'beach', {}).on).toBe(false);                                            // dark's rules draw by default (D-020)
-    expect(v2SpeedPremul(V2, 'light', {}).on).toBe(true);                                             // light draws the marks before glow
+    for (const theme of ['light', 'beach']) {
+      expect(v2SpeedPremul(V2, theme, RULES_OFF).on).toBe(true);    // the marks before glow
+      expect(v2SpeedPremul(V2, theme, {}).on).toBe(false);          // dark's rules draw by default (D-020), with dark's streak method
+    }
     expect(v2SpeedPremul(V2, 'light', { __RAW_WIND_GLOW__: true })).toEqual({ on: false, opacity: 0, singleCasing: false });
-    expect(v2SpeedPremul(V2, 'beach', { __RAW_WIND_GLOW__: 'light' }).on).toBe(true);                 // narrowed to light: beach draws the marks before glow
+    expect(v2SpeedPremul(V2, 'beach', { ...RULES_OFF, __RAW_WIND_GLOW__: 'light' }).on).toBe(true);   // narrowed to light: beach draws the marks before glow
     expect(v2SpeedPremul(V2, 'light', { __RAW_WIND_INK__: true }).on).toBe(true);
     expect(v2SpeedPremul(V2, 'dark', { __RAW_WIND_GLOW__: true })).toEqual(v2SpeedPremul(V2, 'dark', {}));
   });
@@ -343,7 +347,6 @@ describe('the engine wiring', () => {
 
 describe('glow lever edge cases (independent review of the default flip, 2026-10-10)', () => {
   it('false turns glow off for the session, as it did while glow was a lever; other unknown values keep the default', () => {
-    const RULES_OFF = { __RAW_DISABLE_WIND_DARK_RULES__: true };   // glow's lever is glow's; dark's rules have their own (D-020)
     for (const theme of ['light', 'beach']) expect(windInk(theme, V2, { ...RULES_OFF, __RAW_WIND_GLOW__: false })).toMatchObject({ mode: 0, glow: false });
     for (const v of [null, undefined, 0, 1, {}]) expect(windInk('beach', V2, { ...RULES_OFF, __RAW_WIND_GLOW__: v }).glow).toBe(false);   // not a setting: the default (off) stands
     expect(windInk('light', V2, { __RAW_WIND_INK__: false }).on).toBe(false);

@@ -10,7 +10,11 @@
  * pixels of the coast at zoom 6 and spreads to about 30 px at zoom 8 (a known limit; the coast is drawn by the basemap, not this).
  * It loads only when a theme draws dark's rules; until it is ready, or if it cannot load, every mark draws its land row.
  * The mask never stalls a frame: the fetch and the drawing run off the frame, and a 1 x 1 stand-in is bound until then.
+ *
+ * Read-back: window.__WIND_LAND_MASK__ = { status: 'loading' | 'ready' | 'failed', size, at, reason? }, set when the state changes
+ * (never per frame). 'ready' is the only state in which a mark over the sea draws its sea row.
  */
+import { bindTexture } from './WebGLWindUtils';
 
 export const LAND_MASK_SIZE = 2048;
 
@@ -55,47 +59,62 @@ export function rasterizeLand(geojson, size, makeCanvas) {
   return out;
 }
 
+// The mask is uploaded outside the engine's frame (an idle callback), where the unpack state is whatever the map or another layer
+// left: the row order is pinned here (a flipped mask would lay the Arctic's rows on the Southern Ocean) and everything is put back.
 function texture(gl, size, bytes, repeat) {
   const prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, repeat ? gl.REPEAT : gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  const align = gl.getParameter(gl.UNPACK_ALIGNMENT);
-  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  const align = gl.getParameter(gl.UNPACK_ALIGNMENT), flip = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, size, size, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, bytes);
-  gl.pixelStorei(gl.UNPACK_ALIGNMENT, align);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, align); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flip);
   gl.bindTexture(gl.TEXTURE_2D, prev);
   return tex;
+}
+
+function publish(w, status, reason) {
+  if (w) w.__WIND_LAND_MASK__ = Object.assign({ status, size: LAND_MASK_SIZE, at: Date.now() }, reason ? { reason: String(reason) } : {});
 }
 
 function load(gl, st, win) {
   st.loading = true;
   const w = win || (typeof window !== 'undefined' ? window : null);
-  if (!w || typeof w.fetch !== 'function' || typeof document === 'undefined') { st.failed = true; return; }
+  const fail = (e) => { st.failed = true; publish(w, 'failed', (e && e.message) || e); };
+  if (!w || typeof w.fetch !== 'function' || typeof document === 'undefined') { fail('no fetch'); return; }
+  publish(w, 'loading');
   w.fetch(landMaskUrl(w)).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`land mask ${r.status}`)))).then((geo) => {
     const run = () => {
+      if (STATE.get(gl) !== st || (gl.isContextLost && gl.isContextLost())) return;   // the context was lost or came back meanwhile: this load was the old one's
       try {
+        if (!geo || !Array.isArray(geo.features) || !geo.features.length) throw new Error('land mask: no land in the file');   // an all-sea mask would lay sea rows on every continent
         const bytes = rasterizeLand(geo, LAND_MASK_SIZE, (n) => { const c = document.createElement('canvas'); c.width = n; c.height = n; return c; });
-        if (!gl.isContextLost || !gl.isContextLost()) { st.tex = texture(gl, LAND_MASK_SIZE, bytes, true); st.ready = true; }
-      } catch (e) { st.failed = true; }
+        st.tex = texture(gl, LAND_MASK_SIZE, bytes, true); st.ready = true; publish(w, 'ready');
+      } catch (e) { fail(e); }
     };
     if (typeof w.requestIdleCallback === 'function') w.requestIdleCallback(run, { timeout: 2000 }); else setTimeout(run, 0);
-  }).catch(() => { st.failed = true; });
+  }).catch(fail);
 }
 
 /**
  * Bind the land mask for DRAW_FS on texture `unit`: u_land_on = 1 only when `on` and the mask is ready (a 1 x 1 land texel is
  * bound otherwise, so the sampler always has a texture). Starts the one-time load the first time `on` is asked for.
+ * The bind goes through the engine's own bindTexture, which keeps a record of the active unit: a raw activeTexture here would leave
+ * that record wrong, and the engine's next bind would land on another unit.
  */
 export function bindLandMask(gl, prog, unit, on, win) {
   if (!gl || !prog || !STATE) return;
   let st = STATE.get(gl);
+  // A restored context keeps its object and loses its textures, and the engine rebuilds its programs then: a new program is the
+  // moment to ask the driver (once, never per frame). Dead textures mean a fresh start, the mask loaded anew.
+  if (st && st.prog !== prog && typeof gl.isTexture === 'function' && !gl.isTexture(st.blank)) st = null;
   if (!st) { st = { tex: null, blank: texture(gl, 1, new Uint8Array([255]), false), loading: false, ready: false, failed: false }; STATE.set(gl, st); }
+  st.prog = prog;
   if (on && !st.loading) load(gl, st, win);
-  gl.activeTexture(gl.TEXTURE0 + unit);
-  gl.bindTexture(gl.TEXTURE_2D, on && st.ready ? st.tex : st.blank);
-  gl.activeTexture(gl.TEXTURE0);
+  const ready = !!(on && st.ready);
+  bindTexture(gl, ready ? st.tex : st.blank, unit);
   gl.uniform1i(gl.getUniformLocation(prog, 'u_land_mask'), unit);
-  gl.uniform1f(gl.getUniformLocation(prog, 'u_land_on'), on && st.ready ? 1 : 0);
+  gl.uniform1f(gl.getUniformLocation(prog, 'u_land_on'), ready ? 1 : 0);
 }

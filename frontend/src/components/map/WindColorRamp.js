@@ -430,18 +430,26 @@ export function resolveMarkRamp(theme, win) {
 
 /**
  * DARK'S RULES (windDarkRules.js; owner 2026-10-11, D-020): ON for light and beach. `__RAW_DISABLE_WIND_DARK_RULES__ = true` draws
- * both exactly as before; `__RAW_WIND_DARK_RULES__` = true | false | 'light' | 'beach' narrows them. An explicit light look holds light.
+ * both exactly as before; `__RAW_WIND_DARK_RULES__` = true | false | 'light' | 'beach' narrows them.
+ * A theme draws dark's rules WHOLE or not at all (the dimmed field, the land and sea streak rows and dark's streak method belong
+ * together), so every older lever that draws a theme its own way holds that theme on the tables it was built on: an explicit light
+ * look, the ink and glow levers (windInk.js reads the same ones) and the neutral-body v2 theme. This is the one place that decides;
+ * the engine's tables, its land mask and windInk all ask it (windDarkRules.test.js sweeps every combination).
  */
 export function windDarkRulesOn(theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : null) || {};
-  if (w.__RAW_DISABLE_WIND_DARK_RULES__ === true || (theme === 'light' && windLightLook(w))) return false;
+  if ((theme !== 'light' && theme !== 'beach') || w.__RAW_DISABLE_WIND_DARK_RULES__ === true || (theme === 'light' && windLightLook(w))) return false;
+  var names = function(lever) { return lever === true || (typeof lever === 'string' && lever.split(',').indexOf(theme) >= 0); };
+  if ((w.__RAW_DISABLE_WIND_INK__ !== true && names(w.__RAW_WIND_INK__)) || (w.__RAW_DISABLE_WIND_GLOW__ !== true && names(w.__RAW_WIND_GLOW__))) return false;
+  if (w.__RAW_WIND_THEME_V2__ === true && w.__RAW_DISABLE_WIND_THEME_V2__ !== true) return false;
   var lever = w.__RAW_WIND_DARK_RULES__;
-  var themes = lever === true ? ['light', 'beach'] : (lever === false ? [] : (typeof lever === 'string' ? lever.split(',') : DARK_RULES.themes));
-  return (theme === 'light' || theme === 'beach') && themes.indexOf(theme) >= 0;
+  return (lever === true ? ['light', 'beach'] : (lever === false ? [] : (typeof lever === 'string' ? lever.split(',') : DARK_RULES.themes))).indexOf(theme) >= 0;
 }
 var SOLVED = {};
 function darkRulesTables(theme, w) {
-  var field = resolveFieldRamp(theme, w), dark = resolveThemeRamp('dark'), key = theme + JSON.stringify(field) + JSON.stringify(dark);
+  // The solver reads a colour between two stops on the straight sRGB line, and light's 10-16 kn straight line is GREY (D-019, HUE PATH):
+  // it is given the field's own path, whatever older kill is set, as a light look's tables are.
+  var field = huePathStops(resolveFieldRamp(theme, w), {}), dark = resolveThemeRamp('dark'), key = theme + JSON.stringify(field) + JSON.stringify(dark);
   if (!SOLVED[key]) SOLVED[key] = solveDarkRules(theme, field, dark);
   return SOLVED[key];
 }
