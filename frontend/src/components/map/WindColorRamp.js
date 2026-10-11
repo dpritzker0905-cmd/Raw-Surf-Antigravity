@@ -337,7 +337,9 @@ var BEACH_FIELD_RAMP = [   // 6 and 16-75 kn: the COLOUR-BLIND PASS (27 kn lifts
 export var FIELD_RAMPS = { light: LIGHT_FIELD_RAMP, beach: BEACH_FIELD_RAMP };
 
 // LIGHT'S LOOK, AN A/B (2026-10-10; owner: "We really just need to replicate dark mode, but with proper setup for the colors for each
-// modes schema", "we need to replicate our science from dark mode"). DEFAULT OFF: nothing here draws until the lever is set.
+// modes schema", "we need to replicate our science from dark mode"). The LEVER is default off. SINCE 2026-10-11 (D-021, the white
+// streak) the 'deep' tables below ARE light's default: dark's rules draw them with dark's own white ring (darkRulesTables), so a
+// change to LIGHT_LOOK_FIELD.deep or LIGHT_LOOK_MARKS.deep changes what light draws with no lever set (windWhiteStreak.test.js pins the bytes).
 // Dark's look, measured (log 2026-10-10-dark-style-light-beach): every streak pixel is a brighter shade of the colour under it (+9.5 to
 // +14.5 L* at the median, chroma kept), and the colour under it is DARK (a dark map under a vivid veil). Dark's streak method moved onto
 // light washed out (D-019, amended): light's ground under the streaks is L* 74-88, and a mark that can only lighten has no room there.
@@ -430,7 +432,8 @@ export function resolveMarkRamp(theme, win) {
 
 /**
  * DARK'S RULES (windDarkRules.js; owner 2026-10-11, D-020): ON for light and beach. `__RAW_DISABLE_WIND_DARK_RULES__ = true` draws
- * both exactly as before; `__RAW_WIND_DARK_RULES__` = true | false | 'light' | 'beach' narrows them.
+ * both exactly as before; `__RAW_WIND_DARK_RULES__` = true | false | 'light' | 'beach' narrows them. Which tables and which ring they
+ * draw is the white streak's (windWhiteStreakOn below, D-021): this function still decides WHETHER a theme is drawn by them at all.
  * A theme draws dark's rules WHOLE or not at all (the dimmed field, the land and sea streak rows and dark's streak method belong
  * together), so every older lever that draws a theme its own way holds that theme on the tables it was built on: an explicit light
  * look, the ink and glow levers (windInk.js reads the same ones) and the neutral-body v2 theme. This is the one place that decides;
@@ -460,15 +463,25 @@ export function windDarkRulesOn(theme, win) {
   var lever = w.__RAW_WIND_DARK_RULES__;
   return (lever === true ? ['light', 'beach'] : (lever === false ? [] : (typeof lever === 'string' ? lever.split(',') : DARK_RULES.themes))).indexOf(theme) >= 0;
 }
+/**
+ * THE WHITE STREAK (windDarkRules.js WHITE_STREAK; owner 2026-10-11, D-021): ON wherever dark's rules draw, so every lever and older
+ * kill that stands them down stands it down too. `__RAW_DISABLE_WIND_WHITE_STREAK__ = true` draws both themes as they were before it.
+ */
+export function windWhiteStreakOn(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null) || {};
+  return w.__RAW_DISABLE_WIND_WHITE_STREAK__ !== true && windDarkRulesOn(theme, w);
+}
 var SOLVED = {};
 function darkRulesTables(theme, w) {
+  // Light under the white streak: the deeper field of its A/B and that field's own streak row, over land and sea alike.
+  if (theme === 'light' && windWhiteStreakOn(theme, w)) return { field: LIGHT_LOOK_FIELD.deep, land: LIGHT_LOOK_MARKS.deep, water: LIGHT_LOOK_MARKS.deep };
   // The solver reads a colour between two stops on the straight sRGB line, and light's 10-16 kn straight line is GREY (D-019, HUE PATH):
   // it is given the field's own path, whatever older kill is set, as a light look's tables are.
   var field = huePathStops(resolveFieldRamp(theme, w), {}), dark = resolveThemeRamp('dark'), key = theme + JSON.stringify(field) + JSON.stringify(dark);
   if (!SOLVED[key]) SOLVED[key] = solveDarkRules(theme, field, dark);
   return SOLVED[key];
 }
-/** The field's stops as DRAWN: dark's rules' dimmed field when they are on, else resolveFieldRamp's. */
+/** The field's stops as DRAWN: dark's rules' field when they are on (beach's dimmed one; light's deeper one under the white streak), else resolveFieldRamp's. */
 export function resolveDrawnField(theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : {});
   return windDarkRulesOn(theme, w) ? copyRows(darkRulesTables(theme, w).field) : resolveFieldRamp(theme, w);
@@ -480,7 +493,7 @@ export function resolveDrawnMarks(theme, win) {
   var t = darkRulesTables(theme, w);
   return { land: copyRows(t.land), water: copyRows(t.water) };
 }
-/** The marks' LUT, 256 x 2 RGBA: row 0 over land, row 1 over sea (DRAW_FS mixes them by windLandMask.js). Off: two equal rows. */
+/** The marks' LUT, 256 x 2 RGBA: row 0 over land, row 1 over sea (DRAW_FS mixes them by windLandMask.js). Two equal rows when dark's rules are off, and for light under the white streak. */
 export function drawnMarkRampData(maxSpeed, theme, win) {
   var m = resolveDrawnMarks(theme, win), land = generateRampData(maxSpeed, m.land, theme, win);
   var data = new Uint8Array(256 * 2 * 4);
@@ -488,7 +501,10 @@ export function drawnMarkRampData(maxSpeed, theme, win) {
   return data;
 }
 /** What the marks' and field's tables depend on besides the theme: a change rebuilds them at once (WebGLWindEngine). */
-export function windLookKey(theme, win) { return (windLightLook(win) || '') + '|' + (windDarkRulesOn(theme, win) ? 'dark-rules' : ''); }
+export function windLookKey(theme, win) {
+  var names = [windLightLook(win), windWhiteStreakOn(theme, win) ? 'white' : null].filter(Boolean);
+  return names.join('+') + '|' + (windDarkRulesOn(theme, win) ? 'dark-rules' : '');
+}
 
 /** The field's own LUT texture for `theme` (null = the field samples the particle ramp). Restores the texture binding. */
 export function buildFieldRampTexture(gl, maxSpeed, theme, win) {
@@ -594,7 +610,7 @@ function lerpStop(a, b, t) {
 // (C* 19-22 over the muted land throughout). That segment keeps 0.07-0.09; every other segment of light and beach keeps 0.90 or
 // more and dark's weakest (6-10 kn) 0.78, so the trigger at one half has a wide margin on both sides and nothing else is touched,
 // byte for byte (windClearLowBand.test.js pins the margin: a palette edit that drifts a segment toward the trigger fails there).
-// Light's look A/B (default off, windLightLook above) keeps the same margin: its fields' 10-16 kn keep 0.07-0.13 and walk the path, and
+// Light's look A/B (windLightLook above; its 'deep' tables are light's default since D-021) keeps the same margin: its fields' 10-16 kn keep 0.07-0.13 and walk the path, and
 // A's streak tables carry their own 1 kn waypoints, so every one of their segments keeps 0.92 or more (windLightLook.test.js).
 // Kill: __RAW_DISABLE_WIND_HUE_PATH__ (next ramp build: theme change or reload). Every OLDER ramp kill stands the path down too,
 // so that kill draws exactly what it drew: its rows AND the straight line between them.

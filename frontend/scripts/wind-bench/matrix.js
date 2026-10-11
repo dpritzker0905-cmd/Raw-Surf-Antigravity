@@ -59,6 +59,7 @@ const LEVER_VARIANTS = Object.freeze({
   // Dark's rules are the DEFAULT in light and beach since 2026-10-11 (D-020), so `candidate` draws them. This is their kill: the
   // marks and tables before them, the arm to scan the default against.
   'before-rules': { label: 'the tables before dark\'s rules (their kill)', levers: { __RAW_DISABLE_WIND_DARK_RULES__: true } },
+  'before-white': { label: 'dark\'s rules before the white streak (its kill)', levers: { __RAW_DISABLE_WIND_WHITE_STREAK__: true } },
 });
 /** Every variant a configuration may name (the matrix's own, the control's, then the named candidates). */
 const ALL_VARIANTS = Object.freeze({ ...VARIANTS, ...CONTROL_VARIANTS, ...LEVER_VARIANTS });

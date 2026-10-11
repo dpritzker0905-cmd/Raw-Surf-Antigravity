@@ -42,6 +42,26 @@ export const DARK_RULES = Object.freeze({
   white: 0,
 });
 
+/**
+ * THE WHITE STREAK (owner, 2026-10-11; DECISIONS D-021). ON BY DEFAULT wherever dark's rules draw.
+ *
+ * What a dark streak IS, measured on the deployed engine (log 2026-10-11-wind-pale-band, "Dark watched in motion"): DRAW_FS draws a
+ * small colour core under a WHITE inner ring at 92% and a black carving rim, and SCREEN_FS lays the trail at half strength. Read off
+ * the screen, a dark streak is exactly its ground's colour (chroma x 1.00, hue within 2 degrees), 13 to 17 L* lighter. Dark has two
+ * layers: a colour field that says how fast, and white wisps that say which way. It only LOOKS coloured: the field shows through.
+ * Every attempt to copy it gave light's and beach's streaks a colour of their own instead; `ring: 0.25` above cut the white to a
+ * quarter and filled the body with the hue's most saturated colour, and the owner took beach for dark and rejected both themes.
+ * With dark's own ring the streaks stand off as dark's do (GPU bench, the real basemaps, over land at zooms 4 to 10): +8.5 to +15.5 L*
+ * in light and +8.0 to +17.0 in beach, against dark's +9.5 to +14.5; chroma 1.05-1.14 times the field's in beach and 0.67-0.96 in
+ * light (dark: 1.02-1.10), where the quarter ring drew 1.3 to 2.2 times.
+ *
+ * White light shows only on a ground deeper than itself. Beach's field (above) already is. Light draws the deeper field of its A/B
+ * with that field's own streak row (WindColorRamp.js LIGHT_LOOK_FIELD.deep / LIGHT_LOOK_MARKS.deep: one row, since a white streak
+ * takes its colour from what is under it): the arm the owner watched beside dark and picked ("middle row for both, build it").
+ * Kill: window.__RAW_DISABLE_WIND_WHITE_STREAK__ = true draws both themes as PR #312 did (the quarter ring, the solved rows).
+ */
+export const WHITE_STREAK = Object.freeze({ opacity: 1.0, ring: 1, white: 0 });
+
 const BASE = {
   dark: { land: [28, 37, 48], water: [11, 29, 46] },
   light: { land: [236, 236, 232], water: [168, 214, 222] },

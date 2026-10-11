@@ -12,8 +12,11 @@
 // WHAT IT READS (2026-10-11, DECISIONS D-020): the tables the app DRAWS. Light and beach draw dark's rules by default (windDarkRules.js:
 // a dimmed field, and streak rows of their own over land and over sea, laid by dark's streak method), so that is what is judged.
 // --today reads the tables before them (window.__RAW_DISABLE_WIND_DARK_RULES__ = true: what the kill restores).
+// 2026-10-11, D-021: with the white streak light draws its deeper field and one streak row; --before-white reads dark's rules as they
+// drew before it (window.__RAW_DISABLE_WIND_WHITE_STREAK__ = true). The mark lines below judge the streak's colour CORE; its white
+// ring, which carries the motion, is not modelled here (the GPU bench's style columns read it).
 // Usage (from this folder):  npm i; py -3.12 -m venv .venv; .venv/Scripts/python -m pip install coloraide==8.13
-//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today]
+//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today] [--before-white]
 //                            node check.mjs --look moderate|deep|ink   (light's look A/B, window.__RAW_WIND_LIGHT_LOOK__)
 // Exit code 1 with --strict when any RED line is printed (here or in the colour-blind check).
 import fs from 'fs';
@@ -30,16 +33,17 @@ const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); re
 // The real ramps, straight from the source the app ships (import lines and export keywords stripped). WindColorRamp.js imports the
 // solver of dark's rules (windDarkRules.js, which has no imports): it is loaded first and handed in.
 const source = (file) => fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
-const { DARK_RULES, solveDarkRules } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windDarkRules.js')) + '; return { DARK_RULES, solveDarkRules };')();
-const { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn } = new Function('DARK_RULES', 'solveDarkRules',
-  source(RAMP_SRC) + '; return { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn };')(DARK_RULES, solveDarkRules);
+const { DARK_RULES, WHITE_STREAK, solveDarkRules } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windDarkRules.js')) + '; return { DARK_RULES, WHITE_STREAK, solveDarkRules };')();
+const { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn } = new Function('DARK_RULES', 'solveDarkRules',
+  source(RAMP_SRC) + '; return { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn };')(DARK_RULES, solveDarkRules);
 // The app's basemap mute, from its source (no imports; export keywords stripped): the ground the wind actually sits on.
 const muteSrc = fs.readFileSync(path.join(HERE, '..', '..', 'src', 'components', 'map', 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '');
 const { muteColor, windBasemapMuteAmount, windBasemapWaterL } = new Function(muteSrc + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL };')();
 const NO_MUTE = args.includes('--no-mute');
 // --mute-amount / --water-l: explore other mute settings (the app's own lever names, passed as levers).
 const LEVERS = { ...(arg('--mute-amount') ? { __RAW_WIND_BASEMAP_MUTE__: Number(arg('--mute-amount')) } : {}), ...(arg('--water-l') ? { __RAW_WIND_BASEMAP_WATER_L__: Number(arg('--water-l')) } : {}),
-  ...(arg('--look') ? { __RAW_WIND_LIGHT_LOOK__: arg('--look') } : {}), ...(args.includes('--today') ? { __RAW_DISABLE_WIND_DARK_RULES__: true } : {}) };
+  ...(arg('--look') ? { __RAW_WIND_LIGHT_LOOK__: arg('--look') } : {}), ...(args.includes('--today') ? { __RAW_DISABLE_WIND_DARK_RULES__: true } : {}),
+  ...(args.includes('--before-white') ? { __RAW_DISABLE_WIND_WHITE_STREAK__: true } : {}) };
 const groundOf = (theme, surf, c) => {
   const amount = NO_MUTE ? 0 : windBasemapMuteAmount(theme, LEVERS);
   if (!(amount > 0)) return c;
@@ -78,25 +82,27 @@ const out = {}; let red = 0;
 const flag = (bad, watch) => (bad ? (red++, 'RED ') : watch ? 'warn' : ' ok ');
 for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dark'])) {
   // The field and the marks as the app DRAWS them (WindColorRamp.js resolveDrawnField / resolveDrawnMarks; the legend never moves).
-  // Dark's rules: a row a knot, and the marks' rows differ over land and over sea. --today or a look lever: the tables before them
-  // (FIELD_RAMPS / THEME_RAMPS, or the look's own), one marks table for both grounds.
+  // Dark's rules: beach draws a row a knot, and its marks' rows differ over land and over sea; light under the white streak draws its
+  // deeper field's stops and ONE marks row for both grounds. --today or a look lever: the tables before dark's rules (FIELD_RAMPS /
+  // THEME_RAMPS, or the look's own), one marks table for both grounds.
   const rules = windDarkRulesOn(theme, LEVERS), m = MODEL[theme], P = THEME_RAMPS[theme], F = resolveDrawnField(theme, LEVERS) || P, KS = resolveDrawnMarks(theme, LEVERS), K = KS.land, rows = [];
   // How the marks are laid (keep in sync with windInk.js WIND_LIGHT_LOOK and DARK_RULES): ink multiplied into the tint, A's lifted colour
   // laid over it; dark's rules by the engine's own law (the colour at full light, laid at alpha^2 x opacity).
   const look = theme === 'light' ? LEVERS.__RAW_WIND_LIGHT_LOOK__ : null, LOOK_OP = { ink: 0.9, moderate: 1.0, deep: 1.0 };
   const markOn = (k, T) => {
-    if (rules) { const w = k[3] * k[3] * DARK_RULES.opacity; return T.map((x, j) => k[j] * w + x * (1 - w)); }
+    if (rules) { const w = k[3] * k[3] * (windWhiteStreakOn(theme, LEVERS) ? WHITE_STREAK : DARK_RULES).opacity; return T.map((x, j) => k[j] * w + x * (1 - w)); }
     return look === 'ink' ? T.map((x, j) => x * (1 - LOOK_OP.ink * (1 - k[j]))) : T.map((x, j) => k[j] * LOOK_OP[look] + x * (1 - LOOK_OP[look]));
   };
   const isBand = (s) => P.some((p) => p[0] === s[0]);   // the 13 Beaufort bands (a row a knot, or A's 11-15 kn waypoints, is a path, not bands)
   const muted = !NO_MUTE && windBasemapMuteAmount(theme, LEVERS) > 0;
-  console.log(`\n=== ${theme.toUpperCase()}  (${m.kind} field; ${Object.keys(m.surfaces).join(' + ')}${muted ? '; basemap muted under the wind' : ''}${rules ? "; AS DRAWN: dark's rules" : (m.kind === 'multiply' && args.includes('--today') ? '; TODAY: the tables before dark\'s rules' : '')})`);
+  console.log(`\n=== ${theme.toUpperCase()}  (${m.kind} field; ${Object.keys(m.surfaces).join(' + ')}${muted ? '; basemap muted under the wind' : ''}${rules ? "; AS DRAWN: dark's rules" + (windWhiteStreakOn(theme, LEVERS) ? ', with the white streak' : ', before the white streak') : (m.kind === 'multiply' && args.includes('--today') ? '; TODAY: the tables before dark\'s rules' : '')})`);
   // Legend stops: adjacent separation in normal vision (colour-blind separation: cvd_check.py).
   const adj = P.slice(1).map((s, i) => ({ kn: `${P[i][0]}-${s[0]}`, de: de(P[i].slice(1, 4), s.slice(1, 4)) }));
   const worstAdj = adj.reduce((w, x) => (x.de < w.de ? x : w));
   console.log(`[${flag(worstAdj.de < TARGET.adjDE)}] legend: weakest neighbours ${worstAdj.kn} kn at ${worstAdj.de.toFixed(1)} dE00 (target >= ${TARGET.adjDE})`);
   if (K) {   // a look's own mark colours: a watch line (the streaks' separation has never been a gate; the field and the legend carry the bands)
-    for (const [where, Kx] of (KS.water === KS.land ? [['', K]] : [[' over land', KS.land], [' over sea', KS.water]])) {
+    const oneRow = KS.water === KS.land || JSON.stringify(KS.water) === JSON.stringify(KS.land);   // resolveDrawnMarks hands out copies: compare the rows, not the references
+    for (const [where, Kx] of (oneRow ? [['', K]] : [[' over land', KS.land], [' over sea', KS.water]])) {
       const KB = Kx.filter(isBand);
       const kAdj = KB.slice(1).map((s, i) => ({ kn: `${KB[i][0]}-${s[0]}`, de: de(KB[i].slice(1, 4), s.slice(1, 4)) })).reduce((w, x) => (x.de < w.de ? x : w));
       console.log(`[${flag(false, kAdj.de < TARGET.adjDE)}] marks${where} (their own colours): weakest neighbours ${kAdj.kn} kn at ${kAdj.de.toFixed(1)} dE00 (watch below ${TARGET.adjDE})`);
@@ -135,7 +141,7 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
   // The marks' colour-blind watch reads them as drawn over the muted water: ink is never seen bare (it multiplies into the tint).
   const wg = groundOf(theme, 'water', m.surfaces.water).map((x) => x / 255);
   const shown = K ? KS.water.filter(isBand).map((k) => [k[0], ...(look === 'ink' || rules ? markOn(k.slice(1), tintOver(m, k[0], sample(F, k[0]).slice(0, 3), wg)) : k.slice(1, 4)), k[4]]) : null;
-  out[theme] = { legendAdjacent: adj, rows, tintStops, drawn: rules ? 'dark-rules' : (look || 'today'), stops: { particle: P, field: F, ...(shown ? { marks: shown } : {}) } };
+  out[theme] = { legendAdjacent: adj, rows, tintStops, drawn: rules ? (windWhiteStreakOn(theme, LEVERS) ? 'white-streak' : 'dark-rules') : (look || 'today'), stops: { particle: P, field: F, ...(shown ? { marks: shown } : {}) } };
 }
 const jsonPath = arg('--json') || path.join(os.tmpdir(), 'wind-color-check.json');
 fs.writeFileSync(jsonPath, JSON.stringify(out, null, 1));

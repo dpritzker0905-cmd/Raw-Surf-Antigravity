@@ -222,6 +222,16 @@ its mark pixels are darker than the ground (`style.js`). Two live anchors make i
   against: `--arms '{"today":{"__RAW_DISABLE_WIND_DARK_RULES__":true},"rules":{}}'` in map mode, `--variants
   candidate,before-rules` for the scanner. Control for the kill on the GPU: `--ref <the commit before>` with an empty arm reads
   the same on every metric as the working tree under the kill (2026-10-11: light, beach and dark at z6, identical).
+- **Since the white streak (2026-10-11, D-021) `candidate` and an empty arm draw dark's rules with dark's own ring**, and light
+  draws its deeper field under it. The arm to compare against is that change's kill:
+  `--arms '{"before":{"__RAW_DISABLE_WIND_WHITE_STREAK__":true},"white":{}}'` in map mode, `--variants candidate,before-white` for
+  the scanner. On dev's own code the same look is `{"__RAW_WIND_LIGHT_LOOK__":"deep","__RAW_WIND_GLOW_RING__":1}` (light) and
+  `{"__RAW_WIND_GLOW_RING__":1}` (beach).
+- **To ask "are these two arms the same pixels", use `--offline --crop WxH:png` and compare the crops by hash.** The offline
+  basemap is the same pixels every run (2026-10-11: 108 of 108 crops identical between dev's code with those levers and the
+  built default, zooms 4 to 10 and storm strength). The Mapbox basemap is not: its bare-map shot, with no wind at all, differed
+  between two runs at zooms 6, 8 and 10, and the line-survival columns moved with it by up to 0.003 in dark, whose code had not
+  changed. On Mapbox tiles compare the style columns, and read a difference that size in the line columns as the basemap's.
 - **Light's look A/B** (`window.__RAW_WIND_LIGHT_LOOK__`, `WindColorRamp.js`): the scanner names it `--variants
   candidate,light-moderate,light-deep,light-ink`.
 - The two models built on these columns are in `windInk.js`. Glow is the default in light and beach since 2026-10-10
@@ -476,7 +486,11 @@ Both paths give the same summary. See `docs/weather-program/log/2026-10-10-wind-
   particles, and the same tree gives the same numbers on every run.
   - If two variants come out identical in every view, the table says so. That means the engine
     reads none of the levers that tell them apart: e.g. #281's kill switches on a tree older than
-    #281.
+    #281. **Or the levers move only a mark's hue or saturation.** Every number the scanner prints is read
+    from max(R,G,B), and a full-brightness colour's strongest channel does not move when its share of
+    white does: a default against the kill of a rule that changed only that (2026-10-11, never merged)
+    read identical on every number in all 26 views while all 26 image pairs in the contact sheet
+    differed. So the warning names both causes; the images tell them apart (LESSONS L-V40).
 
 ## What the columns mean
 
