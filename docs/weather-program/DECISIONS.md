@@ -321,3 +321,11 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Evidence (log 2026-10-11-dark-rules-default):** offline map bench, z4 / z6 / z8 over land: step +16.0 / +13.5 / +8.0 (light)
   and +18.0 / +15.5 / +8.5 (beach) against dark's +18.5 / +17.0 / +12.5 and +6 to +7 before; 100% of streak pixels lighter than
   their ground (71-95% before); no surface reads wash (three did). Nothing has been seen in the app.
+- **Amended 2026-10-11 16:27Z (this session, after an independent review; a ruling, not the owner's words): every older kill keeps
+  its meaning.** As first built, an older kill set while dark's rules were on drew a mix: the rules solved on that kill's rows, or,
+  under the field-tint kill, a field that read the streaks' table. Each of those kills is documented to restore what was drawn
+  before its own change (D-018, D-019), and a rollback must do what its entry says. So any of the 21 older kills that touch the
+  tables, the field's blend or strength, the marks' composite or the ground, and the five bench levers on the same things, stands
+  dark's rules down for the session, in both themes: it draws exactly what it drew before D-020 (`DARK_RULES_HOLDS`,
+  `DARK_RULES_STEERS` in `WindColorRamp.js`). The kills for motion, density, casing, data and layer order do not. A test fails on
+  any kill in the wind sources that is not classified one way or the other.

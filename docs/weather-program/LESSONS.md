@@ -808,3 +808,17 @@ A stored estimate can be estimated again in a browser branch with different sour
   Arctic's rows on the Southern Ocean; and after a restored context its texture is gone while its object remains. Rule: bind
   through the engine's helper, pin FLIP_Y and alignment at every upload outside the frame, re-validate textures when the program
   changes, and publish the state for the read-back. (same log; `windLandMask.js`)
+  - *Note, 2026-10-11 16:27Z (L-V36):* the sweep walked the LEVERS and missed the KILLS. An independent review found that under
+    `__RAW_DISABLE_WIND_FIELD_TINT__` the field sampled the streaks' two-row table as an alpha-over field, and that every older
+    palette kill now drew dark's rules solved on its rows instead of what its DECISIONS entry says it restores. Rule, sharpened: a
+    new default lists every older kill and lever that changes what it was solved on, each one stands the default down, and a test
+    reads the kills out of the source so an unclassified one fails (21 hold, 36 do not, 0 unclassified).
+- **L-V38 · When a shared thing changes shape, every instrument that touches it is part of the change.** The marks' table went from
+  one row to two. The eye and ladder benches swap a threshold ramp into that table with a one-row sub-image, so the second row kept
+  the palette, dark's field read the mean of both, and every speed above the threshold read as below it: "no closed eye" on every
+  row, exit 2, no GL error. The scanner was hit from the other side: the map runner wrote the land mask's file into the bench's
+  shared output folder, and the next runner served it, so a scan reported as "no land mask" had one. Both were found by review, not
+  by the runs that had passed. Rules: (1) before changing a texture's or a file's shape, grep the instruments for every writer
+  and reader of it, and run each instrument once against the commit before; (2) an instrument's inputs are answered per run, never
+  left in a folder the next run reads; (3) a run's report states what it measured from the run's own read-back (`mask 0` / `mask 1`),
+  not from what the author believes was served. (log 2026-10-11-dark-rules-default, "Independent review")

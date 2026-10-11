@@ -55,6 +55,9 @@ touch keeps the lab's ground, and the floor reads 4.96 over land and 3.80 over w
 5. **The land mask's upload, bind and restart**, and a status object for the read-back.
 6. **Ledger commitment 1042 (the owner's pick among #311's four looks) is closed as superseded**, not as met: the owner chose dark's
    rules for the default, and #311's looks stay levers. Said here and in the ledger line so it is not read as a pick.
+7. **Every older kill keeps its meaning** (added 16:27Z, after the independent review; D-020, amended). Any of 21 older palette,
+   composite or ground kills, or 5 bench levers on the same things, stands dark's rules down for the session in both themes. Cost if
+   wrong: a session cannot combine an older kill with dark's rules. Undo: take the key out of `DARK_RULES_HOLDS`.
 
 **Not changed, though measured: the pale band.** Over light's land at 26-30 kn (beach 27-29) the guard keeps the ground light (L* 72-75),
 the streak wants dark's step above it and runs to the colour floor: a near-white yellow (C* 25). Whitening it there buys little:
@@ -139,6 +142,8 @@ and without the file. Over WATER the step falls with the mask from +17.5 to +12.
 from 70.0 to 65.9 and 67.9 to 64.5, and the streaks' chroma rises from 32.5 to 53.5 and 40.0 to 55.0. Storm strength: +19.5 → +14.0 and
 +20.0 → +15.0. The mask is aligned with the map and does what rule 4 was solved to do.
 
+**[CORRECTED 16:58Z, see "Independent review" below: this run DID have a land mask (the offline coast, left in the bench's shared
+folder by a map run); it was run again with none, and the numbers there replace these.]**
 **The 3-seed scanner** (`run.js --seeds 3 --themes light,beach --variants candidate,before-rules`, run `20261011-154752`, 13 views,
 positive control PASS on all three seeds). The new default: 7 recurring shapes in 5 of 26 views (4 flickering). Its kill: 5 in 4 of 26
 (5 flickering). **No shape the engine before dark's rules lacks.** Each of the seven sits where an arm before it has the same kind and
@@ -201,6 +206,62 @@ Raw Surf backend. This answers the first known limit below for one camera: the s
 - On the crops the place names keep their halos and read; the pale patch is there on the delta south of New Orleans (land under
   26-30 kn).
 
+## 16:10-16:58Z · Independent review, and its fix pass
+
+A fresh reviewer (a subagent, read-only, given the spec and the diff, not this session's conclusions) read the branch against
+`origin/dev`. What it found sound: the kill (110,592 lever, theme and max-speed combinations against dev's own source, zero byte
+differences in either table row or the field; 564,480 combinations of the mark model), dark, the solver's numerics, the mask's
+orientation and wrap by reading. It found three defects and seven risks. The defects were all this session's.
+
+**Correction to "The 3-seed scanner" above, and to the wind-bench README as first written: that scan did NOT run without a land mask.**
+`map-run.js` wrote the mask's file into the bench's shared `out/` folder, every runner serves that folder, and the map run before the
+scan was an offline one. The default arm of run `20261011-154752` therefore read the offline basemap's coast over the scanner's flat
+ground. I had written that its marks drew their land rows: I had not read the run's own state, only what I believed was served.
+
+| The review found | Fixed by | Read back |
+|---|---|---|
+| The eye and ladder benches were broken. They swap a threshold ramp into the marks' table with a one-row `texSubImage2D`; the table has two rows now, dark's field reads the mean of both, and every speed above the threshold read as below it | they replace the whole table (`texImage2D`) | `eye-run.js` before: "no closed eye at 30-50 kn" on every row, exit 2. After: exit 0, both controls PASS, every line equal to `--ref origin/dev`'s. `ladder-run.js`: equal to dev's but for its last column on two rows (0 against 0.01 kn); two runs of dev's own engine differ there by the same amount on three rows |
+| The land file sat in the shared `out/` folder; five runners served it without choosing it | each run's server answers `/ne_50m_land.json` itself (`serveDir(..., { land })`); the default is none | the scan's page errors: three 404s, the mask's three tries |
+| With the field tint killed, the field read the streaks' two-row table; every older palette kill drew dark's rules solved on its rows, not what its DECISIONS entry says it restores | every older kill keeps its meaning: 21 kills and 5 bench levers stand dark's rules down for the session (`DARK_RULES_HOLDS`, `DARK_RULES_STEERS`; D-020, amended). A test reads every kill out of the wind sources: 57 named, 21 hold, 36 do not, 0 unclassified | on the GPU, dev's engine and this tree read the same on every metric under `__RAW_DISABLE_WIND_FIELD_TINT__` (light and beach, z6), and under the rules' own kill (three themes) |
+| A failed mask load latched for the life of the context | three tries, 20 s and then 40 s apart; the page's parsed land is reused on the first | tests; and seen on the scan (three fetches, then none) |
+| The mask's build is one long main-thread task, and its header said it never stalls a frame | the header says what it costs; the canvas is released; a device without a 2048 px texture keeps its land rows; the read-back carries `ms` | tests |
+| The path and flow modes gained a frame before their warm-up, for every engine | the wait sits after the warm-up's first frame; nothing extra is rendered | by reading |
+| `resolveDrawnMarks`'s copies were unpinned | pinned | test |
+
+**The older test files went back to dev's text** except the assertions that pinned the plain default: `windFieldLut.test.js` is dev's
+file again, and the glow and ink kills draw the marks before, as they did.
+
+**Not acted on, each said plainly:**
+- The streaks have a one-knot saturation step: beach over land, 26 to 27 kn, C* 98 to 26. It is the lower edge of the pale band above,
+  and goes with it: one follow-up (let a streak stop short of dark's step and keep its colour), the owner's call.
+- The mask's resolution at surf zooms (added to the known limits).
+- The two-row table's upload does not pin `UNPACK_FLIP_Y_WEBGL`. It is uploaded inside the frame, where MapLibre has reset it, and
+  nothing in the sources leaves it set: exposure, not a defect today.
+- Under the kill and in dark the mark shader reads the table twice and a 1 x 1 texture exists. The pixels are the same (every bench
+  metric); the cost was not measured apart from the scan's frame interval (18.5-22.1 ms against 16.9-22.1).
+- If a context comes back and a load finishes before the engine's first frame, one 4 MB texture is orphaned.
+- The older contrast gates (`windParticleContrast`, `windFieldLut`) guard the tables the kill restores, not the drawn ones.
+
+**After the fix pass.** Jest, both trees: 304 suites, 3,998 tests, 0 failed. `check_eslint.js` and `loc_ratchet.py` pass
+(`windDarkRules.test.js` had passed 800 lines; the mask's tests are `windLandMask.test.js`). The offline map bench was run again at
+z4 / z6 / z8, at storm strength and with no land file: every arm reads the same on every metric as before the fix pass, so the tables
+above stand for the final code. The real-basemap run was not repeated (no drawn table changed).
+
+**The 3-seed scanner, run again with no land file** (run `20261011-164716`, positive control PASS on all three seeds). The new
+default: 8 recurring shapes in 6 of 26 views (3 flickering). Its kill: 5 in 4 of 26 (5 flickering). **Still no shape the engine before
+dark's rules lacks:**
+
+- world-z4, light and beach: the same three HOLEs at the same places in every arm. The one at about [310, 510] reads 4.4 to 4.6 kn under
+  the kill, which the scanner labels calm and does not count, and 5.1 to 6.9 kn in two of three seeds under the default.
+- fine-z6.5: the HOLE at the view's bottom-left edge recurs in 3 of 3 seeds for beach under the default and 1 of 3 under its kill; for
+  light, 2 of 3 in both.
+- fine-z7: the BLOB at 16.9 kn, 4 blocks, [384, 512], is in every seed of light's kill arm and of both default arms; beach's kill arm
+  stays under the threshold.
+- fine-z9, beach: one-block HOLEs at 43.5 and 47.2 kn in one seed of three; the 43.5 kn one is in the kill arm's same seed.
+
+The trail is brighter under dark's streak method (ink 98-162 against 82-145), which carries an existing shape over a counting
+threshold. With the mask in the first run the default's ink read 93-160: the sea rows lay less.
+
 ## Known limits
 
 - The grounds the solver assumes are the wind bench's offline basemap colours, muted as the app mutes them, not the live Mapbox map.
@@ -210,7 +271,10 @@ Raw Surf backend. This answers the first known limit below for one camera: the s
   idle callback. Not timed on a phone.
 - `WIND_CLOSE_LAND` (light and beach 0.65, dark 0.8) was left as it is: the step at z8 is two thirds of dark's.
 - The Canvas2D fallback is untouched.
-- The scanner page has no land mask; the path and flow modes were not re-run.
+- The path and flow bench modes were not re-run.
+- At surf zooms the mask is coarse: one texel is 19.6 km, so at z10 to z12 the hand-over between the land and sea rows is hundreds of
+  css px wide and a coastal view draws a blend of the two. Inland lakes read as land.
+- Over satellite imagery the basemap is not muted, and the rules still draw on grounds they were not solved for.
 
 ## Not verified
 
