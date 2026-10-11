@@ -232,3 +232,24 @@ on a phone; beach through its existing lever).
 
 **Recommendation: A, deep.** The step back if the land reads too dark: A, moderate (it washes at z4 and in a storm). B is not
 recommended: it fails over the sea.
+
+## The 3-seed scanner (2026-10-10 23:32Z to 2026-10-11 04:13Z)
+
+`node scripts/wind-bench/run.js --seeds 3 --themes light --variants candidate,light-moderate,light-deep,light-ink --gl swiftshader`,
+run `20261011-041316` (13 views x 4 variants x 3 seeds, SwiftShader, about 100 s a render). Positive control PASS on all three seeds.
+
+| variant | recurring artifacts | shapes (kind, band, blocks, place in device px) |
+|---|---|---|
+| candidate (the engine as written) | 3 in 3 of 13 views (+1 flickering) | world-z4 HOLE 5.7 kn 16; fine-z6.5 HOLE 7.1 kn 3 at [27, 869]; fine-z7 BLOB 16.9 kn 4 |
+| light-moderate | 4 in 3 of 13 | the same world-z4 and fine-z7 shapes; fine-z6.5 HOLE 8.1 kn 5 at [46, 864]; fine-z6.5 BLOB 23.9 kn 4 at [410, 502] in 2 of 3 seeds |
+| light-deep | identical to moderate | the two A looks lay the same trail; only its colour differs |
+| light-ink | 0 (VOID, see below) | - |
+
+- **No shape that the engine as written lacks.** The fine-z6.5 BLOB is in the candidate too (seed 0: BLOB 22.3 kn, 3 blocks, at
+  [411, 485]), under the counting threshold in 1 of 3 seeds; dark's streak method's brighter trail carries it over in 2 of 3. The
+  fine-z6.5 HOLE sits at the view's bottom-left edge in every arm (identical in seed 2), 3 blocks wide for the candidate and 5-6 for
+  the looks. The other two shapes are identical, block for block. This is the pattern the earlier glow scan found (log
+  2026-10-10-dark-style-light-beach, "Glow is the default, and the scan": the same shapes, a threshold crossed by a brighter trail).
+- **B's rows are void: the scanner could not read an ink buffer.** Every trail reader takes a trail as light on black; an ink buffer is
+  ink on white paper, so the scanner read paper as solid ink (mean 228-254 of 255) and found nothing. Fixed in the bench
+  (`bench-entry.js` reads an ink buffer inverted), and B scanned on its own after this run: next section.
