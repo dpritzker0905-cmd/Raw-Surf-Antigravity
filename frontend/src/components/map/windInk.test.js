@@ -230,7 +230,7 @@ describe('the composite: a multiply can only darken, and shows the legend\'s own
       inkComposite(g, t, op).forEach((v, i) => expect(v).toBeLessThanOrEqual(g[i] + 1e-12));
     }
     expect(inkComposite([0.9, 0.8, 0.7], [1, 1, 1], 1)).toEqual([0.9, 0.8, 0.7]);
-    expect(SCREEN_FS).toContain('gl_FragColor = u_ink > 0.5 ? vec4(mix(vec3(1.0), color.rgb, u_opacity), 1.0) : (u_premul > 0.5 ? color * u_opacity :');
+    expect(SCREEN_FS).toContain('gl_FragColor = u_ink > 0.5 ? vec4(mix(vec3(1.0), color.rgb, u_opacity * inkCapOf(u_screen)), 1.0) : (u_premul > 0.5 ? color * u_opacity :');   // the cap is 1 outside the light look's ink (windLightLook.test.js)
   });
   it.each(['light', 'beach'])('%s: from 10 kn up a full ink mark is darker than the tinted ground and at least as colourful, on the muted water and land', (theme) => {
     const legend = THEME_RAMPS[theme], field = resolveFieldRamp(theme, {});

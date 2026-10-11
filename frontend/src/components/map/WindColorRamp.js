@@ -335,17 +335,104 @@ var BEACH_FIELD_RAMP = [   // 6 and 16-75 kn: the COLOUR-BLIND PASS (27 kn lifts
 ];
 export var FIELD_RAMPS = { light: LIGHT_FIELD_RAMP, beach: BEACH_FIELD_RAMP };
 
+// LIGHT'S LOOK, AN A/B (2026-10-10; owner: "We really just need to replicate dark mode, but with proper setup for the colors for each
+// modes schema", "we need to replicate our science from dark mode"). DEFAULT OFF: nothing here draws until the lever is set.
+// Dark's look, measured (log 2026-10-10-dark-style-light-beach): every streak pixel is a brighter shade of the colour under it (+9.5 to
+// +14.5 L* at the median, chroma kept), and the colour under it is DARK (a dark map under a vivid veil). Dark's streak method moved onto
+// light washed out (D-019, amended): light's ground under the streaks is L* 74-88, and a mark that can only lighten has no room there.
+// Beach's ground is L* 57-72 and the same method reads well. What light lacks is the GROUND, not the streak method.
+// window.__RAW_WIND_LIGHT_LOOK__ (light only; read at once, the engine rebuilds its ramps when it changes):
+//   'moderate' | 'deep'  A: a deeper field, solved FROM the composite wanted over the muted land (stop = 1 - (1 - wanted / ground) /
+//                        strength), in light's own hue order (rose calm, lilac, periwinkle, violet, the path's blue and teal, green,
+//                        teal-green, yellow-green, gold, amber, rose, crimson, plum), then dark's streak method on it. The streak is
+//                        the field's own hue (within 15 deg) at full brightness, at least 14 L* above the field and at least as
+//                        colourful at 10 kn and from 13 kn (lilac, periwinkle and blue are paler: vivid only when dark), solved so neighbouring streaks keep the colour-blind floor too (LIGHT_LOOK_MARKS; dark's
+//                        streaks are its legend, which keeps it). Between 10 and 16 kn the streaks carry 1 kn waypoints on the
+//                        FIELD's own hue path (blue, azure, teal), so they never take the straight line between an orchid and a green
+//                        (it kept 0.58 of its colour: drawn straight, grey at 11.5 kn, then green over a blue field; independent
+//                        review). Both of a look's tables draw their path whatever older kill is set. Ground under 6-27 kn streaks
+//                        over the muted land: moderate L* 64-69
+//                        (beach's depth), deep 57-65. Colour-blind floor on the muted water and land: moderate 5.6, deep 5.5.
+//                        RE-SCOPES D-018's bar: light's field strength from 6 to 21 kn is no longer dark's (within 1 dE76); it is
+//                        deeper by design. The legend bar does not move.
+//   'ink'                B: today's field; the marks darker than the ground (ink, windInk.js), with ink's own colours for 27-47 kn
+//                        (LIGHT_INK_MARK_ROWS) and a strength cap where the marks cover most of the ground.
+// Kill: window.__RAW_DISABLE_WIND_LIGHT_LOOK__ (today's light, byte for byte). While a look is on, the older field kills stand aside.
+// Measurements and the A/B: log 2026-10-10-light-look-ab.
+var LIGHT_LOOKS = ['moderate', 'deep', 'ink'];
+var LIGHT_LOOK_FIELD = {
+  moderate: [[0, 0.826, 0.467, 0.643, 0.72], [3, 0.631, 0.468, 0.994, 0.75], [6, 0.475, 0.544, 0.999, 0.78], [10, 0.727, 0.405, 0.804, 0.80],
+    [16, 0.391, 0.609, 0.139, 0.82], [21, 0.233, 0.609, 0.427, 0.84], [27, 0.493, 0.568, 0.263, 0.86], [33, 0.628, 0.458, 0.074, 0.87],
+    [40, 0.610, 0.282, 0.000, 0.88], [47, 0.756, 0.180, 0.166, 0.90], [55, 0.642, 0.002, 0.176, 0.91], [63, 0.537, 0.045, 0.429, 0.93],
+    [75, 0.311, 0.038, 0.624, 0.95]],
+  deep: [[0, 0.774, 0.272, 0.493, 0.72], [3, 0.502, 0.385, 0.838, 0.75], [6, 0.406, 0.477, 0.995, 0.78], [10, 0.638, 0.306, 0.780, 0.80],
+    [16, 0.215, 0.472, 0.023, 0.82], [21, 0.001, 0.569, 0.336, 0.84], [27, 0.348, 0.500, 0.170, 0.86], [33, 0.444, 0.341, 0.000, 0.87],
+    [40, 0.393, 0.211, 0.000, 0.88], [47, 0.515, 0.162, 0.137, 0.90], [55, 0.450, 0.000, 0.113, 0.91], [63, 0.356, 0.005, 0.282, 0.93],
+    [75, 0.170, 0.003, 0.408, 0.95]],
+};
+var LIGHT_LOOK_MARKS = {
+  moderate: [[0, 1.000, 0.948, 0.971, 0.72], [3, 0.937, 0.904, 1.000, 0.75], [6, 0.860, 0.791, 1.000, 0.78], [10, 0.839, 0.706, 1.000, 0.80],
+    [11, 0.804, 0.758, 1.000, 0.803], [12, 0.707, 0.817, 1.000, 0.807], [13, 0.490, 0.884, 1.000, 0.81], [14, 0.126, 1.000, 0.997, 0.813], [15, 0.107, 1.000, 0.773, 0.817],
+    [16, 0.599, 1.000, 0.129, 0.82], [21, 0.511, 1.000, 0.775, 0.84], [27, 0.787, 1.000, 0.202, 0.86], [33, 1.000, 0.781, 0.000, 0.87],
+    [40, 1.000, 0.672, 0.382, 0.88], [47, 1.000, 0.554, 0.538, 0.90], [55, 1.000, 0.433, 0.583, 0.91], [63, 1.000, 0.137, 0.851, 0.93],
+    [75, 0.660, 0.376, 1.000, 0.95]],
+  deep: [[0, 1.000, 0.955, 0.973, 0.72], [3, 0.908, 0.872, 1.000, 0.75], [6, 0.832, 0.738, 1.000, 0.78], [10, 0.885, 0.590, 1.000, 0.80],
+    [11, 0.750, 0.703, 1.000, 0.803], [12, 0.606, 0.776, 1.000, 0.807], [13, 0.376, 0.864, 1.000, 0.81], [14, 0.140, 0.995, 1.000, 0.813], [15, 0.151, 1.000, 0.804, 0.817],
+    [16, 0.513, 1.000, 0.156, 0.82], [21, 0.054, 1.000, 0.711, 0.84], [27, 0.629, 1.000, 0.188, 0.86], [33, 1.000, 0.932, 0.483, 0.87],
+    [40, 1.000, 0.654, 0.044, 0.88], [47, 1.000, 0.479, 0.458, 0.90], [55, 1.000, 0.195, 0.394, 0.91], [63, 1.000, 0.115, 0.898, 0.93],
+    [75, 0.651, 0.428, 1.000, 0.95]],
+};
+// B's own streak colours for 27-47 kn (rows 6-9 of the legend). A multiply mark over the tinted water can never be lighter than it,
+// and a warm hue darkened is brown: the legend's gold ink took the 33 kn water to L* 37 at hue 90 (olive) and the 40 kn water to L* 29.
+// Solved per band over the field-tinted muted water and land: the most colour inside a hue window that is never yellow (27 kn a green,
+// 33 ochre, 40 deep amber, 47 vermilion), darkening the ground by 7-13 L* (was 14-21), each band >= 10 dE00 from its neighbours.
+// Over the water: 27 kn L* 51 C* 65 h 127, 33 kn 42 / 48 / 84, 40 kn 38 / 36 / 66, 47 kn 38 / 36 / 45.
+var LIGHT_INK_MARK_ROWS = { 6: [27, 0.500, 0.940, 0.000, 0.86], 7: [33, 1.000, 0.720, 0.000, 0.87], 8: [40, 1.000, 0.660, 0.300, 0.88], 9: [47, 1.000, 0.620, 0.400, 0.90] };
+
+// The A/B from a phone, where there is no console: ?windLook=moderate|deep|ink in the page's address. Read once per page and kept (a
+// route change that drops the query keeps it); the console lever, when set, wins, and the kill wins over both.
+var URL_LOOK = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+function lookFromUrl(w) {
+  if (!URL_LOOK || typeof w !== 'object') return undefined;
+  if (!URL_LOOK.has(w)) {
+    var s = w.location && typeof w.location.search === 'string' ? w.location.search : '', v;
+    try { v = typeof URLSearchParams !== 'undefined' ? new URLSearchParams(s).get('windLook') : null; } catch (e) { v = null; }
+    URL_LOOK.set(w, v === null ? undefined : v);
+  }
+  return URL_LOOK.get(w);
+}
+
+/** The light look the lever picks ('moderate' | 'deep' | 'ink'), or null: off, killed, or not a look. */
+export function windLightLook(win) {
+  var w = win || (typeof window !== 'undefined' ? window : null);
+  if (!w || w.__RAW_DISABLE_WIND_LIGHT_LOOK__ === true) return null;
+  var v = w.__RAW_WIND_LIGHT_LOOK__ !== undefined ? w.__RAW_WIND_LIGHT_LOOK__ : lookFromUrl(w);
+  return LIGHT_LOOKS.indexOf(v) >= 0 ? v : null;
+}
+function copyRows(rows) { return rows.map(function(s) { return s.slice(); }); }
+
 /** The field's stops for `theme` (null = no field ramp), honouring the mid-band refine kill. */
 export function resolveFieldRamp(theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : {});
+  var look = theme === 'light' ? windLightLook(w) : null;
+  if (LIGHT_LOOK_FIELD[look]) return copyRows(LIGHT_LOOK_FIELD[look]);
   return FIELD_RAMPS[theme] ? midbandRefined(FIELD_RAMPS[theme], 'field', theme, w) : null;
+}
+
+/** The stops the MARKS draw when a light look gives them their own (null = the legend's, resolveThemeRamp). The legend bar never moves. */
+export function resolveMarkRamp(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null);
+  var look = theme === 'light' ? windLightLook(w) : null;
+  if (LIGHT_LOOK_MARKS[look]) return copyRows(LIGHT_LOOK_MARKS[look]);
+  return look === 'ink' ? revertRows(resolveThemeRamp(theme), LIGHT_INK_MARK_ROWS) : null;
 }
 
 /** The field's own LUT texture for `theme` (null = the field samples the particle ramp). Restores the texture binding. */
 export function buildFieldRampTexture(gl, maxSpeed, theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : {});
-  if (!gl || !FIELD_RAMPS[theme] || w.__RAW_DISABLE_WIND_FIELD_RAMP__ === true) return null;
-  var data = generateRampData(maxSpeed || 50, resolveFieldRamp(theme, w), null, w), prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
+  var look = theme === 'light' && LIGHT_LOOK_FIELD[windLightLook(w)];   // a look's field is drawn even under the field-ramp kill (its marks are not a field)
+  if (!gl || !FIELD_RAMPS[theme] || (w.__RAW_DISABLE_WIND_FIELD_RAMP__ === true && !look)) return null;
+  var data = generateRampData(maxSpeed || 50, resolveFieldRamp(theme, w), null, look ? {} : w), prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -444,6 +531,8 @@ function lerpStop(a, b, t) {
 // (C* 19-22 over the muted land throughout). That segment keeps 0.07-0.09; every other segment of light and beach keeps 0.90 or
 // more and dark's weakest (6-10 kn) 0.78, so the trigger at one half has a wide margin on both sides and nothing else is touched,
 // byte for byte (windClearLowBand.test.js pins the margin: a palette edit that drifts a segment toward the trigger fails there).
+// Light's look A/B (default off, windLightLook above) keeps the same margin: its fields' 10-16 kn keep 0.07-0.13 and walk the path, and
+// A's streak tables carry their own 1 kn waypoints, so every one of their segments keeps 0.92 or more (windLightLook.test.js).
 // Kill: __RAW_DISABLE_WIND_HUE_PATH__ (next ramp build: theme change or reload). Every OLDER ramp kill stands the path down too,
 // so that kill draws exactly what it drew: its rows AND the straight line between them.
 var HUE_PATH_KEEP = 0.5;

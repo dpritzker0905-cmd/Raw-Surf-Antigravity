@@ -163,6 +163,7 @@ node scripts/wind-bench/map-run.js --themes light,beach --zooms 6,8 --arms '{"be
 node scripts/wind-bench/map-run.js --crop 900x640            # also write a centre crop of every shot at DEVICE resolution (PNG)
 node scripts/wind-bench/map-run.js --crop 900x640:jpeg       # the same as JPEG, for a page that embeds many of them
 node scripts/wind-bench/map-run.js --lng -90.1 --lat 29.9    # another camera
+node scripts/wind-bench/map-run.js --offline --gl swiftshader # no token, no network: a synthetic basemap (below)
 ```
 
 "Dark looks great, light and beach look pale" is a statement about the streaks, so map mode reads them directly. A MARK
@@ -179,12 +180,29 @@ seed. Over the mark pixels of each surface, at device resolution (a streak is 1.
 | `L f>mark` | median L* of the field under the marks, then of the marks |
 | `C* f>mark` | median chroma of the field under the marks, then of the marks: does the mark carry colour or wash it out? |
 | `dh` | median hue difference, mark against field, where both are chromatic |
+| `wash` | `cover` × `dL`: the lightness the marks add to the whole surface |
+| `darker` | share of mark pixels darker than their ground: what gives a mark an edge on a pale ground |
+| `end` | field L* + `wash`: about where the picture ends up once the marks are on it. The row ends with the verdict, `ok` or `wash` |
+
+**The wash (LESSONS L-V28).** Light under dark's streak method was picked from still crops and seen live to wash the picture out. The
+plain product (`wash`) cannot be the bar: on the offline map at z6 dark adds the most (+7.8 over land) and beach, liked live, more than
+the failure (+6.6 against +3.3). What separates them is where the picture ends: the failure at L* 74 with no mark darker than its
+ground, beach at 68, dark at 32. A surface reads `wash` when it ends above `WASH_BAR.end` (71) AND fewer than `WASH_BAR.darker` (15%) of
+its mark pixels are darker than the ground (`style.js`). Two live anchors make it provisional: re-anchor it on the real basemap.
 
 - **What dark reads** (Mobile Bay, served strength, land): `lighter` 0.97-1.00, `dL` +9.5 to +14.5, chroma kept or raised,
   `dh` 3-4 degrees. A streak is one polarity and a brighter shade of the colour it rides on.
 - **What light and beach read today:** `lighter` 0.63-0.91, `dL` +2.5 to +5.5, chroma lowered. A black rim, a white ring
   and a dark core share two or three pixels and cancel.
 - **`--crop`** exists because the 448 px contact sheet turns 1 px streaks into texture. Judge a look on the crop.
+- **`--offline`** runs map mode with no token and no network (2026-10-10, a cloud session without `REACT_APP_MAPBOX_TOKEN`): a
+  synthetic style with each theme's measured land and water colours (the palette checker's), a rough Gulf and Atlantic coast, a road
+  lattice on the land and the `admin-` anchor (`map-entry.js` `OFFLINE`). The mute, the water mask, the style and wash columns and the
+  crops run as on the real styles. No labels, no coastline stroke, no terrain: compare arms within one offline run, not with a Mapbox
+  run. Its control (light at z6, today against glow) read +6.0 / 0.72 lighter and +8.0 / 1.00, against the Mapbox run's +5.0 / 0.64 and
+  +7.0 / 0.98: the same order, about 1 L* high. In a container without a GPU add `--gl swiftshader` (about 5 minutes a shot).
+- **Light's look A/B** (`window.__RAW_WIND_LIGHT_LOOK__`, `WindColorRamp.js`): the scanner names it `--variants
+  candidate,light-moderate,light-deep,light-ink`.
 - The two models built on these columns are in `windInk.js`. Glow is the default in light and beach since 2026-10-10
   (D-019; kill `__RAW_DISABLE_WIND_GLOW__` draws the marks before it); ink is a lever (`__RAW_WIND_INK__`), default
   off. The artifact scanner can name them: `node scripts/wind-bench/run.js --seeds 3 --themes light,beach --variants candidate,glow,ink`.

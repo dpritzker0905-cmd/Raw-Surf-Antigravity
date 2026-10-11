@@ -68,12 +68,16 @@ function blockSpeeds(cam, bw, bh, B, regional) {
   return speed;
 }
 
+// An INK trail buffer (windInk.js model 1) holds ink on white paper: empty is white and a mark is darker. Every reader below
+// takes a trail as light on black (empty = 0), so an ink buffer is read inverted, its ink as the light. Without this the
+// scanner saw paper as solid ink (mean 242 of 255) and could find nothing (2026-10-10, the light look's 'ink' arm).
 function readTrail(engine) {
   const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight;
   const pixels = new Uint8Array(W * H * 4);
   gl.bindFramebuffer(gl.FRAMEBUFFER, engine.screenA.fbo);
   gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  if (engine._inkWas === 1) for (let i = 0; i < pixels.length; i += 4) { pixels[i] = 255 - pixels[i]; pixels[i + 1] = 255 - pixels[i + 1]; pixels[i + 2] = 255 - pixels[i + 2]; }
   return { pixels, W, H };
 }
 

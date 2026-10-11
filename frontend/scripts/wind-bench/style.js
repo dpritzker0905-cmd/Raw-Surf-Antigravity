@@ -15,6 +15,14 @@
  *   Cfield / Cmark   median chroma C*ab of the field under the marks / of the marks (do the marks carry colour?)
  *   dh       median hue difference, mark against the field under it, where both are chromatic (C* > `chromatic`):
  *            a low dh with a high Cmark is "a stronger shade of the field's own colour", which is dark's look
+ *   wash     cover x dL: the lightness the marks add to the whole surface (L*, + = the picture lifts toward white)
+ *   darker   share of mark pixels DARKER than their ground (what gives a mark an edge on a pale ground)
+ *   end      Lfield + wash: about where the picture ends up once the marks are on it (L*)
+ * WASH (LESSONS L-V28): light under dark's streak method was seen live to wash out. Measured (map bench, offline basemap, z6, served
+ * strength, land): dark adds the MOST lightness (wash +7.8) and beach, liked live, more than the failure (+6.6 against +3.3), so the plain
+ * product cannot be the bar, and neither can the share of headroom it uses (beach 0.17 > the failure's 0.11). What separates them is
+ * where the picture ends: the failure leaves it at L* 74 with no mark pixel darker than its ground; beach ends at 68, dark at 32; light's
+ * marks before glow end at 75 but keep 28% of their pixels darker (an edge). See WASH_BAR and washVerdict.
  *
  * Pixels are read at DEVICE resolution: a streak is 1.5-4 CSS px wide, and a CSS-pixel average would thin it.
  */
@@ -53,7 +61,7 @@ function hist(lo, hi, step) {
  */
 function markStyle(fullPx, fieldPx, mask, opts = {}) {
   const o = { ...DEFAULTS, ...opts }, n = fullPx.length >> 2, A = new Float64Array(3), B = new Float64Array(3);
-  const acc = [0, 1].map(() => ({ px: 0, marks: 0, abs: 0, strong: 0, lighter: 0, dL: hist(-100, 100, 0.5), Lf: hist(0, 100, 0.5), Lm: hist(0, 100, 0.5),
+  const acc = [0, 1].map(() => ({ px: 0, marks: 0, abs: 0, strong: 0, lighter: 0, darker: 0, dL: hist(-100, 100, 0.5), Lf: hist(0, 100, 0.5), Lm: hist(0, 100, 0.5),
     Cf: hist(0, 160, 0.5), Cm: hist(0, 160, 0.5), dh: hist(0, 180, 1) }));
   for (let i = 0; i < n; i++) {
     const s = acc[mask ? mask[i] : 0], p = i * 4;
@@ -63,7 +71,7 @@ function markStyle(fullPx, fieldPx, mask, opts = {}) {
     const dL = A[0] - B[0], da = A[1] - B[1], db = A[2] - B[2];
     if (dL * dL + da * da + db * db <= o.markDE * o.markDE) continue;
     const cm = Math.hypot(A[1], A[2]), cf = Math.hypot(B[1], B[2]);
-    s.marks++; s.abs += Math.abs(dL); if (Math.abs(dL) >= o.strongDL) s.strong++; if (dL > 0) s.lighter++;
+    s.marks++; s.abs += Math.abs(dL); if (Math.abs(dL) >= o.strongDL) s.strong++; if (dL > 0) s.lighter++; else if (dL < 0) s.darker++;
     s.dL.add(dL); s.Lf.add(B[0]); s.Lm.add(A[0]); s.Cf.add(cf); s.Cm.add(cm);
     if (cm > o.chromatic && cf > o.chromatic) { let d = Math.abs(Math.atan2(A[2], A[1]) - Math.atan2(B[2], B[1])) * 180 / Math.PI; if (d > 180) d = 360 - d; s.dh.add(d); }
   }
@@ -71,16 +79,36 @@ function markStyle(fullPx, fieldPx, mask, opts = {}) {
   return acc.map((s) => (s.marks ? {
     cover: r(s.marks / s.px, 4), dL: r(s.dL.q(0.5)), dL10: r(s.dL.q(0.1)), dL90: r(s.dL.q(0.9)), absDL: r(s.abs / s.marks, 2), strong: r(s.strong / s.marks, 3),
     lighter: r(s.lighter / s.marks, 3), Lfield: r(s.Lf.q(0.5)), Lmark: r(s.Lm.q(0.5)), Cfield: r(s.Cf.q(0.5)), Cmark: r(s.Cm.q(0.5)),
-    dh: s.dh.count >= s.marks * 0.05 ? r(s.dh.q(0.5), 0) : null, pixels: s.px,
+    dh: s.dh.count >= s.marks * 0.05 ? r(s.dh.q(0.5), 0) : null, pixels: s.px, ...washOf(s.marks / s.px, s.dL.q(0.5), s.Lf.q(0.5), s.darker / s.marks),
   } : { cover: 0, pixels: s.px }));
+}
+
+/** The wash numbers of one surface from its cover, median dL, median field L* and share of darker mark pixels. */
+function washOf(cover, dL, Lfield, darker) {
+  const wash = cover * dL;
+  return { wash: +wash.toFixed(2), darker: +darker.toFixed(3), end: +(Lfield + wash).toFixed(1) };
+}
+
+/**
+ * The bar, from two live anchors on the same bench run (log 2026-10-10-light-look-ab): beach under dark's streak method (liked live,
+ * ends at L* 67.6 over land and 68.8 over water) and light under it (washed out live, 74.3 and 73.7). A surface reads 'wash' when its
+ * picture ends above `end` AND fewer than `darker` of its mark pixels are darker than the ground (a mark with a dark edge is not a
+ * wash). Two anchors make it a provisional bar: re-anchor it on map mode with the real basemap.
+ */
+const WASH_BAR = Object.freeze({ end: 71, darker: 0.15 });
+
+/** 'ok' | 'wash' for one surface's style (markStyle's land or water). */
+function washVerdict(s, bar = WASH_BAR) {
+  if (!s || !s.cover) return 'ok';
+  return s.end > bar.end && s.darker < bar.darker ? 'wash' : 'ok';
 }
 
 /** One table cell per surface, for the runners. */
 function styleCell(s) {
-  if (!s || !s.cover) return '   -   (no marks)'.padEnd(74);
+  if (!s || !s.cover) return '   -   (no marks)'.padEnd(100);
   const f1 = (x) => (x == null ? '  - ' : (x >= 0 ? '+' : '') + x.toFixed(1)).padStart(6), n1 = (x) => (x == null ? '  - ' : x.toFixed(1)).padStart(5);
-  return `${s.cover.toFixed(3)} ${f1(s.dL)} [${f1(s.dL10)},${f1(s.dL90)}] ${n1(s.absDL)} ${s.strong.toFixed(2)} ${s.lighter.toFixed(2)} ${n1(s.Lfield)}>${n1(s.Lmark)} ${n1(s.Cfield)}>${n1(s.Cmark)} ${s.dh == null ? '  -' : String(s.dh).padStart(3)}`;
+  return `${s.cover.toFixed(3)} ${f1(s.dL)} [${f1(s.dL10)},${f1(s.dL90)}] ${n1(s.absDL)} ${s.strong.toFixed(2)} ${s.lighter.toFixed(2)} ${n1(s.Lfield)}>${n1(s.Lmark)} ${n1(s.Cfield)}>${n1(s.Cmark)} ${s.dh == null ? '  -' : String(s.dh).padStart(3)} ${f1(s.wash)} ${s.darker.toFixed(2)} ${n1(s.end)} ${washVerdict(s)}`;
 }
-const STYLE_HEADER = 'cover  dL med [  p10 ,  p90 ]  |dL| strong lighter L f>mark   C* f>mark  dh';
+const STYLE_HEADER = 'cover  dL med [  p10 ,  p90 ]  |dL| strong lighter L f>mark   C* f>mark  dh   wash darker   end';
 
-module.exports = { markStyle, styleCell, labInto, STYLE_HEADER, STYLE_DEFAULTS: DEFAULTS };
+module.exports = { markStyle, styleCell, labInto, washOf, washVerdict, WASH_BAR, STYLE_HEADER, STYLE_DEFAULTS: DEFAULTS };
