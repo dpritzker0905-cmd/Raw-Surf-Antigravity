@@ -607,3 +607,19 @@ recomputed from dev's source, matches. A key change rebuilds both of the engine'
 - **Beach's colour-blind floor is still under 5.**
 - **Left for a change of its own:** beach's land and sea rows, the land mask (light binds it for two equal rows) and the streak
   solver now do little; each theme's palette under this look has not been tuned.
+
+## 21:08-21:11Z · PR #313 opened; the ledger; what is owed
+
+- **PR #313 opened against dev at 21:08:31Z** from `claude/wind-white-streaks` (dev `86306199` plus three commits at open). Not
+  merged: the owner merges. The app's PR status at 21:09Z: open, mergeable, 8 checks pending.
+- **Ledger, seq 1050 to 1056** (appended with `action_ledger.py append`; dev's ledger was this branch's before the first line;
+  `verify`: 1056 entries, OK): `pr_merge #312` (owed since 17:27Z); a finding that closes commitment 1047 (the read-back, relayed;
+  the owner's verdict, first-hand); the decision D-021; `pr_open #313`; the default's `flag_flip`; the review as a finding; and the
+  commitment for #313's own read-back, seq 1056, due 2026-10-18.
+- **Sent to the owner with the report:** `white-streak-built.webm` (the build in motion beside dark at zooms 10, 6 and 4 and at
+  zoom 6 at storm strength; the bench's own output folder, not committed).
+- **Owed, in order:** the owner's merge; the read-back on the deployed build (seq 1056: the look key, the kill, then the owner's
+  eye at zoom 4 and on a storm); the owner's call on each theme's palette, on beach's gale band and on removing the streak rows,
+  the land mask and the solver.
+- **Not this session's, still open:** the 13 overdue commitments `memory_audit.py` lists (each a live read-back of backend or app
+  work from earlier sessions).

@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-11 16:59Z** (logs: `log/2026-10-11-dark-rules-default.md` (dark's rules on light and beach, ON by default, D-020; #312), `log/2026-10-10-light-look-ab.md` (light's look A/B, default off: a deeper field + dark's streak method, or ink; #311), `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-11 21:11Z** (logs: `log/2026-10-11-wind-pale-band.md` (the owner's verdict on #312; dark watched in motion; the white streak in light and beach, ON by default, D-021; #313; and a pale-band rule built and left unmerged), `log/2026-10-11-dark-rules-default.md` (dark's rules on light and beach, ON by default, D-020; #312), `log/2026-10-10-light-look-ab.md` (light's look A/B, default off: a deeper field + dark's streak method, or ink; #311), `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,7 +14,36 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-11 15:57Z: light and beach draw dark's rules, ON BY DEFAULT (client only; PR #312 OPEN, the owner merges).** Owner: "build
+- **2026-10-11 21:08Z: light and beach draw dark's own WHITE streak, ON BY DEFAULT (client only; PR #313 OPEN against dev, the owner
+  merges).** Owner, 20:09Z, after watching dark, the deployed light and beach and two candidates each side by side in motion:
+  "middle row for both, build it" (DECISIONS D-021). It replaces the LOOK of #312, which the owner rejected at 18:29Z ("beach mode
+  isn't right. Nor is light mode. But dark mode is good. Its the model to use"); #312's switch, kill and hold lists stand.
+  - **The finding it rests on:** a dark streak is not coloured. The mark shader draws a small colour core under a white ring at
+    92%, laid at half strength: white light over a colour field, and the field shows through. #312 and the two attempts before it
+    gave light's and beach's streaks a colour of their own.
+  - **What draws:** where dark's rules draw, the streak takes dark's ring (`WHITE_STREAK`, `windDarkRules.js`: ring 1). Beach keeps
+    its tables. Light draws the deeper field of its A/B (`LIGHT_LOOK_FIELD.deep`) and that field's one streak row. Three source
+    files, about 20 lines; the engine and shaders are untouched. Dark never changes.
+  - **Kill:** `window.__RAW_DISABLE_WIND_WHITE_STREAK__ = true` (both themes as dev drew at `86306199`). #312's kill and every
+    older kill and lever still stand the whole thing down. Read-back: `window.__WIND_ENGINE__._lookKey` is `white|dark-rules` in
+    light and beach, `|dark-rules` under this kill, `|` in dark.
+  - **It is the arm the owner watched:** the default's tables hash the same as dev's code through the watched levers (captured
+    before the default moved); on the bench's fixed basemap 108 of 108 crops are the same PNG; an independent review compared dev's
+    source over 959,664 lever cases with 0 mismatches under the kill.
+  - **Measured** (GPU map bench, real Mapbox basemaps, streaks over the field under them, land, z4 / z6 / z8 / z10): light +15.5 /
+    +13.0 / +8.5 / +8.5 L*, beach +17.0 / +15.0 / +9.5 / +8.0, dark +14.5 / +13.0 / +10.5 / +9.5. Streak chroma against the field's:
+    beach 1.05-1.14, light 0.67-0.96, dark 1.02-1.10 (under the kill 1.3 to 2.2). The map's lines kept over land at z6: light 0.68
+    (0.59 under the kill), beach 0.66, dark 0.65. Colour-blind floor: light back above 5 (5.6 land, 5.5 water).
+  - **Costs, said plainly:** by the bench's wash bar (71) both themes read wash over land at z4 (light ends at 72.6, beach 71.8) and
+    light sits on it at z6 at storm strength (71.3): the owner picked from z10 and z6 at served strength. Beach's ground over land
+    at 26-39 kn is held pale (L* 65-73) and shows as a cream ring at storm strength; light dims that band instead. Beach's
+    colour-blind floor is unchanged, under 5 (3.2 / 3.1). A streak no longer carries a speed colour of its own.
+  - **Not built, each the owner's call:** each theme's palette under this look; beach's gale band; removing the land and sea streak
+    rows, the land mask and the streak solver, which now do little (light binds the mask for two equal rows).
+  - **Not verified:** nothing has been seen in the app. **Waiting on the owner:** the merge, then the owner's eye on the map, at
+    the widest zoom and on a storm too. **Owed:** the read-back on the deployed build (ledger seq 1056, due 2026-10-18). Log
+    `2026-10-11-wind-pale-band`, LESSONS L-V39 to L-V42, L-P33, L-P34.
+- **2026-10-11 15:57Z: light and beach draw dark's rules, ON BY DEFAULT (client only; PR #312 MERGED 2026-10-11T17:27:44Z as `86306199`; its LOOK was rejected by the owner at 18:29Z and is replaced by #313 above).** Owner: "build
   the five rules into the app behind a lever, I want to see the changes done, not start with them off ... Then if we dont like them,
   we turn them off" (DECISIONS D-020, which overrides the default-off rule for this change; no served number moves).
   - **What draws:** dark's streak method; a field dimmed by one dusk factor; orange and yellow grounds not dimmed; streak rows of their
@@ -39,9 +68,10 @@ is a claim, not a measurement.
     18.6 L* in one knot; now 4.4); calm keeps its tint.
   - **Independent review:** the kill and dark sound on every path it computed; three defects fixed (the eye and ladder benches on the
     two-row table; the bench's land file leaking between runs; older kills drawing a mix), four risks acted on (the mask retries).
-  - **Not verified:** nothing has been seen in the app. **Waiting on the owner:** the merge, then the owner's eye on the map (keep, turn off,
-    or tune). **Owed:** ledger seq 1047 (the read-back on the deployed build). Log `2026-10-11-dark-rules-default`, LESSONS L-V34 to
-    L-V38.
+  - **Read back on the deployed build 2026-10-11 17:36-17:40Z** (reported by the session that built it; build `86306199`, one map
+    load): the look key, the land mask and the kill behave as written. **The owner's verdict, first-hand, 18:29Z: not right in beach
+    or light; dark is the model.** Not turned off: replaced by #313. Ledger seq 1047 is closed on that. Log
+    `2026-10-11-dark-rules-default`, LESSONS L-V34 to L-V38.
 - **2026-10-11 06:10Z: dark's rules restated for any ground (docs and a model lab on #311's branch; NO app change).** Owner:
   "we need the light mode and beach mode's wind animations to follow the same rules as dark mode". Five clauses:
   1. Use the ground-independent composite: #311's streak method. Dark's own formula darkens any lighter ground.
