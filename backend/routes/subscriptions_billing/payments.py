@@ -15,6 +15,7 @@ from database import get_db
 from core.security import get_current_user_id
 from models import Profile, PaymentTransaction
 from utils.payment_fulfillment import fulfill_wallet_payment
+from utils.scheduled_booking_payment import fulfill_scheduled_booking, is_scheduled_booking
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -73,6 +74,7 @@ class StripeCheckout:
         session = stripe.checkout.Session.retrieve(session_id)
         class LocalStatus:
             def __init__(self, s):
+                self.id = s.id
                 self.payment_status = s.payment_status
                 self.amount_total = s.amount_total
                 self.status = s.status
@@ -295,7 +297,10 @@ async def get_checkout_status(
         if transaction:
             # Only update if not already processed
             if status.payment_status == "paid":
-                await fulfill_wallet_payment(db, transaction)
+                if is_scheduled_booking(transaction):
+                    await fulfill_scheduled_booking(db, transaction, status)
+                else:
+                    await fulfill_wallet_payment(db, transaction)
                 await db.commit()
                 logger.info(f"Payment completed for session {session_id}")
             
@@ -413,7 +418,15 @@ async def stripe_webhook(
             
             if transaction:
                 if webhook_response.payment_status == "paid":
-                    await fulfill_wallet_payment(db, transaction)
+                    if is_scheduled_booking(transaction):
+                        if webhook_response.event_type not in (
+                            'checkout.session.completed', 'checkout.session.async_payment_succeeded'
+                        ):
+                            return {'status': 'received'}
+                        session = webhook_response.raw_event.get('data', {}).get('object', {})
+                        await fulfill_scheduled_booking(db, transaction, session)
+                    else:
+                        await fulfill_wallet_payment(db, transaction)
                     await db.commit()
                     logger.info(f"Webhook: Payment completed for {webhook_response.session_id}")
         

@@ -15,6 +15,8 @@ from models import LiveSession, Notification, Profile
 from models import LiveSessionParticipant, PaymentTransaction
 from services import live_session_escrow
 from .join import CompletePaymentRequest
+from utils.scheduled_booking_payment import cents, field, metadata_of
+from starlette.concurrency import run_in_threadpool
 
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
 if STRIPE_API_KEY:
@@ -61,7 +63,10 @@ async def complete_session_payment(
     if owner_tx.user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot complete another user's payment")
 
-    used_emulator = data.checkout_session_id.startswith("cs_test_") and checkout_emulation_allowed()
+    # Newly created checkouts always use the real provider, including test-mode
+    # sessions. Keep legacy emulation confined to its existing local-only boundary.
+    used_emulator = (data.checkout_session_id.startswith("cs_test_") and checkout_emulation_allowed()
+                     and metadata_of(owner_tx).get('type') != 'live_session_join')
     payment_verified = False
     payment_intent_id = None
     refund_attempted = False
@@ -124,12 +129,11 @@ async def complete_session_payment(
             checkout_session = MockSession(metadata, payment_status, payment_intent_id)
         else:
             # Retrieve the Stripe checkout session
-            checkout_session = stripe.checkout.Session.retrieve(data.checkout_session_id)
+            checkout_session = await run_in_threadpool(stripe.checkout.Session.retrieve, data.checkout_session_id, api_key=STRIPE_API_KEY)
             
             if checkout_session.payment_status != 'paid':
                 raise HTTPException(status_code=400, detail="Payment not completed")
                 
-            payment_verified = True
             payment_intent_id = getattr(checkout_session, 'payment_intent', None)
             if not payment_intent_id and isinstance(checkout_session, dict):
                 payment_intent_id = checkout_session.get("payment_intent")
@@ -149,8 +153,23 @@ async def complete_session_payment(
             select(PaymentTransaction)
             .where(PaymentTransaction.session_id == data.checkout_session_id)
             .with_for_update()  # Row-level lock
+            .execution_options(populate_existing=True)
         )
         tx = tx_result.scalar_one_or_none()
+
+        if not used_emulator:
+            local = metadata_of(tx) if tx else {}
+            if not (
+                tx and tx.user_id == current_user_id == surfer_id
+                and local.get('surfer_id') == surfer_id and local.get('photographer_id') == photographer_id
+                and local.get('live_session_id') == metadata.get('live_session_id')
+                and field(checkout_session, 'id') == tx.session_id
+                and field(checkout_session, 'status') == 'complete'
+                and field(checkout_session, 'currency') == tx.currency == 'usd'
+                and type(field(checkout_session, 'amount_total')) is int
+                and field(checkout_session, 'amount_total') == cents(tx.amount) == cents(amount) == cents(local.get('amount'))
+            ):
+                raise HTTPException(status_code=400, detail='Payment evidence does not match live session')
         
         # If already completed, return success (idempotent)
         if tx and tx.payment_status == 'Completed':
@@ -160,6 +179,22 @@ async def complete_session_payment(
         if tx and tx.payment_status == 'Refunded':
             refund_attempted = True
             raise HTTPException(status_code=400, detail="Payment has been refunded")
+
+        if tx is None or tx.payment_status.lower() != 'pending' or tx.status.lower() != 'pending':
+            raise HTTPException(status_code=409, detail='Payment requires reconciliation')
+
+        # Serialize different checkouts for the same creator before checking for
+        # an existing entitlement. A second paid checkout is not a retry of tx.
+        photographer = (await db.scalars(select(Profile).where(Profile.id == photographer_id)
+            .options(selectinload(Profile.current_spot)).with_for_update()
+            .execution_options(populate_existing=True))).one_or_none()
+        intended_session = metadata_of(tx).get('live_session_id')
+        active_live_session = (await db.scalars(select(LiveSession).where(
+            LiveSession.id == intended_session, LiveSession.photographer_id == photographer_id,
+            LiveSession.status == 'active'
+        ).with_for_update().execution_options(populate_existing=True))).one_or_none()
+        if photographer is None or not photographer.is_shooting or active_live_session is None:
+            raise HTTPException(status_code=409, detail='Purchased session is unavailable; contact support for payment reconciliation')
         
         # Also check if participant already exists (belt + suspenders)
         existing_participant_result = await db.execute(
@@ -170,12 +205,9 @@ async def complete_session_payment(
             .where(LiveSessionParticipant.status == 'active')
         )
         if existing_participant_result.scalar_one_or_none():
-            # Mark transaction as completed if not already
-            if tx and tx.payment_status != 'Completed':
-                tx.payment_status = 'Completed'
-                tx.status = 'Completed'
-                await db.commit()
-            return {"success": True, "message": "Session already activated"}
+            raise HTTPException(status_code=409, detail='Another paid participation exists; contact support for payment reconciliation')
+
+        payment_verified = True
         
         # Use a nested transaction (savepoint) to isolate mutations while keeping the outer row lock active.
         try:
@@ -191,11 +223,6 @@ async def complete_session_payment(
                 surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
                 surfer = surfer_result.scalar_one_or_none()
                 
-                photographer_result = await db.execute(
-                    select(Profile).where(Profile.id == photographer_id).options(selectinload(Profile.current_spot)).with_for_update()
-                )
-                photographer = photographer_result.scalar_one_or_none()
-                
                 if not surfer or not photographer:
                     raise HTTPException(status_code=404, detail="User or photographer not found")
                 
@@ -204,16 +231,6 @@ async def complete_session_payment(
                 if tx and tx.transaction_metadata:
                     tx_data = json.loads(tx.transaction_metadata)
                     selfie_url = tx_data.get('selfie_url')
-                
-                # Find the active live session for this photographer to link the participant
-                active_ls_result = await db.execute(
-                    select(LiveSession)
-                    .where(LiveSession.photographer_id == photographer_id)
-                    .where(LiveSession.status == 'active')
-                    .order_by(LiveSession.created_at.desc())
-                    .limit(1)
-                )
-                active_live_session = active_ls_result.scalar_one_or_none()
                 
                 # CaptureSession: Calculate photos included in buy-in
                 photos_included = 0
@@ -311,6 +328,9 @@ async def complete_session_payment(
                     detail_msg += ". Payment refunded."
                 raise HTTPException(status_code=500, detail=detail_msg)
 
+        # Persist the entitlement before attempting an external success notification.
+        await db.commit()
+
         # Notify photographer via real-time push (non-blocking / outside nested transaction)
         try:
             from routes.notifications.push import notify_session_join
@@ -324,9 +344,6 @@ async def complete_session_payment(
             )
         except Exception as push_err:
             logger.warning(f"Failed to send card session join push: {push_err}")
-        
-        # Commit outer transaction
-        await db.commit()
         
         return {
             "success": True,

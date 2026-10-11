@@ -12,9 +12,11 @@ from models import AnalyticsEvent, CreditTransaction, LiveSession, LiveSessionPa
 
 from .schemas import JoinSessionRequest
 from utils.credits import deduct_credits
+from utils.scheduled_booking_payment import cents
+from utils.checkout_persistence import commit_checkout
+from starlette.concurrency import run_in_threadpool
 from services import live_session_escrow
 import os, stripe, logging
-import stripe_mcp_server, sqlite3
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
 if STRIPE_API_KEY: stripe.api_key = STRIPE_API_KEY
 logger = logging.getLogger(__name__)
@@ -118,7 +120,7 @@ async def join_session(
     # Combined discount: platform + photographer subscription (capped at 50%)
     discount = min(platform_discount + photo_sub_discount, 0.50)
     
-    final_price = buyin_price * (1 - discount)
+    final_price = cents(buyin_price * (1 - discount)) / 100
     
     # Try to use subscription live_buyin quota (free session if quota available)
     sub_quota_result = await try_use_subscription_quota(
@@ -127,6 +129,7 @@ async def join_session(
     subscription_covered = sub_quota_result.get("used", False)
     if subscription_covered:
         final_price = 0.0  # Subscription covers this buy-in
+        data.payment_method = 'subscription'
     
     # ============ CARD PAYMENT: Create Stripe Checkout Session ============
     if data.payment_method == 'card':
@@ -134,9 +137,17 @@ async def join_session(
             raise HTTPException(status_code=500, detail="Payment processing not configured")
         
         origin_url = data.origin_url or "https://dev--rawsurf.netlify.app"
+
+        active_session = (await db.scalars(select(LiveSession).where(
+            LiveSession.photographer_id == data.photographer_id, LiveSession.status == 'active'
+        ).order_by(LiveSession.created_at.desc()).limit(1))).one_or_none()
+        if active_session is None:
+            raise HTTPException(status_code=409, detail='Live session is no longer available')
         
         # Store session data for completion after payment
         session_data = {
+            "type": "live_session_join",
+            "live_session_id": active_session.id,
             "surfer_id": surfer_id,
             "photographer_id": data.photographer_id,
             "selfie_url": data.selfie_url,
@@ -145,50 +156,32 @@ async def join_session(
             "spot_name": photographer.current_spot.name if photographer.current_spot else "Live Session"
         }
         
-        # Get or create stripe customer ID mapping in stripe-mcp cache
-        customer_id = None
         try:
-            conn = sqlite3.connect(stripe_mcp_server.DB_PATH, timeout=10.0)
-            cursor = conn.cursor()
-            cursor.execute("SELECT customer_id FROM stripe_customers WHERE supabase_user_id = ?", (surfer_id,))
-            row = cursor.fetchone()
-            if row:
-                customer_id = row[0]
-            else:
-                import uuid
-                customer_id = f"cus_test_{uuid.uuid4().hex[:12]}"
-                cursor.execute(
-                    "INSERT INTO stripe_customers (customer_id, email, name, supabase_user_id, subscription_status, created_at) VALUES (?, ?, ?, ?, 'inactive', datetime('now'))",
-                    (customer_id, surfer.email, surfer.full_name, surfer_id)
-                )
-                conn.commit()
-            conn.close()
-        except Exception as e:
-            logger.error(f"Failed to lookup/create stripe customer mapping: {e}")
-            customer_id = f"cus_test_fallback_{surfer_id[:8]}"
-
-        try:
-            # Route checkout session creation through stripe-mcp server tool function
-            checkout_session = stripe_mcp_server.stripe_create_checkout_session(
-                customer_id=customer_id,
-                amount=final_price,
-                currency="usd",
+            checkout_session = await run_in_threadpool(
+                stripe.checkout.Session.create, api_key=STRIPE_API_KEY,
+                customer_email=surfer.email, payment_method_types=['card'], mode='payment',
+                expires_at=int((datetime.now(timezone.utc) + timedelta(minutes=31)).timestamp()),
+                line_items=[{'price_data': {'currency': 'usd', 'unit_amount': cents(final_price),
+                                           'product_data': {'name': 'Live surf session'}}, 'quantity': 1}],
                 success_url=f"{origin_url}/bookings?session_payment=success&checkout_session_id={{CHECKOUT_SESSION_ID}}",
                 cancel_url=f"{origin_url}/bookings?session_payment=cancelled",
-                metadata_dict={
+                metadata={
                     "type": "live_session_join",
+                    "live_session_id": active_session.id,
                     "surfer_id": surfer_id,
                     "photographer_id": data.photographer_id,
                     "amount": str(final_price)
                 }
             )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Payment error: {str(e)}")
+        except stripe.error.StripeError as exc:
+            await db.rollback()
+            logger.warning('Live checkout creation failed: %s', type(exc).__name__)
+            raise HTTPException(status_code=502, detail='Payment provider unavailable') from exc
         
         # Store pending transaction
         transaction = PaymentTransaction(
             user_id=surfer_id,
-            session_id=checkout_session["checkout_session_id"],
+            session_id=checkout_session.id,
             amount=final_price,
             currency="usd",
             payment_status="Pending",
@@ -196,12 +189,12 @@ async def join_session(
             transaction_metadata=json.dumps(session_data)
         )
         db.add(transaction)
-        await db.commit()
+        await commit_checkout(db, checkout_session, STRIPE_API_KEY)
         
         return {
             "requires_payment": True,
-            "checkout_url": checkout_session["url"],
-            "session_id": checkout_session["checkout_session_id"]
+            "checkout_url": checkout_session.url,
+            "session_id": checkout_session.id
         }
     
     # ============ CREDIT PAYMENT PROCESSING ============

@@ -1791,7 +1791,9 @@ jobs:
           # dev db037eaf (CI 37971676215) -> projected 1545; 1545 - 2 = 1543. This PR must read 306 files / 1545.
           # Post ownership repair: +26 executed estate controls -> projected1571, margin2.
           # Hosted qualification pending; no push or deployment in the local repair batch.
-          MIN_PASSED = 1569
+          # Booking payment repair: +53 executed estate controls -> projected1624, margin2.
+          # PostgreSQL/provider/hosted release qualification remains outstanding.
+          MIN_PASSED = 1622
 
           try:
               root = ET.parse('estate.xml').getroot()

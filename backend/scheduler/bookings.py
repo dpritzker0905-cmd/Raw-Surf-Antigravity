@@ -537,6 +537,7 @@ async def cleanup_expired_booking_payments_task():
                         Booking.pending_payment_expires_at <= now
                     )
                 )
+                .with_for_update(of=Booking).execution_options(populate_existing=True)
                 .options(
                     selectinload(Booking.participants).selectinload(BookingParticipant.participant)
                 )
