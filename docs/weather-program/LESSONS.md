@@ -782,3 +782,29 @@ A stored estimate can be estimated again in a browser branch with different sour
   stepped +24 L* over the sea and washed it (end 75.1). Solved per ground the sea read +17.3, end 68.1. The engine has no land mask,
   so this needs one. Rule: when a rule is relational, check every distinct ground it meets, not the one the table was solved on.
   (same note)
+- **L-V34 · A rule about hue is a line in speed: read a solved table per knot, never only at its stops.** The name guard holds
+  orange-to-yellow grounds light and hands over across 10 degrees of hue. Light's field leaves green for yellow-green between 25
+  and 26 kn, so the ground stepped from L* 55.5 to 74.1 in ONE knot: 8 times the steepest step of the field before it, a contour
+  line on every storm, and a threshold on an interpolated grid (L-V8). The lab and the FINDING scored the 13 Beaufort stops, which
+  sit on either side of it (L-V9 again). Easing it to both sides dimmed the 27 kn stop toward 33 kn and took the colour-blind
+  floor from 4.6 to 2.2; reaching outward only (4 kn) kept every untouched stop and the floor, at 4.4 L* a knot. Rule: every
+  solved ramp gets a per-knot instrument (the steepest step, with the unfixed solver as its positive control), and a hand-over is
+  sized in the unit the eye meets it in. (log 2026-10-11-dark-rules-default; `windDarkRules.test.js` "NO HARD LINE")
+- **L-V35 · When a solver is ported, diff what each copy is FED, not only its formula.** The lab's solver read the field through
+  `lut()`, which walks the hue path first. The port read the raw stops on the straight sRGB line, so light's 13 kn ground came out
+  grey (C* 0.9): the fog D-019 had removed, back in the new default, with every existing test green because they read the tables
+  the kill restores. A 3-line probe at the worst known speed found it. Rule: a new default re-states, on ITS OWN tables, every
+  property an older fix bought (no grey on the path, a calm tint, no hard line), and a port is probed at the speeds old defects
+  lived at before it is trusted. (same log)
+- **L-V36 · A default that shares tables with older levers is swept against every one of them: whole, or not at all.** With dark's
+  rules on by default, the ink and glow levers drew their marks on the new field and the new streak rows: looks nobody had built
+  or measured, and every bench arm that names one would have compared a mix. Rule: one function decides whether a look draws, the
+  tables, the mark model and the mask all ask it, and a test walks every combination of the levers (2,880 here) asserting they
+  agree. (same log)
+- **L-V37 · A module that touches GL inside an engine uses the engine's own state helpers, and an upload outside the frame sets its
+  own unpack state.** The engine's `bindTexture` keeps a record of the active unit; a raw `activeTexture` beside it leaves the
+  record wrong, and the next bind lands on another unit (it happened to line up in today's call order). The land mask is uploaded
+  from an idle callback, where the unpack state is whatever the map or another layer left: flipped, the mask would lay the
+  Arctic's rows on the Southern Ocean; and after a restored context its texture is gone while its object remains. Rule: bind
+  through the engine's helper, pin FLIP_Y and alignment at every upload outside the frame, re-validate textures when the program
+  changes, and publish the state for the read-back. (same log; `windLandMask.js`)

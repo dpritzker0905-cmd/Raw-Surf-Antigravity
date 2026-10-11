@@ -279,3 +279,45 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Amended again 2026-10-10 20:28Z (owner):** "I think beach mode too, needs it off glow. Beach mode needs dark mode's science
   too". Rule 1 is suspended for both themes: no theme draws glow by default. The lever stays. Dark's look, rebuilt for each
   theme's own ground and colours, comes back as candidates for the owner's A/B.
+
+### D-020 · Light and beach draw dark's rules, ON by default; the owner judges them in the app, and the kill restores the tables before them
+- **Decided:** by the owner, 2026-10-11: "build the five rules into the app behind a lever, I want to see the changes done, not start
+  with them off, that makes no sense. Do the changes, let me observe them. Then if we dont like them, we turn them off", and "why
+  would you make changes to turn them off? makes no sense." It followed "we need the light mode and beach mode's wind animations to
+  follow the same rules as dark mode" (docs/research/FINDING-2026-10-11-dark-s-rules-on-any-ground.md).
+- **Rule:** light and beach draw the five rules by default (`windDarkRules.js`, `windLandMask.js`):
+  1. dark's streak method (the colour at full light, laid at alpha squared);
+  2. one dusk factor on the field, so the everyday ground over land sits at or under a ceiling (light L* 58, beach 62);
+  3. a name guard: orange and yellow grounds (OKLCH hue 35-126) are not dimmed;
+  4. streak rows of their own over land and over sea, picked by a land mask;
+  5. a colour floor on every streak (C* 25).
+  A theme draws them WHOLE or not at all: an explicit light look, the ink and glow levers and the neutral-body lever each hold
+  their theme on the tables it was built on. Dark never changes. Client only; no served number moves.
+- **What it overrides:** the default-off rule for a visual change (LESSONS L-V1 and L-V3: one lever, default off, the owner's A/B
+  first), for THIS change. D-001 (served numbers ship dark) is untouched: no served number moves here.
+- **What it gives up, said plainly:**
+  - **The colour-blind floor of 5 does not hold as drawn.** By the checker's method (coloraide), neighbouring bands' grounds
+    from 3 kn up: light 4.9 over the muted land and 3.9 over the muted water; beach 3.2 and 3.1 (5.1 to 5.3 before). The kill
+    restores the floor. No bar or test was lowered: the older tests hold 5 on the tables the kill restores.
+  - **The map's lines keep less of their contrast under the dimmed field** (offline map bench, z6, land, field and marks: light
+    0.43 against 0.50, beach 0.48 against 0.60; dark's own is 0.41).
+  - **A pale band over land at 26-30 kn** (beach 27-29): the guard keeps that ground light, so a streak has no room and stops
+    at the colour floor, a near-white yellow. Whitening it there buys 2 to 4 L* for 70 C* of colour.
+  - D-018's dark-parity bar for light's field strength (6-21 kn within 1 dE76 of dark) is re-scoped for the drawn field: the
+    tint's strength is unchanged, its colour is dimmed.
+- **What this build changed from the lab's solver (this session's rulings, not the owner's words; each has a control in
+  `windDarkRules.test.js`):**
+  - the solver reads the field on its hue path (D-019 rule 3): the port had brought the 13 kn grey back;
+  - the guard reaches 4 kn outward along speed: the lab's hand-over stepped light's ground 18.6 L* in one knot at 25-26 kn
+    (L-V8: a hard line); now 4.4, with every Beaufort stop it did not touch unchanged;
+  - calm keeps its tint (D-019 rule 2): a clamped tint drew light's calm grey.
+- **Kill:** `window.__RAW_DISABLE_WIND_DARK_RULES__ = true` draws both themes byte for byte as before (the ca42f552 hashes; on
+  the GPU, every bench metric equals dev's engine). Narrow with `window.__RAW_WIND_DARK_RULES__` = `true` | `false` | `'light'` |
+  `'beach'`. Read at once: the engine rebuilds its tables on the change.
+- **Read-back:** `window.__WIND_ENGINE__._lookKey` ends with `|dark-rules` in light and beach;
+  `window.__WIND_LAND_MASK__.status` is `ready` once the land mask is loaded (until then every mark draws its land row).
+- **Not decided (the owner's, after he has seen it):** keep, turn off, or tune. Known knobs: the ceilings, the guard and its
+  reach, the colour floor, and whether a streak may stop short of dark's step to keep its colour where the ground is held.
+- **Evidence (log 2026-10-11-dark-rules-default):** offline map bench, z4 / z6 / z8 over land: step +16.0 / +13.5 / +8.0 (light)
+  and +18.0 / +15.5 / +8.5 (beach) against dark's +18.5 / +17.0 / +12.5 and +6 to +7 before; 100% of streak pixels lighter than
+  their ground (71-95% before); no surface reads wash (three did). Nothing has been seen in the app.
