@@ -55,8 +55,43 @@ function transformRequest(url) {   // mirrors mapUtils.mapboxTransformRequest (t
   return { url: url.replace('mapbox://', 'https://api.mapbox.com/v4/') + '.json?secure&' + t };
 }
 
+// OFFLINE BASEMAP (`map-run.js --offline`, 2026-10-10: a cloud session with no REACT_APP_MAPBOX_TOKEN). A synthetic style: each
+// theme's measured land and water (check.mjs MODEL, windFieldLut.test.js; dark's land is the bench's own), a rough Gulf and Atlantic
+// coast, a lattice of road lines on the land, and the 'admin-' anchor the wind layer is placed before. The rest of map mode runs as on
+// the real styles: the mute (background and fill), the water mask, the style columns, the crops. No labels, no coastline stroke (a
+// GeoJSON fill has no source-layer), no terrain: compare arms WITHIN it, not its numbers with a Mapbox run.
+const OFFLINE = {
+  light: { land: 'rgb(236, 236, 232)', water: 'rgb(168, 214, 222)', road: 'rgb(165, 165, 162)' },
+  beach: { land: 'rgb(222, 208, 180)', water: 'rgb(150, 190, 200)', road: 'rgb(155, 146, 126)' },
+  dark: { land: 'rgb(18, 20, 26)', water: 'rgb(93, 117, 126)', road: 'rgb(77, 87, 102)' },
+};
+const GULF = [[-98, 18], [-98, 26], [-97.2, 27.8], [-96.5, 28.4], [-95, 29.1], [-94, 29.6], [-93, 29.75], [-92, 29.6], [-91, 29.3], [-90.2, 29.1],
+  [-89.4, 29], [-89.2, 29.3], [-89.6, 29.6], [-89.5, 30.1], [-89, 30.35], [-88.4, 30.38], [-88.1, 30.25], [-88.05, 30.5], [-88, 30.68], [-87.9, 30.6],
+  [-87.9, 30.25], [-87.5, 30.27], [-86.5, 30.4], [-85.7, 30.15], [-85.3, 29.7], [-84.4, 29.9], [-83.5, 29.6], [-82.8, 28.9], [-82.7, 27.9],
+  [-82.2, 26.8], [-81.5, 25.9], [-81, 25.2], [-80.4, 25.2], [-80, 23], [-75, 18], [-98, 18]];
+const ATLANTIC = [[-80.4, 25.2], [-80, 26.5], [-80.6, 28.5], [-81.4, 30.5], [-81.2, 31.5], [-80, 32.5], [-78, 33.8], [-76, 35], [-75.5, 36], [-70, 40],
+  [-55, 40], [-55, 15], [-75, 18], [-80, 23], [-80.4, 25.2]];
+function offlineStyle(theme) {
+  const c = OFFLINE[theme] || OFFLINE.light, feats = [];
+  const poly = (ring) => feats.push({ type: 'Feature', properties: { kind: 'water' }, geometry: { type: 'Polygon', coordinates: [ring] } });
+  const line = (pts, kind) => feats.push({ type: 'Feature', properties: { kind }, geometry: { type: 'LineString', coordinates: pts } });
+  poly(GULF); poly(ATLANTIC);
+  for (let lat = 31; lat <= 38; lat += 0.5) line([[-98, lat], [-81.6, lat]], 'road');
+  for (let lng = -97.5; lng <= -82; lng += 0.5) line([[lng, 30.9], [lng, 38]], 'road');
+  line([[-88.45, 30.9], [-88.45, 35]], 'admin');
+  return {
+    version: 8, sources: { bench: { type: 'geojson', data: { type: 'FeatureCollection', features: feats } } },
+    layers: [
+      { id: 'land', type: 'background', paint: { 'background-color': c.land } },
+      { id: 'water', type: 'fill', source: 'bench', filter: ['==', ['get', 'kind'], 'water'], paint: { 'fill-color': c.water } },
+      { id: 'road', type: 'line', source: 'bench', filter: ['==', ['get', 'kind'], 'road'], paint: { 'line-color': c.road, 'line-width': 1.5 } },
+      { id: 'admin-1-boundary-bg', type: 'line', source: 'bench', filter: ['==', ['get', 'kind'], 'admin'], paint: { 'line-color': c.road, 'line-width': 1 } },
+    ],
+  };
+}
+
 let GRIDS = null;
-const state = { map: null, theme: null, gl: null, engine: null, rng: null, active: false, res: 384, levers: {}, crop: null };
+const state = { map: null, theme: null, gl: null, engine: null, rng: null, active: false, res: 384, levers: {}, crop: null, offline: false };
 
 function clearLevers() { Object.keys(window).filter((k) => k.startsWith('__RAW_')).forEach((k) => { delete window[k]; }); }
 
@@ -100,7 +135,7 @@ async function ensureMap(theme) {
   if (state.map) { disposeEngine(); state.map.remove(); state.map = null; }
   state.theme = theme;
   const map = new maplibregl.Map({
-    container: 'map', style: `mapbox://styles/mapbox/${STYLES[theme]}`, transformRequest, center: [-88, 30.5], zoom: 6,
+    container: 'map', style: state.offline ? offlineStyle(theme) : `mapbox://styles/mapbox/${STYLES[theme]}`, transformRequest, center: [-88, 30.5], zoom: 6,
     pixelRatio: DPR, fadeDuration: 0, interactive: false, attributionControl: false,
     canvasContextAttributes: { antialias: false, preserveDrawingBuffer: true },
   });
@@ -688,6 +723,7 @@ async function muteImagery(cfg) {
 /** fixtures: {fine, scale}. scale multiplies u and v (1 = as served; 2.3 puts Mobile Bay's median at ~30 kn, the owner's case). */
 function init(fixtures) {
   state.bare = fixtures.bare === true;
+  state.offline = fixtures.offline === true;
   const k = fixtures.scale || 1, fx = { ...fixtures.fine, u: fixtures.fine.u.map((u) => u * k), v: fixtures.fine.v.map((v) => v * k) };
   const fine = gridFromFixture(fx, 'served_fine');
   GRIDS = { fine, world: worldBase([fine]) };

@@ -12,7 +12,7 @@
  * 5. Final composite: render trail texture to screen canvas
  */
 
-import { generateRampData, buildFieldRampTexture } from './WindColorRamp';
+import { generateRampData, buildFieldRampTexture, resolveMarkRamp, windLightLook } from './WindColorRamp';
 import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tierKeepsOver, tierOuter } from './windTierMosaic';
 import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk';
 import {
@@ -387,10 +387,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
   // Update color ramp when theme changes or if texture is not yet created
   // v3.15: Use _currentTheme (set by setTheme) as fallback when theme param not passed
-  var activeTheme = theme || this._currentTheme || 'dark';
-  if (activeTheme !== this._currentTheme || !this._colorRamp) {
-    this._currentTheme = activeTheme;
-    var rampData = generateRampData(this._maxWindSpeed, null, activeTheme);
+  var activeTheme = theme || this._currentTheme || 'dark', lightLook = windLightLook();   // the light-look A/B lever (WindColorRamp.js): a change rebuilds at once
+  if (activeTheme !== this._currentTheme || !this._colorRamp || lightLook !== (this._lightLook || null)) {
+    this._currentTheme = activeTheme; this._lightLook = lightLook;
+    var rampData = generateRampData(this._maxWindSpeed, resolveMarkRamp(activeTheme), activeTheme);   // null: the legend's own ramp
     if (this._colorRamp) gl.deleteTexture(this._colorRamp);
     this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
     console.log('[WebGLWind] Color ramp updated for theme:', activeTheme);
@@ -941,7 +941,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
   gl.uniform1i(gl.getUniformLocation(this.screenProgram, 'u_screen'), 0);
-  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 1.0); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_glow'), 0);   // a plain copy in every model (windInk.js)
+  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 1.0); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_glow'), 0); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_ink_cap'), 1);   // a plain copy in every model (windInk.js)
   bindTexture(gl, this.screenB.tex, 0); bindTrailUv(gl, this.screenProgram, TRAIL_IDENTITY, false);
   if (this.screenVAO) {
     gl.bindVertexArray(this.screenVAO);
@@ -967,6 +967,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.blendFunc(_premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _premul ? 1 : 0); if (_ink.on) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); bindInk(gl, this.screenProgram, _ink.mode);
+  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_ink_cap'), _ink.on && _ink.cap > 0 && _ink.cap < 1 ? _ink.cap : 1); gl.uniform2f(gl.getUniformLocation(this.screenProgram, 'u_ink_px'), 1 / screenWidth, 1 / screenHeight);   // ink's cover cap (windInk.js)
   bindTexture(gl, this.screenB.tex, 0); bindTrailUv(gl, this.screenProgram, _trail.view, _trail.viewLinear);
   if (this.screenVAO) {
     gl.bindVertexArray(this.screenVAO);
@@ -1056,10 +1057,10 @@ WebGLWindEngine.prototype.reinitParticles = function(gl, opts) {
  */
 WebGLWindEngine.prototype.setTheme = function(gl, theme) {
   if (!gl || !this._initialized) return;
-  var activeTheme = theme || 'dark';
-  if (activeTheme !== this._currentTheme || !this._colorRamp) {
-    this._currentTheme = activeTheme;
-    var rampData = generateRampData(this._maxWindSpeed, null, activeTheme);
+  var activeTheme = theme || 'dark', lightLook = windLightLook();
+  if (activeTheme !== this._currentTheme || !this._colorRamp || lightLook !== (this._lightLook || null)) {
+    this._currentTheme = activeTheme; this._lightLook = lightLook;
+    var rampData = generateRampData(this._maxWindSpeed, resolveMarkRamp(activeTheme), activeTheme);
     if (this._colorRamp) gl.deleteTexture(this._colorRamp);
     this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
     console.log('[WebGLWind] Theme set to:', activeTheme);
