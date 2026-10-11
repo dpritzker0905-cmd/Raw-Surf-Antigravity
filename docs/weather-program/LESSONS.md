@@ -822,3 +822,58 @@ A stored estimate can be estimated again in a browser branch with different sour
   and reader of it, and run each instrument once against the commit before; (2) an instrument's inputs are answered per run, never
   left in a folder the next run reads; (3) a run's report states what it measured from the run's own read-back (`mask 0` / `mask 1`),
   not from what the author believes was served. (log 2026-10-11-dark-rules-default, "Independent review")
+- **L-V39 · A stopping rule that walks up from zero stops at the first bad step: read the whole trade before choosing a per-step
+  test.** A rule against a pale band in #312's streaks (built on a local branch, never merged: D-021 overtook it) was specified as
+  "take white only while each step of it pays". Read per knot, the first 1% of white on a red (light, 46 kn over land) buys 0.148
+  L* a C*, under the threshold of 0.15, while its white as a whole buys 0.35, and with no white that streak is 1.7 L* DARKER than
+  its ground; beach's reds at 51-54 kn would have lost about 10 L* the same way. A red's first white costs colour before it adds
+  light, a yellow's the other way round: the curve's shape differs by hue. The rule was built on the white as a whole, walking
+  DOWN from what was asked to the most that pays. Rules: (1) before a marginal criterion is written, read the gain and the cost at
+  the start, the middle and the end of the walk for every hue it will meet; (2) the case that would have broken the naive form
+  goes in a test by name. (log 2026-10-11-wind-pale-band, "The rule, and why it is on the white as a whole")
+- **L-V40 · "Identical" from an instrument means identical in what it reads: name that quantity before believing a null.** The
+  artifact scanner read a default and its kill the same on every number in all 26 views and printed "this engine reads none of
+  the levers that tell them apart". The lever (the unmerged pale-band rule) moved only a full-brightness colour's share of white;
+  every number the scanner prints is read from max(R,G,B), and that colour's strongest channel stays at 1. The instrument could
+  not have seen it, and the lever was live: all 26 image pairs in the run's contact sheet differed. Read rightly the null said
+  something useful (no trail changed shape or brightness), but only once a read that CAN move had shown the lever was read.
+  Rules: (1) before a null is written down as "no change" or "dead lever", state what the instrument reads and whether the change
+  can move it; (2) keep one read that can (here the images, and the map bench's chroma column); (3) an instrument's warning states
+  what it observed and every cause that fits, not one. (same log; `scripts/wind-bench/report.js`)
+- **L-V41 · Read what the reference DRAWS before measuring what it looks like: four copies of dark's wind failed on one misreading.**
+  Glow (#309), light's look (#311), dark's rules (#312) and a pale-band rule (built, never merged) each started from one measured
+  relation, "every dark streak is a brighter shade of the colour under it, chroma kept", and each gave light's and beach's streaks
+  a colour of their own to reproduce it, with more machinery every time (a solver, land and sea rows, a land mask, a colour floor,
+  then a rule about what white costs). The owner took beach for dark and rejected both themes. An hour with the mark shader and a
+  still camera's frames showed what dark draws: a small colour core under a WHITE ring at 92% (`DRAW_FS`), laid at half strength
+  (`SCREEN_FS`). A white wisp at half strength over a colour field reads as "that colour, lighter": the relation was right, the
+  cause was not. One lever that already existed (`__RAW_WIND_GLOW_RING__ = 1`) reproduced dark's relation in both themes, and the
+  owner picked that arm at the first showing. The owner's own words had said it: "It should be more simple than its been."
+  Rules: (1) before designing a copy, read the reference's drawing code and say what it draws in two sentences, then check the
+  sentence against frames of it in motion at every zoom it is used at; (2) try the smallest existing lever that could reproduce it
+  before building anything; (3) measure a candidate by what MAKES the look (here: the streak's colour against its ground's, chroma
+  ratio and hue turn) as well as by the relation the look shows; (4) when each attempt needs more rules than the last, suspect the
+  model was misread. (log 2026-10-11-wind-pale-band, "Dark watched in motion"; DECISIONS D-021)
+- **L-V42 · Show a look moving, beside its model, and let the owner point.** Days of still A/Bs, tables and crops ended in a look
+  the owner could not tell from another theme. A 3 x 3 grid of five-second clips (the model in the left column, today's look in
+  the top row, two candidates a theme under it, at two zooms) got "middle row for both, build it" in one message. A still also
+  misleads in a known direction: glow was picked from stills on 2026-10-10 and "washes out" live the same day. Rules: (1) a
+  visual candidate goes to the owner as motion at real speed, beside the reference, at a wide and a close zoom; (2) each pane is
+  labelled with what differs in the owner's terms (which streak, which depth), not with a lever's name; (3) the build that follows
+  is the arm that was shown, lever for lever, and a test pins its tables from the code before the default moved (L-V25), so
+  "what was built" and "what was watched" cannot drift apart. (same log; `windWhiteStreak.test.js`)
+- **L-P33 · Read the box's `uptime` before spending the one live map load: a merge has just restarted it.** (Reported by the
+  session that read #312 back on the deployed build, 2026-10-11; recorded by this session, which did not observe it.) A
+  frontend-only merge redeploys the backend. `/api/health` six minutes after #312's merge: 200 in 0.35 s, uptime 3 m 47 s. One map
+  load later it answered in 10.8 to 15.4 s, and still 4.6 to 5.4 s two minutes on (71 requests over 5 s, the longest 74 s, two
+  5xx). The health probe before the load read "fast" and was taken as "ready"; a box that young has cold caches and is fast only
+  because nothing has asked it for anything. Rule: the probe before a live read checks `uptime` as well as latency, and the one
+  live map load waits until the box has been warm for a while. (log 2026-10-11-wind-pale-band, the relayed section)
+- **L-P34 · A branch stacked on an open PR is re-cut from the merged base, and work the owner has overtaken is parked, not pushed.**
+  This session's first task (one rule against a pale band in #312's streaks) was built, gated and reviewed on a branch stacked on
+  #312's head. #312 merged seconds after the start-of-session check, and then the owner's first-hand verdict on #312's look made
+  the rule moot before it was pushed. It was left on its local branch, never pushed, and the next change was cut fresh from
+  `origin/dev`: its log, the lessons and one instrument's wording were carried over file by file; its code, its decision
+  amendment and its STATE bullet were not. Rules: (1) check the base PR's state again immediately before the first push, not only
+  at the start; (2) when the owner's word overtakes unpushed work, say so in the log where the work is recorded and name what was
+  carried and what was dropped; (3) never open a PR for work the owner has already moved past, however green its gates. (same log)

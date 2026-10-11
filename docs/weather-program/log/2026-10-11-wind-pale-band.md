@@ -439,3 +439,171 @@ land or sea), and "dark's rules" comes down to two numbers a theme: how deep its
 **A slip of this session's, corrected at once:** this section was first appended with a shell heredoc, which cut it off mid-sentence
 (the known Windows heredoc hazard, LESSONS and the agent notes: write anything with a quote in it to a file first). The log was
 restored to its last commit and the section appended from a file. Nothing else was touched.
+
+## 20:09-21:05Z · The owner picked the middle row; the white streak, built ON by default (D-021)
+
+**The owner's word, first-hand in this session's chat, 20:09Z:** "middle row for both, build it". It answered two clips sent at
+about 19:40Z (zoom 10 and zoom 6, five seconds each at real speed, dev's engine `86306199` on the real Mapbox basemaps), each a
+3 x 3 grid: dark in the left column; light and beach as deployed in the top row; the middle row light under
+`__RAW_WIND_LIGHT_LOOK__ = 'deep'` with `__RAW_WIND_GLOW_RING__ = 1` and beach under `__RAW_WIND_GLOW_RING__ = 1`; the bottom row
+the same streak over a lighter field (L* 68). This session's recommendation with the clips was the middle row; the owner took it.
+
+**Where the work is.** A fresh branch from `origin/dev` at `86306199`: `claude/wind-white-streaks`. The pale-band work stays where
+it was parked, on the local branch `claude/serene-wiles-d3574d` (five commits on `ced52301`, never pushed, no PR). Carried over
+from it, file by file: this log, the lessons (L-V39, L-V40, L-P33), and the scanner's warning wording (`report.js`, the bench
+README). NOT carried: `DARK_RULES.pay` and its tests, its bench arm, its amendment to D-020 and its STATE bullet. The sections
+above that describe that rule describe work that was not merged.
+
+### The "before", from the code before the edit (LESSONS L-V25)
+
+FNV-1a of the 256-entry RGBA tables the engine uploads (marks row 0 over land, marks row 1 over sea, field), read from dev's own
+code at `86306199` through a throwaway Jest file, before any edit:
+
+| arm on dev | theme | max kn | marks, land | marks, sea | field | mark model |
+|---|---|---|---|---|---|---|
+| the watched arm (`'deep'` + ring 1) | light | 50 | 71ea0097 | 71ea0097 | f73f7078 | mode 2, opacity 1, ring 1, white 0 |
+| | light | 75 | a49922ce | a49922ce | f9ffc9c2 | |
+| the watched arm (ring 1) | beach | 50 | 6e75db94 | 72b4bd7f | 7c248d5f | mode 2, opacity 1, ring 1, white 0 |
+| | beach | 75 | be558fd8 | cd4835ed | b9db3bb2 | |
+| no lever (what dev draws; what the kill must restore) | light | 50 | 46e55dbb | 177f0c5b | f03b4ab5 | mode 2, opacity 1, ring 0.25, white 0 |
+| | light | 75 | 6d6d01df | f1f3ef88 | bf0b2134 | |
+| | beach | 50 and 75 | as the watched arm's | | | ring 0.25 |
+| any | dark | 50 | c2ebc33e | c2ebc33e | none | off |
+
+Beach's watched arm moved no table: only its ring. Light's moved all three, and its two mark rows are one row.
+
+### The build
+
+Three source files, 20 lines of code:
+- `windDarkRules.js`: `WHITE_STREAK = { opacity: 1.0, ring: 1, white: 0 }` beside `DARK_RULES`, with the finding in its comment.
+- `WindColorRamp.js`: `windWhiteStreakOn(theme, win)` = the kill is not set AND `windDarkRulesOn(theme, win)`; under it
+  `darkRulesTables('light')` returns `LIGHT_LOOK_FIELD.deep` and `LIGHT_LOOK_MARKS.deep` (both rows); `windLookKey` carries
+  `white`, so the engine rebuilds at once when the kill flips (`white|dark-rules`, still ending `|dark-rules`).
+- `windInk.js`: where dark's rules draw, the marks are `WHITE_STREAK`'s, or `DARK_RULES`' under the kill.
+The engine and the shaders are untouched. Kill: `window.__RAW_DISABLE_WIND_WHITE_STREAK__ = true`.
+Also: the bench's scanner arm `before-white` (`matrix.js`); `check.mjs --before-white` and its banner.
+
+**A choice made here, not by the owner.** Light's watched arm ran on the light-look path, where dark's rules stand down. The
+build keeps light under dark's rules and hands those rules the same two tables, so that every older kill and lever still stands
+the theme down exactly as D-020 promises (on the look path they would have stood aside). The one difference that leaves: the
+land mask stays bound for light (`mask 1` where the watched arm read `mask 0`). Its two rows are equal, so it picks between two
+identical colours: the bench reads the same pixels (below).
+
+### Tests first
+
+`windWhiteStreak.test.js` was written before the code and run: 44 of its 46 tests failed (no such function; the two that passed
+pin behaviour dev already has). After the build: 46 of 46 (48 after the review, below). They pin the default's tables to the watched arm's hashes above and to
+the live lever path, the kill to dev's hashes, dark, the look key, and that each of the 21 holds, 5 bench levers, the ink, glow
+and v2 levers, an explicit light look and dark's rules' own kill stands the white streak down and draws the same with or without
+its kill. `windDarkRules.test.js` pinned the previous default: 30 of its tests failed, as they should. Its solver, guard, step and
+colour-blind pins now read the rules' own tables under the new kill (what it restores); its lever sweep runs both with and
+without it (69,120 theme-and-lever cases, 78 draw the rules); no bar in it moved.
+
+**Mutation check, 18 mutants, each run against four wind test files: 18 of 18 red** (and the review's four more, below: 22 of 22). Among them: ring 1 to 0.25, opacity 1 to
+0.8, white 0 to 0.2, the kill ignored, a truthy value kills, on without dark's rules, light keeps the solved tables, light draws
+the `moderate` field, the `moderate` streak row, a different sea row, beach takes light's tables, a table handed out uncopied, the
+look key without its marker, the marks never or always taking dark's ring, an explicit light look taking the white ring.
+
+### The look read per knot (the model; L-V34)
+
+The head of a streak is the mark's brightest pixel: the row's colour at full brightness, mixed 0.92 x ring toward white, written at
+the row's alpha and laid by dark's streak method over the tinted, muted ground.
+- **Lighter than its ground at every speed, over land and sea, in both themes:** +8.5 L* at the least (beach, 3 kn over land);
+  from 6 kn up +19.6 or more (dark's own head-of-streak step is about +22).
+- **Near-white at every speed:** head C* 21.2 at the most; at 6-27 kn the ground under a streak is always more colourful than
+  the streak's head. The field carries the colour.
+- **Light's ground has the room:** over the muted land L* 65.1 at 6 kn, 57.1 to 61.4 from 9 to 27 kn, 53.6 at 33 kn, 36.0 at
+  75 kn; over the sea 50.1 at 6 kn and deeper above. Calm keeps a pale tint (78.7 at 0 kn, 72.1 at 3 kn).
+- **The cost, pinned as a test:** beach's ground over land at 26 to 39 kn is L* 65.5 to 72.9 (D-020's name guard keeps yellow
+  and orange from being dimmed), so a white streak has less to stand on there; beach's sea has the room at every speed.
+
+### On the GPU: is the built default the arm the owner watched?
+
+Map bench (`map-run.js`), Mobile Bay, the served GFS grid, seed 1, zooms 4, 6, 8 and 10 at served strength and 6 and 8 at storm
+strength (x 2.3). Two sides: dev's code at `86306199` with the watched levers and with none; this branch with no lever and with
+the kill.
+
+**Fixed (offline) basemap, centre crops written pixel for pixel as PNG and compared by SHA-256:** 108 of 108 crops are the
+same file (36 light, 36 beach, 36 dark): dev with the watched levers against this branch with none, dev with none against this
+branch under the kill, and dark against dark. Controls: on this branch the default and the kill differ in 4 of 4 full shots in
+light and in beach (the lever is live), and dark's default and dark under the kill are the same file 18 times of 18. The Mapbox
+basemap cannot be compared this way: its bare-map shot (no wind at all) differs between two runs at zooms 6, 8 and 10.
+
+**Real Mapbox basemaps, every number of every row (1,800 numbers):** beach, 732 of 732 equal. Light and dark: every style number
+equal bar one of light's 384 (a rounding step), and the line-survival numbers differ by 0.003 at the most, in dark as much as in
+light, at exactly the zooms where the bare basemap's own edge count differed between the two runs (dark's code is untouched: that
+is the size of this instrument's noise on Mapbox tiles). Light's `mask 1` against `mask 0` is the choice above.
+
+**The built default on the real basemaps** (streaks against the field under them, over land; L* field to streak; wash bar 71):
+
+| zoom | light | beach | dark | light under the kill | beach under the kill |
+|---|---|---|---|---|---|
+| 4 | +15.5 (61.5 to 78.5), ends 72.6 WASH | +17.0 (59.0 to 76.5), ends 71.8 WASH | +14.5 (35.5 to 49.5) | +14.0, ends 65.3 | +14.5, ends 70.4 |
+| 6 | +13.0 (62.0 to 76.5), ends 67.6 | +15.0 (55.5 to 73.5), ends 62.6 | +13.0 (35.0 to 48.0) | +11.5 | +12.5 |
+| 8 | +8.5 (62.5 to 71.0), ends 66.4 | +9.5 (55.5 to 65.5), ends 60.6 | +10.5 (36.5 to 47.0) | +7.0 | +7.5 |
+| 10 | +8.5 (62.0 to 70.5), ends 65.4 | +8.0 (58.5 to 67.5), ends 62.1 | +9.5 (38.5 to 48.0) | +6.0 | +6.0 |
+| 6, storm | +16.0 (62.0 to 78.5), ends 71.3 WASH | +15.0 (59.5 to 79.5), ends 68.6 | +14.0 (36.0 to 50.0) | +13.0 | +13.0 |
+| 8, storm | +11.0, ends 70.6 | +9.0, ends 67.6 | +11.0 | +8.0 | +8.0 |
+
+Every streak pixel is lighter than its ground in light and beach at every zoom (dark: 97 to 100%). Over the sea nothing reads
+wash. **Streak chroma against the field's, over land:** dark 1.02 to 1.10; beach 1.05 to 1.14; light 0.67 to 0.96 (its field is
+twice as colourful as dark's, and white takes that down); under the kill light 1.42 to 2.19 and beach 1.33 to 1.60 (the coloured
+dashes). **Over the sea the step is larger than dark's** (zoom 6: light +21.0, beach +16.5, dark +10.0). **The map's lines kept
+under field and streaks, land, zoom 6:** light 0.677 (0.588 under the kill), beach 0.659 (0.653), dark 0.652.
+
+**Palette checker (`check.mjs`, the drawn tables):** 0 red composite lines. Colour-blind floor: light 5.6 over land and 5.5 over
+water, back above the bar of 5 (4.9 and 3.9 under the kill); beach 3.2 and 3.1, unchanged and under it (`--strict` still exits
+1, on beach's two lines; four under the kill).
+
+### Gates
+
+Jest, both trees, on the final code: 305 suites, 4,046 tests, 0 failed (dev: 304 and 3,998). `check_eslint.js`: exit 0.
+`loc_ratchet.py`: no new violation (`WindColorRamp.js` 762 lines). `craco build`: compiled, exit 0 (with the lint-debt warnings the
+ESLint gate ratchets); its two generated files restored. No CI floor moves: the frontend floor is raised from hosted receipts only.
+
+### Independent review
+
+A fresh subagent, read-only, given the commit and not this session's conclusions.
+
+**What it verified by running.** Dev's source at `86306199` loaded beside the working tree and compared over 83,979 lever
+combinations (singles, all pairs, structured products, 60,000 random) x four themes x three max speeds, 959,664 cases: with the
+new kill set, the marks' bytes, the field's bytes, `windInk`, `v2SpeedPremul`, the field tint, `windDarkRulesOn`, the drawn stops
+and the look key equal dev's in every case (0 mismatches); without it, nothing differs wherever dev's rules are off, nor in dark;
+where dev's rules are on, beach differs only in the mark model and light's tables always differ. The default equals dev's lever
+arm in marks and field bytes at every max speed from 10 to 80 kn in half-knot steps (282 cases). Every hash in the new test file,
+recomputed from dev's source, matches. A key change rebuilds both of the engine's textures.
+
+**What it found, and what was done:**
+1. **The kill was untested in the engine's call shape.** Every test handed a lever object in; the engine calls these functions
+   with none and reads the window. Two mutants that never read the window passed all 39 wind suites. The shipped code does read
+   the window; the tests could not have told. Three tests now set the kill on the real `window` and read the look key, the
+   tables and the marks as the engine does; those two mutants and two more of the same kind are red (4 of 4).
+2. **`scripts/wind-color/README.md` was false** (four colour-blind red lines, light under the bar): corrected to two, with the
+   three-column table, and `--before-white` added.
+3. **`check.mjs` printed light's one streak row twice** (it compared references; the resolver hands out copies) and laid the
+   marks with `DARK_RULES`' opacity (equal to `WHITE_STREAK`'s today): both fixed. Left and written down in its README: the same
+   light tables read through `--look deep` and through the default give different mark lines (two models of how the core is
+   laid); both are watch lines.
+4. **One of the new tests could not fail on any table** ("the ring only adds light": true of the model whatever the tables).
+   Removed.
+5. **Light binds the land mask for two equal rows.** Nothing is drawn wrong; it costs a fetch and a texture read. Left for the
+   cleanup, as recorded above.
+6. **Six stale comments** (five described the tables as before; one in `windDarkRules.js` quoted numbers from arms that were not
+   built): corrected, the last one to the built default's own bench numbers.
+7. **It could not check that the owner's middle row was these levers** (the bench's frames carry no arm). This session's
+   record: the capture's run list names them (`v-light-wisp62-*`: `'deep'` with ring 1; `v-beach-wisp55-*`: ring 1), and the
+   built default captured again reads the same ink as those runs at zoom 10 (light 36.35 against 36.34, beach 27.51 against
+   27.51) and zoom 6 (78.8 against 78.83, 54.24 against 54.24).
+
+### What is not verified, and what it costs
+
+- **Nothing has been seen in the app.** The bench is the real engine on the real map tiles; it is not the app.
+- **Zoom 4 and a storm were not in the clips the owner watched.** By the bench's bar both themes read wash over land at zoom 4,
+  and light sits on the bar at zoom 6 at storm strength. A third clip, sent to the owner with the report
+  (`white-streak-built.webm`: dark, light and beach as built, at zooms 10, 6 and 4 and at zoom 6 at storm strength), shows both.
+- **The gale band differs between the themes** (beach keeps its pale gold ground and gives the streak less room; light dims its
+  gold). In that clip's storm row beach's band shows as a pale cream ring over the land round the storm; light's as a deeper
+  yellow-green. The owner has not yet said which is right.
+- **Beach's colour-blind floor is still under 5.**
+- **Left for a change of its own:** beach's land and sea rows, the land mask (light binds it for two equal rows) and the streak
+  solver now do little; each theme's palette under this look has not been tuned.

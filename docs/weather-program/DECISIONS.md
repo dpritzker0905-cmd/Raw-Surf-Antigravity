@@ -329,3 +329,69 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   dark's rules down for the session, in both themes: it draws exactly what it drew before D-020 (`DARK_RULES_HOLDS`,
   `DARK_RULES_STEERS` in `WindColorRamp.js`). The kills for motion, density, casing, data and layer order do not. A test fails on
   any kill in the wind sources that is not classified one way or the other.
+- **Amended 2026-10-11 (the owner's verdict on the look, first-hand in the pale-band session's chat; and D-021):** the look this
+  entry drew was seen on the deployed build and is NOT kept as drawn. 18:29Z: "I was wrong, dark is untouched..... It was beach
+  mode that I mistaken for dark mode...... beach mode isn't right. Nor is light mode. But dark mode is good. Its the model to use".
+  What stands: this entry's switch (`windDarkRulesOn`), its kill, the hold lists and beach's solved tables. What D-021 changes: the
+  streak's ring (0.25 to dark's own 1) in both themes, and light's field and streak rows. "Not decided" above is answered for the
+  ring and for light's tables; "keep, turn off, or tune" now belongs to D-021's look. The pale band over land at 26-30 kn was not
+  given a rule of its own (one was built and left unmerged, log 2026-10-11-wind-pale-band): under dark's ring the head of every
+  streak is near-white at every speed, so no band of streaks stands out as paler than its neighbours (modelled per knot: C* 21.5
+  or less everywhere; `windWhiteStreak.test.js`).
+
+### D-021 · Light and beach draw dark's own white streak, ON by default; the field under it carries the colour
+- **Decided:** by the owner, 2026-10-11 20:09Z, in the pale-band session's chat: "middle row for both, build it". It followed,
+  the same day and first-hand: "Dark mode is the model. It needs to be copied, but with the proper colors to match the themes and
+  the maps underneath" (18:32Z) and "Watch how the dark mode operates using video screenshots at all zooms, then use skills and
+  connectors and plugins of art and animations to help further diagnose the solution. It should be more simple than its been.
+  Light and beach modes need to visually look like air moving, similiarly to dark does, but using their own color schemes"
+  (about 18:50Z).
+- **What "the middle row" was:** two five-second clips at real speed (zoom 10 and zoom 6; dev's engine at `86306199`, the real
+  Mapbox basemaps, Mobile Bay, the served wind), each a 3 x 3 grid: dark in the left column; light and beach as deployed in the
+  top row; in the middle row light under `window.__RAW_WIND_LIGHT_LOOK__ = 'deep'` with `window.__RAW_WIND_GLOW_RING__ = 1` and
+  beach under `window.__RAW_WIND_GLOW_RING__ = 1`; in the bottom row the same streak over a lighter field. The owner picked the
+  middle row for both themes.
+- **Rule:** wherever dark's rules draw (D-020), the streak is dark's own: dark's streak method with dark's white inner ring at
+  full strength and no white mixed into the body (`WHITE_STREAK` in `windDarkRules.js`: ring 1, opacity 1, white 0). The field
+  under it carries the colour, as dark's does, and must be deep enough to show white light. Beach keeps the tables it drew
+  (D-020's). Light draws the deeper field of its A/B (`LIGHT_LOOK_FIELD.deep`, #311: the ground under 9-27 kn over the muted
+  land at L* 57-61) and that field's own streak row, the same over land and sea. Dark never changes. Client only; no served
+  number moves.
+- **Why (measured on the deployed engine; log 2026-10-11-wind-pale-band, "Dark watched in motion"):** a dark streak is not
+  coloured. `DRAW_FS` draws a small colour core under a white ring at 92% and `SCREEN_FS` lays the trail at half strength; read
+  off the screen, a dark streak is its ground's colour (chroma x 1.02-1.10, hue within 4 degrees), 9.5 to 14.5 L* lighter. The
+  colour is the field's, showing through. D-019, #311 and D-020 each gave the streak a colour of its own instead (D-020: ring
+  0.25, the hue's most saturated colour at full strength; streak chroma 1.3 to 2.2 times the field's over land).
+- **What it replaces:** D-020's quarter ring, and in light D-020's dusk field and solved land and sea rows. D-020's switch, its
+  kill and "every older kill keeps its meaning" stand: this draws only where dark's rules draw, so each of those kills and
+  levers, set, still draws exactly what it drew before D-020.
+- **What it gives up, said plainly:**
+  - **A streak no longer carries a speed colour of its own.** Its head is near-white at every speed (modelled: C* 21.5 or less;
+    bench, zoom 6 over land: streak chroma 0.67 times the field's in light, 1.14 in beach, dark 1.07). The field and the legend
+    carry the bands.
+  - **At the widest zoom the bench reads "wash" over land in both themes** (zoom 4, served strength: the picture ends at L* 72.6
+    in light and 71.8 in beach against a bar of 71; ok at zooms 6, 8 and 10), and light sits on the bar at zoom 6 at storm
+    strength (71.3). The owner watched zoom 10 and zoom 6 at served strength, not zoom 4 and not a storm. The bar rests on two of
+    the owner's verdicts of 2026-10-10 and may be strict; the eye decides.
+  - **The two themes treat the gale band differently.** Beach's ground over land at 26-39 kn is held pale by D-020's name guard
+    (L* 65-73), so a white streak has less to stand on there. Light's deeper field has no such band, at the cost of a deeper
+    gold (its 33 kn ground over land is L* 53.6; D-020 held it at 68.4).
+  - **Beach's colour-blind floor is unchanged, under the bar of 5** (3.2 over land, 3.1 over water, as under D-020). Light's is
+    back above it (5.6 and 5.5; D-020 drew 4.9 and 3.9).
+  - **Machinery that now does little stays for this change:** beach still draws solved land and sea rows and reads the land mask
+    under a ring that hides most of their colour, and light still binds the mask though its two rows are equal.
+- **Kill:** `window.__RAW_DISABLE_WIND_WHITE_STREAK__ = true` draws both themes as dev drew at `86306199` (D-020's look), byte
+  for byte on the tables and, on the GPU bench's fixed basemap, pixel for pixel. Read at once: the engine rebuilds its tables on
+  the change. D-020's kill and every hold still work as before and win over this.
+- **Read-back:** `window.__WIND_ENGINE__._lookKey` is `white|dark-rules` in light and beach (`|dark-rules` under this kill;
+  `|` under D-020's kill, under any hold, and always in dark).
+- **Not decided (the owner's, once it has been seen in the app):** keep, turn off, or tune (the knobs: the field's depth a
+  theme, the streak's strength, the ring). Not decided either, and not built: each theme's palette under this look; whether
+  beach's gale band keeps its pale ground; whether the land and sea rows, the land mask and the streak solver are removed now
+  that a white streak takes its colour from what is under it.
+- **Evidence (log 2026-10-11-wind-pale-band, "The white streak, built"):** the tables with no lever set hash the same as dev's
+  own code through the watched levers (captured before the default moved); on the bench's fixed basemap every crop of the built
+  default is the same PNG as dev with those levers, and every crop under the kill the same as dev with none; on the real Mapbox
+  basemaps beach's 732 numbers are equal and light's and dark's differ only where the bare basemap itself differed between the
+  two runs. Step over land, zoom 6, real basemaps: light +13.0 (62.0 to 76.5), beach +15.0 (55.5 to 73.5), dark +13.0 (35.0 to
+  48.0). Nothing has been seen in the app.
