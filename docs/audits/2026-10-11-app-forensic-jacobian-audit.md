@@ -1,5 +1,7 @@
 # Raw Surf: whole-app forensic and Jacobian audit
 
+> **Follow-up clarification, October 10, 2026 (Eastern) / October 11 UTC:** Read the [counteraudit](2026-10-11-counteraudit.md) and [prioritized repair plan](2026-10-11-prioritized-repair-plan.md) before acting. The core named defects remain, but existing safe payment/AI paths, partial cache refresh, working alert preferences, admin-only export scope and the memory service's stdio boundary narrow the repair scope. The original snapshot below is preserved.
+
 Audit requested October 10, 2026 (America/New_York); evidence gathered October 11 UTC. Source baseline: `e0af8885df558032437df7a53a0ad9ba683850e1`. Author: Codex. Scope: read-only application investigation, followed by authorized documentation and memory updates. No application code, configuration, database records, deployments, flags, or served numbers changed.
 
 ## Assessment
