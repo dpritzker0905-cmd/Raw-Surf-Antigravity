@@ -16,9 +16,11 @@ import { v2SpeedPremul, V2_SPEED_PREMUL, v2FieldTint, V2_FIELD_TINT, resolveWind
 import { DRAW_FS, HEATMAP_FS } from './WebGLWindShaders';
 
 const v2 = resolveWindParticlesV2({});
-// These are the marks BEFORE glow (windInk.js). Dark's rules are the default in light and beach since 2026-10-11 (D-020) and draw
-// with dark's streak method, which stands this composite down, so the tests of it run with both kill switches set.
-const NO_GLOW = { __RAW_DISABLE_WIND_GLOW__: true, __RAW_DISABLE_WIND_DARK_RULES__: true };
+// These are the marks BEFORE glow (windInk.js). Glow is the default in light and beach since 2026-10-10 (D-019) and stands this
+// composite down, so the tests of it run with glow's kill switch set.
+const NO_GLOW = { __RAW_DISABLE_WIND_GLOW__: true };
+// Since 2026-10-11 (D-020) dark's rules draw light and beach when NO lever is set, with dark's streak method. Glow's kill above is an
+// older kill and still draws the marks before; the plain default is read with dark's rules' own kill.
 const RULES_OFF = { __RAW_DISABLE_WIND_DARK_RULES__: true };
 
 describe('speed-coloured premultiplied marks', () => {
@@ -26,7 +28,7 @@ describe('speed-coloured premultiplied marks', () => {
     expect(v2SpeedPremul(v2, 'light', NO_GLOW)).toEqual({ on: true, opacity: 1.0, singleCasing: false });
     expect(v2SpeedPremul(v2, 'beach', NO_GLOW)).toEqual({ on: true, opacity: 0.6, singleCasing: false });
     expect(v2SpeedPremul(v2, 'beach', RULES_OFF)).toEqual({ on: true, opacity: 0.6, singleCasing: false });  // beach came off glow too (the owner's word)
-    for (const theme of ['light', 'beach']) expect(v2SpeedPremul(v2, theme, {}).on).toBe(false);   // dark's rules draw by default (D-020)
+    for (const theme of ['light', 'beach']) expect(v2SpeedPremul(v2, theme, {})).toEqual({ on: false, opacity: 0, singleCasing: false });   // dark's rules draw by default (D-020)
     expect(v2SpeedPremul(v2, 'beach', { __RAW_WIND_GLOW__: true })).toEqual({ on: false, opacity: 0, singleCasing: false });   // its lever still stands this down
     expect(v2SpeedPremul(v2, 'light', RULES_OFF)).toEqual({ on: true, opacity: 1.0, singleCasing: false });  // light came off glow (it washed out live)
     expect(v2SpeedPremul(v2, 'dark', {})).toEqual({ on: false, opacity: 0, singleCasing: false });

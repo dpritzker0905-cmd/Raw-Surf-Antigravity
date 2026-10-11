@@ -435,13 +435,28 @@ export function resolveMarkRamp(theme, win) {
  * together), so every older lever that draws a theme its own way holds that theme on the tables it was built on: an explicit light
  * look, the ink and glow levers (windInk.js reads the same ones) and the neutral-body v2 theme. This is the one place that decides;
  * the engine's tables, its land mask and windInk all ask it (windDarkRules.test.js sweeps every combination).
+ *
+ * EVERY OLDER KILL KEEPS ITS MEANING. A kill is how a past change is rolled back, and each is documented to restore what was drawn
+ * before it (DECISIONS D-018, D-019). Dark's rules are solved on the default field rows, dark's default legend, the multiply tint at
+ * its default strength and the muted ground, so a kill or bench lever that changes one of those would otherwise draw a mix nobody
+ * built (independent review, 2026-10-11: under the field-tint kill the field sampled the marks' two-row table). Set, each of the
+ * keys below stands dark's rules down for the session, in both themes: it draws exactly what it drew before them. A NEW kill that
+ * touches the tables, the field's blend or strength, the marks' composite or the ground joins DARK_RULES_HOLDS (the test fails on an
+ * unclassified kill).
  */
+export var DARK_RULES_HOLDS = ['__RAW_DISABLE_WIND_LIGHT_LOOK__', '__RAW_DISABLE_WIND_INK__', '__RAW_DISABLE_WIND_GLOW__', '__RAW_DISABLE_WIND_THEME_V2__',   // the looks
+  '__RAW_DISABLE_WIND_HUE_PATH__', '__RAW_DISABLE_WIND_CALM_CLEAR__', '__RAW_DISABLE_WIND_LIGHT_FASTBAND__', '__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__', '__RAW_DISABLE_WIND_LIGHT_CVD__',   // the tables' rows
+  '__RAW_DISABLE_WIND_LIGHT_LOWBAND__', '__RAW_DISABLE_WIND_MIDBAND_REFINE__', '__RAW_DISABLE_WIND_BEACH_CVD__', '__RAW_DISABLE_WIND_DARK_CVD__', '__RAW_DISABLE_WIND_LOWBAND_RESPREAD__', '__RAW_DISABLE_WIND_FIELD_RAMP__',
+  '__RAW_DISABLE_WIND_FIELD_TINT__', '__RAW_DISABLE_WIND_FIELD_LUT__', '__RAW_DISABLE_WIND_CALM_ALPHA_V3__', '__RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__', '__RAW_DISABLE_WIND_SPEED_PREMUL__',   // the composites
+  '__RAW_DISABLE_WIND_BASEMAP_MUTE__'];   // the ground
+export var DARK_RULES_STEERS = ['__RAW_WIND_FIELD_TINT__', '__RAW_WIND_FIELD_TINT_THEMES__', '__RAW_WIND_PREMUL_THEMES__', '__RAW_WIND_BASEMAP_MUTE__', '__RAW_WIND_BASEMAP_WATER_L__'];   // bench levers on the same things: set at all
 export function windDarkRulesOn(theme, win) {
-  var w = win || (typeof window !== 'undefined' ? window : null) || {};
+  var w = win || (typeof window !== 'undefined' ? window : null) || {}, i;
   if ((theme !== 'light' && theme !== 'beach') || w.__RAW_DISABLE_WIND_DARK_RULES__ === true || (theme === 'light' && windLightLook(w))) return false;
+  for (i = 0; i < DARK_RULES_HOLDS.length; i++) if (w[DARK_RULES_HOLDS[i]] === true) return false;
+  for (i = 0; i < DARK_RULES_STEERS.length; i++) if (w[DARK_RULES_STEERS[i]] !== undefined && w[DARK_RULES_STEERS[i]] !== null) return false;
   var names = function(lever) { return lever === true || (typeof lever === 'string' && lever.split(',').indexOf(theme) >= 0); };
-  if ((w.__RAW_DISABLE_WIND_INK__ !== true && names(w.__RAW_WIND_INK__)) || (w.__RAW_DISABLE_WIND_GLOW__ !== true && names(w.__RAW_WIND_GLOW__))) return false;
-  if (w.__RAW_WIND_THEME_V2__ === true && w.__RAW_DISABLE_WIND_THEME_V2__ !== true) return false;
+  if (names(w.__RAW_WIND_INK__) || names(w.__RAW_WIND_GLOW__) || w.__RAW_WIND_THEME_V2__ === true) return false;
   var lever = w.__RAW_WIND_DARK_RULES__;
   return (lever === true ? ['light', 'beach'] : (lever === false ? [] : (typeof lever === 'string' ? lever.split(',') : DARK_RULES.themes))).indexOf(theme) >= 0;
 }

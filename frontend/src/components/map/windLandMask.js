@@ -9,14 +9,20 @@
  * 2048 x 2048 Web Mercator texture: a texel is 20 km at the equator, so the hand-over between rows sits within a few device
  * pixels of the coast at zoom 6 and spreads to about 30 px at zoom 8 (a known limit; the coast is drawn by the basemap, not this).
  * It loads only when a theme draws dark's rules; until it is ready, or if it cannot load, every mark draws its land row.
- * The mask never stalls a frame: the fetch and the drawing run off the frame, and a 1 x 1 stand-in is bound until then.
+ * WHAT THE BUILD COSTS: no frame waits for it (a 1 x 1 stand-in is bound until it is ready), but the build itself is ONE task on the
+ * main thread, started in an idle period where the browser has them: 1,420 polygons drawn into a 2048 px canvas, 16.8 MB read back,
+ * 4.2 M texels copied and uploaded. `ms` in the read-back says how long it held the thread on this device. It reuses the land the
+ * page has already parsed (mapUtils getSharedLandGeoJSON) rather than fetch and parse the 2.8 MB file again.
+ * A failed load is tried again, at most MAX_TRIES times, 20 s and then 40 s apart: one bad fetch on a weak signal must not cost the
+ * sea its rows until reload, and a file that is not there must not be asked for forever.
  *
- * Read-back: window.__WIND_LAND_MASK__ = { status: 'loading' | 'ready' | 'failed', size, at, reason? }, set when the state changes
- * (never per frame). 'ready' is the only state in which a mark over the sea draws its sea row.
+ * Read-back: window.__WIND_LAND_MASK__ = { status: 'loading' | 'ready' | 'failed', size, at, tries, ms?, reason? }, set when the state
+ * changes (never per frame). 'ready' is the only state in which a mark over the sea draws its sea row.
  */
 import { bindTexture } from './WebGLWindUtils';
 
 export const LAND_MASK_SIZE = 2048;
+const MAX_TRIES = 3, RETRY_MS = 20000;
 
 /** DRAW_FS's declarations (inlined into its uniform line, so it starts on a line of its own for the precision guard). */
 export const GLSL_LAND_FS = `
@@ -75,24 +81,32 @@ function texture(gl, size, bytes, repeat) {
   return tex;
 }
 
-function publish(w, status, reason) {
-  if (w) w.__WIND_LAND_MASK__ = Object.assign({ status, size: LAND_MASK_SIZE, at: Date.now() }, reason ? { reason: String(reason) } : {});
+function publish(w, st, status, extra) {
+  if (w) w.__WIND_LAND_MASK__ = Object.assign({ status, size: LAND_MASK_SIZE, at: Date.now(), tries: st.tries }, extra || {});
 }
 
 function load(gl, st, win) {
-  st.loading = true;
+  st.loading = true; st.failed = false; st.tries++;
   const w = win || (typeof window !== 'undefined' ? window : null);
-  const fail = (e) => { st.failed = true; publish(w, 'failed', (e && e.message) || e); };
-  if (!w || typeof w.fetch !== 'function' || typeof document === 'undefined') { fail('no fetch'); return; }
-  publish(w, 'loading');
-  w.fetch(landMaskUrl(w)).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`land mask ${r.status}`)))).then((geo) => {
+  const fail = (e) => { st.failed = true; st.retryAt = Date.now() + RETRY_MS * st.tries; publish(w, st, 'failed', { reason: String((e && e.message) || e) }); };
+  if (!w || typeof w.fetch !== 'function' || typeof document === 'undefined') { st.tries = MAX_TRIES; fail('no fetch'); return; }
+  publish(w, st, 'loading');
+  // The page's own copy first (parsed once for the ocean mask and the fallback basemap), on the first try only: a retry asks the file itself.
+  const shared = st.tries === 1 ? (w.__LAND_GEOJSON_CACHE__ || w.__LAND_GEOJSON_PROMISE__) : null;
+  const land = shared ? Promise.resolve(shared) : w.fetch(landMaskUrl(w)).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`land mask ${r.status}`))));
+  land.then((geo) => {
     const run = () => {
       if (STATE.get(gl) !== st || (gl.isContextLost && gl.isContextLost())) return;   // the context was lost or came back meanwhile: this load was the old one's
+      let canvas = null;
       try {
         if (!geo || !Array.isArray(geo.features) || !geo.features.length) throw new Error('land mask: no land in the file');   // an all-sea mask would lay sea rows on every continent
-        const bytes = rasterizeLand(geo, LAND_MASK_SIZE, (n) => { const c = document.createElement('canvas'); c.width = n; c.height = n; return c; });
-        st.tex = texture(gl, LAND_MASK_SIZE, bytes, true); st.ready = true; publish(w, 'ready');
+        const max = gl.getParameter(gl.MAX_TEXTURE_SIZE);
+        if (max && max < LAND_MASK_SIZE) throw new Error(`land mask: this device's largest texture is ${max} px`);
+        const t0 = Date.now();
+        const bytes = rasterizeLand(geo, LAND_MASK_SIZE, (n) => { canvas = document.createElement('canvas'); canvas.width = n; canvas.height = n; return canvas; });
+        st.tex = texture(gl, LAND_MASK_SIZE, bytes, true); st.ready = true; publish(w, st, 'ready', { ms: Date.now() - t0 });
       } catch (e) { fail(e); }
+      if (canvas) { canvas.width = 0; canvas.height = 0; }   // let the 16 MB backing store go (canvas memory is capped on phones)
     };
     if (typeof w.requestIdleCallback === 'function') w.requestIdleCallback(run, { timeout: 2000 }); else setTimeout(run, 0);
   }).catch(fail);
@@ -110,9 +124,9 @@ export function bindLandMask(gl, prog, unit, on, win) {
   // A restored context keeps its object and loses its textures, and the engine rebuilds its programs then: a new program is the
   // moment to ask the driver (once, never per frame). Dead textures mean a fresh start, the mask loaded anew.
   if (st && st.prog !== prog && typeof gl.isTexture === 'function' && !gl.isTexture(st.blank)) st = null;
-  if (!st) { st = { tex: null, blank: texture(gl, 1, new Uint8Array([255]), false), loading: false, ready: false, failed: false }; STATE.set(gl, st); }
+  if (!st) { st = { tex: null, blank: texture(gl, 1, new Uint8Array([255]), false), loading: false, ready: false, failed: false, tries: 0, retryAt: 0 }; STATE.set(gl, st); }
   st.prog = prog;
-  if (on && !st.loading) load(gl, st, win);
+  if (on && (!st.loading || (st.failed && st.tries < MAX_TRIES && Date.now() >= st.retryAt))) load(gl, st, win);
   const ready = !!(on && st.ready);
   bindTexture(gl, ready ? st.tex : st.blank, unit);
   gl.uniform1i(gl.getUniformLocation(prog, 'u_land_mask'), unit);

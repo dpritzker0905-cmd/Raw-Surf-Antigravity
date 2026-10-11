@@ -196,7 +196,7 @@ async function eyeOne(cfg) {
       const ramp = thresholdRamp(engine._maxWindSpeed, T);
       [engine._colorRamp, engine._fieldRamp].filter(Boolean).forEach((tex) => {
         gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.RGBA, gl.UNSIGNED_BYTE, ramp);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, ramp);   // the WHOLE table: the marks' has two rows since 2026-10-11, and a sub-image left the second
       });
       await nextFrame(() => {
         draw();
@@ -215,7 +215,7 @@ async function eyeOne(cfg) {
         const ramp = thresholdRamp(engine._maxWindSpeed, T);
         [engine._colorRamp, engine._fieldRamp].filter(Boolean).forEach((tex) => {
           gl.bindTexture(gl.TEXTURE_2D, tex);
-          gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.RGBA, gl.UNSIGNED_BYTE, ramp);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, ramp);   // the WHOLE table: the marks' has two rows since 2026-10-11, and a sub-image left the second
         });
         await nextFrame(() => { draw(); gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px); });
         for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) if (px[((H - 1 - y * S) * W + x * S) * 4] > 8) bins[y * bw + x]++;
@@ -271,7 +271,7 @@ async function eyeShot(cfg) {
       const ramp = thresholdRamp(engine._maxWindSpeed, cfg.contourKn);
       [engine._colorRamp, engine._fieldRamp].filter(Boolean).forEach((tex) => {
         gl.bindTexture(gl.TEXTURE_2D, tex);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.RGBA, gl.UNSIGNED_BYTE, ramp);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, ramp);   // the WHOLE table: the marks' has two rows since 2026-10-11, and a sub-image left the second
       });
       const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, px = new Uint8Array(W * H * 4);
       await nextFrame(() => { draw(); gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px); });

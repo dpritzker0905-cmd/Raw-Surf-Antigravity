@@ -14,15 +14,16 @@
  * The older palette tests (windFieldLut, windPaletteCvd, windLightFastBand, windClearLowBand, windLightLook) read resolveFieldRamp and
  * resolveThemeRamp. Those are now the ROLLBACK tables: what the kill restores. None of their bars moved.
  * The GPU bench is the authority for what is drawn (LESSONS L-V26.3): scripts/wind-bench/map-run.js --offline.
+ * The land mask itself (its upload, its bind, its retries) is windLandMask.test.js.
  */
 import fs from 'fs';
 import path from 'path';
 import { DARK_RULES, solveDarkRules, darkRulesGround } from './windDarkRules';
-import { windDarkRulesOn, resolveDrawnField, resolveDrawnMarks, drawnMarkRampData, windLookKey, buildFieldRampTexture, resolveFieldRamp, resolveMarkRamp,
+import { windDarkRulesOn, DARK_RULES_HOLDS, DARK_RULES_STEERS, resolveDrawnField, resolveDrawnMarks, drawnMarkRampData, windLookKey, buildFieldRampTexture, resolveFieldRamp, resolveMarkRamp,
   resolveThemeRamp, generateRampData, huePathStops, sampleRamp } from './WindColorRamp';
 import { windInk, glowOf, glowComposite } from './windInk';
 import { DRAW_FS, DRAW_VS } from './WebGLWindShaders';
-import { GLSL_LAND_FS, LAND_MASK_SIZE, mercatorY, rasterizeLand, bindLandMask, landMaskUrl } from './windLandMask';
+import { GLSL_LAND_FS } from './windLandMask';
 import { resolveWindParticlesV2, v2SpeedPremul } from './WebGLWindUtils';
 import { muteColor, windBasemapMuteAmount, windBasemapWaterL } from './windBasemapMute';
 
@@ -187,9 +188,9 @@ describe('the kill: every theme draws, byte for byte, the tables it drew before 
   it('only exactly true kills: a truthy value that is not a setting leaves the default on', () => {
     for (const v of [1, 'true', 'yes', {}, null, undefined, false]) for (const theme of THEMES) expect(windDarkRulesOn(theme, { __RAW_DISABLE_WIND_DARK_RULES__: v })).toBe(true);
   });
-  it('under the kill the older field kill still returns the field to the particle ramp, as it did', () => {
+  it('the older field kill still returns the field to the particle ramp, as it did, with or without this kill', () => {
     expect(fieldBytes('light', { ...KILL, __RAW_DISABLE_WIND_FIELD_RAMP__: true })).toBeNull();
-    expect(fieldBytes('light', { __RAW_DISABLE_WIND_FIELD_RAMP__: true })).not.toBeNull();   // dark's rules need their own field, as a light look does
+    expect(fieldBytes('light', { __RAW_DISABLE_WIND_FIELD_RAMP__: true })).toBeNull();
   });
 });
 
@@ -222,14 +223,14 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
       expect(windInk('light', V2, w).opacity).not.toBeUndefined();
       expect(windInk('beach', V2, w)).toEqual(RULES_MARKS);
     }
-    const killed = { __RAW_WIND_LIGHT_LOOK__: look, __RAW_DISABLE_WIND_LIGHT_LOOK__: true };   // the look's kill hands light back to the default
-    expect(windDarkRulesOn('light', killed)).toBe(true);
-    expect(windInk('light', V2, killed)).toEqual(RULES_MARKS);
+    const killed = { __RAW_WIND_LIGHT_LOOK__: look, __RAW_DISABLE_WIND_LIGHT_LOOK__: true };   // the look's kill draws what it drew: light before any look
+    expect(windDarkRulesOn('light', killed)).toBe(false);
+    expect(windInk('light', V2, killed)).toEqual(MARKS_OFF);
   });
   // The ink and glow levers were built, measured and A/B'd on the tables before dark's rules. Set for a theme, they draw that theme on
   // those tables (so a bench arm or a session that sets one compares the look it names, not a mix).
   it.each([['__RAW_WIND_INK__', '__RAW_DISABLE_WIND_INK__', 1], ['__RAW_WIND_GLOW__', '__RAW_DISABLE_WIND_GLOW__', 2]])(
-    '%s for a theme stands dark\'s rules down there, tables and all; its kill hands the theme back', (lever, kill, mode) => {
+    '%s for a theme stands dark\'s rules down there, tables and all; its kill draws what it drew, the marks before', (lever, kill, mode) => {
       for (const theme of THEMES) {
         const other = theme === 'light' ? 'beach' : 'light';
         for (const w of [{ [lever]: true }, { [lever]: theme }, { [lever]: 'light,beach' }]) {
@@ -240,9 +241,13 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
         }
         expect(windDarkRulesOn(other, { [lever]: theme })).toBe(true);                 // a lever that names one theme leaves the other alone
         expect(windInk(other, V2, { [lever]: theme })).toEqual(RULES_MARKS);
-        for (const w of [{ [lever]: true, [kill]: true }, { [lever]: false }, { [lever]: 1 }, { [lever]: 'dark' }]) {   // dead, off, or not a setting
+        for (const w of [{ [lever]: false }, { [lever]: 1 }, { [lever]: 'dark' }]) {   // off, or not a setting: the default stands
           expect(windDarkRulesOn(theme, w)).toBe(true);
           expect(windInk(theme, V2, w)).toEqual(RULES_MARKS);
+        }
+        for (const w of [{ [lever]: true, [kill]: true }, { [kill]: true }]) {   // the kill is an older kill: it restores the marks before the lever
+          expect(windDarkRulesOn(theme, w)).toBe(false);
+          expect(windInk(theme, V2, w)).toEqual(MARKS_OFF);
         }
       }
     });
@@ -254,21 +259,22 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
       expect(windDarkRulesOn(theme, w)).toBe(false);
       expect(fnv(drawnMarkRampData(50, theme, w))).toBe(fnv(drawnMarkRampData(50, theme, KILL)));
     }
-    for (const theme of THEMES) expect(windDarkRulesOn(theme, { __RAW_WIND_THEME_V2__: true, __RAW_DISABLE_WIND_THEME_V2__: true })).toBe(true);
+    for (const theme of THEMES) expect(windDarkRulesOn(theme, { __RAW_WIND_THEME_V2__: true, __RAW_DISABLE_WIND_THEME_V2__: true })).toBe(false);   // its kill is an older kill
   });
   it('THE TABLES AND THE MARK MODEL AGREE under every combination of the levers: dark\'s rules whole, or not at all', () => {
     const VALUES = {
       __RAW_DISABLE_WIND_DARK_RULES__: [undefined, true], __RAW_WIND_DARK_RULES__: [undefined, true, false, 'light', 'beach'],
       __RAW_WIND_LIGHT_LOOK__: [undefined, 'deep', 'ink'], __RAW_WIND_INK__: [undefined, true, 'beach'], __RAW_DISABLE_WIND_INK__: [undefined, true],
       __RAW_WIND_GLOW__: [undefined, true, 'light', false], __RAW_DISABLE_WIND_GLOW__: [undefined, true], __RAW_WIND_THEME_V2__: [undefined, true],
+      __RAW_DISABLE_WIND_FIELD_TINT__: [undefined, true], __RAW_WIND_PREMUL_THEMES__: [undefined, 'light'],
     };
     let combos = [{}];
     for (const [k, vs] of Object.entries(VALUES)) combos = combos.flatMap((c) => vs.map((v) => (v === undefined ? c : { ...c, [k]: v })));
-    expect(combos).toHaveLength(2 * 5 * 3 * 3 * 2 * 4 * 2 * 2);
+    expect(combos).toHaveLength(2 * 5 * 3 * 3 * 2 * 4 * 2 * 2 * 2 * 2);
     let on = 0;
     for (const w of combos) for (const theme of ['light', 'beach', 'dark']) {
       const rules = windDarkRulesOn(theme, w), v2 = resolveWindParticlesV2(w), marks = windInk(theme, v2, w);
-      if (rules) { on++; expect(marks).toEqual(RULES_MARKS); }
+      if (rules) { on++; expect(marks).toEqual(RULES_MARKS); expect(v2SpeedPremul(v2, theme, w).on).toBe(false); }
       else {   // off: the marks are exactly what the kill draws under the same levers, and so are both tables
         expect(marks).toEqual(windInk(theme, v2, { ...w, ...KILL }));
         expect(resolveDrawnField(theme, w)).toEqual(resolveFieldRamp(theme, w));
@@ -276,7 +282,7 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
       }
       expect(windLookKey(theme, w).endsWith('|dark-rules')).toBe(rules);   // and the engine's rebuild key says which
     }
-    expect(on).toBeGreaterThan(100);   // the sweep reaches both branches
+    expect(on).toBe(39);   // the sweep reaches both branches: 39 of the 34,560 theme-and-lever cases draw the rules, and no older lever or kill is among them
   });
   it('the engine rebuilds its tables at once when any of them flips (the look key)', () => {
     const base = windLookKey('light', {});
@@ -285,6 +291,79 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
     expect(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).not.toBe(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'ink' }));
     expect(windLookKey('dark', {})).toBe('|');
     expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep|dark-rules');   // the key carries the look for every theme; beach's tables do not move with it
+  });
+});
+
+describe('every older kill keeps its meaning: set, it draws what it drew before dark\'s rules', () => {
+  // A kill is how a past change is rolled back, and each one is documented to restore what was drawn before it (DECISIONS D-018, D-019).
+  // Dark's rules are solved on the default field rows, dark's default legend, the multiply tint at its default strength and the muted
+  // ground. A kill or a bench lever that changes one of those would otherwise draw a mix nobody built: the independent review found the
+  // field-tint kill sampling the marks' two-row table as an alpha-over field. So each stands dark's rules down for the session.
+  const HOLDS = ['__RAW_DISABLE_WIND_LIGHT_LOOK__', '__RAW_DISABLE_WIND_INK__', '__RAW_DISABLE_WIND_GLOW__', '__RAW_DISABLE_WIND_THEME_V2__',
+    '__RAW_DISABLE_WIND_HUE_PATH__', '__RAW_DISABLE_WIND_CALM_CLEAR__', '__RAW_DISABLE_WIND_LIGHT_FASTBAND__', '__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__', '__RAW_DISABLE_WIND_LIGHT_CVD__',
+    '__RAW_DISABLE_WIND_LIGHT_LOWBAND__', '__RAW_DISABLE_WIND_MIDBAND_REFINE__', '__RAW_DISABLE_WIND_BEACH_CVD__', '__RAW_DISABLE_WIND_DARK_CVD__', '__RAW_DISABLE_WIND_LOWBAND_RESPREAD__',
+    '__RAW_DISABLE_WIND_FIELD_RAMP__', '__RAW_DISABLE_WIND_FIELD_TINT__', '__RAW_DISABLE_WIND_FIELD_LUT__', '__RAW_DISABLE_WIND_CALM_ALPHA_V3__', '__RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__',
+    '__RAW_DISABLE_WIND_SPEED_PREMUL__', '__RAW_DISABLE_WIND_BASEMAP_MUTE__'];
+  const STEERS = { __RAW_WIND_FIELD_TINT__: 0.9, __RAW_WIND_FIELD_TINT_THEMES__: 'beach', __RAW_WIND_PREMUL_THEMES__: 'light', __RAW_WIND_BASEMAP_MUTE__: 0.5, __RAW_WIND_BASEMAP_WATER_L__: 0.95 };
+  const sameAsWithTheKill = (theme, w) => {
+    const k = { ...w, ...KILL }, v2 = resolveWindParticlesV2(w);
+    expect(windDarkRulesOn(theme, w)).toBe(false);
+    expect(fnv(drawnMarkRampData(50, theme, w))).toBe(fnv(drawnMarkRampData(50, theme, k)));
+    const a = fieldBytes(theme, w), b = fieldBytes(theme, k);
+    expect(a ? fnv(a) : null).toBe(b ? fnv(b) : null);
+    expect(windInk(theme, v2, w)).toEqual(windInk(theme, v2, k));
+    expect(v2SpeedPremul(v2, theme, w)).toEqual(v2SpeedPremul(v2, theme, k));
+    expect(windLookKey(theme, w).endsWith('|dark-rules')).toBe(false);
+  };
+  it('the list is the one the code holds', () => {
+    expect([...DARK_RULES_HOLDS].sort()).toEqual([...HOLDS].sort());
+    expect([...DARK_RULES_STEERS].sort()).toEqual(Object.keys(STEERS).sort());
+  });
+  it.each(HOLDS)('%s', (kill) => {
+    for (const theme of THEMES) {
+      sameAsWithTheKill(theme, { [kill]: true });
+      for (const v of [1, 'true', false, null, undefined]) expect(windDarkRulesOn(theme, { [kill]: v })).toBe(true);   // only exactly true is a kill
+    }
+  });
+  it.each(Object.entries(STEERS))('the bench lever %s (%p), set at all', (lever, value) => {
+    for (const theme of THEMES) {
+      sameAsWithTheKill(theme, { [lever]: value });
+      for (const v of [undefined, null]) expect(windDarkRulesOn(theme, { [lever]: v })).toBe(true);
+    }
+  });
+  it('the field-tint kill no longer reads the marks\' table as a field (the review\'s case)', () => {
+    const w = { __RAW_DISABLE_WIND_FIELD_TINT__: true }, marks = drawnMarkRampData(75, 'light', w);
+    expect(Array.from(marks.subarray(0, 1024))).toEqual(Array.from(marks.subarray(1024)));        // equal rows: v = 0.5 reads the legend's ramp, as on dev
+    expect(Array.from(marks.subarray(0, 1024))).toEqual(Array.from(generateRampData(75, null, 'light', w)));
+  });
+  it('EVERY kill named in the wind sources is classified: it holds the old tables, or it is listed here as not touching what the rules assume', () => {
+    // A new kill that changes the tables, the field's blend or strength, the marks' composite or the ground MUST join DARK_RULES_HOLDS.
+    // Anything else is listed below with its family. An unlisted kill fails here, so the question is asked when the kill is written (L-V36).
+    const ORTHOGONAL = [
+      '__RAW_DISABLE_WIND_DARK_RULES__',                                                                       // this change's own kill
+      // how many marks, where, how long, how fast (the particles' motion and density)
+      '__RAW_DISABLE_WIND_CALIBRATION_V2__', '__RAW_DISABLE_WIND_DENSITY_V2__', '__RAW_DISABLE_WIND_DENSITY_UNIFORM__', '__RAW_DISABLE_WIND_VIEWPORT_DENSITY__', '__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__',
+      '__RAW_DISABLE_WIND_CLOSEZOOM_INK__', '__RAW_DISABLE_WIND_SPEED_KEEP__', '__RAW_DISABLE_WIND_SPEED_GAMMA__', '__RAW_DISABLE_WIND_MOTION_FLOOR__', '__RAW_DISABLE_WIND_RESPAWN_LNG_WRAP__',
+      '__RAW_DISABLE_WIND_VORTEX_LEVERS__', '__RAW_DISABLE_WIND_CALM_MARKS__', '__RAW_DISABLE_LOWWIND_LEGIBILITY__',
+      // the mark's shape, casing and trail
+      '__RAW_DISABLE_THEMED_PARTICLE_RIM__', '__RAW_DISABLE_WIND_FIXED_CASING__', '__RAW_DISABLE_WIND_DASH__', '__RAW_DISABLE_WIND_SIZE_MONOTONIC__', '__RAW_DISABLE_WIND_CLOSE_THIN__',
+      '__RAW_DISABLE_WIND_CLOSE_LAND__', '__RAW_DISABLE_WIND_WIDE_TRAILS__', '__RAW_DISABLE_WIND_WIDEFADE__', '__RAW_DISABLE_WIND_TRAIL_ANCHOR__',
+      // which grid is drawn, and when (data, tiers, delivery)
+      '__RAW_DISABLE_HOUR0_FIRST__', '__RAW_DISABLE_WIND_BASE_OVERLAY__', '__RAW_DISABLE_WIND_CLIP_KEEP_FINE__', '__RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__', '__RAW_DISABLE_WIND_COMMIT_NOOP__',
+      '__RAW_DISABLE_WIND_DELIVERY_QUEUE__', '__RAW_DISABLE_WIND_FINE_CONTAIN_GUARD__', '__RAW_DISABLE_WIND_HRRR_LANE__', '__RAW_DISABLE_WIND_OVERLAY_KEEP__', '__RAW_DISABLE_WIND_SERIES_SUPERSEDE__',
+      '__RAW_DISABLE_WIND_TIER_MOSAIC__',
+      // the layer's place in the map's stack, and the coastline drawn over it
+      '__RAW_DISABLE_WIND_UNDER_LABELS__', '__RAW_DISABLE_WIND_COASTLINE__',
+    ];
+    const files = fs.readdirSync(__dirname).filter((f) => /^(WebGLWind|wind|WindColorRamp)/.test(f) && f.endsWith('.js') && !f.endsWith('.test.js'));
+    expect(files.length).toBeGreaterThan(12);
+    const named = new Set();
+    for (const f of files) for (const k of fs.readFileSync(path.join(__dirname, f), 'utf8').match(/__RAW_DISABLE_[A-Z0-9_]+__/g) || []) named.add(k);
+    expect(named.size).toBeGreaterThan(50);
+    const unclassified = [...named].filter((k) => !DARK_RULES_HOLDS.includes(k) && !ORTHOGONAL.includes(k)).sort();
+    expect(unclassified).toEqual([]);
+    for (const k of DARK_RULES_HOLDS) expect(ORTHOGONAL).not.toContain(k);
+    for (const k of DARK_RULES_HOLDS) expect(named.has(k)).toBe(true);                         // and every hold is a kill the sources still read
   });
 });
 
@@ -333,15 +412,12 @@ describe('the solved tables: the five rules', () => {
       expect(hd(okHue(T[theme][surface][kn].slice(1, 4)), okHue(drawnGround(theme, surface, kn)))).toBeLessThanOrEqual(21);
     }
   });
-  it('an older field kill changes the hues the rules are solved from, never the path: no kill brings the grey back', () => {
-    for (const k of ['__RAW_DISABLE_WIND_HUE_PATH__', '__RAW_DISABLE_WIND_LIGHT_FASTBAND__', '__RAW_DISABLE_WIND_MIDBAND_REFINE__']) {
-      const F = resolveDrawnField('light', { [k]: true });
-      for (let kn = 10; kn <= 16; kn++) expect(Cstar(groundUnder('light', 'land', kn, F[kn].slice(1, 4)))).toBeGreaterThanOrEqual(8);
-    }
-  });
   it('the solver is a pure function of its stops: the same tables every call, and the caller cannot reach the cache', () => {
     const a = resolveDrawnField('beach', {}); a[10][1] = 9;
     expect(resolveDrawnField('beach', {})[10][1]).not.toBe(9);
+    const m = resolveDrawnMarks('beach', {}); m.land[10][1] = 9; m.water[10][1] = 9;
+    const again = resolveDrawnMarks('beach', {});
+    expect(again.land[10][1]).not.toBe(9); expect(again.water[10][1]).not.toBe(9);
     const dark = resolveThemeRamp('dark'), field = huePathStops(resolveFieldRamp('beach', {}), {});
     expect(solveDarkRules('beach', field, dark)).toEqual(solveDarkRules('beach', field, dark));
   });
@@ -484,191 +560,6 @@ describe('the colour-blind floor, reported as it is: the new default is UNDER th
     // a streak is its ground's hue near white; neighbouring bands' streaks sit under 1 dE2000 apart for some viewer in both themes.
     // A watch line in the checker, never a gate (cvd_check.py); light's look A pinned its own streaks at 5, which these do not reach.
     for (const theme of THEMES) for (const surface of ['land', 'water']) expect(cvdFloor((kn) => T[theme][surface][kn].slice(1, 4), coloraide, 3).d).toBeLessThan(1);
-  });
-});
-
-describe('the land mask (rule 4): the mark picks its row by the ground under it', () => {
-  const GEO = { type: 'FeatureCollection', features: [
-    { type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[-180, 85.051129], [0, 0], [180, -85.051129], [-180, 85.051129]]] } },
-    { type: 'Feature', geometry: { type: 'MultiPolygon', coordinates: [[[[0, 0], [90, 0], [90, 45], [0, 0]]], [[[10, 10], [20, 10], [20, 20], [10, 10]], [[12, 11], [14, 11], [14, 12], [12, 11]]]] } },
-    { type: 'Feature', geometry: null }, { type: 'Feature', geometry: { type: 'LineString', coordinates: [[0, 0], [1, 1]] } },
-  ] };
-  const fakeCanvas = (size, paint) => {
-    const calls = [], ctx = { calls, fillRect: (...a) => calls.push(['fillRect', ...a]), beginPath: () => calls.push(['beginPath']), moveTo: (x, y) => calls.push(['moveTo', x, y]), lineTo: (x, y) => calls.push(['lineTo', x, y]),
-      closePath: () => calls.push(['closePath']), fill: (rule) => calls.push(['fill', rule]), getImageData: (x, y, w, h) => ({ data: paint ? paint(w, h) : new Uint8ClampedArray(w * h * 4) }) };
-    return { ctx, width: size, height: size, getContext: (kind) => (kind === '2d' ? ctx : null) };
-  };
-  const maskGl = () => {
-    const gl = { calls: [], uniforms: {}, textures: [], dead: new Set(), lost: false, isTextureCalls: 0, active: 100, units: { 100: 'the-maps-own-texture' },
-      TEXTURE_2D: 'T2D', TEXTURE0: 100, TEXTURE_BINDING_2D: 'TB', UNPACK_ALIGNMENT: 'UA', UNPACK_FLIP_Y_WEBGL: 'FY', LUMINANCE: 'LUM', UNSIGNED_BYTE: 'UB',
-      TEXTURE_WRAP_S: 'WS', TEXTURE_WRAP_T: 'WT', TEXTURE_MIN_FILTER: 'MIN', TEXTURE_MAG_FILTER: 'MAG', REPEAT: 'REPEAT', CLAMP_TO_EDGE: 'CLAMP', LINEAR: 'LINEAR',
-      state: { UA: 4, FY: true } };
-    gl.getParameter = (p) => (p === 'TB' ? gl.units[gl.active] : gl.state[p]);
-    gl.pixelStorei = (p, v) => { gl.state[p] = v; };
-    gl.createTexture = () => { const t = { id: gl.textures.length }; gl.textures.push(t); return t; };
-    gl.bindTexture = (target, t) => { gl.units[gl.active] = t; };
-    gl.texParameteri = (target, k, v) => { gl.calls.push(['texParameteri', gl.units[gl.active], k, v]); };
-    gl.texImage2D = (...a) => { gl.calls.push(['texImage2D', { tex: gl.units[gl.active], format: a[2], w: a[3], h: a[4], bytes: a[8], flipY: gl.state.FY, align: gl.state.UA }]); };
-    gl.activeTexture = (u) => { gl.active = u; };
-    gl.getUniformLocation = (prog, name) => name;
-    gl.uniform1i = (loc, v) => { gl.uniforms[loc] = v; };
-    gl.uniform1f = (loc, v) => { gl.uniforms[loc] = v; };
-    gl.isContextLost = () => gl.lost;
-    gl.isTexture = (t) => { gl.isTextureCalls++; return !gl.dead.has(t); };
-    gl.uploads = () => gl.calls.filter((c) => c[0] === 'texImage2D').map((c) => c[1]);
-    return gl;
-  };
-  const page = (response) => ({ location: { origin: 'https://example.test' }, requestIdleCallback: (fn) => fn(),
-    fetch: jest.fn(() => (response === undefined ? Promise.resolve({ ok: true, json: () => Promise.resolve(GEO) }) : response())) });
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
-  let createElement;
-  beforeEach(() => {
-    const real = document.createElement.bind(document);
-    createElement = jest.spyOn(document, 'createElement').mockImplementation((tag) => (tag === 'canvas' ? fakeCanvas(0) : real(tag)));
-  });
-  afterEach(() => { createElement.mockRestore(); });
-
-  it('Web Mercator y: the equator at a half, north at 0, clamped at the map\'s edge (DRAW_VS\'s own projection)', () => {
-    expect(mercatorY(0)).toBeCloseTo(0.5, 12);
-    expect(mercatorY(85.051129)).toBeCloseTo(0, 6);
-    expect(mercatorY(-85.051129)).toBeCloseTo(1, 6);
-    expect(mercatorY(90)).toBe(mercatorY(85.051129));
-    expect(mercatorY(-90)).toBe(mercatorY(-85.051129));
-    expect(mercatorY(30.45)).toBeCloseTo(0.5 - Math.log(Math.tan(Math.PI / 4 + (30.45 * Math.PI) / 360)) / (2 * Math.PI), 12);
-  });
-  it('draws every Polygon and MultiPolygon ring into the mercator square, holes cut by the even-odd rule, and reads one byte a texel', () => {
-    const size = 8, canvas = fakeCanvas(size, (w, h) => { const d = new Uint8ClampedArray(w * h * 4); for (let i = 0; i < w * h; i++) { d[i * 4] = i % 251; d[i * 4 + 1] = 7; d[i * 4 + 3] = 255; } return d; });
-    const out = rasterizeLand(GEO, size, () => canvas), c = canvas.ctx.calls;
-    expect(c[0]).toEqual(['fillRect', 0, 0, size, size]);                                    // sea first
-    expect(c.filter((x) => x[0] === 'fill')).toEqual([['fill', 'evenodd'], ['fill', 'evenodd'], ['fill', 'evenodd']]);   // one fill a polygon (1 + 2), nothing for the null or the line
-    expect(c.filter((x) => x[0] === 'beginPath')).toHaveLength(3);
-    expect(c.filter((x) => x[0] === 'closePath')).toHaveLength(4);                           // four rings: the last polygon carries a hole
-    const pts = c.filter((x) => x[0] === 'moveTo' || x[0] === 'lineTo');
-    expect(pts[0][0]).toBe('moveTo'); expect(pts[0][1]).toBeCloseTo(0, 9); expect(pts[0][2]).toBeCloseTo(0, 4);            // -180, north edge -> the top-left corner
-    expect(pts[1][0]).toBe('lineTo'); expect(pts[1][1]).toBeCloseTo(4, 9); expect(pts[1][2]).toBeCloseTo(4, 9);            // 0, 0 -> the centre
-    expect(pts[2][1]).toBeCloseTo(8, 9); expect(pts[2][2]).toBeCloseTo(8, 4);                                              // 180, south edge -> the bottom-right corner
-    expect(out).toBeInstanceOf(Uint8Array); expect(out).toHaveLength(size * size);
-    out.forEach((v, i) => expect(v).toBe(i % 251));                                           // the red channel, nothing else
-    expect(rasterizeLand(null, 2, () => fakeCanvas(2))).toEqual(new Uint8Array(4));           // no land at all: all sea, no throw
-  });
-  it('fetches the app\'s own land file, from the page\'s origin', () => {
-    expect(landMaskUrl({ location: { origin: 'https://rawsurf.example' } })).toBe('https://rawsurf.example/ne_50m_land.json');
-    expect(fs.existsSync(path.join(__dirname, '..', '..', '..', 'public', 'ne_50m_land.json'))).toBe(true);
-    expect(LAND_MASK_SIZE).toBe(2048);
-  });
-  it('off: nothing is fetched, a one-texel land stand-in is bound and the shader is told there is no mask', () => {
-    const gl = maskGl(), win = page();
-    for (let f = 0; f < 3; f++) bindLandMask(gl, 'prog', 5, false, win);
-    expect(win.fetch).not.toHaveBeenCalled();
-    expect(gl.uniforms).toEqual({ u_land_mask: 5, u_land_on: 0 });
-    expect(gl.uploads()).toHaveLength(1);
-    expect(gl.uploads()[0]).toMatchObject({ w: 1, h: 1, format: 'LUM' });
-    expect(Array.from(gl.uploads()[0].bytes)).toEqual([255]);                                 // land: with no mask every mark draws its land row
-    expect(gl.units[105]).toBe(gl.uploads()[0].tex);
-  });
-  it('on: ONE fetch however many frames ask; land rows until the mask is ready, then the mask on its unit', async () => {
-    const gl = maskGl(), win = page();
-    for (let f = 0; f < 4; f++) bindLandMask(gl, 'prog', 5, true, win);
-    expect(win.fetch).toHaveBeenCalledTimes(1);
-    expect(win.fetch).toHaveBeenCalledWith('https://example.test/ne_50m_land.json');
-    expect(gl.uniforms.u_land_on).toBe(0);
-    await settle();
-    bindLandMask(gl, 'prog', 5, true, win);
-    expect(gl.uniforms).toEqual({ u_land_mask: 5, u_land_on: 1 });
-    const big = gl.uploads().filter((u) => u.w === LAND_MASK_SIZE);
-    expect(big).toHaveLength(1);
-    expect(big[0]).toMatchObject({ h: LAND_MASK_SIZE, format: 'LUM', align: 1 });
-    expect(big[0].bytes).toHaveLength(LAND_MASK_SIZE * LAND_MASK_SIZE);
-    expect(gl.units[105]).toBe(big[0].tex);
-    expect(gl.calls).toContainEqual(['texParameteri', big[0].tex, 'WS', 'REPEAT']);           // the world wraps east-west
-    expect(gl.calls).toContainEqual(['texParameteri', big[0].tex, 'WT', 'CLAMP']);
-    bindLandMask(gl, 'prog', 5, false, win);                                                   // the theme turned dark: the stand-in again, the mask kept
-    expect(gl.uniforms.u_land_on).toBe(0);
-    expect(gl.units[105]).toBe(gl.uploads()[0].tex);
-    expect(win.fetch).toHaveBeenCalledTimes(1);
-  });
-  it('uploads north-up whatever unpack state the page left, and leaves that state and the map\'s binding as it found them', async () => {
-    const gl = maskGl(), win = page();
-    bindLandMask(gl, 'prog', 5, true, win);
-    await settle();
-    for (const u of gl.uploads()) expect(u.flipY).toBe(false);                                 // a flipped mask would put the Arctic's land rows on the Southern Ocean
-    expect(gl.state).toEqual({ UA: 4, FY: true });
-    expect(gl.units[100]).toBe('the-maps-own-texture');                                        // the map's binding on the unit it was on
-  });
-  it('keeps the engine\'s own record of the active unit true (WebGLWindUtils.bindTexture\'s shadow): the next bind lands on the unit it names', () => {
-    const gl = maskGl();
-    gl.active = 102; gl.units[102] = 'the-colour-ramp'; gl.__activeTextureUnit = 102; gl.__boundTextures2D = [];   // as inside the engine's render, after the colour ramp went to unit 2
-    bindLandMask(gl, 'prog', 5, false, page());
-    expect(gl.__activeTextureUnit).toBe(gl.active);
-    expect(gl.__boundTextures2D[5]).toBe(gl.units[105]);
-    expect(gl.units[102]).toBe('the-colour-ramp');                                             // unit 2 holds what it held (the stand-in was made there and put back)
-    expect(gl.units[100]).toBe('the-maps-own-texture');                                        // and nothing landed on unit 0
-  });
-  it('a failed, missing or empty file leaves every mark on its land row, quietly, and is not fetched again', async () => {
-    const json = (body) => () => Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
-    // an empty or malformed collection would be an ALL-SEA mask (sea rows on every continent): it is a failure, not a mask
-    for (const response of [() => Promise.resolve({ ok: false, status: 404 }), () => Promise.reject(new Error('offline')), json({ features: 'nope' }), json({ type: 'FeatureCollection', features: [] }), json(null),
-      () => Promise.resolve({ ok: true, json: () => Promise.reject(new SyntaxError('not json')) })]) {
-      const gl = maskGl(), win = page(response);
-      bindLandMask(gl, 'prog', 5, true, win);
-      await settle();
-      for (let f = 0; f < 3; f++) bindLandMask(gl, 'prog', 5, true, win);
-      expect(win.fetch).toHaveBeenCalledTimes(1);
-      expect(gl.uniforms.u_land_on).toBe(0);
-      expect(gl.uploads().filter((u) => u.w === LAND_MASK_SIZE)).toHaveLength(0);
-      expect(gl.units[105]).toBe(gl.uploads()[0].tex);
-      expect(win.__WIND_LAND_MASK__.status).toBe('failed');
-    }
-    const gl = maskGl();
-    expect(() => bindLandMask(gl, 'prog', 5, true, { location: { origin: '' } })).not.toThrow();   // no fetch at all (an old webview)
-    expect(gl.uniforms.u_land_on).toBe(0);
-    expect(() => bindLandMask(null, 'prog', 5, true)).not.toThrow();
-  });
-  it('a context that was lost and restored starts again: dead textures are never bound, the mask is loaded anew', async () => {
-    const gl = maskGl(), win = page();
-    bindLandMask(gl, 'prog-A', 5, true, win);
-    await settle();
-    bindLandMask(gl, 'prog-A', 5, true, win);
-    expect(gl.uniforms.u_land_on).toBe(1);
-    expect(gl.isTextureCalls).toBe(0);                                                        // the same program: no driver round trip a frame
-    gl.dead = new Set(gl.textures);                                                           // the context came back: every texture made before is gone
-    bindLandMask(gl, 'prog-B', 5, true, win);                                                 // the engine rebuilt its programs
-    expect(gl.uniforms.u_land_on).toBe(0);
-    expect(gl.dead.has(gl.units[105])).toBe(false);
-    expect(win.fetch).toHaveBeenCalledTimes(2);
-    await settle();
-    bindLandMask(gl, 'prog-B', 5, true, win);
-    expect(gl.uniforms.u_land_on).toBe(1);
-    expect(gl.dead.has(gl.units[105])).toBe(false);
-  });
-  it('a rebuilt engine on a live context keeps the mask it has (no second fetch)', async () => {
-    const gl = maskGl(), win = page();
-    bindLandMask(gl, 'prog-A', 5, true, win);
-    await settle();
-    bindLandMask(gl, 'prog-B', 5, true, win);
-    expect(gl.uniforms.u_land_on).toBe(1);
-    expect(win.fetch).toHaveBeenCalledTimes(1);
-    expect(gl.isTextureCalls).toBe(1);                                                        // asked once, when the program changed
-  });
-  it('a load that was still in flight when the context came back never uploads into the new one', async () => {
-    const gl = maskGl(), win = page();
-    bindLandMask(gl, 'prog-A', 5, true, win);                                                 // in flight
-    gl.dead = new Set(gl.textures);
-    bindLandMask(gl, 'prog-B', 5, true, win);                                                 // restored: a second load
-    await settle();
-    expect(gl.uploads().filter((u) => u.w === LAND_MASK_SIZE)).toHaveLength(1);
-  });
-  it('publishes its state for the read-back (window.__WIND_LAND_MASK__)', async () => {
-    const gl = maskGl(), win = page();
-    bindLandMask(gl, 'prog', 5, true, win);
-    expect(win.__WIND_LAND_MASK__).toMatchObject({ status: 'loading' });
-    await settle();
-    expect(win.__WIND_LAND_MASK__).toMatchObject({ status: 'ready', size: LAND_MASK_SIZE });
-    const bad = page(() => Promise.resolve({ ok: false, status: 404 }));
-    bindLandMask(maskGl(), 'prog', 5, true, bad);
-    await settle();
-    expect(bad.__WIND_LAND_MASK__).toMatchObject({ status: 'failed' });
-    expect(String(bad.__WIND_LAND_MASK__.reason)).toContain('404');
   });
 });
 

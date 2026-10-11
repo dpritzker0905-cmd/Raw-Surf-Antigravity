@@ -31,7 +31,7 @@
 const fs = require('fs');
 const path = require('path');
 const { FRONTEND, engineSource, buildBench } = require('./build');
-const { serveDir, gpuArgs, writeLandFile } = require('./serve');
+const { serveDir, gpuArgs } = require('./serve');
 const { styleCell, STYLE_HEADER } = require('./style');
 
 const VIEW = { lng: -88.05, lat: 30.45 };
@@ -105,8 +105,8 @@ async function main() {
   const source = engineSource(opts.ref, path.join(opts.out, 'cache'));
   const built = await buildBench({ srcRoot: source.srcRoot, outDir: path.join(opts.out, opts.tag), page: 'map' });
   console.log(`engine: ${source.label} · bundle ${(built.bytes / 1024).toFixed(0)} KiB · arms ${Object.keys(opts.arms).join(', ')}`);
-  const land = writeLandFile(opts.out, opts.noLandFile ? 'none' : (opts.offline ? 'offline' : 'app'));
-  const server = await serveDir(opts.out);
+  const land = opts.noLandFile ? 'none' : (opts.offline ? 'offline' : 'app');   // answered by this run's server, never left in out/
+  const server = await serveDir(opts.out, undefined, { land });
   const { chromium } = require(path.join(FRONTEND, 'node_modules', 'playwright'));
   const browser = await chromium.launch({ headless: !opts.headed, args: gpuArgs(opts.gl) });
   const results = [];

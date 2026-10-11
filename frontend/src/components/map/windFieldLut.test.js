@@ -282,8 +282,7 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
     const fakeGl = { TEXTURE_2D: 1, TEXTURE_BINDING_2D: 2, getParameter: () => null, createTexture: () => ({ t: 1 }), bindTexture: () => {}, texParameteri: () => {}, texImage2D: () => {} };
     expect(buildFieldRampTexture(fakeGl, 50, 'dark', {})).toBeNull();
     expect(buildFieldRampTexture(fakeGl, 50, 'light', {})).toEqual({ t: 1 });
-    expect(buildFieldRampTexture(fakeGl, 50, 'light', { __RAW_DISABLE_WIND_FIELD_RAMP__: true, __RAW_DISABLE_WIND_DARK_RULES__: true })).toBeNull();
-    expect(buildFieldRampTexture(fakeGl, 50, 'light', { __RAW_DISABLE_WIND_FIELD_RAMP__: true })).toEqual({ t: 1 });   // dark's rules' field is drawn under the older kill, as a look's is
+    expect(buildFieldRampTexture(fakeGl, 50, 'light', { __RAW_DISABLE_WIND_FIELD_RAMP__: true })).toBeNull();
     const fs = require('fs'), path = require('path'); const eng = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8'), init = fs.readFileSync(path.join(__dirname, 'WebGLWindEngineInit.js'), 'utf8');
     expect(eng).toContain('bindTexture(gl, (_ft > 0 && this._fieldRamp) || this._colorRamp, 1)');
     expect(eng.split('this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme)').length - 1).toBe(2);

@@ -210,8 +210,14 @@ its mark pixels are darker than the ground (`style.js`). Two live anchors make i
   failed, which it says). **`--no-land-file` is the mask's control:** no file is served, the fetch fails, every mark draws its land
   row. On 2026-10-11 (z6, served strength) the LAND columns were identical with and without the file, and the WATER step fell from
   +17.5 to +12.5 (light) and +18.5 to +14.5 (beach) with it, the sea's streaks nearly twice as colourful (C* 32.5 → 53.5,
-  40.0 → 55.0): the mask is aligned and does what it was solved to do. `path-run.js` serves the app's file too. The scanner page
-  (`run.js`) has no basemap and serves none: its marks draw their land rows.
+  40.0 → 55.0): the mask is aligned and does what it was solved to do. `path-run.js` serves the app's file too and ends each run's
+  line with `mask 0` / `mask 1`. The scanner, eye, ladder, land and lane runners have no coast and serve none: their marks draw
+  their land rows. **The file is answered by each run's own server (`serve.js` `serveDir(..., { land })`), never left in the shared
+  `out/` folder:** the first version wrote it there, and the next runner served the last runner's coast (LESSONS L-V38).
+- **The marks' table has two rows** (land, sea) since the same change. The eye and ladder modes swap a threshold ramp into it, and
+  must replace the WHOLE table (`texImage2D`, not a one-row `texSubImage2D`): with a sub-image the second row kept the palette,
+  dark's field read the mean of both, and every row read "no closed eye" with no GL error. Check after any change to a table's
+  shape: `eye-run.js` against `eye-run.js --ref <the commit before>` must print the same lines.
 - **Dark's rules are the default in light and beach**, so `candidate` and an empty arm draw them. Their kill is the arm to compare
   against: `--arms '{"today":{"__RAW_DISABLE_WIND_DARK_RULES__":true},"rules":{}}'` in map mode, `--variants
   candidate,before-rules` for the scanner. Control for the kill on the GPU: `--ref <the commit before>` with an empty arm reads

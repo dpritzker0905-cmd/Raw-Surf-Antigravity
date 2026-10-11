@@ -561,13 +561,14 @@ async function pathRun(cfg) {
   state.active = true;
   newEngine(cfg.fieldOnly ? 2 : cfg.res, cfg.seed);
   const geom = { cssW: CSS_W, cssH: CSS_H, px: ANALYSIS / DPR };
-  let prev = null;
+  let prev = null, landMask = 'off';
   let vms = realNow();
   performance.now = () => vms;
   const frame = async () => { map.triggerRepaint(); await once(map, 'render'); };
   try {
-    vms += FRAME_MS; await frame(); await landMaskSettled();   // the land mask (dark's rules) settles before the warm-up lays a trail
-    for (let i = 0; i < (cfg.warm || 120); i++) { vms += FRAME_MS; await frame(); }
+    // The land mask (dark's rules) is asked for on the first frame: wait for it there, rendering nothing extra, so an older engine's
+    // run is frame for frame what it was and the warm-up's later frames lay their trail with the mask settled.
+    for (let i = 0; i < (cfg.warm || 120); i++) { vms += FRAME_MS; await frame(); if (!i) landMask = await landMaskSettled(); }
     for (let i = 0; i < cfg.frames.length; i++) {
       map.jumpTo(camOf(cfg.frames[i]));
       vms += FRAME_MS;
@@ -597,7 +598,7 @@ async function pathRun(cfg) {
         retLand: r(lines[0].retain), retWater: r(lines[1].retain),
         warp: warp && Object.fromEntries(Object.entries(warp).map(([k, v]) => [k, r(v, 3)])), shot });
     }
-    return { theme, mute, stylePal: stylePal.length, rows, glError: state.gl.getError() || 0 };
+    return { theme, mute, landMask: { status: landMask, on: landMaskOn() }, stylePal: stylePal.length, rows, glError: state.gl.getError() || 0 };
   } finally {
     delete performance.now;
     state.active = false;
@@ -646,12 +647,14 @@ async function flowRun(cfg) {
   newEngine(cfg.res, cfg.seed);
   delete window.__WIND_TRAIL_ANCHOR__;
   const rows = [];
+  let landMask = 'off';
   let vms = realNow();
   performance.now = () => vms;
   const frame = async () => { map.triggerRepaint(); await once(map, 'render'); };
   try {
-    vms += FRAME_MS; await frame(); await landMaskSettled();   // the land mask (dark's rules) settles before the warm-up lays a trail
-    for (let i = 0; i < (cfg.warm || 120); i++) { vms += FRAME_MS; await frame(); }
+    // The land mask (dark's rules) is asked for on the first frame: wait for it there, rendering nothing extra, so an older engine's
+    // run is frame for frame what it was and the warm-up's later frames lay their trail with the mask settled.
+    for (let i = 0; i < (cfg.warm || 120); i++) { vms += FRAME_MS; await frame(); if (!i) landMask = await landMaskSettled(); }
     for (let i = 0; i < cfg.frames.length; i++) {
       const cam = cfg.frames[i];
       map.jumpTo(camOf(cam));
@@ -675,7 +678,7 @@ async function flowRun(cfg) {
       const f = cam.pitch ? { flow: null, blocks: 0, ink: 0 } : flowAlignment(comp, off, windAt);
       rows.push({ i, z: cam.z, bearing: cam.bearing || 0, tiles, flow: f.flow == null ? null : +f.flow.toFixed(4), blocks: f.blocks, ink: +f.ink.toFixed(2), hash, shot });
     }
-    return { theme, mute, rows, anchor: window.__WIND_TRAIL_ANCHOR__ || null, glError: state.gl.getError() || 0 };
+    return { theme, mute, landMask: { status: landMask, on: landMaskOn() }, rows, anchor: window.__WIND_TRAIL_ANCHOR__ || null, glError: state.gl.getError() || 0 };
   } finally {
     delete performance.now;
     state.active = false;
