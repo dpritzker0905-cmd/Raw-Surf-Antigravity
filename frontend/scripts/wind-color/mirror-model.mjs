@@ -4,6 +4,7 @@
 // departs from it, and by how much.
 //
 //   node mirror-model.mjs                 the three themes as drawn
+//   node mirror-model.mjs --before-path   light before its path (window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true)
 //   node mirror-model.mjs --json out.json
 //
 // What it prints, per theme and ground, at each knot: the field's colour ON SCREEN (L*, C*, hue), how far that is from the bare map
@@ -22,9 +23,10 @@ const MAP = path.join(HERE, '..', '..', 'src', 'components', 'map');
 const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const source = (file) => fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
 const { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules } = new Function(source(path.join(MAP, 'windDarkRules.js')) + '; return { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules };')();
-const LEVERS = {};
-export const ramps = new Function('DARK_RULES', 'DARK_WHITE', 'WHITE_STREAK', 'solveDarkRules',
-  source(path.join(MAP, 'WindColorRamp.js')) + '; return { THEME_RAMPS, huePathStops, resolveDrawnField, resolveDrawnMarks, generateRampData, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules);
+const LEVERS = args.includes('--before-path') ? { __RAW_DISABLE_WIND_LIGHT_PATH__: true } : {};   // --before-path: light before its path (windLightPath.js)
+const { LIGHT_PATH, lightPathRows } = new Function(source(path.join(MAP, 'windLightPath.js')) + '; return { LIGHT_PATH, lightPathRows };')();
+export const ramps = new Function('DARK_RULES', 'DARK_WHITE', 'WHITE_STREAK', 'solveDarkRules', 'LIGHT_PATH', 'lightPathRows',
+  source(path.join(MAP, 'WindColorRamp.js')) + '; return { THEME_RAMPS, huePathStops, resolveDrawnField, resolveDrawnMarks, generateRampData, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules, LIGHT_PATH, lightPathRows);
 const { muteColor, windBasemapMuteAmount, windBasemapWaterL } = new Function(fs.readFileSync(path.join(MAP, 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '') + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL };')();
 
 // The composite law, per theme (check.mjs MODEL; dark's land is the wind bench's own offline colour).
@@ -52,7 +54,7 @@ export const tintOver = (theme, v, c, bm) => { const s = strength(theme, v); ret
 /** The stop a multiply theme must hold to draw `wanted` over `bm` at speed `v` (null where no tint can: it only darkens). */
 export const stopFor = (theme, v, wanted, bm) => { const s = strength(theme, v); const c = wanted.map((w, i) => 1 - (1 - w / bm[i]) / s); return c.every((x) => x >= -0.004 && x <= 1.004) ? c.map((x) => Math.min(1, Math.max(0, x))) : null; };
 /** The field's stops as the app draws them for `theme` (the path between the stops included). */
-export const drawnField = (theme) => ramps.huePathStops(ramps.resolveDrawnField(theme, LEVERS) || ramps.THEME_RAMPS[theme], {});
+export const drawnField = (theme, levers) => ramps.huePathStops(ramps.resolveDrawnField(theme, levers || LEVERS) || ramps.THEME_RAMPS[theme], {});
 /** A white streak where trails pile up: the ground mixed `op` of the way to white. Dark's own strength is the engine's 0.505. */
 const DARK_OWN = 0.505;
 export const wisp = (ground, op) => ground.map((x) => x + (1 - x) * op);

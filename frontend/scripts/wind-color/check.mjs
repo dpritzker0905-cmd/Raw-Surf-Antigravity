@@ -16,7 +16,7 @@
 // drew before it (window.__RAW_DISABLE_WIND_WHITE_STREAK__ = true). The mark lines below judge the streak's colour CORE; its white
 // ring, which carries the motion, is not modelled here (the GPU bench's style columns read it).
 // Usage (from this folder):  npm i; py -3.12 -m venv .venv; .venv/Scripts/python -m pip install coloraide==8.13
-//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today] [--before-white] [--full-white]
+//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today] [--before-white] [--full-white] [--before-path]
 //                            node check.mjs --look moderate|deep|ink   (light's look A/B, window.__RAW_WIND_LIGHT_LOOK__)
 // Exit code 1 with --strict when any RED line is printed (here or in the colour-blind check).
 import fs from 'fs';
@@ -34,8 +34,9 @@ const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); re
 // solver of dark's rules (windDarkRules.js, which has no imports): it is loaded first and handed in.
 const source = (file) => fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
 const { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windDarkRules.js')) + '; return { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules };')();
-const { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength } = new Function('DARK_RULES', 'DARK_WHITE', 'solveDarkRules',
-  source(RAMP_SRC) + '; return { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, solveDarkRules);
+const { LIGHT_PATH, lightPathRows } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windLightPath.js')) + '; return { LIGHT_PATH, lightPathRows };')();   // light's path (no imports)
+const { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength } = new Function('DARK_RULES', 'DARK_WHITE', 'solveDarkRules', 'LIGHT_PATH', 'lightPathRows',
+  source(RAMP_SRC) + '; return { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, solveDarkRules, LIGHT_PATH, lightPathRows);
 // The app's basemap mute, from its source (no imports; export keywords stripped): the ground the wind actually sits on.
 const muteSrc = fs.readFileSync(path.join(HERE, '..', '..', 'src', 'components', 'map', 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '');
 const { muteColor, windBasemapMuteAmount, windBasemapWaterL } = new Function(muteSrc + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL };')();
@@ -43,7 +44,8 @@ const NO_MUTE = args.includes('--no-mute');
 // --mute-amount / --water-l: explore other mute settings (the app's own lever names, passed as levers).
 const LEVERS = { ...(arg('--mute-amount') ? { __RAW_WIND_BASEMAP_MUTE__: Number(arg('--mute-amount')) } : {}), ...(arg('--water-l') ? { __RAW_WIND_BASEMAP_WATER_L__: Number(arg('--water-l')) } : {}),
   ...(arg('--look') ? { __RAW_WIND_LIGHT_LOOK__: arg('--look') } : {}), ...(args.includes('--today') ? { __RAW_DISABLE_WIND_DARK_RULES__: true } : {}),
-  ...(args.includes('--before-white') ? { __RAW_DISABLE_WIND_WHITE_STREAK__: true } : {}), ...(args.includes('--full-white') ? { __RAW_DISABLE_WIND_DARK_WHITE__: true } : {}) };   // --full-white: the white at full strength on both grounds (D-022's kill)
+  ...(args.includes('--before-white') ? { __RAW_DISABLE_WIND_WHITE_STREAK__: true } : {}), ...(args.includes('--full-white') ? { __RAW_DISABLE_WIND_DARK_WHITE__: true } : {}),
+  ...(args.includes('--before-path') ? { __RAW_DISABLE_WIND_LIGHT_PATH__: true } : {}) };   // --before-path: light's field and streak row before its path (windLightPath.js's kill)   // --full-white: the white at full strength on both grounds (D-022's kill)
 const groundOf = (theme, surf, c) => {
   const amount = NO_MUTE ? 0 : windBasemapMuteAmount(theme, LEVERS);
   if (!(amount > 0)) return c;

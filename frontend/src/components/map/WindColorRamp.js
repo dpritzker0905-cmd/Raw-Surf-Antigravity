@@ -10,6 +10,7 @@
  *   - Pure color math + GL texture creation
  */
 import { DARK_RULES, DARK_WHITE, solveDarkRules } from './windDarkRules';
+import { LIGHT_PATH, lightPathRows } from './windLightPath';
 
 /**
  * v3.11.3: Scientific wind speed color ramp (meteorological convention).
@@ -476,10 +477,23 @@ export function windWhiteStrength(theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : null) || {}, k = w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && windWhiteStreakOn(theme, w) ? DARK_WHITE[theme] : null;
   return k ? { land: k.land, sea: k.sea } : { land: 1, sea: 1 };
 }
-var SOLVED = {};
+/**
+ * LIGHT'S PATH (windLightPath.js; owner 2026-10-12): light's 4 to 32 kn in dark's hue ORDER. ON wherever the white streak draws in light,
+ * so everything that stands the white streak down stands it down too. `__RAW_DISABLE_WIND_LIGHT_PATH__ = true` draws light as before it.
+ */
+export function windLightPathOn(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null) || {};
+  return theme === 'light' && w.__RAW_DISABLE_WIND_LIGHT_PATH__ !== true && windWhiteStreakOn(theme, w);
+}
+var SOLVED = {}, PATH_TABLES = null;
 function darkRulesTables(theme, w) {
-  // Light under the white streak: the deeper field of its A/B and that field's own streak row, over land and sea alike.
-  if (theme === 'light' && windWhiteStreakOn(theme, w)) return { field: LIGHT_LOOK_FIELD.deep, land: LIGHT_LOOK_MARKS.deep, water: LIGHT_LOOK_MARKS.deep };
+  // Light under the white streak: the deeper field of its A/B and that field's own streak row, over land and sea alike; on light's path,
+  // those two tables with their 4 to 32 kn rows replaced by the path's.
+  if (theme === 'light' && windWhiteStreakOn(theme, w)) {
+    if (!windLightPathOn(theme, w)) return { field: LIGHT_LOOK_FIELD.deep, land: LIGHT_LOOK_MARKS.deep, water: LIGHT_LOOK_MARKS.deep };
+    if (!PATH_TABLES) { var m = lightPathRows(LIGHT_LOOK_MARKS.deep, LIGHT_PATH.marks); PATH_TABLES = { field: lightPathRows(LIGHT_LOOK_FIELD.deep, LIGHT_PATH.field), land: m, water: m }; }
+    return PATH_TABLES;
+  }
   // The solver reads a colour between two stops on the straight sRGB line, and light's 10-16 kn straight line is GREY (D-019, HUE PATH):
   // it is given the field's own path, whatever older kill is set, as a light look's tables are.
   var field = huePathStops(resolveFieldRamp(theme, w), {}), dark = resolveThemeRamp('dark'), key = theme + JSON.stringify(field) + JSON.stringify(dark);
@@ -507,7 +521,7 @@ export function drawnMarkRampData(maxSpeed, theme, win) {
 }
 /** What the marks' and field's tables depend on besides the theme: a change rebuilds them at once (WebGLWindEngine). */
 export function windLookKey(theme, win) {
-  var names = [windLightLook(win), windWhiteStreakOn(theme, win) ? 'white' : null].filter(Boolean);
+  var names = [windLightLook(win), windWhiteStreakOn(theme, win) ? 'white' : null, windLightPathOn(theme, win) ? 'path' : null].filter(Boolean);
   return names.join('+') + '|' + (windDarkRulesOn(theme, win) ? 'dark-rules' : '');
 }
 
