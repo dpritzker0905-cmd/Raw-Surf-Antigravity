@@ -449,3 +449,29 @@ lift against dark's at the same crop:
   see the improvements yet.... notate that"; and 12:36Z: "you need to also compare the amount and density of the animations from
   beach and light mode to dark mode. And colors, how slower color wind is more transparent than faster color wind". Nothing of
   #318 is on the site, so this is not a verdict on option 2.
+
+## 13:26Z · A what-if for the leading session (NOT built): light's slow wind as soft as dark's, the ground deepening evenly to 27 kn
+
+Its finding on dev's look (relayed; its ramps, log `2026-10-12-wind-land-depth` on PR #320): light reaches its full depth by 10 kn
+and lays its STRONGEST colour in its lightest winds (ground chroma 37 to 40 over the sea from 6 to 10 kn, where dark's is 19 to
+23), while dark's picture builds from 3 to about 26 kn with a modest, even chroma. Its question: what does the solver give if
+the field's chroma over the sea is held near dark's and the lightness keeps falling to 27 kn instead of reaching its level at 6?
+
+`light-path-solve.mjs` gained two what-if bars for it (off by default): `--csea N --csea-to K` (the field's chroma over the sea
+at most N from 3 kn to K) and `--even D` (the 6 to 21 kn stops within D L* of the straight line from 3 to 27 kn). Run with no
+depth cap, calm kept, hue within 20 degrees of dark's (the engine's law), one chroma crest, and the FLOOR as the aim:
+
+| held | ground over land at 3 / 6 / 10 / 16 / 21 / 27 kn (L*) | chroma over land | colour-blind floor | normal-vision |
+|---|---|---|---|---|
+| built (option 2), for reference | 71.9 / 65.2 / 64.9 / 60.1 / 60.1 / 60.1 | 22 / 28 / 30 / 32 / 36 / 43 | 5.13 | 8.0 |
+| sea chroma 21 to 12 kn, even fall | 74.0 / 73.8 / 69.8 / 69.6 / 65.9 / 64.3 | 16 / 25 / 25 / 25 / 55 / 51 | 5.72 | 9.8 |
+| sea chroma 26 to 27 kn, even fall | 76.2 / 74.8 / 73.6 / 67.0 / 67.0 / 62.0 | 19 / 28 / 31 / 31 / 31 / 33 | 6.0 | 8.0 to 8.8 |
+| sea chroma 21 to 27 kn (dark's own level), even fall | 74.1 / 73.8 / 71.0 / 64.7 / 64.6 / 59.5 | 16 / 24 / 25 / 25 / 26 / 26 | 5.5 | 6.9 to 8.1 |
+
+- **No colour-blind pair breaks.** With the ground allowed to be lighter and to keep deepening, the floor RISES (5.5 to 6.0
+  against 5.13): the lightness the built tables spend on depth is what separates the bands.
+- **The price is depth, and nothing else:** 6 kn sits 8 to 10 L* lighter than built, 10 kn 5 to 9, 16 kn 5 to 10. Over light's
+  land as it is, that takes more from the streaks than option 2 does. Over a land at the sea's depth (PR #320's factor) it would not.
+- With the chroma held only to 12 kn the solver pays the soft slow colours back with a jump at 21 kn (C* 25 to 55): hold it to
+  27 kn or the colour arrives in one step.
+- Read at the stops by the solver's own model, two seeds a row; not built, not filmed, not checked by `check.mjs`.
