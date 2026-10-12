@@ -345,3 +345,47 @@ The lead's reading, shared here:
 pins, the header's numbers); its hue tolerance is 12 degrees, not the 8 this log states for A, and its greens are C* 14 to 16; the
 legend's 30 degree line and every bar are re-read for it as the default; the lab lever and the options not picked leave; then the PR's
 own gates, records (D-025, L-V63 up) and the rebase onto #318.
+
+## 12:07Z · The owner picked F; F is the default; the branch for the PR
+
+**The pick (relayed, not first-hand here).** The lead session, 11:52Z: the owner said to it at 11:50Z, in full, "merge #316 and go
+with F and the deeper land and open the pr". Checked against GitHub before acting: #316 reads MERGED at 2026-10-12T11:52:11Z and
+`origin/dev` is `74417b5a`. The lead had recommended F with its ramp rows and a clip (dark | today | E | F). "The deeper land" is the
+lead's own change (D-026), not this branch's. DECISIONS D-025 records the pick and whose words they are.
+
+**What was done.**
+- A new branch `claude/wind-beach-path` from `origin/dev` at `74417b5a`, with the eight local commits of `claude/wind-beach-lightness`
+  squashed onto it (they were never pushed). The squash merged cleanly; `windDarkRules.test.js` keeps #316's entry and this one's
+  in the ORTHOGONAL list.
+- **F is what beach draws by default.** `BEACH_PATH.field` is F's 70 rows. The default's field hashes, `682f16ac` (50 kn) and
+  `4026fb5f` (75 kn), equal the bytes read through the lab lever at `35b99ac5` (the same table as at `e2587c88`, the head the lead
+  captured), read BEFORE the swap. Under the kill beach's field is `7c248d5f` / `b9db3bb2`: the before.
+- **The lab lever and the options not taken are gone from the app** (`BEACH_PATH_OPTIONS`, `beachPathPick`,
+  `window.__RAW_WIND_BEACH_PATH__`, `check.mjs --beach-option`): the look key is `white+path|dark-rules` again, which is also the
+  form the lead's merge recipe for #318 expects. A, B, C and E remain as numbers in this log only.
+- `beach-path.json` holds F's stops; `node beach-path-solve.mjs --score beach-path.json --mono 0-21,33-75 --tol 12 --ceilgale 60`
+  reads violation 0.000: floor 5.10 (27-33 kn, protan, sea), lightness climbs back 0.0 over 0-21 and 33-75 kn, the hue's whole
+  turn back 0.2 degrees, steepest knot 3.1 dE00 (3.9 before; dark's own 8.9), weakest C* from 3 to 40 kn 13.5 / 11.8 (3 kn's, as
+  before), the everyday ground lifted 4.3 L* at most, the 6 to 40 kn ground spanning 15.5 L* over land.
+
+**Gates, on the branch at `d7f597c2` (the feature commit):**
+- `node check.mjs --strict`: exit 0, no red line (on `dev`: exit 1, two red lines). Beach's colour-blind lines: water 5.1 (27-33 kn,
+  protan), land 5.1 (33-40 kn, deutan). "Speeds whose tint sits more than 30 degrees off the legend's own hue": none, on both
+  grounds, so the legend does not move. Warn lines: the two marks lines it printed before (3-6 kn 6.3 over land, 21-27 kn 1.7 over
+  the sea), dark's water-hue line, light's marks line, and beach's marks colour-blind watch line (now 27-33 kn deutan 2.0; it
+  named 3-6 kn deutan 2.0). `--before-path` prints the before.
+- Jest from `frontend/` with `--testMatch`: the map tree 284 suites, 3872 tests passed; `src/tests` 23 suites, 254 tests passed.
+  `windBeachPath.test.js` re-pinned for F (each bar with the table before as its control); `windWhiteStreak.test.js`,
+  `windDarkWhite.test.js` and `windDarkRules.test.js` read D-021's and D-022's tables through this kill and pin F's hash as the
+  default.
+- `node scripts/check_eslint.js` exit 0; `python scripts/loc_ratchet.py` new 0, regressed 0 (`WindColorRamp.js` 782 lines).
+- The build: `npm run build` cannot run from this Windows shell (its script sets `NODE_OPTIONS=...` in POSIX form), so the same
+  command was run in Git Bash as Netlify runs it, `CI=false NODE_OPTIONS=--openssl-legacy-provider npx craco build`: "Compiled
+  with warnings", exit 0. With `CI=true` it fails on 587 lint warnings in files this change does not touch, as `dev` does. The
+  build's version stamp touched two tracked files; they were restored and are not in the commit.
+- An independent read-only review of the diff was run before the push: its findings and what was done about each are in the next entry.
+
+**This change moves no served number** (client only: a colour table), so it adds no SCOREBOARD row.
+
+**Owed after it:** the read-back on the deployed build once the owner merges (the look key, the kill flipping it with no reload,
+the owner's eye); the sea strength re-read on F's ground and the land re-read under the deeper land (both the lead's).

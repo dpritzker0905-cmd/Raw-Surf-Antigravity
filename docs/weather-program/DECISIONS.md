@@ -545,3 +545,55 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   on the real basemaps before and after, beside dark, with the layer-order control; the built code against the candidate and its
   kill; 18 of 18 offline crops under the kill the same PNG as `origin/dev`, dark's 9 of 9; map mode's columns with the app's
   restyle run; before and after crops and two side-by-side clips at the owner's pixel ratio. Nothing has been seen in the app.
+
+### D-025 · Beach's wind field: lightness one way through its green band and its pale gale band under a ceiling (option F); ON by default
+- **Decided:** by the owner, 2026-10-12 11:50Z, said to the session leading the light and beach wind work and relayed by it to the
+  building session at 11:52Z: "merge #316 and go with F and the deeper land and open the pr". It followed, the same day and
+  first-hand to the lead session (02:48Z): "you need to double check all this. The light and beach modes need to make sense
+  logically. It could be the way it is, or it could not be. It all has to make sense to match dark mode, but it their colors and
+  maps", and of beach on 2026-10-11 23:45Z (D-022): "beach can use improvement, just a little milder". **The building session was
+  given no word of the owner's directly**: it was started with a written brief, sent the owner two sheets and one clip of its own
+  (A and B), and the pick was made on the lead session's clip (dark | today | E | F on a speed ramp) with the lead's recommendation
+  of F. "The deeper land" is the lead session's own change (D-026), not this one.
+- **Rule:** wherever the white streak draws in beach (D-021), the FIELD is beach's path (`windBeachPath.js` `BEACH_PATH.field`: 70
+  rows a knot laid over the field dark's rules solve). Nine of the 13 Beaufort stops move; calm, 3 kn, 47 kn and 63 kn are byte for
+  byte. Over beach's muted land its lightness never rises from calm to 21 kn nor from 33 to 75 kn; the gale band sits level at L* 60
+  from 27 to 40 kn; each stop keeps its hue within 12 degrees and beach's order is kept. The streak rows, the white strength
+  (D-022), the legend, light and dark do not move. Client only; no served number moves.
+- **What the check found first (and what is kept):** beach's hue ORDER already followed dark's logic. Its lightness ran both ways
+  through the green band (L* 46.7 at 10 kn, 53.0 and 54.2 at 16 and 21 kn), its gale band was as light as calm (70.8 at 27 kn), and
+  FOUR neighbouring pairs sat under the colour-blind bar of 5, not one: 16-21 kn 3.1, 27-33 kn 3.6, 47-55 kn 4.6 (sea), 63-75 kn 4.6
+  (sea). The palette checker prints only the weakest and had been red on `dev` since D-020.
+- **Why a table and not a rule:** dark's rules dim every band by one factor, and one factor cannot change the order of two bands.
+- **Why F and not the least change:** five fields were solved with the colour-blind floor as a constraint (log
+  2026-10-12-wind-beach-path). A (10 kn lifted level with 16 and 21 kn) is the least change and fixes the floor, but it lightens
+  the 7 to 15 kn ground and leaves the pale band, the place the lead's speed ramp reads beach furthest short of dark. Under a
+  multiply tint at 0.60 strength deep AND colourful does not exist, so one-way lightness is paid in depth, in colour or in hue. F
+  pays in colour and hue and keeps the streak's ground: the owner had made the same choice for light ("give the streaks their
+  ground back", relayed).
+- **What it buys, measured by the lead session** (the real engine and basemaps, wind due north on a speed ramp, every wind lane
+  merged, beach's sea white at 0.55 as on #315, lift of the streaks against dark's at the same crop, before to now): the gale band
+  at 26 / 32 / 39 kn, sea 0.68 / 0.60 / 0.62 to 0.86 / 0.82 / 0.75 and land 0.38 / 0.52 / 0.49 to 0.63 / 0.60 / 0.62; everyday at
+  9 / 12 / 15 / 18 kn, sea 0.99 / 1.04 / 0.98 / 0.97 to 0.95 / 1.01 / 1.09 / 1.12 and land 0.86 / 0.91 / 0.88 / 0.82 to 0.74 / 0.86
+  / 1.08 / 1.12. By the model, the ground from 6 to 40 kn spans 15.5 L* over land and 13.0 over the sea (26.2 and 21.7 before; dark
+  by the engine's law 7.4 and 7.2). `node check.mjs --strict` exits 0: beach's colour-blind lines read 5.1 over water and land.
+- **What it gives up, said plainly:**
+  - **The greens go grey-green.** 16 and 21 kn keep C* 14.1 and 16.4 of 33.6 and 32.7 and sit 8.5 and 9.8 L* deeper over land.
+  - **The gale band's lime, gold and apricot are deeper and duller:** 27 / 33 / 40 kn 10.8 / 7.5 / 3.2 L* deeper; 27 kn keeps C*
+    25.2 of 44.0.
+  - **The land at 9 to 12 kn loses lift** (0.74 and 0.86 of dark's from 0.86 and 0.91): the 10 kn ground is 4.3 L* lighter.
+  - **At 15 to 18 kn the streaks lift 8 to 12% further than dark's** on both grounds. The sea's share is the white strength's to
+    trim (the lead's; not changed here).
+  - **Twelve degrees of hue, not eight:** at 8 degrees the everyday ground must lift 6.7 L*; at 12, 4.3.
+  - **The land's gale band is still pale on screen** (rendered L* 68 to 72 against dark's 34 to 39): the rest is the map's.
+- **Kill:** `window.__RAW_DISABLE_WIND_BEACH_PATH__ = true` draws beach's field as before, byte for byte (the engine rebuilds its
+  tables at once). It draws only where the white streak draws, so D-020's and D-021's kills, every hold and every lever still draw
+  what they drew; D-022's kill stands it down too, since that kill is documented to draw #313's picture.
+- **Read-back:** `window.__WIND_ENGINE__._lookKey` is `white+path|dark-rules` in beach (`white|dark-rules` under the kill).
+- **Not decided, and not built here:** the sea's white strength re-read on F's ground (the lead's; one number may not survive a
+  ground that is not flat); the deeper land (D-026, the lead's); re-solving beach's streak rows for the new ground (a second visual
+  variable); the options not taken (A, B, C, E: their stops are in the log, their tables are not in the app).
+- **Evidence (log 2026-10-12-wind-beach-path):** the tables hashed before any edit and under the kill; the default's field hashes
+  equal the bytes read through the lab lever at the head the lead captured for the owner's clip; `windBeachPath.test.js` (each
+  bar with the table before as its control); the palette checker before, after and under the kill; the lead session's speed-ramp
+  rows. Nothing has been seen in the app.
