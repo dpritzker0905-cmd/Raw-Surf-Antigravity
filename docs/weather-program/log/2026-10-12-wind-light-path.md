@@ -689,3 +689,61 @@ checker prints for light on a tree that holds #320. Local branch `scratch/light-
   and to the two loaders; the `pr_merge #319` line; STATE's ledger head and the seq numbers cited in STATE (the read-back
   commitment); the same gates and the same checker read again, on that tree.
 - **Not checked:** nothing was seen in the app; the trial's bench was not run (no frame was made).
+
+## 17:38Z · A second TRIAL, on the tree dev will be after #319: every gate green and the checker prints no red line; AS UPLOADED, light's line over the deeper land is under 5.0 at about half of the engine's maxima
+
+Asked by the leading session (17:21Z): the beach branch at `9100ec95` is the tree dev will be once #319 is squashed. Local
+branch `scratch/light-path-trial2` (`949b2c6e` = this branch `e77d35f9` + `9100ec95`), never pushed. Nothing on this branch or on
+the PR moved but this section.
+
+**Gates on that tree.** Jest on both trees 312 suites, 4,378 tests, 0 failed. `check_eslint.js` exit 0. `loc_ratchet.py` New 0,
+Regressed 0 (`WindColorRamp.js` 796 of 800 lines). The production build exit 0. `action_ledger.py verify` OK (this branch's seven
+lines re-appended as 1109 to 1115 there). `memory_audit.py --docs-only` 0 FAIL. `mirror-model.mjs` runs, with `--before-path` too.
+
+**The checker (`node check.mjs --strict`): exit 0, no red line in any theme.** Light's colour-blind lines, unrounded: the legend
+5.4; **over the sea 5.130** (21-27 kn, protan; printed 5.1); **over the land 5.006** (21-27 kn, protan; printed 5.0). The same
+as the first trial. Beach's on that tree: 5.048 over the sea, 5.021 over the land.
+
+**AS UPLOADED (not what the checker reads).** The beach lane read its own line from the texture the engine uploads (256
+entries, 8 bits a channel) and found it under the bar where its table passes (its commit `732d6ebe`). Light has 0.006 of margin
+on the deeper land, so the same read was made for light, by the beach lane's method: a stop at `kn` is read at
+`kn / max x 255`, linear between two texels of `generateRampData(max, ...)`; the checker's composite and grounds; the
+colour-blind distance of `light-path-lib.mjs`. The engine's maximum is the data's own, held between 10 and 80 kn
+(`WebGLWindEngine.js`), so maxima from 10 to 80 kn were swept every quarter knot (281 of them); a pair wholly above the maximum
+is not drawn and not scored. Control: read from the TABLE the same script prints the checker's own numbers (5.006, 5.503,
+5.130; under this change's kill 5.053, 5.603, 5.511).
+
+| light, weakest neighbouring tints, colour-blind | the table | uploaded, 50 kn max | uploaded, 75 kn max | uploaded, the least | maxima under 5.0 |
+|---|---|---|---|---|---|
+| **as it will draw, over the deeper land** | 5.006 | 5.033 | **4.987** | **4.859** (27-33 kn, deutan; 72.75 kn max) | **151 of 281** |
+| as it will draw, over the sea | 5.130 | 5.126 | 5.102 | 4.960 (27-33 kn, deutan; 72.75 kn max) | 12 of 281 |
+| as it will draw, over the land before #320 (its kill) | 5.503 | 5.546 | 5.482 | 5.364 | 0 |
+| under this change's kill, over the deeper land (dev's light) | 5.053 | 5.033 | 5.074 | 4.928 (40-47 kn, deutan; 74.25 kn max) | 21 of 281 |
+| under this change's kill, over the sea | 5.511 | 5.449 | 5.282 | 5.243 | 0 |
+
+- **Read plainly:** by the checker light holds 5.0. As uploaded, on the deeper land, it is under 5.0 at about half of the
+  maxima the engine can pick, by up to 0.14. Dev's own light on that land is already under at 21 of 281 maxima (by up to
+  0.07): #320's land takes the margin and this change takes what is left. On the land before #320 neither is ever under.
+- **What the read is not:** the shader's own sampling may sit half a texel from this model's, and the framebuffer rounds to 8
+  bits again; neither is modelled. It is the beach lane's model, applied to light, with a control.
+- **This is the owner's to decide, and the leading session has it before the merge** (the brief: never a lower floor
+  quietly). Two ways: merge this change as it was shown, with this stated and pinned in a test, and re-solve light's rows on
+  the deeper land next (already planned, 14:28Z; the kill restores dev's light at once); or hold this change until that
+  re-solve is done and shown. No row was changed here.
+
+**What this merge needed beyond the first trial's** (one script now does every code file from scratch, `res_code2.py` in this
+session's scratch folder):
+- **Two names both lanes took.** `--before-path` (`check.mjs`, `mirror-model.mjs`) and the bench's `before-path` variant
+  (`matrix.js`) were light's kill here and beach's kill there. Merged, each means "each theme before ITS path": both kills
+  are set, and each is read by its own theme only. Each lane's test of the variant now asks that it CONTAINS its kill.
+- **Six tests failed before the re-pins, in three suites, for one reason.** Each lane's tests pinned "the other theme is not
+  touched" to the other theme's bytes and look key from BEFORE the other lane's path. Re-pinned so each still proves its point:
+  the other theme, read under its own path's kill, draws the bytes pinned, and this lane's kill does not move it (two tests
+  in `windLightPath.test.js`, two in the beach lane's `windBeachPath.test.js`). `windWhiteStreak.test.js` and
+  `windDarkWhite.test.js` were re-pinned by both lanes with different helpers; merged on one, `B4` (each theme before its
+  path), with beach's default bytes kept from the beach lane and light's default still pinned in `windLightPath.test.js`.
+- `WindColorRamp.js`: the three imports; the look key names the path where either theme's is on.
+- The records: D-024, then D-025 to D-027; L-V52 to L-V54 before L-V60; the ledger after the beach branch's head (1108).
+- The beach branch moved to `732d6ebe` while this ran (its as-uploaded pins); the three lines of its test that this merge
+  re-pins are still there.
+- **Not checked:** nothing seen in the app; no frame made; the as-uploaded read is a model, not a read of the canvas.
