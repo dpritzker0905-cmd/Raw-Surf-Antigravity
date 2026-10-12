@@ -97,6 +97,9 @@ styles draw them (0.5 to 0.75 px at these zooms, the same as dark's).
   - `WIND_BORDER_INK.color` = `rgba(27, 30, 45, 0.7)` in light and in beach (the owner's shown colour, `hsl(230, 25%, 14%)`).
     **0.7 is the lightest strength measured, and is at or above dark's line at every zoom in both themes** (light 3.35 / 1.75 /
     1.23 times dark's, beach 3.27 / 1.65 / 1.11); it is the low end of what the owner was shown.
+    - *Note, 2026-10-12 04:40Z (a correction; ledger `correction` of seq 1066):* "every zoom" was the three zooms measured (4,
+      6, 8, served wind). At zoom 9, read afterwards, beach is 0.96 of dark's line and 0.85 in near-calm air, and light 1.11
+      and 0.95: see "For the lead session" below. The inked line itself holds 30 to 46 L* in every cell read.
   - `windBorderInk(theme, win)`, `inkColor`, `inkValue`, `windBorderInkPlan(layers, windId, ink)`: line layers named `admin-*`
     (the casings `*-bg` apart) drawn above the wind; `line-color` only. `inkValue` walks the paint value and redraws each colour
     literal (its own alpha multiplied in), so `["interpolate", ["linear"], ["zoom"], 3, a, 7, b]` keeps its stops. The mute's
@@ -322,3 +325,149 @@ the owner's verdict (1069), and what the bench's two gaps did to D-020 to D-022'
 
 Sent to the owner at about 03:00Z, before the review returned (so of the border ink alone): two contact sheets (dark | today |
 with the ink, zooms 4, 6, 8, device pixels at 1.5) and two 2-second clips (zooms 6 and 4). No reply yet.
+
+## 04:00-04:50Z · For the lead session: the map as an input to the wind (measurements; no product change)
+
+Five messages from the session that started this one arrived at 04:00Z, after the PR had opened. They say (that session's
+words, relayed; not the owner's to this one) that the owner has asked it to lead the lanes, and they ask the map lane for
+measurements. **Not done, on purpose:** its note asking this PR to carry #314's read-back and the review's corrections to
+D-022's records was overtaken by its own later note and by its PR #315, which carries them (ledger seq 1063 to 1068 on that
+branch); nothing of that is written here. Everything below is bench work on Mapbox tiles and the fixture; no request reached the
+Raw Surf backend.
+
+### The map itself (new: `ground-run.js`, `page/ground-probe.js`)
+
+The lanes' instruments held three different sets of ground colours. Read from the styles as the library loaded them and from
+the rendered land and sea (medians over the view; Mobile Bay, zoom 6, page and map at 1.5):
+
+| | the style's own value | rendered | after the mute | under the field |
+|---|---|---|---|---|
+| dark land | `land` `hsl(214, 17%, 31%)` = [66, 77, 92] | [58, 71, 79], L* 29.3 | no mute | L* 33.5 |
+| dark sea | `water` `hsl(197, 15%, 43%)` = [93, 117, 126] | L* 47.7 | no mute | L* 42.5 |
+| light land | `land` `hsl(60, 0%, 99%)` = [252, 252, 252] | [247, 249, 244], L* 97.7 | [249, 249, 248], L* 97.9 | L* 63.2 |
+| light sea | `water` `hsl(197, 98%, 78%)` = [144, 223, 254] | L* 84.9 | [174, 184, 189], L* 74.2 | L* 45.9 |
+| beach land | `land` `hsl(35, 32%, 91%)` = [239, 233, 225] | [228, 235, 194], L* 91.6 | [230, 231, 226], L* 91.4 | L* 56.8 |
+| beach sea | `water` `hsl(196, 80%, 70%)` = [117, 207, 240] | L* 78.9 | [168, 180, 185], L* 72.5 | L* 50.2 |
+
+- **What the mute does to the ground:** it takes the land's chroma (light C* 2.7 to 0.5, beach 21.2 to 2.6) and leaves its
+  lightness; it darkens the sea by 10.7 L* in light and 6.4 in beach.
+- **Dark's sea is 18 L* LIGHTER than its land; light's and beach's are 24 and 19 L* darker than theirs.** D-022's "turned over",
+  in numbers.
+- **Models that are not the map (not changed here; told to the lead):** dark's land [18, 20, 26] (`check.mjs`,
+  `mirror-model.mjs`) is this bench's OFFLINE basemap, L* 6 where the style draws 28 to 32; `windDarkRules.js` `BASE.dark`
+  (land [28, 37, 48], water [11, 29, 46]) is neither the style's land nor its water; light's water [168, 214, 222] is 9 L*
+  lighter and far more chromatic than the muted sea; beach's land [222, 208, 180] is a tan 7 L* darker than the muted land of
+  this view. Dark's water [93, 117, 126] is exact.
+- **Every layer that colours an AREA is under the wind, and in the mute's plan:** `land` (the background), `landcover` (below
+  zoom 7 in light and dark, below 12 in beach), `national-park` and `landuse` (from zoom 5), city-scale fills from zoom 11; beach
+  adds `hillshade` (a fill layer there), `wetland`, `wetland-pattern` and `water-shadow`. None is above the wind.
+
+### The wind the borders were read in, and the borders across the wind
+
+The bench's fixture is a hurricane box (25 to 32 N, 90 to 78 W) over a 2-degree base, and the land of this view lies mostly
+outside the box (the lead's point). `border-run.js` now prints the served speed under the ridge pixels. The grid, default arm
+against the kill, `dL full` in L* (`--scale 0.4 | 1 | 2.3 --zooms 4,6,9`; 45 arm-rows, the style's paint `restore exact` in all):
+
+| wind scale, zoom | wind under the lines, kn (median, quartiles) | dark | light before, with ink (of dark's) | beach before, with ink (of dark's) |
+|---|---|---|---|---|
+| x0.4, z4 | 15.4 (11.0, 17.7) | 12.1 | 7.6, 39.6 (3.28) | 4.0, 38.7 (3.21) |
+| x0.4, z6 | 4.8 (3.2, 7.6) | 28.4 | 3.4, 37.3 (1.31) | 5.4, 35.0 (1.23) |
+| x0.4, z9 | 4.7 (4.1, 4.9) | 41.7 | 2.0, 39.5 (**0.95**) | 5.8, 35.6 (**0.85**) |
+| x1, z4 | 15.4 (11.4, 17.7) | 11.9 | 7.6, 39.9 (3.35) | 4.0, 38.9 (3.27) |
+| x1, z6 | 8.9 (6.7, 12.0) | 20.9 | 2.8, 36.5 (1.75) | 4.7, 34.4 (1.65) |
+| x1, z9 | 11.8 (10.1, 12.2) | 31.4 | 6.9, 34.9 (1.11) | 2.9, 30.1 (**0.96**) |
+| x2.3, z4 | 15.8 (11.9, 18.0) | 12.2 | 7.4, 39.6 (3.26) | 3.9, 38.7 (3.19) |
+| x2.3, z6 | 17.0 (8.5, 25.9) | 15.4 | 4.7, 39.1 (2.53) | 9.8, 38.0 (2.46) |
+| x2.3, z9 | 27.1 (23.3, 28.0) | 26.8 | 3.1, 39.0 (1.45) | 18.5, 45.8 (1.71) |
+
+- **A correction to this log and to D-023 (noted where each was written; ledger `correction`):** "at or above dark's line at
+  every zoom" was the three zooms measured before the PR opened. At zoom 9 beach's inked line is 0.96 of dark's in the served
+  wind and 0.85 in near-calm air, and light's 0.95 in near-calm air. I had not measured zoom 9, and wrote "every zoom".
+- **Dark's line moves with the wind and the ink does not.** At zoom 6 dark's line reads 28.4 under 4.8 kn, 20.9 under 8.9 and
+  15.4 under 17: a white streak under a light line takes its contrast. The inked line holds 30 to 46 L* in all 18 cells. So the
+  ink is strongest against dark's where the wind is strong and the view far out, and weakest where dark's line is at its best
+  (close in, calm air). No one strength mirrors dark's line across the scene; the lead's frame names this as finding (c).
+- The scale barely moves the wind under the lines at zoom 4 (15.4 to 15.8 kn): that land is outside the fixture's box.
+- **Whether the border probe sees the land mask's pale halo offshore (asked):** it cannot. It scores ridge pixels on LAND against
+  a ring of land; it reads nothing over the sea.
+
+### The pixel ratio (the second gap of L-V49; ledger commitment 1070)
+
+`motion-run.js` on the engine of `origin/claude/wind-beach-sea-055` (#315: beach's sea strength 0.55), zoom 6, 120 frames a run,
+frames scaled to 1,000 px as before, read with `mirror-run.js --size 360` over the sea (`--at 0.5,0.9`) and the land
+(`--at 0.5,0.12`). The old way (`--dpr 1.5`: the page at 1.5, the map's canvas at 2) against both at 1.5 (`--map-dpr 1.5`).
+The old way reproduced the lead's numbers to the digit (light 1.05 / 1.03 / 1.23, beach 0.96 / 0.80 / 1.07, dark's lift 9.6 /
+12.6 / 11.8), so the two are the same instrument.
+
+| lift against dark's, canvas 2 to canvas 1.5 | wind x0.4 | x1 (served) | x2.3 |
+|---|---|---|---|
+| light, sea | 1.05 to 1.05 | 1.03 to 1.00 | 1.23 to 1.32 |
+| beach (0.55), sea | 0.96 to 0.98 | 0.80 to 0.80 | 1.07 to 1.12 |
+| light, land | 0.36 to 0.40 | 0.85 to 0.87 | 0.85 to 0.87 |
+| beach, land | 0.35 to 0.42 | 0.93 to 0.97 | 0.94 to 0.97 |
+| dark's own lift, sea / land, L* | 9.6 to 10.0 / 9.8 to 10.6 | 12.6 to 12.5 / 8.7 to 9.3 | 11.8 to 10.6 / 10.2 to 10.3 |
+
+**The canvas's ratio is not what separated the bench from the owner's screen.** Over the sea in the served wind and below it
+the lift against dark's moves by 0.00 to 0.03; in the 90 kn scene by 0.05 to 0.09; over land by 0.02 to 0.08. A lift moves by
+at most 1.2 L*, a ground by up to 3.6. No number D-022 chose would move: light's sea reads 1.00 instead of 1.03.
+
+### Map mode without the app's restyle (the first gap of L-V49; ledger commitment 1070)
+
+`map-run.js --themes dark,light,beach --zooms 6,8`, the ink killed in both runs, as it always ran against `--app-sync`:
+
+- **Dark:** every column identical (its mute is off): the null control.
+- **Land:** the step, the field's lightness, the wash and the verdict are the same to 0.5 L* in light and beach. D-021's steps
+  over land stand to the digit (light +13.0, 62.0 to 76.5; beach +15.0; dark +13.0). Beach's field over land reads C* 32.5
+  unmuted and 23.5 muted: the land's own colour was in the number.
+- **Sea:** the unmuted sea read the field 7.0 and 4.0 L* too LIGHT in light (zooms 6, 8) and 4.5 and 2.0 in beach, and the
+  streak's step 1.0 to 2.0 L* too SMALL; where the picture ends, 1.2 to 5.4 too high. No wash verdict changes (`ok` both ways).
+- **So:** map mode's recorded WATER rows for light and beach since 2026-10-09 are on a sea the app does not draw; its land
+  rows and every verdict stand. D-022's lifts came from motion mode, which mutes: they are not touched by this gap.
+
+### The ink and the lift (the null the lead asked for)
+
+`motion-run.js`, this tree, zoom 6, served wind, both ratios 1.5, the default against the ink's kill: over the sea light 12.5
+and 12.5 L*, beach 12.6 and 12.6 (no border there); over land light 8.0 and 8.1 (0.86 and 0.87 of dark's), beach 9.0 and 9.0.
+The ink moves the lift by 0.1 L* at most. The mute's own effect on the lift cannot be read through a lever under dark's rules:
+its kill and its lever both stand the rules down (D-020's holds).
+
+### Research, briefly (sources read unless said)
+
+- **Esri's canvas basemaps are two layers for this purpose:** "The Reference layer contains city labels, and the Base layer
+  contains the basemap itself", with the thematic layers between and a base of "less detail and a narrow range of colors"
+  (Esri ArcWatch, December 2011, "Tips for Using the Light Gray Canvas Basemap"). Our mute and our layer order are that rule.
+- **Mapbox puts data under the place names too:** the Standard style's slots, and its wind example adds a `raster-particle`
+  layer on Standard (docs.mapbox.com, "Add a new layer to a slot" and "Create a wind particle animation").
+- **earth.nullschool draws the map UNDER the wind:** "The SVG map of the earth is overlaid with an HTML5 Canvas, where the
+  animation is drawn" (github.com/cambecc/earth README); coastlines and lakes only, no borders, no names, a dark ground. Light
+  lines survive light-adding streaks; on a pale map that order costs an inked border 23 to 65% of its contrast (the control in
+  question 2: 20 to 45 L* with the wind on top against 50 to 59 in its slot).
+- **Visual hierarchy** (reference layers recede, labels on the highest plane, "sufficient contrast ... no more"): from a search
+  summary of Esri's ArcGIS Blog and the UCGIS Body of Knowledge; both pages failed to open here, so not read.
+- **Windy and Ventusky:** no source found for their layer order or line colours.
+- The longer note, with links, is in the sessions' shared notes (`wind-border-ink-notes.md`).
+
+### The pixel ratio at zoom 4 (served wind; the same engine and reads)
+
+Lift against dark's, the canvas at 2 to the canvas at 1.5: over the sea light 1.22 to 1.20 and beach (0.55) 1.19 to 1.20; over
+land light 0.74 to 0.78 and beach 0.80 to 0.83; dark's own lift 10.4 to 10.3 (sea) and 12.3 to 12.0 (land). The old way again
+reads D-022's recorded numbers (light's sea 1.22, light's land 0.74, beach's land 0.80). The same conclusion as at zoom 6.
+
+**Commitment 1070 is closed on these two measurements** (the ledger line that fulfils it): neither gap moves a recorded
+verdict or a number that was chosen. What they do move, for whoever reads the older rows: map mode's WATER rows for light and
+beach (a sea 2 to 7 L* too light, a step 1 to 2 L* too small), and any lift read at the canvas's old ratio by up to 0.09 of
+dark's in the 90 kn scene and 0.08 over land in near-calm air. Zoom 9 was not read for the ratio.
+
+### Not done, and not verified
+
+- Nothing here has been read in the app.
+- One view, one fixture. The land's wind in it is 5 to 17 kn however the fixture is scaled; no border was read under a gale.
+- A land lightness factor in the mute's plan (the lead's idea for the land's ground) is NOT built: a new visual variable, the
+  owner's call.
+
+## 04:52Z · Recorded
+
+Ledger seq 1071 (`correction` of 1066: "every zoom"), 1072 (a finding that fulfils commitment 1070) and 1073 (the map as an
+input); STATE's anchor at 1073. Jest, both trees, after the two comment edits in `windBasemapMute.js` and its test: 306 suites,
+4,101 tests, 0 failed; `check_eslint.js` clean. The production build was not re-run: the source changed by comments only since
+the build of `bf8fd34d`. Commitment 1069 (the read-back on the deployed build by the paint, and the owner's verdict) stays open.

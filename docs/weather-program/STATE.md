@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-12 03:50Z** (logs: `log/2026-10-12-wind-border-ink.md` (dark ink for the borders under the wind in light and beach, ON by default, D-023; the border and theme-switch instruments; a theme change now leaves the new theme restyled), `log/2026-10-11-wind-dark-white.md` (why light and beach did not mirror dark: the white by the ground under the mark, ON by default, D-022; the mirror instruments; light's colours read against dark's and parked), `log/2026-10-11-wind-pale-band.md` (the owner's verdict on #312; dark watched in motion; the white streak in light and beach, ON by default, D-021; #313; and a pale-band rule built and left unmerged), `log/2026-10-11-dark-rules-default.md` (dark's rules on light and beach, ON by default, D-020; #312), `log/2026-10-10-light-look-ab.md` (light's look A/B, default off: a deeper field + dark's streak method, or ink; #311), `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-12 04:52Z** (logs: `log/2026-10-12-wind-border-ink.md` (dark ink for the borders under the wind in light and beach, ON by default, D-023; the border, theme-switch and ground instruments; a theme change now leaves the new theme restyled; each theme's ground measured), `log/2026-10-11-wind-dark-white.md` (why light and beach did not mirror dark: the white by the ground under the mark, ON by default, D-022; the mirror instruments; light's colours read against dark's and parked), `log/2026-10-11-wind-pale-band.md` (the owner's verdict on #312; dark watched in motion; the white streak in light and beach, ON by default, D-021; #313; and a pale-band rule built and left unmerged), `log/2026-10-11-dark-rules-default.md` (dark's rules on light and beach, ON by default, D-020; #312), `log/2026-10-10-light-look-ab.md` (light's look A/B, default off: a deeper field + dark's streak method, or ink; #311), `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -40,23 +40,33 @@ is a claim, not a measurement.
     read at the next sync (a wind toggle, a theme change, the next style change), not mid-frame. Read-back:
     `window.__WIND_BORDER_INK__` (`applied` true only with `layers` above 0, else `reason`).
   - **Measured (the real engine, the real basemaps, in motion, the page and the map at device pixel ratio 1.5; `border-run.js`):**
-    light 39.9 / 36.5 / 35.0 and beach 38.9 / 34.4 / 31.6: 1.1 to 3.4 times dark's line; 0.7 is the lightest of the three
-    strengths measured. The kill arm reads the numbers before, to the digit; 18 of 18 offline crops under the kill are
-    `origin/dev`'s PNGs byte for byte, dark's 9 of 9. Map mode's own columns over every line, over land: `retP` 0.68 / 0.70 /
+    light 39.9 / 36.5 / 35.0 and beach 38.9 / 34.4 / 31.6 at zooms 4 / 6 / 8: 1.1 to 3.4 times dark's line; 0.7 is the lightest
+    of the three strengths measured. **Not above dark's everywhere (corrected 04:40Z, a grid over wind and zoom taken after
+    the PR opened):** at zoom 9 beach reads 0.96 of dark's line (0.85 in near-calm air) and light 1.11 (0.95); the inked line
+    itself holds 30 to 46 L* at every zoom and wind read, where dark's own runs from 12 to 42. The kill arm reads the numbers
+    before, to the digit; 18 of 18 offline crops under the kill are `origin/dev`'s PNGs byte for byte, dark's 9 of 9. Map mode's own columns over every line, over land: `retP` 0.68 / 0.70 /
     0.66 to 1.05 / 0.76 / 0.73 (light), 0.62 / 0.68 / 0.63 to 1.07 / 0.74 / 0.67 (beach); dark's rows equal in both arms.
   - **New instruments:** `scripts/wind-bench/border-run.js` + `page/border-probe.js` (the borders and names alone, found from the
     style; it also reads the whole style's paint back from the library after the wind goes off: exact) and `switch-run.js` +
     `page/switch-probe.js` (the app's theme change, replayed). **Two limits of the older modes, found and NOT changed in them:** `map-run.js` never ran the app's restyle (the
     mute), so its light and beach numbers since 2026-10-09 are on an unmuted ground (`--app-sync` is new and opt-in); and the
-    engine sizes a mark by the page's pixel ratio on a bench canvas that was always 2 (`motion-run.js --map-dpr` is new). What
-    either did to D-020 to D-022's numbers is not measured.
+    engine sizes a mark by the page's pixel ratio on a bench canvas that was always 2 (`motion-run.js --map-dpr` is new).
+    **Measured since (04:50Z; commitment 1070 closed): neither moves a recorded verdict or a chosen number.** Without the mute,
+    map mode's land rows stand and its SEA rows for light and beach sit on a sea 2 to 7 L* too light (the step 1 to 2 L* too
+    small); with the canvas at 2 the lift against dark's is off by 0.00 to 0.03 over the sea in ordinary wind, up to 0.09 in the
+    90 kn scene, 0.02 to 0.08 over land.
+  - **The map, measured for every lane (`ground-run.js`, new):** dark's land is `hsl(214, 17%, 31%)` (rendered L* 29 at zoom
+    6) and its sea [93, 117, 126] (L* 47.7): the sea is 18 L* LIGHTER than the land. After the mute light's land is L* 97.9 and
+    its sea [174, 184, 189] (74.2); beach's 91.4 and [168, 180, 185] (72.5). The mute darkens the sea by 10.7 and 6.4 L* and
+    leaves the land's lightness. Three models in the instruments do not match (dark's land in `check.mjs` / `mirror-model.mjs`
+    is the bench's offline style; `windDarkRules.js` `BASE.dark`; light's water and beach's land): told to the lead, not changed.
   - **NOT in it, each the owner's call:** a bolder line (the styles draw these 0.5 to 0.75 px wide; width is a second variable);
     a strength that matches dark's instead of clearing it (by extrapolation below the three measured, near 0.26 / 0.43 / 0.62
     at zooms 4 / 6 / 8: no one number does); ink for the lesser labels (natural features, water names) and a tint a theme.
   - **Not verified:** nothing of this build has been seen in the app or by the owner; one view, one wind field, zooms 4 to 8;
     phones; the theme-change repair is read on the bench's replay of the app's sequence, not in the app. **Waiting on the
     owner:** the merge, then their eye. **Owed:** the read-back on the deployed build, by the PAINT and not only the read-back
-    (ledger seq 1069, due 2026-10-19), and what the bench's two gaps did to earlier numbers (seq 1070). Log `2026-10-12-wind-border-ink`, LESSONS L-V46 to L-V49 and L-V51 (L-V50 is
+    (ledger seq 1069, due 2026-10-19). Log `2026-10-12-wind-border-ink`, LESSONS L-V46 to L-V49 and L-V51 (L-V50 is
     #315's).
 - **2026-10-12 01:05Z: light and beach lay the white streak BY THE GROUND under it, ON BY DEFAULT (client only; PR #314 MERGED
   2026-10-12T01:48:08Z as `ec8f46a2`).** Owner, 2026-10-11 23:23Z to 23:45Z, on the deployed build of #313: "I
@@ -1963,7 +1973,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1070, sha256 c5c2a924d7feb4658571873d2b25d5fc3318bdf7f073c491dca2c891558efc2c**
+  **Ledger head: seq 1073, sha256 89ebd44266c6540319a9e7f4337caae9be1eb49f6a26de7f53b6479960dc2522**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

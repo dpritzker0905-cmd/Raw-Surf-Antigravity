@@ -396,7 +396,8 @@ describe('windBorderInk: the ink a theme lays, its kill and its lever', () => {
   it('pinned default: one dark slate ink at 0.7 in light and beach', () => {
     // border bench 2026-10-12 (the real basemaps, in motion, pixel ratio 1.5; a line's L* against its ground under field + particles,
     // zooms 4 / 6 / 8): dark 11.9 / 20.9 / 28.5; at 0.7 light 39.9 / 36.5 / 35.0 and beach 38.9 / 34.4 / 31.6 (today 7.6 / 2.8 / 5.8
-    // and 4.0 / 4.7 / 3.0). 0.7 is the lightest strength measured, and at or above dark's line at every zoom in both themes.
+    // and 4.0 / 4.7 / 3.0). 0.7 is the lightest strength measured, and at or above dark's line at those three zooms in both themes
+    // (not at zoom 9: beach 0.96 of dark's, 0.85 in near-calm air; the inked line itself holds 30 to 46 L* wherever it was read).
     expect(WIND_BORDER_INK.color).toEqual({ light: 'rgba(27, 30, 45, 0.7)', beach: 'rgba(27, 30, 45, 0.7)' });
     expect(inkColor('#fff', 'hsl(230, 25%, 14%)')).toBe('rgba(27, 30, 45, 1)');       // the colour the owner was shown live
     const L = (s) => oklab(parseColor(s))[0];                                         // an ink: far darker than any border colour the styles draw

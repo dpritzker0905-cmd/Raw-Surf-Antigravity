@@ -529,6 +529,15 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   been.** That is the mute as #299 described it, not a new look, and it has no kill of its own (the mute's kill stands it
   down). If the owner prefers the map they have been seeing after a switch, that is the mute's strength or kill to
   move, not this line.
+- **Amended 2026-10-12 04:40Z (a correction by the session that wrote it; ledger `correction` of seq 1066):** "at or above
+  dark's line at every zoom in both themes" was true of the three zooms measured (4, 6, 8, in the served wind) and is NOT true
+  of zoom 9, which was read afterwards on a grid of wind and zoom (`border-run.js --scale 0.4 | 1 | 2.3 --zooms 4,6,9`): at
+  zoom 9 beach's inked line reads 0.96 of dark's in the served wind and 0.85 in near-calm air (4.7 kn under the lines); light's
+  1.11 and 0.95. Dark's own line is at its strongest there (31 to 42 L*: wide, on a dark land, under few streaks) and at its
+  weakest far out and in strong wind (12 at zoom 4, 15 at zoom 6 under 17 kn). The inked line holds 30 to 46 L* in every one
+  of the 18 cells: it does not move with the wind as dark's does. The number is not changed; whether beach should be laid
+  stronger to clear dark's line at zoom 9 (about 0.72 in the served wind and 0.8 in near-calm air, by the slope measured at
+  zoom 8; not measured at zoom 9) is the owner's, with the strength.
 - **Not decided (the owner's, once it has been seen in the app):** keep, turn off, or tune (the knobs: the strength, the ink's
   colour a theme, the line's width). Not decided either, and not built: ink for the lesser labels the styles draw in mid grey
   or blue (natural features, water names, points of interest); a casing of its own under the line.

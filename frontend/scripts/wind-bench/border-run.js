@@ -67,7 +67,7 @@ function parseArgs(argv) {
 }
 
 const cell = (v, w, d = 1) => (v == null ? '-' : (typeof v === 'number' ? v.toFixed(d) : String(v))).padStart(w);
-const HEADER = 'theme  z  arm          |    n | dL bare   off field  full   p25 sign | retF   retP  lostP |  weak   3:1 ratio | names moved | solid moved | drawn | style paint once the wind is off';
+const HEADER = 'theme  z  arm          |    n | dL bare   off field  full   p25 sign | retF   retP  lostP |  weak   3:1 ratio | names moved | solid moved | wind under the lines   | drawn | style paint once the wind is off';
 
 /** What the `drawn` column says: the arm's own override when it laid one (the app's read-back is not the picture then), else the app's. */
 function drawnBy(row) {
@@ -79,7 +79,7 @@ function drawnBy(row) {
 
 function line(row) {
   const b = row.border, drawn = drawnBy(row);
-  return `${row.theme.padEnd(6)} ${String(row.z).padEnd(2)} ${row.arm.padEnd(12)} | ${cell(b.n, 4, 0)} | ${cell(b.bare, 7)} ${cell(b.off, 5)} ${cell(b.field, 5)} ${cell(b.full, 5)} ${cell(b.p25, 5)} ${cell(b.sign, 4)} | ${cell(b.retF, 5, 2)} ${cell(b.retP, 6, 2)} ${cell(b.lostP, 6, 3)} | ${cell(b.weak, 5, 3)} ${cell(b.at3, 5, 3)} ${cell(b.ratio, 5, 2)} | ${cell(row.labels.n, 5, 0)} ${cell(row.labels.moved, 5, 2)} | ${cell(row.solid.n, 5, 0)} ${cell(row.solid.moved, 5, 2)} | mute ${row.synced.layers} · ${drawn} | ${row.restore ? `restore ${row.restore.exact ? 'exact' : 'NOT EXACT'}${row.restore.moved ? '' : ' (nothing moved)'}` : 'restore -'}`;
+  return `${row.theme.padEnd(6)} ${String(row.z).padEnd(2)} ${row.arm.padEnd(12)} | ${cell(b.n, 4, 0)} | ${cell(b.bare, 7)} ${cell(b.off, 5)} ${cell(b.field, 5)} ${cell(b.full, 5)} ${cell(b.p25, 5)} ${cell(b.sign, 4)} | ${cell(b.retF, 5, 2)} ${cell(b.retP, 6, 2)} ${cell(b.lostP, 6, 3)} | ${cell(b.weak, 5, 3)} ${cell(b.at3, 5, 3)} ${cell(b.ratio, 5, 2)} | ${cell(row.labels.n, 5, 0)} ${cell(row.labels.moved, 5, 2)} | ${cell(row.solid.n, 5, 0)} ${cell(row.solid.moved, 5, 2)} | ${row.wind ? `${cell(row.wind.med, 4)} [${cell(row.wind.q25, 4)},${cell(row.wind.q75, 5)}] kn` : '   -              '} | mute ${row.synced.layers} · ${drawn} | ${row.restore ? `restore ${row.restore.exact ? 'exact' : 'NOT EXACT'}${row.restore.moved ? '' : ' (nothing moved)'}` : 'restore -'}`;
 }
 
 function printInventory(theme, inv) {

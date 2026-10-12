@@ -770,8 +770,14 @@ function init(fixtures) {
   return { fine: `${fine.cols}x${fine.rows}`, bounds: fixtures.fine.bounds };
 }
 
+/** The served speed (kn) at a place as the engine draws it: the fine grid inside its box, else the 2-degree world base. */
+const speedAt = (lng, lat) => { const v = sampleSpeed(GRIDS.fine, lng, lat); return v == null ? (sampleSpeed(GRIDS.world, lng, lat) ?? null) : v; };
+
 // BORDER mode (2026-10-12, ./border-probe.js): the political borders and place names alone, against the ground under them.
-const borderRun = require('./border-probe')({ state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync: syncWindBasemapMute, WIND_ID });
+const borderRun = require('./border-probe')({ state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync: syncWindBasemapMute, WIND_ID, speedAt });
+
+// GROUND mode (2026-10-12, ./ground-probe.js): the map the wind is laid on: the area layers under it, and the land and the sea as drawn.
+const groundRun = require('./ground-probe')({ state, ensureMap, idle, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, WIND_ID, mute: require('wind-bench-mute'), speedAt });
 
 // SWITCH mode (2026-10-12, ./switch-probe.js): the app's own theme-change sequence (setStyle with a diff) on the real library.
 const addWind = (map, theme) => {   // as the app's layer re-adds itself after a rebuilt style: the wind and its coastline, in their slot
@@ -781,5 +787,5 @@ const addWind = (map, theme) => {   // as the app's layer re-adds itself after a
 };
 const switchRun = require('./switch-probe')({ state, ensureMap, idle, clearLevers, WIND_ID, STYLES, addWind, mute: require('wind-bench-mute') });
 
-window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, flowRun, borderRun, switchRun, worldOffsets, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
+window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, flowRun, borderRun, switchRun, groundRun, worldOffsets, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
 document.getElementById('status').textContent = 'ready';

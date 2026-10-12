@@ -73,7 +73,20 @@ function inventory(map, windId) {
 }
 
 module.exports = function makeBorderRun(h) {
-  const { state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync, WIND_ID } = h;
+  const { state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync, WIND_ID, speedAt } = h;
+
+  /** The served speed (kn) under the ridge pixels: the wind the lines were read in (a streak's strength over a line moves with it). */
+  function ridgeWind(map, rd, W, H, dpr) {
+    if (!speedAt || !rd.idx.length) return null;
+    const v = [];
+    for (let k = 0; k < rd.idx.length; k += Math.max(1, Math.floor(rd.idx.length / 800))) {
+      const i = rd.idx[k], ll = map.unproject([(i % W) / dpr, (H - 1 - Math.floor(i / W)) / dpr]), s = speedAt(ll.lng, ll.lat);   // readPixels rows run from the screen's bottom
+      if (s != null && Number.isFinite(s)) v.push(s);
+    }
+    if (!v.length) return null;
+    const s = Float64Array.from(v).sort();
+    return { med: r(s[s.length >> 1], 1), q25: r(s[Math.floor(s.length / 4)], 1), q75: r(s[Math.floor(s.length * 3 / 4)], 1) };
+  }
 
   /** Coverage (0-255 a device pixel) of the layers in `ids`, by paint alone: they are drawn white, everything else black or clear. */
   async function coverage(map, ids, kind) {
@@ -172,6 +185,7 @@ module.exports = function makeBorderRun(h) {
     const border = await coverage(map, inv.borders.map((b) => b.id), 'line'), label = await coverage(map, inv.labels.map((l) => l.id), 'symbol');
     const wet = await settledWaterMask(map), { W, H } = bare, rd = ridges(border, label, wet, W, H, dpr);
     const paint0 = stylePaint(), masksExact = paint0 === paintStart;   // the probe's own masks put every value back (its self-check)
+    const wind = ridgeWind(map, rd, W, H, dpr);
     const rows = [];
     let undo = null;
     try {
@@ -193,7 +207,7 @@ module.exports = function makeBorderRun(h) {
         state.active = false; disposeEngine();
         undo(); undo = null;                                  // the arm's own paint and the wind's place, put back before the app's restyle is lifted
         const c = { bare: contrasts(bare.px, rd), off: contrasts(off.px, rd), field: contrasts(field.px, rd), full: fulls.map((f) => contrasts(f.px, rd)) };
-        rows.push({ arm: arm.name, theme: cfg.theme, z: cfg.z, synced, landMask, border: borderStats(c, rd),
+        rows.push({ arm: arm.name, theme: cfg.theme, z: cfg.z, synced, landMask, wind, border: borderStats(c, rd),
           labels: untouched(label, WHOLE, off.px, fulls.map((f) => f.px)), solid: untouched(border, WHOLE, off.px, fulls.map((f) => f.px)),
           readBack: window.__WIND_BORDER_INK__ || null, glError: state.gl.getError() || 0,
           crops: state.crop ? { off: off.crop, field: field.crop, full: fulls[0].crop } : null });

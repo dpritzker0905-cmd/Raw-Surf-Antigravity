@@ -307,6 +307,12 @@ node scripts/wind-bench/border-run.js --inventory --crop 900x600 --at 0.5,0.3   
   Before the ink: light 7.6 / 2.8 / 5.8 (`weak` 0.28 / 0.73 / 0.39), beach 4.0 / 4.7 / 3.0 (`weak` 0.59 / 0.51 / 0.76). With it
   (`rgba(27, 30, 45, 0.7)`): light 39.9 / 36.5 / 35.0, beach 38.9 / 34.4 / 31.6, `weak` 0.000 to 0.005. The kill arm reads the
   numbers before, to the digit. Names moved 0.00 (dark) to 0.27 L* (one 8-bit step) in every arm.
+- **`wind under the lines`** is the served speed (kn, median and quartiles) under the ridge pixels: the wind the lines were read
+  in. The fixture is a hurricane box over a 2-degree base and the land of this view is mostly outside it: 15 kn at zoom 4, 9 at
+  zoom 6, 12 at zoom 9, and `--scale` moves it only inside the box. **Across the wind** (`--scale 0.4 | 1 | 2.3`, zooms 4, 6, 9):
+  dark's line runs from 11.9 to 41.7 L* (weakest far out and under strong wind, where streaks pass under a light line; strongest
+  close in and in calm air) while the inked line holds 30 to 46 in all 18 cells. So the ink is 3.2 to 3.4 times dark's at zoom
+  4, 1.2 to 2.5 at zoom 6, and at zoom 9 from 1.71 down to **0.85** (beach, 4.7 kn): no one strength mirrors dark's line.
 - **The last column is the restore, read from the library:** every paint value of every layer of the style (`getStyle()`), with
   the wind off before the arms and again after each. `exact` or `NOT EXACT` (exit 2); `(nothing moved)` when the arm restyled
   nothing. A fake map can only assume this; 2026-10-12, exact in all six rows at zoom 6.
@@ -321,6 +327,48 @@ node scripts/wind-bench/border-run.js --inventory --crop 900x600 --at 0.5,0.3   
     (page ratio 1) and at `motion-run.js --dpr 1.5` alike a mark is drawn smaller against the canvas than on any real screen.
     `motion-run.js --map-dpr 1.5` (with `--dpr 1.5`) draws the map at the owner's ratio; `--crop WxH --at fx,fy` keeps device
     pixels, so a 0.5 px line is not scaled away. The along-the-wind score is not taken off the canvas's own 2.
+  - **What the two gaps did to recorded numbers (measured 2026-10-12, zooms 6 and 4; no verdict or chosen number moved):**
+    without the mute, map mode's LAND rows are the same to 0.5 L* (beach's field over land reads C\* 32.5 instead of 23.5) and
+    its SEA rows for light and beach sit on a sea 2 to 7 L* too light with a step 1 to 2 L* too small. With the canvas at 2
+    instead of 1.5 the lift against dark's is off by 0.00 to 0.03 over the sea in the served wind and below it, by up to 0.09
+    in the 90 kn scene, and by 0.02 to 0.08 over land. The old way read D-022's recorded lifts to the digit.
+
+## Ground mode (`ground-run.js`, `page/ground-probe.js`): what IS the map the wind is laid on?
+
+Every lane's arithmetic starts from a land colour and a water colour a theme, and on 2026-10-12 the instruments held three
+different sets of them (`check.mjs` and `mirror-model.mjs`, `windDarkRules.js` `BASE`, this bench's offline style). This mode reads
+them from the two sources that cannot disagree with the app: the style as the library loaded it, and the pixels it then draws.
+
+```bash
+node scripts/wind-bench/ground-run.js                        # dark, light, beach at zooms 4, 6, 9: the land and the sea as drawn
+node scripts/wind-bench/ground-run.js --areas                # also every area layer under the wind: its paint, own and muted
+node scripts/wind-bench/ground-run.js --scale 2.3 --zooms 6  # the ground under a stronger wind
+```
+
+- **One row a surface:** `own` (the style's own map, wind off), `muted` (as the app restyles it under the wind, wind hidden), and
+  `under the field` (that map under the colour field alone, a 2 x 2 particle pool: the ground a streak is laid on); each the median
+  `[r, g, b]`, L\*, C\* and hue of the land or of the sea of the view. `wind` is the served speed under that surface (median and
+  quartiles, kn): the bench's fixture is a hurricane box over a 2-degree base, and the land of the Mobile Bay view lies mostly
+  outside the box.
+- **`--areas`** lists every `background`, `fill`, `fill-extrusion` and `hillshade` layer under the wind in draw order, with the
+  paint the style gives it and the paint the mute gives it, and names any such layer ABOVE the wind (none in the three styles).
+- **Read, 2026-10-12** (Mobile Bay, served wind, page and map at 1.5):
+
+  | | the style's own value | rendered, zoom 6 | after the mute | under the field |
+  |---|---|---|---|---|
+  | dark land | `land` `hsl(214, 17%, 31%)` = [66, 77, 92] | [58, 71, 79], L\* 29.3 (`landcover` below z7) | no mute | L\* 33.5 |
+  | dark sea | `water` `hsl(197, 15%, 43%)` = [93, 117, 126] | the same, L\* 47.7 | no mute | L\* 42.5 |
+  | light land | `land` `hsl(60, 0%, 99%)` = [252, 252, 252] | [247, 249, 244], L\* 97.7 | [249, 249, 248], L\* 97.9 | L\* 63.2 |
+  | light sea | `water` `hsl(197, 98%, 78%)` = [144, 223, 254] | the same, L\* 84.9 | [174, 184, 189], L\* 74.2 | L\* 45.9 |
+  | beach land | `land` `hsl(35, 32%, 91%)` = [239, 233, 225] | [228, 235, 194], L\* 91.6 (`landcover` to z12) | [230, 231, 226], L\* 91.4 | L\* 56.8 |
+  | beach sea | `water` `hsl(196, 80%, 70%)` = [117, 207, 240] | the same, L\* 78.9 | [168, 180, 185], L\* 72.5 | L\* 50.2 |
+
+  The mute takes the land's chroma and leaves its lightness; it darkens the sea by 10.7 L\* in light and 6.4 in beach. The wind
+  under this view: 8.2 kn over the land (quartiles 5 and 11.5) and 25.9 over the sea (14.1 and 37.2) at zoom 6.
+- **What it corrects in the other instruments' models (not changed here):** dark's land [18, 20, 26] is this bench's OFFLINE
+  basemap, not the style (real L\* 28 to 32, not 6); `windDarkRules.js` `BASE.dark` (land [28, 37, 48], water [11, 29, 46]) is
+  neither the style's land nor its water; light's modelled water [168, 214, 222] is 9 L\* lighter and far more chromatic than
+  the muted sea; beach's modelled land [222, 208, 180] is a tan 7 L\* darker than the muted land of this view.
 
 ## Switch mode (`switch-run.js`, `page/switch-probe.js`): after a theme change, is the new theme restyled?
 

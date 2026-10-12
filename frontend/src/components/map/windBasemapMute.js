@@ -137,8 +137,10 @@ export function muteValue(value, amount, lScale = 1) {
  * While the wind is on, the border lines drawn ABOVE the wind layer (line layers named admin-*, their pale casings *-bg
  * apart) are drawn in dark ink: the mirror of dark's light line. Only their line-color moves; a zoom interpolation keeps its
  * stops, and width, opacity and dashes are the style's own. With the ink: light 39.9 / 36.5 / 35.0, beach 38.9 / 34.4 / 31.6.
- * 0.7 is the lightest strength measured (0.7, 0.85, 1) and is at or above dark's line at every zoom in both themes; thin
- * lines stay thin (a second variable, not changed here). The place names need none: the styles already draw them near-black
+ * 0.7 is the lightest strength measured (0.7, 0.85, 1): at or above dark's line at zooms 4, 6 and 8 in the served wind in
+ * both themes. Not everywhere: at zoom 9 beach reads 0.96 of dark's line and 0.85 in near-calm air (light 1.11 and 0.95),
+ * where dark's own line is at its strongest; the inked line holds 30 to 46 L* at every zoom and wind read. Thin lines stay
+ * thin (a second variable, not changed here). The place names need none: the styles already draw them near-black
  * on a white halo, above the wind, and no streak touches a glyph (measured: 0.3 L* at most, one 8-bit step).
  *
  * It rides the mute's own sync: one record a map, one restore, and it is laid only on a map the mute is restyling. Where
