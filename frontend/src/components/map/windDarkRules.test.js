@@ -373,6 +373,8 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       // the layer's place in the map's stack, and the lines the map draws over it: the coastline, and the borders' ink (2026-10-12:
       // the border lines sit ABOVE the wind, so their colour is no part of the ground the rules were solved on)
       '__RAW_DISABLE_WIND_UNDER_LABELS__', '__RAW_DISABLE_WIND_COASTLINE__', '__RAW_DISABLE_WIND_BORDER_INK__',
+      // the coastline stroke in that ink (D-028): a line ABOVE the wind, like the borders; under its kill the stroke is the layer's own
+      '__RAW_DISABLE_WIND_COAST_INK__',
       // the map canvas's ALPHA, never its colour (D-027): what the page behind the map adds on screen. The rules were solved on frames laid over
       // black, which is the picture this change draws; under its kill the picture is dev's, the rules still on
       '__RAW_DISABLE_WIND_OPAQUE_CANVAS__',

@@ -7,9 +7,9 @@ import fs from 'fs';
 import path from 'path';
 import {
   WIND_BASEMAP_MUTE, windBasemapMuteAmount, windBasemapWaterL, parseColor, oklab, muteColor, muteValue, windBasemapMutePlan, syncWindBasemapMute,
-  windBasemapImagery, windBasemapMuteStale, WIND_BORDER_INK, windBorderInk, inkColor, inkValue, windBorderInkPlan,
+  windBasemapImagery, windBasemapMuteStale, WIND_BORDER_INK, windBorderInk, inkColor, inkValue, windBorderInkPlan, WIND_COAST_LINE, windCoastInk,
 } from './windBasemapMute';
-import { windLayerBeforeId } from './WebGLWindUtils';
+import { windLayerBeforeId, WIND_COASTLINE, windCoastlineLayer } from './WebGLWindUtils';
 import './WindColorRamp';   // the app's gate on the land's depth (D-026) is set by this module: the mute is tested as the app loads it
 
 const close = (a, b, eps) => Math.abs(a - b) <= eps;
@@ -479,16 +479,22 @@ describe('syncWindBasemapMute lays the border ink with the mute: one record, one
     expect(syncWindBasemapMute(lev, 'dark', true, 'wind', { __RAW_WIND_BORDER_INK__: INK, __RAW_WIND_BASEMAP_MUTE__: 0.5 })).toMatchObject({ applied: true, layers: 6, ink: { applied: false, reason: 'theme' } });
     expect(lineColors(lev)).toEqual(lineColors(fakeMap(REAL('dark'))));
   });
-  it('only line-color moves: widths, opacities, dashes, the casings, the coastline and the names keep the style\'s own values', () => {
+  it('only the borders\' line-color and the coast stroke\'s colour and opacity move (D-028): widths, dashes, the casings and the names keep the style\'s own values', () => {
     const map = fakeMap(REAL('light')), fresh = fakeMap(REAL('light')), style = REAL('light'), above = style.slice(style.findIndex((l) => l.id === 'wind') + 1);
     syncWindBasemapMute(map, 'light', true, 'wind', {});
     expect(above.map((l) => l.id)).toEqual(['wind-coastline', 'admin-1-boundary-bg', 'admin-0-boundary-bg', ...BORDER_LINES, 'settlement-major-label', 'state-label', 'country-label']);
+    let moved = 0;
     for (const l of above) {
       for (const prop of Object.keys(l.paint)) {
-        if (BORDER_LINES.includes(l.id) && prop === 'line-color') continue;
+        if ((BORDER_LINES.includes(l.id) && prop === 'line-color') || l.id === 'wind-coastline') { moved += map.getPaintProperty(l.id, prop) !== fresh.getPaintProperty(l.id, prop) ? 1 : 0; continue; }
         expect(map.getPaintProperty(l.id, prop)).toEqual(fresh.getPaintProperty(l.id, prop));
       }
     }
+    expect(moved).toBe(5);   // three border colours, the coast's colour and its opacity: the control for the loop above
+    // and under the coast's own kill the old pin holds to the letter: nothing above the wind moves but the three border colours
+    const killed = fakeMap(REAL('light'));
+    syncWindBasemapMute(killed, 'light', true, 'wind', { __RAW_DISABLE_WIND_COAST_INK__: true });
+    for (const l of above) for (const prop of Object.keys(l.paint)) if (!(BORDER_LINES.includes(l.id) && prop === 'line-color')) expect(killed.getPaintProperty(l.id, prop)).toEqual(fresh.getPaintProperty(l.id, prop));
   });
   it('the mute\'s own answer keeps its shape: `layers` counts the muted areas, never the inked lines', () => {
     const map = fakeMap(REAL('light')), win = {};
@@ -673,6 +679,17 @@ describe('BORDER INK ON THE APP\'S STACK: it stands down with the mute when imag
     expect(STACK('light').some((l) => l.id === 'rv-radar-frame' && l.type === 'raster')).toBe(true);
     expect(syncWindBasemapMute(map, 'light', true, 'wind', {}).ink).toMatchObject({ applied: true, layers: 3 });
   });
+  it('THE COAST STROKE (D-028) stands down with the ink under imagery (a dark line on a photo is the old problem turned over), and returns with it', () => {
+    const map = fakeMap(STACK('beach')), stroke = () => [map.getPaintProperty('wind-coastline', 'line-color'), map.getPaintProperty('wind-coastline', 'line-opacity')];
+    expect(syncWindBasemapMute(map, 'beach', true, 'wind', {}).coast).toEqual({ applied: true, opacity: 1 });
+    expect(stroke()).toEqual([WIND_BORDER_INK.color.beach, 1]);
+    map.setLayoutProperty('esri-satellite-layer', 'visibility', 'visible');
+    map.setPaintProperty('esri-satellite-layer', 'raster-opacity', 1);
+    expect(syncWindBasemapMute(map, 'beach', true, 'wind', {}).coast).toEqual({ applied: false, opacity: 0, reason: 'imagery:esri-satellite-layer' });
+    expect(stroke()).toEqual(['rgb(45, 58, 72)', 0.42]);
+    map.setLayoutProperty('esri-satellite-layer', 'visibility', 'none');
+    expect(syncWindBasemapMute(map, 'beach', true, 'wind', {}).coast).toEqual({ applied: true, opacity: 1 });
+  });
   it('THE ORDER THESE TESTS ASSUME IS THE APP\'S: the wind layer is added just before the first admin-* layer, the coastline with it', () => {
     const layer = fs.readFileSync(path.join(__dirname, 'WebGLWindLayer.js'), 'utf8');
     expect(layer).toContain('beforeId = windLayerBeforeId(styleLayers, themeRef.current);');
@@ -683,5 +700,112 @@ describe('BORDER INK ON THE APP\'S STACK: it stands down with the mute when imag
       expect(order[wind + 2]).toBe('admin-1-boundary-bg');
       for (const id of BORDER_LINES) expect(order.indexOf(id)).toBeGreaterThan(wind);
     }
+  });
+});
+
+describe('THE COAST IN THE BORDERS\' INK (D-028): the wind\'s own coastline stroke is drawn in the ink the borders take', () => {
+  const coast = (map) => ({ color: map.getPaintProperty('wind-coastline', 'line-color'), opacity: map.getPaintProperty('wind-coastline', 'line-opacity') });
+  const OWN = { color: 'rgb(45, 58, 72)', opacity: 0.42 };
+  it('the id this file inks is the id the layer is added under, and the stroke it replaces is the one the layer still draws', () => {
+    expect(WIND_COAST_LINE).toBe(WIND_COASTLINE.id);
+    const water = [{ id: 'water', type: 'fill', source: 'composite', 'source-layer': 'water' }];
+    for (const theme of ['light', 'beach']) {
+      const spec = windCoastlineLayer(water, theme, true, {});
+      expect(spec.id).toBe(WIND_COAST_LINE);
+      expect(parseColor(spec.paint['line-color'])).toEqual([45, 58, 72, 1]);            // the pale-ground stroke: what the kill gives back
+      expect(typeof spec.paint['line-opacity']).toBe('number');                         // a literal: the plan writes a literal over it and restores it
+    }
+  });
+  it('windCoastInk: 1 where the borders are inked; 0 in dark, under the ink\'s kill and under its own; the lever is its opacity', () => {
+    expect(windCoastInk('light', {})).toBe(1);
+    expect(windCoastInk('beach', {})).toBe(1);
+    expect(windCoastInk('dark', {})).toBe(0);
+    expect(windCoastInk('dark', { __RAW_WIND_COAST_INK__: 0.8, __RAW_WIND_BORDER_INK__: INK })).toBe(0);
+    expect(windCoastInk('light', { __RAW_DISABLE_WIND_BORDER_INK__: true })).toBe(0);
+    expect(windCoastInk('light', { __RAW_DISABLE_WIND_COAST_INK__: true })).toBe(0);
+    expect(windCoastInk('light', { __RAW_WIND_COAST_INK__: 0.6 })).toBe(0.6);
+    for (const bad of [0, 0.05, 1.2, '0.6', null, NaN]) expect(windCoastInk('light', { __RAW_WIND_COAST_INK__: bad })).toBe(1);
+  });
+  it('the plan: two entries for the coast (its colour, its opacity), marked; none unless asked for, and none where no border takes the ink', () => {
+    const style = REAL('light'), ink = WIND_BORDER_INK.color.light;
+    expect(windBorderInkPlan(style, 'wind', ink).filter((p) => p.id === 'wind-coastline')).toEqual([]);               // the default argument: the plan before D-028
+    expect(windBorderInkPlan(style, 'wind', ink, 0)).toEqual(windBorderInkPlan(style, 'wind', ink));
+    const plan = windBorderInkPlan(style, 'wind', ink, 1);
+    expect(plan.filter((p) => p.coast)).toEqual([
+      { id: 'wind-coastline', prop: 'line-color', from: 'rgb(45, 58, 72)', to: 'rgba(27, 30, 45, 0.7)', coast: true },
+      { id: 'wind-coastline', prop: 'line-opacity', from: 0.42, to: 1, coast: true },
+    ]);
+    expect(plan.filter((p) => !p.coast)).toEqual(windBorderInkPlan(style, 'wind', ink));                              // the borders' entries are untouched
+    expect(windBorderInkPlan(REAL('light', { windOnTop: true }), 'wind', ink, 1)).toEqual([]);                        // the under-labels kill: no border above the wind, no coast either
+    expect(windBorderInkPlan(style.filter((l) => !BORDER_LINES.includes(l.id)), 'wind', ink, 1)).toEqual([]);         // it RIDES the borders' ink
+  });
+  it.each(['light', 'beach'])('%s, wind on: the stroke is the ink at the ink\'s own strength, and the read-back says so; wind off: byte for byte back', (theme) => {
+    const map = fakeMap(REAL(theme)), win = {}, before = map.paint();
+    const r = syncWindBasemapMute(map, theme, true, 'wind', win);
+    expect(coast(map)).toEqual({ color: WIND_BORDER_INK.color[theme], opacity: 1 });
+    expect(r.coast).toEqual({ applied: true, opacity: 1 });
+    expect(win.__WIND_COAST_INK__).toMatchObject({ applied: true, opacity: 1, theme });
+    expect(r.ink).toEqual({ applied: true, layers: 3, color: WIND_BORDER_INK.color[theme] });                         // the borders' read-back keeps its shape and its count
+    const w = map.writes;
+    expect(syncWindBasemapMute(map, theme, true, 'wind', win).coast).toEqual({ applied: true, opacity: 1 });          // idempotent
+    expect(map.writes).toBe(w);
+    expect(syncWindBasemapMute(map, theme, false, 'wind', win).coast).toEqual({ applied: false, opacity: 0, reason: 'wind off' });
+    expect(coast(map)).toEqual(OWN);
+    expect(map.paint()).toBe(before);
+  });
+  it('its own kill: the stroke as the layer drew it, the borders still inked, stale both ways, and the reason is named', () => {
+    const map = fakeMap(REAL('light')), win = {};
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    win.__RAW_DISABLE_WIND_COAST_INK__ = true;
+    expect(windBasemapMuteStale(map, 'light', true, 'wind', win)).toBe(true);
+    const r = syncWindBasemapMute(map, 'light', true, 'wind', win);
+    expect(coast(map)).toEqual(OWN);
+    expect(r).toMatchObject({ applied: true, layers: 6, ink: { applied: true, layers: 3 }, coast: { applied: false, opacity: 0, reason: 'kill' } });
+    expect(map.getPaintProperty('admin-0-boundary', 'line-color')).toBe(WIND_BORDER_INK.color.light);
+    expect(windBasemapMuteStale(map, 'light', true, 'wind', win)).toBe(false);
+    delete win.__RAW_DISABLE_WIND_COAST_INK__;
+    expect(windBasemapMuteStale(map, 'light', true, 'wind', win)).toBe(true);
+    expect(syncWindBasemapMute(map, 'light', true, 'wind', win).coast).toEqual({ applied: true, opacity: 1 });
+    expect(coast(map)).toEqual({ color: WIND_BORDER_INK.color.light, opacity: 1 });
+  });
+  it('it rides the ink: the ink\'s kill, the mute\'s kill and dark leave the stroke alone, each with the ink\'s own reason', () => {
+    for (const [theme, win, reason] of [['light', { __RAW_DISABLE_WIND_BORDER_INK__: true }, 'kill'], ['beach', { __RAW_DISABLE_WIND_BASEMAP_MUTE__: true }, 'mute off'], ['dark', {}, 'theme']]) {
+      const map = fakeMap(REAL(theme));
+      expect(syncWindBasemapMute(map, theme, true, 'wind', win).coast).toEqual({ applied: false, opacity: 0, reason });
+      expect(coast(map)).toEqual(OWN);
+      expect(win.__WIND_COAST_INK__).toMatchObject({ applied: false, reason, theme });
+    }
+    const dark = fakeMap(REAL('dark'));
+    syncWindBasemapMute(dark, 'dark', true, 'wind', {});
+    expect(dark.writes).toBe(0);                                                                                       // dark is never touched
+  });
+  it('the lever is the stroke\'s opacity under the ink; the border lever moves the coast\'s colour with the borders\'', () => {
+    const map = fakeMap(REAL('light')), win = { __RAW_WIND_COAST_INK__: 0.6 };
+    expect(syncWindBasemapMute(map, 'light', true, 'wind', win).coast).toEqual({ applied: true, opacity: 0.6 });
+    expect(coast(map)).toEqual({ color: WIND_BORDER_INK.color.light, opacity: 0.6 });
+    win.__RAW_WIND_COAST_INK__ = 0.9;
+    expect(windBasemapMuteStale(map, 'light', true, 'wind', win)).toBe(true);
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    expect(coast(map).opacity).toBe(0.9);
+    const lev = fakeMap(REAL('light'));
+    syncWindBasemapMute(lev, 'light', true, 'wind', { __RAW_WIND_BORDER_INK__: INK });
+    expect(coast(lev)).toEqual({ color: INK, opacity: 1 });
+  });
+  it('a stroke the style REFUSES is not reported as inked, and one that is missing is named', () => {
+    const map = fakeMap(REAL('light'));
+    map.refuse = (id) => id === 'wind-coastline';
+    expect(syncWindBasemapMute(map, 'light', true, 'wind', {})).toMatchObject({ ink: { applied: true, layers: 3 }, coast: { applied: false, opacity: 0, reason: 'the style refused the ink' } });
+    const none = fakeMap(REAL('light').filter((l) => l.id !== 'wind-coastline'));
+    expect(syncWindBasemapMute(none, 'light', true, 'wind', {})).toMatchObject({ ink: { applied: true, layers: 3 }, coast: { applied: false, reason: 'no coastline above the wind' } });
+  });
+  it('a theme change that re-adds the stroke with the new theme\'s paint: the old record never writes over it, and the next sync inks it', () => {
+    const map = fakeMap(REAL('light')), win = {};
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    map.setPaintProperty('wind-coastline', 'line-color', 'rgb(45, 58, 72)');           // the layer re-added by the app for the new theme (WebGLWindLayer.js)
+    map.setPaintProperty('wind-coastline', 'line-opacity', 0.28);
+    syncWindBasemapMute(map, 'beach', true, 'wind', win);
+    expect(coast(map)).toEqual({ color: WIND_BORDER_INK.color.beach, opacity: 1 });
+    syncWindBasemapMute(map, 'beach', false, 'wind', win);
+    expect(coast(map)).toEqual({ color: 'rgb(45, 58, 72)', opacity: 0.28 });           // restored to the NEW layer's own, not to light's 0.42
   });
 });

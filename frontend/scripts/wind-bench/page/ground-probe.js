@@ -17,7 +17,13 @@
  *               own    the style's own map, wind off;
  *               muted  the map as the app restyles it under the wind (the mute, the border ink), wind hidden;
  *               field  that map under the wind's colour field alone (a 2x2 particle pool): the GROUND a streak is laid on;
- *   wind        the served speed (kn) under the land and under the sea of the view: median and quartiles.
+ *               full   (cfg.full) the same under the field AND the streaks: the MEAN picture over cfg.full frames at 60 Hz, in linear
+ *                      light (what the eye integrates); full minus field is the light the streaks ADD to that ground (LESSONS L-V73);
+ *   wind        the served speed (kn) under the land and under the sea of the view: median and quartiles;
+ *   strips      (cfg.strips = n) the picture cut into n column bands, west to east: each band's served speed and, for every picture
+ *               above, the land's and the sea's median luminance in it. On a speed ramp (ramp-fixture.js) a column is ONE speed over
+ *               land and over sea, so a band's land against its sea is the MAP's own step with the wind's colour held equal: how much
+ *               of the map comes through (the hurricane fixture cannot say: its sea is windier than its land).
  * }
  */
 const AREA = { background: ['background-color'], fill: ['fill-color', 'fill-outline-color'], 'fill-extrusion': ['fill-extrusion-color'],
@@ -34,7 +40,29 @@ const mid = (a) => { const s = Float64Array.from(a).sort(); return s.length ? s[
 const r1 = (x) => (x == null ? null : Math.round(x * 10) / 10);
 
 module.exports = function makeGroundRun(h) {
-  const { state, ensureMap, idle, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, WIND_ID, mute, speedAt } = h;
+  const { state, ensureMap, idle, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, animateEach, readCanvas, coastSync, settledWaterMask, WIND_ID, mute, speedAt } = h;
+  const lumAt = (px, p) => 0.2126729 * LIN[px[p]] + 0.7151522 * LIN[px[p + 1]] + 0.072175 * LIN[px[p + 2]];
+  const enc = (v) => Math.round(255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055));
+
+  /** Per column band (west to east): [the land's, the sea's] median luminance, null where a band holds under 200 samples of one. */
+  function bands(px, wet, W, H, n) {
+    const out = [];
+    for (let b = 0; b < n; b++) {
+      const x0 = Math.floor(W * b / n), x1 = Math.floor(W * (b + 1) / n), Y = [[], []];
+      for (let y = 2; y < H - 2; y += 3) for (let x = x0 + 1; x < x1 - 1; x += 3) { const i = y * W + x; Y[wet[i] ? 1 : 0].push(lumAt(px, i * 4)); }
+      out.push(Y.map((v) => (v.length >= 200 ? +mid(v).toFixed(5) : null)));
+    }
+    return out;
+  }
+  /** The served speed down the middle of each band (kn): the median over its rows. */
+  function bandSpeeds(map, W, H, dpr, n) {
+    if (!speedAt) return null;
+    return Array.from({ length: n }, (_, b) => {
+      const x = W * (b + 0.5) / n, v = [];
+      for (let y = 8; y < H - 8; y += 24) { const ll = map.unproject([x / dpr, (H - 1 - y) / dpr]), s = speedAt(ll.lng, ll.lat); if (s != null && Number.isFinite(s)) v.push(s); }
+      return v.length ? r1(mid(v)) : null;
+    });
+  }
 
   /** Medians over one surface (wet = 0 land, 1 sea), every third pixel a row and a column. */
   function surface(px, wet, W, H, which) {
@@ -65,8 +93,9 @@ module.exports = function makeGroundRun(h) {
 
   return async function groundRun(cfg) {
     const map = await ensureMap(cfg.theme), dpr = state.dpr;
-    state.active = false;
+    state.active = false; state.crop = Array.isArray(cfg.crop) ? cfg.crop : null; state.cropAt = cfg.cropAt || null;
     clearLevers(); Object.assign(window, cfg.levers || {});
+    if (coastSync) coastSync(map, cfg.theme);
     mute.syncWindBasemapMute(map, cfg.theme, false, WIND_ID);
     map.jumpTo({ center: [cfg.lng, cfg.lat], zoom: cfg.z });
     await idle(map);
@@ -86,14 +115,33 @@ module.exports = function makeGroundRun(h) {
       state.active = true;
       newEngine(2, cfg.seed);
       const field = await animate(map, cfg.frames || 120), landMask = await landMaskSettled();
+      let full = null, alpha = null;
+      if (cfg.full > 0 && animateEach) {   // the streaks on: 180 frames to lay the trails, then the mean of cfg.full frames in linear light
+        newEngine(cfg.res || 384, cfg.seed);
+        const acc = new Float32Array(W * H * 3), warm = cfg.warm || 180;
+        await animateEach(map, warm + cfg.full, (i) => {
+          if (i < warm) return;
+          const f = readCanvas(map), d = f.px; alpha = f.alpha;
+          for (let k = 0, p = 0; k < W * H; k++, p += 4) { acc[k * 3] += LIN[d[p]]; acc[k * 3 + 1] += LIN[d[p + 1]]; acc[k * 3 + 2] += LIN[d[p + 2]]; }
+        });
+        const px = new Uint8Array(W * H * 4);
+        for (let k = 0, p = 0; k < W * H; k++, p += 4) { px[p] = enc(acc[k * 3] / cfg.full); px[p + 1] = enc(acc[k * 3 + 1] / cfg.full); px[p + 2] = enc(acc[k * 3 + 2] / cfg.full); px[p + 3] = 255; }
+        full = { px, shot: (await animate(map, 0)).crop };
+      }
+      const fieldCrop = field.crop;
       state.active = false; disposeEngine();
-      const pick = (which) => ({ own: surface(own.px, wet, W, H, which), muted: surface(muted.px, wet, W, H, which), field: surface(field.px, wet, W, H, which) });
+      const pick = (which) => ({ own: surface(own.px, wet, W, H, which), muted: surface(muted.px, wet, W, H, which), field: surface(field.px, wet, W, H, which), full: full ? surface(full.px, wet, W, H, which) : null });
+      const n = cfg.strips > 0 ? cfg.strips : 0;
+      const strips = n ? { n, speed: bandSpeeds(map, W, H, dpr, n), own: bands(own.px, wet, W, H, n), muted: bands(muted.px, wet, W, H, n), field: bands(field.px, wet, W, H, n), full: full ? bands(full.px, wet, W, H, n) : null } : null;
       let sea = 0; for (let i = 0; i < wet.length; i++) sea += wet[i];
-      return { theme: cfg.theme, z: cfg.z, dpr, mute: { amount, waterL: amount > 0 ? waterL : 1, layers: synced.layers }, ink: synced.ink || null, landMask, seaShare: +(sea / wet.length).toFixed(3),
+      return { theme: cfg.theme, z: cfg.z, dpr, mute: { amount, waterL: amount > 0 ? waterL : 1, landL: synced.landL == null ? 1 : synced.landL, layers: synced.layers }, ink: synced.ink || null, landMask, seaShare: +(sea / wet.length).toFixed(3),
+        strips, canvasAlpha: alpha, crops: state.crop ? { own: own.crop, muted: muted.crop, field: fieldCrop, full: full ? full.shot : null } : null,
         areas, areasAbove, land: pick(0), sea: pick(1), wind: { land: speeds(map, wet, W, H, dpr, 0), sea: speeds(map, wet, W, H, dpr, 1) }, glError: state.gl.getError() || 0 };
     } finally {
       state.active = false; disposeEngine(); clearLevers();
+      if (coastSync) coastSync(map, cfg.theme);
       mute.syncWindBasemapMute(map, cfg.theme, false, WIND_ID);
+      state.crop = null; state.cropAt = null;
     }
   };
 };

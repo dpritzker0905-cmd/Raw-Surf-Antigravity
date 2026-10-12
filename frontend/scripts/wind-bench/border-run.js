@@ -10,6 +10,7 @@
  *   node scripts/wind-bench/border-run.js --inventory                      # also print each style's border and label layers and their paint
  *   node scripts/wind-bench/border-run.js --crop 720x480 --at 0.5,0.3      # device-resolution PNG crops (off | field | full an arm)
  *   node scripts/wind-bench/border-run.js --ref origin/dev --dpr 2 --offline
+ *   node scripts/wind-bench/border-run.js --lines coast                    # the COASTLINE stroke above the wind instead of the borders (dark's is the bar)
  *
  * An arm is { levers, paint, ink, windOnTop }: `levers` are window levers set before the app's own sync (windBasemapMute.js) runs; `paint` is a
  * list of { id, prop, value } laid AFTER it, and `ink` is short for one line-color on every border line: the bench's own override,
@@ -61,6 +62,7 @@ function parseArgs(argv) {
     else if (a === '--lat') opts.lat = Number(val());
     else if (a === '--offline') opts.offline = true;
     else if (a === '--inventory') opts.inventory = true;
+    else if (a === '--lines') opts.lines = val();
     else throw new Error(`unknown option ${a}`);
   }
   return opts;
@@ -112,11 +114,11 @@ async function main() {
     const fine = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'eye-2026-10-09-gfs-native.json'), 'utf8'));
     await page.evaluate((fx) => window.__MAP_BENCH__.init(fx), { fine, scale: opts.scale, offline: !!opts.offline, pixelRatio: opts.dpr });
     const lng = opts.lng == null ? VIEW.lng : opts.lng, lat = opts.lat == null ? VIEW.lat : opts.lat;
-    console.log(`view ${lng},${lat} · map pixel ratio ${opts.dpr} · wind x${opts.scale}${opts.offline ? ' · OFFLINE synthetic basemap' : ''}\n\n${HEADER}`);
+    console.log(`view ${lng},${lat} · map pixel ratio ${opts.dpr} · wind x${opts.scale}${opts.offline ? ' · OFFLINE synthetic basemap' : ''}${opts.lines === 'coast' ? ' · lines: the COASTLINE stroke above the wind' : ''}\n\n${HEADER}`);
     for (const theme of opts.themes) {
       let inv = null;
       for (const z of opts.zooms) {
-        const res = await page.evaluate((c) => window.__MAP_BENCH__.borderRun(c), { theme, z, lng, lat, frames: opts.frames, samples: opts.samples, gap: opts.gap, res: 384, seed: opts.seed, arms, crop: opts.crop, cropAt: opts.at });
+        const res = await page.evaluate((c) => window.__MAP_BENCH__.borderRun(c), { theme, z, lng, lat, frames: opts.frames, samples: opts.samples, gap: opts.gap, res: 384, seed: opts.seed, arms, crop: opts.crop, cropAt: opts.at, lines: opts.lines });
         inv = inv || res.inventory;
         if (res.masksExact === false) notRestored.push(`${theme} z${z} (the probe's own masks)`);
         const dir = path.join(opts.out, `${opts.tag}-crops`), save = (name, url) => { if (!url) return; fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, `${name}.${opts.crop[2] === 'jpeg' ? 'jpg' : 'png'}`), Buffer.from(url.split(',')[1], 'base64')); };
