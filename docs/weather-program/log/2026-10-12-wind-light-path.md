@@ -146,7 +146,10 @@ today | candidate at zooms 6, 4, 9). Files: `frontend/scripts/wind-bench/out/sho
 - A table module written through a shell heredoc lost its backticks, and a patch passed inline failed to parse: the known
   hazard, again. Both were redone from files.
 
-## 03:55Z · CORRECTION: every DARK number above was read through the wrong law
+## 03:45Z · CORRECTION: every DARK number above was read through the wrong law
+
+*(This header first read 03:55Z: an estimate, written at 03:45:48Z by the commit's own clock (LESSONS L-P10). Corrected before the
+branch was pushed; the audit caught it.)*
 
 Found by the session leading this work (its message, about 03:40Z) and checked here in the code: `WebGLWindShaders.js` line 992
 writes dark's field premultiplied, `vec4(fieldRgb * alpha, alpha)`, and `WebGLWindEngine.js` line 590 blends it with
@@ -196,3 +199,117 @@ The per-knot table (dark, light today, the candidate; land and sea; 0 to 60 kn) 
 - Whittle, "Brightness, discriminability and the crispening effect", Vision Research 1992 (PubMed 1455722); Kane and Bertalmio
   2016: a lightness difference is seen best near the background's own luminance. An equal L* step is therefore NOT the same
   visible step on a near-black map and on a pale one; equal lift in L* between themes is a first approximation.
+
+## 03:48Z to 04:55Z · The owner's choice (option 2), built: two levels, the legend bar, tests, gates
+
+**The owner, first-hand, 03:48Z**, after the still sheet, the frame sheet and the clip of the first candidate, and three options
+(take it; take the order but give the streaks their ground back at 16 to 21 kn; leave light as it is): "option 2, give the
+streaks their ground back and do the suggested task in the popup". The popup was this session's proposal card for beach; it was
+started at 03:49Z as its own session ("Beach wind: lightness one way, colour-blind floor back"), and the corrections found after
+its brief was written (dark's law, the edge bar, the ids) were sent to it.
+
+**Relayed by the session leading this work, not first-hand here:** the owner, 01:33Z, "merge #314 and start the borders and light
+colours follow-ups"; and, 02:58Z, asking that session to lead the sub-sessions with "the jacobian lens". Its asks of this lane
+(a per-knot ground table for land and sea, the flatness of the ground along speed, the sign, cited colour science) are answered
+in the 03:45Z correction section above and in the shared notes folder.
+
+### The solve (dark by the engine's law; `light-path-solve.mjs --deep`)
+
+Bars: calm kept as drawn; hue within 20 degrees of dark's at the stops and never turning back; lightness never rising beyond the
+table's own rounding (0.02 L*); depth caps 65.2 at 6 kn, 65.8 from 10 to 15 kn, 60.3 from 16 kn; no knot harder than dark's own
+(8.9 dE00); one chroma crest from the first stop that moves; normal-vision neighbours 8.0. The aim: the deepest ground, 10, 16
+and 21 kn weighted double.
+
+| | 3 kn | 6 kn | 10 kn | 16 kn | 21 kn | 27 kn | 33 kn (kept) |
+|---|---|---|---|---|---|---|---|
+| before, over land (L* / C* / hue) | 72.1 / 26.4 / 302 | 65.1 / 45.5 / 291 | 59.1 / 47.5 / 318 | 57.1 / 44.6 / 129 | 61.4 / 39.2 / 162 | 60.3 / 32.1 / 126 | 53.6 / 33.0 / 92 |
+| built (option 2) | 71.9 / 21.6 / 299 | 65.2 / 28.0 / 276 | 64.9 / 30.3 / 197 | 60.1 / 32.1 / 165 | 60.1 / 36.3 / 138 | 60.1 / 42.5 / 107 | 53.6 / 33.0 / 92 |
+| built, over sea | 55.4 / 18.0 / 293 | 50.2 / 23.5 / 274 | 50.2 / 24.7 / 199 | 46.2 / 25.9 / 167 | 46.2 / 29.3 / 140 | 46.0 / 33.8 / 110 | 40.8 / 25.6 / 97 |
+| dark over its land, engine's law (hue) | 299 | 256 | 177 | 153 | 132 | 97 | 82 |
+
+Colour-blind floor 5.13 (21-27 kn, protan, over the sea; 5.5 over land). Weakest normal-vision neighbours 8.0. Hue gap to dark
+19.9 degrees at the stops, 24.6 at some knot between. Hardest edge 7.9 dE00 (6 to 7 kn over land).
+
+- **Calm kept; 3 kn re-solved.** With calm AND 3 kn kept as drawn the two-level shape reached 5.01 to 5.09 at 20 to 24 degrees.
+  With 3 kn free it lost 4.8 C* (26.4 to 21.6) and the floor reads 5.13 at 20 degrees: the 3 to 6 kn pair is what it buys.
+- **5.20 was available and not taken:** with lightness allowed to rise 0.1 L* from 21 to 27 kn (the first tolerance) the same
+  shape reads 5.20. The bar is "never rises"; the table holds it to 0.02.
+- **Option 2 against the first candidate, in motion** (`motion-run.js --dpr 1.5`, `mirror-run.js --at`; lift against dark's):
+
+  | | sea z6 / z4 / z9 | land z6 / z4 / z9 | a streak's step over land at z9 |
+  |---|---|---|---|
+  | light before | 1.03 / 1.22 / 1.14 | 0.89 / 0.78 / 0.30 | 16.7 L* |
+  | first candidate (one level) | 1.05 / 1.11 / 1.20 | 0.74 / 0.68 / 0.02 | 11.0 |
+  | built (two levels) | 1.03 / 1.13 / 1.14 | 0.71 / 0.74 / 0.19 | 13.1 |
+
+  It gives back the ground from 16 kn (zoom 4 and part of zoom 9). The zoom 6 land crop sits in 6 to 10 kn wind, on the L* 65
+  level: nothing came back there. **Under 6 to 13 kn winds over land the streaks are fainter than before, and stay so.**
+
+### The legend bar
+
+A first build laid the new rows INSIDE `resolveThemeRamp`. 28 tests failed, most in states this change never draws (the looks,
+the hue-path kill, the mid-band refine): the particle ramp is what every older kill draws its marks from. Rebuilt with the bar's
+own resolver (`resolveLegendRamp`, used by `windLegendGradientCSS`); `resolveThemeRamp` is byte for byte what it was. 16 pins
+moved, all of the old default. `light-path-legend.mjs` solved the six rows (3 to 27 kn): each within 6 degrees of the field's
+hue at its stop, the bar within 17 degrees of the field at every half knot from 3 to 40 kn over land and sea; neighbours from
+calm to 33 kn 12.0 dE00 or more in normal vision and 5.4 colour-blind; lightness never rising along the bar. `check.mjs` and the
+bench's `map-entry.js` read the bar through it. `MapWeatherControls.js` is not edited: its three layouts draw the one derived
+bar.
+
+### The palette checker, `check.mjs --strict` (every red and warn line as it is)
+
+| | before (dev `ec8f46a2`) | now | under the kill |
+|---|---|---|---|
+| light legend, normal / colour-blind | 9.3 (6-10 kn) / 5.2 (27-33 protan) | 11.7 (40-47) / 5.4 (10-16 tritan) | dev's |
+| light tint over water / land, colour-blind | 5.5 / 5.6 | 5.1 (21-27 protan) / 5.5 | dev's |
+| light: tint > 30 deg off the legend | none | none | none |
+| light marks' own colours, colour-blind (a watch line) | warn 2.5 | warn 2.3 | dev's |
+| beach tint over water / land, colour-blind | RED 3.1 / RED 3.2 | RED 3.1 / RED 3.2 | |
+| beach marks (watch lines) | warn 6.3, 1.7, 2.0 | the same | |
+| dark: tint < 20 deg off the water hue (watch) | warn 6-7.5 kn | the same | |
+
+Exit 1 before and now, for beach's two red lines alone. No bar was lowered.
+
+### Tests and gates
+
+- **`windLightPath.test.js`, new, 62 tests:** the switch and every lever that stands it down (36 lever cases, each compared with
+  and without the kill: tables, key, bar, mark model); the kill byte for byte against `WATCHED.light`; beach and dark against
+  their own pins; the engine's call shape on the real window; the order (reversals 0 against 4, hue gap against dark by the
+  engine's law, pinned from the shader's and the engine's own lines); the edge; the two levels; the floor on both grounds; the
+  costs; the streak core; the bar. **Mutations, 5 of 5 red:** the kill ignored (14 tests fail), 10 kn back to an orchid (9), the
+  bar ignoring its levers (2), the path drawn without the white streak (1), the look key forgetting the path (2).
+- **Re-pinned on purpose, not loosened:** `windWhiteStreak.test.js` (light's D-021 bytes are read under the path's kill; the
+  window block kills the path; the descriptive lightness pins moved: everyday 60.1 to 65.0 where the arm read 57.1 to 61.4, 3 kn
+  71.9, and the depth bars 65.3 / 50.3 where they were 65.2 / 50.2, because 6 kn over the sea reads 50.21), `windDarkWhite.test.js`
+  (its `TABLES` for light under the path's kill; the look key), `windDarkRules.test.js` (the new kill classified: 60 named, 21
+  hold, 39 do not; the look key), `windLightLook.test.js` and `windClearLowBand.test.js` (the bar before the path, read through
+  the kill), `src/tests/windLegendFromRamp.test.js` (the bar derives from `resolveLegendRamp`; a new test for the bar under the
+  kill).
+- **Jest, both trees:** 307 suites, 4,123 tests, 0 failed (306 and 4,060 on dev at #314's record: 62 new and 1 in the legend
+  file). **`check_eslint.js`:** no rule over its baseline. **`loc_ratchet.py`:** no new violation (`WindColorRamp.js` 790 of 800
+  lines). **Production build** (`node update-sw-version.js && NODE_OPTIONS=--openssl-legacy-provider CI=false npx craco build`,
+  Git Bash): exit 0; the two stamped files restored.
+- **The 3-seed scanner** (`run.js --seeds 3 --themes light --variants candidate,before-path`, 84 runs): positive control PASS on
+  all three seeds; the default and the kill read IDENTICALLY on every number in all 13 views (4 shapes in 3 of 13 views, ink 100
+  to 160 in both). **A null by construction, as the scanner itself prints:** it reads max(R, G, B), and the path moves hue and
+  saturation only. It shows the path moves no shape; it says nothing about the colours.
+
+### This stretch's own slips
+
+- A trailing comment added to the solver's penalty line commented out four bars; one run returned a table 0.8 L* over its depth
+  cap with "violation 0.000". Caught on the printed bars, fixed, re-run (LESSONS L-V52).
+- A write of the two-level tables was refused (the file had changed under an earlier patch) and went unnoticed for one bench
+  run: the first "two-level" film was the one-level tables. Caught because its ink read the first candidate's to two decimals;
+  re-filmed under new run names.
+- The first legend build (above) changed a shared table at the table instead of at the reader (LESSONS L-V53).
+
+### Not verified, and what it costs
+
+- **Nothing of this build has been seen in the app.** The owner chose option 2 from its description and the first candidate's
+  clip; the clip of option 2 itself goes out with the PR. The numbers are the real engine on the real basemaps at pixel ratio
+  1.5, on the bench's view (Mobile Bay, a hurricane fixture), not the owner's.
+- **Dark's law is read from the code,** not from pixels (the leading session owes the GPU read). If it is wrong, the hue gap
+  and the edge bar quoted against dark move; light's own bars do not.
+- **The bench's `hue30` line was not run** on this build (the bar is now read through `resolveLegendRamp` there).
+- **Phones:** not measured. **The legend bar** was checked as a ramp and as CSS, not looked at in the three layouts.
+- **No served number moves** (client only): no SCOREBOARD row.

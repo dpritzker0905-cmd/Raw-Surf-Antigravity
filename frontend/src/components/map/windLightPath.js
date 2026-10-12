@@ -29,7 +29,7 @@
  *   - TWO LEVELS, for the white streak: 6 to 10 kn at L* 65, 16 to 27 kn at L* 60. A white streak needs a ground deeper than itself, and
  *     the first candidate (one level, L* 64 from 6 to 21 kn) cost the streaks a quarter of their lift over land;
  *   - neighbouring Beaufort stops stay 5.1 dE2000 or more apart for protan, deutan and tritan viewers, over land AND sea (5.5 before);
- *   - no knot steps further than 7.8 dE00 (16.0 before; dark's hardest is 8.9).
+ *   - no knot steps further than 7.9 dE00 (16.0 before; dark's hardest is 8.9).
  * WHAT IT COSTS, said plainly:
  *   - the 6 to 16 kn bands are less colourful (C* 28 to 32 against 45 to 47): a cyan or a blue this deep cannot hold more under a
  *     multiply tint. It is still more colour than dark's own field shows there (C* 18 to 21 on screen);

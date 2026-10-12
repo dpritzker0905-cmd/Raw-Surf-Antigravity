@@ -467,3 +467,58 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   and side-by-side sheets); the bench in motion, before and after beside dark, land and sea read apart (`motion-run.js`,
   `mirror-run.js --at`; two clips sent to the owner); tables hashed equal to D-021's with and without the kill; the palette
   checker's red lines unchanged (beach's two colour-blind lines, as under D-021).
+
+### D-024 · Light's wind field runs dark's hue ORDER on two lightness levels, and its legend bar moves with it; ON by default
+- **Decided:** by the owner, 2026-10-12, first-hand in the building session's chat. 02:48Z, on the plan for light's colours: "you
+  need to double check all this. The light and beach modes need to make sense logically. It could be the way it is, or it could
+  not be. It all has to make sense to match dark mode, but it their colors and maps". 03:48Z, shown a first candidate moving
+  beside dark, what it cost the streaks over land, and three options (take it; take the order but give the streaks their ground
+  back at 16 to 21 kn; leave light as it is): "option 2, give the streaks their ground back and do the suggested task in the
+  popup". Relayed by the session leading this work, not first-hand here: 01:33Z "merge #314 and start the borders and light
+  colours follow-ups". That a visual change the owner asked for ships ON with a kill is D-020's standing rule; applying it here
+  is this session's reading. **The owner chose option 2 from its description and the first candidate's clip: option 2 itself had
+  not been seen moving when this was written** (its clip went out with the PR).
+- **Rule:** wherever the white streak draws in light (D-021), rows 1 to 32 kn of light's field and of its streak row are
+  `LIGHT_PATH` (`windLightPath.js`), and the legend BAR's 3 to 27 kn rows follow the field's hues. Calm and every row from 33 kn
+  are the rows before. Beach and dark do not change. The particle ramp (`resolveThemeRamp`) does not change in any state: the bar
+  has its own resolver (`resolveLegendRamp`). Client only; no served number moves.
+- **Why (the check, log 2026-10-12-wind-light-path):** dark carries speed in the ORDER of its hues, one way round the wheel with
+  speed, never turning back over its land. Light ran that order at calm, 3, 6 and 16 kn and from 33 kn up, and broke it twice:
+  10 kn was an orchid (hue 318), the colour dark gives calm air, and 21 kn a teal (162) behind 16 kn's green (129) and 4.3 L*
+  lighter than it. Both were chosen on 2026-10-09 to keep the wind off light's cyan sea, before the basemap mute greyed it;
+  the colour-blind passes then held them (L-V45). Between them the field swung 188 degrees of hue in six knots: a 16.0 dE00
+  edge, the hardest any theme draws.
+- **What draws, over light's muted land (L* / C* / hue; dark's hue by the engine's law):** 3 kn 71.9 / 21.6 / 299 (299) · 6 kn
+  65.2 / 28.0 / 276 (256) · 10 kn 64.9 / 30.3 / 197 (177) · 16 kn 60.1 / 32.1 / 165 (153) · 21 kn 60.1 / 36.3 / 138 (132) · 27 kn
+  60.1 / 42.5 / 107 (97) · 33 kn 53.6 / 33.0 / 92 (82), as before. The hue never turns back from calm to 60 kn (four times
+  before) and sits within 20 degrees of dark's at every Beaufort stop from 3 to 21 kn. Lightness never rises from calm to 33 kn.
+  Two levels (65 from 6 to 10 kn, 60 from 16 to 27 kn): the owner's option 2. Hardest edge 7.9 dE00 a knot (dark's own 8.9).
+- **The bars it holds (the palette checker, `check.mjs --strict`):** neighbouring tints 5.1 over the sea and 5.5 over land for
+  protan, deutan and tritan (5.5 and 5.6 before; the floor is 5.0); the legend 11.7 in normal vision (9.3) and 5.4 colour-blind
+  (5.2); no speed whose tint sits more than 30 degrees off the legend. No red line for light. Beach's two red lines are dev's.
+- **What it gives up, said plainly:**
+  - **Colour at 6 to 16 kn:** C* 28 to 32 against 45 to 47. A cyan or a blue this deep cannot hold more under the 0.70 multiply
+    tint. It is still more than dark's own field shows on screen there (C* 18 to 21).
+  - **Depth at 10 and 16 kn:** 5.8 and 3.0 L* lighter (21 kn is 1.3 deeper). The cyan band stays light in every solve.
+  - **Streaks over land:** lift against dark's 0.71 / 0.74 / 0.19 at zooms 6 / 4 / 9 (0.89 / 0.78 / 0.30 before; the first
+    candidate, one level, read 0.74 / 0.68 / 0.02). Over the sea 1.03 / 1.13 / 1.14 (1.03 / 1.22 / 1.14 before). Option 2 gave
+    back the ground from 16 kn; under 6 to 13 kn winds over land the streaks are fainter than before.
+  - **Normal-vision neighbours:** the weakest are 8.0 dE00 apart (27 to 33 kn over the sea); the field's weakest was 9.0.
+    Dark's own is 5.1 to 5.5.
+  - **3 kn** is a shade less colourful (C* 21.6 against 26.4): what separates it from the new 6 kn for a protan viewer.
+  - **The floor's margin:** 5.1 where it was 5.5. With lightness allowed to rise 0.1 L* at 27 kn the solve reads 5.2; not taken.
+- **Kill:** `window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true`: light's field, streak row and legend bar as before, byte for byte
+  (the tables hash to D-021's; the engine rebuilds at once, the bar at its next render). D-020's, D-021's and every older kill
+  and lever still stand the whole thing down and draw exactly what they drew.
+- **Read-back:** `window.__WIND_ENGINE__._lookKey` is `white+path|dark-rules` in light (`white|dark-rules` under the kill and in
+  beach; `|` in dark).
+- **Not decided, and not built here:**
+  - **Beach.** Its hue order is sound; its lightness runs both ways (10 kn its darkest band, 27 to 40 kn as light as calm) and
+    its colour-blind line has been red (3.1 / 3.2) since D-020. Its own session, started by the owner's word.
+  - **Dark's law in the instruments.** `mirror-model.mjs` and `check.mjs` lay dark's field at alpha; the engine lays it at alpha
+    squared. By the engine's law this model reads dark's own colour-blind line at 2.5 to 3.1. The leading session's change.
+  - **The 6 to 13 kn ground over land,** and the land in general (D-022: white cannot lift a pale land further).
+- **Evidence (log 2026-10-12-wind-light-path):** the check, speed by speed (a still sheet sent to the owner); the frontier (what
+  each bar costs); `check.mjs --strict` before and after, and under the kill line for line; `motion-run.js --dpr 1.5` and
+  `mirror-run.js --at`, land and sea apart, dark beside light before and both candidates; `windLightPath.test.js` (62 tests, each
+  with the table before as its control; 5 of 5 mutations red); an independent review.
