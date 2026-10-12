@@ -637,3 +637,9 @@ pass 800 lines. Single-file three-way merges in a scratch folder (dev `74417b5a`
 - **Not checked:** the two loaders' output against the previous output byte for byte (the Jest byte pins and the checker's
   unchanged lines stand in for it). Nothing of this build has been seen in the app by this session.
 - #318 at this time: head `05100f28` before this commit, MERGEABLE, dev still at `74417b5a`. Not merged.
+- **Correction, 16:02Z, to the line above:** it was a stale read given as a current one. This session had last fetched at
+  15:43Z, and dev moved to `720b3980` at 15:47:43Z when #321 was merged. Read at 16:01Z: #321 MERGED; #318 (head `ade024d5`)
+  CONFLICTING against dev, as expected (the four records, `windDarkRules.test.js`, the bench's `page/map-entry.js`); #315 and
+  #319 CONFLICTING; #320 MERGEABLE. Dev is brought into this branch once, at the leading session's signal after #319, so this
+  branch's ledger lines are re-appended once and not after each of the four merges. The gates in this section were run on the
+  tree with dev `74417b5a` merged in.
