@@ -226,3 +226,11 @@ fixes; one capture after them (light and beach at 15 kn, land and sea) reads the
   "windBeachPathOn is not defined". Source files are merged by hand.
 - A prototype's levers were named `__PROTO_...`; the bench clears only `__RAW_...` keys, and two "before" runs drew the
   prototype. Thrown away, re-captured.
+
+## 13:44Z · Correction: the review section's header ran ahead of the clock
+
+The header '12:50-13:20Z · The independent review, before the PR (a fresh agent, the diff, 36 mutations on a scratch copy): one design defect and seven smaller findings' ends at 13:20Z. That end was an estimate: the section was committed at 13:04:15Z (d22b0afd). Read from
+the files the work left: the reviewer's report was written at 12:52:29Z, the fixes' Jest run ended at 12:58:51Z, the lint at
+12:59:04Z, the one capture after the fixes at 13:01:24Z and the production build at 13:03:12Z. The section's work ran from the
+review's return, 12:52Z, to 13:03Z. Nothing else in it changes. Hosted CI's `Weather Program Ledger` check found it on #320's
+first head (LESSONS L-P10: a header's time is a clock reading, never an estimate).
