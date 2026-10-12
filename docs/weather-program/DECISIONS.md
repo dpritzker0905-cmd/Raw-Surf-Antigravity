@@ -597,6 +597,91 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   on the real basemaps before and after, beside dark, with the layer-order control; the built code against the candidate and its
   kill; 18 of 18 offline crops under the kill the same PNG as `origin/dev`, dark's 9 of 9; map mode's columns with the app's
   restyle run; before and after crops and two side-by-side clips at the owner's pixel ratio. Nothing has been seen in the app.
+### D-024 · Light's wind field runs dark's hue ORDER on two lightness levels, and its legend bar moves with it; ON by default
+- **Decided:** by the owner, 2026-10-12, first-hand in the building session's chat. 02:48Z, on the plan for light's colours: "you
+  need to double check all this. The light and beach modes need to make sense logically. It could be the way it is, or it could
+  not be. It all has to make sense to match dark mode, but it their colors and maps". 03:48Z, shown a first candidate moving
+  beside dark, what it cost the streaks over land, and three options (take it; take the order but give the streaks their ground
+  back at 16 to 21 kn; leave light as it is): "option 2, give the streaks their ground back and do the suggested task in the
+  popup". Relayed by the session leading this work, not first-hand here: 01:33Z "merge #314 and start the borders and light
+  colours follow-ups". That a visual change the owner asked for ships ON with a kill is D-020's standing rule; applying it here
+  is this session's reading. **The owner chose option 2 from its description and the first candidate's clip: option 2 itself had
+  not been seen moving when this was written** (its clip went out with the PR).
+- **Rule:** wherever the white streak draws in light (D-021), rows 1 to 32 kn of light's field and of its streak row are
+  `LIGHT_PATH` (`windLightPath.js`), and the legend BAR's 3 to 27 kn rows follow the field's hues. Calm and every row from 33 kn
+  are the rows before. Beach and dark do not change. The particle ramp (`resolveThemeRamp`) does not change in any state: the bar
+  has its own resolver (`resolveLegendRamp`). Client only; no served number moves.
+- **Why (the check, log 2026-10-12-wind-light-path):** dark carries speed in the ORDER of its hues, one way round the wheel with
+  speed, never turning back over its land. Light ran that order at calm, 3, 6 and 16 kn and from 33 kn up, and broke it twice:
+  10 kn was an orchid (hue 318), the colour dark gives calm air, and 21 kn a teal (162) behind 16 kn's green (129) and 4.3 L*
+  lighter than it. Both were chosen on 2026-10-09 to keep the wind off light's cyan sea, before the basemap mute greyed it;
+  the colour-blind passes then held them (L-V45). Between them the field swung 188 degrees of hue in six knots: a 16.0 dE00
+  edge, the hardest any theme draws.
+- **What draws, over light's muted land (L* / C* / hue; dark's hue by the engine's law):** 3 kn 71.9 / 21.6 / 299 (299) · 6 kn
+  65.2 / 28.0 / 276 (256) · 10 kn 64.9 / 30.3 / 197 (177) · 16 kn 60.1 / 32.1 / 165 (153) · 21 kn 60.1 / 36.3 / 138 (132) · 27 kn
+  60.1 / 42.5 / 107 (97) · 33 kn 53.6 / 33.0 / 92 (82), as before. The hue never turns back from calm to 60 kn (four times
+  before) and sits within 20 degrees of dark's at every Beaufort stop from 3 to 21 kn. Lightness never rises from calm to 33 kn.
+  Two levels (65 from 6 to 10 kn, 60 from 16 to 27 kn): the owner's option 2. Hardest edge 7.9 dE00 a knot (dark's own 8.9).
+- **The bars it holds (the palette checker, `check.mjs --strict`):** neighbouring tints 5.1 over the sea and 5.5 over land for
+  protan, deutan and tritan (5.5 and 5.6 before; the floor is 5.0); the legend 11.7 in normal vision (9.3) and 5.4 colour-blind
+  (5.2); no speed whose tint sits more than 30 degrees off the legend. No red line for light. Beach's two red lines are dev's.
+- **What it gives up, said plainly:**
+  - **Colour at 6 to 16 kn:** C* 28 to 32 against 45 to 47. A cyan or a blue this deep cannot hold more under the 0.70 multiply
+    tint. It is still more than dark's own field shows on screen there (C* 18 to 21).
+  - **Depth at 10 and 16 kn:** 5.8 and 3.0 L* lighter (21 kn is 1.3 deeper). The cyan band stays light in every solve.
+  - **Streaks over land, 10 to 16 kn:** read speed by speed on a ramp scene (wind due north, 3 to 33 kn across the view, zoom
+    6; lift against dark's, before -> now): 6 kn 0.78 -> 0.75 · 8 kn 0.60 -> 0.56 · **10 kn 0.68 -> 0.52 · 13 kn 0.78 -> 0.56 ·
+    16 kn 0.90 -> 0.77** · 19 kn 0.77 -> 0.74 · 21 kn 0.74 -> 0.74 · 24 kn 0.73 -> 0.75 · 27 kn 0.70 -> 0.70 · 30 kn 0.84 -> 0.81.
+    Option 2 gave the ground back from 19 kn; the first candidate (one level) lost it to 26 kn.
+  - **Streaks over the sea:** 0.96 to 1.06 of dark's lift at every speed from 6 to 30 kn (0.95 to 1.11 before): from 8 to 16 kn
+    it comes DOWN 0.03 to 0.09, from a little above dark's to dark's. (On the hurricane scene the sea crops read 1.03 / 1.13 /
+    1.14 at zooms 6 / 4 / 9 against 1.03 / 1.22 / 1.14: those crops hold about 41 kn wind, rows this change does not touch.)
+  - **Qualified 2026-10-12 15:13Z:** both streak reads above were taken on frames the bench saved darker than the screen at
+    bright streak cores (found by the review of PR #321; this session's log, 15:13Z). The direction stands on the tables (a
+    lighter ground at 10 and 16 kn); the sizes are owed a re-read on the corrected bench.
+  - **Corrected 2026-10-12 15:38Z (the leading session's read on #321's bench; relayed):** the ratios to dark above do not
+    stand. With this decision's rows light's streaks add 1.33 to 2.36 times the light dark's add over the sea and 1.10 to
+    1.55 times over the pale land (1.01 to 1.22 over PR #320's deep land), at eight speeds from 3 to 39 kn. The gap to dark
+    over land was the gauge. Before against now in light has not been re-read on that bench.
+  - **Normal-vision neighbours:** the weakest are 8.0 dE00 apart (27 to 33 kn over the sea); the field's weakest was 9.0.
+    Dark's own is 5.1 to 5.5.
+  - **3 kn** is a shade less colourful (C* 21.6 against 26.4): what separates it from the new 6 kn for a protan viewer.
+  - **The floor's margin:** 5.1 where it was 5.5. With lightness allowed to rise 0.1 L* at 27 kn the solve reads 5.2; not taken.
+- **Kill:** `window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true`: light's field, streak row and legend bar as before, byte for byte
+  (the tables hash to D-021's; the engine rebuilds at once, the bar at its next render: the controls key the legend's memo on
+  the look key). D-020's, D-021's and every older kill and lever still stand the whole thing down and draw exactly what they
+  drew, **and so does D-022's kill** (`__RAW_DISABLE_WIND_DARK_WHITE__`): it restores D-021's picture, full white over the
+  tables that picture was drawn on. Under the Canvas2D fallback (`WindParticleOverlay.js`, drawn when the WebGL wind fails) the
+  path and its bar stand down too: that overlay samples the particle ramp, and the bar must be the ramp its marks draw.
+- **Read-back:** `window.__WIND_ENGINE__._lookKey` is `white+path|dark-rules` in light (`white|dark-rules` under the kill and in
+  beach; `|` in dark).
+- **Not decided, and not built here:**
+  - **Beach.** Its hue order is sound; its lightness runs both ways (10 kn its darkest band, 27 to 40 kn as light as calm) and
+    its colour-blind line has been red (3.1 / 3.2) since D-020. Its own session, started by the owner's word.
+  - **Dark's law in the instruments.** `mirror-model.mjs` and `check.mjs` lay dark's field at alpha; the engine lays it at alpha
+    squared. By the engine's law this model reads dark's own colour-blind line at 2.5 to 3.1. The leading session's change.
+  - **The 6 to 13 kn ground over land,** and the land in general (D-022: white cannot lift a pale land further).
+- **Evidence (log 2026-10-12-wind-light-path):** the check, speed by speed (a still sheet sent to the owner); the frontier (what
+  each bar costs); `check.mjs --strict` before and after, and under the kill line for line; `motion-run.js --dpr 1.5` and
+  `mirror-run.js --at`, land and sea apart, dark beside light before and both candidates, on the hurricane scene and on a speed
+  ramp; `windLightPath.test.js` (66 tests, each with the table before as its control; 9 of 9 mutations red); an independent
+  review (13,693 lever sets against dev: 0 mismatches under the kill, 0 mixes; four should-fix findings, all fixed).
+- **Amended 2026-10-12 15:58Z (the owner's go-ahead to merge, RELAYED; not heard by the session that wrote this decision):** the
+  leading session reports the owner's words to it, first-hand there, 2026-10-12 15:38Z: "merge #321 and #320 and take the
+  re-solved F" and "and merge anything else needed as well". It reads "anything else needed" as the open changes its re-filmed
+  combined clip showed the owner, PR #318 among them, and merges #318 last (after #321, #320, #315 and #319). PR #318 is not
+  named in the owner's words: that they cover it is the leading session's reading. The decision itself does not change. Before
+  that merge the checker is run on the merged tree; if light's colour-blind line over PR #320's land prints under 5.0 the
+  merge waits and the owner is shown, and no row is adjusted quietly.
+- **Amended 2026-10-12 17:43Z (the owner, first-hand in the building session's chat): "option 1, merge as shown and add the
+  pin".** What was put to them: on a trial of the tree dev will be after PR #319, the checker reads light's colour-blind line
+  over PR #320's deeper land at 5.006 (it prints 5.0; no red line), and read from the 256-entry 8-bit texture the engine
+  uploads the same line is 5.033 at a 50 kn maximum, 4.987 at 75 kn and 4.859 at the least: under 5.0 at 151 of the 281 maxima
+  from 10 to 80 kn (dev's own light on that land: 21 of 281; on the land before PR #320: never). Option 1: this decision's rows
+  merge as they were filmed, that line is stated and PINNED in `windLightPath.test.js` so a green test run never reads as "the
+  floor holds", and light's rows are re-solved on the deeper land next and shown before they replace these. Option 2 was to
+  hold the merge for that re-solve. The colour-blind floor of 5.0 stays the bar; this is a known shortfall on the uploaded
+  texture, taken by the owner's word, not a lower bar.
 
 ### D-025 · Beach's wind field: lightness one way through its green band and its pale gale band under a ceiling (option F); ON by default
 - **Decided:** by the owner, 2026-10-12 11:50Z, said to the session leading the light and beach wind work and relayed by it to the

@@ -30,8 +30,10 @@ import { GLSL_LAND_FS } from './windLandMask';
 
 const V2 = resolveWindParticlesV2({});
 const KILL = { __RAW_DISABLE_WIND_DARK_WHITE__: true };   // full strength on both grounds, as PR #313 laid it
+const NO_PATH = { __RAW_DISABLE_WIND_LIGHT_PATH__: true };   // light's path (windLightPath.js, D-024) re-ordered light's 1 to 32 kn rows since: PR #313's bytes are what light draws under ITS kill
 const P = { __RAW_DISABLE_WIND_BEACH_PATH__: true };      // before beach's path (windBeachPath.js): the field PR #313 drew, which TABLES pins. The path moves beach's field and its look key, never the strength, and stands down under KILL
-const KEY = { light: 'white|dark-rules', beach: 'white+path|dark-rules' };
+const B4 = { ...P, ...NO_PATH };                           // each theme before ITS path (each kill is read by its own theme only)
+const KEY = { light: 'white+path|dark-rules', beach: 'white+path|dark-rules' };
 const FULL = { land: 1, sea: 1 };
 const THEMES = ['light', 'beach'];
 const WHITE_MARKS = { mode: 2, on: false, glow: true, purity: 0, density: 1, opacity: 1.0, spine: 1, white: 0 };   // D-021's mark model: this change leaves it alone
@@ -94,11 +96,15 @@ describe('the numbers: a strength for each ground, a theme', () => {
 
 describe('it is the strength alone: D-022 moved no table, no key and no mark model (since beach\'s path, its kill also returns beach\'s field and key to PR #313\'s)', () => {
   it.each([50, 75])('the fields and the streak rows are PR #313\'s, byte for byte, with and without the kill (%i kn)', (max) => {
-    for (const theme of THEMES) { expect(hashes(theme, P, max)).toEqual(TABLES[theme][max]); expect(hashes(theme, KILL, max)).toEqual(TABLES[theme][max]); }   // the kill draws PR #313's tables: beach's path stands down under it
+    // Each theme's default has moved on to its path (light's D-024, beach's D-025). PR #313's bytes are what each draws under its path's
+    // kill AND under this kill: D-022's kill restores D-021's picture, the tables it was drawn on included (it stands both paths down).
+    for (const theme of THEMES) { expect(hashes(theme, B4, max)).toEqual(TABLES[theme][max]); expect(hashes(theme, KILL, max)).toEqual(TABLES[theme][max]); }   // the kill draws PR #313's tables: beach's path stands down under it
+    expect(hashes('light', {}, max)).not.toEqual(TABLES.light[max]);
+    expect(hashes('light', { ...NO_PATH, ...KILL }, max)).toEqual(TABLES.light[max]);
     expect(hashes('dark', {}, max)).toEqual(hashes('dark', KILL, max));
   });
   it('the mark model and the look key are D-021\'s (the strength is a uniform the engine binds every frame)', () => {
-    for (const theme of THEMES) for (const w of [{}, KILL]) { expect(windInk(theme, V2, w)).toEqual(WHITE_MARKS); expect(windLookKey(theme, { ...w, ...P })).toBe('white|dark-rules'); }
+    for (const theme of THEMES) for (const w of [{}, KILL]) { expect(windInk(theme, V2, w)).toEqual(WHITE_MARKS); expect(windLookKey(theme, { ...w, ...B4 })).toBe('white|dark-rules'); }
     for (const theme of THEMES) { expect(windLookKey(theme, {})).toBe(KEY[theme]); expect(windLookKey(theme, KILL)).toBe('white|dark-rules'); }
     expect(windInk('dark', V2, {}).mode).toBe(0);
   });

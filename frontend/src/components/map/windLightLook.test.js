@@ -131,7 +131,8 @@ describe('off: the lever unset, killed, or not a look', () => {
       expect(resolveMarkRamp(theme, lever(look))).toBeNull();
       expect(windInk(theme, V2, lever(look))).toEqual(windInk(theme, V2, {}));
     }
-    const themes = ['light', 'beach', 'dark'], legends = themes.map((t) => resolveThemeRamp(t)), bars = themes.map((t) => windLegendGradientCSS(t));
+    // the bar BEFORE light's path (windLightPath.js, D-024): an explicit look stands the path down, so the bar it leaves is the particle ramp's, as it always was
+    const themes = ['light', 'beach', 'dark'], legends = themes.map((t) => resolveThemeRamp(t)), bars = themes.map((t) => windLegendGradientCSS(t, { __RAW_DISABLE_WIND_LIGHT_PATH__: true }));
     window.__RAW_WIND_LIGHT_LOOK__ = look;
     try {
       themes.forEach((t, i) => { expect(resolveThemeRamp(t)).toEqual(legends[i]); expect(windLegendGradientCSS(t)).toBe(bars[i]); });

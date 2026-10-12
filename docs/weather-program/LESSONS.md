@@ -963,6 +963,35 @@ A stored estimate can be estimated again in a browser branch with different sour
   number from either; (4) a number goes to the owner with the scene it is true in. L-S10 again (sweep the interior of a range,
   not its ends): cited in this lesson's first version an hour before it was broken. (log 2026-10-11-wind-dark-white, "Beach's
   sea at 0.55" and its correction)
+- **L-V52 · Check the premise before the solve: which parts already follow the model, and what "match" means.** The owner:
+  "you need to double check all this ... It could be the way it is, or it could not be. It all has to make sense to match dark
+  mode, but [in] their colors and maps". For an hour this session solved light onto dark's hues within 8 degrees, a figure taken
+  from its brief, and was heading for a field 4 to 12 L* paler (against dark's hue as the instruments then read it). The check took minutes: dark's code is the ORDER of its hues;
+  light already ran it at calm, 3, 6 and 16 kn and from 33 kn up, and broke it at exactly two stops. Rules: (1) before changing a
+  theme, read the MODEL's rules off the model and each theme against them, speed by speed, and say what already holds: that part
+  is not touched; (2) "match" is the same logic, not the same numbers: a tolerance in a brief is a hypothesis with a price, so
+  price it (here 8 degrees cost 6 to 7 L* of depth at 6 kn and 2 to 5 from 16 to 21 kn; 20 kept it); (3) ask why a wrong band is wrong before moving it: both of light's were
+  bought to avoid a cyan sea that the basemap mute had since greyed, a reason that no longer existed; (4) show the check as a
+  sheet a person can read in a glance, with the breaks outlined. (log 2026-10-12-wind-light-path)
+- **L-V53 · A constrained solve needs the authority's own arithmetic, one bar at a time, and a control for the solver itself.**
+  L-V45 said to solve with the floor as a constraint. What made that workable: (1) port the checker's scoring to the solver's
+  language and VERIFY it against the checker (4,000 random pairs, 2e-12 here), so a candidate costs 0.1 ms and the floor is a bar
+  inside the search; the checker still judges every table that comes out; (2) map the frontier before choosing: drop one bar at a
+  time at a fixed depth and read what each buys (stripes 0.85 of floor, a normal-vision bar 0.6, 2 L* of lightness 0.7); the
+  binding bar was not the one expected; (3) a bar may be stricter than the model: "one chroma crest" failed dark itself, which
+  dips through cyan; (4) the solver needs its own positive control: a trailing comment added to a penalty line commented out
+  four bars, and one run returned a "feasible" table 0.8 L* over its depth cap. It was caught because every bar is printed with
+  every solution. Print them all, and score a known-bad candidate before trusting a zero; (5) a candidate stored as OFFSETS from
+  a reference moves when the reference is corrected: when dark's law changed, the saved vector no longer described the table
+  that was filmed. Store what is drawn. (same log)
+- **L-V54 · When two readers share a table and only one should move, split at the reader, not in the table.** Light's legend bar
+  and its particle marks read one ramp. Under the white streak the marks no longer take their colour from it, so only the bar
+  had to follow the field. Overlaying the new rows inside the shared resolver broke 28 tests in states the change never draws
+  (every older look, kill and bench that reads the particle ramp), and would have fed new rows to marks nobody built. Giving the
+  BAR its own resolver left the particle ramp untouched in every state: 16 pins moved, all of the old default, and each kill is
+  exact by construction. Rules: (1) list a table's readers before changing it; (2) the reader that changes gets the new
+  function, the table keeps its bytes; (3) every instrument that reads "the legend" is told which one it means (the checker,
+  the bench's hue line). (same log; `WindColorRamp.js` `resolveLegendRamp`)
 - **L-V60 · An instrument's model of the reference must be the engine's own law, in one place: check a model against a GPU
   read before anything is solved on it.** Two models of DARK's ground lived side by side. The engine lays dark's field at its
   alpha SQUARED (`HEATMAP_FS` returns it premultiplied and the engine blends it `SRC_ALPHA, ONE_MINUS_SRC_ALPHA`), and

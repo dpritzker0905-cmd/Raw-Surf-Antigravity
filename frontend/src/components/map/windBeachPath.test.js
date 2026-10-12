@@ -105,7 +105,7 @@ describe('the switch: on wherever the white streak draws in beach, and only ther
     expect(windLookKey('beach', {})).toBe('white+path|dark-rules');
     expect(windLookKey('beach', KILL)).toBe('white|dark-rules');
     expect(windLookKey('beach', { __RAW_DISABLE_WIND_WHITE_STREAK__: true })).toBe('|dark-rules');
-    expect(windLookKey('light', {})).toBe('white|dark-rules'); expect(windLookKey('light', KILL)).toBe('white|dark-rules');
+    expect(windLookKey('light', {})).toBe('white+path|dark-rules'); expect(windLookKey('light', KILL)).toBe('white+path|dark-rules');   // light's own path names its key (D-024); this kill does not move it
     expect(windLookKey('dark', {})).toBe('|');
   });
 });
@@ -118,7 +118,9 @@ describe('the kill: window.__RAW_DISABLE_WIND_BEACH_PATH__ draws what dev drew a
   it.each([50, 75])('ONE VISUAL VARIABLE: with it on, only beach\'s field moves; its streak rows, light and dark are byte for byte (%i kn)', (max) => {
     expect(hashes('beach', {}, max)).toEqual([BEFORE.beach[max][0], BEFORE.beach[max][1], PATH_FIELD[max]]);
     expect(hashes('beach', {}, max)[2]).not.toBe(hashes('beach', KILL, max)[2]);                               // positive control: the field DID move
-    for (const theme of ['light', 'dark']) for (const w of [{}, KILL]) expect(hashes(theme, w, max)).toEqual(BEFORE[theme][max]);
+    const L = { __RAW_DISABLE_WIND_LIGHT_PATH__: true };   // light's own path (windLightPath.js, D-024) has since moved light's rows: BEFORE.light is what light draws under ITS kill
+    for (const theme of ['light', 'dark']) for (const w of [{}, KILL]) expect(hashes(theme, { ...w, ...L }, max)).toEqual(BEFORE[theme][max]);
+    expect(hashes('light', {}, max)).toEqual(hashes('light', KILL, max));   // and light on its path does not read this kill
     expect(resolveDrawnMarks('beach', {})).toEqual(resolveDrawnMarks('beach', KILL));
   });
   it('EVERY OLDER KILL AND LEVER STILL DRAWS WHAT IT DREW: under any of them the path is off, and its own kill changes nothing', () => {
@@ -269,7 +271,7 @@ describe('read as the engine uploads it, and by a normal eye', () => {
   });
   it('the wind bench can name the kill: `before-path` is the arm to scan the default against', () => {
     const { ALL_VARIANTS } = require('../../../scripts/wind-bench/matrix');
-    expect(ALL_VARIANTS['before-path'].levers).toEqual(KILL);
+    expect(ALL_VARIANTS['before-path'].levers).toMatchObject(KILL);   // the variant also holds light's path's kill, which beach does not read
     expect(ALL_VARIANTS.candidate.levers).toEqual({});
   });
 });

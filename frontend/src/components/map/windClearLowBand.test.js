@@ -119,7 +119,8 @@ describe('hue path: a ramp never runs through grey between two stops', () => {
 
   it('the legend bar draws the path the map draws; the kill restores the 13-stop bar', () => {
     const stops = (css) => css.split('%').length - 1;
-    expect(stops(windLegendGradientCSS('light'))).toBe(18);
+    expect(stops(windLegendGradientCSS('light', { __RAW_DISABLE_WIND_LIGHT_PATH__: true }))).toBe(18);   // the particle ramp's bar: its 10-16 kn walk the path
+    expect(stops(windLegendGradientCSS('light'))).toBe(13);   // on light's path (windLightPath.js, D-024) the bar's own rows keep their colour between every pair: nothing to walk
     expect(stops(windLegendGradientCSS('beach'))).toBe(13);
     expect(stops(windLegendGradientCSS('dark'))).toBe(13);
     window[KILL_PATH] = true;

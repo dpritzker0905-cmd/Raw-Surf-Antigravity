@@ -4,7 +4,7 @@
 // departs from it, and by how much.
 //
 //   node mirror-model.mjs                 the three themes as drawn
-//   node mirror-model.mjs --before-path   beach before its path (window.__RAW_DISABLE_WIND_BEACH_PATH__ = true)
+//   node mirror-model.mjs --before-path   light and beach, each before its path (window.__RAW_DISABLE_WIND_LIGHT_PATH__ / __RAW_DISABLE_WIND_BEACH_PATH__ = true)
 //   node mirror-model.mjs --json out.json
 //
 // What it prints, per theme and ground, at each knot: the field's colour ON SCREEN (L*, C*, hue), how far that is from the bare map
@@ -23,11 +23,12 @@ const MAP = path.join(HERE, '..', '..', 'src', 'components', 'map');
 const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const source = (file) => fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
 const { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules } = new Function(source(path.join(MAP, 'windDarkRules.js')) + '; return { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules };')();
-const LEVERS = { ...(args.includes('--before-depth') ? { __RAW_DISABLE_WIND_LAND_DEPTH__: true } : {}), ...(args.includes('--before-path') ? { __RAW_DISABLE_WIND_BEACH_PATH__: true } : {}) };   // --before-depth: the land as the mute alone leaves it (D-026's kill); --before-path: beach before its path (windBeachPath.js)
+const LEVERS = { ...(args.includes('--before-depth') ? { __RAW_DISABLE_WIND_LAND_DEPTH__: true } : {}), ...(args.includes('--before-path') ? { __RAW_DISABLE_WIND_LIGHT_PATH__: true, __RAW_DISABLE_WIND_BEACH_PATH__: true } : {}) };   // --before-depth: the land as the mute alone leaves it (D-026's kill); --before-path: each theme before its path (windLightPath.js, windBeachPath.js)
 const { BEACH_PATH, beachPathRows } = new Function(source(path.join(MAP, 'windBeachPath.js')) + '; return { BEACH_PATH, beachPathRows };')();   // beach's path (no imports)
+const { LIGHT_PATH, lightTables } = new Function(source(path.join(MAP, 'windLightPath.js')) + '; return { LIGHT_PATH, lightTables };')();
 const { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, windLandWhite, setWindLandDepthGate } = new Function(fs.readFileSync(path.join(MAP, 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '') + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, windLandWhite, setWindLandDepthGate };')();
-export const ramps = new Function('DARK_RULES', 'DARK_WHITE', 'WHITE_STREAK', 'solveDarkRules', 'windLandWhite', 'setWindLandDepthGate', 'BEACH_PATH', 'beachPathRows',
-  source(path.join(MAP, 'WindColorRamp.js')) + '; return { THEME_RAMPS, huePathStops, resolveDrawnField, resolveDrawnMarks, generateRampData, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules, windLandWhite, setWindLandDepthGate, BEACH_PATH, beachPathRows);
+export const ramps = new Function('DARK_RULES', 'DARK_WHITE', 'WHITE_STREAK', 'solveDarkRules', 'windLandWhite', 'setWindLandDepthGate', 'BEACH_PATH', 'beachPathRows', 'LIGHT_PATH', 'lightTables',
+  source(path.join(MAP, 'WindColorRamp.js')) + '; return { THEME_RAMPS, resolveLegendRamp, huePathStops, resolveDrawnField, resolveDrawnMarks, generateRampData, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules, windLandWhite, setWindLandDepthGate, BEACH_PATH, beachPathRows, LIGHT_PATH, lightTables);
 /** The window a sync would leave for `theme`: the mute's read-back, which the land's streak strength reads (D-026). */
 const winOf = (theme) => { const amount = windBasemapMuteAmount(theme, LEVERS); return { ...LEVERS, __WIND_BASEMAP_MUTE__: { applied: amount > 0, theme, landL: amount > 0 ? windBasemapLandL(theme, LEVERS) : 1 } }; };
 
