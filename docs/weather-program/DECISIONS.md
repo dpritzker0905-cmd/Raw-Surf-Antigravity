@@ -587,6 +587,10 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   - **Qualified 2026-10-12 15:13Z:** both streak reads above were taken on frames the bench saved darker than the screen at
     bright streak cores (found by the review of PR #321; this session's log, 15:13Z). The direction stands on the tables (a
     lighter ground at 10 and 16 kn); the sizes are owed a re-read on the corrected bench.
+  - **Corrected 2026-10-12 15:38Z (the leading session's read on #321's bench; relayed):** the ratios to dark above do not
+    stand. With this decision's rows light's streaks add 1.33 to 2.36 times the light dark's add over the sea and 1.10 to
+    1.55 times over the pale land (1.01 to 1.22 over PR #320's deep land), at eight speeds from 3 to 39 kn. The gap to dark
+    over land was the gauge. Before against now in light has not been re-read on that bench.
   - **Normal-vision neighbours:** the weakest are 8.0 dE00 apart (27 to 33 kn over the sea); the field's weakest was 9.0.
     Dark's own is 5.1 to 5.5.
   - **3 kn** is a shade less colourful (C* 21.6 against 26.4): what separates it from the new 6 kn for a protan viewer.

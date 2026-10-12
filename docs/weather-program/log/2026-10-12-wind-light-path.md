@@ -552,3 +552,52 @@ the review's (one scene, the offline basemap), not this session's.
 - **Owed:** this change's streak lift by speed on the corrected bench (the leading session's table, or this session's when
   asked). Nothing was rebuilt or re-measured for this section; the re-solve stays held.
 - #318 at this time: head `25db110d` before this commit, MERGEABLE, dev still at `74417b5a`.
+
+## 15:38Z · The corrected read by speed arrived (the leading session's): against dark, this change's streaks are not weaker at any speed read; the "land gap" was the gauge
+
+Relayed by the leading session (its message, 15:36Z). Its measurement on its build, not this session's; nothing was re-run
+here. Records of its own: #321's log ("After the independent review"), #320's log (a dated correction), LESSONS L-V73 on #321's
+branch.
+
+- **How it read:** its local preview (dev `74417b5a` + #320 + #315 + #318 + #319, on #321's corrected bench); speed ramps, zoom
+  6, page and map at 1.5, 110 px crops. "Added" is the mean picture minus the SAME crop drawn with the colour field alone. The
+  old probe's lift read dark high and light low at once, so no "x of dark's lift" written before this section stands.
+- **Light added by the streaks, light (this change's rows) against dark:**
+
+  | kn | 3.2 | 5.9 | 8.6 | 11.8 | 15.3 | 18.5 | 25.6 | 38.5 |
+  |---|---|---|---|---|---|---|---|---|
+  | sea, dark adds (L*) | 1.1 | 3.4 | 3.0 | 6.7 | 7.7 | 8.2 | 14.3 | 14.9 |
+  | sea, light adds (white 0.55) | 2.6 | 5.1 | 5.0 | 9.7 | 10.9 | 11.3 | 19.0 | 21.9 |
+  | sea, light / dark | 2.36 | 1.50 | 1.67 | 1.45 | 1.42 | 1.38 | 1.33 | 1.47 |
+  | land with #320, dark adds | 2.3 | 5.0 | 4.4 | 7.9 | 10.4 | 10.8 | 15.2 | 17.5 |
+  | land with #320, light adds | 2.8 | 5.1 | 4.7 | 8.1 | 10.6 | 10.9 | 15.6 | 19.9 |
+  | land with #320, light / dark | 1.22 | 1.02 | 1.07 | 1.03 | 1.02 | 1.01 | 1.03 | 1.14 |
+  | land as on dev (#320 killed, white 1), light / dark | 1.17 | 1.10 | 1.16 | 1.18 | 1.23 | 1.21 | 1.29 | 1.55 |
+
+- **What that does to this log's cost line.** "Streaks over land at 10 to 16 kn: 0.52 / 0.56 / 0.77 of dark's lift" is wrong as
+  a reading of the picture. On the pale land with this change's rows light adds 1.16 to 1.23 times what dark adds at 8.6 to
+  15.3 kn. The old probe read those same rows 0.15, 0.55, 0.48, 0.55 at 3.2 to 11.8 kn: the gap to dark over land was the
+  gauge.
+- **Still not read on the corrected bench: before against now in light** (this change's rows against dev's at the same crop).
+  The tables put the ground 5.8 L* lighter at 10 kn and 3.0 lighter at 16 kn, so some loss of streak contrast there is still
+  expected; its size is unmeasured. Whatever it is, the "now" arm is not behind dark.
+- **What the read finds dark has and light lacks** (its numbers; whether this change's rows move either is not measured):
+  - Dark's streaks come back to the field between cores: over the sea dark's darkest moment sits 2.3 to 3.9 L* UNDER its field
+    to 18.5 kn; light's sits 1.5 to 2.1 under to 8.6 kn, then 1.3, 1.9, 2.5, 9.2, 11.7 OVER it from 11.8 kn up. Light's trails
+    linger.
+  - A core's height over the field, sea: dark 4.5, 14.7, 14.7, 20.8, 22.2, 22.7, 25.0, 26.0; light 4.5, 14.9, 15.5, 21.9, 22.9,
+    23.0, 28.0, 31.4: the cores match dark's to 18.5 kn.
+  - Flicker against dark's: sea 0.74 to 0.86; land with #320 0.65 to 0.82.
+  - Lossless at 15.3 kn (device resolution): added, dark / light, 7.7 / 10.8 sea and 9.9 / 10.1 land; share of pixel-instants 3
+    L* or more over the field 0.58 / 0.75 sea, 0.62 / 0.71 land; line contrast (Weber) 1.82 / 1.70 sea, 2.86 / 1.62 land:
+    over land light's line contrast is 0.57 of dark's (light's deep land is still 11 L* lighter than dark's).
+- **This change's field as that bench read it** (the field alone, at the eight speeds above): over the sea L* 56.5, 51.8, 51.5,
+  50.3, 48.1, 47.4, 47.0, 37.6, never rising. Checked here against `mirror-model.mjs` (run at 15:39Z, light over water, its
+  rows read across to those speeds: 55.1, 50.4, 50.2, 48.9, 46.7, 46.2, 46.1, 36.5): the bench reads 0.9 to 1.4 L* above the
+  model at every one of the eight speeds, one steady offset and the same shape, the two levels included. Over the deep land
+  the bench read 56.3, 52.2, 52.0, 51.9, 48.6, 47.4, 49.5, 38.9: the 25.6 kn crop reads 2.1 L*
+  ABOVE the 18.5 kn crop, where the model is flat (46.1 at 16, 21 and 27 kn over a 0.81 land). Crops along a ramp are
+  different land, so this is not read as the field rising; it is noted so a later read at ONE crop can settle it.
+- **Owed, changed:** the 15:13Z section's "streak lift by speed on the corrected bench" is met against dark by this table.
+  Before against now in light stays unread. The re-solve on the deep land stays held, at the leading session's word.
+- #318 at this time: head `206661f3` before this commit, MERGEABLE, dev still at `74417b5a`. Not merged.
