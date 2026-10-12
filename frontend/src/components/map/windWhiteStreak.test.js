@@ -41,6 +41,11 @@ const WATCHED = {   // through the levers of the arm the owner picked
   light: { 50: ['71ea0097', '71ea0097', 'f73f7078'], 75: ['a49922ce', 'a49922ce', 'f9ffc9c2'] },   // __RAW_WIND_LIGHT_LOOK__ = 'deep': one streak row over land and sea
   beach: { 50: ['6e75db94', '72b4bd7f', '7c248d5f'], 75: ['be558fd8', 'cd4835ed', 'b9db3bb2'] },   // no table lever: dark's rules' own tables
 };
+// SINCE BEACH'S PATH (windBeachPath.js, 2026-10-12) beach's FIELD under the white streak is its own solved table: the arm the owner
+// watched is drawn through that change's kill (P), and the default is DRAWN: the same two streak rows, the path's field.
+const P = { __RAW_DISABLE_WIND_BEACH_PATH__: true };
+const DRAWN = { light: WATCHED.light, beach: { 50: ['6e75db94', '72b4bd7f', '682f16ac'], 75: ['be558fd8', 'cd4835ed', '4026fb5f'] } };
+const KEY = { light: 'white|dark-rules', beach: 'white+path|dark-rules' };
 const BEFORE = {    // with no lever: what dev drew, and what the kill must restore
   light: { 50: ['46e55dbb', '177f0c5b', 'f03b4ab5'], 75: ['6d6d01df', 'f1f3ef88', 'bf0b2134'] },
   beach: WATCHED.beach,
@@ -61,7 +66,7 @@ describe('the default: the two arms the owner watched, byte for byte', () => {
     expect(windInk('beach', V2, {})).toEqual(windInk('beach', V2, { ...KILL, __RAW_WIND_GLOW_RING__: 1 }));
   });
   it.each([50, 75])('light draws its deeper field and that field\'s own streak row; beach keeps the tables it drew (%i kn)', (max) => {
-    for (const theme of THEMES) expect(hashes(theme, {}, max)).toEqual(WATCHED[theme][max]);
+    for (const theme of THEMES) { expect(hashes(theme, P, max)).toEqual(WATCHED[theme][max]); expect(hashes(theme, {}, max)).toEqual(DRAWN[theme][max]); }
     expect(hashes('light', {}, max)).toEqual(hashes('light', { __RAW_WIND_LIGHT_LOOK__: 'deep' }, max));   // the lever's own path still draws the same bytes
     expect(hashes('light', {}, max)).not.toEqual(BEFORE.light[max]);
   });
@@ -100,10 +105,11 @@ describe('the kill: window.__RAW_DISABLE_WIND_WHITE_STREAK__ draws what dev drew
   });
   it('the engine rebuilds its tables at once when it flips: the look key says which, and still ends as dark\'s rules\' does', () => {
     for (const theme of THEMES) {
-      expect(windLookKey(theme, {})).toBe('white|dark-rules');
+      expect(windLookKey(theme, {})).toBe(KEY[theme]);
+      expect(windLookKey(theme, P)).toBe('white|dark-rules');
       expect(windLookKey(theme, KILL)).toBe('|dark-rules');
     }
-    expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep+white|dark-rules');   // an explicit light look holds light only; beach still draws the white streak
+    expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep+white+path|dark-rules');   // an explicit light look holds light only; beach still draws the white streak
     expect(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep|');
   });
 });
@@ -118,8 +124,8 @@ describe('the engine\'s own call shape: no lever object, the levers on the real 
   it('with nothing set on the window it draws the default', () => {
     for (const theme of THEMES) {
       expect(windWhiteStreakOn(theme)).toBe(true);
-      expect(windLookKey(theme)).toBe('white|dark-rules');
-      expect(asTheEngineReads(theme, 50)).toEqual(WATCHED[theme][50]);
+      expect(windLookKey(theme)).toBe(KEY[theme]);
+      expect(asTheEngineReads(theme, 50)).toEqual(DRAWN[theme][50]);
       expect(windInk(theme, V2)).toEqual(WHITE_MARKS);
     }
   });
@@ -134,7 +140,7 @@ describe('the engine\'s own call shape: no lever object, the levers on the real 
     }
     expect(windLookKey('dark')).toBe('|');
     delete window.__RAW_DISABLE_WIND_WHITE_STREAK__;
-    for (const theme of THEMES) { expect(windLookKey(theme)).toBe('white|dark-rules'); expect(asTheEngineReads(theme, 75)).toEqual(WATCHED[theme][75]); }
+    for (const theme of THEMES) { expect(windLookKey(theme)).toBe(KEY[theme]); expect(asTheEngineReads(theme, 75)).toEqual(DRAWN[theme][75]); }
   });
   it('dark\'s rules\' own kill on the window still wins over it', () => {
     window.__RAW_DISABLE_WIND_DARK_RULES__ = true;
@@ -197,8 +203,9 @@ const bare = (theme, surface) => { const m = /rgba\((\d+), (\d+), (\d+)/.exec(mu
 const BARE = Object.fromEntries(THEMES.map((t) => [t, { land: bare(t, 'land'), water: bare(t, 'water') }]));
 const strength = (theme, kn) => { const m = MODEL[theme]; return Math.min(1, m.op * (m.baseA + (1 - m.baseA) * ss(0, m.end, kn)) * m.k); };
 const KNOTS = Array.from({ length: 76 }, (_, kn) => kn), SURFACES = ['land', 'water'];
-// The tables as drawn with no lever, on their hue paths (what generateRampData samples).
-const T = Object.fromEntries(THEMES.map((t) => { const m = resolveDrawnMarks(t, {}); return [t, { field: huePathStops(resolveDrawnField(t, {}), {}), land: huePathStops(m.land, {}), water: huePathStops(m.water, {}) }]; }));
+// The tables the white streak was built on, on their hue paths (what generateRampData samples): the default's in light, and in beach
+// the field before its path (P). The path's own per-knot numbers (the head's step, the pale band) are windBeachPath.test.js's.
+const T = Object.fromEntries(THEMES.map((t) => { const m = resolveDrawnMarks(t, P); return [t, { field: huePathStops(resolveDrawnField(t, P), {}), land: huePathStops(m.land, {}), water: huePathStops(m.water, {}) }]; }));
 const ground = (theme, surface, kn) => { const F = sampleRamp(T[theme].field, kn); return BARE[theme][surface].map((v, i) => v * (1 - strength(theme, kn) * (1 - F[i]))); };
 // The brightest pixel of a mark, as the engine lays it: DRAW_FS mixes the body (glowOf: the row's colour at full brightness) toward
 // white by 0.92 x ring on the inner ring and writes it at the row's alpha; SCREEN_FS lays that by dark's streak method.

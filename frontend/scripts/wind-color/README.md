@@ -46,6 +46,8 @@ node check.mjs --look moderate  # light's look A/B (window.__RAW_WIND_LIGHT_LOOK
 node check.mjs --today          # the tables before dark's rules (what the kill restores)
 node check.mjs --before-white   # dark's rules before the white streak (window.__RAW_DISABLE_WIND_WHITE_STREAK__: what that kill restores)
 node check.mjs --full-white     # the white streak at full strength on both grounds (window.__RAW_DISABLE_WIND_DARK_WHITE__, D-022's kill)
+node check.mjs --before-path    # beach's field before its path (window.__RAW_DISABLE_WIND_BEACH_PATH__: what that kill restores)
+node beach-path-solve.mjs --audit   # beach before its path: per Beaufort stop and per pair, every bar (see "Beach's path" below)
 node mirror-model.mjs           # each theme's field over its own map, knot by knot, beside dark's (L*, C*, hue; see below)
 ```
 
@@ -73,10 +75,21 @@ muted ground the wind sits on (A, steady descent: 5.22 over the muted water, 5.2
 left and pinned: over light's own cyan water, which shows only with the basemap mute killed, the weakest pair is 3.04
 (10-16 kn).
 
-**As drawn, the colour-blind floor holds in light and does NOT hold in beach** (`node check.mjs --strict` exits 1, two
-red lines, both beach's). Dark's rules dim beach's field by one factor, which draws the bands' lightness together. Light
-drew the same kind of field from 2026-10-11 (D-020) until the white streak (D-021, the same day) gave it the deeper field
-of its A/B, which was solved to hold the floor:
+**Beach's path (2026-10-12, `src/components/map/windBeachPath.js`, DECISIONS D-025; kill `window.__RAW_DISABLE_WIND_BEACH_PATH__`;
+log `docs/weather-program/log/2026-10-12-wind-beach-path.md`).** With it, `node check.mjs --strict` exits 0: beach's two
+colour-blind lines read 5.1 over the muted water and 5.1 over the muted land. `--before-path` prints the table below.
+`beach-path-solve.mjs` is the instrument: it holds the colour-blind floor as a CONSTRAINT (through `light-path-lib.mjs`, a
+plain-JS port of coloraide's filters and CIEDE2000; `node light-path-lib.mjs --verify` checks it against coloraide) while it
+solves for lightness that never rises through the green band, a gale band under a ceiling, and the least lift of the
+streak's ground, in beach's own hues. `--score beach-path.json --mono 0-21,33-75 --tol 12 --ceilgale 60` re-reads what is
+built (option F); `--audit` reads beach before it. `beach-path-ground.mjs` prints the ground per knot over land and sea
+beside dark's (by the engine's law) and how flat each is from 6 to 40 kn; `beach-path-sheet.mjs out.png` draws the
+speed-by-speed sheet.
+
+**Before beach's path, as drawn, the colour-blind floor held in light and did NOT hold in beach** (`node check.mjs --strict
+--before-path` exits 1, two red lines, both beach's). Dark's rules dim beach's field by one factor, which draws the bands'
+lightness together. Light drew the same kind of field from 2026-10-11 (D-020) until the white streak (D-021, the same day)
+gave it the deeper field of its A/B, which was solved to hold the floor:
 
 | Tint over the muted ground | `--today` | `--before-white` | as drawn | weakest pair as drawn |
 |---|---|---|---|---|
