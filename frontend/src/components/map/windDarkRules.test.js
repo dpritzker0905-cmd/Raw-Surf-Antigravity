@@ -358,6 +358,7 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea; D-022 moved no table. Since beach's path, windBeachPathOn reads it: under it beach's field is PR #313's again
       '__RAW_DISABLE_WIND_LAND_DEPTH__',                                                                       // the land at the sea's depth (D-026): SET, the land is the ground these rules were solved on; no table reads it
       '__RAW_DISABLE_WIND_LAND_STEP__',                                                                        // the land a step above the sea (D-026 amended): SET, the land is at the sea's depth again and a streak over it at the sea's strength; no table reads it
+      '__RAW_DISABLE_WIND_CALM_AIR__',                                                                         // near-calm air (D-030): the LIGHT LEVEL a mark is laid at below 5.5 kn, in the draw pass; no table, field or ground reads it, and it stands down with the veil and the land's step
       '__RAW_DISABLE_WIND_BEACH_PATH__',                                                                       // beach's path: which field beach draws UNDER the white streak, and stands down with it (windBeachPath.test.js sweeps every hold)
       '__RAW_DISABLE_WIND_LIGHT_PATH__',                                                                       // light's path (D-024): which rows light's field, streak row and legend bar draw from 1 to 32 kn under the white streak; it stands down with it
       // how many marks, where, how long, how fast (the particles' motion and density)
@@ -600,7 +601,7 @@ describe('the shader and the engine wiring (string pins; the GPU bench is the au
   it('DRAW_FS declares the mask at the best precision the device has, and mixes the LUT\'s rows by it', () => {
     expect(DRAW_FS).toContain(GLSL_LAND_FS);
     expect(GLSL_LAND_FS).toContain('#ifdef GL_FRAGMENT_PRECISION_HIGH\n#define LAND_HP highp\n#else\n#define LAND_HP mediump\n#endif');
-    expect(live(GLSL_LAND_FS)).toContain('uniform sampler2D u_land_mask; uniform float u_land_on; uniform vec2 u_white; varying LAND_HP vec2 v_world;');   // u_white: dark's white, ground by ground (D-022; windDarkWhite.test.js)
+    expect(live(GLSL_LAND_FS)).toContain('uniform sampler2D u_land_mask; uniform float u_land_on; uniform vec2 u_white; uniform vec4 u_calm_air; varying LAND_HP vec2 v_world;');   // u_white: dark's white, ground by ground (D-022; windDarkWhite.test.js)
     expect(GLSL_LAND_FS.startsWith('\n#ifdef')).toBe(true);                                   // a preprocessor line must start its own line
     // row 0 (v 0.25) is the land row, row 1 (v 0.75) the sea row; with no mask every mark reads 1.0 = land
     expect(live(DRAW_FS)).toContain('float land = u_land_on > 0.5 ? texture2D(u_land_mask, v_world).r : 1.0; vec4 color = mix(texture2D(u_color_ramp, vec2(normalizedSpeed, 0.75)), texture2D(u_color_ramp, vec2(normalizedSpeed, 0.25)), land);');

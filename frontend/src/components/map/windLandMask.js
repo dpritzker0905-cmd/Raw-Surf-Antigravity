@@ -33,7 +33,7 @@ export const GLSL_LAND_FS = `
 #else
 #define LAND_HP mediump
 #endif
-uniform sampler2D u_land_mask; uniform float u_land_on; uniform vec2 u_white; uniform vec4 u_calm; varying LAND_HP vec2 v_world;   // windLandMask.js; u_white: the mark's light level over land (x) and over sea (y); u_calm: how far it falls in near-calm air (windCalmAir.js)
+uniform sampler2D u_land_mask; uniform float u_land_on; uniform vec2 u_white; uniform vec4 u_calm_air; varying LAND_HP vec2 v_world;   // windLandMask.js; u_white: the mark's light level over land (x) and over sea (y); u_calm_air: how far it falls in near-calm air (windCalmAir.js)
 `;
 
 const STATE = typeof WeakMap !== 'undefined' ? new WeakMap() : null;

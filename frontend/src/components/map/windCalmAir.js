@@ -55,7 +55,7 @@ export function windCalmAirOn(theme, win = (typeof window !== 'undefined' ? wind
   return w[WIND_CALM_AIR.kill] !== true && !!WIND_CALM_AIR.level[theme] && windTrailVeil(theme, w) > 0 && windLandStepOn(theme, w);
 }
 
-/** DRAW_FS's u_calm for this frame: [dim over land, dim over sea, from kn, full kn]; [0, 0, 0, 1] wherever it does not draw. */
+/** DRAW_FS's u_calm_air for this frame: [dim over land, dim over sea, from kn, full kn]; [0, 0, 0, 1] wherever it does not draw. */
 export function windCalmAir(theme, win = (typeof window !== 'undefined' ? window : null)) {
   if (!windCalmAirOn(theme, win)) return OFF;
   const own = WIND_CALM_AIR.level[theme], v = lever((win || {})[WIND_CALM_AIR.lever]) || [own.land, own.sea, WIND_CALM_AIR.from, WIND_CALM_AIR.full];
@@ -63,11 +63,11 @@ export function windCalmAir(theme, win = (typeof window !== 'undefined' ? window
 }
 
 let SAID = '';
-/** Set u_calm on the draw program (every frame, beside the land mask's bind), and say what was set when it changes. */
+/** Set u_calm_air on the draw program (every frame, beside the land mask's bind), and say what was set when it changes. */
 export function bindCalmAir(gl, prog, theme, win) {
   if (!gl || !prog) return;
   const w = win || (typeof window !== 'undefined' ? window : null), u = windCalmAir(theme, w);
-  gl.uniform4f(gl.getUniformLocation(prog, 'u_calm'), u[0], u[1], u[2], u[3]);
+  gl.uniform4f(gl.getUniformLocation(prog, 'u_calm_air'), u[0], u[1], u[2], u[3]);
   const key = `${theme}|${u.join(',')}`;
   if (w && key !== SAID) { SAID = key; w.__WIND_CALM_AIR__ = { on: u !== OFF, theme, land: +(1 - u[0]).toFixed(4), sea: +(1 - u[1]).toFixed(4), from: u[2], full: u[3], at: Date.now() }; }
 }
