@@ -48,7 +48,7 @@ const WATCHED = {   // through the levers of the arm the owner picked
 // watched is drawn through that change's kill (P), and the default is DRAWN: the same two streak rows, the path's field.
 const P = { __RAW_DISABLE_WIND_BEACH_PATH__: true };
 const B4 = { ...P, ...NO_PATH };   // each theme before ITS path (each kill is read by its own theme only): the arm the owner watched, in light and in beach
-const DRAWN = { light: WATCHED.light /* with light's path killed, as the window block below reads it; light's default is windLightPath.test.js's */, beach: { 50: ['6e75db94', '72b4bd7f', 'e434f0bf'], 75: ['be558fd8', 'cd4835ed', 'cbfec18a'] } };
+const DRAWN = { light: WATCHED.light /* with light's path killed, as the window block below reads it; light's default is windLightPath.test.js's */, beach: { 50: ['6e75db94', '72b4bd7f', '67bfe560'], 75: ['be558fd8', 'cd4835ed', 'b0931ff3'] } };
 const KEY = { light: 'white+path|dark-rules', beach: 'white+path|dark-rules' };   // with no lever: each theme on its path
 const BEFORE = {    // with no lever: what dev drew, and what the kill must restore
   light: { 50: ['46e55dbb', '177f0c5b', 'f03b4ab5'], 75: ['6d6d01df', 'f1f3ef88', 'bf0b2134'] },

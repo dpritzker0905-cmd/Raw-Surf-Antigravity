@@ -49,6 +49,8 @@ node check.mjs --full-white     # the white streak at full strength on both grou
 node check.mjs --before-path    # each theme before ITS path: beach's field (window.__RAW_DISABLE_WIND_BEACH_PATH__) and light's rows (window.__RAW_DISABLE_WIND_LIGHT_PATH__); each kill is read by its own theme only
 node beach-path-solve.mjs --audit   # beach before its path: per Beaufort stop and per pair, every bar (see "Beach's path" below)
 node check.mjs --before-depth   # the land as the mute alone leaves it (window.__RAW_DISABLE_WIND_LAND_DEPTH__, D-026's kill); --land-l 0.75: another depth
+node check.mjs --as-uploaded [10-80:1]   # ALSO the field as the GPU draws it: the 8-bit texture by the shader's own lookup, at every maximum of the sweep (red under 5.0 with --strict, or under --as-uploaded-floor 4.9; --index255: by the table's index). OPT-IN: the owner has not set an as-drawn bar, and light and dark are under 5.0 by it
+node lut-lookup-gpu.cjs [swiftshader]   # which position the GPU reads in a 256-texel LINEAR texture (the law --as-uploaded models), read back from a GPU
 node mirror-model.mjs           # each theme's field over its own map, knot by knot, beside dark's (L*, C*, hue; see below)
 ```
 
@@ -78,19 +80,26 @@ left and pinned: over light's own cyan water, which shows only with the basemap 
 
 **Beach's path (2026-10-12, `src/components/map/windBeachPath.js`, DECISIONS D-025; kill `window.__RAW_DISABLE_WIND_BEACH_PATH__`;
 log `docs/weather-program/log/2026-10-12-wind-beach-path.md`).** With it, `node check.mjs --strict` exits 0: beach's two
-colour-blind lines read 5.0 over the muted water and 5.0 over the muted land (5.05 and 5.02), and one new watch line is
+colour-blind lines read 5.1 over the muted water and 5.1 over the muted land (5.12 and 5.15), and one new watch line is
 printed (over the sea the field sits more than 30° off the legend's hue across 1 kn, 15.5 to 16 kn). The land is the DEEPER
 one that PR #320 lays under the wind (D-026: the land's lightness times 0.85 in beach), the default since that merge;
-`--before-depth` (or `--land-l 1`) reads the land before it: 5.0 and 5.3. The field was solved to hold the bar on either land.
-**The checker reads the TABLE. As uploaded (the 256-entry 8-bit texture) the line is under the bar:** the sea reads 5.01 at a
-75 kn maximum and 4.98 at 50 kn, and the deeper land 4.87 and 4.89 (4.79 at the least; before the path 2.84). No instrument
-here reads the uploaded texture; `windBeachPath.test.js` pins those numbers.
+`--before-depth` (or `--land-l 1`) reads the land before it: 5.1 and 5.7. The field was solved to hold the bar on either land.
+**The checker reads the TABLE; the engine draws a TEXTURE of it.** The table is sampled into 256 texels of 8 bits
+(`generateRampData`), and the shader reads that texture at speed / maximum with LINEAR filtering, so the GPU reads half a
+texel from the table's own index (`node lut-lookup-gpu.cjs` reads the law back from a GPU: the rule fits to 1/255 of a
+texel). The maximum is the data's strongest wind, clamped to 10..80 kn. `--as-uploaded [10-80:1]` reads every theme that way
+and prints one more line a ground: the weakest pair over the whole sweep. **It is opt-in, not the gate:** by it beach's
+field holds 5.0 at every maximum (5.04 over the water and 5.06 over the land at 281 maxima; it was solved WITH MARGIN for
+that, 2026-10-12, D-025's last amendment), light dips to 4.93 over water and 4.85 over land, and dark to 4.97. Before the
+margin beach read 4.65 and 4.68 at the lowest (PR #319's field), and before its path 2.93 and 2.78. The canvas's own
+8-bit rounding is not modelled.
 Beach before its path reads 3.1 and 2.9 (`--before-path`; 3.1 and 3.2 with `--before-depth` as well). `--before-path` prints
 the table below.
 `beach-path-solve.mjs` is the instrument: it holds the colour-blind floor as a CONSTRAINT (through `light-path-lib.mjs`, a
 plain-JS port of coloraide's filters and CIEDE2000; `node light-path-lib.mjs --verify` checks it against coloraide) while it
 solves for lightness that never rises through the green band, a gale band under a ceiling, and the least lift of the
-streak's ground, in beach's own hues. What is BUILT is option F with its 6 to 40 kn stops re-solved for the deeper land:
+streak's ground, in beach's own hues. What is BUILT is option F with its 6 to 40 kn stops re-solved for the deeper land,
+then its 6 to 55 kn stops again with margin for the texture (`--upfloor`, `--uploaded`: the as-drawn floor held as a bar):
 `--audit --ref built` reads it over the land the app draws (add `--before-depth` or `--land-l 1` for the land before
 PR #320); `--audit` alone reads beach before it.
 `beach-path.json` holds option F's stops as first solved (`--score beach-path.json --mono 0-21,33-75 --tol 12 --ceilgale 60`). `beach-path-ground.mjs` prints the ground per knot over land and sea

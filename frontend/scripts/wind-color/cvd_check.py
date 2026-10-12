@@ -51,6 +51,23 @@ def main():
                 bad = d < FLOOR
                 red += bad
                 print(f"[{'RED ' if bad else ' ok '}] {theme} tint over {surface}, colour-blind: weakest neighbours {label} ({kind}) at {d:.1f} dE00 (floor {FLOOR})")
+            ups = t.get("tintUploaded", {}).get(surface)
+            if ups:   # --as-uploaded: the same pairs through the engine's 8-bit texture, at every maximum of the sweep; the weakest of all
+                worst, each = None, []
+                for u in ups:
+                    pairs = [(f"{a['kn']}-{b['kn']} kn", a["rgb"], b["rgb"]) for a, b in zip(u["stops"], u["stops"][1:])]
+                    if not pairs:
+                        continue
+                    d, label, kind = worst_pair(pairs)
+                    each.append(d)
+                    if worst is None or d < worst[0]:
+                        worst = (d, label, kind, u["max"])
+                if worst:
+                    bar = float(t.get("uploadedFloor", FLOOR))   # check.mjs --as-uploaded-floor: the as-drawn bar (the owner has not set one; 5.0 unless asked)
+                    under = sum(1 for d in each if d < bar)
+                    bad = worst[0] < bar
+                    red += bad
+                    print(f"[{'RED ' if bad else ' ok '}] {theme} tint over {surface}, AS UPLOADED, colour-blind: weakest neighbours {worst[1]} ({worst[2]}) at {worst[0]:.2f} dE00 at a {worst[3]:g} kn maximum (floor {bar:g}; under it at {under} of {len(ups)} maxima)")
         marks = t["stops"].get("marks")
         if marks:   # a look's own streak colours as drawn (ink over the water): a watch line, never red (never a gate)
             d, label, kind = worst_pair([(f"{a[0]}-{b[0]} kn", a[1:4], b[1:4]) for a, b in zip(marks, marks[1:])])
