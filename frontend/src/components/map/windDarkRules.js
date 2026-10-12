@@ -78,10 +78,10 @@ export const WHITE_STREAK = Object.freeze({ opacity: 1.0, ring: 1, white: 0 });
  * bench, the real basemaps, the owner's pixel ratio). Each number is a STRENGTH: the share of full. The mark carries its square root
  * as its light level, because the screen pass lays a trail at its level squared.
  * BEACH'S SEA IS 0.55 BY THE OWNER'S WORD (2026-10-12: "make the beach sea strength change to 0.55"). 0.77 had been solved on ONE
- * scene, and that scene's sea is a 39 kn field (the bench's fixture is a hurricane): the one band of speed, 27 to 40 kn, where
+ * scene, and that scene's sea is a 42 kn field (the bench's fixture is a hurricane): the one band of speed, 27 to 40 kn, where
  * beach's own field is pale, so it wanted more white there than anywhere else. Read on the deployed build 0.77 lifted the picture
- * 1.37 times as far as dark's. On the bench at zoom 6, the sea crop's median wind 8 / 16 / 39 / 90 kn (the fixture scaled 0.2 / 0.4 /
- * 1 / 2.3): beach at 0.55 reads 1.10 / 0.96 / 0.80 / 1.07 of dark's lift (0.77: about 1.26 at 16 kn, 1.01 at 39, 1.38 at 90), and
+ * 1.37 times as far as dark's. On the bench at zoom 6, the sea crop's median wind 8 / 17 / 42 / 95 kn (the fixture scaled 0.2 / 0.4 /
+ * 1 / 2.3): beach at 0.55 reads 1.10 / 0.96 / 0.80 / 1.07 of dark's lift (0.77: about 1.26 at 17 kn, 1.01 at 42, 1.38 at 95), and
  * light's 0.55 reads 1.11 / 1.05 / 1.03 / 1.23. A STRENGTH IS READ ACROSS THE WIND'S SPEEDS, NOT AT ONE (LESSONS L-V50); what 0.55
  * leaves short is beach's pale band.
  * Kill: window.__RAW_DISABLE_WIND_DARK_WHITE__ = true (full strength on both grounds, as PR #313 drew, pixel for pixel).

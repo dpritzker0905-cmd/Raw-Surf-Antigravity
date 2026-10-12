@@ -907,8 +907,8 @@ A stored estimate can be estimated again in a browser branch with different sour
   scene variable WHERE THE CROP SITS.** D-022's sea strengths were solved on one view of one fixture: beach 0.77 read 1.01 of
   dark's lift. On the deployed build it read 1.37, and this session recommended 0.55 from that one read. It then called the
   bench's scene "the wind as served, a median near 13 kn" from the fixture's whole box, measured one stronger wind beside it,
-  and wrote that 0.55 was right in a storm and short in a breeze. The fixture is a hurricane: the zoom 6 sea crop holds a 39 kn
-  field, and the "stronger wind" was 90 kn. Swept properly (the crop's median 8 / 16 / 39 / 90 kn) beach at 0.55 reads 1.10 /
+  and wrote that 0.55 was right in a storm and short in a breeze. The fixture is a hurricane: the zoom 6 sea crop holds a 42 kn
+  field, and the "stronger wind" was 95 kn. Swept properly (the crop's median 8 / 17 / 42 / 95 kn) beach at 0.55 reads 1.10 /
   0.96 / 0.80 / 1.07: the one low reading is the band where beach's own field is pale, which is the band 0.77 had been solved
   in. Two points at one end of a range had been read as its two ends. Rules: (1) a per-theme strength is read at four wind
   speeds at least, everyday winds among them (`motion-run.js` runs take `scale`), as it is at three zooms; (2) the speed that
@@ -930,10 +930,10 @@ A stored estimate can be estimated again in a browser branch with different sour
 - **L-V61 · Give the scene clean axes: one variable a direction, and nothing else changing along it.** D-022 read "zoom 4, 6, 9"
   on a hurricane fixture, where each zoom's crop holds a different wind and the land crop lies outside the fixture: zoom, speed
   and place moved together, and three lanes each found a number that failed in the next scene. A SPEED RAMP (the wind blows
-  due north everywhere and its speed rises with longitude, 4 to 64 kn across the view) puts every speed over land and sea in
+  due north everywhere and its speed rises with longitude, 7 to 61 kn across the view) puts every speed over land and sea in
   one frame, and a column of the picture is one speed. Read that way in one capture: light's sea is dark's lift at every speed
-  (0.93 to 1.05); beach's sea is short only from 24 to 40 kn (0.60 to 0.68), where its field is pale; the LAND is short in both
-  (light 0.58 to 0.93 below 48 kn, beach 0.38 to 0.53 from 24 to 40 kn) because its ground is 25 to 35 L* paler than dark's
+  (0.93 to 1.05, read from 13 to 51 kn); beach's sea is short only from 26 to 38 kn (0.60 to 0.68), where its field is pale; the LAND is short in both
+  (light 0.58 to 0.93 below 45 kn, beach 0.38 to 0.53 from 26 to 38 kn) because its ground is 25 to 35 L* paler than dark's
   land; and dark's land and sea grounds are within about 6 L* of each other where light's and beach's are 12 to 15 apart. Dark
   is one picture; they are two. Rules: (1) before tuning a number, build the scene in which only its variable moves; (2) read
   every output along that axis in one capture, the reference included; (3) a result that changes with "zoom" is checked for

@@ -429,3 +429,27 @@ quieter streak than dark's in a breeze; 0.77 was the reverse". **That sentence i
   45.3), with 1% of the crop west of the fixture's box. The simplification lane reads the same crop at 36 (25 and 45) on PR #317. Not
   reconciled: which grid the engine draws at zoom 6 (the fixture's own, or the bench's 2 degree world base that takes every fourth
   node) was not checked. Every reading says a storm field, and no conclusion here rests on the difference.
+
+## 2026-10-12 04:45Z · CORRECTION: the speeds on this log's bench tables (a frame pixel is not a map pixel)
+
+Found by the simplification lane (PR #317), checked here against the bench's code: the bench's map is 897 x 914 CSS px
+(`page/map.html`, `map-entry.js` `CSS_W`, `CSS_H`) and a motion frame is that view scaled to 1000 x 1019 (`smallShot`). This log
+turned frame pixels into longitude as if they were map pixels, so every crop was placed about 11% too wide. **Every measurement
+above stands; the wind speed written beside it does not.**
+
+- **The hurricane scene:** the zoom 6 sea crop (`--at 0.5,0.9 --size 360`) is 26.6 to 29.7 N, 89.8 to 86.3 W, wholly inside the
+  fixture's box: median 41.5 kn, quartiles 36.0 and 46.7 (not 39.1, 31.7 and 45.7). The sweep's columns "8 / 16 / 39 / 90 kn" are
+  8 / 17 / 42 / 95 kn. Corrected in place in the code's comment, D-022's amendment, L-V50, STATE, the bench's README and the PR's
+  description; the earlier sections of this log keep their first numbers.
+- **The speed ramp:** the view spans 92.98 to 83.12 W, so the frame shows 7 to 61 kn (not 4 to 64), and a crop at `--at x` with
+  `--size 110` is centred at 6.9 + 53.7 * (0.89 x + 0.055) kn. The table's rows, as labelled -> as they are:
+  8 -> 13 kn · 12 -> 16 · 16 -> 19 · 21 -> 23 · 24 -> 26 · 32 -> 32 · 40 -> 38 · 48 -> 45 · 56 -> 51. Each crop spans 6 kn.
+  Read again with the true speeds: light's sea is dark's lift from 13 to 51 kn (0.93 to 1.05); beach's sea is short from 26 to
+  38 kn (0.60 to 0.68) and 0.93 to 0.97 at 13 and 19 kn; light's land is 0.58 to 0.93 below 45 kn; beach's land 0.38 to 0.53
+  from 26 to 38 kn. The colours candidate costs the sea 1.05 -> 0.94 at 13 kn, 1.03 -> 0.88 at 16, 0.96 -> 0.87 at 19, and the
+  land 0.83 -> 0.62, 0.79 -> 0.57, 0.70 -> 0.59 there. **Nothing below 13 kn has been read on the ramp**; the only readings in
+  lighter air are the hurricane scene scaled to 8 kn (beach 1.10, light 1.11 of dark's lift over the sea).
+- **Also from that lane, standing:** `--dpr 1.5` names the PAGE's pixel ratio; the map is drawn at 2 in every number of D-022
+  and of this change (the border lane's `--map-dpr` is the fix). The lesson is L-V50's second rule, broken a second time by the
+  session that wrote it: the scene variable is read where the crop sits, and where the crop sits is read from the instrument's
+  own geometry, not assumed.

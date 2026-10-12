@@ -21,9 +21,9 @@ is a claim, not a measurement.
   - **What draws:** `DARK_WHITE.beach.sea` 0.55 (`windDarkRules.js`). Nothing else: no table, key, shader or engine line; land,
     light and dark as before. Kill unchanged: `window.__RAW_DISABLE_WIND_DARK_WHITE__ = true`.
   - **Measured, and the finding (LESSONS L-V50): a strength is read ACROSS THE WIND'S SPEEDS.** The bench's fixture is a
-    hurricane: its zoom 6 sea crop holds a 39 kn field, the one band (27 to 40 kn) where beach's own field is pale, and 0.77
-    had been solved there. Swept (the crop's median 8 / 16 / 39 / 90 kn; zoom 6, the sea): beach at 0.55 reads 1.10 / 0.96 /
-    0.80 / 1.07 of dark's lift (0.77: about 1.26 at 16 kn, 1.01 at 39, 1.38 at 90, the deployed read); light's 0.55 reads 1.11 /
+    hurricane: its zoom 6 sea crop holds a 42 kn field, the one band (27 to 40 kn) where beach's own field is pale, and 0.77
+    had been solved there. Swept (the crop's median 8 / 17 / 42 / 95 kn; zoom 6, the sea): beach at 0.55 reads 1.10 / 0.96 /
+    0.80 / 1.07 of dark's lift (0.77: about 1.26 at 17 kn, 1.01 at 42, 1.38 at 95, the deployed read); light's 0.55 reads 1.11 /
     1.05 / 1.03 / 1.23. So 0.55 is dark's lift in everyday wind and short only in beach's pale band. Its cost per knot: at
     beach's 29 kn band a core stands 22.7 L* off its ground (31.5 at 0.77). Palette checker: the same two red lines as dev; two
     watch lines move.
@@ -40,7 +40,7 @@ is a claim, not a measurement.
     what it moves in the others' outputs on one grid: ground {land, sea} x wind {served, scaled 2.3} x zoom {4, 6, 9}.
     Log `2026-10-11-wind-dark-white` ("Beach's sea at 0.55").
     **What the whole-picture read found so far (LESSONS L-V60 to L-V62; log, "The lead"):** on a speed-ramp scene light's sea
-    equals dark's lift at every speed (0.93 to 1.05); beach's sea is short only from 24 to 40 kn, where its field is pale; the
+    equals dark's lift at every speed read (13 to 51 kn: 0.93 to 1.05); beach's sea is short only from 26 to 38 kn, where its field is pale; the
     LAND is short in both because its ground is 25 to 35 L* paler than dark's (no white can fix that: the map's own term);
     the land mask's coarse edge shows as a pale halo offshore; and `check.mjs` / `mirror-model.mjs` model dark's field at its
     alpha where the engine lays it at the alpha squared (not yet fixed). A local preview of all lanes combined
@@ -1950,7 +1950,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1068, sha256 882ee71fb9f649779bb10ad3da17ac89f0272b4c69dbbd2ebd94c544b8b5a25b**
+  **Ledger head: seq 1069, sha256 26441f90db0d7f3f8d680e05b7861c1c51904e45efefe2a7d81102e957b7d2d9**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

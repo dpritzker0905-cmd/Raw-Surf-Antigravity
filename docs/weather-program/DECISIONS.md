@@ -475,9 +475,9 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
     motion on the same view and crops as before (dark's lift, light's and the kill arm repeat the earlier run to the digit):
     over the sea beach at 0.55 reads 0.80 / 1.19 / 0.74 of dark's lift at zooms 6 / 4 / 9 (1.01 / 1.34 / 0.91 at 0.77). That
     looked like "under dark's" until the fixture was read where the crop sits: the bench's wind is a hurricane, and the zoom 6
-    sea crop holds a 39 kn field (quartiles 32 and 46). Swept with the run's `scale` (zoom 6, the sea crop's median wind):
+    sea crop holds a 42 kn field (quartiles 36 and 47). Swept with the run's `scale` (zoom 6, the sea crop's median wind):
 
-    | the sea crop's wind | 8 kn | 16 kn | 39 kn (as served) | 90 kn |
+    | the sea crop's wind | 8 kn | 17 kn | 42 kn (as served) | 95 kn |
     |---|---|---|---|---|
     | beach at 0.55 | 1.10 | 0.96 | 0.80 | 1.07 |
     | beach, the kill (1.0) | | 1.57 | 1.23 | 1.70 |
@@ -486,10 +486,10 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 
     0.77 was solved in the one band of speed, 27 to 40 kn, where beach's own field is pale (by the colour model its ground over
     the sea is L* 51 to 58 there and 38 to 44 at everyday speeds), so it wanted more white there than anywhere else. The
-    deployed read (1.37) is the 90 kn column. At device pixel ratio 3 the 39 kn column reads 0.84: the screen was not the cause.
+    deployed read (1.37) is the 95 kn column. At device pixel ratio 3 the 42 kn column reads 0.84: the screen was not the cause.
     (LESSONS L-V50.)
-  - **What 0.55 is, plainly:** within 0.96 to 1.10 of dark's lift over the sea at 8 and 16 kn and at 90 kn, and short of it
-    (0.80) in beach's pale band near 39 kn. 0.77 was dark's lift in that band and 1.26 to 1.38 times it elsewhere. What is left
+  - **What 0.55 is, plainly:** within 0.96 to 1.10 of dark's lift over the sea at 8 and 17 kn and at 95 kn, and short of it
+    (0.80) in beach's pale band near 42 kn. 0.77 was dark's lift in that band and 1.26 to 1.38 times it elsewhere. What is left
     is the shape of beach's field along speed (it dips at 10 kn and goes pale at 27 to 33), not the number: a strength that
     follows the wind's speed would take it out and is NOT built: the owner's call. **Corrected the same night:** this entry
     first said "dark's lift in a storm and a quieter streak than dark's in a breeze", from two bench scenes this session had

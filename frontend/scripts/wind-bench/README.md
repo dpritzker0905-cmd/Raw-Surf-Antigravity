@@ -281,14 +281,19 @@ node scripts/wind-bench/compose-video.js scripts/wind-bench/out/videos/side.webm
   0.80 / 1.19 / 0.74 (its kill 1.23 / 1.46 / 1.06, light 1.03 at zoom 6, dark's lift 12.6 / 10.4 / 6.9: the numbers before, to the
   digit); over land 0.93 / 0.80 / 0.69, unchanged.
 - **THE FIXTURE IS A HURRICANE, and a crop's wind is read from the fixture, not from this page** (LESSONS L-V50). At zoom 6 the
-  sea crop (`--at 0.5,0.9 --size 360`: 26.2 to 29.7 N) holds a 39 kn field (quartiles 32 and 46, top 78); the land crop
+  sea crop (`--at 0.5,0.9 --size 360`: 26.6 to 29.7 N, 89.8 to 86.3 W) holds a 42 kn field (quartiles 36 and 47, top 77); the land crop
   (`--at 0.5,0.12`) lies mostly NORTH of the fixture's box (25 to 32 N), where the bench draws its own light climatology, which a
-  run's `scale` does not touch. `"scale": 2.3` is a 90 kn sea (`map-entry.js` describes it by the bay's own median).
+  run's `scale` does not touch. `"scale": 2.3` is a 95 kn sea (`map-entry.js` describes it by the bay's own median).
   **Sweep the wind with `scale`:** the lift against dark's is not one number per theme. Zoom 6, the sea, the crop's median
-  8 / 16 / 39 / 90 kn (`scale` 0.2 / 0.4 / 1 / 2.3): beach at 0.55 reads 1.10 / 0.96 / 0.80 / 1.07 (its kill 1.57 / 1.23 / 1.70 from
-  16 kn), light at 0.55 1.11 / 1.05 / 1.03 / 1.23 (its kill 1.72 at 16 kn), dark's own lift 7.3 / 9.6 / 12.6 / 11.8. The low reading is
-  the band where beach's field is pale (27 to 40 kn). The device pixel ratio moves it little (`--dpr 3` at 39 kn: beach 0.84,
+  8 / 17 / 42 / 95 kn (`scale` 0.2 / 0.4 / 1 / 2.3): beach at 0.55 reads 1.10 / 0.96 / 0.80 / 1.07 (its kill 1.57 / 1.23 / 1.70 from
+  17 kn), light at 0.55 1.11 / 1.05 / 1.03 / 1.23 (its kill 1.72 at 17 kn), dark's own lift 7.3 / 9.6 / 12.6 / 11.8. The low reading is
+  the band where beach's field is pale (27 to 40 kn). The device pixel ratio moves it little (`--dpr 3` at 42 kn: beach 0.84,
   its kill 1.35, light 0.98).
+- **A frame pixel is not a map pixel.** The bench's map is 897 x 914 CSS px (`page/map.html`), drawn at a map pixel ratio of 2
+  whatever `--dpr` says (that flag sets the PAGE's ratio; `--map-dpr` sets the map's), and a motion frame is that view scaled to
+  1000 x 1019. To turn a crop into a place, multiply frame pixels by 0.897 before Mercator: the zoom 6 view spans 92.98 to 83.12 W,
+  not 11 degrees. The first reading of this page's crops skipped that and placed every crop about 11% too wide (the sea crop
+  read 39 kn where it holds 42; found by the simplification lane, PR #317).
 
 ## Path mode (`path-run.js`): wind colour vs map colour, through every kind of camera move
 
