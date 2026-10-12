@@ -36,14 +36,18 @@
  *     band that is level at L* 60 from 27 to 40 kn (it peaked at 72.9). From 6 to 40 kn the ground spans 15.5 L* over the land and
  *     13.0 over the sea (26.2 and 21.7 before; dark 7.4 and 7.2);
  *   - neighbouring Beaufort stops from 3 kn are 5.1 dE2000 or more apart for protan, deutan and tritan viewers over the sea AND the
- *     land: the palette checker's two red lines, red on dev since D-020, are gone (`node check.mjs --strict` exits 0);
- *   - every stop keeps its hue within 12 degrees, and beach's order is kept to 0.6 degrees. Twelve, not eight: the looser hue match is
- *     what keeps the ground deep (at 8 degrees the everyday ground must lift 6.7 L*; at 12, 4.3);
+ *     land (5.10 and 5.11 on the table; 5.01 at the least once the table is quantised into the 256-entry texture the engine uploads):
+ *     the palette checker's two red lines, red on dev since D-020, are gone (`node check.mjs --strict` exits 0);
+ *   - over the LAND every stop keeps its hue within 12 degrees, and beach's order is kept to 0.6 degrees. Twelve, not eight: the looser
+ *     hue match is what keeps the ground deep (at 8 degrees the everyday ground must lift 6.7 L*; at 12, 4.3). Over the SEA the same
+ *     rows move 10 kn by 13.5 degrees and 16 kn by 16.7;
  *   - the steepest knot is 3.1 dE00 (3.9 before; dark's own hardest is 8.9), and the chroma line is as even as it was (within 0.1).
  * Rows between two moved stops run on straight lines in lightness, chroma and hue from 6 to 47 kn; elsewhere a moved row is the colour
  * beach drew at that knot, moved by what its two stops moved.
  * WHAT IT BUYS, MEASURED (the lead session's capture: the real engine on the real basemaps, wind due north on a speed ramp, every wind
- * lane merged, beach's sea white at 0.55; the streaks' lift against dark's at the same crop, before -> now):
+ * lane merged, beach's sea white at 0.55 AS ON PR #315; the streaks' lift against dark's at the same crop, before -> now). It was NOT
+ * measured on the 0.77 this file's neighbour windDarkRules.js DARK_WHITE holds until #315 merges: on 0.77 the sea already read 1.3 to
+ * 1.4 times dark's at 8 to 17 kn, and this field's deeper 16 to 21 kn sea would read further over. #315 belongs before or with this:
  *   the gale band, 26 / 32 / 39 kn   sea 0.68 / 0.60 / 0.62 -> 0.86 / 0.82 / 0.75      land 0.38 / 0.52 / 0.49 -> 0.63 / 0.60 / 0.62
  *   everyday, 9 / 12 / 15 / 18 kn    sea 0.99 / 1.04 / 0.98 / 0.97 -> 0.95 / 1.01 / 1.09 / 1.12
  *                                    land 0.86 / 0.91 / 0.88 / 0.82 -> 0.74 / 0.86 / 1.08 / 1.12
@@ -54,13 +58,20 @@
  *   - the land at 9 to 12 kn loses lift (0.74 and 0.86 of dark's from 0.86 and 0.91): the 10 kn ground is 4.3 L* lighter;
  *   - at 15 to 18 kn the streaks lift 8 to 12% FURTHER than dark's on both grounds (the ground there is the deepest beach draws). The
  *     sea's share is the white strength's to trim (windDarkRules.js DARK_WHITE; not changed here);
- *   - the land's gale band is still pale on screen (rendered L* 68 to 72 against dark's 34 to 39): the rest of that gap is the map's.
+ *   - the land's gale band is still pale on screen (rendered L* 68 to 72 against dark's 34 to 39): the rest of that gap is the map's;
+ *   - the everyday neighbours are told apart about half as well by a NORMAL eye: 6-10 kn 6.3 dE00 over land and 5.2 over the sea (10.8
+ *     and 8.5 before), 10-16 kn 6.8 and 5.2 (10.0 and 8.8). A grey-green band is closer to its neighbours than an emerald was;
+ *   - a bar of D-021 is crossed at 7 and 8 kn: there the head of a streak stands 18.6 L* off its ground at the least, where D-021 held
+ *     19.5 from a light breeze up (windWhiteStreak.test.js holds that bar on the tables under this kill; windBeachPath.test.js says so);
+ *   - the legend is not moved, and over the sea the field at 16 kn sits 29.8 degrees off the legend's hue (13.1 before): 0.2 inside the
+ *     palette checker's 30.
  * The streaks' own rows are NOT touched (one visual variable): a white streak takes its colour from the field under it.
  *
  * Kill: window.__RAW_DISABLE_WIND_BEACH_PATH__ = true (beach's field as it drew before, byte for byte; the engine rebuilds its tables at
  * once). ON only where the white streak draws (WindColorRamp.js windBeachPathOn), so every lever and older kill that stands the white
  * streak or dark's rules down still draws exactly what it drew; D-022's kill (__RAW_DISABLE_WIND_DARK_WHITE__) stands it down too, since
- * that kill is documented to draw PR #313's picture. Read-back: window.__WIND_ENGINE__._lookKey is `white+path|dark-rules`.
+ * that kill is documented to draw PR #313's picture. (So in beach that kill now moves the field and the look key as well as the white:
+ * it cannot A/B the white strength alone on this field.) Read-back: window.__WIND_ENGINE__._lookKey is `white+path|dark-rules`.
  * The solve, the options not taken (A, B, C, E) and every measurement: docs/weather-program/log/2026-10-12-wind-beach-path.md.
  */
 export const BEACH_PATH = Object.freeze({

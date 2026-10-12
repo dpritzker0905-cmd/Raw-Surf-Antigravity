@@ -116,7 +116,7 @@ describe('the kill: window.__RAW_DISABLE_WIND_BEACH_PATH__ draws what dev drew a
   });
   it.each([50, 75])('ONE VISUAL VARIABLE: with it on, only beach\'s field moves; its streak rows, light and dark are byte for byte (%i kn)', (max) => {
     expect(hashes('beach', {}, max)).toEqual([BEFORE.beach[max][0], BEFORE.beach[max][1], PATH_FIELD[max]]);
-    expect(PATH_FIELD[max]).not.toBe(BEFORE.beach[max][2]);                                                    // positive control: the field DID move
+    expect(hashes('beach', {}, max)[2]).not.toBe(hashes('beach', KILL, max)[2]);                               // positive control: the field DID move
     for (const theme of ['light', 'dark']) for (const w of [{}, KILL]) expect(hashes(theme, w, max)).toEqual(BEFORE[theme][max]);
     expect(resolveDrawnMarks('beach', {})).toEqual(resolveDrawnMarks('beach', KILL));
   });
@@ -165,7 +165,12 @@ describe('the table: a row a knot, the rows that already followed the logic kept
   });
   it('the legend bar is not moved, and the field stays in the legend\'s own colour family at every band (the checker\'s 30 degrees)', () => {
     const legend = resolveThemeRamp('beach');
-    expect(windLegendGradientCSS('beach')).toContain('rgba(');
+    const bar = windLegendGradientCSS('beach');                                                                 // the bar reads the real window, as the app does
+    try { window.__RAW_DISABLE_WIND_BEACH_PATH__ = true; expect(windLegendGradientCSS('beach')).toBe(bar); } finally { delete window.__RAW_DISABLE_WIND_BEACH_PATH__; }
+    expect(resolveThemeRamp('beach')).toEqual(legend);
+    // the closest call, said as a number: over the sea at 16 kn the field sits 29.8 degrees off the legend's emerald (13.1 before)
+    expect(Math.abs(arc(lch(sampleRamp(legend, 16).slice(0, 3)).h, lch(on(NOW, 'water', 16)).h))).toBeCloseTo(29.8, 1);
+    expect(Math.abs(arc(lch(sampleRamp(legend, 16).slice(0, 3)).h, lch(on(WAS, 'water', 16)).h))).toBeCloseTo(13.1, 1);
     for (const surface of SURFACES) for (const kn of BEAUFORT.filter((k) => k >= 3 && k <= 40)) expect(Math.abs(arc(lch(sampleRamp(legend, kn).slice(0, 3)).h, lch(on(NOW, surface, kn)).h))).toBeLessThanOrEqual(30);
   });
 });
@@ -203,12 +208,39 @@ describe('what the path is, per knot over the muted land and sea (each bar with 
     const off = BEAUFORT.map((kn) => Math.abs(arc(lch(on(WAS, 'land', kn)).h, lch(on(NOW, 'land', kn)).h)));
     expect(Math.max(...off)).toBeLessThanOrEqual(12.05); expect(Math.max(...off)).toBeGreaterThan(8);   // twelve, not eight: the looser hue match is what keeps the ground deep
     expect(turnBack(NOW)).toBeLessThanOrEqual(0.7); expect(turnBack(WAS)).toBeLessThanOrEqual(0.7);
+    const swapped = NOW.map((r) => r.slice()); [swapped[10], swapped[16]] = [[10, ...NOW[16].slice(1)], [16, ...NOW[10].slice(1)]];
+    expect(turnBack(swapped)).toBeGreaterThan(5);                                                              // the control: the bar can fail (10 and 16 kn exchanged)
+    // over the SEA the same rows move further: 10 kn by 13.5 degrees and 16 kn by 16.7 (the 12 is the land's)
+    const sea = BEAUFORT.map((kn) => Math.abs(arc(lch(on(WAS, 'water', kn)).h, lch(on(NOW, 'water', kn)).h)));
+    expect(+sea[BEAUFORT.indexOf(10)].toFixed(1)).toBe(13.5); expect(+Math.max(...sea).toFixed(1)).toBe(16.7);
   });
   it('NO HARDER EDGE and NO NEW STRIPE: the steepest knot is 3.1 dE00 (3.9 before; dark by the engine law: 8.9), and the chroma line is as even as it was', () => {
     expect(steepest(NOW)).toBeCloseTo(3.1, 1); expect(steepest(WAS)).toBeCloseTo(3.9, 1);
     const line = (field) => offCrest(BEAUFORT.map((kn) => lch(on(field, 'land', kn)).C));
     expect(line(NOW)).toBeLessThanOrEqual(line(WAS) + 0.1);
     for (const surface of SURFACES) expect(Math.min(...KNOTS.filter((kn) => kn >= 3 && kn <= 40).map((kn) => lch(on(NOW, surface, kn)).C))).toBeCloseTo(Math.min(...KNOTS.filter((kn) => kn >= 3 && kn <= 40).map((kn) => lch(on(WAS, surface, kn)).C)), 5);   // no greyer veil than before (its weakest colour is still 3 kn's)
+  });
+});
+
+describe('read as the engine uploads it, and by a normal eye', () => {
+  it('THE FLOOR SURVIVES THE 8-BIT TEXTURE, by 0.01: quantised into the 256-entry LUT the sea reads 5.0 or more at 50 and at 75 kn', () => {
+    for (const max of [50, 75]) {
+      const gl = rampGl(); buildFieldRampTexture(gl, max, 'beach', {});
+      const texel = (i) => [0, 1, 2].map((c) => gl.uploaded[i * 4 + c] / 255);
+      const lut = KNOTS.map((kn) => { const x = Math.min(255, (kn / max) * 255), i = Math.min(254, Math.floor(x)), t = x - i, a = texel(i), b = texel(i + 1); return [kn, ...a.map((v, c) => v + (b[c] - v) * t)]; });
+      if (max === 75) for (const surface of SURFACES) { const f = floor(lut, surface); expect(f.d).toBeGreaterThanOrEqual(5); expect(f.d).toBeLessThan(5.12); }
+      else { const f = floor(lut.filter((r) => r[0] <= 50).concat(KNOTS.filter((kn) => kn > 50).map((kn) => NOW[kn])), 'water'); expect(f.d).toBeGreaterThanOrEqual(5); }
+    }
+  });
+  it('A NORMAL EYE tells the everyday neighbours apart about half as well: 6-10 kn 6.3 / 5.2 dE00 over land / sea (10.8 / 8.5 before), 10-16 kn 6.8 / 5.2 (10.0 / 8.8)', () => {
+    const d = (field, surface, a, b) => +de2000(lab(on(field, surface, a)), lab(on(field, surface, b))).toFixed(1);
+    expect([d(NOW, 'land', 6, 10), d(NOW, 'water', 6, 10), d(WAS, 'land', 6, 10), d(WAS, 'water', 6, 10)]).toEqual([6.3, 5.2, 10.8, 8.5]);
+    expect([d(NOW, 'land', 10, 16), d(NOW, 'water', 10, 16), d(WAS, 'land', 10, 16), d(WAS, 'water', 10, 16)]).toEqual([6.8, 5.2, 10.0, 8.8]);
+  });
+  it('the wind bench can name the kill: `before-path` is the arm to scan the default against', () => {
+    const { ALL_VARIANTS } = require('../../../scripts/wind-bench/matrix');
+    expect(ALL_VARIANTS['before-path'].levers).toEqual(KILL);
+    expect(ALL_VARIANTS.candidate.levers).toEqual({});
   });
 });
 
@@ -240,5 +272,18 @@ describe('what it costs, said as numbers', () => {
     expect([10, 16, 27].map((kn) => [+step(NOW, 'water', kn).toFixed(1), +step(WAS, 'water', kn).toFixed(1)])).toEqual([[23.0, 24.6], [34.7, 30.4], [35.9, 29.2]]);
     for (const s of SURFACES) { expect(step(NOW, s, 10)).toBeLessThan(step(WAS, s, 10)); for (const kn of [16, 21, 27, 33]) expect(step(NOW, s, kn)).toBeGreaterThan(step(WAS, s, kn)); }
     for (const s of SURFACES) for (const kn of [3, 47, 63]) expect(Math.abs(step(NOW, s, kn) - step(WAS, s, kn))).toBeLessThan(0.05);   // and where the field did not move, neither does it
+    // D-021'S PER-KNOT BARS, read on the field beach now draws (windWhiteStreak.test.js holds them on the tables under this kill).
+    // Three hold: the head is lighter than its ground at every speed (by more than 8 L*), it is near-white (C* 21.5 or less), and from
+    // 6 to 27 kn the ground is more colourful than the head. ONE IS CROSSED: "from a light breeze up the head stands 19.5 L* or more
+    // off its ground" reads 18.6 at 8 kn over land (19.2 at 7 kn; 18.8 and 19.3 over the sea). Said here so a green run is not read as "held".
+    const headOf = (surface, kn) => { const S = marks[surface][kn].slice(1), G = on(NOW, surface, kn);
+      return glowComposite(G, glowOf(S.slice(0, 3), WHITE_STREAK.white).map((v) => (v + (1 - v) * 0.92 * WHITE_STREAK.ring) * S[3]), WHITE_STREAK.opacity); };
+    for (const s of SURFACES) for (const kn of KNOTS) {
+      expect(step(NOW, s, kn)).toBeGreaterThan(8); expect(lch(headOf(s, kn)).C).toBeLessThanOrEqual(21.5);
+      if (kn >= 6 && kn <= 27) expect(lch(on(NOW, s, kn)).C).toBeGreaterThan(lch(headOf(s, kn)).C);
+    }
+    const under = SURFACES.flatMap((s) => KNOTS.filter((kn) => kn >= 6 && step(NOW, s, kn) < 19.5).map((kn) => `${s} ${kn}`));
+    expect(under).toEqual(['land 7', 'land 8', 'water 7', 'water 8']);
+    expect(SURFACES.flatMap((s) => KNOTS.filter((kn) => kn >= 6 && step(WAS, s, kn) < 19.5))).toEqual([]);         // the control: before, the bar held
   });
 });

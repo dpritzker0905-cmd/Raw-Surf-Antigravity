@@ -56,7 +56,9 @@ const hue = (rgb) => {   // CIELAB hue angle of an sRGB colour (0-1)
 };
 const gap = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
 /** The field's colour ON SCREEN over the theme's muted land or sea at `kn` (the solver's own model of the ground). */
-const ground = (theme, kn, surface) => darkRulesGround(theme, surface, sampleRamp(huePathStops(resolveDrawnField(theme, {}), {}), kn), kn);
+// The ground D-022's strengths were solved on: the field before beach's path (P). Under KILL the app draws that field too, so the `was`
+// arms below (full white) are a picture the app can draw; how the strengths read on the path's field is windBeachPath.test.js's and the bench's.
+const ground = (theme, kn, surface) => darkRulesGround(theme, surface, sampleRamp(huePathStops(resolveDrawnField(theme, P), {}), kn), kn);
 /** Where streaks pile up: the trail buffer holds the white ring at the mark's light level, and the screen pass lays it at level squared. */
 const piled = (g, strength) => { const level = Math.sqrt(strength); return glowComposite(g, [level, level, level], WHITE_STREAK.opacity); };
 
@@ -90,7 +92,7 @@ describe('the numbers: a strength for each ground, a theme', () => {
   });
 });
 
-describe('it is the strength alone: no table, no key and no mark model moves', () => {
+describe('it is the strength alone: D-022 moved no table, no key and no mark model (since beach\'s path, its kill also returns beach\'s field and key to PR #313\'s)', () => {
   it.each([50, 75])('the fields and the streak rows are PR #313\'s, byte for byte, with and without the kill (%i kn)', (max) => {
     for (const theme of THEMES) { expect(hashes(theme, P, max)).toEqual(TABLES[theme][max]); expect(hashes(theme, KILL, max)).toEqual(TABLES[theme][max]); }   // the kill draws PR #313's tables: beach's path stands down under it
     expect(hashes('dark', {}, max)).toEqual(hashes('dark', KILL, max));
@@ -113,7 +115,7 @@ describe('how it reaches the pixel: the mark\'s light level, picked by the land 
     // with equal levels the factor is exactly the level whatever the mask says (y + 0 * land): dark, the kill and every hold draw as before, bit for bit
     for (const land of [0, 0.3, 0.7071, 1]) expect(1 + (1 - 1) * land).toBe(1);
   });
-  it('the wind bench can name the kill (the scanner\'s own page has no land file, so that arm equals the default there by construction)', () => {
+  it('the wind bench can name the kill (the scanner\'s own page has no land file, so in light that arm equals the default there; in beach it also draws the field before beach\'s path)', () => {
     const { ALL_VARIANTS } = require('../../../scripts/wind-bench/matrix');
     expect(ALL_VARIANTS['full-white'].levers).toEqual(KILL);
     expect(ALL_VARIANTS.candidate.levers).toEqual({});

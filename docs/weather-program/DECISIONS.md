@@ -597,3 +597,17 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   equal the bytes read through the lab lever at the head the lead captured for the owner's clip; `windBeachPath.test.js` (each
   bar with the table before as its control); the palette checker before, after and under the kill; the lead session's speed-ramp
   rows. Nothing has been seen in the app.
+- **Amended 2026-10-12, before the PR opened (this session, after an independent review; rulings and corrections, not the owner's
+  words):**
+  - **The gain above was measured at beach's sea white 0.55 (#315, open when this was written), which this change does not carry.**
+    On `dev`'s 0.77 F was never measured, and its deeper 16 to 21 kn sea ground would lift further over dark's than the 8 to 12%
+    quoted. #315 belongs before this, or with it.
+  - **"Within 12 degrees" is the land's.** Over the sea the same rows move 10 kn by 13.5 degrees and 16 kn by 16.7; there the field at
+    16 kn sits 29.8 degrees off the legend's hue (13.1 before), 0.2 inside the palette checker's 30. The legend is not moved.
+  - **Costs not listed above:** a normal eye tells the everyday neighbours apart about half as well (6-10 kn 6.3 dE00 over land and
+    5.2 over the sea, from 10.8 and 8.5; 10-16 kn 6.8 and 5.2, from 10.0 and 8.8); a bar of D-021 is crossed at 7 and 8 kn (the head
+    of a streak stands 18.6 L* off its ground at the least, where D-021 held 19.5 from a light breeze up).
+  - **The colour-blind floor is 5.10 over the sea and 5.11 over land on the table, and 5.01 at the least once the table is quantised
+    into the 256-entry texture the engine uploads.** Above the bar; by 0.01.
+  - **D-022's kill now moves beach's field and look key as well as the white** (it returns beach to #313's picture, which is what that
+    kill is documented to draw). It can no longer A/B the white strength alone on this field.

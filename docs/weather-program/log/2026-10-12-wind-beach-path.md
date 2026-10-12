@@ -389,3 +389,44 @@ lead's own change (D-026), not this branch's. DECISIONS D-025 records the pick a
 
 **Owed after it:** the read-back on the deployed build once the owner merges (the look key, the kill flipping it with no reload,
 the owner's eye); the sea strength re-read on F's ground and the land re-read under the deeper land (both the lead's).
+
+## 12:30Z · The independent review, and what was done about each finding (before the push)
+
+A read-only reviewer (a subagent given the diff and the rules, not this session's conclusions) compared `origin/dev`'s module with
+this branch's over 103,840 lever cases (every one of the 111 `__RAW_*WIND*__` names at 14 values, all pairs at `true`, string levers
+against every other lever, 6,000 random sets of 3 to 6 levers; both call shapes; 50 and 75 kn in full): **beach's tables differ from
+dev's exactly when `windBeachPathOn` is true, with no exception; light, dark, both streak rows, the mark model and the white strength
+never moved; no cache or aliasing fault; the look key carries `path` exactly when the tables change.** It did not run `check.mjs`
+(no coloraide in its view) or anything on the GPU. Its findings, most severe first:
+
+1. **The measured gain is for a white strength this branch does not ship.** The lead's rows were taken at beach's sea white 0.55
+   (#315, OPEN); this branch and `dev` hold 0.77. No capture of F exists at 0.77, and at 0.77 the sea already read 1.28 to 1.41 times
+   dark's at 8 to 17 kn before the path; F then deepens the sea ground at 16 and 21 kn by 7 to 8 L*. Merged before #315, a zoomed-out
+   beach sea at 15 to 18 kn would lift well beyond the "8 to 12% over dark's" quoted. **Done:** said in the PR description as a merge
+   order (#315 before or with this), in the file's header, in D-025's amendment and in STATE. Nothing in code ties the two together.
+2. **A bar of D-021 was moved off the default, and is crossed there.** `windWhiteStreak.test.js` now reads beach through the path's
+   kill, so its bar "from a light breeze up the head of a streak stands 19.5 L* or more off its ground" ran only on the kill arm; on
+   the field beach now draws it reads 18.6 at 8 kn over land (19.2 at 7 kn; 18.8 and 19.3 over the sea). **Done:**
+   `windBeachPath.test.js` runs D-021's four per-knot bars on the path's field: three hold, the fourth is asserted as CROSSED at
+   exactly those four places, with the table before as the control. The header lists it as a cost.
+3. **D-022's kill now moves a table in beach, and four places still said it does not.** Its bytes equal dev's, so the rule (an older
+   kill draws its old picture) is met; the consequence is that the kill can no longer A/B the white strength ALONE on the path's
+   field. **Done:** the test title and comment in `windDarkWhite.test.js`, the comment in `windDarkRules.test.js` and the bench's
+   `matrix.js` say so; a `before-path` bench variant was added with its test. `windDarkWhite.test.js`'s per-knot section reads the
+   field its strengths were solved on (through the path's kill), so its `was` arm is again a picture the app can draw.
+   **Not done:** `windDarkRules.js`'s own header still says of D-022 "No table moves" (true of D-022's change; that file is #315's
+   to edit, and this branch does not touch it).
+4. **Header claims that were too wide, and costs that were missing.** "Within 12 degrees" is the LAND's (over the sea 10 kn moves
+   13.5 degrees and 16 kn 16.7). Over the sea the field at 16 kn sits 29.8 degrees off the legend's hue (13.1 before), 0.2 inside
+   the checker's 30. A normal eye tells the everyday neighbours apart about half as well (6-10 kn 6.3 / 5.2 dE00 over land / sea
+   from 10.8 / 8.5; 10-16 kn 6.8 / 5.2 from 10.0 / 8.8). The floor is 5.10 / 5.11 on the table and 5.01 at the least once quantised
+   into the 8-bit texture. **Done:** each is in the header and pinned in `windBeachPath.test.js` (this session's model reproduced
+   every number the reviewer gave).
+5. **Assertions that could not fail.** The legend test compared nothing; a control compared two literals; the hue-order bar had no
+   control. **Done:** the legend bar is compared with and without the kill on the real window; the control reads the tables; the
+   hue-order bar is shown to fail on a table with 10 and 16 kn exchanged.
+6. **Informational:** the path draws under every lever that leaves the white streak drawing (the mark sub-levers, a light look,
+   `__RAW_WIND_DARK_RULES__ = 'beach'`), as #313's precedent has it.
+
+After the fixes: the four wind table files 170 passed; both trees, the ratchets and the checker re-run before the push (read from the
+PR's own checks, and below if they differ).
