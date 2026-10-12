@@ -22,7 +22,7 @@ Those words close the owner's half of ledger commitment 1056 (the verdict on #31
 **Checked live before acting on STATE:** `git fetch` (dev at `0173f365`); `gh pr view 313` (MERGED 23:14:33Z); the dev site's
 `service-worker.js` `BUILD_VERSION = 0173f365` (23:26Z); `/api/health` 200 in 0.4 to 0.7 s at backend uptime 13 m 47 s (23:31Z).
 The merge had restarted the backend at about 23:17Z, so the one live map load waited until the health answer had stayed fast
-(this session's own rule from the #312 read-back). Health during and after: 1.0 s (23:44Z), 0.38 to 0.88 s (23:58Z). One map
+(this session's own rule from the #312 read-back). Health during: 1.0 s (one probe, time not stamped); after: 0.38 to 0.88 s (23:58:45Z). One map
 load, in the owner's own Chrome (their choice at the #312 read-back); themes and zooms were changed inside that one page. No
 request of this session's benches reached the Raw Surf backend.
 
@@ -46,7 +46,7 @@ Tools the owner asked for: the Chrome connector (the deployed app on the owner's
 palette checker with its colour-blind models (coloraide), Playwright's video encoder for the clips. The Leonardo colour connector
 and the algorithmic-art skill were looked at and not needed: every colour number here is CIELAB from the pixels or the tables.
 
-## 23:36-23:50Z · The owner's screen, measured (deployed `0173f365`, live wind, max 54.2 kn)
+## 23:33-23:42Z · The owner's screen, measured (deployed `0173f365`, live wind, max 54.2 kn)
 
 Chrome, device pixel ratio 1.5, map canvas 1620 x 742 device px, centred on Merritt Island FL. `_lookKey` `white|dark-rules`,
 land mask `ready` (75 ms), basemap mute 9 layers in light (this is also the live read-back of #313: it draws). Two 400 px crops a
@@ -67,7 +67,7 @@ live in the owner's tab, zoom 6: light's lift 6.8 / 16.9 and beach's 3.5 / 16.4 
 ground's colour (C* 11 to 33). I told the owner the white was "laid twice as strong as dark's" and that one number would ship.
 **That was said before land and sea had been read apart, and it was wrong as a fix:** see the next section but one.
 
-## 23:50-00:10Z · Light's colours, read knot by knot; a prototype in the owner's tab; why it is NOT in this change
+## 23:45-00:10Z · Light's colours, read knot by knot; a prototype in the owner's tab; why it is NOT in this change
 
 `mirror-model.mjs`, the field on screen over each theme's land:
 
@@ -147,8 +147,8 @@ The centre crop (land and sea together): light 0.84 of dark's at zooms 6 and 4 (
 - **Palette checker, `check.mjs --strict`:** exit 1 with the same two red lines as on dev (beach's colour-blind lines, 3.1 over
   water and 3.2 over land); nothing new red. Against `--full-white` only the marks' watch lines over WATER move (the core against
   its tint: 18.2 to 10.2 L* in light, 16.0 to 12.3 in beach).
-- **Gates:** Jest, both trees: 306 suites, 4,059 tests, 0 failed. `check_eslint.js`: no rule over its baseline. `loc_ratchet.py`:
-  no new violation. The production build and the 3-seed scanner: see "After the first commit" below.
+- **Gates:** Jest, both trees: 306 suites, 4,060 tests, 0 failed (4,059 at the run the ledger's flag_flip line quotes; one test, the bench's name for the kill, was added before the commit). `check_eslint.js`: no rule over
+  its baseline. `loc_ratchet.py`: no new violation. The production build and the 3-seed scanner: see "After the first commit" below.
 
 ## What is not verified, and what it costs
 
@@ -167,3 +167,26 @@ The centre crop (land and sea together): light 0.84 of dark's at zooms 6 and 4 (
   through a shell heredoc lost their backslashes (a regular expression in `motion-run.js` was written with a real line break in
   it and failed to parse; caught by `node -c`, fixed from a file). The known hazard; the files that matter were written with the
   editor.
+
+## After the first commit (`f2ac199c`): the scanner, the build, the owner's reply
+
+- **The 3-seed scanner** (`run.js --seeds 3 --themes light,beach --variants candidate,full-white`, 162 runs): positive control PASS on
+  all three seeds. The default and the kill read the SAME on every number in all 26 views (8 recurring shapes in 6 of 26 views, 4
+  flickering, ink 98 to 162 in both). **That null is by construction, not a finding:** the scanner's page serves no land file (its
+  three 404s are the mask's three tries), so every mark is laid as over land in both arms. It shows the fallback is #313's picture;
+  it says nothing about the sea. The count is the one #313's log reads for its default.
+- **Production build:** `node update-sw-version.js && NODE_OPTIONS=--openssl-legacy-provider CI=false npx craco build` through Git
+  Bash, exit 0; the two stamped files restored.
+- **The owner, 2026-10-12 01:02Z, after the two side-by-side clips (dark | before | now, zooms 6 and 4, light and beach):** "The
+  animations do look better. The map below, I think the labels and borders need to be more visible. In dark mode they are white
+  boarders and labels. So in beach and light mode, there maybe needs to be black borders and labels? This would be for the maps
+  land mass below. What do you think?" Read on the deployed light style in the owner's tab: the state and country lines
+  (`admin-1-boundary`, `admin-0-boundary`) are pale lavender (`hsl(250, 90%, 80-85%)`), which is why they vanish under a lilac
+  field with white streaks; the place labels are already near-black (`hsl(230, 20%, 5%)`) with white halos. Set to dark ink live
+  (`hsl(230, 25%, 14%)`, opacity 0.7 to 0.9) they read at zoom 5, thin. This session's answer: yes, for the reason dark works (its
+  borders and labels are the lightest thing on the map and streaks only add light), with one caution (a full-strength streak over
+  land is opaque at its core, so the layer order may matter as much as the colour). **Not built here:** proposed to the owner as
+  its own change (beach's style was not read; the natural home is `windBasemapMute.js`).
+- **Left in the owner's Chrome:** one tab of this session, open on the dev site, showing two PROTOTYPES and not this build: light's
+  field on dark's hue path with a global 0.505 white (`mirror(false)` / `mirror(true)` in its console) and the borders in dark ink
+  (`borderInk(false)` / `borderInk(true)`). Nothing in it persists past a reload.
