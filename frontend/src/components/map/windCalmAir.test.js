@@ -21,16 +21,16 @@ import { DARK_RULES_HOLDS } from './WindColorRamp';
 
 const ENGINE = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
 const KILL = '__RAW_DISABLE_WIND_CALM_AIR__', LEVER = '__RAW_WIND_CALM_LEVEL__';
-const OWN = [0.26, 0.29, 2.5, 5.5];   // the dims (1 - 0.74 over land, 1 - 0.71 over sea) and the window of speeds, to zoom 6
+const OWN = [0.2, 0.22, 2.5, 5.5];   // the dims (1 - 0.80 over land, 1 - 0.78 over sea) and the window of speeds, to zoom 6
 /** The window a default sync leaves for `theme`: the land drawn a step above the sea (windBasemapMute.js read-back). */
 const synced = (theme, more = {}) => ({ __WIND_BASEMAP_MUTE__: { applied: true, theme, landL: theme === 'beach' ? 0.94 : 0.9, landStep: true }, ...more });
 const near = (got, want) => { expect(got).toHaveLength(want.length); want.forEach((v, i) => expect(got[i]).toBeCloseTo(v, 12)); };
 
 describe('the numbers, the switch and the kill', () => {
   it('one kill, one lever, one calm level a ground (the same in light and in beach), one window of speeds, one easing by zoom', () => {
-    expect(WIND_CALM_AIR).toEqual({ kill: KILL, lever: LEVER, themes: ['light', 'beach'], level: { land: 0.74, sea: 0.71 }, from: 2.5, full: 5.5, zoom: { from: 6, to: 10, keep: 0.6 } });
+    expect(WIND_CALM_AIR).toEqual({ kill: KILL, lever: LEVER, themes: ['light', 'beach'], level: { land: 0.8, sea: 0.78 }, from: 2.5, full: 5.5, zoom: { from: 6, to: 8, keep: 0.5 } });
     for (const o of [WIND_CALM_AIR, WIND_CALM_AIR.themes, WIND_CALM_AIR.level, WIND_CALM_AIR.zoom]) expect(Object.isFrozen(o)).toBe(true);
-    for (const g of ['land', 'sea']) { expect(WIND_CALM_AIR.level[g]).toBeGreaterThan(0.7); expect(WIND_CALM_AIR.level[g]).toBeLessThan(1); }   // dimmed, never erased: under about 0.67 the sea's marks go out (the log)
+    for (const g of ['land', 'sea']) { expect(WIND_CALM_AIR.level[g]).toBeGreaterThanOrEqual(0.75); expect(WIND_CALM_AIR.level[g]).toBeLessThan(1); }   // dimmed, never erased: under about 0.67 the sea's marks go out, and under 0.75 they read fainter than dark's (the log)
     expect(WIND_CALM_AIR.level.sea).toBeLessThan(WIND_CALM_AIR.level.land);                // the sea's ground is the deeper: a white mark shows more on it
   });
   it('ON by default in light and beach on the map as a sync leaves it; the uniform is [dim over land, dim over sea, from, full]', () => {
@@ -59,17 +59,18 @@ describe('the numbers, the switch and the kill', () => {
 });
 
 describe('THE LEVEL EASES AT CLOSE ZOOM: it is never set where the marks would go out (the standing rule: no change takes the animation away)', () => {
-  it('the dim is whole to zoom 6, eases by a tenth a zoom, and holds 0.6 of itself from zoom 10 in', () => {
-    for (const [z, k] of [[2, 1], [4, 1], [6, 1], [7, 0.9], [8, 0.8], [9, 0.7], [10, 0.6], [12, 0.6], [22, 0.6]]) expect(calmZoomShare(z)).toBeCloseTo(k, 12);
+  it('the dim is whole to zoom 6, eases to half of itself by zoom 8, and holds that from there in', () => {
+    for (const [z, k] of [[2, 1], [4, 1], [6, 1], [6.5, 0.875], [7, 0.75], [8, 0.5], [9, 0.5], [10, 0.5], [22, 0.5]]) expect(calmZoomShare(z)).toBeCloseTo(k, 12);
     for (const none of [undefined, null, NaN, '8', Infinity]) expect(calmZoomShare(none)).toBe(1);   // no zoom given: the far-zoom level
   });
-  it('so the level laid is 0.74 / 0.79 / 0.84 over land and 0.71 / 0.77 / 0.83 over sea at zooms 6 / 8 / 10, in both themes', () => {
+  it('so the level laid is 0.80 / 0.85 / 0.90 over land and 0.78 / 0.835 / 0.89 over sea at zooms 6 / 7 / 8 and closer, in both themes', () => {
     for (const theme of ['light', 'beach']) {
-      near(windCalmAir(theme, synced(theme), 8), [0.208, 0.232, 2.5, 5.5]);
-      near(windCalmAir(theme, synced(theme), 10), [0.156, 0.174, 2.5, 5.5]);
+      near(windCalmAir(theme, synced(theme), 7), [0.15, 0.165, 2.5, 5.5]);
+      near(windCalmAir(theme, synced(theme), 8), [0.1, 0.11, 2.5, 5.5]);
+      near(windCalmAir(theme, synced(theme), 10), [0.1, 0.11, 2.5, 5.5]);
       near(windCalmAir(theme, synced(theme), 3), OWN);
       let last = 1;
-      for (let z = 2; z <= 14; z += 0.25) { const u = windCalmAir(theme, synced(theme), z); expect(u[0]).toBeLessThanOrEqual(last); expect(u[0]).toBeGreaterThan(0.15); last = u[0]; }   // it only eases, and never to nothing
+      for (let z = 2; z <= 14; z += 0.25) { const u = windCalmAir(theme, synced(theme), z); expect(u[0]).toBeLessThanOrEqual(last); expect(u[0]).toBeGreaterThanOrEqual(0.1 - 1e-12); last = u[0]; }   // it only eases, and never to nothing
     }
   });
   it('the speeds\' window does not move with the zoom, and where it does not draw the zoom changes nothing', () => {
@@ -154,7 +155,7 @@ describe('THE SHADER\'S OWN STATEMENT, cut out of DRAW_FS and run', () => {
       expect(run(u, 1, 4)).toBeCloseTo(land + (1 - land) * 0.5, 12);                     // the smoothstep's midpoint is the middle of the window
       expect(run(u, 0.5, 1)).toBeCloseTo((land + sea) / 2, 12);                          // a coast texel half land: halfway between the two
     }
-    expect(run(windCalmAir('beach', synced('beach'), 6), 1, 1)).toBeCloseTo(0.74, 12); expect(run(windCalmAir('beach', synced('beach'), 6), 0, 1)).toBeCloseTo(0.71, 12);
+    expect(run(windCalmAir('beach', synced('beach'), 6), 1, 1)).toBeCloseTo(0.8, 12); expect(run(windCalmAir('beach', synced('beach'), 6), 0, 1)).toBeCloseTo(0.78, 12);
   });
   it('calmAirFactor is that statement in plain JS (the bench and the checker read it)', () => {
     const us = [windCalmAir('light', synced('light'), 6), windCalmAir('beach', synced('beach'), 9), [0.2, 0.4, 1, 4], [0, 0.8, 0, 15], [0, 0, 0, 1]];
@@ -175,7 +176,7 @@ describe('the engine sets it every frame, on the draw program, beside the land m
     bindCalmAir(gl, 'draw', 'beach', 6, synced('beach'));
     expect(gl.sent[0][0]).toBe('draw:u_calm_air'); near(gl.sent[0].slice(1), OWN);
     bindCalmAir(gl, 'draw', 'beach', 8, synced('beach'));
-    near(gl.sent[1].slice(1), [0.208, 0.232, 2.5, 5.5]);
+    near(gl.sent[1].slice(1), [0.1, 0.11, 2.5, 5.5]);
     bindCalmAir(gl, 'draw', 'dark', 6, synced('dark'));
     expect(gl.sent[2]).toEqual(['draw:u_calm_air', 0, 0, 0, 1]);
     bindCalmAir(gl, 'draw', 'beach', 6, synced('beach', { [KILL]: true }));
@@ -186,7 +187,7 @@ describe('the engine sets it every frame, on the draw program, beside the land m
   it('the read-back says the levels as laid to zoom 6, when they change: not per frame, and not per step of a zoom gesture', () => {
     const gl = fakeGl(), w = synced('light');
     bindCalmAir(gl, 'draw', 'light', 6, w);
-    expect(w.__WIND_CALM_AIR__).toMatchObject({ on: true, theme: 'light', land: 0.74, sea: 0.71, from: 2.5, full: 5.5 });
+    expect(w.__WIND_CALM_AIR__).toMatchObject({ on: true, theme: 'light', land: 0.8, sea: 0.78, from: 2.5, full: 5.5 });
     const first = w.__WIND_CALM_AIR__;
     for (const z of [6, 6.2, 7, 8.5, 10, 12, 6]) bindCalmAir(gl, 'draw', 'light', z, w);
     expect(w.__WIND_CALM_AIR__).toBe(first);                                             // the same object: nothing was written on those frames
